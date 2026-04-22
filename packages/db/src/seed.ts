@@ -21,6 +21,21 @@ async function main() {
     },
   })
 
+  // Create second demo user
+  const user2 = await prisma.user.upsert({
+    where: { email: 'test@wizards.app' },
+    update: {},
+    create: {
+      email: 'test@wizards.app',
+      username: 'testuser',
+      displayName: 'Test User',
+      passwordHash,
+      emailVerified: true,
+      settings: { create: {} },
+      notificationSettings: { create: {} },
+    },
+  })
+
   // Create demo server
   const server = await prisma.server.upsert({
     where: { inviteCode: 'WIZARDS1' },
@@ -53,6 +68,16 @@ async function main() {
     update: {},
     create: {
       userId: user.id,
+      serverId: server.id,
+    },
+  })
+
+  // Add second user as member
+  await prisma.serverMember.upsert({
+    where: { userId_serverId: { userId: user2.id, serverId: server.id } },
+    update: {},
+    create: {
+      userId: user2.id,
       serverId: server.id,
     },
   })
@@ -90,8 +115,8 @@ async function main() {
   })
 
   console.log('✅ Seed complete')
-  console.log('📧 Demo user: demo@wizards.app')
-  console.log('🔑 Password: password123')
+  console.log('📧 Demo user: demo@wizards.app / password123')
+  console.log('📧 Test user: test@wizards.app / password123')
 }
 
 main()

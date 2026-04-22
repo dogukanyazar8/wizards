@@ -13,3 +13,4 @@ export const HealthCheckSchema = z.object({
 export type HealthCheckInput = z.infer<typeof HealthCheckSchema>;
 
 export * from "./auth";
+export * from "./workspace";

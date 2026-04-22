@@ -1,5 +1,5 @@
-import { auth } from "@/auth";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 const REDIRECT_IF_AUTHENTICATED = new Set(["/login", "/register"]);
 
@@ -12,9 +12,20 @@ function isProtectedRoute(pathname: string): boolean {
   );
 }
 
-export default auth((request) => {
+export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const isAuthenticated = Boolean(request.auth);
+  const secret = process.env.NEXTAUTH_SECRET;
+  const token = await getToken(
+    secret
+      ? {
+          req: request,
+          secret,
+        }
+      : {
+          req: request,
+        },
+  );
+  const isAuthenticated = Boolean(token);
 
   if (!isAuthenticated && isProtectedRoute(pathname)) {
     return NextResponse.redirect(new URL("/login", request.nextUrl.origin));
@@ -25,7 +36,7 @@ export default auth((request) => {
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: [

@@ -2,7 +2,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma, type User as PrismaUser } from "@wizards/db";
 import { LoginSchema } from "@wizards/types";
 import bcrypt from "bcryptjs";
-import NextAuth from "next-auth";
+import NextAuth, { type NextAuthConfig, type NextAuthResult } from "next-auth";
 import type { Adapter, AdapterUser } from "next-auth/adapters";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
@@ -193,7 +193,7 @@ const adapter: Adapter = {
   },
 };
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+const authConfig = {
   adapter,
   session: {
     strategy: "jwt",
@@ -310,17 +310,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
+        const userId = stringOrEmpty(user.id);
+        if (userId) {
+          token.id = userId;
+        }
+
         token.username =
           "username" in user && typeof user.username === "string" ? user.username : null;
+
         token.displayName =
           "displayName" in user && typeof user.displayName === "string"
             ? user.displayName
-            : user.name;
+            : stringOrNull(user.name);
+
         token.avatarUrl =
           "avatarUrl" in user && typeof user.avatarUrl === "string"
             ? user.avatarUrl
-            : user.image;
+            : stringOrNull(user.image);
       }
 
       if (token.sub && (!token.username || !token.displayName || !token.avatarUrl)) {
@@ -340,7 +346,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       }
 
-      token.id = token.id ?? token.sub ?? "";
+      token.id = stringOrEmpty(token.id) || stringOrEmpty(token.sub);
 
       return token;
     },
@@ -355,4 +361,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
   },
-});
+} satisfies NextAuthConfig;
+
+const nextAuthResult: NextAuthResult = NextAuth(authConfig);
+
+export const handlers: NextAuthResult["handlers"] = nextAuthResult.handlers;
+export const signIn: NextAuthResult["signIn"] = nextAuthResult.signIn;
+export const signOut: NextAuthResult["signOut"] = nextAuthResult.signOut;
+export const auth: NextAuthResult["auth"] = nextAuthResult.auth;
