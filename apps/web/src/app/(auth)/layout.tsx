@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
-import { useTheme } from "next-themes";
-import { WIZARDS_THEMES } from "@/lib/appearance";
-import { cn } from "@/lib/utils";
+import { ThemePicker } from "@/components/auth/theme-picker";
 
 const THEME_BACKGROUNDS: Record<string, { bg: string; gradient: string }> = {
   "theme-graphite": {
@@ -33,40 +31,6 @@ const THEME_CARDS: Record<string, { bg: string; border: string }> = {
   "theme-studio": { bg: "rgba(63,46,115,0.90)", border: "rgba(90,69,151,0.80)" },
   "theme-mist": { bg: "rgba(248,244,239,0.95)", border: "rgba(229,225,217,0.80)" },
 };
-
-function ThemePicker() {
-  const { theme, setTheme } = useTheme();
-  const isDark = theme && !["theme-dawn", "theme-mist"].includes(theme);
-
-  return (
-    <div className="absolute top-4 right-4 flex items-center gap-2">
-      <span className={cn("text-xs font-medium", isDark ? "text-white/40" : "text-black/40")}>
-        Theme
-      </span>
-      <div className="flex gap-1">
-        {WIZARDS_THEMES.map((t) => (
-          <button
-            key={t.id}
-            className={cn(
-              "h-6 w-6 rounded-full border-2 transition",
-              theme === t.id
-                ? isDark
-                  ? "border-white/80"
-                  : "border-black/50"
-                : "border-transparent hover:border-white/40",
-            )}
-            style={{
-              background: `linear-gradient(135deg, ${t.preview[0]}, ${t.preview[1]}, ${t.preview[2]})`,
-              borderColor: theme === t.id && isDark ? "rgba(255,255,255,0.8)" : theme === t.id && !isDark ? "rgba(0,0,0,0.5)" : undefined,
-            }}
-            onClick={() => setTheme(t.id)}
-            type="button"
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   const currentTheme =
