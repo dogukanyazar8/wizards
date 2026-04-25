@@ -13,7 +13,13 @@
       "Bash(pkill -f dev)",
       "Bash(lsof -ti:3000)",
       "Bash(xargs kill *)",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(pnpm add *)",
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm *)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(Stop-Process *)",
+      "Bash(git add *)"
     ]
   }
 }
