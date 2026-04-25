@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import type { WorkspaceChannel } from "@wizards/types";
 import { useParams, useRouter } from "next/navigation";
 import { useShallow } from "zustand/react/shallow";
@@ -12,6 +12,7 @@ import { ChannelSidebar } from "@/components/shell/channel-sidebar";
 import { MainChannelPanel } from "@/components/shell/main-channel-panel";
 import { MobileDrawerTrigger, ServerRail } from "@/components/shell/server-rail";
 import { ServerSettingsOverlay } from "@/components/shell/server-settings-overlay";
+import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 import { WorkspaceModals } from "@/components/shell/workspace-modals";
 import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
 import { useAppStore } from "@/lib/store";
@@ -57,7 +58,7 @@ function findActiveCategoryName(channel: WorkspaceChannel | null, detail?: Await
   return detail.categories.find((category) => category.id === channel.categoryId)?.name ?? null;
 }
 
-export function WizardsShell({ currentUser, uploadthingEnabled }: WizardsShellProps) {
+export function WizardsShell({ children, currentUser, uploadthingEnabled }: WizardsShellProps) {
   const params = useParams<{
     channelId?: string;
     serverId?: string;
@@ -66,6 +67,7 @@ export function WizardsShell({ currentUser, uploadthingEnabled }: WizardsShellPr
   const queryClient = useQueryClient();
   const {
     closeServerContextMenu,
+    channelSidebarWidth,
     mobileSidebarOpen,
     openDeleteServerDialog,
     openInviteModal,
@@ -81,6 +83,7 @@ export function WizardsShell({ currentUser, uploadthingEnabled }: WizardsShellPr
   } = useAppStore(
     useShallow((state) => ({
       closeServerContextMenu: state.closeServerContextMenu,
+      channelSidebarWidth: state.channelSidebarWidth,
       mobileSidebarOpen: state.mobileSidebarOpen,
       openDeleteServerDialog: state.openDeleteServerDialog,
       openAppearanceModal: state.openAppearanceModal,
@@ -103,15 +106,26 @@ export function WizardsShell({ currentUser, uploadthingEnabled }: WizardsShellPr
     setActiveRoute(activeServerId, activeChannelId);
   }, [activeChannelId, activeServerId, setActiveRoute]);
 
+  const cachedServerDetail = activeServerId
+    ? queryClient.getQueryData<Awaited<ReturnType<typeof fetchWorkspaceServer>>>(
+        workspaceQueryKeys.server(activeServerId),
+      )
+    : undefined;
+
   const serversQuery = useQuery({
     queryFn: fetchWorkspaceServers,
     queryKey: workspaceQueryKeys.servers,
+    refetchOnWindowFocus: false,
+    staleTime: 60_000,
   });
 
   const serverDetailQuery = useQuery({
     enabled: Boolean(activeServerId),
     queryFn: () => fetchWorkspaceServer(activeServerId!),
     queryKey: activeServerId ? workspaceQueryKeys.server(activeServerId) : ["workspace", "server", "idle"],
+    refetchOnWindowFocus: false,
+    staleTime: 30_000,
+    ...(cachedServerDetail ? { placeholderData: cachedServerDetail } : {}),
   });
 
   const leaveMutation = useMutation({
@@ -123,15 +137,10 @@ export function WizardsShell({ currentUser, uploadthingEnabled }: WizardsShellPr
       });
 
       if (serverId === activeServerId) {
-        router.push("/channels/@me");
+        router.push("/channels");
       }
     },
   });
-
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const servers = serversQuery.data ?? [];
   const activeChannel = findActiveChannel(activeServerId, activeChannelId, serverDetailQuery.data);
@@ -139,6 +148,7 @@ export function WizardsShell({ currentUser, uploadthingEnabled }: WizardsShellPr
   const contextServer =
     servers.find((server) => server.id === serverContextMenu.serverId) ?? null;
   const shellStyle = {
+    "--channel-sidebar-width": `${channelSidebarWidth}px`,
     "--server-rail-width": `${serverRailWidth}px`,
   } as CSSProperties;
 
@@ -157,6 +167,10 @@ export function WizardsShell({ currentUser, uploadthingEnabled }: WizardsShellPr
     router.push(href);
   };
 
+  const prefetch = (href: string) => {
+    router.prefetch(href);
+  };
+
   const renderNavigation = (isMobile = false) => (
     <>
       <div className={isMobile ? "flex h-full w-[72px] shrink-0" : "hidden md:flex"}>
@@ -172,10 +186,14 @@ export function WizardsShell({ currentUser, uploadthingEnabled }: WizardsShellPr
               y: event.clientY,
             });
           }}
+          onPrefetch={prefetch}
           servers={servers}
         />
       </div>
-      <div className={isMobile ? "flex min-w-0 flex-1" : "hidden md:flex md:min-w-[240px] md:flex-1"}>
+      <div
+        className={isMobile ? "flex min-w-0 flex-1" : "hidden md:flex"}
+        style={isMobile ? undefined : { width: `var(--channel-sidebar-width)` }}
+      >
         <ChannelSidebar
           activeChannelId={activeChannelId}
           currentUser={currentUser}
@@ -183,6 +201,7 @@ export function WizardsShell({ currentUser, uploadthingEnabled }: WizardsShellPr
           loading={Boolean(activeServerId) && serverDetailQuery.isLoading}
           onNavigate={navigate}
           onOpenAppearanceSettings={openAppearanceModal}
+          onPrefetch={prefetch}
         />
       </div>
     </>
@@ -190,14 +209,12 @@ export function WizardsShell({ currentUser, uploadthingEnabled }: WizardsShellPr
 
   return (
     <div className="app-shell flex h-screen overflow-hidden" style={shellStyle} suppressHydrationWarning>
-      {mounted && (
-        <div
-          className="hidden h-full shrink-0 md:flex"
-          style={{ width: `calc(${serverRailWidth}px + 240px)` }}
-        >
-          {renderNavigation()}
-        </div>
-      )}
+      <div
+        className="hidden h-full shrink-0 md:flex"
+        style={{ width: `calc(${serverRailWidth}px + ${channelSidebarWidth}px)` }}
+      >
+        {renderNavigation()}
+      </div>
 
       <AnimatePresence>
         {mobileSidebarOpen ? (
@@ -213,7 +230,7 @@ export function WizardsShell({ currentUser, uploadthingEnabled }: WizardsShellPr
               className="app-shell absolute inset-y-0 left-0 flex shadow-2xl shadow-black/20"
               exit={{ x: -24 }}
               initial={{ x: -24 }}
-              style={{ width: `calc(${serverRailWidth}px + 240px)` }}
+              style={{ width: `calc(${serverRailWidth}px + ${channelSidebarWidth}px)` }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
               suppressHydrationWarning
             >
@@ -228,7 +245,10 @@ export function WizardsShell({ currentUser, uploadthingEnabled }: WizardsShellPr
         channel={activeChannel}
         fallbackTitle={activeServerId ? "Choose a channel" : "Your Direct Messages"}
         leading={<MobileDrawerTrigger onClick={() => setMobileSidebarOpen(true)} />}
-      />
+        trailing={<ThemeSwitcher onOpenAppearanceSettings={openAppearanceModal} />}
+      >
+        {children}
+      </MainChannelPanel>
 
       <ContextMenu
         onClose={closeServerContextMenu}

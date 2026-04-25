@@ -291,7 +291,7 @@ export function applyChannelReorder(
 
 export function getServerHref(server: WorkspaceServerSummary) {
   if (!server.defaultChannelId) {
-    return "/channels/@me";
+    return "/channels";
   }
 
   return `/channels/${server.id}/${server.defaultChannelId}`;

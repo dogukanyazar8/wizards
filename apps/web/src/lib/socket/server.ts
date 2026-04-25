@@ -1,4 +1,3 @@
-import { IncomingMessage } from "http";
 import type { Server as HTTPServer } from "http";
 import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
@@ -8,7 +7,6 @@ import {
   createMessage,
   deleteMessage,
   editMessage,
-  getChannelMessages,
   toggleReaction,
 } from "@/lib/workspace/message-service";
 import { getRedis, getRedisSub } from "@/lib/redis";
@@ -35,9 +33,22 @@ export function initSocketServer(httpServer: HTTPServer) {
         return next(new Error("Missing AUTH_SECRET"));
       }
 
+      const cookieName =
+        process.env.NODE_ENV === "production"
+          ? "__Secure-authjs.session-token"
+          : "authjs.session-token";
+
       const token = await getToken({
-        req: socket.request as unknown as Request,
+        req: {
+          headers: {
+            cookie:
+              typeof socket.request.headers.cookie === "string"
+                ? socket.request.headers.cookie
+                : "",
+          },
+        },
         secret,
+        cookieName,
       });
 
       if (!token?.id || typeof token.id !== "string") {
@@ -102,18 +113,21 @@ export function initSocketServer(httpServer: HTTPServer) {
     socket.on("message:send", async (data) => {
       try {
         // Rate limit: 30 messages per minute per user
-        const key = `rate:msg:${userId}`;
-        const count = await redis.incr(key);
-        if (count === 1) {
-          await redis.expire(key, 60);
-        }
-
-        if (count > 30) {
-          socket.emit("error", {
-            code: "RATE_LIMIT",
-            message: "Too many messages. Maximum 30 per minute.",
-          });
-          return;
+        try {
+          const key = `rate:msg:${userId}`;
+          const count = await redis.incr(key);
+          if (count === 1) {
+            await redis.expire(key, 60);
+          }
+          if (count > 30) {
+            socket.emit("error", {
+              code: "RATE_LIMIT",
+              message: "Too many messages. Maximum 30 per minute.",
+            });
+            return;
+          }
+        } catch {
+          // Redis unavailable - skip rate limiting, allow message
         }
 
         // Verify channel exists and user is member

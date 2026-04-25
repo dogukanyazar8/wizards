@@ -10,6 +10,7 @@ type ChannelItemProps = {
   name: string;
   onDelete: () => void;
   onEdit: () => void;
+  onPrefetch?: () => void;
   onSelect: () => void;
   type: "TEXT" | "VOICE";
 };
@@ -20,6 +21,7 @@ export function ChannelItem({
   name,
   onDelete,
   onEdit,
+  onPrefetch,
   onSelect,
   type,
 }: ChannelItemProps) {
@@ -40,11 +42,13 @@ export function ChannelItem({
           aria-label={`Open ${type === "VOICE" ? "voice" : "text"} channel ${name}`}
           className="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60"
           onClick={onSelect}
+          onFocus={onPrefetch}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               onSelect();
             }
           }}
+          onMouseEnter={onPrefetch}
           type="button"
         >
           <Icon className="h-4 w-4 shrink-0" />

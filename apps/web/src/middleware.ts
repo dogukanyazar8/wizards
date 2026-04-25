@@ -35,7 +35,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isAuthenticated && REDIRECT_IF_AUTHENTICATED.has(pathname)) {
-    return NextResponse.redirect(new URL("/channels/@me", request.nextUrl.origin));
+    return NextResponse.redirect(new URL("/channels", request.nextUrl.origin));
   }
 
   return NextResponse.next();

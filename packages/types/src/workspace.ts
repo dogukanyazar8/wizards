@@ -14,6 +14,7 @@ const optionalTrimmedString = (maxLength: number) =>
     .string()
     .max(maxLength)
     .optional()
+    .or(z.null())
     .transform((value) => emptyStringToNull(value));
 
 export const WorkspaceAccessLevelSchema = z.enum(["OWNER", "ADMIN", "MEMBER"]);
@@ -100,6 +101,7 @@ export const CreateServerSchema = z.object({
     .url()
     .optional()
     .or(z.literal(""))
+    .or(z.null())
     .transform((value) => emptyStringToNull(value)),
   name: z.string().trim().min(2).max(64),
 });

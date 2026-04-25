@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import {
   ChannelType,
+  MessageType,
   prisma,
   type Prisma,
 } from "@wizards/db";
@@ -1105,6 +1106,16 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
     throw new ApiError("Invite has reached its usage limit", 400);
   }
 
+  const joiningUser = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+    select: {
+      displayName: true,
+      username: true,
+    },
+  });
+
   const existingMember = await prisma.serverMember.findUnique({
     where: {
       userId_serverId: {
@@ -1119,6 +1130,25 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
 
   if (!existingMember) {
     await prisma.$transaction(async (tx) => {
+      const targetChannelId =
+        invite.channelId ??
+        (
+          await tx.channel.findFirst({
+            orderBy: {
+              position: "asc",
+            },
+            select: {
+              id: true,
+            },
+            where: {
+              parentId: null,
+              serverId: invite.server.id,
+              type: ChannelType.TEXT,
+            },
+          })
+        )?.id ??
+        null;
+
       const member = await tx.serverMember.create({
         data: {
           serverId: invite.server.id,
@@ -1136,6 +1166,17 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
           data: {
             memberId: member.id,
             roleId: defaultRole.id,
+          },
+        });
+      }
+
+      if (targetChannelId) {
+        await tx.message.create({
+          data: {
+            channelId: targetChannelId,
+            content: `${joiningUser?.displayName ?? joiningUser?.username ?? "A new wizard"} joined the server.`,
+            type: MessageType.SYSTEM_JOIN,
+            userId,
           },
         });
       }

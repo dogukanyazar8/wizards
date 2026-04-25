@@ -7,14 +7,17 @@ type RouteContext = {
   params: Promise<{ channelId: string }>;
 };
 
-export async function GET(_: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   try {
     const userId = await requireApiUserId();
     const { channelId } = await context.params;
-    const { searchParams } = new URL(_ as any);
+    const { searchParams } = new URL(request.url);
 
     const cursor = searchParams.get("before") || undefined;
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
+    const requestedLimit = Number.parseInt(searchParams.get("limit") || "50", 10);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(requestedLimit, 1), 100)
+      : 50;
 
     // Verify channel exists and user is member of its server
     const channel = await prisma.channel.findUnique({

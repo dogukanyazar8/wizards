@@ -18,14 +18,9 @@ export default async function InvitePage({ params }: InvitePageProps) {
     redirect(`/login?callbackUrl=${encodeURIComponent(`/invite/${code}`)}`);
   }
 
+  let result;
   try {
-    const result = await joinWorkspaceServerByInvite(session.user.id, code);
-
-    if (result.channelId) {
-      redirect(`/channels/${result.serverId}/${result.channelId}`);
-    }
-
-    redirect(`/channels/${result.serverId}`);
+    result = await joinWorkspaceServerByInvite(session.user.id, code);
   } catch (error) {
     const message =
       error instanceof ApiError ? error.message : "Something went wrong while joining this invite.";
@@ -38,7 +33,7 @@ export default async function InvitePage({ params }: InvitePageProps) {
           <p className="mt-3 text-sm leading-7 text-zinc-400">{message}</p>
           <Link
             className="mt-6 inline-flex rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-100 transition hover:bg-white/10"
-            href="/channels/@me"
+            href="/channels"
           >
             Back to Wizards
           </Link>
@@ -46,4 +41,10 @@ export default async function InvitePage({ params }: InvitePageProps) {
       </main>
     );
   }
+
+  if (result.channelId) {
+    redirect(`/channels/${result.serverId}/${result.channelId}`);
+  }
+
+  redirect(`/channels/${result.serverId}`);
 }

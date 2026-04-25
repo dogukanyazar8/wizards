@@ -72,7 +72,7 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
     await signIn("credentials", {
       email,
       password: validation.data.password,
-      redirectTo: "/channels/@me",
+      redirectTo: "/channels",
     });
 
     return { success: true };
@@ -112,7 +112,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     await signIn("credentials", {
       email: validation.data.email.toLowerCase(),
       password: validation.data.password,
-      redirectTo: "/channels/@me",
+      redirectTo: "/channels",
     });
 
     return { success: true };
@@ -135,19 +135,14 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
   }
 }
 
-export async function logoutAction(): Promise<AuthActionResult> {
+export async function logoutAction() {
   try {
     await signOut({
       redirectTo: "/login",
     });
-
-    return { success: true };
   } catch (error) {
     if (error instanceof AuthError) {
-      return {
-        success: false,
-        error: "Unable to log out right now",
-      };
+      throw new Error("Unable to log out right now");
     }
 
     throw error;

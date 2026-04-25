@@ -49,8 +49,13 @@ export const DEFAULT_SERVER_RAIL_WIDTH = 88;
 export const MIN_SERVER_RAIL_WIDTH = 80;
 export const MAX_SERVER_RAIL_WIDTH = 124;
 export const SERVER_RAIL_WIDTH_STEP = 4;
+export const DEFAULT_CHANNEL_SIDEBAR_WIDTH = 288;
+export const MIN_CHANNEL_SIDEBAR_WIDTH = 248;
+export const MAX_CHANNEL_SIDEBAR_WIDTH = 384;
+export const CHANNEL_SIDEBAR_WIDTH_STEP = 8;
 
 const SERVER_RAIL_WIDTH_STORAGE_KEY = "wizards.serverRailWidth";
+const CHANNEL_SIDEBAR_WIDTH_STORAGE_KEY = "wizards.channelSidebarWidth";
 
 export function clampServerRailWidth(value: number) {
   return Math.min(MAX_SERVER_RAIL_WIDTH, Math.max(MIN_SERVER_RAIL_WIDTH, value));
@@ -79,5 +84,38 @@ export function writeStoredServerRailWidth(value: number) {
   window.localStorage.setItem(
     SERVER_RAIL_WIDTH_STORAGE_KEY,
     String(clampServerRailWidth(value)),
+  );
+}
+
+export function clampChannelSidebarWidth(value: number) {
+  return Math.min(
+    MAX_CHANNEL_SIDEBAR_WIDTH,
+    Math.max(MIN_CHANNEL_SIDEBAR_WIDTH, value),
+  );
+}
+
+export function readStoredChannelSidebarWidth() {
+  if (typeof window === "undefined") {
+    return DEFAULT_CHANNEL_SIDEBAR_WIDTH;
+  }
+
+  const rawValue = window.localStorage.getItem(CHANNEL_SIDEBAR_WIDTH_STORAGE_KEY);
+  const parsedValue = Number(rawValue);
+
+  if (!Number.isFinite(parsedValue)) {
+    return DEFAULT_CHANNEL_SIDEBAR_WIDTH;
+  }
+
+  return clampChannelSidebarWidth(parsedValue);
+}
+
+export function writeStoredChannelSidebarWidth(value: number) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    CHANNEL_SIDEBAR_WIDTH_STORAGE_KEY,
+    String(clampChannelSidebarWidth(value)),
   );
 }

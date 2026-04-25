@@ -161,7 +161,7 @@ export function WorkspaceModals({
       });
 
       if ("serverId" in result && result.serverId) {
-        onNavigate(result.channelId ? `/channels/${result.serverId}/${result.channelId}` : "/channels/@me");
+        onNavigate(result.channelId ? `/channels/${result.serverId}/${result.channelId}` : "/channels");
         return;
       }
 
@@ -350,7 +350,7 @@ export function WorkspaceModals({
       await queryClient.invalidateQueries({
         queryKey: workspaceQueryKeys.servers,
       });
-      onNavigate("/channels/@me");
+      onNavigate("/channels");
     },
   });
 
@@ -376,7 +376,9 @@ export function WorkspaceModals({
             value={serverIconUrl}
           />
           <div className="space-y-2">
-            <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">Name</label>
+            <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+              Name <span className="text-rose-400">*</span>
+            </label>
             <Input
               maxLength={64}
               onChange={(event) => setServerName(event.target.value)}
@@ -384,6 +386,9 @@ export function WorkspaceModals({
               required
               value={serverName}
             />
+            {serverName.trim().length > 0 && serverName.trim().length < 2 ? (
+              <p className="text-xs text-rose-400">At least 2 characters required</p>
+            ) : null}
           </div>
           <div className="space-y-2">
             <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">Description</label>

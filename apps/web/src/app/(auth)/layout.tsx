@@ -1,62 +1,50 @@
 import type { ReactNode } from "react";
-import { ThemePicker } from "@/components/auth/theme-picker";
-
-const THEME_BACKGROUNDS: Record<string, { bg: string; gradient: string }> = {
-  "theme-graphite": {
-    bg: "#151a24",
-    gradient: "radial-gradient(circle at 20% 20%, rgba(125,211,252,0.18), transparent 40%),radial-gradient(circle at 80% 0%, rgba(56,189,248,0.12),transparent 35%),radial-gradient(circle at 50% 100%, rgba(95,143,231,0.10),transparent 45%)",
-  },
-  "theme-midnight": {
-    bg: "#09090f",
-    gradient: "radial-gradient(circle at 20% 20%, rgba(56,189,248,0.12), transparent 40%),radial-gradient(circle at 80% 0%, rgba(126,87,194,0.12),transparent 35%),radial-gradient(circle at 50% 100%, rgba(59,130,246,0.08),transparent 45%)",
-  },
-  "theme-dawn": {
-    bg: "#f4f7fb",
-    gradient: "radial-gradient(circle at 20% 20%, rgba(59,130,246,0.10), transparent 40%),radial-gradient(circle at 80% 0%, rgba(34,211,238,0.08),transparent 35%),radial-gradient(circle at 50% 100%, rgba(147,197,253,0.08),transparent 45%)",
-  },
-  "theme-studio": {
-    bg: "#1a1333",
-    gradient: "radial-gradient(circle at 20% 20%, rgba(244,114,182,0.15), transparent 40%),radial-gradient(circle at 80% 0%, rgba(168,85,247,0.10),transparent 35%),radial-gradient(circle at 50% 100%, rgba(56,189,248,0.08),transparent 45%)",
-  },
-  "theme-mist": {
-    bg: "#f8f4ef",
-    gradient: "radial-gradient(circle at 20% 20%, rgba(34,197,94,0.10), transparent 40%),radial-gradient(circle at 80% 0%, rgba(251,191,36,0.08),transparent 35%),radial-gradient(circle at 50% 100%, rgba(163,230,53,0.06),transparent 45%)",
-  },
-};
-
-const THEME_CARDS: Record<string, { bg: string; border: string }> = {
-  "theme-graphite": { bg: "rgba(41,50,69,0.90)", border: "rgba(61,70,98,0.80)" },
-  "theme-midnight": { bg: "rgba(21,26,46,0.90)", border: "rgba(42,48,85,0.80)" },
-  "theme-dawn": { bg: "rgba(255,255,255,0.95)", border: "rgba(226,232,240,0.80)" },
-  "theme-studio": { bg: "rgba(63,46,115,0.90)", border: "rgba(90,69,151,0.80)" },
-  "theme-mist": { bg: "rgba(248,244,239,0.95)", border: "rgba(229,225,217,0.80)" },
-};
+import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
-  const currentTheme =
-    typeof window !== "undefined"
-      ? (document.documentElement.className.match(/theme-(\w+)/)?.[1] ?? "graphite")
-      : "graphite";
-  const themeBg = (THEME_BACKGROUNDS[`theme-${currentTheme}`] ?? THEME_BACKGROUNDS["theme-graphite"])!;
-  const themeCard = (THEME_CARDS[`theme-${currentTheme}`] ?? THEME_CARDS["theme-graphite"])!;
-
   return (
-    <main
-      className="relative flex min-h-screen items-center justify-center px-4 py-10"
-      style={{
-        backgroundColor: themeBg.bg,
-        backgroundImage: themeBg.gradient,
-      }}
-    >
-      <ThemePicker />
-      <div
-        className="relative w-full max-w-md rounded-2xl p-8 shadow-2xl backdrop-blur"
-        style={{
-          backgroundColor: themeCard.bg,
-          borderColor: themeCard.border,
-        }}
-      >
-        {children}
+    <main className="auth-canvas relative min-h-screen overflow-hidden px-4 py-6 lg:px-8 lg:py-8">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-12 top-14 h-56 w-56 rounded-full bg-[hsl(var(--ambient-1)/0.2)] blur-3xl" />
+        <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-[hsl(var(--ambient-2)/0.16)] blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-[hsl(var(--primary)/0.12)] blur-3xl" />
+      </div>
+      <ThemeSwitcher className="absolute right-4 top-4 lg:right-8 lg:top-8" placement="floating" />
+
+      <div className="auth-frame relative mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-7xl items-stretch overflow-hidden rounded-[38px] border shadow-[0_30px_90px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+        <section className="auth-hero relative hidden min-w-0 flex-1 overflow-hidden px-10 py-12 lg:flex lg:flex-col lg:justify-between">
+          <div className="max-w-xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.34em] text-white/72">
+              Wizards Workspace
+            </p>
+            <h1 className="mt-6 text-5xl font-semibold leading-[1.02] text-white">
+              Conversations that feel fast, focused, and alive.
+            </h1>
+            <p className="mt-6 max-w-lg text-base leading-8 text-white/72">
+              Build compact servers, hop between channels instantly, and keep your team inside one crisp communication flow.
+            </p>
+          </div>
+
+          <div className="grid max-w-2xl grid-cols-3 gap-4">
+            {[
+              ["Realtime", "Low-friction chat with channels, invites, and role-aware access."],
+              ["Multi-user", "Spin up demo and test sessions side by side without losing context."],
+              ["Customizable", "Tune the rail and sidebar widths so the shell fits your workflow."],
+            ].map(([title, description]) => (
+              <div
+                className="rounded-[28px] border border-white/10 bg-white/[0.07] p-5 text-white/90 shadow-lg shadow-black/10 backdrop-blur-sm"
+                key={title}
+              >
+                <p className="text-sm font-semibold">{title}</p>
+                <p className="mt-3 text-sm leading-6 text-white/68">{description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="auth-panel relative flex w-full items-center justify-center px-4 py-8 sm:px-8 lg:w-[min(540px,42vw)] lg:px-10">
+          <div className="w-full max-w-md">{children}</div>
+        </section>
       </div>
     </main>
   );

@@ -1,7 +1,28 @@
 import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth/utils";
-import { getWorkspaceServerDetail } from "@/lib/workspace/service";
+import { prisma } from "@wizards/db";
 import { ChatArea } from "@/components/chat/chat-area";
+
+const SERVER_ADMIN_PERMISSION =
+  (1n << 0n) |
+  (1n << 1n) |
+  (1n << 2n) |
+  (1n << 3n);
+
+function hasAdminAccess(
+  roles: Array<{
+    role: {
+      name: string;
+      permissions: bigint;
+    };
+  }>,
+) {
+  return roles.some(
+    ({ role }) =>
+      (role.permissions & SERVER_ADMIN_PERMISSION) !== 0n ||
+      /admin|moderator/i.test(role.name),
+  );
+}
 
 type PageParams = {
   params: Promise<{
@@ -14,12 +35,40 @@ export default async function ChannelPage({ params }: PageParams) {
   const session = await requireAuth();
   const { serverId, channelId } = await params;
 
-  const detail = await getWorkspaceServerDetail(session.user.id, serverId);
+  const [channel, membership] = await Promise.all([
+    prisma.channel.findFirst({
+      where: {
+        id: channelId,
+        parentId: null,
+        serverId,
+      },
+      select: {
+        id: true,
+      },
+    }),
+    prisma.serverMember.findFirst({
+      where: {
+        serverId,
+        userId: session.user.id,
+      },
+      select: {
+        roles: {
+          select: {
+            role: {
+              select: {
+                name: true,
+                permissions: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+  ]);
 
-  const channel = [
-    ...detail.ungroupedChannels,
-    ...detail.categories.flatMap((c) => c.channels),
-  ].find((ch) => ch.id === channelId);
+  if (!membership) {
+    redirect("/channels");
+  }
 
   if (!channel) {
     redirect(`/channels/${serverId}`);
@@ -29,7 +78,7 @@ export default async function ChannelPage({ params }: PageParams) {
     <ChatArea
       channelId={channelId}
       currentUserId={session.user.id}
-      canModerate={detail.server.isAdmin}
+      canModerate={hasAdminAccess(membership.roles)}
     />
   );
 }

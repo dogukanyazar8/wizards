@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { UserPlus } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Avatar } from "@/components/ui/avatar";
@@ -31,6 +32,17 @@ export function MessageItem({
   const [showToolbar, setShowToolbar] = useState(false);
   const isOwner = message.author.id === currentUserId;
   const isDeleted = message.deletedAt !== null;
+
+  if (message.type === "SYSTEM_JOIN") {
+    return (
+      <div className="px-4 py-3">
+        <div className="mx-auto flex max-w-xl items-center justify-center gap-3 rounded-full border border-emerald-400/15 bg-emerald-400/[0.08] px-4 py-2 text-xs font-medium text-emerald-100/90">
+          <UserPlus className="h-3.5 w-3.5 text-emerald-300" />
+          <span>{message.content}</span>
+        </div>
+      </div>
+    );
+  }
 
   if (isDeleted) {
     return (

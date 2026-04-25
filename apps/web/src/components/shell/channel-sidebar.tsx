@@ -19,6 +19,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
   GripVertical,
+  LogOut,
   Mic,
   Settings2,
   Volume2,
@@ -37,6 +38,7 @@ import {
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
 import { useAppStore } from "@/lib/store";
+import { logoutAction } from "@/lib/auth/actions";
 
 type ChannelSidebarProps = {
   activeChannelId: string | null;
@@ -49,6 +51,7 @@ type ChannelSidebarProps = {
   loading: boolean;
   onNavigate: (href: string) => void;
   onOpenAppearanceSettings: () => void;
+  onPrefetch?: (href: string) => void;
 };
 
 type SortableChannelRowProps = {
@@ -57,6 +60,7 @@ type SortableChannelRowProps = {
   channel: WorkspaceChannel;
   onDelete: () => void;
   onEdit: () => void;
+  onPrefetch?: () => void;
   onSelect: () => void;
 };
 
@@ -66,6 +70,7 @@ function SortableChannelRow({
   channel,
   onDelete,
   onEdit,
+  onPrefetch,
   onSelect,
 }: SortableChannelRowProps) {
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
@@ -106,6 +111,7 @@ function SortableChannelRow({
             onEdit={onEdit}
             onSelect={onSelect}
             type={channel.type}
+            {...(onPrefetch ? { onPrefetch } : {})}
           />
         </div>
       </div>
@@ -131,6 +137,7 @@ export function ChannelSidebar({
   loading,
   onNavigate,
   onOpenAppearanceSettings,
+  onPrefetch,
 }: ChannelSidebarProps) {
   const queryClient = useQueryClient();
   const {
@@ -270,6 +277,16 @@ export function ChannelSidebar({
               >
                 <Settings2 className="h-4 w-4" />
               </button>
+              <form action={logoutAction}>
+                <button
+                  aria-label="Log out"
+                  className="text-app-muted rounded-xl p-2 transition hover:bg-rose-500/10 hover:text-rose-400"
+                  title="Log out"
+                  type="submit"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </form>
             </div>
           </div>
         </div>
@@ -283,6 +300,10 @@ export function ChannelSidebar({
 
   const navigateToChannel = (channelId: string) => {
     onNavigate(`/channels/${detail.server.id}/${channelId}`);
+  };
+
+  const prefetchChannel = (channelId: string) => {
+    onPrefetch?.(`/channels/${detail.server.id}/${channelId}`);
   };
 
   const handleDragEnd = (categoryId: string | null, channels: WorkspaceChannel[]) => (event: DragEndEvent) => {
@@ -347,6 +368,7 @@ export function ChannelSidebar({
                         type: channel.type,
                       })
                     }
+                    onPrefetch={() => prefetchChannel(channel.id)}
                     onSelect={() => navigateToChannel(channel.id)}
                   />
                 ))}
@@ -428,6 +450,16 @@ export function ChannelSidebar({
               >
                 <Settings2 className="h-4 w-4" />
               </button>
+              <form action={logoutAction}>
+                <button
+                  aria-label="Log out"
+                  className="text-app-muted rounded-xl p-2 transition hover:bg-rose-500/10 hover:text-rose-400"
+                  title="Log out"
+                  type="submit"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </form>
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { prisma } from "@wizards/db";
 import type {
   ChatMessage,
+  ChatMessageType,
   MessageAttachment,
   MessageAuthor,
   MessageReaction,
@@ -116,6 +117,7 @@ async function formatMessage(
     channelId: message.channelId,
     author,
     content: message.deletedAt ? "[deleted]" : message.content,
+    type: message.type,
     reactions,
     attachments,
     replyTo: replyTo ?? undefined,
@@ -141,6 +143,7 @@ export async function getChannelMessages(
       userId: true,
       content: true,
       replyToId: true,
+      type: true,
       createdAt: true,
       editedAt: true,
       deletedAt: true,
@@ -176,13 +179,38 @@ export async function createMessage(
   content: string,
   replyToId?: string,
 ): Promise<ChatMessage> {
+  return createTypedMessage({
+    channelId,
+    content,
+    type: "DEFAULT",
+    userId,
+    ...(replyToId ? { replyToId } : {}),
+  });
+}
+
+export async function createSystemMessage(args: {
+  channelId: string;
+  content: string;
+  type: Exclude<ChatMessageType, "DEFAULT">;
+  userId: string;
+}): Promise<ChatMessage> {
+  return createTypedMessage(args);
+}
+
+async function createTypedMessage(args: {
+  channelId: string;
+  content: string;
+  replyToId?: string;
+  type: ChatMessageType;
+  userId: string;
+}): Promise<ChatMessage> {
   const message = await prisma.message.create({
     data: {
-      channelId,
-      userId,
-      content,
-      replyToId: replyToId ?? null,
-      type: "DEFAULT",
+      channelId: args.channelId,
+      userId: args.userId,
+      content: args.content,
+      replyToId: args.replyToId ?? null,
+      type: args.type,
     },
     select: {
       id: true,
@@ -190,6 +218,7 @@ export async function createMessage(
       userId: true,
       content: true,
       replyToId: true,
+      type: true,
       createdAt: true,
       editedAt: true,
       deletedAt: true,
@@ -222,6 +251,7 @@ export async function editMessage(
       userId: true,
       content: true,
       replyToId: true,
+      type: true,
       createdAt: true,
       editedAt: true,
       deletedAt: true,

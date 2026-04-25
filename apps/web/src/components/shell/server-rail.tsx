@@ -13,6 +13,7 @@ type ServerRailProps = {
   onNavigate: (href: string) => void;
   onOpenCreateServer: () => void;
   onOpenServerContextMenu: (serverId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
+  onPrefetch?: (href: string) => void;
   servers: WorkspaceServerSummary[];
 };
 
@@ -22,6 +23,7 @@ export function ServerRail({
   onNavigate,
   onOpenCreateServer,
   onOpenServerContextMenu,
+  onPrefetch,
   servers,
 }: ServerRailProps) {
   if (loading) {
@@ -38,7 +40,8 @@ export function ServerRail({
         active={!activeServerId}
         fallback="DM"
         label="Direct messages"
-        onClick={() => onNavigate("/channels/@me")}
+        onClick={() => onNavigate("/channels")}
+        {...(onPrefetch ? { onPrefetch: () => onPrefetch("/channels") } : {})}
       />
 
       <div className="my-3 h-px w-8 rounded-full bg-[hsl(var(--border)/0.72)]" />
@@ -53,6 +56,7 @@ export function ServerRail({
             label={server.name}
             onClick={() => onNavigate(getServerHref(server))}
             onContextMenu={(event) => onOpenServerContextMenu(server.id, event)}
+            {...(onPrefetch ? { onPrefetch: () => onPrefetch(getServerHref(server)) } : {})}
           />
         ))}
       </div>

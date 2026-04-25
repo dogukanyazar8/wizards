@@ -29,11 +29,18 @@ export const ReplyToSchema = z.object({
   content: z.string(),
 });
 
+export const ChatMessageTypeSchema = z.enum([
+  "DEFAULT",
+  "SYSTEM_JOIN",
+  "SYSTEM_LEAVE",
+]);
+
 export const ChatMessageSchema = z.object({
   id: z.string(),
   channelId: z.string(),
   author: MessageAuthorSchema,
   content: z.string(),
+  type: ChatMessageTypeSchema,
   reactions: z.array(MessageReactionSchema).default([]),
   attachments: z.array(MessageAttachmentSchema).default([]),
   replyTo: ReplyToSchema.nullable().optional(),
@@ -63,6 +70,7 @@ export type MessageAuthor = z.infer<typeof MessageAuthorSchema>;
 export type MessageReaction = z.infer<typeof MessageReactionSchema>;
 export type MessageAttachment = z.infer<typeof MessageAttachmentSchema>;
 export type ReplyTo = z.infer<typeof ReplyToSchema>;
+export type ChatMessageType = z.infer<typeof ChatMessageTypeSchema>;
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 export type MessagesResponse = z.infer<typeof MessagesResponseSchema>;
 export type SendMessageInput = z.infer<typeof SendMessageInputSchema>;

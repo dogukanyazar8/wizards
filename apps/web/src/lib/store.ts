@@ -1,8 +1,12 @@
 import { create } from "zustand";
 import {
+  DEFAULT_CHANNEL_SIDEBAR_WIDTH,
   DEFAULT_SERVER_RAIL_WIDTH,
+  clampChannelSidebarWidth,
   clampServerRailWidth,
+  readStoredChannelSidebarWidth,
   readStoredServerRailWidth,
+  writeStoredChannelSidebarWidth,
   writeStoredServerRailWidth,
 } from "@/lib/appearance";
 
@@ -57,6 +61,7 @@ interface AppState {
   activeServerId: string | null;
   appearanceModalOpen: boolean;
   categoryModal: CategoryModalState;
+  channelSidebarWidth: number;
   channelModal: ChannelModalState;
   collapsedCategories: Record<string, boolean>;
   deleteChannelDialog: DeleteChannelDialogState;
@@ -92,10 +97,12 @@ interface AppState {
   openServerContextMenu: (serverId: string, position: { x: number; y: number }) => void;
   openServerModal: (options: { mode: "create" | "edit"; serverId?: string | null }) => void;
   openServerSettings: (serverId: string) => void;
+  resetChannelSidebarWidth: () => void;
   resetServerRailWidth: () => void;
   setActiveRoute: (activeServerId: string | null, activeChannelId: string | null) => void;
   setMobileSidebarOpen: (open: boolean) => void;
   setReady: (ready: boolean) => void;
+  setChannelSidebarWidth: (width: number) => void;
   setServerRailWidth: (width: number) => void;
   toggleCategoryCollapse: (serverId: string, categoryId: string) => void;
 }
@@ -117,6 +124,7 @@ export const useAppStore = create<AppState>((set) => ({
     open: false,
     serverId: null,
   },
+  channelSidebarWidth: readStoredChannelSidebarWidth(),
   channelModal: initialChannelModalState,
   collapsedCategories: {},
   deleteChannelDialog: {
@@ -285,6 +293,18 @@ export const useAppStore = create<AppState>((set) => ({
     set({
       serverSettingsServerId: serverId,
     }),
+  resetChannelSidebarWidth: () =>
+    set((state) => {
+      if (state.channelSidebarWidth === DEFAULT_CHANNEL_SIDEBAR_WIDTH) {
+        return state;
+      }
+
+      writeStoredChannelSidebarWidth(DEFAULT_CHANNEL_SIDEBAR_WIDTH);
+
+      return {
+        channelSidebarWidth: DEFAULT_CHANNEL_SIDEBAR_WIDTH,
+      };
+    }),
   resetServerRailWidth: () =>
     set((state) => {
       if (state.serverRailWidth === DEFAULT_SERVER_RAIL_WIDTH) {
@@ -318,6 +338,20 @@ export const useAppStore = create<AppState>((set) => ({
   setReady: (ready) =>
     set({
       ready,
+    }),
+  setChannelSidebarWidth: (width) =>
+    set((state) => {
+      const nextWidth = clampChannelSidebarWidth(width);
+
+      if (state.channelSidebarWidth === nextWidth) {
+        return state;
+      }
+
+      writeStoredChannelSidebarWidth(nextWidth);
+
+      return {
+        channelSidebarWidth: nextWidth,
+      };
     }),
   setServerRailWidth: (width) =>
     set((state) => {

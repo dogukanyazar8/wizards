@@ -8,9 +8,10 @@ import type { ChatMessage, MessagesResponse } from "@wizards/types";
 export function useMessages(channelId: string) {
   const socket = useSocket();
   const queryClient = useQueryClient();
+  const queryKey = ["messages", channelId] as const;
 
   const query = useInfiniteQuery({
-    queryKey: ["messages", channelId],
+    queryKey,
     queryFn: async ({ pageParam }) => {
       const url = new URL(`/api/v1/channels/${channelId}/messages`, window.location.origin);
       if (pageParam) {
@@ -27,22 +28,32 @@ export function useMessages(channelId: string) {
   useEffect(() => {
     const handleNewMessage = (message: ChatMessage) => {
       if (message.channelId === channelId) {
-        queryClient.setQueryData(["messages", channelId], (old: any) =>
-          old
-            ? {
-                ...old,
-                pages: old.pages.map((page: any, i: number) =>
-                  i === 0 ? { ...page, messages: [message, ...page.messages] } : page,
-                ),
-              }
-            : old,
-        );
+        queryClient.setQueryData(queryKey, (old: any) => {
+          if (!old) {
+            return {
+              pageParams: [undefined],
+              pages: [
+                {
+                  hasMore: false,
+                  messages: [message],
+                },
+              ],
+            };
+          }
+
+          return {
+            ...old,
+            pages: old.pages.map((page: any, i: number) =>
+              i === 0 ? { ...page, messages: [...page.messages, message] } : page,
+            ),
+          };
+        });
       }
     };
 
     const handleUpdatedMessage = (message: ChatMessage) => {
       if (message.channelId === channelId) {
-        queryClient.setQueryData(["messages", channelId], (old: any) =>
+        queryClient.setQueryData(queryKey, (old: any) =>
           old
             ? {
                 ...old,
@@ -58,7 +69,7 @@ export function useMessages(channelId: string) {
 
     const handleDeletedMessage = (data: { messageId: string; channelId: string }) => {
       if (data.channelId === channelId) {
-        queryClient.setQueryData(["messages", channelId], (old: any) =>
+        queryClient.setQueryData(queryKey, (old: any) =>
           old
             ? {
                 ...old,
@@ -82,7 +93,7 @@ export function useMessages(channelId: string) {
     };
 
     const handleReactionUpdated = (data: { messageId: string; reactions: any[] }) => {
-      queryClient.setQueryData(["messages", channelId], (old: any) =>
+      queryClient.setQueryData(queryKey, (old: any) =>
         old
           ? {
               ...old,
@@ -108,11 +119,18 @@ export function useMessages(channelId: string) {
       socket.off("message:deleted", handleDeletedMessage);
       socket.off("message:reaction_updated", handleReactionUpdated);
     };
-  }, [channelId, socket, queryClient]);
+  }, [channelId, queryClient, queryKey, socket]);
 
   useEffect(() => {
-    socket.emit("channel:join", channelId);
+    const joinChannel = () => {
+      socket.emit("channel:join", channelId);
+    };
+
+    joinChannel();
+    socket.on("connect", joinChannel);
+
     return () => {
+      socket.off("connect", joinChannel);
       socket.emit("channel:leave", channelId);
     };
   }, [channelId, socket]);

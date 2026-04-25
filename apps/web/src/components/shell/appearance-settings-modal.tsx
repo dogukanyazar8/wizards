@@ -7,8 +7,12 @@ import { useShallow } from "zustand/react/shallow";
 import { Button } from "@wizards/ui";
 import { Modal } from "@/components/ui/modal";
 import {
+  CHANNEL_SIDEBAR_WIDTH_STEP,
+  DEFAULT_CHANNEL_SIDEBAR_WIDTH,
   DEFAULT_SERVER_RAIL_WIDTH,
+  MAX_CHANNEL_SIDEBAR_WIDTH,
   MAX_SERVER_RAIL_WIDTH,
+  MIN_CHANNEL_SIDEBAR_WIDTH,
   MIN_SERVER_RAIL_WIDTH,
   SERVER_RAIL_WIDTH_STEP,
   WIZARDS_THEMES,
@@ -22,15 +26,21 @@ export function AppearanceSettingsModal() {
   const [mounted, setMounted] = useState(false);
   const {
     appearanceModalOpen,
+    channelSidebarWidth,
     closeAppearanceModal,
+    resetChannelSidebarWidth,
     resetServerRailWidth,
+    setChannelSidebarWidth,
     serverRailWidth,
     setServerRailWidth,
   } = useAppStore(
     useShallow((state) => ({
       appearanceModalOpen: state.appearanceModalOpen,
+      channelSidebarWidth: state.channelSidebarWidth,
       closeAppearanceModal: state.closeAppearanceModal,
+      resetChannelSidebarWidth: state.resetChannelSidebarWidth,
       resetServerRailWidth: state.resetServerRailWidth,
+      setChannelSidebarWidth: state.setChannelSidebarWidth,
       serverRailWidth: state.serverRailWidth,
       setServerRailWidth: state.setServerRailWidth,
     })),
@@ -143,14 +153,90 @@ export function AppearanceSettingsModal() {
           </div>
         </section>
 
+        <section className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-app-soft">
+                Channel Sidebar
+              </p>
+              <h3 className="mt-2 text-lg font-semibold text-app-foreground">
+                Give channel names a little more breathing room
+              </h3>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-2xl border app-panel px-3 py-2">
+              <SlidersHorizontal className="h-4 w-4 text-app-muted" />
+              <span className="text-sm font-medium text-app-foreground">{channelSidebarWidth}px</span>
+            </div>
+          </div>
+
+          <div className="rounded-[28px] border app-panel p-5">
+            <input
+              aria-label="Adjust channel sidebar width"
+              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.9)] accent-[hsl(var(--primary))]"
+              max={MAX_CHANNEL_SIDEBAR_WIDTH}
+              min={MIN_CHANNEL_SIDEBAR_WIDTH}
+              onChange={(event) => setChannelSidebarWidth(Number(event.target.value))}
+              step={CHANNEL_SIDEBAR_WIDTH_STEP}
+              type="range"
+              value={channelSidebarWidth}
+            />
+            <div className="mt-3 flex items-center justify-between text-xs font-medium text-app-muted">
+              <span>Compact</span>
+              <span>Readable</span>
+              <span>Studio</span>
+            </div>
+
+            <div className="mt-5 rounded-[24px] border app-panel-soft p-4">
+              <div className="flex items-center gap-3">
+                <div
+                  className="shrink-0 rounded-[22px] border app-panel-soft p-3"
+                  style={{ width: `${Math.max(72, serverRailWidth)}px` }}
+                >
+                  <div className="mx-auto h-10 w-10 rounded-[16px] bg-[hsl(var(--primary)/0.18)]" />
+                </div>
+                <div
+                  className="shrink-0 rounded-[24px] border app-panel p-4"
+                  style={{ width: `${channelSidebarWidth}px` }}
+                >
+                  <div className="h-4 w-36 rounded-full bg-[hsl(var(--surface-soft))]" />
+                  <div className="mt-3 h-3 w-44 rounded-full bg-[hsl(var(--surface-soft)/0.8)]" />
+                  <div className="mt-3 h-3 w-32 rounded-full bg-[hsl(var(--surface-soft)/0.72)]" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <div className="flex justify-end gap-2">
+          <Button
+            disabled={
+              serverRailWidth === DEFAULT_SERVER_RAIL_WIDTH &&
+              channelSidebarWidth === DEFAULT_CHANNEL_SIDEBAR_WIDTH
+            }
+            onClick={() => {
+              resetServerRailWidth();
+              resetChannelSidebarWidth();
+            }}
+            type="button"
+            variant="outline"
+          >
+            Reset Layout
+          </Button>
           <Button
             disabled={serverRailWidth === DEFAULT_SERVER_RAIL_WIDTH}
             onClick={resetServerRailWidth}
             type="button"
             variant="outline"
           >
-            Reset Width
+            Reset Server Rail
+          </Button>
+          <Button
+            disabled={channelSidebarWidth === DEFAULT_CHANNEL_SIDEBAR_WIDTH}
+            onClick={resetChannelSidebarWidth}
+            type="button"
+            variant="outline"
+          >
+            Reset Sidebar
           </Button>
           <Button onClick={closeAppearanceModal} type="button">
             Done

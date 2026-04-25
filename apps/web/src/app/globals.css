@@ -178,6 +178,38 @@ h4 {
 }
 
 @layer components {
+  .auth-canvas {
+    background:
+      radial-gradient(circle at 18% 18%, hsl(var(--ambient-1) / 0.18), transparent 28%),
+      radial-gradient(circle at 82% 0%, hsl(var(--ambient-2) / 0.14), transparent 24%),
+      linear-gradient(180deg, hsl(var(--surface-base)), hsl(var(--background)));
+  }
+
+  .auth-frame {
+    border-color: hsl(var(--border) / 0.8);
+    background-color: hsl(var(--surface-panel) / 0.48);
+  }
+
+  .auth-hero {
+    background:
+      linear-gradient(
+        155deg,
+        hsl(var(--surface-main-bottom) / 0.96),
+        hsl(var(--surface-main-top) / 0.78) 52%,
+        hsl(var(--primary) / 0.36)
+      );
+  }
+
+  .auth-panel {
+    border-left: 1px solid hsl(var(--border) / 0.72);
+    background:
+      linear-gradient(
+        180deg,
+        hsl(var(--surface-panel) / 0.9),
+        hsl(var(--surface-card) / 0.86)
+      );
+  }
+
   .app-shell {
     background-color: hsl(var(--surface-base));
     color: hsl(var(--foreground));

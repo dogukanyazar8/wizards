@@ -12,6 +12,7 @@ type ServerIconProps = {
   label: string;
   onClick: () => void;
   onContextMenu?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onPrefetch?: () => void;
 };
 
 export function ServerIcon({
@@ -22,6 +23,7 @@ export function ServerIcon({
   label,
   onClick,
   onContextMenu,
+  onPrefetch,
 }: ServerIconProps) {
   return (
     <div className="relative flex items-center justify-center">
@@ -40,6 +42,8 @@ export function ServerIcon({
         className={cn("group relative outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70", className)}
         onClick={onClick}
         onContextMenu={onContextMenu}
+        onFocus={onPrefetch}
+        onMouseEnter={onPrefetch}
         type="button"
         whileHover={{ scale: 1.06, y: -1 }}
         whileTap={{ scale: 0.97 }}

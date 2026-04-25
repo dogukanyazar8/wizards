@@ -18,7 +18,7 @@ export function MessageList({
   canModerate,
 }: MessageListProps) {
   const socket = useSocket();
-  const { data, fetchNextPage, hasNextPage, isLoading } = useMessages(channelId);
+  const { data, error, fetchNextPage, hasNextPage, isLoading } = useMessages(channelId);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<HTMLDivElement>(null);
@@ -67,13 +67,15 @@ export function MessageList({
     }
   };
 
-  const allMessages = data?.pages ? data.pages.flatMap((p) => p.messages) : [];
+  const allMessages = data?.pages ? [...data.pages].reverse().flatMap((p) => p.messages) : [];
 
   const groupedMessages = allMessages.map((msg, i) => {
     const prev = allMessages[i - 1];
     const isGrouped: boolean =
       i > 0 &&
       prev !== undefined &&
+      msg.type === "DEFAULT" &&
+      prev.type === "DEFAULT" &&
       prev.author.id === msg.author.id &&
       new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < 7 * 60 * 1000;
     return { message: msg, isGrouped };
@@ -93,7 +95,16 @@ export function MessageList({
         </div>
       )}
 
-      {allMessages.length === 0 && !isLoading && (
+      {error && !isLoading && (
+        <div className="flex items-center justify-center h-full text-app-muted">
+          <div className="text-center">
+            <p className="text-sm">Unable to load messages.</p>
+            <p className="text-xs">Please refresh the channel and try again.</p>
+          </div>
+        </div>
+      )}
+
+      {!error && allMessages.length === 0 && !isLoading && (
         <div className="flex items-center justify-center h-full text-app-muted">
           <div className="text-center">
             <p className="text-sm">No messages yet.</p>

@@ -4,5 +4,5 @@ import { redirect } from "next/navigation";
 export default async function HomePage() {
   const session = await auth();
 
-  redirect(session ? "/channels/@me" : "/login");
+  redirect(session ? "/channels" : "/login");
 }
