@@ -14,17 +14,16 @@ function isProtectedRoute(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const secret = process.env.NEXTAUTH_SECRET;
-  const token = await getToken(
-    secret
-      ? {
-          req: request,
-          secret,
-        }
-      : {
-          req: request,
-        },
-  );
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+
+  if (!secret) {
+    throw new Error("Missing AUTH_SECRET or NEXTAUTH_SECRET environment variable");
+  }
+
+  const token = await getToken({
+    req: request,
+    secret,
+  });
   const isAuthenticated = Boolean(token);
 
   if (!isAuthenticated && isProtectedRoute(pathname)) {
