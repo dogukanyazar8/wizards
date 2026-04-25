@@ -44,7 +44,11 @@ export function MessageInput({
 
   const handleSend = () => {
     if (content.trim()) {
-      onSend(content, replyTo?.id);
+      if (replyTo?.id) {
+        onSend(content, replyTo.id);
+      } else {
+        onSend(content);
+      }
       setContent("");
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";

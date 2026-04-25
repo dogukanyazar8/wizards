@@ -14,6 +14,10 @@ interface EmojiPickerProps {
   onClose: () => void;
 }
 
+type EmojiSelection = {
+  native: string;
+};
+
 export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   const pickerRef = useRef<HTMLDivElement>(null);
 
@@ -32,7 +36,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
     <div ref={pickerRef} className="absolute bottom-full right-0 mb-2 z-50">
       <Picker
         data={data}
-        onEmojiSelect={(emoji: any) => onSelect(emoji.native)}
+        onEmojiSelect={(emoji: EmojiSelection) => onSelect(emoji.native)}
         theme="dark"
         previewPosition="none"
       />

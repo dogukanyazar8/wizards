@@ -1,4 +1,5 @@
 import { prisma } from "@wizards/db";
+import type { Prisma } from "@wizards/db";
 import type {
   ChatMessage,
   ChatMessageType,
@@ -8,6 +9,14 @@ import type {
   ReplyTo,
 } from "@wizards/types";
 import { ApiError } from "@/lib/api";
+
+function normalizeMessageType(type: string): ChatMessageType {
+  if (type === "SYSTEM_JOIN" || type === "SYSTEM_LEAVE") {
+    return type;
+  }
+
+  return "DEFAULT";
+}
 
 async function getMessageAuthor(userId: string): Promise<MessageAuthor> {
   const user = await prisma.user.findUnique({
@@ -103,7 +112,19 @@ async function getReplyTo(messageId: string | null): Promise<ReplyTo | null> {
 }
 
 async function formatMessage(
-  message: any,
+  message: Prisma.MessageGetPayload<{
+    select: {
+      id: true;
+      channelId: true;
+      userId: true;
+      content: true;
+      replyToId: true;
+      type: true;
+      createdAt: true;
+      editedAt: true;
+      deletedAt: true;
+    };
+  }>,
 ): Promise<ChatMessage> {
   const [author, attachments, reactions, replyTo] = await Promise.all([
     getMessageAuthor(message.userId),
@@ -117,7 +138,7 @@ async function formatMessage(
     channelId: message.channelId,
     author,
     content: message.deletedAt ? "[deleted]" : message.content,
-    type: message.type,
+    type: normalizeMessageType(message.type),
     reactions,
     attachments,
     replyTo: replyTo ?? undefined,
@@ -132,7 +153,7 @@ export async function getChannelMessages(
   cursor?: string,
   limit: number = 50,
 ) {
-  const queryArgs: any = {
+  const queryArgs: Prisma.MessageFindManyArgs = {
     where: {
       channelId,
       threadId: null,

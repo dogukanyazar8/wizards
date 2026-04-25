@@ -1,17 +1,112 @@
 "use client";
 
 import { useEffect } from "react";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useQueryClient,
+  type InfiniteData,
+} from "@tanstack/react-query";
 import { useSocket } from "./use-socket";
-import type { ChatMessage, MessagesResponse } from "@wizards/types";
+import type { ChatMessage, MessageReaction, MessagesResponse } from "@wizards/types";
+
+type MessagePages = InfiniteData<MessagesResponse, string | undefined>;
+
+function appendMessage(
+  old: MessagePages | undefined,
+  message: ChatMessage,
+): MessagePages {
+  if (!old) {
+    return {
+      pageParams: [undefined],
+      pages: [
+        {
+          hasMore: false,
+          messages: [message],
+        },
+      ],
+    };
+  }
+
+  return {
+    ...old,
+    pages: old.pages.map((page, index) =>
+      index === 0 ? { ...page, messages: [...page.messages, message] } : page,
+    ),
+  };
+}
+
+function updateMessage(
+  old: MessagePages | undefined,
+  message: ChatMessage,
+): MessagePages | undefined {
+  if (!old) {
+    return old;
+  }
+
+  return {
+    ...old,
+    pages: old.pages.map((page) => ({
+      ...page,
+      messages: page.messages.map((candidate) =>
+        candidate.id === message.id ? message : candidate,
+      ),
+    })),
+  };
+}
+
+function markMessageDeleted(
+  old: MessagePages | undefined,
+  data: { messageId: string },
+): MessagePages | undefined {
+  if (!old) {
+    return old;
+  }
+
+  return {
+    ...old,
+    pages: old.pages.map((page) => ({
+      ...page,
+      messages: page.messages.map((message) =>
+        message.id === data.messageId
+          ? {
+              ...message,
+              deletedAt: new Date().toISOString(),
+              content: "[deleted]",
+              reactions: [],
+            }
+          : message,
+      ),
+    })),
+  };
+}
+
+function updateReactions(
+  old: MessagePages | undefined,
+  data: { messageId: string; reactions: MessageReaction[] },
+): MessagePages | undefined {
+  if (!old) {
+    return old;
+  }
+
+  return {
+    ...old,
+    pages: old.pages.map((page) => ({
+      ...page,
+      messages: page.messages.map((message) =>
+        message.id === data.messageId
+          ? { ...message, reactions: data.reactions }
+          : message,
+      ),
+    })),
+  };
+}
 
 export function useMessages(channelId: string) {
   const socket = useSocket();
   const queryClient = useQueryClient();
-  const queryKey = ["messages", channelId] as const;
 
   const query = useInfiniteQuery({
-    queryKey,
+    queryKey: ["messages", channelId] as const,
     queryFn: async ({ pageParam }) => {
       const url = new URL(`/api/v1/channels/${channelId}/messages`, window.location.origin);
       if (pageParam) {
@@ -28,83 +123,38 @@ export function useMessages(channelId: string) {
   useEffect(() => {
     const handleNewMessage = (message: ChatMessage) => {
       if (message.channelId === channelId) {
-        queryClient.setQueryData(queryKey, (old: any) => {
-          if (!old) {
-            return {
-              pageParams: [undefined],
-              pages: [
-                {
-                  hasMore: false,
-                  messages: [message],
-                },
-              ],
-            };
-          }
-
-          return {
-            ...old,
-            pages: old.pages.map((page: any, i: number) =>
-              i === 0 ? { ...page, messages: [...page.messages, message] } : page,
-            ),
-          };
-        });
+        queryClient.setQueryData<MessagePages>(
+          ["messages", channelId],
+          (old) => appendMessage(old, message),
+        );
       }
     };
 
     const handleUpdatedMessage = (message: ChatMessage) => {
       if (message.channelId === channelId) {
-        queryClient.setQueryData(queryKey, (old: any) =>
-          old
-            ? {
-                ...old,
-                pages: old.pages.map((page: any) => ({
-                  ...page,
-                  messages: page.messages.map((m: ChatMessage) => (m.id === message.id ? message : m)),
-                })),
-              }
-            : old,
+        queryClient.setQueryData<MessagePages>(
+          ["messages", channelId],
+          (old) => updateMessage(old, message),
         );
       }
     };
 
     const handleDeletedMessage = (data: { messageId: string; channelId: string }) => {
       if (data.channelId === channelId) {
-        queryClient.setQueryData(queryKey, (old: any) =>
-          old
-            ? {
-                ...old,
-                pages: old.pages.map((page: any) => ({
-                  ...page,
-                  messages: page.messages.map((m: ChatMessage) =>
-                    m.id === data.messageId
-                      ? {
-                          ...m,
-                          deletedAt: new Date().toISOString(),
-                          content: "[deleted]",
-                          reactions: [],
-                        }
-                      : m,
-                  ),
-                })),
-              }
-            : old,
+        queryClient.setQueryData<MessagePages>(
+          ["messages", channelId],
+          (old) => markMessageDeleted(old, data),
         );
       }
     };
 
-    const handleReactionUpdated = (data: { messageId: string; reactions: any[] }) => {
-      queryClient.setQueryData(queryKey, (old: any) =>
-        old
-          ? {
-              ...old,
-              pages: old.pages.map((page: any) => ({
-                ...page,
-                messages: page.messages.map((m: ChatMessage) =>
-                  m.id === data.messageId ? { ...m, reactions: data.reactions } : m,
-                ),
-              })),
-            }
-          : old,
+    const handleReactionUpdated = (data: {
+      messageId: string;
+      reactions: MessageReaction[];
+    }) => {
+      queryClient.setQueryData<MessagePages>(
+        ["messages", channelId],
+        (old) => updateReactions(old, data),
       );
     };
 
@@ -119,7 +169,7 @@ export function useMessages(channelId: string) {
       socket.off("message:deleted", handleDeletedMessage);
       socket.off("message:reaction_updated", handleReactionUpdated);
     };
-  }, [channelId, queryClient, queryKey, socket]);
+  }, [channelId, queryClient, socket]);
 
   useEffect(() => {
     const joinChannel = () => {

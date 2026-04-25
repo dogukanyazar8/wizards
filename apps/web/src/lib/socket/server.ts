@@ -10,7 +10,6 @@ import {
   toggleReaction,
 } from "@/lib/workspace/message-service";
 import { getRedis, getRedisSub } from "@/lib/redis";
-import type { ChatMessage } from "@wizards/types";
 import type {
   ClientToServerEvents,
   InterServerEvents,
@@ -58,7 +57,7 @@ export function initSocketServer(httpServer: HTTPServer) {
       socket.data.userId = token.id;
       socket.data.displayName = (token.displayName as string) || "User";
       next();
-    } catch (error) {
+    } catch {
       next(new Error("Unauthorized"));
     }
   });

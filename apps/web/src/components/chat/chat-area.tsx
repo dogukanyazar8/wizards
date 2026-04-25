@@ -23,14 +23,18 @@ export function ChatArea({ channelId, currentUserId, canModerate }: ChatAreaProp
   } | null>(null);
 
   const handleSend = (content: string, replyToId?: string) => {
-    const message: any = {
-      channelId,
-      content,
-    };
     if (replyToId) {
-      message.replyToId = replyToId;
+      socket.emit("message:send", {
+        channelId,
+        content,
+        replyToId,
+      });
+    } else {
+      socket.emit("message:send", {
+        channelId,
+        content,
+      });
     }
-    socket.emit("message:send", message);
     setReplyTo(null);
   };
 
