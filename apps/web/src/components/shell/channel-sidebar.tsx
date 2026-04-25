@@ -234,7 +234,7 @@ export function ChannelSidebar({
         <div className="rounded-[28px] border border-dashed border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] p-5 text-app-muted text-sm">
           Pick a server to browse channels, or create one to start building your workspace.
         </div>
-        <div className="app-panel-soft rounded-[24px] border p-3">
+        <div className="app-panel rounded-[24px] border p-3">
           <div className="flex items-center gap-3">
             <Avatar
               alt={currentUser.displayName}
@@ -242,9 +242,34 @@ export function ChannelSidebar({
               fallback={currentUser.displayName}
               src={currentUser.avatarUrl}
             />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-app-foreground truncate text-sm font-semibold">{currentUser.displayName}</p>
               <p className="text-app-soft truncate text-xs">@{currentUser.username}</p>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                aria-label="Toggle mute"
+                className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
+                type="button"
+              >
+                <Mic className="h-4 w-4" />
+              </button>
+              <button
+                aria-label="Toggle deafen"
+                className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
+                type="button"
+              >
+                <Volume2 className="h-4 w-4" />
+              </button>
+              <button
+                aria-label="Open appearance settings"
+                className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
+                onClick={onOpenAppearanceSettings}
+                title="Appearance settings"
+                type="button"
+              >
+                <Settings2 className="h-4 w-4" />
+              </button>
             </div>
           </div>
         </div>

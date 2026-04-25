@@ -1,11 +1,97 @@
 import type { ReactNode } from "react";
+import { useTheme } from "next-themes";
+import { WIZARDS_THEMES } from "@/lib/appearance";
+import { cn } from "@/lib/utils";
+
+const THEME_BACKGROUNDS: Record<string, { bg: string; gradient: string }> = {
+  "theme-graphite": {
+    bg: "#151a24",
+    gradient: "radial-gradient(circle at 20% 20%, rgba(125,211,252,0.18), transparent 40%),radial-gradient(circle at 80% 0%, rgba(56,189,248,0.12),transparent 35%),radial-gradient(circle at 50% 100%, rgba(95,143,231,0.10),transparent 45%)",
+  },
+  "theme-midnight": {
+    bg: "#09090f",
+    gradient: "radial-gradient(circle at 20% 20%, rgba(56,189,248,0.12), transparent 40%),radial-gradient(circle at 80% 0%, rgba(126,87,194,0.12),transparent 35%),radial-gradient(circle at 50% 100%, rgba(59,130,246,0.08),transparent 45%)",
+  },
+  "theme-dawn": {
+    bg: "#f4f7fb",
+    gradient: "radial-gradient(circle at 20% 20%, rgba(59,130,246,0.10), transparent 40%),radial-gradient(circle at 80% 0%, rgba(34,211,238,0.08),transparent 35%),radial-gradient(circle at 50% 100%, rgba(147,197,253,0.08),transparent 45%)",
+  },
+  "theme-studio": {
+    bg: "#1a1333",
+    gradient: "radial-gradient(circle at 20% 20%, rgba(244,114,182,0.15), transparent 40%),radial-gradient(circle at 80% 0%, rgba(168,85,247,0.10),transparent 35%),radial-gradient(circle at 50% 100%, rgba(56,189,248,0.08),transparent 45%)",
+  },
+  "theme-mist": {
+    bg: "#f8f4ef",
+    gradient: "radial-gradient(circle at 20% 20%, rgba(34,197,94,0.10), transparent 40%),radial-gradient(circle at 80% 0%, rgba(251,191,36,0.08),transparent 35%),radial-gradient(circle at 50% 100%, rgba(163,230,53,0.06),transparent 45%)",
+  },
+};
+
+const THEME_CARDS: Record<string, { bg: string; border: string }> = {
+  "theme-graphite": { bg: "rgba(41,50,69,0.90)", border: "rgba(61,70,98,0.80)" },
+  "theme-midnight": { bg: "rgba(21,26,46,0.90)", border: "rgba(42,48,85,0.80)" },
+  "theme-dawn": { bg: "rgba(255,255,255,0.95)", border: "rgba(226,232,240,0.80)" },
+  "theme-studio": { bg: "rgba(63,46,115,0.90)", border: "rgba(90,69,151,0.80)" },
+  "theme-mist": { bg: "rgba(248,244,239,0.95)", border: "rgba(229,225,217,0.80)" },
+};
+
+function ThemePicker() {
+  const { theme, setTheme } = useTheme();
+  const isDark = theme && !["theme-dawn", "theme-mist"].includes(theme);
+
+  return (
+    <div className="absolute top-4 right-4 flex items-center gap-2">
+      <span className={cn("text-xs font-medium", isDark ? "text-white/40" : "text-black/40")}>
+        Theme
+      </span>
+      <div className="flex gap-1">
+        {WIZARDS_THEMES.map((t) => (
+          <button
+            key={t.id}
+            className={cn(
+              "h-6 w-6 rounded-full border-2 transition",
+              theme === t.id
+                ? isDark
+                  ? "border-white/80"
+                  : "border-black/50"
+                : "border-transparent hover:border-white/40",
+            )}
+            style={{
+              background: `linear-gradient(135deg, ${t.preview[0]}, ${t.preview[1]}, ${t.preview[2]})`,
+              borderColor: theme === t.id && isDark ? "rgba(255,255,255,0.8)" : theme === t.id && !isDark ? "rgba(0,0,0,0.5)" : undefined,
+            }}
+            onClick={() => setTheme(t.id)}
+            type="button"
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
-  return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4 py-10">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.25),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(14,165,233,0.2),transparent_35%),radial-gradient(circle_at_50%_100%,rgba(59,130,246,0.18),transparent_45%)]" />
+  const currentTheme =
+    typeof window !== "undefined"
+      ? (document.documentElement.className.match(/theme-(\w+)/)?.[1] ?? "graphite")
+      : "graphite";
+  const themeBg = (THEME_BACKGROUNDS[`theme-${currentTheme}`] ?? THEME_BACKGROUNDS["theme-graphite"])!;
+  const themeCard = (THEME_CARDS[`theme-${currentTheme}`] ?? THEME_CARDS["theme-graphite"])!;
 
-      <div className="relative w-full max-w-md rounded-2xl border border-slate-800/80 bg-slate-900/90 p-8 shadow-2xl backdrop-blur">
+  return (
+    <main
+      className="relative flex min-h-screen items-center justify-center px-4 py-10"
+      style={{
+        backgroundColor: themeBg.bg,
+        backgroundImage: themeBg.gradient,
+      }}
+    >
+      <ThemePicker />
+      <div
+        className="relative w-full max-w-md rounded-2xl p-8 shadow-2xl backdrop-blur"
+        style={{
+          backgroundColor: themeCard.bg,
+          borderColor: themeCard.border,
+        }}
+      >
         {children}
       </div>
     </main>

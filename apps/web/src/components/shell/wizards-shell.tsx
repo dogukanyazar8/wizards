@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import type { CSSProperties } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { WorkspaceChannel } from "@wizards/types";
 import { useParams, useRouter } from "next/navigation";
 import { useShallow } from "zustand/react/shallow";
@@ -128,6 +128,11 @@ export function WizardsShell({ currentUser, uploadthingEnabled }: WizardsShellPr
     },
   });
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const servers = serversQuery.data ?? [];
   const activeChannel = findActiveChannel(activeServerId, activeChannelId, serverDetailQuery.data);
   const activeCategoryName = findActiveCategoryName(activeChannel, serverDetailQuery.data);
@@ -184,13 +189,15 @@ export function WizardsShell({ currentUser, uploadthingEnabled }: WizardsShellPr
   );
 
   return (
-    <div className="app-shell flex h-screen overflow-hidden" style={shellStyle}>
-      <div
-        className="hidden h-full shrink-0 md:flex"
-        style={{ width: `calc(${serverRailWidth}px + 240px)` }}
-      >
-        {renderNavigation()}
-      </div>
+    <div className="app-shell flex h-screen overflow-hidden" style={shellStyle} suppressHydrationWarning>
+      {mounted && (
+        <div
+          className="hidden h-full shrink-0 md:flex"
+          style={{ width: `calc(${serverRailWidth}px + 240px)` }}
+        >
+          {renderNavigation()}
+        </div>
+      )}
 
       <AnimatePresence>
         {mobileSidebarOpen ? (
@@ -208,6 +215,7 @@ export function WizardsShell({ currentUser, uploadthingEnabled }: WizardsShellPr
               initial={{ x: -24 }}
               style={{ width: `calc(${serverRailWidth}px + 240px)` }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+              suppressHydrationWarning
             >
               {renderNavigation(true)}
             </motion.div>

@@ -11,6 +11,11 @@ type ServerPageProps = {
 export default async function ServerPage({ params }: ServerPageProps) {
   const session = await requireAuth();
   const { serverId } = await params;
+
+  if (serverId === "@me") {
+    redirect("/channels/@me");
+  }
+
   const detail = await getWorkspaceServerDetail(session.user.id, serverId);
 
   if (detail.server.defaultChannelId) {
