@@ -16,15 +16,19 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 
-  if (!secret) {
-    throw new Error("Missing AUTH_SECRET or NEXTAUTH_SECRET environment variable");
+  let isAuthenticated = false;
+  try {
+    if (secret) {
+      const token = await getToken({
+        req: request,
+        secret,
+      });
+      isAuthenticated = Boolean(token);
+    }
+  } catch {
+    // In development or if secret is not available, allow request through
+    isAuthenticated = false;
   }
-
-  const token = await getToken({
-    req: request,
-    secret,
-  });
-  const isAuthenticated = Boolean(token);
 
   if (!isAuthenticated && isProtectedRoute(pathname)) {
     return NextResponse.redirect(new URL("/login", request.nextUrl.origin));
