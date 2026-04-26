@@ -51,7 +51,7 @@ export function Modal({ children, className, description, onClose, open, title }
           <motion.div
             animate={{ opacity: 1, scale: 1, y: 0 }}
             className={cn(
-              "app-overlay w-full max-w-lg rounded-[28px] p-6 shadow-2xl shadow-black/20 backdrop-blur-2xl",
+              "app-overlay w-full max-w-lg rounded-[28px] p-6 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.16)] backdrop-blur-2xl",
               className,
             )}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}

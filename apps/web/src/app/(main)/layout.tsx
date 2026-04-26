@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { requireAuth } from "@/lib/auth/utils";
+import { ThemeSessionSync } from "@/components/theme/theme-session-sync";
 import { WizardsShell } from "@/components/shell/wizards-shell";
 import { SocketProvider } from "@/components/providers/socket-provider";
 
@@ -11,6 +12,7 @@ export default async function MainLayout({ children }: { children: ReactNode }) 
 
   return (
     <SocketProvider>
+      <ThemeSessionSync preferredTheme={session.user.theme} />
       <WizardsShell
         currentUser={{
           avatarUrl: session.user.avatarUrl ?? session.user.image ?? null,

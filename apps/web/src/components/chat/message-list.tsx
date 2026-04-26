@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { MessageItem } from "./message-item";
 import { useMessages } from "@/hooks/use-messages";
 import { useSocket } from "@/hooks/use-socket";
@@ -18,7 +18,8 @@ export function MessageList({
   canModerate,
 }: MessageListProps) {
   const socket = useSocket();
-  const { data, error, fetchNextPage, hasNextPage, isLoading } = useMessages(channelId);
+  const { data, error, fetchNextPage, hasNextPage, isLoading } =
+    useMessages(channelId);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<HTMLDivElement>(null);
@@ -39,7 +40,7 @@ export function MessageList({
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     if (!data?.pages) return;
-    const allMessages = data.pages.flatMap((p) => p.messages) ?? [];
+    const allMessages = data.pages.flatMap((page) => page.messages) ?? [];
     if (allMessages.length > lastMessageCountRef.current) {
       lastMessageCountRef.current = allMessages.length;
       setTimeout(() => {
@@ -67,81 +68,86 @@ export function MessageList({
     }
   };
 
-  const allMessages = data?.pages ? [...data.pages].reverse().flatMap((p) => p.messages) : [];
+  const allMessages = data?.pages
+    ? [...data.pages].reverse().flatMap((page) => page.messages)
+    : [];
 
-  const groupedMessages = allMessages.map((msg, i) => {
-    const prev = allMessages[i - 1];
-    const isGrouped: boolean =
-      i > 0 &&
-      prev !== undefined &&
-      msg.type === "DEFAULT" &&
-      prev.type === "DEFAULT" &&
-      prev.author.id === msg.author.id &&
-      new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < 7 * 60 * 1000;
-    return { message: msg, isGrouped };
+  const groupedMessages = allMessages.map((message, index) => {
+    const previousMessage = allMessages[index - 1];
+    const isGrouped =
+      index > 0 &&
+      previousMessage !== undefined &&
+      message.type === "DEFAULT" &&
+      previousMessage.type === "DEFAULT" &&
+      previousMessage.author.id === message.author.id &&
+      new Date(message.createdAt).getTime() -
+        new Date(previousMessage.createdAt).getTime() <
+        7 * 60 * 1000;
+
+    return { isGrouped, message };
   });
 
   return (
     <div
-      ref={listRef}
+      className="bg-app-background flex-1 space-y-0 overflow-y-auto"
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto bg-app-background space-y-0"
+      ref={listRef}
     >
-      <div ref={observerRef} className="h-1" />
+      <div className="h-1" ref={observerRef} />
 
-      {isLoading && allMessages.length === 0 && (
-        <div className="flex items-center justify-center h-full text-app-muted">
+      {isLoading && allMessages.length === 0 ? (
+        <div className="text-app-muted flex h-full items-center justify-center">
           <div className="animate-pulse">Loading messages...</div>
         </div>
-      )}
+      ) : null}
 
-      {error && !isLoading && (
-        <div className="flex items-center justify-center h-full text-app-muted">
+      {error && !isLoading ? (
+        <div className="text-app-muted flex h-full items-center justify-center">
           <div className="text-center">
             <p className="text-sm">Unable to load messages.</p>
             <p className="text-xs">Please refresh the channel and try again.</p>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {!error && allMessages.length === 0 && !isLoading && (
-        <div className="flex items-center justify-center h-full text-app-muted">
+      {!error && allMessages.length === 0 && !isLoading ? (
+        <div className="text-app-muted flex h-full items-center justify-center">
           <div className="text-center">
             <p className="text-sm">No messages yet.</p>
             <p className="text-xs">Be the first to send a message!</p>
           </div>
         </div>
-      )}
+      ) : null}
 
       {groupedMessages.map(({ message, isGrouped }) => (
         <MessageItem
+          canModerate={canModerate}
+          currentUserId={currentUserId}
+          isGrouped={isGrouped}
           key={message.id}
           message={message}
-          isGrouped={isGrouped}
-          currentUserId={currentUserId}
-          canModerate={canModerate}
+          onDelete={() => {}}
+          onEdit={() => {}}
           onReact={(messageId) => {
-            // Simple emoji reaction - in full implementation would show emoji picker
+            // Simple emoji reaction. A full picker can slot in here later.
             socket.emit("message:react", {
+              emoji: "\u{1F44D}",
               messageId,
-              emoji: "👍",
             });
           }}
           onReply={() => {}}
-          onEdit={() => {}}
-          onDelete={() => {}}
         />
       ))}
 
-      {showScrollButton && (
+      {showScrollButton ? (
         <button
-          onClick={scrollToBottom}
-          className="fixed bottom-24 right-8 bg-[hsl(var(--primary))] text-white rounded-full p-2 shadow-lg hover:bg-[hsl(var(--primary)/0.9)] transition"
           aria-label="Scroll to latest messages"
+          className="fixed bottom-24 right-8 rounded-full bg-[hsl(var(--primary))] p-2 text-[hsl(var(--primary-foreground))] shadow-[0_16px_36px_hsl(var(--shadow-color)/0.18)] transition hover:bg-[hsl(var(--primary)/0.9)]"
+          onClick={scrollToBottom}
         >
           <ChevronDown className="h-5 w-5" />
         </button>
-      )}
+      ) : null}
     </div>
   );
 }

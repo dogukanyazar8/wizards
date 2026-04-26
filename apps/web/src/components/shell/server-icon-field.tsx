@@ -58,14 +58,18 @@ export function ServerIconField({
           <p className="text-app-muted mt-1 text-xs leading-5">
             Upload a square image for the rail. A live preview keeps the crop feeling intentional.
           </p>
-          {uploadError ? <p className="mt-2 text-xs text-rose-300">{uploadError}</p> : null}
+          {uploadError ? (
+            <p className="text-app-danger mt-2 text-xs">{uploadError}</p>
+          ) : null}
           {!uploadthingEnabled ? (
-            <p className="mt-2 text-xs text-amber-300">
+            <p className="text-app-warning mt-2 text-xs">
               Add `UPLOADTHING_TOKEN` to enable cloud uploads.
             </p>
           ) : null}
           {isUploading ? (
-            <p className="mt-2 text-xs text-sky-300">Uploading icon... {progress}%</p>
+            <p className="text-app-accent mt-2 text-xs">
+              Uploading icon... {progress}%
+            </p>
           ) : null}
         </div>
       </div>

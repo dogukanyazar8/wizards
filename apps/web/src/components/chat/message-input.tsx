@@ -105,15 +105,15 @@ export function MessageInput({
             />
           )}
 
-          {content.length > 1800 && (
-            <div className="text-xs text-red-500 mt-1">{content.length}/2000</div>
-          )}
+          {content.length > 1800 ? (
+            <div className="text-app-danger mt-1 text-xs">{content.length}/2000</div>
+          ) : null}
         </div>
 
         <button
           onClick={handleSend}
           disabled={!content.trim()}
-          className="p-3 bg-[hsl(var(--primary))] text-white rounded hover:bg-[hsl(var(--primary)/0.9)] disabled:opacity-50 disabled:cursor-not-allowed transition"
+          className="app-button-primary rounded p-3 transition disabled:cursor-not-allowed disabled:opacity-50"
           aria-label="Send message"
         >
           <Send className="h-4 w-4" />

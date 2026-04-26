@@ -2,125 +2,834 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --danger: 352 84% 60%;
+  --danger-foreground: 351 100% 96%;
+  --danger-soft: 352 70% 16%;
+  --success: 154 60% 42%;
+  --success-foreground: 154 100% 96%;
+  --success-soft: 154 46% 16%;
+  --warning: 39 90% 56%;
+  --warning-foreground: 40 100% 96%;
+  --warning-soft: 34 55% 17%;
+  --shadow-color: 222 47% 8%;
+  --backdrop: 222 47% 6%;
+}
+
 :root,
-html.theme-graphite {
-  --background: 222 21% 14%;
-  --foreground: 210 36% 96%;
-  --card: 223 18% 18%;
-  --card-foreground: 210 36% 96%;
-  --primary: 198 91% 60%;
-  --primary-foreground: 222 47% 11%;
-  --border: 220 16% 28%;
-  --input: 222 18% 24%;
-  --ring: 198 91% 60%;
-  --surface-base: 222 21% 14%;
-  --surface-rail: 222 20% 16%;
-  --surface-panel: 223 18% 18%;
-  --surface-card: 223 18% 20%;
-  --surface-soft: 223 17% 23%;
-  --surface-overlay: 222 19% 16%;
-  --surface-main-top: 223 18% 18%;
-  --surface-main-bottom: 223 19% 14%;
-  --text-muted: 217 18% 72%;
-  --text-soft: 219 12% 58%;
-  --ambient-1: 191 88% 62%;
-  --ambient-2: 220 24% 66%;
-}
-
-html.theme-midnight {
-  --background: 228 28% 9%;
-  --foreground: 210 40% 98%;
-  --card: 228 24% 12%;
-  --card-foreground: 210 40% 98%;
-  --primary: 199 89% 58%;
-  --primary-foreground: 210 40% 98%;
-  --border: 225 20% 19%;
-  --input: 225 20% 19%;
-  --ring: 199 94% 56%;
-  --surface-base: 228 28% 9%;
-  --surface-rail: 229 24% 11%;
-  --surface-panel: 228 22% 13%;
-  --surface-card: 228 20% 15%;
-  --surface-soft: 228 19% 18%;
-  --surface-overlay: 228 22% 11%;
-  --surface-main-top: 229 21% 13%;
-  --surface-main-bottom: 229 25% 9%;
-  --text-muted: 220 15% 72%;
-  --text-soft: 223 10% 56%;
-  --ambient-1: 199 89% 58%;
-  --ambient-2: 247 55% 62%;
-}
-
+html.theme-light,
 html.theme-dawn {
-  --background: 213 46% 97%;
-  --foreground: 224 30% 18%;
+  color-scheme: light;
+  --background: 220 23% 98%;
+  --foreground: 222 26% 14%;
   --card: 0 0% 100%;
-  --card-foreground: 224 30% 18%;
-  --primary: 221 83% 56%;
+  --card-foreground: 222 26% 14%;
+  --primary: 235 86% 65%;
   --primary-foreground: 0 0% 100%;
-  --border: 214 24% 85%;
-  --input: 214 24% 90%;
-  --ring: 221 83% 56%;
-  --surface-base: 213 46% 97%;
-  --surface-rail: 212 44% 95%;
-  --surface-panel: 0 0% 100%;
-  --surface-card: 210 34% 98%;
-  --surface-soft: 214 33% 92%;
+  --border: 220 20% 84%;
+  --input: 220 24% 91%;
+  --ring: 235 86% 65%;
+  --surface-primary: 0 0% 100%;
+  --surface-secondary: 220 29% 96%;
+  --surface-tertiary: 220 24% 91%;
+  --text-primary: 222 26% 14%;
+  --text-secondary: 220 16% 38%;
+  --text-muted: 220 11% 52%;
+  --surface-base: 220 23% 98%;
+  --surface-rail: 220 29% 96%;
+  --surface-panel: 220 29% 96%;
+  --surface-card: 0 0% 100%;
+  --surface-soft: 220 24% 91%;
   --surface-overlay: 0 0% 100%;
-  --surface-main-top: 213 47% 98%;
-  --surface-main-bottom: 210 38% 95%;
-  --text-muted: 220 17% 42%;
-  --text-soft: 218 13% 54%;
-  --ambient-1: 208 100% 72%;
-  --ambient-2: 191 78% 70%;
+  --surface-main-top: 220 29% 96%;
+  --surface-main-bottom: 220 23% 98%;
+  --text-soft: 220 11% 52%;
+  --ambient-1: 235 90% 72%;
+  --ambient-2: 190 74% 74%;
 }
 
-html.theme-studio {
-  --background: 262 34% 14%;
-  --foreground: 0 0% 99%;
-  --card: 263 31% 18%;
-  --card-foreground: 0 0% 99%;
-  --primary: 327 86% 68%;
+html.theme-ash,
+html.theme-graphite {
+  color-scheme: dark;
+  --background: 227 8% 24%;
+  --foreground: 220 20% 96%;
+  --card: 227 8% 27%;
+  --card-foreground: 220 20% 96%;
+  --primary: 235 86% 65%;
   --primary-foreground: 0 0% 100%;
-  --border: 264 24% 28%;
-  --input: 263 25% 24%;
-  --ring: 327 86% 68%;
-  --surface-base: 262 34% 14%;
-  --surface-rail: 261 32% 16%;
-  --surface-panel: 262 30% 18%;
-  --surface-card: 263 27% 21%;
-  --surface-soft: 263 23% 26%;
-  --surface-overlay: 262 30% 16%;
-  --surface-main-top: 263 31% 18%;
-  --surface-main-bottom: 261 34% 14%;
-  --text-muted: 261 17% 78%;
-  --text-soft: 259 11% 62%;
-  --ambient-1: 327 86% 68%;
-  --ambient-2: 190 92% 63%;
+  --border: 227 8% 38%;
+  --input: 227 8% 31%;
+  --ring: 235 86% 65%;
+  --surface-primary: 227 8% 27%;
+  --surface-secondary: 227 8% 25%;
+  --surface-tertiary: 227 8% 31%;
+  --text-primary: 220 20% 96%;
+  --text-secondary: 220 10% 72%;
+  --text-muted: 220 8% 58%;
+  --surface-base: 227 8% 24%;
+  --surface-rail: 227 8% 25%;
+  --surface-panel: 227 8% 25%;
+  --surface-card: 227 8% 27%;
+  --surface-soft: 227 8% 31%;
+  --surface-overlay: 227 8% 27%;
+  --surface-main-top: 227 8% 25%;
+  --surface-main-bottom: 227 8% 24%;
+  --text-soft: 220 8% 58%;
+  --ambient-1: 235 86% 70%;
+  --ambient-2: 198 82% 66%;
 }
 
+html.theme-dark {
+  color-scheme: dark;
+  --background: 220 8% 19%;
+  --foreground: 220 20% 96%;
+  --card: 220 8% 22%;
+  --card-foreground: 220 20% 96%;
+  --primary: 235 86% 65%;
+  --primary-foreground: 0 0% 100%;
+  --border: 220 9% 33%;
+  --input: 220 9% 26%;
+  --ring: 235 86% 65%;
+  --surface-primary: 220 8% 22%;
+  --surface-secondary: 220 8% 20%;
+  --surface-tertiary: 220 9% 26%;
+  --text-primary: 220 20% 96%;
+  --text-secondary: 220 11% 74%;
+  --text-muted: 220 8% 59%;
+  --surface-base: 220 8% 19%;
+  --surface-rail: 220 8% 20%;
+  --surface-panel: 220 8% 20%;
+  --surface-card: 220 8% 22%;
+  --surface-soft: 220 9% 26%;
+  --surface-overlay: 220 8% 22%;
+  --surface-main-top: 220 8% 20%;
+  --surface-main-bottom: 220 8% 19%;
+  --text-soft: 220 8% 59%;
+  --ambient-1: 235 88% 70%;
+  --ambient-2: 192 82% 66%;
+}
+
+html.theme-onyx,
+html.theme-midnight {
+  color-scheme: dark;
+  --background: 220 10% 11%;
+  --foreground: 220 22% 97%;
+  --card: 220 10% 14%;
+  --card-foreground: 220 22% 97%;
+  --primary: 235 88% 68%;
+  --primary-foreground: 0 0% 100%;
+  --border: 220 10% 24%;
+  --input: 220 11% 18%;
+  --ring: 235 88% 68%;
+  --surface-primary: 220 10% 14%;
+  --surface-secondary: 220 10% 12%;
+  --surface-tertiary: 220 11% 18%;
+  --text-primary: 220 22% 97%;
+  --text-secondary: 220 11% 74%;
+  --text-muted: 220 8% 58%;
+  --surface-base: 220 10% 11%;
+  --surface-rail: 220 10% 12%;
+  --surface-panel: 220 10% 12%;
+  --surface-card: 220 10% 14%;
+  --surface-soft: 220 11% 18%;
+  --surface-overlay: 220 10% 14%;
+  --surface-main-top: 220 10% 12%;
+  --surface-main-bottom: 220 10% 11%;
+  --text-soft: 220 8% 58%;
+  --ambient-1: 235 88% 70%;
+  --ambient-2: 190 82% 62%;
+}
+
+html.theme-mint-green {
+  color-scheme: light;
+  --background: 144 52% 97%;
+  --foreground: 154 28% 16%;
+  --card: 0 0% 100%;
+  --card-foreground: 154 28% 16%;
+  --primary: 154 53% 42%;
+  --primary-foreground: 0 0% 100%;
+  --border: 146 24% 84%;
+  --input: 146 35% 90%;
+  --ring: 154 53% 42%;
+  --surface-primary: 0 0% 100%;
+  --surface-secondary: 144 42% 95%;
+  --surface-tertiary: 146 35% 90%;
+  --text-primary: 154 28% 16%;
+  --text-secondary: 154 16% 38%;
+  --text-muted: 154 12% 52%;
+  --surface-base: 144 52% 97%;
+  --surface-rail: 144 42% 95%;
+  --surface-panel: 144 42% 95%;
+  --surface-card: 0 0% 100%;
+  --surface-soft: 146 35% 90%;
+  --surface-overlay: 0 0% 100%;
+  --surface-main-top: 144 42% 95%;
+  --surface-main-bottom: 144 52% 97%;
+  --text-soft: 154 12% 52%;
+  --ambient-1: 146 68% 71%;
+  --ambient-2: 167 66% 70%;
+}
+
+html.theme-peach-orange {
+  color-scheme: light;
+  --background: 26 100% 97%;
+  --foreground: 20 32% 18%;
+  --card: 0 0% 100%;
+  --card-foreground: 20 32% 18%;
+  --primary: 24 92% 58%;
+  --primary-foreground: 0 0% 100%;
+  --border: 24 35% 84%;
+  --input: 24 77% 90%;
+  --ring: 24 92% 58%;
+  --surface-primary: 0 0% 100%;
+  --surface-secondary: 26 86% 95%;
+  --surface-tertiary: 24 77% 90%;
+  --text-primary: 20 32% 18%;
+  --text-secondary: 22 18% 40%;
+  --text-muted: 22 13% 54%;
+  --surface-base: 26 100% 97%;
+  --surface-rail: 26 86% 95%;
+  --surface-panel: 26 86% 95%;
+  --surface-card: 0 0% 100%;
+  --surface-soft: 24 77% 90%;
+  --surface-overlay: 0 0% 100%;
+  --surface-main-top: 26 86% 95%;
+  --surface-main-bottom: 26 100% 97%;
+  --text-soft: 22 13% 54%;
+  --ambient-1: 32 96% 72%;
+  --ambient-2: 12 84% 74%;
+}
+
+html.theme-lavender {
+  color-scheme: light;
+  --background: 257 73% 97%;
+  --foreground: 258 26% 18%;
+  --card: 0 0% 100%;
+  --card-foreground: 258 26% 18%;
+  --primary: 257 78% 64%;
+  --primary-foreground: 0 0% 100%;
+  --border: 255 30% 84%;
+  --input: 255 46% 90%;
+  --ring: 257 78% 64%;
+  --surface-primary: 0 0% 100%;
+  --surface-secondary: 255 58% 95%;
+  --surface-tertiary: 255 46% 90%;
+  --text-primary: 258 26% 18%;
+  --text-secondary: 258 15% 40%;
+  --text-muted: 258 11% 54%;
+  --surface-base: 257 73% 97%;
+  --surface-rail: 255 58% 95%;
+  --surface-panel: 255 58% 95%;
+  --surface-card: 0 0% 100%;
+  --surface-soft: 255 46% 90%;
+  --surface-overlay: 0 0% 100%;
+  --surface-main-top: 255 58% 95%;
+  --surface-main-bottom: 257 73% 97%;
+  --text-soft: 258 11% 54%;
+  --ambient-1: 262 88% 76%;
+  --ambient-2: 219 83% 77%;
+}
+
+html.theme-sage-green,
 html.theme-mist {
-  --background: 34 29% 96%;
-  --foreground: 212 22% 21%;
-  --card: 37 29% 99%;
-  --card-foreground: 212 22% 21%;
-  --primary: 156 54% 42%;
+  color-scheme: light;
+  --background: 100 29% 96%;
+  --foreground: 110 18% 18%;
+  --card: 0 0% 100%;
+  --card-foreground: 110 18% 18%;
+  --primary: 112 27% 42%;
   --primary-foreground: 0 0% 100%;
-  --border: 34 18% 83%;
-  --input: 34 18% 88%;
-  --ring: 156 54% 42%;
-  --surface-base: 34 29% 96%;
-  --surface-rail: 34 25% 94%;
-  --surface-panel: 37 29% 99%;
-  --surface-card: 36 25% 96%;
-  --surface-soft: 34 20% 90%;
-  --surface-overlay: 37 29% 99%;
-  --surface-main-top: 36 25% 97%;
-  --surface-main-bottom: 34 22% 93%;
-  --text-muted: 213 14% 43%;
-  --text-soft: 213 10% 55%;
-  --ambient-1: 156 54% 42%;
-  --ambient-2: 43 89% 58%;
+  --border: 104 18% 82%;
+  --input: 102 20% 88%;
+  --ring: 112 27% 42%;
+  --surface-primary: 0 0% 100%;
+  --surface-secondary: 102 22% 94%;
+  --surface-tertiary: 102 20% 88%;
+  --text-primary: 110 18% 18%;
+  --text-secondary: 110 10% 39%;
+  --text-muted: 110 8% 52%;
+  --surface-base: 100 29% 96%;
+  --surface-rail: 102 22% 94%;
+  --surface-panel: 102 22% 94%;
+  --surface-card: 0 0% 100%;
+  --surface-soft: 102 20% 88%;
+  --surface-overlay: 0 0% 100%;
+  --surface-main-top: 102 22% 94%;
+  --surface-main-bottom: 100 29% 96%;
+  --text-soft: 110 8% 52%;
+  --ambient-1: 96 36% 73%;
+  --ambient-2: 139 34% 70%;
+}
+
+html.theme-cream-yellow {
+  color-scheme: light;
+  --background: 49 92% 97%;
+  --foreground: 36 34% 18%;
+  --card: 0 0% 100%;
+  --card-foreground: 36 34% 18%;
+  --primary: 42 88% 50%;
+  --primary-foreground: 40 50% 12%;
+  --border: 46 34% 83%;
+  --input: 47 66% 88%;
+  --ring: 42 88% 50%;
+  --surface-primary: 0 0% 100%;
+  --surface-secondary: 49 75% 94%;
+  --surface-tertiary: 47 66% 88%;
+  --text-primary: 36 34% 18%;
+  --text-secondary: 37 18% 40%;
+  --text-muted: 37 13% 54%;
+  --surface-base: 49 92% 97%;
+  --surface-rail: 49 75% 94%;
+  --surface-panel: 49 75% 94%;
+  --surface-card: 0 0% 100%;
+  --surface-soft: 47 66% 88%;
+  --surface-overlay: 0 0% 100%;
+  --surface-main-top: 49 75% 94%;
+  --surface-main-bottom: 49 92% 97%;
+  --text-soft: 37 13% 54%;
+  --ambient-1: 49 94% 74%;
+  --ambient-2: 33 86% 75%;
+}
+
+html.theme-dusty-rose {
+  color-scheme: light;
+  --background: 338 42% 97%;
+  --foreground: 338 24% 18%;
+  --card: 0 0% 100%;
+  --card-foreground: 338 24% 18%;
+  --primary: 338 58% 58%;
+  --primary-foreground: 0 0% 100%;
+  --border: 338 22% 84%;
+  --input: 338 29% 90%;
+  --ring: 338 58% 58%;
+  --surface-primary: 0 0% 100%;
+  --surface-secondary: 338 35% 95%;
+  --surface-tertiary: 338 29% 90%;
+  --text-primary: 338 24% 18%;
+  --text-secondary: 338 14% 40%;
+  --text-muted: 338 10% 54%;
+  --surface-base: 338 42% 97%;
+  --surface-rail: 338 35% 95%;
+  --surface-panel: 338 35% 95%;
+  --surface-card: 0 0% 100%;
+  --surface-soft: 338 29% 90%;
+  --surface-overlay: 0 0% 100%;
+  --surface-main-top: 338 35% 95%;
+  --surface-main-bottom: 338 42% 97%;
+  --text-soft: 338 10% 54%;
+  --ambient-1: 338 72% 76%;
+  --ambient-2: 18 68% 78%;
+}
+
+html.theme-soft-pink {
+  color-scheme: light;
+  --background: 327 100% 97%;
+  --foreground: 327 28% 18%;
+  --card: 0 0% 100%;
+  --card-foreground: 327 28% 18%;
+  --primary: 327 82% 64%;
+  --primary-foreground: 0 0% 100%;
+  --border: 327 31% 84%;
+  --input: 327 64% 90%;
+  --ring: 327 82% 64%;
+  --surface-primary: 0 0% 100%;
+  --surface-secondary: 327 83% 95%;
+  --surface-tertiary: 327 64% 90%;
+  --text-primary: 327 28% 18%;
+  --text-secondary: 327 15% 40%;
+  --text-muted: 327 11% 54%;
+  --surface-base: 327 100% 97%;
+  --surface-rail: 327 83% 95%;
+  --surface-panel: 327 83% 95%;
+  --surface-card: 0 0% 100%;
+  --surface-soft: 327 64% 90%;
+  --surface-overlay: 0 0% 100%;
+  --surface-main-top: 327 83% 95%;
+  --surface-main-bottom: 327 100% 97%;
+  --text-soft: 327 11% 54%;
+  --ambient-1: 327 96% 78%;
+  --ambient-2: 285 74% 80%;
+}
+
+html.theme-sky-blue {
+  color-scheme: light;
+  --background: 207 100% 97%;
+  --foreground: 212 29% 17%;
+  --card: 0 0% 100%;
+  --card-foreground: 212 29% 17%;
+  --primary: 208 84% 58%;
+  --primary-foreground: 0 0% 100%;
+  --border: 209 28% 84%;
+  --input: 207 70% 90%;
+  --ring: 208 84% 58%;
+  --surface-primary: 0 0% 100%;
+  --surface-secondary: 207 82% 95%;
+  --surface-tertiary: 207 70% 90%;
+  --text-primary: 212 29% 17%;
+  --text-secondary: 212 17% 39%;
+  --text-muted: 212 12% 53%;
+  --surface-base: 207 100% 97%;
+  --surface-rail: 207 82% 95%;
+  --surface-panel: 207 82% 95%;
+  --surface-card: 0 0% 100%;
+  --surface-soft: 207 70% 90%;
+  --surface-overlay: 0 0% 100%;
+  --surface-main-top: 207 82% 95%;
+  --surface-main-bottom: 207 100% 97%;
+  --text-soft: 212 12% 53%;
+  --ambient-1: 205 100% 78%;
+  --ambient-2: 188 76% 76%;
+}
+
+html.theme-warm-beige {
+  color-scheme: light;
+  --background: 32 45% 96%;
+  --foreground: 28 28% 18%;
+  --card: 0 0% 100%;
+  --card-foreground: 28 28% 18%;
+  --primary: 28 52% 46%;
+  --primary-foreground: 0 0% 100%;
+  --border: 30 22% 82%;
+  --input: 32 29% 88%;
+  --ring: 28 52% 46%;
+  --surface-primary: 0 0% 100%;
+  --surface-secondary: 32 36% 94%;
+  --surface-tertiary: 32 29% 88%;
+  --text-primary: 28 28% 18%;
+  --text-secondary: 28 16% 40%;
+  --text-muted: 28 12% 54%;
+  --surface-base: 32 45% 96%;
+  --surface-rail: 32 36% 94%;
+  --surface-panel: 32 36% 94%;
+  --surface-card: 0 0% 100%;
+  --surface-soft: 32 29% 88%;
+  --surface-overlay: 0 0% 100%;
+  --surface-main-top: 32 36% 94%;
+  --surface-main-bottom: 32 45% 96%;
+  --text-soft: 28 12% 54%;
+  --ambient-1: 34 62% 74%;
+  --ambient-2: 17 42% 72%;
+}
+
+html.theme-deep-purple-gradient {
+  color-scheme: dark;
+  --background: 267 34% 16%;
+  --foreground: 275 22% 97%;
+  --card: 267 32% 20%;
+  --card-foreground: 275 22% 97%;
+  --primary: 279 86% 72%;
+  --primary-foreground: 270 55% 14%;
+  --border: 267 22% 33%;
+  --input: 267 24% 26%;
+  --ring: 279 86% 72%;
+  --surface-primary: 267 32% 20%;
+  --surface-secondary: 268 30% 18%;
+  --surface-tertiary: 267 24% 26%;
+  --text-primary: 275 22% 97%;
+  --text-secondary: 271 16% 76%;
+  --text-muted: 270 11% 60%;
+  --surface-base: 267 34% 16%;
+  --surface-rail: 268 30% 18%;
+  --surface-panel: 268 30% 18%;
+  --surface-card: 267 32% 20%;
+  --surface-soft: 267 24% 26%;
+  --surface-overlay: 267 32% 20%;
+  --surface-main-top: 268 30% 18%;
+  --surface-main-bottom: 267 34% 16%;
+  --text-soft: 270 11% 60%;
+  --ambient-1: 279 86% 70%;
+  --ambient-2: 315 78% 66%;
+}
+
+html.theme-blue-purple-gradient {
+  color-scheme: dark;
+  --background: 232 34% 16%;
+  --foreground: 228 24% 97%;
+  --card: 233 32% 20%;
+  --card-foreground: 228 24% 97%;
+  --primary: 226 92% 66%;
+  --primary-foreground: 228 60% 14%;
+  --border: 233 22% 33%;
+  --input: 234 24% 26%;
+  --ring: 226 92% 66%;
+  --surface-primary: 233 32% 20%;
+  --surface-secondary: 234 30% 18%;
+  --surface-tertiary: 234 24% 26%;
+  --text-primary: 228 24% 97%;
+  --text-secondary: 231 16% 76%;
+  --text-muted: 232 11% 60%;
+  --surface-base: 232 34% 16%;
+  --surface-rail: 234 30% 18%;
+  --surface-panel: 234 30% 18%;
+  --surface-card: 233 32% 20%;
+  --surface-soft: 234 24% 26%;
+  --surface-overlay: 233 32% 20%;
+  --surface-main-top: 234 30% 18%;
+  --surface-main-bottom: 232 34% 16%;
+  --text-soft: 232 11% 60%;
+  --ambient-1: 224 100% 70%;
+  --ambient-2: 263 88% 70%;
+}
+
+html.theme-forest-dark {
+  color-scheme: dark;
+  --background: 155 23% 12%;
+  --foreground: 142 22% 96%;
+  --card: 155 22% 15%;
+  --card-foreground: 142 22% 96%;
+  --primary: 142 42% 52%;
+  --primary-foreground: 150 35% 12%;
+  --border: 154 16% 28%;
+  --input: 154 16% 21%;
+  --ring: 142 42% 52%;
+  --surface-primary: 155 22% 15%;
+  --surface-secondary: 155 20% 14%;
+  --surface-tertiary: 154 16% 21%;
+  --text-primary: 142 22% 96%;
+  --text-secondary: 145 12% 75%;
+  --text-muted: 145 9% 58%;
+  --surface-base: 155 23% 12%;
+  --surface-rail: 155 20% 14%;
+  --surface-panel: 155 20% 14%;
+  --surface-card: 155 22% 15%;
+  --surface-soft: 154 16% 21%;
+  --surface-overlay: 155 22% 15%;
+  --surface-main-top: 155 20% 14%;
+  --surface-main-bottom: 155 23% 12%;
+  --text-soft: 145 9% 58%;
+  --ambient-1: 138 44% 54%;
+  --ambient-2: 48 46% 48%;
+}
+
+html.theme-crimson-dark {
+  color-scheme: dark;
+  --background: 352 38% 12%;
+  --foreground: 350 22% 96%;
+  --card: 352 35% 15%;
+  --card-foreground: 350 22% 96%;
+  --primary: 352 79% 58%;
+  --primary-foreground: 350 70% 12%;
+  --border: 352 22% 29%;
+  --input: 352 26% 21%;
+  --ring: 352 79% 58%;
+  --surface-primary: 352 35% 15%;
+  --surface-secondary: 352 32% 14%;
+  --surface-tertiary: 352 26% 21%;
+  --text-primary: 350 22% 96%;
+  --text-secondary: 350 14% 76%;
+  --text-muted: 350 11% 60%;
+  --surface-base: 352 38% 12%;
+  --surface-rail: 352 32% 14%;
+  --surface-panel: 352 32% 14%;
+  --surface-card: 352 35% 15%;
+  --surface-soft: 352 26% 21%;
+  --surface-overlay: 352 35% 15%;
+  --surface-main-top: 352 32% 14%;
+  --surface-main-bottom: 352 38% 12%;
+  --text-soft: 350 11% 60%;
+  --ambient-1: 352 78% 58%;
+  --ambient-2: 16 80% 54%;
+}
+
+html.theme-midnight-navy {
+  color-scheme: dark;
+  --background: 221 48% 12%;
+  --foreground: 214 28% 97%;
+  --card: 221 42% 15%;
+  --card-foreground: 214 28% 97%;
+  --primary: 214 88% 62%;
+  --primary-foreground: 220 62% 13%;
+  --border: 220 24% 28%;
+  --input: 222 28% 21%;
+  --ring: 214 88% 62%;
+  --surface-primary: 221 42% 15%;
+  --surface-secondary: 221 38% 14%;
+  --surface-tertiary: 222 28% 21%;
+  --text-primary: 214 28% 97%;
+  --text-secondary: 214 16% 76%;
+  --text-muted: 214 10% 60%;
+  --surface-base: 221 48% 12%;
+  --surface-rail: 221 38% 14%;
+  --surface-panel: 221 38% 14%;
+  --surface-card: 221 42% 15%;
+  --surface-soft: 222 28% 21%;
+  --surface-overlay: 221 42% 15%;
+  --surface-main-top: 221 38% 14%;
+  --surface-main-bottom: 221 48% 12%;
+  --text-soft: 214 10% 60%;
+  --ambient-1: 214 92% 66%;
+  --ambient-2: 249 72% 64%;
+}
+
+html.theme-mauve-dark {
+  color-scheme: dark;
+  --background: 293 18% 14%;
+  --foreground: 290 20% 97%;
+  --card: 293 17% 18%;
+  --card-foreground: 290 20% 97%;
+  --primary: 304 44% 62%;
+  --primary-foreground: 292 35% 13%;
+  --border: 293 14% 30%;
+  --input: 293 14% 24%;
+  --ring: 304 44% 62%;
+  --surface-primary: 293 17% 18%;
+  --surface-secondary: 293 16% 16%;
+  --surface-tertiary: 293 14% 24%;
+  --text-primary: 290 20% 97%;
+  --text-secondary: 290 11% 76%;
+  --text-muted: 290 9% 60%;
+  --surface-base: 293 18% 14%;
+  --surface-rail: 293 16% 16%;
+  --surface-panel: 293 16% 16%;
+  --surface-card: 293 17% 18%;
+  --surface-soft: 293 14% 24%;
+  --surface-overlay: 293 17% 18%;
+  --surface-main-top: 293 16% 16%;
+  --surface-main-bottom: 293 18% 14%;
+  --text-soft: 290 9% 60%;
+  --ambient-1: 304 56% 66%;
+  --ambient-2: 267 44% 66%;
+}
+
+html.theme-slate-dark {
+  color-scheme: dark;
+  --background: 213 23% 12%;
+  --foreground: 210 22% 97%;
+  --card: 213 20% 15%;
+  --card-foreground: 210 22% 97%;
+  --primary: 214 30% 62%;
+  --primary-foreground: 214 40% 13%;
+  --border: 214 14% 29%;
+  --input: 214 15% 21%;
+  --ring: 214 30% 62%;
+  --surface-primary: 213 20% 15%;
+  --surface-secondary: 213 18% 14%;
+  --surface-tertiary: 214 15% 21%;
+  --text-primary: 210 22% 97%;
+  --text-secondary: 210 11% 76%;
+  --text-muted: 210 8% 60%;
+  --surface-base: 213 23% 12%;
+  --surface-rail: 213 18% 14%;
+  --surface-panel: 213 18% 14%;
+  --surface-card: 213 20% 15%;
+  --surface-soft: 214 15% 21%;
+  --surface-overlay: 213 20% 15%;
+  --surface-main-top: 213 18% 14%;
+  --surface-main-bottom: 213 23% 12%;
+  --text-soft: 210 8% 60%;
+  --ambient-1: 214 44% 64%;
+  --ambient-2: 194 24% 62%;
+}
+
+html.theme-teal-dark {
+  color-scheme: dark;
+  --background: 181 34% 12%;
+  --foreground: 175 24% 97%;
+  --card: 181 30% 15%;
+  --card-foreground: 175 24% 97%;
+  --primary: 178 68% 45%;
+  --primary-foreground: 180 60% 12%;
+  --border: 181 18% 29%;
+  --input: 181 20% 22%;
+  --ring: 178 68% 45%;
+  --surface-primary: 181 30% 15%;
+  --surface-secondary: 181 27% 14%;
+  --surface-tertiary: 181 20% 22%;
+  --text-primary: 175 24% 97%;
+  --text-secondary: 175 14% 76%;
+  --text-muted: 175 10% 60%;
+  --surface-base: 181 34% 12%;
+  --surface-rail: 181 27% 14%;
+  --surface-panel: 181 27% 14%;
+  --surface-card: 181 30% 15%;
+  --surface-soft: 181 20% 22%;
+  --surface-overlay: 181 30% 15%;
+  --surface-main-top: 181 27% 14%;
+  --surface-main-bottom: 181 34% 12%;
+  --text-soft: 175 10% 60%;
+  --ambient-1: 178 72% 50%;
+  --ambient-2: 204 74% 60%;
+}
+
+html.theme-ocean-dark {
+  color-scheme: dark;
+  --background: 201 48% 12%;
+  --foreground: 197 26% 97%;
+  --card: 201 41% 15%;
+  --card-foreground: 197 26% 97%;
+  --primary: 195 88% 52%;
+  --primary-foreground: 202 68% 12%;
+  --border: 201 23% 29%;
+  --input: 201 27% 22%;
+  --ring: 195 88% 52%;
+  --surface-primary: 201 41% 15%;
+  --surface-secondary: 201 36% 14%;
+  --surface-tertiary: 201 27% 22%;
+  --text-primary: 197 26% 97%;
+  --text-secondary: 197 16% 76%;
+  --text-muted: 197 10% 60%;
+  --surface-base: 201 48% 12%;
+  --surface-rail: 201 36% 14%;
+  --surface-panel: 201 36% 14%;
+  --surface-card: 201 41% 15%;
+  --surface-soft: 201 27% 22%;
+  --surface-overlay: 201 41% 15%;
+  --surface-main-top: 201 36% 14%;
+  --surface-main-bottom: 201 48% 12%;
+  --text-soft: 197 10% 60%;
+  --ambient-1: 195 86% 56%;
+  --ambient-2: 228 78% 62%;
+}
+
+html.theme-purple-teal,
+html.theme-studio {
+  color-scheme: dark;
+  --background: 254 34% 15%;
+  --foreground: 244 24% 97%;
+  --card: 254 31% 19%;
+  --card-foreground: 244 24% 97%;
+  --primary: 174 65% 46%;
+  --primary-foreground: 184 55% 12%;
+  --border: 254 20% 31%;
+  --input: 254 23% 25%;
+  --ring: 174 65% 46%;
+  --surface-primary: 254 31% 19%;
+  --surface-secondary: 254 29% 17%;
+  --surface-tertiary: 254 23% 25%;
+  --text-primary: 244 24% 97%;
+  --text-secondary: 244 15% 76%;
+  --text-muted: 244 10% 60%;
+  --surface-base: 254 34% 15%;
+  --surface-rail: 254 29% 17%;
+  --surface-panel: 254 29% 17%;
+  --surface-card: 254 31% 19%;
+  --surface-soft: 254 23% 25%;
+  --surface-overlay: 254 31% 19%;
+  --surface-main-top: 254 29% 17%;
+  --surface-main-bottom: 254 34% 15%;
+  --text-soft: 244 10% 60%;
+  --ambient-1: 267 82% 66%;
+  --ambient-2: 177 76% 54%;
+}
+
+html.theme-amber-dark {
+  color-scheme: dark;
+  --background: 31 48% 12%;
+  --foreground: 36 26% 97%;
+  --card: 31 41% 15%;
+  --card-foreground: 36 26% 97%;
+  --primary: 38 89% 54%;
+  --primary-foreground: 31 72% 12%;
+  --border: 31 23% 29%;
+  --input: 31 28% 22%;
+  --ring: 38 89% 54%;
+  --surface-primary: 31 41% 15%;
+  --surface-secondary: 31 36% 14%;
+  --surface-tertiary: 31 28% 22%;
+  --text-primary: 36 26% 97%;
+  --text-secondary: 36 16% 76%;
+  --text-muted: 36 10% 60%;
+  --surface-base: 31 48% 12%;
+  --surface-rail: 31 36% 14%;
+  --surface-panel: 31 36% 14%;
+  --surface-card: 31 41% 15%;
+  --surface-soft: 31 28% 22%;
+  --surface-overlay: 31 41% 15%;
+  --surface-main-top: 31 36% 14%;
+  --surface-main-bottom: 31 48% 12%;
+  --text-soft: 36 10% 60%;
+  --ambient-1: 39 94% 58%;
+  --ambient-2: 8 80% 56%;
+}
+
+html.theme-green-rainbow {
+  color-scheme: dark;
+  --background: 151 40% 12%;
+  --foreground: 145 24% 97%;
+  --card: 151 34% 15%;
+  --card-foreground: 145 24% 97%;
+  --primary: 141 67% 48%;
+  --primary-foreground: 145 62% 11%;
+  --border: 151 18% 29%;
+  --input: 151 24% 22%;
+  --ring: 141 67% 48%;
+  --surface-primary: 151 34% 15%;
+  --surface-secondary: 151 31% 14%;
+  --surface-tertiary: 151 24% 22%;
+  --text-primary: 145 24% 97%;
+  --text-secondary: 145 14% 76%;
+  --text-muted: 145 10% 60%;
+  --surface-base: 151 40% 12%;
+  --surface-rail: 151 31% 14%;
+  --surface-panel: 151 31% 14%;
+  --surface-card: 151 34% 15%;
+  --surface-soft: 151 24% 22%;
+  --surface-overlay: 151 34% 15%;
+  --surface-main-top: 151 31% 14%;
+  --surface-main-bottom: 151 40% 12%;
+  --text-soft: 145 10% 60%;
+  --ambient-1: 148 88% 52%;
+  --ambient-2: 83 82% 60%;
+}
+
+html.theme-khaki-dark {
+  color-scheme: dark;
+  --background: 41 26% 12%;
+  --foreground: 44 18% 97%;
+  --card: 41 22% 15%;
+  --card-foreground: 44 18% 97%;
+  --primary: 46 40% 55%;
+  --primary-foreground: 41 46% 11%;
+  --border: 41 14% 29%;
+  --input: 41 16% 22%;
+  --ring: 46 40% 55%;
+  --surface-primary: 41 22% 15%;
+  --surface-secondary: 41 20% 14%;
+  --surface-tertiary: 41 16% 22%;
+  --text-primary: 44 18% 97%;
+  --text-secondary: 44 11% 76%;
+  --text-muted: 44 8% 60%;
+  --surface-base: 41 26% 12%;
+  --surface-rail: 41 20% 14%;
+  --surface-panel: 41 20% 14%;
+  --surface-card: 41 22% 15%;
+  --surface-soft: 41 16% 22%;
+  --surface-overlay: 41 22% 15%;
+  --surface-main-top: 41 20% 14%;
+  --surface-main-bottom: 41 26% 12%;
+  --text-soft: 44 8% 60%;
+  --ambient-1: 46 46% 58%;
+  --ambient-2: 84 28% 52%;
+}
+
+html.theme-royal-blue {
+  color-scheme: dark;
+  --background: 228 46% 15%;
+  --foreground: 223 28% 97%;
+  --card: 228 40% 19%;
+  --card-foreground: 223 28% 97%;
+  --primary: 228 95% 60%;
+  --primary-foreground: 224 70% 11%;
+  --border: 228 22% 31%;
+  --input: 228 28% 25%;
+  --ring: 228 95% 60%;
+  --surface-primary: 228 40% 19%;
+  --surface-secondary: 228 36% 17%;
+  --surface-tertiary: 228 28% 25%;
+  --text-primary: 223 28% 97%;
+  --text-secondary: 223 16% 76%;
+  --text-muted: 223 10% 60%;
+  --surface-base: 228 46% 15%;
+  --surface-rail: 228 36% 17%;
+  --surface-panel: 228 36% 17%;
+  --surface-card: 228 40% 19%;
+  --surface-soft: 228 28% 25%;
+  --surface-overlay: 228 40% 19%;
+  --surface-main-top: 228 36% 17%;
+  --surface-main-bottom: 228 46% 15%;
+  --text-soft: 223 10% 60%;
+  --ambient-1: 228 98% 66%;
+  --ambient-2: 252 80% 70%;
 }
 
 * {
@@ -130,15 +839,6 @@ html.theme-mist {
 html,
 body {
   min-height: 100%;
-}
-
-html {
-  color-scheme: dark;
-}
-
-html.theme-dawn,
-html.theme-mist {
-  color-scheme: light;
 }
 
 body {
@@ -173,7 +873,7 @@ h4 {
 ::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 999px;
-  background: hsl(var(--surface-soft) / 0.75);
+  background: hsl(var(--surface-soft) / 0.78);
   background-clip: padding-box;
 }
 
@@ -187,16 +887,16 @@ h4 {
 
   .auth-frame {
     border-color: hsl(var(--border) / 0.8);
-    background-color: hsl(var(--surface-panel) / 0.48);
+    background-color: hsl(var(--surface-panel) / 0.54);
   }
 
   .auth-hero {
     background:
       linear-gradient(
-        155deg,
+        160deg,
         hsl(var(--surface-main-bottom) / 0.96),
-        hsl(var(--surface-main-top) / 0.78) 52%,
-        hsl(var(--primary) / 0.36)
+        hsl(var(--surface-main-top) / 0.84) 52%,
+        hsl(var(--primary) / 0.34)
       );
   }
 
@@ -205,8 +905,8 @@ h4 {
     background:
       linear-gradient(
         180deg,
-        hsl(var(--surface-panel) / 0.9),
-        hsl(var(--surface-card) / 0.86)
+        hsl(var(--surface-panel) / 0.92),
+        hsl(var(--surface-card) / 0.88)
       );
   }
 
@@ -217,27 +917,27 @@ h4 {
 
   .app-rail {
     border-color: hsl(var(--border) / 0.82);
-    background-color: hsl(var(--surface-rail) / 0.9);
+    background-color: hsl(var(--surface-rail) / 0.92);
   }
 
   .app-sidebar {
     border-color: hsl(var(--border) / 0.82);
-    background-color: hsl(var(--surface-panel) / 0.82);
+    background-color: hsl(var(--surface-panel) / 0.88);
   }
 
   .app-panel {
     border-color: hsl(var(--border) / 0.82);
-    background-color: hsl(var(--surface-card) / 0.82);
+    background-color: hsl(var(--surface-card) / 0.88);
   }
 
   .app-panel-soft {
     border-color: hsl(var(--border) / 0.75);
-    background-color: hsl(var(--surface-soft) / 0.52);
+    background-color: hsl(var(--surface-soft) / 0.54);
   }
 
   .app-overlay {
     border-color: hsl(var(--border) / 0.82);
-    background-color: hsl(var(--surface-overlay) / 0.94);
+    background-color: hsl(var(--surface-overlay) / 0.96);
   }
 
   .app-main-gradient {
@@ -256,15 +956,138 @@ h4 {
     color: hsl(var(--foreground));
   }
 
+  .app-input {
+    border-color: hsl(var(--border) / 0.8);
+    background-color: hsl(var(--input) / 0.94);
+    color: hsl(var(--foreground));
+  }
+
+  .app-input::placeholder {
+    color: hsl(var(--text-muted));
+  }
+
+  .app-input:focus {
+    border-color: hsl(var(--ring) / 0.7);
+    box-shadow: 0 0 0 4px hsl(var(--ring) / 0.12);
+    outline: none;
+  }
+
+  .app-button-primary {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+
+  .app-button-primary:hover {
+    filter: brightness(1.04);
+  }
+
+  .app-badge-accent {
+    border-color: hsl(var(--primary) / 0.18);
+    background-color: hsl(var(--primary) / 0.12);
+    color: hsl(var(--primary));
+  }
+
+  .app-badge-success {
+    border-color: hsl(var(--success) / 0.2);
+    background-color: hsl(var(--success) / 0.12);
+    color: hsl(var(--success));
+  }
+
+  .app-badge-danger {
+    border-color: hsl(var(--danger) / 0.2);
+    background-color: hsl(var(--danger) / 0.12);
+    color: hsl(var(--danger-foreground));
+  }
+
+  .app-badge-warning {
+    border-color: hsl(var(--warning) / 0.2);
+    background-color: hsl(var(--warning) / 0.12);
+    color: hsl(var(--warning));
+  }
+
+  .app-danger {
+    border-color: hsl(var(--danger) / 0.22);
+    background-color: hsl(var(--danger) / 0.12);
+    color: hsl(var(--danger-foreground));
+  }
+
+  .app-success {
+    border-color: hsl(var(--success) / 0.22);
+    background-color: hsl(var(--success) / 0.12);
+    color: hsl(var(--success-foreground));
+  }
+
+  .app-warning {
+    border-color: hsl(var(--warning) / 0.22);
+    background-color: hsl(var(--warning) / 0.12);
+    color: hsl(var(--warning));
+  }
+
   .text-app-foreground {
     color: hsl(var(--foreground));
   }
 
   .text-app-muted {
-    color: hsl(var(--text-muted));
+    color: hsl(var(--text-secondary));
   }
 
   .text-app-soft {
-    color: hsl(var(--text-soft));
+    color: hsl(var(--text-muted));
+  }
+
+  .text-app-accent {
+    color: hsl(var(--primary));
+  }
+
+  .text-app-danger {
+    color: hsl(var(--danger-foreground));
+  }
+
+  .text-app-success {
+    color: hsl(var(--success));
+  }
+
+  .text-app-warning {
+    color: hsl(var(--warning));
+  }
+
+  .bg-app-background {
+    background-color: hsl(var(--background));
+  }
+
+  .bg-app-panel {
+    background-color: hsl(var(--surface-panel));
+  }
+
+  .bg-app-surface {
+    background-color: hsl(var(--surface-card));
+  }
+
+  .bg-app-surface-soft {
+    background-color: hsl(var(--surface-soft));
+  }
+
+  .bg-app-muted {
+    background-color: hsl(var(--text-muted));
+  }
+
+  .border-app-border {
+    border-color: hsl(var(--border));
+  }
+
+  .placeholder-app-muted::placeholder {
+    color: hsl(var(--text-muted));
+  }
+
+  .hover\:bg-app-surface:hover {
+    background-color: hsl(var(--surface-card));
+  }
+
+  .hover\:bg-app-surface-soft:hover {
+    background-color: hsl(var(--surface-soft));
+  }
+
+  .hover\:text-app-foreground:hover {
+    color: hsl(var(--foreground));
   }
 }

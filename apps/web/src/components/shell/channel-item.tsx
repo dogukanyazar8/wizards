@@ -40,7 +40,7 @@ export function ChannelItem({
         <button
           aria-current={active ? "page" : undefined}
           aria-label={`Open ${type === "VOICE" ? "voice" : "text"} channel ${name}`}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60"
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)]"
           onClick={onSelect}
           onFocus={onPrefetch}
           onKeyDown={(event) => {
@@ -67,7 +67,7 @@ export function ChannelItem({
             </button>
             <button
               aria-label={`Delete channel ${name}`}
-              className="text-app-muted rounded-lg p-1.5 transition hover:bg-rose-500/10 hover:text-rose-300"
+              className="text-app-muted rounded-lg p-1.5 transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger-foreground))]"
               onClick={onDelete}
               type="button"
             >

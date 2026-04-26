@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch server.ts",
-    "build": "next build",
-    "start": "tsx server.ts",
+    "dev": "node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && tsx watch server.ts",
+    "build": "node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && next build",
+    "start": "node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && tsx server.ts",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "format": "prettier --check ."

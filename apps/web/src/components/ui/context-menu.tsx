@@ -53,7 +53,7 @@ export function ContextMenu({ children, onClose, open, position }: ContextMenuPr
       {open ? (
         <motion.div
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          className="app-overlay fixed z-[90] min-w-52 rounded-2xl p-1.5 shadow-2xl shadow-black/20 backdrop-blur-xl"
+          className="app-overlay fixed z-[90] min-w-52 rounded-2xl p-1.5 shadow-[0_20px_46px_hsl(var(--shadow-color)/0.16)] backdrop-blur-xl"
           exit={{ opacity: 0, scale: 0.96, y: -4 }}
           initial={{ opacity: 0, scale: 0.96, y: -4 }}
           onPointerDown={(event) => event.stopPropagation()}
@@ -82,7 +82,8 @@ export function ContextMenuItem({
     <button
       className={cn(
         "text-app-foreground flex w-full items-center rounded-xl px-3 py-2 text-left text-sm transition hover:bg-[hsl(var(--surface-soft)/0.72)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-        destructive && "text-rose-300 hover:bg-rose-500/10",
+        destructive &&
+          "text-[hsl(var(--danger-foreground))] hover:bg-[hsl(var(--danger)/0.12)]",
         className,
       )}
       role="menuitem"

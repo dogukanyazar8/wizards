@@ -35,7 +35,7 @@ export function MainChannelPanel({
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
             {leading}
-            <div className="app-panel-soft text-app-foreground flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] border shadow-lg shadow-black/5">
+            <div className="app-panel-soft text-app-foreground flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] border shadow-[0_18px_40px_hsl(var(--shadow-color)/0.08)]">
               <Icon className="h-4 w-4" />
             </div>
             <div className="min-w-0">
@@ -66,8 +66,8 @@ export function MainChannelPanel({
         <div className="flex flex-1 items-center justify-center p-6">
           <div className="max-w-3xl">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
-              <div className="rounded-[34px] border border-[hsl(var(--border)/0.78)] bg-[linear-gradient(150deg,hsl(var(--surface-card)/0.88),hsl(var(--surface-soft)/0.42))] p-8 shadow-[0_28px_70px_rgba(15,23,42,0.08)]">
-                <div className="app-panel-soft text-app-foreground flex h-20 w-20 items-center justify-center rounded-[28px] border shadow-2xl shadow-black/10">
+              <div className="rounded-[34px] border border-[hsl(var(--border)/0.78)] bg-[linear-gradient(150deg,hsl(var(--surface-card)/0.88),hsl(var(--surface-soft)/0.42))] p-8 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.08)]">
+                <div className="app-panel-soft text-app-foreground flex h-20 w-20 items-center justify-center rounded-[28px] border shadow-[0_24px_52px_hsl(var(--shadow-color)/0.12)]">
                   <Icon className="h-8 w-8" />
                 </div>
                 <h2 className="text-app-foreground mt-6 text-3xl font-semibold tracking-tight">
@@ -107,7 +107,7 @@ export function MainChannelPanel({
                   ],
                 ].map(([cardTitle, description]) => (
                   <div
-                    className="app-panel rounded-[28px] border p-5 shadow-[0_16px_36px_rgba(15,23,42,0.06)]"
+                    className="app-panel rounded-[28px] border p-5 shadow-[0_16px_36px_hsl(var(--shadow-color)/0.06)]"
                     key={cardTitle}
                   >
                     <p className="text-app-foreground text-sm font-semibold">

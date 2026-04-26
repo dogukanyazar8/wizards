@@ -1,6 +1,7 @@
 "use server";
 
 import { signIn, signOut } from "@/auth";
+import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
 import { Prisma, prisma } from "@wizards/db";
 import { LoginSchema, RegisterSchema } from "@wizards/types";
 import bcrypt from "bcryptjs";
@@ -63,6 +64,7 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
           username,
           passwordHash,
           displayName: username,
+          theme: DEFAULT_WIZARDS_THEME,
           settings: { create: {} },
           notificationSettings: { create: {} },
         },

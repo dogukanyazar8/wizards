@@ -38,8 +38,12 @@ export function ServerSettingsOverlay({
   const closeServerSettings = useAppStore((state) => state.closeServerSettings);
   const [tab, setTab] = useState<SettingsTab>("overview");
   const [name, setName] = useState(detail?.server.name ?? "");
-  const [description, setDescription] = useState(detail?.server.description ?? "");
-  const [iconUrl, setIconUrl] = useState<string | null>(detail?.server.iconUrl ?? null);
+  const [description, setDescription] = useState(
+    detail?.server.description ?? "",
+  );
+  const [iconUrl, setIconUrl] = useState<string | null>(
+    detail?.server.iconUrl ?? null,
+  );
 
   useEffect(() => {
     if (!open) {
@@ -134,18 +138,18 @@ export function ServerSettingsOverlay({
       {open ? (
         <motion.div
           animate={{ opacity: 1 }}
-          className="fixed inset-0 z-[95] bg-black/60 backdrop-blur-2xl"
+          className="fixed inset-0 z-[95] bg-[hsl(var(--backdrop)/0.6)] backdrop-blur-2xl"
           exit={{ opacity: 0 }}
           initial={{ opacity: 0 }}
         >
           <motion.div
             animate={{ opacity: 1, scale: 1 }}
-            className="flex h-full w-full bg-[linear-gradient(180deg,rgba(17,24,39,0.76),rgba(9,9,11,0.92))]"
+            className="flex h-full w-full bg-[linear-gradient(180deg,hsl(var(--surface-main-top)/0.96),hsl(var(--surface-main-bottom)/0.98))]"
             exit={{ opacity: 0, scale: 0.98 }}
             initial={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
           >
-            <aside className="flex w-full max-w-[280px] flex-col border-r border-white/8 bg-white/[0.04] p-6">
+            <aside className="flex w-full max-w-[280px] flex-col border-r border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-panel)/0.82)] p-6">
               <div className="flex items-center gap-3">
                 <Avatar
                   alt={detail.server.name}
@@ -154,8 +158,10 @@ export function ServerSettingsOverlay({
                   src={detail.server.iconUrl}
                 />
                 <div className="min-w-0">
-                  <p className="truncate text-lg font-semibold text-zinc-50">{detail.server.name}</p>
-                  <p className="truncate text-xs uppercase tracking-[0.2em] text-zinc-500">
+                  <p className="text-app-foreground truncate text-lg font-semibold">
+                    {detail.server.name}
+                  </p>
+                  <p className="text-app-soft truncate text-xs uppercase tracking-[0.2em]">
                     Server Settings
                   </p>
                 </div>
@@ -166,8 +172,8 @@ export function ServerSettingsOverlay({
                   <button
                     className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm transition ${
                       tab === item.id
-                        ? "bg-sky-500/15 text-sky-100"
-                        : "text-zinc-400 hover:bg-white/6 hover:text-zinc-200"
+                        ? "bg-[hsl(var(--primary)/0.16)] text-[hsl(var(--foreground))]"
+                        : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.52)] hover:text-[hsl(var(--foreground))]"
                     }`}
                     key={item.id}
                     onClick={() => setTab(item.id)}
@@ -190,16 +196,16 @@ export function ServerSettingsOverlay({
               <div className="mx-auto max-w-4xl">
                 <div className="mb-8 flex items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-3xl font-semibold tracking-tight text-zinc-50">
+                    <h2 className="text-app-foreground text-3xl font-semibold tracking-tight">
                       {tabs.find((item) => item.id === tab)?.label}
                     </h2>
-                    <p className="mt-2 text-sm text-zinc-400">
+                    <p className="text-app-muted mt-2 text-sm">
                       Manage the look, structure, and membership experience for this server.
                     </p>
                   </div>
                   <button
                     aria-label="Close settings overlay"
-                    className="rounded-2xl border border-white/10 p-3 text-zinc-400 transition hover:bg-white/6 hover:text-zinc-100"
+                    className="app-panel-soft text-app-muted rounded-2xl border p-3 transition hover:opacity-90 hover:text-[hsl(var(--foreground))]"
                     onClick={closeServerSettings}
                     type="button"
                   >
@@ -216,24 +222,30 @@ export function ServerSettingsOverlay({
                       value={iconUrl}
                     />
                     <div className="grid gap-4 md:grid-cols-[1.2fr,0.8fr]">
-                      <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-                        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                      <div className="app-panel rounded-[28px] border p-5">
+                        <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
                           Server Name
                         </label>
-                        <Input className="mt-3" onChange={(event) => setName(event.target.value)} value={name} />
+                        <Input
+                          className="mt-3"
+                          onChange={(event) => setName(event.target.value)}
+                          value={name}
+                        />
                       </div>
-                      <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-                        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                      <div className="app-panel rounded-[28px] border p-5">
+                        <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
                           Access
                         </label>
                         <div className="mt-4 flex flex-wrap gap-2">
                           <Badge>{detail.server.accessLevel}</Badge>
-                          <Badge tone="muted">{detail.server.memberCount} Members</Badge>
+                          <Badge tone="muted">
+                            {detail.server.memberCount} Members
+                          </Badge>
                         </div>
                       </div>
                     </div>
-                    <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-                      <label className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                    <div className="app-panel rounded-[28px] border p-5">
+                      <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
                         Description
                       </label>
                       <Textarea
@@ -244,7 +256,11 @@ export function ServerSettingsOverlay({
                       />
                     </div>
                     <div className="flex justify-end">
-                      <Button disabled={updateMutation.isPending} onClick={() => updateMutation.mutate()} type="button">
+                      <Button
+                        disabled={updateMutation.isPending}
+                        onClick={() => updateMutation.mutate()}
+                        type="button"
+                      >
                         {updateMutation.isPending ? "Saving..." : "Save Overview"}
                       </Button>
                     </div>
@@ -255,7 +271,7 @@ export function ServerSettingsOverlay({
                   <div className="space-y-3">
                     {detail.members.map((member) => (
                       <div
-                        className="flex items-center gap-4 rounded-[28px] border border-white/10 bg-white/[0.04] p-4"
+                        className="app-panel flex items-center gap-4 rounded-[28px] border p-4"
                         key={member.id}
                       >
                         <Avatar
@@ -265,8 +281,12 @@ export function ServerSettingsOverlay({
                           src={member.avatarUrl}
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-zinc-100">{member.displayName}</p>
-                          <p className="truncate text-xs text-zinc-500">@{member.username}</p>
+                          <p className="text-app-foreground truncate text-sm font-semibold">
+                            {member.displayName}
+                          </p>
+                          <p className="text-app-soft truncate text-xs">
+                            @{member.username}
+                          </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <Badge>{member.accessLevel}</Badge>
@@ -278,7 +298,7 @@ export function ServerSettingsOverlay({
                         </div>
                         {detail.server.isOwner && member.accessLevel !== "OWNER" ? (
                           <button
-                            className="inline-flex items-center gap-2 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-200 transition hover:bg-rose-500/15"
+                            className="app-danger inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90"
                             disabled={kickMemberMutation.isPending}
                             onClick={() => kickMemberMutation.mutate(member.id)}
                             type="button"
@@ -295,27 +315,31 @@ export function ServerSettingsOverlay({
                 {tab === "invites" ? (
                   <div className="space-y-3">
                     {detail.invites.length === 0 ? (
-                      <div className="rounded-[28px] border border-dashed border-white/12 bg-white/[0.03] p-8 text-sm text-zinc-400">
+                      <div className="text-app-muted rounded-[28px] border border-dashed border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.2)] p-8 text-sm">
                         No active invites yet. Generate one from the server menu or the quick invite modal.
                       </div>
                     ) : null}
                     {detail.invites.map((invite) => (
                       <div
-                        className="flex flex-col gap-4 rounded-[28px] border border-white/10 bg-white/[0.04] p-5 md:flex-row md:items-center"
+                        className="app-panel flex flex-col gap-4 rounded-[28px] border p-5 md:flex-row md:items-center"
                         key={invite.id}
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-zinc-100">/invite/{invite.code}</p>
-                          <p className="mt-1 text-xs text-zinc-500">
+                          <p className="text-app-foreground text-sm font-semibold">
+                            /invite/{invite.code}
+                          </p>
+                          <p className="text-app-soft mt-1 text-xs">
                             Created by {invite.createdByDisplayName} • {invite.uses}
                             {invite.maxUses ? ` / ${invite.maxUses}` : ""} uses
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
-                            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-3 py-2 text-sm text-zinc-200 transition hover:bg-white/6"
+                            className="app-panel-soft text-app-foreground inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90"
                             onClick={async () => {
-                              await navigator.clipboard.writeText(`${window.location.origin}/invite/${invite.code}`);
+                              await navigator.clipboard.writeText(
+                                `${window.location.origin}/invite/${invite.code}`,
+                              );
                             }}
                             type="button"
                           >
@@ -323,7 +347,7 @@ export function ServerSettingsOverlay({
                             Copy
                           </button>
                           <button
-                            className="inline-flex items-center gap-2 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-200 transition hover:bg-rose-500/15"
+                            className="app-danger inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90"
                             disabled={revokeInviteMutation.isPending}
                             onClick={() => revokeInviteMutation.mutate(invite.id)}
                             type="button"
@@ -338,14 +362,16 @@ export function ServerSettingsOverlay({
                 ) : null}
 
                 {tab === "danger" ? (
-                  <div className="rounded-[32px] border border-rose-500/20 bg-[linear-gradient(180deg,rgba(244,63,94,0.08),rgba(244,63,94,0.02))] p-6">
+                  <div className="app-danger rounded-[32px] border p-6">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-200">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[hsl(var(--danger)/0.14)] text-[hsl(var(--danger-foreground))]">
                         <Shield className="h-5 w-5" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-zinc-50">Delete This Server</h3>
-                        <p className="mt-1 text-sm text-zinc-400">
+                        <h3 className="text-lg font-semibold text-[hsl(var(--danger-foreground))]">
+                          Delete This Server
+                        </h3>
+                        <p className="mt-1 text-sm text-[hsl(var(--danger-foreground)/0.78)]">
                           This removes the entire server, its channels, invites, and membership data.
                         </p>
                       </div>
@@ -353,7 +379,7 @@ export function ServerSettingsOverlay({
 
                     <div className="mt-6">
                       <Button
-                        className="bg-rose-500 text-white hover:opacity-95"
+                        className="app-danger"
                         disabled={!detail.server.isOwner}
                         onClick={() => onOpenDeleteServer(detail.server.id, detail.server.name)}
                         type="button"

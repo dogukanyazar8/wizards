@@ -23,16 +23,22 @@ export default async function InvitePage({ params }: InvitePageProps) {
     result = await joinWorkspaceServerByInvite(session.user.id, code);
   } catch (error) {
     const message =
-      error instanceof ApiError ? error.message : "Something went wrong while joining this invite.";
+      error instanceof ApiError
+        ? error.message
+        : "Something went wrong while joining this invite.";
 
     return (
-      <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 py-10 text-zinc-100">
-        <section className="w-full max-w-lg rounded-[32px] border border-white/10 bg-white/[0.04] p-8 text-center shadow-2xl shadow-black/30">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">Invite Error</p>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight">This invite can’t be used</h1>
-          <p className="mt-3 text-sm leading-7 text-zinc-400">{message}</p>
+      <main className="auth-canvas flex min-h-screen items-center justify-center px-6 py-10">
+        <section className="app-panel w-full max-w-lg rounded-[32px] border p-8 text-center shadow-[0_32px_80px_hsl(var(--shadow-color)/0.18)]">
+          <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.24em]">
+            Invite Error
+          </p>
+          <h1 className="text-app-foreground mt-4 text-3xl font-semibold tracking-tight">
+            This invite can&apos;t be used
+          </h1>
+          <p className="text-app-muted mt-3 text-sm leading-7">{message}</p>
           <Link
-            className="mt-6 inline-flex rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-100 transition hover:bg-white/10"
+            className="app-panel-soft text-app-foreground mt-6 inline-flex rounded-2xl border px-4 py-2 text-sm font-medium transition hover:opacity-90"
             href="/channels"
           >
             Back to Wizards

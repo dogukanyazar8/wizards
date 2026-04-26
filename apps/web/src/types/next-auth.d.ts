@@ -7,6 +7,7 @@ declare module "next-auth" {
       username: string | null;
       displayName: string | null;
       avatarUrl: string | null;
+      theme: string | null;
     };
   }
 
@@ -14,6 +15,7 @@ declare module "next-auth" {
     username?: string | null;
     displayName?: string | null;
     avatarUrl?: string | null;
+    theme?: string | null;
   }
 }
 
@@ -23,5 +25,6 @@ declare module "next-auth/jwt" {
     username?: string | null;
     displayName?: string | null;
     avatarUrl?: string | null;
+    theme?: string | null;
   }
 }

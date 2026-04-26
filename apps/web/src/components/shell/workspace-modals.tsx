@@ -377,7 +377,7 @@ export function WorkspaceModals({
           />
           <div className="space-y-2">
             <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
-              Name <span className="text-rose-400">*</span>
+              Name <span className="text-app-danger">*</span>
             </label>
             <Input
               maxLength={64}
@@ -387,7 +387,7 @@ export function WorkspaceModals({
               value={serverName}
             />
             {serverName.trim().length > 0 && serverName.trim().length < 2 ? (
-              <p className="text-xs text-rose-400">At least 2 characters required</p>
+              <p className="text-app-danger text-xs">At least 2 characters required</p>
             ) : null}
           </div>
           <div className="space-y-2">
@@ -533,9 +533,9 @@ export function WorkspaceModals({
             </div>
           </div>
           {inviteLink ? (
-            <div className="rounded-[24px] border border-emerald-500/20 bg-emerald-500/10 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">Ready to Share</p>
-              <p className="mt-2 break-all text-sm text-emerald-100">{inviteLink}</p>
+            <div className="app-success rounded-[24px] border p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em]">Ready to Share</p>
+              <p className="mt-2 break-all text-sm">{inviteLink}</p>
             </div>
           ) : null}
           <div className="flex justify-end gap-2">
@@ -573,7 +573,7 @@ export function WorkspaceModals({
             Cancel
           </Button>
           <Button
-            className="bg-rose-500 text-white hover:opacity-95"
+            className="app-danger"
             disabled={deleteChannelMutation.isPending}
             onClick={() => deleteChannelMutation.mutate()}
             type="button"
@@ -600,7 +600,7 @@ export function WorkspaceModals({
               Cancel
             </Button>
             <Button
-              className="bg-rose-500 text-white hover:opacity-95"
+              className="app-danger"
               disabled={
                 deleteServerMutation.isPending ||
                 serverDeleteConfirmation !== (deleteServerDialog.serverName ?? "")

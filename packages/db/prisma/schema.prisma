@@ -202,7 +202,7 @@ model User {
   customStatus          String?
   customStatusEmoji     String?
   customStatusExpiresAt DateTime?
-  theme                 String      @default("dark")
+  theme                 String      @default("theme-dark")
   locale                String      @default("en")
   emailVerified         Boolean     @default(false)
   emailVerifiedAt       DateTime?
@@ -283,6 +283,7 @@ model Account {
 model UserSettings {
   id                    String                    @id @default(uuid())
   userId                String                    @unique
+  theme                 String                    @default("theme-dark")
   messageDisplayCompact Boolean                   @default(false)
   developerMode         Boolean                   @default(false)
   showCurrentGame       Boolean                   @default(true)

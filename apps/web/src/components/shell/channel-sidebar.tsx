@@ -50,7 +50,7 @@ type ChannelSidebarProps = {
   detail: WorkspaceServerDetail | null;
   loading: boolean;
   onNavigate: (href: string) => void;
-  onOpenAppearanceSettings: () => void;
+  onOpenSettings: () => void;
   onPrefetch?: (href: string) => void;
 };
 
@@ -136,7 +136,7 @@ export function ChannelSidebar({
   detail,
   loading,
   onNavigate,
-  onOpenAppearanceSettings,
+  onOpenSettings,
   onPrefetch,
 }: ChannelSidebarProps) {
   const queryClient = useQueryClient();
@@ -271,7 +271,7 @@ export function ChannelSidebar({
               <button
                 aria-label="Open appearance settings"
                 className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
-                onClick={onOpenAppearanceSettings}
+                onClick={onOpenSettings}
                 title="Appearance settings"
                 type="button"
               >
@@ -280,7 +280,7 @@ export function ChannelSidebar({
               <form action={logoutAction}>
                 <button
                   aria-label="Log out"
-                  className="text-app-muted rounded-xl p-2 transition hover:bg-rose-500/10 hover:text-rose-400"
+                  className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger-foreground))]"
                   title="Log out"
                   type="submit"
                 >
@@ -444,7 +444,7 @@ export function ChannelSidebar({
               <button
                 aria-label="Open appearance settings"
                 className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
-                onClick={onOpenAppearanceSettings}
+                onClick={onOpenSettings}
                 title="Appearance settings"
                 type="button"
               >
@@ -453,7 +453,7 @@ export function ChannelSidebar({
               <form action={logoutAction}>
                 <button
                   aria-label="Log out"
-                  className="text-app-muted rounded-xl p-2 transition hover:bg-rose-500/10 hover:text-rose-400"
+                  className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger-foreground))]"
                   title="Log out"
                   type="submit"
                 >

@@ -32,14 +32,17 @@ export function ServerIcon({
           opacity: active ? 1 : 0,
           scaleY: active ? 1 : 0.4,
         }}
-        className="absolute -left-3 h-10 w-1 rounded-full bg-sky-400"
+        className="absolute -left-3 h-10 w-1 rounded-full bg-[hsl(var(--primary))]"
         transition={{ duration: 0.16 }}
       />
 
       <motion.button
         aria-current={active ? "page" : undefined}
         aria-label={label}
-        className={cn("group relative outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70", className)}
+        className={cn(
+          "group relative outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.7)]",
+          className,
+        )}
         onClick={onClick}
         onContextMenu={onContextMenu}
         onFocus={onPrefetch}

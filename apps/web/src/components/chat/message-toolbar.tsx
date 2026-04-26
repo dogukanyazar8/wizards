@@ -21,7 +21,7 @@ export function MessageToolbar({
   onDelete,
 }: MessageToolbarProps) {
   return (
-    <div className="flex items-center gap-1 bg-app-panel rounded-full border border-app-border px-2 py-1 shadow-md">
+    <div className="bg-app-panel border-app-border flex items-center gap-1 rounded-full border px-2 py-1 shadow-[0_14px_32px_hsl(var(--shadow-color)/0.14)]">
       <button
         onClick={onReact}
         title="React"
@@ -58,7 +58,7 @@ export function MessageToolbar({
           className="p-1 hover:bg-app-surface-soft rounded transition"
           aria-label="Delete message"
         >
-          <Trash2 className="h-4 w-4 text-red-500 hover:text-red-600" />
+          <Trash2 className="h-4 w-4 text-[hsl(var(--danger-foreground))]" />
         </button>
       )}
     </div>

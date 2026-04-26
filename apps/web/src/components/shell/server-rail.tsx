@@ -63,7 +63,7 @@ export function ServerRail({
 
       <motion.button
         aria-label="Create server"
-        className="group relative mt-3 flex h-12 w-12 items-center justify-center rounded-[22px] border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 outline-none transition hover:rounded-[18px] hover:bg-emerald-500/20 focus-visible:ring-2 focus-visible:ring-emerald-400/70"
+        className="group relative mt-3 flex h-12 w-12 items-center justify-center rounded-[22px] border border-[hsl(var(--success)/0.22)] bg-[hsl(var(--success)/0.12)] text-[hsl(var(--success))] outline-none transition hover:rounded-[18px] hover:bg-[hsl(var(--success)/0.2)] focus-visible:ring-2 focus-visible:ring-[hsl(var(--success)/0.55)]"
         onClick={onOpenCreateServer}
         title="Create a server"
         type="button"
@@ -71,7 +71,7 @@ export function ServerRail({
         whileTap={{ scale: 0.97 }}
       >
         <Plus className="h-5 w-5" />
-        <span className="app-tooltip pointer-events-none absolute left-full ml-3 rounded-xl border px-2.5 py-1 text-xs opacity-0 shadow-lg shadow-black/10 transition group-hover:opacity-100">
+        <span className="app-tooltip pointer-events-none absolute left-full ml-3 rounded-xl border px-2.5 py-1 text-xs opacity-0 shadow-[0_12px_26px_hsl(var(--shadow-color)/0.12)] transition group-hover:opacity-100">
           Add Server
         </span>
       </motion.button>

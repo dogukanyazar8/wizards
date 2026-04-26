@@ -59,7 +59,6 @@ type ServerContextMenuState = {
 interface AppState {
   activeChannelId: string | null;
   activeServerId: string | null;
-  appearanceModalOpen: boolean;
   categoryModal: CategoryModalState;
   channelSidebarWidth: number;
   channelModal: ChannelModalState;
@@ -73,7 +72,6 @@ interface AppState {
   serverContextMenu: ServerContextMenuState;
   serverModal: ServerModalState;
   serverSettingsServerId: string | null;
-  closeAppearanceModal: () => void;
   closeCategoryModal: () => void;
   closeChannelModal: () => void;
   closeDeleteChannelDialog: () => void;
@@ -93,7 +91,6 @@ interface AppState {
   openDeleteChannelDialog: (channelId: string, channelName: string) => void;
   openDeleteServerDialog: (serverId: string, serverName: string) => void;
   openInviteModal: (serverId: string) => void;
-  openAppearanceModal: () => void;
   openServerContextMenu: (serverId: string, position: { x: number; y: number }) => void;
   openServerModal: (options: { mode: "create" | "edit"; serverId?: string | null }) => void;
   openServerSettings: (serverId: string) => void;
@@ -119,7 +116,6 @@ const initialChannelModalState: ChannelModalState = {
 export const useAppStore = create<AppState>((set) => ({
   activeChannelId: null,
   activeServerId: null,
-  appearanceModalOpen: false,
   categoryModal: {
     open: false,
     serverId: null,
@@ -156,16 +152,6 @@ export const useAppStore = create<AppState>((set) => ({
     serverId: null,
   },
   serverSettingsServerId: null,
-  closeAppearanceModal: () =>
-    set((state) => {
-      if (!state.appearanceModalOpen) {
-        return state;
-      }
-
-      return {
-        appearanceModalOpen: false,
-      };
-    }),
   closeCategoryModal: () =>
     set({
       categoryModal: {
@@ -261,16 +247,6 @@ export const useAppStore = create<AppState>((set) => ({
         open: true,
         serverId,
       },
-    }),
-  openAppearanceModal: () =>
-    set((state) => {
-      if (state.appearanceModalOpen) {
-        return state;
-      }
-
-      return {
-        appearanceModalOpen: true,
-      };
     }),
   openServerContextMenu: (serverId, position) =>
     set({

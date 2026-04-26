@@ -7,12 +7,10 @@ import { useEffect } from "react";
 import type { WorkspaceChannel } from "@wizards/types";
 import { useParams, useRouter } from "next/navigation";
 import { useShallow } from "zustand/react/shallow";
-import { AppearanceSettingsModal } from "@/components/shell/appearance-settings-modal";
 import { ChannelSidebar } from "@/components/shell/channel-sidebar";
 import { MainChannelPanel } from "@/components/shell/main-channel-panel";
 import { MobileDrawerTrigger, ServerRail } from "@/components/shell/server-rail";
 import { ServerSettingsOverlay } from "@/components/shell/server-settings-overlay";
-import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 import { WorkspaceModals } from "@/components/shell/workspace-modals";
 import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
 import { useAppStore } from "@/lib/store";
@@ -71,7 +69,6 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     mobileSidebarOpen,
     openDeleteServerDialog,
     openInviteModal,
-    openAppearanceModal,
     openServerContextMenu,
     openServerModal,
     openServerSettings,
@@ -86,7 +83,6 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       channelSidebarWidth: state.channelSidebarWidth,
       mobileSidebarOpen: state.mobileSidebarOpen,
       openDeleteServerDialog: state.openDeleteServerDialog,
-      openAppearanceModal: state.openAppearanceModal,
       openInviteModal: state.openInviteModal,
       openServerContextMenu: state.openServerContextMenu,
       openServerModal: state.openServerModal,
@@ -171,6 +167,11 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     router.prefetch(href);
   };
 
+  const openSettings = () => {
+    setMobileSidebarOpen(false);
+    router.push("/settings/appearance");
+  };
+
   const renderNavigation = (isMobile = false) => (
     <>
       <div className={isMobile ? "flex h-full w-[72px] shrink-0" : "hidden md:flex"}>
@@ -200,7 +201,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
           detail={serverDetailQuery.data ?? null}
           loading={Boolean(activeServerId) && serverDetailQuery.isLoading}
           onNavigate={navigate}
-          onOpenAppearanceSettings={openAppearanceModal}
+          onOpenSettings={openSettings}
           onPrefetch={prefetch}
         />
       </div>
@@ -224,10 +225,13 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
             exit={{ opacity: 0 }}
             initial={{ opacity: 0 }}
           >
-            <div className="absolute inset-0 bg-black/60" onClick={() => setMobileSidebarOpen(false)} />
+            <div
+              className="absolute inset-0 bg-[hsl(var(--backdrop)/0.6)]"
+              onClick={() => setMobileSidebarOpen(false)}
+            />
             <motion.div
               animate={{ x: 0 }}
-              className="app-shell absolute inset-y-0 left-0 flex shadow-2xl shadow-black/20"
+              className="app-shell absolute inset-y-0 left-0 flex shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)]"
               exit={{ x: -24 }}
               initial={{ x: -24 }}
               style={{ width: `calc(${serverRailWidth}px + ${channelSidebarWidth}px)` }}
@@ -245,7 +249,6 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
         channel={activeChannel}
         fallbackTitle={activeServerId ? "Choose a channel" : "Your Direct Messages"}
         leading={<MobileDrawerTrigger onClick={() => setMobileSidebarOpen(true)} />}
-        trailing={<ThemeSwitcher onOpenAppearanceSettings={openAppearanceModal} />}
       >
         {children}
       </MainChannelPanel>
@@ -311,7 +314,6 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
         onNavigate={navigate}
         uploadthingEnabled={uploadthingEnabled}
       />
-      <AppearanceSettingsModal />
 
       <ServerSettingsOverlay
         detail={serverSettingsServerId === activeServerId ? serverDetailQuery.data ?? null : null}

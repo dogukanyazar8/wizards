@@ -36,8 +36,8 @@ export function MessageItem({
   if (message.type === "SYSTEM_JOIN") {
     return (
       <div className="px-4 py-3">
-        <div className="mx-auto flex max-w-xl items-center justify-center gap-3 rounded-full border border-emerald-400/15 bg-emerald-400/[0.08] px-4 py-2 text-xs font-medium text-emerald-100/90">
-          <UserPlus className="h-3.5 w-3.5 text-emerald-300" />
+        <div className="app-success mx-auto flex max-w-xl items-center justify-center gap-3 rounded-full border px-4 py-2 text-xs font-medium">
+          <UserPlus className="text-app-success h-3.5 w-3.5" />
           <span>{message.content}</span>
         </div>
       </div>

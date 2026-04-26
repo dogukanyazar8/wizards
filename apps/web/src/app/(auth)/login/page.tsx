@@ -63,7 +63,7 @@ export default function LoginPage() {
   return (
     <div className="space-y-8">
       <div className="space-y-4">
-        <div className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--border)/0.75)] bg-[hsl(var(--surface-soft)/0.4)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[hsl(var(--primary))]">
+        <div className="app-badge-accent inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em]">
           <Sparkles className="h-3.5 w-3.5" />
           Sign In
         </div>
@@ -77,7 +77,7 @@ export default function LoginPage() {
 
       <div className="grid gap-3 sm:grid-cols-2">
         <button
-          className="group rounded-[26px] border border-[hsl(var(--border)/0.7)] bg-[linear-gradient(145deg,hsl(var(--surface-card)/0.78),hsl(var(--surface-soft)/0.4))] p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.45)] hover:shadow-[0_20px_40px_rgba(15,23,42,0.12)]"
+          className="group rounded-[26px] border border-[hsl(var(--border)/0.7)] bg-[linear-gradient(145deg,hsl(var(--surface-card)/0.78),hsl(var(--surface-soft)/0.4))] p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.45)] hover:shadow-[0_20px_40px_hsl(var(--shadow-color)/0.12)]"
           onClick={() => applyTestAccount("demo@wizards.app")}
           type="button"
         >
@@ -85,14 +85,14 @@ export default function LoginPage() {
           <p className="text-app-foreground mt-2 text-sm font-semibold">demo@wizards.app</p>
           <p className="text-app-muted mt-1 text-xs">Prefills demo credentials instantly.</p>
           <div className="mt-4 flex items-center gap-2">
-            <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 text-[11px] font-semibold text-[hsl(var(--primary))]">
+            <span className="app-badge-accent rounded-full px-2.5 py-1 text-[11px] font-semibold">
               Fast start
             </span>
             <span className="text-app-soft text-[11px]">Shared demo workspace</span>
           </div>
         </button>
         <button
-          className="group rounded-[26px] border border-[hsl(var(--border)/0.7)] bg-[linear-gradient(145deg,hsl(var(--surface-card)/0.78),hsl(var(--surface-soft)/0.4))] p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.45)] hover:shadow-[0_20px_40px_rgba(15,23,42,0.12)]"
+          className="group rounded-[26px] border border-[hsl(var(--border)/0.7)] bg-[linear-gradient(145deg,hsl(var(--surface-card)/0.78),hsl(var(--surface-soft)/0.4))] p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.45)] hover:shadow-[0_20px_40px_hsl(var(--shadow-color)/0.12)]"
           onClick={() => applyTestAccount("test@wizards.app")}
           type="button"
         >
@@ -100,7 +100,7 @@ export default function LoginPage() {
           <p className="text-app-foreground mt-2 text-sm font-semibold">test@wizards.app</p>
           <p className="text-app-muted mt-1 text-xs">Use this for second-session chat testing.</p>
           <div className="mt-4 flex items-center gap-2">
-            <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 text-[11px] font-semibold text-[hsl(var(--primary))]">
+            <span className="app-badge-accent rounded-full px-2.5 py-1 text-[11px] font-semibold">
               Multi-user
             </span>
             <span className="text-app-soft text-[11px]">Ideal for invite flows</span>
@@ -108,7 +108,7 @@ export default function LoginPage() {
         </button>
       </div>
 
-      <form className="space-y-5 rounded-[30px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.42)] p-5 shadow-[0_24px_60px_rgba(15,23,42,0.08)]" onSubmit={handleSubmit(onSubmit)} noValidate>
+      <form className="space-y-5 rounded-[30px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.42)] p-5 shadow-[0_24px_60px_hsl(var(--shadow-color)/0.08)]" onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="space-y-2">
           <label htmlFor="email" className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]">
             Email
@@ -117,11 +117,11 @@ export default function LoginPage() {
             id="email"
             type="email"
             autoComplete="email"
-            className="text-app-foreground h-12 w-full rounded-2xl border border-[hsl(var(--border)/0.75)] bg-[hsl(var(--surface-soft)/0.38)] px-4 text-sm outline-none transition focus:border-[hsl(var(--primary)/0.7)] focus:ring-4 focus:ring-[hsl(var(--primary)/0.1)]"
+            className="app-input h-12 w-full rounded-2xl border px-4 text-sm transition"
             placeholder="you@wizards.app"
             {...register("email")}
           />
-          {errors.email ? <p className="text-xs text-rose-400">{errors.email.message}</p> : null}
+          {errors.email ? <p className="text-app-danger text-xs">{errors.email.message}</p> : null}
         </div>
 
         <div className="space-y-2">
@@ -139,16 +139,16 @@ export default function LoginPage() {
               id="password"
               type="password"
               autoComplete="current-password"
-              className="text-app-foreground h-12 w-full rounded-2xl border border-[hsl(var(--border)/0.75)] bg-[hsl(var(--surface-soft)/0.38)] pl-11 pr-4 text-sm outline-none transition focus:border-[hsl(var(--primary)/0.7)] focus:ring-4 focus:ring-[hsl(var(--primary)/0.1)]"
+              className="app-input h-12 w-full rounded-2xl border pl-11 pr-4 text-sm transition"
               placeholder="Enter your password"
               {...register("password")}
             />
           </div>
-          {errors.password ? <p className="text-xs text-rose-400">{errors.password.message}</p> : null}
+          {errors.password ? <p className="text-app-danger text-xs">{errors.password.message}</p> : null}
         </div>
 
         {serverError ? (
-          <p className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+          <p className="app-danger rounded-2xl border px-4 py-3 text-sm">
             {serverError}
           </p>
         ) : null}
@@ -156,11 +156,11 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-4 text-sm font-semibold text-[hsl(var(--primary-foreground))] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
+          className="app-button-primary inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-70"
         >
           {isSubmitting ? (
             <span className="inline-flex items-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/20 border-t-current" />
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-[hsl(var(--primary-foreground)/0.28)] border-t-current" />
               Logging in...
             </span>
           ) : (
@@ -206,7 +206,7 @@ export default function LoginPage() {
         </p>
         <Link
           href="/register"
-          className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[hsl(var(--primary))] hover:opacity-80"
+          className="text-app-accent mt-4 inline-flex items-center gap-2 text-sm font-semibold hover:opacity-80"
         >
           Create your account
           <ArrowRight className="h-4 w-4" />

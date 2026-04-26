@@ -7,6 +7,10 @@ import type { Adapter, AdapterUser } from "next-auth/adapters";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
+import {
+  DEFAULT_WIZARDS_THEME,
+  normalizeWizardsThemeId,
+} from "@/lib/appearance";
 
 const MAX_USERNAME_LENGTH = 32;
 
@@ -101,6 +105,7 @@ const adapter: Adapter = {
         avatarUrl: data.image ?? null,
         emailVerified: Boolean(data.emailVerified),
         emailVerifiedAt: data.emailVerified ?? null,
+        theme: DEFAULT_WIZARDS_THEME,
         settings: { create: {} },
         notificationSettings: { create: {} },
       },
@@ -240,6 +245,7 @@ const authConfig = {
             displayName: true,
             avatarUrl: true,
             passwordHash: true,
+            theme: true,
           },
         });
 
@@ -264,6 +270,7 @@ const authConfig = {
           username: user.username,
           displayName: user.displayName,
           avatarUrl: user.avatarUrl,
+          theme: normalizeWizardsThemeId(user.theme),
         };
       },
     }),
@@ -308,7 +315,7 @@ const authConfig = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         const userId = stringOrEmpty(user.id);
         if (userId) {
@@ -327,15 +334,28 @@ const authConfig = {
           "avatarUrl" in user && typeof user.avatarUrl === "string"
             ? user.avatarUrl
             : stringOrNull(user.image);
+
+        token.theme =
+          "theme" in user && typeof user.theme === "string"
+            ? normalizeWizardsThemeId(user.theme)
+            : stringOrNull(token.theme);
       }
 
-      if (token.sub && (!token.username || !token.displayName || !token.avatarUrl)) {
+      if (trigger === "update" && session?.user?.theme) {
+        token.theme = normalizeWizardsThemeId(session.user.theme);
+      }
+
+      if (
+        token.sub &&
+        (!token.username || !token.displayName || !token.avatarUrl || !token.theme)
+      ) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.sub },
           select: {
             username: true,
             displayName: true,
             avatarUrl: true,
+            theme: true,
           },
         });
 
@@ -343,6 +363,7 @@ const authConfig = {
           token.username = dbUser.username;
           token.displayName = dbUser.displayName;
           token.avatarUrl = dbUser.avatarUrl;
+          token.theme = normalizeWizardsThemeId(dbUser.theme);
         }
       }
 
@@ -356,6 +377,7 @@ const authConfig = {
         session.user.username = stringOrNull(token.username);
         session.user.displayName = stringOrNull(token.displayName);
         session.user.avatarUrl = stringOrNull(token.avatarUrl);
+        session.user.theme = stringOrNull(token.theme);
       }
 
       return session;
@@ -369,3 +391,5 @@ export const handlers: NextAuthResult["handlers"] = nextAuthResult.handlers;
 export const signIn: NextAuthResult["signIn"] = nextAuthResult.signIn;
 export const signOut: NextAuthResult["signOut"] = nextAuthResult.signOut;
 export const auth: NextAuthResult["auth"] = nextAuthResult.auth;
+export const unstable_update: NextAuthResult["unstable_update"] =
+  nextAuthResult.unstable_update;
