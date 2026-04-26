@@ -51,6 +51,11 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "validation.username.min": "Username must be at least 2 characters.",
     "validation.username.pattern": "Username can only include letters, numbers, and underscores.",
 
+    "friends.notification.request.title": "New friend request",
+    "friends.notification.request.body": "{name} sent you a friend request.",
+    "friends.notification.accepted.title": "Friend request accepted",
+    "friends.notification.accepted.body": "{name} accepted your friend request.",
+
     "auth.layout.badge": "Wizards Workspace",
     "auth.layout.description":
       "Build compact servers, hop between channels instantly, and keep your team inside one crisp communication flow.",
@@ -420,6 +425,11 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "validation.username.max": "Kullanıcı adı en fazla 32 karakter olabilir.",
     "validation.username.min": "Kullanıcı adı en az 2 karakter olmalıdır.",
     "validation.username.pattern": "Kullanıcı adı sadece harf, sayı ve alt çizgi içerebilir.",
+
+    "friends.notification.request.title": "Yeni arkadaşlık isteği",
+    "friends.notification.request.body": "{name} sana arkadaşlık isteği gönderdi.",
+    "friends.notification.accepted.title": "Arkadaşlık isteği kabul edildi",
+    "friends.notification.accepted.body": "{name} arkadaşlık isteğini kabul etti.",
 
     "auth.layout.badge": "Wizards Workspace",
     "auth.layout.description":
