@@ -28,6 +28,7 @@ import {
 import { useState } from "react";
 import type { WorkspaceChannel, WorkspaceServerDetail } from "@wizards/types";
 import { useShallow } from "zustand/react/shallow";
+import { FriendsSidebar } from "@/components/friends/friends-sidebar";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
@@ -366,9 +367,7 @@ export function ChannelSidebar({
   if (!detail) {
     return (
       <aside className="app-sidebar flex h-full w-full flex-col justify-between p-4">
-        <div className="rounded-[28px] border border-dashed border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] p-5 text-app-muted text-sm">
-          {t("shell.channelSidebar.empty")}
-        </div>
+        <FriendsSidebar onNavigate={onNavigate} onPrefetch={onPrefetch} />
         <UserProfileFooter user={currentUser} onOpenAppearanceSettings={onOpenSettings} />
       </aside>
     );

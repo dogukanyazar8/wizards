@@ -5,6 +5,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    public readonly code?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -13,7 +14,10 @@ export class ApiError extends Error {
 
 export function jsonError(error: unknown) {
   if (error instanceof ApiError) {
-    return Response.json({ error: error.message }, { status: error.status });
+    return Response.json(
+      error.code ? { error: error.message, code: error.code } : { error: error.message },
+      { status: error.status },
+    );
   }
 
   if (error instanceof ZodError) {

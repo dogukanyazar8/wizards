@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
@@ -16,14 +16,55 @@ type ModalProps = {
 };
 
 export function Modal({ children, className, description, onClose, open, title }: ModalProps) {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+
   useEffect(() => {
     if (!open) {
       return;
     }
 
+    previousActiveElementRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const dialog = dialogRef.current;
+    const focusable = dialog?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+
+    (focusable?.[0] ?? dialog)?.focus();
+
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
+        return;
+      }
+
+      if (event.key !== "Tab" || !dialog) {
+        return;
+      }
+
+      const currentFocusable = dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+
+      if (currentFocusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = currentFocusable[0];
+      const last = currentFocusable[currentFocusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
       }
     };
 
@@ -31,6 +72,7 @@ export function Modal({ children, className, description, onClose, open, title }
 
     return () => {
       window.removeEventListener("keydown", handleEscape);
+      previousActiveElementRef.current?.focus();
     };
   }, [onClose, open]);
 
@@ -50,6 +92,9 @@ export function Modal({ children, className, description, onClose, open, title }
         >
           <motion.div
             animate={{ opacity: 1, scale: 1, y: 0 }}
+            aria-describedby={description ? descriptionId : undefined}
+            aria-labelledby={titleId}
+            aria-modal="true"
             className={cn(
               "app-overlay w-full max-w-lg rounded-[28px] p-6 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.16)] backdrop-blur-2xl",
               className,
@@ -58,18 +103,17 @@ export function Modal({ children, className, description, onClose, open, title }
             initial={{ opacity: 0, scale: 0.96, y: 10 }}
             onClick={(event) => event.stopPropagation()}
             role="dialog"
-            aria-describedby={description ? "modal-description" : undefined}
-            aria-modal="true"
-            aria-labelledby="modal-title"
+            ref={dialogRef}
+            tabIndex={-1}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-app-foreground text-xl font-semibold" id="modal-title">
+                <h2 className="text-app-foreground text-xl font-semibold" id={titleId}>
                   {title}
                 </h2>
                 {description ? (
-                  <p className="text-app-muted mt-1 text-sm" id="modal-description">
+                  <p className="text-app-muted mt-1 text-sm" id={descriptionId}>
                     {description}
                   </p>
                 ) : null}
@@ -77,7 +121,7 @@ export function Modal({ children, className, description, onClose, open, title }
 
               <button
                 aria-label="Close modal"
-                className="app-panel-soft text-app-muted rounded-full border p-2 transition hover:opacity-90 hover:text-[hsl(var(--foreground))]"
+                className="app-panel-soft text-app-muted rounded-full border p-2 transition hover:opacity-90 hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                 onClick={onClose}
                 type="button"
               >

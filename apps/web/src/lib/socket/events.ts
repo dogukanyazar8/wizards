@@ -1,4 +1,5 @@
 import type { ChatMessage, MessageReaction } from "@wizards/types";
+import type { FriendPresenceUpdateDto } from "@/lib/friends/types";
 
 export interface ClientToServerEvents {
   "channel:join": (channelId: string) => void;
@@ -24,6 +25,7 @@ export interface ServerToClientEvents {
     messageId: string;
     reactions: MessageReaction[];
   }) => void;
+  "presence:update": (data: FriendPresenceUpdateDto) => void;
   "typing:update": (data: { channelId: string; users: string[] }) => void;
   error: (data: { code: string; message: string }) => void;
 }
@@ -36,11 +38,14 @@ export interface InterServerEvents {
     messageId: string;
     reactions: MessageReaction[];
   }) => void;
+  "presence:update": (data: FriendPresenceUpdateDto) => void;
   "typing:update": (data: { channelId: string; users: string[] }) => void;
 }
 
 export interface SocketData {
   userId: string;
   displayName: string;
+  presenceCustomStatus: string | null;
+  presenceStatus: FriendPresenceUpdateDto["status"];
   typingChannels: Set<string>;
 }

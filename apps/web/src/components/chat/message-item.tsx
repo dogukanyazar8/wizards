@@ -123,6 +123,17 @@ export const MessageItem = React.memo(
               </div>
             )}
 
+            {message.replyTo && !isEditing && (
+              <div className="mb-1.5 flex items-start gap-1.5 rounded border-l-2 border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--surface-soft)/0.4)] px-2 py-1">
+                <span className="shrink-0 text-[11px] font-medium text-[hsl(var(--primary))]">
+                  {message.replyTo.authorName}
+                </span>
+                <p className="min-w-0 truncate text-[11px] text-app-muted">
+                  {message.replyTo.content}
+                </p>
+              </div>
+            )}
+
             {isEditing ? (
               <MessageEditor
                 initialContent={message.content}
@@ -182,6 +193,7 @@ export const MessageItem = React.memo(
     prev.message.reactions === next.message.reactions &&
     prev.message.editedAt === next.message.editedAt &&
     prev.message.deletedAt === next.message.deletedAt &&
+    prev.message.replyTo?.id === next.message.replyTo?.id &&
     prev.isGrouped === next.isGrouped &&
     prev.showGroupSeparator === next.showGroupSeparator &&
     prev.currentUserId === next.currentUserId &&

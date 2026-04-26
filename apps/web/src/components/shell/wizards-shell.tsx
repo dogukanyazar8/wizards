@@ -2,7 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import type { CSSProperties } from "react";
+import { Users } from "lucide-react";
+import React, { type CSSProperties } from "react";
 import { useEffect, useMemo } from "react";
 import type { WorkspaceChannel } from "@wizards/types";
 import { useParams, useRouter } from "next/navigation";
@@ -43,19 +44,91 @@ function findActiveChannel(
   }
 
   return (
-    [...detail.ungroupedChannels, ...detail.categories.flatMap((category) => category.channels)].find(
-      (channel) => channel.id === channelId,
-    ) ?? null
+    [
+      ...detail.ungroupedChannels,
+      ...detail.categories.flatMap((category) => category.channels),
+    ].find((channel) => channel.id === channelId) ?? null
   );
 }
 
-function findActiveCategoryName(channel: WorkspaceChannel | null, detail?: Awaited<ReturnType<typeof fetchWorkspaceServer>> | null) {
+function findActiveCategoryName(
+  channel: WorkspaceChannel | null,
+  detail?: Awaited<ReturnType<typeof fetchWorkspaceServer>> | null,
+) {
   if (!channel || !detail) {
     return null;
   }
 
   return detail.categories.find((category) => category.id === channel.categoryId)?.name ?? null;
 }
+
+interface NavigationPanelProps {
+  isMobile: boolean;
+  activeServerId: string | null;
+  activeChannelId: string | null;
+  servers: Awaited<ReturnType<typeof fetchWorkspaceServers>>;
+  serversQueryLoading: boolean;
+  serverDetailQueryData: Awaited<ReturnType<typeof fetchWorkspaceServer>> | undefined | null;
+  serverDetailQueryLoading: boolean;
+  currentUser: {
+    avatarUrl?: string | null;
+    displayName: string;
+    username: string;
+  };
+  onNavigate: (href: string) => void;
+  onPrefetch: (href: string) => void;
+  onOpenCreateServer: () => void;
+  onOpenServerContextMenu: (serverId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
+  onOpenSettings: () => void;
+}
+
+const NavigationPanel = React.memo(
+  ({
+    isMobile,
+    activeServerId,
+    activeChannelId,
+    servers,
+    serversQueryLoading,
+    serverDetailQueryData,
+    serverDetailQueryLoading,
+    currentUser,
+    onNavigate,
+    onPrefetch,
+    onOpenCreateServer,
+    onOpenServerContextMenu,
+    onOpenSettings,
+  }: NavigationPanelProps) => (
+    <>
+      <div className={isMobile ? "flex h-full w-[72px] shrink-0" : "hidden md:flex"}>
+        <ServerRail
+          activeServerId={activeServerId}
+          loading={serversQueryLoading}
+          onNavigate={onNavigate}
+          onOpenCreateServer={onOpenCreateServer}
+          onOpenServerContextMenu={onOpenServerContextMenu}
+          onPrefetch={onPrefetch}
+          servers={servers}
+        />
+      </div>
+      <div
+        className={isMobile ? "flex min-w-0 flex-1" : "hidden md:flex"}
+        style={isMobile ? undefined : { width: `var(--channel-sidebar-width)` }}
+      >
+        <ChannelSidebar
+          activeChannelId={activeChannelId}
+          currentUser={currentUser}
+          detail={serverDetailQueryData ?? null}
+          loading={Boolean(activeServerId) && serverDetailQueryLoading}
+          onNavigate={onNavigate}
+          onOpenSettings={onOpenSettings}
+          onPrefetch={onPrefetch}
+        />
+      </div>
+    </>
+  ),
+);
+
+NavigationPanel.displayName = "NavigationPanel";
 
 export function WizardsShell({ children, currentUser, uploadthingEnabled }: WizardsShellProps) {
   const { t } = useI18n();
@@ -97,7 +170,8 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     })),
   );
 
-  const activeServerId = typeof params.serverId === "string" ? params.serverId : null;
+  const rawServerId = typeof params.serverId === "string" ? decodeURIComponent(params.serverId) : null;
+  const activeServerId = rawServerId === "@me" ? null : rawServerId;
   const activeChannelId = typeof params.channelId === "string" ? params.channelId : null;
 
   useEffect(() => {
@@ -120,7 +194,9 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const serverDetailQuery = useQuery({
     enabled: Boolean(activeServerId),
     queryFn: () => fetchWorkspaceServer(activeServerId!),
-    queryKey: activeServerId ? workspaceQueryKeys.server(activeServerId) : ["workspace", "server", "idle"],
+    queryKey: activeServerId
+      ? workspaceQueryKeys.server(activeServerId)
+      : ["workspace", "server", "idle"],
     refetchOnWindowFocus: false,
     staleTime: 30_000,
     ...(cachedServerDetail ? { placeholderData: cachedServerDetail } : {}),
@@ -135,7 +211,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       });
 
       if (serverId === activeServerId) {
-        router.push("/channels");
+        router.push("/channels/@me");
       }
     },
   });
@@ -143,8 +219,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const servers = serversQuery.data ?? [];
   const activeChannel = findActiveChannel(activeServerId, activeChannelId, serverDetailQuery.data);
   const activeCategoryName = findActiveCategoryName(activeChannel, serverDetailQuery.data);
-  const contextServer =
-    servers.find((server) => server.id === serverContextMenu.serverId) ?? null;
+  const contextServer = servers.find((server) => server.id === serverContextMenu.serverId) ?? null;
   const shellStyle = useMemo(
     () =>
       ({
@@ -160,9 +235,17 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       serverDetailQuery.data?.server.defaultChannelId &&
       (!activeChannelId || !activeChannel)
     ) {
-      router.replace(`/channels/${activeServerId}/${serverDetailQuery.data.server.defaultChannelId}`);
+      router.replace(
+        `/channels/${activeServerId}/${serverDetailQuery.data.server.defaultChannelId}`,
+      );
     }
-  }, [activeChannel, activeChannelId, activeServerId, router, serverDetailQuery.data?.server.defaultChannelId]);
+  }, [
+    activeChannel,
+    activeChannelId,
+    activeServerId,
+    router,
+    serverDetailQuery.data?.server.defaultChannelId,
+  ]);
 
   const navigate = (href: string) => {
     setMobileSidebarOpen(false);
@@ -178,13 +261,28 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     router.push("/settings/appearance");
   };
 
-  const renderNavigation = (isMobile = false) => (
-    <>
-      <div className={isMobile ? "flex h-full w-[72px] shrink-0" : "hidden md:flex"}>
-        <ServerRail
+  return (
+    <div
+      className="app-shell flex h-screen overflow-hidden"
+      style={shellStyle}
+      suppressHydrationWarning
+    >
+      <div
+        className="hidden h-full shrink-0 md:flex"
+        style={{ width: `calc(${serverRailWidth}px + ${channelSidebarWidth}px)` }}
+        suppressHydrationWarning
+      >
+        <NavigationPanel
+          isMobile={false}
           activeServerId={activeServerId}
-          loading={serversQuery.isLoading}
+          activeChannelId={activeChannelId}
+          servers={servers}
+          serversQueryLoading={serversQuery.isLoading}
+          serverDetailQueryData={serverDetailQuery.data}
+          serverDetailQueryLoading={serverDetailQuery.isLoading}
+          currentUser={currentUser}
           onNavigate={navigate}
+          onPrefetch={prefetch}
           onOpenCreateServer={() => openServerModal({ mode: "create" })}
           onOpenServerContextMenu={(serverId, event) => {
             event.preventDefault();
@@ -193,35 +291,8 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
               y: event.clientY,
             });
           }}
-          onPrefetch={prefetch}
-          servers={servers}
-        />
-      </div>
-      <div
-        className={isMobile ? "flex min-w-0 flex-1" : "hidden md:flex"}
-        style={isMobile ? undefined : { width: `var(--channel-sidebar-width)` }}
-      >
-        <ChannelSidebar
-          activeChannelId={activeChannelId}
-          currentUser={currentUser}
-          detail={serverDetailQuery.data ?? null}
-          loading={Boolean(activeServerId) && serverDetailQuery.isLoading}
-          onNavigate={navigate}
           onOpenSettings={openSettings}
-          onPrefetch={prefetch}
         />
-      </div>
-    </>
-  );
-
-  return (
-    <div className="app-shell flex h-screen overflow-hidden" style={shellStyle} suppressHydrationWarning>
-      <div
-        className="hidden h-full shrink-0 md:flex"
-        style={{ width: `calc(${serverRailWidth}px + ${channelSidebarWidth}px)` }}
-        suppressHydrationWarning
-      >
-        {renderNavigation()}
       </div>
 
       <AnimatePresence>
@@ -245,7 +316,27 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
               suppressHydrationWarning
             >
-              {renderNavigation(true)}
+              <NavigationPanel
+                isMobile={true}
+                activeServerId={activeServerId}
+                activeChannelId={activeChannelId}
+                servers={servers}
+                serversQueryLoading={serversQuery.isLoading}
+                serverDetailQueryData={serverDetailQuery.data}
+                serverDetailQueryLoading={serverDetailQuery.isLoading}
+                currentUser={currentUser}
+                onNavigate={navigate}
+                onPrefetch={prefetch}
+                onOpenCreateServer={() => openServerModal({ mode: "create" })}
+                onOpenServerContextMenu={(serverId, event) => {
+                  event.preventDefault();
+                  openServerContextMenu(serverId, {
+                    x: event.clientX,
+                    y: event.clientY,
+                  });
+                }}
+                onOpenSettings={openSettings}
+              />
             </motion.div>
           </motion.div>
         ) : null}
@@ -254,9 +345,12 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       <MainChannelPanel
         categoryName={activeCategoryName}
         channel={activeChannel}
+        contextLabel={!activeServerId ? t("friends.header.context") : undefined}
+        detailLabel={!activeServerId ? t("friends.header.detail") : undefined}
         fallbackTitle={
           activeServerId ? t("shell.wizards.chooseChannel") : t("shell.wizards.directMessages")
         }
+        icon={!activeServerId ? Users : undefined}
         leading={<MobileDrawerTrigger onClick={() => setMobileSidebarOpen(true)} />}
       >
         {children}
@@ -297,7 +391,9 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
           <ContextMenuItem
             destructive
             onClick={() => {
-              if (window.confirm(t("shell.context.leaveServerConfirm", { name: contextServer.name }))) {
+              if (
+                window.confirm(t("shell.context.leaveServerConfirm", { name: contextServer.name }))
+              ) {
                 leaveMutation.mutate(contextServer.id);
               }
             }}
@@ -325,7 +421,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       />
 
       <ServerSettingsOverlay
-        detail={serverSettingsServerId === activeServerId ? serverDetailQuery.data ?? null : null}
+        detail={serverSettingsServerId === activeServerId ? (serverDetailQuery.data ?? null) : null}
         onOpenDeleteServer={openDeleteServerDialog}
         open={Boolean(serverSettingsServerId && serverSettingsServerId === activeServerId)}
         uploadthingEnabled={uploadthingEnabled}

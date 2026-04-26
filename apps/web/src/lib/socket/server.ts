@@ -1,8 +1,10 @@
 import type { Server as HTTPServer } from "http";
-import { Server } from "socket.io";
+import type Redis from "ioredis";
+import { Server, type Socket as IOSocket } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@wizards/db";
+import { getUserPresenceBroadcast } from "@/lib/friends/service";
 import {
   createMessage,
   deleteMessage,
@@ -18,6 +20,64 @@ import type {
 } from "./events";
 
 const TYPING_EXPIRY = 3000; // 3 seconds
+const PRESENCE_SOCKET_PREFIX = "presence:sockets:";
+
+type AppSocket = IOSocket<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  SocketData
+>;
+
+function getPresenceSocketsKey(userId: string) {
+  return `${PRESENCE_SOCKET_PREFIX}${userId}`;
+}
+
+async function listFriendIds(userId: string) {
+  const friendships = await prisma.friendRequest.findMany({
+    where: {
+      status: "ACCEPTED",
+      OR: [{ senderId: userId }, { receiverId: userId }],
+    },
+    select: {
+      receiverId: true,
+      senderId: true,
+    },
+  });
+
+  return friendships.map((friendship) =>
+    friendship.senderId === userId ? friendship.receiverId : friendship.senderId,
+  );
+}
+
+async function writePresence(
+  redis: Redis,
+  userId: string,
+  status: SocketData["presenceStatus"],
+  customStatus: string | null,
+) {
+  await redis.hset(`presence:${userId}`, {
+    customStatus: customStatus ?? "",
+    status,
+  });
+}
+
+async function broadcastPresenceChange(
+  socket: AppSocket,
+  userId: string,
+  status: SocketData["presenceStatus"],
+  customStatus: string | null,
+) {
+  const friendIds = await listFriendIds(userId);
+
+  for (const friendId of friendIds) {
+    socket.to(`user:${friendId}`).emit("presence:update", {
+      userId,
+      status,
+      customStatus,
+    });
+  }
+}
 
 export function initSocketServer(httpServer: HTTPServer) {
   const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(httpServer, {
@@ -71,6 +131,26 @@ export function initSocketServer(httpServer: HTTPServer) {
   io.on("connection", (socket) => {
     const userId = socket.data.userId;
     socket.data.typingChannels = new Set<string>();
+    socket.data.presenceCustomStatus = null;
+    socket.data.presenceStatus = "OFFLINE";
+    socket.join(`user:${userId}`);
+
+    void (async () => {
+      try {
+        const presence = await getUserPresenceBroadcast(userId);
+        socket.data.presenceStatus = presence.status;
+        socket.data.presenceCustomStatus = presence.customStatus;
+
+        const socketCount = await redis.incr(getPresenceSocketsKey(userId));
+        await writePresence(redis, userId, presence.status, presence.customStatus);
+
+        if (socketCount === 1) {
+          await broadcastPresenceChange(socket, userId, presence.status, presence.customStatus);
+        }
+      } catch (error) {
+        console.error("Presence connect error:", error);
+      }
+    })();
 
     // Channel join - verify membership
     socket.on("channel:join", async (channelId: string) => {
@@ -357,6 +437,19 @@ export function initSocketServer(httpServer: HTTPServer) {
           redis.hdel(`typing:${channelId}`, userId),
         );
         await Promise.all(cleanups);
+
+        const nextSocketCount = await redis.decr(getPresenceSocketsKey(userId));
+
+        if (nextSocketCount <= 0) {
+          await redis.del(getPresenceSocketsKey(userId));
+          await writePresence(redis, userId, "OFFLINE", socket.data.presenceCustomStatus);
+          await broadcastPresenceChange(
+            socket,
+            userId,
+            "OFFLINE",
+            socket.data.presenceCustomStatus,
+          );
+        }
       } catch (error) {
         console.error("Disconnect cleanup error:", error);
       }

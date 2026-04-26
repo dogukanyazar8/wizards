@@ -1,7 +1,5 @@
-import { requireAuth } from "@/lib/auth/utils";
+import { redirect } from "next/navigation";
 
 export default async function ChannelsPage() {
-  await requireAuth();
-
-  return null;
+  redirect("/channels/@me");
 }

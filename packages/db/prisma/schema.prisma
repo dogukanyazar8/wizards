@@ -732,6 +732,8 @@ model DMParticipant {
   lastReadAt     DateTime?
   mentionCount   Int       @default(0)
   muted          Boolean   @default(false)
+  hiddenAt       DateTime?
+  unreadCount    Int       @default(0)
 
   conversation DMConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)

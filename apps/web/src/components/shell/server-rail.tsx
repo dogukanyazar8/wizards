@@ -46,8 +46,8 @@ export function ServerRail({
             active={!activeServerId}
             fallback="DM"
             label={t("shell.serverRail.directMessages")}
-            onClick={() => onNavigate("/channels")}
-            {...(onPrefetch ? { onPrefetch: () => onPrefetch("/channels") } : {})}
+            onClick={() => onNavigate("/channels/@me")}
+            {...(onPrefetch ? { onPrefetch: () => onPrefetch("/channels/@me") } : {})}
           />
         </div>
       </div>

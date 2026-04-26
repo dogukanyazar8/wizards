@@ -9,6 +9,24 @@ type AvatarProps = {
   src?: string | null | undefined;
 };
 
+function getFallbackInitials(value: string) {
+  const tokens = value
+    .trim()
+    .split(/[\s_]+/)
+    .map((token) => token.replace(/[^a-z0-9]/gi, ""))
+    .filter(Boolean);
+
+  if (tokens.length === 0) {
+    return "??";
+  }
+
+  if (tokens.length === 1) {
+    return tokens[0]!.slice(0, 2).toUpperCase();
+  }
+
+  return `${tokens[0]![0] ?? ""}${tokens[tokens.length - 1]![0] ?? ""}`.toUpperCase();
+}
+
 export function Avatar({ alt, className, fallback, src }: AvatarProps) {
   return (
     <div
@@ -24,7 +42,7 @@ export function Avatar({ alt, className, fallback, src }: AvatarProps) {
         // eslint-disable-next-line @next/next/no-img-element
         <img alt={alt} className="h-full w-full object-cover" src={src} />
       ) : (
-        <span>{fallback.slice(0, 2)}</span>
+        <span>{getFallbackInitials(fallback)}</span>
       )}
     </div>
   );

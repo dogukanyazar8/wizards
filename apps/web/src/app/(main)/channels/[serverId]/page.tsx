@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getWorkspaceServerDetail } from "@/lib/workspace/service";
 import { requireAuth } from "@/lib/auth/utils";
+import { FriendsView } from "@/components/friends/friends-view";
 
 type ServerPageProps = {
   params: Promise<{
@@ -14,7 +15,7 @@ export default async function ServerPage({ params }: ServerPageProps) {
   const normalizedServerId = decodeURIComponent(serverId);
 
   if (normalizedServerId === "@me") {
-    redirect("/channels");
+    return <FriendsView />;
   }
 
   const detail = await getWorkspaceServerDetail(session.user.id, normalizedServerId);
@@ -23,5 +24,5 @@ export default async function ServerPage({ params }: ServerPageProps) {
     redirect(`/channels/${normalizedServerId}/${detail.server.defaultChannelId}`);
   }
 
-  redirect("/channels");
+  redirect("/channels/@me");
 }

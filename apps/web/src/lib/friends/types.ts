@@ -2,7 +2,8 @@ import { z } from "zod";
 
 export type FriendStatusDto = "PENDING" | "ACCEPTED" | "DECLINED" | "BLOCKED";
 
-export type FriendPresenceStatus = "ONLINE" | "IDLE" | "DND" | "OFFLINE" | "INVISIBLE";
+export type FriendPresenceStatus = "ONLINE" | "IDLE" | "DND" | "OFFLINE";
+export type FriendErrorCode = "ALREADY_FRIENDS" | "BLOCKED" | "NOT_FOUND" | "ALREADY_PENDING";
 
 export interface FriendUserDto {
   id: string;
@@ -11,9 +12,15 @@ export interface FriendUserDto {
   avatarUrl: string | null;
 }
 
+export interface FriendPresenceDto {
+  status: FriendPresenceStatus;
+  customStatus: string | null;
+}
+
 export interface FriendDto extends FriendUserDto {
   status: FriendPresenceStatus;
   customStatus: string | null;
+  presence: FriendPresenceDto;
 }
 
 export interface FriendRequestDto {
@@ -37,6 +44,58 @@ export interface BlockStatus {
   blockedByUserA: boolean;
   blockedByUserB: boolean;
 }
+
+export interface FriendPresenceUpdateDto extends FriendPresenceDto {
+  userId: string;
+}
+
+export const FriendStatusSchema = z.enum(["PENDING", "ACCEPTED", "DECLINED", "BLOCKED"]);
+export const FriendPresenceStatusSchema = z.enum(["ONLINE", "IDLE", "DND", "OFFLINE"]);
+export const FriendErrorCodeSchema = z.enum([
+  "ALREADY_FRIENDS",
+  "BLOCKED",
+  "NOT_FOUND",
+  "ALREADY_PENDING",
+]);
+
+export const FriendUserSchema = z.object({
+  id: z.string(),
+  username: z.string(),
+  displayName: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+});
+
+export const FriendPresenceSchema = z.object({
+  status: FriendPresenceStatusSchema,
+  customStatus: z.string().nullable(),
+});
+
+export const FriendSchema = FriendUserSchema.extend({
+  status: FriendPresenceStatusSchema,
+  customStatus: z.string().nullable(),
+  presence: FriendPresenceSchema,
+});
+
+export const FriendRequestSchema = z.object({
+  id: z.string(),
+  senderId: z.string(),
+  receiverId: z.string(),
+  status: FriendStatusSchema,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  sender: FriendUserSchema,
+  receiver: FriendUserSchema,
+});
+
+export const FriendsResponseSchema = z.array(FriendSchema);
+export const PendingFriendsResponseSchema = z.object({
+  incoming: z.array(FriendRequestSchema),
+  outgoing: z.array(FriendRequestSchema),
+});
+export const FriendRequestMutationResponseSchema = z.object({
+  request: FriendRequestSchema,
+});
+export const BlockedFriendsResponseSchema = z.array(FriendUserSchema);
 
 export const FriendRequestBodySchema = z.object({
   username: z

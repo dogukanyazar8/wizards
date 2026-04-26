@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { MessageList } from "./message-list";
 import { MessageInput } from "./message-input";
@@ -20,6 +20,7 @@ export function ChatArea({ channelId, currentUserId, currentUserDisplayName, can
   const socket = useSocket();
   const queryClient = useQueryClient();
   const { typingUsers } = useTyping(channelId);
+  const tempIdRef = useRef<string | null>(null);
   const [replyTo, setReplyTo] = useState<{
     id: string;
     authorName: string;
@@ -30,10 +31,37 @@ export function ChatArea({ channelId, currentUserId, currentUserDisplayName, can
     setReplyTo({ id, authorName, content });
   }, []);
 
+  useEffect(() => {
+    const handleError = (data: { code: string; message: string }) => {
+      if (
+        (data.code === "MESSAGE_SEND_ERROR" || data.code === "RATE_LIMIT") &&
+        tempIdRef.current
+      ) {
+        const failedId = tempIdRef.current;
+        queryClient.setQueryData<MessagePages>(["messages", channelId], (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.filter((m) => m.id !== failedId),
+            })),
+          };
+        });
+        tempIdRef.current = null;
+      }
+    };
+    socket.on("error", handleError);
+    return () => {
+      socket.off("error", handleError);
+    };
+  }, [channelId, queryClient, socket]);
+
   const handleSend = useCallback(
     (content: string, replyToId?: string) => {
       // Optimistic insert — appears instantly, replaced when server echoes back
       const tempId = `optimistic-${Date.now()}`;
+      tempIdRef.current = tempId;
       queryClient.setQueryData<MessagePages>(["messages", channelId], (old) =>
         appendMessage(old, {
           id: tempId,
@@ -45,6 +73,13 @@ export function ChatArea({ channelId, currentUserId, currentUserDisplayName, can
             username: currentUserDisplayName,
             avatarUrl: null,
           },
+          replyTo: replyTo
+            ? {
+                id: replyTo.id,
+                authorName: replyTo.authorName,
+                content: replyTo.content,
+              }
+            : undefined,
           createdAt: new Date().toISOString(),
           type: "DEFAULT",
           reactions: [],
@@ -61,7 +96,7 @@ export function ChatArea({ channelId, currentUserId, currentUserDisplayName, can
       });
       setReplyTo(null);
     },
-    [channelId, currentUserId, currentUserDisplayName, queryClient, socket],
+    [channelId, currentUserId, currentUserDisplayName, queryClient, socket, replyTo],
   );
 
   return (

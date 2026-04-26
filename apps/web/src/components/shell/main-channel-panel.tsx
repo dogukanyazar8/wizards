@@ -1,5 +1,6 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react";
 import { Hash, Volume2 } from "lucide-react";
 import type { WorkspaceChannel } from "@wizards/types";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -8,7 +9,10 @@ type MainChannelPanelProps = {
   categoryName?: string | null;
   channel?: WorkspaceChannel | null;
   children?: React.ReactNode;
+  contextLabel?: string | undefined;
+  detailLabel?: string | undefined;
   fallbackTitle: string;
+  icon?: LucideIcon | undefined;
   leading?: React.ReactNode;
   trailing?: React.ReactNode;
 };
@@ -17,23 +21,26 @@ export function MainChannelPanel({
   categoryName,
   channel,
   children,
+  contextLabel,
+  detailLabel,
   fallbackTitle,
+  icon,
   leading,
   trailing,
 }: MainChannelPanelProps) {
   const { t } = useI18n();
-  const Icon = channel?.type === "VOICE" ? Volume2 : Hash;
+  const Icon = icon ?? (channel?.type === "VOICE" ? Volume2 : Hash);
   const title = channel ? `#${channel.name}` : fallbackTitle;
-  const contextLabel = categoryName
+  const resolvedContextLabel = contextLabel ?? (categoryName
     ? categoryName
     : channel
       ? t("shell.main.openConversation")
-      : t("shell.main.workspaceOverview");
-  const detailLabel = channel
+      : t("shell.main.workspaceOverview"));
+  const resolvedDetailLabel = detailLabel ?? (channel
     ? t("shell.main.channelType", {
         type: channel.type === "VOICE" ? t("common.voice") : t("common.text"),
       })
-    : t("shell.main.pickServerOrChannel");
+    : t("shell.main.pickServerOrChannel"));
 
   return (
     <section className="app-main-gradient flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -50,11 +57,11 @@ export function MainChannelPanel({
                   {title}
                 </h1>
                 <span className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.52)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-app-soft">
-                  {detailLabel}
+                  {resolvedDetailLabel}
                 </span>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                <span className="text-app-muted">{contextLabel}</span>
+                <span className="text-app-muted">{resolvedContextLabel}</span>
                 <span className="text-app-soft">/</span>
                 <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 font-medium text-[hsl(var(--primary))]">
                   {t("shell.main.liveWorkspace")}
