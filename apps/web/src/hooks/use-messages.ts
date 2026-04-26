@@ -9,9 +9,9 @@ import {
 import { useSocket } from "./use-socket";
 import type { ChatMessage, MessageReaction, MessagesResponse } from "@wizards/types";
 
-type MessagePages = InfiniteData<MessagesResponse, string | undefined>;
+export type MessagePages = InfiniteData<MessagesResponse, string | undefined>;
 
-function appendMessage(
+export function appendMessage(
   old: MessagePages | undefined,
   message: ChatMessage,
 ): MessagePages {
@@ -29,9 +29,28 @@ function appendMessage(
 
   return {
     ...old,
-    pages: old.pages.map((page, index) =>
-      index === 0 ? { ...page, messages: [...page.messages, message] } : page,
-    ),
+    pages: old.pages.map((page, index) => {
+      if (index !== 0) return page;
+
+      // Remove any matching optimistic placeholder before appending the real message
+      const withoutOptimistic = page.messages.filter((m) => {
+        if (!m.id.startsWith("optimistic-")) return true;
+        return !(
+          m.author.id === message.author.id &&
+          m.content === message.content &&
+          Math.abs(
+            new Date(message.createdAt).getTime() - new Date(m.createdAt).getTime(),
+          ) < 30_000
+        );
+      });
+
+      // Guard against true duplicates (e.g. socket firing twice)
+      if (withoutOptimistic.some((m) => m.id === message.id)) {
+        return { ...page, messages: withoutOptimistic };
+      }
+
+      return { ...page, messages: [...withoutOptimistic, message] };
+    }),
   };
 }
 
@@ -118,6 +137,7 @@ export function useMessages(channelId: string) {
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    staleTime: Infinity,
   });
 
   useEffect(() => {

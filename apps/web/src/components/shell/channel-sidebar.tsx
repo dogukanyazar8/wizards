@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useCallback } from "react";
 import {
   closestCenter,
   DndContext,
@@ -64,7 +65,7 @@ type SortableChannelRowProps = {
   onSelect: () => void;
 };
 
-function SortableChannelRow({
+const SortableChannelRow = React.memo(function SortableChannelRow({
   active,
   canManage,
   channel,
@@ -113,6 +114,69 @@ function SortableChannelRow({
             type={channel.type}
             {...(onPrefetch ? { onPrefetch } : {})}
           />
+        </div>
+      </div>
+    </div>
+  );
+});
+
+type UserProfileFooterProps = {
+  user: {
+    avatarUrl?: string | null;
+    displayName: string;
+    username: string;
+  };
+  onOpenAppearanceSettings: () => void;
+};
+
+function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooterProps) {
+  return (
+    <div className="app-panel rounded-[24px] border p-3">
+      <div className="flex items-center gap-3">
+        <Avatar
+          alt={user.displayName}
+          className="h-11 w-11"
+          fallback={user.displayName}
+          src={user.avatarUrl}
+        />
+        <div className="min-w-0 flex-1">
+          <p className="text-app-foreground truncate text-sm font-semibold">{user.displayName}</p>
+          <p className="text-app-soft truncate text-xs">@{user.username}</p>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            aria-label="Toggle mute"
+            className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
+            type="button"
+          >
+            <Mic className="h-4 w-4" />
+          </button>
+          <button
+            aria-label="Toggle deafen"
+            className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
+            type="button"
+          >
+            <Volume2 className="h-4 w-4" />
+          </button>
+          <button
+            aria-label="Open appearance settings"
+            className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
+            onClick={onOpenAppearanceSettings}
+            title="Appearance settings"
+            type="button"
+          >
+            <Settings2 className="h-4 w-4" />
+          </button>
+          <form action={logoutAction}>
+            <button
+              aria-label="Log out"
+              className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger-foreground))]"
+              title="Log out"
+              type="submit"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </form>
         </div>
       </div>
     </div>
@@ -227,6 +291,46 @@ export function ChannelSidebar({
     },
   });
 
+  const serverId = detail?.server.id ?? null;
+
+  const navigateToChannel = useCallback(
+    (channelId: string) => {
+      if (!serverId) return;
+      onNavigate(`/channels/${serverId}/${channelId}`);
+    },
+    [serverId, onNavigate],
+  );
+
+  const prefetchChannel = useCallback(
+    (channelId: string) => {
+      if (!serverId) return;
+      onPrefetch?.(`/channels/${serverId}/${channelId}`);
+    },
+    [serverId, onPrefetch],
+  );
+
+  const handleDragEnd = useCallback(
+    (categoryId: string | null, channels: WorkspaceChannel[]) =>
+      (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (!over || active.id === over.id) {
+          return;
+        }
+
+        const previousIndex = channels.findIndex((channel) => channel.id === active.id);
+        const nextIndex = channels.findIndex((channel) => channel.id === over.id);
+
+        if (previousIndex < 0 || nextIndex < 0) {
+          return;
+        }
+
+        const reordered = arrayMove(channels, previousIndex, nextIndex);
+        reorderMutation.mutate(buildReorderPayload(categoryId, reordered));
+      },
+    [reorderMutation],
+  );
+
   if (loading) {
     return (
       <aside className="app-sidebar h-full w-full">
@@ -241,55 +345,7 @@ export function ChannelSidebar({
         <div className="rounded-[28px] border border-dashed border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] p-5 text-app-muted text-sm">
           Pick a server to browse channels, or create one to start building your workspace.
         </div>
-        <div className="app-panel rounded-[24px] border p-3">
-          <div className="flex items-center gap-3">
-            <Avatar
-              alt={currentUser.displayName}
-              className="h-11 w-11"
-              fallback={currentUser.displayName}
-              src={currentUser.avatarUrl}
-            />
-            <div className="min-w-0 flex-1">
-              <p className="text-app-foreground truncate text-sm font-semibold">{currentUser.displayName}</p>
-              <p className="text-app-soft truncate text-xs">@{currentUser.username}</p>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                aria-label="Toggle mute"
-                className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
-                type="button"
-              >
-                <Mic className="h-4 w-4" />
-              </button>
-              <button
-                aria-label="Toggle deafen"
-                className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
-                type="button"
-              >
-                <Volume2 className="h-4 w-4" />
-              </button>
-              <button
-                aria-label="Open appearance settings"
-                className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
-                onClick={onOpenSettings}
-                title="Appearance settings"
-                type="button"
-              >
-                <Settings2 className="h-4 w-4" />
-              </button>
-              <form action={logoutAction}>
-                <button
-                  aria-label="Log out"
-                  className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger-foreground))]"
-                  title="Log out"
-                  type="submit"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
+        <UserProfileFooter user={currentUser} onOpenAppearanceSettings={onOpenSettings} />
       </aside>
     );
   }
@@ -297,32 +353,6 @@ export function ChannelSidebar({
   const canManage = detail.server.isAdmin;
   const getCategoryCollapsed = (categoryId: string) =>
     collapsedCategories[`${detail.server.id}:${categoryId}`] ?? false;
-
-  const navigateToChannel = (channelId: string) => {
-    onNavigate(`/channels/${detail.server.id}/${channelId}`);
-  };
-
-  const prefetchChannel = (channelId: string) => {
-    onPrefetch?.(`/channels/${detail.server.id}/${channelId}`);
-  };
-
-  const handleDragEnd = (categoryId: string | null, channels: WorkspaceChannel[]) => (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (!over || active.id === over.id) {
-      return;
-    }
-
-    const previousIndex = channels.findIndex((channel) => channel.id === active.id);
-    const nextIndex = channels.findIndex((channel) => channel.id === over.id);
-
-    if (previousIndex < 0 || nextIndex < 0) {
-      return;
-    }
-
-    const reordered = arrayMove(channels, previousIndex, nextIndex);
-    reorderMutation.mutate(buildReorderPayload(categoryId, reordered));
-  };
 
   const renderChannelGroup = (label: string, categoryId: string | null, channels: WorkspaceChannel[]) => {
     const collapsed = categoryId ? getCategoryCollapsed(categoryId) : false;
@@ -414,55 +444,7 @@ export function ChannelSidebar({
       </div>
 
       <div className="border-t border-[hsl(var(--border)/0.78)] p-3">
-        <div className="app-panel rounded-[24px] border p-3">
-          <div className="flex items-center gap-3">
-            <Avatar
-              alt={currentUser.displayName}
-              className="h-11 w-11"
-              fallback={currentUser.displayName}
-              src={currentUser.avatarUrl}
-            />
-            <div className="min-w-0 flex-1">
-              <p className="text-app-foreground truncate text-sm font-semibold">{currentUser.displayName}</p>
-              <p className="text-app-soft truncate text-xs">@{currentUser.username}</p>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                aria-label="Toggle mute"
-                className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
-                type="button"
-              >
-                <Mic className="h-4 w-4" />
-              </button>
-              <button
-                aria-label="Toggle deafen"
-                className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
-                type="button"
-              >
-                <Volume2 className="h-4 w-4" />
-              </button>
-              <button
-                aria-label="Open appearance settings"
-                className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
-                onClick={onOpenSettings}
-                title="Appearance settings"
-                type="button"
-              >
-                <Settings2 className="h-4 w-4" />
-              </button>
-              <form action={logoutAction}>
-                <button
-                  aria-label="Log out"
-                  className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger-foreground))]"
-                  title="Log out"
-                  type="submit"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
+        <UserProfileFooter user={currentUser} onOpenAppearanceSettings={onOpenSettings} />
       </div>
 
       <ContextMenu

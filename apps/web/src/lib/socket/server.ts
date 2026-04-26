@@ -70,6 +70,7 @@ export function initSocketServer(httpServer: HTTPServer) {
   // Connection handler
   io.on("connection", (socket) => {
     const userId = socket.data.userId;
+    socket.data.typingChannels = new Set<string>();
 
     // Channel join - verify membership
     socket.on("channel:join", async (channelId: string) => {
@@ -260,7 +261,7 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    // Unreact from message
+    // message:unreact is an alias — both toggle the same reaction
     socket.on("message:unreact", async (data) => {
       try {
         const message = await prisma.message.findUnique({
@@ -274,8 +275,6 @@ export function initSocketServer(httpServer: HTTPServer) {
         }
 
         const reactions = await toggleReaction(data.messageId, userId, data.emoji);
-
-        // Broadcast reaction update
         io.to(message.channelId).emit("message:reaction_updated", {
           messageId: data.messageId,
           reactions,
@@ -293,6 +292,7 @@ export function initSocketServer(httpServer: HTTPServer) {
       try {
         const key = `typing:${channelId}`;
         const displayName = socket.data.displayName;
+        socket.data.typingChannels.add(channelId);
 
         // Store in Redis with expiry
         await redis.hset(key, userId, Date.now() + TYPING_EXPIRY);
@@ -324,6 +324,7 @@ export function initSocketServer(httpServer: HTTPServer) {
     socket.on("typing:stop", async (channelId: string) => {
       try {
         const key = `typing:${channelId}`;
+        socket.data.typingChannels.delete(channelId);
 
         // Remove user from typing
         await redis.hdel(key, userId);
@@ -351,11 +352,11 @@ export function initSocketServer(httpServer: HTTPServer) {
     // Disconnect
     socket.on("disconnect", async () => {
       try {
-        // Clean up typing entries for this user across all channels
-        const keys = await redis.keys("typing:*");
-        for (const key of keys) {
-          await redis.hdel(key, userId);
-        }
+        // Only clean up channels this user was actually typing in — no full keyspace scan
+        const cleanups = Array.from(socket.data.typingChannels).map((channelId) =>
+          redis.hdel(`typing:${channelId}`, userId),
+        );
+        await Promise.all(cleanups);
       } catch (error) {
         console.error("Disconnect cleanup error:", error);
       }

@@ -1,19 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSocket } from "./use-socket";
 
 export function useTyping(channelId: string) {
   const socket = useSocket();
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
 
-  const startTyping = () => {
+  const startTyping = useCallback(() => {
     socket.emit("typing:start", channelId);
-  };
+  }, [channelId, socket]);
 
-  const stopTyping = () => {
+  const stopTyping = useCallback(() => {
     socket.emit("typing:stop", channelId);
-  };
+  }, [channelId, socket]);
 
   useEffect(() => {
     const handleTypingUpdate = (data: { channelId: string; users: string[] }) => {

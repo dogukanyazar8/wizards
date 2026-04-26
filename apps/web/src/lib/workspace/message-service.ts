@@ -4,7 +4,6 @@ import type {
   ChatMessage,
   ChatMessageType,
   MessageAttachment,
-  MessageAuthor,
   MessageReaction,
   ReplyTo,
 } from "@wizards/types";
@@ -18,30 +17,16 @@ function normalizeMessageType(type: string): ChatMessageType {
   return "DEFAULT";
 }
 
-async function getMessageAuthor(userId: string): Promise<MessageAuthor> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
+const messageInclude = {
+  author: {
     select: {
       id: true,
       username: true,
       displayName: true,
       avatarUrl: true,
     },
-  });
-
-  if (!user) throw new ApiError("User not found", 404);
-
-  return {
-    id: user.id,
-    username: user.username,
-    displayName: user.displayName ?? user.username,
-    avatarUrl: user.avatarUrl,
-  };
-}
-
-async function getMessageAttachments(messageId: string): Promise<MessageAttachment[]> {
-  const attachments = await prisma.attachment.findMany({
-    where: { messageId },
+  },
+  attachments: {
     select: {
       id: true,
       url: true,
@@ -51,9 +36,43 @@ async function getMessageAttachments(messageId: string): Promise<MessageAttachme
       width: true,
       height: true,
     },
-  });
+  },
+  reactions: {
+    select: {
+      emoji: true,
+      userId: true,
+    },
+  },
+  reply: {
+    select: {
+      id: true,
+      content: true,
+      author: {
+        select: { displayName: true, username: true },
+      },
+    },
+  },
+} as const;
 
-  return attachments.map((a) => ({
+type RawMessage = Prisma.MessageGetPayload<{ include: typeof messageInclude }>;
+
+function groupReactions(reactions: { emoji: string; userId: string }[]): MessageReaction[] {
+  const grouped = new Map<string, Set<string>>();
+  for (const reaction of reactions) {
+    if (!grouped.has(reaction.emoji)) {
+      grouped.set(reaction.emoji, new Set());
+    }
+    grouped.get(reaction.emoji)!.add(reaction.userId);
+  }
+  return Array.from(grouped.entries()).map(([emoji, userIds]) => ({
+    emoji,
+    count: userIds.size,
+    userIds: Array.from(userIds),
+  }));
+}
+
+function mapRawMessage(message: RawMessage): ChatMessage {
+  const attachments: MessageAttachment[] = message.attachments.map((a) => ({
     id: a.id,
     url: a.url,
     filename: a.filename,
@@ -62,86 +81,29 @@ async function getMessageAttachments(messageId: string): Promise<MessageAttachme
     width: a.width ?? undefined,
     height: a.height ?? undefined,
   }));
-}
 
-async function getMessageReactions(messageId: string): Promise<MessageReaction[]> {
-  const reactions = await prisma.reaction.findMany({
-    where: { messageId },
-    select: {
-      emoji: true,
-      userId: true,
-    },
-  });
-
-  const grouped = new Map<string, Set<string>>();
-  for (const reaction of reactions) {
-    if (!grouped.has(reaction.emoji)) {
-      grouped.set(reaction.emoji, new Set());
-    }
-    grouped.get(reaction.emoji)!.add(reaction.userId);
-  }
-
-  return Array.from(grouped.entries()).map(([emoji, userIds]) => ({
-    emoji,
-    count: userIds.size,
-    userIds: Array.from(userIds),
-  }));
-}
-
-async function getReplyTo(messageId: string | null): Promise<ReplyTo | null> {
-  if (!messageId) return null;
-
-  const reply = await prisma.message.findUnique({
-    where: { id: messageId },
-    select: {
-      id: true,
-      content: true,
-      author: {
-        select: { displayName: true, username: true },
-      },
-    },
-  });
-
-  if (!reply) return null;
-
-  return {
-    id: reply.id,
-    content: reply.content.substring(0, 100),
-    authorName: reply.author.displayName ?? reply.author.username,
-  };
-}
-
-async function formatMessage(
-  message: Prisma.MessageGetPayload<{
-    select: {
-      id: true;
-      channelId: true;
-      userId: true;
-      content: true;
-      replyToId: true;
-      type: true;
-      createdAt: true;
-      editedAt: true;
-      deletedAt: true;
-    };
-  }>,
-): Promise<ChatMessage> {
-  const [author, attachments, reactions, replyTo] = await Promise.all([
-    getMessageAuthor(message.userId),
-    getMessageAttachments(message.id),
-    getMessageReactions(message.id),
-    getReplyTo(message.replyToId),
-  ]);
+  const replyTo: ReplyTo | undefined = message.reply
+    ? {
+        id: message.reply.id,
+        content: message.reply.content.substring(0, 100),
+        authorName: message.reply.author.displayName ?? message.reply.author.username,
+      }
+    : undefined;
 
   return {
     id: message.id,
     channelId: message.channelId,
-    author,
+    author: {
+      id: message.author.id,
+      username: message.author.username,
+      displayName: message.author.displayName ?? message.author.username,
+      avatarUrl: message.author.avatarUrl,
+    },
     content: message.deletedAt ? "[deleted]" : message.content,
     type: normalizeMessageType(message.type),
-    reactions,
+    reactions: groupReactions(message.reactions),
     attachments,
-    replyTo: replyTo ?? undefined,
+    replyTo,
     createdAt: message.createdAt.toISOString(),
     editedAt: message.editedAt?.toISOString() ?? null,
     deletedAt: message.deletedAt?.toISOString() ?? null,
@@ -158,17 +120,7 @@ export async function getChannelMessages(
       channelId,
       threadId: null,
     },
-    select: {
-      id: true,
-      channelId: true,
-      userId: true,
-      content: true,
-      replyToId: true,
-      type: true,
-      createdAt: true,
-      editedAt: true,
-      deletedAt: true,
-    },
+    include: messageInclude,
     orderBy: { createdAt: "desc" as const },
     take: limit + 1,
   };
@@ -178,13 +130,11 @@ export async function getChannelMessages(
     queryArgs.skip = 1;
   }
 
-  const messages = await prisma.message.findMany(queryArgs);
+  const messages = await prisma.message.findMany(queryArgs) as RawMessage[];
 
   const hasMore = messages.length > limit;
   const pageMessages = hasMore ? messages.slice(0, limit) : messages;
-
-  const formatted = await Promise.all(pageMessages.map(formatMessage));
-
+  const formatted = pageMessages.map(mapRawMessage);
   const nextCursor = hasMore ? pageMessages[pageMessages.length - 1]?.id : undefined;
 
   return {
@@ -233,20 +183,10 @@ async function createTypedMessage(args: {
       replyToId: args.replyToId ?? null,
       type: args.type,
     },
-    select: {
-      id: true,
-      channelId: true,
-      userId: true,
-      content: true,
-      replyToId: true,
-      type: true,
-      createdAt: true,
-      editedAt: true,
-      deletedAt: true,
-    },
-  });
+    include: messageInclude,
+  }) as RawMessage;
 
-  return formatMessage(message);
+  return mapRawMessage(message);
 }
 
 export async function editMessage(
@@ -266,20 +206,10 @@ export async function editMessage(
   const message = await prisma.message.update({
     where: { id: messageId },
     data: { content, editedAt: new Date() },
-    select: {
-      id: true,
-      channelId: true,
-      userId: true,
-      content: true,
-      replyToId: true,
-      type: true,
-      createdAt: true,
-      editedAt: true,
-      deletedAt: true,
-    },
-  });
+    include: messageInclude,
+  }) as RawMessage;
 
-  return formatMessage(message);
+  return mapRawMessage(message);
 }
 
 export async function deleteMessage(
@@ -320,5 +250,10 @@ export async function toggleReaction(
     });
   }
 
-  return getMessageReactions(messageId);
+  const reactions = await prisma.reaction.findMany({
+    where: { messageId },
+    select: { emoji: true, userId: true },
+  });
+
+  return groupReactions(reactions);
 }

@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import type { CSSProperties } from "react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import type { WorkspaceChannel } from "@wizards/types";
 import { useParams, useRouter } from "next/navigation";
 import { useShallow } from "zustand/react/shallow";
@@ -143,10 +143,14 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const activeCategoryName = findActiveCategoryName(activeChannel, serverDetailQuery.data);
   const contextServer =
     servers.find((server) => server.id === serverContextMenu.serverId) ?? null;
-  const shellStyle = {
-    "--channel-sidebar-width": `${channelSidebarWidth}px`,
-    "--server-rail-width": `${serverRailWidth}px`,
-  } as CSSProperties;
+  const shellStyle = useMemo(
+    () =>
+      ({
+        "--channel-sidebar-width": `${channelSidebarWidth}px`,
+        "--server-rail-width": `${serverRailWidth}px`,
+      }) as CSSProperties,
+    [channelSidebarWidth, serverRailWidth],
+  );
 
   useEffect(() => {
     if (

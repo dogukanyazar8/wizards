@@ -42,4 +42,5 @@ export interface InterServerEvents {
 export interface SocketData {
   userId: string;
   displayName: string;
+  typingChannels: Set<string>;
 }

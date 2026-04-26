@@ -5,6 +5,7 @@ export function createQueryClient() {
     defaultOptions: {
       queries: {
         staleTime: 60_000,
+        gcTime: 10 * 60 * 1000,
         refetchOnWindowFocus: false,
       },
     },

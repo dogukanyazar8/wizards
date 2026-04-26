@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { Hash, Pencil, Trash2, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +27,7 @@ export function ChannelItem({
   const Icon = type === "VOICE" ? Volume2 : Hash;
 
   return (
-    <motion.div layout="position">
+    <div>
       <div
         className={cn(
           "group flex items-center gap-2 rounded-2xl px-2 py-1.5 transition",
@@ -76,6 +75,6 @@ export function ChannelItem({
           </div>
         ) : null}
       </div>
-    </motion.div>
+    </div>
   );
 }

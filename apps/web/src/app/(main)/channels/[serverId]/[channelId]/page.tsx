@@ -74,10 +74,14 @@ export default async function ChannelPage({ params }: PageParams) {
     redirect(`/channels/${serverId}`);
   }
 
+  const currentUserDisplayName =
+    session.user.displayName ?? session.user.username ?? session.user.email ?? "Wizard";
+
   return (
     <ChatArea
       channelId={channelId}
       currentUserId={session.user.id}
+      currentUserDisplayName={currentUserDisplayName}
       canModerate={hasAdminAccess(membership.roles)}
     />
   );
