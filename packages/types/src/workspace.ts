@@ -119,7 +119,7 @@ export const UpdateServerSchema = z
     name: z.string().trim().min(2).max(64).optional(),
   })
   .refine((value) => value.name !== undefined || value.description !== undefined || value.iconUrl !== undefined, {
-    message: "At least one field must be provided",
+    message: "validation.form.atLeastOne",
   });
 
 export const DeleteServerSchema = z.object({
@@ -141,7 +141,7 @@ export const CreateChannelSchema = z.object({
     .trim()
     .min(1)
     .max(32)
-    .regex(/^[a-z0-9-]+$/, "Channel names must use lowercase letters, numbers, or hyphens."),
+    .regex(/^[a-z0-9-]+$/, "validation.channel.pattern"),
   topic: optionalTrimmedString(120),
   type: WorkspaceChannelTypeSchema,
 });
@@ -154,12 +154,12 @@ export const UpdateChannelSchema = z
       .trim()
       .min(1)
       .max(32)
-      .regex(/^[a-z0-9-]+$/, "Channel names must use lowercase letters, numbers, or hyphens.")
+      .regex(/^[a-z0-9-]+$/, "validation.channel.pattern")
       .optional(),
     topic: optionalTrimmedString(120),
   })
   .refine((value) => value.name !== undefined || value.categoryId !== undefined || value.topic !== undefined, {
-    message: "At least one field must be provided",
+    message: "validation.form.atLeastOne",
   });
 
 export const ReorderChannelsSchema = z.object({

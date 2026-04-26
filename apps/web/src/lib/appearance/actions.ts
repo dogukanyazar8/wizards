@@ -28,7 +28,7 @@ export async function updateThemePreferenceAction(
 
   if (!session?.user?.id) {
     return {
-      error: "You need to be signed in to save a theme.",
+      error: "auth.login.signInUnavailable",
       success: false,
     };
   }

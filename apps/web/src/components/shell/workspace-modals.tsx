@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { WorkspaceServerDetail } from "@wizards/types";
 import { Button } from "@wizards/ui";
 import { useShallow } from "zustand/react/shallow";
+import { useI18n } from "@/components/providers/locale-provider";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,6 +36,7 @@ export function WorkspaceModals({
   onNavigate,
   uploadthingEnabled,
 }: WorkspaceModalsProps) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const {
     categoryModal,
@@ -357,10 +359,14 @@ export function WorkspaceModals({
   return (
     <>
       <Modal
-        description="Spin up a new server with its first channels already in place."
+        description={t("workspace.modal.serverDescription")}
         onClose={closeServerModal}
         open={serverModal.open}
-        title={serverModal.mode === "edit" ? "Edit Server" : "Create Server"}
+        title={
+          serverModal.mode === "edit"
+            ? t("workspace.modal.serverEditTitle")
+            : t("workspace.modal.serverCreateTitle")
+        }
       >
         <form
           className="space-y-4"
@@ -377,44 +383,50 @@ export function WorkspaceModals({
           />
           <div className="space-y-2">
             <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
-              Name <span className="text-app-danger">*</span>
+              {t("common.name")} <span className="text-app-danger">*</span>
             </label>
             <Input
               maxLength={64}
               onChange={(event) => setServerName(event.target.value)}
-              placeholder="The Arcane Atelier"
+              placeholder={t("workspace.modal.serverNamePlaceholder")}
               required
               value={serverName}
             />
             {serverName.trim().length > 0 && serverName.trim().length < 2 ? (
-              <p className="text-app-danger text-xs">At least 2 characters required</p>
+              <p className="text-app-danger text-xs">{t("workspace.modal.serverNameMin")}</p>
             ) : null}
           </div>
           <div className="space-y-2">
-            <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">Description</label>
+            <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+              {t("common.description")}
+            </label>
             <Textarea
               maxLength={160}
               onChange={(event) => setServerDescription(event.target.value)}
-              placeholder="A polished space for your team, club, or community."
+              placeholder={t("workspace.modal.serverDescriptionPlaceholder")}
               value={serverDescription}
             />
           </div>
           <div className="flex justify-end gap-2">
             <Button onClick={closeServerModal} type="button" variant="outline">
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button disabled={serverMutation.isPending || serverName.trim().length < 2} type="submit">
-              {serverMutation.isPending ? "Saving..." : serverModal.mode === "edit" ? "Save Changes" : "Create Server"}
+              {serverMutation.isPending
+                ? t("common.saving")
+                : serverModal.mode === "edit"
+                  ? t("workspace.modal.saveChanges")
+                  : t("workspace.modal.createServer")}
             </Button>
           </div>
         </form>
       </Modal>
 
       <Modal
-        description="Add a new category block to organize channels."
+        description={t("workspace.modal.categoryDescription")}
         onClose={closeCategoryModal}
         open={categoryModal.open}
-        title="Create Category"
+        title={t("workspace.modal.categoryTitle")}
       >
         <form
           className="space-y-4"
@@ -424,31 +436,41 @@ export function WorkspaceModals({
           }}
         >
           <div className="space-y-2">
-            <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">Category Name</label>
+            <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+              {t("workspace.modal.categoryName")}
+            </label>
             <Input
               maxLength={32}
               onChange={(event) => setCategoryName(event.target.value)}
-              placeholder="Launch Zone"
+              placeholder={t("workspace.modal.categoryPlaceholder")}
               required
               value={categoryName}
             />
           </div>
           <div className="flex justify-end gap-2">
             <Button onClick={closeCategoryModal} type="button" variant="outline">
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button disabled={categoryMutation.isPending || categoryName.trim().length < 1} type="submit">
-              {categoryMutation.isPending ? "Creating..." : "Create Category"}
+              {categoryMutation.isPending
+                ? t("workspace.modal.categoryCreating")
+                : t("workspace.modal.categoryTitle")}
             </Button>
           </div>
         </form>
       </Modal>
 
       <Modal
-        description="Create or refine a channel. Renames update optimistically so the sidebar stays snappy."
+        description={t("workspace.modal.channelDescription")}
         onClose={closeChannelModal}
         open={channelModal.open}
-        title={channelModal.mode === "edit" ? "Edit Channel" : `Create ${channelModal.type === "VOICE" ? "Voice" : "Text"} Channel`}
+        title={
+          channelModal.mode === "edit"
+            ? t("workspace.modal.channelEditTitle")
+            : channelModal.type === "VOICE"
+              ? t("workspace.modal.channelCreateVoiceTitle")
+              : t("workspace.modal.channelCreateTextTitle")
+        }
       >
         <form
           className="space-y-4"
@@ -458,7 +480,9 @@ export function WorkspaceModals({
           }}
         >
           <div className="space-y-2">
-            <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">Channel Name</label>
+            <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+              {t("workspace.modal.channelName")}
+            </label>
             <Input
               maxLength={32}
               onChange={(event) => setChannelName(event.target.value)}
@@ -468,23 +492,27 @@ export function WorkspaceModals({
             />
           </div>
           <div className="space-y-2">
-            <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">Topic</label>
+            <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+              {t("workspace.modal.channelTopic")}
+            </label>
             <Textarea
               maxLength={120}
               onChange={(event) => setChannelTopic(event.target.value)}
-              placeholder="What belongs in this channel?"
+              placeholder={t("workspace.modal.channelTopicPlaceholder")}
               value={channelTopic}
             />
           </div>
           {activeServerDetail ? (
             <div className="space-y-2">
-              <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">Category</label>
+              <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+                {t("workspace.modal.channelCategory")}
+              </label>
               <select
                 className="h-11 w-full rounded-2xl border border-[hsl(var(--border)/0.82)] bg-[hsl(var(--surface-soft)/0.55)] px-4 text-sm text-[hsl(var(--foreground))] outline-none transition focus:border-[hsl(var(--ring)/0.55)] focus:ring-4 focus:ring-[hsl(var(--ring)/0.12)]"
                 onChange={(event) => setChannelCategoryId(event.target.value || null)}
                 value={channelCategoryId ?? ""}
               >
-                <option value="">No category</option>
+                <option value="">{t("workspace.modal.noCategory")}</option>
                 {activeServerDetail.categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
@@ -495,25 +523,31 @@ export function WorkspaceModals({
           ) : null}
           <div className="flex justify-end gap-2">
             <Button onClick={closeChannelModal} type="button" variant="outline">
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button disabled={channelMutation.isPending || channelName.trim().length < 1} type="submit">
-              {channelMutation.isPending ? "Saving..." : channelModal.mode === "edit" ? "Save Channel" : "Create Channel"}
+              {channelMutation.isPending
+                ? t("common.saving")
+                : channelModal.mode === "edit"
+                  ? t("workspace.modal.channelSave")
+                  : t("workspace.modal.channelCreate")}
             </Button>
           </div>
         </form>
       </Modal>
 
       <Modal
-        description="Generate a fresh invite code and share it instantly."
+        description={t("workspace.modal.inviteDescription")}
         onClose={closeInviteModal}
         open={inviteModal.open}
-        title="Create Invite"
+        title={t("workspace.modal.inviteTitle")}
       >
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">Expires In (Hours)</label>
+              <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+                {t("workspace.modal.inviteExpires")}
+              </label>
               <Input
                 min={1}
                 onChange={(event) => setInviteHours(event.target.value)}
@@ -522,11 +556,13 @@ export function WorkspaceModals({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">Max Uses</label>
+              <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+                {t("workspace.modal.inviteMaxUses")}
+              </label>
               <Input
                 min={1}
                 onChange={(event) => setInviteMaxUses(event.target.value)}
-                placeholder="Unlimited"
+                placeholder={t("workspace.modal.inviteUnlimited")}
                 type="number"
                 value={inviteMaxUses}
               />
@@ -534,7 +570,9 @@ export function WorkspaceModals({
           </div>
           {inviteLink ? (
             <div className="app-success rounded-[24px] border p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em]">Ready to Share</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em]">
+                {t("workspace.modal.inviteReady")}
+              </p>
               <p className="mt-2 break-all text-sm">{inviteLink}</p>
             </div>
           ) : null}
@@ -549,14 +587,16 @@ export function WorkspaceModals({
                 type="button"
                 variant="outline"
               >
-                Copy Link
+                {t("common.copyLink")}
               </Button>
             ) : null}
             <Button onClick={closeInviteModal} type="button" variant="outline">
-              Close
+              {t("common.close")}
             </Button>
             <Button disabled={inviteMutation.isPending} onClick={() => inviteMutation.mutate()} type="button">
-              {inviteMutation.isPending ? "Generating..." : "Generate Invite"}
+              {inviteMutation.isPending
+                ? t("workspace.modal.inviteGenerating")
+                : t("workspace.modal.inviteGenerate")}
             </Button>
           </div>
         </div>
@@ -566,11 +606,13 @@ export function WorkspaceModals({
         description="This removes the channel immediately. Messages can’t be recovered."
         onClose={closeDeleteChannelDialog}
         open={deleteChannelDialog.open}
-        title={`Delete #${deleteChannelDialog.channelName ?? "channel"}?`}
+        title={t("workspace.modal.deleteChannelTitle", {
+          name: deleteChannelDialog.channelName ?? "channel",
+        })}
       >
         <div className="flex justify-end gap-2">
           <Button onClick={closeDeleteChannelDialog} type="button" variant="outline">
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             className="app-danger"
@@ -578,26 +620,32 @@ export function WorkspaceModals({
             onClick={() => deleteChannelMutation.mutate()}
             type="button"
           >
-            {deleteChannelMutation.isPending ? "Deleting..." : "Delete Channel"}
+            {deleteChannelMutation.isPending
+              ? t("workspace.modal.deleteChannelDeleting")
+              : t("workspace.modal.deleteChannelAction")}
           </Button>
         </div>
       </Modal>
 
       <Modal
-        description="Type the server name to confirm permanent deletion."
+        description={t("workspace.modal.deleteServerDescription")}
         onClose={closeDeleteServerDialog}
         open={deleteServerDialog.open}
-        title={`Delete ${deleteServerDialog.serverName ?? "server"}?`}
+        title={t("workspace.modal.deleteServerTitle", {
+          name: deleteServerDialog.serverName ?? "server",
+        })}
       >
         <div className="space-y-4">
           <Input
             onChange={(event) => setServerDeleteConfirmation(event.target.value)}
-            placeholder={deleteServerDialog.serverName ?? "Server name"}
+            placeholder={
+              deleteServerDialog.serverName ?? t("workspace.modal.deleteServerPlaceholder")
+            }
             value={serverDeleteConfirmation}
           />
           <div className="flex justify-end gap-2">
             <Button onClick={closeDeleteServerDialog} type="button" variant="outline">
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               className="app-danger"
@@ -608,7 +656,9 @@ export function WorkspaceModals({
               onClick={() => deleteServerMutation.mutate()}
               type="button"
             >
-              {deleteServerMutation.isPending ? "Deleting..." : "Delete Server"}
+              {deleteServerMutation.isPending
+                ? t("workspace.modal.deleteChannelDeleting")
+                : t("workspace.modal.deleteServerAction")}
             </Button>
           </div>
         </div>

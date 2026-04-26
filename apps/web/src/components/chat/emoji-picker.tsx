@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
+import { useI18n } from "@/components/providers/locale-provider";
 
 const Picker = dynamic(
   () =>
@@ -14,7 +15,7 @@ const Picker = dynamic(
     ),
   {
     ssr: false,
-    loading: () => <div className="bg-app-surface rounded p-2 text-sm text-app-muted">Loading...</div>,
+    loading: () => <div className="bg-app-surface rounded p-2 text-sm text-app-muted">...</div>,
   },
 );
 
@@ -28,6 +29,7 @@ type EmojiSelection = {
 };
 
 export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
+  const { t } = useI18n();
   const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,9 +46,15 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   return (
     <div ref={pickerRef} className="absolute bottom-full right-0 mb-2 z-50">
       <Picker
+        dynamicWidth
         onEmojiSelect={(emoji: EmojiSelection) => onSelect(emoji.native)}
         theme="dark"
         previewPosition="none"
+        searchPosition="sticky"
+        {...{
+          navPosition: "bottom",
+          placeholder: t("chat.input.openEmojiPicker"),
+        }}
       />
     </div>
   );

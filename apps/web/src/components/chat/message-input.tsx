@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Send, Smile } from "lucide-react";
 import { EmojiPicker } from "./emoji-picker";
 import { ReplyPreview } from "./reply-preview";
+import { useI18n } from "@/components/providers/locale-provider";
 import { useTyping } from "@/hooks/use-typing";
 
 interface MessageInputProps {
@@ -19,6 +20,7 @@ export function MessageInput({
   onSend,
   onCancelReply,
 }: MessageInputProps) {
+  const { t } = useI18n();
   const { startTyping, stopTyping } = useTyping(channelId);
   const [content, setContent] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -82,7 +84,7 @@ export function MessageInput({
             value={content}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
-            placeholder="Send a message..."
+            placeholder={t("chat.input.placeholder")}
             className="w-full p-3 bg-app-surface rounded border border-app-border text-app-foreground placeholder-app-muted resize-none max-h-24"
             rows={1}
           />
@@ -90,7 +92,7 @@ export function MessageInput({
           <button
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
             className="absolute right-3 bottom-3 text-app-muted hover:text-app-foreground transition"
-            aria-label="Open emoji picker"
+            aria-label={t("chat.input.openEmojiPicker")}
           >
             <Smile className="h-4 w-4" />
           </button>
@@ -114,7 +116,7 @@ export function MessageInput({
           onClick={handleSend}
           disabled={!content.trim()}
           className="app-button-primary rounded p-3 transition disabled:cursor-not-allowed disabled:opacity-50"
-          aria-label="Send message"
+          aria-label={t("chat.input.sendMessage")}
         >
           <Send className="h-4 w-4" />
         </button>

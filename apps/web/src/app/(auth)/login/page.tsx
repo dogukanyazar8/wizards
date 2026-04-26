@@ -7,11 +7,13 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useI18n } from "@/components/providers/locale-provider";
 import { loginAction } from "@/lib/auth/actions";
 
 type OAuthProvider = "github" | "google";
 
 export default function LoginPage() {
+  const { locale, t } = useI18n();
   const [serverError, setServerError] = useState<string | null>(null);
   const [oauthLoading, setOauthLoading] = useState<OAuthProvider | null>(null);
 
@@ -34,11 +36,12 @@ export default function LoginPage() {
     const formData = new FormData();
     formData.set("email", values.email);
     formData.set("password", values.password);
+    formData.set("locale", locale);
 
     const result = await loginAction(formData);
 
     if (!result.success) {
-      setServerError(result.error ?? "Unable to log in right now");
+      setServerError(result.error ?? "auth.login.alertUnavailable");
     }
   };
 
@@ -49,7 +52,7 @@ export default function LoginPage() {
     try {
       await signIn(provider, { callbackUrl: "/channels" });
     } catch {
-      setServerError("OAuth sign-in failed. Please try again.");
+      setServerError("auth.login.oauthError");
       setOauthLoading(null);
     }
   };
@@ -65,12 +68,14 @@ export default function LoginPage() {
       <div className="space-y-4">
         <div className="app-badge-accent inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em]">
           <Sparkles className="h-3.5 w-3.5" />
-          Sign In
+          {t("auth.login.badge")}
         </div>
         <div>
-          <h1 className="text-app-foreground text-4xl font-semibold tracking-tight">Welcome back</h1>
+          <h1 className="text-app-foreground text-4xl font-semibold tracking-tight">
+            {t("auth.login.title")}
+          </h1>
           <p className="text-app-muted mt-3 text-sm leading-7">
-            Log in to jump straight into your servers, continue the conversation, and test multi-user flows without friction.
+            {t("auth.login.description")}
           </p>
         </div>
       </div>
@@ -81,14 +86,16 @@ export default function LoginPage() {
           onClick={() => applyTestAccount("demo@wizards.app")}
           type="button"
         >
-          <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.24em]">Demo Account</p>
+          <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.24em]">
+            {t("auth.login.demoAccount")}
+          </p>
           <p className="text-app-foreground mt-2 text-sm font-semibold">demo@wizards.app</p>
-          <p className="text-app-muted mt-1 text-xs">Prefills demo credentials instantly.</p>
+          <p className="text-app-muted mt-1 text-xs">{t("auth.login.demoDescription")}</p>
           <div className="mt-4 flex items-center gap-2">
             <span className="app-badge-accent rounded-full px-2.5 py-1 text-[11px] font-semibold">
-              Fast start
+              {t("auth.login.fastStart")}
             </span>
-            <span className="text-app-soft text-[11px]">Shared demo workspace</span>
+            <span className="text-app-soft text-[11px]">{t("auth.login.sharedDemoWorkspace")}</span>
           </div>
         </button>
         <button
@@ -96,14 +103,16 @@ export default function LoginPage() {
           onClick={() => applyTestAccount("test@wizards.app")}
           type="button"
         >
-          <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.24em]">Test Account</p>
+          <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.24em]">
+            {t("auth.login.testAccount")}
+          </p>
           <p className="text-app-foreground mt-2 text-sm font-semibold">test@wizards.app</p>
-          <p className="text-app-muted mt-1 text-xs">Use this for second-session chat testing.</p>
+          <p className="text-app-muted mt-1 text-xs">{t("auth.login.testDescription")}</p>
           <div className="mt-4 flex items-center gap-2">
             <span className="app-badge-accent rounded-full px-2.5 py-1 text-[11px] font-semibold">
-              Multi-user
+              {t("auth.login.multiUser")}
             </span>
-            <span className="text-app-soft text-[11px]">Ideal for invite flows</span>
+            <span className="text-app-soft text-[11px]">{t("auth.login.idealForInvites")}</span>
           </div>
         </button>
       </div>
@@ -111,7 +120,7 @@ export default function LoginPage() {
       <form className="space-y-5 rounded-[30px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.42)] p-5 shadow-[0_24px_60px_hsl(var(--shadow-color)/0.08)]" onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="space-y-2">
           <label htmlFor="email" className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]">
-            Email
+            {t("common.email")}
           </label>
           <input
             id="email"
@@ -121,16 +130,16 @@ export default function LoginPage() {
             placeholder="you@wizards.app"
             {...register("email")}
           />
-          {errors.email ? <p className="text-app-danger text-xs">{errors.email.message}</p> : null}
+          {errors.email ? <p className="text-app-danger text-xs">{t(errors.email.message ?? "")}</p> : null}
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
             <label htmlFor="password" className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]">
-              Password
+              {t("common.password")}
             </label>
             <Link href="/forgot-password" className="text-xs font-medium text-[hsl(var(--primary))] hover:opacity-80">
-              Forgot password?
+              {t("auth.login.forgotPassword")}
             </Link>
           </div>
           <div className="relative">
@@ -140,16 +149,16 @@ export default function LoginPage() {
               type="password"
               autoComplete="current-password"
               className="app-input h-12 w-full rounded-2xl border pl-11 pr-4 text-sm transition"
-              placeholder="Enter your password"
+              placeholder={t("auth.login.passwordPlaceholder")}
               {...register("password")}
             />
           </div>
-          {errors.password ? <p className="text-app-danger text-xs">{errors.password.message}</p> : null}
+          {errors.password ? <p className="text-app-danger text-xs">{t(errors.password.message ?? "")}</p> : null}
         </div>
 
         {serverError ? (
-          <p className="app-danger rounded-2xl border px-4 py-3 text-sm">
-            {serverError}
+          <p className="app-inline-alert rounded-2xl border px-4 py-3 text-sm">
+            {t(serverError)}
           </p>
         ) : null}
 
@@ -161,11 +170,11 @@ export default function LoginPage() {
           {isSubmitting ? (
             <span className="inline-flex items-center gap-2">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-[hsl(var(--primary-foreground)/0.28)] border-t-current" />
-              Logging in...
+              {t("auth.login.loggingIn")}
             </span>
           ) : (
             <>
-              Continue to Wizards
+              {t("auth.login.continue")}
               <ArrowRight className="h-4 w-4" />
             </>
           )}
@@ -174,7 +183,7 @@ export default function LoginPage() {
 
       <div className="space-y-3">
         <div className="text-app-soft relative text-center text-xs uppercase tracking-[0.24em]">
-          <span className="bg-transparent px-2">or continue with</span>
+          <span className="bg-transparent px-2">{t("auth.login.orContinueWith")}</span>
           <div className="absolute left-0 top-1/2 -z-10 h-px w-full bg-[hsl(var(--border)/0.72)]" />
         </div>
 
@@ -185,7 +194,7 @@ export default function LoginPage() {
             onClick={() => handleOAuthSignIn("github")}
             className="text-app-foreground h-12 rounded-2xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.3)] px-3 text-sm font-medium transition hover:border-[hsl(var(--border)/0.98)] hover:bg-[hsl(var(--surface-soft)/0.55)] disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {oauthLoading === "github" ? "Loading..." : "GitHub"}
+            {oauthLoading === "github" ? t("auth.login.oauthLoading") : t("auth.login.github")}
           </button>
 
           <button
@@ -194,21 +203,23 @@ export default function LoginPage() {
             onClick={() => handleOAuthSignIn("google")}
             className="text-app-foreground h-12 rounded-2xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.3)] px-3 text-sm font-medium transition hover:border-[hsl(var(--border)/0.98)] hover:bg-[hsl(var(--surface-soft)/0.55)] disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {oauthLoading === "google" ? "Loading..." : "Google"}
+            {oauthLoading === "google" ? t("auth.login.oauthLoading") : t("auth.login.google")}
           </button>
         </div>
       </div>
 
       <div className="rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.55),hsl(var(--surface-soft)/0.32))] p-4">
-        <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]">Need an account?</p>
+        <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]">
+          {t("auth.login.needAccountLabel")}
+        </p>
         <p className="text-app-muted mt-2 text-sm leading-7">
-          Create a new profile and start testing servers, invites, and channel flows with your own workspace.
+          {t("auth.login.needAccountDescription")}
         </p>
         <Link
           href="/register"
           className="text-app-accent mt-4 inline-flex items-center gap-2 text-sm font-semibold hover:opacity-80"
         >
-          Create your account
+          {t("auth.login.createAccount")}
           <ArrowRight className="h-4 w-4" />
         </Link>
       </div>

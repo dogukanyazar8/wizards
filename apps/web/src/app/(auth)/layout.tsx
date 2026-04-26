@@ -1,7 +1,12 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { useI18n } from "@/components/providers/locale-provider";
 import { AuthThemePickerCorner } from "@/components/theme/auth-theme-picker-corner";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
+  const { t } = useI18n();
+
   return (
     <main className="auth-canvas relative min-h-screen overflow-hidden px-4 py-6 lg:px-8 lg:py-8">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -15,21 +20,30 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         <section className="auth-hero relative hidden min-w-0 flex-1 overflow-hidden px-10 py-12 lg:flex lg:flex-col lg:justify-between">
           <div className="max-w-xl">
             <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.34em]">
-              Wizards Workspace
+              {t("auth.layout.badge")}
             </p>
             <h1 className="text-app-foreground mt-6 text-5xl font-semibold leading-[1.02]">
-              Conversations that feel fast, focused, and alive.
+              {t("auth.layout.title")}
             </h1>
             <p className="text-app-muted mt-6 max-w-lg text-base leading-8">
-              Build compact servers, hop between channels instantly, and keep your team inside one crisp communication flow.
+              {t("auth.layout.description")}
             </p>
           </div>
 
           <div className="grid max-w-2xl grid-cols-3 gap-4">
             {[
-              ["Realtime", "Low-friction chat with channels, invites, and role-aware access."],
-              ["Multi-user", "Spin up demo and test sessions side by side without losing context."],
-              ["Customizable", "Tune the rail and sidebar widths so the shell fits your workflow."],
+              [
+                t("auth.layout.feature.realtime.title"),
+                t("auth.layout.feature.realtime.description"),
+              ],
+              [
+                t("auth.layout.feature.multiUser.title"),
+                t("auth.layout.feature.multiUser.description"),
+              ],
+              [
+                t("auth.layout.feature.customizable.title"),
+                t("auth.layout.feature.customizable.description"),
+              ],
             ].map(([title, description]) => (
               <div
                 className="app-panel rounded-[28px] border p-5 shadow-[0_20px_40px_hsl(var(--shadow-color)/0.12)] backdrop-blur-sm"

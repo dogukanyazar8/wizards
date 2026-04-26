@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { MessageItem } from "./message-item";
+import { useI18n } from "@/components/providers/locale-provider";
 import { useMessages } from "@/hooks/use-messages";
 import { useSocket } from "@/hooks/use-socket";
 
@@ -19,6 +20,7 @@ export function MessageList({
   canModerate,
   onReply,
 }: MessageListProps) {
+  const { t } = useI18n();
   const socket = useSocket();
   const { data, error, fetchNextPage, hasNextPage, isLoading } = useMessages(channelId);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -82,7 +84,10 @@ export function MessageList({
           prev.type === "DEFAULT" &&
           prev.author.id === msg.author.id &&
           new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < 7 * 60 * 1000;
-        return { message: msg, isGrouped };
+        const showGroupSeparator =
+          i > 0 && !isGrouped && msg.type === "DEFAULT" && prev?.type === "DEFAULT";
+
+        return { message: msg, isGrouped, showGroupSeparator };
       }),
     [allMessages],
   );
@@ -111,15 +116,15 @@ export function MessageList({
 
       {isLoading && allMessages.length === 0 && (
         <div className="flex items-center justify-center h-full text-app-muted">
-          <div className="animate-pulse">Loading messages...</div>
+          <div className="animate-pulse">{t("chat.list.loading")}</div>
         </div>
       )}
 
       {error && !isLoading && (
         <div className="flex items-center justify-center h-full text-app-muted">
           <div className="text-center">
-            <p className="text-sm">Unable to load messages.</p>
-            <p className="text-xs">Please refresh the channel and try again.</p>
+            <p className="text-sm">{t("chat.list.errorTitle")}</p>
+            <p className="text-xs">{t("chat.list.errorDescription")}</p>
           </div>
         </div>
       )}
@@ -127,17 +132,18 @@ export function MessageList({
       {!error && allMessages.length === 0 && !isLoading && (
         <div className="flex items-center justify-center h-full text-app-muted">
           <div className="text-center">
-            <p className="text-sm">No messages yet.</p>
-            <p className="text-xs">Be the first to send a message!</p>
+            <p className="text-sm">{t("chat.list.emptyTitle")}</p>
+            <p className="text-xs">{t("chat.list.emptyDescription")}</p>
           </div>
         </div>
       )}
 
-      {groupedMessages.map(({ message, isGrouped }) => (
+      {groupedMessages.map(({ message, isGrouped, showGroupSeparator }) => (
         <MessageItem
           key={message.id}
           message={message}
           isGrouped={isGrouped}
+          showGroupSeparator={showGroupSeparator}
           currentUserId={currentUserId}
           canModerate={canModerate}
           onReact={handleReact}
@@ -148,8 +154,8 @@ export function MessageList({
       {showScrollButton && (
         <button
           onClick={scrollToBottom}
-          className="fixed bottom-24 right-8 bg-[hsl(var(--primary))] text-white rounded-full p-2 shadow-lg hover:bg-[hsl(var(--primary)/0.9)] transition"
-          aria-label="Scroll to latest messages"
+          className="fixed bottom-24 right-8 rounded-full bg-[hsl(var(--primary))] p-2 text-[hsl(var(--primary-foreground))] shadow-lg transition hover:bg-[hsl(var(--primary)/0.9)]"
+          aria-label={t("chat.list.scrollToLatest")}
         >
           <ChevronDown className="h-5 w-5" />
         </button>

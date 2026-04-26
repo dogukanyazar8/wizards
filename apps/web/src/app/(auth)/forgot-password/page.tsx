@@ -6,8 +6,10 @@ import { MailCheck, Send } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useI18n } from "@/components/providers/locale-provider";
 
 export default function ForgotPasswordPage() {
+  const { t } = useI18n();
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
 
   const {
@@ -31,18 +33,17 @@ export default function ForgotPasswordPage() {
         </div>
         <div className="space-y-2">
           <h1 className="text-app-foreground text-2xl font-semibold">
-            Check your email
+            {t("auth.forgot.checkEmail")}
           </h1>
           <p className="text-app-muted text-sm leading-7">
-            If an account exists for {submittedEmail}, you&apos;ll receive reset
-            instructions.
+            {t("auth.forgot.instructions", { email: submittedEmail })}
           </p>
         </div>
         <Link
           href="/login"
           className="text-app-accent inline-block text-sm font-semibold hover:opacity-80"
         >
-          Back to login
+          {t("auth.forgot.backToLogin")}
         </Link>
       </div>
     );
@@ -53,14 +54,14 @@ export default function ForgotPasswordPage() {
       <div className="space-y-4">
         <div className="app-badge-accent inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em]">
           <Send className="h-3.5 w-3.5" />
-          Password Reset
+          {t("auth.forgot.badge")}
         </div>
         <div>
           <h1 className="text-app-foreground text-4xl font-semibold tracking-tight">
-            Reset your password
+            {t("auth.forgot.resetTitle")}
           </h1>
           <p className="text-app-muted mt-3 text-sm leading-7">
-            Enter your email and we&apos;ll send a reset link.
+            {t("auth.forgot.description")}
           </p>
         </div>
       </div>
@@ -75,7 +76,7 @@ export default function ForgotPasswordPage() {
             htmlFor="email"
             className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]"
           >
-            Email
+            {t("common.email")}
           </label>
           <input
             id="email"
@@ -86,7 +87,7 @@ export default function ForgotPasswordPage() {
             {...register("email")}
           />
           {errors.email ? (
-            <p className="text-app-danger text-xs">{errors.email.message}</p>
+            <p className="text-app-danger text-xs">{t(errors.email.message ?? "")}</p>
           ) : null}
         </div>
 
@@ -98,10 +99,10 @@ export default function ForgotPasswordPage() {
           {isSubmitting ? (
             <span className="inline-flex items-center gap-2">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-[hsl(var(--primary-foreground)/0.28)] border-t-current" />
-              Sending...
+              {t("auth.forgot.sending")}
             </span>
           ) : (
-            "Send Reset Link"
+            t("auth.forgot.submit")
           )}
         </button>
       </form>
@@ -111,7 +112,7 @@ export default function ForgotPasswordPage() {
           href="/login"
           className="text-app-accent font-semibold hover:opacity-80"
         >
-          Back to login
+          {t("auth.forgot.backToLogin")}
         </Link>
       </p>
     </div>

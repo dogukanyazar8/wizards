@@ -1,21 +1,28 @@
 "use client";
 
+import { useI18n } from "@/components/providers/locale-provider";
+
 interface TypingIndicatorProps {
   typingUsers: string[];
 }
 
 export function TypingIndicator({ typingUsers }: TypingIndicatorProps) {
+  const { t } = useI18n();
+
   if (typingUsers.length === 0) {
     return <div className="h-6" />;
   }
 
   let text = "";
   if (typingUsers.length === 1) {
-    text = `${typingUsers[0]} is typing...`;
+    text = t("chat.typing.one", { name: typingUsers[0] ?? "" });
   } else if (typingUsers.length === 2) {
-    text = `${typingUsers[0]} and ${typingUsers[1]} are typing...`;
+    text = t("chat.typing.two", {
+      first: typingUsers[0] ?? "",
+      second: typingUsers[1] ?? "",
+    });
   } else {
-    text = "Several people are typing...";
+    text = t("chat.typing.many");
   }
 
   return (

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { requireAuth } from "@/lib/auth/utils";
+import { LocaleSessionSync } from "@/components/locale/locale-session-sync";
 import { ThemeSessionSync } from "@/components/theme/theme-session-sync";
 import { WizardsShell } from "@/components/shell/wizards-shell";
 import { SocketProvider } from "@/components/providers/socket-provider";
@@ -12,6 +13,7 @@ export default async function MainLayout({ children }: { children: ReactNode }) 
 
   return (
     <SocketProvider>
+      <LocaleSessionSync preferredLocale={session.user.locale} />
       <ThemeSessionSync preferredTheme={session.user.theme} />
       <WizardsShell
         currentUser={{

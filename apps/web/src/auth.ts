@@ -11,6 +11,9 @@ import {
   DEFAULT_WIZARDS_THEME,
   normalizeWizardsThemeId,
 } from "@/lib/appearance";
+import { normalizeAppLocale } from "@/lib/locale";
+import { persistUserLocale } from "@/lib/locale/persistence";
+import { getRequestLocale } from "@/lib/locale/server";
 
 const MAX_USERNAME_LENGTH = 32;
 
@@ -105,11 +108,14 @@ const adapter: Adapter = {
         avatarUrl: data.image ?? null,
         emailVerified: Boolean(data.emailVerified),
         emailVerifiedAt: data.emailVerified ?? null,
+        locale: await getRequestLocale(),
         theme: DEFAULT_WIZARDS_THEME,
         settings: { create: {} },
         notificationSettings: { create: {} },
       },
     });
+
+    await persistUserLocale(createdUser.id, createdUser.locale);
 
     return mapUserToAdapterUser(createdUser);
   },
@@ -244,6 +250,7 @@ const authConfig = {
             username: true,
             displayName: true,
             avatarUrl: true,
+            locale: true,
             passwordHash: true,
             theme: true,
           },
@@ -262,6 +269,19 @@ const authConfig = {
           return null;
         }
 
+        const rawLocale =
+          credentials && typeof credentials === "object"
+            ? (credentials as Record<string, unknown>).locale
+            : null;
+        const preferredLocale =
+          typeof rawLocale === "string"
+            ? normalizeAppLocale(rawLocale)
+            : normalizeAppLocale(user.locale);
+
+        if (preferredLocale !== normalizeAppLocale(user.locale)) {
+          await persistUserLocale(user.id, preferredLocale);
+        }
+
         return {
           id: user.id,
           email: user.email,
@@ -270,6 +290,7 @@ const authConfig = {
           username: user.username,
           displayName: user.displayName,
           avatarUrl: user.avatarUrl,
+          locale: preferredLocale,
           theme: normalizeWizardsThemeId(user.theme),
         };
       },
@@ -335,10 +356,19 @@ const authConfig = {
             ? user.avatarUrl
             : stringOrNull(user.image);
 
+        token.locale =
+          "locale" in user && typeof user.locale === "string"
+            ? normalizeAppLocale(user.locale)
+            : stringOrNull(token.locale);
+
         token.theme =
           "theme" in user && typeof user.theme === "string"
             ? normalizeWizardsThemeId(user.theme)
             : stringOrNull(token.theme);
+      }
+
+      if (trigger === "update" && session?.user?.locale) {
+        token.locale = normalizeAppLocale(session.user.locale);
       }
 
       if (trigger === "update" && session?.user?.theme) {
@@ -347,7 +377,11 @@ const authConfig = {
 
       if (
         token.sub &&
-        (!token.username || !token.displayName || !token.avatarUrl || !token.theme)
+        (!token.username ||
+          !token.displayName ||
+          !token.avatarUrl ||
+          !token.locale ||
+          !token.theme)
       ) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.sub },
@@ -355,6 +389,7 @@ const authConfig = {
             username: true,
             displayName: true,
             avatarUrl: true,
+            locale: true,
             theme: true,
           },
         });
@@ -363,6 +398,7 @@ const authConfig = {
           token.username = dbUser.username;
           token.displayName = dbUser.displayName;
           token.avatarUrl = dbUser.avatarUrl;
+          token.locale = normalizeAppLocale(dbUser.locale);
           token.theme = normalizeWizardsThemeId(dbUser.theme);
         }
       }
@@ -377,6 +413,7 @@ const authConfig = {
         session.user.username = stringOrNull(token.username);
         session.user.displayName = stringOrNull(token.displayName);
         session.user.avatarUrl = stringOrNull(token.avatarUrl);
+        session.user.locale = stringOrNull(token.locale);
         session.user.theme = stringOrNull(token.theme);
       }
 

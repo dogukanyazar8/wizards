@@ -3,6 +3,7 @@
 import { Check } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState, useTransition } from "react";
+import { useI18n } from "@/components/providers/locale-provider";
 import { updateThemePreferenceAction } from "@/lib/appearance/actions";
 import {
   ADVANCED_WIZARDS_THEMES,
@@ -36,8 +37,11 @@ function ThemeSwatchButton({
   theme,
   variant,
 }: ThemeSwatchButtonProps) {
+  const { t } = useI18n();
   const background = getThemePreviewBackground(theme.preview);
   const isLight = theme.id === "theme-light";
+  const label = t(`themes.labels.${theme.id}`);
+  const description = t(`themes.descriptions.${theme.id}`);
 
   if (variant === "simple-compact") {
     return (
@@ -63,7 +67,7 @@ function ThemeSwatchButton({
             </span>
           ) : null}
         </span>
-        <span className="text-app-soft text-[11px] font-medium">{theme.label}</span>
+        <span className="text-app-soft text-[11px] font-medium">{label}</span>
       </button>
     );
   }
@@ -71,7 +75,7 @@ function ThemeSwatchButton({
   if (variant === "advanced-compact") {
     return (
       <button
-        aria-label={theme.label}
+        aria-label={label}
         className={cn(
           "relative h-10 w-10 rounded-full border transition duration-200",
           selected
@@ -80,7 +84,7 @@ function ThemeSwatchButton({
         )}
         onClick={() => onSelect(theme.id)}
         style={{ background }}
-        title={theme.label}
+        title={label}
         type="button"
       >
         {selected ? (
@@ -118,10 +122,10 @@ function ThemeSwatchButton({
       </span>
       <span className="min-w-0 flex-1">
         <span className="text-app-foreground block text-sm font-semibold">
-          {theme.label}
+          {label}
         </span>
         <span className="text-app-muted mt-1 block text-xs leading-5">
-          {theme.description}
+          {description}
         </span>
       </span>
     </button>
@@ -133,6 +137,7 @@ export function ThemePicker({
   persistSelection = false,
   variant = "page",
 }: ThemePickerProps) {
+  const { t } = useI18n();
   const { resolvedTheme, setTheme, theme } = useTheme();
   const [activeTab, setActiveTab] = useState<WizardsThemeCategory>("simple");
   const [mounted, setMounted] = useState(false);
@@ -160,7 +165,7 @@ export function ThemePicker({
       const result = await updateThemePreferenceAction(themeId);
 
       if (!result.success) {
-        setSaveError(result.error ?? "Unable to save your theme.");
+        setSaveError(result.error ?? "themes.status.error");
         return;
       }
 
@@ -202,7 +207,7 @@ export function ThemePicker({
                 onClick={() => setActiveTab(tab.id)}
                 type="button"
               >
-                {tab.label}
+                {t(`themes.tabs.${tab.id}`)}
               </button>
             ))}
           </div>
@@ -243,23 +248,23 @@ export function ThemePicker({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]">
-              Simple Themes
+              {t("themes.page.simpleEyebrow")}
             </p>
             <h3 className="text-app-foreground mt-2 text-lg font-semibold">
-              Familiar defaults
+              {t("themes.page.simpleTitle")}
             </h3>
             <p className="text-app-muted mt-1 text-sm leading-6">
-              Clean solid palettes for a classic Wizards workspace.
+              {t("themes.page.simpleDescription")}
             </p>
           </div>
           <div className="text-right text-xs">
             {isPending ? (
-              <span className="text-app-accent font-medium">Saving theme...</span>
+              <span className="text-app-accent font-medium">{t("themes.status.saving")}</span>
             ) : savedTheme ? (
-              <span className="text-app-success font-medium">Theme saved</span>
+              <span className="text-app-success font-medium">{t("themes.status.saved")}</span>
             ) : null}
             {saveError ? (
-              <p className="text-app-danger mt-1 max-w-40">{saveError}</p>
+              <p className="text-app-danger mt-1 max-w-40">{t(saveError)}</p>
             ) : null}
           </div>
         </div>
@@ -280,13 +285,13 @@ export function ThemePicker({
       <section className="space-y-4">
         <div>
           <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]">
-            Advanced Themes
+            {t("themes.page.advancedEyebrow")}
           </p>
           <h3 className="text-app-foreground mt-2 text-lg font-semibold">
-            Expressive color palettes
+            {t("themes.page.advancedTitle")}
           </h3>
           <p className="text-app-muted mt-1 text-sm leading-6">
-            Pastels, gradients, and darker atmospheres inspired by Discord color themes.
+            {t("themes.page.advancedDescription")}
           </p>
         </div>
 

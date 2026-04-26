@@ -284,6 +284,7 @@ model UserSettings {
   id                    String                    @id @default(uuid())
   userId                String                    @unique
   theme                 String                    @default("theme-dark")
+  locale                String                    @default("en")
   messageDisplayCompact Boolean                   @default(false)
   developerMode         Boolean                   @default(false)
   showCurrentGame       Boolean                   @default(true)

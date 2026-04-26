@@ -2,6 +2,8 @@
 
 import { signIn, signOut } from "@/auth";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
+import { normalizeAppLocale } from "@/lib/locale";
+import { persistUserLocale } from "@/lib/locale/persistence";
 import { Prisma, prisma } from "@wizards/db";
 import { LoginSchema, RegisterSchema } from "@wizards/types";
 import bcrypt from "bcryptjs";
@@ -28,11 +30,12 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
   if (!validation.success) {
     return {
       success: false,
-      error: validation.error.issues[0]?.message ?? "Invalid registration data",
+      error: validation.error.issues[0]?.message ?? "auth.register.alertUnavailable",
     };
   }
 
   const email = validation.data.email.toLowerCase();
+  const locale = normalizeAppLocale(getFormValue(formData, "locale"));
   const username = validation.data.username;
 
   const [existingEmail, existingUsername] = await Promise.all([
@@ -43,27 +46,28 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
   if (existingEmail) {
     return {
       success: false,
-      error: "Email already taken",
+      error: "auth.register.emailTaken",
     };
   }
 
   if (existingUsername) {
     return {
       success: false,
-      error: "Username already taken",
+      error: "auth.register.usernameTaken",
     };
   }
 
   const passwordHash = await bcrypt.hash(validation.data.password, 12);
 
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.user.create({
+    const createdUser = await prisma.$transaction(async (tx) => {
+      return tx.user.create({
         data: {
           email,
           username,
           passwordHash,
           displayName: username,
+          locale,
           theme: DEFAULT_WIZARDS_THEME,
           settings: { create: {} },
           notificationSettings: { create: {} },
@@ -71,8 +75,11 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
       });
     });
 
+    await persistUserLocale(createdUser.id, locale);
+
     await signIn("credentials", {
       email,
+      locale,
       password: validation.data.password,
       redirectTo: "/channels",
     });
@@ -82,14 +89,14 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
     if (error instanceof AuthError) {
       return {
         success: false,
-        error: "Account created but auto-login failed. Please log in.",
+        error: "auth.register.autoLoginFailed",
       };
     }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return {
         success: false,
-        error: "Email already taken",
+        error: "auth.register.emailTaken",
       };
     }
 
@@ -106,13 +113,14 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
   if (!validation.success) {
     return {
       success: false,
-      error: validation.error.issues[0]?.message ?? "Invalid login data",
+      error: validation.error.issues[0]?.message ?? "auth.login.alertUnavailable",
     };
   }
 
   try {
     await signIn("credentials", {
       email: validation.data.email.toLowerCase(),
+      locale: normalizeAppLocale(getFormValue(formData, "locale")),
       password: validation.data.password,
       redirectTo: "/channels",
     });
@@ -123,13 +131,13 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
       if (error.type === "CredentialsSignin") {
         return {
           success: false,
-          error: "Invalid email or password",
+          error: "auth.login.invalidCredentials",
         };
       }
 
       return {
         success: false,
-        error: "Unable to log in right now",
+        error: "auth.login.alertUnavailable",
       };
     }
 
@@ -144,7 +152,7 @@ export async function logoutAction() {
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      throw new Error("Unable to log out right now");
+      throw new Error("auth.login.signInUnavailable");
     }
 
     throw error;

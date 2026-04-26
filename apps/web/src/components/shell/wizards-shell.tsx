@@ -8,6 +8,7 @@ import type { WorkspaceChannel } from "@wizards/types";
 import { useParams, useRouter } from "next/navigation";
 import { useShallow } from "zustand/react/shallow";
 import { ChannelSidebar } from "@/components/shell/channel-sidebar";
+import { useI18n } from "@/components/providers/locale-provider";
 import { MainChannelPanel } from "@/components/shell/main-channel-panel";
 import { MobileDrawerTrigger, ServerRail } from "@/components/shell/server-rail";
 import { ServerSettingsOverlay } from "@/components/shell/server-settings-overlay";
@@ -57,6 +58,7 @@ function findActiveCategoryName(channel: WorkspaceChannel | null, detail?: Await
 }
 
 export function WizardsShell({ children, currentUser, uploadthingEnabled }: WizardsShellProps) {
+  const { t } = useI18n();
   const params = useParams<{
     channelId?: string;
     serverId?: string;
@@ -217,6 +219,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       <div
         className="hidden h-full shrink-0 md:flex"
         style={{ width: `calc(${serverRailWidth}px + ${channelSidebarWidth}px)` }}
+        suppressHydrationWarning
       >
         {renderNavigation()}
       </div>
@@ -251,7 +254,9 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       <MainChannelPanel
         categoryName={activeCategoryName}
         channel={activeChannel}
-        fallbackTitle={activeServerId ? "Choose a channel" : "Your Direct Messages"}
+        fallbackTitle={
+          activeServerId ? t("shell.wizards.chooseChannel") : t("shell.wizards.directMessages")
+        }
         leading={<MobileDrawerTrigger onClick={() => setMobileSidebarOpen(true)} />}
       >
         {children}
@@ -272,7 +277,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
               }
             }}
           >
-            Settings
+            {t("shell.context.settings")}
           </ContextMenuItem>
         ) : null}
         {contextServer?.accessLevel !== "MEMBER" ? (
@@ -285,19 +290,19 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
               }
             }}
           >
-            Invite
+            {t("shell.context.invite")}
           </ContextMenuItem>
         ) : null}
         {contextServer && contextServer.accessLevel !== "OWNER" ? (
           <ContextMenuItem
             destructive
             onClick={() => {
-              if (window.confirm(`Leave ${contextServer.name}?`)) {
+              if (window.confirm(t("shell.context.leaveServerConfirm", { name: contextServer.name }))) {
                 leaveMutation.mutate(contextServer.id);
               }
             }}
           >
-            Leave Server
+            {t("shell.context.leaveServer")}
           </ContextMenuItem>
         ) : null}
         {contextServer?.accessLevel === "OWNER" ? (
@@ -308,7 +313,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
               openDeleteServerDialog(contextServer.id, contextServer.name);
             }}
           >
-            Delete Server
+            {t("shell.context.deleteServer")}
           </ContextMenuItem>
         ) : null}
       </ContextMenu>

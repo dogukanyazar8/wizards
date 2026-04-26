@@ -1,6 +1,7 @@
 "use client";
 
 import { Hash, Pencil, Trash2, Volume2 } from "lucide-react";
+import { useI18n } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 
 type ChannelItemProps = {
@@ -24,6 +25,7 @@ export function ChannelItem({
   onSelect,
   type,
 }: ChannelItemProps) {
+  const { t } = useI18n();
   const Icon = type === "VOICE" ? Volume2 : Hash;
 
   return (
@@ -38,7 +40,12 @@ export function ChannelItem({
       >
         <button
           aria-current={active ? "page" : undefined}
-          aria-label={`Open ${type === "VOICE" ? "voice" : "text"} channel ${name}`}
+          aria-label={t(
+            type === "VOICE"
+              ? "shell.channelItem.openVoiceChannel"
+              : "shell.channelItem.openTextChannel",
+            { name },
+          )}
           className="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)]"
           onClick={onSelect}
           onFocus={onPrefetch}
@@ -57,7 +64,7 @@ export function ChannelItem({
         {canManage ? (
           <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
             <button
-              aria-label={`Edit channel ${name}`}
+              aria-label={t("shell.channelItem.edit", { name })}
               className="text-app-muted rounded-lg p-1.5 transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-[hsl(var(--foreground))]"
               onClick={onEdit}
               type="button"
@@ -65,7 +72,7 @@ export function ChannelItem({
               <Pencil className="h-3.5 w-3.5" />
             </button>
             <button
-              aria-label={`Delete channel ${name}`}
+              aria-label={t("shell.channelItem.delete", { name })}
               className="text-app-muted rounded-lg p-1.5 transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger-foreground))]"
               onClick={onDelete}
               type="button"

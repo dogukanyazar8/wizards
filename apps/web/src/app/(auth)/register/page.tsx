@@ -6,9 +6,11 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useI18n } from "@/components/providers/locale-provider";
 import { registerAction } from "@/lib/auth/actions";
 
 export default function RegisterPage() {
+  const { locale, t } = useI18n();
   const [serverError, setServerError] = useState<string | null>(null);
 
   const {
@@ -33,11 +35,12 @@ export default function RegisterPage() {
     formData.set("username", values.username);
     formData.set("password", values.password);
     formData.set("confirmPassword", values.confirmPassword);
+    formData.set("locale", locale);
 
     const result = await registerAction(formData);
 
     if (!result.success) {
-      setServerError(result.error ?? "Unable to create account");
+      setServerError(result.error ?? "auth.register.alertUnavailable");
     }
   };
 
@@ -46,14 +49,14 @@ export default function RegisterPage() {
       <div className="space-y-4">
         <div className="app-badge-accent inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em]">
           <Sparkles className="h-3.5 w-3.5" />
-          Join Wizards
+          {t("auth.register.badge")}
         </div>
         <div>
           <h1 className="text-app-foreground text-4xl font-semibold tracking-tight">
-            Create an account
+            {t("auth.register.title")}
           </h1>
           <p className="text-app-muted mt-3 text-sm leading-7">
-            Start building your Wizards community with your own profile and workspace.
+            {t("auth.register.description")}
           </p>
         </div>
       </div>
@@ -65,7 +68,7 @@ export default function RegisterPage() {
       >
         <div className="space-y-2">
           <label htmlFor="email" className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]">
-            Email
+            {t("common.email")}
           </label>
           <input
             id="email"
@@ -75,12 +78,12 @@ export default function RegisterPage() {
             placeholder="you@wizards.app"
             {...register("email")}
           />
-          {errors.email ? <p className="text-app-danger text-xs">{errors.email.message}</p> : null}
+          {errors.email ? <p className="text-app-danger text-xs">{t(errors.email.message ?? "")}</p> : null}
         </div>
 
         <div className="space-y-2">
           <label htmlFor="username" className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]">
-            Username
+            {t("common.username")}
           </label>
           <input
             id="username"
@@ -90,23 +93,23 @@ export default function RegisterPage() {
             placeholder="wizard_user"
             {...register("username")}
           />
-          <p className="text-app-soft text-xs">Only letters, numbers, underscores</p>
-          {errors.username ? <p className="text-app-danger text-xs">{errors.username.message}</p> : null}
+          <p className="text-app-soft text-xs">{t("auth.register.usernameHint")}</p>
+          {errors.username ? <p className="text-app-danger text-xs">{t(errors.username.message ?? "")}</p> : null}
         </div>
 
         <div className="space-y-2">
           <label htmlFor="password" className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]">
-            Password
+            {t("common.password")}
           </label>
           <input
             id="password"
             type="password"
             autoComplete="new-password"
             className="app-input h-12 w-full rounded-2xl border px-4 text-sm transition"
-            placeholder="Create a strong password"
+            placeholder={t("auth.register.passwordPlaceholder")}
             {...register("password")}
           />
-          {errors.password ? <p className="text-app-danger text-xs">{errors.password.message}</p> : null}
+          {errors.password ? <p className="text-app-danger text-xs">{t(errors.password.message ?? "")}</p> : null}
         </div>
 
         <div className="space-y-2">
@@ -114,24 +117,24 @@ export default function RegisterPage() {
             htmlFor="confirmPassword"
             className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]"
           >
-            Confirm Password
+            {t("common.confirmPassword")}
           </label>
           <input
             id="confirmPassword"
             type="password"
             autoComplete="new-password"
             className="app-input h-12 w-full rounded-2xl border px-4 text-sm transition"
-            placeholder="Repeat your password"
+            placeholder={t("auth.register.confirmPasswordPlaceholder")}
             {...register("confirmPassword")}
           />
           {errors.confirmPassword ? (
-            <p className="text-app-danger text-xs">{errors.confirmPassword.message}</p>
+            <p className="text-app-danger text-xs">{t(errors.confirmPassword.message ?? "")}</p>
           ) : null}
         </div>
 
         {serverError ? (
-          <p className="app-danger rounded-2xl border px-4 py-3 text-sm">
-            {serverError}
+          <p className="app-inline-alert rounded-2xl border px-4 py-3 text-sm">
+            {t(serverError)}
           </p>
         ) : null}
 
@@ -143,11 +146,11 @@ export default function RegisterPage() {
           {isSubmitting ? (
             <span className="inline-flex items-center gap-2">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-[hsl(var(--primary-foreground)/0.28)] border-t-current" />
-              Creating account...
+              {t("auth.register.creating")}
             </span>
           ) : (
             <>
-              Continue
+              {t("common.continue")}
               <ArrowRight className="h-4 w-4" />
             </>
           )}
@@ -155,9 +158,9 @@ export default function RegisterPage() {
       </form>
 
       <p className="text-app-muted text-center text-sm">
-        Already have an account?{" "}
+        {t("auth.register.haveAccount")}{" "}
         <Link href="/login" className="text-app-accent font-semibold hover:opacity-80">
-          Sign in
+          {t("auth.register.signIn")}
         </Link>
       </p>
     </div>

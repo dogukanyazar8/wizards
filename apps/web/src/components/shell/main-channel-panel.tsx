@@ -1,5 +1,8 @@
+"use client";
+
 import { Hash, Volume2 } from "lucide-react";
 import type { WorkspaceChannel } from "@wizards/types";
+import { useI18n } from "@/components/providers/locale-provider";
 
 type MainChannelPanelProps = {
   categoryName?: string | null;
@@ -18,16 +21,19 @@ export function MainChannelPanel({
   leading,
   trailing,
 }: MainChannelPanelProps) {
+  const { t } = useI18n();
   const Icon = channel?.type === "VOICE" ? Volume2 : Hash;
   const title = channel ? `#${channel.name}` : fallbackTitle;
   const contextLabel = categoryName
     ? categoryName
     : channel
-      ? "Open conversation"
-      : "Workspace overview";
+      ? t("shell.main.openConversation")
+      : t("shell.main.workspaceOverview");
   const detailLabel = channel
-    ? `${channel.type} channel`
-    : "Pick a server or channel to continue";
+    ? t("shell.main.channelType", {
+        type: channel.type === "VOICE" ? t("common.voice") : t("common.text"),
+      })
+    : t("shell.main.pickServerOrChannel");
 
   return (
     <section className="app-main-gradient flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -51,7 +57,7 @@ export function MainChannelPanel({
                 <span className="text-app-muted">{contextLabel}</span>
                 <span className="text-app-soft">/</span>
                 <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 font-medium text-[hsl(var(--primary))]">
-                  Live workspace
+                  {t("shell.main.liveWorkspace")}
                 </span>
               </div>
             </div>
@@ -71,14 +77,17 @@ export function MainChannelPanel({
                   <Icon className="h-8 w-8" />
                 </div>
                 <h2 className="text-app-foreground mt-6 text-3xl font-semibold tracking-tight">
-                  {channel ? `Welcome to #${channel.name}` : fallbackTitle}
+                  {channel ? t("shell.main.welcomeToChannel", { name: channel.name }) : fallbackTitle}
                 </h2>
                 <p className="text-app-muted mt-3 text-sm leading-7">
-                  Select a channel to start chatting, invite teammates, and keep
-                  everything inside one cleaner workspace flow.
+                  {t("shell.main.selectChannelDescription")}
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
-                  {["Fast switching", "Cleaner hierarchy", "Multi-user ready"].map(
+                  {[
+                    t("shell.main.fastSwitching"),
+                    t("shell.main.cleanerHierarchy"),
+                    t("shell.main.multiUserReady"),
+                  ].map(
                     (item) => (
                       <span
                         className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.44)] px-3 py-1.5 text-xs font-medium text-app-foreground"
@@ -94,16 +103,16 @@ export function MainChannelPanel({
               <div className="space-y-3">
                 {[
                   [
-                    "Browse servers",
-                    "Jump between workspaces without losing your place.",
+                    t("shell.main.browseServersTitle"),
+                    t("shell.main.browseServersDescription"),
                   ],
                   [
-                    "Tune the layout",
-                    "Open appearance settings to resize rails, sidebars, and theme.",
+                    t("shell.main.tuneLayoutTitle"),
+                    t("shell.main.tuneLayoutDescription"),
                   ],
                   [
-                    "Start talking",
-                    "Open a text channel and your live thread is ready immediately.",
+                    t("shell.main.startTalkingTitle"),
+                    t("shell.main.startTalkingDescription"),
                   ],
                 ].map(([cardTitle, description]) => (
                   <div

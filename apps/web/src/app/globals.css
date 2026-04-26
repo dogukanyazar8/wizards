@@ -14,6 +14,12 @@
   --warning-soft: 34 55% 17%;
   --shadow-color: 222 47% 8%;
   --backdrop: 222 47% 6%;
+  --bg-primary: var(--surface-primary);
+  --bg-secondary: var(--surface-secondary);
+  --bg-tertiary: var(--surface-tertiary);
+  --border-color: var(--border);
+  --accent-color: var(--primary);
+  --input-bg: var(--input);
 }
 
 :root,
@@ -1011,6 +1017,12 @@ h4 {
     color: hsl(var(--danger-foreground));
   }
 
+  .app-inline-alert {
+    border-color: hsl(var(--border-color) / 0.82);
+    background-color: hsl(var(--bg-tertiary) / 0.88);
+    color: hsl(var(--text-primary));
+  }
+
   .app-success {
     border-color: hsl(var(--success) / 0.22);
     background-color: hsl(var(--success) / 0.12);
@@ -1021,6 +1033,21 @@ h4 {
     border-color: hsl(var(--warning) / 0.22);
     background-color: hsl(var(--warning) / 0.12);
     color: hsl(var(--warning));
+  }
+
+  .app-system-message {
+    border-color: hsl(var(--border-color) / 0.72);
+    background:
+      linear-gradient(
+        180deg,
+        hsl(var(--bg-tertiary) / 0.76),
+        hsl(var(--bg-secondary) / 0.56)
+      );
+    color: hsl(var(--text-primary));
+  }
+
+  .app-system-message-icon {
+    color: hsl(var(--text-secondary));
   }
 
   .text-app-foreground {

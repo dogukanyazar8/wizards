@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import type { WorkspaceServerDetail } from "@wizards/types";
 import { Button } from "@wizards/ui";
+import { useI18n } from "@/components/providers/locale-provider";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ export function ServerSettingsOverlay({
   open,
   uploadthingEnabled,
 }: ServerSettingsOverlayProps) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const closeServerSettings = useAppStore((state) => state.closeServerSettings);
   const [tab, setTab] = useState<SettingsTab>("overview");
@@ -127,10 +129,10 @@ export function ServerSettingsOverlay({
   }
 
   const tabs: Array<{ id: SettingsTab; label: string }> = [
-    { id: "overview", label: "Overview" },
-    { id: "members", label: "Members" },
-    { id: "invites", label: "Invites" },
-    { id: "danger", label: "Danger Zone" },
+    { id: "overview", label: t("serverSettings.tab.overview") },
+    { id: "members", label: t("serverSettings.tab.members") },
+    { id: "invites", label: t("serverSettings.tab.invites") },
+    { id: "danger", label: t("serverSettings.tab.danger") },
   ];
 
   return (
@@ -162,7 +164,7 @@ export function ServerSettingsOverlay({
                     {detail.server.name}
                   </p>
                   <p className="text-app-soft truncate text-xs uppercase tracking-[0.2em]">
-                    Server Settings
+                    {t("serverSettings.title")}
                   </p>
                 </div>
               </div>
@@ -187,7 +189,7 @@ export function ServerSettingsOverlay({
 
               <div className="mt-auto">
                 <Button onClick={closeServerSettings} type="button" variant="outline">
-                  Close Overlay
+                  {t("serverSettings.closeOverlay")}
                 </Button>
               </div>
             </aside>
@@ -200,11 +202,11 @@ export function ServerSettingsOverlay({
                       {tabs.find((item) => item.id === tab)?.label}
                     </h2>
                     <p className="text-app-muted mt-2 text-sm">
-                      Manage the look, structure, and membership experience for this server.
+                      {t("serverSettings.manageDescription")}
                     </p>
                   </div>
                   <button
-                    aria-label="Close settings overlay"
+                    aria-label={t("serverSettings.closeOverlay")}
                     className="app-panel-soft text-app-muted rounded-2xl border p-3 transition hover:opacity-90 hover:text-[hsl(var(--foreground))]"
                     onClick={closeServerSettings}
                     type="button"
@@ -224,7 +226,7 @@ export function ServerSettingsOverlay({
                     <div className="grid gap-4 md:grid-cols-[1.2fr,0.8fr]">
                       <div className="app-panel rounded-[28px] border p-5">
                         <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
-                          Server Name
+                          {t("serverSettings.serverName")}
                         </label>
                         <Input
                           className="mt-3"
@@ -234,19 +236,21 @@ export function ServerSettingsOverlay({
                       </div>
                       <div className="app-panel rounded-[28px] border p-5">
                         <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
-                          Access
+                          {t("serverSettings.access")}
                         </label>
                         <div className="mt-4 flex flex-wrap gap-2">
                           <Badge>{detail.server.accessLevel}</Badge>
                           <Badge tone="muted">
-                            {detail.server.memberCount} Members
+                            {t("serverSettings.memberCount", {
+                              count: detail.server.memberCount,
+                            })}
                           </Badge>
                         </div>
                       </div>
                     </div>
                     <div className="app-panel rounded-[28px] border p-5">
                       <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
-                        Description
+                        {t("common.description")}
                       </label>
                       <Textarea
                         className="mt-3"
@@ -261,7 +265,7 @@ export function ServerSettingsOverlay({
                         onClick={() => updateMutation.mutate()}
                         type="button"
                       >
-                        {updateMutation.isPending ? "Saving..." : "Save Overview"}
+                        {updateMutation.isPending ? t("common.saving") : t("serverSettings.saveOverview")}
                       </Button>
                     </div>
                   </div>
@@ -304,7 +308,7 @@ export function ServerSettingsOverlay({
                             type="button"
                           >
                             <UserRoundX className="h-4 w-4" />
-                            Kick
+                            {t("serverSettings.kick")}
                           </button>
                         ) : null}
                       </div>
@@ -316,7 +320,7 @@ export function ServerSettingsOverlay({
                   <div className="space-y-3">
                     {detail.invites.length === 0 ? (
                       <div className="text-app-muted rounded-[28px] border border-dashed border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.2)] p-8 text-sm">
-                        No active invites yet. Generate one from the server menu or the quick invite modal.
+                        {t("serverSettings.noInvites")}
                       </div>
                     ) : null}
                     {detail.invites.map((invite) => (
@@ -344,7 +348,7 @@ export function ServerSettingsOverlay({
                             type="button"
                           >
                             <Copy className="h-4 w-4" />
-                            Copy
+                            {t("serverSettings.copy")}
                           </button>
                           <button
                             className="app-danger inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90"
@@ -353,7 +357,7 @@ export function ServerSettingsOverlay({
                             type="button"
                           >
                             <Trash2 className="h-4 w-4" />
-                            Revoke
+                            {t("serverSettings.revoke")}
                           </button>
                         </div>
                       </div>
@@ -369,10 +373,10 @@ export function ServerSettingsOverlay({
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold text-[hsl(var(--danger-foreground))]">
-                          Delete This Server
+                          {t("serverSettings.deleteTitle")}
                         </h3>
                         <p className="mt-1 text-sm text-[hsl(var(--danger-foreground)/0.78)]">
-                          This removes the entire server, its channels, invites, and membership data.
+                          {t("serverSettings.deleteDescription")}
                         </p>
                       </div>
                     </div>
@@ -384,7 +388,9 @@ export function ServerSettingsOverlay({
                         onClick={() => onOpenDeleteServer(detail.server.id, detail.server.name)}
                         type="button"
                       >
-                        {detail.server.isOwner ? "Open Delete Confirmation" : "Owner Access Required"}
+                        {detail.server.isOwner
+                          ? t("serverSettings.deleteOpen")
+                          : t("serverSettings.ownerRequired")}
                       </Button>
                     </div>
                   </div>

@@ -3,6 +3,8 @@
 import { SlidersHorizontal } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { Button } from "@wizards/ui";
+import { LanguageSwitcher } from "@/components/locale/language-switcher";
+import { useI18n } from "@/components/providers/locale-provider";
 import { ThemePicker } from "@/components/theme/theme-picker";
 import {
   CHANNEL_SIDEBAR_WIDTH_STEP,
@@ -17,6 +19,7 @@ import {
 import { useAppStore } from "@/lib/store";
 
 export function AppearanceSettingsPanel() {
+  const { t } = useI18n();
   const {
     channelSidebarWidth,
     resetChannelSidebarWidth,
@@ -37,6 +40,23 @@ export function AppearanceSettingsPanel() {
 
   return (
     <div className="space-y-8">
+      <section className="app-panel rounded-[30px] border p-6">
+        <div className="space-y-4">
+          <div>
+            <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]">
+              {t("appearance.language.eyebrow")}
+            </p>
+            <h3 className="text-app-foreground mt-2 text-lg font-semibold">
+              {t("appearance.language.title")}
+            </h3>
+            <p className="text-app-muted mt-1 text-sm leading-6">
+              {t("appearance.language.description")}
+            </p>
+          </div>
+          <LanguageSwitcher persistSelection showMeta variant="panel" />
+        </div>
+      </section>
+
       <div className="app-panel rounded-[30px] border p-6">
         <ThemePicker persistSelection />
       </div>
@@ -46,10 +66,10 @@ export function AppearanceSettingsPanel() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]">
-                Server Rail
+                {t("appearance.serverRail.eyebrow")}
               </p>
               <h3 className="text-app-foreground mt-2 text-lg font-semibold">
-                Widen the server column to reduce crowding
+                {t("appearance.serverRail.title")}
               </h3>
             </div>
             <div className="app-panel-soft inline-flex items-center gap-2 rounded-2xl border px-3 py-2">
@@ -72,9 +92,9 @@ export function AppearanceSettingsPanel() {
               value={serverRailWidth}
             />
             <div className="text-app-muted mt-3 flex items-center justify-between text-xs font-medium">
-              <span>Compact</span>
-              <span>Balanced</span>
-              <span>Spacious</span>
+              <span>{t("appearance.serverRail.compact")}</span>
+              <span>{t("appearance.serverRail.balanced")}</span>
+              <span>{t("appearance.serverRail.spacious")}</span>
             </div>
 
             <div className="app-panel-soft mt-5 rounded-[24px] border p-4">
@@ -100,10 +120,10 @@ export function AppearanceSettingsPanel() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]">
-                Channel Sidebar
+                {t("appearance.sidebar.eyebrow")}
               </p>
               <h3 className="text-app-foreground mt-2 text-lg font-semibold">
-                Give channel names a little more breathing room
+                {t("appearance.sidebar.title")}
               </h3>
             </div>
             <div className="app-panel-soft inline-flex items-center gap-2 rounded-2xl border px-3 py-2">
@@ -128,9 +148,9 @@ export function AppearanceSettingsPanel() {
               value={channelSidebarWidth}
             />
             <div className="text-app-muted mt-3 flex items-center justify-between text-xs font-medium">
-              <span>Compact</span>
-              <span>Readable</span>
-              <span>Studio</span>
+              <span>{t("appearance.sidebar.compact")}</span>
+              <span>{t("appearance.sidebar.readable")}</span>
+              <span>{t("appearance.sidebar.studio")}</span>
             </div>
 
             <div className="app-panel-soft mt-5 rounded-[24px] border p-4">
@@ -168,7 +188,7 @@ export function AppearanceSettingsPanel() {
           type="button"
           variant="outline"
         >
-          Reset Layout
+          {t("appearance.resetLayout")}
         </Button>
         <Button
           disabled={serverRailWidth === DEFAULT_SERVER_RAIL_WIDTH}
@@ -176,7 +196,7 @@ export function AppearanceSettingsPanel() {
           type="button"
           variant="outline"
         >
-          Reset Server Rail
+          {t("appearance.resetServerRail")}
         </Button>
         <Button
           disabled={channelSidebarWidth === DEFAULT_CHANNEL_SIDEBAR_WIDTH}
@@ -184,7 +204,7 @@ export function AppearanceSettingsPanel() {
           type="button"
           variant="outline"
         >
-          Reset Sidebar
+          {t("appearance.resetSidebar")}
         </Button>
       </div>
     </div>
