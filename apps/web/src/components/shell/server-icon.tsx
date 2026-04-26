@@ -62,6 +62,9 @@ export function ServerIcon({
           fallback={fallback}
           src={iconUrl}
         />
+        <span className="app-tooltip pointer-events-none absolute left-full ml-3 z-50 max-w-[160px] truncate rounded-xl border px-2.5 py-1 text-xs opacity-0 shadow-[0_12px_26px_hsl(var(--shadow-color)/0.12)] transition group-hover:opacity-100">
+          {label}
+        </span>
       </motion.button>
     </div>
   );

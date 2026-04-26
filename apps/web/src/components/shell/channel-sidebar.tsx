@@ -29,6 +29,7 @@ import { useState } from "react";
 import type { WorkspaceChannel, WorkspaceServerDetail } from "@wizards/types";
 import { useShallow } from "zustand/react/shallow";
 import { Avatar } from "@/components/ui/avatar";
+import { useI18n } from "@/components/providers/locale-provider";
 import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
 import { ChannelItem } from "@/components/shell/channel-item";
 import { ChannelSidebarSkeleton } from "@/components/shell/shell-skeletons";
@@ -77,6 +78,7 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
     disabled: !canManage,
     id: channel.id,
+    data: { categoryId: channel.categoryId ?? null },
   });
 
   return (
@@ -130,6 +132,8 @@ type UserProfileFooterProps = {
 };
 
 function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooterProps) {
+  const { t } = useI18n();
+
   return (
     <div className="app-panel rounded-[24px] border p-3">
       <div className="flex items-center gap-3">
@@ -145,33 +149,33 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
         </div>
         <div className="flex items-center gap-1">
           <button
-            aria-label="Toggle mute"
+            aria-label={t("shell.user.toggleMute")}
             className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
             type="button"
           >
             <Mic className="h-4 w-4" />
           </button>
           <button
-            aria-label="Toggle deafen"
+            aria-label={t("shell.user.toggleDeafen")}
             className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
             type="button"
           >
             <Volume2 className="h-4 w-4" />
           </button>
           <button
-            aria-label="Open appearance settings"
+            aria-label={t("shell.user.appearanceSettings")}
             className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
             onClick={onOpenAppearanceSettings}
-            title="Appearance settings"
+            title={t("shell.user.appearanceSettingsTitle")}
             type="button"
           >
             <Settings2 className="h-4 w-4" />
           </button>
           <form action={logoutAction}>
             <button
-              aria-label="Log out"
+              aria-label={t("shell.user.logout")}
               className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger-foreground))]"
-              title="Log out"
+              title={t("shell.user.logoutTitle")}
               type="submit"
             >
               <LogOut className="h-4 w-4" />
@@ -194,6 +198,14 @@ function buildReorderPayload(
   }));
 }
 
+function getChannelsForCategory(
+  categoryId: string | null,
+  detail: WorkspaceServerDetail,
+): WorkspaceChannel[] {
+  if (categoryId === null) return [...detail.ungroupedChannels];
+  return [...(detail.categories.find((cat) => cat.id === categoryId)?.channels ?? [])];
+}
+
 export function ChannelSidebar({
   activeChannelId,
   currentUser,
@@ -203,6 +215,7 @@ export function ChannelSidebar({
   onOpenSettings,
   onPrefetch,
 }: ChannelSidebarProps) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const {
     collapsedCategories,
@@ -310,25 +323,36 @@ export function ChannelSidebar({
   );
 
   const handleDragEnd = useCallback(
-    (categoryId: string | null, channels: WorkspaceChannel[]) =>
-      (event: DragEndEvent) => {
-        const { active, over } = event;
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id || !detail) return;
 
-        if (!over || active.id === over.id) {
-          return;
-        }
+      const sourceCategoryId = (active.data.current?.categoryId ?? null) as string | null;
+      const targetCategoryId = (over.data.current?.categoryId ?? null) as string | null;
 
-        const previousIndex = channels.findIndex((channel) => channel.id === active.id);
-        const nextIndex = channels.findIndex((channel) => channel.id === over.id);
+      const sourceChannels = getChannelsForCategory(sourceCategoryId, detail);
+      const targetChannels = getChannelsForCategory(targetCategoryId, detail);
 
-        if (previousIndex < 0 || nextIndex < 0) {
-          return;
-        }
+      const oldIndex = sourceChannels.findIndex((c) => c.id === active.id);
+      const newIndex = targetChannels.findIndex((c) => c.id === over.id);
 
-        const reordered = arrayMove(channels, previousIndex, nextIndex);
-        reorderMutation.mutate(buildReorderPayload(categoryId, reordered));
-      },
-    [reorderMutation],
+      if (oldIndex < 0 || newIndex < 0) return;
+
+      if (sourceCategoryId === targetCategoryId) {
+        const reordered = arrayMove(sourceChannels, oldIndex, newIndex);
+        reorderMutation.mutate(buildReorderPayload(sourceCategoryId, reordered));
+      } else {
+        const movingChannel = sourceChannels[oldIndex]!;
+        const newSourceChannels = sourceChannels.filter((c) => c.id !== movingChannel.id);
+        const newTargetChannels = [...targetChannels];
+        newTargetChannels.splice(newIndex, 0, { ...movingChannel, categoryId: targetCategoryId });
+        reorderMutation.mutate([
+          ...buildReorderPayload(sourceCategoryId, newSourceChannels),
+          ...buildReorderPayload(targetCategoryId, newTargetChannels),
+        ]);
+      }
+    },
+    [detail, reorderMutation],
   );
 
   if (loading) {
@@ -343,7 +367,7 @@ export function ChannelSidebar({
     return (
       <aside className="app-sidebar flex h-full w-full flex-col justify-between p-4">
         <div className="rounded-[28px] border border-dashed border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] p-5 text-app-muted text-sm">
-          Pick a server to browse channels, or create one to start building your workspace.
+          {t("shell.channelSidebar.empty")}
         </div>
         <UserProfileFooter user={currentUser} onOpenAppearanceSettings={onOpenSettings} />
       </aside>
@@ -375,36 +399,30 @@ export function ChannelSidebar({
         </button>
 
         {!collapsed ? (
-          <DndContext
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd(categoryId, channels)}
-            sensors={sensors}
-          >
-            <SortableContext items={channels.map((channel) => channel.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-1">
-                {channels.map((channel) => (
-                  <SortableChannelRow
-                    active={channel.id === activeChannelId}
-                    canManage={canManage}
-                    channel={channel}
-                    key={channel.id}
-                    onDelete={() => openDeleteChannelDialog(channel.id, channel.name)}
-                    onEdit={() =>
-                      openChannelModal({
-                        categoryId: channel.categoryId,
-                        channelId: channel.id,
-                        mode: "edit",
-                        serverId: detail.server.id,
-                        type: channel.type,
-                      })
-                    }
-                    onPrefetch={() => prefetchChannel(channel.id)}
-                    onSelect={() => navigateToChannel(channel.id)}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
+          <SortableContext items={channels.map((channel) => channel.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-1">
+              {channels.map((channel) => (
+                <SortableChannelRow
+                  active={channel.id === activeChannelId}
+                  canManage={canManage}
+                  channel={channel}
+                  key={channel.id}
+                  onDelete={() => openDeleteChannelDialog(channel.id, channel.name)}
+                  onEdit={() =>
+                    openChannelModal({
+                      categoryId: channel.categoryId,
+                      channelId: channel.id,
+                      mode: "edit",
+                      serverId: detail.server.id,
+                      type: channel.type,
+                    })
+                  }
+                  onPrefetch={() => prefetchChannel(channel.id)}
+                  onSelect={() => navigateToChannel(channel.id)}
+                />
+              ))}
+            </div>
+          </SortableContext>
         ) : null}
       </div>
     );
@@ -429,19 +447,25 @@ export function ChannelSidebar({
           <div>
             <p className="text-app-foreground truncate text-sm font-semibold">{detail.server.name}</p>
             <p className="text-app-soft truncate text-xs">
-              {detail.server.memberCount} members
+              {t("shell.channelSidebar.membersCount", { count: detail.server.memberCount })}
             </p>
           </div>
           <ChevronDown className="text-app-muted h-4 w-4" />
         </button>
       </div>
 
-      <div className="flex-1 space-y-5 overflow-y-auto p-3">
-        {detail.categories.map((category) => renderChannelGroup(category.name, category.id, category.channels))}
-        {detail.ungroupedChannels.length > 0
-          ? renderChannelGroup("Open Channels", null, detail.ungroupedChannels)
-          : null}
-      </div>
+      <DndContext
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+        sensors={sensors}
+      >
+        <div className="flex-1 space-y-5 overflow-y-auto p-3">
+          {detail.categories.map((category) => renderChannelGroup(category.name, category.id, category.channels))}
+          {detail.ungroupedChannels.length > 0
+            ? renderChannelGroup(t("shell.channelSidebar.openChannels"), null, detail.ungroupedChannels)
+            : null}
+        </div>
+      </DndContext>
 
       <div className="border-t border-[hsl(var(--border)/0.78)] p-3">
         <UserProfileFooter user={currentUser} onOpenAppearanceSettings={onOpenSettings} />
@@ -460,7 +484,7 @@ export function ChannelSidebar({
                 openServerSettings(detail.server.id);
               }}
             >
-              Server Settings
+              {t("shell.channelSidebar.serverSettings")}
             </ContextMenuItem>
             <ContextMenuItem
               onClick={() => {
@@ -468,7 +492,7 @@ export function ChannelSidebar({
                 openInviteModal(detail.server.id);
               }}
             >
-              Create Invite
+              {t("shell.channelSidebar.createInvite")}
             </ContextMenuItem>
             <ContextMenuItem
               onClick={() => {
@@ -476,7 +500,7 @@ export function ChannelSidebar({
                 openCategoryModal(detail.server.id);
               }}
             >
-              Create Category
+              {t("shell.channelSidebar.createCategory")}
             </ContextMenuItem>
             <ContextMenuItem
               onClick={() => {
@@ -488,7 +512,7 @@ export function ChannelSidebar({
                 });
               }}
             >
-              Create Text Channel
+              {t("shell.channelSidebar.createTextChannel")}
             </ContextMenuItem>
             <ContextMenuItem
               onClick={() => {
@@ -500,11 +524,13 @@ export function ChannelSidebar({
                 });
               }}
             >
-              Create Voice Channel
+              {t("shell.channelSidebar.createVoiceChannel")}
             </ContextMenuItem>
           </>
         ) : (
-          <div className="text-app-soft px-3 py-2 text-xs uppercase tracking-[0.2em]">Member View</div>
+          <div className="text-app-soft px-3 py-2 text-xs uppercase tracking-[0.2em]">
+            {t("shell.channelSidebar.memberView")}
+          </div>
         )}
       </ContextMenu>
     </aside>
