@@ -214,6 +214,12 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "appearance.resetServerRail": "Reset Server Rail",
     "appearance.resetSidebar": "Reset Sidebar",
 
+    "appearance.notifications.eyebrow": "Notification Popup",
+    "appearance.notifications.title": "Customize how notifications appear",
+    "appearance.notifications.count": "Notifications to display",
+    "appearance.notifications.autoClose": "Auto-close notification popup",
+    "appearance.notifications.autoCloseDesc": "Automatically close the notification popup when you click elsewhere",
+
     "themes.tabs.simple": "Simple",
     "themes.tabs.advanced": "Advanced",
     "themes.page.simpleEyebrow": "Simple Themes",
@@ -364,6 +370,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "notifications.bell.title": "Notifications",
     "notifications.bell.markAllRead": "Mark all as read",
     "notifications.bell.seeAll": "See all",
+    "notifications.bell.clearAll": "Clear All",
     "notifications.bell.empty": "No notifications",
     "notifications.type.friendRequest": "{name} sent you a friend request",
     "notifications.type.friendAccepted": "{name} accepted your friend request",
@@ -673,6 +680,12 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "appearance.resetServerRail": "Sunucu Rayını Sıfırla",
     "appearance.resetSidebar": "Kenar Çubuğunu Sıfırla",
 
+    "appearance.notifications.eyebrow": "Bildirim Açılır Penceresi",
+    "appearance.notifications.title": "Bildirimlerin nasıl göründüğünü özelleştir",
+    "appearance.notifications.count": "Gösterilecek bildirim sayısı",
+    "appearance.notifications.autoClose": "Bildirim açılır penceresini otomatik kapat",
+    "appearance.notifications.autoCloseDesc": "Başka bir yere tıkladığında bildirim açılır penceresini otomatik olarak kapat",
+
     "themes.tabs.simple": "Basit",
     "themes.tabs.advanced": "Gelişmiş",
     "themes.page.simpleEyebrow": "Basit Temalar",
@@ -823,6 +836,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "notifications.bell.title": "Bildirimler",
     "notifications.bell.markAllRead": "Tümünü okundu olarak işaretle",
     "notifications.bell.seeAll": "Tümünü gör",
+    "notifications.bell.clearAll": "Hepsini Sil",
     "notifications.bell.empty": "Bildirim yok",
     "notifications.type.friendRequest": "{name} sana arkadaşlık isteği gönderdi",
     "notifications.type.friendAccepted": "{name} arkadaşlık isteğini kabul etti",

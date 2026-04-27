@@ -10,7 +10,7 @@ import type {
   WorkspaceServerDetail,
   WorkspaceServerSummary,
 } from "@wizards/types";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { useShallow } from "zustand/react/shallow";
 import { ChannelSidebar } from "@/components/shell/channel-sidebar";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -20,6 +20,7 @@ import { ServerSettingsOverlay } from "@/components/shell/server-settings-overla
 import { WorkspaceModals } from "@/components/shell/workspace-modals";
 import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
 import { useSocket } from "@/hooks/use-socket";
+import { useAppearanceHydration } from "@/hooks/use-appearance-hydration";
 import { useAppStore } from "@/lib/store";
 import {
   applyServerUnreadCount,
@@ -29,6 +30,7 @@ import {
   leaveServerRequest,
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
+import { fetchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
 
 type WizardsShellProps = {
   children?: React.ReactNode;
@@ -67,6 +69,39 @@ function findActiveCategoryName(
   }
 
   return detail.categories.find((category) => category.id === channel.categoryId)?.name ?? null;
+}
+
+function getServerIndexHref(server: WorkspaceServerSummary) {
+  return server.defaultChannelId
+    ? `/channels/${server.id}/${server.defaultChannelId}`
+    : `/channels/${server.id}`;
+}
+
+function getWorkspaceFallbackHref(
+  servers: WorkspaceServerSummary[],
+  excludedServerId?: string | null,
+) {
+  const nextServer =
+    servers.find((server) => server.id !== excludedServerId) ??
+    servers[0] ??
+    null;
+
+  return nextServer ? getServerIndexHref(nextServer) : "/channels/@me";
+}
+
+function getPreferredServerChannelId(
+  serverId: string,
+  detail: Awaited<ReturnType<typeof fetchWorkspaceServer>> | null | undefined,
+  lastChannelByServerId: Record<string, string>,
+) {
+  if (!detail) {
+    return null;
+  }
+
+  const rememberedChannelId = lastChannelByServerId[serverId] ?? null;
+  const rememberedChannel = findActiveChannel(serverId, rememberedChannelId, detail);
+
+  return rememberedChannel?.id ?? detail.server.defaultChannelId ?? null;
 }
 
 interface NavigationPanelProps {
@@ -141,51 +176,82 @@ NavigationPanel.displayName = "NavigationPanel";
 export function WizardsShell({ children, currentUser, uploadthingEnabled }: WizardsShellProps) {
   const { t } = useI18n();
   const socket = useSocket();
+  useAppearanceHydration();
   const params = useParams<{
     channelId?: string;
     serverId?: string;
   }>();
+  const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
   const {
+    appearanceHydrated,
     closeServerContextMenu,
     channelSidebarWidth,
+    forgetServerState,
+    lastChannelByServerId,
     mobileSidebarOpen,
     openDeleteServerDialog,
     openInviteModal,
     openServerContextMenu,
     openServerModal,
     openServerSettings,
+    persistedActiveArea,
+    persistedActiveChannelId,
+    persistedActiveServerId,
     serverRailWidth,
     serverContextMenu,
     serverSettingsServerId,
     setActiveRoute,
     setMobileSidebarOpen,
+    applyPersistedSettings,
   } = useAppStore(
     useShallow((state) => ({
+      appearanceHydrated: state.appearanceHydrated,
       closeServerContextMenu: state.closeServerContextMenu,
       channelSidebarWidth: state.channelSidebarWidth,
+      forgetServerState: state.forgetServerState,
+      lastChannelByServerId: state.lastChannelByServerId,
       mobileSidebarOpen: state.mobileSidebarOpen,
       openDeleteServerDialog: state.openDeleteServerDialog,
       openInviteModal: state.openInviteModal,
       openServerContextMenu: state.openServerContextMenu,
       openServerModal: state.openServerModal,
       openServerSettings: state.openServerSettings,
+      persistedActiveArea: state.activeArea,
+      persistedActiveChannelId: state.activeChannelId,
+      persistedActiveServerId: state.activeServerId,
       serverRailWidth: state.serverRailWidth,
       serverContextMenu: state.serverContextMenu,
       serverSettingsServerId: state.serverSettingsServerId,
       setActiveRoute: state.setActiveRoute,
       setMobileSidebarOpen: state.setMobileSidebarOpen,
+      applyPersistedSettings: state.applyPersistedSettings,
     })),
   );
+
+  const { data: layoutSettings } = useQuery({
+    queryKey: settingsQueryKeys.layout,
+    queryFn: fetchLayoutSettings,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  useEffect(() => {
+    if (layoutSettings) {
+      applyPersistedSettings(layoutSettings);
+    }
+  }, [layoutSettings, applyPersistedSettings]);
 
   const rawServerId = typeof params.serverId === "string" ? decodeURIComponent(params.serverId) : null;
   const activeServerId = rawServerId === "@me" ? null : rawServerId;
   const activeChannelId = typeof params.channelId === "string" ? params.channelId : null;
-
-  useEffect(() => {
-    setActiveRoute(activeServerId, activeChannelId);
-  }, [activeChannelId, activeServerId, setActiveRoute]);
+  const isChannelsRootRoute = pathname === "/channels";
+  const isFriendsRoute = rawServerId === "@me" && !activeChannelId;
+  const isDmRoute = rawServerId === "@me" && Boolean(activeChannelId);
+  const isServerIndexRoute = Boolean(activeServerId && !activeChannelId);
+  const isServerConversationRoute = Boolean(activeServerId && activeChannelId);
 
   useEffect(() => {
     const handleServerUnreadUpdate = (data: { serverId: string; unreadCount: number }) => {
@@ -243,6 +309,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     mutationFn: async (serverId: string) => leaveServerRequest(serverId),
     onSuccess: async (_result, serverId) => {
       closeServerContextMenu();
+      forgetServerState(serverId);
       await queryClient.invalidateQueries({
         queryKey: workspaceQueryKeys.servers,
       });
@@ -253,9 +320,16 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     },
   });
 
-  const servers = serversQuery.data ?? [];
+  const isServersLoading = serversQuery.isLoading;
+  const servers = useMemo<WorkspaceServerSummary[]>(
+    () => serversQuery.data ?? [],
+    [serversQuery.data],
+  );
   const activeChannel = findActiveChannel(activeServerId, activeChannelId, serverDetailQuery.data);
   const activeCategoryName = findActiveCategoryName(activeChannel, serverDetailQuery.data);
+  const preferredServerChannelId = activeServerId
+    ? getPreferredServerChannelId(activeServerId, serverDetailQuery.data, lastChannelByServerId)
+    : null;
   const contextServer = servers.find((server) => server.id === serverContextMenu.serverId) ?? null;
   const shellStyle = useMemo(
     () =>
@@ -267,21 +341,163 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   );
 
   useEffect(() => {
+    if (!appearanceHydrated) {
+      return;
+    }
+
+    if (isChannelsRootRoute) {
+      if (isServersLoading) {
+        return;
+      }
+
+      const persistedServer =
+        persistedActiveServerId
+          ? servers.find((server) => server.id === persistedActiveServerId) ?? null
+          : null;
+
+      if (persistedActiveArea === "server" && persistedActiveServerId) {
+        if (!persistedServer) {
+          forgetServerState(persistedActiveServerId);
+          router.replace(getWorkspaceFallbackHref(servers, persistedActiveServerId));
+          return;
+        }
+
+        const restoredChannelId =
+          lastChannelByServerId[persistedActiveServerId] ??
+          persistedActiveChannelId ??
+          persistedServer.defaultChannelId;
+
+        router.replace(
+          restoredChannelId
+            ? `/channels/${persistedActiveServerId}/${restoredChannelId}`
+            : getServerIndexHref(persistedServer),
+        );
+        return;
+      }
+
+      if (persistedActiveArea === "dm" && persistedActiveChannelId) {
+        router.replace(`/channels/@me/${persistedActiveChannelId}`);
+        return;
+      }
+
+      if (persistedActiveArea === "friends") {
+        router.replace("/channels/@me");
+        return;
+      }
+
+      router.replace(getWorkspaceFallbackHref(servers));
+    }
+  }, [
+    appearanceHydrated,
+    forgetServerState,
+    isChannelsRootRoute,
+    lastChannelByServerId,
+    persistedActiveArea,
+    persistedActiveChannelId,
+    persistedActiveServerId,
+    router,
+    servers,
+    isServersLoading,
+  ]);
+
+  useEffect(() => {
+    if (!appearanceHydrated || !activeServerId || isServersLoading) {
+      return;
+    }
+
+    const hasServerAccess = servers.some((server) => server.id === activeServerId);
+
     if (
-      activeServerId &&
-      serverDetailQuery.data?.server.defaultChannelId &&
-      (!activeChannelId || !activeChannel)
+      !hasServerAccess &&
+      (isServerConversationRoute || isServerIndexRoute)
     ) {
-      router.replace(
-        `/channels/${activeServerId}/${serverDetailQuery.data.server.defaultChannelId}`,
-      );
+      forgetServerState(activeServerId);
+      router.replace(getWorkspaceFallbackHref(servers, activeServerId));
+    }
+  }, [
+    activeServerId,
+    appearanceHydrated,
+    forgetServerState,
+    isServerConversationRoute,
+    isServerIndexRoute,
+    isServersLoading,
+    router,
+    servers,
+  ]);
+
+  useEffect(() => {
+    if (!appearanceHydrated) {
+      return;
+    }
+
+    if (isFriendsRoute) {
+      setActiveRoute({
+        activeArea: "friends",
+        activeChannelId: null,
+        activeServerId: null,
+      });
+      return;
+    }
+
+    if (isDmRoute && activeChannelId) {
+      setActiveRoute({
+        activeArea: "dm",
+        activeChannelId,
+        activeServerId: null,
+      });
+      return;
+    }
+
+    if (isServerConversationRoute && activeServerId && activeChannelId) {
+      setActiveRoute({
+        activeArea: "server",
+        activeChannelId,
+        activeServerId,
+      });
+    }
+  }, [
+    activeChannelId,
+    activeServerId,
+    appearanceHydrated,
+    isDmRoute,
+    isFriendsRoute,
+    isServerConversationRoute,
+    setActiveRoute,
+  ]);
+
+  useEffect(() => {
+    if (!activeServerId || !serverDetailQuery.data) {
+      return;
+    }
+
+    if (isServerIndexRoute && preferredServerChannelId) {
+      router.replace(`/channels/${activeServerId}/${preferredServerChannelId}`);
+      return;
+    }
+
+    if (isServerIndexRoute && !preferredServerChannelId && !serverDetailQuery.isLoading) {
+      router.replace(getWorkspaceFallbackHref(servers, activeServerId));
+      return;
+    }
+
+    if (isServerConversationRoute && !activeChannel && preferredServerChannelId) {
+      router.replace(`/channels/${activeServerId}/${preferredServerChannelId}`);
+      return;
+    }
+
+    if (isServerConversationRoute && !activeChannel && !preferredServerChannelId) {
+      router.replace(getWorkspaceFallbackHref(servers, activeServerId));
     }
   }, [
     activeChannel,
-    activeChannelId,
     activeServerId,
+    isServerConversationRoute,
+    isServerIndexRoute,
+    preferredServerChannelId,
     router,
-    serverDetailQuery.data?.server.defaultChannelId,
+    serverDetailQuery.data,
+    serverDetailQuery.isLoading,
+    servers,
   ]);
 
   const navigate = (href: string) => {

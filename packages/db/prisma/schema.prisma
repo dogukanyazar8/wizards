@@ -301,6 +301,10 @@ model UserSettings {
   dmPolicy              DmPolicy                  @default(FRIENDS)
   showReadReceipts      Boolean                   @default(true)
   nsfwAllowed           Boolean                   @default(false)
+  serverRailWidth       Int                       @default(88)
+  channelSidebarWidth   Int                       @default(288)
+  notificationLimit     Int                       @default(5)
+  notificationAutoClose Boolean                   @default(true)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

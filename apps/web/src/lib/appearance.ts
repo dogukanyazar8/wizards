@@ -325,8 +325,17 @@ export const MIN_CHANNEL_SIDEBAR_WIDTH = 248;
 export const MAX_CHANNEL_SIDEBAR_WIDTH = 384;
 export const CHANNEL_SIDEBAR_WIDTH_STEP = 8;
 
+export const DEFAULT_NOTIFICATION_LIMIT = 5;
+export const MIN_NOTIFICATION_LIMIT = 3;
+export const MAX_NOTIFICATION_LIMIT = 20;
+export const NOTIFICATION_LIMIT_STEP = 1;
+export const NOTIFICATION_LIMIT_OPTIONS = [3, 5, 10, 15, 20] as const;
+export const APP_THEME_STORAGE_KEY = "wizards-theme";
+
 const SERVER_RAIL_WIDTH_STORAGE_KEY = "wizards.serverRailWidth";
 const CHANNEL_SIDEBAR_WIDTH_STORAGE_KEY = "wizards.channelSidebarWidth";
+const NOTIFICATION_LIMIT_STORAGE_KEY = "wizards.notificationLimit";
+const NOTIFICATION_AUTO_CLOSE_STORAGE_KEY = "wizards.notificationAutoClose";
 
 export function clampServerRailWidth(value: number) {
   return Math.min(MAX_SERVER_RAIL_WIDTH, Math.max(MIN_SERVER_RAIL_WIDTH, value));
@@ -389,4 +398,62 @@ export function writeStoredChannelSidebarWidth(value: number) {
     CHANNEL_SIDEBAR_WIDTH_STORAGE_KEY,
     String(clampChannelSidebarWidth(value)),
   );
+}
+
+function clampNotificationLimit(value: number) {
+  return Math.min(MAX_NOTIFICATION_LIMIT, Math.max(MIN_NOTIFICATION_LIMIT, value));
+}
+
+export function readStoredNotificationLimit() {
+  if (typeof window === "undefined") {
+    return DEFAULT_NOTIFICATION_LIMIT;
+  }
+
+  const rawValue = window.localStorage.getItem(NOTIFICATION_LIMIT_STORAGE_KEY);
+  const parsedValue = Number(rawValue);
+
+  if (!Number.isFinite(parsedValue)) {
+    return DEFAULT_NOTIFICATION_LIMIT;
+  }
+
+  return clampNotificationLimit(parsedValue);
+}
+
+export function writeStoredNotificationLimit(value: number) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    NOTIFICATION_LIMIT_STORAGE_KEY,
+    String(clampNotificationLimit(value)),
+  );
+}
+
+export function readStoredNotificationAutoClose() {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  const rawValue = window.localStorage.getItem(NOTIFICATION_AUTO_CLOSE_STORAGE_KEY);
+  return rawValue !== "false";
+}
+
+export function writeStoredNotificationAutoClose(value: boolean) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(NOTIFICATION_AUTO_CLOSE_STORAGE_KEY, String(value));
+}
+
+export function clearLegacyAppearanceStorage() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem(SERVER_RAIL_WIDTH_STORAGE_KEY);
+  window.localStorage.removeItem(CHANNEL_SIDEBAR_WIDTH_STORAGE_KEY);
+  window.localStorage.removeItem(NOTIFICATION_LIMIT_STORAGE_KEY);
+  window.localStorage.removeItem(NOTIFICATION_AUTO_CLOSE_STORAGE_KEY);
 }

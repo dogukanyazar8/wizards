@@ -45,6 +45,18 @@ export function LocaleProvider({
   const [locale, setLocaleState] = useState<AppLocale>(() => normalizeAppLocale(initialLocale));
 
   useEffect(() => {
+    if (initialLocale) {
+      const nextLocale = normalizeAppLocale(initialLocale);
+
+      setLocaleState((currentLocale) => {
+        const resolvedLocale = currentLocale === nextLocale ? currentLocale : nextLocale;
+        writeLocalePersistence(resolvedLocale);
+        return resolvedLocale;
+      });
+
+      return;
+    }
+
     const storedLocale =
       typeof window === "undefined"
         ? null
@@ -62,7 +74,7 @@ export function LocaleProvider({
       writeLocalePersistence(nextLocale);
       return nextLocale;
     });
-  }, []);
+  }, [initialLocale]);
 
   useEffect(() => {
     writeLocalePersistence(locale);

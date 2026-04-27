@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useTransition } from "react";
 import {
   closestCenter,
   DndContext,
@@ -35,6 +35,11 @@ import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
 import { ChannelItem } from "@/components/shell/channel-item";
 import { ChannelSidebarSkeleton } from "@/components/shell/shell-skeletons";
 import { NotificationBell } from "@/components/shared/notification-bell";
+import {
+  APP_THEME_STORAGE_KEY,
+  clearLegacyAppearanceStorage,
+} from "@/lib/appearance";
+import { APP_LOCALE_STORAGE_KEY } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 import {
   applyChannelReorder,
@@ -137,6 +142,18 @@ type UserProfileFooterProps = {
 
 function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooterProps) {
   const { t } = useI18n();
+  const [isLoggingOut, startLogoutTransition] = useTransition();
+
+  const handleLogout = () => {
+    clearLegacyAppearanceStorage();
+    window.localStorage.removeItem(APP_THEME_STORAGE_KEY);
+    window.localStorage.removeItem(APP_LOCALE_STORAGE_KEY);
+    useAppStore.getState().resetSessionUiState();
+    useAppStore.persist.clearStorage();
+    startLogoutTransition(async () => {
+      await logoutAction();
+    });
+  };
 
   return (
     <div className="app-panel rounded-[24px] border p-3">
@@ -176,16 +193,16 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
           >
             <Settings2 className="h-4 w-4" />
           </button>
-          <form action={logoutAction}>
-            <button
-              aria-label={t("shell.user.logout")}
-              className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger-foreground))]"
-              title={t("shell.user.logoutTitle")}
-              type="submit"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </form>
+          <button
+            aria-label={t("shell.user.logout")}
+            className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger-foreground))] disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isLoggingOut}
+            onClick={handleLogout}
+            title={t("shell.user.logoutTitle")}
+            type="button"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </div>

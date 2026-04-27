@@ -10,10 +10,13 @@ import {
   CHANNEL_SIDEBAR_WIDTH_STEP,
   DEFAULT_CHANNEL_SIDEBAR_WIDTH,
   DEFAULT_SERVER_RAIL_WIDTH,
+  DEFAULT_NOTIFICATION_LIMIT,
   MAX_CHANNEL_SIDEBAR_WIDTH,
   MAX_SERVER_RAIL_WIDTH,
   MIN_CHANNEL_SIDEBAR_WIDTH,
   MIN_SERVER_RAIL_WIDTH,
+  NOTIFICATION_LIMIT_OPTIONS,
+  NOTIFICATION_LIMIT_STEP,
   SERVER_RAIL_WIDTH_STEP,
 } from "@/lib/appearance";
 import { useAppStore } from "@/lib/store";
@@ -22,18 +25,26 @@ export function AppearanceSettingsPanel() {
   const { t } = useI18n();
   const {
     channelSidebarWidth,
+    notificationAutoClose,
+    notificationLimit,
     resetChannelSidebarWidth,
     resetServerRailWidth,
     serverRailWidth,
     setChannelSidebarWidth,
+    setNotificationAutoClose,
+    setNotificationLimit,
     setServerRailWidth,
   } = useAppStore(
     useShallow((state) => ({
       channelSidebarWidth: state.channelSidebarWidth,
+      notificationAutoClose: state.notificationAutoClose,
+      notificationLimit: state.notificationLimit,
       resetChannelSidebarWidth: state.resetChannelSidebarWidth,
       resetServerRailWidth: state.resetServerRailWidth,
       serverRailWidth: state.serverRailWidth,
       setChannelSidebarWidth: state.setChannelSidebarWidth,
+      setNotificationAutoClose: state.setNotificationAutoClose,
+      setNotificationLimit: state.setNotificationLimit,
       setServerRailWidth: state.setServerRailWidth,
     })),
   );
@@ -170,6 +181,71 @@ export function AppearanceSettingsPanel() {
                   <div className="mt-3 h-3 w-32 rounded-full bg-[hsl(var(--surface-soft)/0.72)]" />
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="app-panel rounded-[30px] border p-6">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]">
+                {t("appearance.notifications.eyebrow")}
+              </p>
+              <h3 className="text-app-foreground mt-2 text-lg font-semibold">
+                {t("appearance.notifications.title")}
+              </h3>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <label className="text-app-foreground text-sm font-medium">
+                  {t("appearance.notifications.count")}
+                </label>
+                <div className="app-panel-soft inline-flex items-center gap-2 rounded-2xl border px-3 py-2">
+                  <span className="text-app-foreground text-sm font-medium">
+                    {notificationLimit}
+                  </span>
+                </div>
+              </div>
+              <div className="rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] p-5">
+                <input
+                  aria-label="Adjust notification count"
+                  className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.9)] accent-[hsl(var(--primary))]"
+                  max={Math.max(...NOTIFICATION_LIMIT_OPTIONS)}
+                  min={Math.min(...NOTIFICATION_LIMIT_OPTIONS)}
+                  onChange={(event) => setNotificationLimit(Number(event.target.value))}
+                  step={NOTIFICATION_LIMIT_STEP}
+                  type="range"
+                  value={notificationLimit}
+                />
+                <div className="text-app-muted mt-3 flex items-center justify-between text-xs font-medium">
+                  <span>{Math.min(...NOTIFICATION_LIMIT_OPTIONS)}</span>
+                  <span>{Math.max(...NOTIFICATION_LIMIT_OPTIONS)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={notificationAutoClose}
+                  onChange={(event) => setNotificationAutoClose(event.target.checked)}
+                  className="h-4 w-4 rounded border-[hsl(var(--border))] cursor-pointer"
+                />
+                <div>
+                  <p className="text-app-foreground text-sm font-medium">
+                    {t("appearance.notifications.autoClose")}
+                  </p>
+                  <p className="text-app-muted text-xs">
+                    {t("appearance.notifications.autoCloseDesc")}
+                  </p>
+                </div>
+              </label>
             </div>
           </div>
         </div>

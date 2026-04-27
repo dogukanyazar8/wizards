@@ -119,7 +119,7 @@ export const MessageItem = React.memo(
                 {formattedTime}
               </span>
             ) : (
-              <UserProfilePopover userId={message.author.id}>
+              <UserProfilePopover userId={message.author.id} currentUserId={currentUserId}>
                 <Avatar
                   src={message.author.avatarUrl}
                   alt={message.author.displayName}

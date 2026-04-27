@@ -28,5 +28,5 @@ export const NotificationsQuerySchema = z.object({
 });
 
 export const NotificationIdParamsSchema = z.object({
-  id: z.string().cuid(),
+  id: z.string().uuid(),
 });

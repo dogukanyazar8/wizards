@@ -63,3 +63,9 @@ export async function markAllNotificationsRead(): Promise<void> {
     method: "PATCH",
   });
 }
+
+export async function deleteAllNotifications(): Promise<void> {
+  await requestJson<void>("/api/v1/notifications/clear", {
+    method: "DELETE",
+  });
+}

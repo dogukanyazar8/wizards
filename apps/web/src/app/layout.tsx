@@ -29,11 +29,12 @@ export default async function RootLayout({
 }>) {
   const session = await auth();
   const locale = await getRequestLocale(session?.user?.locale);
+  const theme = session?.user?.theme || undefined;
 
   return (
     <html lang={locale} suppressHydrationWarning>
       <body className={`${bodyFont.variable} ${displayFont.variable}`}>
-        <ThemeProvider>
+        <ThemeProvider storageKey="wizards-theme" defaultTheme={theme} attribute="class">
           <LocaleProvider initialLocale={locale}>
             <QueryProvider>{children}</QueryProvider>
           </LocaleProvider>

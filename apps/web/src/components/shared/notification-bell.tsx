@@ -4,14 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useShallow } from "zustand/react/shallow";
 import { Bell } from "lucide-react";
 import { useSocket } from "@/hooks/use-socket";
 import { useI18n } from "@/components/providers/locale-provider";
+import { useAppStore } from "@/lib/store";
 import {
   fetchNotifications,
   fetchUnreadCount,
   markNotificationRead,
   markAllNotificationsRead,
+  deleteAllNotifications,
   notificationsQueryKeys,
 } from "@/lib/notifications/client";
 import { actOnFriendRequestRequest } from "@/lib/friends/client";
@@ -24,6 +27,12 @@ export function NotificationBell() {
   const router = useRouter();
   const socket = useSocket();
   const queryClient = useQueryClient();
+  const { notificationAutoClose, notificationLimit } = useAppStore(
+    useShallow((state) => ({
+      notificationAutoClose: state.notificationAutoClose,
+      notificationLimit: state.notificationLimit,
+    })),
+  );
 
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -38,8 +47,8 @@ export function NotificationBell() {
   });
 
   const listQuery = useQuery({
-    queryKey: notificationsQueryKeys.list(5),
-    queryFn: () => fetchNotifications(5),
+    queryKey: notificationsQueryKeys.list(notificationLimit),
+    queryFn: () => fetchNotifications(notificationLimit),
     enabled: open,
     staleTime: 30_000,
   });
@@ -59,7 +68,23 @@ export function NotificationBell() {
       setUnreadCount(ctx!.prev);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.list(5) });
+      queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.list(notificationLimit) });
+    },
+  });
+
+  const clearAllMutation = useMutation({
+    mutationFn: deleteAllNotifications,
+    onMutate: () => {
+      const prev = unreadCount;
+      setUnreadCount(0);
+      return { prev };
+    },
+    onError: (_, __, ctx) => {
+      setUnreadCount(ctx!.prev);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.list(notificationLimit) });
+      setOpen(false);
     },
   });
 
@@ -78,28 +103,29 @@ export function NotificationBell() {
   };
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !notificationAutoClose) return;
 
     const handler = (e: PointerEvent) => {
-      if (buttonRef.current?.contains(e.target as Node)) return;
-      if (popoverRef.current?.contains(e.target as Node)) return;
+      const target = e.target as Node;
+      if (buttonRef.current?.contains(target)) return;
+      if (popoverRef.current?.contains(target)) return;
       setOpen(false);
     };
 
-    window.addEventListener("pointerdown", handler);
-    return () => window.removeEventListener("pointerdown", handler);
-  }, [open]);
+    document.addEventListener("pointerdown", handler, true);
+    return () => document.removeEventListener("pointerdown", handler, true);
+  }, [open, notificationAutoClose]);
 
   useEffect(() => {
     socket.on("notification:new", () => {
       setUnreadCount((prev) => prev + 1);
-      queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.list(5) });
+      queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.list(notificationLimit) });
     });
 
     return () => {
       socket.off("notification:new");
     };
-  }, [socket, queryClient]);
+  }, [socket, queryClient, notificationLimit]);
 
   return (
     <>
@@ -121,15 +147,15 @@ export function NotificationBell() {
         createPortal(
           <motion.div
             ref={popoverRef}
-            className="fixed z-[60] w-80 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] shadow-lg"
+            className="fixed z-[60] w-80 overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] shadow-xl"
             style={{ top: `${dropdownPos.top}px`, right: `${dropdownPos.right}px` }}
             initial={{ opacity: 0, scale: 0.95, y: -8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -8 }}
             transition={{ duration: 0.15 }}
           >
-            <div className="flex items-center justify-between border-b border-[hsl(var(--border))] p-4">
-              <h3 className="font-semibold">{t("notifications.bell.title")}</h3>
+            <div className="flex items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-4">
+              <h3 className="font-semibold text-[hsl(var(--foreground))]">{t("notifications.bell.title")}</h3>
               {unreadCount > 0 && (
                 <button
                   onClick={() => markAllMutation.mutate()}
@@ -141,7 +167,7 @@ export function NotificationBell() {
               )}
             </div>
 
-            <div className="max-h-96 overflow-y-auto">
+            <div className="max-h-96 overflow-y-auto bg-[hsl(var(--background))]">
               {listQuery.isLoading ? (
                 <div className="p-4 text-center text-sm text-[hsl(var(--foreground)/0.6)]">
                   Loading...
@@ -165,15 +191,22 @@ export function NotificationBell() {
             </div>
 
             {listQuery.data && listQuery.data.length > 0 && (
-              <div className="border-t border-[hsl(var(--border))] p-3 text-center">
+              <div className="border-t border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-3 flex items-center justify-between gap-2">
                 <button
                   onClick={() => {
-                    router.push("/notifications");
+                    router.push("/channels/@me");
                     setOpen(false);
                   }}
-                  className="text-xs text-[hsl(var(--primary))] hover:underline"
+                  className="flex-1 text-xs text-[hsl(var(--primary))] hover:underline"
                 >
                   {t("notifications.bell.seeAll")}
+                </button>
+                <button
+                  onClick={() => clearAllMutation.mutate()}
+                  disabled={clearAllMutation.isPending}
+                  className="flex-1 rounded border border-[hsl(var(--border))] px-2 py-1.5 text-xs font-medium text-[hsl(var(--foreground))] transition hover:bg-[hsl(var(--surface-hover))] disabled:opacity-50"
+                >
+                  {clearAllMutation.isPending ? "..." : t("notifications.bell.clearAll")}
                 </button>
               </div>
             )}
@@ -203,6 +236,8 @@ function NotificationItem({
       if (notification.actionUrl) {
         onNavigate(notification.actionUrl);
       }
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error);
     } finally {
       setIsReading(false);
     }
@@ -211,8 +246,10 @@ function NotificationItem({
   return (
     <div
       onClick={handleClick}
-      className={`flex cursor-pointer gap-3 border-l-2 p-3 transition hover:bg-[hsl(var(--surface-hover))] ${
-        notification.readAt ? "border-transparent opacity-60" : "border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.05)]"
+      className={`flex cursor-pointer gap-3 border-l-4 p-3 transition ${
+        notification.readAt
+          ? "border-transparent bg-[hsl(var(--background))] opacity-60"
+          : "border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.08)] hover:bg-[hsl(var(--primary)/0.12)]"
       }`}
     >
       <Avatar
@@ -222,11 +259,18 @@ function NotificationItem({
         fallback={(notification.actor.displayName || notification.actor.username)[0] || "?"}
       />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-[hsl(var(--foreground))]">
-          {notification.message}
-        </p>
-        <p className="text-xs text-[hsl(var(--foreground)/0.5)]">
-          {new Date(notification.createdAt).toLocaleDateString()}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-[hsl(var(--foreground)/0.8)]">
+              {notification.actor.displayName || notification.actor.username}
+            </p>
+            <p className="text-sm font-medium text-[hsl(var(--foreground))]">
+              {notification.message}
+            </p>
+          </div>
+        </div>
+        <p className="text-xs text-[hsl(var(--foreground)/0.5)] mt-1">
+          {new Date(notification.createdAt).toLocaleString()}
         </p>
         {notification.type === "FRIEND_REQUEST" && notification.meta?.friendRequestId && (
           <FriendRequestActions requestId={notification.meta.friendRequestId} />

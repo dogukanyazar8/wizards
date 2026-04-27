@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -25,14 +24,14 @@ import type { FriendDto, PendingFriendsResponse } from "@/lib/friends/types";
 
 type UserProfilePopoverProps = {
   userId: string;
+  currentUserId: string;
   serverId?: string;
   children: React.ReactNode;
 };
 
-export function UserProfilePopover({ userId, serverId, children }: UserProfilePopoverProps) {
+export function UserProfilePopover({ userId, currentUserId, serverId, children }: UserProfilePopoverProps) {
   const { t } = useI18n();
   const router = useRouter();
-  const session = useSession();
   const queryClient = useQueryClient();
 
   const [open, setOpen] = useState(false);
@@ -41,7 +40,7 @@ export function UserProfilePopover({ userId, serverId, children }: UserProfilePo
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null);
   const [blockedByThem, setBlockedByThem] = useState(false);
 
-  const isSelf = session.data?.user?.id === userId;
+  const isSelf = currentUserId === userId;
 
   const profileQuery = useQuery({
     queryKey: ["user-profile", userId, serverId ?? null],

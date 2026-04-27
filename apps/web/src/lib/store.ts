@@ -1,16 +1,45 @@
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import {
   DEFAULT_CHANNEL_SIDEBAR_WIDTH,
+  DEFAULT_NOTIFICATION_LIMIT,
   DEFAULT_SERVER_RAIL_WIDTH,
+  MAX_NOTIFICATION_LIMIT,
+  MIN_NOTIFICATION_LIMIT,
   clampChannelSidebarWidth,
   clampServerRailWidth,
-  readStoredChannelSidebarWidth,
-  readStoredServerRailWidth,
-  writeStoredChannelSidebarWidth,
-  writeStoredServerRailWidth,
 } from "@/lib/appearance";
+import { patchLayoutSettings } from "@/lib/settings/client";
+
+export const APP_UI_STORAGE_KEY = "wizards-ui";
+
+let syncTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clampNotificationLimit(value: number) {
+  return Math.min(MAX_NOTIFICATION_LIMIT, Math.max(MIN_NOTIFICATION_LIMIT, value));
+}
+
+function scheduleSyncToDb(
+  patch: Partial<{
+    serverRailWidth: number;
+    channelSidebarWidth: number;
+    notificationLimit: number;
+    notificationAutoClose: boolean;
+  }>,
+) {
+  if (syncTimer) {
+    clearTimeout(syncTimer);
+  }
+
+  syncTimer = setTimeout(() => {
+    patchLayoutSettings(patch).catch(() => {
+      // Silent: in-memory and persisted client state already hold the value.
+    });
+  }, 500);
+}
 
 type ChannelType = "TEXT" | "VOICE";
+export type ActiveWorkspaceArea = "friends" | "dm" | "server";
 
 type ServerModalState = {
   mode: "create" | "edit";
@@ -56,9 +85,20 @@ type ServerContextMenuState = {
   y: number;
 };
 
-interface AppState {
+type PersistedRouteState = {
+  activeArea: ActiveWorkspaceArea;
   activeChannelId: string | null;
   activeServerId: string | null;
+  lastChannelByServerId: Record<string, string>;
+};
+
+type ActiveRouteUpdate = Pick<
+  PersistedRouteState,
+  "activeArea" | "activeChannelId" | "activeServerId"
+>;
+
+interface AppState extends PersistedRouteState {
+  appearanceHydrated: boolean;
   categoryModal: CategoryModalState;
   channelSidebarWidth: number;
   channelModal: ChannelModalState;
@@ -67,11 +107,19 @@ interface AppState {
   deleteServerDialog: DeleteServerDialogState;
   inviteModal: InviteModalState;
   mobileSidebarOpen: boolean;
+  notificationAutoClose: boolean;
+  notificationLimit: number;
   ready: boolean;
   serverRailWidth: number;
   serverContextMenu: ServerContextMenuState;
   serverModal: ServerModalState;
   serverSettingsServerId: string | null;
+  applyPersistedSettings: (settings: {
+    serverRailWidth: number;
+    channelSidebarWidth: number;
+    notificationLimit: number;
+    notificationAutoClose: boolean;
+  }) => void;
   closeCategoryModal: () => void;
   closeChannelModal: () => void;
   closeDeleteChannelDialog: () => void;
@@ -80,6 +128,7 @@ interface AppState {
   closeServerContextMenu: () => void;
   closeServerModal: () => void;
   closeServerSettings: () => void;
+  forgetServerState: (serverId: string) => void;
   openCategoryModal: (serverId: string) => void;
   openChannelModal: (options: {
     categoryId?: string | null;
@@ -96,13 +145,30 @@ interface AppState {
   openServerSettings: (serverId: string) => void;
   resetChannelSidebarWidth: () => void;
   resetServerRailWidth: () => void;
-  setActiveRoute: (activeServerId: string | null, activeChannelId: string | null) => void;
-  setMobileSidebarOpen: (open: boolean) => void;
-  setReady: (ready: boolean) => void;
+  resetSessionUiState: () => void;
+  setActiveRoute: (route: ActiveRouteUpdate) => void;
+  setAppearanceHydrated: (hydrated: boolean) => void;
   setChannelSidebarWidth: (width: number) => void;
+  setMobileSidebarOpen: (open: boolean) => void;
+  setNotificationAutoClose: (autoClose: boolean) => void;
+  setNotificationLimit: (limit: number) => void;
+  setReady: (ready: boolean) => void;
   setServerRailWidth: (width: number) => void;
   toggleCategoryCollapse: (serverId: string, categoryId: string) => void;
 }
+
+type PersistedAppState = Pick<
+  AppState,
+  | "activeArea"
+  | "activeChannelId"
+  | "activeServerId"
+  | "channelSidebarWidth"
+  | "collapsedCategories"
+  | "lastChannelByServerId"
+  | "notificationAutoClose"
+  | "notificationLimit"
+  | "serverRailWidth"
+>;
 
 const initialChannelModalState: ChannelModalState = {
   categoryId: null,
@@ -113,245 +179,431 @@ const initialChannelModalState: ChannelModalState = {
   type: "TEXT",
 };
 
-export const useAppStore = create<AppState>((set) => ({
-  activeChannelId: null,
-  activeServerId: null,
-  categoryModal: {
-    open: false,
-    serverId: null,
-  },
-  channelSidebarWidth: readStoredChannelSidebarWidth(),
-  channelModal: initialChannelModalState,
-  collapsedCategories: {},
-  deleteChannelDialog: {
-    channelId: null,
-    channelName: null,
-    open: false,
-  },
-  deleteServerDialog: {
-    open: false,
-    serverId: null,
-    serverName: null,
-  },
-  inviteModal: {
-    open: false,
-    serverId: null,
-  },
-  mobileSidebarOpen: false,
-  ready: false,
-  serverRailWidth: readStoredServerRailWidth(),
-  serverContextMenu: {
-    open: false,
-    serverId: null,
-    x: 0,
-    y: 0,
-  },
-  serverModal: {
-    mode: "create",
-    open: false,
-    serverId: null,
-  },
-  serverSettingsServerId: null,
-  closeCategoryModal: () =>
-    set({
-      categoryModal: {
-        open: false,
-        serverId: null,
-      },
-    }),
-  closeChannelModal: () =>
-    set({
-      channelModal: initialChannelModalState,
-    }),
-  closeDeleteChannelDialog: () =>
-    set({
-      deleteChannelDialog: {
-        channelId: null,
-        channelName: null,
-        open: false,
-      },
-    }),
-  closeDeleteServerDialog: () =>
-    set({
-      deleteServerDialog: {
-        open: false,
-        serverId: null,
-        serverName: null,
-      },
-    }),
-  closeInviteModal: () =>
-    set({
-      inviteModal: {
-        open: false,
-        serverId: null,
-      },
-    }),
-  closeServerContextMenu: () =>
-    set({
-      serverContextMenu: {
-        open: false,
-        serverId: null,
-        x: 0,
-        y: 0,
-      },
-    }),
-  closeServerModal: () =>
-    set({
-      serverModal: {
-        mode: "create",
-        open: false,
-        serverId: null,
-      },
-    }),
-  closeServerSettings: () =>
-    set({
-      serverSettingsServerId: null,
-    }),
-  openCategoryModal: (serverId) =>
-    set({
-      categoryModal: {
-        open: true,
-        serverId,
-      },
-    }),
-  openChannelModal: ({ categoryId = null, channelId = null, mode, serverId, type = "TEXT" }) =>
-    set({
-      channelModal: {
-        categoryId,
-        channelId,
-        mode,
-        open: true,
-        serverId,
-        type,
-      },
-    }),
-  openDeleteChannelDialog: (channelId, channelName) =>
-    set({
-      deleteChannelDialog: {
-        channelId,
-        channelName,
-        open: true,
-      },
-    }),
-  openDeleteServerDialog: (serverId, serverName) =>
-    set({
-      deleteServerDialog: {
-        open: true,
-        serverId,
-        serverName,
-      },
-    }),
-  openInviteModal: (serverId) =>
-    set({
-      inviteModal: {
-        open: true,
-        serverId,
-      },
-    }),
-  openServerContextMenu: (serverId, position) =>
-    set({
-      serverContextMenu: {
-        open: true,
-        serverId,
-        x: position.x,
-        y: position.y,
-      },
-    }),
-  openServerModal: ({ mode, serverId = null }) =>
-    set({
-      serverModal: {
-        mode,
-        open: true,
-        serverId,
-      },
-    }),
-  openServerSettings: (serverId) =>
-    set({
-      serverSettingsServerId: serverId,
-    }),
-  resetChannelSidebarWidth: () =>
-    set((state) => {
-      if (state.channelSidebarWidth === DEFAULT_CHANNEL_SIDEBAR_WIDTH) {
-        return state;
-      }
+function createInitialState(): Omit<
+  AppState,
+  | "applyPersistedSettings"
+  | "closeCategoryModal"
+  | "closeChannelModal"
+  | "closeDeleteChannelDialog"
+  | "closeDeleteServerDialog"
+  | "closeInviteModal"
+  | "closeServerContextMenu"
+  | "closeServerModal"
+  | "closeServerSettings"
+  | "forgetServerState"
+  | "openCategoryModal"
+  | "openChannelModal"
+  | "openDeleteChannelDialog"
+  | "openDeleteServerDialog"
+  | "openInviteModal"
+  | "openServerContextMenu"
+  | "openServerModal"
+  | "openServerSettings"
+  | "resetChannelSidebarWidth"
+  | "resetServerRailWidth"
+  | "resetSessionUiState"
+  | "setActiveRoute"
+  | "setAppearanceHydrated"
+  | "setChannelSidebarWidth"
+  | "setMobileSidebarOpen"
+  | "setNotificationAutoClose"
+  | "setNotificationLimit"
+  | "setReady"
+  | "setServerRailWidth"
+  | "toggleCategoryCollapse"
+> {
+  return {
+    activeArea: "friends",
+    activeChannelId: null,
+    activeServerId: null,
+    appearanceHydrated: false,
+    categoryModal: {
+      open: false,
+      serverId: null,
+    },
+    channelSidebarWidth: DEFAULT_CHANNEL_SIDEBAR_WIDTH,
+    channelModal: initialChannelModalState,
+    collapsedCategories: {},
+    deleteChannelDialog: {
+      channelId: null,
+      channelName: null,
+      open: false,
+    },
+    deleteServerDialog: {
+      open: false,
+      serverId: null,
+      serverName: null,
+    },
+    inviteModal: {
+      open: false,
+      serverId: null,
+    },
+    lastChannelByServerId: {},
+    mobileSidebarOpen: false,
+    notificationAutoClose: true,
+    notificationLimit: DEFAULT_NOTIFICATION_LIMIT,
+    ready: false,
+    serverContextMenu: {
+      open: false,
+      serverId: null,
+      x: 0,
+      y: 0,
+    },
+    serverModal: {
+      mode: "create",
+      open: false,
+      serverId: null,
+    },
+    serverRailWidth: DEFAULT_SERVER_RAIL_WIDTH,
+    serverSettingsServerId: null,
+  };
+}
 
-      writeStoredChannelSidebarWidth(DEFAULT_CHANNEL_SIDEBAR_WIDTH);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
-      return {
-        channelSidebarWidth: DEFAULT_CHANNEL_SIDEBAR_WIDTH,
-      };
+function sanitizeBooleanRecord(value: unknown): Record<string, boolean> {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, boolean] => typeof entry[1] === "boolean"),
+  );
+}
+
+function sanitizeStringRecord(value: unknown): Record<string, string> {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+  );
+}
+
+function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  return {
+    activeArea:
+      value.activeArea === "server" || value.activeArea === "dm" || value.activeArea === "friends"
+        ? value.activeArea
+        : "friends",
+    activeChannelId: typeof value.activeChannelId === "string" ? value.activeChannelId : null,
+    activeServerId: typeof value.activeServerId === "string" ? value.activeServerId : null,
+    channelSidebarWidth: clampChannelSidebarWidth(
+      typeof value.channelSidebarWidth === "number"
+        ? value.channelSidebarWidth
+        : DEFAULT_CHANNEL_SIDEBAR_WIDTH,
+    ),
+    collapsedCategories: sanitizeBooleanRecord(value.collapsedCategories),
+    lastChannelByServerId: sanitizeStringRecord(value.lastChannelByServerId),
+    notificationAutoClose:
+      typeof value.notificationAutoClose === "boolean" ? value.notificationAutoClose : true,
+    notificationLimit: clampNotificationLimit(
+      typeof value.notificationLimit === "number"
+        ? value.notificationLimit
+        : DEFAULT_NOTIFICATION_LIMIT,
+    ),
+    serverRailWidth: clampServerRailWidth(
+      typeof value.serverRailWidth === "number" ? value.serverRailWidth : DEFAULT_SERVER_RAIL_WIDTH,
+    ),
+  };
+}
+
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      ...createInitialState(),
+      applyPersistedSettings: (settings) =>
+        set({
+          appearanceHydrated: true,
+          channelSidebarWidth: clampChannelSidebarWidth(settings.channelSidebarWidth),
+          notificationAutoClose: settings.notificationAutoClose,
+          notificationLimit: clampNotificationLimit(settings.notificationLimit),
+          serverRailWidth: clampServerRailWidth(settings.serverRailWidth),
+        }),
+      closeCategoryModal: () =>
+        set({
+          categoryModal: {
+            open: false,
+            serverId: null,
+          },
+        }),
+      closeChannelModal: () =>
+        set({
+          channelModal: initialChannelModalState,
+        }),
+      closeDeleteChannelDialog: () =>
+        set({
+          deleteChannelDialog: {
+            channelId: null,
+            channelName: null,
+            open: false,
+          },
+        }),
+      closeDeleteServerDialog: () =>
+        set({
+          deleteServerDialog: {
+            open: false,
+            serverId: null,
+            serverName: null,
+          },
+        }),
+      closeInviteModal: () =>
+        set({
+          inviteModal: {
+            open: false,
+            serverId: null,
+          },
+        }),
+      closeServerContextMenu: () =>
+        set({
+          serverContextMenu: {
+            open: false,
+            serverId: null,
+            x: 0,
+            y: 0,
+          },
+        }),
+      closeServerModal: () =>
+        set({
+          serverModal: {
+            mode: "create",
+            open: false,
+            serverId: null,
+          },
+        }),
+      closeServerSettings: () =>
+        set({
+          serverSettingsServerId: null,
+        }),
+      forgetServerState: (serverId) =>
+        set((state) => {
+          if (!(serverId in state.lastChannelByServerId) && state.activeServerId !== serverId) {
+            return state;
+          }
+
+          const nextLastChannelByServerId = { ...state.lastChannelByServerId };
+          delete nextLastChannelByServerId[serverId];
+
+          return {
+            activeArea:
+              state.activeArea === "server" && state.activeServerId === serverId
+                ? "friends"
+                : state.activeArea,
+            activeChannelId:
+              state.activeArea === "server" && state.activeServerId === serverId
+                ? null
+                : state.activeChannelId,
+            activeServerId:
+              state.activeArea === "server" && state.activeServerId === serverId
+                ? null
+                : state.activeServerId,
+            lastChannelByServerId: nextLastChannelByServerId,
+          };
+        }),
+      openCategoryModal: (serverId) =>
+        set({
+          categoryModal: {
+            open: true,
+            serverId,
+          },
+        }),
+      openChannelModal: ({ categoryId = null, channelId = null, mode, serverId, type = "TEXT" }) =>
+        set({
+          channelModal: {
+            categoryId,
+            channelId,
+            mode,
+            open: true,
+            serverId,
+            type,
+          },
+        }),
+      openDeleteChannelDialog: (channelId, channelName) =>
+        set({
+          deleteChannelDialog: {
+            channelId,
+            channelName,
+            open: true,
+          },
+        }),
+      openDeleteServerDialog: (serverId, serverName) =>
+        set({
+          deleteServerDialog: {
+            open: true,
+            serverId,
+            serverName,
+          },
+        }),
+      openInviteModal: (serverId) =>
+        set({
+          inviteModal: {
+            open: true,
+            serverId,
+          },
+        }),
+      openServerContextMenu: (serverId, position) =>
+        set({
+          serverContextMenu: {
+            open: true,
+            serverId,
+            x: position.x,
+            y: position.y,
+          },
+        }),
+      openServerModal: ({ mode, serverId = null }) =>
+        set({
+          serverModal: {
+            mode,
+            open: true,
+            serverId,
+          },
+        }),
+      openServerSettings: (serverId) =>
+        set({
+          serverSettingsServerId: serverId,
+        }),
+      resetChannelSidebarWidth: () =>
+        set((state) => {
+          if (state.channelSidebarWidth === DEFAULT_CHANNEL_SIDEBAR_WIDTH) {
+            return state;
+          }
+
+          return {
+            channelSidebarWidth: DEFAULT_CHANNEL_SIDEBAR_WIDTH,
+          };
+        }),
+      resetServerRailWidth: () =>
+        set((state) => {
+          if (state.serverRailWidth === DEFAULT_SERVER_RAIL_WIDTH) {
+            return state;
+          }
+
+          return {
+            serverRailWidth: DEFAULT_SERVER_RAIL_WIDTH,
+          };
+        }),
+      resetSessionUiState: () =>
+        set({
+          ...createInitialState(),
+          appearanceHydrated: true,
+        }),
+      setActiveRoute: ({ activeArea, activeChannelId, activeServerId }) =>
+        set((state) => {
+          const nextLastChannelByServerId =
+            activeArea === "server" && activeServerId && activeChannelId
+              ? {
+                  ...state.lastChannelByServerId,
+                  [activeServerId]: activeChannelId,
+                }
+              : state.lastChannelByServerId;
+
+          if (
+            state.activeArea === activeArea &&
+            state.activeServerId === activeServerId &&
+            state.activeChannelId === activeChannelId &&
+            nextLastChannelByServerId === state.lastChannelByServerId
+          ) {
+            return state;
+          }
+
+          return {
+            activeArea,
+            activeChannelId,
+            activeServerId,
+            lastChannelByServerId: nextLastChannelByServerId,
+          };
+        }),
+      setAppearanceHydrated: (hydrated) =>
+        set({
+          appearanceHydrated: hydrated,
+        }),
+      setChannelSidebarWidth: (width) =>
+        set((state) => {
+          const nextWidth = clampChannelSidebarWidth(width);
+
+          if (state.channelSidebarWidth === nextWidth) {
+            return state;
+          }
+
+          scheduleSyncToDb({ channelSidebarWidth: nextWidth });
+
+          return {
+            channelSidebarWidth: nextWidth,
+          };
+        }),
+      setMobileSidebarOpen: (open) =>
+        set({
+          mobileSidebarOpen: open,
+        }),
+      setNotificationAutoClose: (autoClose) => {
+        scheduleSyncToDb({ notificationAutoClose: autoClose });
+        return set({
+          notificationAutoClose: autoClose,
+        });
+      },
+      setNotificationLimit: (limit) => {
+        const nextLimit = clampNotificationLimit(limit);
+        scheduleSyncToDb({ notificationLimit: nextLimit });
+        return set({
+          notificationLimit: nextLimit,
+        });
+      },
+      setReady: (ready) =>
+        set({
+          ready,
+        }),
+      setServerRailWidth: (width) =>
+        set((state) => {
+          const nextWidth = clampServerRailWidth(width);
+
+          if (state.serverRailWidth === nextWidth) {
+            return state;
+          }
+
+          scheduleSyncToDb({ serverRailWidth: nextWidth });
+
+          return {
+            serverRailWidth: nextWidth,
+          };
+        }),
+      toggleCategoryCollapse: (serverId, categoryId) =>
+        set((state) => {
+          const key = `${serverId}:${categoryId}`;
+
+          return {
+            collapsedCategories: {
+              ...state.collapsedCategories,
+              [key]: !state.collapsedCategories[key],
+            },
+          };
+        }),
     }),
-  resetServerRailWidth: () =>
-    set((state) => {
-      if (state.serverRailWidth === DEFAULT_SERVER_RAIL_WIDTH) {
-        return state;
-      }
-
-      writeStoredServerRailWidth(DEFAULT_SERVER_RAIL_WIDTH);
-
-      return {
-        serverRailWidth: DEFAULT_SERVER_RAIL_WIDTH,
-      };
-    }),
-  setActiveRoute: (activeServerId, activeChannelId) =>
-    set((state) => {
-      if (
-        state.activeServerId === activeServerId &&
-        state.activeChannelId === activeChannelId
-      ) {
-        return state;
-      }
-
-      return {
-        activeChannelId,
-        activeServerId,
-      };
-    }),
-  setMobileSidebarOpen: (open) =>
-    set({
-      mobileSidebarOpen: open,
-    }),
-  setReady: (ready) =>
-    set({
-      ready,
-    }),
-  setChannelSidebarWidth: (width) =>
-    set((state) => {
-      const nextWidth = clampChannelSidebarWidth(width);
-
-      if (state.channelSidebarWidth === nextWidth) {
-        return state;
-      }
-
-      writeStoredChannelSidebarWidth(nextWidth);
-
-      return {
-        channelSidebarWidth: nextWidth,
-      };
-    }),
-  setServerRailWidth: (width) =>
-    set((state) => {
-      const nextWidth = clampServerRailWidth(width);
-
-      if (state.serverRailWidth === nextWidth) {
-        return state;
-      }
-
-      writeStoredServerRailWidth(nextWidth);
-
-      return {
-        serverRailWidth: nextWidth,
-      };
-    }),
-  toggleCategoryCollapse: (serverId, categoryId) =>
-    set((state) => {
-      const key = `${serverId}:${categoryId}`;
-
-      return {
-        collapsedCategories: {
-          ...state.collapsedCategories,
-          [key]: !state.collapsedCategories[key],
-        },
-      };
-    }),
-}));
+    {
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...sanitizePersistedState(persistedState),
+      }),
+      name: APP_UI_STORAGE_KEY,
+      partialize: (state) => ({
+        activeArea: state.activeArea,
+        activeChannelId: state.activeChannelId,
+        activeServerId: state.activeServerId,
+        channelSidebarWidth: state.channelSidebarWidth,
+        collapsedCategories: state.collapsedCategories,
+        lastChannelByServerId: state.lastChannelByServerId,
+        notificationAutoClose: state.notificationAutoClose,
+        notificationLimit: state.notificationLimit,
+        serverRailWidth: state.serverRailWidth,
+      }),
+      storage: createJSONStorage(() => localStorage),
+      version: 1,
+    },
+  ),
+);
