@@ -4,25 +4,30 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { MessageItem } from "./message-item";
 import { useI18n } from "@/components/providers/locale-provider";
-import { useMessages } from "@/hooks/use-messages";
+import { useMessages, type MessageMode } from "@/hooks/use-messages";
 import { useSocket } from "@/hooks/use-socket";
 
 interface MessageListProps {
-  channelId: string;
+  conversationId: string;
+  mode: MessageMode;
   currentUserId: string;
   canModerate: boolean;
   onReply: (id: string, author: string, content: string) => void;
 }
 
 export function MessageList({
-  channelId,
+  conversationId,
+  mode,
   currentUserId,
   canModerate,
   onReply,
 }: MessageListProps) {
   const { t } = useI18n();
   const socket = useSocket();
-  const { data, error, fetchNextPage, hasNextPage, isLoading } = useMessages(channelId);
+  const { data, error, fetchNextPage, hasNextPage, isLoading } = useMessages(
+    mode,
+    conversationId,
+  );
   const [showScrollButton, setShowScrollButton] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<HTMLDivElement>(null);
@@ -35,13 +40,19 @@ export function MessageList({
       }
     });
 
-    if (observerRef.current) observer.observe(observerRef.current);
+    if (observerRef.current) {
+      observer.observe(observerRef.current);
+    }
+
     return () => observer.disconnect();
-  }, [hasNextPage, isLoading, fetchNextPage]);
+  }, [fetchNextPage, hasNextPage, isLoading]);
 
   useEffect(() => {
-    if (!data?.pages) return;
-    const allMessages = data.pages.flatMap((p) => p.messages) ?? [];
+    if (!data?.pages) {
+      return;
+    }
+
+    const allMessages = data.pages.flatMap((page) => page.messages) ?? [];
     if (allMessages.length > lastMessageCountRef.current) {
       lastMessageCountRef.current = allMessages.length;
       setTimeout(() => {
@@ -54,49 +65,62 @@ export function MessageList({
   }, [data?.pages]);
 
   const handleScroll = useCallback(() => {
-    if (listRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = listRef.current;
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-      setShowScrollButton(!isNearBottom);
+    if (!listRef.current) {
+      return;
     }
+
+    const { scrollTop, scrollHeight, clientHeight } = listRef.current;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    setShowScrollButton(!isNearBottom);
   }, []);
 
   const scrollToBottom = useCallback(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
-      setShowScrollButton(false);
+    if (!listRef.current) {
+      return;
     }
+
+    listRef.current.scrollTop = listRef.current.scrollHeight;
+    setShowScrollButton(false);
   }, []);
 
   const allMessages = useMemo(
-    () => (data?.pages ? [...data.pages].reverse().flatMap((p) => p.messages) : []),
+    () => (data?.pages ? [...data.pages].reverse().flatMap((page) => page.messages) : []),
     [data?.pages],
   );
 
   const groupedMessages = useMemo(
     () =>
-      allMessages.map((msg, i) => {
-        const prev = allMessages[i - 1];
-        const isGrouped: boolean =
-          i > 0 &&
-          prev !== undefined &&
-          msg.type === "DEFAULT" &&
-          prev.type === "DEFAULT" &&
-          prev.author.id === msg.author.id &&
-          new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < 7 * 60 * 1000;
+      allMessages.map((message, index) => {
+        const previousMessage = allMessages[index - 1];
+        const isGrouped =
+          index > 0 &&
+          previousMessage !== undefined &&
+          message.type === "DEFAULT" &&
+          previousMessage.type === "DEFAULT" &&
+          previousMessage.author.id === message.author.id &&
+          new Date(message.createdAt).getTime() -
+            new Date(previousMessage.createdAt).getTime() <
+            7 * 60 * 1000;
         const showGroupSeparator =
-          i > 0 && !isGrouped && msg.type === "DEFAULT" && prev?.type === "DEFAULT";
+          index > 0 &&
+          !isGrouped &&
+          message.type === "DEFAULT" &&
+          previousMessage?.type === "DEFAULT";
 
-        return { message: msg, isGrouped, showGroupSeparator };
+        return { isGrouped, message, showGroupSeparator };
       }),
     [allMessages],
   );
 
   const handleReact = useCallback(
     (messageId: string) => {
-      socket.emit("message:react", { messageId, emoji: "👍" });
+      if (mode !== "channel") {
+        return;
+      }
+
+      socket.emit("message:react", { messageId, emoji: "+1" });
     },
-    [socket],
+    [mode, socket],
   );
 
   const handleReply = useCallback(
@@ -110,37 +134,38 @@ export function MessageList({
     <div
       ref={listRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto bg-app-background space-y-0"
+      className="flex-1 space-y-0 overflow-y-auto bg-app-background"
     >
       <div ref={observerRef} className="h-1" />
 
-      {isLoading && allMessages.length === 0 && (
-        <div className="flex items-center justify-center h-full text-app-muted">
+      {isLoading && allMessages.length === 0 ? (
+        <div className="flex h-full items-center justify-center text-app-muted">
           <div className="animate-pulse">{t("chat.list.loading")}</div>
         </div>
-      )}
+      ) : null}
 
-      {error && !isLoading && (
-        <div className="flex items-center justify-center h-full text-app-muted">
+      {error && !isLoading ? (
+        <div className="flex h-full items-center justify-center text-app-muted">
           <div className="text-center">
             <p className="text-sm">{t("chat.list.errorTitle")}</p>
             <p className="text-xs">{t("chat.list.errorDescription")}</p>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {!error && allMessages.length === 0 && !isLoading && (
-        <div className="flex items-center justify-center h-full text-app-muted">
+      {!error && allMessages.length === 0 && !isLoading ? (
+        <div className="flex h-full items-center justify-center text-app-muted">
           <div className="text-center">
             <p className="text-sm">{t("chat.list.emptyTitle")}</p>
             <p className="text-xs">{t("chat.list.emptyDescription")}</p>
           </div>
         </div>
-      )}
+      ) : null}
 
       {groupedMessages.map(({ message, isGrouped, showGroupSeparator }) => (
         <MessageItem
           key={message.id}
+          mode={mode}
           message={message}
           isGrouped={isGrouped}
           showGroupSeparator={showGroupSeparator}
@@ -151,15 +176,16 @@ export function MessageList({
         />
       ))}
 
-      {showScrollButton && (
+      {showScrollButton ? (
         <button
           onClick={scrollToBottom}
-          className="fixed bottom-24 right-8 rounded-full bg-[hsl(var(--primary))] p-2 text-[hsl(var(--primary-foreground))] shadow-lg transition hover:bg-[hsl(var(--primary)/0.9)]"
+          className="fixed bottom-24 right-8 rounded-full bg-[hsl(var(--primary))] p-2 text-[hsl(var(--primary-foreground))] shadow-lg transition hover:bg-[hsl(var(--primary)/0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
           aria-label={t("chat.list.scrollToLatest")}
+          type="button"
         >
           <ChevronDown className="h-5 w-5" />
         </button>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -1,31 +1,74 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { MessageSquareMore, Users } from "lucide-react";
+import { MessageSquareMore, Users, X } from "lucide-react";
+import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
+import { useDMConversations } from "@/hooks/use-dm-conversations";
+import {
+  findOtherParticipant,
+  getConversationPreview,
+} from "@/lib/dm/client";
 import { fetchPendingFriends, friendsQueryKeys } from "@/lib/friends/client";
 
 type FriendsSidebarProps = {
+  currentUserId: string;
   onNavigate: (href: string) => void;
   onPrefetch?: ((href: string) => void) | undefined;
 };
 
-export function FriendsSidebar({ onNavigate, onPrefetch }: FriendsSidebarProps) {
+function getStatusDotClass(status: "ONLINE" | "IDLE" | "DND" | "OFFLINE") {
+  if (status === "ONLINE") {
+    return "bg-[hsl(var(--success))]";
+  }
+
+  if (status === "IDLE") {
+    return "bg-[hsl(42_96%_56%)]";
+  }
+
+  if (status === "DND") {
+    return "bg-[hsl(var(--danger))]";
+  }
+
+  return "bg-[hsl(var(--text-soft))]";
+}
+
+export function FriendsSidebar({
+  currentUserId,
+  onNavigate,
+  onPrefetch,
+}: FriendsSidebarProps) {
   const { t } = useI18n();
+  const params = useParams<{ channelId?: string; serverId?: string }>();
+  const activeConversationId =
+    params.serverId === "@me" && typeof params.channelId === "string"
+      ? params.channelId
+      : null;
   const pendingQuery = useQuery({
     queryFn: fetchPendingFriends,
     queryKey: friendsQueryKeys.pending,
     staleTime: 30_000,
   });
+  const {
+    conversations,
+    hideConversation,
+    isHidingConversation,
+    isLoading: conversationsLoading,
+  } = useDMConversations(currentUserId);
 
   const incomingCount = pendingQuery.data?.incoming.length ?? 0;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <button
-        aria-current="page"
-        className="app-panel flex items-center justify-between rounded-[24px] border px-4 py-3 text-left transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+        aria-current={activeConversationId ? undefined : "page"}
+        className={`app-panel flex items-center justify-between rounded-[24px] border px-4 py-3 text-left transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] ${
+          activeConversationId
+            ? ""
+            : "border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.12)]"
+        }`}
         onClick={() => onNavigate("/channels/@me")}
         onMouseEnter={() => onPrefetch?.("/channels/@me")}
         type="button"
@@ -48,8 +91,103 @@ export function FriendsSidebar({ onNavigate, onPrefetch }: FriendsSidebarProps) 
             {t("friends.sidebar.directMessages")}
           </p>
         </div>
-        <div className="mt-4 flex min-h-0 flex-1 items-center justify-center rounded-[24px] border border-dashed border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] px-4 py-6 text-center text-app-muted text-sm leading-6">
-          {t("friends.sidebar.directMessagesPlaceholder")}
+
+        <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
+          {conversationsLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  className="rounded-[20px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.28)] p-3"
+                  key={index}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 animate-pulse rounded-full bg-[hsl(var(--surface-soft))]" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="h-3 w-24 animate-pulse rounded-full bg-[hsl(var(--surface-soft))]" />
+                      <div className="h-3 w-32 animate-pulse rounded-full bg-[hsl(var(--surface-soft))]" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : conversations.length === 0 ? (
+            <div className="flex min-h-full items-center justify-center rounded-[24px] border border-dashed border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] px-4 py-6 text-center text-sm leading-6 text-app-muted">
+              {t("dm.sidebar.empty")}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {conversations.map((conversation) => {
+                const otherParticipant = findOtherParticipant(conversation, currentUserId);
+                const unreadCount =
+                  conversation.participants.find(
+                    (participant) => participant.userId === currentUserId,
+                  )?.unreadCount ?? 0;
+                const displayName =
+                  conversation.name ??
+                  otherParticipant?.displayName ??
+                  otherParticipant?.username ??
+                  t("dm.sidebar.unknownUser");
+                const preview = conversation.lastMessage
+                  ? getConversationPreview(conversation, 40)
+                  : t("dm.sidebar.emptyConversation");
+                const isActive = activeConversationId === conversation.id;
+
+                return (
+                  <div className="group relative" key={conversation.id}>
+                    <button
+                      aria-current={isActive ? "page" : undefined}
+                      className={`flex w-full items-center gap-3 rounded-[22px] border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] ${
+                        isActive
+                          ? "border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.12)]"
+                          : "border-transparent hover:border-[hsl(var(--border)/0.72)] hover:bg-[hsl(var(--surface-soft)/0.28)]"
+                      }`}
+                      onClick={() => onNavigate(`/channels/@me/${conversation.id}`)}
+                      onMouseEnter={() => onPrefetch?.(`/channels/@me/${conversation.id}`)}
+                      type="button"
+                    >
+                      <div className="relative">
+                        <Avatar
+                          alt={displayName}
+                          className="h-10 w-10 text-sm"
+                          fallback={displayName}
+                          src={otherParticipant?.avatarUrl}
+                        />
+                        <span
+                          aria-hidden="true"
+                          className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-[hsl(var(--surface-card))] ${getStatusDotClass(otherParticipant?.status ?? "OFFLINE")}`}
+                        />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-app-foreground truncate text-sm font-semibold">
+                            {displayName}
+                          </p>
+                          {unreadCount > 0 ? <Badge>{unreadCount}</Badge> : null}
+                        </div>
+                        <p className="mt-1 truncate text-xs text-app-muted">{preview}</p>
+                      </div>
+                    </button>
+
+                    <button
+                      aria-label={t("dm.sidebar.hideConversation", {
+                        name: displayName,
+                      })}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.92)] p-1.5 text-app-muted opacity-0 shadow-[0_10px_22px_hsl(var(--shadow-color)/0.12)] transition hover:text-[hsl(var(--foreground))] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] group-hover:opacity-100"
+                      disabled={isHidingConversation}
+                      onClick={async (event) => {
+                        event.stopPropagation();
+                        await hideConversation(conversation.id);
+                      }}
+                      type="button"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

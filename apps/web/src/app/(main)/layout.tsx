@@ -17,6 +17,7 @@ export default async function MainLayout({ children }: { children: ReactNode }) 
       <ThemeSessionSync preferredTheme={session.user.theme} />
       <WizardsShell
         currentUser={{
+          id: session.user.id,
           avatarUrl: session.user.avatarUrl ?? session.user.image ?? null,
           displayName,
           username,

@@ -1,5 +1,6 @@
 import type {
   ChatMessage,
+  DMConversationDTO,
   DMMessagePayload,
   MessageReaction,
 } from "@wizards/types";
@@ -76,6 +77,8 @@ export interface ServerToClientEvents {
     lastMessageAt: string;
     preview: string;
     hiddenAt: null;
+    unreadCount: number;
+    conversation: DMConversationDTO;
   }) => void;
   "dm:error": (data: {
     code:

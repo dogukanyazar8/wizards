@@ -46,6 +46,7 @@ import { logoutAction } from "@/lib/auth/actions";
 type ChannelSidebarProps = {
   activeChannelId: string | null;
   currentUser: {
+    id: string;
     avatarUrl?: string | null;
     displayName: string;
     username: string;
@@ -125,6 +126,7 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
 
 type UserProfileFooterProps = {
   user: {
+    id: string;
     avatarUrl?: string | null;
     displayName: string;
     username: string;
@@ -367,7 +369,11 @@ export function ChannelSidebar({
   if (!detail) {
     return (
       <aside className="app-sidebar flex h-full w-full flex-col justify-between p-4">
-        <FriendsSidebar onNavigate={onNavigate} onPrefetch={onPrefetch} />
+        <FriendsSidebar
+          currentUserId={currentUser.id}
+          onNavigate={onNavigate}
+          onPrefetch={onPrefetch}
+        />
         <UserProfileFooter user={currentUser} onOpenAppearanceSettings={onOpenSettings} />
       </aside>
     );

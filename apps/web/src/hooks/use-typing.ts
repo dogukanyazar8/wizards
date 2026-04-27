@@ -2,31 +2,58 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSocket } from "./use-socket";
+import type { MessageMode } from "./use-messages";
 
-export function useTyping(channelId: string) {
+export function useTyping(conversationId: string, mode: MessageMode = "channel") {
   const socket = useSocket();
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
 
   const startTyping = useCallback(() => {
-    socket.emit("typing:start", channelId);
-  }, [channelId, socket]);
+    if (mode === "channel") {
+      socket.emit("typing:start", conversationId);
+      return;
+    }
+
+    socket.emit("dm:typing:start", { conversationId });
+  }, [conversationId, mode, socket]);
 
   const stopTyping = useCallback(() => {
-    socket.emit("typing:stop", channelId);
-  }, [channelId, socket]);
+    if (mode === "channel") {
+      socket.emit("typing:stop", conversationId);
+      return;
+    }
+
+    socket.emit("dm:typing:stop", { conversationId });
+  }, [conversationId, mode, socket]);
 
   useEffect(() => {
-    const handleTypingUpdate = (data: { channelId: string; users: string[] }) => {
-      if (data.channelId === channelId) {
-        setTypingUsers(data.users);
+    if (mode === "channel") {
+      const handleTypingUpdate = (data: { channelId: string; users: string[] }) => {
+        if (data.channelId === conversationId) {
+          setTypingUsers(data.users);
+        }
+      };
+
+      socket.on("typing:update", handleTypingUpdate);
+      return () => {
+        socket.off("typing:update", handleTypingUpdate);
+      };
+    }
+
+    const handleTypingUpdate = (data: {
+      conversationId: string;
+      typingUsers: Array<{ userId: string; username: string }>;
+    }) => {
+      if (data.conversationId === conversationId) {
+        setTypingUsers(data.typingUsers.map((user) => user.username));
       }
     };
 
-    socket.on("typing:update", handleTypingUpdate);
+    socket.on("dm:typing:update", handleTypingUpdate);
     return () => {
-      socket.off("typing:update", handleTypingUpdate);
+      socket.off("dm:typing:update", handleTypingUpdate);
     };
-  }, [channelId, socket]);
+  }, [conversationId, mode, socket]);
 
   return { typingUsers, startTyping, stopTyping };
 }

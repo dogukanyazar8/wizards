@@ -27,6 +27,7 @@ import {
 type WizardsShellProps = {
   children?: React.ReactNode;
   currentUser: {
+    id: string;
     avatarUrl?: string | null;
     displayName: string;
     username: string;
@@ -71,6 +72,7 @@ interface NavigationPanelProps {
   serverDetailQueryData: Awaited<ReturnType<typeof fetchWorkspaceServer>> | undefined | null;
   serverDetailQueryLoading: boolean;
   currentUser: {
+    id: string;
     avatarUrl?: string | null;
     displayName: string;
     username: string;

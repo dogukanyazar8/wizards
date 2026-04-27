@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth/utils";
 import { prisma } from "@wizards/db";
 import { ChatArea } from "@/components/chat/chat-area";
+import { DMConversationPage } from "@/components/dm/dm-conversation-page";
 
 const SERVER_ADMIN_PERMISSION =
   (1n << 0n) |
@@ -34,13 +35,30 @@ type PageParams = {
 export default async function ChannelPage({ params }: PageParams) {
   const session = await requireAuth();
   const { serverId, channelId } = await params;
+  const normalizedServerId = decodeURIComponent(serverId);
+
+  const currentUserDisplayName =
+    session.user.displayName ?? session.user.username ?? session.user.email ?? "Wizard";
+  const currentUserUsername =
+    session.user.username ?? session.user.email?.split("@")[0] ?? "wizard";
+
+  if (normalizedServerId === "@me") {
+    return (
+      <DMConversationPage
+        conversationId={channelId}
+        currentUserDisplayName={currentUserDisplayName}
+        currentUserId={session.user.id}
+        currentUserUsername={currentUserUsername}
+      />
+    );
+  }
 
   const [channel, membership] = await Promise.all([
     prisma.channel.findFirst({
       where: {
         id: channelId,
         parentId: null,
-        serverId,
+        serverId: normalizedServerId,
       },
       select: {
         id: true,
@@ -48,7 +66,7 @@ export default async function ChannelPage({ params }: PageParams) {
     }),
     prisma.serverMember.findFirst({
       where: {
-        serverId,
+        serverId: normalizedServerId,
         userId: session.user.id,
       },
       select: {
@@ -71,17 +89,16 @@ export default async function ChannelPage({ params }: PageParams) {
   }
 
   if (!channel) {
-    redirect(`/channels/${serverId}`);
+    redirect(`/channels/${normalizedServerId}`);
   }
-
-  const currentUserDisplayName =
-    session.user.displayName ?? session.user.username ?? session.user.email ?? "Wizard";
 
   return (
     <ChatArea
-      channelId={channelId}
+      conversationId={channelId}
+      mode="channel"
       currentUserId={session.user.id}
       currentUserDisplayName={currentUserDisplayName}
+      currentUserUsername={currentUserUsername}
       canModerate={hasAdminAccess(membership.roles)}
     />
   );

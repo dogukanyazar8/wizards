@@ -1,20 +1,25 @@
-import type { DMMessagePayload } from "@wizards/types";
+import type {
+  DMConversationDTO,
+  DMMessagePayload,
+  DMParticipantDTO,
+} from "@wizards/types";
 import { prisma, type Prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { areFriends, getBlockStatus } from "@/lib/friends/helpers";
+import { getRedis } from "@/lib/redis";
 import { normalizeAppLocale, translate } from "@/lib/locale";
-import type {
-  DMConversationDTO,
-  DMConversationTypeDto,
-  DMMessagesResponse,
-  DMParticipantDTO,
-} from "./types";
+import type { DMMessagesResponse } from "./types";
 
 export const dmAuthorSelect = {
   id: true,
   username: true,
   displayName: true,
   avatarUrl: true,
+} as const;
+
+const dmParticipantUserSelect = {
+  ...dmAuthorSelect,
+  customStatus: true,
 } as const;
 
 export const dmNotificationUserSelect = {
@@ -56,7 +61,7 @@ const dmConversationInclude = {
       userId: true,
       unreadCount: true,
       hiddenAt: true,
-      user: { select: dmAuthorSelect },
+      user: { select: dmParticipantUserSelect },
     },
   },
   messages: {
@@ -101,7 +106,120 @@ type RawDMConversation = Prisma.DMConversationGetPayload<{
   include: typeof dmConversationInclude;
 }>;
 
-function normalizeConversationType(type: string): DMConversationTypeDto {
+const DM_PRESENCE_STATUSES = ["ONLINE", "IDLE", "DND", "OFFLINE", "INVISIBLE"] as const;
+
+type RedisPresenceStatus = (typeof DM_PRESENCE_STATUSES)[number];
+
+type PresenceFields = Pick<DMParticipantDTO, "customStatus" | "status">;
+
+function isPresenceStatus(value: string): value is RedisPresenceStatus {
+  return DM_PRESENCE_STATUSES.includes(value as RedisPresenceStatus);
+}
+
+function normalizePresenceStatus(value: unknown): RedisPresenceStatus | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toUpperCase();
+  return isPresenceStatus(normalized) ? normalized : null;
+}
+
+function toVisiblePresenceStatus(
+  status: RedisPresenceStatus | null,
+): DMParticipantDTO["status"] | null {
+  if (!status) {
+    return null;
+  }
+
+  return status === "INVISIBLE" ? "OFFLINE" : status;
+}
+
+function normalizeNullableString(value: unknown): string | null | undefined {
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parsePresenceRecord(
+  record: Record<string, unknown>,
+  fallback: PresenceFields,
+): PresenceFields {
+  const customStatus = normalizeNullableString(record.customStatus);
+  const customStatusSnake = normalizeNullableString(record.custom_status);
+
+  return {
+    status:
+      toVisiblePresenceStatus(normalizePresenceStatus(record.status)) ??
+      toVisiblePresenceStatus(normalizePresenceStatus(record.presence)) ??
+      fallback.status,
+    customStatus:
+      customStatus !== undefined
+        ? customStatus
+        : customStatusSnake !== undefined
+          ? customStatusSnake
+          : fallback.customStatus,
+  };
+}
+
+function parsePresencePayload(rawValue: string | null, fallback: PresenceFields): PresenceFields {
+  if (!rawValue) {
+    return fallback;
+  }
+
+  const directStatus = normalizePresenceStatus(rawValue);
+  if (directStatus) {
+    return {
+      ...fallback,
+      status: toVisiblePresenceStatus(directStatus) ?? fallback.status,
+    };
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(rawValue);
+    if (isRecord(parsed)) {
+      return parsePresenceRecord(parsed, fallback);
+    }
+  } catch {
+    return fallback;
+  }
+
+  return fallback;
+}
+
+async function readPresence(userId: string, fallback: PresenceFields): Promise<PresenceFields> {
+  const redis = getRedis();
+  const key = `presence:${userId}`;
+
+  try {
+    const keyType = await redis.type(key);
+
+    if (keyType === "string") {
+      return parsePresencePayload(await redis.get(key), fallback);
+    }
+
+    if (keyType === "hash") {
+      return parsePresenceRecord(await redis.hgetall(key), fallback);
+    }
+  } catch {
+    return fallback;
+  }
+
+  return fallback;
+}
+
+function normalizeConversationType(type: string): DMConversationDTO["type"] {
   return type === "GROUP_DM" ? "GROUP_DM" : "DM";
 }
 
@@ -112,13 +230,23 @@ export function getDMDisplayName(user: {
   return user.displayName ?? user.username;
 }
 
-function mapDMParticipant(participant: RawDMConversation["participants"][number]): DMParticipantDTO {
+async function mapDMParticipant(
+  participant: RawDMConversation["participants"][number],
+): Promise<DMParticipantDTO> {
+  const presence = await readPresence(participant.userId, {
+    status: "OFFLINE",
+    customStatus: participant.user.customStatus,
+  });
+
   return {
     userId: participant.userId,
     username: participant.user.username,
     displayName: participant.user.displayName,
     avatarUrl: participant.user.avatarUrl,
     unreadCount: participant.unreadCount,
+    status: presence.status,
+    customStatus: presence.customStatus,
+    presence,
   };
 }
 
@@ -208,17 +336,17 @@ function mapConversationLastMessage(
   };
 }
 
-export function mapDMConversationDTO(
+export async function mapDMConversationDTO(
   conversation: RawDMConversation,
   viewerId: string,
   deletedMessageLabel: string,
-): DMConversationDTO {
+): Promise<DMConversationDTO> {
   return {
     id: conversation.id,
     type: normalizeConversationType(conversation.type),
     name: resolveConversationName(conversation, viewerId),
     lastMessageAt: conversation.lastMessageAt.toISOString(),
-    participants: conversation.participants.map(mapDMParticipant),
+    participants: await Promise.all(conversation.participants.map(mapDMParticipant)),
     lastMessage: mapConversationLastMessage(conversation, deletedMessageLabel),
   };
 }
@@ -314,7 +442,7 @@ export async function createOrOpenDirectMessage(
       });
     }
 
-    return mapDMConversationDTO(existingConversation, userId, deletedMessageLabel);
+    return await mapDMConversationDTO(existingConversation, userId, deletedMessageLabel);
   }
 
   const conversation = await prisma.dMConversation.create({
@@ -327,7 +455,7 @@ export async function createOrOpenDirectMessage(
     include: dmConversationInclude,
   });
 
-  return mapDMConversationDTO(conversation, userId, deletedMessageLabel);
+  return await mapDMConversationDTO(conversation, userId, deletedMessageLabel);
 }
 
 export async function listDirectMessages(userId: string): Promise<DMConversationDTO[]> {
@@ -343,7 +471,7 @@ export async function listDirectMessages(userId: string): Promise<DMConversation
     }),
   ]);
 
-  return participations
+  const visibleParticipations = participations
     .filter(
       (participant) =>
         participant.hiddenAt === null ||
@@ -353,10 +481,32 @@ export async function listDirectMessages(userId: string): Promise<DMConversation
       (left, right) =>
         right.conversation.lastMessageAt.getTime() -
         left.conversation.lastMessageAt.getTime(),
-    )
-    .map((participant) =>
-      mapDMConversationDTO(participant.conversation, userId, deletedMessageLabel),
     );
+
+  return Promise.all(
+    visibleParticipations.map((participant) =>
+      mapDMConversationDTO(participant.conversation, userId, deletedMessageLabel),
+    ),
+  );
+}
+
+export async function getDirectMessageConversationForUser(
+  conversationId: string,
+  userId: string,
+): Promise<DMConversationDTO> {
+  const [deletedMessageLabel, conversation] = await Promise.all([
+    getDeletedMessageLabel(userId),
+    prisma.dMConversation.findUnique({
+      where: { id: conversationId },
+      include: dmConversationInclude,
+    }),
+  ]);
+
+  if (!conversation) {
+    throw new ApiError("Conversation not found", 404, "NOT_FOUND");
+  }
+
+  return mapDMConversationDTO(conversation, userId, deletedMessageLabel);
 }
 
 export async function listDMMessages(

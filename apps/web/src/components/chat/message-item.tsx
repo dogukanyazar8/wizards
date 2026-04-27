@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { UserMinus, UserPlus } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { MessageMode } from "@/hooks/use-messages";
 import { Avatar } from "@/components/ui/avatar";
 import { MessageEditor } from "./message-editor";
 import { MessageToolbar } from "./message-toolbar";
@@ -13,6 +14,7 @@ import type { ChatMessage } from "@wizards/types";
 import { cn } from "@/lib/utils";
 
 interface MessageItemProps {
+  mode: MessageMode;
   message: ChatMessage;
   isGrouped: boolean;
   showGroupSeparator: boolean;
@@ -24,6 +26,7 @@ interface MessageItemProps {
 
 export const MessageItem = React.memo(
   function MessageItem({
+    mode,
     message,
     isGrouped,
     showGroupSeparator,
@@ -45,14 +48,25 @@ export const MessageItem = React.memo(
 
     const handleEdit = (newContent: string) => {
       if (newContent.trim()) {
-        socket.emit("message:edit", { messageId: message.id, content: newContent.trim() });
+        if (mode === "channel") {
+          socket.emit("message:edit", { messageId: message.id, content: newContent.trim() });
+        } else {
+          socket.emit("dm:message:edit", {
+            messageId: message.id,
+            content: newContent.trim(),
+          });
+        }
       }
       setIsEditing(false);
     };
 
     const handleDelete = () => {
       if (window.confirm(t("chat.message.deleteConfirm"))) {
-        socket.emit("message:delete", message.id);
+        if (mode === "channel") {
+          socket.emit("message:delete", message.id);
+        } else {
+          socket.emit("dm:message:delete", { messageId: message.id });
+        }
       }
     };
 
@@ -170,6 +184,7 @@ export const MessageItem = React.memo(
               <div className="pointer-events-none absolute right-0 top-0 flex w-24 justify-end opacity-0 transition group-hover:opacity-100 md:w-32">
                 {!isOptimistic ? (
                   <MessageToolbar
+                    allowReact={mode === "channel"}
                     className="pointer-events-auto"
                     messageId={message.id}
                     isOwner={isOwner}
@@ -188,6 +203,7 @@ export const MessageItem = React.memo(
     );
   },
   (prev, next) =>
+    prev.mode === next.mode &&
     prev.message.id === next.message.id &&
     prev.message.content === next.message.content &&
     prev.message.reactions === next.message.reactions &&

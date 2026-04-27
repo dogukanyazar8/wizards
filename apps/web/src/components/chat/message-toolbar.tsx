@@ -4,6 +4,7 @@ import { MessageCircle, Trash2, Pencil, SmilePlus } from "lucide-react";
 import { useI18n } from "@/components/providers/locale-provider";
 
 interface MessageToolbarProps {
+  allowReact?: boolean;
   className?: string;
   messageId: string;
   isOwner: boolean;
@@ -15,6 +16,7 @@ interface MessageToolbarProps {
 }
 
 export function MessageToolbar({
+  allowReact = true,
   className,
   isOwner,
   canModerate,
@@ -27,14 +29,16 @@ export function MessageToolbar({
 
   return (
     <div className={`bg-app-panel border-app-border flex items-center gap-1 rounded-full border px-2 py-1 shadow-[0_14px_32px_hsl(var(--shadow-color)/0.14)] ${className ?? ""}`}>
-      <button
-        onClick={onReact}
-        title={t("chat.message.react")}
-        className="p-1 hover:bg-app-surface-soft rounded transition"
-        aria-label={t("chat.message.addReaction")}
-      >
-        <SmilePlus className="h-4 w-4 text-app-muted hover:text-app-foreground" />
-      </button>
+      {allowReact ? (
+        <button
+          onClick={onReact}
+          title={t("chat.message.react")}
+          className="p-1 hover:bg-app-surface-soft rounded transition"
+          aria-label={t("chat.message.addReaction")}
+        >
+          <SmilePlus className="h-4 w-4 text-app-muted hover:text-app-foreground" />
+        </button>
+      ) : null}
 
       <button
         onClick={onReply}

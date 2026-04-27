@@ -1,30 +1,27 @@
-import type { DMMessagePayload } from "@wizards/types";
+import type {
+  DMConversationDTO,
+  DMParticipantDTO,
+  DMMessagePayload,
+} from "@wizards/types";
+import {
+  DMConversationDTOSchema,
+  DMMessagePayloadSchema,
+} from "@wizards/types";
 import { z } from "zod";
 
-export type DMConversationTypeDto = "DM" | "GROUP_DM";
 export type DMErrorCode = "NOT_FRIENDS" | "BLOCKED" | "NOT_FOUND";
-
-export interface DMParticipantDTO {
-  userId: string;
-  username: string;
-  displayName: string | null;
-  avatarUrl: string | null;
-  unreadCount: number;
-}
-
-export interface DMConversationDTO {
-  id: string;
-  type: DMConversationTypeDto;
-  name: string | null;
-  lastMessageAt: string;
-  participants: DMParticipantDTO[];
-  lastMessage: DMMessagePayload | null;
-}
 
 export interface DMMessagesResponse {
   messages: DMMessagePayload[];
   nextCursor: string | null;
 }
+
+export const DMMessagesResponseSchema = z.object({
+  messages: z.array(DMMessagePayloadSchema),
+  nextCursor: z.string().nullable(),
+});
+
+export const DMConversationsResponseSchema = z.array(DMConversationDTOSchema);
 
 export const CreateDMBodySchema = z.object({
   userId: z.string().min(1),
@@ -41,3 +38,4 @@ export const DMMessagesQuerySchema = z.object({
 
 export type CreateDMBody = z.infer<typeof CreateDMBodySchema>;
 export type DMMessagesQuery = z.infer<typeof DMMessagesQuerySchema>;
+export type { DMConversationDTO, DMParticipantDTO };

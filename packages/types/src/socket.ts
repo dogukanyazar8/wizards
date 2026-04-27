@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+export type DMPresenceStatus = "ONLINE" | "IDLE" | "DND" | "OFFLINE";
+export type DMConversationType = "DM" | "GROUP_DM";
+
+export interface DMPresence {
+  status: DMPresenceStatus;
+  customStatus: string | null;
+}
+
 export interface DMMessageAuthorPayload {
   id: string;
   username: string;
@@ -30,6 +38,32 @@ export interface DMMessagePayload {
   attachments: DMMessageAttachmentPayload[];
   replyTo: DMMessagePayload | null;
 }
+
+export interface DMParticipantDTO extends DMPresence {
+  userId: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  unreadCount: number;
+  presence: DMPresence;
+}
+
+export interface DMConversationDTO {
+  id: string;
+  type: DMConversationType;
+  name: string | null;
+  lastMessageAt: string;
+  participants: DMParticipantDTO[];
+  lastMessage: DMMessagePayload | null;
+}
+
+export const DMPresenceStatusSchema = z.enum(["ONLINE", "IDLE", "DND", "OFFLINE"]);
+export const DMConversationTypeSchema = z.enum(["DM", "GROUP_DM"]);
+
+export const DMPresenceSchema = z.object({
+  status: DMPresenceStatusSchema,
+  customStatus: z.string().nullable(),
+});
 
 export const DMMessageAuthorSchema = z.object({
   id: z.string(),
@@ -63,3 +97,23 @@ export const DMMessagePayloadSchema: z.ZodType<DMMessagePayload> = z.lazy(() =>
     replyTo: DMMessagePayloadSchema.nullable(),
   }),
 );
+
+export const DMParticipantDTOSchema: z.ZodType<DMParticipantDTO> = z.object({
+  userId: z.string(),
+  username: z.string(),
+  displayName: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+  unreadCount: z.number().int().nonnegative(),
+  status: DMPresenceStatusSchema,
+  customStatus: z.string().nullable(),
+  presence: DMPresenceSchema,
+});
+
+export const DMConversationDTOSchema: z.ZodType<DMConversationDTO> = z.object({
+  id: z.string(),
+  type: DMConversationTypeSchema,
+  name: z.string().nullable(),
+  lastMessageAt: z.string(),
+  participants: z.array(DMParticipantDTOSchema),
+  lastMessage: DMMessagePayloadSchema.nullable(),
+});

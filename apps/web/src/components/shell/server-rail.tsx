@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { MessageCircleMore, Plus } from "lucide-react";
 import type { WorkspaceServerSummary } from "@wizards/types";
@@ -28,6 +30,8 @@ export function ServerRail({
   servers,
 }: ServerRailProps) {
   const { t } = useI18n();
+  const addBtnRef = useRef<HTMLButtonElement>(null);
+  const [addTooltipPos, setAddTooltipPos] = useState<{ top: number; left: number } | null>(null);
 
   if (loading) {
     return (
@@ -70,19 +74,40 @@ export function ServerRail({
 
       {/* Add server */}
       <motion.button
+        ref={addBtnRef}
         aria-label={t("shell.serverRail.createServer")}
         className="group relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[22px] border border-[hsl(var(--success)/0.22)] bg-[hsl(var(--success)/0.12)] text-[hsl(var(--success))] outline-none transition hover:rounded-[18px] hover:bg-[hsl(var(--success)/0.2)] focus-visible:ring-2 focus-visible:ring-[hsl(var(--success)/0.55)]"
         onClick={onOpenCreateServer}
-        title={t("shell.serverRail.createServer")}
+        onMouseEnter={() => {
+          if (!addBtnRef.current) return;
+          const r = addBtnRef.current.getBoundingClientRect();
+          setAddTooltipPos({ top: r.top + r.height / 2, left: r.right + 12 });
+        }}
+        onMouseLeave={() => setAddTooltipPos(null)}
+        onFocus={() => {
+          if (!addBtnRef.current) return;
+          const r = addBtnRef.current.getBoundingClientRect();
+          setAddTooltipPos({ top: r.top + r.height / 2, left: r.right + 12 });
+        }}
+        onBlur={() => setAddTooltipPos(null)}
         type="button"
         whileHover={{ scale: 1.06, y: -1 }}
         whileTap={{ scale: 0.97 }}
       >
         <Plus className="h-5 w-5" />
-        <span className="app-tooltip pointer-events-none absolute left-full ml-3 rounded-xl border px-2.5 py-1 text-xs opacity-0 shadow-[0_12px_26px_hsl(var(--shadow-color)/0.12)] transition group-hover:opacity-100">
-          {t("shell.serverRail.addServer")}
-        </span>
       </motion.button>
+
+      {addTooltipPos !== null &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <span
+            className="app-tooltip pointer-events-none fixed z-[60] -translate-y-1/2 rounded-xl border px-2.5 py-1 text-xs shadow-[0_12px_26px_hsl(var(--shadow-color)/0.12)]"
+            style={{ top: addTooltipPos.top, left: addTooltipPos.left }}
+          >
+            {t("shell.serverRail.addServer")}
+          </span>,
+          document.body,
+        )}
     </aside>
   );
 }

@@ -7,6 +7,7 @@ import { Prisma, prisma } from "@wizards/db";
 import {
   dmMessageInclude,
   dmNotificationUserSelect,
+  getDirectMessageConversationForUser,
   getDMDisplayName,
   mapDMMessagePayload,
 } from "@/lib/dm/service";
@@ -737,12 +738,32 @@ export function initSocketServer(httpServer: HTTPServer) {
         const preview = content.slice(0, 50);
         const lastMessageAt = createdMessage.createdAt.toISOString();
 
-        for (const participant of participants) {
-          io.to(`user:${participant.userId}`).emit("dm:conversation:updated", {
+        const conversationUpdates = await Promise.all(
+          participants.map(async (participant) => {
+            const conversation = await getDirectMessageConversationForUser(
+              data.conversationId,
+              participant.userId,
+            );
+            const currentParticipant = conversation.participants.find(
+              (candidate) => candidate.userId === participant.userId,
+            );
+
+            return {
+              participantId: participant.userId,
+              unreadCount: currentParticipant?.unreadCount ?? 0,
+              conversation,
+            };
+          }),
+        );
+
+        for (const update of conversationUpdates) {
+          io.to(`user:${update.participantId}`).emit("dm:conversation:updated", {
             conversationId: data.conversationId,
             lastMessageAt,
             preview,
             hiddenAt: null,
+            unreadCount: update.unreadCount,
+            conversation: update.conversation,
           });
         }
 

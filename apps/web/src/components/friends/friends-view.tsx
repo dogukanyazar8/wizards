@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import type { DMConversationDTO } from "@wizards/types";
 import type { FriendDto, FriendErrorCode, FriendRequestDto, PendingFriendsResponse } from "@/lib/friends/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +24,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/components/providers/locale-provider";
 import { FriendCard } from "@/components/friends/friend-card";
 import { useSocket } from "@/hooks/use-socket";
+import {
+  createDMConversationRequest,
+  dmQueryKeys,
+  upsertDMConversation,
+} from "@/lib/dm/client";
 import {
   actOnFriendRequestRequest,
   applyFriendPresenceUpdate,
@@ -199,6 +206,7 @@ function PendingRequestRow({
 
 export function FriendsView() {
   const { locale, t } = useI18n();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const socket = useSocket();
   const [activeTab, setActiveTab] = useState<FriendsTabId>("online");
@@ -207,7 +215,6 @@ export function FriendsView() {
     message: string;
     tone: "error" | "success";
   } | null>(null);
-  const [messagePlaceholder, setMessagePlaceholder] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [debouncedUsername, setDebouncedUsername] = useState("");
 
@@ -227,15 +234,6 @@ export function FriendsView() {
     const handle = window.setTimeout(() => setFeedback(null), 3000);
     return () => window.clearTimeout(handle);
   }, [feedback]);
-
-  useEffect(() => {
-    if (!messagePlaceholder) {
-      return;
-    }
-
-    const handle = window.setTimeout(() => setMessagePlaceholder(null), 3000);
-    return () => window.clearTimeout(handle);
-  }, [messagePlaceholder]);
 
   const friendsQuery = useQuery({
     queryFn: fetchFriends,
@@ -414,6 +412,22 @@ export function FriendsView() {
   const activeConfirmBusy =
     removeFriendMutation.isPending || blockFriendMutation.isPending;
 
+  const openDirectMessageMutation = useMutation({
+    mutationFn: (friendUserId: string) => createDMConversationRequest(friendUserId),
+    onError: () => {
+      setFeedback({
+        message: t("dm.errors.openConversation"),
+        tone: "error",
+      });
+    },
+    onSuccess: (conversation) => {
+      queryClient.setQueryData<DMConversationDTO[] | undefined>(dmQueryKeys.list, (current) =>
+        upsertDMConversation(current, conversation),
+      );
+      router.push(`/channels/@me/${conversation.id}`);
+    },
+  });
+
   return (
     <>
       <div className="flex min-h-0 flex-1 flex-col">
@@ -456,12 +470,6 @@ export function FriendsView() {
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-5 md:px-6 md:py-6">
-          {messagePlaceholder ? (
-            <div className="mb-4 rounded-2xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.08)] px-4 py-3 text-sm text-app-foreground">
-              {messagePlaceholder}
-            </div>
-          ) : null}
-
           {activeTab === "online" ? (
             friendsQuery.isLoading ? (
               <FriendsListSkeleton />
@@ -484,7 +492,7 @@ export function FriendsView() {
                     friend={friend}
                     key={friend.id}
                     onBlock={(nextFriend) => setConfirmState({ friend: nextFriend, type: "block" })}
-                    onMessage={() => setMessagePlaceholder(t("friends.message.placeholder"))}
+                    onMessage={(nextFriend) => openDirectMessageMutation.mutate(nextFriend.id)}
                     onRemove={(nextFriend) => setConfirmState({ friend: nextFriend, type: "remove" })}
                   />
                 ))}
@@ -508,7 +516,7 @@ export function FriendsView() {
                     friend={friend}
                     key={friend.id}
                     onBlock={(nextFriend) => setConfirmState({ friend: nextFriend, type: "block" })}
-                    onMessage={() => setMessagePlaceholder(t("friends.message.placeholder"))}
+                    onMessage={(nextFriend) => openDirectMessageMutation.mutate(nextFriend.id)}
                     onRemove={(nextFriend) => setConfirmState({ friend: nextFriend, type: "remove" })}
                   />
                 ))}

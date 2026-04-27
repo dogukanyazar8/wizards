@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -25,6 +27,22 @@ export function ServerIcon({
   onContextMenu,
   onPrefetch,
 }: ServerIconProps) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null);
+
+  const showTooltip = () => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    setTooltipPos({
+      top: rect.top + rect.height / 2,
+      left: rect.right + 12,
+    });
+  };
+
+  const hideTooltip = () => setTooltipPos(null);
+
+  useEffect(() => () => setTooltipPos(null), []);
+
   return (
     <div className="relative flex items-center justify-center">
       <motion.span
@@ -37,6 +55,7 @@ export function ServerIcon({
       />
 
       <motion.button
+        ref={buttonRef}
         aria-current={active ? "page" : undefined}
         aria-label={label}
         className={cn(
@@ -45,8 +64,16 @@ export function ServerIcon({
         )}
         onClick={onClick}
         onContextMenu={onContextMenu}
-        onFocus={onPrefetch}
-        onMouseEnter={onPrefetch}
+        onFocus={() => {
+          onPrefetch?.();
+          showTooltip();
+        }}
+        onBlur={hideTooltip}
+        onMouseEnter={() => {
+          onPrefetch?.();
+          showTooltip();
+        }}
+        onMouseLeave={hideTooltip}
         type="button"
         whileHover={{ scale: 1.06, y: -1 }}
         whileTap={{ scale: 0.97 }}
@@ -62,10 +89,19 @@ export function ServerIcon({
           fallback={fallback}
           src={iconUrl}
         />
-        <span className="app-tooltip pointer-events-none absolute left-full ml-3 z-50 max-w-[160px] truncate rounded-xl border px-2.5 py-1 text-xs opacity-0 shadow-[0_12px_26px_hsl(var(--shadow-color)/0.12)] transition group-hover:opacity-100">
-          {label}
-        </span>
       </motion.button>
+
+      {tooltipPos !== null &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <span
+            className="app-tooltip pointer-events-none fixed z-[60] max-w-[160px] -translate-y-1/2 truncate rounded-xl border px-2.5 py-1 text-xs shadow-[0_12px_26px_hsl(var(--shadow-color)/0.12)]"
+            style={{ top: tooltipPos.top, left: tooltipPos.left }}
+          >
+            {label}
+          </span>,
+          document.body,
+        )}
     </div>
   );
 }
