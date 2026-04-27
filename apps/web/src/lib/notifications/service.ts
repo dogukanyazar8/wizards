@@ -1,8 +1,30 @@
 import { prisma } from "@wizards/db";
+import type { NotificationType, Prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import type { NotificationDTO } from "./types";
 
-const VISIBLE_NOTIFICATION_TYPES = [
+type NotificationRow = Prisma.NotificationGetPayload<{
+  select: {
+    id: true;
+    type: true;
+    body: true;
+    actionUrl: true;
+    readAt: true;
+    createdAt: true;
+    metadata: true;
+  };
+}>;
+
+type UserRow = Prisma.UserGetPayload<{
+  select: {
+    id: true;
+    username: true;
+    displayName: true;
+    avatarUrl: true;
+  };
+}>;
+
+const VISIBLE_NOTIFICATION_TYPES: NotificationType[] = [
   "FRIEND_REQUEST",
   "FRIEND_ACCEPTED",
   "DM",
@@ -16,7 +38,7 @@ export async function listNotifications(
   const notifications = await prisma.notification.findMany({
     where: {
       userId,
-      type: { in: VISIBLE_NOTIFICATION_TYPES as any },
+      type: { in: VISIBLE_NOTIFICATION_TYPES },
     },
     orderBy: { createdAt: "desc" },
     take: limit,
@@ -32,8 +54,8 @@ export async function listNotifications(
   });
 
   const senderIds = notifications
-    .map((n: any) => {
-      const meta = (n.metadata as any) || {};
+    .map((n) => {
+      const meta = (n.metadata as Record<string, unknown>) ?? {};
       return (meta.senderId as string) || null;
     })
     .filter((id): id is string => id !== null);
@@ -50,8 +72,8 @@ export async function listNotifications(
 
   const userMap = new Map(users.map((u) => [u.id, u]));
 
-  return notifications.map((n: any): NotificationDTO => {
-    const meta = (n.metadata as any) || {};
+  return notifications.map((n): NotificationDTO => {
+    const meta = (n.metadata as Record<string, unknown>) ?? {};
     const senderId = (meta.senderId as string) || "";
     const actor = userMap.get(senderId);
 
@@ -64,7 +86,7 @@ export async function listNotifications(
 
     return {
       id: n.id,
-      type: n.type,
+      type: n.type as "FRIEND_REQUEST" | "FRIEND_ACCEPTED" | "DM" | "MENTION",
       actor: {
         id: actor.id,
         username: actor.username,
@@ -85,7 +107,7 @@ export async function getUnreadCount(userId: string): Promise<number> {
     where: {
       userId,
       read: false,
-      type: { in: VISIBLE_NOTIFICATION_TYPES as any },
+      type: { in: VISIBLE_NOTIFICATION_TYPES },
     },
   });
 
@@ -126,10 +148,10 @@ export async function markAllRead(userId: string): Promise<void> {
 }
 
 export async function serializeNotificationToDTO(
-  notification: any,
-  userMap: Map<string, any>,
+  notification: NotificationRow,
+  userMap: Map<string, UserRow>,
 ): Promise<NotificationDTO> {
-  const meta = (notification.metadata as any) || {};
+  const meta = (notification.metadata as Record<string, unknown>) ?? {};
   const senderId = (meta.senderId as string) || "";
   const actor = userMap.get(senderId);
 
@@ -139,7 +161,7 @@ export async function serializeNotificationToDTO(
 
   return {
     id: notification.id,
-    type: notification.type,
+    type: notification.type as "FRIEND_REQUEST" | "FRIEND_ACCEPTED" | "DM" | "MENTION",
     actor: {
       id: actor.id,
       username: actor.username,

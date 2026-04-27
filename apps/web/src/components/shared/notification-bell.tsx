@@ -92,7 +92,7 @@ export function NotificationBell() {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
     let top = rect.bottom + 8;
-    let right = window.innerWidth - rect.right;
+    const right = window.innerWidth - rect.right;
 
     if (rect.bottom + 320 > window.innerHeight) {
       top = window.innerHeight - rect.top - 8;
@@ -226,7 +226,6 @@ function NotificationItem({
   onRead: (id: string) => Promise<void>;
   onNavigate: (url: string) => void;
 }) {
-  const { t } = useI18n();
   const [isReading, setIsReading] = useState(false);
 
   const handleClick = async () => {

@@ -1,6 +1,6 @@
 "use server";
 
-import { signIn, signOut } from "@/auth";
+import { normalizeAuthEmail, signIn, signOut } from "@/auth";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
 import { normalizeAppLocale } from "@/lib/locale";
 import { persistUserLocale } from "@/lib/locale/persistence";
@@ -21,7 +21,7 @@ function getFormValue(formData: FormData, key: string): string {
 
 export async function registerAction(formData: FormData): Promise<AuthActionResult> {
   const validation = RegisterSchema.safeParse({
-    email: getFormValue(formData, "email"),
+    email: normalizeAuthEmail(getFormValue(formData, "email")),
     username: getFormValue(formData, "username"),
     password: getFormValue(formData, "password"),
     confirmPassword: getFormValue(formData, "confirmPassword"),
@@ -34,7 +34,7 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
     };
   }
 
-  const email = validation.data.email.toLowerCase();
+  const email = normalizeAuthEmail(validation.data.email);
   const locale = normalizeAppLocale(getFormValue(formData, "locale"));
   const username = validation.data.username;
 
@@ -79,7 +79,6 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
 
     await signIn("credentials", {
       email,
-      locale,
       password: validation.data.password,
       redirectTo: "/channels",
     });
@@ -106,7 +105,7 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
 
 export async function loginAction(formData: FormData): Promise<AuthActionResult> {
   const validation = LoginSchema.safeParse({
-    email: getFormValue(formData, "email"),
+    email: normalizeAuthEmail(getFormValue(formData, "email")),
     password: getFormValue(formData, "password"),
   });
 
@@ -117,11 +116,12 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     };
   }
 
+  const { email, password } = validation.data;
+
   try {
     await signIn("credentials", {
-      email: validation.data.email.toLowerCase(),
-      locale: normalizeAppLocale(getFormValue(formData, "locale")),
-      password: validation.data.password,
+      email,
+      password,
       redirectTo: "/channels",
     });
 

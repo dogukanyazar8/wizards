@@ -13,7 +13,7 @@ import { loginAction } from "@/lib/auth/actions";
 type OAuthProvider = "github" | "google";
 
 export default function LoginPage() {
-  const { locale, t } = useI18n();
+  const { t } = useI18n();
   const [serverError, setServerError] = useState<string | null>(null);
   const [oauthLoading, setOauthLoading] = useState<OAuthProvider | null>(null);
 
@@ -36,7 +36,6 @@ export default function LoginPage() {
     const formData = new FormData();
     formData.set("email", values.email);
     formData.set("password", values.password);
-    formData.set("locale", locale);
 
     const result = await loginAction(formData);
 

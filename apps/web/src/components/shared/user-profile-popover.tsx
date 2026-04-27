@@ -12,15 +12,37 @@ import {
   cancelFriendRequestRequest,
   actOnFriendRequestRequest,
   removeFriendRequest,
-  blockFriendRequest,
   unblockFriendRequest,
   fetchFriends,
   fetchPendingFriends,
   fetchBlockedFriends,
   friendsQueryKeys,
+  FriendsClientError,
 } from "@/lib/friends/client";
 import { createDMConversationRequest } from "@/lib/dm/client";
 import type { FriendDto, PendingFriendsResponse } from "@/lib/friends/types";
+
+interface UserProfileData {
+  displayName: string | null;
+  username: string | null;
+  avatarUrl: string | null;
+  bannerColor: string | null;
+  bannerUrl: string | null;
+  customStatus: string | null;
+  bio: string | null;
+  createdAt: string;
+  serverNickname: string | null;
+}
+
+type RelationshipState =
+  | "self"
+  | "loading"
+  | "not_friends"
+  | "friends"
+  | "blocked_by_me"
+  | "blocked_by_them"
+  | { type: "request_sent"; requestId: string }
+  | { type: "request_received"; requestId: string };
 
 type UserProfilePopoverProps = {
   userId: string;
@@ -31,8 +53,6 @@ type UserProfilePopoverProps = {
 
 export function UserProfilePopover({ userId, currentUserId, serverId, children }: UserProfilePopoverProps) {
   const { t } = useI18n();
-  const router = useRouter();
-  const queryClient = useQueryClient();
 
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -48,7 +68,7 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
       const url = `/api/v1/users/${userId}/profile${serverId ? `?serverId=${serverId}` : ""}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error("Profile fetch failed");
-      return res.json() as Promise<any>;
+      return res.json() as Promise<UserProfileData>;
     },
     enabled: open,
     staleTime: 60_000,
@@ -72,7 +92,7 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
     enabled: open && !isSelf,
   });
 
-  const relationshipState = useMemo(() => {
+  const relationshipState = useMemo((): RelationshipState => {
     if (isSelf) return "self";
     if (!friendsQuery.data || !pendingQuery.data || !blockedQuery.data) return "loading";
 
@@ -88,12 +108,12 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
       return "friends";
     }
 
-    const outgoing = pending?.outgoing?.find((r: any) => r.receiverId === userId);
+    const outgoing = pending?.outgoing?.find((r) => r.receiverId === userId);
     if (outgoing) {
       return { type: "request_sent", requestId: outgoing.id };
     }
 
-    const incoming = pending?.incoming?.find((r: any) => r.senderId === userId);
+    const incoming = pending?.incoming?.find((r) => r.senderId === userId);
     if (incoming) {
       return { type: "request_received", requestId: incoming.id };
     }
@@ -173,9 +193,9 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
               <div className="-mt-10 mb-3">
                 <Avatar
                   src={profileQuery.data?.avatarUrl}
-                  alt={profileQuery.data?.displayName}
+                  alt={profileQuery.data?.displayName || "User"}
                   className="h-20 w-20 border-4 border-[hsl(var(--surface))]"
-                  fallback={(profileQuery.data?.displayName || "?")[0]}
+                  fallback={(profileQuery.data?.displayName ?? "?")[0] ?? "?"}
                 />
               </div>
 
@@ -203,7 +223,7 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
               <div className="space-y-1 border-t border-[hsl(var(--border))] py-3 text-xs text-[hsl(var(--foreground)/0.6)]">
                 <div>
                   {t("profile.memberSince", {
-                    date: new Date(profileQuery.data?.createdAt).toLocaleDateString(),
+                    date: new Date(profileQuery.data?.createdAt ?? 0).toLocaleDateString(),
                   })}
                 </div>
                 {serverId && profileQuery.data?.serverNickname && (
@@ -233,19 +253,17 @@ function ActionButtons({
   userId,
   onSetBlockedByThem,
 }: {
-  state: any;
+  state: RelationshipState;
   userId: string;
   onSetBlockedByThem: (blocked: boolean) => void;
 }) {
   const { t } = useI18n();
-  const router = useRouter();
-  const queryClient = useQueryClient();
 
   const profileQuery = useQuery({
     queryKey: ["user-profile", userId],
     queryFn: async () => {
       const res = await fetch(`/api/v1/users/${userId}/profile`);
-      return res.json();
+      return res.json() as Promise<UserProfileData>;
     },
   });
 
@@ -266,7 +284,7 @@ function ActionButtons({
       {state === "not_friends" && (
         <>
           <AddFriendButton
-            username={profileQuery.data?.username}
+            username={profileQuery.data?.username || ""}
             userId={userId}
             onError={(code) => {
               if (code === "BLOCKED") onSetBlockedByThem(true);
@@ -276,14 +294,14 @@ function ActionButtons({
         </>
       )}
 
-      {state?.type === "request_sent" && (
+      {typeof state === "object" && state.type === "request_sent" && (
         <>
           <CancelRequestButton requestId={state.requestId} />
           <MessageButton userId={userId} />
         </>
       )}
 
-      {state?.type === "request_received" && (
+      {typeof state === "object" && state.type === "request_received" && (
         <>
           <AcceptDeclineButtons requestId={state.requestId} />
           <MessageButton userId={userId} />
@@ -321,15 +339,15 @@ function AddFriendButton({
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: friendsQueryKeys.pending });
       const prev = queryClient.getQueryData(friendsQueryKeys.pending);
-      queryClient.setQueryData(friendsQueryKeys.pending, (old: any) => ({
+      queryClient.setQueryData(friendsQueryKeys.pending, (old: PendingFriendsResponse | undefined) => ({
         ...old,
         outgoing: [...(old?.outgoing || []), { id: "temp", receiverId: userId }],
       }));
       return { prev };
     },
-    onError: (error: any, _, ctx) => {
+    onError: (error: Error, _, ctx) => {
       queryClient.setQueryData(friendsQueryKeys.pending, ctx?.prev);
-      const code = (error as any)?.code;
+      const code = error instanceof FriendsClientError ? error.code : undefined;
       onError(code);
     },
     onSuccess: () => {
@@ -357,9 +375,9 @@ function CancelRequestButton({ requestId }: { requestId: string }) {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: friendsQueryKeys.pending });
       const prev = queryClient.getQueryData(friendsQueryKeys.pending);
-      queryClient.setQueryData(friendsQueryKeys.pending, (old: any) => ({
+      queryClient.setQueryData(friendsQueryKeys.pending, (old: PendingFriendsResponse | undefined) => ({
         ...old,
-        outgoing: old?.outgoing?.filter((r: any) => r.id !== requestId) || [],
+        outgoing: old?.outgoing?.filter((r) => r.id !== requestId) || [],
       }));
       return { prev };
     },

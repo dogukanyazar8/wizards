@@ -1,5 +1,5 @@
 import { requireApiUserId } from "@/lib/auth/api";
-import { ApiError, jsonError } from "@/lib/api";
+import { jsonError } from "@/lib/api";
 import { listNotifications } from "@/lib/notifications/service";
 import { NotificationsQuerySchema } from "@/lib/notifications/types";
 import type { NextRequest } from "next/server";

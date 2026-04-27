@@ -19,6 +19,14 @@ const MAX_USERNAME_LENGTH = 32;
 
 const USERNAME_SANITIZE_REGEX = /[^a-zA-Z0-9_]/g;
 
+export function normalizeAuthEmail(rawValue: unknown): string {
+  if (typeof rawValue !== "string") {
+    return "";
+  }
+
+  return rawValue.trim().toLowerCase();
+}
+
 function normalizeUsername(rawValue: string): string {
   const normalized = rawValue
     .toLowerCase()
@@ -98,11 +106,17 @@ const adapter: Adapter = {
       throw new Error("OAuth user is missing an email address.");
     }
 
-    const username = await getUniqueUsername(deriveBaseUsername(data));
+    const normalizedEmail = normalizeAuthEmail(data.email);
+    const username = await getUniqueUsername(
+      deriveBaseUsername({
+        ...data,
+        email: normalizedEmail,
+      }),
+    );
 
     const createdUser = await prisma.user.create({
       data: {
-        email: data.email,
+        email: normalizedEmail,
         username,
         displayName: data.name ?? username,
         avatarUrl: data.image ?? null,
@@ -139,8 +153,9 @@ const adapter: Adapter = {
     return mapUserToAdapterUser(user);
   },
   async getUserByEmail(email) {
+    const normalizedEmail = normalizeAuthEmail(email);
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
       select: {
         id: true,
         email: true,
@@ -171,7 +186,7 @@ const adapter: Adapter = {
     } = {};
 
     if (typeof data.email === "string") {
-      updateData.email = data.email;
+      updateData.email = normalizeAuthEmail(data.email);
     }
 
     if (data.name !== undefined) {
@@ -236,14 +251,25 @@ const authConfig = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const parsedCredentials = LoginSchema.safeParse(credentials);
+        const credentialRecord =
+          credentials && typeof credentials === "object"
+            ? (credentials as Record<string, unknown>)
+            : null;
+
+        const parsedCredentials = LoginSchema.safeParse({
+          email: normalizeAuthEmail(credentialRecord?.email),
+          password:
+            typeof credentialRecord?.password === "string" ? credentialRecord.password : "",
+        });
 
         if (!parsedCredentials.success) {
           return null;
         }
 
+        const { email: normalizedEmail, password } = parsedCredentials.data;
+
         const user = await prisma.user.findUnique({
-          where: { email: parsedCredentials.data.email.toLowerCase() },
+          where: { email: normalizedEmail },
           select: {
             id: true,
             email: true,
@@ -261,27 +287,13 @@ const authConfig = {
         }
 
         const isPasswordValid = await bcrypt.compare(
-          parsedCredentials.data.password,
+          password,
           user.passwordHash,
         );
 
         if (!isPasswordValid) {
           return null;
         }
-
-        const rawLocale =
-          credentials && typeof credentials === "object"
-            ? (credentials as Record<string, unknown>).locale
-            : null;
-        const preferredLocale =
-          typeof rawLocale === "string"
-            ? normalizeAppLocale(rawLocale)
-            : normalizeAppLocale(user.locale);
-
-        if (preferredLocale !== normalizeAppLocale(user.locale)) {
-          await persistUserLocale(user.id, preferredLocale);
-        }
-
         return {
           id: user.id,
           email: user.email,
@@ -290,7 +302,7 @@ const authConfig = {
           username: user.username,
           displayName: user.displayName,
           avatarUrl: user.avatarUrl,
-          locale: preferredLocale,
+          locale: normalizeAppLocale(user.locale),
           theme: normalizeWizardsThemeId(user.theme),
         };
       },
