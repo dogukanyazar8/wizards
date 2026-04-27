@@ -3,23 +3,34 @@ import type Redis from "ioredis";
 import { Server, type Socket as IOSocket } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { getToken } from "next-auth/jwt";
-import { prisma } from "@wizards/db";
+import { Prisma, prisma } from "@wizards/db";
+import {
+  dmMessageInclude,
+  dmNotificationUserSelect,
+  getDMDisplayName,
+  mapDMMessagePayload,
+} from "@/lib/dm/service";
+import { getBlockStatus } from "@/lib/friends/helpers";
 import { getUserPresenceBroadcast } from "@/lib/friends/service";
+import { normalizeAppLocale, translate } from "@/lib/locale";
+import { getRedis, getRedisSub } from "@/lib/redis";
 import {
   createMessage,
   deleteMessage,
   editMessage,
   toggleReaction,
 } from "@/lib/workspace/message-service";
-import { getRedis, getRedisSub } from "@/lib/redis";
 import type {
   ClientToServerEvents,
   InterServerEvents,
+  NotificationSocketPayload,
   ServerToClientEvents,
   SocketData,
 } from "./events";
 
-const TYPING_EXPIRY = 3000; // 3 seconds
+const CHANNEL_TYPING_EXPIRY = 3000;
+const DM_TYPING_EXPIRY = 3000;
+const TYPING_KEY_TTL_SECONDS = 10;
 const PRESENCE_SOCKET_PREFIX = "presence:sockets:";
 
 type AppSocket = IOSocket<
@@ -29,8 +40,79 @@ type AppSocket = IOSocket<
   SocketData
 >;
 
+type NotificationRecord = {
+  id: string;
+  userId: string;
+  type:
+    | "MENTION"
+    | "FRIEND_REQUEST"
+    | "FRIEND_ACCEPTED"
+    | "DM"
+    | "SERVER_INVITE"
+    | "SYSTEM"
+    | "MODERATION";
+  title: string;
+  body: string;
+  imageUrl: string | null;
+  read: boolean;
+  readAt: Date | null;
+  actionUrl: string | null;
+  metadata: Prisma.JsonValue | null;
+  createdAt: Date;
+};
+
+type DMTypingEntry = {
+  expiresAt: number;
+  username: string;
+};
+
 function getPresenceSocketsKey(userId: string) {
   return `${PRESENCE_SOCKET_PREFIX}${userId}`;
+}
+
+function isRecord(value: Prisma.JsonValue | null): value is Prisma.JsonObject {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseDMTypingEntry(value: string): DMTypingEntry | null {
+  try {
+    const parsed = JSON.parse(value) as {
+      expiresAt?: unknown;
+      username?: unknown;
+    };
+
+    if (
+      typeof parsed.expiresAt === "number" &&
+      Number.isFinite(parsed.expiresAt) &&
+      typeof parsed.username === "string" &&
+      parsed.username.trim().length > 0
+    ) {
+      return {
+        expiresAt: parsed.expiresAt,
+        username: parsed.username,
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function serializeNotification(notification: NotificationRecord): NotificationSocketPayload {
+  return {
+    id: notification.id,
+    userId: notification.userId,
+    type: notification.type,
+    title: notification.title,
+    body: notification.body,
+    imageUrl: notification.imageUrl,
+    read: notification.read,
+    readAt: notification.readAt?.toISOString() ?? null,
+    actionUrl: notification.actionUrl,
+    metadata: isRecord(notification.metadata) ? notification.metadata : null,
+    createdAt: notification.createdAt.toISOString(),
+  };
 }
 
 async function listFriendIds(userId: string) {
@@ -80,11 +162,15 @@ async function broadcastPresenceChange(
 }
 
 export function initSocketServer(httpServer: HTTPServer) {
-  const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(httpServer, {
+  const io = new Server<
+    ClientToServerEvents,
+    ServerToClientEvents,
+    InterServerEvents,
+    SocketData
+  >(httpServer, {
     cors: { origin: process.env.NEXTAUTH_URL || "http://localhost:3000" },
   });
 
-  // JWT middleware
   io.use(async (socket, next) => {
     try {
       const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
@@ -115,25 +201,128 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
 
       socket.data.userId = token.id;
-      socket.data.displayName = (token.displayName as string) || "User";
+      socket.data.username =
+        typeof token.username === "string" && token.username.trim().length > 0
+          ? token.username
+          : token.id;
+      socket.data.displayName =
+        typeof token.displayName === "string" && token.displayName.trim().length > 0
+          ? token.displayName
+          : socket.data.username;
       next();
     } catch {
       next(new Error("Unauthorized"));
     }
   });
 
-  // Redis adapter
   const redis = getRedis();
   const redisSub = getRedisSub();
   io.adapter(createAdapter(redis, redisSub));
 
-  // Connection handler
   io.on("connection", (socket) => {
     const userId = socket.data.userId;
+    const dmTypingConversations = new Set<string>();
+    const dmTypingTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
     socket.data.typingChannels = new Set<string>();
     socket.data.presenceCustomStatus = null;
     socket.data.presenceStatus = "OFFLINE";
     socket.join(`user:${userId}`);
+
+    const emitDMError = (
+      code:
+        | "UNAUTHORIZED"
+        | "FORBIDDEN"
+        | "BLOCKED"
+        | "RATE_LIMITED"
+        | "VALIDATION_ERROR"
+        | "NOT_FOUND",
+      message: string,
+    ) => {
+      socket.emit("dm:error", { code, message });
+    };
+
+    async function requireDMParticipant(conversationId: string): Promise<boolean> {
+      const participant = await prisma.dMParticipant.findUnique({
+        where: {
+          conversationId_userId: {
+            conversationId,
+            userId,
+          },
+        },
+        select: { id: true },
+      });
+
+      return participant !== null;
+    }
+
+    async function emitDMTypingUpdate(conversationId: string) {
+      const key = `typing:dm:${conversationId}`;
+      const entries = await redis.hgetall(key);
+      const now = Date.now();
+      const expiredUserIds: string[] = [];
+      const typingUsers: Array<{ userId: string; username: string }> = [];
+
+      for (const [typingUserId, rawValue] of Object.entries(entries)) {
+        const parsed = parseDMTypingEntry(rawValue);
+        if (!parsed || parsed.expiresAt <= now) {
+          expiredUserIds.push(typingUserId);
+          continue;
+        }
+
+        typingUsers.push({
+          userId: typingUserId,
+          username: parsed.username,
+        });
+      }
+
+      if (expiredUserIds.length > 0) {
+        await redis.hdel(key, ...expiredUserIds);
+      }
+
+      io.to(`dm:${conversationId}`).emit("dm:typing:update", {
+        conversationId,
+        typingUsers,
+      });
+    }
+
+    async function stopDMTyping(conversationId: string) {
+      const timeout = dmTypingTimeouts.get(conversationId);
+      if (timeout) {
+        clearTimeout(timeout);
+        dmTypingTimeouts.delete(conversationId);
+      }
+
+      dmTypingConversations.delete(conversationId);
+      await redis.hdel(`typing:dm:${conversationId}`, userId);
+      await emitDMTypingUpdate(conversationId);
+    }
+
+    async function startDMTyping(conversationId: string) {
+      const key = `typing:dm:${conversationId}`;
+      dmTypingConversations.add(conversationId);
+
+      const existingTimeout = dmTypingTimeouts.get(conversationId);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+      }
+
+      await redis.hset(
+        key,
+        userId,
+        JSON.stringify({
+          expiresAt: Date.now() + DM_TYPING_EXPIRY,
+          username: socket.data.username,
+        }),
+      );
+      await redis.expire(key, TYPING_KEY_TTL_SECONDS);
+
+      const timeout = setTimeout(() => {
+        void stopDMTyping(conversationId);
+      }, DM_TYPING_EXPIRY);
+
+      dmTypingTimeouts.set(conversationId, timeout);
+      await emitDMTypingUpdate(conversationId);
+    }
 
     void (async () => {
       try {
@@ -152,7 +341,6 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     })();
 
-    // Channel join - verify membership
     socket.on("channel:join", async (channelId: string) => {
       try {
         const channel = await prisma.channel.findUnique({
@@ -171,7 +359,10 @@ export function initSocketServer(httpServer: HTTPServer) {
         });
 
         if (!member) {
-          socket.emit("error", { code: "NOT_A_MEMBER", message: "Not a member of this server" });
+          socket.emit("error", {
+            code: "NOT_A_MEMBER",
+            message: "Not a member of this server",
+          });
           return;
         }
 
@@ -184,15 +375,12 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    // Channel leave
     socket.on("channel:leave", (channelId: string) => {
       socket.leave(channelId);
     });
 
-    // Send message with rate limiting
     socket.on("message:send", async (data) => {
       try {
-        // Rate limit: 30 messages per minute per user
         try {
           const key = `rate:msg:${userId}`;
           const count = await redis.incr(key);
@@ -207,10 +395,9 @@ export function initSocketServer(httpServer: HTTPServer) {
             return;
           }
         } catch {
-          // Redis unavailable - skip rate limiting, allow message
+          // Allow message send if Redis is temporarily unavailable.
         }
 
-        // Verify channel exists and user is member
         const channel = await prisma.channel.findUnique({
           where: { id: data.channelId },
           select: { serverId: true },
@@ -227,14 +414,14 @@ export function initSocketServer(httpServer: HTTPServer) {
         });
 
         if (!member) {
-          socket.emit("error", { code: "NOT_A_MEMBER", message: "Not a member of this server" });
+          socket.emit("error", {
+            code: "NOT_A_MEMBER",
+            message: "Not a member of this server",
+          });
           return;
         }
 
-        // Create message
         const message = await createMessage(data.channelId, userId, data.content, data.replyToId);
-
-        // Broadcast to channel
         io.to(data.channelId).emit("message:new", message);
       } catch (error) {
         socket.emit("error", {
@@ -244,12 +431,10 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    // Edit message
     socket.on("message:edit", async (data) => {
       try {
         const message = await editMessage(data.messageId, userId, data.content);
 
-        // Get channel for broadcast
         const dbMessage = await prisma.message.findUnique({
           where: { id: data.messageId },
           select: { channelId: true },
@@ -266,10 +451,8 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    // Delete message
     socket.on("message:delete", async (messageId: string) => {
       try {
-        // Check if user is admin (for this we need to get channel -> server -> membership -> roles)
         const dbMessage = await prisma.message.findUnique({
           where: { id: messageId },
           select: {
@@ -284,7 +467,6 @@ export function initSocketServer(httpServer: HTTPServer) {
           return;
         }
 
-        // Check if admin
         const member = await prisma.serverMember.findFirst({
           where: { serverId: dbMessage.channel.serverId, userId },
           select: {
@@ -295,12 +477,14 @@ export function initSocketServer(httpServer: HTTPServer) {
         });
 
         const isAdmin =
-          member?.roles.some((r) => (r.role.permissions & (1n << 0n)) !== 0n || /admin|moderator/i.test(r.role.name)) ??
-          false;
+          member?.roles.some(
+            (roleAssignment) =>
+              (roleAssignment.role.permissions & (1n << 0n)) !== 0n ||
+              /admin|moderator/i.test(roleAssignment.role.name),
+          ) ?? false;
 
         await deleteMessage(messageId, userId, isAdmin);
 
-        // Broadcast deletion
         io.to(dbMessage.channelId).emit("message:deleted", {
           messageId,
           channelId: dbMessage.channelId,
@@ -313,7 +497,6 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    // React to message
     socket.on("message:react", async (data) => {
       try {
         const message = await prisma.message.findUnique({
@@ -327,8 +510,6 @@ export function initSocketServer(httpServer: HTTPServer) {
         }
 
         const reactions = await toggleReaction(data.messageId, userId, data.emoji);
-
-        // Broadcast reaction update
         io.to(message.channelId).emit("message:reaction_updated", {
           messageId: data.messageId,
           reactions,
@@ -341,7 +522,6 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    // message:unreact is an alias — both toggle the same reaction
     socket.on("message:unreact", async (data) => {
       try {
         const message = await prisma.message.findUnique({
@@ -367,27 +547,22 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    // Typing start
     socket.on("typing:start", async (channelId: string) => {
       try {
         const key = `typing:${channelId}`;
         const displayName = socket.data.displayName;
         socket.data.typingChannels.add(channelId);
 
-        // Store in Redis with expiry
-        await redis.hset(key, userId, Date.now() + TYPING_EXPIRY);
+        await redis.hset(key, userId, Date.now() + CHANNEL_TYPING_EXPIRY);
 
-        // Get all typing users
         const typingData = await redis.hgetall(key);
         const now = Date.now();
         const typingUsers = Object.entries(typingData)
-          .filter(([, expiry]) => parseInt(expiry as string) > now)
-          .map(([uid]) => {
-            // We'll just use userId, but ideally fetch display name
-            return uid === userId ? displayName : uid;
+          .filter(([, expiry]) => parseInt(expiry, 10) > now)
+          .map(([typingUserId]) => {
+            return typingUserId === userId ? displayName : typingUserId;
           });
 
-        // Broadcast typing update
         io.to(channelId).emit("typing:update", {
           channelId,
           users: typingUsers,
@@ -400,23 +575,19 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    // Typing stop
     socket.on("typing:stop", async (channelId: string) => {
       try {
         const key = `typing:${channelId}`;
         socket.data.typingChannels.delete(channelId);
 
-        // Remove user from typing
         await redis.hdel(key, userId);
 
-        // Get remaining typing users
         const typingData = await redis.hgetall(key);
         const now = Date.now();
         const typingUsers = Object.entries(typingData)
-          .filter(([, expiry]) => parseInt(expiry as string) > now)
-          .map(([uid]) => uid);
+          .filter(([, expiry]) => parseInt(expiry, 10) > now)
+          .map(([typingUserId]) => typingUserId);
 
-        // Broadcast typing update
         io.to(channelId).emit("typing:update", {
           channelId,
           users: typingUsers,
@@ -429,14 +600,364 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    // Disconnect
+    socket.on("dm:join", async (conversationId: string) => {
+      try {
+        if (!(await requireDMParticipant(conversationId))) {
+          emitDMError("FORBIDDEN", "You are not allowed to join this DM");
+          return;
+        }
+
+        socket.join(`dm:${conversationId}`);
+      } catch (error) {
+        emitDMError("FORBIDDEN", String(error));
+      }
+    });
+
+    socket.on("dm:leave", async (conversationId: string) => {
+      try {
+        if (!(await requireDMParticipant(conversationId))) {
+          emitDMError("FORBIDDEN", "You are not allowed to leave this DM");
+          return;
+        }
+
+        socket.leave(`dm:${conversationId}`);
+      } catch (error) {
+        emitDMError("FORBIDDEN", String(error));
+      }
+    });
+
+    socket.on("dm:message:send", async (data) => {
+      try {
+        if (!(await requireDMParticipant(data.conversationId))) {
+          emitDMError("FORBIDDEN", "You are not a participant in this DM");
+          return;
+        }
+
+        try {
+          const key = `rate:dm:${userId}:${data.conversationId}`;
+          const count = await redis.incr(key);
+          if (count === 1) {
+            await redis.expire(key, 60);
+          }
+          if (count > 30) {
+            emitDMError("RATE_LIMITED", "Too many DM messages. Maximum 30 per minute.");
+            return;
+          }
+        } catch {
+          // Allow message send if Redis is temporarily unavailable.
+        }
+
+        const content = data.content?.trim() ?? "";
+        if (!content || content.length > 2000) {
+          emitDMError("VALIDATION_ERROR", "Message content must be between 1 and 2000 characters.");
+          return;
+        }
+
+        if (data.replyToId) {
+          const replyToMessage = await prisma.dMMessage.findFirst({
+            where: {
+              id: data.replyToId,
+              conversationId: data.conversationId,
+              deletedAt: null,
+            },
+            select: { id: true },
+          });
+
+          if (!replyToMessage) {
+            emitDMError("NOT_FOUND", "Reply target was not found.");
+            return;
+          }
+        }
+
+        const participants = await prisma.dMParticipant.findMany({
+          where: { conversationId: data.conversationId },
+          select: {
+            userId: true,
+            user: {
+              select: dmNotificationUserSelect,
+            },
+          },
+        });
+
+        const otherParticipant = participants.find((participant) => participant.userId !== userId);
+        if (otherParticipant) {
+          const blockStatus = await getBlockStatus(userId, otherParticipant.userId);
+          if (blockStatus.blocked) {
+            emitDMError("BLOCKED", "You cannot send messages in this DM.");
+            return;
+          }
+        }
+
+        const createdMessage = await prisma.$transaction(async (tx) => {
+          const message = await tx.dMMessage.create({
+            data: {
+              conversationId: data.conversationId,
+              userId,
+              content,
+              replyToId: data.replyToId ?? null,
+            },
+            include: dmMessageInclude,
+          });
+
+          await tx.dMConversation.update({
+            where: { id: data.conversationId },
+            data: { lastMessageAt: message.createdAt },
+          });
+
+          await Promise.all(
+            participants.map((participant) =>
+              tx.dMParticipant.update({
+                where: {
+                  conversationId_userId: {
+                    conversationId: data.conversationId,
+                    userId: participant.userId,
+                  },
+                },
+                data:
+                  participant.userId === userId
+                    ? {
+                        hiddenAt: null,
+                      }
+                    : {
+                        hiddenAt: null,
+                        unreadCount: {
+                          increment: 1,
+                        },
+                      },
+              }),
+            ),
+          );
+
+          return message;
+        });
+
+        const messagePayload = mapDMMessagePayload(createdMessage);
+        io.to(`dm:${data.conversationId}`).emit("dm:message:new", messagePayload);
+
+        const preview = content.slice(0, 50);
+        const lastMessageAt = createdMessage.createdAt.toISOString();
+
+        for (const participant of participants) {
+          io.to(`user:${participant.userId}`).emit("dm:conversation:updated", {
+            conversationId: data.conversationId,
+            lastMessageAt,
+            preview,
+            hiddenAt: null,
+          });
+        }
+
+        try {
+          const senderName = getDMDisplayName({
+            username: socket.data.username,
+            displayName: socket.data.displayName,
+          });
+
+          const notificationPromises = participants
+            .filter((participant) => participant.userId !== userId)
+            .map(async (participant) => {
+              const locale = normalizeAppLocale(participant.user.locale);
+              const notification = await prisma.notification.create({
+                data: {
+                  userId: participant.userId,
+                  type: "DM",
+                  title: translate(locale, "dm.notification.title", {
+                    name: senderName,
+                  }),
+                  body: content,
+                  actionUrl: `/channels/@me/${data.conversationId}`,
+                  metadata: {
+                    conversationId: data.conversationId,
+                    senderId: userId,
+                  },
+                },
+              });
+
+              return {
+                participantId: participant.userId,
+                payload: serializeNotification(notification as NotificationRecord),
+              };
+            });
+
+          const createdNotifications = await Promise.all(notificationPromises);
+          for (const notification of createdNotifications) {
+            io.to(`user:${notification.participantId}`).emit(
+              "notification:new",
+              notification.payload,
+            );
+          }
+        } catch (notificationError) {
+          console.error("DM notification error:", notificationError);
+        }
+
+        await stopDMTyping(data.conversationId);
+      } catch (error) {
+        emitDMError("NOT_FOUND", String(error));
+      }
+    });
+
+    socket.on("dm:message:edit", async (data) => {
+      try {
+        const trimmedContent = data.content?.trim() ?? "";
+        if (!trimmedContent || trimmedContent.length > 2000) {
+          emitDMError("VALIDATION_ERROR", "Message content must be between 1 and 2000 characters.");
+          return;
+        }
+
+        const existingMessage = await prisma.dMMessage.findUnique({
+          where: { id: data.messageId },
+          select: {
+            conversationId: true,
+            userId: true,
+          },
+        });
+
+        if (!existingMessage) {
+          emitDMError("NOT_FOUND", "Message not found.");
+          return;
+        }
+
+        if (!(await requireDMParticipant(existingMessage.conversationId))) {
+          emitDMError("FORBIDDEN", "You are not a participant in this DM");
+          return;
+        }
+
+        if (existingMessage.userId !== userId) {
+          emitDMError("FORBIDDEN", "You can only edit your own DM messages.");
+          return;
+        }
+
+        try {
+          const updatedMessage = await prisma.dMMessage.update({
+            where: {
+              id: data.messageId,
+              userId,
+              deletedAt: null,
+            },
+            data: {
+              content: trimmedContent,
+              editedAt: new Date(),
+            },
+            include: dmMessageInclude,
+          });
+
+          io.to(`dm:${existingMessage.conversationId}`).emit(
+            "dm:message:updated",
+            mapDMMessagePayload(updatedMessage),
+          );
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2025"
+          ) {
+            emitDMError("NOT_FOUND", "Message not found.");
+            return;
+          }
+
+          throw error;
+        }
+      } catch (error) {
+        emitDMError("NOT_FOUND", String(error));
+      }
+    });
+
+    socket.on("dm:message:delete", async (data) => {
+      try {
+        const existingMessage = await prisma.dMMessage.findUnique({
+          where: { id: data.messageId },
+          select: {
+            conversationId: true,
+            userId: true,
+          },
+        });
+
+        if (!existingMessage) {
+          emitDMError("NOT_FOUND", "Message not found.");
+          return;
+        }
+
+        if (!(await requireDMParticipant(existingMessage.conversationId))) {
+          emitDMError("FORBIDDEN", "You are not a participant in this DM");
+          return;
+        }
+
+        if (existingMessage.userId !== userId) {
+          emitDMError("FORBIDDEN", "You can only delete your own DM messages.");
+          return;
+        }
+
+        try {
+          await prisma.dMMessage.update({
+            where: {
+              id: data.messageId,
+              userId,
+              deletedAt: null,
+            },
+            data: {
+              deletedAt: new Date(),
+            },
+          });
+
+          io.to(`dm:${existingMessage.conversationId}`).emit("dm:message:deleted", {
+            messageId: data.messageId,
+            conversationId: existingMessage.conversationId,
+          });
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2025"
+          ) {
+            emitDMError("NOT_FOUND", "Message not found.");
+            return;
+          }
+
+          throw error;
+        }
+      } catch (error) {
+        emitDMError("NOT_FOUND", String(error));
+      }
+    });
+
+    socket.on("dm:typing:start", async (data) => {
+      try {
+        if (!(await requireDMParticipant(data.conversationId))) {
+          emitDMError("FORBIDDEN", "You are not a participant in this DM");
+          return;
+        }
+
+        await startDMTyping(data.conversationId);
+      } catch (error) {
+        emitDMError("FORBIDDEN", String(error));
+      }
+    });
+
+    socket.on("dm:typing:stop", async (data) => {
+      try {
+        if (!(await requireDMParticipant(data.conversationId))) {
+          emitDMError("FORBIDDEN", "You are not a participant in this DM");
+          return;
+        }
+
+        await stopDMTyping(data.conversationId);
+      } catch (error) {
+        emitDMError("FORBIDDEN", String(error));
+      }
+    });
+
     socket.on("disconnect", async () => {
       try {
-        // Only clean up channels this user was actually typing in — no full keyspace scan
-        const cleanups = Array.from(socket.data.typingChannels).map((channelId) =>
+        const channelTypingCleanups = Array.from(socket.data.typingChannels).map((channelId) =>
           redis.hdel(`typing:${channelId}`, userId),
         );
-        await Promise.all(cleanups);
+        await Promise.all(channelTypingCleanups);
+
+        for (const timeout of dmTypingTimeouts.values()) {
+          clearTimeout(timeout);
+        }
+        dmTypingTimeouts.clear();
+
+        await Promise.all(
+          Array.from(dmTypingConversations).map((conversationId) => stopDMTyping(conversationId)),
+        );
 
         const nextSocketCount = await redis.decr(getPresenceSocketsKey(userId));
 

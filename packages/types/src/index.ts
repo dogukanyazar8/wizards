@@ -15,3 +15,4 @@ export type HealthCheckInput = z.infer<typeof HealthCheckSchema>;
 export * from "./auth";
 export * from "./workspace";
 export * from "./messages";
+export * from "./socket";
