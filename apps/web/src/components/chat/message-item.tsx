@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { MessageMode } from "@/hooks/use-messages";
 import { Avatar } from "@/components/ui/avatar";
+import { UserProfilePopover } from "@/components/shared/user-profile-popover";
 import { MessageEditor } from "./message-editor";
 import { MessageToolbar } from "./message-toolbar";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -118,12 +119,14 @@ export const MessageItem = React.memo(
                 {formattedTime}
               </span>
             ) : (
-              <Avatar
-                src={message.author.avatarUrl}
-                alt={message.author.displayName}
-                className="h-10 w-10 flex-shrink-0"
-                fallback={message.author.displayName[0] || "?"}
-              />
+              <UserProfilePopover userId={message.author.id}>
+                <Avatar
+                  src={message.author.avatarUrl}
+                  alt={message.author.displayName}
+                  className="h-10 w-10 flex-shrink-0"
+                  fallback={message.author.displayName[0] || "?"}
+                />
+              </UserProfilePopover>
             )}
           </div>
 

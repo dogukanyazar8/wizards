@@ -34,6 +34,7 @@ import { useI18n } from "@/components/providers/locale-provider";
 import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
 import { ChannelItem } from "@/components/shell/channel-item";
 import { ChannelSidebarSkeleton } from "@/components/shell/shell-skeletons";
+import { NotificationBell } from "@/components/shared/notification-bell";
 import { cn } from "@/lib/utils";
 import {
   applyChannelReorder,
@@ -151,6 +152,7 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
           <p className="text-app-soft truncate text-xs">@{user.username}</p>
         </div>
         <div className="flex items-center gap-1">
+          <NotificationBell />
           <button
             aria-label={t("shell.user.toggleMute")}
             className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
