@@ -35,6 +35,8 @@ import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
 import { ChannelItem } from "@/components/shell/channel-item";
 import { ChannelSidebarSkeleton } from "@/components/shell/shell-skeletons";
 import { NotificationBell } from "@/components/shared/notification-bell";
+import { VoiceConnectionBar } from "@/components/voice/voice-connection-bar";
+import { useVoiceConnection } from "@/components/providers/voice-provider";
 import {
   APP_THEME_STORAGE_KEY,
   clearLegacyAppearanceStorage,
@@ -46,8 +48,10 @@ import {
   reorderChannelsRequest,
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
+import { useVoiceStates } from "@/hooks/use-voice-states";
 import { useAppStore } from "@/lib/store";
 import { logoutAction } from "@/lib/auth/actions";
+import type { VoiceChannelStateDTO } from "@/lib/voice/types";
 
 type ChannelSidebarProps = {
   activeChannelId: string | null;
@@ -72,6 +76,7 @@ type SortableChannelRowProps = {
   onEdit: () => void;
   onPrefetch?: () => void;
   onSelect: () => void;
+  voiceState?: VoiceChannelStateDTO | null;
 };
 
 const SortableChannelRow = React.memo(function SortableChannelRow({
@@ -82,6 +87,7 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
   onEdit,
   onPrefetch,
   onSelect,
+  voiceState = null,
 }: SortableChannelRowProps) {
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
     disabled: !canManage,
@@ -122,6 +128,7 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
             onEdit={onEdit}
             onSelect={onSelect}
             type={channel.type}
+            voiceState={voiceState}
             {...(onPrefetch ? { onPrefetch } : {})}
           />
         </div>
@@ -143,6 +150,8 @@ type UserProfileFooterProps = {
 function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooterProps) {
   const { t } = useI18n();
   const [isLoggingOut, startLogoutTransition] = useTransition();
+  const { activeChannelId, isDeafened, isMuted, leaveChannel, toggleDeafen, toggleMute } =
+    useVoiceConnection();
 
   const handleLogout = () => {
     clearLegacyAppearanceStorage();
@@ -151,6 +160,7 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
     useAppStore.getState().resetSessionUiState();
     useAppStore.persist.clearStorage();
     startLogoutTransition(async () => {
+      await leaveChannel().catch(() => undefined);
       await logoutAction();
     });
   };
@@ -172,17 +182,45 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
           <NotificationBell />
           <button
             aria-label={t("shell.user.toggleMute")}
-            className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
+            className={cn(
+              "rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]",
+              activeChannelId
+                ? "text-app-foreground"
+                : "text-app-muted disabled:cursor-not-allowed disabled:opacity-55",
+            )}
+            disabled={!activeChannelId}
+            onClick={() => {
+              void toggleMute();
+            }}
             type="button"
           >
-            <Mic className="h-4 w-4" />
+            <Mic
+              className={cn(
+                "h-4 w-4",
+                isMuted && "text-[hsl(var(--danger))]",
+              )}
+            />
           </button>
           <button
             aria-label={t("shell.user.toggleDeafen")}
-            className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
+            className={cn(
+              "rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]",
+              activeChannelId
+                ? "text-app-foreground"
+                : "text-app-muted disabled:cursor-not-allowed disabled:opacity-55",
+            )}
+            disabled={!activeChannelId}
+            onClick={() => {
+              void toggleDeafen();
+            }}
             type="button"
           >
-            <Volume2 className="h-4 w-4" />
+            <Volume2
+              className={cn(
+                "h-4 w-4",
+                isDeafened && "text-[hsl(var(--danger))]",
+              )}
+            />
           </button>
           <button
             aria-label={t("shell.user.appearanceSettings")}
@@ -239,6 +277,7 @@ export function ChannelSidebar({
 }: ChannelSidebarProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
+  const voiceStatesQuery = useVoiceStates(detail?.server.id ?? null);
   const {
     collapsedCategories,
     openCategoryModal,
@@ -425,7 +464,13 @@ export function ChannelSidebar({
         {!collapsed ? (
           <SortableContext items={channels.map((channel) => channel.id)} strategy={verticalListSortingStrategy}>
             <div className="space-y-1">
-              {channels.map((channel) => (
+              {channels.map((channel) => {
+                const voiceState =
+                  channel.type === "VOICE"
+                    ? voiceStatesQuery.data?.find((state) => state.channelId === channel.id) ?? null
+                    : null;
+
+                return (
                 <SortableChannelRow
                   active={channel.id === activeChannelId}
                   canManage={canManage}
@@ -443,8 +488,10 @@ export function ChannelSidebar({
                   }
                   onPrefetch={() => prefetchChannel(channel.id)}
                   onSelect={() => navigateToChannel(channel.id)}
+                  voiceState={voiceState}
                 />
-              ))}
+                );
+              })}
             </div>
           </SortableContext>
         ) : null}
@@ -492,6 +539,7 @@ export function ChannelSidebar({
       </DndContext>
 
       <div className="border-t border-[hsl(var(--border)/0.78)] p-3">
+        <VoiceConnectionBar />
         <UserProfileFooter user={currentUser} onOpenAppearanceSettings={onOpenSettings} />
       </div>
 

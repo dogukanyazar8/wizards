@@ -844,6 +844,7 @@ model VoiceState {
   channelId        String
   serverId         String
   sessionId        String
+  lastHeartbeat    DateTime  @default(now())
   deaf             Boolean   @default(false)
   mute             Boolean   @default(false)
   selfDeaf         Boolean   @default(false)
@@ -860,6 +861,7 @@ model VoiceState {
 
   @@index([channelId])
   @@index([serverId])
+  @@index([serverId, lastHeartbeat])
 }
 
 model ScheduledEvent {

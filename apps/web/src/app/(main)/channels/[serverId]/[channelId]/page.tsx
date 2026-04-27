@@ -1,8 +1,9 @@
+import { ChannelType, prisma } from "@wizards/db";
 import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth/utils";
-import { prisma } from "@wizards/db";
 import { ChannelConversationPage } from "@/components/chat/channel-conversation-page";
 import { DMConversationPage } from "@/components/dm/dm-conversation-page";
+import { VoiceChannelView } from "@/components/voice/voice-channel-view";
 
 const SERVER_ADMIN_PERMISSION =
   (1n << 0n) |
@@ -62,6 +63,7 @@ export default async function ChannelPage({ params }: PageParams) {
       },
       select: {
         id: true,
+        type: true,
       },
     }),
     prisma.serverMember.findFirst({
@@ -90,6 +92,10 @@ export default async function ChannelPage({ params }: PageParams) {
 
   if (!channel) {
     redirect(`/channels/${normalizedServerId}`);
+  }
+
+  if (channel.type === ChannelType.VOICE) {
+    return <VoiceChannelView channelId={channelId} serverId={normalizedServerId} />;
   }
 
   return (

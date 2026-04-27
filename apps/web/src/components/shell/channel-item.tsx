@@ -1,8 +1,10 @@
 "use client";
 
 import { Hash, Pencil, Trash2, Volume2 } from "lucide-react";
+import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
+import type { VoiceChannelStateDTO } from "@/lib/voice/types";
 
 type ChannelItemProps = {
   active: boolean;
@@ -13,6 +15,7 @@ type ChannelItemProps = {
   onPrefetch?: () => void;
   onSelect: () => void;
   type: "TEXT" | "VOICE";
+  voiceState?: VoiceChannelStateDTO | null;
 };
 
 export function ChannelItem({
@@ -24,9 +27,12 @@ export function ChannelItem({
   onPrefetch,
   onSelect,
   type,
+  voiceState = null,
 }: ChannelItemProps) {
   const { t } = useI18n();
   const Icon = type === "VOICE" ? Volume2 : Hash;
+  const previewParticipants = voiceState?.participants.slice(0, 3) ?? [];
+  const participantCount = voiceState?.participants.length ?? 0;
 
   return (
     <div>
@@ -59,6 +65,31 @@ export function ChannelItem({
         >
           <Icon className="h-4 w-4 shrink-0" />
           <span className="truncate text-sm font-medium">{name}</span>
+          {type === "VOICE" ? (
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <span className="text-[11px] font-semibold text-app-soft">
+                {participantCount}/10
+              </span>
+              {previewParticipants.length > 0 ? (
+                <div className="flex items-center -space-x-2">
+                  {previewParticipants.map((participant) => (
+                    <Avatar
+                      alt={participant.displayName ?? participant.username}
+                      className="h-5 w-5 border-2 border-[hsl(var(--surface-card))] text-[9px]"
+                      fallback={participant.displayName ?? participant.username}
+                      key={participant.userId}
+                      src={participant.avatarUrl}
+                    />
+                  ))}
+                  {participantCount > previewParticipants.length ? (
+                    <span className="ml-1 text-[11px] font-semibold text-app-soft">
+                      +{participantCount - previewParticipants.length}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </button>
 
         {canManage ? (

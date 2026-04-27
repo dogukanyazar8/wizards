@@ -139,6 +139,15 @@ async function listFriendIds(userId: string) {
   );
 }
 
+async function listServerIds(userId: string) {
+  const memberships = await prisma.serverMember.findMany({
+    where: { userId },
+    select: { serverId: true },
+  });
+
+  return memberships.map((membership) => membership.serverId);
+}
+
 async function writePresence(
   redis: Redis,
   userId: string,
@@ -235,6 +244,16 @@ export function initSocketServer(httpServer: HTTPServer) {
     socket.data.presenceCustomStatus = null;
     socket.data.presenceStatus = "OFFLINE";
     socket.join(`user:${userId}`);
+    void (async () => {
+      try {
+        const serverIds = await listServerIds(userId);
+        for (const serverId of serverIds) {
+          socket.join(`server:${serverId}`);
+        }
+      } catch (error) {
+        console.error("Server room join error:", error);
+      }
+    })();
 
     const emitDMError = (
       code:
@@ -375,6 +394,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         }
 
         socket.join(channelId);
+        socket.join(`server:${channel.serverId}`);
       } catch (error) {
         socket.emit("error", {
           code: "CHANNEL_JOIN_ERROR",

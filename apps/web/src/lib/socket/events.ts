@@ -97,9 +97,10 @@ export interface ServerToClientEvents {
   "typing:update": (data: { channelId: string; users: string[] }) => void;
   "notification:new": (notification: NotificationSocketPayload) => void;
   "voice:state:update": (data: {
+    channelId: string;
     userId: string;
-    channelId: string | null;
-    serverId: string | null;
+    action: "join" | "leave";
+    participants: Array<{ userId: string; username: string; avatarUrl: string | null }>;
   }) => void;
   error: (data: { code: string; message: string }) => void;
 }
