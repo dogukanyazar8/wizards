@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth/utils";
 import { prisma } from "@wizards/db";
-import { ChatArea } from "@/components/chat/chat-area";
+import { ChannelConversationPage } from "@/components/chat/channel-conversation-page";
 import { DMConversationPage } from "@/components/dm/dm-conversation-page";
 
 const SERVER_ADMIN_PERMISSION =
@@ -93,9 +93,9 @@ export default async function ChannelPage({ params }: PageParams) {
   }
 
   return (
-    <ChatArea
-      conversationId={channelId}
-      mode="channel"
+    <ChannelConversationPage
+      channelId={channelId}
+      serverId={normalizedServerId}
       currentUserId={session.user.id}
       currentUserDisplayName={currentUserDisplayName}
       currentUserUsername={currentUserUsername}

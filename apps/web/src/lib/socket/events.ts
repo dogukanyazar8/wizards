@@ -62,6 +62,7 @@ export interface ServerToClientEvents {
     messageId: string;
     reactions: MessageReaction[];
   }) => void;
+  "server:unread:update": (data: { serverId: string; unreadCount: number }) => void;
   "dm:message:new": (message: DMMessagePayload) => void;
   "dm:message:updated": (message: DMMessagePayload) => void;
   "dm:message:deleted": (data: {

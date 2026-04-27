@@ -22,6 +22,13 @@ import type {
   WorkspaceServerSummary,
 } from "@wizards/types";
 import { ApiError } from "@/lib/api";
+import {
+  emitServerUnreadUpdatesForServer,
+  getActiveChannelViewerUserIds,
+  getServerUnreadCount,
+  getServerUnreadCounts,
+  markChannelReadStates,
+} from "@/lib/workspace/unread-service";
 
 const SERVER_ADMIN_PERMISSION =
   (1n << 0n) |
@@ -208,6 +215,7 @@ function mapServerSummary(args: {
   inviteCode: string | null;
   memberCount: number;
   name: string;
+  unreadCount: number;
 }): WorkspaceServerSummary {
   return {
     accessLevel: args.accessLevel,
@@ -217,6 +225,7 @@ function mapServerSummary(args: {
     inviteCode: args.inviteCode,
     memberCount: args.memberCount,
     name: args.name,
+    unreadCount: args.unreadCount,
   };
 }
 
@@ -361,6 +370,9 @@ export async function listWorkspaceServers(userId: string) {
     },
   });
 
+  const serverIds = memberships.map((membership) => membership.server.id);
+  const unreadCounts = await getServerUnreadCounts(userId, serverIds);
+
   return memberships.map((membership) =>
     mapServerSummary({
       accessLevel: deriveAccessLevel(
@@ -374,6 +386,7 @@ export async function listWorkspaceServers(userId: string) {
       inviteCode: membership.server.inviteCode,
       memberCount: membership.server._count.members,
       name: membership.server.name,
+      unreadCount: unreadCounts.get(membership.server.id) ?? 0,
     }),
   );
 }
@@ -382,7 +395,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
   const access = await getAccessContext(userId, serverId);
   const isAdmin = access.accessLevel !== "MEMBER";
 
-  const [server, invites] = await Promise.all([
+  const [server, invites, unreadCount] = await Promise.all([
     prisma.server.findUnique({
       where: {
         id: serverId,
@@ -504,6 +517,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
           },
         })
       : Promise.resolve([]),
+    getServerUnreadCount(userId, serverId),
   ]);
 
   if (!server) {
@@ -532,6 +546,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
       isOwner: access.accessLevel === "OWNER",
       memberCount: server._count.members,
       name: server.name,
+      unreadCount,
     },
     ungroupedChannels,
   };
@@ -1129,7 +1144,7 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
   });
 
   if (!existingMember) {
-    await prisma.$transaction(async (tx) => {
+    const transactionResult = await prisma.$transaction(async (tx) => {
       const targetChannelId =
         invite.channelId ??
         (
@@ -1170,8 +1185,16 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
         });
       }
 
+      let systemMessage:
+        | {
+            channelId: string;
+            createdAt: Date;
+            id: string;
+          }
+        | null = null;
+
       if (targetChannelId) {
-        await tx.message.create({
+        const message = await tx.message.create({
           data: {
             channelId: targetChannelId,
             content: `${joiningUser?.displayName ?? joiningUser?.username ?? "A new wizard"} joined the server.`,
@@ -1179,6 +1202,12 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
             userId,
           },
         });
+
+        systemMessage = {
+          channelId: targetChannelId,
+          createdAt: message.createdAt,
+          id: message.id,
+        };
       }
 
       await tx.serverInvite.update({
@@ -1191,7 +1220,20 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
           },
         },
       });
+
+      return { message: systemMessage };
     });
+
+    if (transactionResult.message) {
+      const activeViewerUserIds = getActiveChannelViewerUserIds(transactionResult.message.channelId);
+      await markChannelReadStates({
+        channelId: transactionResult.message.channelId,
+        lastReadAt: transactionResult.message.createdAt,
+        lastReadMessageId: transactionResult.message.id,
+        userIds: [userId, ...activeViewerUserIds],
+      });
+      await emitServerUnreadUpdatesForServer(invite.server.id);
+    }
   }
 
   const targetChannel =

@@ -5,7 +5,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Users } from "lucide-react";
 import React, { type CSSProperties } from "react";
 import { useEffect, useMemo } from "react";
-import type { WorkspaceChannel } from "@wizards/types";
+import type {
+  WorkspaceChannel,
+  WorkspaceServerDetail,
+  WorkspaceServerSummary,
+} from "@wizards/types";
 import { useParams, useRouter } from "next/navigation";
 import { useShallow } from "zustand/react/shallow";
 import { ChannelSidebar } from "@/components/shell/channel-sidebar";
@@ -15,8 +19,10 @@ import { MobileDrawerTrigger, ServerRail } from "@/components/shell/server-rail"
 import { ServerSettingsOverlay } from "@/components/shell/server-settings-overlay";
 import { WorkspaceModals } from "@/components/shell/workspace-modals";
 import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
+import { useSocket } from "@/hooks/use-socket";
 import { useAppStore } from "@/lib/store";
 import {
+  applyServerUnreadCount,
   fetchWorkspaceServer,
   fetchWorkspaceServers,
   getServerHref,
@@ -134,6 +140,7 @@ NavigationPanel.displayName = "NavigationPanel";
 
 export function WizardsShell({ children, currentUser, uploadthingEnabled }: WizardsShellProps) {
   const { t } = useI18n();
+  const socket = useSocket();
   const params = useParams<{
     channelId?: string;
     serverId?: string;
@@ -179,6 +186,34 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   useEffect(() => {
     setActiveRoute(activeServerId, activeChannelId);
   }, [activeChannelId, activeServerId, setActiveRoute]);
+
+  useEffect(() => {
+    const handleServerUnreadUpdate = (data: { serverId: string; unreadCount: number }) => {
+      queryClient.setQueryData<WorkspaceServerSummary[] | undefined>(
+        workspaceQueryKeys.servers,
+        (current) => applyServerUnreadCount(current, data.serverId, data.unreadCount),
+      );
+
+      queryClient.setQueryData<WorkspaceServerDetail | undefined>(
+        workspaceQueryKeys.server(data.serverId),
+        (current) =>
+          current
+            ? {
+                ...current,
+                server: {
+                  ...current.server,
+                  unreadCount: data.unreadCount,
+                },
+              }
+            : current,
+      );
+    };
+
+    socket.on("server:unread:update", handleServerUnreadUpdate);
+    return () => {
+      socket.off("server:unread:update", handleServerUnreadUpdate);
+    };
+  }, [queryClient, socket]);
 
   const cachedServerDetail = activeServerId
     ? queryClient.getQueryData<Awaited<ReturnType<typeof fetchWorkspaceServer>>>(

@@ -61,6 +61,7 @@ export function ServerRail({
         {servers.map((server) => (
           <ServerIcon
             active={server.id === activeServerId}
+            badgeCount={server.unreadCount}
             fallback={server.name}
             iconUrl={server.iconUrl}
             key={server.id}

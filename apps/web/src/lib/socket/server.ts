@@ -15,6 +15,12 @@ import { getBlockStatus } from "@/lib/friends/helpers";
 import { getUserPresenceBroadcast } from "@/lib/friends/service";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { getRedis, getRedisSub } from "@/lib/redis";
+import { setSocketServer } from "@/lib/socket/runtime";
+import {
+  emitServerUnreadUpdatesForServer,
+  getActiveChannelViewerUserIds,
+  markChannelReadStates,
+} from "@/lib/workspace/unread-service";
 import {
   createMessage,
   deleteMessage,
@@ -171,6 +177,7 @@ export function initSocketServer(httpServer: HTTPServer) {
   >(httpServer, {
     cors: { origin: process.env.NEXTAUTH_URL || "http://localhost:3000" },
   });
+  setSocketServer(io);
 
   io.use(async (socket, next) => {
     try {
@@ -423,6 +430,17 @@ export function initSocketServer(httpServer: HTTPServer) {
         }
 
         const message = await createMessage(data.channelId, userId, data.content, data.replyToId);
+        const messageCreatedAt = new Date(message.createdAt);
+        const readUserIds = [userId, ...getActiveChannelViewerUserIds(data.channelId)];
+
+        await markChannelReadStates({
+          channelId: data.channelId,
+          lastReadAt: messageCreatedAt,
+          lastReadMessageId: message.id,
+          userIds: readUserIds,
+        });
+
+        await emitServerUnreadUpdatesForServer(channel.serverId);
         io.to(data.channelId).emit("message:new", message);
       } catch (error) {
         socket.emit("error", {

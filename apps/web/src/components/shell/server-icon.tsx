@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 type ServerIconProps = {
   active?: boolean;
+  badgeCount?: number;
   className?: string;
   fallback: string;
   iconUrl?: string | null;
@@ -19,6 +20,7 @@ type ServerIconProps = {
 
 export function ServerIcon({
   active,
+  badgeCount = 0,
   className,
   fallback,
   iconUrl,
@@ -77,7 +79,7 @@ export function ServerIcon({
         type="button"
         whileHover={{ scale: 1.06, y: -1 }}
         whileTap={{ scale: 0.97 }}
-      >
+        >
         <Avatar
           alt={label}
           className={cn(
@@ -89,6 +91,14 @@ export function ServerIcon({
           fallback={fallback}
           src={iconUrl}
         />
+        {badgeCount > 0 ? (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute bottom-0 right-0 inline-flex min-w-[1.35rem] translate-x-[24%] translate-y-[18%] items-center justify-center whitespace-nowrap rounded-full bg-[hsl(var(--danger))] px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white shadow-[0_10px_22px_hsl(var(--danger)/0.35)]"
+          >
+            {badgeCount > 99 ? "99+" : badgeCount}
+          </span>
+        ) : null}
       </motion.button>
 
       {tooltipPos !== null &&

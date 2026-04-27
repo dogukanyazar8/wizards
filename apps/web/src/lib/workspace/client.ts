@@ -65,6 +65,25 @@ export async function fetchWorkspaceServers() {
   return parsed.servers;
 }
 
+export function applyServerUnreadCount(
+  servers: WorkspaceServerSummary[] | undefined,
+  serverId: string,
+  unreadCount: number,
+) {
+  if (!servers) {
+    return servers;
+  }
+
+  return servers.map((server) =>
+    server.id === serverId
+      ? {
+          ...server,
+          unreadCount,
+        }
+      : server,
+  );
+}
+
 export async function fetchWorkspaceServer(serverId: string) {
   const payload = await requestJson<unknown>(`/api/v1/servers/${serverId}`);
   const parsed = WorkspaceServerResponseSchema.parse(payload);
@@ -295,4 +314,13 @@ export function getServerHref(server: WorkspaceServerSummary) {
   }
 
   return `/channels/${server.id}/${server.defaultChannelId}`;
+}
+
+export async function markChannelReadRequest(channelId: string) {
+  return requestJson<{
+    serverId: string;
+    unreadCount: number;
+  }>(`/api/v1/channels/${channelId}/read`, {
+    method: "PATCH",
+  });
 }

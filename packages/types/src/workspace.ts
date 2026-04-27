@@ -72,6 +72,7 @@ export const WorkspaceServerSummarySchema = z.object({
   name: z.string(),
   defaultChannelId: z.string().nullable(),
   accessLevel: WorkspaceAccessLevelSchema,
+  unreadCount: z.number().int().nonnegative(),
 });
 
 export const WorkspaceServerDetailSchema = z.object({
