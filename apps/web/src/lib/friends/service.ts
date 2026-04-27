@@ -4,6 +4,7 @@ import { ApiError } from "@/lib/api";
 import { getRedis } from "@/lib/redis";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { getBlockStatus, getFriendship } from "@/lib/friends/helpers";
+import { getSocketServer } from "@/lib/socket/runtime";
 import type {
   BlockStatus,
   FriendDto,
@@ -223,7 +224,7 @@ async function createFriendRequestNotification(
   const locale = normalizeAppLocale(receiver.locale);
   const senderName = getDisplayName(sender);
 
-  await prisma.notification.create({
+  const notification = await prisma.notification.create({
     data: {
       userId: receiver.id,
       type: "FRIEND_REQUEST",
@@ -238,6 +239,23 @@ async function createFriendRequestNotification(
       },
     },
   });
+
+  const io = getSocketServer();
+  if (io) {
+    io.to(`user:${receiver.id}`).emit("notification:new", {
+      id: notification.id,
+      userId: receiver.id,
+      type: "FRIEND_REQUEST",
+      title: notification.title,
+      body: notification.body,
+      imageUrl: notification.imageUrl,
+      read: notification.read,
+      readAt: notification.readAt?.toISOString() ?? null,
+      actionUrl: notification.actionUrl,
+      metadata: (notification.metadata as Record<string, unknown>) || null,
+      createdAt: notification.createdAt.toISOString(),
+    });
+  }
 }
 
 async function createFriendAcceptedNotification(
@@ -248,7 +266,7 @@ async function createFriendAcceptedNotification(
   const locale = normalizeAppLocale(sender.locale);
   const receiverName = getDisplayName(receiver);
 
-  await prisma.notification.create({
+  const notification = await prisma.notification.create({
     data: {
       userId: sender.id,
       type: "FRIEND_ACCEPTED",
@@ -259,10 +277,28 @@ async function createFriendAcceptedNotification(
       actionUrl: "/channels/@me",
       metadata: {
         friendRequestId: requestId,
+        senderId: receiver.id,
         friendId: receiver.id,
       },
     },
   });
+
+  const io = getSocketServer();
+  if (io) {
+    io.to(`user:${sender.id}`).emit("notification:new", {
+      id: notification.id,
+      userId: sender.id,
+      type: "FRIEND_ACCEPTED",
+      title: notification.title,
+      body: notification.body,
+      imageUrl: notification.imageUrl,
+      read: notification.read,
+      readAt: notification.readAt?.toISOString() ?? null,
+      actionUrl: notification.actionUrl,
+      metadata: (notification.metadata as Record<string, unknown>) || null,
+      createdAt: notification.createdAt.toISOString(),
+    });
+  }
 }
 
 function ensureDistinctUsers(userId: string, targetUserId: string) {

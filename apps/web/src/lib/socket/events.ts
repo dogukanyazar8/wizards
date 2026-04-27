@@ -52,6 +52,8 @@ export interface ClientToServerEvents {
   "dm:message:delete": (data: { messageId: string }) => void;
   "dm:typing:start": (data: { conversationId: string }) => void;
   "dm:typing:stop": (data: { conversationId: string }) => void;
+  "voice:join": (data: { channelId: string; serverId: string }) => void;
+  "voice:leave": (data: { channelId: string; serverId: string }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -94,6 +96,11 @@ export interface ServerToClientEvents {
   "presence:update": (data: FriendPresenceUpdateDto) => void;
   "typing:update": (data: { channelId: string; users: string[] }) => void;
   "notification:new": (notification: NotificationSocketPayload) => void;
+  "voice:state:update": (data: {
+    userId: string;
+    channelId: string | null;
+    serverId: string | null;
+  }) => void;
   error: (data: { code: string; message: string }) => void;
 }
 
