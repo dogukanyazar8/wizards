@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { auth, normalizeAuthEmail, signIn, signOut } from "@/auth";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
 import {
@@ -8,6 +9,8 @@ import {
 } from "@/lib/friends/service";
 import { normalizeAppLocale } from "@/lib/locale";
 import { persistUserLocale } from "@/lib/locale/persistence";
+import { getRedis } from "@/lib/redis";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { Prisma, prisma } from "@wizards/db";
 import { LoginSchema, RegisterSchema } from "@wizards/types";
 import bcrypt from "bcryptjs";
@@ -21,6 +24,16 @@ export interface AuthActionResult {
 function getFormValue(formData: FormData, key: string): string {
   const value = formData.get(key);
   return typeof value === "string" ? value : "";
+}
+
+async function getRequestIpAddress() {
+  const headerStore = await headers();
+  const forwardedFor = headerStore.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() || "unknown";
+  }
+
+  return headerStore.get("x-real-ip")?.trim() || "unknown";
 }
 
 export async function registerAction(formData: FormData): Promise<AuthActionResult> {
@@ -41,6 +54,26 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
   const email = normalizeAuthEmail(validation.data.email);
   const locale = normalizeAppLocale(getFormValue(formData, "locale"));
   const username = validation.data.username;
+  const redis = getRedis();
+  const ipAddress = await getRequestIpAddress();
+
+  try {
+    const isAllowed = await checkRateLimit(
+      redis,
+      `rate:register:${ipAddress}`,
+      10,
+      60 * 60,
+    );
+
+    if (!isAllowed) {
+      return {
+        success: false,
+        error: "auth.register.rateLimited",
+      };
+    }
+  } catch {
+    // Fail open if Redis is temporarily unavailable.
+  }
 
   const [existingEmail, existingUsername] = await Promise.all([
     prisma.user.findUnique({ where: { email }, select: { id: true } }),
@@ -121,6 +154,26 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
   }
 
   const { email, password } = validation.data;
+  const redis = getRedis();
+  const ipAddress = await getRequestIpAddress();
+
+  try {
+    const isAllowed = await checkRateLimit(
+      redis,
+      `rate:login:${email}:${ipAddress}`,
+      5,
+      15 * 60,
+    );
+
+    if (!isAllowed) {
+      return {
+        success: false,
+        error: "auth.login.rateLimited",
+      };
+    }
+  } catch {
+    // Fail open if Redis is temporarily unavailable.
+  }
 
   try {
     await signIn("credentials", {

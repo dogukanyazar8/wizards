@@ -10,7 +10,7 @@ export interface NotificationActorDTO {
 export interface NotificationDTO {
   id: string;
   type: "FRIEND_REQUEST" | "FRIEND_ACCEPTED" | "DM" | "MENTION";
-  actor: NotificationActorDTO;
+  actor: NotificationActorDTO | null;
   message: string;
   actionUrl: string | null;
   readAt: string | null;

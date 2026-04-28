@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { WorkspaceServerDetail } from "@wizards/types";
 import { Button } from "@wizards/ui";
 import { useShallow } from "zustand/react/shallow";
@@ -82,10 +82,13 @@ export function WorkspaceModals({
   const [channelTopic, setChannelTopic] = useState("");
   const [channelCategoryId, setChannelCategoryId] = useState<string | null>(null);
   const [categoryName, setCategoryName] = useState("");
+  const [createdCategoryName, setCreatedCategoryName] = useState<string | null>(null);
   const [inviteHours, setInviteHours] = useState("24");
   const [inviteMaxUses, setInviteMaxUses] = useState("");
   const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
   const [serverDeleteConfirmation, setServerDeleteConfirmation] = useState("");
+  const categoryCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!serverModal.open) {
@@ -126,8 +129,28 @@ export function WorkspaceModals({
       setInviteLink(null);
       setInviteHours("24");
       setInviteMaxUses("");
+      setInviteCopied(false);
     }
   }, [inviteModal.open]);
+
+  useEffect(() => {
+    if (!categoryModal.open) {
+      if (categoryCloseTimerRef.current) {
+        clearTimeout(categoryCloseTimerRef.current);
+        categoryCloseTimerRef.current = null;
+      }
+      setCategoryName("");
+      setCreatedCategoryName(null);
+    }
+  }, [categoryModal.open]);
+
+  useEffect(() => {
+    return () => {
+      if (categoryCloseTimerRef.current) {
+        clearTimeout(categoryCloseTimerRef.current);
+      }
+    };
+  }, []);
 
   const invalidateServer = async (serverId: string) => {
     await Promise.all([
@@ -181,16 +204,21 @@ export function WorkspaceModals({
         return;
       }
 
-      return createCategoryRequest(categoryModal.serverId, categoryName);
+      const nextCategoryName = categoryName.trim();
+      await createCategoryRequest(categoryModal.serverId, nextCategoryName);
+      return nextCategoryName;
     },
-    onSuccess: async () => {
+    onSuccess: async (nextCategoryName) => {
       if (!categoryModal.serverId) {
         return;
       }
 
       await invalidateServer(categoryModal.serverId);
-      closeCategoryModal();
+      setCreatedCategoryName(nextCategoryName ?? categoryName.trim());
       setCategoryName("");
+      categoryCloseTimerRef.current = setTimeout(() => {
+        closeCategoryModal();
+      }, 1100);
     },
   });
 
@@ -285,9 +313,19 @@ export function WorkspaceModals({
       }
 
       setInviteLink(`${window.location.origin}/invite/${result.code}`);
+      setInviteCopied(false);
       await invalidateServer(inviteModal.serverId);
     },
   });
+
+  const handleInviteCopy = async () => {
+    if (!inviteLink) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(inviteLink);
+    setInviteCopied(true);
+  };
 
   const deleteChannelMutation = useMutation({
     mutationFn: async () => {
@@ -441,12 +479,27 @@ export function WorkspaceModals({
             </label>
             <Input
               maxLength={32}
-              onChange={(event) => setCategoryName(event.target.value)}
+              onChange={(event) => {
+                setCategoryName(event.target.value);
+                if (createdCategoryName) {
+                  setCreatedCategoryName(null);
+                }
+              }}
               placeholder={t("workspace.modal.categoryPlaceholder")}
               required
               value={categoryName}
             />
           </div>
+          {createdCategoryName ? (
+            <div className="app-success rounded-[24px] border p-4">
+              <p className="text-app-success text-xs font-semibold uppercase tracking-[0.2em]">
+                {t("workspace.modal.categoryReady")}
+              </p>
+              <p className="text-app-foreground mt-2 text-sm font-medium">
+                {t("workspace.modal.categoryCreated", { name: createdCategoryName })}
+              </p>
+            </div>
+          ) : null}
           <div className="flex justify-end gap-2">
             <Button onClick={closeCategoryModal} type="button" variant="outline">
               {t("common.cancel")}
@@ -570,24 +623,23 @@ export function WorkspaceModals({
           </div>
           {inviteLink ? (
             <div className="app-success rounded-[24px] border p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em]">
+              <p className="text-app-success text-xs font-semibold uppercase tracking-[0.2em]">
                 {t("workspace.modal.inviteReady")}
               </p>
-              <p className="mt-2 break-all text-sm">{inviteLink}</p>
+              <p className="text-app-foreground mt-2 break-all text-sm font-medium">
+                {inviteLink}
+              </p>
             </div>
           ) : null}
           <div className="flex justify-end gap-2">
             {inviteLink ? (
               <Button
-                onClick={async () => {
-                  if (inviteLink) {
-                    await navigator.clipboard.writeText(inviteLink);
-                  }
-                }}
+                className={inviteCopied ? "border-[hsl(var(--success)/0.28)] text-app-success" : ""}
+                onClick={handleInviteCopy}
                 type="button"
                 variant="outline"
               >
-                {t("common.copyLink")}
+                {inviteCopied ? t("common.linkCopied") : t("common.copyLink")}
               </Button>
             ) : null}
             <Button onClick={closeInviteModal} type="button" variant="outline">
@@ -599,6 +651,11 @@ export function WorkspaceModals({
                 : t("workspace.modal.inviteGenerate")}
             </Button>
           </div>
+          {inviteCopied ? (
+            <p className="text-app-success text-right text-xs font-medium">
+              {t("workspace.modal.inviteCopied")}
+            </p>
+          ) : null}
         </div>
       </Modal>
 

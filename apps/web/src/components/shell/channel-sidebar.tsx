@@ -284,6 +284,7 @@ export function ChannelSidebar({
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const voiceStatesQuery = useVoiceStates(detail?.server.id ?? null);
+  const { prepareForVoiceJoin } = useVoiceConnection();
   const {
     collapsedCategories,
     openCategoryModal,
@@ -374,11 +375,20 @@ export function ChannelSidebar({
   const serverId = detail?.server.id ?? null;
 
   const navigateToChannel = useCallback(
-    (channelId: string) => {
+    async (channelId: string, channelType: "TEXT" | "VOICE") => {
       if (!serverId) return;
+
+      if (channelType === "VOICE") {
+        try {
+          await prepareForVoiceJoin();
+        } catch {
+          // Join flow inside the voice view handles the final fallback state.
+        }
+      }
+
       onNavigate(`/channels/${serverId}/${channelId}`);
     },
-    [serverId, onNavigate],
+    [onNavigate, prepareForVoiceJoin, serverId],
   );
 
   const prefetchChannel = useCallback(
@@ -499,7 +509,9 @@ export function ChannelSidebar({
                     })
                   }
                   onPrefetch={() => prefetchChannel(channel.id)}
-                  onSelect={() => navigateToChannel(channel.id)}
+                  onSelect={() => {
+                    void navigateToChannel(channel.id, channel.type);
+                  }}
                   voiceState={voiceState}
                 />
                 );

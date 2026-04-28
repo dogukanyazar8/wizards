@@ -1,6 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { ChannelType, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { getLiveKitRoomServiceClient } from "@/lib/livekit/server";
+import { getRedis } from "@/lib/redis";
 import { getSocketServer } from "@/lib/socket/runtime";
 import {
   MAX_VOICE_PARTICIPANTS,
@@ -18,6 +20,8 @@ function getStaleVoiceHeartbeatCutoff() {
 function getVoiceRoomName(channelId: string) {
   return `voice:${channelId}`;
 }
+
+const VOICE_CLEANUP_DEBOUNCE_KEY = "voice:cleanup:last";
 
 export async function cleanupStaleVoiceStates() {
   const staleStates = await prisma.voiceState.findMany({
@@ -64,6 +68,21 @@ export async function cleanupStaleVoiceStates() {
       }),
     ),
   );
+}
+
+async function maybeCleanupStaleVoiceStates() {
+  const redis = getRedis();
+
+  try {
+    const shouldRun = await redis.set(VOICE_CLEANUP_DEBOUNCE_KEY, "1", "EX", 60, "NX");
+    if (!shouldRun) {
+      return;
+    }
+  } catch {
+    // Fall back to attempting cleanup if Redis is temporarily unavailable.
+  }
+
+  await cleanupStaleVoiceStates();
 }
 
 async function requireVoiceMembership(userId: string, input: {
@@ -169,7 +188,7 @@ export async function listVoiceStatesForServer(
   userId: string,
   serverId: string,
 ): Promise<VoiceChannelStateDTO[]> {
-  await cleanupStaleVoiceStates();
+  await maybeCleanupStaleVoiceStates();
 
   const membership = await prisma.serverMember.findUnique({
     where: {
@@ -245,21 +264,41 @@ export async function upsertVoiceState(
   userId: string,
   input: UpsertVoiceStateBody,
 ): Promise<VoiceStateMutationResponse> {
-  await cleanupStaleVoiceStates();
+  await maybeCleanupStaleVoiceStates();
   const channel = await requireVoiceMembership(userId, input);
-  await enforceVoiceRoomCapacity(channel.id, userId);
+  const redis = getRedis();
+  const lockKey = `voice:join:lock:${channel.id}`;
+  const lockToken = randomUUID();
+  const lockAcquired = await redis.set(lockKey, lockToken, "PX", 2000, "NX");
 
-  await prisma.$transaction(async (tx) => {
-    await tx.voiceState.create({
-      data: {
-        channelId: channel.id,
-        lastHeartbeat: new Date(),
-        serverId: channel.serverId!,
-        sessionId: input.sessionId,
-        userId,
-      },
+  if (!lockAcquired) {
+    throw new ApiError("Voice channel is busy. Please try again.", 409, "CHANNEL_BUSY");
+  }
+
+  try {
+    await enforceVoiceRoomCapacity(channel.id, userId);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.voiceState.create({
+        data: {
+          channelId: channel.id,
+          lastHeartbeat: new Date(),
+          serverId: channel.serverId!,
+          sessionId: input.sessionId,
+          userId,
+        },
+      });
     });
-  });
+  } finally {
+    try {
+      const currentToken = await redis.get(lockKey);
+      if (currentToken === lockToken) {
+        await redis.del(lockKey);
+      }
+    } catch {
+      // Best-effort lock cleanup.
+    }
+  }
 
   const participants = await buildVoiceStateParticipantsForChannel(channel.id);
   return {
@@ -271,7 +310,7 @@ export async function upsertVoiceState(
 }
 
 export async function clearVoiceState(userId: string) {
-  await cleanupStaleVoiceStates();
+  await maybeCleanupStaleVoiceStates();
 
   const existingState = await prisma.voiceState.findUnique({
     where: { userId },
@@ -295,7 +334,7 @@ export async function clearVoiceState(userId: string) {
 }
 
 export async function heartbeatVoiceState(userId: string, sessionId: string) {
-  await cleanupStaleVoiceStates();
+  await maybeCleanupStaleVoiceStates();
 
   const existingState = await prisma.voiceState.findUnique({
     where: { userId },

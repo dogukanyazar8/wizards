@@ -4,6 +4,7 @@ import { ApiError } from "@/lib/api";
 import { getRedis } from "@/lib/redis";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { getBlockStatus, getFriendship } from "@/lib/friends/helpers";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { getSocketServer } from "@/lib/socket/runtime";
 import type {
   BlockStatus,
@@ -502,6 +503,24 @@ export async function sendFriendRequest(
   senderId: string,
   username: string,
 ): Promise<FriendRequestDto> {
+  try {
+    const isAllowed = await checkRateLimit(
+      getRedis(),
+      `rate:friend-request:${senderId}`,
+      20,
+      10 * 60,
+    );
+
+    if (!isAllowed) {
+      throw new ApiError("Too many friend requests. Please try again later.", 429, "RATE_LIMITED");
+    }
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    // Fail open if Redis is temporarily unavailable.
+  }
+
   const [sender, receiver] = await Promise.all([
     prisma.user.findUnique({
       where: { id: senderId },

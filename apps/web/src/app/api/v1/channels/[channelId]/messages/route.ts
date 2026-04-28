@@ -1,6 +1,9 @@
 import { requireApiUserId } from "@/lib/auth/api";
 import { ApiError, jsonError } from "@/lib/api";
 import { getChannelMessages } from "@/lib/workspace/message-service";
+import { getSocketServer } from "@/lib/socket/runtime";
+import { emitServerUnreadUpdatesForServer } from "@/lib/workspace/unread-service";
+import { clearWorkspaceChannelHistory } from "@/lib/workspace/service";
 import { prisma } from "@wizards/db";
 
 type RouteContext = {
@@ -42,6 +45,28 @@ export async function GET(request: Request, context: RouteContext) {
     const result = await getChannelMessages(channelId, cursor, limit);
 
     return Response.json(result);
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function DELETE(_: Request, context: RouteContext) {
+  try {
+    const userId = await requireApiUserId();
+    const { channelId } = await context.params;
+    const result = await clearWorkspaceChannelHistory(userId, channelId);
+
+    await emitServerUnreadUpdatesForServer(result.serverId);
+
+    const io = getSocketServer();
+    io?.to(channelId).emit("message:history_cleared", {
+      channelId,
+    });
+
+    return Response.json({
+      deletedCount: result.deletedCount,
+      success: true,
+    });
   } catch (error) {
     return jsonError(error);
   }

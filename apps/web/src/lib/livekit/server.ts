@@ -48,35 +48,37 @@ function ensureLiveKitEnv() {
     return;
   }
 
-  try {
-    process.loadEnvFile();
-  } catch {
-    // Ignore missing local env files and fall back to the workspace root.
-  }
-
-  if (
-    !process.env.LIVEKIT_API_KEY ||
-    !process.env.LIVEKIT_API_SECRET ||
-    !process.env.LIVEKIT_URL ||
-    !process.env.NEXT_PUBLIC_LIVEKIT_URL
-  ) {
+  if (process.env.NODE_ENV !== "production") {
     try {
-      process.loadEnvFile(resolve(WORKSPACE_ROOT, ".env"));
+      process.loadEnvFile();
     } catch {
-      // Shell-provided env vars are still valid if the workspace file is absent.
+      // Ignore missing local env files and fall back to the workspace root.
     }
-  }
 
-  if (
-    !process.env.LIVEKIT_API_KEY ||
-    !process.env.LIVEKIT_API_SECRET ||
-    !process.env.LIVEKIT_URL ||
-    !process.env.NEXT_PUBLIC_LIVEKIT_URL
-  ) {
-    try {
-      loadEnvFallback(resolve(WORKSPACE_ROOT, ".env"));
-    } catch {
-      // Ignore missing workspace files; downstream validation will raise a typed API error.
+    if (
+      !process.env.LIVEKIT_API_KEY ||
+      !process.env.LIVEKIT_API_SECRET ||
+      !process.env.LIVEKIT_URL ||
+      !process.env.NEXT_PUBLIC_LIVEKIT_URL
+    ) {
+      try {
+        process.loadEnvFile(resolve(WORKSPACE_ROOT, ".env"));
+      } catch {
+        // Shell-provided env vars are still valid if the workspace file is absent.
+      }
+    }
+
+    if (
+      !process.env.LIVEKIT_API_KEY ||
+      !process.env.LIVEKIT_API_SECRET ||
+      !process.env.LIVEKIT_URL ||
+      !process.env.NEXT_PUBLIC_LIVEKIT_URL
+    ) {
+      try {
+        loadEnvFallback(resolve(WORKSPACE_ROOT, ".env"));
+      } catch {
+        // Ignore missing workspace files; downstream validation will raise a typed API error.
+      }
     }
   }
 

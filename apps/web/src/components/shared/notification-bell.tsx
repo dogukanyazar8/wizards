@@ -444,7 +444,12 @@ function NotificationItem({
 }) {
   const { t } = useI18n();
   const [isReading, setIsReading] = useState(false);
-  const actorName = notification.actor.displayName || notification.actor.username;
+  const actorName =
+    notification.actor?.displayName ||
+    notification.actor?.username ||
+    t("notifications.actor.system");
+  const actorUsername = notification.actor?.username ?? "system";
+  const actorAvatarUrl = notification.actor?.avatarUrl ?? null;
 
   const handleClick = async () => {
     setIsReading(true);
@@ -476,14 +481,14 @@ function NotificationItem({
             alt={actorName}
             className="h-11 w-11 shrink-0 text-sm"
             fallback={actorName}
-            src={notification.actor.avatarUrl}
+            src={actorAvatarUrl}
           />
 
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate text-xs font-semibold uppercase tracking-[0.18em] text-app-soft">
-                  @{notification.actor.username}
+                  @{actorUsername}
                 </p>
                 <p className="mt-2 text-sm font-semibold text-app-foreground">
                   {notification.message}

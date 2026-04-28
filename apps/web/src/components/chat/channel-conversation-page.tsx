@@ -13,6 +13,8 @@ import {
 interface ChannelConversationPageProps {
   canModerate: boolean;
   channelId: string;
+  channelName: string;
+  channelTopic: string | null;
   currentUserDisplayName: string;
   currentUserId: string;
   currentUserUsername: string;
@@ -22,6 +24,8 @@ interface ChannelConversationPageProps {
 export function ChannelConversationPage({
   canModerate,
   channelId,
+  channelName,
+  channelTopic,
   currentUserDisplayName,
   currentUserId,
   currentUserUsername,
@@ -83,10 +87,13 @@ export function ChannelConversationPage({
     <ChatArea
       conversationId={channelId}
       mode="channel"
+      channelName={channelName}
+      channelTopic={channelTopic}
       currentUserId={currentUserId}
       currentUserDisplayName={currentUserDisplayName}
       currentUserUsername={currentUserUsername}
       canModerate={canModerate}
+      serverId={serverId}
     />
   );
 }

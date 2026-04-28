@@ -17,6 +17,24 @@ function normalizeMessageType(type: string): ChatMessageType {
   return "DEFAULT";
 }
 
+function validateMessageContent(content: string) {
+  const trimmed = content.trim();
+  if (!trimmed || trimmed.length > 2000) {
+    throw new ApiError("Message content must be between 1 and 2000 characters.", 400);
+  }
+
+  return trimmed;
+}
+
+function validateReactionEmoji(emoji: string) {
+  const trimmed = emoji.trim();
+  if (!trimmed || trimmed.length > 64) {
+    throw new ApiError("Invalid emoji", 400, "INVALID_EMOJI");
+  }
+
+  return trimmed;
+}
+
 const messageInclude = {
   author: {
     select: {
@@ -144,6 +162,15 @@ export async function getChannelMessages(
   };
 }
 
+export async function getMessageById(messageId: string): Promise<ChatMessage | null> {
+  const message = await prisma.message.findUnique({
+    where: { id: messageId },
+    include: messageInclude,
+  }) as RawMessage | null;
+
+  return message ? mapRawMessage(message) : null;
+}
+
 export async function createMessage(
   channelId: string,
   userId: string,
@@ -175,11 +202,12 @@ async function createTypedMessage(args: {
   type: ChatMessageType;
   userId: string;
 }): Promise<ChatMessage> {
+  const content = validateMessageContent(args.content);
   const message = await prisma.message.create({
     data: {
       channelId: args.channelId,
       userId: args.userId,
-      content: args.content,
+      content,
       replyToId: args.replyToId ?? null,
       type: args.type,
     },
@@ -203,9 +231,10 @@ export async function editMessage(
     throw new ApiError("Cannot edit this message", 403);
   }
 
+  const nextContent = validateMessageContent(content);
   const message = await prisma.message.update({
     where: { id: messageId },
-    data: { content, editedAt: new Date() },
+    data: { content: nextContent, editedAt: new Date() },
     include: messageInclude,
   }) as RawMessage;
 
@@ -237,8 +266,9 @@ export async function toggleReaction(
   userId: string,
   emoji: string,
 ): Promise<MessageReaction[]> {
+  const normalizedEmoji = validateReactionEmoji(emoji);
   const existing = await prisma.reaction.findFirst({
-    where: { messageId, userId, emoji },
+    where: { messageId, userId, emoji: normalizedEmoji },
     select: { id: true },
   });
 
@@ -246,7 +276,7 @@ export async function toggleReaction(
     await prisma.reaction.delete({ where: { id: existing.id } });
   } else {
     await prisma.reaction.create({
-      data: { messageId, userId, emoji },
+      data: { messageId, userId, emoji: normalizedEmoji },
     });
   }
 

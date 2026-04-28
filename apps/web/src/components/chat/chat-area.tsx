@@ -7,6 +7,7 @@ import type { ChatMessage, DMParticipantDTO } from "@wizards/types";
 import { MessageList } from "./message-list";
 import { MessageInput } from "./message-input";
 import { TypingIndicator } from "./typing-indicator";
+import { ClearChannelHistoryAction } from "./clear-channel-history-action";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
@@ -21,11 +22,14 @@ import { useTyping } from "@/hooks/use-typing";
 interface ChatAreaProps {
   conversationId: string;
   mode: MessageMode;
+  channelName?: string;
+  channelTopic?: string | null;
   currentUserId: string;
   currentUserDisplayName: string;
   currentUserUsername: string;
   canModerate: boolean;
   directMessageParticipant?: DMParticipantDTO | null;
+  serverId?: string;
 }
 
 function getStatusDotClass(status: DMParticipantDTO["status"] | undefined) {
@@ -105,11 +109,14 @@ function buildOptimisticMessage(input: {
 export function ChatArea({
   conversationId,
   mode,
+  channelName,
+  channelTopic = null,
   currentUserId,
   currentUserDisplayName,
   currentUserUsername,
   canModerate,
   directMessageParticipant = null,
+  serverId,
 }: ChatAreaProps) {
   const { t } = useI18n();
   const socket = useSocket();
@@ -231,6 +238,11 @@ export function ChatArea({
   const directMessageStatusLabel = directMessageParticipant
     ? directMessageParticipant.customStatus ?? t(getStatusKey(directMessageParticipant.status))
     : t("dm.header.directMessage");
+  const showChannelAdminBar =
+    mode === "channel" &&
+    canModerate &&
+    Boolean(channelName) &&
+    Boolean(serverId);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-transparent">
@@ -266,6 +278,28 @@ export function ChatArea({
           >
             <Phone className="h-4 w-4" />
           </button>
+        </div>
+      ) : null}
+
+      {showChannelAdminBar ? (
+        <div className="border-b border-app-border bg-[hsl(var(--surface-card)/0.38)] px-5 py-3 backdrop-blur-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-app-soft text-[11px] font-semibold uppercase tracking-[0.18em]">
+                {t("chat.channel.adminTools")}
+              </p>
+              <p className="mt-1 truncate text-xs text-app-muted">
+                {channelTopic && channelTopic.trim().length > 0
+                  ? channelTopic
+                  : t("chat.channel.clearHistoryHelp")}
+              </p>
+            </div>
+            <ClearChannelHistoryAction
+              channelId={conversationId}
+              channelName={channelName!}
+              serverId={serverId!}
+            />
+          </div>
         </div>
       ) : null}
 

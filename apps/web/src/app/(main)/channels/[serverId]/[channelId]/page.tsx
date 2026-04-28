@@ -12,6 +12,8 @@ const SERVER_ADMIN_PERMISSION =
   (1n << 3n);
 
 function hasAdminAccess(
+  ownerId: string,
+  userId: string,
   roles: Array<{
     role: {
       name: string;
@@ -19,6 +21,10 @@ function hasAdminAccess(
     };
   }>,
 ) {
+  if (ownerId === userId) {
+    return true;
+  }
+
   return roles.some(
     ({ role }) =>
       (role.permissions & SERVER_ADMIN_PERMISSION) !== 0n ||
@@ -63,6 +69,8 @@ export default async function ChannelPage({ params }: PageParams) {
       },
       select: {
         id: true,
+        name: true,
+        topic: true,
         type: true,
       },
     }),
@@ -72,6 +80,11 @@ export default async function ChannelPage({ params }: PageParams) {
         userId: session.user.id,
       },
       select: {
+        server: {
+          select: {
+            ownerId: true,
+          },
+        },
         roles: {
           select: {
             role: {
@@ -101,11 +114,17 @@ export default async function ChannelPage({ params }: PageParams) {
   return (
     <ChannelConversationPage
       channelId={channelId}
+      channelName={channel.name}
+      channelTopic={channel.topic}
       serverId={normalizedServerId}
       currentUserId={session.user.id}
       currentUserDisplayName={currentUserDisplayName}
       currentUserUsername={currentUserUsername}
-      canModerate={hasAdminAccess(membership.roles)}
+      canModerate={hasAdminAccess(
+        membership.server.ownerId,
+        session.user.id,
+        membership.roles,
+      )}
     />
   );
 }

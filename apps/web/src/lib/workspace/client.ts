@@ -168,6 +168,15 @@ export async function deleteChannelRequest(channelId: string) {
   });
 }
 
+export async function clearChannelMessagesRequest(channelId: string) {
+  return requestJson<{ deletedCount: number; success: true }>(
+    `/api/v1/channels/${channelId}/messages`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
 export async function reorderChannelsRequest(
   serverId: string,
   items: Array<{

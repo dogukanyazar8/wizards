@@ -53,6 +53,14 @@ export function MessageList({
     }
 
     const allMessages = data.pages.flatMap((page) => page.messages) ?? [];
+    if (allMessages.length < lastMessageCountRef.current) {
+      lastMessageCountRef.current = allMessages.length;
+      if (allMessages.length === 0) {
+        setShowScrollButton(false);
+      }
+      return;
+    }
+
     if (allMessages.length > lastMessageCountRef.current) {
       lastMessageCountRef.current = allMessages.length;
       setTimeout(() => {
@@ -113,12 +121,12 @@ export function MessageList({
   );
 
   const handleReact = useCallback(
-    (messageId: string) => {
+    (messageId: string, emoji: string) => {
       if (mode !== "channel") {
         return;
       }
 
-      socket.emit("message:react", { messageId, emoji: "+1" });
+      socket.emit("message:react", { messageId, emoji });
     },
     [mode, socket],
   );

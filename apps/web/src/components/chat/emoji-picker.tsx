@@ -44,7 +44,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   }, [onClose]);
 
   return (
-    <div ref={pickerRef} className="absolute bottom-full right-0 mb-2 z-50">
+    <div ref={pickerRef} className="absolute bottom-full left-0 z-50 mb-3 max-w-[calc(100vw-2rem)]">
       <Picker
         dynamicWidth
         onEmojiSelect={(emoji: EmojiSelection) => onSelect(emoji.native)}

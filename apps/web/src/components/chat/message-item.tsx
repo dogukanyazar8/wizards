@@ -21,7 +21,7 @@ interface MessageItemProps {
   showGroupSeparator: boolean;
   currentUserId: string;
   canModerate: boolean;
-  onReact: (messageId: string) => void;
+  onReact: (messageId: string, emoji: string) => void;
   onReply: (id: string, author: string, content: string) => void;
 }
 
@@ -174,8 +174,14 @@ export const MessageItem = React.memo(
                 {message.reactions.map((reaction) => (
                   <button
                     key={reaction.emoji}
-                    className="bg-app-surface-soft rounded-full px-2 py-1 text-xs hover:bg-app-surface transition"
-                    onClick={() => onReact(message.id)}
+                    className={cn(
+                      "rounded-full px-2 py-1 text-xs transition",
+                      reaction.userIds.includes(currentUserId)
+                        ? "border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
+                        : "bg-app-surface-soft hover:bg-app-surface",
+                    )}
+                    onClick={() => onReact(message.id, reaction.emoji)}
+                    type="button"
                   >
                     {reaction.emoji} {reaction.count}
                   </button>
@@ -192,7 +198,7 @@ export const MessageItem = React.memo(
                     messageId={message.id}
                     isOwner={isOwner}
                     canModerate={canModerate}
-                    onReact={() => onReact(message.id)}
+                    onReact={(emoji) => onReact(message.id, emoji)}
                     onReply={() => onReply(message.id, message.author.displayName, message.content)}
                     onEdit={() => setIsEditing(true)}
                     onDelete={handleDelete}

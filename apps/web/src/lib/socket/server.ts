@@ -3,6 +3,7 @@ import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { getToken } from "next-auth/jwt";
 import { Prisma, prisma } from "@wizards/db";
+import { ApiError } from "@/lib/api";
 import {
   dmMessageInclude,
   dmNotificationUserSelect,
@@ -133,7 +134,10 @@ export function initSocketServer(httpServer: HTTPServer) {
     InterServerEvents,
     SocketData
   >(httpServer, {
-    cors: { origin: process.env.NEXTAUTH_URL || "http://localhost:3000" },
+    cors: {
+      origin: process.env.NEXTAUTH_URL || "http://localhost:3000",
+      credentials: true,
+    },
   });
   setSocketServer(io);
 
@@ -199,6 +203,9 @@ export function initSocketServer(httpServer: HTTPServer) {
     const userId = socket.data.userId;
     const dmTypingConversations = new Set<string>();
     const dmTypingTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+    const presenceHeartbeat = setInterval(() => {
+      void redis.expire(getPresenceSocketsKey(userId), 120);
+    }, 60_000);
     socket.data.typingChannels = new Set<string>();
     socket.data.presenceCustomStatus = socket.data.presenceCustomStatus ?? null;
     socket.data.presenceStatus = socket.data.presenceStatus ?? "OFFLINE";
@@ -227,6 +234,42 @@ export function initSocketServer(httpServer: HTTPServer) {
       socket.emit("dm:error", { code, message });
     };
 
+    const emitSocketError = (code: string, fallbackMessage: string, error: unknown) => {
+      if (error instanceof ApiError) {
+        socket.emit("error", {
+          code: error.code ?? code,
+          message: error.message,
+        });
+        return;
+      }
+
+      console.error(`[socket] ${code}`, error);
+      socket.emit("error", {
+        code,
+        message: fallbackMessage,
+      });
+    };
+
+    const emitSafeDMError = (
+      code:
+        | "UNAUTHORIZED"
+        | "FORBIDDEN"
+        | "BLOCKED"
+        | "RATE_LIMITED"
+        | "VALIDATION_ERROR"
+        | "NOT_FOUND",
+      fallbackMessage: string,
+      error: unknown,
+    ) => {
+      if (error instanceof ApiError) {
+        emitDMError(code, error.message);
+        return;
+      }
+
+      console.error(`[socket] dm:${code}`, error);
+      emitDMError(code, fallbackMessage);
+    };
+
     async function requireDMParticipant(conversationId: string): Promise<boolean> {
       const participant = await prisma.dMParticipant.findUnique({
         where: {
@@ -239,6 +282,75 @@ export function initSocketServer(httpServer: HTTPServer) {
       });
 
       return participant !== null;
+    }
+
+    async function ensureChannelMembership(channelId: string) {
+      const channel = await prisma.channel.findUnique({
+        where: { id: channelId },
+        select: { serverId: true },
+      });
+
+      if (!channel?.serverId) {
+        throw new ApiError("Channel not found", 404, "CHANNEL_NOT_FOUND");
+      }
+
+      const member = await prisma.serverMember.findFirst({
+        where: { serverId: channel.serverId, userId },
+        select: { id: true, serverId: true },
+      });
+
+      if (!member) {
+        throw new ApiError("Not a member of this server", 403, "NOT_A_MEMBER");
+      }
+
+      return {
+        channelId,
+        serverId: channel.serverId,
+      };
+    }
+
+    async function getChannelTypingUsers(channelId: string) {
+      const key = `typing:${channelId}`;
+      const typingData = await redis.hgetall(key);
+      const now = Date.now();
+      const expiredUserIds: string[] = [];
+      const activeUserIds = Object.entries(typingData)
+        .filter(([typingUserId, expiry]) => {
+          const expiresAt = Number.parseInt(expiry, 10);
+          const isActive = Number.isFinite(expiresAt) && expiresAt > now;
+          if (!isActive) {
+            expiredUserIds.push(typingUserId);
+          }
+          return isActive;
+        })
+        .map(([typingUserId]) => typingUserId);
+
+      if (expiredUserIds.length > 0) {
+        await redis.hdel(key, ...expiredUserIds);
+      }
+
+      if (activeUserIds.length === 0) {
+        return [];
+      }
+
+      const users = await prisma.user.findMany({
+        where: { id: { in: activeUserIds } },
+        select: {
+          displayName: true,
+          id: true,
+          username: true,
+        },
+      });
+
+      const userMap = new Map(
+        users.map((entry) => [entry.id, entry.displayName ?? entry.username]),
+      );
+
+      return activeUserIds.map(
+        (typingUserId) =>
+          userMap.get(typingUserId) ??
+          (typingUserId === userId ? socket.data.displayName : "Someone"),
+      );
     }
 
     async function emitDMTypingUpdate(conversationId: string) {
@@ -326,6 +438,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         socket.data.presenceCustomStatus = presence.customStatus;
 
         const socketCount = await redis.incr(getPresenceSocketsKey(userId));
+        await redis.expire(getPresenceSocketsKey(userId), 120);
 
         if (socketCount === 1) {
           await broadcastPresenceUpdateToFriends(presence);
@@ -363,10 +476,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         socket.join(channelId);
         socket.join(`server:${channel.serverId}`);
       } catch (error) {
-        socket.emit("error", {
-          code: "CHANNEL_JOIN_ERROR",
-          message: String(error),
-        });
+        emitSocketError("CHANNEL_JOIN_ERROR", "Unable to join channel.", error);
       }
     });
 
@@ -430,10 +540,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         await emitServerUnreadUpdatesForServer(channel.serverId);
         io.to(data.channelId).emit("message:new", message);
       } catch (error) {
-        socket.emit("error", {
-          code: "MESSAGE_SEND_ERROR",
-          message: String(error),
-        });
+        emitSocketError("MESSAGE_SEND_ERROR", "Unable to send message.", error);
       }
     });
 
@@ -450,10 +557,7 @@ export function initSocketServer(httpServer: HTTPServer) {
           io.to(dbMessage.channelId).emit("message:updated", message);
         }
       } catch (error) {
-        socket.emit("error", {
-          code: "MESSAGE_EDIT_ERROR",
-          message: String(error),
-        });
+        emitSocketError("MESSAGE_EDIT_ERROR", "Unable to edit message.", error);
       }
     });
 
@@ -496,10 +600,7 @@ export function initSocketServer(httpServer: HTTPServer) {
           channelId: dbMessage.channelId,
         });
       } catch (error) {
-        socket.emit("error", {
-          code: "MESSAGE_DELETE_ERROR",
-          message: String(error),
-        });
+        emitSocketError("MESSAGE_DELETE_ERROR", "Unable to delete message.", error);
       }
     });
 
@@ -515,16 +616,14 @@ export function initSocketServer(httpServer: HTTPServer) {
           return;
         }
 
+        await ensureChannelMembership(message.channelId);
         const reactions = await toggleReaction(data.messageId, userId, data.emoji);
         io.to(message.channelId).emit("message:reaction_updated", {
           messageId: data.messageId,
           reactions,
         });
       } catch (error) {
-        socket.emit("error", {
-          code: "MESSAGE_REACT_ERROR",
-          message: String(error),
-        });
+        emitSocketError("MESSAGE_REACT_ERROR", "Unable to update reactions.", error);
       }
     });
 
@@ -540,69 +639,51 @@ export function initSocketServer(httpServer: HTTPServer) {
           return;
         }
 
+        await ensureChannelMembership(message.channelId);
         const reactions = await toggleReaction(data.messageId, userId, data.emoji);
         io.to(message.channelId).emit("message:reaction_updated", {
           messageId: data.messageId,
           reactions,
         });
       } catch (error) {
-        socket.emit("error", {
-          code: "MESSAGE_UNREACT_ERROR",
-          message: String(error),
-        });
+        emitSocketError("MESSAGE_UNREACT_ERROR", "Unable to update reactions.", error);
       }
     });
 
     socket.on("typing:start", async (channelId: string) => {
       try {
+        await ensureChannelMembership(channelId);
         const key = `typing:${channelId}`;
-        const displayName = socket.data.displayName;
         socket.data.typingChannels.add(channelId);
 
         await redis.hset(key, userId, Date.now() + CHANNEL_TYPING_EXPIRY);
-
-        const typingData = await redis.hgetall(key);
-        const now = Date.now();
-        const typingUsers = Object.entries(typingData)
-          .filter(([, expiry]) => parseInt(expiry, 10) > now)
-          .map(([typingUserId]) => {
-            return typingUserId === userId ? displayName : typingUserId;
-          });
+        await redis.expire(key, TYPING_KEY_TTL_SECONDS);
+        const typingUsers = await getChannelTypingUsers(channelId);
 
         io.to(channelId).emit("typing:update", {
           channelId,
           users: typingUsers,
         });
       } catch (error) {
-        socket.emit("error", {
-          code: "TYPING_ERROR",
-          message: String(error),
-        });
+        emitSocketError("TYPING_ERROR", "Unable to update typing state.", error);
       }
     });
 
     socket.on("typing:stop", async (channelId: string) => {
       try {
+        await ensureChannelMembership(channelId);
         const key = `typing:${channelId}`;
         socket.data.typingChannels.delete(channelId);
 
         await redis.hdel(key, userId);
-
-        const typingData = await redis.hgetall(key);
-        const now = Date.now();
-        const typingUsers = Object.entries(typingData)
-          .filter(([, expiry]) => parseInt(expiry, 10) > now)
-          .map(([typingUserId]) => typingUserId);
+        const typingUsers = await getChannelTypingUsers(channelId);
 
         io.to(channelId).emit("typing:update", {
           channelId,
           users: typingUsers,
         });
       } catch (error) {
-        socket.emit("error", {
-          code: "TYPING_ERROR",
-          message: String(error),
-        });
+        emitSocketError("TYPING_ERROR", "Unable to update typing state.", error);
       }
     });
 
@@ -615,7 +696,7 @@ export function initSocketServer(httpServer: HTTPServer) {
 
         socket.join(`dm:${conversationId}`);
       } catch (error) {
-        emitDMError("FORBIDDEN", String(error));
+        emitSafeDMError("FORBIDDEN", "Unable to join this DM.", error);
       }
     });
 
@@ -628,7 +709,7 @@ export function initSocketServer(httpServer: HTTPServer) {
 
         socket.leave(`dm:${conversationId}`);
       } catch (error) {
-        emitDMError("FORBIDDEN", String(error));
+        emitSafeDMError("FORBIDDEN", "Unable to leave this DM.", error);
       }
     });
 
@@ -817,7 +898,7 @@ export function initSocketServer(httpServer: HTTPServer) {
 
         await stopDMTyping(data.conversationId);
       } catch (error) {
-        emitDMError("NOT_FOUND", String(error));
+        emitSafeDMError("NOT_FOUND", "Unable to send DM message.", error);
       }
     });
 
@@ -882,7 +963,7 @@ export function initSocketServer(httpServer: HTTPServer) {
           throw error;
         }
       } catch (error) {
-        emitDMError("NOT_FOUND", String(error));
+        emitSafeDMError("NOT_FOUND", "Unable to edit DM message.", error);
       }
     });
 
@@ -939,7 +1020,7 @@ export function initSocketServer(httpServer: HTTPServer) {
           throw error;
         }
       } catch (error) {
-        emitDMError("NOT_FOUND", String(error));
+        emitSafeDMError("NOT_FOUND", "Unable to delete DM message.", error);
       }
     });
 
@@ -952,7 +1033,7 @@ export function initSocketServer(httpServer: HTTPServer) {
 
         await startDMTyping(data.conversationId);
       } catch (error) {
-        emitDMError("FORBIDDEN", String(error));
+        emitSafeDMError("FORBIDDEN", "Unable to update DM typing state.", error);
       }
     });
 
@@ -965,12 +1046,13 @@ export function initSocketServer(httpServer: HTTPServer) {
 
         await stopDMTyping(data.conversationId);
       } catch (error) {
-        emitDMError("FORBIDDEN", String(error));
+        emitSafeDMError("FORBIDDEN", "Unable to update DM typing state.", error);
       }
     });
 
     socket.on("disconnect", async () => {
       try {
+        clearInterval(presenceHeartbeat);
         const channelTypingCleanups = Array.from(socket.data.typingChannels).map((channelId) =>
           redis.hdel(`typing:${channelId}`, userId),
         );

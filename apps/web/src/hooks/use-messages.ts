@@ -117,6 +117,18 @@ export function appendMessage(
   };
 }
 
+export function resetMessagePages(): MessagePages {
+  return {
+    pageParams: [undefined],
+    pages: [
+      {
+        hasMore: false,
+        messages: [],
+      },
+    ],
+  };
+}
+
 function updateMessage(
   old: MessagePages | undefined,
   message: ChatMessage,
@@ -240,6 +252,12 @@ export function useMessages(mode: MessageMode, conversationId: string) {
         }
       };
 
+      const handleHistoryCleared = (data: { channelId: string }) => {
+        if (data.channelId === conversationId) {
+          queryClient.setQueryData<MessagePages>(queryKey, resetMessagePages());
+        }
+      };
+
       const handleReactionUpdated = (data: {
         messageId: string;
         reactions: MessageReaction[];
@@ -250,12 +268,14 @@ export function useMessages(mode: MessageMode, conversationId: string) {
       socket.on("message:new", handleNewMessage);
       socket.on("message:updated", handleUpdatedMessage);
       socket.on("message:deleted", handleDeletedMessage);
+      socket.on("message:history_cleared", handleHistoryCleared);
       socket.on("message:reaction_updated", handleReactionUpdated);
 
       return () => {
         socket.off("message:new", handleNewMessage);
         socket.off("message:updated", handleUpdatedMessage);
         socket.off("message:deleted", handleDeletedMessage);
+        socket.off("message:history_cleared", handleHistoryCleared);
         socket.off("message:reaction_updated", handleReactionUpdated);
       };
     }

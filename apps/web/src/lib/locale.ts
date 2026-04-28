@@ -1,4 +1,4 @@
-export const APP_LOCALES = ["en", "tr"] as const;
+﻿export const APP_LOCALES = ["en", "tr"] as const;
 
 export type AppLocale = (typeof APP_LOCALES)[number];
 
@@ -16,6 +16,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "common.cancel": "Cancel",
     "common.channel": "channel",
     "common.close": "Close",
+    "common.linkCopied": "Link Copied",
     "common.confirmPassword": "Confirm Password",
     "common.continue": "Continue",
     "common.copy": "Copy",
@@ -134,6 +135,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.controls.cameraSoon": "Coming soon",
     "voice.controls.cameraPhase8": "Video calls coming in Phase 8",
     "voice.controls.disconnect": "Disconnect",
+    "voice.errors.microphoneDenied":
+      "Microphone access was blocked. Allow microphone access in your browser to speak in this channel.",
+    "voice.errors.microphoneEnableFailed": "Microphone could not be enabled right now.",
     "voice.view.connecting": "Connecting to voice channel...",
     "voice.view.disconnectedTitle": "You left this voice channel",
     "voice.view.disconnectedDescription":
@@ -221,8 +225,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.forgotPassword": "Forgot password?",
     "auth.login.github": "GitHub",
     "auth.login.google": "Google",
-    "auth.login.invalidCredentials": "Invalid email or password.",
-    "auth.login.loggingIn": "Logging in...",
+  "auth.login.invalidCredentials": "Invalid email or password.",
+  "auth.login.rateLimited": "Too many sign-in attempts. Please try again later.",
+  "auth.login.loggingIn": "Logging in...",
     "auth.login.needAccountDescription":
       "Create a new profile and start testing servers, invites, and channel flows with your own workspace.",
     "auth.login.needAccountLabel": "Need an account?",
@@ -246,8 +251,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.register.creating": "Creating account...",
     "auth.register.description":
       "Start building your Wizards community with your own profile and workspace.",
-    "auth.register.emailTaken": "Email already taken.",
-    "auth.register.haveAccount": "Already have an account?",
+  "auth.register.emailTaken": "Email already taken.",
+  "auth.register.rateLimited": "Too many registration attempts. Please try again later.",
+  "auth.register.haveAccount": "Already have an account?",
     "auth.register.passwordPlaceholder": "Create a strong password",
     "auth.register.signIn": "Sign in",
     "auth.register.title": "Create an account",
@@ -559,6 +565,19 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.message.replyAria": "Reply to message",
     "chat.message.editAria": "Edit message",
     "chat.message.deleteAria": "Delete message",
+    "chat.channel.adminTools": "Channel controls",
+    "chat.channel.clearHistory": "Clear chat history",
+    "chat.channel.clearHistoryTitle": "Clear chat history?",
+    "chat.channel.clearHistoryDescription":
+      "This permanently removes every message in {name}. This action cannot be undone.",
+    "chat.channel.clearHistoryHelp":
+      "Only the server owner or an admin can clear the message history in this channel.",
+    "chat.channel.clearHistoryConfirmLabel": "Type {name} to confirm",
+    "chat.channel.clearHistoryPlaceholder": "{name}",
+    "chat.channel.clearHistoryInputHint":
+      "Paste is disabled. Type {name} manually, exactly as shown.",
+    "chat.channel.clearHistoryAction": "Clear history",
+    "chat.channel.clearHistoryClearing": "Clearing...",
     "chat.list.loading": "Loading messages...",
     "chat.list.errorTitle": "Unable to load messages.",
     "chat.list.errorDescription": "Please refresh the channel and try again.",
@@ -574,8 +593,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.typing.two": "{first} and {second} are typing...",
     "chat.typing.many": "Several people are typing...",
 
-    "notifications.bell.title": "Notifications",
-    "notifications.bell.markAllRead": "Mark all as read",
+  "notifications.bell.title": "Notifications",
+  "notifications.actor.system": "System",
+  "notifications.bell.markAllRead": "Mark all as read",
     "notifications.bell.seeAll": "See all",
     "notifications.bell.clearAll": "Clear All",
     "notifications.bell.empty": "No notifications",
@@ -618,6 +638,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.categoryName": "Category Name",
     "workspace.modal.categoryPlaceholder": "Launch Zone",
     "workspace.modal.categoryCreating": "Creating...",
+    "workspace.modal.categoryReady": "Ready to Organize",
+    "workspace.modal.categoryCreated": "#{name} is now available in your sidebar.",
     "workspace.modal.channelEditTitle": "Edit Channel",
     "workspace.modal.channelCreateTextTitle": "Create Text Channel",
     "workspace.modal.channelCreateVoiceTitle": "Create Voice Channel",
@@ -636,6 +658,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.inviteMaxUses": "Max Uses",
     "workspace.modal.inviteUnlimited": "Unlimited",
     "workspace.modal.inviteReady": "Ready to Share",
+    "workspace.modal.inviteCopied": "Invite link copied.",
     "workspace.modal.inviteClose": "Close",
     "workspace.modal.inviteGenerating": "Generating...",
     "workspace.modal.inviteGenerate": "Generate Invite",
@@ -692,6 +715,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "common.cancel": "İptal",
     "common.channel": "kanal",
     "common.close": "Kapat",
+    "common.linkCopied": "Bağlantı Kopyalandı",
     "common.confirmPassword": "Şifreyi Onayla",
     "common.continue": "Devam Et",
     "common.copy": "Kopyala",
@@ -732,7 +756,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "friends.notification.request.body": "{name} sana arkadaşlık isteği gönderdi.",
     "friends.notification.accepted.title": "Arkadaşlık isteği kabul edildi",
     "friends.notification.accepted.body": "{name} arkadaşlık isteğini kabul etti.",
-    "dm.notification.title": "{name} kullanÄ±cÄ±sÄ±ndan yeni mesaj",
+    "dm.notification.title": "{name} kullanıcısından yeni mesaj",
     "dm.message.deleted": "Mesaj silindi",
     "dm.sidebar.empty": "Mesajlaşmaya başlamak için bir arkadaş sohbeti aç.",
     "dm.sidebar.unknownUser": "Bilinmeyen kullanıcı",
@@ -810,6 +834,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.controls.cameraSoon": "Yakında",
     "voice.controls.cameraPhase8": "Görüntülü görüşmeler 8. aşamada geliyor",
     "voice.controls.disconnect": "Bağlantıyı kes",
+    "voice.errors.microphoneDenied":
+      "Mikrofon erişimi engellendi. Bu kanalda konuşabilmek için tarayıcıda mikrofon izni ver.",
+    "voice.errors.microphoneEnableFailed": "Mikrofon şu anda etkinleştirilemedi.",
     "voice.view.connecting": "Ses kanalına bağlanılıyor...",
     "voice.view.disconnectedTitle": "Bu ses kanalından ayrıldın",
     "voice.view.disconnectedDescription":
@@ -897,8 +924,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.forgotPassword": "Şifremi unuttum?",
     "auth.login.github": "GitHub",
     "auth.login.google": "Google",
-    "auth.login.invalidCredentials": "E-posta veya şifre hatalı.",
-    "auth.login.loggingIn": "Giriş yapılıyor...",
+  "auth.login.invalidCredentials": "E-posta veya şifre hatalı.",
+  "auth.login.rateLimited": "Çok fazla giriş denemesi yapıldı. Lütfen daha sonra tekrar dene.",
+  "auth.login.loggingIn": "Giriş yapılıyor...",
     "auth.login.needAccountDescription":
       "Yeni bir profil oluştur ve kendi çalışma alanınla sunucu, davet ve kanal akışlarını test etmeye başla.",
     "auth.login.needAccountLabel": "Hesabın yok mu?",
@@ -923,8 +951,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.register.creating": "Hesap oluşturuluyor...",
     "auth.register.description":
       "Kendi profilin ve çalışma alanınla Wizards topluluğunu oluşturmaya başla.",
-    "auth.register.emailTaken": "Bu e-posta zaten kullanımda.",
-    "auth.register.haveAccount": "Zaten hesabın var mı?",
+  "auth.register.emailTaken": "Bu e-posta zaten kullanımda.",
+  "auth.register.rateLimited": "Çok fazla kayıt denemesi yapıldı. Lütfen daha sonra tekrar dene.",
+  "auth.register.haveAccount": "Zaten hesabın var mı?",
     "auth.register.passwordPlaceholder": "Güçlü bir şifre oluştur",
     "auth.register.signIn": "Giriş yap",
     "auth.register.title": "Hesap oluştur",
@@ -1237,6 +1266,19 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.message.replyAria": "Mesajı yanıtla",
     "chat.message.editAria": "Mesajı düzenle",
     "chat.message.deleteAria": "Mesajı sil",
+    "chat.channel.adminTools": "Kanal kontrolleri",
+    "chat.channel.clearHistory": "Sohbet geçmişini temizle",
+    "chat.channel.clearHistoryTitle": "Sohbet geçmişi temizlensin mi?",
+    "chat.channel.clearHistoryDescription":
+      "{name} kanalındaki tüm mesajlar kalıcı olarak silinir. Bu işlem geri alınamaz.",
+    "chat.channel.clearHistoryHelp":
+      "Bu kanaldaki mesaj geçmişini yalnızca sunucu sahibi veya admin temizleyebilir.",
+    "chat.channel.clearHistoryConfirmLabel": "Onaylamak için {name} yaz",
+    "chat.channel.clearHistoryPlaceholder": "{name}",
+    "chat.channel.clearHistoryInputHint":
+      "Yapıştırma kapalıdır. {name} değerini ekrandaki haliyle elle yazmalısın.",
+    "chat.channel.clearHistoryAction": "Geçmişi temizle",
+    "chat.channel.clearHistoryClearing": "Temizleniyor...",
     "chat.list.loading": "Mesajlar yükleniyor...",
     "chat.list.errorTitle": "Mesajlar yüklenemedi.",
     "chat.list.errorDescription": "Lütfen kanalı yenileyip tekrar deneyin.",
@@ -1252,8 +1294,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.typing.two": "{first} ve {second} yazıyor...",
     "chat.typing.many": "Birkaç kişi yazıyor...",
 
-    "notifications.bell.title": "Bildirimler",
-    "notifications.bell.markAllRead": "Tümünü okundu olarak işaretle",
+  "notifications.bell.title": "Bildirimler",
+  "notifications.actor.system": "Sistem",
+  "notifications.bell.markAllRead": "Tümünü okundu olarak işaretle",
     "notifications.bell.seeAll": "Tümünü gör",
     "notifications.bell.clearAll": "Hepsini Sil",
     "notifications.bell.empty": "Bildirim yok",
@@ -1296,6 +1339,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.categoryName": "Kategori Adı",
     "workspace.modal.categoryPlaceholder": "Başlangıç Alanı",
     "workspace.modal.categoryCreating": "Oluşturuluyor...",
+    "workspace.modal.categoryReady": "Kullanıma Hazır",
+    "workspace.modal.categoryCreated": "#{name} artık kenar çubuğunda hazır.",
     "workspace.modal.channelEditTitle": "Kanalı Düzenle",
     "workspace.modal.channelCreateTextTitle": "Yazı Kanalı Oluştur",
     "workspace.modal.channelCreateVoiceTitle": "Sesli Kanal Oluştur",
@@ -1313,7 +1358,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.inviteExpires": "Geçerlilik Süresi (Saat)",
     "workspace.modal.inviteMaxUses": "Maksimum Kullanım",
     "workspace.modal.inviteUnlimited": "Sınırsız",
-    "workspace.modal.inviteReady": "Paylaşmaya Hazır",
+    "workspace.modal.inviteReady": "Paylaşıma Hazır",
+    "workspace.modal.inviteCopied": "Davet bağlantısı kopyalandı.",
     "workspace.modal.inviteClose": "Kapat",
     "workspace.modal.inviteGenerating": "Oluşturuluyor...",
     "workspace.modal.inviteGenerate": "Davet Oluştur",
@@ -1410,3 +1456,4 @@ export function translate(
 export function getMessage(locale: AppLocale, key: string): string | undefined {
   return APP_MESSAGES[locale][key] ?? APP_MESSAGES.en[key];
 }
+

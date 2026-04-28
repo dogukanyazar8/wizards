@@ -299,6 +299,12 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
           </p>
         </div>
 
+        {errorMessage ? (
+          <div className="mb-4 rounded-[24px] border border-[hsl(var(--warning)/0.24)] bg-[hsl(var(--warning)/0.08)] px-4 py-3">
+            <p className="text-sm font-medium text-app-foreground">{errorMessage}</p>
+          </div>
+        ) : null}
+
         <div
           className="grid flex-1 gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]"
           style={{

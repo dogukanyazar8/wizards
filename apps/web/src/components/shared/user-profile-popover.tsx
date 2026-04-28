@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { X } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
@@ -153,8 +154,18 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
       setOpen(false);
     };
 
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
     window.addEventListener("pointerdown", handler);
-    return () => window.removeEventListener("pointerdown", handler);
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("pointerdown", handler);
+      window.removeEventListener("keydown", handleEscape);
+    };
   }, [open]);
 
   return (
@@ -163,22 +174,30 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
         {children}
       </div>
 
-      {popoverPos &&
+      {open && popoverPos &&
         createPortal(
           <motion.div
             ref={popoverRef}
-            className="fixed z-[60] w-80 overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] shadow-xl"
+            className="app-panel fixed z-[60] w-80 overflow-hidden rounded-[28px] border shadow-[0_24px_70px_hsl(var(--shadow-color)/0.22)]"
             style={{ left: `${popoverPos.x}px`, top: `${popoverPos.y}px` }}
             initial={{ opacity: 0, scale: 0.95, y: -8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -8 }}
             transition={{ duration: 0.15 }}
           >
-            {/* Banner */}
+            <button
+              aria-label={t("common.close")}
+              className="absolute right-3 top-3 z-10 rounded-full border border-[hsl(var(--border)/0.55)] bg-[hsl(var(--surface-overlay)/0.84)] p-2 text-app-muted backdrop-blur transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              onClick={() => setOpen(false)}
+              type="button"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+
             <div
-              className="h-20 w-full"
+              className="h-24 w-full bg-[linear-gradient(135deg,hsl(var(--primary)/0.28),hsl(var(--ambient-2)/0.2),hsl(var(--surface-soft)/0.6))]"
               style={{
-                backgroundColor: profileQuery.data?.bannerColor || "hsl(var(--primary)/0.1)",
+                backgroundColor: profileQuery.data?.bannerColor ?? undefined,
                 backgroundImage: profileQuery.data?.bannerUrl
                   ? `url(${profileQuery.data.bannerUrl})`
                   : undefined,
@@ -187,40 +206,36 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
               }}
             />
 
-            {/* Profile Content */}
             <div className="relative px-4 pb-4">
-              {/* Avatar */}
-              <div className="-mt-10 mb-3">
+              <div className="-mt-11 mb-3">
                 <Avatar
                   src={profileQuery.data?.avatarUrl}
                   alt={profileQuery.data?.displayName || "User"}
-                  className="h-20 w-20 border-4 border-[hsl(var(--surface))]"
+                  className="h-20 w-20 border-4 border-[hsl(var(--surface-card))]"
                   fallback={(profileQuery.data?.displayName ?? "?")[0] ?? "?"}
                 />
               </div>
 
-              {/* Info */}
               <div className="mb-4">
-                <h3 className="font-semibold text-[hsl(var(--foreground))]">
+                <h3 className="text-lg font-semibold text-app-foreground">
                   {profileQuery.data?.displayName || "Unknown"}
                 </h3>
-                <p className="text-sm text-[hsl(var(--foreground)/0.6)]">
+                <p className="text-sm text-app-muted">
                   @{profileQuery.data?.username || "unknown"}
                 </p>
                 {profileQuery.data?.customStatus && (
-                  <p className="mt-1 text-xs text-[hsl(var(--foreground)/0.5)]">
+                  <p className="mt-2 rounded-2xl border border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-soft)/0.42)] px-3 py-2 text-xs text-app-muted">
                     {profileQuery.data.customStatus}
                   </p>
                 )}
                 {profileQuery.data?.bio && (
-                  <p className="mt-2 text-sm text-[hsl(var(--foreground)/0.7)]">
+                  <p className="mt-2 text-sm leading-6 text-app-muted">
                     {profileQuery.data.bio}
                   </p>
                 )}
               </div>
 
-              {/* Member Since & Server Nickname */}
-              <div className="space-y-1 border-t border-[hsl(var(--border))] py-3 text-xs text-[hsl(var(--foreground)/0.6)]">
+              <div className="app-panel-soft space-y-1 rounded-[20px] border px-3 py-3 text-xs text-app-muted">
                 <div>
                   {t("profile.memberSince", {
                     date: new Date(profileQuery.data?.createdAt ?? 0).toLocaleDateString(),
@@ -233,10 +248,9 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
                 )}
               </div>
 
-              {/* Action Buttons */}
               {!isSelf && <ActionButtons state={relationshipState} userId={userId} onSetBlockedByThem={setBlockedByThem} />}
               {isSelf && (
-                <div className="mt-4 text-center text-sm text-[hsl(var(--foreground)/0.6)]">
+                <div className="mt-4 text-center text-sm text-app-muted">
                   This is you
                 </div>
               )}
@@ -268,12 +282,12 @@ function ActionButtons({
   });
 
   if (state === "loading") {
-    return <div className="mt-4 h-10 animate-pulse rounded bg-[hsl(var(--border))]" />;
+    return <div className="app-panel-soft mt-4 h-10 animate-pulse rounded-2xl border" />;
   }
 
   if (state === "blocked_by_them") {
     return (
-      <div className="mt-4 text-center text-sm text-[hsl(var(--foreground)/0.6)]">
+      <div className="mt-4 text-center text-sm text-app-muted">
         {t("profile.blockedByThem")}
       </div>
     );
@@ -359,7 +373,7 @@ function AddFriendButton({
     <button
       onClick={() => mutation.mutate()}
       disabled={mutation.isPending}
-      className="w-full rounded bg-[hsl(var(--primary))] px-3 py-2 font-medium text-[hsl(var(--primary-foreground))] transition hover:opacity-90 disabled:opacity-50"
+      className="w-full rounded-2xl bg-[hsl(var(--primary))] px-3 py-2 text-sm font-semibold text-[hsl(var(--primary-foreground))] transition hover:opacity-90 disabled:opacity-50"
     >
       {mutation.isPending ? "..." : t("profile.addFriend")}
     </button>
@@ -390,7 +404,7 @@ function CancelRequestButton({ requestId }: { requestId: string }) {
     <button
       onClick={() => mutation.mutate()}
       disabled={mutation.isPending}
-      className="w-full rounded border border-[hsl(var(--border))] px-3 py-2 font-medium transition hover:bg-[hsl(var(--surface-hover))] disabled:opacity-50"
+      className="w-full rounded-2xl border border-[hsl(var(--border)/0.76)] bg-[hsl(var(--surface-soft)/0.38)] px-3 py-2 text-sm font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.64)] disabled:opacity-50"
     >
       {mutation.isPending ? "..." : t("profile.cancelRequest")}
     </button>
@@ -421,14 +435,14 @@ function AcceptDeclineButtons({ requestId }: { requestId: string }) {
       <button
         onClick={() => acceptMutation.mutate()}
         disabled={acceptMutation.isPending || declineMutation.isPending}
-        className="flex-1 rounded bg-[hsl(var(--primary))] px-3 py-2 font-medium text-[hsl(var(--primary-foreground))] transition hover:opacity-90 disabled:opacity-50"
+        className="flex-1 rounded-2xl bg-[hsl(var(--primary))] px-3 py-2 text-sm font-semibold text-[hsl(var(--primary-foreground))] transition hover:opacity-90 disabled:opacity-50"
       >
         {acceptMutation.isPending ? "..." : t("profile.accept")}
       </button>
       <button
         onClick={() => declineMutation.mutate()}
         disabled={acceptMutation.isPending || declineMutation.isPending}
-        className="flex-1 rounded border border-[hsl(var(--border))] px-3 py-2 font-medium transition hover:bg-[hsl(var(--surface-hover))] disabled:opacity-50"
+        className="flex-1 rounded-2xl border border-[hsl(var(--border)/0.76)] bg-[hsl(var(--surface-soft)/0.38)] px-3 py-2 text-sm font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.64)] disabled:opacity-50"
       >
         {declineMutation.isPending ? "..." : t("profile.decline")}
       </button>
@@ -451,7 +465,7 @@ function RemoveFriendButton({ userId }: { userId: string }) {
     <button
       onClick={() => mutation.mutate()}
       disabled={mutation.isPending}
-      className="w-full rounded border border-[hsl(var(--destructive))] px-3 py-2 font-medium text-[hsl(var(--destructive))] transition hover:bg-[hsl(var(--destructive)/0.1)] disabled:opacity-50"
+      className="w-full rounded-2xl border border-[hsl(var(--danger)/0.38)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-sm font-semibold text-app-danger transition hover:bg-[hsl(var(--danger)/0.14)] disabled:opacity-50"
     >
       {mutation.isPending ? "..." : t("profile.removeFriend")}
     </button>
@@ -473,7 +487,7 @@ function UnblockButton({ userId }: { userId: string }) {
     <button
       onClick={() => mutation.mutate()}
       disabled={mutation.isPending}
-      className="w-full rounded bg-[hsl(var(--primary))] px-3 py-2 font-medium text-[hsl(var(--primary-foreground))] transition hover:opacity-90 disabled:opacity-50"
+      className="w-full rounded-2xl bg-[hsl(var(--primary))] px-3 py-2 text-sm font-semibold text-[hsl(var(--primary-foreground))] transition hover:opacity-90 disabled:opacity-50"
     >
       {mutation.isPending ? "..." : t("profile.unblock")}
     </button>
@@ -495,7 +509,7 @@ function MessageButton({ userId }: { userId: string }) {
     <button
       onClick={() => mutation.mutate()}
       disabled={mutation.isPending}
-      className="w-full rounded border border-[hsl(var(--primary))] px-3 py-2 font-medium text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.1)] disabled:opacity-50"
+      className="w-full rounded-2xl border border-[hsl(var(--primary)/0.36)] bg-[hsl(var(--primary)/0.1)] px-3 py-2 text-sm font-semibold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.16)] disabled:opacity-50"
     >
       {mutation.isPending ? "..." : t("profile.message")}
     </button>

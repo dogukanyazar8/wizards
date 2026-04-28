@@ -105,26 +105,27 @@ export function MessageInput({
               rows={1}
             />
 
-            {showEmojiPicker ? (
-              <EmojiPicker
-                onSelect={(emoji) => {
-                  setContent((current) => current + emoji);
-                  setShowEmojiPicker(false);
-                }}
-                onClose={() => setShowEmojiPicker(false)}
-              />
-            ) : null}
-
             <div className="mt-2 flex items-center justify-between gap-3 border-t border-[hsl(var(--border)/0.6)] px-2 pt-3">
-              <button
-                onClick={() => setShowEmojiPicker((current) => !current)}
-                className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] px-3 py-1.5 text-xs font-medium text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                aria-label={t("chat.input.openEmojiPicker")}
-                type="button"
-              >
-                <Smile className="h-4 w-4" />
-                <span className="hidden sm:inline">{t("chat.input.openEmojiPicker")}</span>
-              </button>
+              <div className="relative inline-flex">
+                {showEmojiPicker ? (
+                  <EmojiPicker
+                    onSelect={(emoji) => {
+                      setContent((current) => current + emoji);
+                      setShowEmojiPicker(false);
+                    }}
+                    onClose={() => setShowEmojiPicker(false)}
+                  />
+                ) : null}
+                <button
+                  onClick={() => setShowEmojiPicker((current) => !current)}
+                  className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] px-3 py-1.5 text-xs font-medium text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                  aria-label={t("chat.input.openEmojiPicker")}
+                  type="button"
+                >
+                  <Smile className="h-4 w-4" />
+                  <span className="hidden sm:inline">{t("chat.input.openEmojiPicker")}</span>
+                </button>
+              </div>
 
               <span
                 className={`text-xs font-medium ${

@@ -277,6 +277,7 @@ const authConfig = {
             displayName: true,
             avatarUrl: true,
             locale: true,
+            isBanned: true,
             passwordHash: true,
             theme: true,
           },
@@ -292,6 +293,10 @@ const authConfig = {
         );
 
         if (!isPasswordValid) {
+          return null;
+        }
+
+        if (user.isBanned) {
           return null;
         }
         return {

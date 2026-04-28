@@ -75,24 +75,19 @@ export async function listNotifications(
   return notifications.map((n): NotificationDTO => {
     const meta = (n.metadata as Record<string, unknown>) ?? {};
     const senderId = (meta.senderId as string) || "";
-    const actor = userMap.get(senderId);
-
-    if (!actor) {
-      throw new ApiError(
-        "Actor not found for notification",
-        500,
-      );
-    }
+    const actor = userMap.get(senderId) ?? null;
 
     return {
       id: n.id,
       type: n.type as "FRIEND_REQUEST" | "FRIEND_ACCEPTED" | "DM" | "MENTION",
-      actor: {
-        id: actor.id,
-        username: actor.username,
-        displayName: actor.displayName,
-        avatarUrl: actor.avatarUrl,
-      },
+      actor: actor
+        ? {
+            id: actor.id,
+            username: actor.username,
+            displayName: actor.displayName,
+            avatarUrl: actor.avatarUrl,
+          }
+        : null,
       message: n.body,
       actionUrl: n.actionUrl,
       readAt: n.readAt?.toISOString() ?? null,
@@ -153,21 +148,19 @@ export async function serializeNotificationToDTO(
 ): Promise<NotificationDTO> {
   const meta = (notification.metadata as Record<string, unknown>) ?? {};
   const senderId = (meta.senderId as string) || "";
-  const actor = userMap.get(senderId);
-
-  if (!actor) {
-    throw new ApiError("Actor not found for notification", 500);
-  }
+  const actor = userMap.get(senderId) ?? null;
 
   return {
     id: notification.id,
     type: notification.type as "FRIEND_REQUEST" | "FRIEND_ACCEPTED" | "DM" | "MENTION",
-    actor: {
-      id: actor.id,
-      username: actor.username,
-      displayName: actor.displayName,
-      avatarUrl: actor.avatarUrl,
-    },
+    actor: actor
+      ? {
+          id: actor.id,
+          username: actor.username,
+          displayName: actor.displayName,
+          avatarUrl: actor.avatarUrl,
+        }
+      : null,
     message: notification.body,
     actionUrl: notification.actionUrl,
     readAt: notification.readAt?.toISOString() ?? null,

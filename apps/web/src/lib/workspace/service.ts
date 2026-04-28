@@ -2,8 +2,8 @@ import { randomBytes } from "node:crypto";
 import {
   ChannelType,
   MessageType,
+  Prisma,
   prisma,
-  type Prisma,
 } from "@wizards/db";
 import type {
   CreateCategoryInput,
@@ -22,6 +22,8 @@ import type {
   WorkspaceServerSummary,
 } from "@wizards/types";
 import { ApiError } from "@/lib/api";
+import { getSocketServer } from "@/lib/socket/runtime";
+import { getMessageById } from "@/lib/workspace/message-service";
 import {
   emitServerUnreadUpdatesForServer,
   getActiveChannelViewerUserIds,
@@ -980,6 +982,81 @@ export async function deleteWorkspaceChannel(userId: string, channelId: string) 
   });
 }
 
+export async function clearWorkspaceChannelHistory(userId: string, channelId: string) {
+  const channel = await prisma.channel.findUnique({
+    where: {
+      id: channelId,
+    },
+    select: {
+      id: true,
+      serverId: true,
+      type: true,
+    },
+  });
+
+  if (!channel?.serverId) {
+    throw new ApiError("Channel not found", 404);
+  }
+
+  if (channel.type !== ChannelType.TEXT) {
+    throw new ApiError("Only text channels can have their history cleared", 400);
+  }
+
+  const access = await getAccessContext(userId, channel.serverId);
+  ensureAdmin(access);
+
+  const clearedAt = new Date();
+
+  const deletedCount = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw(Prisma.sql`
+      UPDATE "Message"
+      SET "replyToId" = NULL
+      WHERE "replyToId" IN (
+        SELECT "id"
+        FROM "Message"
+        WHERE "channelId" = ${channelId}
+      )
+    `);
+
+    const deletedMessages = await tx.message.deleteMany({
+      where: {
+        channelId,
+      },
+    });
+
+    await tx.channelReadState.updateMany({
+      where: {
+        channelId,
+      },
+      data: {
+        lastReadAt: clearedAt,
+        lastReadMessageId: null,
+        mentionCount: 0,
+      },
+    });
+
+    await tx.channel.update({
+      where: {
+        id: channelId,
+      },
+      data: {
+        lastMessageId: null,
+        lastPinAt: null,
+        messageCount: 0,
+      },
+    });
+
+    return deletedMessages.count;
+  });
+
+  return {
+    channelId,
+    clearedAt,
+    deletedCount,
+    serverId: channel.serverId,
+  };
+}
+
 export async function createWorkspaceInvite(userId: string, serverId: string, input: CreateInviteInput) {
   const access = await getAccessContext(userId, serverId);
   ensureAdmin(access);
@@ -1127,9 +1204,18 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
     },
     select: {
       displayName: true,
+      isBanned: true,
       username: true,
     },
   });
+
+  if (!joiningUser) {
+    throw new ApiError("User not found", 404);
+  }
+
+  if (joiningUser.isBanned) {
+    throw new ApiError("Your account has been suspended", 403);
+  }
 
   const existingMember = await prisma.serverMember.findUnique({
     where: {
@@ -1232,6 +1318,10 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
         lastReadMessageId: transactionResult.message.id,
         userIds: [userId, ...activeViewerUserIds],
       });
+      const message = await getMessageById(transactionResult.message.id);
+      if (message) {
+        getSocketServer()?.to(transactionResult.message.channelId).emit("message:new", message);
+      }
       await emitServerUnreadUpdatesForServer(invite.server.id);
     }
   }

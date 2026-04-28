@@ -24,6 +24,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import type { KrispNoiseFilterProcessor } from "@livekit/krisp-noise-filter";
+import { useI18n } from "@/components/providers/locale-provider";
 import { VoiceAudioRenderer } from "@/components/voice/voice-audio-renderer";
 import {
   deleteVoiceState,
@@ -90,6 +91,7 @@ type VoiceContextValue = {
     value: VoiceAudioPreferences[Key],
   ) => void;
   setParticipantVolume: (userId: string, volume: number) => void;
+  prepareForVoiceJoin: () => Promise<boolean>;
   joinChannel: (input: { channelId: string; serverId: string }) => Promise<void>;
   leaveChannel: () => Promise<void>;
   toggleDeafen: () => Promise<void>;
@@ -106,6 +108,23 @@ const NEXT_PUBLIC_LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "";
 const RECONNECT_TIMEOUT_MS = 30_000;
 
 const VoiceContext = createContext<VoiceContextValue | null>(null);
+
+function isMicrophonePermissionDenied(error: unknown) {
+  if (error instanceof DOMException) {
+    return (
+      error.name === "NotAllowedError" ||
+      error.name === "PermissionDeniedError" ||
+      error.name === "SecurityError"
+    );
+  }
+
+  return (
+    error instanceof Error &&
+    /notallowederror|permission denied|permissiondeniederror|securityerror/i.test(
+      error.message,
+    )
+  );
+}
 
 function isLiveKitCloudUrl(url: string) {
   return /livekit\.cloud/i.test(url);
@@ -254,10 +273,12 @@ function notifyVoiceExit() {
 }
 
 export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const roomRef = useRef<Room | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const joinRequestRef = useRef<string | null>(null);
+  const preparedMicrophoneAccessRef = useRef<boolean | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const krispProcessorRef = useRef<KrispNoiseFilterProcessor | null>(null);
   const supportsLiveKitCloudNoiseCancellationRef = useRef(
@@ -312,6 +333,43 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
     (userId: string) => participantVolumes[userId] ?? DEFAULT_PARTICIPANT_VOLUME,
     [participantVolumes],
   );
+
+  const requestMicrophonePermission = useCallback(
+    async (preferences: VoiceAudioPreferences) => {
+      if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+        return false;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: buildAudioCaptureOptions(preferences),
+      });
+
+      for (const track of stream.getTracks()) {
+        track.stop();
+      }
+
+      return true;
+    },
+    [],
+  );
+
+  const prepareForVoiceJoin = useCallback(async () => {
+    const currentPreferences = useVoiceStore.getState().audioPreferences;
+
+    try {
+      const granted = await requestMicrophonePermission(currentPreferences);
+      preparedMicrophoneAccessRef.current = granted;
+      return granted;
+    } catch (error) {
+      if (isMicrophonePermissionDenied(error)) {
+        preparedMicrophoneAccessRef.current = false;
+        return false;
+      }
+
+      preparedMicrophoneAccessRef.current = null;
+      throw error;
+    }
+  }, [requestMicrophonePermission]);
 
   const syncParticipants = useCallback(
     (targetRoom: Room | null = roomRef.current) => {
@@ -515,6 +573,8 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
     async ({ channelId, serverId: nextServerId }: { channelId: string; serverId: string }) => {
       const currentState = useVoiceStore.getState();
       const nextJoinKey = `${nextServerId}:${channelId}`;
+      const microphoneDeniedMessage = t("voice.errors.microphoneDenied");
+      const microphoneEnableFailedMessage = t("voice.errors.microphoneEnableFailed");
 
       if (
         currentState.activeChannelId === channelId &&
@@ -527,6 +587,24 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
 
       if (joinRequestRef.current === nextJoinKey) {
         return;
+      }
+
+      let hasMicrophoneAccess = false;
+      const preparedMicrophoneAccess = preparedMicrophoneAccessRef.current;
+      preparedMicrophoneAccessRef.current = null;
+
+      if (preparedMicrophoneAccess !== null) {
+        hasMicrophoneAccess = preparedMicrophoneAccess;
+      } else {
+        try {
+          hasMicrophoneAccess = await requestMicrophonePermission(currentState.audioPreferences);
+        } catch (error) {
+          if (isMicrophonePermissionDenied(error)) {
+            hasMicrophoneAccess = false;
+          } else {
+            throw error;
+          }
+        }
       }
 
       if (
@@ -631,13 +709,21 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
           serverId: nextServerId,
           sessionId,
         });
-        useVoiceStore.getState().setMuted(true);
+        useVoiceStore.getState().setMuted(!hasMicrophoneAccess);
         useVoiceStore.getState().setDeafened(false);
 
         updateVoiceStatesCache(nextServerId, channelId, state.participants);
         startHeartbeat(sessionId);
         void nextRoom.startAudio().catch(() => undefined);
         syncRoomParticipants();
+
+        if (!hasMicrophoneAccess) {
+          setIsKrispNoiseCancellationActive(false);
+          setErrorMessage(microphoneDeniedMessage);
+          syncParticipants(nextRoom);
+          return;
+        }
+
         void nextRoom.localParticipant
           .setMicrophoneEnabled(
             true,
@@ -651,12 +737,18 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
                 useVoiceStore.getState().audioPreferences.krispNoiseCancellation,
               );
             }
+            setErrorMessage(null);
             useVoiceStore.getState().setMuted(false);
             syncParticipants(nextRoom);
           })
-          .catch(() => {
+          .catch((error) => {
             setIsKrispNoiseCancellationActive(false);
             useVoiceStore.getState().setMuted(true);
+            setErrorMessage(
+              isMicrophonePermissionDenied(error)
+                ? microphoneDeniedMessage
+                : microphoneEnableFailedMessage,
+            );
             syncParticipants(nextRoom);
           });
       } catch (error) {
@@ -684,9 +776,11 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
       krispAvailability,
       leaveChannel,
       resetKrispProcessor,
+      requestMicrophonePermission,
       startHeartbeat,
       syncKrispNoiseCancellation,
       syncParticipants,
+      t,
       updateVoiceStatesCache,
     ],
   );
@@ -698,28 +792,64 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
     }
 
     const nextMuted = !useVoiceStore.getState().isMuted;
+    const microphoneDeniedMessage = t("voice.errors.microphoneDenied");
+    const microphoneEnableFailedMessage = t("voice.errors.microphoneEnableFailed");
 
     if (nextMuted) {
-      await activeRoom.localParticipant.setMicrophoneEnabled(false);
+      try {
+        await activeRoom.localParticipant.setMicrophoneEnabled(false);
+      } catch {
+        setErrorMessage(microphoneEnableFailedMessage);
+        return;
+      }
       setIsKrispNoiseCancellationActive(false);
     } else {
-      await activeRoom.localParticipant.setMicrophoneEnabled(
-        true,
-        buildAudioCaptureOptions(useVoiceStore.getState().audioPreferences),
-      );
+      const nextAudioPreferences = useVoiceStore.getState().audioPreferences;
 
-      const localMicrophoneTrack = getLocalMicrophoneTrack(activeRoom);
-      if (localMicrophoneTrack) {
-        await syncKrispNoiseCancellation(
-          localMicrophoneTrack,
-          useVoiceStore.getState().audioPreferences.krispNoiseCancellation,
+      try {
+        await requestMicrophonePermission(nextAudioPreferences);
+      } catch (error) {
+        if (isMicrophonePermissionDenied(error)) {
+          setErrorMessage(microphoneDeniedMessage);
+          useVoiceStore.getState().setMuted(true);
+          syncParticipants(activeRoom);
+          return;
+        }
+
+        setErrorMessage(microphoneEnableFailedMessage);
+        return;
+      }
+
+      try {
+        await activeRoom.localParticipant.setMicrophoneEnabled(
+          true,
+          buildAudioCaptureOptions(nextAudioPreferences),
         );
+
+        const localMicrophoneTrack = getLocalMicrophoneTrack(activeRoom);
+        if (localMicrophoneTrack) {
+          await syncKrispNoiseCancellation(
+            localMicrophoneTrack,
+            nextAudioPreferences.krispNoiseCancellation,
+          );
+        }
+        setErrorMessage(null);
+      } catch (error) {
+        setIsKrispNoiseCancellationActive(false);
+        useVoiceStore.getState().setMuted(true);
+        setErrorMessage(
+          isMicrophonePermissionDenied(error)
+            ? microphoneDeniedMessage
+            : microphoneEnableFailedMessage,
+        );
+        syncParticipants(activeRoom);
+        return;
       }
     }
 
     useVoiceStore.getState().setMuted(nextMuted);
     syncParticipants(activeRoom);
-  }, [syncKrispNoiseCancellation, syncParticipants]);
+  }, [requestMicrophonePermission, syncKrispNoiseCancellation, syncParticipants, t]);
 
   const toggleDeafen = useCallback(async () => {
     const activeRoom = roomRef.current;
@@ -833,6 +963,7 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
       serverId,
       setAudioPreference: useVoiceStore.getState().setAudioPreference,
       setParticipantVolume: useVoiceStore.getState().setParticipantVolume,
+      prepareForVoiceJoin,
       joinChannel,
       leaveChannel,
       toggleDeafen,
@@ -853,6 +984,7 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
       krispAvailability,
       leaveChannel,
       participants,
+      prepareForVoiceJoin,
       room,
       serverId,
       toggleDeafen,

@@ -70,6 +70,7 @@ export interface ServerToClientEvents {
   "message:new": (message: ChatMessage) => void;
   "message:updated": (message: ChatMessage) => void;
   "message:deleted": (data: { messageId: string; channelId: string }) => void;
+  "message:history_cleared": (data: { channelId: string }) => void;
   "message:reaction_updated": (data: {
     messageId: string;
     reactions: MessageReaction[];
@@ -124,6 +125,7 @@ export interface InterServerEvents {
   "message:new": (message: ChatMessage) => void;
   "message:updated": (message: ChatMessage) => void;
   "message:deleted": (data: { messageId: string; channelId: string }) => void;
+  "message:history_cleared": (data: { channelId: string }) => void;
   "message:reaction_updated": (data: {
     messageId: string;
     reactions: MessageReaction[];

@@ -27,14 +27,19 @@ export function jsonError(error: unknown) {
     );
   }
 
-  const message = error instanceof Error ? error.message : "Unexpected server error";
-  return Response.json({ error: message }, { status: 500 });
+  console.error("[api] Unhandled error", error);
+  return Response.json({ error: "Internal server error" }, { status: 500 });
 }
 
 export async function parseJsonBody<TSchema extends ZodSchema>(
   request: Request,
   schema: TSchema,
 ): Promise<ReturnType<TSchema["parse"]>> {
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(contentLength) && contentLength > 1_048_576) {
+    throw new ApiError("Request body too large", 413);
+  }
+
   const body = await request.json().catch(() => ({}));
   return schema.parse(body);
 }
