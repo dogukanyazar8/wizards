@@ -511,7 +511,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
 
   const openSettings = () => {
     setMobileSidebarOpen(false);
-    router.push("/settings/appearance");
+    router.push("/settings");
   };
 
   return (

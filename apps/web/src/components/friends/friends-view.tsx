@@ -336,11 +336,16 @@ export function FriendsView() {
         applyFriendPresenceUpdate(current, update),
       );
     };
+    const handleFriendsUpdated = () => {
+      void queryClient.invalidateQueries({ queryKey: friendsQueryKeys.root });
+    };
 
     socket.on("presence:update", handlePresenceUpdate);
+    socket.on("friends:updated", handleFriendsUpdated);
 
     return () => {
       socket.off("presence:update", handlePresenceUpdate);
+      socket.off("friends:updated", handleFriendsUpdated);
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }

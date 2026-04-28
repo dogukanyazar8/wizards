@@ -164,6 +164,29 @@ async function ensureChannel(args: {
   });
 }
 
+async function ensureContributor(name: string) {
+  return prisma.contributor.upsert({
+    where: { name },
+    update: {},
+    create: { name },
+  });
+}
+
+async function repairContributorData() {
+  await prisma.contributor.deleteMany({
+    where: {
+      name: {
+        in: [
+          "Muhammet Y?ld?z",
+          "Muhammet YÄ±ldÄ±z",
+          "O?uz G???mc?o?lu",
+          "OÄŸuz GÃ¼ÄŸÃ¼mcÃ¼oÄŸlu",
+        ],
+      },
+    },
+  });
+}
+
 async function main() {
   const passwordHash = await bcrypt.hash("password123", 12);
 
@@ -258,6 +281,14 @@ async function main() {
       serverId: server.id,
     },
   });
+
+  await repairContributorData();
+
+  await Promise.all([
+    ensureContributor("Atakan Tuymaz"),
+    ensureContributor("Muhammet Y\u0131ld\u0131z"),
+    ensureContributor("O\u011Fuz G\u00FC\u011F\u00FCmc\u00FCo\u011Flu"),
+  ]);
 
   console.log("Seed complete");
   console.log("Demo user: demo@wizards.app / password123");

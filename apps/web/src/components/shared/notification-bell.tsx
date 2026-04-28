@@ -216,7 +216,7 @@ export function NotificationBell() {
       }
     }
 
-    let left = userBarRect.left + 8;
+    let left = userBarRect.left - 6;
     left = Math.max(minMargin, Math.min(left, window.innerWidth - popupWidth - minMargin));
 
     setDropdownPos({ top, left });

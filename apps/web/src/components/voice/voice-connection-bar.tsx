@@ -133,6 +133,7 @@ export function VoiceConnectionBar() {
     toggleMute,
   } = useVoiceConnection();
   const [showCameraModal, setShowCameraModal] = useState(false);
+  const [showScreenShareModal, setShowScreenShareModal] = useState(false);
   const [showVoiceSettingsModal, setShowVoiceSettingsModal] = useState(false);
 
   const location = useMemo(
@@ -186,9 +187,9 @@ export function VoiceConnectionBar() {
           />
           <VoiceControlButton
             ariaLabel={t("voice.controls.screenShare")}
-            disabled
             icon={<MonitorUp className="h-4 w-4" />}
-            title={t("voice.controls.screenShareSoon")}
+            onClick={() => setShowScreenShareModal(true)}
+            title={t("voice.controls.screenShare")}
           />
           <VoiceControlButton
             ariaLabel={t("voice.controls.settings")}
@@ -228,6 +229,15 @@ export function VoiceConnectionBar() {
         title={t("voice.controls.camera")}
       >
         <p className="text-sm text-app-muted">{t("voice.controls.cameraPhase8")}</p>
+      </Modal>
+
+      <Modal
+        description={t("voice.controls.screenShareSoon")}
+        onClose={() => setShowScreenShareModal(false)}
+        open={showScreenShareModal}
+        title={t("voice.controls.screenShare")}
+      >
+        <p className="text-sm text-app-muted">{t("voice.controls.screenSharePhase8")}</p>
       </Modal>
 
       <VoiceSettingsModal

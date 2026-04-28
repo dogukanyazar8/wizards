@@ -1,7 +1,11 @@
 "use server";
 
-import { normalizeAuthEmail, signIn, signOut } from "@/auth";
+import { auth, normalizeAuthEmail, signIn, signOut } from "@/auth";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
+import {
+  broadcastPresenceUpdateToFriends,
+  persistUserPresence,
+} from "@/lib/friends/service";
 import { normalizeAppLocale } from "@/lib/locale";
 import { persistUserLocale } from "@/lib/locale/persistence";
 import { Prisma, prisma } from "@wizards/db";
@@ -147,6 +151,14 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
 
 export async function logoutAction() {
   try {
+    const session = await auth();
+    if (session?.user?.id) {
+      const presence = await persistUserPresence(session.user.id, "OFFLINE");
+      if (presence) {
+        await broadcastPresenceUpdateToFriends(presence);
+      }
+    }
+
     await signOut({
       redirectTo: "/login",
     });

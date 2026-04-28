@@ -57,6 +57,16 @@ export interface ClientToServerEvents {
 }
 
 export interface ServerToClientEvents {
+  "friends:updated": (data: {
+    reason:
+      | "blocked"
+      | "friend_request_accepted"
+      | "friend_request_canceled"
+      | "friend_request_received"
+      | "friend_request_rejected"
+      | "friend_removed"
+      | "unblocked";
+  }) => void;
   "message:new": (message: ChatMessage) => void;
   "message:updated": (message: ChatMessage) => void;
   "message:deleted": (data: { messageId: string; channelId: string }) => void;

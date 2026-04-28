@@ -23,6 +23,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "common.create": "Create",
     "common.delete": "Delete",
     "common.description": "Description",
+    "common.edit": "Edit",
     "common.email": "Email",
     "common.generate": "Generate",
     "common.invites": "Invites",
@@ -127,6 +128,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.controls.undeafen": "Undeafen",
     "voice.controls.screenShare": "Screen share",
     "voice.controls.screenShareSoon": "Screen sharing arrives in Phase 7C",
+    "voice.controls.screenSharePhase8": "Screen sharing in voice channels arrives in Phase 8",
     "voice.controls.settings": "Voice settings",
     "voice.controls.camera": "Camera",
     "voice.controls.cameraSoon": "Coming soon",
@@ -263,9 +265,121 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.forgot.submit": "Send Reset Link",
 
     "settings.backToChannels": "Back to Channels",
-    "settings.description": "Tune the active theme and layout density for your workspace.",
+    "settings.description":
+      "Tune voice, appearance, and notifications without dropping out of the conversation.",
+    "settings.account.badge": "My Account",
+    "settings.account.title": "My Account",
+    "settings.account.nav": "Profile & Presence",
+    "settings.account.description":
+      "Keep your public identity, sign-in email, and visible status aligned with how you want to show up across Wizards.",
+    "settings.account.summaryTitle": "Profile snapshot",
+    "settings.account.summaryDescription":
+      "A quick view of how your account appears across friends, DMs, and servers.",
+    "settings.account.editTitle": "Edit account details",
+    "settings.account.editDescription":
+      "Update your visible name, username, email, or preferred online status without leaving the workspace.",
+    "settings.account.editHintTitle": "Ready when you are",
+    "settings.account.editHintDescription":
+      "Open edit mode whenever you want to refresh the details other people see in Wizards.",
+    "settings.account.fields.displayName": "Display name",
+    "settings.account.fields.status": "Online status",
+    "settings.account.status.invisible": "Invisible",
+    "settings.account.saved": "Account settings updated.",
+    "settings.account.errors.save": "We couldn't save your account settings right now.",
+    "settings.account.errors.displayNameTooLong":
+      "Display name must be 60 characters or fewer.",
+    "settings.account.errors.emailTaken": "That email address is already in use.",
+    "settings.account.errors.usernameTaken": "That username is already taken.",
     "settings.nav.appearance": "Appearance",
-    "settings.title": "Appearance",
+    "settings.title": "Settings",
+    "settings.page.badge": "Workspace Settings",
+    "settings.page.title": "Settings",
+    "settings.page.description":
+      "Shape your voice chain, interface language, theme, layout density, and notification behavior from one focused control surface.",
+    "settings.groups.voiceVideo.badge": "Voice & Video",
+    "settings.groups.voiceVideo.title": "Voice & Video",
+    "settings.groups.voiceVideo.description":
+      "Fine-tune how your microphone is processed today, and preview the communication surfaces planned next.",
+    "settings.voice.audio.title": "Audio",
+    "settings.voice.camera.title": "Camera",
+    "settings.voice.camera.description":
+      "Camera controls and video call surfaces arrive in Phase 8. Your current voice setup will stay compatible.",
+    "settings.voice.screenShare.title": "Screen Sharing",
+    "settings.voice.screenShare.description":
+      "Richer screen sharing controls will land in Phase 8 with the same visual language and room flow.",
+    "settings.groups.appearance.badge": "Appearance",
+    "settings.groups.appearance.title": "Appearance",
+    "settings.groups.appearance.description":
+      "Control language, theme, and advanced shell sizing so the workspace fits how you read and move.",
+    "settings.appearance.language.title": "Language",
+    "settings.appearance.language.description":
+      "Switch the interface language instantly. Your preference stays synced to your account and this device.",
+    "settings.appearance.theme.title": "Theme",
+    "settings.appearance.theme.description":
+      "Pick a calmer default or a more expressive palette without changing the workspace structure.",
+    "settings.appearance.advanced.title": "Advanced",
+    "settings.appearance.advanced.description":
+      "Adjust the shell proportions that shape navigation, readability, and focus.",
+    "settings.appearance.advanced.open": "Open advanced controls",
+    "settings.appearance.advanced.serverRailTitle": "Server rail",
+    "settings.appearance.advanced.serverRailDescription":
+      "Control how compact or roomy the left-most server stack feels.",
+    "settings.appearance.advanced.mainCanvasTitle": "Main canvas",
+    "settings.appearance.advanced.mainCanvasDescription":
+      "Give the center workspace more room for reading, DMs, and voice surfaces.",
+    "settings.appearance.advanced.channelSidebarTitle": "Channel sidebar",
+    "settings.appearance.advanced.channelSidebarDescription":
+      "Tune the channel list width so names and presence previews breathe properly.",
+    "settings.groups.notifications.badge": "Notifications",
+    "settings.groups.notifications.title": "Notifications",
+    "settings.groups.notifications.description":
+      "Decide how much signal you see, how long it stays around, and whether alerts should make noise.",
+    "settings.notifications.general.title": "General View",
+    "settings.notifications.general.description":
+      "Manage popup density, dismissal behavior, and which delivery surfaces stay active for your account.",
+    "settings.notifications.desktop.title": "Desktop notifications",
+    "settings.notifications.desktop.description":
+      "Allow native desktop alerts when Wizards is running in a browser context that supports them.",
+    "settings.notifications.mobile.title": "Mobile notifications",
+    "settings.notifications.mobile.description":
+      "Keep mobile delivery enabled for account-level notification preferences.",
+    "settings.notifications.email.title": "Email notifications",
+    "settings.notifications.email.description":
+      "Receive backup email alerts for supported notification flows.",
+    "settings.notifications.sounds.title": "Sounds",
+    "settings.notifications.sounds.description":
+      "Choose whether alerts make sound and which sound profile should represent your workspace.",
+    "settings.notifications.soundToggle.title": "Notification sound",
+    "settings.notifications.soundToggle.description":
+      "Play a short alert sound for supported notification surfaces.",
+    "settings.notifications.soundProfile.title": "Sound profile",
+    "settings.notifications.soundProfile.description":
+      "Pick the style Wizards should use when notification sounds are enabled.",
+    "settings.notifications.soundProfile.default": "Default",
+    "settings.notifications.soundProfile.soft": "Soft",
+    "settings.notifications.soundProfile.pulse": "Pulse",
+    "settings.about.badge": "About Wizards",
+    "settings.about.title": "About",
+    "settings.about.description":
+      "Learn what Wizards is built for, which version you are running, and who is behind the project.",
+    "settings.about.overview.description":
+      "A quick look at the product direction and the communication experience Wizards is aiming to deliver.",
+    "settings.about.overview.body":
+      "Wizards is a real-time communication platform built for fast messaging, voice collaboration, and lightweight screen sharing.",
+    "settings.about.overview.bodySecondary":
+      "Powered by modern foundations like Next.js, WebSockets, and WebRTC with LiveKit, it is designed to stay responsive, focused, and easy to move through during live teamwork.",
+    "settings.about.buildInfo.title": "Version / Build Info",
+    "settings.about.buildInfo.description":
+      "Reference the current application version and the latest deployed update date.",
+    "settings.about.buildInfo.version": "Version",
+    "settings.about.buildInfo.lastUpdate": "Last update",
+    "settings.about.developer.title": "Developer Info",
+    "settings.about.developer.description":
+      "Project ownership and product direction for the Wizards workspace.",
+    "settings.about.developer.name": "Developer",
+    "settings.about.developer.contributors": "Contributors",
+    "settings.about.developer.contributorsDescription":
+      "People who helped shape Wizards across product, feedback, and implementation.",
 
     "appearance.page.badge": "User Settings",
     "appearance.page.description":
@@ -394,8 +508,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.channelSidebar.membersCount": "{count} members",
     "shell.user.toggleMute": "Toggle mute",
     "shell.user.toggleDeafen": "Toggle deafen",
-    "shell.user.appearanceSettings": "Open appearance settings",
-    "shell.user.appearanceSettingsTitle": "Appearance settings",
+    "shell.user.appearanceSettings": "Open settings",
+    "shell.user.appearanceSettingsTitle": "Settings",
     "shell.user.logout": "Log out",
     "shell.user.logoutTitle": "Log out",
     "shell.main.openConversation": "Open conversation",
@@ -414,7 +528,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Jump between workspaces without losing your place.",
     "shell.main.tuneLayoutTitle": "Tune the layout",
     "shell.main.tuneLayoutDescription":
-      "Open appearance settings to resize rails, sidebars, and theme.",
+      "Open settings to resize rails, sidebars, and theme.",
     "shell.main.startTalkingTitle": "Start talking",
     "shell.main.startTalkingDescription":
       "Open a text channel and your live thread is ready immediately.",
@@ -585,6 +699,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "common.create": "Oluştur",
     "common.delete": "Sil",
     "common.description": "Açıklama",
+    "common.edit": "Düzenle",
     "common.email": "E-posta",
     "common.generate": "Oluştur",
     "common.invites": "Davetler",
@@ -689,6 +804,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.controls.undeafen": "Sağırdan çık",
     "voice.controls.screenShare": "Ekran paylaş",
     "voice.controls.screenShareSoon": "Ekran paylaşımı 7C aşamasında geliyor",
+    "voice.controls.screenSharePhase8": "Ses kanallarında ekran paylaşımı 8. aşamada geliyor",
     "voice.controls.settings": "Ses ayarları",
     "voice.controls.camera": "Kamera",
     "voice.controls.cameraSoon": "Yakında",
@@ -827,9 +943,121 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.forgot.submit": "Sıfırlama Bağlantısı Gönder",
 
     "settings.backToChannels": "Kanallara Dön",
-    "settings.description": "Etkin temayı ve yerleşim yoğunluğunu çalışma alanın için ayarla.",
+    "settings.description":
+      "Konuşmadan kopmadan ses, görünüm ve bildirim tercihlerini ince ayarla.",
+    "settings.account.badge": "Hesabım",
+    "settings.account.title": "Hesabım",
+    "settings.account.nav": "Profil ve Durum",
+    "settings.account.description":
+      "Wizards genelinde nasıl göründüğünü belirleyen görünen adını, giriş e-postanı ve çevrimiçi durumunu tek yerde yönet.",
+    "settings.account.summaryTitle": "Profil özeti",
+    "settings.account.summaryDescription":
+      "Arkadaşlar, DM'ler ve sunucular içinde hesabının nasıl göründüğüne dair hızlı bir görünüm.",
+    "settings.account.editTitle": "Hesap bilgilerini düzenle",
+    "settings.account.editDescription":
+      "Görünür adını, kullanıcı adını, e-postanı veya tercih ettiğin çevrimiçi durumu çalışma alanından çıkmadan güncelle.",
+    "settings.account.editHintTitle": "Hazır olduğunda",
+    "settings.account.editHintDescription":
+      "Wizards içinde diğer insanların gördüğü bilgileri yenilemek istediğinde düzenleme modunu aç.",
+    "settings.account.fields.displayName": "Görünen ad",
+    "settings.account.fields.status": "Çevrimiçi durum",
+    "settings.account.status.invisible": "Görünmez",
+    "settings.account.saved": "Hesap ayarları güncellendi.",
+    "settings.account.errors.save": "Hesap ayarları şu anda kaydedilemedi.",
+    "settings.account.errors.displayNameTooLong":
+      "Görünen ad 60 karakterden uzun olamaz.",
+    "settings.account.errors.emailTaken": "Bu e-posta adresi zaten kullanımda.",
+    "settings.account.errors.usernameTaken": "Bu kullanıcı adı zaten alınmış.",
     "settings.nav.appearance": "Görünüm",
-    "settings.title": "Görünüm",
+    "settings.title": "Ayarlar",
+    "settings.page.badge": "Çalışma Alanı Ayarları",
+    "settings.page.title": "Ayarlar",
+    "settings.page.description":
+      "Ses zincirini, arayüz dilini, temayı, yerleşim yoğunluğunu ve bildirim davranışını tek bir odaklı kontrol yüzeyinden yönet.",
+    "settings.groups.voiceVideo.badge": "Ses ve Görüntü",
+    "settings.groups.voiceVideo.title": "Ses ve Görüntü",
+    "settings.groups.voiceVideo.description":
+      "Mikrofonunun bugün nasıl işlendiğini ayarla ve sıradaki iletişim yüzeylerini şimdiden gör.",
+    "settings.voice.audio.title": "Ses",
+    "settings.voice.camera.title": "Kamera",
+    "settings.voice.camera.description":
+      "Kamera kontrolleri ve görüntülü görüşme yüzeyleri Phase 8 ile gelecek. Mevcut ses kurulumun uyumlu kalacak.",
+    "settings.voice.screenShare.title": "Ekran Paylaşımı",
+    "settings.voice.screenShare.description":
+      "Daha zengin ekran paylaşımı kontrolleri Phase 8 ile aynı görsel dil ve oda akışıyla gelecek.",
+    "settings.groups.appearance.badge": "Görünüm",
+    "settings.groups.appearance.title": "Görünüm",
+    "settings.groups.appearance.description":
+      "Dil, tema ve gelişmiş kabuk boyutlarını; okuma ve gezinme şekline uygun olacak biçimde ayarla.",
+    "settings.appearance.language.title": "Dil",
+    "settings.appearance.language.description":
+      "Arayüz dilini anında değiştir. Tercihin hesabın ve bu cihazla senkron kalır.",
+    "settings.appearance.theme.title": "Tema",
+    "settings.appearance.theme.description":
+      "Çalışma alanı yapısını bozmadan daha sakin bir varsayılan ya da daha ifade gücü yüksek bir palet seç.",
+    "settings.appearance.advanced.title": "Gelişmiş",
+    "settings.appearance.advanced.description":
+      "Gezinme, okunabilirlik ve odağı şekillendiren kabuk oranlarını ayarla.",
+    "settings.appearance.advanced.open": "Gelişmiş kontrolleri aç",
+    "settings.appearance.advanced.serverRailTitle": "Sunucu rayı",
+    "settings.appearance.advanced.serverRailDescription":
+      "En soldaki sunucu yığınının ne kadar kompakt ya da ferah hissedileceğini belirle.",
+    "settings.appearance.advanced.mainCanvasTitle": "Ana tuval",
+    "settings.appearance.advanced.mainCanvasDescription":
+      "Orta çalışma alanına okuma, DM ve ses yüzeyleri için daha fazla yer aç.",
+    "settings.appearance.advanced.channelSidebarTitle": "Kanal kenar çubuğu",
+    "settings.appearance.advanced.channelSidebarDescription":
+      "Kanal listesi genişliğini, adlar ve durum önizlemeleri rahat nefes alacak şekilde ayarla.",
+    "settings.groups.notifications.badge": "Bildirimler",
+    "settings.groups.notifications.title": "Bildirimler",
+    "settings.groups.notifications.description":
+      "Ne kadar sinyal göreceğini, bunun ne kadar kalacağını ve uyarıların ses çıkarıp çıkarmayacağını belirle.",
+    "settings.notifications.general.title": "Genel Görünüm",
+    "settings.notifications.general.description":
+      "Açılır pencere yoğunluğunu, kapanma davranışını ve hesabın için aktif kalacak bildirim yüzeylerini yönet.",
+    "settings.notifications.desktop.title": "Masaüstü bildirimleri",
+    "settings.notifications.desktop.description":
+      "Wizards destekleyen bir tarayıcı bağlamında çalışırken yerel masaüstü uyarılarına izin ver.",
+    "settings.notifications.mobile.title": "Mobil bildirimler",
+    "settings.notifications.mobile.description":
+      "Hesap seviyesindeki bildirim tercihleri için mobil teslimatı açık tut.",
+    "settings.notifications.email.title": "E-posta bildirimleri",
+    "settings.notifications.email.description":
+      "Desteklenen bildirim akışları için yedek e-posta uyarıları al.",
+    "settings.notifications.sounds.title": "Sesler",
+    "settings.notifications.sounds.description":
+      "Uyarıların ses çıkarıp çıkarmayacağını ve çalışma alanını hangi ses profilinin temsil edeceğini seç.",
+    "settings.notifications.soundToggle.title": "Bildirim sesi",
+    "settings.notifications.soundToggle.description":
+      "Desteklenen bildirim yüzeylerinde kısa bir uyarı sesi çal.",
+    "settings.notifications.soundProfile.title": "Ses profili",
+    "settings.notifications.soundProfile.description":
+      "Bildirim sesleri açıkken Wizards'ın hangi stili kullanacağını seç.",
+    "settings.notifications.soundProfile.default": "Varsayılan",
+    "settings.notifications.soundProfile.soft": "Yumuşak",
+    "settings.notifications.soundProfile.pulse": "Pulse",
+    "settings.about.badge": "Wizards Hakkında",
+    "settings.about.title": "Hakkında",
+    "settings.about.description":
+      "Wizards'ın ne için üretildiğini, hangi sürümü çalıştırdığını ve projenin arkasında kim olduğunu gör.",
+    "settings.about.overview.description":
+      "Ürün yönünü ve Wizards'ın sunmayı hedeflediği iletişim deneyimini hızlıca özetler.",
+    "settings.about.overview.body":
+      "Wizards; hızlı mesajlaşma, sesli iş birliği ve hafif ekran paylaşımı için tasarlanmış gerçek zamanlı bir iletişim platformudur.",
+    "settings.about.overview.bodySecondary":
+      "Next.js, WebSockets ve LiveKit destekli WebRTC gibi modern temeller üzerine kurulu olan yapı; canlı takım çalışmasında hızlı, akıcı ve odaklı kalacak şekilde tasarlanmıştır.",
+    "settings.about.buildInfo.title": "Sürüm / Build Bilgisi",
+    "settings.about.buildInfo.description":
+      "Güncel uygulama sürümünü ve en son dağıtım tarihini referans olarak görüntüle.",
+    "settings.about.buildInfo.version": "Sürüm",
+    "settings.about.buildInfo.lastUpdate": "Son güncelleme",
+    "settings.about.developer.title": "Geliştirici Bilgisi",
+    "settings.about.developer.description":
+      "Wizards çalışma alanının ürün sahipliği ve geliştirme yönü.",
+    "settings.about.developer.name": "Geliştirici",
+    "settings.about.developer.contributors": "Katkıda Bulunanlar",
+    "settings.about.developer.contributorsDescription":
+      "Wizards'ın ürün, geri bildirim ve geliştirme sürecine katkı sağlayan kişiler.",
 
     "appearance.page.badge": "Kullanıcı Ayarları",
     "appearance.page.description":
@@ -958,8 +1186,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.channelSidebar.membersCount": "{count} üye",
     "shell.user.toggleMute": "Sesi kapat",
     "shell.user.toggleDeafen": "Kulaklığı kapat",
-    "shell.user.appearanceSettings": "Görünüm ayarlarını aç",
-    "shell.user.appearanceSettingsTitle": "Görünüm ayarları",
+    "shell.user.appearanceSettings": "Ayarları aç",
+    "shell.user.appearanceSettingsTitle": "Ayarlar",
     "shell.user.logout": "Çıkış yap",
     "shell.user.logoutTitle": "Çıkış yap",
     "shell.main.openConversation": "Açık konuşma",
@@ -978,7 +1206,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Yerini kaybetmeden çalışma alanları arasında geçiş yap.",
     "shell.main.tuneLayoutTitle": "Yerleşimi ayarla",
     "shell.main.tuneLayoutDescription":
-      "Rayları, kenar çubuklarını ve temayı yeniden boyutlandırmak için görünüm ayarlarını aç.",
+      "Rayları, kenar çubuklarını ve temayı yeniden boyutlandırmak için ayarları aç.",
     "shell.main.startTalkingTitle": "Konuşmaya başla",
     "shell.main.startTalkingDescription":
       "Bir yazı kanalı aç ve canlı akışın hemen hazır olsun.",

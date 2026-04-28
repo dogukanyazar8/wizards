@@ -31,6 +31,7 @@ import { useShallow } from "zustand/react/shallow";
 import { FriendsSidebar } from "@/components/friends/friends-sidebar";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
+import { useSocket } from "@/hooks/use-socket";
 import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
 import { ChannelItem } from "@/components/shell/channel-item";
 import { ChannelSidebarSkeleton } from "@/components/shell/shell-skeletons";
@@ -152,6 +153,7 @@ type UserProfileFooterProps = {
 
 function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooterProps) {
   const { t } = useI18n();
+  const socket = useSocket();
   const [isLoggingOut, startLogoutTransition] = useTransition();
   const { activeChannelId, isDeafened, isMuted, leaveChannel, toggleDeafen, toggleMute } =
     useVoiceConnection();
@@ -164,6 +166,7 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
     useAppStore.persist.clearStorage();
     startLogoutTransition(async () => {
       await leaveChannel().catch(() => undefined);
+      socket.disconnect();
       await logoutAction();
     });
   };

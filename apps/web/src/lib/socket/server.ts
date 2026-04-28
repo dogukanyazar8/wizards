@@ -1,6 +1,5 @@
 import type { Server as HTTPServer } from "http";
-import type Redis from "ioredis";
-import { Server, type Socket as IOSocket } from "socket.io";
+import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { getToken } from "next-auth/jwt";
 import { Prisma, prisma } from "@wizards/db";
@@ -12,7 +11,10 @@ import {
   mapDMMessagePayload,
 } from "@/lib/dm/service";
 import { getBlockStatus } from "@/lib/friends/helpers";
-import { getUserPresenceBroadcast } from "@/lib/friends/service";
+import {
+  broadcastPresenceUpdateToFriends,
+  persistUserPresence,
+} from "@/lib/friends/service";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { getRedis, getRedisSub } from "@/lib/redis";
 import { setSocketServer } from "@/lib/socket/runtime";
@@ -39,13 +41,6 @@ const CHANNEL_TYPING_EXPIRY = 3000;
 const DM_TYPING_EXPIRY = 3000;
 const TYPING_KEY_TTL_SECONDS = 10;
 const PRESENCE_SOCKET_PREFIX = "presence:sockets:";
-
-type AppSocket = IOSocket<
-  ClientToServerEvents,
-  ServerToClientEvents,
-  InterServerEvents,
-  SocketData
->;
 
 type NotificationRecord = {
   id: string;
@@ -122,23 +117,6 @@ function serializeNotification(notification: NotificationRecord): NotificationSo
   };
 }
 
-async function listFriendIds(userId: string) {
-  const friendships = await prisma.friendRequest.findMany({
-    where: {
-      status: "ACCEPTED",
-      OR: [{ senderId: userId }, { receiverId: userId }],
-    },
-    select: {
-      receiverId: true,
-      senderId: true,
-    },
-  });
-
-  return friendships.map((friendship) =>
-    friendship.senderId === userId ? friendship.receiverId : friendship.senderId,
-  );
-}
-
 async function listServerIds(userId: string) {
   const memberships = await prisma.serverMember.findMany({
     where: { userId },
@@ -146,35 +124,6 @@ async function listServerIds(userId: string) {
   });
 
   return memberships.map((membership) => membership.serverId);
-}
-
-async function writePresence(
-  redis: Redis,
-  userId: string,
-  status: SocketData["presenceStatus"],
-  customStatus: string | null,
-) {
-  await redis.hset(`presence:${userId}`, {
-    customStatus: customStatus ?? "",
-    status,
-  });
-}
-
-async function broadcastPresenceChange(
-  socket: AppSocket,
-  userId: string,
-  status: SocketData["presenceStatus"],
-  customStatus: string | null,
-) {
-  const friendIds = await listFriendIds(userId);
-
-  for (const friendId of friendIds) {
-    socket.to(`user:${friendId}`).emit("presence:update", {
-      userId,
-      status,
-      customStatus,
-    });
-  }
 }
 
 export function initSocketServer(httpServer: HTTPServer) {
@@ -217,15 +166,25 @@ export function initSocketServer(httpServer: HTTPServer) {
         return next(new Error("Unauthorized"));
       }
 
-      socket.data.userId = token.id;
-      socket.data.username =
-        typeof token.username === "string" && token.username.trim().length > 0
-          ? token.username
-          : token.id;
-      socket.data.displayName =
-        typeof token.displayName === "string" && token.displayName.trim().length > 0
-          ? token.displayName
-          : socket.data.username;
+      const user = await prisma.user.findUnique({
+        where: { id: token.id },
+        select: {
+          customStatus: true,
+          displayName: true,
+          id: true,
+          username: true,
+        },
+      });
+
+      if (!user) {
+        return next(new Error("Unauthorized"));
+      }
+
+      socket.data.userId = user.id;
+      socket.data.username = user.username;
+      socket.data.displayName = user.displayName ?? user.username;
+      socket.data.presenceCustomStatus = user.customStatus ?? null;
+      socket.data.presenceStatus = "OFFLINE";
       next();
     } catch {
       next(new Error("Unauthorized"));
@@ -241,8 +200,8 @@ export function initSocketServer(httpServer: HTTPServer) {
     const dmTypingConversations = new Set<string>();
     const dmTypingTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
     socket.data.typingChannels = new Set<string>();
-    socket.data.presenceCustomStatus = null;
-    socket.data.presenceStatus = "OFFLINE";
+    socket.data.presenceCustomStatus = socket.data.presenceCustomStatus ?? null;
+    socket.data.presenceStatus = socket.data.presenceStatus ?? "OFFLINE";
     socket.join(`user:${userId}`);
     void (async () => {
       try {
@@ -353,15 +312,23 @@ export function initSocketServer(httpServer: HTTPServer) {
 
     void (async () => {
       try {
-        const presence = await getUserPresenceBroadcast(userId);
+        const presence = await persistUserPresence(
+          userId,
+          "ONLINE",
+          socket.data.presenceCustomStatus,
+        );
+        if (!presence) {
+          await redis.del(getPresenceSocketsKey(userId));
+          socket.disconnect(true);
+          return;
+        }
         socket.data.presenceStatus = presence.status;
         socket.data.presenceCustomStatus = presence.customStatus;
 
         const socketCount = await redis.incr(getPresenceSocketsKey(userId));
-        await writePresence(redis, userId, presence.status, presence.customStatus);
 
         if (socketCount === 1) {
-          await broadcastPresenceChange(socket, userId, presence.status, presence.customStatus);
+          await broadcastPresenceUpdateToFriends(presence);
         }
       } catch (error) {
         console.error("Presence connect error:", error);
@@ -1022,13 +989,14 @@ export function initSocketServer(httpServer: HTTPServer) {
 
         if (nextSocketCount <= 0) {
           await redis.del(getPresenceSocketsKey(userId));
-          await writePresence(redis, userId, "OFFLINE", socket.data.presenceCustomStatus);
-          await broadcastPresenceChange(
-            socket,
+          const presence = await persistUserPresence(
             userId,
             "OFFLINE",
             socket.data.presenceCustomStatus,
           );
+          if (presence) {
+            await broadcastPresenceUpdateToFriends(presence);
+          }
         }
       } catch (error) {
         console.error("Disconnect cleanup error:", error);

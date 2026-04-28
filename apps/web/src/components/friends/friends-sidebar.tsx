@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MessageSquareMore, Users, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
+import { useSocket } from "@/hooks/use-socket";
 import { useDMConversations } from "@/hooks/use-dm-conversations";
 import {
   findOtherParticipant,
@@ -41,6 +43,7 @@ export function FriendsSidebar({
   onPrefetch,
 }: FriendsSidebarProps) {
   const { t } = useI18n();
+  const socket = useSocket();
   const params = useParams<{ channelId?: string; serverId?: string }>();
   const activeConversationId =
     params.serverId === "@me" && typeof params.channelId === "string"
@@ -51,6 +54,7 @@ export function FriendsSidebar({
     queryKey: friendsQueryKeys.pending,
     staleTime: 30_000,
   });
+  const { refetch: refetchPending } = pendingQuery;
   const {
     conversations,
     hideConversation,
@@ -59,6 +63,18 @@ export function FriendsSidebar({
   } = useDMConversations(currentUserId);
 
   const incomingCount = pendingQuery.data?.incoming.length ?? 0;
+
+  useEffect(() => {
+    const handleFriendsUpdated = () => {
+      void refetchPending();
+    };
+
+    socket.on("friends:updated", handleFriendsUpdated);
+
+    return () => {
+      socket.off("friends:updated", handleFriendsUpdated);
+    };
+  }, [refetchPending, socket]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">

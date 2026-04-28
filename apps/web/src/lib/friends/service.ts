@@ -1,5 +1,5 @@
 import type Redis from "ioredis";
-import { prisma } from "@wizards/db";
+import { Prisma, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { getRedis } from "@/lib/redis";
 import { normalizeAppLocale, translate } from "@/lib/locale";
@@ -68,6 +68,14 @@ type FriendListUserRecord = FriendUserDto & {
 };
 
 type PresenceFields = Pick<FriendDto, "customStatus" | "status">;
+type FriendsUpdatedReason =
+  | "blocked"
+  | "friend_request_accepted"
+  | "friend_request_canceled"
+  | "friend_request_received"
+  | "friend_request_rejected"
+  | "friend_removed"
+  | "unblocked";
 
 function isPresenceStatus(value: string): value is RedisPresenceStatus {
   return FRIEND_PRESENCE_STATUSES.includes(value as RedisPresenceStatus);
@@ -177,6 +185,10 @@ async function readPresence(
   return fallback;
 }
 
+function getPresenceRedisKey(userId: string) {
+  return `presence:${userId}`;
+}
+
 function toFriendStatusDto(status: string): FriendStatusDto {
   if (
     status === "PENDING" ||
@@ -255,6 +267,17 @@ async function createFriendRequestNotification(
       metadata: (notification.metadata as Record<string, unknown>) || null,
       createdAt: notification.createdAt.toISOString(),
     });
+  }
+}
+
+function emitFriendsUpdated(userIds: Iterable<string>, reason: FriendsUpdatedReason) {
+  const io = getSocketServer();
+  if (!io) {
+    return;
+  }
+
+  for (const userId of new Set(userIds)) {
+    io.to(`user:${userId}`).emit("friends:updated", { reason });
   }
 }
 
@@ -337,6 +360,65 @@ export async function getUserPresenceBroadcast(
     status: mapStoredPresenceStatus(user?.status),
     customStatus: user?.customStatus ?? null,
   };
+}
+
+export async function persistUserPresence(
+  userId: string,
+  status: FriendPresenceStatus,
+  customStatus?: string | null,
+): Promise<FriendPresenceUpdateDto | null> {
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { status },
+      select: { customStatus: true },
+    });
+
+    const nextCustomStatus = customStatus ?? user.customStatus ?? null;
+    await getRedis().hset(getPresenceRedisKey(userId), {
+      customStatus: nextCustomStatus ?? "",
+      status,
+    });
+
+    return {
+      userId,
+      status,
+      customStatus: nextCustomStatus,
+    };
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      await getRedis().del(getPresenceRedisKey(userId));
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+export async function broadcastPresenceUpdateToFriends(
+  update: FriendPresenceUpdateDto,
+): Promise<void> {
+  const friendships = await prisma.friendRequest.findMany({
+    where: {
+      status: "ACCEPTED",
+      OR: [{ senderId: update.userId }, { receiverId: update.userId }],
+    },
+    select: {
+      receiverId: true,
+      senderId: true,
+    },
+  });
+
+  const io = getSocketServer();
+  if (!io) {
+    return;
+  }
+
+  for (const friendship of friendships) {
+    const friendId =
+      friendship.senderId === update.userId ? friendship.receiverId : friendship.senderId;
+    io.to(`user:${friendId}`).emit("presence:update", update);
+  }
 }
 
 export async function listFriends(userId: string): Promise<FriendDto[]> {
@@ -461,6 +543,7 @@ export async function sendFriendRequest(
   });
 
   await createFriendRequestNotification(receiver, sender, request.id);
+  emitFriendsUpdated([senderId, receiver.id], "friend_request_received");
 
   return toFriendRequestDto(request);
 }
@@ -500,13 +583,18 @@ export async function actOnFriendRequest(
     await createFriendAcceptedNotification(request.sender, request.receiver, request.id);
   }
 
+  emitFriendsUpdated(
+    [request.senderId, request.receiverId],
+    action === "accept" ? "friend_request_accepted" : "friend_request_rejected",
+  );
+
   return toFriendRequestDto(updated);
 }
 
 export async function cancelFriendRequest(userId: string, requestId: string): Promise<void> {
   const request = await prisma.friendRequest.findUnique({
     where: { id: requestId },
-    select: { senderId: true, status: true },
+    select: { receiverId: true, senderId: true, status: true },
   });
 
   if (!request) {
@@ -524,6 +612,8 @@ export async function cancelFriendRequest(userId: string, requestId: string): Pr
   await prisma.friendRequest.delete({
     where: { id: requestId },
   });
+
+  emitFriendsUpdated([request.senderId, request.receiverId], "friend_request_canceled");
 }
 
 export async function removeFriend(userId: string, friendUserId: string): Promise<void> {
@@ -537,6 +627,8 @@ export async function removeFriend(userId: string, friendUserId: string): Promis
   await prisma.friendRequest.delete({
     where: { id: friendship.id },
   });
+
+  emitFriendsUpdated([userId, friendUserId], "friend_removed");
 }
 
 export async function blockUser(userId: string, blockedUserId: string): Promise<FriendUserDto> {
@@ -578,6 +670,8 @@ export async function blockUser(userId: string, blockedUserId: string): Promise<
     });
   });
 
+  emitFriendsUpdated([userId, blockedUserId], "blocked");
+
   return toFriendUserDto(blockedUser);
 }
 
@@ -595,6 +689,8 @@ export async function unblockUser(userId: string, blockedUserId: string): Promis
   if (result.count === 0) {
     throw new ApiError("Block not found", 404, "NOT_FOUND");
   }
+
+  emitFriendsUpdated([userId, blockedUserId], "unblocked");
 }
 
 export async function listBlockedUsers(userId: string): Promise<FriendUserDto[]> {

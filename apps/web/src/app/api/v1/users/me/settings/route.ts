@@ -3,17 +3,27 @@ import { prisma } from "@wizards/db";
 import { requireApiUserId } from "@/lib/auth/api";
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
 import {
-  clampServerRailWidth,
-  clampChannelSidebarWidth,
-  MIN_NOTIFICATION_LIMIT,
   MAX_NOTIFICATION_LIMIT,
+  MIN_NOTIFICATION_LIMIT,
+  clampChannelSidebarWidth,
+  clampServerRailWidth,
 } from "@/lib/appearance";
 
 const PatchSettingsSchema = z.object({
   serverRailWidth: z.number().int().optional(),
   channelSidebarWidth: z.number().int().optional(),
-  notificationLimit: z.number().int().min(MIN_NOTIFICATION_LIMIT).max(MAX_NOTIFICATION_LIMIT).optional(),
+  notificationLimit: z
+    .number()
+    .int()
+    .min(MIN_NOTIFICATION_LIMIT)
+    .max(MAX_NOTIFICATION_LIMIT)
+    .optional(),
   notificationAutoClose: z.boolean().optional(),
+  desktopNotifications: z.boolean().optional(),
+  mobileNotifications: z.boolean().optional(),
+  emailNotifications: z.boolean().optional(),
+  notificationSound: z.boolean().optional(),
+  notificationSoundFile: z.string().trim().min(1).max(64).optional(),
 });
 
 export type UserLayoutSettings = {
@@ -21,26 +31,92 @@ export type UserLayoutSettings = {
   channelSidebarWidth: number;
   notificationLimit: number;
   notificationAutoClose: boolean;
+  desktopNotifications: boolean;
+  mobileNotifications: boolean;
+  emailNotifications: boolean;
+  notificationSound: boolean;
+  notificationSoundFile: string;
 };
+
+const DEFAULT_NOTIFICATION_SETTINGS = {
+  desktopNotifications: true,
+  mobileNotifications: true,
+  emailNotifications: false,
+  notificationSound: true,
+  notificationSoundFile: "default",
+} as const;
+
+function mapSettingsResponse(input: {
+  settings: {
+    serverRailWidth: number;
+    channelSidebarWidth: number;
+    notificationLimit: number;
+    notificationAutoClose: boolean;
+  };
+  notificationSettings?: {
+    desktopNotifications: boolean;
+    mobileNotifications: boolean;
+    emailNotifications: boolean;
+    notificationSound: boolean;
+    notificationSoundFile: string;
+  } | null;
+}): UserLayoutSettings {
+  return {
+    ...input.settings,
+    desktopNotifications:
+      input.notificationSettings?.desktopNotifications ??
+      DEFAULT_NOTIFICATION_SETTINGS.desktopNotifications,
+    mobileNotifications:
+      input.notificationSettings?.mobileNotifications ??
+      DEFAULT_NOTIFICATION_SETTINGS.mobileNotifications,
+    emailNotifications:
+      input.notificationSettings?.emailNotifications ??
+      DEFAULT_NOTIFICATION_SETTINGS.emailNotifications,
+    notificationSound:
+      input.notificationSettings?.notificationSound ??
+      DEFAULT_NOTIFICATION_SETTINGS.notificationSound,
+    notificationSoundFile:
+      input.notificationSettings?.notificationSoundFile ??
+      DEFAULT_NOTIFICATION_SETTINGS.notificationSoundFile,
+  };
+}
 
 export async function GET() {
   try {
     const userId = await requireApiUserId();
-    const settings = await prisma.userSettings.findUnique({
-      where: { userId },
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
       select: {
-        serverRailWidth: true,
-        channelSidebarWidth: true,
-        notificationLimit: true,
-        notificationAutoClose: true,
+        settings: {
+          select: {
+            serverRailWidth: true,
+            channelSidebarWidth: true,
+            notificationLimit: true,
+            notificationAutoClose: true,
+          },
+        },
+        notificationSettings: {
+          select: {
+            desktopNotifications: true,
+            mobileNotifications: true,
+            emailNotifications: true,
+            notificationSound: true,
+            notificationSoundFile: true,
+          },
+        },
       },
     });
 
-    if (!settings) {
+    if (!user?.settings) {
       throw new ApiError("Settings not found", 404);
     }
 
-    return Response.json(settings);
+    return Response.json(
+      mapSettingsResponse({
+        settings: user.settings,
+        notificationSettings: user.notificationSettings,
+      }),
+    );
   } catch (error) {
     return jsonError(error);
   }
@@ -51,7 +127,7 @@ export async function PATCH(request: Request) {
     const userId = await requireApiUserId();
     const body = await parseJsonBody(request, PatchSettingsSchema);
 
-    const data: Partial<{
+    const layoutData: Partial<{
       serverRailWidth: number;
       channelSidebarWidth: number;
       notificationLimit: number;
@@ -59,27 +135,86 @@ export async function PATCH(request: Request) {
     }> = {};
 
     if (body.serverRailWidth !== undefined) {
-      data.serverRailWidth = clampServerRailWidth(body.serverRailWidth);
+      layoutData.serverRailWidth = clampServerRailWidth(body.serverRailWidth);
     }
     if (body.channelSidebarWidth !== undefined) {
-      data.channelSidebarWidth = clampChannelSidebarWidth(body.channelSidebarWidth);
+      layoutData.channelSidebarWidth = clampChannelSidebarWidth(body.channelSidebarWidth);
     }
     if (body.notificationLimit !== undefined) {
-      data.notificationLimit = body.notificationLimit;
+      layoutData.notificationLimit = body.notificationLimit;
     }
     if (body.notificationAutoClose !== undefined) {
-      data.notificationAutoClose = body.notificationAutoClose;
+      layoutData.notificationAutoClose = body.notificationAutoClose;
     }
 
-    const updated = await prisma.userSettings.update({
-      where: { userId },
-      data,
-      select: {
-        serverRailWidth: true,
-        channelSidebarWidth: true,
-        notificationLimit: true,
-        notificationAutoClose: true,
-      },
+    const notificationSettingsData: Partial<{
+      desktopNotifications: boolean;
+      mobileNotifications: boolean;
+      emailNotifications: boolean;
+      notificationSound: boolean;
+      notificationSoundFile: string;
+    }> = {};
+
+    if (body.desktopNotifications !== undefined) {
+      notificationSettingsData.desktopNotifications = body.desktopNotifications;
+    }
+    if (body.mobileNotifications !== undefined) {
+      notificationSettingsData.mobileNotifications = body.mobileNotifications;
+    }
+    if (body.emailNotifications !== undefined) {
+      notificationSettingsData.emailNotifications = body.emailNotifications;
+    }
+    if (body.notificationSound !== undefined) {
+      notificationSettingsData.notificationSound = body.notificationSound;
+    }
+    if (body.notificationSoundFile !== undefined) {
+      notificationSettingsData.notificationSoundFile = body.notificationSoundFile;
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const settings = await tx.userSettings.update({
+        where: { userId },
+        data: layoutData,
+        select: {
+          serverRailWidth: true,
+          channelSidebarWidth: true,
+          notificationLimit: true,
+          notificationAutoClose: true,
+        },
+      });
+
+      const notificationSettings = Object.keys(notificationSettingsData).length
+        ? await tx.userNotificationSettings.upsert({
+            where: { userId },
+            create: {
+              userId,
+              ...DEFAULT_NOTIFICATION_SETTINGS,
+              ...notificationSettingsData,
+            },
+            update: notificationSettingsData,
+            select: {
+              desktopNotifications: true,
+              mobileNotifications: true,
+              emailNotifications: true,
+              notificationSound: true,
+              notificationSoundFile: true,
+            },
+          })
+        : await tx.userNotificationSettings.findUnique({
+            where: { userId },
+            select: {
+              desktopNotifications: true,
+              mobileNotifications: true,
+              emailNotifications: true,
+              notificationSound: true,
+              notificationSoundFile: true,
+            },
+          });
+
+      return mapSettingsResponse({
+        settings,
+        notificationSettings,
+      });
     });
 
     return Response.json(updated);

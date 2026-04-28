@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { auth } from "@/auth";
+import { SocketProvider } from "@/components/providers/socket-provider";
+import { VoiceProvider } from "@/components/providers/voice-provider";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -30,13 +32,35 @@ export default async function RootLayout({
   const session = await auth();
   const locale = await getRequestLocale(session?.user?.locale);
   const theme = session?.user?.theme || undefined;
+  const currentUser =
+    session?.user
+      ? {
+          id: session.user.id,
+          avatarUrl: session.user.avatarUrl ?? session.user.image ?? null,
+          displayName:
+            session.user.displayName ??
+            session.user.username ??
+            session.user.email ??
+            "Wizard",
+          username:
+            session.user.username ?? session.user.email?.split("@")[0] ?? "wizard",
+        }
+      : null;
 
   return (
     <html lang={locale} suppressHydrationWarning>
       <body className={`${bodyFont.variable} ${displayFont.variable}`}>
         <ThemeProvider storageKey="wizards-theme" defaultTheme={theme} attribute="class">
           <LocaleProvider initialLocale={locale}>
-            <QueryProvider>{children}</QueryProvider>
+            <QueryProvider>
+              {currentUser ? (
+                <SocketProvider>
+                  <VoiceProvider currentUser={currentUser}>{children}</VoiceProvider>
+                </SocketProvider>
+              ) : (
+                children
+              )}
+            </QueryProvider>
           </LocaleProvider>
         </ThemeProvider>
       </body>
