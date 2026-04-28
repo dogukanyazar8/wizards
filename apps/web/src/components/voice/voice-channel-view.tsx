@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ConnectionState, type Room } from "livekit-client";
-import { Loader2, MicOff, Video } from "lucide-react";
+import { Loader2, MicOff, RotateCcw, Video, Volume2 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
@@ -14,6 +14,15 @@ import { cn } from "@/lib/utils";
 type VoiceChannelViewProps = {
   channelId: string;
   serverId: string;
+};
+
+type VoiceParticipantCardProps = {
+  audioPreferenceBadges: string[];
+  isKrispNoiseCancellationActive: boolean;
+  onResetVolume: () => void;
+  onSetVolume: (volume: number) => void;
+  participant: VoiceParticipantViewModel;
+  participantVolume: number;
 };
 
 function getSpeakingClass(participant: VoiceParticipantViewModel) {
@@ -31,7 +40,14 @@ function isReconnectState(state: ConnectionState) {
   );
 }
 
-function VoiceParticipantCard({ participant }: { participant: VoiceParticipantViewModel }) {
+function VoiceParticipantCard({
+  audioPreferenceBadges,
+  isKrispNoiseCancellationActive,
+  onResetVolume,
+  onSetVolume,
+  participant,
+  participantVolume,
+}: VoiceParticipantCardProps) {
   const { t } = useI18n();
   const displayName = participant.displayName ?? participant.username;
 
@@ -53,7 +69,7 @@ function VoiceParticipantCard({ participant }: { participant: VoiceParticipantVi
             </p>
             <p className="truncate text-xs text-app-muted">
               @{participant.username}
-              {participant.isLocal ? ` • ${t("voice.grid.you")}` : ""}
+              {participant.isLocal ? ` / ${t("voice.grid.you")}` : ""}
             </p>
           </div>
         </div>
@@ -77,6 +93,71 @@ function VoiceParticipantCard({ participant }: { participant: VoiceParticipantVi
           <p className="text-xs text-app-muted">{t("voice.grid.videoPhase8")}</p>
         </div>
       </div>
+
+      {participant.isLocal ? (
+        <div className="app-panel-soft mt-4 rounded-[22px] border p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-app-foreground">
+              {t("voice.grid.processing")}
+            </p>
+            <span className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-app-soft">
+              {isKrispNoiseCancellationActive
+                ? t("voice.grid.krispActive")
+                : t("voice.grid.browserProcessing")}
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {audioPreferenceBadges.map((badge) => (
+              <span
+                className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.48)] px-3 py-1 text-xs font-medium text-app-foreground"
+                key={badge}
+              >
+                {badge}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="app-panel-soft mt-4 rounded-[22px] border p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-app-foreground">
+                {t("voice.grid.remoteVolume")}
+              </p>
+              <p className="mt-1 text-xs text-app-muted">
+                {t("voice.grid.remoteVolumeDescription")}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)] px-3 py-1 text-xs font-semibold text-app-foreground">
+                {participantVolume}%
+              </span>
+              <button
+                aria-label={t("voice.grid.resetVolume")}
+                className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.48)] p-2 text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                onClick={onResetVolume}
+                type="button"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center gap-3">
+            <Volume2 className="h-4 w-4 shrink-0 text-app-muted" />
+            <input
+              aria-label={t("voice.grid.remoteVolume")}
+              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.86)] accent-[hsl(var(--primary))]"
+              max={100}
+              min={0}
+              onChange={(event) => onSetVolume(Number(event.target.value))}
+              step={5}
+              type="range"
+              value={participantVolume}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -108,12 +189,17 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
   const { t } = useI18n();
   const {
     activeChannelId,
+    audioPreferences,
     connectionState,
     errorMessage,
+    getParticipantVolume,
     isJoining,
+    isKrispNoiseCancellationActive,
     joinChannel,
     participants,
+    resetParticipantVolume,
     room,
+    setParticipantVolume,
   } = useVoiceConnection();
   const [hasRequestedJoin, setHasRequestedJoin] = useState(false);
 
@@ -126,6 +212,12 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
 
   const orderedParticipants = renderGridParticipants(room, participants);
   const showReconnectOverlay = isReconnectState(connectionState);
+  const localAudioPreferenceBadges = [
+    audioPreferences.noiseSuppression ? t("voice.grid.noiseSuppression") : null,
+    audioPreferences.echoCancellation ? t("voice.grid.echoCancellation") : null,
+    audioPreferences.autoGainControl ? t("voice.grid.autoGainControl") : null,
+    audioPreferences.krispNoiseCancellation ? t("voice.grid.krisp") : null,
+  ].filter((value): value is string => Boolean(value));
 
   if ((!hasRequestedJoin || isJoining) && !errorMessage) {
     return (
@@ -208,7 +300,15 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
 
         <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {orderedParticipants.map((participant) => (
-            <VoiceParticipantCard key={participant.userId} participant={participant} />
+            <VoiceParticipantCard
+              audioPreferenceBadges={localAudioPreferenceBadges}
+              isKrispNoiseCancellationActive={isKrispNoiseCancellationActive}
+              key={participant.userId}
+              onResetVolume={() => resetParticipantVolume(participant.userId)}
+              onSetVolume={(volume) => setParticipantVolume(participant.userId, volume)}
+              participant={participant}
+              participantVolume={getParticipantVolume(participant.userId)}
+            />
           ))}
         </div>
       </div>

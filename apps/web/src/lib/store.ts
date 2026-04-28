@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import {
   DEFAULT_CHANNEL_SIDEBAR_WIDTH,
+  LEGACY_DEFAULT_MAIN_PANEL_WIDTH,
   DEFAULT_MAIN_PANEL_WIDTH,
   DEFAULT_NOTIFICATION_LIMIT,
   DEFAULT_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
@@ -646,6 +647,28 @@ export const useAppStore = create<AppState>()(
         }),
     }),
     {
+      migrate: (persistedState, version) => {
+        if (!isRecord(persistedState)) {
+          return persistedState;
+        }
+
+        if (version < 2) {
+          const nextMainPanelWidth =
+            typeof persistedState.mainPanelWidth === "number"
+              ? persistedState.mainPanelWidth
+              : LEGACY_DEFAULT_MAIN_PANEL_WIDTH;
+
+          return {
+            ...persistedState,
+            mainPanelWidth:
+              nextMainPanelWidth === LEGACY_DEFAULT_MAIN_PANEL_WIDTH
+                ? DEFAULT_MAIN_PANEL_WIDTH
+                : nextMainPanelWidth,
+          };
+        }
+
+        return persistedState;
+      },
       merge: (persistedState, currentState) => ({
         ...currentState,
         ...sanitizePersistedState(persistedState),
@@ -665,7 +688,7 @@ export const useAppStore = create<AppState>()(
         serverRailWidth: state.serverRailWidth,
       }),
       storage: createJSONStorage(() => localStorage),
-      version: 1,
+      version: 2,
     },
   ),
 );

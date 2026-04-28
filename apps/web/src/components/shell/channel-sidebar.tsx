@@ -72,6 +72,7 @@ type SortableChannelRowProps = {
   active: boolean;
   canManage: boolean;
   channel: WorkspaceChannel;
+  currentUserId: string;
   onDelete: () => void;
   onEdit: () => void;
   onPrefetch?: () => void;
@@ -83,6 +84,7 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
   active,
   canManage,
   channel,
+  currentUserId,
   onDelete,
   onEdit,
   onPrefetch,
@@ -123,6 +125,7 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
           <ChannelItem
             active={active}
             canManage={canManage}
+            currentUserId={currentUserId}
             name={channel.name}
             onDelete={onDelete}
             onEdit={onEdit}
@@ -166,7 +169,7 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
   };
 
   return (
-    <div className="app-panel rounded-[24px] border p-3">
+    <div className="app-panel rounded-[24px] border p-3" data-user-bar-anchor="true">
       <div className="flex items-center gap-3">
         <Avatar
           alt={user.displayName}
@@ -480,6 +483,7 @@ export function ChannelSidebar({
                   active={channel.id === activeChannelId}
                   canManage={canManage}
                   channel={channel}
+                  currentUserId={currentUser.id}
                   key={channel.id}
                   onDelete={() => openDeleteChannelDialog(channel.id, channel.name)}
                   onEdit={() =>

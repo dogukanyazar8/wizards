@@ -50,7 +50,7 @@ export function NotificationBell() {
   const popoverRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [dropdownPos, setDropdownPos] = useState<{ right: number; top: number } | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ left: number; top: number } | null>(null);
 
   const unreadQuery = useQuery({
     queryFn: fetchUnreadCount,
@@ -170,11 +170,14 @@ export function NotificationBell() {
     [t, unreadCount],
   );
 
-  const closePopover = () => setOpen(false);
+  const closePopover = () => {
+    setOpen(false);
+    setDropdownPos(null);
+  };
 
   const handleToggle = () => {
     if (open) {
-      setOpen(false);
+      closePopover();
       return;
     }
 
@@ -183,14 +186,40 @@ export function NotificationBell() {
     }
 
     const rect = buttonRef.current.getBoundingClientRect();
-    let top = rect.bottom + 12;
-    const right = window.innerWidth - rect.right;
+    const userBarRect =
+      buttonRef.current
+        .closest<HTMLElement>("[data-user-bar-anchor='true']")
+        ?.getBoundingClientRect() ?? rect;
+    const minMargin = 16;
+    const popupWidth = Math.min(384, window.innerWidth - minMargin * 2);
+    const estimatedPopupHeight = 520;
+    const gapFromBar = 12;
 
-    if (rect.bottom + 480 > window.innerHeight) {
-      top = Math.max(16, window.innerHeight - 492);
+    let top = userBarRect.top - estimatedPopupHeight - gapFromBar;
+    let positionedBelow = false;
+
+    if (top < minMargin) {
+      top = userBarRect.bottom + gapFromBar;
+      positionedBelow = true;
     }
 
-    setDropdownPos({ top, right });
+    if (top + estimatedPopupHeight > window.innerHeight - minMargin) {
+      if (!positionedBelow) {
+        const belowPosition = userBarRect.bottom + gapFromBar;
+        if (belowPosition + estimatedPopupHeight <= window.innerHeight - minMargin) {
+          top = belowPosition;
+        } else {
+          top = Math.max(minMargin, window.innerHeight - estimatedPopupHeight - minMargin);
+        }
+      } else {
+        top = Math.max(minMargin, window.innerHeight - estimatedPopupHeight - minMargin);
+      }
+    }
+
+    let left = userBarRect.left + 8;
+    left = Math.max(minMargin, Math.min(left, window.innerWidth - popupWidth - minMargin));
+
+    setDropdownPos({ top, left });
     setOpen(true);
   };
 
@@ -234,10 +263,11 @@ export function NotificationBell() {
                 <motion.div
                   ref={popoverRef}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  className="fixed z-[70] w-[24rem] overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.96),hsl(var(--surface-soft)/0.8))] shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)] backdrop-blur-xl"
+                  className="fixed z-[80] w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.96),hsl(var(--surface-soft)/0.8))] shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)] backdrop-blur-xl"
+                  data-notification-popup="true"
                   exit={{ opacity: 0, scale: 0.97, y: -10 }}
                   initial={{ opacity: 0, scale: 0.97, y: -10 }}
-                  style={{ right: `${dropdownPos.right}px`, top: `${dropdownPos.top}px` }}
+                  style={{ left: `${dropdownPos.left}px`, top: `${dropdownPos.top}px` }}
                   transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                 >
                   <div className="border-b border-[hsl(var(--border)/0.72)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.92),hsl(var(--primary)/0.12))] px-5 py-4">

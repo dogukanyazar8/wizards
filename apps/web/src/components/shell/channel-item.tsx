@@ -9,6 +9,7 @@ import type { VoiceChannelStateDTO } from "@/lib/voice/types";
 type ChannelItemProps = {
   active: boolean;
   canManage: boolean;
+  currentUserId?: string;
   name: string;
   onDelete: () => void;
   onEdit: () => void;
@@ -21,6 +22,7 @@ type ChannelItemProps = {
 export function ChannelItem({
   active,
   canManage,
+  currentUserId,
   name,
   onDelete,
   onEdit,
@@ -33,6 +35,8 @@ export function ChannelItem({
   const Icon = type === "VOICE" ? Volume2 : Hash;
   const previewParticipants = voiceState?.participants.slice(0, 3) ?? [];
   const participantCount = voiceState?.participants.length ?? 0;
+  const visibleParticipantRows = voiceState?.participants.slice(0, 4) ?? [];
+  const hiddenParticipantCount = Math.max(0, participantCount - visibleParticipantRows.length);
 
   return (
     <div>
@@ -113,6 +117,43 @@ export function ChannelItem({
           </div>
         ) : null}
       </div>
+
+      {type === "VOICE" && visibleParticipantRows.length > 0 ? (
+        <div className="mt-1.5 space-y-1.5 pl-10">
+          {visibleParticipantRows.map((participant) => {
+            const participantLabel = participant.displayName ?? participant.username;
+            const isCurrentUser = participant.userId === currentUserId;
+
+            return (
+              <div
+                className="app-panel-soft flex items-center gap-2 rounded-2xl border px-2.5 py-1.5 text-xs text-app-muted"
+                key={participant.userId}
+              >
+                <Avatar
+                  alt={participantLabel}
+                  className="h-5 w-5 border border-[hsl(var(--border)/0.72)] text-[9px]"
+                  fallback={participantLabel}
+                  src={participant.avatarUrl}
+                />
+                <span className="truncate font-medium text-app-foreground">
+                  {participantLabel}
+                </span>
+                {isCurrentUser ? (
+                  <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[hsl(var(--primary))]">
+                    {t("voice.sidebar.you")}
+                  </span>
+                ) : null}
+              </div>
+            );
+          })}
+
+          {hiddenParticipantCount > 0 ? (
+            <div className="pl-1 text-[11px] font-medium text-app-soft">
+              {t("voice.sidebar.moreParticipants", { count: hiddenParticipantCount })}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

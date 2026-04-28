@@ -127,6 +127,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.controls.undeafen": "Undeafen",
     "voice.controls.screenShare": "Screen share",
     "voice.controls.screenShareSoon": "Screen sharing arrives in Phase 7C",
+    "voice.controls.settings": "Voice settings",
     "voice.controls.camera": "Camera",
     "voice.controls.cameraSoon": "Coming soon",
     "voice.controls.cameraPhase8": "Video calls coming in Phase 8",
@@ -145,6 +146,53 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.grid.muted": "Muted",
     "voice.grid.videoSoon": "Video coming soon",
     "voice.grid.videoPhase8": "Video arrives in Phase 8",
+    "voice.grid.processing": "Microphone processing",
+    "voice.grid.browserProcessing": "Browser audio cleanup",
+    "voice.grid.krispActive": "Krisp active",
+    "voice.grid.remoteVolume": "Participant volume",
+    "voice.grid.remoteVolumeDescription":
+      "Adjust this person's voice level only for your device.",
+    "voice.grid.resetVolume": "Reset participant volume",
+    "voice.grid.noiseSuppression": "Noise suppression",
+    "voice.grid.echoCancellation": "Echo cancellation",
+    "voice.grid.autoGainControl": "Auto gain control",
+    "voice.grid.krisp": "Krisp noise cancellation",
+    "voice.sidebar.you": "You",
+    "voice.sidebar.moreParticipants": "+{count} more in voice",
+    "voice.settings.title": "Voice settings",
+    "voice.settings.description":
+      "Fine-tune how your microphone is processed before your voice reaches the room. On LiveKit Cloud, Krisp is now the preferred default when support is available.",
+    "voice.settings.processingTitle": "Live microphone chain",
+    "voice.settings.processingDescription":
+      "These controls update your local capture pipeline and stay on this device.",
+    "voice.settings.badgeApplying": "Applying now",
+    "voice.settings.badgeReady": "Ready",
+    "voice.settings.badgeKrispActive": "Krisp active",
+    "voice.settings.badgeWebRtc": "WebRTC active",
+    "voice.settings.noiseSuppression": "Noise suppression",
+    "voice.settings.noiseSuppressionDesc":
+      "Reduces steady background sounds like fans, keyboard rumble, and room noise.",
+    "voice.settings.echoCancellation": "Echo cancellation",
+    "voice.settings.echoCancellationDesc":
+      "Prevents your speakers from feeding back into your microphone during conversations.",
+    "voice.settings.autoGainControl": "Auto gain control",
+    "voice.settings.autoGainControlDesc":
+      "Smooths out microphone loudness so your voice stays more consistent.",
+    "voice.settings.krisp": "Krisp noise cancellation",
+    "voice.settings.krispDesc":
+      "Uses LiveKit Cloud's enhanced Krisp filter with stronger background voice cleanup for cleaner outbound voice when available.",
+    "voice.settings.krispAvailable":
+      "Enhanced LiveKit Cloud Krisp filtering is available in this browser and will be preferred by default.",
+    "voice.settings.krispChecking": "Checking browser compatibility for Krisp...",
+    "voice.settings.krispRequiresCloud":
+      "Krisp needs a LiveKit Cloud room and will stay off while using local development rooms.",
+    "voice.settings.krispUnsupportedBrowser":
+      "This browser does not currently support LiveKit's Krisp noise filter.",
+    "voice.settings.krispUnavailable":
+      "Krisp could not be initialized right now. WebRTC noise cleanup can still stay on.",
+    "voice.settings.localOnlyTitle": "Local-only preferences",
+    "voice.settings.localOnlyDescription":
+      "These settings affect only your device and do not change the mix for anyone else.",
 
     "auth.layout.badge": "Wizards Workspace",
     "auth.layout.description":
@@ -641,6 +689,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.controls.undeafen": "Sağırdan çık",
     "voice.controls.screenShare": "Ekran paylaş",
     "voice.controls.screenShareSoon": "Ekran paylaşımı 7C aşamasında geliyor",
+    "voice.controls.settings": "Ses ayarları",
     "voice.controls.camera": "Kamera",
     "voice.controls.cameraSoon": "Yakında",
     "voice.controls.cameraPhase8": "Görüntülü görüşmeler 8. aşamada geliyor",
@@ -659,6 +708,53 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.grid.muted": "Sessiz",
     "voice.grid.videoSoon": "Video yakında",
     "voice.grid.videoPhase8": "Video 8. aşamada geliyor",
+    "voice.grid.processing": "Mikrofon işleme",
+    "voice.grid.browserProcessing": "Tarayıcı ses temizleme",
+    "voice.grid.krispActive": "Krisp aktif",
+    "voice.grid.remoteVolume": "Katılımcı sesi",
+    "voice.grid.remoteVolumeDescription":
+      "Bu kişinin ses seviyesini yalnızca kendi cihazın için ayarla.",
+    "voice.grid.resetVolume": "Katılımcı sesini sıfırla",
+    "voice.grid.noiseSuppression": "Gürültü engelleme",
+    "voice.grid.echoCancellation": "Eko engelleme",
+    "voice.grid.autoGainControl": "Otomatik kazanç kontrolü",
+    "voice.grid.krisp": "Krisp gürültü engelleme",
+    "voice.sidebar.you": "Sen",
+    "voice.sidebar.moreParticipants": "+{count} kişi daha seste",
+    "voice.settings.title": "Ses ayarları",
+    "voice.settings.description":
+      "Sesin odaya ulaşmadan önce mikrofon tarafında nasıl işlendiğini ince ayarla. LiveKit Cloud üzerinde destek varsa Krisp artık tercih edilen varsayılan yol olur.",
+    "voice.settings.processingTitle": "Canlı mikrofon zinciri",
+    "voice.settings.processingDescription":
+      "Bu kontroller yerel capture hattını günceller ve bu cihazda saklanır.",
+    "voice.settings.badgeApplying": "Şimdi uygulanıyor",
+    "voice.settings.badgeReady": "Hazır",
+    "voice.settings.badgeKrispActive": "Krisp aktif",
+    "voice.settings.badgeWebRtc": "WebRTC aktif",
+    "voice.settings.noiseSuppression": "Gürültü engelleme",
+    "voice.settings.noiseSuppressionDesc":
+      "Fan, klavye uğultusu ve oda gürültüsü gibi sürekli arka plan seslerini azaltır.",
+    "voice.settings.echoCancellation": "Eko engelleme",
+    "voice.settings.echoCancellationDesc":
+      "Konuşma sırasında hoparlör sesinin yeniden mikrofona dönmesini önler.",
+    "voice.settings.autoGainControl": "Otomatik kazanç kontrolü",
+    "voice.settings.autoGainControlDesc":
+      "Ses seviyeni daha dengeli tutmak için mikrofon yüksekliğini yumuşatır.",
+    "voice.settings.krisp": "Krisp gürültü engelleme",
+    "voice.settings.krispDesc":
+      "Mümkün olduğunda daha temiz giden ses için LiveKit Cloud'un daha güçlü arka plan ses temizliği sunan gelişmiş Krisp filtresini kullanır.",
+    "voice.settings.krispAvailable":
+      "Gelişmiş LiveKit Cloud Krisp filtreleme bu tarayıcıda kullanılabilir ve varsayılan olarak tercih edilir.",
+    "voice.settings.krispChecking": "Krisp için tarayıcı uyumluluğu kontrol ediliyor...",
+    "voice.settings.krispRequiresCloud":
+      "Krisp bir LiveKit Cloud odası gerektirir ve local geliştirme odalarında kapalı kalır.",
+    "voice.settings.krispUnsupportedBrowser":
+      "Bu tarayıcı şu anda LiveKit'in Krisp filtresini desteklemiyor.",
+    "voice.settings.krispUnavailable":
+      "Krisp şu anda başlatılamadı. WebRTC ses temizleme yine açık kalabilir.",
+    "voice.settings.localOnlyTitle": "Yerel tercihler",
+    "voice.settings.localOnlyDescription":
+      "Bu ayarlar yalnızca senin cihazını etkiler ve başkalarının miksini değiştirmez.",
 
     "auth.layout.badge": "Wizards Workspace",
     "auth.layout.description":

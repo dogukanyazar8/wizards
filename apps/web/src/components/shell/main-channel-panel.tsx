@@ -180,9 +180,10 @@ export function MainChannelPanel({
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pt-3 md:px-4 md:pt-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-3 pt-3 md:px-6 md:pb-4 md:pt-4">
         <div
           className="mx-auto flex min-h-0 w-full flex-1 overflow-hidden rounded-[34px] border border-[hsl(var(--border)/0.76)] bg-[linear-gradient(160deg,hsl(var(--surface-card)/0.88),hsl(var(--surface-soft)/0.28))] shadow-[0_32px_80px_hsl(var(--shadow-color)/0.09)]"
+          data-main-panel-frame="true"
           style={{ maxWidth: `${mainPanelWidth}px` }}
         >
           {children ? (

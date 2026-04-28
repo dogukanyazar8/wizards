@@ -6,6 +6,7 @@ import {
   Mic,
   MicOff,
   PhoneOff,
+  SlidersHorizontal,
   Video,
   Volume2,
   VolumeX,
@@ -16,6 +17,7 @@ import type { WorkspaceServerDetail, WorkspaceServerSummary } from "@wizards/typ
 import { useI18n } from "@/components/providers/locale-provider";
 import { useVoiceConnection } from "@/components/providers/voice-provider";
 import { Modal } from "@/components/ui/modal";
+import { VoiceSettingsModal } from "@/components/voice/voice-settings-modal";
 import { workspaceQueryKeys } from "@/lib/workspace/client";
 import { cn } from "@/lib/utils";
 
@@ -131,6 +133,7 @@ export function VoiceConnectionBar() {
     toggleMute,
   } = useVoiceConnection();
   const [showCameraModal, setShowCameraModal] = useState(false);
+  const [showVoiceSettingsModal, setShowVoiceSettingsModal] = useState(false);
 
   const location = useMemo(
     () => resolveVoiceLocation(queryClient, serverId, activeChannelId),
@@ -188,6 +191,12 @@ export function VoiceConnectionBar() {
             title={t("voice.controls.screenShareSoon")}
           />
           <VoiceControlButton
+            ariaLabel={t("voice.controls.settings")}
+            icon={<SlidersHorizontal className="h-4 w-4" />}
+            onClick={() => setShowVoiceSettingsModal(true)}
+            title={t("voice.controls.settings")}
+          />
+          <VoiceControlButton
             ariaLabel={t("voice.controls.camera")}
             icon={<Video className="h-4 w-4" />}
             onClick={() => setShowCameraModal(true)}
@@ -220,6 +229,11 @@ export function VoiceConnectionBar() {
       >
         <p className="text-sm text-app-muted">{t("voice.controls.cameraPhase8")}</p>
       </Modal>
+
+      <VoiceSettingsModal
+        onClose={() => setShowVoiceSettingsModal(false)}
+        open={showVoiceSettingsModal}
+      />
     </>
   );
 }
