@@ -324,12 +324,21 @@ export const DEFAULT_CHANNEL_SIDEBAR_WIDTH = 288;
 export const MIN_CHANNEL_SIDEBAR_WIDTH = 248;
 export const MAX_CHANNEL_SIDEBAR_WIDTH = 384;
 export const CHANNEL_SIDEBAR_WIDTH_STEP = 8;
+export const DEFAULT_MAIN_PANEL_WIDTH = 1280;
+export const MIN_MAIN_PANEL_WIDTH = 920;
+export const MAX_MAIN_PANEL_WIDTH = 1600;
+export const MAIN_PANEL_WIDTH_STEP = 20;
 
 export const DEFAULT_NOTIFICATION_LIMIT = 5;
 export const MIN_NOTIFICATION_LIMIT = 3;
 export const MAX_NOTIFICATION_LIMIT = 20;
 export const NOTIFICATION_LIMIT_STEP = 1;
 export const NOTIFICATION_LIMIT_OPTIONS = [3, 5, 10, 15, 20] as const;
+export const DEFAULT_NOTIFICATION_POPUP_TIMEOUT_SECONDS = 10;
+export const MIN_NOTIFICATION_POPUP_TIMEOUT_SECONDS = 5;
+export const MAX_NOTIFICATION_POPUP_TIMEOUT_SECONDS = 30;
+export const NOTIFICATION_POPUP_TIMEOUT_STEP = 5;
+export const NOTIFICATION_POPUP_TIMEOUT_OPTIONS = [5, 10, 15, 20, 30] as const;
 export const APP_THEME_STORAGE_KEY = "wizards-theme";
 
 const SERVER_RAIL_WIDTH_STORAGE_KEY = "wizards.serverRailWidth";
@@ -374,6 +383,10 @@ export function clampChannelSidebarWidth(value: number) {
   );
 }
 
+export function clampMainPanelWidth(value: number) {
+  return Math.min(MAX_MAIN_PANEL_WIDTH, Math.max(MIN_MAIN_PANEL_WIDTH, value));
+}
+
 export function readStoredChannelSidebarWidth() {
   if (typeof window === "undefined") {
     return DEFAULT_CHANNEL_SIDEBAR_WIDTH;
@@ -402,6 +415,13 @@ export function writeStoredChannelSidebarWidth(value: number) {
 
 function clampNotificationLimit(value: number) {
   return Math.min(MAX_NOTIFICATION_LIMIT, Math.max(MIN_NOTIFICATION_LIMIT, value));
+}
+
+export function clampNotificationPopupTimeoutSeconds(value: number) {
+  return Math.min(
+    MAX_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
+    Math.max(MIN_NOTIFICATION_POPUP_TIMEOUT_SECONDS, value),
+  );
 }
 
 export function readStoredNotificationLimit() {

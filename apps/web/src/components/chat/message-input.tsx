@@ -87,7 +87,7 @@ export function MessageInput({
   }, [stopTyping]);
 
   return (
-    <div className="space-y-2 border-t border-app-border p-4">
+    <div className="space-y-2 border-t border-app-border bg-[hsl(var(--surface-card)/0.62)] p-4 backdrop-blur-sm">
       <ReplyPreview replyTo={replyTo} onCancel={onCancelReply} />
 
       <div className="flex items-end gap-2">
@@ -100,7 +100,7 @@ export function MessageInput({
             placeholder={
               mode === "dm" ? t("dm.input.placeholder") : t("chat.input.placeholder")
             }
-            className="w-full resize-none rounded border border-app-border bg-app-surface p-3 text-app-foreground placeholder-app-muted max-h-24 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            className="w-full max-h-24 resize-none rounded-[22px] border border-app-border bg-[hsl(var(--surface-card)/0.82)] p-3 text-app-foreground placeholder-app-muted shadow-[0_14px_32px_hsl(var(--shadow-color)/0.05)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             rows={1}
           />
 

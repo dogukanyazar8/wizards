@@ -12,10 +12,9 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { DMConversationDTO } from "@wizards/types";
-import type { FriendDto, FriendErrorCode, FriendRequestDto, PendingFriendsResponse } from "@/lib/friends/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -43,6 +42,12 @@ import {
   sendFriendRequestRequest,
   unblockFriendRequest,
 } from "@/lib/friends/client";
+import type {
+  FriendDto,
+  FriendErrorCode,
+  FriendRequestDto,
+  PendingFriendsResponse,
+} from "@/lib/friends/types";
 
 type FriendsTabId = "online" | "all" | "pending" | "add" | "blocked";
 
@@ -90,6 +95,66 @@ function getFriendSortName(friend: FriendDto) {
   return friend.displayName || friend.username;
 }
 
+function FriendsMetricCard({
+  description,
+  icon: Icon,
+  value,
+}: {
+  description: string;
+  icon: LucideIcon;
+  value: string;
+}) {
+  return (
+    <div className="app-panel rounded-[28px] border p-4 shadow-[0_12px_32px_hsl(var(--shadow-color)/0.06)]">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-app-soft text-[11px] font-semibold uppercase tracking-[0.22em]">
+            {description}
+          </p>
+          <p className="text-app-foreground mt-3 text-2xl font-semibold tracking-tight">
+            {value}
+          </p>
+        </div>
+        <div className="app-panel-soft flex h-12 w-12 items-center justify-center rounded-[18px] border">
+          <Icon className="h-5 w-5 text-app-foreground" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FriendsTabButton({
+  active,
+  badge,
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  badge?: number;
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-selected={active}
+      className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] ${
+        active
+          ? "border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--foreground))]"
+          : "border-[hsl(var(--border)/0.78)] bg-[hsl(var(--surface-soft)/0.36)] text-app-muted hover:text-[hsl(var(--foreground))]"
+      }`}
+      onClick={onClick}
+      role="tab"
+      type="button"
+    >
+      <Icon className="h-4 w-4" />
+      <span>{label}</span>
+      {badge && badge > 0 ? <Badge>{badge}</Badge> : null}
+    </button>
+  );
+}
+
 function FriendsEmptyState({
   description,
   icon: Icon,
@@ -100,7 +165,7 @@ function FriendsEmptyState({
   title: string;
 }) {
   return (
-    <div className="app-panel flex flex-col items-center justify-center rounded-[32px] border border-dashed border-[hsl(var(--border)/0.72)] px-6 py-14 text-center">
+    <div className="app-panel flex min-h-[320px] flex-col items-center justify-center rounded-[32px] border border-dashed border-[hsl(var(--border)/0.72)] px-6 py-14 text-center">
       <div className="app-panel-soft flex h-16 w-16 items-center justify-center rounded-[24px] border">
         <Icon className="text-app-muted h-6 w-6" />
       </div>
@@ -130,6 +195,23 @@ function FriendsListSkeleton() {
   );
 }
 
+function SectionHeading({
+  badge,
+  title,
+}: {
+  badge?: number;
+  title: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <h2 className="text-app-foreground text-sm font-semibold uppercase tracking-[0.2em]">
+        {title}
+      </h2>
+      {badge && badge > 0 ? <Badge>{badge}</Badge> : null}
+    </div>
+  );
+}
+
 function ConfirmDialog({
   busy,
   confirmLabel,
@@ -150,7 +232,12 @@ function ConfirmDialog({
   const { t } = useI18n();
 
   return (
-    <Modal description={description} onClose={busy ? () => undefined : onClose} open={open} title={title}>
+    <Modal
+      description={description}
+      onClose={busy ? () => undefined : onClose}
+      open={open}
+      title={title}
+    >
       <div className="flex justify-end gap-3">
         <button
           className="rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
@@ -209,6 +296,8 @@ export function FriendsView() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const socket = useSocket();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeTab, setActiveTab] = useState<FriendsTabId>("online");
   const [confirmState, setConfirmState] = useState<ConfirmState>(null);
   const [feedback, setFeedback] = useState<{
@@ -217,23 +306,6 @@ export function FriendsView() {
   } | null>(null);
   const [username, setUsername] = useState("");
   const [debouncedUsername, setDebouncedUsername] = useState("");
-
-  useEffect(() => {
-    const handle = window.setTimeout(() => {
-      setDebouncedUsername(username.trim());
-    }, 500);
-
-    return () => window.clearTimeout(handle);
-  }, [username]);
-
-  useEffect(() => {
-    if (feedback?.tone !== "success") {
-      return;
-    }
-
-    const handle = window.setTimeout(() => setFeedback(null), 3000);
-    return () => window.clearTimeout(handle);
-  }, [feedback]);
 
   const friendsQuery = useQuery({
     queryFn: fetchFriends,
@@ -253,6 +325,30 @@ export function FriendsView() {
     queryKey: friendsQueryKeys.blocked,
     staleTime: 30_000,
   });
+
+  useEffect(() => {
+    const handlePresenceUpdate = (update: {
+      customStatus: string | null;
+      status: FriendDto["status"];
+      userId: string;
+    }) => {
+      queryClient.setQueryData(friendsQueryKeys.list, (current: FriendDto[] | undefined) =>
+        applyFriendPresenceUpdate(current, update),
+      );
+    };
+
+    socket.on("presence:update", handlePresenceUpdate);
+
+    return () => {
+      socket.off("presence:update", handlePresenceUpdate);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      if (feedbackTimerRef.current) {
+        clearTimeout(feedbackTimerRef.current);
+      }
+    };
+  }, [queryClient, socket]);
 
   const friends = friendsQuery.data ?? EMPTY_FRIENDS;
   const pending = pendingQuery.data ?? EMPTY_PENDING;
@@ -278,23 +374,16 @@ export function FriendsView() {
     [friends, locale],
   );
 
-  useEffect(() => {
-    const handlePresenceUpdate = (update: {
-      customStatus: string | null;
-      status: FriendDto["status"];
-      userId: string;
-    }) => {
-      queryClient.setQueryData(friendsQueryKeys.list, (current: FriendDto[] | undefined) =>
-        applyFriendPresenceUpdate(current, update),
-      );
-    };
+  const scheduleSuccessFeedbackClear = () => {
+    if (feedbackTimerRef.current) {
+      clearTimeout(feedbackTimerRef.current);
+    }
 
-    socket.on("presence:update", handlePresenceUpdate);
-
-    return () => {
-      socket.off("presence:update", handlePresenceUpdate);
-    };
-  }, [queryClient, socket]);
+    feedbackTimerRef.current = setTimeout(() => {
+      setFeedback(null);
+      feedbackTimerRef.current = null;
+    }, 3000);
+  };
 
   const sendRequestMutation = useMutation({
     mutationFn: (value: string) => sendFriendRequestRequest(value),
@@ -319,6 +408,7 @@ export function FriendsView() {
         }),
         tone: "success",
       });
+      scheduleSuccessFeedbackClear();
     },
   });
 
@@ -328,13 +418,7 @@ export function FriendsView() {
     { action: "accept" | "decline"; requestId: string },
     { previousPending: PendingFriendsResponse }
   >({
-    mutationFn: ({
-      action,
-      requestId,
-    }: {
-      action: "accept" | "decline";
-      requestId: string;
-    }) => actOnFriendRequestRequest(requestId, action),
+    mutationFn: ({ action, requestId }) => actOnFriendRequestRequest(requestId, action),
     onError: (_error, _variables, context) => {
       if (context?.previousPending) {
         queryClient.setQueryData(friendsQueryKeys.pending, context.previousPending);
@@ -409,9 +493,6 @@ export function FriendsView() {
     },
   });
 
-  const activeConfirmBusy =
-    removeFriendMutation.isPending || blockFriendMutation.isPending;
-
   const openDirectMessageMutation = useMutation({
     mutationFn: (friendUserId: string) => createDMConversationRequest(friendUserId),
     onError: () => {
@@ -428,44 +509,81 @@ export function FriendsView() {
     },
   });
 
+  const activeConfirmBusy = removeFriendMutation.isPending || blockFriendMutation.isPending;
+
+  const handleUsernameChange = (value: string) => {
+    setUsername(value);
+
+    if (feedback) {
+      setFeedback(null);
+    }
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(() => {
+      setDebouncedUsername(value.trim());
+      debounceRef.current = null;
+    }, 500);
+  };
+
   return (
     <>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="border-b border-[hsl(var(--border)/0.78)] px-4 py-4 md:px-6">
-          <div className="flex flex-wrap gap-2" role="tablist">
-            {[
-              { id: "online", icon: Users, label: t("friends.tabs.online") },
-              { id: "all", icon: Users, label: t("friends.tabs.all") },
-              {
-                badge: incomingCount,
-                id: "pending",
-                icon: Clock3,
-                label: t("friends.tabs.pending"),
-              },
-              { id: "add", icon: UserPlus, label: t("friends.tabs.addFriend") },
-              { id: "blocked", icon: Ban, label: t("friends.tabs.blocked") },
-            ].map(({ badge, icon: Icon, id, label }) => {
-              const isActive = activeTab === id;
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="border-b border-[hsl(var(--border)/0.72)] px-4 py-4 md:px-6">
+          <div className="grid gap-3 xl:grid-cols-3">
+            <FriendsMetricCard
+              description={t("friends.overview.onlineNow")}
+              icon={Users}
+              value={String(onlineFriends.length)}
+            />
+            <FriendsMetricCard
+              description={t("friends.overview.totalFriends")}
+              icon={UserPlus}
+              value={String(friends.length)}
+            />
+            <FriendsMetricCard
+              description={t("friends.overview.pendingRequests")}
+              icon={Clock3}
+              value={String(incomingCount)}
+            />
+          </div>
 
-              return (
-                <button
-                  aria-selected={isActive}
-                  className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] ${
-                    isActive
-                      ? "border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--foreground))]"
-                      : "border-[hsl(var(--border)/0.78)] bg-[hsl(var(--surface-soft)/0.36)] text-app-muted hover:text-[hsl(var(--foreground))]"
-                  }`}
-                  key={id}
-                  onClick={() => setActiveTab(id as FriendsTabId)}
-                  role="tab"
-                  type="button"
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{label}</span>
-                  {badge ? <Badge>{badge}</Badge> : null}
-                </button>
-              );
-            })}
+          <div className="app-panel mt-4 rounded-[28px] border p-3">
+            <div className="flex flex-wrap gap-2" role="tablist">
+              <FriendsTabButton
+                active={activeTab === "online"}
+                icon={Users}
+                label={t("friends.tabs.online")}
+                onClick={() => setActiveTab("online")}
+              />
+              <FriendsTabButton
+                active={activeTab === "all"}
+                icon={Users}
+                label={t("friends.tabs.all")}
+                onClick={() => setActiveTab("all")}
+              />
+              <FriendsTabButton
+                active={activeTab === "pending"}
+                badge={incomingCount}
+                icon={Clock3}
+                label={t("friends.tabs.pending")}
+                onClick={() => setActiveTab("pending")}
+              />
+              <FriendsTabButton
+                active={activeTab === "add"}
+                icon={UserPlus}
+                label={t("friends.tabs.addFriend")}
+                onClick={() => setActiveTab("add")}
+              />
+              <FriendsTabButton
+                active={activeTab === "blocked"}
+                icon={Ban}
+                label={t("friends.tabs.blocked")}
+                onClick={() => setActiveTab("blocked")}
+              />
+            </div>
           </div>
         </div>
 
@@ -530,12 +648,7 @@ export function FriendsView() {
             ) : (
               <div className="grid gap-6 xl:grid-cols-2">
                 <section className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-app-foreground text-sm font-semibold uppercase tracking-[0.2em]">
-                      {t("friends.pending.incomingTitle")}
-                    </h2>
-                    {incomingCount > 0 ? <Badge>{incomingCount}</Badge> : null}
-                  </div>
+                  <SectionHeading badge={incomingCount} title={t("friends.pending.incomingTitle")} />
                   {pending.incoming.length === 0 ? (
                     <FriendsEmptyState
                       description={t("friends.empty.incoming")}
@@ -584,11 +697,7 @@ export function FriendsView() {
                 </section>
 
                 <section className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-app-foreground text-sm font-semibold uppercase tracking-[0.2em]">
-                      {t("friends.pending.outgoingTitle")}
-                    </h2>
-                  </div>
+                  <SectionHeading title={t("friends.pending.outgoingTitle")} />
                   {pending.outgoing.length === 0 ? (
                     <FriendsEmptyState
                       description={t("friends.empty.outgoing")}
@@ -619,7 +728,7 @@ export function FriendsView() {
           ) : null}
 
           {activeTab === "add" ? (
-            <div className="app-panel max-w-2xl rounded-[32px] border p-6 md:p-8">
+            <div className="app-panel max-w-3xl rounded-[32px] border p-6 md:p-8">
               <div className="flex items-start gap-4">
                 <div className="app-panel-soft flex h-14 w-14 items-center justify-center rounded-[22px] border">
                   <UserPlus className="h-6 w-6" />
@@ -646,9 +755,13 @@ export function FriendsView() {
                 </div>
               ) : null}
 
-              <label className="mt-6 block text-app-foreground text-sm font-medium" htmlFor="friend-username">
+              <label
+                className="mt-6 block text-sm font-medium text-app-foreground"
+                htmlFor="friend-username"
+              >
                 {t("friends.addFriend.inputLabel")}
               </label>
+
               <form
                 className="mt-3 flex flex-col gap-3 sm:flex-row"
                 onSubmit={(event) => {
@@ -662,12 +775,7 @@ export function FriendsView() {
                 <Input
                   autoComplete="off"
                   id="friend-username"
-                  onChange={(event) => {
-                    setUsername(event.target.value);
-                    if (feedback) {
-                      setFeedback(null);
-                    }
-                  }}
+                  onChange={(event) => handleUsernameChange(event.target.value)}
                   placeholder={t("friends.addFriend.placeholder")}
                   value={username}
                 />

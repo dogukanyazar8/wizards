@@ -2,11 +2,15 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import {
   DEFAULT_CHANNEL_SIDEBAR_WIDTH,
+  DEFAULT_MAIN_PANEL_WIDTH,
   DEFAULT_NOTIFICATION_LIMIT,
+  DEFAULT_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
   DEFAULT_SERVER_RAIL_WIDTH,
   MAX_NOTIFICATION_LIMIT,
   MIN_NOTIFICATION_LIMIT,
   clampChannelSidebarWidth,
+  clampMainPanelWidth,
+  clampNotificationPopupTimeoutSeconds,
   clampServerRailWidth,
 } from "@/lib/appearance";
 import { patchLayoutSettings } from "@/lib/settings/client";
@@ -106,9 +110,11 @@ interface AppState extends PersistedRouteState {
   deleteChannelDialog: DeleteChannelDialogState;
   deleteServerDialog: DeleteServerDialogState;
   inviteModal: InviteModalState;
+  mainPanelWidth: number;
   mobileSidebarOpen: boolean;
   notificationAutoClose: boolean;
   notificationLimit: number;
+  notificationPopupTimeoutSeconds: number;
   ready: boolean;
   serverRailWidth: number;
   serverContextMenu: ServerContextMenuState;
@@ -144,14 +150,17 @@ interface AppState extends PersistedRouteState {
   openServerModal: (options: { mode: "create" | "edit"; serverId?: string | null }) => void;
   openServerSettings: (serverId: string) => void;
   resetChannelSidebarWidth: () => void;
+  resetMainPanelWidth: () => void;
   resetServerRailWidth: () => void;
   resetSessionUiState: () => void;
   setActiveRoute: (route: ActiveRouteUpdate) => void;
   setAppearanceHydrated: (hydrated: boolean) => void;
   setChannelSidebarWidth: (width: number) => void;
+  setMainPanelWidth: (width: number) => void;
   setMobileSidebarOpen: (open: boolean) => void;
   setNotificationAutoClose: (autoClose: boolean) => void;
   setNotificationLimit: (limit: number) => void;
+  setNotificationPopupTimeoutSeconds: (seconds: number) => void;
   setReady: (ready: boolean) => void;
   setServerRailWidth: (width: number) => void;
   toggleCategoryCollapse: (serverId: string, categoryId: string) => void;
@@ -165,8 +174,10 @@ type PersistedAppState = Pick<
   | "channelSidebarWidth"
   | "collapsedCategories"
   | "lastChannelByServerId"
+  | "mainPanelWidth"
   | "notificationAutoClose"
   | "notificationLimit"
+  | "notificationPopupTimeoutSeconds"
   | "serverRailWidth"
 >;
 
@@ -200,14 +211,17 @@ function createInitialState(): Omit<
   | "openServerModal"
   | "openServerSettings"
   | "resetChannelSidebarWidth"
+  | "resetMainPanelWidth"
   | "resetServerRailWidth"
   | "resetSessionUiState"
   | "setActiveRoute"
   | "setAppearanceHydrated"
   | "setChannelSidebarWidth"
+  | "setMainPanelWidth"
   | "setMobileSidebarOpen"
   | "setNotificationAutoClose"
   | "setNotificationLimit"
+  | "setNotificationPopupTimeoutSeconds"
   | "setReady"
   | "setServerRailWidth"
   | "toggleCategoryCollapse"
@@ -239,9 +253,11 @@ function createInitialState(): Omit<
       serverId: null,
     },
     lastChannelByServerId: {},
+    mainPanelWidth: DEFAULT_MAIN_PANEL_WIDTH,
     mobileSidebarOpen: false,
     notificationAutoClose: true,
     notificationLimit: DEFAULT_NOTIFICATION_LIMIT,
+    notificationPopupTimeoutSeconds: DEFAULT_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
     ready: false,
     serverContextMenu: {
       open: false,
@@ -302,12 +318,22 @@ function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
     ),
     collapsedCategories: sanitizeBooleanRecord(value.collapsedCategories),
     lastChannelByServerId: sanitizeStringRecord(value.lastChannelByServerId),
+    mainPanelWidth: clampMainPanelWidth(
+      typeof value.mainPanelWidth === "number"
+        ? value.mainPanelWidth
+        : DEFAULT_MAIN_PANEL_WIDTH,
+    ),
     notificationAutoClose:
       typeof value.notificationAutoClose === "boolean" ? value.notificationAutoClose : true,
     notificationLimit: clampNotificationLimit(
       typeof value.notificationLimit === "number"
         ? value.notificationLimit
         : DEFAULT_NOTIFICATION_LIMIT,
+    ),
+    notificationPopupTimeoutSeconds: clampNotificationPopupTimeoutSeconds(
+      typeof value.notificationPopupTimeoutSeconds === "number"
+        ? value.notificationPopupTimeoutSeconds
+        : DEFAULT_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
     ),
     serverRailWidth: clampServerRailWidth(
       typeof value.serverRailWidth === "number" ? value.serverRailWidth : DEFAULT_SERVER_RAIL_WIDTH,
@@ -479,6 +505,16 @@ export const useAppStore = create<AppState>()(
             channelSidebarWidth: DEFAULT_CHANNEL_SIDEBAR_WIDTH,
           };
         }),
+      resetMainPanelWidth: () =>
+        set((state) => {
+          if (state.mainPanelWidth === DEFAULT_MAIN_PANEL_WIDTH) {
+            return state;
+          }
+
+          return {
+            mainPanelWidth: DEFAULT_MAIN_PANEL_WIDTH,
+          };
+        }),
       resetServerRailWidth: () =>
         set((state) => {
           if (state.serverRailWidth === DEFAULT_SERVER_RAIL_WIDTH) {
@@ -538,6 +574,18 @@ export const useAppStore = create<AppState>()(
             channelSidebarWidth: nextWidth,
           };
         }),
+      setMainPanelWidth: (width) =>
+        set((state) => {
+          const nextWidth = clampMainPanelWidth(width);
+
+          if (state.mainPanelWidth === nextWidth) {
+            return state;
+          }
+
+          return {
+            mainPanelWidth: nextWidth,
+          };
+        }),
       setMobileSidebarOpen: (open) =>
         set({
           mobileSidebarOpen: open,
@@ -555,6 +603,18 @@ export const useAppStore = create<AppState>()(
           notificationLimit: nextLimit,
         });
       },
+      setNotificationPopupTimeoutSeconds: (seconds) =>
+        set((state) => {
+          const nextSeconds = clampNotificationPopupTimeoutSeconds(seconds);
+
+          if (state.notificationPopupTimeoutSeconds === nextSeconds) {
+            return state;
+          }
+
+          return {
+            notificationPopupTimeoutSeconds: nextSeconds,
+          };
+        }),
       setReady: (ready) =>
         set({
           ready,
@@ -598,8 +658,10 @@ export const useAppStore = create<AppState>()(
         channelSidebarWidth: state.channelSidebarWidth,
         collapsedCategories: state.collapsedCategories,
         lastChannelByServerId: state.lastChannelByServerId,
+        mainPanelWidth: state.mainPanelWidth,
         notificationAutoClose: state.notificationAutoClose,
         notificationLimit: state.notificationLimit,
+        notificationPopupTimeoutSeconds: state.notificationPopupTimeoutSeconds,
         serverRailWidth: state.serverRailWidth,
       }),
       storage: createJSONStorage(() => localStorage),

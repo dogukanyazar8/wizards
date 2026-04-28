@@ -233,9 +233,9 @@ export function ChatArea({
     : t("dm.header.directMessage");
 
   return (
-    <div className="flex h-full flex-col bg-app-background">
+    <div className="flex h-full min-h-0 flex-col bg-transparent">
       {mode === "dm" && directMessageParticipant ? (
-        <div className="flex items-center justify-between gap-3 border-b border-app-border px-4 py-3">
+        <div className="flex items-center justify-between gap-3 border-b border-app-border bg-[hsl(var(--surface-card)/0.55)] px-5 py-4 backdrop-blur-sm">
           <div className="flex min-w-0 items-center gap-3">
             <div className="relative">
               <Avatar
@@ -259,7 +259,7 @@ export function ChatArea({
 
           <button
             aria-label={t("dm.header.voiceCall")}
-            className="app-panel-soft rounded-2xl border p-2 text-app-muted transition disabled:cursor-not-allowed disabled:opacity-60"
+            className="app-panel-soft rounded-2xl border p-2.5 text-app-muted transition disabled:cursor-not-allowed disabled:opacity-60"
             disabled
             title={t("dm.header.voiceComingSoon")}
             type="button"

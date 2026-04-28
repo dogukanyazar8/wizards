@@ -248,7 +248,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const activeServerId = rawServerId === "@me" ? null : rawServerId;
   const activeChannelId = typeof params.channelId === "string" ? params.channelId : null;
   const isChannelsRootRoute = pathname === "/channels";
-  const isFriendsRoute = rawServerId === "@me" && !activeChannelId;
+  const isFriendsRoute = pathname === "/channels/@me" || (rawServerId === "@me" && !activeChannelId);
   const isDmRoute = rawServerId === "@me" && Boolean(activeChannelId);
   const isServerIndexRoute = Boolean(activeServerId && !activeChannelId);
   const isServerConversationRoute = Boolean(activeServerId && activeChannelId);
@@ -601,7 +601,11 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
         contextLabel={!activeServerId ? t("friends.header.context") : undefined}
         detailLabel={!activeServerId ? t("friends.header.detail") : undefined}
         fallbackTitle={
-          activeServerId ? t("shell.wizards.chooseChannel") : t("shell.wizards.directMessages")
+          activeServerId
+            ? t("shell.wizards.chooseChannel")
+            : isFriendsRoute
+              ? t("friends.sidebar.friends")
+              : t("shell.wizards.directMessages")
         }
         icon={!activeServerId ? Users : undefined}
         leading={<MobileDrawerTrigger onClick={() => setMobileSidebarOpen(true)} />}

@@ -426,13 +426,18 @@ export function ChannelSidebar({
 
   if (!detail) {
     return (
-      <aside className="app-sidebar flex h-full w-full flex-col justify-between p-4">
-        <FriendsSidebar
-          currentUserId={currentUser.id}
-          onNavigate={onNavigate}
-          onPrefetch={onPrefetch}
-        />
-        <UserProfileFooter user={currentUser} onOpenAppearanceSettings={onOpenSettings} />
+      <aside className="app-sidebar flex h-full w-full flex-col">
+        <div className="min-h-0 flex-1 p-4">
+          <FriendsSidebar
+            currentUserId={currentUser.id}
+            onNavigate={onNavigate}
+            onPrefetch={onPrefetch}
+          />
+        </div>
+        <div className="border-t border-[hsl(var(--border)/0.78)] p-3">
+          <VoiceConnectionBar />
+          <UserProfileFooter user={currentUser} onOpenAppearanceSettings={onOpenSettings} />
+        </div>
       </aside>
     );
   }

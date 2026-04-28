@@ -134,7 +134,7 @@ export function MessageList({
     <div
       ref={listRef}
       onScroll={handleScroll}
-      className="flex-1 space-y-0 overflow-y-auto bg-app-background"
+      className="relative flex-1 space-y-0 overflow-y-auto bg-transparent px-2 py-3 sm:px-3 md:px-4"
     >
       <div ref={observerRef} className="h-1" />
 
@@ -179,7 +179,7 @@ export function MessageList({
       {showScrollButton ? (
         <button
           onClick={scrollToBottom}
-          className="fixed bottom-24 right-8 rounded-full bg-[hsl(var(--primary))] p-2 text-[hsl(var(--primary-foreground))] shadow-lg transition hover:bg-[hsl(var(--primary)/0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+          className="sticky bottom-4 ml-auto flex rounded-full bg-[hsl(var(--primary))] p-2 text-[hsl(var(--primary-foreground))] shadow-lg transition hover:bg-[hsl(var(--primary)/0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
           aria-label={t("chat.list.scrollToLatest")}
           type="button"
         >
