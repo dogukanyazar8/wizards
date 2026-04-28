@@ -8,6 +8,7 @@ import type { MessageMode } from "@/hooks/use-messages";
 import { Avatar } from "@/components/ui/avatar";
 import { UserProfilePopover } from "@/components/shared/user-profile-popover";
 import { MessageEditor } from "./message-editor";
+import { MessageAttachments } from "./message-attachments";
 import { MessageToolbar } from "./message-toolbar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useSocket } from "@/hooks/use-socket";
@@ -165,6 +166,8 @@ export const MessageItem = React.memo(
               </div>
             )}
 
+            {!isEditing ? <MessageAttachments attachments={message.attachments} /> : null}
+
             {message.editedAt && !isEditing && (
               <span className="text-xs text-app-muted italic">{t("chat.message.edited")}</span>
             )}
@@ -215,6 +218,7 @@ export const MessageItem = React.memo(
     prev.mode === next.mode &&
     prev.message.id === next.message.id &&
     prev.message.content === next.message.content &&
+    prev.message.attachments === next.message.attachments &&
     prev.message.reactions === next.message.reactions &&
     prev.message.editedAt === next.message.editedAt &&
     prev.message.deletedAt === next.message.deletedAt &&

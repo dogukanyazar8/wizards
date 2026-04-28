@@ -173,14 +173,24 @@ export function findOtherParticipant(
   );
 }
 
-export function getConversationPreview(conversation: DMConversationDTO, maxLength: number) {
+export function getConversationPreview(
+  conversation: DMConversationDTO,
+  maxLength: number,
+  imageLabel: string = "Image",
+) {
   const preview = conversation.lastMessage?.content?.trim() ?? "";
+  const normalizedPreview =
+    preview.length > 0
+      ? preview
+      : conversation.lastMessage?.attachments.length
+        ? imageLabel
+        : "";
 
-  if (preview.length <= maxLength) {
-    return preview;
+  if (normalizedPreview.length <= maxLength) {
+    return normalizedPreview;
   }
 
-  return `${preview.slice(0, maxLength)}...`;
+  return `${normalizedPreview.slice(0, maxLength)}...`;
 }
 
 export async function fetchDMConversations() {

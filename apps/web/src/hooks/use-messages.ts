@@ -99,9 +99,15 @@ export function appendMessage(
 
       const withoutOptimistic = page.messages.filter((candidate) => {
         if (!candidate.id.startsWith("optimistic-")) return true;
+        const sameAttachments =
+          candidate.attachments.length === message.attachments.length &&
+          candidate.attachments.every((attachment) =>
+            message.attachments.some((confirmed) => confirmed.id === attachment.id),
+          );
         return !(
           candidate.author.id === message.author.id &&
           candidate.content === message.content &&
+          sameAttachments &&
           Math.abs(
             new Date(message.createdAt).getTime() - new Date(candidate.createdAt).getTime(),
           ) < 30_000

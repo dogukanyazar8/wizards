@@ -48,6 +48,7 @@ export default async function ChannelPage({ params }: PageParams) {
     session.user.displayName ?? session.user.username ?? session.user.email ?? "Wizard";
   const currentUserUsername =
     session.user.username ?? session.user.email?.split("@")[0] ?? "wizard";
+  const uploadthingEnabled = Boolean(process.env.UPLOADTHING_TOKEN);
 
   if (normalizedServerId === "@me") {
     return (
@@ -56,6 +57,7 @@ export default async function ChannelPage({ params }: PageParams) {
         currentUserDisplayName={currentUserDisplayName}
         currentUserId={session.user.id}
         currentUserUsername={currentUserUsername}
+        uploadthingEnabled={uploadthingEnabled}
       />
     );
   }
@@ -120,6 +122,7 @@ export default async function ChannelPage({ params }: PageParams) {
       currentUserId={session.user.id}
       currentUserDisplayName={currentUserDisplayName}
       currentUserUsername={currentUserUsername}
+      uploadthingEnabled={uploadthingEnabled}
       canModerate={hasAdminAccess(
         membership.server.ownerId,
         session.user.id,

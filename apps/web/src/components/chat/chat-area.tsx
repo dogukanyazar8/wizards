@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Phone } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ChatMessage, DMParticipantDTO } from "@wizards/types";
+import type {
+  ChatMessage,
+  DMParticipantDTO,
+  MessageAttachment,
+  UploadedAttachmentInput,
+} from "@wizards/types";
 import { MessageList } from "./message-list";
 import { MessageInput } from "./message-input";
 import { TypingIndicator } from "./typing-indicator";
@@ -30,6 +35,7 @@ interface ChatAreaProps {
   canModerate: boolean;
   directMessageParticipant?: DMParticipantDTO | null;
   serverId?: string;
+  uploadthingEnabled: boolean;
 }
 
 function getStatusDotClass(status: DMParticipantDTO["status"] | undefined) {
@@ -79,6 +85,7 @@ function buildOptimisticMessage(input: {
     | null
     | undefined;
   tempId: string;
+  attachments: MessageAttachment[];
 }): ChatMessage {
   return {
     id: input.tempId,
@@ -100,7 +107,7 @@ function buildOptimisticMessage(input: {
     createdAt: new Date().toISOString(),
     type: "DEFAULT",
     reactions: [],
-    attachments: [],
+    attachments: input.attachments,
     editedAt: null,
     deletedAt: null,
   };
@@ -117,6 +124,7 @@ export function ChatArea({
   canModerate,
   directMessageParticipant = null,
   serverId,
+  uploadthingEnabled,
 }: ChatAreaProps) {
   const { t } = useI18n();
   const socket = useSocket();
@@ -163,7 +171,12 @@ export function ChatArea({
 
     if (mode === "channel") {
       const handleError = (data: { code: string; message: string }) => {
-        if (data.code === "MESSAGE_SEND_ERROR" || data.code === "RATE_LIMIT") {
+        if (
+          data.code === "MESSAGE_SEND_ERROR" ||
+          data.code === "MESSAGE_VALIDATION_ERROR" ||
+          data.code === "INVALID_ATTACHMENT" ||
+          data.code === "RATE_LIMIT"
+        ) {
           rollbackOptimisticMessage();
         }
       };
@@ -185,7 +198,12 @@ export function ChatArea({
   }, [mode, queryClient, queryKey, socket]);
 
   const handleSend = useCallback(
-    (content: string, replyToId?: string) => {
+    (
+      content: string,
+      replyToId?: string,
+      attachments: UploadedAttachmentInput[] = [],
+      optimisticAttachments: MessageAttachment[] = [],
+    ) => {
       const tempId = `optimistic-${Date.now()}`;
       tempIdRef.current = tempId;
 
@@ -200,6 +218,7 @@ export function ChatArea({
             currentUserUsername,
             replyTo,
             tempId,
+            attachments: optimisticAttachments,
           }),
         ),
       );
@@ -208,12 +227,14 @@ export function ChatArea({
         socket.emit("message:send", {
           channelId: conversationId,
           content,
+          attachments,
           ...(replyToId ? { replyToId } : {}),
         });
       } else {
         socket.emit("dm:message:send", {
           conversationId,
           content,
+          attachments,
           ...(replyToId ? { replyToId } : {}),
         });
       }
@@ -317,6 +338,7 @@ export function ChatArea({
         replyTo={replyTo}
         onSend={handleSend}
         onCancelReply={() => setReplyTo(null)}
+        uploadthingEnabled={uploadthingEnabled}
       />
     </div>
   );

@@ -19,6 +19,7 @@ interface ChannelConversationPageProps {
   currentUserId: string;
   currentUserUsername: string;
   serverId: string;
+  uploadthingEnabled: boolean;
 }
 
 export function ChannelConversationPage({
@@ -30,6 +31,7 @@ export function ChannelConversationPage({
   currentUserId,
   currentUserUsername,
   serverId,
+  uploadthingEnabled,
 }: ChannelConversationPageProps) {
   const queryClient = useQueryClient();
   const markedChannelRef = useRef<string | null>(null);
@@ -94,6 +96,7 @@ export function ChannelConversationPage({
       currentUserUsername={currentUserUsername}
       canModerate={canModerate}
       serverId={serverId}
+      uploadthingEnabled={uploadthingEnabled}
     />
   );
 }

@@ -3,6 +3,7 @@ import type {
   DMConversationDTO,
   DMMessagePayload,
   MessageReaction,
+  UploadedAttachmentInput,
 } from "@wizards/types";
 import type { FriendPresenceUpdateDto } from "@/lib/friends/types";
 
@@ -31,6 +32,7 @@ export interface ClientToServerEvents {
   "channel:join": (channelId: string) => void;
   "channel:leave": (channelId: string) => void;
   "message:send": (data: {
+    attachments?: UploadedAttachmentInput[];
     channelId: string;
     content: string;
     replyToId?: string;
@@ -44,6 +46,7 @@ export interface ClientToServerEvents {
   "dm:join": (conversationId: string) => void;
   "dm:leave": (conversationId: string) => void;
   "dm:message:send": (data: {
+    attachments?: UploadedAttachmentInput[];
     conversationId: string;
     content: string;
     replyToId?: string;

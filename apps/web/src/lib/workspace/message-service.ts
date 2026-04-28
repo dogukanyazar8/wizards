@@ -6,8 +6,13 @@ import type {
   MessageAttachment,
   MessageReaction,
   ReplyTo,
+  UploadedAttachmentInput,
 } from "@wizards/types";
 import { ApiError } from "@/lib/api";
+import {
+  claimUploadedMessageAttachments,
+  normalizeMessageContentForSend,
+} from "@/lib/messages/attachments";
 
 function normalizeMessageType(type: string): ChatMessageType {
   if (type === "SYSTEM_JOIN" || type === "SYSTEM_LEAVE") {
@@ -17,19 +22,19 @@ function normalizeMessageType(type: string): ChatMessageType {
   return "DEFAULT";
 }
 
-function validateMessageContent(content: string) {
-  const trimmed = content.trim();
-  if (!trimmed || trimmed.length > 2000) {
-    throw new ApiError("Message content must be between 1 and 2000 characters.", 400);
+function validateReactionEmoji(emoji: string) {
+  const trimmed = emoji.trim();
+  if (!trimmed || trimmed.length > 64) {
+    throw new ApiError("Invalid emoji", 400, "INVALID_EMOJI");
   }
 
   return trimmed;
 }
 
-function validateReactionEmoji(emoji: string) {
-  const trimmed = emoji.trim();
-  if (!trimmed || trimmed.length > 64) {
-    throw new ApiError("Invalid emoji", 400, "INVALID_EMOJI");
+function validateEditableMessageContent(content: string) {
+  const trimmed = content.trim();
+  if (!trimmed || trimmed.length > 2000) {
+    throw new ApiError("Message content must be between 1 and 2000 characters.", 400);
   }
 
   return trimmed;
@@ -176,9 +181,11 @@ export async function createMessage(
   userId: string,
   content: string,
   replyToId?: string,
+  attachments: UploadedAttachmentInput[] = [],
 ): Promise<ChatMessage> {
   return createTypedMessage({
     channelId,
+    attachments,
     content,
     type: "DEFAULT",
     userId,
@@ -196,25 +203,39 @@ export async function createSystemMessage(args: {
 }
 
 async function createTypedMessage(args: {
+  attachments?: UploadedAttachmentInput[];
   channelId: string;
   content: string;
   replyToId?: string;
   type: ChatMessageType;
   userId: string;
 }): Promise<ChatMessage> {
-  const content = validateMessageContent(args.content);
-  const message = await prisma.message.create({
-    data: {
-      channelId: args.channelId,
-      userId: args.userId,
-      content,
-      replyToId: args.replyToId ?? null,
-      type: args.type,
-    },
-    include: messageInclude,
-  }) as RawMessage;
+  const attachments = args.attachments ?? [];
+  const content = normalizeMessageContentForSend(args.content, attachments);
 
-  return mapRawMessage(message);
+  return prisma.$transaction(async (tx) => {
+    const createdMessage = await tx.message.create({
+      data: {
+        channelId: args.channelId,
+        userId: args.userId,
+        content,
+        replyToId: args.replyToId ?? null,
+        type: args.type,
+      },
+      select: { id: true },
+    });
+
+    await claimUploadedMessageAttachments(tx, args.userId, attachments, {
+      messageId: createdMessage.id,
+    });
+
+    const message = await tx.message.findUniqueOrThrow({
+      where: { id: createdMessage.id },
+      include: messageInclude,
+    }) as RawMessage;
+
+    return mapRawMessage(message);
+  });
 }
 
 export async function editMessage(
@@ -231,7 +252,7 @@ export async function editMessage(
     throw new ApiError("Cannot edit this message", 403);
   }
 
-  const nextContent = validateMessageContent(content);
+  const nextContent = validateEditableMessageContent(content);
   const message = await prisma.message.update({
     where: { id: messageId },
     data: { content: nextContent, editedAt: new Date() },

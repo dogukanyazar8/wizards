@@ -23,6 +23,12 @@ export const MessageAttachmentSchema = z.object({
   height: z.number().int().optional(),
 });
 
+export const UploadedAttachmentInputSchema = z.object({
+  id: z.string().uuid(),
+  width: z.number().int().positive().max(20000).nullable().optional(),
+  height: z.number().int().positive().max(20000).nullable().optional(),
+});
+
 export const ReplyToSchema = z.object({
   id: z.string(),
   authorName: z.string(),
@@ -57,9 +63,16 @@ export const MessagesResponseSchema = z.object({
 
 export const SendMessageInputSchema = z.object({
   channelId: z.string(),
-  content: z.string().min(1).max(2000),
+  content: z.string().max(2000),
   replyToId: z.string().optional(),
-});
+  attachments: z.array(UploadedAttachmentInputSchema).max(5).default([]),
+}).refine(
+  (value) => value.content.trim().length > 0 || value.attachments.length > 0,
+  {
+    message: "Message content or attachment is required",
+    path: ["content"],
+  },
+);
 
 export const EditMessageInputSchema = z.object({
   messageId: z.string(),
@@ -69,6 +82,7 @@ export const EditMessageInputSchema = z.object({
 export type MessageAuthor = z.infer<typeof MessageAuthorSchema>;
 export type MessageReaction = z.infer<typeof MessageReactionSchema>;
 export type MessageAttachment = z.infer<typeof MessageAttachmentSchema>;
+export type UploadedAttachmentInput = z.infer<typeof UploadedAttachmentInputSchema>;
 export type ReplyTo = z.infer<typeof ReplyToSchema>;
 export type ChatMessageType = z.infer<typeof ChatMessageTypeSchema>;
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;

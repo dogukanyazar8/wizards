@@ -12,6 +12,7 @@ interface DMConversationPageProps {
   currentUserDisplayName: string;
   currentUserId: string;
   currentUserUsername: string;
+  uploadthingEnabled: boolean;
 }
 
 export function DMConversationPage({
@@ -19,6 +20,7 @@ export function DMConversationPage({
   currentUserDisplayName,
   currentUserId,
   currentUserUsername,
+  uploadthingEnabled,
 }: DMConversationPageProps) {
   const router = useRouter();
   const redirectedRef = useRef(false);
@@ -75,6 +77,7 @@ export function DMConversationPage({
       currentUserUsername={currentUserUsername}
       canModerate={false}
       directMessageParticipant={otherParticipant}
+      uploadthingEnabled={uploadthingEnabled}
     />
   );
 }

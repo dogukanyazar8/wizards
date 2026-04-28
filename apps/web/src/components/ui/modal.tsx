@@ -9,13 +9,22 @@ import { cn } from "@/lib/utils";
 type ModalProps = {
   children: React.ReactNode;
   className?: string;
+  closeLabel?: string;
   description?: string;
   onClose: () => void;
   open: boolean;
   title: string;
 };
 
-export function Modal({ children, className, description, onClose, open, title }: ModalProps) {
+export function Modal({
+  children,
+  className,
+  closeLabel = "Close modal",
+  description,
+  onClose,
+  open,
+  title,
+}: ModalProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const onCloseRef = useRef(onClose);
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
@@ -125,7 +134,7 @@ export function Modal({ children, className, description, onClose, open, title }
               </div>
 
               <button
-                aria-label="Close modal"
+                aria-label={closeLabel}
                 className="app-panel-soft text-app-muted rounded-full border p-2 transition hover:opacity-90 hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                 onClick={onClose}
                 type="button"

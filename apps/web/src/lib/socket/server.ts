@@ -3,6 +3,7 @@ import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { getToken } from "next-auth/jwt";
 import { Prisma, prisma } from "@wizards/db";
+import type { UploadedAttachmentInput } from "@wizards/types";
 import { ApiError } from "@/lib/api";
 import {
   dmMessageInclude,
@@ -17,6 +18,11 @@ import {
   persistUserPresence,
 } from "@/lib/friends/service";
 import { normalizeAppLocale, translate } from "@/lib/locale";
+import {
+  claimUploadedMessageAttachments,
+  normalizeMessageContentForSend,
+  parseUploadedAttachmentInputs,
+} from "@/lib/messages/attachments";
 import { getRedis, getRedisSub } from "@/lib/redis";
 import { setSocketServer } from "@/lib/socket/runtime";
 import {
@@ -526,7 +532,15 @@ export function initSocketServer(httpServer: HTTPServer) {
           return;
         }
 
-        const message = await createMessage(data.channelId, userId, data.content, data.replyToId);
+        const attachmentInputs = parseUploadedAttachmentInputs(data.attachments);
+        const content = normalizeMessageContentForSend(data.content, attachmentInputs);
+        const message = await createMessage(
+          data.channelId,
+          userId,
+          content,
+          data.replyToId,
+          attachmentInputs,
+        );
         const messageCreatedAt = new Date(message.createdAt);
         const readUserIds = [userId, ...getActiveChannelViewerUserIds(data.channelId)];
 
@@ -540,6 +554,14 @@ export function initSocketServer(httpServer: HTTPServer) {
         await emitServerUnreadUpdatesForServer(channel.serverId);
         io.to(data.channelId).emit("message:new", message);
       } catch (error) {
+        if (error instanceof ApiError) {
+          socket.emit("error", {
+            code: error.code ?? "MESSAGE_VALIDATION_ERROR",
+            message: error.message,
+          });
+          return;
+        }
+
         emitSocketError("MESSAGE_SEND_ERROR", "Unable to send message.", error);
       }
     });
@@ -734,9 +756,18 @@ export function initSocketServer(httpServer: HTTPServer) {
           // Allow message send if Redis is temporarily unavailable.
         }
 
-        const content = data.content?.trim() ?? "";
-        if (!content || content.length > 2000) {
-          emitDMError("VALIDATION_ERROR", "Message content must be between 1 and 2000 characters.");
+        let attachmentInputs: UploadedAttachmentInput[];
+        let content: string;
+        try {
+          attachmentInputs = parseUploadedAttachmentInputs(data.attachments);
+          content = normalizeMessageContentForSend(data.content, attachmentInputs);
+        } catch (validationError) {
+          emitDMError(
+            "VALIDATION_ERROR",
+            validationError instanceof Error
+              ? validationError.message
+              : "Invalid message payload.",
+          );
           return;
         }
 
@@ -776,19 +807,28 @@ export function initSocketServer(httpServer: HTTPServer) {
         }
 
         const createdMessage = await prisma.$transaction(async (tx) => {
-          const message = await tx.dMMessage.create({
+          const createdMessage = await tx.dMMessage.create({
             data: {
               conversationId: data.conversationId,
               userId,
               content,
               replyToId: data.replyToId ?? null,
             },
+            select: { id: true, createdAt: true },
+          });
+
+          await claimUploadedMessageAttachments(tx, userId, attachmentInputs, {
+            dmMessageId: createdMessage.id,
+          });
+
+          const message = await tx.dMMessage.findUniqueOrThrow({
+            where: { id: createdMessage.id },
             include: dmMessageInclude,
           });
 
           await tx.dMConversation.update({
             where: { id: data.conversationId },
-            data: { lastMessageAt: message.createdAt },
+            data: { lastMessageAt: createdMessage.createdAt },
           });
 
           await Promise.all(
@@ -821,7 +861,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         const messagePayload = mapDMMessagePayload(createdMessage);
         io.to(`dm:${data.conversationId}`).emit("dm:message:new", messagePayload);
 
-        const preview = content.slice(0, 50);
+        const preview = content.length > 0 ? content.slice(0, 50) : "Image";
         const lastMessageAt = createdMessage.createdAt.toISOString();
 
         const conversationUpdates = await Promise.all(
@@ -870,7 +910,10 @@ export function initSocketServer(httpServer: HTTPServer) {
                   title: translate(locale, "dm.notification.title", {
                     name: senderName,
                   }),
-                  body: content,
+                  body:
+                    content.length > 0
+                      ? content
+                      : translate(locale, "chat.attachments.image"),
                   actionUrl: `/channels/@me/${data.conversationId}`,
                   metadata: {
                     conversationId: data.conversationId,
@@ -898,6 +941,11 @@ export function initSocketServer(httpServer: HTTPServer) {
 
         await stopDMTyping(data.conversationId);
       } catch (error) {
+        if (error instanceof ApiError) {
+          emitDMError("VALIDATION_ERROR", error.message);
+          return;
+        }
+
         emitSafeDMError("NOT_FOUND", "Unable to send DM message.", error);
       }
     });
