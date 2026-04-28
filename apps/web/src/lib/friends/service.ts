@@ -281,6 +281,26 @@ function emitFriendsUpdated(userIds: Iterable<string>, reason: FriendsUpdatedRea
   }
 }
 
+async function clearFriendRequestNotifications(
+  requestId: string,
+  userIds: string[],
+) {
+  if (userIds.length === 0) {
+    return;
+  }
+
+  await prisma.notification.deleteMany({
+    where: {
+      userId: { in: userIds },
+      type: "FRIEND_REQUEST",
+      metadata: {
+        path: ["friendRequestId"],
+        equals: requestId,
+      },
+    },
+  });
+}
+
 async function createFriendAcceptedNotification(
   sender: NotificationUserRecord,
   receiver: NotificationUserRecord,
@@ -579,6 +599,8 @@ export async function actOnFriendRequest(
     include: friendRequestInclude,
   });
 
+  await clearFriendRequestNotifications(request.id, [request.receiverId]);
+
   if (action === "accept") {
     await createFriendAcceptedNotification(request.sender, request.receiver, request.id);
   }
@@ -613,6 +635,8 @@ export async function cancelFriendRequest(userId: string, requestId: string): Pr
     where: { id: requestId },
   });
 
+  await clearFriendRequestNotifications(requestId, [request.receiverId]);
+
   emitFriendsUpdated([request.senderId, request.receiverId], "friend_request_canceled");
 }
 
@@ -643,6 +667,15 @@ export async function blockUser(userId: string, blockedUserId: string): Promise<
     throw new ApiError("User not found", 404, "NOT_FOUND");
   }
 
+  const incomingRequests = await prisma.friendRequest.findMany({
+    where: {
+      senderId: blockedUserId,
+      receiverId: userId,
+      status: { not: "BLOCKED" },
+    },
+    select: { id: true },
+  });
+
   await prisma.$transaction(async (tx) => {
     await tx.friendRequest.deleteMany({
       where: {
@@ -669,6 +702,14 @@ export async function blockUser(userId: string, blockedUserId: string): Promise<
       },
     });
   });
+
+  if (incomingRequests.length > 0) {
+    await Promise.all(
+      incomingRequests.map((request) =>
+        clearFriendRequestNotifications(request.id, [userId]),
+      ),
+    );
+  }
 
   emitFriendsUpdated([userId, blockedUserId], "blocked");
 

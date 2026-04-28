@@ -246,6 +246,13 @@ function applyRemoteAudioState(
   }
 }
 
+function notifyVoiceExit() {
+  return fetch("/api/v1/voice/state", {
+    method: "DELETE",
+    keepalive: true,
+  }).catch(() => undefined);
+}
+
 export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const queryClient = useQueryClient();
   const roomRef = useRef<Room | null>(null);
@@ -784,7 +791,7 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
   }, [clearReconnectTimeout, resetKrispProcessor, stopHeartbeat]);
 
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const handlePageExit = () => {
       stopHeartbeat();
       clearReconnectTimeout();
 
@@ -795,16 +802,15 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
       }
 
       if (useVoiceStore.getState().sessionId) {
-        void fetch("/api/v1/voice/state", {
-          method: "DELETE",
-          keepalive: true,
-        }).catch(() => undefined);
+        void notifyVoiceExit();
       }
     };
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("beforeunload", handlePageExit);
+    window.addEventListener("pagehide", handlePageExit);
     return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("beforeunload", handlePageExit);
+      window.removeEventListener("pagehide", handlePageExit);
     };
   }, [clearReconnectTimeout, stopHeartbeat]);
 

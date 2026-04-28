@@ -83,7 +83,7 @@ export function ContextMenuItem({
       className={cn(
         "text-app-foreground flex w-full items-center rounded-xl px-3 py-2 text-left text-sm transition hover:bg-[hsl(var(--surface-soft)/0.72)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
         destructive &&
-          "text-[hsl(var(--danger-foreground))] hover:bg-[hsl(var(--danger)/0.12)]",
+          "text-[hsl(var(--danger))] hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger))]",
         className,
       )}
       role="menuitem"

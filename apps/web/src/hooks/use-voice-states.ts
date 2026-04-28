@@ -11,7 +11,12 @@ function applyVoiceStateUpdate(
   data: {
     action: "join" | "leave";
     channelId: string;
-    participants: Array<{ userId: string; username: string; avatarUrl: string | null }>;
+    participants: Array<{
+      userId: string;
+      username: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    }>;
   },
 ) {
   const nextStates = current ? [...current] : [];
@@ -28,7 +33,7 @@ function applyVoiceStateUpdate(
       userId: participant.userId,
       username: participant.username,
       avatarUrl: participant.avatarUrl,
-      displayName: existingParticipant?.displayName ?? null,
+      displayName: participant.displayName ?? existingParticipant?.displayName ?? null,
     };
   });
 
@@ -73,12 +78,22 @@ export function useVoiceStates(serverId: string | null) {
       action: "join" | "leave";
       channelId: string;
       userId: string;
-      participants: Array<{ userId: string; username: string; avatarUrl: string | null }>;
+      participants: Array<{
+        userId: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      }>;
     }) => {
       queryClient.setQueryData<VoiceChannelStateDTO[] | undefined>(
         voiceQueryKeys.serverStates(serverId),
         (current) => applyVoiceStateUpdate(current, data),
       );
+
+      void queryClient.refetchQueries({
+        queryKey: voiceQueryKeys.serverStates(serverId),
+        type: "active",
+      });
     };
 
     socket.on("voice:state:update", handleVoiceStateUpdate);

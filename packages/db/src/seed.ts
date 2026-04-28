@@ -288,6 +288,7 @@ async function main() {
     ensureContributor("Atakan Tuymaz"),
     ensureContributor("Muhammet Y\u0131ld\u0131z"),
     ensureContributor("O\u011Fuz G\u00FC\u011F\u00FCmc\u00FCo\u011Flu"),
+    ensureContributor("Sedat Sarp Kaplan"),
   ]);
 
   console.log("Seed complete");

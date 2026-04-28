@@ -368,14 +368,14 @@ export function ServerSettingsOverlay({
                 {tab === "danger" ? (
                   <div className="app-danger rounded-[32px] border p-6">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[hsl(var(--danger)/0.14)] text-[hsl(var(--danger-foreground))]">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[hsl(var(--danger)/0.18)] text-[hsl(var(--danger))]">
                         <Shield className="h-5 w-5" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-[hsl(var(--danger-foreground))]">
+                        <h3 className="text-app-foreground text-lg font-semibold">
                           {t("serverSettings.deleteTitle")}
                         </h3>
-                        <p className="mt-1 text-sm text-[hsl(var(--danger-foreground)/0.78)]">
+                        <p className="text-app-muted mt-1 text-sm">
                           {t("serverSettings.deleteDescription")}
                         </p>
                       </div>

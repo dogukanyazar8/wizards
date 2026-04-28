@@ -52,7 +52,7 @@ function VoiceParticipantCard({
   const displayName = participant.displayName ?? participant.username;
 
   return (
-    <div className="app-panel relative overflow-hidden rounded-[28px] border p-4">
+    <div className="app-panel relative flex h-full min-h-[22rem] flex-col overflow-hidden rounded-[28px] border p-4">
       <div className="mb-5 flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className={cn("rounded-full transition", getSpeakingClass(participant))}>
@@ -84,7 +84,7 @@ function VoiceParticipantCard({
         ) : null}
       </div>
 
-      <div className="flex h-48 items-center justify-center rounded-[22px] border border-dashed border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-soft)/0.42)] text-center">
+      <div className="flex flex-1 items-center justify-center rounded-[22px] border border-dashed border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-soft)/0.42)] text-center">
         <div className="space-y-2">
           <Video className="mx-auto h-8 w-8 text-app-muted" />
           <p className="text-sm font-medium text-app-foreground">
@@ -212,6 +212,7 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
 
   const orderedParticipants = renderGridParticipants(room, participants);
   const showReconnectOverlay = isReconnectState(connectionState);
+  const participantCount = orderedParticipants.length;
   const localAudioPreferenceBadges = [
     audioPreferences.noiseSuppression ? t("voice.grid.noiseSuppression") : null,
     audioPreferences.echoCancellation ? t("voice.grid.echoCancellation") : null,
@@ -298,7 +299,12 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
           </p>
         </div>
 
-        <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div
+          className="grid flex-1 gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]"
+          style={{
+            gridAutoRows: participantCount > 0 ? "minmax(0, 1fr)" : undefined,
+          }}
+        >
           {orderedParticipants.map((participant) => (
             <VoiceParticipantCard
               audioPreferenceBadges={localAudioPreferenceBadges}

@@ -337,7 +337,10 @@ export function FriendsView() {
       );
     };
     const handleFriendsUpdated = () => {
-      void queryClient.invalidateQueries({ queryKey: friendsQueryKeys.root });
+      void queryClient.refetchQueries({
+        queryKey: friendsQueryKeys.root,
+        type: "active",
+      });
     };
 
     socket.on("presence:update", handlePresenceUpdate);

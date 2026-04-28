@@ -110,7 +110,12 @@ export interface ServerToClientEvents {
     channelId: string;
     userId: string;
     action: "join" | "leave";
-    participants: Array<{ userId: string; username: string; avatarUrl: string | null }>;
+    participants: Array<{
+      userId: string;
+      username: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    }>;
   }) => void;
   error: (data: { code: string; message: string }) => void;
 }

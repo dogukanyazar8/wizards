@@ -41,7 +41,7 @@ export default async function SettingsPage() {
     <SettingsPanel
       buildInfo={{
         contributors,
-        developerName: "Doğukan Yazar",
+        developerName: "Do\u011Fukan Yazar",
         lastUpdated,
         version,
       }}

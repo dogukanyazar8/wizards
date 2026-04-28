@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22 <23"
+  },
   "scripts": {
     "dev": "node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && tsx watch server.ts",
     "build": "node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && next build",

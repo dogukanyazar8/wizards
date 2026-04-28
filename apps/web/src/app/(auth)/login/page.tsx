@@ -20,7 +20,6 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<LoginInput>({
     resolver: zodResolver(LoginSchema),
@@ -56,12 +55,6 @@ export default function LoginPage() {
     }
   };
 
-  const applyTestAccount = (email: string) => {
-    setValue("email", email, { shouldDirty: true, shouldTouch: true });
-    setValue("password", "password123", { shouldDirty: true, shouldTouch: true });
-    setServerError(null);
-  };
-
   return (
     <div className="space-y-8">
       <div className="space-y-4">
@@ -77,43 +70,6 @@ export default function LoginPage() {
             {t("auth.login.description")}
           </p>
         </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <button
-          className="group rounded-[26px] border border-[hsl(var(--border)/0.7)] bg-[linear-gradient(145deg,hsl(var(--surface-card)/0.78),hsl(var(--surface-soft)/0.4))] p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.45)] hover:shadow-[0_20px_40px_hsl(var(--shadow-color)/0.12)]"
-          onClick={() => applyTestAccount("demo@wizards.app")}
-          type="button"
-        >
-          <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.24em]">
-            {t("auth.login.demoAccount")}
-          </p>
-          <p className="text-app-foreground mt-2 text-sm font-semibold">demo@wizards.app</p>
-          <p className="text-app-muted mt-1 text-xs">{t("auth.login.demoDescription")}</p>
-          <div className="mt-4 flex items-center gap-2">
-            <span className="app-badge-accent rounded-full px-2.5 py-1 text-[11px] font-semibold">
-              {t("auth.login.fastStart")}
-            </span>
-            <span className="text-app-soft text-[11px]">{t("auth.login.sharedDemoWorkspace")}</span>
-          </div>
-        </button>
-        <button
-          className="group rounded-[26px] border border-[hsl(var(--border)/0.7)] bg-[linear-gradient(145deg,hsl(var(--surface-card)/0.78),hsl(var(--surface-soft)/0.4))] p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.45)] hover:shadow-[0_20px_40px_hsl(var(--shadow-color)/0.12)]"
-          onClick={() => applyTestAccount("test@wizards.app")}
-          type="button"
-        >
-          <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.24em]">
-            {t("auth.login.testAccount")}
-          </p>
-          <p className="text-app-foreground mt-2 text-sm font-semibold">test@wizards.app</p>
-          <p className="text-app-muted mt-1 text-xs">{t("auth.login.testDescription")}</p>
-          <div className="mt-4 flex items-center gap-2">
-            <span className="app-badge-accent rounded-full px-2.5 py-1 text-[11px] font-semibold">
-              {t("auth.login.multiUser")}
-            </span>
-            <span className="text-app-soft text-[11px]">{t("auth.login.idealForInvites")}</span>
-          </div>
-        </button>
       </div>
 
       <form className="space-y-5 rounded-[30px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.42)] p-5 shadow-[0_24px_60px_hsl(var(--shadow-color)/0.08)]" onSubmit={handleSubmit(onSubmit)} noValidate>

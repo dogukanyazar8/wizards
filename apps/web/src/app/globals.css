@@ -1000,9 +1000,9 @@ h4 {
   }
 
   .app-badge-danger {
-    border-color: hsl(var(--danger) / 0.2);
-    background-color: hsl(var(--danger) / 0.12);
-    color: hsl(var(--danger-foreground));
+    border-color: hsl(var(--danger) / 0.28);
+    background-color: hsl(var(--danger) / 0.14);
+    color: hsl(var(--danger));
   }
 
   .app-badge-warning {
@@ -1012,9 +1012,9 @@ h4 {
   }
 
   .app-danger {
-    border-color: hsl(var(--danger) / 0.22);
-    background-color: hsl(var(--danger) / 0.12);
-    color: hsl(var(--danger-foreground));
+    border-color: hsl(var(--danger) / 0.28);
+    background-color: hsl(var(--danger) / 0.14);
+    color: hsl(var(--danger));
   }
 
   .app-inline-alert {
@@ -1067,7 +1067,7 @@ h4 {
   }
 
   .text-app-danger {
-    color: hsl(var(--danger-foreground));
+    color: hsl(var(--danger));
   }
 
   .text-app-success {

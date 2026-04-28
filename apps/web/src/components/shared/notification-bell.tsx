@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
@@ -65,6 +65,47 @@ export function NotificationBell() {
     staleTime: 30_000,
   });
 
+  const syncNotificationQueries = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.unreadCount });
+    void queryClient.invalidateQueries({
+      queryKey: notificationsQueryKeys.list(notificationLimit),
+    });
+  }, [notificationLimit, queryClient]);
+
+  const removeFriendRequestNotification = useCallback(
+    (requestId: string) => {
+      let removedUnreadCount = 0;
+
+      queryClient.setQueryData<NotificationDTO[] | undefined>(
+        notificationsQueryKeys.list(notificationLimit),
+        (current) => {
+          if (!current) {
+            return current;
+          }
+
+          return current.filter((notification) => {
+            const matches =
+              notification.type === "FRIEND_REQUEST" &&
+              notification.meta?.friendRequestId === requestId;
+
+            if (matches && !notification.readAt) {
+              removedUnreadCount += 1;
+            }
+
+            return !matches;
+          });
+        },
+      );
+
+      if (removedUnreadCount > 0) {
+        setUnreadCount((current) => Math.max(0, current - removedUnreadCount));
+      }
+
+      syncNotificationQueries();
+    },
+    [notificationLimit, queryClient, syncNotificationQueries],
+  );
+
   useEffect(() => {
     setUnreadCount(unreadQuery.data ?? 0);
   }, [unreadQuery.data]);
@@ -72,18 +113,21 @@ export function NotificationBell() {
   useEffect(() => {
     const handleIncomingNotification = () => {
       setUnreadCount((current) => current + 1);
-      void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.unreadCount });
-      void queryClient.invalidateQueries({
-        queryKey: notificationsQueryKeys.list(notificationLimit),
-      });
+      syncNotificationQueries();
+    };
+
+    const handleFriendsUpdated = () => {
+      syncNotificationQueries();
     };
 
     socket.on("notification:new", handleIncomingNotification);
+    socket.on("friends:updated", handleFriendsUpdated);
 
     return () => {
       socket.off("notification:new", handleIncomingNotification);
+      socket.off("friends:updated", handleFriendsUpdated);
     };
-  }, [notificationLimit, queryClient, socket]);
+  }, [socket, syncNotificationQueries]);
 
   useEffect(() => {
     if (!open) {
@@ -216,7 +260,7 @@ export function NotificationBell() {
       }
     }
 
-    let left = userBarRect.left - 6;
+    let left = userBarRect.left - 18;
     left = Math.max(minMargin, Math.min(left, window.innerWidth - popupWidth - minMargin));
 
     setDropdownPos({ top, left });
@@ -295,7 +339,7 @@ export function NotificationBell() {
                       </span>
                       {unreadCount > 0 ? (
                         <button
-                          className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.12)] px-3 py-1.5 text-[11px] font-semibold text-[hsl(var(--primary))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
+                          className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary))] px-3 py-1.5 text-[11px] font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_12px_24px_hsl(var(--primary)/0.24)] transition hover:brightness-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
                           disabled={markAllMutation.isPending}
                           onClick={() => markAllMutation.mutate()}
                           type="button"
@@ -342,6 +386,7 @@ export function NotificationBell() {
                             locale={locale}
                             notification={notification}
                             onClose={closePopover}
+                            onDismissFriendRequest={removeFriendRequestNotification}
                             onReadAndNavigate={handleReadAndNavigate}
                           />
                         ))}
@@ -363,7 +408,7 @@ export function NotificationBell() {
                           {t("notifications.bell.seeAll")}
                         </button>
                         <button
-                          className="inline-flex items-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.2)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-sm font-medium text-[hsl(var(--danger-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:opacity-50"
+                          className="inline-flex items-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.14)] px-3 py-2 text-sm font-medium text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:opacity-50"
                           disabled={clearAllMutation.isPending}
                           onClick={() => clearAllMutation.mutate()}
                           type="button"
@@ -388,11 +433,13 @@ function NotificationItem({
   locale,
   notification,
   onClose,
+  onDismissFriendRequest,
   onReadAndNavigate,
 }: {
   locale: string;
   notification: NotificationDTO;
   onClose: () => void;
+  onDismissFriendRequest: (requestId: string) => void;
   onReadAndNavigate: (notification: NotificationDTO) => Promise<void>;
 }) {
   const { t } = useI18n();
@@ -443,7 +490,12 @@ function NotificationItem({
                 </p>
               </div>
               {!notification.readAt ? (
-                <Badge tone="danger">{t("notifications.bell.new")}</Badge>
+                <Badge
+                  className="border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
+                  tone="danger"
+                >
+                  {t("notifications.bell.new")}
+                </Badge>
               ) : null}
             </div>
 
@@ -464,20 +516,30 @@ function NotificationItem({
 
       {notification.type === "FRIEND_REQUEST" && notification.meta?.friendRequestId ? (
         <div className="mt-4 border-t border-[hsl(var(--border)/0.62)] pt-4">
-          <FriendRequestActions requestId={notification.meta.friendRequestId} />
+          <FriendRequestActions
+            onHandled={onDismissFriendRequest}
+            requestId={notification.meta.friendRequestId}
+          />
         </div>
       ) : null}
     </div>
   );
 }
 
-function FriendRequestActions({ requestId }: { requestId: string }) {
+function FriendRequestActions({
+  onHandled,
+  requestId,
+}: {
+  onHandled: (requestId: string) => void;
+  requestId: string;
+}) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
 
   const acceptMutation = useMutation({
     mutationFn: () => actOnFriendRequestRequest(requestId, "accept"),
     onSuccess: async () => {
+      onHandled(requestId);
       await queryClient.invalidateQueries({ queryKey: ["friends", "pending"] });
       await queryClient.invalidateQueries({ queryKey: ["friends", "list"] });
       await queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.root });
@@ -487,6 +549,7 @@ function FriendRequestActions({ requestId }: { requestId: string }) {
   const declineMutation = useMutation({
     mutationFn: () => actOnFriendRequestRequest(requestId, "decline"),
     onSuccess: async () => {
+      onHandled(requestId);
       await queryClient.invalidateQueries({ queryKey: ["friends", "pending"] });
       await queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.root });
     },
