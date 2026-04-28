@@ -20,6 +20,7 @@ import {
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import {
   claimUploadedMessageAttachments,
+  isMessageImageContentType,
   normalizeMessageContentForSend,
   parseUploadedAttachmentInputs,
 } from "@/lib/messages/attachments";
@@ -861,7 +862,19 @@ export function initSocketServer(httpServer: HTTPServer) {
         const messagePayload = mapDMMessagePayload(createdMessage);
         io.to(`dm:${data.conversationId}`).emit("dm:message:new", messagePayload);
 
-        const preview = content.length > 0 ? content.slice(0, 50) : "Image";
+        const firstAttachment = createdMessage.attachments[0];
+        const attachmentLabelKey =
+          firstAttachment && isMessageImageContentType(firstAttachment.contentType)
+            ? "chat.attachments.image"
+            : "chat.attachments.file";
+        const preview =
+          content.length > 0
+            ? content.slice(0, 50)
+            : firstAttachment && isMessageImageContentType(firstAttachment.contentType)
+              ? "Image"
+              : firstAttachment
+                ? "File"
+                : "";
         const lastMessageAt = createdMessage.createdAt.toISOString();
 
         const conversationUpdates = await Promise.all(
@@ -913,7 +926,7 @@ export function initSocketServer(httpServer: HTTPServer) {
                   body:
                     content.length > 0
                       ? content
-                      : translate(locale, "chat.attachments.image"),
+                      : translate(locale, attachmentLabelKey),
                   actionUrl: `/channels/@me/${data.conversationId}`,
                   metadata: {
                     conversationId: data.conversationId,

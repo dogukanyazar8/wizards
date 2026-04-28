@@ -3,13 +3,20 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ImageIcon, Loader2, Send, Smile, X } from "lucide-react";
+import { FileText, Loader2, Paperclip, Send, Smile, X } from "lucide-react";
 import type { MessageAttachment, UploadedAttachmentInput } from "@wizards/types";
 import { EmojiPicker } from "./emoji-picker";
 import { ReplyPreview } from "./reply-preview";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useTyping } from "@/hooks/use-typing";
 import type { MessageMode } from "@/hooks/use-messages";
+import {
+  getMessageAttachmentMaxBytes,
+  isMessageImageContentType,
+  isSupportedMessageAttachmentContentType,
+  MESSAGE_ATTACHMENT_ACCEPT,
+  MESSAGE_ATTACHMENT_MAX_COUNT,
+} from "@/lib/messages/attachment-rules";
 import { useUploadThing } from "@/lib/uploadthing";
 
 interface MessageInputProps {
@@ -26,25 +33,33 @@ interface MessageInputProps {
   uploadthingEnabled: boolean;
 }
 
-type ImageDraft = {
+type AttachmentDraft = {
   attachment?: MessageAttachment;
+  contentType: string;
   error?: string;
+  filename: string;
   input?: UploadedAttachmentInput;
+  kind: "file" | "image";
   localId: string;
-  previewUrl: string;
+  previewUrl?: string;
+  size: number;
   status: "uploading" | "ready" | "error";
 };
 
-const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-const MAX_IMAGES_PER_MESSAGE = 5;
-
 function createLocalId() {
-  return globalThis.crypto?.randomUUID?.() ?? `image-${Date.now()}-${Math.random()}`;
+  return globalThis.crypto?.randomUUID?.() ?? `attachment-${Date.now()}-${Math.random()}`;
 }
 
-function isSupportedImage(file: File) {
-  return SUPPORTED_IMAGE_TYPES.has(file.type);
+function formatAttachmentSize(size: number) {
+  if (size < 1024) {
+    return `${size} B`;
+  }
+
+  if (size < 1024 * 1024) {
+    return `${Math.round(size / 102.4) / 10} KB`;
+  }
+
+  return `${Math.round(size / 1024 / 102.4) / 10} MB`;
 }
 
 function readImageDimensions(previewUrl: string) {
@@ -75,57 +90,57 @@ export function MessageInput({
 }: MessageInputProps) {
   const { t } = useI18n();
   const { startTyping, stopTyping } = useTyping(conversationId, mode);
-  const { startUpload } = useUploadThing("messageImageUploader");
+  const { startUpload } = useUploadThing("messageAttachmentUploader");
   const [content, setContent] = useState("");
-  const [imageDrafts, setImageDrafts] = useState<ImageDraft[]>([]);
-  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
-  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [attachmentDrafts, setAttachmentDrafts] = useState<AttachmentDraft[]>([]);
+  const [attachmentUploadError, setAttachmentUploadError] = useState<string | null>(null);
+  const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const previewUrlsRef = useRef<Set<string>>(new Set());
 
-  const readyImageDrafts = useMemo(
+  const readyAttachmentDrafts = useMemo(
     () =>
-      imageDrafts.filter(
-        (draft): draft is ImageDraft & {
+      attachmentDrafts.filter(
+        (draft): draft is AttachmentDraft & {
           attachment: MessageAttachment;
           input: UploadedAttachmentInput;
         } => draft.status === "ready" && Boolean(draft.attachment) && Boolean(draft.input),
       ),
-    [imageDrafts],
+    [attachmentDrafts],
   );
-  const hasUploadingImages = imageDrafts.some((draft) => draft.status === "uploading");
+  const hasUploadingAttachments = attachmentDrafts.some(
+    (draft) => draft.status === "uploading",
+  );
   const canSend =
-    (content.trim().length > 0 || readyImageDrafts.length > 0) &&
-    !hasUploadingImages &&
-    !isUploadingImages;
+    (content.trim().length > 0 || readyAttachmentDrafts.length > 0) &&
+    !hasUploadingAttachments &&
+    !isUploadingAttachments;
 
-  const revokePreviewUrl = (previewUrl: string) => {
-    if (previewUrlsRef.current.has(previewUrl)) {
+  const revokePreviewUrl = (previewUrl: string | undefined) => {
+    if (previewUrl && previewUrlsRef.current.has(previewUrl)) {
       URL.revokeObjectURL(previewUrl);
       previewUrlsRef.current.delete(previewUrl);
     }
   };
 
-  const removeImageDraft = (localId: string) => {
-    setImageDrafts((current) => {
+  const removeAttachmentDraft = (localId: string) => {
+    setAttachmentDrafts((current) => {
       const draft = current.find((item) => item.localId === localId);
-      if (draft) {
-        revokePreviewUrl(draft.previewUrl);
-      }
+      revokePreviewUrl(draft?.previewUrl);
 
       return current.filter((item) => item.localId !== localId);
     });
   };
 
-  const clearImageDrafts = () => {
-    setImageDrafts((current) => {
+  const clearAttachmentDrafts = () => {
+    setAttachmentDrafts((current) => {
       current.forEach((draft) => revokePreviewUrl(draft.previewUrl));
       return [];
     });
-    setImageUploadError(null);
+    setAttachmentUploadError(null);
   };
 
   const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -147,31 +162,37 @@ export function MessageInput({
     }
   };
 
-  const uploadImageFiles = async (files: File[]) => {
+  const uploadAttachmentFiles = async (files: File[]) => {
     if (!uploadthingEnabled) {
-      setImageUploadError(t("chat.attachments.uploadNotConfigured"));
+      setAttachmentUploadError(t("chat.attachments.uploadNotConfigured"));
       return;
     }
 
-    if (isUploadingImages) {
-      setImageUploadError(t("chat.attachments.uploadInProgress"));
+    if (isUploadingAttachments) {
+      setAttachmentUploadError(t("chat.attachments.uploadInProgress"));
       return;
     }
 
-    const remainingSlots = MAX_IMAGES_PER_MESSAGE - imageDrafts.length;
+    const remainingSlots = MESSAGE_ATTACHMENT_MAX_COUNT - attachmentDrafts.length;
     if (remainingSlots <= 0) {
-      setImageUploadError(t("chat.attachments.maxImages"));
+      setAttachmentUploadError(t("chat.attachments.maxAttachments"));
       return;
     }
 
     const supportedFiles = files.filter((file) => {
-      if (!isSupportedImage(file)) {
-        setImageUploadError(t("chat.attachments.unsupportedImageType"));
+      const maxBytes = getMessageAttachmentMaxBytes(file.type);
+
+      if (!isSupportedMessageAttachmentContentType(file.type) || maxBytes <= 0) {
+        setAttachmentUploadError(t("chat.attachments.unsupportedAttachmentType"));
         return false;
       }
 
-      if (file.size <= 0 || file.size > MAX_IMAGE_BYTES) {
-        setImageUploadError(t("chat.attachments.fileTooLarge"));
+      if (file.size <= 0 || file.size > maxBytes) {
+        setAttachmentUploadError(
+          t("chat.attachments.attachmentTooLarge", {
+            maxSize: formatAttachmentSize(maxBytes),
+          }),
+        );
         return false;
       }
 
@@ -180,30 +201,49 @@ export function MessageInput({
 
     const filesToUpload = supportedFiles.slice(0, remainingSlots);
     if (supportedFiles.length > remainingSlots) {
-      setImageUploadError(t("chat.attachments.maxImages"));
+      setAttachmentUploadError(t("chat.attachments.maxAttachments"));
     }
 
     if (filesToUpload.length === 0) {
       return;
     }
 
-    const drafts = filesToUpload.map((file) => {
-      const previewUrl = URL.createObjectURL(file);
-      previewUrlsRef.current.add(previewUrl);
-      return {
+    const drafts: AttachmentDraft[] = filesToUpload.map((file) => {
+      const kind: AttachmentDraft["kind"] = isMessageImageContentType(file.type)
+        ? "image"
+        : "file";
+      const previewUrl = kind === "image" ? URL.createObjectURL(file) : undefined;
+      if (previewUrl) {
+        previewUrlsRef.current.add(previewUrl);
+      }
+
+      const draft: AttachmentDraft = {
+        contentType: file.type,
+        filename: file.name,
+        kind,
         localId: createLocalId(),
-        previewUrl,
-        status: "uploading" as const,
+        size: file.size,
+        status: "uploading",
       };
+
+      if (previewUrl) {
+        draft.previewUrl = previewUrl;
+      }
+
+      return draft;
     });
 
-    setImageDrafts((current) => [...current, ...drafts]);
-    setIsUploadingImages(true);
-    setImageUploadError(null);
+    setAttachmentDrafts((current) => [...current, ...drafts]);
+    setIsUploadingAttachments(true);
+    setAttachmentUploadError(null);
 
     try {
       const dimensions = await Promise.all(
-        drafts.map((draft) => readImageDimensions(draft.previewUrl)),
+        drafts.map((draft) =>
+          draft.kind === "image" && draft.previewUrl
+            ? readImageDimensions(draft.previewUrl)
+            : Promise.resolve({} as { height?: number; width?: number }),
+        ),
       );
       const uploadedFiles = await startUpload(filesToUpload);
 
@@ -211,7 +251,7 @@ export function MessageInput({
         throw new Error(t("chat.attachments.uploadFailed"));
       }
 
-      setImageDrafts((current) =>
+      setAttachmentDrafts((current) =>
         current.map((draft) => {
           const draftIndex = drafts.findIndex((item) => item.localId === draft.localId);
           if (draftIndex === -1) {
@@ -235,29 +275,43 @@ export function MessageInput({
             filename: serverData.filename,
             contentType: serverData.contentType,
             size: serverData.size,
-            width: measuredDimensions.width ?? serverData.width ?? undefined,
-            height: measuredDimensions.height ?? serverData.height ?? undefined,
           };
+
+          if (draft.kind === "image") {
+            const width = measuredDimensions.width ?? serverData.width ?? undefined;
+            const height = measuredDimensions.height ?? serverData.height ?? undefined;
+            if (width) {
+              attachment.width = width;
+            }
+            if (height) {
+              attachment.height = height;
+            }
+          }
 
           revokePreviewUrl(draft.previewUrl);
 
-          return {
+          const nextDraft: AttachmentDraft = {
+            ...draft,
             attachment,
             input: {
               id: attachment.id,
               height: attachment.height ?? null,
               width: attachment.width ?? null,
             },
-            localId: draft.localId,
-            previewUrl: attachment.url,
-            status: "ready" as const,
+            status: "ready",
           };
+
+          if (draft.kind === "image") {
+            nextDraft.previewUrl = attachment.url;
+          }
+
+          return nextDraft;
         }),
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : t("chat.attachments.uploadFailed");
-      setImageUploadError(message);
-      setImageDrafts((current) =>
+      setAttachmentUploadError(message);
+      setAttachmentDrafts((current) =>
         current.map((draft) =>
           drafts.some((item) => item.localId === draft.localId)
             ? { ...draft, error: message, status: "error" as const }
@@ -265,7 +319,7 @@ export function MessageInput({
         ),
       );
     } finally {
-      setIsUploadingImages(false);
+      setIsUploadingAttachments(false);
     }
   };
 
@@ -280,7 +334,7 @@ export function MessageInput({
     }
 
     event.preventDefault();
-    void uploadImageFiles(files);
+    void uploadAttachmentFiles(files);
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -288,7 +342,7 @@ export function MessageInput({
     event.target.value = "";
 
     if (files.length > 0) {
-      void uploadImageFiles(files);
+      void uploadAttachmentFiles(files);
     }
   };
 
@@ -298,8 +352,8 @@ export function MessageInput({
       return;
     }
 
-    const attachmentInputs = readyImageDrafts.map((draft) => draft.input);
-    const optimisticAttachments = readyImageDrafts.map((draft) => draft.attachment);
+    const attachmentInputs = readyAttachmentDrafts.map((draft) => draft.input);
+    const optimisticAttachments = readyAttachmentDrafts.map((draft) => draft.attachment);
 
     if (replyTo?.id) {
       onSend(trimmedContent, replyTo.id, attachmentInputs, optimisticAttachments);
@@ -308,7 +362,7 @@ export function MessageInput({
     }
 
     setContent("");
-    clearImageDrafts();
+    clearAttachmentDrafts();
     setShowEmojiPicker(false);
 
     if (textareaRef.current) {
@@ -342,24 +396,46 @@ export function MessageInput({
       <ReplyPreview replyTo={replyTo} onCancel={onCancelReply} />
 
       <div className="app-panel rounded-[30px] border p-3 shadow-[0_20px_44px_hsl(var(--shadow-color)/0.08)]">
-        {imageDrafts.length > 0 ? (
+        {attachmentDrafts.length > 0 ? (
           <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
-            {imageDrafts.map((draft) => (
+            {attachmentDrafts.map((draft) => (
               <div
-                className="group/image relative aspect-square overflow-hidden rounded-[20px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.42)]"
+                className="group/attachment relative aspect-square overflow-hidden rounded-[20px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.42)]"
                 key={draft.localId}
               >
-                <img
-                  alt={draft.attachment?.filename ?? t("chat.attachments.imagePreview")}
-                  className="h-full w-full object-cover"
-                  src={draft.attachment?.url ?? draft.previewUrl}
-                />
+                {draft.kind === "image" && draft.previewUrl ? (
+                  <img
+                    alt={draft.attachment?.filename ?? t("chat.attachments.imagePreview")}
+                    className="h-full w-full object-cover"
+                    src={draft.attachment?.url ?? draft.previewUrl}
+                  />
+                ) : (
+                  <div className="flex h-full flex-col justify-between p-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.65)] bg-white/68 text-app-soft shadow-sm">
+                      <FileText className="h-5 w-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="line-clamp-2 break-all text-xs font-semibold text-app-foreground">
+                        {draft.filename}
+                      </p>
+                      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-app-soft">
+                        {formatAttachmentSize(draft.size)}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/12 opacity-80" />
+                {draft.kind === "file" ? (
+                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/86 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700 shadow-sm backdrop-blur">
+                    <Paperclip className="h-3 w-3" />
+                    {t("chat.attachments.file")}
+                  </span>
+                ) : null}
                 {draft.status === "uploading" ? (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <span className="inline-flex items-center gap-2 rounded-full bg-white/88 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      {t("chat.attachments.uploadingImage")}
+                      {t("chat.attachments.uploadingAttachment")}
                     </span>
                   </div>
                 ) : null}
@@ -369,9 +445,9 @@ export function MessageInput({
                   </div>
                 ) : null}
                 <button
-                  aria-label={t("chat.attachments.removeImage")}
+                  aria-label={t("chat.attachments.removeAttachment")}
                   className="absolute right-2 top-2 rounded-full border border-white/50 bg-white/88 p-1.5 text-slate-700 opacity-100 shadow-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                  onClick={() => removeImageDraft(draft.localId)}
+                  onClick={() => removeAttachmentDraft(draft.localId)}
                   type="button"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -381,9 +457,9 @@ export function MessageInput({
           </div>
         ) : null}
 
-        {imageUploadError ? (
+        {attachmentUploadError ? (
           <div className="mb-3 rounded-2xl border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-xs font-medium text-[hsl(var(--danger))]">
-            {imageUploadError}
+            {attachmentUploadError}
           </div>
         ) : null}
 
@@ -405,7 +481,7 @@ export function MessageInput({
             <div className="mt-2 flex items-center justify-between gap-3 border-t border-[hsl(var(--border)/0.6)] px-2 pt-3">
               <div className="flex flex-wrap items-center gap-2">
                 <input
-                  accept="image/png,image/jpeg,image/webp"
+                  accept={MESSAGE_ATTACHMENT_ACCEPT}
                   className="hidden"
                   multiple
                   onChange={handleFileSelect}
@@ -435,11 +511,11 @@ export function MessageInput({
                 </div>
 
                 <button
-                  aria-label={t("chat.attachments.attachImage")}
+                  aria-label={t("chat.attachments.attachFile")}
                   className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.26)] px-3 py-1.5 text-xs font-medium text-app-soft transition hover:border-[hsl(var(--primary)/0.38)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                   onClick={() => {
                     if (!uploadthingEnabled) {
-                      setImageUploadError(t("chat.attachments.uploadNotConfigured"));
+                      setAttachmentUploadError(t("chat.attachments.uploadNotConfigured"));
                       return;
                     }
 
@@ -447,13 +523,13 @@ export function MessageInput({
                   }}
                   title={
                     uploadthingEnabled
-                      ? t("chat.attachments.pasteHint")
+                      ? t("chat.attachments.attachFile")
                       : t("chat.attachments.uploadNotConfigured")
                   }
                   type="button"
                 >
-                  <ImageIcon className="h-3.5 w-3.5" />
-                  {t("chat.attachments.pasteHint")}
+                  <Paperclip className="h-3.5 w-3.5" />
+                  {t("chat.attachments.attachFile")}
                 </button>
               </div>
 

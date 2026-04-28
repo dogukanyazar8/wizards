@@ -10,6 +10,7 @@ import {
   DMMessagesResponseSchema,
   type DMMessagesResponse,
 } from "@/lib/dm/types";
+import { isMessageImageContentType } from "@/lib/messages/attachment-rules";
 
 export class DMClientError extends Error {
   constructor(
@@ -177,13 +178,17 @@ export function getConversationPreview(
   conversation: DMConversationDTO,
   maxLength: number,
   imageLabel: string = "Image",
+  fileLabel: string = "File",
 ) {
   const preview = conversation.lastMessage?.content?.trim() ?? "";
+  const firstAttachment = conversation.lastMessage?.attachments[0];
   const normalizedPreview =
     preview.length > 0
       ? preview
-      : conversation.lastMessage?.attachments.length
-        ? imageLabel
+      : firstAttachment
+        ? isMessageImageContentType(firstAttachment.contentType)
+          ? imageLabel
+          : fileLabel
         : "";
 
   if (normalizedPreview.length <= maxLength) {

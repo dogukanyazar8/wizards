@@ -5,15 +5,25 @@ import {
 } from "@wizards/types";
 import { z } from "zod";
 import { ApiError } from "@/lib/api";
-
-export const MESSAGE_IMAGE_CONTENT_TYPES = [
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-] as const;
-
-export const MESSAGE_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
-export const MESSAGE_ATTACHMENT_MAX_COUNT = 5;
+import {
+  getMessageAttachmentMaxBytes,
+  isMessageImageContentType,
+  isSupportedMessageAttachmentContentType,
+  MESSAGE_ATTACHMENT_MAX_COUNT,
+} from "./attachment-rules";
+export {
+  MESSAGE_ATTACHMENT_ACCEPT,
+  MESSAGE_ATTACHMENT_CONTENT_TYPES,
+  MESSAGE_ATTACHMENT_MAX_COUNT,
+  MESSAGE_FILE_CONTENT_TYPES,
+  MESSAGE_FILE_MAX_BYTES,
+  MESSAGE_IMAGE_CONTENT_TYPES,
+  MESSAGE_IMAGE_MAX_BYTES,
+  getMessageAttachmentMaxBytes,
+  isMessageFileContentType,
+  isMessageImageContentType,
+  isSupportedMessageAttachmentContentType,
+} from "./attachment-rules";
 
 const UploadedAttachmentsSchema = z
   .array(UploadedAttachmentInputSchema)
@@ -102,14 +112,13 @@ export async function claimUploadedMessageAttachments(
 
   for (const input of inputs) {
     const attachment = byId.get(input.id);
+    const maxBytes = attachment ? getMessageAttachmentMaxBytes(attachment.contentType) : 0;
 
     if (
       !attachment ||
-      !MESSAGE_IMAGE_CONTENT_TYPES.includes(
-        attachment.contentType as (typeof MESSAGE_IMAGE_CONTENT_TYPES)[number],
-      ) ||
+      !isSupportedMessageAttachmentContentType(attachment.contentType) ||
       attachment.size <= 0 ||
-      attachment.size > MESSAGE_IMAGE_MAX_BYTES
+      attachment.size > maxBytes
     ) {
       throw new ApiError("Attachment type or size is not supported.", 400, "INVALID_ATTACHMENT");
     }
@@ -122,8 +131,14 @@ export async function claimUploadedMessageAttachments(
         where: { id: input.id },
         data: {
           ...link,
-          width: normalizeDimension(input.width) ?? current?.width ?? null,
-          height: normalizeDimension(input.height) ?? current?.height ?? null,
+          width:
+            current && isMessageImageContentType(current.contentType)
+              ? normalizeDimension(input.width) ?? current.width ?? null
+              : null,
+          height:
+            current && isMessageImageContentType(current.contentType)
+              ? normalizeDimension(input.height) ?? current.height ?? null
+              : null,
         },
       });
     }),

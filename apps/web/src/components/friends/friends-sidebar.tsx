@@ -144,7 +144,12 @@ export function FriendsSidebar({
                   otherParticipant?.username ??
                   t("dm.sidebar.unknownUser");
                 const preview = conversation.lastMessage
-                  ? getConversationPreview(conversation, 40, t("chat.attachments.image"))
+                  ? getConversationPreview(
+                      conversation,
+                      40,
+                      t("chat.attachments.image"),
+                      t("chat.attachments.file"),
+                    )
                   : t("dm.sidebar.emptyConversation");
                 const isActive = activeConversationId === conversation.id;
 
