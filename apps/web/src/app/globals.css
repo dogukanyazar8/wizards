@@ -1117,4 +1117,44 @@ h4 {
   .hover\:text-app-foreground:hover {
     color: hsl(var(--foreground));
   }
+
+  .app-emoji-picker em-emoji-picker {
+    width: 100%;
+    max-height: 360px;
+    border: 0;
+    --background-rgb: 255, 255, 255;
+    --border-radius: 22px;
+    --category-icon-size: 18px;
+    --font-family: var(--font-sans), sans-serif;
+    --rgb-accent: 102, 118, 255;
+    --rgb-background: 255, 255, 255;
+    --rgb-color: 31, 41, 55;
+    --rgb-input: 244, 246, 250;
+  }
+
+  html.theme-ash .app-emoji-picker em-emoji-picker,
+  html.theme-graphite .app-emoji-picker em-emoji-picker,
+  html.theme-dark .app-emoji-picker em-emoji-picker,
+  html.theme-onyx .app-emoji-picker em-emoji-picker,
+  html.theme-midnight .app-emoji-picker em-emoji-picker,
+  html.theme-deep-purple-gradient .app-emoji-picker em-emoji-picker,
+  html.theme-blue-purple-gradient .app-emoji-picker em-emoji-picker,
+  html.theme-forest-dark .app-emoji-picker em-emoji-picker,
+  html.theme-crimson-dark .app-emoji-picker em-emoji-picker,
+  html.theme-midnight-navy .app-emoji-picker em-emoji-picker,
+  html.theme-mauve-dark .app-emoji-picker em-emoji-picker,
+  html.theme-slate-dark .app-emoji-picker em-emoji-picker,
+  html.theme-teal-dark .app-emoji-picker em-emoji-picker,
+  html.theme-ocean-dark .app-emoji-picker em-emoji-picker,
+  html.theme-purple-teal .app-emoji-picker em-emoji-picker,
+  html.theme-studio .app-emoji-picker em-emoji-picker,
+  html.theme-amber-dark .app-emoji-picker em-emoji-picker,
+  html.theme-green-rainbow .app-emoji-picker em-emoji-picker,
+  html.theme-khaki-dark .app-emoji-picker em-emoji-picker,
+  html.theme-royal-blue .app-emoji-picker em-emoji-picker {
+    --background-rgb: 34, 38, 46;
+    --rgb-background: 34, 38, 46;
+    --rgb-color: 236, 240, 247;
+    --rgb-input: 46, 52, 62;
+  }
 }

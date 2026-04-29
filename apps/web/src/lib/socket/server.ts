@@ -11,6 +11,8 @@ import {
   getDirectMessageConversationForUser,
   getDMDisplayName,
   mapDMMessagePayload,
+  mapDMMessagePayloadWithReactions,
+  toggleDMReaction,
 } from "@/lib/dm/service";
 import { getBlockStatus } from "@/lib/friends/helpers";
 import {
@@ -36,6 +38,7 @@ import {
   getActiveChannelViewerUserIds,
   markChannelReadStates,
 } from "@/lib/workspace/unread-service";
+import { getServerMediaSettings } from "@/lib/workspace/server-features";
 import {
   createMessage,
   deleteMessage,
@@ -588,7 +591,14 @@ export function initSocketServer(httpServer: HTTPServer) {
 
         const channel = await prisma.channel.findUnique({
           where: { id: data.channelId },
-          select: { serverId: true },
+          select: {
+            server: {
+              select: {
+                features: true,
+              },
+            },
+            serverId: true,
+          },
         });
 
         if (!channel?.serverId) {
@@ -610,6 +620,28 @@ export function initSocketServer(httpServer: HTTPServer) {
         }
 
         const attachmentInputs = parseUploadedAttachmentInputs(data.attachments);
+        const mediaSettings = getServerMediaSettings(channel.server?.features ?? []);
+
+        if (attachmentInputs.length > 0) {
+          const attachments = await prisma.attachment.findMany({
+            where: {
+              id: { in: attachmentInputs.map((attachment) => attachment.id) },
+              userId,
+            },
+            select: {
+              contentType: true,
+            },
+          });
+
+          if (!mediaSettings.allowGifs && attachments.some((attachment) => isMessageGifContentType(attachment.contentType))) {
+            throw new ApiError("GIFs are disabled for this server.", 403, "GIFS_DISABLED");
+          }
+
+          if (!mediaSettings.allowFileUploads && attachments.some((attachment) => !isMessageGifContentType(attachment.contentType))) {
+            throw new ApiError("File uploads are disabled for this server.", 403, "FILE_UPLOADS_DISABLED");
+          }
+        }
+
         const content = normalizeMessageContentForSend(data.content, attachmentInputs);
         const message = await createMessage(
           data.channelId,
@@ -1194,7 +1226,7 @@ export function initSocketServer(httpServer: HTTPServer) {
 
           io.to(`dm:${existingMessage.conversationId}`).emit(
             "dm:message:updated",
-            mapDMMessagePayload(updatedMessage),
+            await mapDMMessagePayloadWithReactions(updatedMessage),
           );
         } catch (error) {
           if (
@@ -1268,6 +1300,51 @@ export function initSocketServer(httpServer: HTTPServer) {
         emitSafeDMError("NOT_FOUND", "Unable to delete DM message.", error);
       }
     });
+
+    const handleDMReaction = async (data: { emoji: string; messageId: string }) => {
+      try {
+        const message = await prisma.dMMessage.findUnique({
+          where: { id: data.messageId },
+          select: {
+            conversationId: true,
+            deletedAt: true,
+          },
+        });
+
+        if (!message || message.deletedAt) {
+          emitDMError("NOT_FOUND", "Message not found.");
+          return;
+        }
+
+        if (!(await requireDMParticipant(message.conversationId))) {
+          emitDMError("FORBIDDEN", "You are not a participant in this DM");
+          return;
+        }
+
+        const reactions = await toggleDMReaction(data.messageId, userId, data.emoji);
+        io.to(`dm:${message.conversationId}`).emit("dm:message:reaction_updated", {
+          messageId: data.messageId,
+          reactions,
+        });
+      } catch (error) {
+        if (error instanceof ApiError) {
+          emitDMError(
+            error.status === 403
+              ? "FORBIDDEN"
+              : error.status === 404
+                ? "NOT_FOUND"
+                : "VALIDATION_ERROR",
+            error.message,
+          );
+          return;
+        }
+
+        emitSafeDMError("NOT_FOUND", "Unable to update DM reactions.", error);
+      }
+    };
+
+    socket.on("dm:message:react", handleDMReaction);
+    socket.on("dm:message:unreact", handleDMReaction);
 
     socket.on("dm:typing:start", async (data) => {
       try {

@@ -3,8 +3,9 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Copy, Shield, Trash2, UserRoundX, X } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import type { WorkspaceServerDetail } from "@wizards/types";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { WorkspaceServerDetail, WorkspaceServerSummary } from "@wizards/types";
 import { Button } from "@wizards/ui";
 import { useI18n } from "@/components/providers/locale-provider";
 import { Avatar } from "@/components/ui/avatar";
@@ -12,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ServerIconField } from "@/components/shell/server-icon-field";
+import { ServerFeatureToggle } from "@/components/shell/server-feature-toggle";
 import { useAppStore } from "@/lib/store";
 import {
   kickMemberRequest,
@@ -37,7 +39,9 @@ export function ServerSettingsOverlay({
 }: ServerSettingsOverlayProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
+  const router = useRouter();
   const closeServerSettings = useAppStore((state) => state.closeServerSettings);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [tab, setTab] = useState<SettingsTab>("overview");
   const [name, setName] = useState(detail?.server.name ?? "");
   const [description, setDescription] = useState(
@@ -46,43 +50,96 @@ export function ServerSettingsOverlay({
   const [iconUrl, setIconUrl] = useState<string | null>(
     detail?.server.iconUrl ?? null,
   );
+  const [allowGifs, setAllowGifs] = useState(detail?.server.allowGifs ?? true);
+  const [allowFileUploads, setAllowFileUploads] = useState(
+    detail?.server.allowFileUploads ?? true,
+  );
+  const [overviewSaved, setOverviewSaved] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setTab("overview");
+      setOverviewSaved(false);
       return;
     }
 
     setName(detail?.server.name ?? "");
     setDescription(detail?.server.description ?? "");
     setIconUrl(detail?.server.iconUrl ?? null);
-  }, [detail?.server.description, detail?.server.iconUrl, detail?.server.name, open]);
+    setAllowGifs(detail?.server.allowGifs ?? true);
+    setAllowFileUploads(detail?.server.allowFileUploads ?? true);
+  }, [
+    detail?.server.allowFileUploads,
+    detail?.server.allowGifs,
+    detail?.server.description,
+    detail?.server.iconUrl,
+    detail?.server.name,
+    open,
+  ]);
+
+  useEffect(
+    () => () => {
+      if (savedTimerRef.current) {
+        clearTimeout(savedTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const updateMutation = useMutation({
+    onMutate: () => {
+      setOverviewSaved(false);
+    },
     mutationFn: async () => {
       if (!detail) {
         return;
       }
 
       return updateServerRequest(detail.server.id, {
+        allowFileUploads,
+        allowGifs,
         description,
         iconUrl,
         name,
       });
     },
-    onSuccess: async () => {
-      if (!detail) {
+    onSuccess: async (result) => {
+      if (!detail || !result?.detail) {
         return;
       }
 
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: workspaceQueryKeys.server(detail.server.id),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: workspaceQueryKeys.servers,
-        }),
-      ]);
+      const updatedDetail = result.detail;
+      queryClient.setQueryData<WorkspaceServerDetail>(
+        workspaceQueryKeys.server(detail.server.id),
+        updatedDetail,
+      );
+      queryClient.setQueryData<WorkspaceServerSummary[] | undefined>(
+        workspaceQueryKeys.servers,
+        (current) =>
+          current?.map((server) =>
+            server.id === updatedDetail.server.id
+              ? {
+                  ...server,
+                  allowFileUploads: updatedDetail.server.allowFileUploads,
+                  allowGifs: updatedDetail.server.allowGifs,
+                  iconUrl: updatedDetail.server.iconUrl,
+                  name: updatedDetail.server.name,
+                }
+              : server,
+          ),
+      );
+      void queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.server(detail.server.id),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.servers,
+      });
+      router.refresh();
+      setOverviewSaved(true);
+      if (savedTimerRef.current) {
+        clearTimeout(savedTimerRef.current);
+      }
+      savedTimerRef.current = setTimeout(() => setOverviewSaved(false), 2400);
     },
   });
 
@@ -259,6 +316,32 @@ export function ServerSettingsOverlay({
                         value={description}
                       />
                     </div>
+                    <div className="app-panel rounded-[28px] border p-5">
+                      <div className="mb-4">
+                        <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+                          {t("workspace.media.title")}
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-app-muted">
+                          {t("workspace.media.description")}
+                        </p>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <ServerFeatureToggle
+                          checked={allowGifs}
+                          description={t("workspace.media.gifs.description")}
+                          disabled={updateMutation.isPending}
+                          onChange={setAllowGifs}
+                          title={t("workspace.media.gifs.title")}
+                        />
+                        <ServerFeatureToggle
+                          checked={allowFileUploads}
+                          description={t("workspace.media.files.description")}
+                          disabled={updateMutation.isPending}
+                          onChange={setAllowFileUploads}
+                          title={t("workspace.media.files.title")}
+                        />
+                      </div>
+                    </div>
                     <div className="flex justify-end">
                       <Button
                         disabled={updateMutation.isPending}
@@ -268,6 +351,16 @@ export function ServerSettingsOverlay({
                         {updateMutation.isPending ? t("common.saving") : t("serverSettings.saveOverview")}
                       </Button>
                     </div>
+                    {overviewSaved ? (
+                      <div className="app-success rounded-[24px] border p-4">
+                        <p className="text-app-success text-xs font-semibold uppercase tracking-[0.2em]">
+                          {t("serverSettings.overviewSavedTitle")}
+                        </p>
+                        <p className="text-app-foreground mt-2 text-sm font-medium">
+                          {t("serverSettings.overviewSavedDescription")}
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
 

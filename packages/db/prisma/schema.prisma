@@ -244,6 +244,7 @@ model User {
   userServerSettings     UserServerSettings[]
   dmParticipants         DMParticipant[]
   dmMessages             DMMessage[]
+  dmReactions            DMReaction[]
   attachments            Attachment[]
   notifications          Notification[]
   emojis                 Emoji[]
@@ -760,11 +761,28 @@ model DMMessage {
   reply        DMMessage?     @relation("DMMessageReply", fields: [replyToId], references: [id], onDelete: Restrict)
   replies      DMMessage[]    @relation("DMMessageReply")
   attachments  Attachment[]   @relation("DMMessageAttachment")
+  reactions    DMReaction[]
 
   content_search Unsupported("tsvector")? @map("content_search")
 
   @@index([conversationId, createdAt])
   @@index([userId])
+}
+
+model DMReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+  emojiName String?
+  isCustom  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  message DMMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
 }
 
 model Notification {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MessageReactionSchema, type MessageReaction } from "./messages";
 
 export type DMPresenceStatus = "ONLINE" | "IDLE" | "DND" | "OFFLINE";
 export type DMConversationType = "DM" | "GROUP_DM";
@@ -36,6 +37,7 @@ export interface DMMessagePayload {
   createdAt: string;
   author: DMMessageAuthorPayload;
   attachments: DMMessageAttachmentPayload[];
+  reactions: MessageReaction[];
   replyTo: DMMessagePayload | null;
 }
 
@@ -94,6 +96,7 @@ export const DMMessagePayloadSchema: z.ZodType<DMMessagePayload> = z.lazy(() =>
     createdAt: z.string(),
     author: DMMessageAuthorSchema,
     attachments: z.array(DMMessageAttachmentSchema),
+    reactions: z.array(MessageReactionSchema),
     replyTo: DMMessagePayloadSchema.nullable(),
   }),
 );

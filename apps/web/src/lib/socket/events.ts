@@ -53,6 +53,8 @@ export interface ClientToServerEvents {
   }) => void;
   "dm:message:edit": (data: { messageId: string; content: string }) => void;
   "dm:message:delete": (data: { messageId: string }) => void;
+  "dm:message:react": (data: { messageId: string; emoji: string }) => void;
+  "dm:message:unreact": (data: { messageId: string; emoji: string }) => void;
   "dm:typing:start": (data: { conversationId: string }) => void;
   "dm:typing:stop": (data: { conversationId: string }) => void;
   "dm:screenshare:start": (data: { conversationId: string }) => void;
@@ -94,11 +96,16 @@ export interface ServerToClientEvents {
     reactions: MessageReaction[];
   }) => void;
   "server:unread:update": (data: { serverId: string; unreadCount: number }) => void;
+  "server:settings:updated": (data: { serverId: string }) => void;
   "dm:message:new": (message: DMMessagePayload) => void;
   "dm:message:updated": (message: DMMessagePayload) => void;
   "dm:message:deleted": (data: {
     messageId: string;
     conversationId: string;
+  }) => void;
+  "dm:message:reaction_updated": (data: {
+    messageId: string;
+    reactions: MessageReaction[];
   }) => void;
   "dm:typing:update": (data: {
     conversationId: string;

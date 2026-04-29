@@ -65,6 +65,8 @@ export const WorkspaceInviteSchema = z.object({
 });
 
 export const WorkspaceServerSummarySchema = z.object({
+  allowFileUploads: z.boolean(),
+  allowGifs: z.boolean(),
   id: z.string(),
   iconUrl: z.string().nullable(),
   inviteCode: z.string().nullable(),
@@ -96,6 +98,8 @@ export const WorkspaceServerResponseSchema = z.object({
 });
 
 export const CreateServerSchema = z.object({
+  allowFileUploads: z.boolean().optional().default(true),
+  allowGifs: z.boolean().optional().default(true),
   description: optionalTrimmedString(160),
   iconUrl: z
     .string()
@@ -109,6 +113,8 @@ export const CreateServerSchema = z.object({
 
 export const UpdateServerSchema = z
   .object({
+    allowFileUploads: z.boolean().optional(),
+    allowGifs: z.boolean().optional(),
     description: optionalTrimmedString(160),
     iconUrl: z
       .string()
@@ -119,7 +125,12 @@ export const UpdateServerSchema = z
       .transform((value) => emptyStringToNull(value)),
     name: z.string().trim().min(2).max(64).optional(),
   })
-  .refine((value) => value.name !== undefined || value.description !== undefined || value.iconUrl !== undefined, {
+  .refine((value) =>
+    value.name !== undefined ||
+    value.description !== undefined ||
+    value.iconUrl !== undefined ||
+    value.allowGifs !== undefined ||
+    value.allowFileUploads !== undefined, {
     message: "validation.form.atLeastOne",
   });
 

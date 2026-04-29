@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
 import { ServerIconField } from "@/components/shell/server-icon-field";
+import { ServerFeatureToggle } from "@/components/shell/server-feature-toggle";
 import { useAppStore } from "@/lib/store";
 import {
   applyChannelPatch,
@@ -78,6 +79,8 @@ export function WorkspaceModals({
   const [serverName, setServerName] = useState("");
   const [serverDescription, setServerDescription] = useState("");
   const [serverIconUrl, setServerIconUrl] = useState<string | null>(null);
+  const [serverAllowGifs, setServerAllowGifs] = useState(true);
+  const [serverAllowFileUploads, setServerAllowFileUploads] = useState(true);
   const [channelName, setChannelName] = useState("");
   const [channelTopic, setChannelTopic] = useState("");
   const [channelCategoryId, setChannelCategoryId] = useState<string | null>(null);
@@ -99,13 +102,19 @@ export function WorkspaceModals({
       setServerName(activeServerDetail.server.name);
       setServerDescription(activeServerDetail.server.description ?? "");
       setServerIconUrl(activeServerDetail.server.iconUrl ?? null);
+      setServerAllowGifs(activeServerDetail.server.allowGifs);
+      setServerAllowFileUploads(activeServerDetail.server.allowFileUploads);
       return;
     }
 
     setServerName("");
     setServerDescription("");
     setServerIconUrl(null);
+    setServerAllowGifs(true);
+    setServerAllowFileUploads(true);
   }, [
+    activeServerDetail?.server.allowFileUploads,
+    activeServerDetail?.server.allowGifs,
     activeServerDetail?.server.description,
     activeServerDetail?.server.iconUrl,
     activeServerDetail?.server.name,
@@ -167,6 +176,8 @@ export function WorkspaceModals({
     mutationFn: async () => {
       if (serverModal.mode === "edit" && activeServerDetail) {
         return updateServerRequest(activeServerDetail.server.id, {
+          allowFileUploads: serverAllowFileUploads,
+          allowGifs: serverAllowGifs,
           description: serverDescription,
           iconUrl: serverIconUrl,
           name: serverName,
@@ -174,6 +185,8 @@ export function WorkspaceModals({
       }
 
       return createServerRequest({
+        allowFileUploads: serverAllowFileUploads,
+        allowGifs: serverAllowGifs,
         description: serverDescription,
         iconUrl: serverIconUrl,
         name: serverName,
@@ -444,6 +457,30 @@ export function WorkspaceModals({
               placeholder={t("workspace.modal.serverDescriptionPlaceholder")}
               value={serverDescription}
             />
+          </div>
+          <div className="space-y-3">
+            <div>
+              <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+                {t("workspace.media.title")}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-app-muted">
+                {t("workspace.media.description")}
+              </p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <ServerFeatureToggle
+                checked={serverAllowGifs}
+                description={t("workspace.media.gifs.description")}
+                onChange={setServerAllowGifs}
+                title={t("workspace.media.gifs.title")}
+              />
+              <ServerFeatureToggle
+                checked={serverAllowFileUploads}
+                description={t("workspace.media.files.description")}
+                onChange={setServerAllowFileUploads}
+                title={t("workspace.media.files.title")}
+              />
+            </div>
           </div>
           <div className="flex justify-end gap-2">
             <Button onClick={closeServerModal} type="button" variant="outline">

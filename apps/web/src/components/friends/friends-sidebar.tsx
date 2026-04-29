@@ -60,6 +60,7 @@ export function FriendsSidebar({
     hideConversation,
     isHidingConversation,
     isLoading: conversationsLoading,
+    markAsRead,
   } = useDMConversations(currentUserId);
 
   const incomingCount = pendingQuery.data?.incoming.length ?? 0;
@@ -163,7 +164,12 @@ export function FriendsSidebar({
                           ? "border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.12)]"
                           : "border-transparent hover:border-[hsl(var(--border)/0.72)] hover:bg-[hsl(var(--surface-soft)/0.28)]"
                       }`}
-                      onClick={() => onNavigate(`/channels/@me/${conversation.id}`)}
+                      onClick={() => {
+                        if (unreadCount > 0) {
+                          void markAsRead(conversation.id);
+                        }
+                        onNavigate(`/channels/@me/${conversation.id}`);
+                      }}
                       onMouseEnter={() => onPrefetch?.(`/channels/@me/${conversation.id}`)}
                       type="button"
                     >

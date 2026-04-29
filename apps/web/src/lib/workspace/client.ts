@@ -91,6 +91,8 @@ export async function fetchWorkspaceServer(serverId: string) {
 }
 
 export async function createServerRequest(input: {
+  allowFileUploads?: boolean;
+  allowGifs?: boolean;
   description?: string | null;
   iconUrl?: string | null;
   name: string;
@@ -107,6 +109,8 @@ export async function createServerRequest(input: {
 export async function updateServerRequest(
   serverId: string,
   input: {
+    allowFileUploads?: boolean;
+    allowGifs?: boolean;
     description?: string | null;
     iconUrl?: string | null;
     name?: string;

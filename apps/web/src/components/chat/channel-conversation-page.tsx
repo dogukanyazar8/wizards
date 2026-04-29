@@ -11,6 +11,8 @@ import {
 } from "@/lib/workspace/client";
 
 interface ChannelConversationPageProps {
+  allowFileUploads: boolean;
+  allowGifs: boolean;
   canModerate: boolean;
   channelId: string;
   channelName: string;
@@ -23,6 +25,8 @@ interface ChannelConversationPageProps {
 }
 
 export function ChannelConversationPage({
+  allowFileUploads,
+  allowGifs,
   canModerate,
   channelId,
   channelName,
@@ -96,6 +100,8 @@ export function ChannelConversationPage({
       currentUserUsername={currentUserUsername}
       canModerate={canModerate}
       serverId={serverId}
+      allowFileUploads={allowFileUploads}
+      allowGifs={allowGifs}
       uploadthingEnabled={uploadthingEnabled}
     />
   );

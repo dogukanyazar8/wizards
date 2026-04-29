@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import type { DMConversationDTO } from "@wizards/types";
@@ -14,13 +14,28 @@ import {
   markDMConversationReadRequest,
   removeDMConversationFromCache,
 } from "@/lib/dm/client";
+import {
+  appendMessage,
+  getMessagesQueryKey,
+  mapDMMessageToChatMessage,
+  type MessagePages,
+} from "@/hooks/use-messages";
 import { useSocket } from "./use-socket";
 
 const EMPTY_CONVERSATIONS: DMConversationDTO[] = [];
 
-export function useDMConversations(currentUserId: string) {
+interface UseDMConversationsOptions {
+  autoMarkActiveAsRead?: boolean;
+}
+
+export function useDMConversations(
+  currentUserId: string,
+  options: UseDMConversationsOptions = {},
+) {
   const socket = useSocket();
   const queryClient = useQueryClient();
+  const activeReadRequestsRef = useRef<Set<string>>(new Set());
+  const autoMarkActiveAsRead = options.autoMarkActiveAsRead ?? false;
   const params = useParams<{ channelId?: string; serverId?: string }>();
   const activeConversationId =
     params.serverId === "@me" && typeof params.channelId === "string"
@@ -50,6 +65,41 @@ export function useDMConversations(currentUserId: string) {
           activeConversationId,
         ),
       );
+
+      if (event.conversationId !== activeConversationId) {
+        return;
+      }
+
+      const lastMessage = event.conversation.lastMessage;
+      if (lastMessage) {
+        queryClient.setQueryData<MessagePages>(
+          getMessagesQueryKey("dm", event.conversationId),
+          (current) => appendMessage(current, mapDMMessageToChatMessage(lastMessage)),
+        );
+      }
+
+      if (
+        autoMarkActiveAsRead &&
+        event.unreadCount > 0 &&
+        !activeReadRequestsRef.current.has(event.conversationId)
+      ) {
+        activeReadRequestsRef.current.add(event.conversationId);
+        void markDMConversationReadRequest(event.conversationId)
+          .then(() => {
+            queryClient.setQueryData<DMConversationDTO[] | undefined>(
+              dmQueryKeys.list,
+              (current) =>
+                markDMConversationAsReadInCache(
+                  current,
+                  event.conversationId,
+                  currentUserId,
+                ),
+            );
+          })
+          .finally(() => {
+            activeReadRequestsRef.current.delete(event.conversationId);
+          });
+      }
     };
 
     const handlePresenceUpdate = (event: {
@@ -69,7 +119,7 @@ export function useDMConversations(currentUserId: string) {
       socket.off("dm:conversation:updated", handleConversationUpdated);
       socket.off("presence:update", handlePresenceUpdate);
     };
-  }, [activeConversationId, currentUserId, queryClient, socket]);
+  }, [activeConversationId, autoMarkActiveAsRead, currentUserId, queryClient, socket]);
 
   const hideMutation = useMutation({
     mutationFn: (conversationId: string) => hideDMConversationRequest(conversationId),
@@ -98,9 +148,12 @@ export function useDMConversations(currentUserId: string) {
 
   const markAsRead = useCallback(
     async (conversationId: string) => {
+      queryClient.setQueryData<DMConversationDTO[] | undefined>(dmQueryKeys.list, (current) =>
+        markDMConversationAsReadInCache(current, conversationId, currentUserId),
+      );
       await markAsReadMutation.mutateAsync(conversationId);
     },
-    [markAsReadMutation],
+    [currentUserId, markAsReadMutation, queryClient],
   );
 
   return {

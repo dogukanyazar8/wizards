@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MessageCircle, Trash2, Pencil, SmilePlus } from "lucide-react";
+import { MessageCircle, Pencil, SmilePlus, Trash2 } from "lucide-react";
 import { useI18n } from "@/components/providers/locale-provider";
 
-const QUICK_REACTIONS = ["👍", "❤️", "😂", "🎉", "😮", "👀"] as const;
+const QUICK_REACTIONS = [
+  "\u{1F44D}",
+  "\u2764\uFE0F",
+  "\u{1F602}",
+  "\u{1F389}",
+  "\u{1F62E}",
+  "\u{1F440}",
+] as const;
 
 interface MessageToolbarProps {
   allowReact?: boolean;
@@ -59,7 +66,9 @@ export function MessageToolbar({
   }, [showReactionMenu]);
 
   return (
-    <div className={`bg-app-panel border-app-border flex items-center gap-1 rounded-full border px-2 py-1 shadow-[0_14px_32px_hsl(var(--shadow-color)/0.14)] ${className ?? ""}`}>
+    <div
+      className={`bg-app-panel border-app-border flex items-center gap-1 rounded-full border px-2 py-1 shadow-[0_14px_32px_hsl(var(--shadow-color)/0.14)] ${className ?? ""}`}
+    >
       {allowReact ? (
         <div className="relative" ref={reactionMenuRef}>
           <button
@@ -98,33 +107,36 @@ export function MessageToolbar({
       <button
         onClick={onReply}
         title={t("chat.message.reply")}
-        className="p-1 hover:bg-app-surface-soft rounded transition"
+        className="rounded p-1 transition hover:bg-app-surface-soft"
         aria-label={t("chat.message.replyAria")}
+        type="button"
       >
         <MessageCircle className="h-4 w-4 text-app-muted hover:text-app-foreground" />
       </button>
 
-      {isOwner && (
+      {isOwner ? (
         <button
           onClick={onEdit}
           title={t("chat.message.edit")}
-          className="p-1 hover:bg-app-surface-soft rounded transition"
+          className="rounded p-1 transition hover:bg-app-surface-soft"
           aria-label={t("chat.message.editAria")}
+          type="button"
         >
           <Pencil className="h-4 w-4 text-app-muted hover:text-app-foreground" />
         </button>
-      )}
+      ) : null}
 
-      {(isOwner || canModerate) && (
+      {isOwner || canModerate ? (
         <button
           onClick={onDelete}
           title={t("chat.message.delete")}
           className="rounded p-1 text-app-danger transition hover:bg-[hsl(var(--danger)/0.14)] hover:text-app-danger"
           aria-label={t("chat.message.deleteAria")}
+          type="button"
         >
           <Trash2 className="h-4 w-4" />
         </button>
-      )}
+      ) : null}
     </div>
   );
 }

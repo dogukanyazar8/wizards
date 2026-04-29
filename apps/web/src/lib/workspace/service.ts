@@ -31,6 +31,10 @@ import {
   getServerUnreadCounts,
   markChannelReadStates,
 } from "@/lib/workspace/unread-service";
+import {
+  applyServerMediaSettings,
+  getServerMediaSettings,
+} from "@/lib/workspace/server-features";
 
 const SERVER_ADMIN_PERMISSION =
   (1n << 0n) |
@@ -211,6 +215,8 @@ function ensureOwner(context: AccessContext) {
 
 function mapServerSummary(args: {
   accessLevel: WorkspaceAccessLevel;
+  allowFileUploads: boolean;
+  allowGifs: boolean;
   defaultChannelId: string | null;
   iconUrl: string | null;
   id: string;
@@ -221,6 +227,8 @@ function mapServerSummary(args: {
 }): WorkspaceServerSummary {
   return {
     accessLevel: args.accessLevel,
+    allowFileUploads: args.allowFileUploads,
+    allowGifs: args.allowGifs,
     defaultChannelId: args.defaultChannelId,
     iconUrl: args.iconUrl,
     id: args.id,
@@ -363,6 +371,7 @@ export async function listWorkspaceServers(userId: string) {
             },
           },
           iconUrl: true,
+          features: true,
           id: true,
           inviteCode: true,
           name: true,
@@ -375,13 +384,17 @@ export async function listWorkspaceServers(userId: string) {
   const serverIds = memberships.map((membership) => membership.server.id);
   const unreadCounts = await getServerUnreadCounts(userId, serverIds);
 
-  return memberships.map((membership) =>
-    mapServerSummary({
+  return memberships.map((membership) => {
+    const mediaSettings = getServerMediaSettings(membership.server.features);
+
+    return mapServerSummary({
       accessLevel: deriveAccessLevel(
         membership.server.ownerId,
         userId,
         membership.roles.map((entry) => entry.role),
       ),
+      allowFileUploads: mediaSettings.allowFileUploads,
+      allowGifs: mediaSettings.allowGifs,
       defaultChannelId: membership.server.channels[0]?.id ?? null,
       iconUrl: membership.server.iconUrl,
       id: membership.server.id,
@@ -389,8 +402,8 @@ export async function listWorkspaceServers(userId: string) {
       memberCount: membership.server._count.members,
       name: membership.server.name,
       unreadCount: unreadCounts.get(membership.server.id) ?? 0,
-    }),
-  );
+    });
+  });
 }
 
 export async function getWorkspaceServerDetail(userId: string, serverId: string): Promise<WorkspaceServerDetail> {
@@ -458,6 +471,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
           },
         },
         description: true,
+        features: true,
         iconUrl: true,
         id: true,
         inviteCode: true,
@@ -528,6 +542,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
 
   const categories = mapCategories(server.categories);
   const ungroupedChannels = server.channels.map(toWorkspaceChannel);
+  const mediaSettings = getServerMediaSettings(server.features);
   const defaultChannelId = pickDefaultChannelId({
     categories,
     ungroupedChannels,
@@ -539,6 +554,8 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
     members: mapMembers(server.ownerId, server.members),
     server: {
       accessLevel: access.accessLevel,
+      allowFileUploads: mediaSettings.allowFileUploads,
+      allowGifs: mediaSettings.allowGifs,
       defaultChannelId,
       description: server.description,
       iconUrl: server.iconUrl,
@@ -561,7 +578,10 @@ export async function createWorkspaceServer(userId: string, input: CreateServerI
     const server = await tx.server.create({
       data: {
         description: input.description ?? null,
-        features: [],
+        features: applyServerMediaSettings([], {
+          allowFileUploads: input.allowFileUploads,
+          allowGifs: input.allowGifs,
+        }),
         iconUrl: input.iconUrl ?? null,
         inviteCode,
         name: input.name.trim(),
@@ -695,6 +715,18 @@ export async function updateWorkspaceServer(userId: string, serverId: string, in
     data.iconUrl = input.iconUrl;
   }
 
+  if (input.allowGifs !== undefined || input.allowFileUploads !== undefined) {
+    const server = await prisma.server.findUnique({
+      where: { id: serverId },
+      select: { features: true },
+    });
+
+    data.features = applyServerMediaSettings(server?.features ?? [], {
+      allowFileUploads: input.allowFileUploads,
+      allowGifs: input.allowGifs,
+    });
+  }
+
   await prisma.server.update({
     where: {
       id: serverId,
@@ -702,7 +734,12 @@ export async function updateWorkspaceServer(userId: string, serverId: string, in
     data,
   });
 
-  return getWorkspaceServerDetail(userId, serverId);
+  const detail = await getWorkspaceServerDetail(userId, serverId);
+  getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
+    serverId,
+  });
+
+  return detail;
 }
 
 export async function deleteWorkspaceServer(

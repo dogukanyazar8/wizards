@@ -643,10 +643,13 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.input.placeholder": "Send a message...",
     "chat.input.openEmojiPicker": "Open emoji picker",
     "chat.input.sendMessage": "Send message",
+    "chat.emoji.title": "Emoji",
+    "chat.emoji.hint": "Pick an emoji that fits the moment.",
     "chat.attachments.fileTooLarge": "Images must be 8MB or smaller.",
     "chat.attachments.attachmentTooLarge": "This file must be {maxSize} or smaller.",
     "chat.attachments.attachImage": "Attach image",
     "chat.attachments.attachFile": "Attach file",
+    "chat.attachments.disabled": "File uploads are disabled for this server.",
     "chat.attachments.closeImageViewer": "Close image viewer",
     "chat.attachments.file": "File",
     "chat.attachments.gif": "GIF",
@@ -677,6 +680,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.gifs.empty": "No GIFs found",
     "chat.gifs.emptyHint": "Try a different search term or clear the search.",
     "chat.gifs.loadFailed": "Unable to load GIFs right now.",
+    "chat.gifs.disabled": "GIFs are disabled for this server.",
     "chat.gifs.openPicker": "Open GIF picker",
     "chat.gifs.poweredBy": "Powered by GIPHY",
     "chat.gifs.searchPlaceholder": "Search GIPHY",
@@ -727,6 +731,15 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.serverDescriptionPlaceholder":
       "A polished space for your team, club, or community.",
     "workspace.modal.serverNameMin": "At least 2 characters required",
+    "workspace.media.title": "Text channel media",
+    "workspace.media.description":
+      "Choose which rich message tools members can use in this server's text channels.",
+    "workspace.media.gifs.title": "GIF sending",
+    "workspace.media.gifs.description":
+      "Allow members to search and send GIFs in server text channels.",
+    "workspace.media.files.title": "File uploads",
+    "workspace.media.files.description":
+      "Allow screenshots, images, and documents in server text channels.",
     "workspace.modal.saveChanges": "Save Changes",
     "workspace.modal.createServer": "Create Server",
     "workspace.modal.categoryTitle": "Create Category",
@@ -780,6 +793,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "serverSettings.access": "Access",
     "serverSettings.memberCount": "{count} Members",
     "serverSettings.saveOverview": "Save Overview",
+    "serverSettings.overviewSavedTitle": "Settings Saved",
+    "serverSettings.overviewSavedDescription":
+      "Your server overview and text channel media preferences are up to date.",
     "serverSettings.kick": "Kick",
     "serverSettings.noInvites":
       "No active invites yet. Generate one from the server menu or the quick invite modal.",
@@ -1440,10 +1456,13 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.input.placeholder": "Bir mesaj gönder...",
     "chat.input.openEmojiPicker": "Emoji seçiciyi aç",
     "chat.input.sendMessage": "Mesaj gönder",
+    "chat.emoji.title": "Emoji",
+    "chat.emoji.hint": "O ana en uygun emojiyi seç.",
     "chat.attachments.fileTooLarge": "Görseller 8MB veya daha küçük olmalı.",
     "chat.attachments.attachmentTooLarge": "Bu dosya {maxSize} veya daha küçük olmalı.",
     "chat.attachments.attachImage": "Görsel ekle",
     "chat.attachments.attachFile": "Dosya ekle",
+    "chat.attachments.disabled": "Bu sunucuda dosya yükleme kapalı.",
     "chat.attachments.closeImageViewer": "Görsel görüntüleyiciyi kapat",
     "chat.attachments.file": "Dosya",
     "chat.attachments.gif": "GIF",
@@ -1474,6 +1493,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.gifs.empty": "GIF bulunamadı",
     "chat.gifs.emptyHint": "Farklı bir arama dene veya aramayı temizle.",
     "chat.gifs.loadFailed": "GIF'ler şu anda yüklenemiyor.",
+    "chat.gifs.disabled": "Bu sunucuda GIF gönderme kapalı.",
     "chat.gifs.openPicker": "GIF seçiciyi aç",
     "chat.gifs.poweredBy": "GIPHY ile desteklenir",
     "chat.gifs.searchPlaceholder": "GIPHY'de ara",
@@ -1524,6 +1544,15 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.serverDescriptionPlaceholder":
       "Takımın, kulübün veya topluluğun için özenli bir alan.",
     "workspace.modal.serverNameMin": "En az 2 karakter gerekli",
+    "workspace.media.title": "Yazı kanalı medyası",
+    "workspace.media.description":
+      "Üyelerin bu sunucunun yazı kanallarında hangi zengin mesaj araçlarını kullanabileceğini seç.",
+    "workspace.media.gifs.title": "GIF gönderimi",
+    "workspace.media.gifs.description":
+      "Üyelerin sunucu yazı kanallarında GIF arayıp göndermesine izin ver.",
+    "workspace.media.files.title": "Dosya yükleme",
+    "workspace.media.files.description":
+      "Sunucu yazı kanallarında ekran görüntüsü, görsel ve belge yüklemeye izin ver.",
     "workspace.modal.saveChanges": "Değişiklikleri Kaydet",
     "workspace.modal.createServer": "Sunucu Oluştur",
     "workspace.modal.categoryTitle": "Kategori Oluştur",
@@ -1578,6 +1607,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "serverSettings.access": "Erişim",
     "serverSettings.memberCount": "{count} Üye",
     "serverSettings.saveOverview": "Genel Bakışı Kaydet",
+    "serverSettings.overviewSavedTitle": "Ayarlar Kaydedildi",
+    "serverSettings.overviewSavedDescription":
+      "Sunucu genel bakışı ve yazı kanalı medya tercihleri güncellendi.",
     "serverSettings.kick": "At",
     "serverSettings.noInvites":
       "Henüz etkin davet yok. Sunucu menüsünden veya hızlı davet penceresinden bir tane oluştur.",

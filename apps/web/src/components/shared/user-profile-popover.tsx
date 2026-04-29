@@ -126,7 +126,7 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
     return "not_friends";
   }, [friendsQuery.data, pendingQuery.data, blockedQuery.data, userId, isSelf, blockedByThem]);
 
-  const handleTriggerClick = () => {
+  const openPopover = () => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
 
@@ -170,7 +170,19 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
 
   return (
     <>
-      <div ref={triggerRef} onClick={handleTriggerClick} className="cursor-pointer">
+      <div
+        ref={triggerRef}
+        onClick={openPopover}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openPopover();
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        className="cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+      >
         {children}
       </div>
 
@@ -178,7 +190,7 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
         createPortal(
           <motion.div
             ref={popoverRef}
-            className="app-panel fixed z-[60] w-80 overflow-hidden rounded-[28px] border shadow-[0_24px_70px_hsl(var(--shadow-color)/0.22)]"
+            className="fixed z-[60] w-80 overflow-hidden rounded-[30px] border border-[hsl(var(--border)/0.88)] bg-[hsl(var(--surface-overlay)/0.98)] shadow-[0_28px_80px_hsl(var(--shadow-color)/0.28)] backdrop-blur-2xl"
             style={{ left: `${popoverPos.x}px`, top: `${popoverPos.y}px` }}
             initial={{ opacity: 0, scale: 0.95, y: -8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}

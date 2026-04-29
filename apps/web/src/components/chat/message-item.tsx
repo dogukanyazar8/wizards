@@ -196,7 +196,7 @@ export const MessageItem = React.memo(
               <div className="pointer-events-none absolute right-0 top-0 flex w-24 justify-end opacity-0 transition group-hover:opacity-100 md:w-32">
                 {!isOptimistic ? (
                   <MessageToolbar
-                    allowReact={mode === "channel"}
+                    allowReact
                     className="pointer-events-auto"
                     messageId={message.id}
                     isOwner={isOwner}

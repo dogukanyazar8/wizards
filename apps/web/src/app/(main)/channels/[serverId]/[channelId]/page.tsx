@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth/utils";
 import { ChannelConversationPage } from "@/components/chat/channel-conversation-page";
 import { DMConversationPage } from "@/components/dm/dm-conversation-page";
 import { VoiceChannelView } from "@/components/voice/voice-channel-view";
+import { getServerMediaSettings } from "@/lib/workspace/server-features";
 
 const SERVER_ADMIN_PERMISSION =
   (1n << 0n) |
@@ -72,6 +73,11 @@ export default async function ChannelPage({ params }: PageParams) {
       select: {
         id: true,
         name: true,
+        server: {
+          select: {
+            features: true,
+          },
+        },
         topic: true,
         type: true,
       },
@@ -113,8 +119,12 @@ export default async function ChannelPage({ params }: PageParams) {
     return <VoiceChannelView channelId={channelId} serverId={normalizedServerId} />;
   }
 
+  const mediaSettings = getServerMediaSettings(channel.server?.features ?? []);
+
   return (
     <ChannelConversationPage
+      allowFileUploads={mediaSettings.allowFileUploads}
+      allowGifs={mediaSettings.allowGifs}
       channelId={channelId}
       channelName={channel.name}
       channelTopic={channel.topic}

@@ -122,11 +122,12 @@ export function MessageList({
 
   const handleReact = useCallback(
     (messageId: string, emoji: string) => {
-      if (mode !== "channel") {
+      if (mode === "channel") {
+        socket.emit("message:react", { messageId, emoji });
         return;
       }
 
-      socket.emit("message:react", { messageId, emoji });
+      socket.emit("dm:message:react", { messageId, emoji });
     },
     [mode, socket],
   );

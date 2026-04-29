@@ -24,6 +24,8 @@ import { useUploadThing } from "@/lib/uploadthing";
 interface MessageInputProps {
   conversationId: string;
   mode: MessageMode;
+  allowFileUploads?: boolean;
+  allowGifs?: boolean;
   replyTo: { id: string; authorName: string; content: string } | null;
   onSend: (
     content: string,
@@ -85,6 +87,8 @@ function readImageDimensions(previewUrl: string) {
 export function MessageInput({
   conversationId,
   mode,
+  allowFileUploads = true,
+  allowGifs = true,
   replyTo,
   onSend,
   onCancelReply,
@@ -166,6 +170,11 @@ export function MessageInput({
   };
 
   const uploadAttachmentFiles = async (files: File[]) => {
+    if (!allowFileUploads) {
+      setAttachmentUploadError(t("chat.attachments.disabled"));
+      return;
+    }
+
     if (!uploadthingEnabled) {
       setAttachmentUploadError(t("chat.attachments.uploadNotConfigured"));
       return;
@@ -184,6 +193,11 @@ export function MessageInput({
 
     const supportedFiles = files.filter((file) => {
       const maxBytes = getMessageAttachmentMaxBytes(file.type);
+
+      if (!allowGifs && isMessageGifContentType(file.type)) {
+        setAttachmentUploadError(t("chat.gifs.disabled"));
+        return false;
+      }
 
       if (!isSupportedMessageAttachmentContentType(file.type) || maxBytes <= 0) {
         setAttachmentUploadError(t("chat.attachments.unsupportedAttachmentType"));
@@ -330,6 +344,11 @@ export function MessageInput({
     attachment: MessageAttachment;
     input: UploadedAttachmentInput;
   }) => {
+    if (!allowGifs) {
+      setAttachmentUploadError(t("chat.gifs.disabled"));
+      return;
+    }
+
     if (attachmentDrafts.length >= MESSAGE_ATTACHMENT_MAX_COUNT) {
       setAttachmentUploadError(t("chat.attachments.maxAttachments"));
       return;
@@ -362,6 +381,11 @@ export function MessageInput({
     }
 
     event.preventDefault();
+    if (!allowFileUploads) {
+      setAttachmentUploadError(t("chat.attachments.disabled"));
+      return;
+    }
+
     void uploadAttachmentFiles(files);
   };
 
@@ -419,6 +443,12 @@ export function MessageInput({
       previewUrls.clear();
     };
   }, [stopTyping]);
+
+  useEffect(() => {
+    if (!allowGifs) {
+      setShowGifPicker(false);
+    }
+  }, [allowGifs]);
 
   return (
     <div className="space-y-3 border-t border-app-border bg-[hsl(var(--surface-card)/0.62)] p-4 backdrop-blur-sm md:p-5">
@@ -549,7 +579,7 @@ export function MessageInput({
                 </div>
 
                 <div className="relative inline-flex">
-                  {showGifPicker ? (
+                  {showGifPicker && allowGifs ? (
                     <GifPicker
                       onClose={() => setShowGifPicker(false)}
                       onSelect={handleGifSelect}
@@ -557,11 +587,17 @@ export function MessageInput({
                   ) : null}
                   <button
                     aria-label={t("chat.gifs.openPicker")}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.26)] px-3 py-1.5 text-xs font-medium text-app-soft transition hover:border-[hsl(var(--primary)/0.38)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.26)] px-3 py-1.5 text-xs font-medium text-app-soft transition hover:border-[hsl(var(--primary)/0.38)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!allowGifs}
                     onClick={() => {
+                      if (!allowGifs) {
+                        setAttachmentUploadError(t("chat.gifs.disabled"));
+                        return;
+                      }
                       setShowEmojiPicker(false);
                       setShowGifPicker((current) => !current);
                     }}
+                    title={allowGifs ? t("chat.gifs.openPicker") : t("chat.gifs.disabled")}
                     type="button"
                   >
                     <ImageIcon className="h-3.5 w-3.5" />
@@ -571,8 +607,14 @@ export function MessageInput({
 
                 <button
                   aria-label={t("chat.attachments.attachFile")}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.26)] px-3 py-1.5 text-xs font-medium text-app-soft transition hover:border-[hsl(var(--primary)/0.38)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.26)] px-3 py-1.5 text-xs font-medium text-app-soft transition hover:border-[hsl(var(--primary)/0.38)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!allowFileUploads}
                   onClick={() => {
+                    if (!allowFileUploads) {
+                      setAttachmentUploadError(t("chat.attachments.disabled"));
+                      return;
+                    }
+
                     if (!uploadthingEnabled) {
                       setAttachmentUploadError(t("chat.attachments.uploadNotConfigured"));
                       return;
@@ -581,7 +623,9 @@ export function MessageInput({
                     fileInputRef.current?.click();
                   }}
                   title={
-                    uploadthingEnabled
+                    !allowFileUploads
+                      ? t("chat.attachments.disabled")
+                      : uploadthingEnabled
                       ? t("chat.attachments.attachFile")
                       : t("chat.attachments.uploadNotConfigured")
                   }

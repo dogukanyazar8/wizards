@@ -20,6 +20,7 @@ import { ServerSettingsOverlay } from "@/components/shell/server-settings-overla
 import { WorkspaceModals } from "@/components/shell/workspace-modals";
 import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
 import { useSocket } from "@/hooks/use-socket";
+import { useDMConversations } from "@/hooks/use-dm-conversations";
 import { useAppearanceHydration } from "@/hooks/use-appearance-hydration";
 import { useAppStore } from "@/lib/store";
 import {
@@ -109,6 +110,7 @@ interface NavigationPanelProps {
   activeServerId: string | null;
   activeChannelId: string | null;
   servers: Awaited<ReturnType<typeof fetchWorkspaceServers>>;
+  dmUnreadCount: number;
   serversQueryLoading: boolean;
   serverDetailQueryData: Awaited<ReturnType<typeof fetchWorkspaceServer>> | undefined | null;
   serverDetailQueryLoading: boolean;
@@ -131,6 +133,7 @@ const NavigationPanel = React.memo(
     activeServerId,
     activeChannelId,
     servers,
+    dmUnreadCount,
     serversQueryLoading,
     serverDetailQueryData,
     serverDetailQueryLoading,
@@ -145,6 +148,7 @@ const NavigationPanel = React.memo(
       <div className={isMobile ? "flex h-full w-[72px] shrink-0" : "hidden md:flex"}>
         <ServerRail
           activeServerId={activeServerId}
+          dmUnreadCount={dmUnreadCount}
           loading={serversQueryLoading}
           onNavigate={onNavigate}
           onOpenCreateServer={onOpenCreateServer}
@@ -238,6 +242,8 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     refetchOnMount: false,
   });
 
+  const { conversations: dmConversations } = useDMConversations(currentUser.id);
+
   useEffect(() => {
     if (layoutSettings) {
       applyPersistedSettings(layoutSettings);
@@ -275,11 +281,26 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       );
     };
 
+    const handleServerSettingsUpdated = (data: { serverId: string }) => {
+      void queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.servers,
+      });
+      void queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.server(data.serverId),
+      });
+
+      if (data.serverId === activeServerId) {
+        router.refresh();
+      }
+    };
+
     socket.on("server:unread:update", handleServerUnreadUpdate);
+    socket.on("server:settings:updated", handleServerSettingsUpdated);
     return () => {
       socket.off("server:unread:update", handleServerUnreadUpdate);
+      socket.off("server:settings:updated", handleServerSettingsUpdated);
     };
-  }, [queryClient, socket]);
+  }, [activeServerId, queryClient, router, socket]);
 
   const cachedServerDetail = activeServerId
     ? queryClient.getQueryData<Awaited<ReturnType<typeof fetchWorkspaceServer>>>(
@@ -324,6 +345,17 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const servers = useMemo<WorkspaceServerSummary[]>(
     () => serversQuery.data ?? [],
     [serversQuery.data],
+  );
+  const dmUnreadCount = useMemo(
+    () =>
+      dmConversations.reduce((total, conversation) => {
+        const currentParticipant = conversation.participants.find(
+          (participant) => participant.userId === currentUser.id,
+        );
+
+        return total + (currentParticipant?.unreadCount ?? 0);
+      }, 0),
+    [currentUser.id, dmConversations],
   );
   const activeChannel = findActiveChannel(activeServerId, activeChannelId, serverDetailQuery.data);
   const activeCategoryName = findActiveCategoryName(activeChannel, serverDetailQuery.data);
@@ -530,6 +562,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
           activeServerId={activeServerId}
           activeChannelId={activeChannelId}
           servers={servers}
+          dmUnreadCount={dmUnreadCount}
           serversQueryLoading={serversQuery.isLoading}
           serverDetailQueryData={serverDetailQuery.data}
           serverDetailQueryLoading={serverDetailQuery.isLoading}
@@ -574,6 +607,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                 activeServerId={activeServerId}
                 activeChannelId={activeChannelId}
                 servers={servers}
+                dmUnreadCount={dmUnreadCount}
                 serversQueryLoading={serversQuery.isLoading}
                 serverDetailQueryData={serverDetailQuery.data}
                 serverDetailQueryLoading={serverDetailQuery.isLoading}

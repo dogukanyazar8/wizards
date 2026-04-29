@@ -1,9 +1,11 @@
+import { randomUUID } from "node:crypto";
 import type {
   DMConversationDTO,
   DMMessagePayload,
   DMParticipantDTO,
+  MessageReaction,
 } from "@wizards/types";
-import { prisma, type Prisma } from "@wizards/db";
+import { Prisma, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { areFriends, getBlockStatus } from "@/lib/friends/helpers";
 import { getRedis } from "@/lib/redis";
@@ -95,6 +97,10 @@ type DMMessageNode = {
     width: number | null;
     height: number | null;
   }>;
+  reactions?: Array<{
+    emoji: string;
+    userId: string;
+  }>;
   reply?: DMMessageNode | null;
 };
 
@@ -105,6 +111,12 @@ type RawDMMessage = Prisma.DMMessageGetPayload<{
 type RawDMConversation = Prisma.DMConversationGetPayload<{
   include: typeof dmConversationInclude;
 }>;
+
+type DMReactionRow = {
+  emoji: string;
+  messageId: string;
+  userId: string;
+};
 
 const DM_PRESENCE_STATUSES = ["ONLINE", "IDLE", "DND", "OFFLINE", "INVISIBLE"] as const;
 
@@ -223,6 +235,56 @@ function normalizeConversationType(type: string): DMConversationDTO["type"] {
   return type === "GROUP_DM" ? "GROUP_DM" : "DM";
 }
 
+function validateDMReactionEmoji(emoji: string) {
+  const trimmed = emoji.trim();
+  if (!trimmed || trimmed.length > 64) {
+    throw new ApiError("Invalid emoji", 400, "INVALID_EMOJI");
+  }
+
+  return trimmed;
+}
+
+function groupDMReactions(
+  reactions: Array<{ emoji: string; userId: string }> = [],
+): MessageReaction[] {
+  const grouped = new Map<string, Set<string>>();
+
+  for (const reaction of reactions) {
+    if (!grouped.has(reaction.emoji)) {
+      grouped.set(reaction.emoji, new Set());
+    }
+
+    grouped.get(reaction.emoji)!.add(reaction.userId);
+  }
+
+  return Array.from(grouped.entries()).map(([emoji, userIds]) => ({
+    emoji,
+    count: userIds.size,
+    userIds: Array.from(userIds),
+  }));
+}
+
+async function getDMReactionMap(messageIds: string[]) {
+  if (messageIds.length === 0) {
+    return new Map<string, DMReactionRow[]>();
+  }
+
+  const rows = await prisma.$queryRaw<DMReactionRow[]>(Prisma.sql`
+    SELECT "messageId", "emoji", "userId"
+    FROM "DMReaction"
+    WHERE "messageId" IN (${Prisma.join(messageIds)})
+  `);
+  const reactionsByMessageId = new Map<string, DMReactionRow[]>();
+
+  for (const row of rows) {
+    const current = reactionsByMessageId.get(row.messageId) ?? [];
+    current.push(row);
+    reactionsByMessageId.set(row.messageId, current);
+  }
+
+  return reactionsByMessageId;
+}
+
 export function getDMDisplayName(user: {
   username: string;
   displayName: string | null;
@@ -250,12 +312,19 @@ async function mapDMParticipant(
   };
 }
 
-function mapDMReply(message: DMMessageNode | null | undefined, depth: number): DMMessagePayload | null {
+function mapDMReply(
+  message: DMMessageNode | null | undefined,
+  depth: number,
+  reactionsByMessageId: Map<string, DMReactionRow[]> = new Map(),
+): DMMessagePayload | null {
   if (!message) {
     return null;
   }
 
-  const nextReply = depth > 0 ? mapDMReply(message.reply ?? null, depth - 1) : null;
+  const nextReply =
+    depth > 0
+      ? mapDMReply(message.reply ?? null, depth - 1, reactionsByMessageId)
+      : null;
 
   return {
     id: message.id,
@@ -281,12 +350,25 @@ function mapDMReply(message: DMMessageNode | null | undefined, depth: number): D
       width: attachment.width,
       height: attachment.height,
     })),
+    reactions: groupDMReactions(
+      reactionsByMessageId.get(message.id) ?? message.reactions ?? [],
+    ),
     replyTo: nextReply,
   };
 }
 
-export function mapDMMessagePayload(message: RawDMMessage): DMMessagePayload {
-  return mapDMReply(message, 2) as DMMessagePayload;
+export function mapDMMessagePayload(
+  message: RawDMMessage,
+  reactionsByMessageId?: Map<string, DMReactionRow[]>,
+): DMMessagePayload {
+  return mapDMReply(message, 2, reactionsByMessageId) as DMMessagePayload;
+}
+
+export async function mapDMMessagePayloadWithReactions(
+  message: RawDMMessage,
+): Promise<DMMessagePayload> {
+  const reactionsByMessageId = await getDMReactionMap([message.id]);
+  return mapDMMessagePayload(message, reactionsByMessageId);
 }
 
 async function getDeletedMessageLabel(userId: string) {
@@ -553,9 +635,14 @@ export async function listDMMessages(
   const hasMore = messages.length > limit;
   const pageMessages = hasMore ? messages.slice(0, limit) : messages;
   const nextCursor = hasMore ? pageMessages[pageMessages.length - 1]?.id ?? null : null;
+  const reactionsByMessageId = await getDMReactionMap(
+    pageMessages.map((message) => message.id),
+  );
 
   return {
-    messages: [...pageMessages].reverse().map(mapDMMessagePayload),
+    messages: [...pageMessages]
+      .reverse()
+      .map((message) => mapDMMessagePayload(message, reactionsByMessageId)),
     nextCursor,
   };
 }
@@ -591,4 +678,54 @@ export async function hideDirectMessage(userId: string, conversationId: string) 
       hiddenAt: new Date(),
     },
   });
+}
+
+export async function toggleDMReaction(
+  messageId: string,
+  userId: string,
+  emoji: string,
+): Promise<MessageReaction[]> {
+  const normalizedEmoji = validateDMReactionEmoji(emoji);
+  const message = await prisma.dMMessage.findUnique({
+    where: { id: messageId },
+    select: {
+      conversationId: true,
+      deletedAt: true,
+    },
+  });
+
+  if (!message || message.deletedAt) {
+    throw new ApiError("Message not found", 404, "NOT_FOUND");
+  }
+
+  await requireDMParticipant(userId, message.conversationId);
+
+  const existing = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT "id"
+    FROM "DMReaction"
+    WHERE "messageId" = ${messageId}
+      AND "userId" = ${userId}
+      AND "emoji" = ${normalizedEmoji}
+    LIMIT 1
+  `);
+
+  if (existing[0]) {
+    await prisma.$executeRaw(Prisma.sql`
+      DELETE FROM "DMReaction"
+      WHERE "id" = ${existing[0].id}
+    `);
+  } else {
+    await prisma.$executeRaw(Prisma.sql`
+      INSERT INTO "DMReaction" ("id", "messageId", "userId", "emoji", "createdAt")
+      VALUES (${randomUUID()}, ${messageId}, ${userId}, ${normalizedEmoji}, CURRENT_TIMESTAMP)
+    `);
+  }
+
+  const reactions = await prisma.$queryRaw<DMReactionRow[]>(Prisma.sql`
+    SELECT "messageId", "emoji", "userId"
+    FROM "DMReaction"
+    WHERE "messageId" = ${messageId}
+  `);
+
+  return groupDMReactions(reactions);
 }

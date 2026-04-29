@@ -12,6 +12,7 @@ import { ServerIcon } from "@/components/shell/server-icon";
 
 type ServerRailProps = {
   activeServerId: string | null;
+  dmUnreadCount?: number;
   loading: boolean;
   onNavigate: (href: string) => void;
   onOpenCreateServer: () => void;
@@ -22,6 +23,7 @@ type ServerRailProps = {
 
 export function ServerRail({
   activeServerId,
+  dmUnreadCount = 0,
   loading,
   onNavigate,
   onOpenCreateServer,
@@ -48,6 +50,7 @@ export function ServerRail({
         <div className="flex justify-center">
           <ServerIcon
             active={!activeServerId}
+            badgeCount={dmUnreadCount}
             fallback="DM"
             label={t("shell.serverRail.directMessages")}
             onClick={() => onNavigate("/channels/@me")}

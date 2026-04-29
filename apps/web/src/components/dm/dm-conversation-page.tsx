@@ -25,7 +25,9 @@ export function DMConversationPage({
   const router = useRouter();
   const redirectedRef = useRef(false);
   const markedAsReadRef = useRef<string | null>(null);
-  const { conversations, isLoading, markAsRead } = useDMConversations(currentUserId);
+  const { conversations, isLoading, markAsRead } = useDMConversations(currentUserId, {
+    autoMarkActiveAsRead: true,
+  });
 
   const conversation = useMemo(
     () => conversations.find((item) => item.id === conversationId) ?? null,

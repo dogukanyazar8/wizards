@@ -32,6 +32,8 @@ import { useTyping } from "@/hooks/use-typing";
 interface ChatAreaProps {
   conversationId: string;
   mode: MessageMode;
+  allowFileUploads?: boolean;
+  allowGifs?: boolean;
   channelName?: string;
   channelTopic?: string | null;
   currentUserId: string;
@@ -121,6 +123,8 @@ function buildOptimisticMessage(input: {
 export function ChatArea({
   conversationId,
   mode,
+  allowFileUploads = true,
+  allowGifs = true,
   channelName,
   channelTopic = null,
   currentUserId,
@@ -394,6 +398,8 @@ export function ChatArea({
             replyTo={replyTo}
             onSend={handleSend}
             onCancelReply={() => setReplyTo(null)}
+            allowFileUploads={mode === "channel" ? allowFileUploads : true}
+            allowGifs={mode === "channel" ? allowGifs : true}
             uploadthingEnabled={uploadthingEnabled}
           />
         </>

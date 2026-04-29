@@ -67,7 +67,7 @@ export function mapDMMessageToChatMessage(message: DMMessagePayload): ChatMessag
     },
     content: message.deletedAt ? "" : message.content,
     type: "DEFAULT",
-    reactions: [],
+    reactions: message.reactions,
     attachments: mapDMAttachments(message),
     replyTo: mapDMReplyTo(message.replyTo),
     createdAt: message.createdAt,
@@ -308,14 +308,23 @@ export function useMessages(mode: MessageMode, conversationId: string) {
       }
     };
 
+    const handleReactionUpdated = (data: {
+      messageId: string;
+      reactions: MessageReaction[];
+    }) => {
+      queryClient.setQueryData<MessagePages>(queryKey, (old) => updateReactions(old, data));
+    };
+
     socket.on("dm:message:new", handleNewMessage);
     socket.on("dm:message:updated", handleUpdatedMessage);
     socket.on("dm:message:deleted", handleDeletedMessage);
+    socket.on("dm:message:reaction_updated", handleReactionUpdated);
 
     return () => {
       socket.off("dm:message:new", handleNewMessage);
       socket.off("dm:message:updated", handleUpdatedMessage);
       socket.off("dm:message:deleted", handleDeletedMessage);
+      socket.off("dm:message:reaction_updated", handleReactionUpdated);
     };
   }, [conversationId, mode, queryClient, queryKey, socket]);
 
