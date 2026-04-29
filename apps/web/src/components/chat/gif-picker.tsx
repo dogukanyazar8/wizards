@@ -147,7 +147,7 @@ export function GifPicker({ onClose, onSelect }: GifPickerProps) {
 
   return (
     <div
-      className="absolute bottom-full left-0 z-50 mb-3 w-[min(22rem,calc(100vw-2rem))] rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.96)] p-3 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.22)] backdrop-blur-xl"
+      className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-[90] max-h-[70dvh] rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.96)] p-3 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.22)] backdrop-blur-xl md:absolute md:inset-x-auto md:bottom-full md:left-0 md:mb-3 md:max-h-none md:w-[min(22rem,calc(100vw-2rem))]"
       ref={containerRef}
     >
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -182,7 +182,7 @@ export function GifPicker({ onClose, onSelect }: GifPickerProps) {
         </div>
       ) : null}
 
-      <div className="max-h-[22rem] overflow-y-auto pr-1">
+      <div className="max-h-[48dvh] overflow-y-auto pr-1 md:max-h-[22rem]">
         {isLoading ? (
           <div className="flex h-48 items-center justify-center text-app-soft">
             <Loader2 className="h-5 w-5 animate-spin" />

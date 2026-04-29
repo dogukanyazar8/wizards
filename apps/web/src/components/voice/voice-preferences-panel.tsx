@@ -42,18 +42,18 @@ export function VoicePreferenceToggleRow({
   onToggle,
 }: VoicePreferenceToggleRowProps) {
   return (
-    <div className="app-panel-soft rounded-[24px] border p-4">
-      <div className="flex items-start justify-between gap-4">
+    <div className="app-panel-soft rounded-[22px] border p-3 sm:rounded-[24px] sm:p-4">
+      <div className="flex items-start justify-between gap-3 sm:gap-4">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-app-foreground">{label}</p>
-          <p className="mt-1 text-sm leading-6 text-app-muted">{description}</p>
+          <p className="mt-1 text-sm leading-5 text-app-muted sm:leading-6">{description}</p>
           {helperText ? <p className="mt-2 text-xs leading-5 text-app-soft">{helperText}</p> : null}
         </div>
 
         <button
           aria-checked={checked}
           className={cn(
-            "relative mt-1 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+            "relative mt-1 inline-flex h-8 w-14 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-7 sm:w-12",
             checked
               ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
               : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
@@ -66,8 +66,8 @@ export function VoicePreferenceToggleRow({
         >
           <span
             className={cn(
-              "absolute left-1 h-5 w-5 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition",
-              checked && "translate-x-5 bg-[hsl(var(--primary))]",
+              "absolute left-1 h-6 w-6 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition sm:h-5 sm:w-5",
+              checked && "translate-x-6 bg-[hsl(var(--primary))] sm:translate-x-5",
             )}
           />
         </button>
@@ -90,8 +90,8 @@ export function VoicePreferencesPanel() {
   const krispAvailable = krispAvailability === "available";
 
   return (
-    <div className="space-y-4">
-      <div className="app-panel rounded-[24px] border p-4">
+    <div className="space-y-3 sm:space-y-4">
+      <div className="app-panel rounded-[22px] border p-3 sm:rounded-[24px] sm:p-4">
         <div className="flex items-start gap-3">
           <div className="app-panel-soft mt-0.5 rounded-2xl border p-2.5 text-[hsl(var(--primary))]">
             <Sparkles className="h-4 w-4" />
@@ -100,7 +100,7 @@ export function VoicePreferencesPanel() {
             <p className="text-sm font-semibold text-app-foreground">
               {t("voice.settings.processingTitle")}
             </p>
-            <p className="mt-1 text-sm leading-6 text-app-muted">
+            <p className="mt-1 text-sm leading-5 text-app-muted sm:leading-6">
               {t("voice.settings.processingDescription")}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -155,7 +155,7 @@ export function VoicePreferencesPanel() {
         onToggle={() => setAudioPreference("krispNoiseCancellation", !krispEnabled)}
       />
 
-      <div className="app-panel-soft flex items-start gap-3 rounded-[24px] border p-4">
+      <div className="app-panel-soft flex items-start gap-3 rounded-[22px] border p-3 sm:rounded-[24px] sm:p-4">
         <div className="rounded-2xl bg-[hsl(var(--primary)/0.12)] p-2 text-[hsl(var(--primary))]">
           <Volume2 className="h-4 w-4" />
         </div>
@@ -163,7 +163,7 @@ export function VoicePreferencesPanel() {
           <p className="text-sm font-semibold text-app-foreground">
             {t("voice.settings.localOnlyTitle")}
           </p>
-          <p className="mt-1 text-sm leading-6 text-app-muted">
+          <p className="mt-1 text-sm leading-5 text-app-muted sm:leading-6">
             {t("voice.settings.localOnlyDescription")}
           </p>
         </div>

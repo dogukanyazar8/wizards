@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,17 @@ type ContextMenuItemProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 export function ContextMenu({ children, onClose, open, position }: ContextMenuProps) {
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const updateViewport = () => setIsMobileViewport(mediaQuery.matches);
+
+    updateViewport();
+    mediaQuery.addEventListener("change", updateViewport);
+    return () => mediaQuery.removeEventListener("change", updateViewport);
+  }, []);
+
   useEffect(() => {
     if (!open) {
       return;
@@ -51,21 +62,48 @@ export function ContextMenu({ children, onClose, open, position }: ContextMenuPr
   return createPortal(
     <AnimatePresence>
       {open ? (
-        <motion.div
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          className="app-overlay fixed z-[90] min-w-52 rounded-2xl p-1.5 shadow-[0_20px_46px_hsl(var(--shadow-color)/0.16)] backdrop-blur-xl"
-          exit={{ opacity: 0, scale: 0.96, y: -4 }}
-          initial={{ opacity: 0, scale: 0.96, y: -4 }}
-          onPointerDown={(event) => event.stopPropagation()}
-          role="menu"
-          style={{
-            left: Math.min(position.x, window.innerWidth - 240),
-            top: Math.min(position.y, window.innerHeight - 220),
-          }}
-          transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-        >
-          {children}
-        </motion.div>
+        <>
+          {isMobileViewport ? (
+            <motion.div
+              animate={{ opacity: 1 }}
+              className="fixed inset-0 z-[89] bg-[hsl(var(--background)/0.48)] backdrop-blur-sm"
+              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }}
+            />
+          ) : null}
+          <motion.div
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className={cn(
+              "app-overlay fixed z-[90] p-1.5 shadow-[0_20px_46px_hsl(var(--shadow-color)/0.16)] backdrop-blur-xl",
+              isMobileViewport
+                ? "inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-[26px]"
+                : "min-w-52 rounded-2xl",
+            )}
+            exit={
+              isMobileViewport
+                ? { opacity: 0, scale: 1, y: 18 }
+                : { opacity: 0, scale: 0.96, y: -4 }
+            }
+            initial={
+              isMobileViewport
+                ? { opacity: 0, scale: 1, y: 18 }
+                : { opacity: 0, scale: 0.96, y: -4 }
+            }
+            onPointerDown={(event) => event.stopPropagation()}
+            role="menu"
+            {...(isMobileViewport
+              ? {}
+              : {
+                  style: {
+                    left: Math.min(position.x, window.innerWidth - 240),
+                    top: Math.min(position.y, window.innerHeight - 220),
+                  },
+                })}
+            transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {children}
+          </motion.div>
+        </>
       ) : null}
     </AnimatePresence>,
     document.body,
@@ -82,6 +120,7 @@ export function ContextMenuItem({
     <button
       className={cn(
         "text-app-foreground flex w-full items-center rounded-xl px-3 py-2 text-left text-sm transition hover:bg-[hsl(var(--surface-soft)/0.72)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+        "min-h-11 md:min-h-0",
         destructive &&
           "text-[hsl(var(--danger))] hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger))]",
         className,

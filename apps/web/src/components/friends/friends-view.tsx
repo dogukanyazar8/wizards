@@ -105,17 +105,17 @@ function FriendsMetricCard({
   value: string;
 }) {
   return (
-    <div className="app-panel rounded-[28px] border p-4 shadow-[0_12px_32px_hsl(var(--shadow-color)/0.06)]">
+    <div className="app-panel rounded-[24px] border p-3 shadow-[0_12px_32px_hsl(var(--shadow-color)/0.06)] sm:rounded-[28px] sm:p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-app-soft text-[11px] font-semibold uppercase tracking-[0.22em]">
             {description}
           </p>
-          <p className="text-app-foreground mt-3 text-2xl font-semibold tracking-tight">
+          <p className="text-app-foreground mt-2 text-xl font-semibold tracking-tight sm:mt-3 sm:text-2xl">
             {value}
           </p>
         </div>
-        <div className="app-panel-soft flex h-12 w-12 items-center justify-center rounded-[18px] border">
+        <div className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-[18px] border sm:h-12 sm:w-12">
           <Icon className="h-5 w-5 text-app-foreground" />
         </div>
       </div>
@@ -139,7 +139,7 @@ function FriendsTabButton({
   return (
     <button
       aria-selected={active}
-      className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] ${
+      className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] ${
         active
           ? "border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--foreground))]"
           : "border-[hsl(var(--border)/0.78)] bg-[hsl(var(--surface-soft)/0.36)] text-app-muted hover:text-[hsl(var(--foreground))]"
@@ -158,19 +158,35 @@ function FriendsTabButton({
 function FriendsEmptyState({
   description,
   icon: Icon,
+  compact = false,
   title,
 }: {
+  compact?: boolean;
   description: string;
   icon: LucideIcon;
   title: string;
 }) {
   return (
-    <div className="app-panel flex min-h-[320px] flex-col items-center justify-center rounded-[32px] border border-dashed border-[hsl(var(--border)/0.72)] px-6 py-14 text-center">
-      <div className="app-panel-soft flex h-16 w-16 items-center justify-center rounded-[24px] border">
-        <Icon className="text-app-muted h-6 w-6" />
+    <div
+      className={`app-panel flex flex-col items-center justify-center rounded-[28px] border border-dashed border-[hsl(var(--border)/0.72)] px-4 text-center sm:rounded-[32px] sm:px-6 ${
+        compact
+          ? "min-h-[132px] py-5 sm:min-h-[220px] sm:py-8"
+          : "min-h-[240px] py-10 sm:min-h-[320px] sm:py-14"
+      }`}
+    >
+      <div
+        className={`app-panel-soft flex items-center justify-center rounded-[24px] border ${
+          compact ? "h-12 w-12 sm:h-14 sm:w-14" : "h-16 w-16"
+        }`}
+      >
+        <Icon className={`text-app-muted ${compact ? "h-5 w-5" : "h-6 w-6"}`} />
       </div>
-      <h2 className="text-app-foreground mt-5 text-lg font-semibold">{title}</h2>
-      <p className="text-app-muted mt-2 max-w-md text-sm leading-6">{description}</p>
+      <h2 className={`text-app-foreground font-semibold ${compact ? "mt-3 text-base" : "mt-5 text-lg"}`}>
+        {title}
+      </h2>
+      <p className={`text-app-muted mt-2 max-w-md text-sm ${compact ? "leading-5" : "leading-6"}`}>
+        {description}
+      </p>
     </div>
   );
 }
@@ -179,7 +195,7 @@ function FriendsListSkeleton() {
   return (
     <div className="space-y-3">
       {Array.from({ length: 4 }).map((_, index) => (
-        <div className="app-panel flex items-center justify-between rounded-[28px] border p-4" key={index}>
+        <div className="app-panel flex items-center justify-between rounded-[24px] border p-3 sm:rounded-[28px] sm:p-4" key={index}>
           <div className="flex items-center gap-4">
             <Skeleton className="h-12 w-12 rounded-full" />
             <div className="space-y-2">
@@ -273,11 +289,11 @@ function PendingRequestRow({
   const displayName = counterpart.displayName ?? counterpart.username;
 
   return (
-    <div className="app-panel flex items-center justify-between gap-4 rounded-[28px] border p-4">
-      <div className="flex min-w-0 items-center gap-4">
+    <div className="app-panel flex flex-col gap-3 rounded-[24px] border p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:rounded-[28px] sm:p-4">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
         <Avatar
           alt={displayName}
-          className="h-11 w-11 text-sm"
+          className="h-11 w-11 shrink-0 text-sm"
           fallback={displayName}
           src={counterpart.avatarUrl}
         />
@@ -286,7 +302,7 @@ function PendingRequestRow({
           <p className="text-app-muted truncate text-sm">@{counterpart.username}</p>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2">{actionSlot}</div>
+      <div className="flex shrink-0 items-center justify-end gap-2 sm:justify-start">{actionSlot}</div>
     </div>
   );
 }
@@ -539,8 +555,8 @@ export function FriendsView() {
   return (
     <>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="border-b border-[hsl(var(--border)/0.72)] px-4 py-4 md:px-6">
-          <div className="grid gap-3 xl:grid-cols-3">
+        <div className="border-b border-[hsl(var(--border)/0.72)] px-3 py-3 sm:px-4 sm:py-4 md:px-6">
+          <div className="grid gap-2 sm:gap-3 xl:grid-cols-3">
             <FriendsMetricCard
               description={t("friends.overview.onlineNow")}
               icon={Users}
@@ -558,8 +574,8 @@ export function FriendsView() {
             />
           </div>
 
-          <div className="app-panel mt-4 rounded-[28px] border p-3">
-            <div className="flex flex-wrap gap-2" role="tablist">
+          <div className="app-panel mt-3 rounded-[24px] border p-2 sm:mt-4 sm:rounded-[28px] sm:p-3">
+            <div className="flex gap-2 overflow-x-auto pb-1" role="tablist">
               <FriendsTabButton
                 active={activeTab === "online"}
                 icon={Users}
@@ -595,7 +611,7 @@ export function FriendsView() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-5 md:px-6 md:py-6">
+        <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6">
           {activeTab === "online" ? (
             friendsQuery.isLoading ? (
               <FriendsListSkeleton />
@@ -654,11 +670,12 @@ export function FriendsView() {
             pendingQuery.isLoading ? (
               <FriendsListSkeleton />
             ) : (
-              <div className="grid gap-6 xl:grid-cols-2">
-                <section className="space-y-3">
+              <div className="grid gap-4 sm:gap-6 xl:grid-cols-2">
+                <section className="space-y-2 sm:space-y-3">
                   <SectionHeading badge={incomingCount} title={t("friends.pending.incomingTitle")} />
                   {pending.incoming.length === 0 ? (
                     <FriendsEmptyState
+                      compact
                       description={t("friends.empty.incoming")}
                       icon={Clock3}
                       title={t("friends.pending.incomingTitle")}
@@ -670,7 +687,7 @@ export function FriendsView() {
                           <>
                             <button
                               aria-label={t("friends.actions.accept")}
-                              className="rounded-2xl bg-[hsl(var(--success))] p-2.5 text-white transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--success)/0.45)]"
+                              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--success))] text-white transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--success)/0.45)]"
                               onClick={() =>
                                 requestActionMutation.mutate({
                                   action: "accept",
@@ -683,7 +700,7 @@ export function FriendsView() {
                             </button>
                             <button
                               aria-label={t("friends.actions.decline")}
-                              className="rounded-2xl bg-[hsl(var(--danger))] p-2.5 text-[hsl(var(--danger-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)]"
+                              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--danger))] text-[hsl(var(--danger-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)]"
                               onClick={() =>
                                 requestActionMutation.mutate({
                                   action: "decline",
@@ -704,10 +721,11 @@ export function FriendsView() {
                   )}
                 </section>
 
-                <section className="space-y-3">
+                <section className="space-y-2 sm:space-y-3">
                   <SectionHeading title={t("friends.pending.outgoingTitle")} />
                   {pending.outgoing.length === 0 ? (
                     <FriendsEmptyState
+                      compact
                       description={t("friends.empty.outgoing")}
                       icon={Clock3}
                       title={t("friends.pending.outgoingTitle")}
@@ -717,7 +735,7 @@ export function FriendsView() {
                       <PendingRequestRow
                         actionSlot={
                           <button
-                            className="rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                            className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                             onClick={() => cancelRequestMutation.mutate(request.id)}
                             type="button"
                           >
@@ -736,8 +754,8 @@ export function FriendsView() {
           ) : null}
 
           {activeTab === "add" ? (
-            <div className="app-panel max-w-3xl rounded-[32px] border p-6 md:p-8">
-              <div className="flex items-start gap-4">
+            <div className="app-panel max-w-3xl rounded-[28px] border p-4 sm:p-6 md:rounded-[32px] md:p-8">
+              <div className="flex items-start gap-3 sm:gap-4">
                 <div className="app-panel-soft flex h-14 w-14 items-center justify-center rounded-[22px] border">
                   <UserPlus className="h-6 w-6" />
                 </div>
@@ -788,7 +806,7 @@ export function FriendsView() {
                   value={username}
                 />
                 <button
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-5 text-sm font-semibold text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.45)] disabled:opacity-60"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-5 text-sm font-semibold text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.45)] disabled:opacity-60"
                   disabled={!canSendRequest || sendRequestMutation.isPending}
                   type="submit"
                 >
@@ -819,13 +837,13 @@ export function FriendsView() {
 
                   return (
                     <div
-                      className="app-panel flex items-center justify-between gap-4 rounded-[28px] border p-4"
+                      className="app-panel flex flex-col gap-3 rounded-[24px] border p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:rounded-[28px] sm:p-4"
                       key={user.id}
                     >
-                      <div className="flex min-w-0 items-center gap-4">
+                      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                         <Avatar
                           alt={displayName}
-                          className="h-12 w-12 text-sm"
+                          className="h-11 w-11 shrink-0 text-sm sm:h-12 sm:w-12"
                           fallback={displayName}
                           src={user.avatarUrl}
                         />
@@ -837,7 +855,7 @@ export function FriendsView() {
                         </div>
                       </div>
                       <button
-                        className="rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-60"
+                        className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-60"
                         disabled={unblockFriendMutation.isPending}
                         onClick={() => unblockFriendMutation.mutate(user.id)}
                         type="button"

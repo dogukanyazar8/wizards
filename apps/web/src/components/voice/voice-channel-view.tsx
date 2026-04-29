@@ -70,13 +70,13 @@ function VoiceParticipantCard({
   const displayName = participant.displayName ?? participant.username;
 
   return (
-    <div className="app-panel relative flex h-full min-h-[22rem] flex-col overflow-hidden rounded-[28px] border p-4">
-      <div className="mb-5 flex items-start justify-between gap-3">
+    <div className="app-panel relative flex h-full min-h-[17rem] flex-col overflow-hidden rounded-[24px] border p-3 sm:min-h-[20rem] sm:rounded-[28px] sm:p-4 lg:min-h-[22rem]">
+      <div className="mb-3 flex items-start justify-between gap-3 sm:mb-5">
         <div className="flex min-w-0 items-center gap-3">
           <div className={cn("rounded-full transition", getSpeakingClass(participant))}>
             <Avatar
               alt={displayName}
-              className="h-14 w-14 border-none text-sm"
+              className="h-12 w-12 border-none text-sm sm:h-14 sm:w-14"
               fallback={displayName}
               src={participant.avatarUrl}
             />
@@ -102,7 +102,7 @@ function VoiceParticipantCard({
         ) : null}
       </div>
 
-      <div className="flex flex-1 items-center justify-center rounded-[22px] border border-dashed border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-soft)/0.42)] text-center">
+      <div className="flex min-h-[8rem] flex-1 items-center justify-center rounded-[20px] border border-dashed border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-soft)/0.42)] text-center sm:rounded-[22px]">
         <div className="space-y-2">
           <Video className="mx-auto h-8 w-8 text-app-muted" />
           <p className="text-sm font-medium text-app-foreground">
@@ -113,8 +113,8 @@ function VoiceParticipantCard({
       </div>
 
       {participant.isLocal ? (
-        <div className="app-panel-soft mt-4 rounded-[22px] border p-4">
-          <div className="flex items-center justify-between gap-3">
+        <div className="app-panel-soft mt-3 rounded-[20px] border p-3 sm:mt-4 sm:rounded-[22px] sm:p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
             <p className="text-sm font-semibold text-app-foreground">
               {t("voice.grid.processing")}
             </p>
@@ -136,8 +136,8 @@ function VoiceParticipantCard({
           </div>
         </div>
       ) : (
-        <div className="app-panel-soft mt-4 rounded-[22px] border p-4">
-          <div className="flex items-center justify-between gap-3">
+        <div className="app-panel-soft mt-3 rounded-[20px] border p-3 sm:mt-4 sm:rounded-[22px] sm:p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-app-foreground">
                 {t("voice.grid.remoteVolume")}
@@ -152,7 +152,7 @@ function VoiceParticipantCard({
               </span>
               <button
                 aria-label={t("voice.grid.resetVolume")}
-                className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.48)] p-2 text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.48)] text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:p-2"
                 onClick={onResetVolume}
                 type="button"
               >
@@ -165,7 +165,7 @@ function VoiceParticipantCard({
             <Volume2 className="h-4 w-4 shrink-0 text-app-muted" />
             <input
               aria-label={t("voice.grid.remoteVolume")}
-              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.86)] accent-[hsl(var(--primary))]"
+              className="h-3 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.86)] accent-[hsl(var(--primary))] sm:h-2"
               max={100}
               min={0}
               onChange={(event) => onSetVolume(Number(event.target.value))}
@@ -250,9 +250,9 @@ function ScreenShareStage({
     activeShare?.displayName ?? activeShare?.username ?? t("voice.screenShare.unknownSharer");
 
   return (
-    <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
-      <div className="app-panel relative min-h-[30rem] overflow-hidden rounded-[32px] border p-4">
-        <div className="mb-4 flex items-center justify-between gap-3">
+    <div className="grid flex-1 gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
+      <div className="app-panel relative min-h-[22rem] overflow-hidden rounded-[26px] border p-3 sm:min-h-[30rem] sm:rounded-[32px] sm:p-4">
+        <div className="mb-3 flex flex-col gap-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-app-soft">
               {t("voice.screenShare.stage")}
@@ -263,7 +263,7 @@ function ScreenShareStage({
           </div>
           {activeShare?.isLocal ? (
             <button
-              className="rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.12)] px-4 py-2 text-sm font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="min-h-11 rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.12)] px-4 py-2 text-sm font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onClick={onStopShare}
               type="button"
             >
@@ -273,7 +273,7 @@ function ScreenShareStage({
         </div>
 
         <div
-          className="group relative flex h-[calc(100%-4.75rem)] min-h-[24rem] items-center justify-center rounded-[26px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)]"
+          className="group relative flex min-h-[16rem] items-center justify-center rounded-[22px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] sm:h-[calc(100%-4.75rem)] sm:min-h-[24rem] sm:rounded-[26px]"
           onDoubleClick={() => {
             void toggleElementFullscreen(stageRef.current);
           }}
@@ -297,7 +297,7 @@ function ScreenShareStage({
         </div>
       </div>
 
-      <aside className="app-panel flex min-h-[12rem] flex-col rounded-[28px] border p-4">
+      <aside className="app-panel flex min-h-[12rem] flex-col rounded-[24px] border p-3 sm:rounded-[28px] sm:p-4">
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-app-soft">
           {t("voice.screenShare.activeShares")}
         </p>
@@ -309,7 +309,7 @@ function ScreenShareStage({
             return (
               <button
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  "flex min-h-12 w-full items-center gap-3 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                   isActive
                     ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.14)]"
                     : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] hover:bg-[hsl(var(--surface-soft)/0.72)]",
@@ -361,7 +361,7 @@ function ScreenShareStage({
                 return (
                   <button
                     className={cn(
-                      "rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                      "min-h-14 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                       isSelected
                         ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.15)]"
                         : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] hover:bg-[hsl(var(--surface-soft)/0.72)]",
@@ -545,7 +545,7 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
   }
 
   return (
-    <div className="relative h-full overflow-y-auto bg-transparent p-6">
+    <div className="relative h-full overflow-y-auto bg-transparent p-3 sm:p-5 md:p-6">
       {showReconnectOverlay ? (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-[hsl(var(--background)/0.75)] backdrop-blur-sm">
           <div className="app-panel rounded-[28px] border px-6 py-5 text-center shadow-[0_18px_50px_hsl(var(--shadow-color)/0.14)]">
@@ -557,12 +557,12 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
         </div>
       ) : null}
 
-      <div className="mx-auto flex h-full w-full max-w-6xl flex-col">
-        <div className="mb-5">
+      <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col">
+        <div className="mb-4 sm:mb-5">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-app-soft">
             {t("voice.view.eyebrow")}
           </p>
-          <h1 className="mt-2 text-2xl font-semibold text-app-foreground">
+          <h1 className="mt-2 text-xl font-semibold text-app-foreground sm:text-2xl">
             {t("voice.view.title")}
           </h1>
           <p className="mt-2 text-sm text-app-muted">
@@ -593,7 +593,7 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
           />
         ) : (
           <div
-            className="grid flex-1 gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]"
+            className="grid flex-1 gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))] sm:gap-4 sm:[grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]"
             style={{
               gridAutoRows: participantCount > 0 ? "minmax(0, 1fr)" : undefined,
             }}

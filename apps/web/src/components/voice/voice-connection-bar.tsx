@@ -101,7 +101,7 @@ function VoiceControlButton({
     <button
       aria-label={ariaLabel}
       className={cn(
-        "rounded-2xl border p-2.5 text-app-muted transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+        "flex h-11 w-11 items-center justify-center rounded-2xl border text-app-muted transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:p-2.5",
         active
           ? "border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
           : "app-panel-soft hover:opacity-90",
@@ -152,7 +152,7 @@ export function VoiceConnectionBar() {
 
   return (
     <>
-      <div className="app-panel mb-3 rounded-[24px] border p-3">
+      <div className="app-panel mb-3 rounded-[22px] border p-3 sm:rounded-[24px]">
         <div className="mb-3">
           <p className="truncate text-sm font-semibold text-app-foreground">
             {location.channelName
@@ -165,7 +165,7 @@ export function VoiceConnectionBar() {
           </p>
         </div>
 
-        <div className="flex items-center justify-between gap-2">
+        <div className="grid grid-cols-3 gap-2 min-[380px]:grid-cols-6">
           <VoiceControlButton
             active={isMuted}
             ariaLabel={isMuted ? t("voice.controls.unmute") : t("voice.controls.mute")}

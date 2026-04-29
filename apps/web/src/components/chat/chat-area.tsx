@@ -281,14 +281,14 @@ export function ChatArea({
     Boolean(serverId);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-transparent">
+    <div className="relative flex h-full min-h-0 flex-col bg-transparent">
       {mode === "dm" && directMessageParticipant ? (
-        <div className="flex items-center justify-between gap-3 border-b border-app-border bg-[hsl(var(--surface-card)/0.55)] px-5 py-4 backdrop-blur-sm">
+        <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-app-border bg-[hsl(var(--surface-card)/0.78)] px-3 py-3 backdrop-blur-xl md:px-5 md:py-4">
           <div className="flex min-w-0 items-center gap-3">
             <div className="relative">
               <Avatar
                 alt={directMessageDisplayName ?? t("dm.sidebar.unknownUser")}
-                className="h-11 w-11 text-sm"
+                className="h-10 w-10 text-sm md:h-11 md:w-11"
                 fallback={directMessageDisplayName ?? t("dm.sidebar.unknownUser")}
                 src={directMessageParticipant.avatarUrl}
               />
@@ -305,10 +305,10 @@ export function ChatArea({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               aria-label={t("dm.screenShare.share")}
-              className="app-panel-soft rounded-2xl border p-2.5 text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-2xl border text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60 md:h-auto md:w-auto md:p-2.5"
               disabled={dmScreenShare.isStarting}
               onClick={() => {
                 void dmScreenShare.startShare();
@@ -320,7 +320,7 @@ export function ChatArea({
             </button>
             <button
               aria-label={t("dm.header.voiceCall")}
-              className="app-panel-soft rounded-2xl border p-2.5 text-app-muted transition disabled:cursor-not-allowed disabled:opacity-60"
+              className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-2xl border text-app-muted transition disabled:cursor-not-allowed disabled:opacity-60 md:h-auto md:w-auto md:p-2.5"
               disabled
               title={t("dm.header.voiceComingSoon")}
               type="button"
@@ -332,7 +332,7 @@ export function ChatArea({
       ) : null}
 
       {showChannelAdminBar ? (
-        <div className="border-b border-app-border bg-[hsl(var(--surface-card)/0.38)] px-5 py-3 backdrop-blur-sm">
+        <div className="border-b border-app-border bg-[hsl(var(--surface-card)/0.56)] px-3 py-3 backdrop-blur-xl md:px-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="text-app-soft text-[11px] font-semibold uppercase tracking-[0.18em]">

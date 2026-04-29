@@ -23,7 +23,7 @@ export function ImageLightbox({ image, onClose }: ImageLightboxProps) {
 
   return (
     <Modal
-      className="max-w-6xl p-4"
+      className="max-h-[calc(100dvh-1rem)] max-w-6xl overflow-y-auto p-3 sm:p-4"
       closeLabel={t("chat.attachments.closeImageViewer")}
       {...(image?.filename ? { description: image.filename } : {})}
       onClose={onClose}
@@ -40,7 +40,7 @@ export function ImageLightbox({ image, onClose }: ImageLightboxProps) {
             <div className="flex items-center gap-2">
               <button
                 aria-label={t("chat.attachments.zoomOut")}
-                className="app-panel-soft rounded-full border p-2 text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-full border text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:p-2"
                 onClick={() => setZoom((current) => Math.max(0.5, current - 0.25))}
                 type="button"
               >
@@ -48,7 +48,7 @@ export function ImageLightbox({ image, onClose }: ImageLightboxProps) {
               </button>
               <button
                 aria-label={t("chat.attachments.resetZoom")}
-                className="app-panel-soft rounded-full border p-2 text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-full border text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:p-2"
                 onClick={() => setZoom(1)}
                 type="button"
               >
@@ -56,7 +56,7 @@ export function ImageLightbox({ image, onClose }: ImageLightboxProps) {
               </button>
               <button
                 aria-label={t("chat.attachments.zoomIn")}
-                className="app-panel-soft rounded-full border p-2 text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-full border text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:p-2"
                 onClick={() => setZoom((current) => Math.min(3, current + 0.25))}
                 type="button"
               >
@@ -64,7 +64,7 @@ export function ImageLightbox({ image, onClose }: ImageLightboxProps) {
               </button>
               <a
                 aria-label={t("chat.attachments.openOriginal")}
-                className="app-panel-soft rounded-full border p-2 text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-full border text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:p-2"
                 href={image.url}
                 rel="noreferrer"
                 target="_blank"
@@ -74,11 +74,11 @@ export function ImageLightbox({ image, onClose }: ImageLightboxProps) {
             </div>
           </div>
 
-          <div className="max-h-[72vh] overflow-auto rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.34)] p-3">
-            <div className="flex min-h-[48vh] items-center justify-center">
+          <div className="max-h-[66dvh] overflow-auto rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.34)] p-2 sm:max-h-[72vh] sm:p-3">
+            <div className="flex min-h-[42dvh] items-center justify-center sm:min-h-[48vh]">
               <img
                 alt={image.filename}
-                className="max-h-[68vh] max-w-full rounded-[18px] object-contain shadow-[0_20px_55px_hsl(var(--shadow-color)/0.18)] transition-transform"
+                className="max-h-[60dvh] max-w-full touch-pan-x touch-pan-y rounded-[18px] object-contain shadow-[0_20px_55px_hsl(var(--shadow-color)/0.18)] transition-transform sm:max-h-[68vh]"
                 src={image.url}
                 style={{
                   transform: `scale(${zoom})`,

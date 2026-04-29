@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ServerIconField } from "@/components/shell/server-icon-field";
 import { ServerFeatureToggle } from "@/components/shell/server-feature-toggle";
 import { useAppStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
 import {
   applyChannelPatch,
   applyChannelRemoval,
@@ -482,11 +483,11 @@ export function WorkspaceModals({
               />
             </div>
           </div>
-          <div className="flex justify-end gap-2">
-            <Button onClick={closeServerModal} type="button" variant="outline">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button className="w-full sm:w-auto" onClick={closeServerModal} type="button" variant="outline">
               {t("common.cancel")}
             </Button>
-            <Button disabled={serverMutation.isPending || serverName.trim().length < 2} type="submit">
+            <Button className="w-full sm:w-auto" disabled={serverMutation.isPending || serverName.trim().length < 2} type="submit">
               {serverMutation.isPending
                 ? t("common.saving")
                 : serverModal.mode === "edit"
@@ -537,11 +538,11 @@ export function WorkspaceModals({
               </p>
             </div>
           ) : null}
-          <div className="flex justify-end gap-2">
-            <Button onClick={closeCategoryModal} type="button" variant="outline">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button className="w-full sm:w-auto" onClick={closeCategoryModal} type="button" variant="outline">
               {t("common.cancel")}
             </Button>
-            <Button disabled={categoryMutation.isPending || categoryName.trim().length < 1} type="submit">
+            <Button className="w-full sm:w-auto" disabled={categoryMutation.isPending || categoryName.trim().length < 1} type="submit">
               {categoryMutation.isPending
                 ? t("workspace.modal.categoryCreating")
                 : t("workspace.modal.categoryTitle")}
@@ -611,11 +612,11 @@ export function WorkspaceModals({
               </select>
             </div>
           ) : null}
-          <div className="flex justify-end gap-2">
-            <Button onClick={closeChannelModal} type="button" variant="outline">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button className="w-full sm:w-auto" onClick={closeChannelModal} type="button" variant="outline">
               {t("common.cancel")}
             </Button>
-            <Button disabled={channelMutation.isPending || channelName.trim().length < 1} type="submit">
+            <Button className="w-full sm:w-auto" disabled={channelMutation.isPending || channelName.trim().length < 1} type="submit">
               {channelMutation.isPending
                 ? t("common.saving")
                 : channelModal.mode === "edit"
@@ -668,10 +669,13 @@ export function WorkspaceModals({
               </p>
             </div>
           ) : null}
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             {inviteLink ? (
               <Button
-                className={inviteCopied ? "border-[hsl(var(--success)/0.28)] text-app-success" : ""}
+                className={cn(
+                  "w-full sm:w-auto",
+                  inviteCopied ? "border-[hsl(var(--success)/0.28)] text-app-success" : "",
+                )}
                 onClick={handleInviteCopy}
                 type="button"
                 variant="outline"
@@ -679,10 +683,10 @@ export function WorkspaceModals({
                 {inviteCopied ? t("common.linkCopied") : t("common.copyLink")}
               </Button>
             ) : null}
-            <Button onClick={closeInviteModal} type="button" variant="outline">
+            <Button className="w-full sm:w-auto" onClick={closeInviteModal} type="button" variant="outline">
               {t("common.close")}
             </Button>
-            <Button disabled={inviteMutation.isPending} onClick={() => inviteMutation.mutate()} type="button">
+            <Button className="w-full sm:w-auto" disabled={inviteMutation.isPending} onClick={() => inviteMutation.mutate()} type="button">
               {inviteMutation.isPending
                 ? t("workspace.modal.inviteGenerating")
                 : t("workspace.modal.inviteGenerate")}
@@ -704,12 +708,12 @@ export function WorkspaceModals({
           name: deleteChannelDialog.channelName ?? "channel",
         })}
       >
-        <div className="flex justify-end gap-2">
-          <Button onClick={closeDeleteChannelDialog} type="button" variant="outline">
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button className="w-full sm:w-auto" onClick={closeDeleteChannelDialog} type="button" variant="outline">
             {t("common.cancel")}
           </Button>
           <Button
-            className="app-danger"
+            className="app-danger w-full sm:w-auto"
             disabled={deleteChannelMutation.isPending}
             onClick={() => deleteChannelMutation.mutate()}
             type="button"
@@ -737,12 +741,12 @@ export function WorkspaceModals({
             }
             value={serverDeleteConfirmation}
           />
-          <div className="flex justify-end gap-2">
-            <Button onClick={closeDeleteServerDialog} type="button" variant="outline">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button className="w-full sm:w-auto" onClick={closeDeleteServerDialog} type="button" variant="outline">
               {t("common.cancel")}
             </Button>
             <Button
-              className="app-danger"
+              className="app-danger w-full sm:w-auto"
               disabled={
                 deleteServerMutation.isPending ||
                 serverDeleteConfirmation !== (deleteServerDialog.serverName ?? "")

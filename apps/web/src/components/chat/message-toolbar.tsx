@@ -84,12 +84,12 @@ export function MessageToolbar({
           </button>
 
           {showReactionMenu ? (
-            <div className="app-panel absolute -top-14 right-0 flex items-center gap-1 rounded-full border px-2 py-1 shadow-[0_14px_32px_hsl(var(--shadow-color)/0.18)]">
+            <div className="app-panel fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-[90] flex items-center justify-center gap-1 rounded-[24px] border px-2 py-2 shadow-[0_14px_32px_hsl(var(--shadow-color)/0.18)] md:absolute md:-top-14 md:bottom-auto md:right-0 md:inset-x-auto md:rounded-full md:py-1">
               {QUICK_REACTIONS.map((emoji) => (
                 <button
                   key={emoji}
                   aria-label={t("chat.message.addReaction")}
-                  className="rounded-full px-2 py-1 text-base transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                  className="flex h-11 w-11 items-center justify-center rounded-full text-lg transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:h-auto md:w-auto md:px-2 md:py-1 md:text-base"
                   onClick={() => {
                     onReact(emoji);
                     setShowReactionMenu(false);

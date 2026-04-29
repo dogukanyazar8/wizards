@@ -70,12 +70,12 @@ export function ChannelItem({
           <Icon className="h-4 w-4 shrink-0" />
           <span className="truncate text-sm font-medium">{name}</span>
           {type === "VOICE" ? (
-            <div className="ml-auto flex shrink-0 items-center gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
               <span className="text-[11px] font-semibold text-app-soft">
                 {participantCount}/10
               </span>
               {previewParticipants.length > 0 ? (
-                <div className="flex items-center -space-x-2">
+                <div className="hidden items-center -space-x-2 min-[390px]:flex">
                   {previewParticipants.map((participant) => (
                     <Avatar
                       alt={participant.displayName ?? participant.username}
@@ -119,14 +119,14 @@ export function ChannelItem({
       </div>
 
       {type === "VOICE" && visibleParticipantRows.length > 0 ? (
-        <div className="mt-1.5 space-y-1.5 pl-10">
+        <div className="mt-1.5 space-y-1.5 pl-8 sm:pl-10">
           {visibleParticipantRows.map((participant) => {
             const participantLabel = participant.displayName ?? participant.username;
             const isCurrentUser = participant.userId === currentUserId;
 
             return (
               <div
-                className="app-panel-soft flex items-center gap-2 rounded-2xl border px-2.5 py-1.5 text-xs text-app-muted"
+                className="app-panel-soft flex min-h-9 items-center gap-2 rounded-2xl border px-2.5 py-1.5 text-xs text-app-muted"
                 key={participant.userId}
               >
                 <Avatar

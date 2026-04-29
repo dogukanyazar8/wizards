@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
+import { cn } from "@/lib/utils";
 import {
   sendFriendRequestRequest,
   cancelFriendRequestRequest,
@@ -60,6 +61,7 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
   const popoverRef = useRef<HTMLDivElement>(null);
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null);
   const [blockedByThem, setBlockedByThem] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   const isSelf = currentUserId === userId;
 
@@ -128,6 +130,13 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
 
   const openPopover = () => {
     if (!triggerRef.current) return;
+
+    if (isMobileViewport) {
+      setPopoverPos({ x: 0, y: 0 });
+      setOpen(true);
+      return;
+    }
+
     const rect = triggerRef.current.getBoundingClientRect();
 
     let x = rect.right + 12;
@@ -144,6 +153,15 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
     setPopoverPos({ x, y });
     setOpen(true);
   };
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const updateViewport = () => setIsMobileViewport(mediaQuery.matches);
+
+    updateViewport();
+    mediaQuery.addEventListener("change", updateViewport);
+    return () => mediaQuery.removeEventListener("change", updateViewport);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -188,15 +206,40 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
 
       {open && popoverPos &&
         createPortal(
-          <motion.div
-            ref={popoverRef}
-            className="fixed z-[60] w-80 overflow-hidden rounded-[30px] border border-[hsl(var(--border)/0.88)] bg-[hsl(var(--surface-overlay)/0.98)] shadow-[0_28px_80px_hsl(var(--shadow-color)/0.28)] backdrop-blur-2xl"
-            style={{ left: `${popoverPos.x}px`, top: `${popoverPos.y}px` }}
-            initial={{ opacity: 0, scale: 0.95, y: -8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -8 }}
-            transition={{ duration: 0.15 }}
-          >
+          <>
+            {isMobileViewport ? (
+              <motion.div
+                animate={{ opacity: 1 }}
+                className="fixed inset-0 z-[60] bg-[hsl(var(--background)/0.58)] backdrop-blur-sm"
+                exit={{ opacity: 0 }}
+                initial={{ opacity: 0 }}
+                onClick={() => setOpen(false)}
+              />
+            ) : null}
+            <motion.div
+              ref={popoverRef}
+              className={cn(
+                "fixed z-[61] overflow-hidden border border-[hsl(var(--border)/0.88)] bg-[hsl(var(--surface-overlay)/0.98)] shadow-[0_28px_80px_hsl(var(--shadow-color)/0.28)] backdrop-blur-2xl",
+                isMobileViewport
+                  ? "inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-h-[min(34rem,calc(100dvh-1.5rem))] overflow-y-auto rounded-[30px]"
+                  : "w-80 rounded-[30px]",
+              )}
+              {...(isMobileViewport
+                ? {}
+                : { style: { left: `${popoverPos.x}px`, top: `${popoverPos.y}px` } })}
+              initial={
+                isMobileViewport
+                  ? { opacity: 0, y: 28 }
+                  : { opacity: 0, scale: 0.95, y: -8 }
+              }
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={
+                isMobileViewport
+                  ? { opacity: 0, y: 28 }
+                  : { opacity: 0, scale: 0.95, y: -8 }
+              }
+              transition={{ duration: 0.15 }}
+            >
             <button
               aria-label={t("common.close")}
               className="absolute right-3 top-3 z-10 rounded-full border border-[hsl(var(--border)/0.55)] bg-[hsl(var(--surface-overlay)/0.84)] p-2 text-app-muted backdrop-blur transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
@@ -267,7 +310,8 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
                 </div>
               )}
             </div>
-          </motion.div>,
+            </motion.div>
+          </>,
           document.body,
         )}
     </>

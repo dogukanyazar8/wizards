@@ -99,7 +99,7 @@ export function Modal({
       {open ? (
         <motion.div
           animate={{ opacity: 1 }}
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-[hsl(var(--background)/0.66)] p-4 backdrop-blur-md"
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-[hsl(var(--background)/0.66)] p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:items-center sm:p-4"
           exit={{ opacity: 0 }}
           initial={{ opacity: 0 }}
           onClick={onClose}
@@ -110,7 +110,7 @@ export function Modal({
             aria-labelledby={titleId}
             aria-modal="true"
             className={cn(
-              "app-overlay w-full max-w-lg rounded-[28px] p-6 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.16)] backdrop-blur-2xl",
+              "app-overlay max-h-[calc(100dvh-1rem)] w-full max-w-lg overflow-y-auto rounded-t-[28px] p-5 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.16)] backdrop-blur-2xl sm:rounded-[28px] sm:p-6",
               className,
             )}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
@@ -135,7 +135,7 @@ export function Modal({
 
               <button
                 aria-label={closeLabel}
-                className="app-panel-soft text-app-muted rounded-full border p-2 transition hover:opacity-90 hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="app-panel-soft text-app-muted flex min-h-11 min-w-11 items-center justify-center rounded-full border p-2 transition hover:opacity-90 hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:min-h-0 sm:min-w-0"
                 onClick={onClose}
                 type="button"
               >

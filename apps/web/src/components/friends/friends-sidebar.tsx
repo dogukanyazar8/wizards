@@ -78,10 +78,10 @@ export function FriendsSidebar({
   }, [refetchPending, socket]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden sm:gap-4">
       <button
         aria-current={activeConversationId ? undefined : "page"}
-        className={`app-panel flex items-center justify-between rounded-[24px] border px-4 py-3 text-left transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] ${
+        className={`app-panel flex min-h-14 items-center justify-between rounded-[22px] border px-3 py-3 text-left transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:rounded-[24px] sm:px-4 ${
           activeConversationId
             ? ""
             : "border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.12)]"
@@ -91,7 +91,7 @@ export function FriendsSidebar({
         type="button"
       >
         <span className="flex items-center gap-3">
-          <span className="app-panel-soft flex h-10 w-10 items-center justify-center rounded-2xl border">
+          <span className="app-panel-soft flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border">
             <Users className="h-4 w-4" />
           </span>
           <span className="text-app-foreground text-sm font-semibold">
@@ -101,7 +101,7 @@ export function FriendsSidebar({
         {incomingCount > 0 ? <Badge>{incomingCount}</Badge> : null}
       </button>
 
-      <div className="app-panel flex min-h-0 flex-1 flex-col rounded-[28px] border p-4">
+      <div className="app-panel flex min-h-0 flex-1 flex-col rounded-[24px] border p-3 sm:rounded-[28px] sm:p-4">
         <div className="flex items-center gap-2">
           <MessageSquareMore className="text-app-muted h-4 w-4" />
           <p className="text-app-foreground text-xs font-semibold uppercase tracking-[0.2em]">
@@ -159,7 +159,7 @@ export function FriendsSidebar({
                   <div className="group relative" key={conversation.id}>
                     <button
                       aria-current={isActive ? "page" : undefined}
-                      className={`flex w-full items-center gap-3 rounded-[22px] border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] ${
+                      className={`flex min-h-16 w-full items-center gap-3 rounded-[20px] border px-3 py-3 pr-11 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:rounded-[22px] ${
                         isActive
                           ? "border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.12)]"
                           : "border-transparent hover:border-[hsl(var(--border)/0.72)] hover:bg-[hsl(var(--surface-soft)/0.28)]"
@@ -201,7 +201,7 @@ export function FriendsSidebar({
                       aria-label={t("dm.sidebar.hideConversation", {
                         name: displayName,
                       })}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.92)] p-1.5 text-app-muted opacity-0 shadow-[0_10px_22px_hsl(var(--shadow-color)/0.12)] transition hover:text-[hsl(var(--foreground))] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] group-hover:opacity-100"
+                      className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.92)] text-app-muted opacity-100 shadow-[0_10px_22px_hsl(var(--shadow-color)/0.12)] transition hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:opacity-0 md:focus-visible:opacity-100 md:group-hover:opacity-100"
                       disabled={isHidingConversation}
                       onClick={async (event) => {
                         event.stopPropagation();

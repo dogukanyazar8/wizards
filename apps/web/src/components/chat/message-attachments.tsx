@@ -19,14 +19,14 @@ type MessageAttachmentsProps = {
 
 function gridClassName(count: number) {
   if (count <= 1) {
-    return "grid-cols-1 max-w-[28rem]";
+    return "grid-cols-1 w-full max-w-[28rem]";
   }
 
   if (count === 2) {
-    return "grid-cols-2 max-w-[34rem]";
+    return "grid-cols-2 w-full max-w-[34rem]";
   }
 
-  return "grid-cols-2 sm:grid-cols-3 max-w-[38rem]";
+  return "grid-cols-2 w-full max-w-[38rem] sm:grid-cols-3";
 }
 
 function formatAttachmentSize(size: number) {
@@ -73,7 +73,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
               })}
               className={cn(
                 "group/image relative overflow-hidden rounded-[22px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.38)] shadow-[0_18px_38px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-                imageAttachments.length === 1 ? "inline-flex max-w-full p-1" : "aspect-square",
+                imageAttachments.length === 1 ? "inline-flex w-full max-w-full p-1" : "aspect-square",
               )}
               key={attachment.id}
               onClick={() => setSelectedImage(attachment)}
@@ -84,7 +84,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
                 className={cn(
                   "h-full w-full transition duration-200 group-hover/image:scale-[1.02]",
                   imageAttachments.length === 1
-                    ? "h-auto max-h-[24rem] max-w-full rounded-[18px] object-contain"
+                    ? "h-auto max-h-[18rem] max-w-full rounded-[18px] object-contain sm:max-h-[24rem]"
                     : "object-cover",
                 )}
                 loading="lazy"
@@ -102,13 +102,13 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
       ) : null}
 
       {fileAttachments.length > 0 ? (
-        <div className="mt-3 grid max-w-[34rem] gap-2">
+        <div className="mt-3 grid w-full max-w-[34rem] gap-2">
           {fileAttachments.map((attachment) => (
             <a
               aria-label={t("chat.attachments.openFile", {
                 filename: attachment.filename,
               })}
-              className="group/file flex items-center gap-3 rounded-[22px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.34)] p-3 text-left shadow-[0_18px_38px_hsl(var(--shadow-color)/0.07)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] hover:bg-[hsl(var(--surface-card)/0.82)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="group/file flex min-w-0 items-center gap-3 rounded-[22px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.34)] p-3 text-left shadow-[0_18px_38px_hsl(var(--shadow-color)/0.07)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] hover:bg-[hsl(var(--surface-card)/0.82)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               download={attachment.filename}
               href={attachment.url}
               key={attachment.id}
@@ -128,7 +128,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
                   <span>{formatAttachmentSize(attachment.size)}</span>
                 </span>
               </span>
-              <span className="flex items-center gap-1 rounded-full border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.72)] px-2.5 py-1 text-[11px] font-semibold text-app-soft transition group-hover/file:text-app-foreground">
+              <span className="hidden items-center gap-1 rounded-full border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.72)] px-2.5 py-1 text-[11px] font-semibold text-app-soft transition group-hover/file:text-app-foreground sm:flex">
                 <Download className="h-3.5 w-3.5" />
                 <ExternalLink className="h-3.5 w-3.5" />
               </span>

@@ -143,7 +143,7 @@ export function MessageList({
     <div
       ref={listRef}
       onScroll={handleScroll}
-      className="relative flex-1 space-y-0 overflow-y-auto bg-transparent px-2 py-3 sm:px-3 md:px-4"
+      className="relative flex-1 space-y-0 overflow-y-auto overscroll-contain bg-transparent px-1 py-3 sm:px-3 md:px-4"
     >
       <div ref={observerRef} className="h-1" />
 

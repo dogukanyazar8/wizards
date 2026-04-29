@@ -107,8 +107,135 @@ export function SettingsSidebar() {
     { label: t("settings.about.developer.title"), panel: "developer", section: "about" },
   ];
 
+  const mobileSections: Array<{ label: string; section: SettingsSection }> = [
+    { label: t("settings.account.title"), section: "account" },
+    { label: t("settings.groups.voiceVideo.title"), section: "voice" },
+    { label: t("settings.groups.appearance.title"), section: "appearance" },
+    { label: t("settings.groups.notifications.title"), section: "notifications" },
+    { label: t("settings.about.title"), section: "about" },
+  ];
+
+  const mobilePanelItems: NavItem[] =
+    section === "voice"
+      ? [
+          { label: t("settings.groups.voiceVideo.title"), section: "voice" },
+          ...voiceItems,
+        ]
+      : section === "appearance"
+        ? [
+            { label: t("settings.groups.appearance.title"), section: "appearance" },
+            ...appearanceItems,
+            {
+              label: t("settings.appearance.advanced.title"),
+              panel: "advanced",
+              section: "appearance",
+            },
+            {
+              label: t("settings.appearance.advanced.serverRailTitle"),
+              panel: "serverRail",
+              section: "appearance",
+            },
+            {
+              label: t("settings.appearance.advanced.mainCanvasTitle"),
+              panel: "mainCanvas",
+              section: "appearance",
+            },
+            {
+              label: t("settings.appearance.advanced.channelSidebarTitle"),
+              panel: "channelSidebar",
+              section: "appearance",
+            },
+          ]
+        : section === "notifications"
+          ? [
+              {
+                label: t("settings.groups.notifications.title"),
+                section: "notifications",
+              },
+              ...notificationItems,
+            ]
+          : section === "about"
+            ? [
+                { label: t("settings.about.title"), section: "about" },
+                ...aboutItems,
+              ]
+            : [];
+
   return (
-    <aside className="app-panel h-fit rounded-[34px] border p-6 lg:sticky lg:top-6">
+    <>
+      <aside className="app-panel rounded-[28px] border p-4 lg:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            className="app-panel-soft text-app-foreground inline-flex min-h-11 items-center gap-2 rounded-2xl border px-3 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
+            href="/channels"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t("settings.backToChannels")}
+          </Link>
+          <p className="text-app-soft text-[11px] font-semibold uppercase tracking-[0.22em]">
+            {t("common.settings")}
+          </p>
+        </div>
+
+        <div className="mt-4">
+          <h1 className="text-app-foreground text-2xl font-semibold leading-tight">
+            {t("settings.title")}
+          </h1>
+          <p className="text-app-muted mt-2 line-clamp-2 text-sm leading-6">
+            {t("settings.description")}
+          </p>
+        </div>
+
+        <nav
+          aria-label={t("settings.title")}
+          className="-mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-1"
+        >
+          {mobileSections.map((item) => (
+            <button
+              className={cn(
+                "min-h-11 shrink-0 rounded-2xl border px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]",
+                section === item.section
+                  ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
+                  : "app-panel-soft text-app-muted hover:text-app-foreground",
+              )}
+              key={item.section}
+              onClick={() => goTo(item.section)}
+              type="button"
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        {mobilePanelItems.length > 0 ? (
+          <nav
+            aria-label={`${t("settings.title")} ${t("common.overview")}`}
+            className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1"
+          >
+            {mobilePanelItems.map((item) => {
+              const isActive = section === item.section && (item.panel ?? null) === panel;
+
+              return (
+                <button
+                  className={cn(
+                    "min-h-10 shrink-0 rounded-2xl border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]",
+                    isActive
+                      ? "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.12)] text-app-foreground"
+                      : "app-panel-soft text-app-muted hover:text-app-foreground",
+                  )}
+                  key={`${item.section}-${item.panel ?? "all"}`}
+                  onClick={() => goTo(item.section, item.panel ?? null)}
+                  type="button"
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+        ) : null}
+      </aside>
+
+      <aside className="app-panel hidden h-fit rounded-[34px] border p-6 lg:sticky lg:top-6 lg:block">
       <Link
         className="app-panel-soft text-app-foreground inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition hover:opacity-90"
         href="/channels"
@@ -295,6 +422,7 @@ export function SettingsSidebar() {
           </div>
         </div>
       </nav>
-    </aside>
+      </aside>
+    </>
   );
 }

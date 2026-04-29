@@ -47,7 +47,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   return (
     <div
       ref={pickerRef}
-      className="app-emoji-picker absolute bottom-full left-0 z-50 mb-3 w-[min(23rem,calc(100vw-2rem))] overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.76)] bg-[hsl(var(--surface-overlay)/0.98)] p-3 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.24)] backdrop-blur-2xl"
+      className="app-emoji-picker fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-[90] max-h-[70dvh] overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.76)] bg-[hsl(var(--surface-overlay)/0.98)] p-3 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.24)] backdrop-blur-2xl md:absolute md:inset-x-auto md:bottom-full md:left-0 md:mb-3 md:max-h-none md:w-[min(23rem,calc(100vw-2rem))]"
     >
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
@@ -68,7 +68,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
           <X className="h-4 w-4" />
         </button>
       </div>
-      <div className="overflow-hidden rounded-[22px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.86)]">
+      <div className="max-h-[56dvh] overflow-hidden rounded-[22px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.86)] md:max-h-none">
         <Picker
           dynamicWidth
           onEmojiSelect={(emoji: EmojiSelection) => onSelect(emoji.native)}

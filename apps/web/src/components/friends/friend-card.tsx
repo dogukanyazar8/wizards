@@ -56,12 +56,12 @@ export function FriendCard({ friend, onBlock, onMessage, onRemove }: FriendCardP
   const displayName = friend.displayName ?? friend.username;
 
   return (
-    <div className="app-panel flex items-center justify-between gap-4 rounded-[28px] border p-4 transition focus-within:ring-2 focus-within:ring-[hsl(var(--ring)/0.45)] hover:opacity-95">
-      <div className="flex min-w-0 items-center gap-4">
+    <div className="app-panel flex items-center justify-between gap-3 rounded-[24px] border p-3 transition focus-within:ring-2 focus-within:ring-[hsl(var(--ring)/0.45)] hover:opacity-95 sm:gap-4 sm:rounded-[28px] sm:p-4">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
         <div className="relative">
           <Avatar
             alt={displayName}
-            className="h-12 w-12 text-sm"
+            className="h-11 w-11 text-sm sm:h-12 sm:w-12"
             fallback={displayName}
             src={friend.avatarUrl}
           />
@@ -81,7 +81,7 @@ export function FriendCard({ friend, onBlock, onMessage, onRemove }: FriendCardP
 
       <button
         aria-label={t("friends.actions.openMenu", { name: displayName })}
-        className="app-panel-soft text-app-muted rounded-2xl border p-2 transition hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+        className="app-panel-soft text-app-muted flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
         onClick={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
           setMenuState({

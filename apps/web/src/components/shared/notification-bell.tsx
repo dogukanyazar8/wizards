@@ -22,6 +22,7 @@ import {
   notificationsQueryKeys,
 } from "@/lib/notifications/client";
 import type { NotificationDTO } from "@/lib/notifications/types";
+import { cn } from "@/lib/utils";
 
 function formatNotificationDate(locale: string, createdAt: string) {
   return new Intl.DateTimeFormat(locale, {
@@ -49,6 +50,7 @@ export function NotificationBell() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [dropdownPos, setDropdownPos] = useState<{ left: number; top: number } | null>(null);
 
@@ -105,6 +107,16 @@ export function NotificationBell() {
     },
     [notificationLimit, queryClient, syncNotificationQueries],
   );
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 767px)");
+    const handleChange = () => setIsMobileViewport(query.matches);
+
+    handleChange();
+    query.addEventListener("change", handleChange);
+
+    return () => query.removeEventListener("change", handleChange);
+  }, []);
 
   useEffect(() => {
     setUnreadCount(unreadQuery.data ?? 0);
@@ -229,6 +241,12 @@ export function NotificationBell() {
       return;
     }
 
+    if (isMobileViewport) {
+      setDropdownPos({ left: 0, top: 0 });
+      setOpen(true);
+      return;
+    }
+
     const rect = buttonRef.current.getBoundingClientRect();
     const userBarRect =
       buttonRef.current
@@ -307,11 +325,20 @@ export function NotificationBell() {
                 <motion.div
                   ref={popoverRef}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  className="fixed z-[80] w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.96),hsl(var(--surface-soft)/0.8))] shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)] backdrop-blur-xl"
+                  className={cn(
+                    "fixed z-[80] overflow-hidden border border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.96),hsl(var(--surface-soft)/0.8))] shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)] backdrop-blur-xl",
+                    isMobileViewport
+                      ? "inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-h-[min(34rem,calc(100dvh-1.5rem))] rounded-[28px]"
+                      : "w-[min(24rem,calc(100vw-2rem))] rounded-[28px]",
+                  )}
                   data-notification-popup="true"
                   exit={{ opacity: 0, scale: 0.97, y: -10 }}
                   initial={{ opacity: 0, scale: 0.97, y: -10 }}
-                  style={{ left: `${dropdownPos.left}px`, top: `${dropdownPos.top}px` }}
+                  style={
+                    isMobileViewport
+                      ? {}
+                      : { left: `${dropdownPos.left}px`, top: `${dropdownPos.top}px` }
+                  }
                   transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                 >
                   <div className="border-b border-[hsl(var(--border)/0.72)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.92),hsl(var(--primary)/0.12))] px-5 py-4">
@@ -351,7 +378,7 @@ export function NotificationBell() {
                     </div>
                   </div>
 
-                  <div className="max-h-[28rem] overflow-y-auto p-3">
+                  <div className="max-h-[min(24rem,calc(100dvh-13rem))] overflow-y-auto p-3 sm:max-h-[28rem]">
                     {listQuery.isLoading ? (
                       <div className="space-y-3">
                         {Array.from({ length: 4 }).map((_, index) => (
@@ -367,7 +394,7 @@ export function NotificationBell() {
                         ))}
                       </div>
                     ) : list.length === 0 ? (
-                      <div className="app-panel flex min-h-[260px] flex-col items-center justify-center rounded-[26px] border border-dashed border-[hsl(var(--border)/0.7)] px-6 text-center">
+                      <div className="app-panel flex min-h-[220px] flex-col items-center justify-center rounded-[26px] border border-dashed border-[hsl(var(--border)/0.7)] px-5 text-center sm:min-h-[260px] sm:px-6">
                         <div className="app-panel-soft flex h-14 w-14 items-center justify-center rounded-[22px] border">
                           <Inbox className="h-5 w-5 text-app-muted" />
                         </div>
@@ -396,9 +423,9 @@ export function NotificationBell() {
 
                   {list.length > 0 ? (
                     <div className="border-t border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.72)] px-4 py-3">
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                         <button
-                          className="flex-1 rounded-2xl border border-[hsl(var(--border)/0.78)] px-3 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                          className="min-h-11 flex-1 rounded-2xl border border-[hsl(var(--border)/0.78)] px-3 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                           onClick={() => {
                             closePopover();
                             router.push("/channels/@me");
@@ -408,7 +435,7 @@ export function NotificationBell() {
                           {t("notifications.bell.seeAll")}
                         </button>
                         <button
-                          className="inline-flex items-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.14)] px-3 py-2 text-sm font-medium text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:opacity-50"
+                          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.14)] px-3 py-2 text-sm font-medium text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:opacity-50"
                           disabled={clearAllMutation.isPending}
                           onClick={() => clearAllMutation.mutate()}
                           type="button"

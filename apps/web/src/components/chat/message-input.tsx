@@ -451,12 +451,12 @@ export function MessageInput({
   }, [allowGifs]);
 
   return (
-    <div className="space-y-3 border-t border-app-border bg-[hsl(var(--surface-card)/0.62)] p-4 backdrop-blur-sm md:p-5">
+    <div className="sticky bottom-0 z-20 space-y-3 border-t border-app-border bg-[hsl(var(--surface-card)/0.82)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl md:static md:p-5">
       <ReplyPreview replyTo={replyTo} onCancel={onCancelReply} />
 
-      <div className="app-panel rounded-[30px] border p-3 shadow-[0_20px_44px_hsl(var(--shadow-color)/0.08)]">
+      <div className="app-panel rounded-[26px] border p-3 shadow-[0_20px_44px_hsl(var(--shadow-color)/0.08)] md:rounded-[30px]">
         {attachmentDrafts.length > 0 ? (
-          <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
+          <div className="mb-3 grid max-h-[38dvh] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 md:max-h-none md:grid-cols-5 md:overflow-visible md:pr-0">
             {attachmentDrafts.map((draft) => (
               <div
                 className="group/attachment relative aspect-square overflow-hidden rounded-[20px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.42)]"
@@ -528,7 +528,7 @@ export function MessageInput({
           </div>
         ) : null}
 
-        <div className="flex items-end gap-3">
+        <div className="flex items-end gap-2 md:gap-3">
           <div className="relative flex-1">
             <textarea
               ref={textareaRef}
@@ -539,12 +539,12 @@ export function MessageInput({
               placeholder={
                 mode === "dm" ? t("dm.input.placeholder") : t("chat.input.placeholder")
               }
-              className="min-h-[3.25rem] w-full max-h-24 resize-none rounded-[24px] bg-transparent px-2 py-2 pr-4 text-[15px] text-app-foreground placeholder-app-muted focus-visible:outline-none"
+              className="max-h-24 min-h-[3rem] w-full resize-none rounded-[22px] bg-transparent px-2 py-2 pr-3 text-[16px] text-app-foreground placeholder-app-muted focus-visible:outline-none md:min-h-[3.25rem] md:rounded-[24px] md:pr-4 md:text-[15px]"
               rows={1}
             />
 
-            <div className="mt-2 flex items-center justify-between gap-3 border-t border-[hsl(var(--border)/0.6)] px-2 pt-3">
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="mt-2 flex items-center justify-between gap-2 border-t border-[hsl(var(--border)/0.6)] px-1 pt-3 md:gap-3 md:px-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <input
                   accept={MESSAGE_ATTACHMENT_ACCEPT}
                   className="hidden"
@@ -569,7 +569,9 @@ export function MessageInput({
                       setShowGifPicker(false);
                       setShowEmojiPicker((current) => !current);
                     }}
-                    className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] px-3 py-1.5 text-xs font-medium text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] px-3 py-2 text-xs font-medium text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:min-h-0 md:py-1.5"
                     aria-label={t("chat.input.openEmojiPicker")}
                     type="button"
                   >
@@ -587,7 +589,7 @@ export function MessageInput({
                   ) : null}
                   <button
                     aria-label={t("chat.gifs.openPicker")}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.26)] px-3 py-1.5 text-xs font-medium text-app-soft transition hover:border-[hsl(var(--primary)/0.38)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.26)] px-3 py-2 text-xs font-medium text-app-soft transition hover:border-[hsl(var(--primary)/0.38)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-50 md:min-h-0 md:py-1.5"
                     disabled={!allowGifs}
                     onClick={() => {
                       if (!allowGifs) {
@@ -597,17 +599,19 @@ export function MessageInput({
                       setShowEmojiPicker(false);
                       setShowGifPicker((current) => !current);
                     }}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onPointerDown={(event) => event.stopPropagation()}
                     title={allowGifs ? t("chat.gifs.openPicker") : t("chat.gifs.disabled")}
                     type="button"
                   >
                     <ImageIcon className="h-3.5 w-3.5" />
-                    {t("chat.attachments.gif")}
+                    <span className="hidden sm:inline">{t("chat.attachments.gif")}</span>
                   </button>
                 </div>
 
                 <button
                   aria-label={t("chat.attachments.attachFile")}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.26)] px-3 py-1.5 text-xs font-medium text-app-soft transition hover:border-[hsl(var(--primary)/0.38)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.26)] px-3 py-2 text-xs font-medium text-app-soft transition hover:border-[hsl(var(--primary)/0.38)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-50 md:min-h-0 md:py-1.5"
                   disabled={!allowFileUploads}
                   onClick={() => {
                     if (!allowFileUploads) {
@@ -632,7 +636,7 @@ export function MessageInput({
                   type="button"
                 >
                   <Paperclip className="h-3.5 w-3.5" />
-                  {t("chat.attachments.attachFile")}
+                  <span className="hidden sm:inline">{t("chat.attachments.attachFile")}</span>
                 </button>
               </div>
 
@@ -649,7 +653,7 @@ export function MessageInput({
           <button
             onClick={handleSend}
             disabled={!canSend}
-            className="inline-flex h-12 min-w-[3.25rem] items-center justify-center gap-2 rounded-[20px] bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--primary)/0.82))] px-4 text-sm font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_18px_34px_hsl(var(--shadow-color)/0.16)] transition hover:-translate-y-0.5 hover:opacity-95 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            className="inline-flex h-12 min-w-12 items-center justify-center gap-2 rounded-[20px] bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--primary)/0.82))] px-3 text-sm font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_18px_34px_hsl(var(--shadow-color)/0.16)] transition hover:-translate-y-0.5 hover:opacity-95 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:min-w-[3.25rem] md:px-4"
             aria-label={t("chat.input.sendMessage")}
             type="button"
           >

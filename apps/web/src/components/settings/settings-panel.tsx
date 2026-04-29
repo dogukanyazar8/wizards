@@ -88,9 +88,9 @@ function SectionHero({
   title: string;
 }) {
   return (
-    <section className="app-panel rounded-[32px] border p-7">
+    <section className="app-panel rounded-[28px] border p-5 sm:rounded-[32px] sm:p-7">
       <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.24em]">{badge}</p>
-      <h2 className="text-app-foreground mt-3 text-3xl font-semibold tracking-tight">{title}</h2>
+      <h2 className="text-app-foreground mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h2>
       <p className="text-app-muted mt-3 max-w-3xl text-sm leading-7">{description}</p>
     </section>
   );
@@ -110,8 +110,8 @@ function SettingCard({
   title: string;
 }) {
   return (
-    <section className="app-panel rounded-[30px] border p-6">
-      <div className="flex items-start justify-between gap-4">
+    <section className="app-panel rounded-[28px] border p-5 sm:rounded-[30px] sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="app-panel-soft mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-[hsl(var(--primary))]">
             <Icon className="h-4 w-4" />
@@ -121,7 +121,7 @@ function SettingCard({
             <p className="text-app-muted mt-1 text-sm leading-6">{description}</p>
           </div>
         </div>
-        {badge ? <Badge tone="muted">{badge}</Badge> : null}
+        {badge ? <Badge className="shrink-0" tone="muted">{badge}</Badge> : null}
       </div>
       <div className="mt-5">{children}</div>
     </section>
@@ -138,7 +138,7 @@ function InfoPill({
   return (
     <div className="app-panel-soft rounded-[22px] border p-4">
       <p className="text-app-soft text-[11px] font-semibold uppercase tracking-[0.18em]">{label}</p>
-      <p className="text-app-foreground mt-2 text-sm font-medium">{value}</p>
+      <p className="text-app-foreground mt-2 break-words text-sm font-medium">{value}</p>
     </div>
   );
 }
@@ -166,7 +166,7 @@ function ToggleRow({
         <button
           aria-checked={checked}
           className={cn(
-            "relative mt-1 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+            "relative mt-1 inline-flex h-8 w-14 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-7 sm:w-12",
             checked
               ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
               : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
@@ -179,8 +179,8 @@ function ToggleRow({
         >
           <span
             className={cn(
-              "absolute left-1 h-5 w-5 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition",
-              checked && "translate-x-5 bg-[hsl(var(--primary))]",
+              "absolute left-1 h-6 w-6 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition sm:h-5 sm:w-5",
+              checked && "translate-x-6 bg-[hsl(var(--primary))] sm:translate-x-5",
             )}
           />
         </button>
@@ -219,7 +219,7 @@ function SoundVolumeRow({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button
-            className="rounded-2xl border border-[hsl(var(--border)/0.78)] px-3 py-2 text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
+            className="min-h-10 rounded-2xl border border-[hsl(var(--border)/0.78)] px-3 py-2 text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
             disabled={!checked || volume === 0}
             onClick={onPreview}
             type="button"
@@ -229,8 +229,8 @@ function SoundVolumeRow({
           <button
             aria-label={label}
             aria-checked={checked}
-            className={cn(
-              "relative inline-flex h-7 w-12 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+          className={cn(
+              "relative inline-flex h-8 w-14 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-7 sm:w-12",
               checked
                 ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
                 : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
@@ -240,11 +240,11 @@ function SoundVolumeRow({
             type="button"
           >
             <span
-              className={cn(
-                "absolute left-1 h-5 w-5 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition",
-                checked && "translate-x-5 bg-[hsl(var(--primary))]",
-              )}
-            />
+            className={cn(
+                "absolute left-1 h-6 w-6 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition sm:h-5 sm:w-5",
+                checked && "translate-x-6 bg-[hsl(var(--primary))] sm:translate-x-5",
+            )}
+          />
           </button>
         </div>
       </div>
@@ -307,7 +307,7 @@ function RangeSliderCard({
         </div>
       </div>
 
-      <div className="mt-4 rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] p-5">
+      <div className="mt-4 overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] p-4 sm:p-5">
         <input
           aria-label={title}
           className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.9)] accent-[hsl(var(--primary))]"
@@ -662,13 +662,13 @@ export function SettingsPanel({
             title={t("settings.account.summaryTitle")}
           >
             <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="flex h-20 w-20 items-center justify-center rounded-[26px] bg-[linear-gradient(135deg,hsl(var(--primary)/0.28),hsl(var(--primary)/0.12))] text-xl font-semibold text-app-foreground">
+              <div className="flex min-w-0 items-center gap-4">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,hsl(var(--primary)/0.28),hsl(var(--primary)/0.12))] text-lg font-semibold text-app-foreground sm:h-20 sm:w-20 sm:rounded-[26px] sm:text-xl">
                   {buildAvatarFallback(accountState)}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-xl font-semibold text-app-foreground">{visibleName}</p>
+                    <p className="truncate text-lg font-semibold text-app-foreground sm:text-xl">{visibleName}</p>
                     <StatusDot status={accountState.status} />
                   </div>
                   <p className="mt-1 text-sm text-app-muted">@{accountState.username}</p>
@@ -676,7 +676,7 @@ export function SettingsPanel({
                 </div>
               </div>
 
-              <Button onClick={() => setIsEditingAccount(true)} type="button" variant="outline">
+              <Button className="w-full sm:w-auto" onClick={() => setIsEditingAccount(true)} type="button" variant="outline">
                 {t("common.edit")}
               </Button>
             </div>
@@ -782,11 +782,11 @@ export function SettingsPanel({
                   </p>
                 ) : null}
 
-                <div className="flex flex-wrap justify-end gap-2">
-                  <Button onClick={cancelAccountEditing} type="button" variant="outline">
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                  <Button className="w-full sm:w-auto" onClick={cancelAccountEditing} type="button" variant="outline">
                     {t("common.cancel")}
                   </Button>
-                  <Button disabled={isSavingAccount} onClick={saveAccount} type="button">
+                  <Button className="w-full sm:w-auto" disabled={isSavingAccount} onClick={saveAccount} type="button">
                     {isSavingAccount ? t("common.saving") : t("common.save")}
                   </Button>
                 </div>
@@ -902,7 +902,7 @@ export function SettingsPanel({
                 <div className="flex items-center gap-3">
                   <div
                     className="app-panel-soft shrink-0 rounded-[22px] border p-3"
-                    style={{ width: `${Math.max(72, serverRailWidth)}px` }}
+                    style={{ width: `min(${Math.max(72, serverRailWidth)}px, 28vw)` }}
                   >
                     <div className="mx-auto h-10 w-10 rounded-[16px] bg-[hsl(var(--primary)/0.18)]" />
                   </div>
@@ -975,7 +975,7 @@ export function SettingsPanel({
                   </div>
                   <div
                     className="app-panel shrink-0 rounded-[24px] border p-4"
-                    style={{ width: `${channelSidebarWidth}px` }}
+                    style={{ width: `min(${channelSidebarWidth}px, 52vw)` }}
                   >
                     <div className="h-4 w-36 rounded-full bg-[hsl(var(--surface-soft))]" />
                     <div className="mt-3 h-3 w-44 rounded-full bg-[hsl(var(--surface-soft)/0.8)]" />
@@ -990,8 +990,9 @@ export function SettingsPanel({
           />
         ) : null}
 
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
           <Button
+            className="w-full sm:w-auto"
             disabled={
               serverRailWidth === DEFAULT_SERVER_RAIL_WIDTH &&
               channelSidebarWidth === DEFAULT_CHANNEL_SIDEBAR_WIDTH &&

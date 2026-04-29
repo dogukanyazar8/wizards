@@ -80,7 +80,7 @@ export const MessageItem = React.memo(
           : t("chat.message.systemJoin", { name: message.author.displayName });
 
       return (
-        <div className="px-4 py-3">
+        <div className="px-2 py-3 sm:px-4">
           <div className="app-system-message mx-auto flex max-w-xl items-center justify-center gap-3 rounded-full border px-4 py-2 text-xs font-medium">
             <Icon className="app-system-message-icon h-3.5 w-3.5" />
             <span>{systemContent}</span>
@@ -100,17 +100,17 @@ export const MessageItem = React.memo(
     return (
       <div
         className={cn(
-          "group relative px-4 transition",
+          "group relative px-1 transition sm:px-4",
           isOptimistic && "opacity-60",
         )}
       >
         {showGroupSeparator ? (
-          <div className="absolute inset-x-4 top-0 h-px bg-[hsl(var(--border)/0.34)]" />
+          <div className="absolute inset-x-1 top-0 h-px bg-[hsl(var(--border)/0.34)] sm:inset-x-4" />
         ) : null}
 
         <div
           className={cn(
-            "grid grid-cols-[3rem_minmax(0,1fr)] gap-3 rounded-2xl transition hover:bg-[hsl(var(--surface-soft)/0.28)]",
+            "grid grid-cols-[2.5rem_minmax(0,1fr)] gap-2 rounded-2xl transition hover:bg-[hsl(var(--surface-soft)/0.28)] sm:grid-cols-[3rem_minmax(0,1fr)] sm:gap-3",
             isGrouped ? "min-h-[36px] py-1.5" : "min-h-[56px] py-2",
           )}
         >
@@ -124,14 +124,14 @@ export const MessageItem = React.memo(
                 <Avatar
                   src={message.author.avatarUrl}
                   alt={message.author.displayName}
-                  className="h-10 w-10 flex-shrink-0"
+                  className="h-9 w-9 flex-shrink-0 sm:h-10 sm:w-10"
                   fallback={message.author.displayName[0] || "?"}
                 />
               </UserProfilePopover>
             )}
           </div>
 
-          <div className="relative min-w-0 pr-24 md:pr-36">
+          <div className="relative min-w-0 pr-32 sm:pr-24 md:pr-36">
             {!isGrouped && (
               <div className="flex items-center gap-2 pr-2">
                 <span className="font-semibold text-app-foreground text-sm">
@@ -159,7 +159,7 @@ export const MessageItem = React.memo(
                 onCancel={() => setIsEditing(false)}
               />
             ) : (
-              <div className="text-app-foreground text-sm leading-6 break-words [&_a]:text-[hsl(var(--primary))] [&_ol]:my-2 [&_p]:m-0 [&_pre]:my-2 [&_ul]:my-2">
+              <div className="text-app-foreground break-words text-sm leading-6 [&_a]:text-[hsl(var(--primary))] [&_code]:break-words [&_ol]:my-2 [&_p]:m-0 [&_pre]:my-2 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_ul]:my-2">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {message.content}
                 </ReactMarkdown>
@@ -193,7 +193,7 @@ export const MessageItem = React.memo(
             )}
 
             {!isEditing ? (
-              <div className="pointer-events-none absolute right-0 top-0 flex w-24 justify-end opacity-0 transition group-hover:opacity-100 md:w-32">
+              <div className="pointer-events-none absolute right-0 top-0 flex w-32 justify-end opacity-100 transition sm:w-24 md:w-32 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
                 {!isOptimistic ? (
                   <MessageToolbar
                     allowReact

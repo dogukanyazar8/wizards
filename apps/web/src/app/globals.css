@@ -845,6 +845,7 @@ html.theme-royal-blue {
 html,
 body {
   min-height: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -1130,6 +1131,12 @@ h4 {
     --rgb-background: 255, 255, 255;
     --rgb-color: 31, 41, 55;
     --rgb-input: 244, 246, 250;
+  }
+
+  @media (max-width: 767px) {
+    .app-emoji-picker em-emoji-picker {
+      max-height: min(56dvh, 420px);
+    }
   }
 
   html.theme-ash .app-emoji-picker em-emoji-picker,

@@ -14,6 +14,7 @@ export function VoiceSettingsModal({ onClose, open }: VoiceSettingsModalProps) {
 
   return (
     <Modal
+      className="max-h-[calc(100dvh-1rem)] overflow-y-auto"
       description={t("voice.settings.description")}
       onClose={onClose}
       open={open}
