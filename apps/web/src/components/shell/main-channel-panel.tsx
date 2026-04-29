@@ -32,7 +32,7 @@ function WorkspaceSignature() {
   );
 
   return (
-    <div className="flex justify-center px-4 pb-4 pt-1">
+    <div className="hidden justify-center px-4 pb-4 pt-1 md:flex">
       <div className="app-panel-soft inline-flex flex-wrap items-center justify-center gap-2 rounded-full border px-4 py-2 text-[11px] font-medium text-app-muted shadow-[0_14px_32px_hsl(var(--shadow-color)/0.08)]">
         <span className="text-app-foreground">{t("shell.footer.builtWith")}</span>
         <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 text-[hsl(var(--primary))]">
@@ -151,11 +151,11 @@ export function MainChannelPanel({
 
   return (
     <section className="app-main-gradient flex min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="border-b border-[hsl(var(--border)/0.78)] px-4 py-4 md:px-6">
-        <div className="flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-30 border-b border-[hsl(var(--border)/0.78)] bg-[hsl(var(--background)/0.82)] px-3 py-3 backdrop-blur-2xl md:static md:bg-transparent md:px-6 md:py-4 md:backdrop-blur-none">
+        <div className="flex items-center justify-between gap-3 md:gap-4">
           <div className="flex min-w-0 items-center gap-3">
             {leading}
-            <div className="app-panel-soft text-app-foreground flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] border shadow-[0_18px_40px_hsl(var(--shadow-color)/0.08)]">
+            <div className="app-panel-soft text-app-foreground hidden h-11 w-11 shrink-0 items-center justify-center rounded-[18px] border shadow-[0_18px_40px_hsl(var(--shadow-color)/0.08)] sm:flex">
               <Icon className="h-4 w-4" />
             </div>
             <div className="min-w-0">
@@ -163,11 +163,11 @@ export function MainChannelPanel({
                 <h1 className="text-app-foreground truncate text-sm font-semibold md:text-base">
                   {title}
                 </h1>
-                <span className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.52)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-app-soft">
+                <span className="hidden rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.52)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-app-soft sm:inline-flex">
                   {resolvedDetailLabel}
                 </span>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              <div className="mt-2 hidden flex-wrap items-center gap-2 text-xs sm:flex">
                 <span className="text-app-muted">{resolvedContextLabel}</span>
                 <span className="text-app-soft">/</span>
                 <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 font-medium text-[hsl(var(--primary))]">
@@ -180,9 +180,9 @@ export function MainChannelPanel({
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-3 pt-3 md:px-6 md:pb-4 md:pt-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-0 pb-0 pt-0 md:px-6 md:pb-4 md:pt-4">
         <div
-          className="mx-auto flex min-h-0 w-full flex-1 overflow-hidden rounded-[34px] border border-[hsl(var(--border)/0.76)] bg-[linear-gradient(160deg,hsl(var(--surface-card)/0.88),hsl(var(--surface-soft)/0.28))] shadow-[0_32px_80px_hsl(var(--shadow-color)/0.09)]"
+          className="mx-auto flex min-h-0 w-full flex-1 overflow-hidden border-x-0 border-y border-[hsl(var(--border)/0.76)] bg-[linear-gradient(160deg,hsl(var(--surface-card)/0.88),hsl(var(--surface-soft)/0.28))] shadow-none md:rounded-[34px] md:border md:shadow-[0_32px_80px_hsl(var(--shadow-color)/0.09)]"
           data-main-panel-frame="true"
           style={{ maxWidth: `${mainPanelWidth}px` }}
         >

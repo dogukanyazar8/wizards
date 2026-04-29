@@ -558,6 +558,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.serverRail.createServer": "Create a server",
     "shell.serverRail.addServer": "Add Server",
     "shell.mobile.openWorkspaceNavigation": "Open workspace navigation",
+    "shell.mobile.workspaceNavigation": "Workspace navigation",
     "shell.channelSidebar.empty":
       "Pick a server to browse channels, or create one to start building your workspace.",
     "shell.channelSidebar.openChannels": "Open Channels",
@@ -1371,6 +1372,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.serverRail.createServer": "Sunucu oluştur",
     "shell.serverRail.addServer": "Sunucu Ekle",
     "shell.mobile.openWorkspaceNavigation": "Çalışma alanı gezinmesini aç",
+    "shell.mobile.workspaceNavigation": "Çalışma alanı gezinmesi",
     "shell.channelSidebar.empty":
       "Kanalları gezmek için bir sunucu seç veya kendi çalışma alanını kurmak için yeni bir sunucu oluştur.",
     "shell.channelSidebar.openChannels": "Açık Kanallar",

@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { Users } from "lucide-react";
+import { ArrowLeft, Users } from "lucide-react";
 import React, { type CSSProperties } from "react";
 import { useEffect, useMemo } from "react";
 import type {
@@ -145,7 +145,7 @@ const NavigationPanel = React.memo(
     onOpenSettings,
   }: NavigationPanelProps) => (
     <>
-      <div className={isMobile ? "flex h-full w-[72px] shrink-0" : "hidden md:flex"}>
+      <div className={isMobile ? "flex h-full w-[72px] shrink-0 [--server-rail-width:72px]" : "hidden md:flex"}>
         <ServerRail
           activeServerId={activeServerId}
           dmUnreadCount={dmUnreadCount}
@@ -176,6 +176,34 @@ const NavigationPanel = React.memo(
 );
 
 NavigationPanel.displayName = "NavigationPanel";
+
+function MobileShellControls({
+  canGoBack,
+  onBack,
+  onMenu,
+}: {
+  canGoBack: boolean;
+  onBack: () => void;
+  onMenu: () => void;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <div className="flex items-center gap-2 md:hidden">
+      {canGoBack ? (
+        <button
+          aria-label={t("common.back")}
+          className="app-panel-soft text-app-foreground inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          onClick={onBack}
+          type="button"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+      ) : null}
+      <MobileDrawerTrigger onClick={onMenu} />
+    </div>
+  );
+}
 
 export function WizardsShell({ children, currentUser, uploadthingEnabled }: WizardsShellProps) {
   const { t } = useI18n();
@@ -258,6 +286,26 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const isDmRoute = rawServerId === "@me" && Boolean(activeChannelId);
   const isServerIndexRoute = Boolean(activeServerId && !activeChannelId);
   const isServerConversationRoute = Boolean(activeServerId && activeChannelId);
+  const showMobileBackButton = isDmRoute || isServerConversationRoute;
+
+  useEffect(() => {
+    if (!mobileSidebarOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileSidebarOpen, setMobileSidebarOpen]);
+
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [pathname, setMobileSidebarOpen]);
 
   useEffect(() => {
     const handleServerUnreadUpdate = (data: { serverId: string; unreadCount: number }) => {
@@ -546,9 +594,20 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     router.push("/settings");
   };
 
+  const handleMobileBack = () => {
+    if (isDmRoute) {
+      router.push("/channels/@me");
+      return;
+    }
+
+    if (isServerConversationRoute) {
+      setMobileSidebarOpen(true);
+    }
+  };
+
   return (
     <div
-      className="app-shell flex h-screen overflow-hidden"
+      className="app-shell flex h-[100dvh] overflow-hidden md:h-screen"
       style={shellStyle}
       suppressHydrationWarning
     >
@@ -595,10 +654,13 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
             />
             <motion.div
               animate={{ x: 0 }}
-              className="app-shell absolute inset-y-0 left-0 flex shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)]"
+              aria-label={t("shell.mobile.workspaceNavigation")}
+              aria-modal="true"
+              className="app-shell absolute inset-y-0 left-0 flex max-w-full shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)]"
               exit={{ x: -24 }}
               initial={{ x: -24 }}
-              style={{ width: `calc(${serverRailWidth}px + ${channelSidebarWidth}px)` }}
+              role="dialog"
+              style={{ width: `min(100vw, calc(${serverRailWidth}px + ${channelSidebarWidth}px))` }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
               suppressHydrationWarning
             >
@@ -642,7 +704,13 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
               : t("shell.wizards.directMessages")
         }
         icon={!activeServerId ? Users : undefined}
-        leading={<MobileDrawerTrigger onClick={() => setMobileSidebarOpen(true)} />}
+        leading={
+          <MobileShellControls
+            canGoBack={showMobileBackButton}
+            onBack={handleMobileBack}
+            onMenu={() => setMobileSidebarOpen(true)}
+          />
+        }
       >
         {children}
       </MainChannelPanel>

@@ -434,7 +434,7 @@ export function ChannelSidebar({
 
   if (loading) {
     return (
-      <aside className="app-sidebar h-full w-full">
+      <aside className="app-sidebar h-full w-full pt-[env(safe-area-inset-top)] md:pt-0">
         <ChannelSidebarSkeleton />
       </aside>
     );
@@ -442,7 +442,7 @@ export function ChannelSidebar({
 
   if (!detail) {
     return (
-      <aside className="app-sidebar flex h-full w-full flex-col">
+      <aside className="app-sidebar flex h-full w-full flex-col pt-[env(safe-area-inset-top)] md:pt-0">
         <div className="min-h-0 flex-1 p-4">
           <FriendsSidebar
             currentUserId={currentUser.id}
@@ -450,7 +450,7 @@ export function ChannelSidebar({
             onPrefetch={onPrefetch}
           />
         </div>
-        <div className="border-t border-[hsl(var(--border)/0.78)] p-3">
+        <div className="border-t border-[hsl(var(--border)/0.78)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3">
           <VoiceConnectionBar />
           <UserProfileFooter user={currentUser} onOpenAppearanceSettings={onOpenSettings} />
         </div>
@@ -524,7 +524,7 @@ export function ChannelSidebar({
   };
 
   return (
-    <aside className="app-sidebar flex h-full w-full flex-col">
+    <aside className="app-sidebar flex h-full w-full flex-col pt-[env(safe-area-inset-top)] md:pt-0">
       <div className="border-b border-[hsl(var(--border)/0.78)] p-3">
         <button
           aria-label={`Open ${detail.server.name} menu`}
@@ -562,7 +562,7 @@ export function ChannelSidebar({
         </div>
       </DndContext>
 
-      <div className="border-t border-[hsl(var(--border)/0.78)] p-3">
+      <div className="border-t border-[hsl(var(--border)/0.78)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3">
         <VoiceConnectionBar />
         <UserProfileFooter user={currentUser} onOpenAppearanceSettings={onOpenSettings} />
       </div>

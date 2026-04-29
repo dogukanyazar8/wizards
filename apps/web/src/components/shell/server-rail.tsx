@@ -37,14 +37,14 @@ export function ServerRail({
 
   if (loading) {
     return (
-      <aside className="app-rail hidden h-full w-[var(--server-rail-width)] shrink-0 md:block">
+      <aside className="app-rail h-full w-[var(--server-rail-width)] shrink-0">
         <ServerRailSkeleton />
       </aside>
     );
   }
 
   return (
-    <aside className="app-rail flex h-full w-[var(--server-rail-width)] shrink-0 flex-col items-center gap-3 px-2 pb-3 pt-4">
+    <aside className="app-rail flex h-full w-[var(--server-rail-width)] shrink-0 flex-col items-center gap-3 px-2 pb-3 pt-[max(1rem,env(safe-area-inset-top))]">
       {/* DM */}
       <div className="w-full shrink-0 rounded-[26px] border border-[hsl(var(--border)/0.38)] bg-[hsl(var(--surface-soft)/0.18)] px-2 py-2">
         <div className="flex justify-center">
@@ -122,7 +122,7 @@ export function MobileDrawerTrigger({ onClick }: { onClick: () => void }) {
   return (
     <button
       aria-label={t("shell.mobile.openWorkspaceNavigation")}
-      className="app-panel-soft text-app-foreground inline-flex h-10 w-10 items-center justify-center rounded-2xl border transition hover:opacity-90 md:hidden"
+      className="app-panel-soft text-app-foreground inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] md:hidden"
       onClick={onClick}
       type="button"
     >
