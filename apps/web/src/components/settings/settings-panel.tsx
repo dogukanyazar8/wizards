@@ -60,6 +60,7 @@ import {
 } from "@/lib/settings/navigation";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { SOUND_EFFECT_PATHS, useSoundStore, type SoundEffectKey } from "@/store/sound-store";
 
 const NOTIFICATION_SOUND_OPTIONS = ["default", "soft", "pulse"] as const;
 
@@ -183,6 +184,91 @@ function ToggleRow({
             )}
           />
         </button>
+      </div>
+    </div>
+  );
+}
+
+function SoundVolumeRow({
+  checked,
+  description,
+  label,
+  onChange,
+  onPreview,
+  onVolumeChange,
+  previewLabel,
+  volume,
+  volumeLabel,
+}: {
+  checked: boolean;
+  description: string;
+  label: string;
+  onChange: (nextValue: boolean) => void;
+  onPreview: () => void;
+  onVolumeChange: (nextValue: number) => void;
+  previewLabel: string;
+  volume: number;
+  volumeLabel: string;
+}) {
+  return (
+    <div className="app-panel-soft rounded-[24px] border p-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-app-foreground">{label}</p>
+          <p className="text-app-muted mt-1 text-sm leading-6">{description}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            className="rounded-2xl border border-[hsl(var(--border)/0.78)] px-3 py-2 text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
+            disabled={!checked || volume === 0}
+            onClick={onPreview}
+            type="button"
+          >
+            {previewLabel}
+          </button>
+          <button
+            aria-label={label}
+            aria-checked={checked}
+            className={cn(
+              "relative inline-flex h-7 w-12 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+              checked
+                ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
+                : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
+            )}
+            onClick={() => onChange(!checked)}
+            role="switch"
+            type="button"
+          >
+            <span
+              className={cn(
+                "absolute left-1 h-5 w-5 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition",
+                checked && "translate-x-5 bg-[hsl(var(--primary))]",
+              )}
+            />
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <label className="text-xs font-semibold uppercase tracking-[0.16em] text-app-soft">
+            {volumeLabel}
+          </label>
+          <span className="rounded-full border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] px-2.5 py-1 text-xs font-semibold text-app-foreground">
+            {volume}%
+          </span>
+        </div>
+        <input
+          aria-label={volumeLabel}
+          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.9)] accent-[hsl(var(--primary))] disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!checked}
+          max={100}
+          min={0}
+          onChange={(event) => onVolumeChange(Number(event.target.value))}
+          step={1}
+          type="range"
+          value={volume}
+        />
       </div>
     </div>
   );
@@ -351,6 +437,31 @@ export function SettingsPanel({
       setServerRailWidth: state.setServerRailWidth,
     })),
   );
+  const {
+    notificationVolume,
+    setNotificationVolume,
+    setVoiceJoinEnabled,
+    setVoiceJoinVolume,
+    setVoiceLeaveEnabled,
+    setVoiceLeaveVolume,
+    voiceJoinEnabled,
+    voiceJoinVolume,
+    voiceLeaveEnabled,
+    voiceLeaveVolume,
+  } = useSoundStore(
+    useShallow((state) => ({
+      notificationVolume: state.notificationVolume,
+      setNotificationVolume: state.setNotificationVolume,
+      setVoiceJoinEnabled: state.setVoiceJoinEnabled,
+      setVoiceJoinVolume: state.setVoiceJoinVolume,
+      setVoiceLeaveEnabled: state.setVoiceLeaveEnabled,
+      setVoiceLeaveVolume: state.setVoiceLeaveVolume,
+      voiceJoinEnabled: state.voiceJoinEnabled,
+      voiceJoinVolume: state.voiceJoinVolume,
+      voiceLeaveEnabled: state.voiceLeaveEnabled,
+      voiceLeaveVolume: state.voiceLeaveVolume,
+    })),
+  );
 
   useEffect(() => {
     setAccountState(initialAccount);
@@ -408,6 +519,14 @@ export function SettingsPanel({
     },
     [patchSettingsMutation],
   );
+
+  const previewSound = useCallback((effect: SoundEffectKey, volume: number) => {
+    const audio = new Audio(SOUND_EFFECT_PATHS[effect]);
+    audio.volume = Math.min(1, Math.max(0, volume / 100));
+    audio.play().catch(() => {
+      // The preview is user-triggered, but browsers may still reject playback.
+    });
+  }, []);
 
   const handleServerRailWidthChange = useCallback(
     (nextValue: number) => {
@@ -1064,11 +1183,38 @@ export function SettingsPanel({
             title={t("settings.notifications.sounds.title")}
           >
             <div className="space-y-4">
-              <ToggleRow
+              <SoundVolumeRow
                 checked={serverSettings?.notificationSound ?? true}
                 description={t("settings.notifications.soundToggle.description")}
                 label={t("settings.notifications.soundToggle.title")}
                 onChange={(nextValue) => updateServerSettings({ notificationSound: nextValue })}
+                onPreview={() => previewSound("notification", notificationVolume)}
+                onVolumeChange={setNotificationVolume}
+                previewLabel={t("settings.notifications.sound.preview")}
+                volume={notificationVolume}
+                volumeLabel={t("settings.notifications.sound.volume")}
+              />
+              <SoundVolumeRow
+                checked={voiceJoinEnabled}
+                description={t("settings.notifications.voiceJoinSound.description")}
+                label={t("settings.notifications.voiceJoinSound.title")}
+                onChange={setVoiceJoinEnabled}
+                onPreview={() => previewSound("voiceJoin", voiceJoinVolume)}
+                onVolumeChange={setVoiceJoinVolume}
+                previewLabel={t("settings.notifications.sound.preview")}
+                volume={voiceJoinVolume}
+                volumeLabel={t("settings.notifications.sound.volume")}
+              />
+              <SoundVolumeRow
+                checked={voiceLeaveEnabled}
+                description={t("settings.notifications.voiceLeaveSound.description")}
+                label={t("settings.notifications.voiceLeaveSound.title")}
+                onChange={setVoiceLeaveEnabled}
+                onPreview={() => previewSound("voiceLeave", voiceLeaveVolume)}
+                onVolumeChange={setVoiceLeaveVolume}
+                previewLabel={t("settings.notifications.sound.preview")}
+                volume={voiceLeaveVolume}
+                volumeLabel={t("settings.notifications.sound.volume")}
               />
               <div className="app-panel-soft rounded-[24px] border p-4">
                 <label
@@ -1098,6 +1244,9 @@ export function SettingsPanel({
                   ))}
                 </select>
               </div>
+              <p className="text-app-muted rounded-[20px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.22)] px-4 py-3 text-xs leading-5">
+                {t("settings.notifications.sound.localDeviceNote")}
+              </p>
             </div>
           </SettingCard>
         ) : null}

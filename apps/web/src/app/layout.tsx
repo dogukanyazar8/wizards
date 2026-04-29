@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { auth } from "@/auth";
 import { SocketProvider } from "@/components/providers/socket-provider";
+import { SoundEffectsProvider } from "@/components/providers/sound-effects-provider";
 import { VoiceProvider } from "@/components/providers/voice-provider";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -55,7 +56,9 @@ export default async function RootLayout({
             <QueryProvider>
               {currentUser ? (
                 <SocketProvider>
-                  <VoiceProvider currentUser={currentUser}>{children}</VoiceProvider>
+                  <SoundEffectsProvider currentUserId={currentUser.id}>
+                    <VoiceProvider currentUser={currentUser}>{children}</VoiceProvider>
+                  </SoundEffectsProvider>
                 </SocketProvider>
               ) : (
                 children

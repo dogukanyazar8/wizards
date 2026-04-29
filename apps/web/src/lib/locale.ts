@@ -404,6 +404,16 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.notifications.soundToggle.title": "Notification sound",
     "settings.notifications.soundToggle.description":
       "Play a short alert sound for supported notification surfaces.",
+    "settings.notifications.sound.preview": "Preview",
+    "settings.notifications.sound.volume": "Volume",
+    "settings.notifications.sound.localDeviceNote":
+      "Voice join and leave sounds are saved on this device so each browser can keep its own mix.",
+    "settings.notifications.voiceJoinSound.title": "Voice join sound",
+    "settings.notifications.voiceJoinSound.description":
+      "Play a Discord-style cue when someone joins the voice channel you are currently in.",
+    "settings.notifications.voiceLeaveSound.title": "Voice leave sound",
+    "settings.notifications.voiceLeaveSound.description":
+      "Play a different cue when someone leaves the voice channel while you remain connected.",
     "settings.notifications.soundProfile.title": "Sound profile",
     "settings.notifications.soundProfile.description":
       "Pick the style Wizards should use when notification sounds are enabled.",
@@ -1191,6 +1201,16 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.notifications.soundToggle.title": "Bildirim sesi",
     "settings.notifications.soundToggle.description":
       "Desteklenen bildirim yüzeylerinde kısa bir uyarı sesi çal.",
+    "settings.notifications.sound.preview": "Önizle",
+    "settings.notifications.sound.volume": "Ses seviyesi",
+    "settings.notifications.sound.localDeviceNote":
+      "Ses kanalına giriş ve çıkış sesleri bu cihazda saklanır; böylece her tarayıcı kendi ses karışımını koruyabilir.",
+    "settings.notifications.voiceJoinSound.title": "Ses kanalına giriş sesi",
+    "settings.notifications.voiceJoinSound.description":
+      "Birisi bağlı olduğun ses kanalına katıldığında Discord benzeri kısa bir ses çal.",
+    "settings.notifications.voiceLeaveSound.title": "Ses kanalından çıkış sesi",
+    "settings.notifications.voiceLeaveSound.description":
+      "Sen bağlı kalırken birisi ses kanalından ayrıldığında farklı bir çıkış sesi çal.",
     "settings.notifications.soundProfile.title": "Ses profili",
     "settings.notifications.soundProfile.description":
       "Bildirim sesleri açıkken Wizards'ın hangi stili kullanacağını seç.",
