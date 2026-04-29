@@ -16,6 +16,7 @@ function applyVoiceStateUpdate(
       username: string;
       displayName: string | null;
       avatarUrl: string | null;
+      isScreenSharing?: boolean;
     }>;
   },
 ) {
@@ -34,6 +35,8 @@ function applyVoiceStateUpdate(
       username: participant.username,
       avatarUrl: participant.avatarUrl,
       displayName: participant.displayName ?? existingParticipant?.displayName ?? null,
+      isScreenSharing:
+        participant.isScreenSharing ?? existingParticipant?.isScreenSharing ?? false,
     };
   });
 
@@ -56,6 +59,37 @@ function applyVoiceStateUpdate(
 
   nextStates.push(nextState);
   return nextStates;
+}
+
+function applyVoiceScreenShareUpdate(
+  current: VoiceChannelStateDTO[] | undefined,
+  data: {
+    channelId: string;
+    isScreenSharing: boolean;
+    userId: string;
+  },
+) {
+  if (!current) {
+    return current;
+  }
+
+  return current.map((state) => {
+    if (state.channelId !== data.channelId) {
+      return state;
+    }
+
+    return {
+      ...state,
+      participants: state.participants.map((participant) =>
+        participant.userId === data.userId
+          ? {
+              ...participant,
+              isScreenSharing: data.isScreenSharing,
+            }
+          : participant,
+      ),
+    };
+  });
 }
 
 export function useVoiceStates(serverId: string | null) {
@@ -83,6 +117,7 @@ export function useVoiceStates(serverId: string | null) {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        isScreenSharing?: boolean;
       }>;
     }) => {
       queryClient.setQueryData<VoiceChannelStateDTO[] | undefined>(
@@ -96,9 +131,22 @@ export function useVoiceStates(serverId: string | null) {
       });
     };
 
+    const handleVoiceScreenShareUpdate = (data: {
+      channelId: string;
+      isScreenSharing: boolean;
+      userId: string;
+    }) => {
+      queryClient.setQueryData<VoiceChannelStateDTO[] | undefined>(
+        voiceQueryKeys.serverStates(serverId),
+        (current) => applyVoiceScreenShareUpdate(current, data),
+      );
+    };
+
     socket.on("voice:state:update", handleVoiceStateUpdate);
+    socket.on("voice:screenshare:update", handleVoiceScreenShareUpdate);
     return () => {
       socket.off("voice:state:update", handleVoiceStateUpdate);
+      socket.off("voice:screenshare:update", handleVoiceScreenShareUpdate);
     };
   }, [queryClient, serverId, socket]);
 

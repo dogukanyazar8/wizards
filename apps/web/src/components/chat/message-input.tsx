@@ -3,15 +3,17 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FileText, Loader2, Paperclip, Send, Smile, X } from "lucide-react";
+import { FileText, ImageIcon, Loader2, Paperclip, Send, Smile, X } from "lucide-react";
 import type { MessageAttachment, UploadedAttachmentInput } from "@wizards/types";
 import { EmojiPicker } from "./emoji-picker";
+import { GifPicker } from "./gif-picker";
 import { ReplyPreview } from "./reply-preview";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useTyping } from "@/hooks/use-typing";
 import type { MessageMode } from "@/hooks/use-messages";
 import {
   getMessageAttachmentMaxBytes,
+  isMessageGifContentType,
   isMessageImageContentType,
   isSupportedMessageAttachmentContentType,
   MESSAGE_ATTACHMENT_ACCEPT,
@@ -96,6 +98,7 @@ export function MessageInput({
   const [attachmentUploadError, setAttachmentUploadError] = useState<string | null>(null);
   const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showGifPicker, setShowGifPicker] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -323,6 +326,31 @@ export function MessageInput({
     }
   };
 
+  const handleGifSelect = (payload: {
+    attachment: MessageAttachment;
+    input: UploadedAttachmentInput;
+  }) => {
+    if (attachmentDrafts.length >= MESSAGE_ATTACHMENT_MAX_COUNT) {
+      setAttachmentUploadError(t("chat.attachments.maxAttachments"));
+      return;
+    }
+
+    const draft: AttachmentDraft = {
+      attachment: payload.attachment,
+      contentType: payload.attachment.contentType,
+      filename: payload.attachment.filename,
+      input: payload.input,
+      kind: "image",
+      localId: createLocalId(),
+      previewUrl: payload.attachment.url,
+      size: payload.attachment.size,
+      status: "ready",
+    };
+
+    setAttachmentDrafts((current) => [...current, draft]);
+    setAttachmentUploadError(null);
+  };
+
   const handlePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const files = Array.from(event.clipboardData.items)
       .filter((item) => item.kind === "file")
@@ -364,6 +392,7 @@ export function MessageInput({
     setContent("");
     clearAttachmentDrafts();
     setShowEmojiPicker(false);
+    setShowGifPicker(false);
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -429,6 +458,12 @@ export function MessageInput({
                   <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/86 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700 shadow-sm backdrop-blur">
                     <Paperclip className="h-3 w-3" />
                     {t("chat.attachments.file")}
+                  </span>
+                ) : null}
+                {isMessageGifContentType(draft.contentType) ? (
+                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/86 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-700 shadow-sm backdrop-blur">
+                    <ImageIcon className="h-3 w-3" />
+                    {t("chat.attachments.gif")}
                   </span>
                 ) : null}
                 {draft.status === "uploading" ? (
@@ -500,13 +535,37 @@ export function MessageInput({
                     />
                   ) : null}
                   <button
-                    onClick={() => setShowEmojiPicker((current) => !current)}
+                    onClick={() => {
+                      setShowGifPicker(false);
+                      setShowEmojiPicker((current) => !current);
+                    }}
                     className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] px-3 py-1.5 text-xs font-medium text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                     aria-label={t("chat.input.openEmojiPicker")}
                     type="button"
                   >
                     <Smile className="h-4 w-4" />
                     <span className="hidden sm:inline">{t("chat.input.openEmojiPicker")}</span>
+                  </button>
+                </div>
+
+                <div className="relative inline-flex">
+                  {showGifPicker ? (
+                    <GifPicker
+                      onClose={() => setShowGifPicker(false)}
+                      onSelect={handleGifSelect}
+                    />
+                  ) : null}
+                  <button
+                    aria-label={t("chat.gifs.openPicker")}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.26)] px-3 py-1.5 text-xs font-medium text-app-soft transition hover:border-[hsl(var(--primary)/0.38)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                    onClick={() => {
+                      setShowEmojiPicker(false);
+                      setShowGifPicker((current) => !current);
+                    }}
+                    type="button"
+                  >
+                    <ImageIcon className="h-3.5 w-3.5" />
+                    {t("chat.attachments.gif")}
                   </button>
                 </div>
 

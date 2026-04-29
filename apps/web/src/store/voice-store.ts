@@ -2,6 +2,11 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import {
+  DEFAULT_SCREEN_SHARE_QUALITY_ID,
+  isScreenShareQualityId,
+  type ScreenShareQualityId,
+} from "@/lib/voice/screen-share";
 
 export const DEFAULT_PARTICIPANT_VOLUME = 100;
 export const MAX_PARTICIPANT_VOLUME = 100;
@@ -69,17 +74,29 @@ function sanitizeAudioPreferences(value: unknown): VoiceAudioPreferences {
   };
 }
 
+function sanitizeScreenShareQuality(value: unknown): ScreenShareQualityId {
+  return isScreenShareQualityId(value) ? value : DEFAULT_SCREEN_SHARE_QUALITY_ID;
+}
+
 type PersistedVoiceStoreState = {
   audioPreferences: VoiceAudioPreferences;
   hasConfiguredKrispPreference: boolean;
   participantVolumes: Record<string, number>;
+  screenShareQuality: ScreenShareQualityId;
 };
 
 interface VoiceStoreState extends PersistedVoiceStoreState {
   activeChannelId: string | null;
   clearParticipantVolumes: () => void;
+  clearScreenShareState: () => void;
+  isScreenSharing: boolean;
   isDeafened: boolean;
   isMuted: boolean;
+  screenShareActiveSharerId: string | null;
+  screenShareChannelId: string | null;
+  screenShareConversationId: string | null;
+  screenShareError: string | null;
+  screenShareMode: "dm" | "voice" | null;
   serverId: string | null;
   sessionId: string | null;
   join: (input: { channelId: string; serverId: string; sessionId: string }) => void;
@@ -94,6 +111,15 @@ interface VoiceStoreState extends PersistedVoiceStoreState {
   setDeafened: (isDeafened: boolean) => void;
   setMuted: (isMuted: boolean) => void;
   setParticipantVolume: (userId: string, volume: number) => void;
+  setScreenShareError: (error: string | null) => void;
+  setScreenShareQuality: (quality: ScreenShareQualityId) => void;
+  setScreenShareState: (input: {
+    activeSharerId?: string | null;
+    channelId?: string | null;
+    conversationId?: string | null;
+    isSharing: boolean;
+    mode: "dm" | "voice" | null;
+  }) => void;
 }
 
 export const useVoiceStore = create<VoiceStoreState>()(
@@ -101,6 +127,15 @@ export const useVoiceStore = create<VoiceStoreState>()(
     (set) => ({
       activeChannelId: null,
       audioPreferences: DEFAULT_VOICE_AUDIO_PREFERENCES,
+      clearScreenShareState: () =>
+        set({
+          isScreenSharing: false,
+          screenShareActiveSharerId: null,
+          screenShareChannelId: null,
+          screenShareConversationId: null,
+          screenShareError: null,
+          screenShareMode: null,
+        }),
       clearParticipantVolumes: () =>
         set((state) => {
           if (Object.keys(state.participantVolumes).length === 0) {
@@ -114,7 +149,14 @@ export const useVoiceStore = create<VoiceStoreState>()(
       isDeafened: false,
       hasConfiguredKrispPreference: false,
       isMuted: false,
+      isScreenSharing: false,
       participantVolumes: {},
+      screenShareActiveSharerId: null,
+      screenShareChannelId: null,
+      screenShareConversationId: null,
+      screenShareError: null,
+      screenShareMode: null,
+      screenShareQuality: DEFAULT_SCREEN_SHARE_QUALITY_ID,
       serverId: null,
       sessionId: null,
       join: ({ channelId, serverId, sessionId }) =>
@@ -132,6 +174,12 @@ export const useVoiceStore = create<VoiceStoreState>()(
           isMuted: false,
           serverId: null,
           sessionId: null,
+          isScreenSharing: false,
+          screenShareActiveSharerId: null,
+          screenShareChannelId: null,
+          screenShareConversationId: null,
+          screenShareError: null,
+          screenShareMode: null,
         }),
       resetParticipantVolume: (userId) =>
         set((state) => {
@@ -192,6 +240,35 @@ export const useVoiceStore = create<VoiceStoreState>()(
             },
           };
         }),
+      setScreenShareError: (error) =>
+        set({
+          screenShareError: error,
+        }),
+      setScreenShareQuality: (quality) =>
+        set((state) => {
+          if (state.screenShareQuality === quality) {
+            return state;
+          }
+
+          return {
+            screenShareQuality: quality,
+          };
+        }),
+      setScreenShareState: ({
+        activeSharerId = null,
+        channelId = null,
+        conversationId = null,
+        isSharing,
+        mode,
+      }) =>
+        set({
+          isScreenSharing: isSharing,
+          screenShareActiveSharerId: activeSharerId,
+          screenShareChannelId: channelId,
+          screenShareConversationId: conversationId,
+          screenShareError: null,
+          screenShareMode: mode,
+        }),
     }),
     {
       merge: (persistedState, currentState) => {
@@ -210,6 +287,7 @@ export const useVoiceStore = create<VoiceStoreState>()(
                 },
           hasConfiguredKrispPreference: persistedState.hasConfiguredKrispPreference === true,
           participantVolumes: sanitizeParticipantVolumes(persistedState.participantVolumes),
+          screenShareQuality: sanitizeScreenShareQuality(persistedState.screenShareQuality),
         };
       },
       name: VOICE_PREFERENCES_STORAGE_KEY,
@@ -217,6 +295,7 @@ export const useVoiceStore = create<VoiceStoreState>()(
         audioPreferences: state.audioPreferences,
         hasConfiguredKrispPreference: state.hasConfiguredKrispPreference,
         participantVolumes: state.participantVolumes,
+        screenShareQuality: state.screenShareQuality,
       }),
       storage: createJSONStorage(() => localStorage),
     },

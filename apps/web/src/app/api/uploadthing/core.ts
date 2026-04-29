@@ -124,6 +124,10 @@ export const uploadRouter: FileRouter = {
       };
     }),
   messageImageUploader: f({
+    "image/gif": {
+      maxFileCount: 5,
+      maxFileSize: "8MB",
+    },
     "image/png": {
       maxFileCount: 5,
       maxFileSize: "8MB",
@@ -140,6 +144,10 @@ export const uploadRouter: FileRouter = {
     .middleware(requireMessageUploadUser)
     .onUploadComplete(createMessageAttachment),
   messageAttachmentUploader: f({
+    "image/gif": {
+      maxFileCount: 5,
+      maxFileSize: "8MB",
+    },
     "image/png": {
       maxFileCount: 5,
       maxFileSize: "8MB",

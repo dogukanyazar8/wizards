@@ -6,7 +6,10 @@ import { useMemo, useState } from "react";
 import { Download, ExternalLink, FileText, ImageIcon } from "lucide-react";
 import type { MessageAttachment } from "@wizards/types";
 import { useI18n } from "@/components/providers/locale-provider";
-import { isMessageImageContentType } from "@/lib/messages/attachment-rules";
+import {
+  isMessageGifContentType,
+  isMessageImageContentType,
+} from "@/lib/messages/attachment-rules";
 import { cn } from "@/lib/utils";
 import { ImageLightbox } from "./image-lightbox";
 
@@ -89,7 +92,9 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
               />
               <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/82 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700 shadow-sm backdrop-blur">
                 <ImageIcon className="h-3 w-3" />
-                {index + 1}/{imageAttachments.length}
+                {isMessageGifContentType(attachment.contentType)
+                  ? t("chat.attachments.gif")
+                  : `${index + 1}/${imageAttachments.length}`}
               </span>
             </button>
           ))}
@@ -119,7 +124,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
                 </span>
                 <span className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-app-soft">
                   <span>{extensionFromFilename(attachment.filename)}</span>
-                  <span aria-hidden="true">•</span>
+                  <span aria-hidden="true">/</span>
                   <span>{formatAttachmentSize(attachment.size)}</span>
                 </span>
               </span>

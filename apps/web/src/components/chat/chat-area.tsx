@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Phone } from "lucide-react";
+import { MonitorUp, Phone } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import type {
   ChatMessage,
@@ -13,6 +13,10 @@ import { MessageList } from "./message-list";
 import { MessageInput } from "./message-input";
 import { TypingIndicator } from "./typing-indicator";
 import { ClearChannelHistoryAction } from "./clear-channel-history-action";
+import {
+  DMScreenSharePanel,
+  IncomingDMScreenShareModal,
+} from "./dm-screen-share";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
@@ -22,6 +26,7 @@ import {
   type MessagePages,
 } from "@/hooks/use-messages";
 import { useSocket } from "@/hooks/use-socket";
+import { useDMScreenShare } from "@/hooks/use-dm-screen-share";
 import { useTyping } from "@/hooks/use-typing";
 
 interface ChatAreaProps {
@@ -130,6 +135,12 @@ export function ChatArea({
   const socket = useSocket();
   const queryClient = useQueryClient();
   const { typingUsers } = useTyping(conversationId, mode);
+  const dmScreenShare = useDMScreenShare({
+    conversationId,
+    currentUserDisplayName,
+    currentUserId,
+    currentUserUsername,
+  });
   const tempIdRef = useRef<string | null>(null);
   const [replyTo, setReplyTo] = useState<{
     id: string;
@@ -290,15 +301,29 @@ export function ChatArea({
             </div>
           </div>
 
-          <button
-            aria-label={t("dm.header.voiceCall")}
-            className="app-panel-soft rounded-2xl border p-2.5 text-app-muted transition disabled:cursor-not-allowed disabled:opacity-60"
-            disabled
-            title={t("dm.header.voiceComingSoon")}
-            type="button"
-          >
-            <Phone className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              aria-label={t("dm.screenShare.share")}
+              className="app-panel-soft rounded-2xl border p-2.5 text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={dmScreenShare.isStarting}
+              onClick={() => {
+                void dmScreenShare.startShare();
+              }}
+              title={t("dm.screenShare.share")}
+              type="button"
+            >
+              <MonitorUp className="h-4 w-4" />
+            </button>
+            <button
+              aria-label={t("dm.header.voiceCall")}
+              className="app-panel-soft rounded-2xl border p-2.5 text-app-muted transition disabled:cursor-not-allowed disabled:opacity-60"
+              disabled
+              title={t("dm.header.voiceComingSoon")}
+              type="button"
+            >
+              <Phone className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -324,22 +349,55 @@ export function ChatArea({
         </div>
       ) : null}
 
-      <MessageList
-        conversationId={conversationId}
-        mode={mode}
-        currentUserId={currentUserId}
-        canModerate={canModerate}
-        onReply={handleReply}
-      />
-      <TypingIndicator typingUsers={typingUsers} />
-      <MessageInput
-        conversationId={conversationId}
-        mode={mode}
-        replyTo={replyTo}
-        onSend={handleSend}
-        onCancelReply={() => setReplyTo(null)}
-        uploadthingEnabled={uploadthingEnabled}
-      />
+      {mode === "dm" ? (
+        <IncomingDMScreenShareModal
+          incomingShare={dmScreenShare.incomingShare}
+          onAccept={() => {
+            void dmScreenShare.acceptIncomingShare();
+          }}
+          onDecline={dmScreenShare.declineIncomingShare}
+        />
+      ) : null}
+
+      {mode === "dm" && dmScreenShare.error ? (
+        <div className="border-b border-[hsl(var(--warning)/0.24)] bg-[hsl(var(--warning)/0.08)] px-5 py-3">
+          <p className="text-sm font-medium text-app-foreground">
+            {dmScreenShare.error}
+          </p>
+        </div>
+      ) : null}
+
+      {mode === "dm" && dmScreenShare.activeShare ? (
+        <DMScreenSharePanel
+          activeShare={dmScreenShare.activeShare}
+          connectionState={dmScreenShare.connectionState}
+          onStopSharing={() => {
+            void dmScreenShare.stopSharing();
+          }}
+          onStopViewing={() => {
+            void dmScreenShare.stopViewing();
+          }}
+        />
+      ) : (
+        <>
+          <MessageList
+            conversationId={conversationId}
+            mode={mode}
+            currentUserId={currentUserId}
+            canModerate={canModerate}
+            onReply={handleReply}
+          />
+          <TypingIndicator typingUsers={typingUsers} />
+          <MessageInput
+            conversationId={conversationId}
+            mode={mode}
+            replyTo={replyTo}
+            onSend={handleSend}
+            onCancelReply={() => setReplyTo(null)}
+            uploadthingEnabled={uploadthingEnabled}
+          />
+        </>
+      )}
     </div>
   );
 }

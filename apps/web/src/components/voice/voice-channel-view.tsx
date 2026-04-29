@@ -1,14 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ConnectionState, type Room } from "livekit-client";
-import { Loader2, MicOff, RotateCcw, Video, Volume2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  ConnectionState,
+  LocalVideoTrack,
+  type RemoteVideoTrack,
+  type Room,
+} from "livekit-client";
+import {
+  Loader2,
+  Maximize2,
+  MicOff,
+  MonitorUp,
+  RotateCcw,
+  Video,
+  Volume2,
+} from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
   useVoiceConnection,
   type VoiceParticipantViewModel,
+  type VoiceScreenShareViewModel,
 } from "@/components/providers/voice-provider";
+import {
+  SCREEN_SHARE_QUALITY_OPTIONS,
+  type ScreenShareQualityId,
+} from "@/lib/voice/screen-share";
 import { cn } from "@/lib/utils";
 
 type VoiceChannelViewProps = {
@@ -162,6 +180,248 @@ function VoiceParticipantCard({
   );
 }
 
+async function toggleElementFullscreen(element: HTMLElement | null) {
+  if (!element || typeof document === "undefined") {
+    return;
+  }
+
+  if (document.fullscreenElement === element) {
+    await document.exitFullscreen().catch(() => undefined);
+    return;
+  }
+
+  await element.requestFullscreen().catch(() => undefined);
+}
+
+function ScreenShareVideo({
+  track,
+}: {
+  track: LocalVideoTrack | RemoteVideoTrack | null;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!track || !video) {
+      return;
+    }
+
+    track.attach(video);
+    video.play().catch(() => undefined);
+
+    return () => {
+      track.detach(video);
+    };
+  }, [track]);
+
+  return (
+    <video
+      autoPlay
+      className="h-full w-full rounded-[24px] bg-black object-contain"
+      muted={track instanceof LocalVideoTrack}
+      playsInline
+      ref={videoRef}
+    />
+  );
+}
+
+function ScreenShareStage({
+  activeShare,
+  isApplyingQuality,
+  onSelectShare,
+  onSelectQuality,
+  onStopShare,
+  participants,
+  screenShares,
+  selectedQuality,
+}: {
+  activeShare: VoiceScreenShareViewModel | null;
+  isApplyingQuality: boolean;
+  onSelectShare: (id: string) => void;
+  onSelectQuality: (qualityId: ScreenShareQualityId) => void;
+  onStopShare: () => void;
+  participants: VoiceParticipantViewModel[];
+  screenShares: VoiceScreenShareViewModel[];
+  selectedQuality: ScreenShareQualityId;
+}) {
+  const { t } = useI18n();
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const sharerName =
+    activeShare?.displayName ?? activeShare?.username ?? t("voice.screenShare.unknownSharer");
+
+  return (
+    <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
+      <div className="app-panel relative min-h-[30rem] overflow-hidden rounded-[32px] border p-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-app-soft">
+              {t("voice.screenShare.stage")}
+            </p>
+            <p className="mt-1 truncate text-lg font-semibold text-app-foreground">
+              {t("voice.screenShare.sharedBy", { name: sharerName })}
+            </p>
+          </div>
+          {activeShare?.isLocal ? (
+            <button
+              className="rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.12)] px-4 py-2 text-sm font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              onClick={onStopShare}
+              type="button"
+            >
+              {t("voice.screenShare.stop")}
+            </button>
+          ) : null}
+        </div>
+
+        <div
+          className="group relative flex h-[calc(100%-4.75rem)] min-h-[24rem] items-center justify-center rounded-[26px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)]"
+          onDoubleClick={() => {
+            void toggleElementFullscreen(stageRef.current);
+          }}
+          ref={stageRef}
+          title={t("screenShare.fullscreenHint")}
+        >
+          {activeShare?.track ? (
+            <ScreenShareVideo track={activeShare.track} />
+          ) : (
+            <div className="text-center">
+              <MonitorUp className="mx-auto h-9 w-9 text-app-muted" />
+              <p className="mt-3 text-sm font-semibold text-app-foreground">
+                {t("voice.screenShare.waitingForTrack")}
+              </p>
+            </div>
+          )}
+          <div className="pointer-events-none absolute bottom-4 right-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/46 px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-[0_14px_36px_rgba(0,0,0,0.22)] backdrop-blur-xl transition group-hover:opacity-100">
+            <Maximize2 className="h-3.5 w-3.5" />
+            {t("screenShare.fullscreenHint")}
+          </div>
+        </div>
+      </div>
+
+      <aside className="app-panel flex min-h-[12rem] flex-col rounded-[28px] border p-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-app-soft">
+          {t("voice.screenShare.activeShares")}
+        </p>
+        <div className="space-y-2">
+          {screenShares.map((share) => {
+            const displayName = share.displayName ?? share.username;
+            const isActive = activeShare?.id === share.id;
+
+            return (
+              <button
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  isActive
+                    ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.14)]"
+                    : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] hover:bg-[hsl(var(--surface-soft)/0.72)]",
+                )}
+                key={share.id}
+                onClick={() => onSelectShare(share.id)}
+                type="button"
+              >
+                <Avatar
+                  alt={displayName}
+                  className="h-9 w-9 border-none text-xs"
+                  fallback={displayName}
+                  src={share.avatarUrl}
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-app-foreground">
+                    {displayName}
+                  </p>
+                  <p className="truncate text-xs text-app-muted">
+                    {share.isLocal
+                      ? t("voice.grid.you")
+                      : t("voice.screenShare.viewerLabel")}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {activeShare?.isLocal ? (
+          <div className="mt-5 border-t border-app-border pt-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-app-soft">
+                  {t("voice.screenShare.quality.title")}
+                </p>
+                <p className="mt-1 text-xs text-app-muted">
+                  {t("voice.screenShare.quality.description")}
+                </p>
+              </div>
+              {isApplyingQuality ? (
+                <Loader2 className="h-4 w-4 animate-spin text-app-muted" />
+              ) : null}
+            </div>
+            <div className="grid gap-2">
+              {SCREEN_SHARE_QUALITY_OPTIONS.map((option) => {
+                const isSelected = selectedQuality === option.id;
+
+                return (
+                  <button
+                    className={cn(
+                      "rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                      isSelected
+                        ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.15)]"
+                        : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] hover:bg-[hsl(var(--surface-soft)/0.72)]",
+                    )}
+                    disabled={isApplyingQuality}
+                    key={option.id}
+                    onClick={() => onSelectQuality(option.id)}
+                    type="button"
+                  >
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-semibold text-app-foreground">
+                        {t(option.labelKey)}
+                      </span>
+                      <span className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.72)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-app-soft">
+                        {option.shortLabel}
+                      </span>
+                    </span>
+                    <span className="mt-1 block text-xs text-app-muted">
+                      {t(option.descriptionKey)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-5 border-t border-app-border pt-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-app-soft">
+            {t("voice.screenShare.participants")}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {participants.map((participant) => {
+              const displayName = participant.displayName ?? participant.username;
+
+              return (
+                <div
+                  className={cn(
+                    "rounded-full transition",
+                    getSpeakingClass(participant),
+                  )}
+                  key={participant.userId}
+                  title={displayName}
+                >
+                  <Avatar
+                    alt={displayName}
+                    className="h-9 w-9 border-none text-xs"
+                    fallback={displayName}
+                    src={participant.avatarUrl}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 function renderGridParticipants(
   room: Room | null,
   participants: VoiceParticipantViewModel[],
@@ -189,17 +449,24 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
   const { t } = useI18n();
   const {
     activeChannelId,
+    activeScreenShareId,
     audioPreferences,
     connectionState,
     errorMessage,
     getParticipantVolume,
+    isApplyingScreenShareQuality,
     isJoining,
     isKrispNoiseCancellationActive,
     joinChannel,
     participants,
     resetParticipantVolume,
     room,
+    screenShares,
+    setActiveScreenShareId,
     setParticipantVolume,
+    setScreenShareQuality,
+    stopScreenShare,
+    screenShareQuality,
   } = useVoiceConnection();
   const [hasRequestedJoin, setHasRequestedJoin] = useState(false);
 
@@ -213,6 +480,10 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
   const orderedParticipants = renderGridParticipants(room, participants);
   const showReconnectOverlay = isReconnectState(connectionState);
   const participantCount = orderedParticipants.length;
+  const activeScreenShare =
+    screenShares.find((share) => share.id === activeScreenShareId) ??
+    screenShares[0] ??
+    null;
   const localAudioPreferenceBadges = [
     audioPreferences.noiseSuppression ? t("voice.grid.noiseSuppression") : null,
     audioPreferences.echoCancellation ? t("voice.grid.echoCancellation") : null,
@@ -305,24 +576,41 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
           </div>
         ) : null}
 
-        <div
-          className="grid flex-1 gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]"
-          style={{
-            gridAutoRows: participantCount > 0 ? "minmax(0, 1fr)" : undefined,
-          }}
-        >
-          {orderedParticipants.map((participant) => (
-            <VoiceParticipantCard
-              audioPreferenceBadges={localAudioPreferenceBadges}
-              isKrispNoiseCancellationActive={isKrispNoiseCancellationActive}
-              key={participant.userId}
-              onResetVolume={() => resetParticipantVolume(participant.userId)}
-              onSetVolume={(volume) => setParticipantVolume(participant.userId, volume)}
-              participant={participant}
-              participantVolume={getParticipantVolume(participant.userId)}
-            />
-          ))}
-        </div>
+        {screenShares.length > 0 ? (
+          <ScreenShareStage
+            activeShare={activeScreenShare}
+            onSelectShare={setActiveScreenShareId}
+            onSelectQuality={(qualityId) => {
+              void setScreenShareQuality(qualityId);
+            }}
+            onStopShare={() => {
+              void stopScreenShare();
+            }}
+            participants={orderedParticipants}
+            screenShares={screenShares}
+            selectedQuality={screenShareQuality}
+            isApplyingQuality={isApplyingScreenShareQuality}
+          />
+        ) : (
+          <div
+            className="grid flex-1 gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]"
+            style={{
+              gridAutoRows: participantCount > 0 ? "minmax(0, 1fr)" : undefined,
+            }}
+          >
+            {orderedParticipants.map((participant) => (
+              <VoiceParticipantCard
+                audioPreferenceBadges={localAudioPreferenceBadges}
+                isKrispNoiseCancellationActive={isKrispNoiseCancellationActive}
+                key={participant.userId}
+                onResetVolume={() => resetParticipantVolume(participant.userId)}
+                onSetVolume={(volume) => setParticipantVolume(participant.userId, volume)}
+                participant={participant}
+                participantVolume={getParticipantVolume(participant.userId)}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

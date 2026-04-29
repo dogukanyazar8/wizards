@@ -5,10 +5,12 @@ import {
   type AudioProcessorOptions,
   LocalAudioTrack,
   LocalTrack,
+  LocalVideoTrack,
   Room,
   Track,
   type AudioCaptureOptions,
   type Participant,
+  type RemoteVideoTrack,
   type TrackProcessor,
 } from "livekit-client";
 import {
@@ -26,6 +28,7 @@ import { useShallow } from "zustand/react/shallow";
 import type { KrispNoiseFilterProcessor } from "@livekit/krisp-noise-filter";
 import { useI18n } from "@/components/providers/locale-provider";
 import { VoiceAudioRenderer } from "@/components/voice/voice-audio-renderer";
+import { getSocket } from "@/lib/socket/client";
 import {
   deleteVoiceState,
   fetchLiveKitToken,
@@ -37,6 +40,14 @@ import {
   VOICE_HEARTBEAT_INTERVAL_MS,
   type VoiceChannelStateDTO,
 } from "@/lib/voice/types";
+import {
+  applyScreenShareEncodingToSender,
+  buildScreenShareMediaConstraints,
+  getScreenShareCaptureOptions,
+  getScreenSharePublishOptions,
+  getScreenShareQualityPreset,
+  type ScreenShareQualityId,
+} from "@/lib/voice/screen-share";
 import {
   DEFAULT_PARTICIPANT_VOLUME,
   type VoiceAudioPreferences,
@@ -63,6 +74,17 @@ export interface VoiceParticipantViewModel {
   username: string;
 }
 
+export interface VoiceScreenShareViewModel {
+  avatarUrl: string | null;
+  displayName: string | null;
+  id: string;
+  isLocal: boolean;
+  participantId: string;
+  track: LocalVideoTrack | RemoteVideoTrack | null;
+  trackSid: string;
+  username: string;
+}
+
 export type KrispAvailability =
   | "available"
   | "checking"
@@ -81,21 +103,31 @@ type VoiceContextValue = {
   isJoining: boolean;
   isKrispNoiseCancellationActive: boolean;
   isMuted: boolean;
+  isScreenSharing: boolean;
   krispAvailability: KrispAvailability;
   participants: VoiceParticipantViewModel[];
   resetParticipantVolume: (userId: string) => void;
   room: Room | null;
+  screenShareError: string | null;
+  screenShares: VoiceScreenShareViewModel[];
+  screenShareQuality: ScreenShareQualityId;
   serverId: string | null;
+  activeScreenShareId: string | null;
   setAudioPreference: <Key extends keyof VoiceAudioPreferences>(
     key: Key,
     value: VoiceAudioPreferences[Key],
   ) => void;
+  setActiveScreenShareId: (id: string) => void;
   setParticipantVolume: (userId: string, volume: number) => void;
+  setScreenShareQuality: (qualityId: ScreenShareQualityId) => Promise<void>;
   prepareForVoiceJoin: () => Promise<boolean>;
   joinChannel: (input: { channelId: string; serverId: string }) => Promise<void>;
   leaveChannel: () => Promise<void>;
+  stopScreenShare: () => Promise<void>;
+  isApplyingScreenShareQuality: boolean;
   toggleDeafen: () => Promise<void>;
   toggleMute: () => Promise<void>;
+  toggleScreenShare: () => Promise<void>;
 };
 
 type ParticipantMetadata = {
@@ -126,6 +158,30 @@ function isMicrophonePermissionDenied(error: unknown) {
   );
 }
 
+function isScreenSharePermissionDenied(error: unknown) {
+  if (error instanceof DOMException) {
+    return (
+      error.name === "NotAllowedError" ||
+      error.name === "PermissionDeniedError" ||
+      error.name === "AbortError" ||
+      error.name === "SecurityError"
+    );
+  }
+
+  return (
+    error instanceof Error &&
+    /notallowederror|permission denied|permissiondeniederror|aborterror|securityerror/i.test(
+      error.message,
+    )
+  );
+}
+
+function isScreenShareSupported() {
+  return Boolean(
+    typeof navigator !== "undefined" && navigator.mediaDevices?.getDisplayMedia,
+  );
+}
+
 function isLiveKitCloudUrl(url: string) {
   return /livekit\.cloud/i.test(url);
 }
@@ -138,6 +194,15 @@ function buildAudioCaptureOptions(
     echoCancellation: audioPreferences.echoCancellation,
     noiseSuppression: audioPreferences.noiseSuppression,
   };
+}
+
+function getAudioPreferencesSignature(audioPreferences: VoiceAudioPreferences) {
+  return [
+    audioPreferences.autoGainControl,
+    audioPreferences.echoCancellation,
+    audioPreferences.krispNoiseCancellation,
+    audioPreferences.noiseSuppression,
+  ].join(":");
 }
 
 function parseParticipantMetadata(participant: Participant): ParticipantMetadata {
@@ -181,12 +246,59 @@ function getParticipantProfile(
   };
 }
 
+function getScreenShareId(participantId: string, trackSid: string) {
+  return `${participantId}:${trackSid}`;
+}
+
+function collectScreenShares(
+  targetRoom: Room,
+  currentUser: VoiceProviderProps["currentUser"],
+): VoiceScreenShareViewModel[] {
+  return [targetRoom.localParticipant, ...targetRoom.remoteParticipants.values()].flatMap(
+    (participant) => {
+      const profile = getParticipantProfile(participant, currentUser);
+
+      return participant
+        .getTrackPublications()
+        .filter(
+          (publication) =>
+            publication.source === Track.Source.ScreenShare && !publication.isMuted,
+        )
+        .map((publication) => ({
+          avatarUrl: profile.avatarUrl,
+          displayName: profile.displayName,
+          id: getScreenShareId(participant.identity, publication.trackSid),
+          isLocal: participant.identity === currentUser.id,
+          participantId: participant.identity,
+          track: publication.videoTrack ?? null,
+          trackSid: publication.trackSid,
+          username: profile.username,
+        }));
+    },
+  );
+}
+
+function countActiveScreenShares(targetRoom: Room) {
+  return [targetRoom.localParticipant, ...targetRoom.remoteParticipants.values()].reduce(
+    (count, participant) =>
+      count +
+      participant
+        .getTrackPublications()
+        .filter(
+          (publication) =>
+            publication.source === Track.Source.ScreenShare && !publication.isMuted,
+        ).length,
+    0,
+  );
+}
+
 function mapVoiceStateCache(
   states: VoiceChannelStateDTO[] | undefined,
   channelId: string,
   participants: Array<{
     avatarUrl: string | null;
     displayName: string | null;
+    isScreenSharing?: boolean;
     userId: string;
     username: string;
   }>,
@@ -215,6 +327,35 @@ function mapVoiceStateCache(
   return nextStates;
 }
 
+function mapVoiceScreenShareStateCache(
+  states: VoiceChannelStateDTO[] | undefined,
+  channelId: string,
+  userId: string,
+  isScreenSharing: boolean,
+) {
+  if (!states) {
+    return states;
+  }
+
+  return states.map((state) => {
+    if (state.channelId !== channelId) {
+      return state;
+    }
+
+    return {
+      ...state,
+      participants: state.participants.map((participant) =>
+        participant.userId === userId
+          ? {
+              ...participant,
+              isScreenSharing,
+            }
+          : participant,
+      ),
+    };
+  });
+}
+
 function resolveParticipantVolume(
   userId: string,
   isDeafened: boolean,
@@ -232,6 +373,28 @@ function getLocalMicrophoneTrack(targetRoom: Room | null) {
     targetRoom?.localParticipant.getTrackPublication(Track.Source.Microphone)?.track ?? null;
 
   return microphonePublication instanceof LocalAudioTrack ? microphonePublication : null;
+}
+
+function getLocalScreenShareTrack(targetRoom: Room | null) {
+  const screenShareTrack =
+    targetRoom?.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track ?? null;
+
+  return screenShareTrack instanceof LocalVideoTrack ? screenShareTrack : null;
+}
+
+async function applyScreenShareQualityToTrack(
+  track: LocalVideoTrack,
+  qualityId: ScreenShareQualityId,
+) {
+  const preset = getScreenShareQualityPreset(qualityId);
+
+  if (track.sender) {
+    await applyScreenShareEncodingToSender(track.sender, preset.encoding);
+  }
+
+  await track.mediaStreamTrack
+    .applyConstraints(buildScreenShareMediaConstraints(qualityId))
+    .catch(() => undefined);
 }
 
 async function stopLocalTracks(room: Room) {
@@ -279,19 +442,24 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const joinRequestRef = useRef<string | null>(null);
   const preparedMicrophoneAccessRef = useRef<boolean | null>(null);
+  const appliedAudioPreferencesSignatureRef = useRef<string | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const krispProcessorRef = useRef<KrispNoiseFilterProcessor | null>(null);
+  const lastEmittedScreenShareStateRef = useRef<boolean | null>(null);
   const supportsLiveKitCloudNoiseCancellationRef = useRef(
     isLiveKitCloudUrl(NEXT_PUBLIC_LIVEKIT_URL),
   );
   const [room, setRoom] = useState<Room | null>(null);
   const [participants, setParticipants] = useState<VoiceParticipantViewModel[]>([]);
+  const [screenShares, setScreenShares] = useState<VoiceScreenShareViewModel[]>([]);
+  const [activeScreenShareId, setActiveScreenShareIdState] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>(
     ConnectionState.Disconnected,
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [isApplyingAudioPreferences, setIsApplyingAudioPreferences] = useState(false);
+  const [isApplyingScreenShareQuality, setIsApplyingScreenShareQuality] = useState(false);
   const [isKrispNoiseCancellationActive, setIsKrispNoiseCancellationActive] = useState(false);
   const [krispAvailability, setKrispAvailability] = useState<KrispAvailability>(
     supportsLiveKitCloudNoiseCancellationRef.current ? "checking" : "requires_livekit_cloud",
@@ -302,7 +470,10 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
     audioPreferences,
     isDeafened,
     isMuted,
+    isScreenSharing,
     participantVolumes,
+    screenShareError,
+    screenShareQuality,
     serverId,
   } = useVoiceStore(
     useShallow((state) => ({
@@ -310,7 +481,10 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
       audioPreferences: state.audioPreferences,
       isDeafened: state.isDeafened,
       isMuted: state.isMuted,
+      isScreenSharing: state.isScreenSharing,
       participantVolumes: state.participantVolumes,
+      screenShareError: state.screenShareError,
+      screenShareQuality: state.screenShareQuality,
       serverId: state.serverId,
     })),
   );
@@ -399,6 +573,88 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
     [currentUser],
   );
 
+  const emitVoiceScreenShareState = useCallback(
+    (
+      targetChannelId: string | null,
+      targetServerId: string | null,
+      isSharing: boolean,
+      options: { force?: boolean } = {},
+    ) => {
+      if (!targetChannelId || !targetServerId) {
+        return;
+      }
+
+      if (!options.force && lastEmittedScreenShareStateRef.current === isSharing) {
+        return;
+      }
+
+      lastEmittedScreenShareStateRef.current = isSharing;
+      queryClient.setQueryData<VoiceChannelStateDTO[] | undefined>(
+        voiceQueryKeys.serverStates(targetServerId),
+        (current) =>
+          mapVoiceScreenShareStateCache(current, targetChannelId, currentUser.id, isSharing),
+      );
+
+      const socket = getSocket();
+      socket.emit("voice:screenshare:update", {
+        channelId: targetChannelId,
+        isScreenSharing: isSharing,
+        serverId: targetServerId,
+      });
+    },
+    [currentUser.id, queryClient],
+  );
+
+  const syncScreenShares = useCallback(
+    (targetRoom: Room | null = roomRef.current) => {
+      if (!targetRoom) {
+        setScreenShares([]);
+        setActiveScreenShareIdState(null);
+        useVoiceStore.getState().clearScreenShareState();
+        emitVoiceScreenShareState(
+          useVoiceStore.getState().activeChannelId,
+          useVoiceStore.getState().serverId,
+          false,
+        );
+        return;
+      }
+
+      const nextScreenShares = collectScreenShares(targetRoom, currentUser);
+      setScreenShares(nextScreenShares);
+      setActiveScreenShareIdState((current) => {
+        if (current && nextScreenShares.some((share) => share.id === current)) {
+          return current;
+        }
+
+        return nextScreenShares[0]?.id ?? null;
+      });
+
+      const localShare = nextScreenShares.find((share) => share.isLocal) ?? null;
+      if (localShare) {
+        useVoiceStore.getState().setScreenShareState({
+          activeSharerId: localShare.id,
+          channelId: useVoiceStore.getState().activeChannelId,
+          conversationId: null,
+          isSharing: true,
+          mode: "voice",
+        });
+        emitVoiceScreenShareState(
+          useVoiceStore.getState().activeChannelId,
+          useVoiceStore.getState().serverId,
+          true,
+        );
+        return;
+      }
+
+      const store = useVoiceStore.getState();
+      if (store.screenShareMode === "voice") {
+        store.clearScreenShareState();
+      }
+      emitVoiceScreenShareState(store.activeChannelId, store.serverId, false);
+    },
+    [currentUser, emitVoiceScreenShareState],
+  );
+
   const updateVoiceStatesCache = useCallback(
     (
       targetServerId: string,
@@ -406,6 +662,7 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
       nextParticipants: Array<{
         avatarUrl: string | null;
         displayName: string | null;
+        isScreenSharing?: boolean;
         userId: string;
         username: string;
       }>,
@@ -426,9 +683,15 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
           // If the session vanished on the server, a reconnect or explicit leave
           // will reconcile the local state.
         });
+        const store = useVoiceStore.getState();
+        if (store.isScreenSharing && store.screenShareMode === "voice") {
+          emitVoiceScreenShareState(store.activeChannelId, store.serverId, true, {
+            force: true,
+          });
+        }
       }, VOICE_HEARTBEAT_INTERVAL_MS);
     },
-    [stopHeartbeat],
+    [emitVoiceScreenShareState, stopHeartbeat],
   );
 
   const ensureKrispSupport = useCallback(async () => {
@@ -518,10 +781,24 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
         return;
       }
 
+      if (useVoiceStore.getState().isMuted) {
+        appliedAudioPreferencesSignatureRef.current = null;
+        setIsKrispNoiseCancellationActive(false);
+        return;
+      }
+
+      const nextSignature = getAudioPreferencesSignature(audioPreferences);
+      const shouldRestartCapture =
+        appliedAudioPreferencesSignatureRef.current !== nextSignature;
+
       setIsApplyingAudioPreferences(true);
 
       try {
-        await localMicrophoneTrack.restartTrack(buildAudioCaptureOptions(audioPreferences));
+        if (shouldRestartCapture) {
+          await localMicrophoneTrack.restartTrack(buildAudioCaptureOptions(audioPreferences));
+          appliedAudioPreferencesSignatureRef.current = nextSignature;
+        }
+
         await syncKrispNoiseCancellation(
           localMicrophoneTrack,
           audioPreferences.krispNoiseCancellation,
@@ -534,6 +811,140 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
     [audioPreferences, syncKrispNoiseCancellation, syncParticipants],
   );
 
+  const setActiveScreenShareId = useCallback(
+    (id: string) => {
+      setActiveScreenShareIdState(id);
+      useVoiceStore.getState().setScreenShareState({
+        activeSharerId: id,
+        channelId: useVoiceStore.getState().activeChannelId,
+        conversationId: null,
+        isSharing: useVoiceStore.getState().isScreenSharing,
+        mode: "voice",
+      });
+    },
+    [],
+  );
+
+  const stopScreenShare = useCallback(async (targetRoom?: Room | null) => {
+    const activeRoom = targetRoom ?? roomRef.current;
+    if (!activeRoom) {
+      useVoiceStore.getState().clearScreenShareState();
+      setScreenShares([]);
+      setActiveScreenShareIdState(null);
+      return;
+    }
+
+    const localScreenTracks = activeRoom.localParticipant
+      .getTrackPublications()
+      .filter((publication) => publication.source === Track.Source.ScreenShare)
+      .map((publication) => publication.track)
+      .filter((track): track is LocalTrack => track instanceof LocalTrack);
+
+    const unpublishedByLiveKit = await activeRoom.localParticipant
+      .setScreenShareEnabled(false)
+      .then(() => true)
+      .catch(() => false);
+
+    if (!unpublishedByLiveKit) {
+      await Promise.all(
+        localScreenTracks.map((track) =>
+          activeRoom.localParticipant.unpublishTrack(track, true).catch(() => undefined),
+        ),
+      );
+    }
+
+    for (const track of localScreenTracks) {
+      track.detach();
+    }
+
+    useVoiceStore.getState().clearScreenShareState();
+    syncScreenShares(activeRoom);
+  }, [syncScreenShares]);
+
+  const setScreenShareQuality = useCallback(
+    async (qualityId: ScreenShareQualityId) => {
+      useVoiceStore.getState().setScreenShareQuality(qualityId);
+
+      const localScreenShareTrack = getLocalScreenShareTrack(roomRef.current);
+      if (!localScreenShareTrack) {
+        return;
+      }
+
+      setIsApplyingScreenShareQuality(true);
+      try {
+        await applyScreenShareQualityToTrack(localScreenShareTrack, qualityId);
+        setErrorMessage(null);
+        syncScreenShares(roomRef.current);
+      } catch {
+        const message = t("screenShare.errors.qualityFailed");
+        useVoiceStore.getState().setScreenShareError(message);
+        setErrorMessage(message);
+      } finally {
+        setIsApplyingScreenShareQuality(false);
+      }
+    },
+    [syncScreenShares, t],
+  );
+
+  const toggleScreenShare = useCallback(async () => {
+    const activeRoom = roomRef.current;
+    if (!activeRoom) {
+      return;
+    }
+
+    if (useVoiceStore.getState().isScreenSharing) {
+      await stopScreenShare();
+      return;
+    }
+
+    if (!isScreenShareSupported()) {
+      const message = t("screenShare.errors.notSupported");
+      useVoiceStore.getState().setScreenShareError(message);
+      setErrorMessage(message);
+      return;
+    }
+
+    if (countActiveScreenShares(activeRoom) >= 2) {
+      const message = t("screenShare.errors.maxReached");
+      useVoiceStore.getState().setScreenShareError(message);
+      setErrorMessage(message);
+      return;
+    }
+
+    try {
+      const currentQuality = useVoiceStore.getState().screenShareQuality;
+      const publication = await activeRoom.localParticipant.setScreenShareEnabled(
+        true,
+        getScreenShareCaptureOptions(currentQuality),
+        getScreenSharePublishOptions(currentQuality),
+      );
+      const localScreenTrack = publication?.track;
+
+      if (localScreenTrack instanceof LocalVideoTrack) {
+        localScreenTrack.mediaStreamTrack.addEventListener(
+          "ended",
+          () => {
+            void stopScreenShare();
+          },
+          { once: true },
+        );
+      }
+
+      setErrorMessage(null);
+      syncScreenShares(activeRoom);
+    } catch (error) {
+      const message = isScreenSharePermissionDenied(error)
+        ? t("screenShare.errors.permissionDenied")
+        : error instanceof Error
+          ? error.message
+          : t("screenShare.errors.startFailed");
+
+      useVoiceStore.getState().setScreenShareError(message);
+      setErrorMessage(message);
+      await stopScreenShare(activeRoom).catch(() => undefined);
+    }
+  }, [stopScreenShare, syncScreenShares, t]);
+
   const leaveChannel = useCallback(async () => {
     stopHeartbeat();
     clearReconnectTimeout();
@@ -545,15 +956,23 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
     const activeRoom = roomRef.current;
 
     roomRef.current = null;
+    appliedAudioPreferencesSignatureRef.current = null;
+    lastEmittedScreenShareStateRef.current = null;
     setRoom(null);
     setParticipants([]);
+    setScreenShares([]);
+    setActiveScreenShareIdState(null);
     setConnectionState(ConnectionState.Disconnected);
     setErrorMessage(null);
 
     if (activeRoom) {
       activeRoom.removeAllListeners();
+      await stopScreenShare(activeRoom).catch(() => undefined);
       await stopLocalTracks(activeRoom).catch(() => undefined);
       await activeRoom.disconnect(true).catch(() => undefined);
+      setScreenShares([]);
+      setActiveScreenShareIdState(null);
+      useVoiceStore.getState().clearScreenShareState();
     }
 
     if (activeSession) {
@@ -567,7 +986,13 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
     }
 
     useVoiceStore.getState().leave();
-  }, [clearReconnectTimeout, resetKrispProcessor, stopHeartbeat, updateVoiceStatesCache]);
+  }, [
+    clearReconnectTimeout,
+    resetKrispProcessor,
+    stopHeartbeat,
+    stopScreenShare,
+    updateVoiceStatesCache,
+  ]);
 
   const joinChannel = useCallback(
     async ({ channelId, serverId: nextServerId }: { channelId: string; serverId: string }) => {
@@ -634,6 +1059,7 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
           useVoiceStore.getState().participantVolumes,
         );
         syncParticipants(nextRoom);
+        syncScreenShares(nextRoom);
       };
 
       nextRoom.on("participantConnected", syncRoomParticipants);
@@ -645,6 +1071,8 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
       nextRoom.on("localTrackUnpublished", syncRoomParticipants);
       nextRoom.on("participantMetadataChanged", syncRoomParticipants);
       nextRoom.on("participantNameChanged", syncRoomParticipants);
+      nextRoom.on("trackPublished", syncRoomParticipants);
+      nextRoom.on("trackUnpublished", syncRoomParticipants);
       nextRoom.on("trackSubscribed", syncRoomParticipants);
       nextRoom.on("trackUnsubscribed", syncRoomParticipants);
       nextRoom.on("connectionStateChanged", (state) => {
@@ -737,6 +1165,9 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
                 useVoiceStore.getState().audioPreferences.krispNoiseCancellation,
               );
             }
+            appliedAudioPreferencesSignatureRef.current = getAudioPreferencesSignature(
+              useVoiceStore.getState().audioPreferences,
+            );
             setErrorMessage(null);
             useVoiceStore.getState().setMuted(false);
             syncParticipants(nextRoom);
@@ -756,6 +1187,7 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
         setRoom(null);
         setParticipants([]);
         setConnectionState(ConnectionState.Disconnected);
+        appliedAudioPreferencesSignatureRef.current = null;
         nextRoom.removeAllListeners();
         await stopLocalTracks(nextRoom).catch(() => undefined);
         await nextRoom.disconnect(true).catch(() => undefined);
@@ -780,6 +1212,7 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
       startHeartbeat,
       syncKrispNoiseCancellation,
       syncParticipants,
+      syncScreenShares,
       t,
       updateVoiceStatesCache,
     ],
@@ -802,6 +1235,7 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
         setErrorMessage(microphoneEnableFailedMessage);
         return;
       }
+      appliedAudioPreferencesSignatureRef.current = null;
       setIsKrispNoiseCancellationActive(false);
     } else {
       const nextAudioPreferences = useVoiceStore.getState().audioPreferences;
@@ -833,6 +1267,8 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
             nextAudioPreferences.krispNoiseCancellation,
           );
         }
+        appliedAudioPreferencesSignatureRef.current =
+          getAudioPreferencesSignature(nextAudioPreferences);
         setErrorMessage(null);
       } catch (error) {
         setIsKrispNoiseCancellationActive(false);
@@ -902,9 +1338,9 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
     }
 
     void applyAudioPreferencesToRoom(activeRoom).catch(() => {
-      setErrorMessage("Microphone settings could not be updated.");
+      setErrorMessage(t("voice.errors.microphoneSettingsFailed"));
     });
-  }, [applyAudioPreferencesToRoom]);
+  }, [applyAudioPreferencesToRoom, t]);
 
   useEffect(() => {
     return () => {
@@ -913,12 +1349,13 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
       const activeRoom = roomRef.current;
       if (activeRoom) {
         activeRoom.removeAllListeners();
+        void stopScreenShare(activeRoom).catch(() => undefined);
         void stopLocalTracks(activeRoom).catch(() => undefined);
         void activeRoom.disconnect(true).catch(() => undefined);
       }
       void resetKrispProcessor();
     };
-  }, [clearReconnectTimeout, resetKrispProcessor, stopHeartbeat]);
+  }, [clearReconnectTimeout, resetKrispProcessor, stopHeartbeat, stopScreenShare]);
 
   useEffect(() => {
     const handlePageExit = () => {
@@ -927,6 +1364,7 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
 
       const activeRoom = roomRef.current;
       if (activeRoom) {
+        void stopScreenShare(activeRoom).catch(() => undefined);
         void stopLocalTracks(activeRoom).catch(() => undefined);
         void activeRoom.disconnect(true).catch(() => undefined);
       }
@@ -942,7 +1380,7 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
       window.removeEventListener("beforeunload", handlePageExit);
       window.removeEventListener("pagehide", handlePageExit);
     };
-  }, [clearReconnectTimeout, stopHeartbeat]);
+  }, [clearReconnectTimeout, stopHeartbeat, stopScreenShare]);
 
   const value = useMemo<VoiceContextValue>(
     () => ({
@@ -952,43 +1390,63 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
       errorMessage,
       getParticipantVolume,
       isApplyingAudioPreferences,
+      isApplyingScreenShareQuality,
       isDeafened,
       isJoining,
       isKrispNoiseCancellationActive,
       isMuted,
+      isScreenSharing,
       krispAvailability,
       participants,
       resetParticipantVolume: useVoiceStore.getState().resetParticipantVolume,
       room,
+      screenShareError,
+      screenShares,
+      screenShareQuality,
       serverId,
+      activeScreenShareId,
       setAudioPreference: useVoiceStore.getState().setAudioPreference,
+      setActiveScreenShareId,
       setParticipantVolume: useVoiceStore.getState().setParticipantVolume,
+      setScreenShareQuality,
       prepareForVoiceJoin,
       joinChannel,
       leaveChannel,
+      stopScreenShare,
       toggleDeafen,
       toggleMute,
+      toggleScreenShare,
     }),
     [
       activeChannelId,
+      activeScreenShareId,
       audioPreferences,
       connectionState,
       errorMessage,
       getParticipantVolume,
       isApplyingAudioPreferences,
+      isApplyingScreenShareQuality,
       isDeafened,
       isJoining,
       isKrispNoiseCancellationActive,
       isMuted,
+      isScreenSharing,
       joinChannel,
       krispAvailability,
       leaveChannel,
       participants,
       prepareForVoiceJoin,
       room,
+      screenShareError,
+      screenShares,
+      screenShareQuality,
       serverId,
+      setActiveScreenShareId,
+      setScreenShareQuality,
+      stopScreenShare,
       toggleDeafen,
       toggleMute,
+      toggleScreenShare,
     ],
   );
 

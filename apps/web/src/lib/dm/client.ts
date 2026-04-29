@@ -10,7 +10,10 @@ import {
   DMMessagesResponseSchema,
   type DMMessagesResponse,
 } from "@/lib/dm/types";
-import { isMessageImageContentType } from "@/lib/messages/attachment-rules";
+import {
+  isMessageGifContentType,
+  isMessageImageContentType,
+} from "@/lib/messages/attachment-rules";
 
 export class DMClientError extends Error {
   constructor(
@@ -179,6 +182,7 @@ export function getConversationPreview(
   maxLength: number,
   imageLabel: string = "Image",
   fileLabel: string = "File",
+  gifLabel: string = "GIF",
 ) {
   const preview = conversation.lastMessage?.content?.trim() ?? "";
   const firstAttachment = conversation.lastMessage?.attachments[0];
@@ -186,7 +190,9 @@ export function getConversationPreview(
     preview.length > 0
       ? preview
       : firstAttachment
-        ? isMessageImageContentType(firstAttachment.contentType)
+        ? isMessageGifContentType(firstAttachment.contentType)
+          ? gifLabel
+          : isMessageImageContentType(firstAttachment.contentType)
           ? imageLabel
           : fileLabel
         : "";

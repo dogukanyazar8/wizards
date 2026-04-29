@@ -4,6 +4,7 @@ import { ApiError } from "@/lib/api";
 import { getLiveKitRoomServiceClient } from "@/lib/livekit/server";
 import { getRedis } from "@/lib/redis";
 import { getSocketServer } from "@/lib/socket/runtime";
+import { getVoiceScreenShareStateKey } from "@/lib/voice/screen-share-state";
 import {
   MAX_VOICE_PARTICIPANTS,
   VOICE_HEARTBEAT_TIMEOUT_MS,
@@ -48,6 +49,15 @@ export async function cleanupStaleVoiceStates() {
       },
     },
   });
+
+  const redis = getRedis();
+  await Promise.all(
+    staleStates.map((state) =>
+      redis
+        .del(getVoiceScreenShareStateKey(state.channelId, state.userId))
+        .catch(() => undefined),
+    ),
+  );
 
   const channelsToRefresh = new Map<string, (typeof staleStates)[number]>();
 
@@ -147,11 +157,24 @@ export async function buildVoiceStateParticipantsForChannel(
     },
   });
 
-  return states.map((state) => ({
+  const redis = getRedis();
+  const screenShareValues =
+    states.length > 0
+      ? await redis
+          .mget(
+            ...states.map((state) =>
+              getVoiceScreenShareStateKey(channelId, state.user.id),
+            ),
+          )
+          .catch(() => [])
+      : [];
+
+  return states.map((state, index) => ({
     userId: state.user.id,
     username: state.user.username,
     displayName: state.user.displayName,
     avatarUrl: state.user.avatarUrl,
+    isScreenSharing: screenShareValues[index] === "1",
   }));
 }
 
@@ -161,6 +184,7 @@ function mapSocketParticipants(participants: VoiceStateParticipantDTO[]) {
     username: participant.username,
     displayName: participant.displayName,
     avatarUrl: participant.avatarUrl,
+    isScreenSharing: participant.isScreenSharing === true,
   }));
 }
 
@@ -223,14 +247,27 @@ export async function listVoiceStatesForServer(
     },
   });
 
+  const redis = getRedis();
+  const screenShareValues =
+    states.length > 0
+      ? await redis
+          .mget(
+            ...states.map((state) =>
+              getVoiceScreenShareStateKey(state.channelId, state.user.id),
+            ),
+          )
+          .catch(() => [])
+      : [];
+
   const grouped = new Map<string, VoiceStateParticipantDTO[]>();
-  for (const state of states) {
+  for (const [index, state] of states.entries()) {
     const participants = grouped.get(state.channelId) ?? [];
     participants.push({
       userId: state.user.id,
       username: state.user.username,
       displayName: state.user.displayName,
       avatarUrl: state.user.avatarUrl,
+      isScreenSharing: screenShareValues[index] === "1",
     });
     grouped.set(state.channelId, participants);
   }
@@ -329,6 +366,10 @@ export async function clearVoiceState(userId: string) {
   await prisma.voiceState.delete({
     where: { userId },
   });
+
+  await getRedis()
+    .del(getVoiceScreenShareStateKey(existingState.channelId, userId))
+    .catch(() => undefined);
 
   return existingState;
 }

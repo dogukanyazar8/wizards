@@ -149,6 +149,7 @@ export function FriendsSidebar({
                       40,
                       t("chat.attachments.image"),
                       t("chat.attachments.file"),
+                      t("chat.attachments.gif"),
                     )
                   : t("dm.sidebar.emptyConversation");
                 const isActive = activeConversationId === conversation.id;

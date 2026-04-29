@@ -20,12 +20,17 @@ import {
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import {
   claimUploadedMessageAttachments,
+  isMessageGifContentType,
   isMessageImageContentType,
   normalizeMessageContentForSend,
   parseUploadedAttachmentInputs,
 } from "@/lib/messages/attachments";
 import { getRedis, getRedisSub } from "@/lib/redis";
 import { setSocketServer } from "@/lib/socket/runtime";
+import {
+  getVoiceScreenShareStateKey,
+  VOICE_SCREEN_SHARE_STATE_TTL_SECONDS,
+} from "@/lib/voice/screen-share-state";
 import {
   emitServerUnreadUpdatesForServer,
   getActiveChannelViewerUserIds,
@@ -291,6 +296,27 @@ export function initSocketServer(httpServer: HTTPServer) {
       return participant !== null;
     }
 
+    async function getAuthorizedDMParticipants(conversationId: string) {
+      const participants = await prisma.dMParticipant.findMany({
+        where: { conversationId },
+        select: {
+          userId: true,
+          user: {
+            select: {
+              displayName: true,
+              username: true,
+            },
+          },
+        },
+      });
+
+      if (!participants.some((participant) => participant.userId === userId)) {
+        return null;
+      }
+
+      return participants;
+    }
+
     async function ensureChannelMembership(channelId: string) {
       const channel = await prisma.channel.findUnique({
         where: { id: channelId },
@@ -489,6 +515,56 @@ export function initSocketServer(httpServer: HTTPServer) {
 
     socket.on("channel:leave", (channelId: string) => {
       socket.leave(channelId);
+    });
+
+    socket.on("voice:screenshare:update", async (data) => {
+      try {
+        if (
+          !data ||
+          typeof data.channelId !== "string" ||
+          typeof data.serverId !== "string" ||
+          typeof data.isScreenSharing !== "boolean"
+        ) {
+          socket.emit("error", {
+            code: "VALIDATION_ERROR",
+            message: "Invalid voice screen share payload.",
+          });
+          return;
+        }
+
+        const membership = await ensureChannelMembership(data.channelId);
+        if (membership.serverId !== data.serverId) {
+          socket.emit("error", {
+            code: "INVALID_SERVER",
+            message: "Voice channel does not belong to this server.",
+          });
+          return;
+        }
+
+        const screenShareStateKey = getVoiceScreenShareStateKey(data.channelId, userId);
+        if (data.isScreenSharing) {
+          await redis.set(
+            screenShareStateKey,
+            "1",
+            "EX",
+            VOICE_SCREEN_SHARE_STATE_TTL_SECONDS,
+          );
+        } else {
+          await redis.del(screenShareStateKey);
+        }
+
+        io.to(`server:${membership.serverId}`).emit("voice:screenshare:update", {
+          channelId: data.channelId,
+          isScreenSharing: data.isScreenSharing,
+          userId,
+        });
+      } catch (error) {
+        emitSocketError(
+          "VOICE_SCREENSHARE_UPDATE_ERROR",
+          "Unable to update voice screen sharing state.",
+          error,
+        );
+      }
     });
 
     socket.on("message:send", async (data) => {
@@ -736,6 +812,110 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
+    socket.on("dm:screenshare:start", async (data) => {
+      try {
+        const participants = await getAuthorizedDMParticipants(data.conversationId);
+        if (!participants) {
+          emitDMError("FORBIDDEN", "You are not a participant in this DM");
+          return;
+        }
+
+        const sender = participants.find((participant) => participant.userId === userId);
+        if (!sender) {
+          emitDMError("FORBIDDEN", "You are not a participant in this DM");
+          return;
+        }
+
+        for (const participant of participants) {
+          if (participant.userId === userId) {
+            continue;
+          }
+
+          io.to(`user:${participant.userId}`).emit("dm:screenshare:started", {
+            conversationId: data.conversationId,
+            userId,
+            username: sender.user.username,
+            displayName: sender.user.displayName,
+          });
+        }
+      } catch (error) {
+        emitSafeDMError("FORBIDDEN", "Unable to start DM screen sharing.", error);
+      }
+    });
+
+    socket.on("dm:screenshare:accept", async (data) => {
+      try {
+        const participants = await getAuthorizedDMParticipants(data.conversationId);
+        if (!participants) {
+          emitDMError("FORBIDDEN", "You are not a participant in this DM");
+          return;
+        }
+
+        const targetParticipant = participants.find(
+          (participant) => participant.userId === data.fromUserId,
+        );
+        if (!targetParticipant || targetParticipant.userId === userId) {
+          emitDMError("NOT_FOUND", "Screen share sender was not found.");
+          return;
+        }
+
+        io.to(`user:${targetParticipant.userId}`).emit("dm:screenshare:accepted", {
+          conversationId: data.conversationId,
+          userId,
+        });
+      } catch (error) {
+        emitSafeDMError("FORBIDDEN", "Unable to accept DM screen sharing.", error);
+      }
+    });
+
+    socket.on("dm:screenshare:decline", async (data) => {
+      try {
+        const participants = await getAuthorizedDMParticipants(data.conversationId);
+        if (!participants) {
+          emitDMError("FORBIDDEN", "You are not a participant in this DM");
+          return;
+        }
+
+        const targetParticipant = participants.find(
+          (participant) => participant.userId === data.fromUserId,
+        );
+        if (!targetParticipant || targetParticipant.userId === userId) {
+          emitDMError("NOT_FOUND", "Screen share sender was not found.");
+          return;
+        }
+
+        io.to(`user:${targetParticipant.userId}`).emit("dm:screenshare:declined", {
+          conversationId: data.conversationId,
+          userId,
+        });
+      } catch (error) {
+        emitSafeDMError("FORBIDDEN", "Unable to decline DM screen sharing.", error);
+      }
+    });
+
+    socket.on("dm:screenshare:stop", async (data) => {
+      try {
+        const participants = await getAuthorizedDMParticipants(data.conversationId);
+        if (!participants) {
+          emitDMError("FORBIDDEN", "You are not a participant in this DM");
+          return;
+        }
+
+        for (const participant of participants) {
+          if (participant.userId === userId) {
+            continue;
+          }
+
+          io.to(`user:${participant.userId}`).emit("dm:screenshare:stopped", {
+            conversationId: data.conversationId,
+            userId,
+          });
+        }
+      } catch (error) {
+        emitSafeDMError("FORBIDDEN", "Unable to stop DM screen sharing.", error);
+      }
+    });
+
     socket.on("dm:message:send", async (data) => {
       try {
         if (!(await requireDMParticipant(data.conversationId))) {
@@ -864,13 +1044,17 @@ export function initSocketServer(httpServer: HTTPServer) {
 
         const firstAttachment = createdMessage.attachments[0];
         const attachmentLabelKey =
-          firstAttachment && isMessageImageContentType(firstAttachment.contentType)
+          firstAttachment && isMessageGifContentType(firstAttachment.contentType)
+            ? "chat.attachments.gif"
+            : firstAttachment && isMessageImageContentType(firstAttachment.contentType)
             ? "chat.attachments.image"
             : "chat.attachments.file";
         const preview =
           content.length > 0
             ? content.slice(0, 50)
-            : firstAttachment && isMessageImageContentType(firstAttachment.contentType)
+            : firstAttachment && isMessageGifContentType(firstAttachment.contentType)
+              ? "GIF"
+              : firstAttachment && isMessageImageContentType(firstAttachment.contentType)
               ? "Image"
               : firstAttachment
                 ? "File"

@@ -9,6 +9,7 @@ export interface VoiceStateParticipantDTO {
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
+  isScreenSharing?: boolean;
 }
 
 export interface VoiceChannelStateDTO {
@@ -32,6 +33,7 @@ export const VoiceStateParticipantSchema = z.object({
   username: z.string(),
   displayName: z.string().nullable(),
   avatarUrl: z.string().nullable(),
+  isScreenSharing: z.boolean().optional().default(false),
 });
 
 export const VoiceChannelStateSchema = z.object({

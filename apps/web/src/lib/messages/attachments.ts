@@ -17,10 +17,12 @@ export {
   MESSAGE_ATTACHMENT_MAX_COUNT,
   MESSAGE_FILE_CONTENT_TYPES,
   MESSAGE_FILE_MAX_BYTES,
+  MESSAGE_GIF_MAX_BYTES,
   MESSAGE_IMAGE_CONTENT_TYPES,
   MESSAGE_IMAGE_MAX_BYTES,
   getMessageAttachmentMaxBytes,
   isMessageFileContentType,
+  isMessageGifContentType,
   isMessageImageContentType,
   isSupportedMessageAttachmentContentType,
 } from "./attachment-rules";

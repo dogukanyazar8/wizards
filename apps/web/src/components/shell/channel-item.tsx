@@ -1,6 +1,6 @@
 "use client";
 
-import { Hash, Pencil, Trash2, Volume2 } from "lucide-react";
+import { Hash, MonitorUp, Pencil, Trash2, Volume2 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
@@ -135,12 +135,21 @@ export function ChannelItem({
                   fallback={participantLabel}
                   src={participant.avatarUrl}
                 />
-                <span className="truncate font-medium text-app-foreground">
+                <span className="min-w-0 flex-1 truncate font-medium text-app-foreground">
                   {participantLabel}
                 </span>
                 {isCurrentUser ? (
                   <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[hsl(var(--primary))]">
                     {t("voice.sidebar.you")}
+                  </span>
+                ) : null}
+                {participant.isScreenSharing ? (
+                  <span
+                    className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.12)] px-1.5 py-0.5 text-[10px] font-semibold text-[hsl(var(--success))]"
+                    title={t("voice.sidebar.screenSharing")}
+                  >
+                    <MonitorUp className="h-3 w-3" />
+                    <span className="sr-only">{t("voice.sidebar.screenSharing")}</span>
                   </span>
                 ) : null}
               </div>

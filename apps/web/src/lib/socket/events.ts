@@ -55,8 +55,23 @@ export interface ClientToServerEvents {
   "dm:message:delete": (data: { messageId: string }) => void;
   "dm:typing:start": (data: { conversationId: string }) => void;
   "dm:typing:stop": (data: { conversationId: string }) => void;
+  "dm:screenshare:start": (data: { conversationId: string }) => void;
+  "dm:screenshare:accept": (data: {
+    conversationId: string;
+    fromUserId: string;
+  }) => void;
+  "dm:screenshare:decline": (data: {
+    conversationId: string;
+    fromUserId: string;
+  }) => void;
+  "dm:screenshare:stop": (data: { conversationId: string }) => void;
   "voice:join": (data: { channelId: string; serverId: string }) => void;
   "voice:leave": (data: { channelId: string; serverId: string }) => void;
+  "voice:screenshare:update": (data: {
+    channelId: string;
+    isScreenSharing: boolean;
+    serverId: string;
+  }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -97,6 +112,24 @@ export interface ServerToClientEvents {
     unreadCount: number;
     conversation: DMConversationDTO;
   }) => void;
+  "dm:screenshare:started": (data: {
+    conversationId: string;
+    userId: string;
+    username: string;
+    displayName: string | null;
+  }) => void;
+  "dm:screenshare:accepted": (data: {
+    conversationId: string;
+    userId: string;
+  }) => void;
+  "dm:screenshare:declined": (data: {
+    conversationId: string;
+    userId: string;
+  }) => void;
+  "dm:screenshare:stopped": (data: {
+    conversationId: string;
+    userId: string;
+  }) => void;
   "dm:error": (data: {
     code:
       | "UNAUTHORIZED"
@@ -119,7 +152,13 @@ export interface ServerToClientEvents {
       username: string;
       displayName: string | null;
       avatarUrl: string | null;
+      isScreenSharing?: boolean;
     }>;
+  }) => void;
+  "voice:screenshare:update": (data: {
+    channelId: string;
+    isScreenSharing: boolean;
+    userId: string;
   }) => void;
   error: (data: { code: string; message: string }) => void;
 }
