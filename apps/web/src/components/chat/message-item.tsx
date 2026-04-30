@@ -15,6 +15,22 @@ import { useSocket } from "@/hooks/use-socket";
 import type { ChatMessage } from "@wizards/types";
 import { cn } from "@/lib/utils";
 
+function getPresenceDotClass(status: ChatMessage["author"]["status"] | undefined) {
+  if (status === "ONLINE") {
+    return "bg-emerald-400 shadow-[0_0_0_3px_hsl(var(--success)/0.12)]";
+  }
+
+  if (status === "IDLE") {
+    return "bg-amber-400 shadow-[0_0_0_3px_hsl(var(--warning)/0.12)]";
+  }
+
+  if (status === "DND") {
+    return "bg-rose-500 shadow-[0_0_0_3px_hsl(var(--danger)/0.12)]";
+  }
+
+  return "bg-slate-400 shadow-[0_0_0_3px_hsl(var(--muted)/0.18)]";
+}
+
 interface MessageItemProps {
   mode: MessageMode;
   message: ChatMessage;
@@ -158,12 +174,21 @@ export const MessageItem = React.memo(
               </span>
             ) : (
               <UserProfilePopover userId={message.author.id} currentUserId={currentUserId}>
-                <Avatar
-                  src={message.author.avatarUrl}
-                  alt={message.author.displayName}
-                  className="h-9 w-9 flex-shrink-0 sm:h-10 sm:w-10"
-                  fallback={message.author.displayName[0] || "?"}
-                />
+                <span className="relative inline-flex">
+                  <Avatar
+                    src={message.author.avatarUrl}
+                    alt={message.author.displayName}
+                    className="h-9 w-9 flex-shrink-0 sm:h-10 sm:w-10"
+                    fallback={message.author.displayName[0] || "?"}
+                  />
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[hsl(var(--surface-card))] sm:h-3.5 sm:w-3.5",
+                      getPresenceDotClass(message.author.status),
+                    )}
+                  />
+                </span>
               </UserProfilePopover>
             )}
           </div>
@@ -174,6 +199,14 @@ export const MessageItem = React.memo(
                 <span className="font-semibold text-app-foreground text-sm">
                   {message.author.displayName}
                 </span>
+                <span
+                  aria-label={message.author.customStatus ?? message.author.status ?? undefined}
+                  className={cn(
+                    "h-2 w-2 shrink-0 rounded-full",
+                    getPresenceDotClass(message.author.status),
+                  )}
+                  title={message.author.customStatus ?? message.author.status ?? undefined}
+                />
                 <span className="shrink-0 text-xs text-app-muted">{formattedTime}</span>
               </div>
             )}
@@ -299,6 +332,8 @@ export const MessageItem = React.memo(
     prev.message.content === next.message.content &&
     prev.message.attachments === next.message.attachments &&
     prev.message.reactions === next.message.reactions &&
+    prev.message.author.status === next.message.author.status &&
+    prev.message.author.customStatus === next.message.author.customStatus &&
     prev.message.editedAt === next.message.editedAt &&
     prev.message.deletedAt === next.message.deletedAt &&
     prev.message.replyTo?.id === next.message.replyTo?.id &&

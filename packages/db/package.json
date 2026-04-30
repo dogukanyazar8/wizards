@@ -11,7 +11,8 @@
   "scripts": {
     "db:generate": "prisma generate",
     "prisma:ensure-runtime": "node ./scripts/ensure-prisma-client-runtime.mjs",
-    "db:seed": "ts-node src/seed.ts",
+    "db:seed": "node --loader ts-node/esm src/seed.ts",
+    "contributors:sync": "node --loader ts-node/esm src/sync-contributors.ts",
     "build": "tsc -p tsconfig.json",
     "dev": "echo db package ready",
     "lint": "tsc --noEmit",

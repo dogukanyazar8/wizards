@@ -83,6 +83,7 @@ function resolveDisconnectHref(
 type VoiceControlButtonProps = {
   active?: boolean;
   ariaLabel: string;
+  destructive?: boolean;
   disabled?: boolean;
   icon: ReactNode;
   onClick?: () => void;
@@ -92,6 +93,7 @@ type VoiceControlButtonProps = {
 function VoiceControlButton({
   active = false,
   ariaLabel,
+  destructive = false,
   disabled = false,
   icon,
   onClick,
@@ -102,7 +104,9 @@ function VoiceControlButton({
       aria-label={ariaLabel}
       className={cn(
         "flex h-11 w-11 items-center justify-center rounded-2xl border text-app-muted transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:p-2.5",
-        active
+        destructive
+          ? "border-[hsl(var(--danger)/0.32)] bg-[hsl(var(--danger)/0.12)] text-[hsl(var(--danger))] hover:bg-[hsl(var(--danger)/0.18)] hover:text-[hsl(var(--danger))] focus-visible:ring-[hsl(var(--danger)/0.45)]"
+          : active
           ? "border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
           : "app-panel-soft hover:opacity-90",
         disabled && "cursor-not-allowed opacity-55",
@@ -152,7 +156,10 @@ export function VoiceConnectionBar() {
 
   return (
     <>
-      <div className="app-panel mb-3 rounded-[22px] border p-3 sm:rounded-[24px]">
+      <div
+        className="app-panel mb-3 rounded-[22px] border p-3 sm:rounded-[24px]"
+        data-notification-popup-anchor="voice"
+      >
         <div className="mb-3">
           <p className="truncate text-sm font-semibold text-app-foreground">
             {location.channelName
@@ -217,6 +224,7 @@ export function VoiceConnectionBar() {
           />
           <VoiceControlButton
             ariaLabel={t("voice.controls.disconnect")}
+            destructive
             icon={<PhoneOff className="h-4 w-4" />}
             onClick={() => {
               void leaveChannel().then(() => {

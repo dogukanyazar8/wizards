@@ -1,7 +1,7 @@
 {
   "name": "wizards",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.5.0",
   "engines": {
     "node": ">=22 <23"
   },
@@ -12,7 +12,8 @@
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "format": "turbo format",
-    "db:generate": "turbo db:generate"
+    "db:generate": "turbo db:generate",
+    "contributors:sync": "pnpm --filter @wizards/db contributors:sync"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

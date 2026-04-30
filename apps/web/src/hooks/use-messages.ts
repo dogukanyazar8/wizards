@@ -15,6 +15,7 @@ import type {
   ReplyTo,
 } from "@wizards/types";
 import { fetchDMMessages } from "@/lib/dm/client";
+import type { FriendPresenceUpdateDto } from "@/lib/friends/types";
 import { useSocket } from "./use-socket";
 
 export type MessageMode = "channel" | "dm";
@@ -64,6 +65,8 @@ export function mapDMMessageToChatMessage(message: DMMessagePayload): ChatMessag
       username: message.author.username,
       displayName: message.author.displayName ?? message.author.username,
       avatarUrl: message.author.avatarUrl,
+      status: message.author.status,
+      customStatus: message.author.customStatus,
     },
     content: message.deletedAt ? "" : message.content,
     type: "DEFAULT",
@@ -201,6 +204,34 @@ function updateReactions(
   };
 }
 
+function updateAuthorPresence(
+  old: MessagePages | undefined,
+  data: FriendPresenceUpdateDto,
+): MessagePages | undefined {
+  if (!old) {
+    return old;
+  }
+
+  return {
+    ...old,
+    pages: old.pages.map((page) => ({
+      ...page,
+      messages: page.messages.map((message) =>
+        message.author.id === data.userId
+          ? {
+              ...message,
+              author: {
+                ...message.author,
+                customStatus: data.customStatus,
+                status: data.status,
+              },
+            }
+          : message,
+      ),
+    })),
+  };
+}
+
 async function fetchChannelMessages(channelId: string, cursor?: string) {
   const url = new URL(`/api/v1/channels/${channelId}/messages`, window.location.origin);
   if (cursor) {
@@ -237,6 +268,20 @@ export function useMessages(mode: MessageMode, conversationId: string) {
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: Infinity,
   });
+
+  useEffect(() => {
+    const handlePresenceUpdate = (data: FriendPresenceUpdateDto) => {
+      queryClient.setQueryData<MessagePages>(queryKey, (old) =>
+        updateAuthorPresence(old, data),
+      );
+    };
+
+    socket.on("presence:update", handlePresenceUpdate);
+
+    return () => {
+      socket.off("presence:update", handlePresenceUpdate);
+    };
+  }, [queryClient, queryKey, socket]);
 
   useEffect(() => {
     if (mode === "channel") {

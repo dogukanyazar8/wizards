@@ -82,6 +82,7 @@ export function WorkspaceModals({
   const [serverIconUrl, setServerIconUrl] = useState<string | null>(null);
   const [serverAllowGifs, setServerAllowGifs] = useState(true);
   const [serverAllowFileUploads, setServerAllowFileUploads] = useState(true);
+  const [serverAllowMemberAdds, setServerAllowMemberAdds] = useState(true);
   const [channelName, setChannelName] = useState("");
   const [channelTopic, setChannelTopic] = useState("");
   const [channelCategoryId, setChannelCategoryId] = useState<string | null>(null);
@@ -105,6 +106,7 @@ export function WorkspaceModals({
       setServerIconUrl(activeServerDetail.server.iconUrl ?? null);
       setServerAllowGifs(activeServerDetail.server.allowGifs);
       setServerAllowFileUploads(activeServerDetail.server.allowFileUploads);
+      setServerAllowMemberAdds(activeServerDetail.server.allowMemberAdds);
       return;
     }
 
@@ -113,9 +115,11 @@ export function WorkspaceModals({
     setServerIconUrl(null);
     setServerAllowGifs(true);
     setServerAllowFileUploads(true);
+    setServerAllowMemberAdds(true);
   }, [
     activeServerDetail?.server.allowFileUploads,
     activeServerDetail?.server.allowGifs,
+    activeServerDetail?.server.allowMemberAdds,
     activeServerDetail?.server.description,
     activeServerDetail?.server.iconUrl,
     activeServerDetail?.server.name,
@@ -179,6 +183,7 @@ export function WorkspaceModals({
         return updateServerRequest(activeServerDetail.server.id, {
           allowFileUploads: serverAllowFileUploads,
           allowGifs: serverAllowGifs,
+          allowMemberAdds: serverAllowMemberAdds,
           description: serverDescription,
           iconUrl: serverIconUrl,
           name: serverName,
@@ -188,6 +193,7 @@ export function WorkspaceModals({
       return createServerRequest({
         allowFileUploads: serverAllowFileUploads,
         allowGifs: serverAllowGifs,
+        allowMemberAdds: serverAllowMemberAdds,
         description: serverDescription,
         iconUrl: serverIconUrl,
         name: serverName,
@@ -482,6 +488,12 @@ export function WorkspaceModals({
                 title={t("workspace.media.files.title")}
               />
             </div>
+            <ServerFeatureToggle
+              checked={serverAllowMemberAdds}
+              description={t("workspace.members.allowAdds.description")}
+              onChange={setServerAllowMemberAdds}
+              title={t("workspace.members.allowAdds.title")}
+            />
           </div>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button className="w-full sm:w-auto" onClick={closeServerModal} type="button" variant="outline">

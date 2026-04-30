@@ -1,14 +1,32 @@
 import type { ReactNode } from "react";
-import { requireAuth } from "@/lib/auth/utils";
+import { getCurrentUser, requireAuth } from "@/lib/auth/utils";
 import { LocaleSessionSync } from "@/components/locale/locale-session-sync";
 import { ThemeSessionSync } from "@/components/theme/theme-session-sync";
 import { WizardsShell } from "@/components/shell/wizards-shell";
 
+function getVisibleStatus(status: string | null | undefined) {
+  if (status === "IDLE" || status === "DND" || status === "OFFLINE") {
+    return status;
+  }
+
+  if (status === "INVISIBLE") {
+    return "OFFLINE";
+  }
+
+  return "ONLINE";
+}
+
 export default async function MainLayout({ children }: { children: ReactNode }) {
   const session = await requireAuth();
+  const user = await getCurrentUser();
   const displayName =
-    session.user.displayName ?? session.user.username ?? session.user.email ?? "Wizard";
-  const username = session.user.username ?? session.user.email?.split("@")[0] ?? "wizard";
+    user?.displayName ??
+    session.user.displayName ??
+    session.user.username ??
+    session.user.email ??
+    "Wizard";
+  const username =
+    user?.username ?? session.user.username ?? session.user.email?.split("@")[0] ?? "wizard";
 
   return (
     <>
@@ -17,8 +35,9 @@ export default async function MainLayout({ children }: { children: ReactNode }) 
       <WizardsShell
         currentUser={{
           id: session.user.id,
-          avatarUrl: session.user.avatarUrl ?? session.user.image ?? null,
+          avatarUrl: user?.avatarUrl ?? session.user.avatarUrl ?? session.user.image ?? null,
           displayName,
+          status: getVisibleStatus(user?.status),
           username,
         }}
         uploadthingEnabled={Boolean(process.env.UPLOADTHING_TOKEN)}

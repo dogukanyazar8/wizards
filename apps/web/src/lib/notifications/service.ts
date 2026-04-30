@@ -29,7 +29,10 @@ const VISIBLE_NOTIFICATION_TYPES: NotificationType[] = [
   "FRIEND_ACCEPTED",
   "DM",
   "MENTION",
+  "SERVER_INVITE",
 ];
+
+type VisibleNotificationType = "FRIEND_REQUEST" | "FRIEND_ACCEPTED" | "DM" | "MENTION" | "SERVER_INVITE";
 
 export async function listNotifications(
   userId: string,
@@ -79,7 +82,7 @@ export async function listNotifications(
 
     return {
       id: n.id,
-      type: n.type as "FRIEND_REQUEST" | "FRIEND_ACCEPTED" | "DM" | "MENTION",
+      type: n.type as VisibleNotificationType,
       actor: actor
         ? {
             id: actor.id,
@@ -152,7 +155,7 @@ export async function serializeNotificationToDTO(
 
   return {
     id: notification.id,
-    type: notification.type as "FRIEND_REQUEST" | "FRIEND_ACCEPTED" | "DM" | "MENTION",
+    type: notification.type as VisibleNotificationType,
     actor: actor
       ? {
           id: actor.id,

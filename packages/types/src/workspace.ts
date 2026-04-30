@@ -67,6 +67,7 @@ export const WorkspaceInviteSchema = z.object({
 export const WorkspaceServerSummarySchema = z.object({
   allowFileUploads: z.boolean(),
   allowGifs: z.boolean(),
+  allowMemberAdds: z.boolean(),
   id: z.string(),
   iconUrl: z.string().nullable(),
   inviteCode: z.string().nullable(),
@@ -100,6 +101,7 @@ export const WorkspaceServerResponseSchema = z.object({
 export const CreateServerSchema = z.object({
   allowFileUploads: z.boolean().optional().default(true),
   allowGifs: z.boolean().optional().default(true),
+  allowMemberAdds: z.boolean().optional().default(true),
   description: optionalTrimmedString(160),
   iconUrl: z
     .string()
@@ -115,6 +117,7 @@ export const UpdateServerSchema = z
   .object({
     allowFileUploads: z.boolean().optional(),
     allowGifs: z.boolean().optional(),
+    allowMemberAdds: z.boolean().optional(),
     description: optionalTrimmedString(160),
     iconUrl: z
       .string()
@@ -130,9 +133,14 @@ export const UpdateServerSchema = z
     value.description !== undefined ||
     value.iconUrl !== undefined ||
     value.allowGifs !== undefined ||
-    value.allowFileUploads !== undefined, {
+    value.allowFileUploads !== undefined ||
+    value.allowMemberAdds !== undefined, {
     message: "validation.form.atLeastOne",
   });
+
+export const AddServerMemberSchema = z.object({
+  username: z.string().trim().min(2).max(32),
+});
 
 export const DeleteServerSchema = z.object({
   confirmationName: z.string().trim().min(1),
@@ -209,3 +217,4 @@ export type CreateChannelInput = z.infer<typeof CreateChannelSchema>;
 export type UpdateChannelInput = z.infer<typeof UpdateChannelSchema>;
 export type ReorderChannelsInput = z.infer<typeof ReorderChannelsSchema>;
 export type CreateInviteInput = z.infer<typeof CreateInviteSchema>;
+export type AddServerMemberInput = z.infer<typeof AddServerMemberSchema>;

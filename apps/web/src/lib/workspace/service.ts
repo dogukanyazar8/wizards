@@ -6,6 +6,7 @@ import {
   prisma,
 } from "@wizards/db";
 import type {
+  AddServerMemberInput,
   CreateCategoryInput,
   CreateChannelInput,
   CreateInviteInput,
@@ -22,6 +23,8 @@ import type {
   WorkspaceServerSummary,
 } from "@wizards/types";
 import { ApiError } from "@/lib/api";
+import { normalizeAppLocale, translate } from "@/lib/locale";
+import type { NotificationSocketPayload } from "@/lib/socket/events";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { getMessageById } from "@/lib/workspace/message-service";
 import {
@@ -213,10 +216,15 @@ function ensureOwner(context: AccessContext) {
   }
 }
 
+function canAddMembers(accessLevel: WorkspaceAccessLevel, allowMemberAdds: boolean) {
+  return accessLevel !== "MEMBER" || allowMemberAdds;
+}
+
 function mapServerSummary(args: {
   accessLevel: WorkspaceAccessLevel;
   allowFileUploads: boolean;
   allowGifs: boolean;
+  allowMemberAdds: boolean;
   defaultChannelId: string | null;
   iconUrl: string | null;
   id: string;
@@ -229,6 +237,7 @@ function mapServerSummary(args: {
     accessLevel: args.accessLevel,
     allowFileUploads: args.allowFileUploads,
     allowGifs: args.allowGifs,
+    allowMemberAdds: args.allowMemberAdds,
     defaultChannelId: args.defaultChannelId,
     iconUrl: args.iconUrl,
     id: args.id,
@@ -395,6 +404,7 @@ export async function listWorkspaceServers(userId: string) {
       ),
       allowFileUploads: mediaSettings.allowFileUploads,
       allowGifs: mediaSettings.allowGifs,
+      allowMemberAdds: mediaSettings.allowMemberAdds,
       defaultChannelId: membership.server.channels[0]?.id ?? null,
       iconUrl: membership.server.iconUrl,
       id: membership.server.id,
@@ -556,6 +566,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
       accessLevel: access.accessLevel,
       allowFileUploads: mediaSettings.allowFileUploads,
       allowGifs: mediaSettings.allowGifs,
+      allowMemberAdds: mediaSettings.allowMemberAdds,
       defaultChannelId,
       description: server.description,
       iconUrl: server.iconUrl,
@@ -581,6 +592,7 @@ export async function createWorkspaceServer(userId: string, input: CreateServerI
         features: applyServerMediaSettings([], {
           allowFileUploads: input.allowFileUploads,
           allowGifs: input.allowGifs,
+          allowMemberAdds: input.allowMemberAdds,
         }),
         iconUrl: input.iconUrl ?? null,
         inviteCode,
@@ -715,7 +727,11 @@ export async function updateWorkspaceServer(userId: string, serverId: string, in
     data.iconUrl = input.iconUrl;
   }
 
-  if (input.allowGifs !== undefined || input.allowFileUploads !== undefined) {
+  if (
+    input.allowGifs !== undefined ||
+    input.allowFileUploads !== undefined ||
+    input.allowMemberAdds !== undefined
+  ) {
     const server = await prisma.server.findUnique({
       where: { id: serverId },
       select: { features: true },
@@ -724,6 +740,7 @@ export async function updateWorkspaceServer(userId: string, serverId: string, in
     data.features = applyServerMediaSettings(server?.features ?? [], {
       allowFileUploads: input.allowFileUploads,
       allowGifs: input.allowGifs,
+      allowMemberAdds: input.allowMemberAdds,
     });
   }
 
@@ -1150,6 +1167,269 @@ export async function createWorkspaceInvite(userId: string, serverId: string, in
   });
 
   return { code };
+}
+
+export async function addWorkspaceServerMemberByUsername(
+  userId: string,
+  serverId: string,
+  input: AddServerMemberInput,
+) {
+  const access = await getAccessContext(userId, serverId);
+  const username = input.username.trim().replace(/^@+/, "");
+
+  if (username.length < 2) {
+    throw new ApiError("Username must be at least 2 characters", 400, "VALIDATION_ERROR");
+  }
+  const server = await prisma.server.findUnique({
+    where: { id: serverId },
+    select: {
+      features: true,
+      id: true,
+      name: true,
+      roles: {
+        orderBy: {
+          position: "desc",
+        },
+        select: {
+          id: true,
+          isDefault: true,
+        },
+      },
+      systemChannelId: true,
+    },
+  });
+
+  if (!server) {
+    throw new ApiError("Server not found", 404, "NOT_FOUND");
+  }
+
+  const settings = getServerMediaSettings(server.features);
+  if (!canAddMembers(access.accessLevel, settings.allowMemberAdds)) {
+    throw new ApiError("Members are not allowed to add users to this server", 403, "FORBIDDEN");
+  }
+
+  const [targetUser, actor] = await Promise.all([
+    prisma.user.findFirst({
+      where: {
+        username: {
+          equals: username,
+          mode: "insensitive",
+        },
+      },
+      select: {
+        avatarUrl: true,
+        displayName: true,
+        id: true,
+        isBanned: true,
+        locale: true,
+        username: true,
+      },
+    }),
+    prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: {
+        displayName: true,
+        username: true,
+      },
+    }),
+  ]);
+
+  if (!targetUser) {
+    throw new ApiError("User not found", 404, "NOT_FOUND");
+  }
+
+  if (targetUser.isBanned) {
+    throw new ApiError("This user cannot be added", 403, "FORBIDDEN");
+  }
+
+  if (targetUser.id === userId) {
+    throw new ApiError("You are already in this server", 400, "ALREADY_MEMBER");
+  }
+
+  const existingMember = await prisma.serverMember.findUnique({
+    where: {
+      userId_serverId: {
+        serverId,
+        userId: targetUser.id,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existingMember) {
+    throw new ApiError("User is already a member of this server", 400, "ALREADY_MEMBER");
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const targetChannelId =
+      server.systemChannelId ??
+      (
+        await tx.channel.findFirst({
+          orderBy: {
+            position: "asc",
+          },
+          select: {
+            id: true,
+          },
+          where: {
+            parentId: null,
+            serverId,
+            type: ChannelType.TEXT,
+          },
+        })
+      )?.id ??
+      null;
+
+    const member = await tx.serverMember.create({
+      data: {
+        serverId,
+        userId: targetUser.id,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const defaultRole = server.roles.find((role) => role.isDefault);
+    if (defaultRole) {
+      await tx.memberRole.create({
+        data: {
+          memberId: member.id,
+          roleId: defaultRole.id,
+        },
+      });
+    }
+
+    let systemMessage:
+      | {
+          channelId: string;
+          createdAt: Date;
+          id: string;
+        }
+      | null = null;
+
+    if (targetChannelId) {
+      const displayName = targetUser.displayName ?? targetUser.username;
+      const message = await tx.message.create({
+        data: {
+          channelId: targetChannelId,
+          content: `${displayName} joined the server.`,
+          type: MessageType.SYSTEM_JOIN,
+          userId: targetUser.id,
+        },
+      });
+
+      systemMessage = {
+        channelId: targetChannelId,
+        createdAt: message.createdAt,
+        id: message.id,
+      };
+    }
+
+    const locale = normalizeAppLocale(targetUser.locale);
+    const actorName = actor?.displayName ?? actor?.username ?? "A teammate";
+    const notification = await tx.notification.create({
+      data: {
+        actionUrl: targetChannelId ? `/channels/${serverId}/${targetChannelId}` : `/channels/${serverId}`,
+        body: translate(locale, "workspace.notification.memberAdded.body", {
+          actor: actorName,
+          server: server.name,
+        }),
+        metadata: {
+          senderId: userId,
+          serverId,
+          serverName: server.name,
+        },
+        title: translate(locale, "workspace.notification.memberAdded.title", {
+          server: server.name,
+        }),
+        type: "SERVER_INVITE",
+        userId: targetUser.id,
+      },
+      select: {
+        actionUrl: true,
+        body: true,
+        createdAt: true,
+        id: true,
+        imageUrl: true,
+        metadata: true,
+        read: true,
+        readAt: true,
+        title: true,
+        type: true,
+        userId: true,
+      },
+    });
+
+    return {
+      message: systemMessage,
+      notification,
+      targetChannelId,
+    };
+  });
+
+  const io = getSocketServer();
+
+  if (io) {
+    const targetSockets = await io.in(`user:${targetUser.id}`).fetchSockets();
+    for (const targetSocket of targetSockets) {
+      targetSocket.join(`server:${serverId}`);
+    }
+  }
+
+  if (result.message) {
+    const activeViewerUserIds = getActiveChannelViewerUserIds(result.message.channelId);
+    await markChannelReadStates({
+      channelId: result.message.channelId,
+      lastReadAt: result.message.createdAt,
+      lastReadMessageId: result.message.id,
+      userIds: [userId, ...activeViewerUserIds],
+    });
+    const message = await getMessageById(result.message.id);
+    if (message) {
+      io?.to(result.message.channelId).emit("message:new", message);
+    }
+  }
+
+  const notificationPayload: NotificationSocketPayload = {
+    actionUrl: result.notification.actionUrl,
+    body: result.notification.body,
+    createdAt: result.notification.createdAt.toISOString(),
+    id: result.notification.id,
+    imageUrl: result.notification.imageUrl,
+    metadata:
+      result.notification.metadata &&
+      typeof result.notification.metadata === "object" &&
+      !Array.isArray(result.notification.metadata)
+        ? (result.notification.metadata as Record<string, unknown>)
+        : null,
+    read: result.notification.read,
+    readAt: result.notification.readAt?.toISOString() ?? null,
+    title: result.notification.title,
+    type: result.notification.type,
+    userId: result.notification.userId,
+  };
+
+  io?.to(`user:${targetUser.id}`).emit("notification:new", notificationPayload);
+  io?.to(`user:${targetUser.id}`).emit("server:settings:updated", { serverId });
+  io?.to(`server:${serverId}`).emit("server:settings:updated", { serverId });
+  await emitServerUnreadUpdatesForServer(serverId);
+
+  const detail = await getWorkspaceServerDetail(userId, serverId);
+
+  return {
+    addedUser: {
+      avatarUrl: targetUser.avatarUrl,
+      displayName: targetUser.displayName,
+      id: targetUser.id,
+      username: targetUser.username,
+    },
+    detail,
+  };
 }
 
 export async function revokeWorkspaceInvite(userId: string, serverId: string, inviteId: string) {

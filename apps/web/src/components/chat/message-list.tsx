@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { MessageItem } from "./message-item";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -31,10 +31,80 @@ export function MessageList({
   const [showScrollButton, setShowScrollButton] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<HTMLDivElement>(null);
-  const lastMessageCountRef = useRef(0);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const hasScrolledInitialRef = useRef(false);
+  const initialScrollCompleteRef = useRef(false);
+  const lastNewestMessageIdRef = useRef<string | null>(null);
+  const scrollFrameRef = useRef<number | null>(null);
+  const scrollTimeoutRefs = useRef<number[]>([]);
+
+  const forceScrollToBottom = useCallback(() => {
+    if (!listRef.current) {
+      return;
+    }
+
+    bottomRef.current?.scrollIntoView({ block: "end", behavior: "auto" });
+    listRef.current.scrollTop = listRef.current.scrollHeight;
+    setShowScrollButton(false);
+  }, []);
+
+  const scheduleScrollToBottom = useCallback((options: { completeInitial?: boolean } = {}) => {
+    if (scrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(scrollFrameRef.current);
+    }
+
+    for (const timeoutId of scrollTimeoutRefs.current) {
+      window.clearTimeout(timeoutId);
+    }
+    scrollTimeoutRefs.current = [];
+
+    const run = (remainingFrames: number) => {
+      scrollFrameRef.current = window.requestAnimationFrame(() => {
+        forceScrollToBottom();
+
+        if (remainingFrames > 0) {
+          run(remainingFrames - 1);
+          return;
+        }
+
+        scrollFrameRef.current = null;
+      });
+    };
+
+    run(4);
+
+    for (const delay of [50, 150, 350, 700]) {
+      const timeoutId = window.setTimeout(() => {
+        forceScrollToBottom();
+
+        if (options.completeInitial && delay === 700) {
+          initialScrollCompleteRef.current = true;
+        }
+      }, delay);
+      scrollTimeoutRefs.current.push(timeoutId);
+    }
+  }, [forceScrollToBottom]);
+
+  useEffect(
+    () => () => {
+      if (scrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(scrollFrameRef.current);
+      }
+
+      for (const timeoutId of scrollTimeoutRefs.current) {
+        window.clearTimeout(timeoutId);
+      }
+      scrollTimeoutRefs.current = [];
+    },
+    [],
+  );
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
+      if (!initialScrollCompleteRef.current) {
+        return;
+      }
+
       if (entries[0]?.isIntersecting && (hasNextPage ?? false) && !isLoading) {
         fetchNextPage();
       }
@@ -48,29 +118,41 @@ export function MessageList({
   }, [fetchNextPage, hasNextPage, isLoading]);
 
   useEffect(() => {
+    hasScrolledInitialRef.current = false;
+    initialScrollCompleteRef.current = false;
+    lastNewestMessageIdRef.current = null;
+    setShowScrollButton(false);
+  }, [conversationId, mode]);
+
+  useLayoutEffect(() => {
     if (!data?.pages) {
       return;
     }
 
-    const allMessages = data.pages.flatMap((page) => page.messages) ?? [];
-    if (allMessages.length < lastMessageCountRef.current) {
-      lastMessageCountRef.current = allMessages.length;
-      if (allMessages.length === 0) {
-        setShowScrollButton(false);
-      }
+    const allMessages = [...data.pages].reverse().flatMap((page) => page.messages) ?? [];
+    const newestMessageId = allMessages.at(-1)?.id ?? null;
+
+    if (allMessages.length === 0) {
+      lastNewestMessageIdRef.current = null;
+      hasScrolledInitialRef.current = false;
+      initialScrollCompleteRef.current = true;
+      setShowScrollButton(false);
       return;
     }
 
-    if (allMessages.length > lastMessageCountRef.current) {
-      lastMessageCountRef.current = allMessages.length;
-      setTimeout(() => {
-        if (listRef.current) {
-          listRef.current.scrollTop = listRef.current.scrollHeight;
-          setShowScrollButton(false);
-        }
-      }, 0);
+    const isInitialLoad = !hasScrolledInitialRef.current;
+    const hasNewLatestMessage =
+      newestMessageId !== null && newestMessageId !== lastNewestMessageIdRef.current;
+
+    lastNewestMessageIdRef.current = newestMessageId;
+
+    if (isInitialLoad || hasNewLatestMessage) {
+      hasScrolledInitialRef.current = true;
+      scheduleScrollToBottom({
+        completeInitial: isInitialLoad || !initialScrollCompleteRef.current,
+      });
     }
-  }, [data?.pages]);
+  }, [data?.pages, scheduleScrollToBottom]);
 
   const handleScroll = useCallback(() => {
     if (!listRef.current) {
@@ -87,9 +169,8 @@ export function MessageList({
       return;
     }
 
-    listRef.current.scrollTop = listRef.current.scrollHeight;
-    setShowScrollButton(false);
-  }, []);
+    forceScrollToBottom();
+  }, [forceScrollToBottom]);
 
   const allMessages = useMemo(
     () => (data?.pages ? [...data.pages].reverse().flatMap((page) => page.messages) : []),
@@ -184,6 +265,8 @@ export function MessageList({
           onReply={handleReply}
         />
       ))}
+
+      <div ref={bottomRef} className="h-1" />
 
       {showScrollButton ? (
         <button

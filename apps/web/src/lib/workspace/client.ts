@@ -93,6 +93,7 @@ export async function fetchWorkspaceServer(serverId: string) {
 export async function createServerRequest(input: {
   allowFileUploads?: boolean;
   allowGifs?: boolean;
+  allowMemberAdds?: boolean;
   description?: string | null;
   iconUrl?: string | null;
   name: string;
@@ -111,6 +112,7 @@ export async function updateServerRequest(
   input: {
     allowFileUploads?: boolean;
     allowGifs?: boolean;
+    allowMemberAdds?: boolean;
     description?: string | null;
     iconUrl?: string | null;
     name?: string;
@@ -134,6 +136,21 @@ export async function deleteServerRequest(serverId: string, confirmationName: st
 export async function leaveServerRequest(serverId: string) {
   return requestJson<{ success: true }>(`/api/v1/servers/${serverId}/members/me`, {
     method: "DELETE",
+  });
+}
+
+export async function addServerMemberRequest(serverId: string, username: string) {
+  return requestJson<{
+    addedUser: {
+      avatarUrl: string | null;
+      displayName: string | null;
+      id: string;
+      username: string;
+    };
+    detail: WorkspaceServerDetail;
+  }>(`/api/v1/servers/${serverId}/members`, {
+    body: { username },
+    method: "POST",
   });
 }
 

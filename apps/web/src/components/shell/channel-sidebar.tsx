@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useTransition } from "react";
+import React, { useCallback, useEffect, useTransition } from "react";
 import {
   closestCenter,
   DndContext,
@@ -51,8 +51,11 @@ import {
 } from "@/lib/workspace/client";
 import { useVoiceStates } from "@/hooks/use-voice-states";
 import { useAppStore } from "@/lib/store";
+import { updatePresenceStatusAction } from "@/lib/account/actions";
 import { logoutAction } from "@/lib/auth/actions";
 import type { VoiceChannelStateDTO } from "@/lib/voice/types";
+
+type PresenceStatus = "ONLINE" | "IDLE" | "DND" | "OFFLINE";
 
 type ChannelSidebarProps = {
   activeChannelId: string | null;
@@ -60,6 +63,7 @@ type ChannelSidebarProps = {
     id: string;
     avatarUrl?: string | null;
     displayName: string;
+    status: PresenceStatus;
     username: string;
   };
   detail: WorkspaceServerDetail | null;
@@ -147,17 +151,50 @@ type UserProfileFooterProps = {
     id: string;
     avatarUrl?: string | null;
     displayName: string;
+    status: PresenceStatus;
     username: string;
   };
   onOpenAppearanceSettings: () => void;
 };
 
+const USER_STATUS_OPTIONS: Array<{
+  key: string;
+  value: PresenceStatus;
+}> = [
+  { key: "friends.status.online", value: "ONLINE" },
+  { key: "friends.status.idle", value: "IDLE" },
+  { key: "friends.status.dnd", value: "DND" },
+  { key: "friends.status.offline", value: "OFFLINE" },
+];
+
+function getStatusDotClass(status: PresenceStatus) {
+  if (status === "ONLINE") {
+    return "bg-emerald-400 shadow-[0_0_0_3px_hsl(var(--success)/0.12)]";
+  }
+
+  if (status === "IDLE") {
+    return "bg-amber-400 shadow-[0_0_0_3px_hsl(var(--warning)/0.12)]";
+  }
+
+  if (status === "DND") {
+    return "bg-rose-500 shadow-[0_0_0_3px_hsl(var(--danger)/0.12)]";
+  }
+
+  return "bg-slate-400 shadow-[0_0_0_3px_hsl(var(--muted)/0.18)]";
+}
+
 function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooterProps) {
   const { t } = useI18n();
   const socket = useSocket();
   const [isLoggingOut, startLogoutTransition] = useTransition();
+  const [isUpdatingStatus, startStatusTransition] = useTransition();
+  const [status, setStatus] = useState<PresenceStatus>(user.status);
   const { activeChannelId, isDeafened, isMuted, leaveChannel, toggleDeafen, toggleMute } =
     useVoiceConnection();
+
+  useEffect(() => {
+    setStatus(user.status);
+  }, [user.status]);
 
   const handleLogout = () => {
     clearLegacyAppearanceStorage();
@@ -172,66 +209,119 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
     });
   };
 
+  const handleStatusChange = (nextStatus: PresenceStatus) => {
+    const previousStatus = status;
+    setStatus(nextStatus);
+    startStatusTransition(async () => {
+      const result = await updatePresenceStatusAction(nextStatus);
+
+      if (!result.success || !result.status) {
+        setStatus(previousStatus);
+        return;
+      }
+
+      setStatus(result.status);
+    });
+  };
+
   return (
-    <div className="app-panel rounded-[24px] border p-3" data-user-bar-anchor="true">
-      <div className="flex items-center gap-3">
-        <Avatar
-          alt={user.displayName}
-          className="h-11 w-11"
-          fallback={user.displayName}
-          src={user.avatarUrl}
-        />
-        <div className="min-w-0 flex-1">
-          <p className="text-app-foreground truncate text-sm font-semibold">{user.displayName}</p>
-          <p className="text-app-soft truncate text-xs">@{user.username}</p>
+    <div
+      className="app-panel rounded-[26px] border p-3 shadow-[0_18px_45px_hsl(var(--shadow-color)/0.08)]"
+      data-notification-popup-anchor="user"
+      data-user-bar-anchor="true"
+    >
+      <div className="space-y-3">
+        <div className="rounded-[22px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.52)] p-2.5">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="relative shrink-0">
+              <Avatar
+                alt={user.displayName}
+                className="h-12 w-12"
+                fallback={user.displayName}
+                src={user.avatarUrl}
+              />
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-[hsl(var(--surface-card))]",
+                  getStatusDotClass(status),
+                )}
+              />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-semibold leading-5 text-app-foreground">
+                {user.displayName}
+              </p>
+              <p className="truncate text-xs font-medium text-app-muted">@{user.username}</p>
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center gap-2">
+            <label className="sr-only" htmlFor="user-presence-status">
+              {t("shell.user.status")}
+            </label>
+            <div className="relative min-w-0 flex-1">
+              <select
+                className="h-10 w-full appearance-none rounded-2xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-soft)/0.42)] px-3 pr-8 text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-70"
+                disabled={isUpdatingStatus}
+                id="user-presence-status"
+                onChange={(event) => handleStatusChange(event.target.value as PresenceStatus)}
+                title={t("shell.user.statusTitle")}
+                value={status}
+              >
+                {USER_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {t(option.key)}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-app-muted" />
+            </div>
+
+            <button
+              aria-label={t("shell.user.toggleMute")}
+              className={cn(
+                "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                activeChannelId
+                  ? "border-[hsl(var(--border)/0.66)] text-app-foreground"
+                  : "border-[hsl(var(--border)/0.45)] text-app-muted disabled:cursor-not-allowed disabled:opacity-55",
+              )}
+              disabled={!activeChannelId}
+              onClick={() => {
+                void toggleMute();
+              }}
+              type="button"
+            >
+              <Mic className={cn("h-4 w-4", isMuted && "text-[hsl(var(--danger))]")} />
+            </button>
+
+            <button
+              aria-label={t("shell.user.toggleDeafen")}
+              className={cn(
+                "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                activeChannelId
+                  ? "border-[hsl(var(--border)/0.66)] text-app-foreground"
+                  : "border-[hsl(var(--border)/0.45)] text-app-muted disabled:cursor-not-allowed disabled:opacity-55",
+              )}
+              disabled={!activeChannelId}
+              onClick={() => {
+                void toggleDeafen();
+              }}
+              type="button"
+            >
+              <Volume2 className={cn("h-4 w-4", isDeafened && "text-[hsl(var(--danger))]")} />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <NotificationBell />
-          <button
-            aria-label={t("shell.user.toggleMute")}
-            className={cn(
-              "rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]",
-              activeChannelId
-                ? "text-app-foreground"
-                : "text-app-muted disabled:cursor-not-allowed disabled:opacity-55",
-            )}
-            disabled={!activeChannelId}
-            onClick={() => {
-              void toggleMute();
-            }}
-            type="button"
-          >
-            <Mic
-              className={cn(
-                "h-4 w-4",
-                isMuted && "text-[hsl(var(--danger))]",
-              )}
-            />
-          </button>
-          <button
-            aria-label={t("shell.user.toggleDeafen")}
-            className={cn(
-              "rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]",
-              activeChannelId
-                ? "text-app-foreground"
-                : "text-app-muted disabled:cursor-not-allowed disabled:opacity-55",
-            )}
-            disabled={!activeChannelId}
-            onClick={() => {
-              void toggleDeafen();
-            }}
-            type="button"
-          >
-            <Volume2
-              className={cn(
-                "h-4 w-4",
-                isDeafened && "text-[hsl(var(--danger))]",
-              )}
-            />
-          </button>
+
+        <div className="grid grid-cols-3 gap-2 border-t border-[hsl(var(--border)/0.58)] pt-3">
+          <div className="flex justify-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.28)]">
+            <NotificationBell />
+          </div>
           <button
             aria-label={t("shell.user.appearanceSettings")}
-            className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
+            className="inline-flex h-10 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.28)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             onClick={onOpenAppearanceSettings}
             title={t("shell.user.appearanceSettingsTitle")}
             type="button"
@@ -240,7 +330,7 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
           </button>
           <button
             aria-label={t("shell.user.logout")}
-            className="text-app-muted rounded-xl p-2 transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger-foreground))] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-10 items-center justify-center rounded-2xl border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isLoggingOut}
             onClick={handleLogout}
             title={t("shell.user.logoutTitle")}
@@ -451,7 +541,10 @@ export function ChannelSidebar({
             onPrefetch={onPrefetch}
           />
         </div>
-        <div className="border-t border-[hsl(var(--border)/0.78)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3">
+        <div
+          className="border-t border-[hsl(var(--border)/0.78)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3"
+          data-notification-popup-anchor="controls-border"
+        >
           <VoiceConnectionBar />
           <UserProfileFooter user={currentUser} onOpenAppearanceSettings={onOpenSettings} />
         </div>
@@ -563,7 +656,10 @@ export function ChannelSidebar({
         </div>
       </DndContext>
 
-      <div className="border-t border-[hsl(var(--border)/0.78)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3">
+      <div
+        className="border-t border-[hsl(var(--border)/0.78)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3"
+        data-notification-popup-anchor="controls-border"
+      >
         <VoiceConnectionBar />
         <UserProfileFooter user={currentUser} onOpenAppearanceSettings={onOpenSettings} />
       </div>

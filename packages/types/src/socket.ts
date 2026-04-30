@@ -14,6 +14,8 @@ export interface DMMessageAuthorPayload {
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
+  status: DMPresenceStatus;
+  customStatus: string | null;
 }
 
 export interface DMMessageAttachmentPayload {
@@ -72,6 +74,8 @@ export const DMMessageAuthorSchema = z.object({
   username: z.string(),
   displayName: z.string().nullable(),
   avatarUrl: z.string().nullable(),
+  status: DMPresenceStatusSchema,
+  customStatus: z.string().nullable(),
 });
 
 export const DMMessageAttachmentSchema = z.object({

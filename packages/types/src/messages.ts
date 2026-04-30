@@ -5,6 +5,8 @@ export const MessageAuthorSchema = z.object({
   username: z.string(),
   displayName: z.string(),
   avatarUrl: z.string().nullable(),
+  status: z.enum(["ONLINE", "IDLE", "DND", "OFFLINE"]).optional(),
+  customStatus: z.string().nullable().optional(),
 });
 
 export const MessageReactionSchema = z.object({

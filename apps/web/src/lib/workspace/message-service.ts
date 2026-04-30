@@ -47,6 +47,8 @@ const messageInclude = {
       username: true,
       displayName: true,
       avatarUrl: true,
+      status: true,
+      customStatus: true,
     },
   },
   attachments: {
@@ -121,6 +123,13 @@ function mapRawMessage(message: RawMessage): ChatMessage {
       username: message.author.username,
       displayName: message.author.displayName ?? message.author.username,
       avatarUrl: message.author.avatarUrl,
+      status:
+        message.author.status === "ONLINE" ||
+        message.author.status === "IDLE" ||
+        message.author.status === "DND"
+          ? message.author.status
+          : "OFFLINE",
+      customStatus: message.author.customStatus,
     },
     content: message.deletedAt ? "[deleted]" : message.content,
     type: normalizeMessageType(message.type),

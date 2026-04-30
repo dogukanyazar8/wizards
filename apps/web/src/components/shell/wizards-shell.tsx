@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Users } from "lucide-react";
+import { ArrowLeft, UserPlus, Users } from "lucide-react";
 import React, { type CSSProperties } from "react";
 import { useEffect, useMemo } from "react";
 import type {
@@ -11,6 +11,7 @@ import type {
   WorkspaceServerSummary,
 } from "@wizards/types";
 import { useParams, usePathname, useRouter } from "next/navigation";
+import { Button } from "@wizards/ui";
 import { useShallow } from "zustand/react/shallow";
 import { ChannelSidebar } from "@/components/shell/channel-sidebar";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -19,11 +20,14 @@ import { MobileDrawerTrigger, ServerRail } from "@/components/shell/server-rail"
 import { ServerSettingsOverlay } from "@/components/shell/server-settings-overlay";
 import { WorkspaceModals } from "@/components/shell/workspace-modals";
 import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
+import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { useSocket } from "@/hooks/use-socket";
 import { useDMConversations } from "@/hooks/use-dm-conversations";
 import { useAppearanceHydration } from "@/hooks/use-appearance-hydration";
 import { useAppStore } from "@/lib/store";
 import {
+  addServerMemberRequest,
   applyServerUnreadCount,
   fetchWorkspaceServer,
   fetchWorkspaceServers,
@@ -39,6 +43,7 @@ type WizardsShellProps = {
     id: string;
     avatarUrl?: string | null;
     displayName: string;
+    status: "ONLINE" | "IDLE" | "DND" | "OFFLINE";
     username: string;
   };
   uploadthingEnabled: boolean;
@@ -118,6 +123,7 @@ interface NavigationPanelProps {
     id: string;
     avatarUrl?: string | null;
     displayName: string;
+    status: "ONLINE" | "IDLE" | "DND" | "OFFLINE";
     username: string;
   };
   onNavigate: (href: string) => void;
@@ -216,6 +222,9 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [addMemberServer, setAddMemberServer] = React.useState<WorkspaceServerSummary | null>(null);
+  const [addMemberUsername, setAddMemberUsername] = React.useState("");
+  const [addMemberSuccess, setAddMemberSuccess] = React.useState<string | null>(null);
   const {
     appearanceHydrated,
     closeServerContextMenu,
@@ -386,6 +395,51 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       if (serverId === activeServerId) {
         router.push("/channels/@me");
       }
+    },
+  });
+
+  const addMemberMutation = useMutation({
+    mutationFn: async () => {
+      if (!addMemberServer) {
+        throw new Error(t("workspace.modal.addMemberMissingServer"));
+      }
+
+      return addServerMemberRequest(addMemberServer.id, addMemberUsername.trim());
+    },
+    onMutate: () => {
+      setAddMemberSuccess(null);
+    },
+    onSuccess: async (result) => {
+      const updatedDetail = result.detail;
+      queryClient.setQueryData<WorkspaceServerDetail>(
+        workspaceQueryKeys.server(updatedDetail.server.id),
+        updatedDetail,
+      );
+      queryClient.setQueryData<WorkspaceServerSummary[] | undefined>(
+        workspaceQueryKeys.servers,
+        (current) =>
+          current?.map((server) =>
+            server.id === updatedDetail.server.id
+              ? {
+                  ...server,
+                  allowFileUploads: updatedDetail.server.allowFileUploads,
+                  allowGifs: updatedDetail.server.allowGifs,
+                  allowMemberAdds: updatedDetail.server.allowMemberAdds,
+                  memberCount: updatedDetail.server.memberCount,
+                }
+              : server,
+          ),
+      );
+      setAddMemberUsername("");
+      setAddMemberSuccess(
+        t("workspace.modal.addMemberSuccessDescription", {
+          name: result.addedUser.displayName ?? result.addedUser.username,
+        }),
+      );
+      await queryClient.invalidateQueries({ queryKey: workspaceQueryKeys.servers });
+      await queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.server(updatedDetail.server.id),
+      });
     },
   });
 
@@ -746,6 +800,18 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
             {t("shell.context.invite")}
           </ContextMenuItem>
         ) : null}
+        {contextServer && (contextServer.accessLevel !== "MEMBER" || contextServer.allowMemberAdds) ? (
+          <ContextMenuItem
+            onClick={() => {
+              closeServerContextMenu();
+              setAddMemberServer(contextServer);
+              setAddMemberUsername("");
+              setAddMemberSuccess(null);
+            }}
+          >
+            {t("shell.context.addUser")}
+          </ContextMenuItem>
+        ) : null}
         {contextServer && contextServer.accessLevel !== "OWNER" ? (
           <ContextMenuItem
             destructive
@@ -772,6 +838,91 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
           </ContextMenuItem>
         ) : null}
       </ContextMenu>
+
+      <Modal
+        description={t("workspace.modal.addMemberDescription", {
+          server: addMemberServer?.name ?? "",
+        })}
+        onClose={() => {
+          setAddMemberServer(null);
+          setAddMemberUsername("");
+          setAddMemberSuccess(null);
+          addMemberMutation.reset();
+        }}
+        open={Boolean(addMemberServer)}
+        title={t("workspace.modal.addMemberTitle")}
+      >
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            addMemberMutation.mutate();
+          }}
+        >
+          <div className="space-y-2">
+            <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+              {t("workspace.modal.addMemberUsername")}
+            </label>
+            <Input
+              autoComplete="off"
+              maxLength={32}
+              onChange={(event) => {
+                setAddMemberUsername(event.target.value);
+                if (addMemberSuccess) {
+                  setAddMemberSuccess(null);
+                }
+              }}
+              placeholder={t("workspace.modal.addMemberPlaceholder")}
+              value={addMemberUsername}
+            />
+          </div>
+
+          {addMemberSuccess ? (
+            <div className="app-success rounded-[24px] border p-4">
+              <p className="text-app-success text-xs font-semibold uppercase tracking-[0.2em]">
+                {t("workspace.modal.addMemberSuccessTitle")}
+              </p>
+              <p className="text-app-foreground mt-2 text-sm font-medium">
+                {addMemberSuccess}
+              </p>
+            </div>
+          ) : null}
+
+          {addMemberMutation.error ? (
+            <div className="app-danger rounded-[24px] border p-4 text-sm font-medium">
+              {addMemberMutation.error instanceof Error
+                ? addMemberMutation.error.message
+                : t("workspace.modal.addMemberError")}
+            </div>
+          ) : null}
+
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              className="w-full sm:w-auto"
+              onClick={() => {
+                setAddMemberServer(null);
+                setAddMemberUsername("");
+                setAddMemberSuccess(null);
+                addMemberMutation.reset();
+              }}
+              type="button"
+              variant="outline"
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              className="w-full sm:w-auto"
+              disabled={addMemberMutation.isPending || addMemberUsername.trim().length < 2}
+              type="submit"
+            >
+              <UserPlus className="h-4 w-4" />
+              {addMemberMutation.isPending
+                ? t("workspace.modal.addMemberAdding")
+                : t("workspace.modal.addMemberAction")}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       <WorkspaceModals
         activeServerDetail={serverDetailQuery.data ?? null}

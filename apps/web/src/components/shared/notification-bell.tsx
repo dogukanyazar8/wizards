@@ -52,7 +52,11 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [dropdownPos, setDropdownPos] = useState<{ left: number; top: number } | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<{
+    bottom: number;
+    left: number;
+    maxHeight: number;
+  } | null>(null);
 
   const unreadQuery = useQuery({
     queryFn: fetchUnreadCount,
@@ -242,46 +246,29 @@ export function NotificationBell() {
     }
 
     if (isMobileViewport) {
-      setDropdownPos({ left: 0, top: 0 });
+      setDropdownPos({ bottom: 0, left: 0, maxHeight: window.innerHeight });
       setOpen(true);
       return;
     }
 
     const rect = buttonRef.current.getBoundingClientRect();
-    const userBarRect =
-      buttonRef.current
-        .closest<HTMLElement>("[data-user-bar-anchor='true']")
-        ?.getBoundingClientRect() ?? rect;
+    const sidebarRoot = buttonRef.current.closest<HTMLElement>(".app-sidebar");
+    const anchorElement =
+      sidebarRoot?.querySelector<HTMLElement>("[data-notification-popup-anchor='controls-border']") ??
+      sidebarRoot?.querySelector<HTMLElement>("[data-notification-popup-anchor='voice']") ??
+      sidebarRoot?.querySelector<HTMLElement>("[data-notification-popup-anchor='user']") ??
+      buttonRef.current.closest<HTMLElement>("[data-user-bar-anchor='true']");
+    const userBarRect = anchorElement?.getBoundingClientRect() ?? rect;
     const minMargin = 16;
     const popupWidth = Math.min(384, window.innerWidth - minMargin * 2);
-    const estimatedPopupHeight = 520;
-    const gapFromBar = 12;
+    const gapFromBar = 6;
+    const bottom = Math.max(minMargin, window.innerHeight - userBarRect.top + gapFromBar);
+    const maxHeight = Math.max(280, userBarRect.top - gapFromBar - minMargin);
 
-    let top = userBarRect.top - estimatedPopupHeight - gapFromBar;
-    let positionedBelow = false;
-
-    if (top < minMargin) {
-      top = userBarRect.bottom + gapFromBar;
-      positionedBelow = true;
-    }
-
-    if (top + estimatedPopupHeight > window.innerHeight - minMargin) {
-      if (!positionedBelow) {
-        const belowPosition = userBarRect.bottom + gapFromBar;
-        if (belowPosition + estimatedPopupHeight <= window.innerHeight - minMargin) {
-          top = belowPosition;
-        } else {
-          top = Math.max(minMargin, window.innerHeight - estimatedPopupHeight - minMargin);
-        }
-      } else {
-        top = Math.max(minMargin, window.innerHeight - estimatedPopupHeight - minMargin);
-      }
-    }
-
-    let left = userBarRect.left - 18;
+    let left = userBarRect.left - 4;
     left = Math.max(minMargin, Math.min(left, window.innerWidth - popupWidth - minMargin));
 
-    setDropdownPos({ top, left });
+    setDropdownPos({ bottom, left, maxHeight });
     setOpen(true);
   };
 
@@ -337,7 +324,11 @@ export function NotificationBell() {
                   style={
                     isMobileViewport
                       ? {}
-                      : { left: `${dropdownPos.left}px`, top: `${dropdownPos.top}px` }
+                      : {
+                          bottom: `${dropdownPos.bottom}px`,
+                          left: `${dropdownPos.left}px`,
+                          maxHeight: `${dropdownPos.maxHeight}px`,
+                        }
                   }
                   transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                 >

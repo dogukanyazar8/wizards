@@ -3,6 +3,11 @@
 import { z } from "zod";
 import { UserStatus, prisma } from "@wizards/db";
 import { auth, normalizeAuthEmail, unstable_update } from "@/auth";
+import {
+  broadcastPresenceUpdateToFriends,
+  persistUserPresence,
+} from "@/lib/friends/service";
+import type { FriendPresenceStatus } from "@/lib/friends/types";
 
 const UpdateAccountSettingsSchema = z.object({
   displayName: z.string().trim().max(60, "settings.account.errors.displayNameTooLong"),
@@ -31,6 +36,14 @@ export type UpdateAccountSettingsResult = {
   fieldErrors?: Partial<Record<AccountSettingsField, string>>;
   success: boolean;
   user?: AccountSettingsState;
+};
+
+const UpdatePresenceStatusSchema = z.enum(["ONLINE", "IDLE", "DND", "OFFLINE"]);
+
+export type UpdatePresenceStatusResult = {
+  error?: string;
+  status?: FriendPresenceStatus;
+  success: boolean;
 };
 
 function mapUserToAccountState(user: {
@@ -147,5 +160,43 @@ export async function updateAccountSettingsAction(
   return {
     success: true,
     user: mapUserToAccountState(updatedUser),
+  };
+}
+
+export async function updatePresenceStatusAction(
+  status: FriendPresenceStatus,
+): Promise<UpdatePresenceStatusResult> {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return {
+      error: "auth.login.signInUnavailable",
+      success: false,
+    };
+  }
+
+  const parsed = UpdatePresenceStatusSchema.safeParse(status);
+
+  if (!parsed.success) {
+    return {
+      error: "settings.account.errors.save",
+      success: false,
+    };
+  }
+
+  const presence = await persistUserPresence(session.user.id, parsed.data);
+
+  if (!presence) {
+    return {
+      error: "settings.account.errors.save",
+      success: false,
+    };
+  }
+
+  await broadcastPresenceUpdateToFriends(presence);
+
+  return {
+    status: presence.status,
+    success: true,
   };
 }

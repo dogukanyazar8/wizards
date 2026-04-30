@@ -55,6 +55,9 @@ export function ServerSettingsOverlay({
   const [allowFileUploads, setAllowFileUploads] = useState(
     detail?.server.allowFileUploads ?? true,
   );
+  const [allowMemberAdds, setAllowMemberAdds] = useState(
+    detail?.server.allowMemberAdds ?? true,
+  );
   const [overviewSaved, setOverviewSaved] = useState(false);
 
   useEffect(() => {
@@ -69,9 +72,11 @@ export function ServerSettingsOverlay({
     setIconUrl(detail?.server.iconUrl ?? null);
     setAllowGifs(detail?.server.allowGifs ?? true);
     setAllowFileUploads(detail?.server.allowFileUploads ?? true);
+    setAllowMemberAdds(detail?.server.allowMemberAdds ?? true);
   }, [
     detail?.server.allowFileUploads,
     detail?.server.allowGifs,
+    detail?.server.allowMemberAdds,
     detail?.server.description,
     detail?.server.iconUrl,
     detail?.server.name,
@@ -112,6 +117,7 @@ export function ServerSettingsOverlay({
       return updateServerRequest(detail.server.id, {
         allowFileUploads,
         allowGifs,
+        allowMemberAdds,
         description,
         iconUrl,
         name,
@@ -136,6 +142,7 @@ export function ServerSettingsOverlay({
                   ...server,
                   allowFileUploads: updatedDetail.server.allowFileUploads,
                   allowGifs: updatedDetail.server.allowGifs,
+                  allowMemberAdds: updatedDetail.server.allowMemberAdds,
                   iconUrl: updatedDetail.server.iconUrl,
                   name: updatedDetail.server.name,
                 }
@@ -355,6 +362,23 @@ export function ServerSettingsOverlay({
                           title={t("workspace.media.files.title")}
                         />
                       </div>
+                    </div>
+                    <div className="app-panel rounded-[28px] border p-4 sm:p-5">
+                      <div className="mb-4">
+                        <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+                          {t("workspace.members.title")}
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-app-muted">
+                          {t("workspace.members.description")}
+                        </p>
+                      </div>
+                      <ServerFeatureToggle
+                        checked={allowMemberAdds}
+                        description={t("workspace.members.allowAdds.description")}
+                        disabled={updateMutation.isPending}
+                        onChange={setAllowMemberAdds}
+                        title={t("workspace.members.allowAdds.title")}
+                      />
                     </div>
                     <div className="flex justify-stretch sm:justify-end">
                       <Button

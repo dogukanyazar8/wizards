@@ -1,5 +1,6 @@
 import { PrismaClient, type ChannelType } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { CONTRIBUTOR_NAMES, CORRUPTED_CONTRIBUTOR_NAMES } from "./contributors.js";
 
 const prisma = new PrismaClient();
 
@@ -176,6 +177,14 @@ async function repairContributorData() {
   await prisma.contributor.deleteMany({
     where: {
       name: {
+        in: [...CORRUPTED_CONTRIBUTOR_NAMES],
+      },
+    },
+  });
+
+  await prisma.contributor.deleteMany({
+    where: {
+      name: {
         in: [
           "Muhammet Y?ld?z",
           "Muhammet YÄ±ldÄ±z",
@@ -284,12 +293,7 @@ async function main() {
 
   await repairContributorData();
 
-  await Promise.all([
-    ensureContributor("Atakan Tuymaz"),
-    ensureContributor("Muhammet Y\u0131ld\u0131z"),
-    ensureContributor("O\u011Fuz G\u00FC\u011F\u00FCmc\u00FCo\u011Flu"),
-    ensureContributor("Sedat Sarp Kaplan"),
-  ]);
+  await Promise.all(CONTRIBUTOR_NAMES.map((name) => ensureContributor(name)));
 
   console.log("Seed complete");
   console.log("Demo user: demo@wizards.app / password123");

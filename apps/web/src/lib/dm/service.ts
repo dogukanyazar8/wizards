@@ -17,6 +17,8 @@ export const dmAuthorSelect = {
   username: true,
   displayName: true,
   avatarUrl: true,
+  status: true,
+  customStatus: true,
 } as const;
 
 const dmParticipantUserSelect = {
@@ -87,6 +89,8 @@ type DMMessageNode = {
     username: string;
     displayName: string | null;
     avatarUrl: string | null;
+    status: string;
+    customStatus: string | null;
   };
   attachments: Array<{
     id: string;
@@ -340,6 +344,13 @@ function mapDMReply(
       username: message.author.username,
       displayName: message.author.displayName,
       avatarUrl: message.author.avatarUrl,
+      status:
+        message.author.status === "ONLINE" ||
+        message.author.status === "IDLE" ||
+        message.author.status === "DND"
+          ? message.author.status
+          : "OFFLINE",
+      customStatus: message.author.customStatus,
     },
     attachments: message.attachments.map((attachment) => ({
       id: attachment.id,
