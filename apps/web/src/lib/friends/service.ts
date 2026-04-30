@@ -419,26 +419,53 @@ export async function persistUserPresence(
 export async function broadcastPresenceUpdateToFriends(
   update: FriendPresenceUpdateDto,
 ): Promise<void> {
-  const friendships = await prisma.friendRequest.findMany({
-    where: {
-      status: "ACCEPTED",
-      OR: [{ senderId: update.userId }, { receiverId: update.userId }],
-    },
-    select: {
-      receiverId: true,
-      senderId: true,
-    },
-  });
-
   const io = getSocketServer();
   if (!io) {
     return;
   }
 
+  const serverMemberships = await prisma.serverMember.findMany({
+    where: { userId: update.userId },
+    select: { serverId: true },
+  });
+  const serverIds = serverMemberships.map((membership) => membership.serverId);
+
+  // Presence is rendered in friends, DMs, and shared server message history.
+  // Emit to user rooms only; never broadcast presence globally.
+  const [friendships, memberships] = await Promise.all([
+    prisma.friendRequest.findMany({
+      where: {
+        status: "ACCEPTED",
+        OR: [{ senderId: update.userId }, { receiverId: update.userId }],
+      },
+      select: {
+        receiverId: true,
+        senderId: true,
+      },
+    }),
+    prisma.serverMember.findMany({
+      distinct: ["userId"],
+      where: {
+        serverId: { in: serverIds },
+      },
+      select: { userId: true },
+    }),
+  ]);
+
+  const targetUserIds = new Set<string>([update.userId]);
+
   for (const friendship of friendships) {
     const friendId =
       friendship.senderId === update.userId ? friendship.receiverId : friendship.senderId;
-    io.to(`user:${friendId}`).emit("presence:update", update);
+    targetUserIds.add(friendId);
+  }
+
+  for (const membership of memberships) {
+    targetUserIds.add(membership.userId);
+  }
+
+  for (const targetUserId of targetUserIds) {
+    io.to(`user:${targetUserId}`).emit("presence:update", update);
   }
 }
 

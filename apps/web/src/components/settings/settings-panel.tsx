@@ -668,7 +668,6 @@ export function SettingsPanel({
         value: t("settings.account.saved"),
       });
       setIsEditingAccount(false);
-      router.refresh();
     });
   };
 

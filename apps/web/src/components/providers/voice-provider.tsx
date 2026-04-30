@@ -446,6 +446,10 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const krispProcessorRef = useRef<KrispNoiseFilterProcessor | null>(null);
   const lastEmittedScreenShareStateRef = useRef<boolean | null>(null);
+  const cleanupVoiceResourcesRef = useRef<() => void>(() => undefined);
+  const microphoneSettingsFailedMessageRef = useRef(
+    t("voice.errors.microphoneSettingsFailed"),
+  );
   const supportsLiveKitCloudNoiseCancellationRef = useRef(
     isLiveKitCloudUrl(NEXT_PUBLIC_LIVEKIT_URL),
   );
@@ -461,6 +465,10 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const [isApplyingAudioPreferences, setIsApplyingAudioPreferences] = useState(false);
   const [isApplyingScreenShareQuality, setIsApplyingScreenShareQuality] = useState(false);
   const [isKrispNoiseCancellationActive, setIsKrispNoiseCancellationActive] = useState(false);
+
+  useEffect(() => {
+    microphoneSettingsFailedMessageRef.current = t("voice.errors.microphoneSettingsFailed");
+  }, [t]);
   const [krispAvailability, setKrispAvailability] = useState<KrispAvailability>(
     supportsLiveKitCloudNoiseCancellationRef.current ? "checking" : "requires_livekit_cloud",
   );
@@ -1338,24 +1346,34 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
     }
 
     void applyAudioPreferencesToRoom(activeRoom).catch(() => {
-      setErrorMessage(t("voice.errors.microphoneSettingsFailed"));
+      setErrorMessage(microphoneSettingsFailedMessageRef.current);
     });
-  }, [applyAudioPreferencesToRoom, t]);
+  }, [applyAudioPreferencesToRoom]);
+
+  const cleanupVoiceResources = useCallback(() => {
+    stopHeartbeat();
+    clearReconnectTimeout();
+
+    const activeRoom = roomRef.current;
+    if (activeRoom) {
+      activeRoom.removeAllListeners();
+      void stopScreenShare(activeRoom).catch(() => undefined);
+      void stopLocalTracks(activeRoom).catch(() => undefined);
+      void activeRoom.disconnect(true).catch(() => undefined);
+    }
+
+    void resetKrispProcessor();
+  }, [clearReconnectTimeout, resetKrispProcessor, stopHeartbeat, stopScreenShare]);
+
+  useEffect(() => {
+    cleanupVoiceResourcesRef.current = cleanupVoiceResources;
+  }, [cleanupVoiceResources]);
 
   useEffect(() => {
     return () => {
-      stopHeartbeat();
-      clearReconnectTimeout();
-      const activeRoom = roomRef.current;
-      if (activeRoom) {
-        activeRoom.removeAllListeners();
-        void stopScreenShare(activeRoom).catch(() => undefined);
-        void stopLocalTracks(activeRoom).catch(() => undefined);
-        void activeRoom.disconnect(true).catch(() => undefined);
-      }
-      void resetKrispProcessor();
+      cleanupVoiceResourcesRef.current();
     };
-  }, [clearReconnectTimeout, resetKrispProcessor, stopHeartbeat, stopScreenShare]);
+  }, []);
 
   useEffect(() => {
     const handlePageExit = () => {

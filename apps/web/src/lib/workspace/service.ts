@@ -1237,7 +1237,7 @@ export async function addWorkspaceServerMemberByUsername(
   ]);
 
   if (!targetUser) {
-    throw new ApiError("User not found", 404, "NOT_FOUND");
+    throw new ApiError("User not found", 404, "USER_NOT_FOUND");
   }
 
   if (targetUser.isBanned) {

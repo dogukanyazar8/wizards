@@ -1,4 +1,5 @@
 export const CONTRIBUTOR_NAMES = [
+  "Alperen Mezireli",
   "Atakan Tuymaz",
   "Emrullah Saku",
   "Fatih G\u00FCrb\u00FCzer",

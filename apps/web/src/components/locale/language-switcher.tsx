@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { updateLocalePreferenceAction } from "@/lib/locale/actions";
 import { type AppLocale } from "@/lib/locale";
@@ -22,7 +21,6 @@ export function LanguageSwitcher({
   showMeta = false,
   variant = "compact",
 }: LanguageSwitcherProps) {
-  const router = useRouter();
   const { locale, setLocale, t } = useI18n();
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -46,7 +44,6 @@ export function LanguageSwitcher({
       }
 
       setSaved(true);
-      router.refresh();
       window.setTimeout(() => setSaved(false), 1800);
     });
   };

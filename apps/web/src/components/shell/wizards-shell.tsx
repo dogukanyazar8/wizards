@@ -19,7 +19,7 @@ import { MainChannelPanel } from "@/components/shell/main-channel-panel";
 import { MobileDrawerTrigger, ServerRail } from "@/components/shell/server-rail";
 import { ServerSettingsOverlay } from "@/components/shell/server-settings-overlay";
 import { WorkspaceModals } from "@/components/shell/workspace-modals";
-import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
+import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { useSocket } from "@/hooks/use-socket";
@@ -33,6 +33,7 @@ import {
   fetchWorkspaceServers,
   getServerHref,
   leaveServerRequest,
+  WorkspaceClientError,
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
 import { fetchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
@@ -211,6 +212,30 @@ function MobileShellControls({
   );
 }
 
+function getAddMemberErrorKey(error: unknown) {
+  if (!(error instanceof WorkspaceClientError)) {
+    return "workspace.modal.addMemberError";
+  }
+
+  if (error.code === "USER_NOT_FOUND") {
+    return "workspace.modal.addMemberErrorNotFound";
+  }
+
+  if (error.code === "ALREADY_MEMBER") {
+    return "workspace.modal.addMemberErrorAlreadyMember";
+  }
+
+  if (error.code === "FORBIDDEN") {
+    return "workspace.modal.addMemberErrorForbidden";
+  }
+
+  if (error.code === "VALIDATION_ERROR") {
+    return "workspace.modal.addMemberErrorValidation";
+  }
+
+  return "workspace.modal.addMemberError";
+}
+
 export function WizardsShell({ children, currentUser, uploadthingEnabled }: WizardsShellProps) {
   const { t } = useI18n();
   const socket = useSocket();
@@ -225,6 +250,8 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const [addMemberServer, setAddMemberServer] = React.useState<WorkspaceServerSummary | null>(null);
   const [addMemberUsername, setAddMemberUsername] = React.useState("");
   const [addMemberSuccess, setAddMemberSuccess] = React.useState<string | null>(null);
+  const [leaveServerCandidate, setLeaveServerCandidate] =
+    React.useState<WorkspaceServerSummary | null>(null);
   const {
     appearanceHydrated,
     closeServerContextMenu,
@@ -386,6 +413,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const leaveMutation = useMutation({
     mutationFn: async (serverId: string) => leaveServerRequest(serverId),
     onSuccess: async (_result, serverId) => {
+      setLeaveServerCandidate(null);
       closeServerContextMenu();
       forgetServerState(serverId);
       await queryClient.invalidateQueries({
@@ -465,6 +493,12 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     ? getPreferredServerChannelId(activeServerId, serverDetailQuery.data, lastChannelByServerId)
     : null;
   const contextServer = servers.find((server) => server.id === serverContextMenu.serverId) ?? null;
+  const canAddUserFromContextMenu = Boolean(
+    contextServer && (contextServer.accessLevel !== "MEMBER" || contextServer.allowMemberAdds),
+  );
+  const canManageContextServer = Boolean(contextServer && contextServer.accessLevel !== "MEMBER");
+  const canLeaveContextServer = Boolean(contextServer && contextServer.accessLevel !== "OWNER");
+  const hasPrimaryContextActions = canAddUserFromContextMenu || canManageContextServer;
   const shellStyle = useMemo(
     () =>
       ({
@@ -774,20 +808,22 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
         open={serverContextMenu.open}
         position={serverContextMenu}
       >
-        {contextServer?.accessLevel !== "MEMBER" ? (
+        {canAddUserFromContextMenu ? (
           <ContextMenuItem
             onClick={() => {
               closeServerContextMenu();
               if (contextServer) {
-                navigate(getServerHref(contextServer));
-                openServerSettings(contextServer.id);
+                setAddMemberServer(contextServer);
+                setAddMemberUsername("");
+                setAddMemberSuccess(null);
               }
             }}
           >
-            {t("shell.context.settings")}
+            {t("shell.context.addUser")}
           </ContextMenuItem>
         ) : null}
-        {contextServer?.accessLevel !== "MEMBER" ? (
+        {canAddUserFromContextMenu && canManageContextServer ? <ContextMenuSeparator /> : null}
+        {canManageContextServer ? (
           <ContextMenuItem
             onClick={() => {
               closeServerContextMenu();
@@ -800,41 +836,35 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
             {t("shell.context.invite")}
           </ContextMenuItem>
         ) : null}
-        {contextServer && (contextServer.accessLevel !== "MEMBER" || contextServer.allowMemberAdds) ? (
+        {canManageContextServer ? <ContextMenuSeparator /> : null}
+        {canManageContextServer ? (
           <ContextMenuItem
             onClick={() => {
               closeServerContextMenu();
-              setAddMemberServer(contextServer);
-              setAddMemberUsername("");
-              setAddMemberSuccess(null);
-            }}
-          >
-            {t("shell.context.addUser")}
-          </ContextMenuItem>
-        ) : null}
-        {contextServer && contextServer.accessLevel !== "OWNER" ? (
-          <ContextMenuItem
-            destructive
-            onClick={() => {
-              if (
-                window.confirm(t("shell.context.leaveServerConfirm", { name: contextServer.name }))
-              ) {
-                leaveMutation.mutate(contextServer.id);
+              if (contextServer) {
+                navigate(getServerHref(contextServer));
+                openServerSettings(contextServer.id);
               }
             }}
           >
-            {t("shell.context.leaveServer")}
+            {t("shell.context.settings")}
           </ContextMenuItem>
         ) : null}
-        {contextServer?.accessLevel === "OWNER" ? (
+        {canLeaveContextServer && hasPrimaryContextActions ? <ContextMenuSeparator /> : null}
+        {canLeaveContextServer ? (
           <ContextMenuItem
             destructive
             onClick={() => {
+              if (!contextServer) {
+                return;
+              }
+
               closeServerContextMenu();
-              openDeleteServerDialog(contextServer.id, contextServer.name);
+              leaveMutation.reset();
+              setLeaveServerCandidate(contextServer);
             }}
           >
-            {t("shell.context.deleteServer")}
+            {t("shell.context.leaveServer")}
           </ContextMenuItem>
         ) : null}
       </ContextMenu>
@@ -890,9 +920,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
 
           {addMemberMutation.error ? (
             <div className="app-danger rounded-[24px] border p-4 text-sm font-medium">
-              {addMemberMutation.error instanceof Error
-                ? addMemberMutation.error.message
-                : t("workspace.modal.addMemberError")}
+              {t(getAddMemberErrorKey(addMemberMutation.error))}
             </div>
           ) : null}
 
@@ -922,6 +950,64 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        className="max-w-md"
+        description={t("shell.context.leaveServerDialogDescription", {
+          name: leaveServerCandidate?.name ?? "",
+        })}
+        onClose={() => {
+          setLeaveServerCandidate(null);
+          leaveMutation.reset();
+        }}
+        open={Boolean(leaveServerCandidate)}
+        title={t("shell.context.leaveServerDialogTitle")}
+      >
+        <div className="rounded-[24px] border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] p-4">
+          <p className="text-sm font-medium text-app-foreground">
+            {t("shell.context.leaveServerDialogBody", {
+              name: leaveServerCandidate?.name ?? "",
+            })}
+          </p>
+        </div>
+
+        {leaveMutation.error ? (
+          <div className="app-danger mt-4 rounded-[24px] border p-4 text-sm font-medium">
+            {leaveMutation.error instanceof Error
+              ? leaveMutation.error.message
+              : t("shell.context.leaveServerDialogError")}
+          </div>
+        ) : null}
+
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            className="w-full rounded-2xl sm:w-auto"
+            disabled={leaveMutation.isPending}
+            onClick={() => {
+              setLeaveServerCandidate(null);
+              leaveMutation.reset();
+            }}
+            type="button"
+            variant="outline"
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button
+            className="w-full rounded-2xl bg-[hsl(var(--danger))] text-white hover:bg-[hsl(var(--danger)/0.9)] sm:w-auto"
+            disabled={leaveMutation.isPending || !leaveServerCandidate}
+            onClick={() => {
+              if (leaveServerCandidate) {
+                leaveMutation.mutate(leaveServerCandidate.id);
+              }
+            }}
+            type="button"
+          >
+            {leaveMutation.isPending
+              ? t("shell.context.leaveServerLeaving")
+              : t("shell.context.leaveServer")}
+          </Button>
+        </div>
       </Modal>
 
       <WorkspaceModals

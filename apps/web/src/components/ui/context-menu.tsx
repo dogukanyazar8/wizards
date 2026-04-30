@@ -133,3 +133,12 @@ export function ContextMenuItem({
     </button>
   );
 }
+
+export function ContextMenuSeparator() {
+  return (
+    <div
+      className="my-1 h-px w-full bg-[linear-gradient(90deg,transparent,hsl(var(--border)/0.72),transparent)]"
+      role="separator"
+    />
+  );
+}

@@ -2,10 +2,13 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { MoreHorizontal, UserMinus, UserPlus } from "lucide-react";
+import { Button } from "@wizards/ui";
 import ReactMarkdown from "react-markdown";
+import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { MessageMode } from "@/hooks/use-messages";
 import { Avatar } from "@/components/ui/avatar";
+import { Modal } from "@/components/ui/modal";
 import { UserProfilePopover } from "@/components/shared/user-profile-popover";
 import { MessageEditor } from "./message-editor";
 import { MessageAttachments } from "./message-attachments";
@@ -30,6 +33,22 @@ function getPresenceDotClass(status: ChatMessage["author"]["status"] | undefined
 
   return "bg-slate-400 shadow-[0_0_0_3px_hsl(var(--muted)/0.18)]";
 }
+
+const markdownComponents = {
+  a({ children, href, title }) {
+    return (
+      <a
+        href={href}
+        referrerPolicy="no-referrer"
+        rel="noopener noreferrer nofollow"
+        target="_blank"
+        title={title}
+      >
+        {children}
+      </a>
+    );
+  },
+} satisfies Components;
 
 interface MessageItemProps {
   mode: MessageMode;
@@ -57,6 +76,7 @@ export const MessageItem = React.memo(
     const socket = useSocket();
     const [isEditing, setIsEditing] = useState(false);
     const [actionsOpen, setActionsOpen] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const actionsRef = useRef<HTMLDivElement>(null);
     const moreButtonRef = useRef<HTMLButtonElement>(null);
     const isOwner = message.author.id === currentUserId;
@@ -82,13 +102,17 @@ export const MessageItem = React.memo(
     };
 
     const handleDelete = () => {
-      if (window.confirm(t("chat.message.deleteConfirm"))) {
-        if (mode === "channel") {
-          socket.emit("message:delete", message.id);
-        } else {
-          socket.emit("dm:message:delete", { messageId: message.id });
-        }
+      setDeleteDialogOpen(true);
+    };
+
+    const confirmDelete = () => {
+      if (mode === "channel") {
+        socket.emit("message:delete", message.id);
+      } else {
+        socket.emit("dm:message:delete", { messageId: message.id });
       }
+
+      setDeleteDialogOpen(false);
     };
 
     useEffect(() => {
@@ -151,179 +175,213 @@ export const MessageItem = React.memo(
     }
 
     return (
-      <div
-        className={cn(
-          "group relative px-1 transition sm:px-4",
-          isOptimistic && "opacity-60",
-        )}
-      >
-        {showGroupSeparator ? (
-          <div className="absolute inset-x-1 top-0 h-px bg-[hsl(var(--border)/0.34)] sm:inset-x-4" />
-        ) : null}
-
+      <>
         <div
           className={cn(
-            "grid grid-cols-[2.5rem_minmax(0,1fr)] gap-2 rounded-2xl transition hover:bg-[hsl(var(--surface-soft)/0.28)] sm:grid-cols-[3rem_minmax(0,1fr)] sm:gap-3",
-            isGrouped ? "min-h-[36px] py-1.5" : "min-h-[56px] py-2",
+            "group relative px-1 transition sm:px-4",
+            isOptimistic && "opacity-60",
           )}
         >
-          <div className="flex justify-center pt-0.5">
-            {isGrouped ? (
-              <span className="w-10 text-right text-[11px] text-app-soft opacity-0 transition group-hover:opacity-100">
-                {formattedTime}
-              </span>
-            ) : (
-              <UserProfilePopover userId={message.author.id} currentUserId={currentUserId}>
-                <span className="relative inline-flex">
-                  <Avatar
-                    src={message.author.avatarUrl}
-                    alt={message.author.displayName}
-                    className="h-9 w-9 flex-shrink-0 sm:h-10 sm:w-10"
-                    fallback={message.author.displayName[0] || "?"}
-                  />
+          {showGroupSeparator ? (
+            <div className="absolute inset-x-1 top-0 h-px bg-[hsl(var(--border)/0.34)] sm:inset-x-4" />
+          ) : null}
+
+          <div
+            className={cn(
+              "grid grid-cols-[2.5rem_minmax(0,1fr)] gap-2 rounded-2xl transition hover:bg-[hsl(var(--surface-soft)/0.28)] sm:grid-cols-[3rem_minmax(0,1fr)] sm:gap-3",
+              isGrouped ? "min-h-[36px] py-1.5" : "min-h-[56px] py-2",
+            )}
+          >
+            <div className="flex justify-center pt-0.5">
+              {isGrouped ? (
+                <span className="w-10 text-right text-[11px] text-app-soft opacity-0 transition group-hover:opacity-100">
+                  {formattedTime}
+                </span>
+              ) : (
+                <UserProfilePopover userId={message.author.id} currentUserId={currentUserId}>
+                  <span className="relative inline-flex">
+                    <Avatar
+                      src={message.author.avatarUrl}
+                      alt={message.author.displayName}
+                      className="h-9 w-9 flex-shrink-0 sm:h-10 sm:w-10"
+                      fallback={message.author.displayName[0] || "?"}
+                    />
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[hsl(var(--surface-card))] sm:h-3.5 sm:w-3.5",
+                        getPresenceDotClass(message.author.status),
+                      )}
+                    />
+                  </span>
+                </UserProfilePopover>
+              )}
+            </div>
+
+            <div className="relative min-w-0 pr-9 md:pr-36">
+              {!isGrouped && (
+                <div className="flex items-center gap-2 pr-2">
+                  <span className="font-semibold text-app-foreground text-sm">
+                    {message.author.displayName}
+                  </span>
                   <span
-                    aria-hidden="true"
+                    aria-label={message.author.customStatus ?? message.author.status ?? undefined}
                     className={cn(
-                      "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[hsl(var(--surface-card))] sm:h-3.5 sm:w-3.5",
+                      "h-2 w-2 shrink-0 rounded-full",
                       getPresenceDotClass(message.author.status),
                     )}
+                    title={message.author.customStatus ?? message.author.status ?? undefined}
                   />
-                </span>
-              </UserProfilePopover>
-            )}
-          </div>
+                  <span className="shrink-0 text-xs text-app-muted">{formattedTime}</span>
+                </div>
+              )}
 
-          <div className="relative min-w-0 pr-9 md:pr-36">
-            {!isGrouped && (
-              <div className="flex items-center gap-2 pr-2">
-                <span className="font-semibold text-app-foreground text-sm">
-                  {message.author.displayName}
-                </span>
-                <span
-                  aria-label={message.author.customStatus ?? message.author.status ?? undefined}
-                  className={cn(
-                    "h-2 w-2 shrink-0 rounded-full",
-                    getPresenceDotClass(message.author.status),
-                  )}
-                  title={message.author.customStatus ?? message.author.status ?? undefined}
+              {message.replyTo && !isEditing && (
+                <div className="mb-1.5 flex items-start gap-1.5 rounded border-l-2 border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--surface-soft)/0.4)] px-2 py-1">
+                  <span className="shrink-0 text-[11px] font-medium text-[hsl(var(--primary))]">
+                    {message.replyTo.authorName}
+                  </span>
+                  <p className="min-w-0 truncate text-[11px] text-app-muted">
+                    {message.replyTo.content}
+                  </p>
+                </div>
+              )}
+
+              {isEditing ? (
+                <MessageEditor
+                  initialContent={message.content}
+                  onSave={handleEdit}
+                  onCancel={() => setIsEditing(false)}
                 />
-                <span className="shrink-0 text-xs text-app-muted">{formattedTime}</span>
-              </div>
-            )}
+              ) : (
+                <div className="text-app-foreground break-words text-sm leading-6 [&_a]:text-[hsl(var(--primary))] [&_code]:break-words [&_ol]:my-2 [&_p]:m-0 [&_pre]:my-2 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_ul]:my-2">
+                  <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
+              )}
 
-            {message.replyTo && !isEditing && (
-              <div className="mb-1.5 flex items-start gap-1.5 rounded border-l-2 border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--surface-soft)/0.4)] px-2 py-1">
-                <span className="shrink-0 text-[11px] font-medium text-[hsl(var(--primary))]">
-                  {message.replyTo.authorName}
-                </span>
-                <p className="min-w-0 truncate text-[11px] text-app-muted">
-                  {message.replyTo.content}
-                </p>
-              </div>
-            )}
+              {!isEditing ? <MessageAttachments attachments={message.attachments} /> : null}
 
-            {isEditing ? (
-              <MessageEditor
-                initialContent={message.content}
-                onSave={handleEdit}
-                onCancel={() => setIsEditing(false)}
-              />
-            ) : (
-              <div className="text-app-foreground break-words text-sm leading-6 [&_a]:text-[hsl(var(--primary))] [&_code]:break-words [&_ol]:my-2 [&_p]:m-0 [&_pre]:my-2 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_ul]:my-2">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {message.content}
-                </ReactMarkdown>
-              </div>
-            )}
+              {message.editedAt && !isEditing && (
+                <span className="text-xs text-app-muted italic">{t("chat.message.edited")}</span>
+              )}
 
-            {!isEditing ? <MessageAttachments attachments={message.attachments} /> : null}
+              {message.reactions.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {message.reactions.map((reaction) => (
+                    <button
+                      key={reaction.emoji}
+                      className={cn(
+                        "rounded-full px-2 py-1 text-xs transition",
+                        reaction.userIds.includes(currentUserId)
+                          ? "border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
+                          : "bg-app-surface-soft hover:bg-app-surface",
+                      )}
+                      onClick={() => onReact(message.id, reaction.emoji)}
+                      type="button"
+                    >
+                      {reaction.emoji} {reaction.count}
+                    </button>
+                  ))}
+                </div>
+              )}
 
-            {message.editedAt && !isEditing && (
-              <span className="text-xs text-app-muted italic">{t("chat.message.edited")}</span>
-            )}
-
-            {message.reactions.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {message.reactions.map((reaction) => (
-                  <button
-                    key={reaction.emoji}
-                    className={cn(
-                      "rounded-full px-2 py-1 text-xs transition",
-                      reaction.userIds.includes(currentUserId)
-                        ? "border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
-                        : "bg-app-surface-soft hover:bg-app-surface",
-                    )}
-                    onClick={() => onReact(message.id, reaction.emoji)}
-                    type="button"
-                  >
-                    {reaction.emoji} {reaction.count}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {!isEditing && !isOptimistic ? (
-              <button
-                aria-expanded={actionsOpen}
-                aria-label={t("chat.message.moreActions")}
-                className="app-panel-soft absolute right-0 top-0 z-10 flex h-8 w-8 items-center justify-center rounded-full border text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.1)] transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:hidden"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setActionsOpen((current) => !current);
-                }}
-                ref={moreButtonRef}
-                type="button"
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </button>
-            ) : null}
-
-            {!isEditing && !isOptimistic && actionsOpen ? (
-              <div
-                className="absolute right-0 top-9 z-30 flex justify-end md:hidden"
-                onClick={(event) => event.stopPropagation()}
-                ref={actionsRef}
-              >
-                <MessageToolbar
-                  allowReact
-                  messageId={message.id}
-                  isOwner={isOwner}
-                  canModerate={canModerate}
-                  onReact={(emoji) => onReact(message.id, emoji)}
-                  onReply={() => {
-                    setActionsOpen(false);
-                    onReply(message.id, message.author.displayName, message.content);
+              {!isEditing && !isOptimistic ? (
+                <button
+                  aria-expanded={actionsOpen}
+                  aria-label={t("chat.message.moreActions")}
+                  className="app-panel-soft absolute right-0 top-0 z-10 flex h-8 w-8 items-center justify-center rounded-full border text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.1)] transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:hidden"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setActionsOpen((current) => !current);
                   }}
-                  onEdit={() => {
-                    setActionsOpen(false);
-                    setIsEditing(true);
-                  }}
-                  onDelete={() => {
-                    setActionsOpen(false);
-                    handleDelete();
-                  }}
-                />
-              </div>
-            ) : null}
+                  ref={moreButtonRef}
+                  type="button"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+              ) : null}
 
-            {!isEditing && !isOptimistic ? (
-              <div className="pointer-events-none absolute right-0 top-0 z-20 hidden justify-end opacity-0 transition md:flex md:w-32 md:group-hover:opacity-100 md:focus-within:opacity-100">
-                <MessageToolbar
-                  allowReact
-                  className="pointer-events-auto"
-                  messageId={message.id}
-                  isOwner={isOwner}
-                  canModerate={canModerate}
-                  onReact={(emoji) => onReact(message.id, emoji)}
-                  onReply={() => onReply(message.id, message.author.displayName, message.content)}
-                  onEdit={() => setIsEditing(true)}
-                  onDelete={handleDelete}
-                />
-              </div>
-            ) : null}
+              {!isEditing && !isOptimistic && actionsOpen ? (
+                <div
+                  className="absolute right-0 top-9 z-30 flex justify-end md:hidden"
+                  onClick={(event) => event.stopPropagation()}
+                  ref={actionsRef}
+                >
+                  <MessageToolbar
+                    allowReact
+                    messageId={message.id}
+                    isOwner={isOwner}
+                    canModerate={canModerate}
+                    onReact={(emoji) => onReact(message.id, emoji)}
+                    onReply={() => {
+                      setActionsOpen(false);
+                      onReply(message.id, message.author.displayName, message.content);
+                    }}
+                    onEdit={() => {
+                      setActionsOpen(false);
+                      setIsEditing(true);
+                    }}
+                    onDelete={() => {
+                      setActionsOpen(false);
+                      handleDelete();
+                    }}
+                  />
+                </div>
+              ) : null}
+
+              {!isEditing && !isOptimistic ? (
+                <div className="pointer-events-none absolute right-0 top-0 z-20 hidden justify-end opacity-0 transition md:flex md:w-32 md:group-hover:opacity-100 md:focus-within:opacity-100">
+                  <MessageToolbar
+                    allowReact
+                    className="pointer-events-auto"
+                    messageId={message.id}
+                    isOwner={isOwner}
+                    canModerate={canModerate}
+                    onReact={(emoji) => onReact(message.id, emoji)}
+                    onReply={() => onReply(message.id, message.author.displayName, message.content)}
+                    onEdit={() => setIsEditing(true)}
+                    onDelete={handleDelete}
+                  />
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
-      </div>
+
+        <Modal
+          className="max-w-md"
+          description={t("chat.message.deleteDialogDescription")}
+          onClose={() => setDeleteDialogOpen(false)}
+          open={deleteDialogOpen}
+          title={t("chat.message.deleteDialogTitle")}
+        >
+          <div className="rounded-[24px] border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] p-4">
+            <p className="text-sm font-medium text-app-foreground">
+              {t("chat.message.deleteDialogBody")}
+            </p>
+          </div>
+
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              className="w-full rounded-2xl sm:w-auto"
+              onClick={() => setDeleteDialogOpen(false)}
+              type="button"
+              variant="outline"
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              className="w-full rounded-2xl bg-[hsl(var(--danger))] text-white hover:bg-[hsl(var(--danger)/0.9)] sm:w-auto"
+              onClick={confirmDelete}
+              type="button"
+            >
+              {t("chat.message.delete")}
+            </Button>
+          </div>
+        </Modal>
+      </>
     );
   },
   (prev, next) =>

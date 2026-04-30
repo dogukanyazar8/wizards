@@ -14,6 +14,7 @@ export class WorkspaceClientError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    public readonly code?: string,
   ) {
     super(message);
     this.name = "WorkspaceClientError";
@@ -48,12 +49,17 @@ async function requestJson<T>(url: string, options: RequestOptions = {}): Promis
 
   const payload = (await response.json().catch(() => null)) as
     | {
+        code?: string;
         error?: string;
       }
     | null;
 
   if (!response.ok) {
-    throw new WorkspaceClientError(payload?.error ?? "Request failed", response.status);
+    throw new WorkspaceClientError(
+      payload?.error ?? "Request failed",
+      response.status,
+      payload?.code,
+    );
   }
 
   return payload as T;
