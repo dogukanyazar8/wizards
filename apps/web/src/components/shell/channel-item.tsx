@@ -39,10 +39,10 @@ export function ChannelItem({
   const hiddenParticipantCount = Math.max(0, participantCount - visibleParticipantRows.length);
 
   return (
-    <div>
+    <div className="min-w-0 max-w-full overflow-hidden">
       <div
         className={cn(
-          "group flex items-center gap-2 rounded-2xl px-2 py-1.5 transition",
+          "group flex min-w-0 max-w-full items-center gap-1.5 overflow-hidden rounded-2xl px-2 py-1.5 transition sm:gap-2",
           active
             ? "bg-[hsl(var(--primary)/0.16)] text-[hsl(var(--foreground))]"
             : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-[hsl(var(--foreground))]",
@@ -68,9 +68,9 @@ export function ChannelItem({
           type="button"
         >
           <Icon className="h-4 w-4 shrink-0" />
-          <span className="truncate text-sm font-medium">{name}</span>
+          <span className="min-w-0 truncate text-sm font-medium">{name}</span>
           {type === "VOICE" ? (
-            <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
               <span className="text-[11px] font-semibold text-app-soft">
                 {participantCount}/10
               </span>
@@ -97,7 +97,7 @@ export function ChannelItem({
         </button>
 
         {canManage ? (
-          <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
+          <div className="hidden items-center gap-1 opacity-0 transition group-hover:opacity-100 sm:flex">
             <button
               aria-label={t("shell.channelItem.edit", { name })}
               className="text-app-muted rounded-lg p-1.5 transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-[hsl(var(--foreground))]"

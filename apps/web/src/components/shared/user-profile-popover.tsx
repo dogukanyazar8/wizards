@@ -210,7 +210,7 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
             {isMobileViewport ? (
               <motion.div
                 animate={{ opacity: 1 }}
-                className="fixed inset-0 z-[60] bg-[hsl(var(--background)/0.58)] backdrop-blur-sm"
+                className="fixed inset-0 z-[90] bg-[hsl(var(--background)/0.58)] backdrop-blur-sm"
                 exit={{ opacity: 0 }}
                 initial={{ opacity: 0 }}
                 onClick={() => setOpen(false)}
@@ -219,7 +219,7 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
             <motion.div
               ref={popoverRef}
               className={cn(
-                "fixed z-[61] overflow-hidden border border-[hsl(var(--border)/0.88)] bg-[hsl(var(--surface-overlay)/0.98)] shadow-[0_28px_80px_hsl(var(--shadow-color)/0.28)] backdrop-blur-2xl",
+                "fixed z-[91] overflow-hidden border border-[hsl(var(--border)/0.88)] bg-[hsl(var(--surface-overlay)/0.98)] shadow-[0_28px_80px_hsl(var(--shadow-color)/0.28)] backdrop-blur-2xl",
                 isMobileViewport
                   ? "inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-h-[min(34rem,calc(100dvh-1.5rem))] overflow-y-auto rounded-[30px]"
                   : "w-80 rounded-[30px]",

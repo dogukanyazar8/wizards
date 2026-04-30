@@ -38,6 +38,7 @@ function WorkspaceSignature() {
         <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 text-[hsl(var(--primary))]">
           AI
         </span>
+        <span className="text-app-soft">/</span>
         <span>{t("shell.footer.codex")}</span>
         <span className="text-app-soft">/</span>
         <span>{todayLabel}</span>

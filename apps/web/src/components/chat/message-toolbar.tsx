@@ -67,14 +67,14 @@ export function MessageToolbar({
 
   return (
     <div
-      className={`bg-app-panel border-app-border flex items-center gap-1 rounded-full border px-2 py-1 shadow-[0_14px_32px_hsl(var(--shadow-color)/0.14)] ${className ?? ""}`}
+      className={`bg-app-panel border-app-border flex items-center gap-1 rounded-full border px-1.5 py-1 shadow-[0_14px_32px_hsl(var(--shadow-color)/0.14)] sm:px-2 ${className ?? ""}`}
     >
       {allowReact ? (
         <div className="relative" ref={reactionMenuRef}>
           <button
             onClick={() => setShowReactionMenu((current) => !current)}
             title={t("chat.message.react")}
-            className="rounded p-1 transition hover:bg-app-surface-soft"
+            className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
             aria-expanded={showReactionMenu}
             aria-haspopup="true"
             aria-label={t("chat.message.addReaction")}
@@ -107,7 +107,7 @@ export function MessageToolbar({
       <button
         onClick={onReply}
         title={t("chat.message.reply")}
-        className="rounded p-1 transition hover:bg-app-surface-soft"
+        className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
         aria-label={t("chat.message.replyAria")}
         type="button"
       >
@@ -118,7 +118,7 @@ export function MessageToolbar({
         <button
           onClick={onEdit}
           title={t("chat.message.edit")}
-          className="rounded p-1 transition hover:bg-app-surface-soft"
+          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
           aria-label={t("chat.message.editAria")}
           type="button"
         >
@@ -130,7 +130,7 @@ export function MessageToolbar({
         <button
           onClick={onDelete}
           title={t("chat.message.delete")}
-          className="rounded p-1 text-app-danger transition hover:bg-[hsl(var(--danger)/0.14)] hover:text-app-danger"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-app-danger transition hover:bg-[hsl(var(--danger)/0.14)] hover:text-app-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
           aria-label={t("chat.message.deleteAria")}
           type="button"
         >

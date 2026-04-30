@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { UserMinus, UserPlus } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { MoreHorizontal, UserMinus, UserPlus } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { MessageMode } from "@/hooks/use-messages";
@@ -40,6 +40,9 @@ export const MessageItem = React.memo(
     const { locale, t } = useI18n();
     const socket = useSocket();
     const [isEditing, setIsEditing] = useState(false);
+    const [actionsOpen, setActionsOpen] = useState(false);
+    const actionsRef = useRef<HTMLDivElement>(null);
+    const moreButtonRef = useRef<HTMLButtonElement>(null);
     const isOwner = message.author.id === currentUserId;
     const isDeleted = message.deletedAt !== null;
     const isOptimistic = message.id.startsWith("optimistic-");
@@ -71,6 +74,40 @@ export const MessageItem = React.memo(
         }
       }
     };
+
+    useEffect(() => {
+      if (!actionsOpen) {
+        return;
+      }
+
+      const handlePointerDown = (event: PointerEvent) => {
+        const target = event.target as Node;
+
+        if (actionsRef.current?.contains(target)) {
+          return;
+        }
+
+        if (moreButtonRef.current?.contains(target)) {
+          return;
+        }
+
+        setActionsOpen(false);
+      };
+
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === "Escape") {
+          setActionsOpen(false);
+        }
+      };
+
+      window.addEventListener("pointerdown", handlePointerDown);
+      window.addEventListener("keydown", handleKeyDown);
+
+      return () => {
+        window.removeEventListener("pointerdown", handlePointerDown);
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }, [actionsOpen]);
 
     if (message.type !== "DEFAULT") {
       const Icon = message.type === "SYSTEM_LEAVE" ? UserMinus : UserPlus;
@@ -131,7 +168,7 @@ export const MessageItem = React.memo(
             )}
           </div>
 
-          <div className="relative min-w-0 pr-32 sm:pr-24 md:pr-36">
+          <div className="relative min-w-0 pr-9 md:pr-36">
             {!isGrouped && (
               <div className="flex items-center gap-2 pr-2">
                 <span className="font-semibold text-app-foreground text-sm">
@@ -192,21 +229,63 @@ export const MessageItem = React.memo(
               </div>
             )}
 
-            {!isEditing ? (
-              <div className="pointer-events-none absolute right-0 top-0 flex w-32 justify-end opacity-100 transition sm:w-24 md:w-32 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
-                {!isOptimistic ? (
-                  <MessageToolbar
-                    allowReact
-                    className="pointer-events-auto"
-                    messageId={message.id}
-                    isOwner={isOwner}
-                    canModerate={canModerate}
-                    onReact={(emoji) => onReact(message.id, emoji)}
-                    onReply={() => onReply(message.id, message.author.displayName, message.content)}
-                    onEdit={() => setIsEditing(true)}
-                    onDelete={handleDelete}
-                  />
-                ) : null}
+            {!isEditing && !isOptimistic ? (
+              <button
+                aria-expanded={actionsOpen}
+                aria-label={t("chat.message.moreActions")}
+                className="app-panel-soft absolute right-0 top-0 z-10 flex h-8 w-8 items-center justify-center rounded-full border text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.1)] transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:hidden"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setActionsOpen((current) => !current);
+                }}
+                ref={moreButtonRef}
+                type="button"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            ) : null}
+
+            {!isEditing && !isOptimistic && actionsOpen ? (
+              <div
+                className="absolute right-0 top-9 z-30 flex justify-end md:hidden"
+                onClick={(event) => event.stopPropagation()}
+                ref={actionsRef}
+              >
+                <MessageToolbar
+                  allowReact
+                  messageId={message.id}
+                  isOwner={isOwner}
+                  canModerate={canModerate}
+                  onReact={(emoji) => onReact(message.id, emoji)}
+                  onReply={() => {
+                    setActionsOpen(false);
+                    onReply(message.id, message.author.displayName, message.content);
+                  }}
+                  onEdit={() => {
+                    setActionsOpen(false);
+                    setIsEditing(true);
+                  }}
+                  onDelete={() => {
+                    setActionsOpen(false);
+                    handleDelete();
+                  }}
+                />
+              </div>
+            ) : null}
+
+            {!isEditing && !isOptimistic ? (
+              <div className="pointer-events-none absolute right-0 top-0 z-20 hidden justify-end opacity-0 transition md:flex md:w-32 md:group-hover:opacity-100 md:focus-within:opacity-100">
+                <MessageToolbar
+                  allowReact
+                  className="pointer-events-auto"
+                  messageId={message.id}
+                  isOwner={isOwner}
+                  canModerate={canModerate}
+                  onReact={(emoji) => onReact(message.id, emoji)}
+                  onReply={() => onReply(message.id, message.author.displayName, message.content)}
+                  onEdit={() => setIsEditing(true)}
+                  onDelete={handleDelete}
+                />
               </div>
             ) : null}
           </div>

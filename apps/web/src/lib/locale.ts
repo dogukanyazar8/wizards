@@ -382,6 +382,20 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.appearance.advanced.channelSidebarTitle": "Channel sidebar",
     "settings.appearance.advanced.channelSidebarDescription":
       "Tune the channel list width so names and presence previews breathe properly.",
+    "settings.appearance.icons.title": "App icon",
+    "settings.appearance.icons.description":
+      "Choose the wave mark Wizards uses in browser tabs, mobile shortcuts, and installed app surfaces on this device.",
+    "settings.appearance.icons.select": "Use this icon",
+    "settings.appearance.icons.selected": "Active icon",
+    "settings.appearance.icons.updated": "App icon updated",
+    "settings.appearance.icons.updatedDescription":
+      "No refresh needed. Wizards applies the browser and mobile icon instantly on this device.",
+    "settings.appearance.icons.wave0": "Midnight pulse",
+    "settings.appearance.icons.wave1": "Classic blue",
+    "settings.appearance.icons.wave2": "Aurora wave",
+    "settings.appearance.icons.wave3": "Neon signal",
+    "settings.appearance.icons.wave4": "Soft glow",
+    "settings.appearance.icons.wave5": "Default wave",
     "settings.groups.notifications.badge": "Notifications",
     "settings.groups.notifications.title": "Notifications",
     "settings.groups.notifications.description":
@@ -619,6 +633,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.message.edit": "Edit",
     "chat.message.delete": "Delete",
     "chat.message.addReaction": "Add reaction",
+    "chat.message.moreActions": "Message actions",
     "chat.message.replyAria": "Reply to message",
     "chat.message.editAria": "Edit message",
     "chat.message.deleteAria": "Delete message",
@@ -1196,6 +1211,20 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.appearance.advanced.channelSidebarTitle": "Kanal kenar çubuğu",
     "settings.appearance.advanced.channelSidebarDescription":
       "Kanal listesi genişliğini, adlar ve durum önizlemeleri rahat nefes alacak şekilde ayarla.",
+    "settings.appearance.icons.title": "Uygulama ikonu",
+    "settings.appearance.icons.description":
+      "Wizards'ın tarayıcı sekmelerinde, mobil kısayollarda ve bu cihazdaki yüklü uygulama yüzeylerinde kullanacağı dalga işaretini seç.",
+    "settings.appearance.icons.select": "Bu ikonu kullan",
+    "settings.appearance.icons.selected": "Aktif ikon",
+    "settings.appearance.icons.updated": "Uygulama ikonu güncellendi",
+    "settings.appearance.icons.updatedDescription":
+      "Sayfayı yenilemeye gerek yok. Wizards tarayıcı ve mobil ikonunu bu cihazda anında uygular.",
+    "settings.appearance.icons.wave0": "Gece sinyali",
+    "settings.appearance.icons.wave1": "Klasik mavi",
+    "settings.appearance.icons.wave2": "Aurora dalgası",
+    "settings.appearance.icons.wave3": "Neon sinyal",
+    "settings.appearance.icons.wave4": "Yumuşak parıltı",
+    "settings.appearance.icons.wave5": "Varsayılan dalga",
     "settings.groups.notifications.badge": "Bildirimler",
     "settings.groups.notifications.title": "Bildirimler",
     "settings.groups.notifications.description":
@@ -1433,6 +1462,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.message.edit": "Düzenle",
     "chat.message.delete": "Sil",
     "chat.message.addReaction": "Tepki ekle",
+    "chat.message.moreActions": "Mesaj eylemleri",
     "chat.message.replyAria": "Mesajı yanıtla",
     "chat.message.editAria": "Mesajı düzenle",
     "chat.message.deleteAria": "Mesajı sil",

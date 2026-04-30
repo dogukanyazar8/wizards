@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { auth } from "@/auth";
+import { AppIconProvider } from "@/components/providers/app-icon-provider";
 import { SocketProvider } from "@/components/providers/socket-provider";
 import { SoundEffectsProvider } from "@/components/providers/sound-effects-provider";
 import { VoiceProvider } from "@/components/providers/voice-provider";
@@ -23,6 +24,11 @@ const displayFont = Space_Grotesk({
 export const metadata: Metadata = {
   title: "Wizards",
   description: "Wizards collaboration workspace",
+  icons: {
+    apple: "/app-icons/wave-5.png",
+    icon: "/app-icons/wave-5.png",
+    shortcut: "/app-icons/wave-5.png",
+  },
 };
 
 export default async function RootLayout({
@@ -53,17 +59,19 @@ export default async function RootLayout({
       <body className={`${bodyFont.variable} ${displayFont.variable}`}>
         <ThemeProvider storageKey="wizards-theme" defaultTheme={theme} attribute="class">
           <LocaleProvider initialLocale={locale}>
-            <QueryProvider>
-              {currentUser ? (
-                <SocketProvider>
-                  <SoundEffectsProvider currentUserId={currentUser.id}>
-                    <VoiceProvider currentUser={currentUser}>{children}</VoiceProvider>
-                  </SoundEffectsProvider>
-                </SocketProvider>
-              ) : (
-                children
-              )}
-            </QueryProvider>
+            <AppIconProvider>
+              <QueryProvider>
+                {currentUser ? (
+                  <SocketProvider>
+                    <SoundEffectsProvider currentUserId={currentUser.id}>
+                      <VoiceProvider currentUser={currentUser}>{children}</VoiceProvider>
+                    </SoundEffectsProvider>
+                  </SocketProvider>
+                ) : (
+                  children
+                )}
+              </QueryProvider>
+            </AppIconProvider>
           </LocaleProvider>
         </ThemeProvider>
       </body>

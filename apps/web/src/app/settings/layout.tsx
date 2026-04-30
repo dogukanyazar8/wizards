@@ -15,9 +15,9 @@ export default async function SettingsLayout({
       <LocaleSessionSync preferredLocale={session.user.locale} />
       <ThemeSessionSync preferredTheme={session.user.theme} />
 
-      <div className="mx-auto grid w-full max-w-[1600px] gap-4 sm:gap-6 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="mx-auto grid w-full max-w-[1600px] min-w-0 gap-4 overflow-hidden sm:gap-6 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]">
         <SettingsSidebar />
-        <section className="min-w-0 pb-8">{children}</section>
+        <section className="min-w-0 max-w-full overflow-hidden pb-8">{children}</section>
       </div>
     </main>
   );

@@ -99,15 +99,16 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
   });
 
   return (
-    <div
-      ref={setNodeRef}
-      style={{
+      <div
+        ref={setNodeRef}
+        className="min-w-0"
+        style={{
         opacity: isDragging ? 0.75 : 1,
         transform: CSS.Transform.toString(transform),
         transition,
       }}
     >
-      <div className="flex items-center gap-1">
+      <div className="flex min-w-0 items-center gap-1">
         {canManage ? (
           <button
             aria-label={`Drag channel ${channel.name}`}
@@ -122,7 +123,7 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
           <div className="w-[26px]" />
         )}
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 overflow-hidden">
           <ChannelItem
             active={active}
             canManage={canManage}
@@ -434,7 +435,7 @@ export function ChannelSidebar({
 
   if (loading) {
     return (
-      <aside className="app-sidebar h-full w-full pt-[env(safe-area-inset-top)] md:pt-0">
+      <aside className="app-sidebar h-full w-full min-w-0 overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0">
         <ChannelSidebarSkeleton />
       </aside>
     );
@@ -442,7 +443,7 @@ export function ChannelSidebar({
 
   if (!detail) {
     return (
-      <aside className="app-sidebar flex h-full w-full flex-col pt-[env(safe-area-inset-top)] md:pt-0">
+      <aside className="app-sidebar flex h-full w-full min-w-0 flex-col overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0">
         <div className="min-h-0 flex-1 p-4">
           <FriendsSidebar
             currentUserId={currentUser.id}
@@ -524,11 +525,11 @@ export function ChannelSidebar({
   };
 
   return (
-    <aside className="app-sidebar flex h-full w-full flex-col pt-[env(safe-area-inset-top)] md:pt-0">
+    <aside className="app-sidebar flex h-full w-full min-w-0 flex-col overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0">
       <div className="border-b border-[hsl(var(--border)/0.78)] p-3">
         <button
           aria-label={`Open ${detail.server.name} menu`}
-          className="app-panel flex h-12 w-full items-center justify-between rounded-2xl border px-4 text-left transition hover:opacity-95"
+          className="app-panel flex h-12 w-full min-w-0 items-center justify-between gap-3 rounded-2xl border px-4 text-left transition hover:opacity-95"
           onClick={(event) => {
             const rect = event.currentTarget.getBoundingClientRect();
             setHeaderMenu({
@@ -539,13 +540,13 @@ export function ChannelSidebar({
           }}
           type="button"
         >
-          <div>
+          <div className="min-w-0">
             <p className="text-app-foreground truncate text-sm font-semibold">{detail.server.name}</p>
             <p className="text-app-soft truncate text-xs">
               {t("shell.channelSidebar.membersCount", { count: detail.server.memberCount })}
             </p>
           </div>
-          <ChevronDown className="text-app-muted h-4 w-4" />
+          <ChevronDown className="text-app-muted h-4 w-4 shrink-0" />
         </button>
       </div>
 
@@ -554,7 +555,7 @@ export function ChannelSidebar({
         onDragEnd={handleDragEnd}
         sensors={sensors}
       >
-        <div className="flex-1 space-y-5 overflow-y-auto p-3">
+        <div className="min-w-0 flex-1 space-y-5 overflow-y-auto overflow-x-hidden p-3">
           {detail.categories.map((category) => renderChannelGroup(category.name, category.id, category.channels))}
           {detail.ungroupedChannels.length > 0
             ? renderChannelGroup(t("shell.channelSidebar.openChannels"), null, detail.ungroupedChannels)

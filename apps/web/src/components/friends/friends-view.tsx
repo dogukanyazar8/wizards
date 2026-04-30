@@ -105,17 +105,17 @@ function FriendsMetricCard({
   value: string;
 }) {
   return (
-    <div className="app-panel rounded-[24px] border p-3 shadow-[0_12px_32px_hsl(var(--shadow-color)/0.06)] sm:rounded-[28px] sm:p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-app-soft text-[11px] font-semibold uppercase tracking-[0.22em]">
+    <div className="app-panel rounded-[20px] border p-2 text-center shadow-[0_12px_32px_hsl(var(--shadow-color)/0.06)] sm:rounded-[28px] sm:p-4 sm:text-left">
+      <div className="flex min-w-0 flex-col items-center justify-center gap-1 sm:flex-row sm:justify-between sm:gap-3">
+        <div className="min-w-0">
+          <p className="line-clamp-2 text-[10px] font-semibold uppercase leading-4 tracking-[0.12em] text-app-soft sm:text-[11px] sm:tracking-[0.22em]">
             {description}
           </p>
-          <p className="text-app-foreground mt-2 text-xl font-semibold tracking-tight sm:mt-3 sm:text-2xl">
+          <p className="text-app-foreground mt-1 text-lg font-semibold tracking-tight sm:mt-3 sm:text-2xl">
             {value}
           </p>
         </div>
-        <div className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-[18px] border sm:h-12 sm:w-12">
+        <div className="app-panel-soft hidden h-11 w-11 items-center justify-center rounded-[18px] border sm:flex sm:h-12 sm:w-12">
           <Icon className="h-5 w-5 text-app-foreground" />
         </div>
       </div>
@@ -307,7 +307,7 @@ function PendingRequestRow({
   );
 }
 
-export function FriendsView() {
+export function FriendsView({ currentUserId }: { currentUserId: string }) {
   const { locale, t } = useI18n();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -556,7 +556,7 @@ export function FriendsView() {
     <>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="border-b border-[hsl(var(--border)/0.72)] px-3 py-3 sm:px-4 sm:py-4 md:px-6">
-          <div className="grid gap-2 sm:gap-3 xl:grid-cols-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <FriendsMetricCard
               description={t("friends.overview.onlineNow")}
               icon={Users}
@@ -631,6 +631,7 @@ export function FriendsView() {
               <div className="space-y-3">
                 {onlineFriends.map((friend) => (
                   <FriendCard
+                    currentUserId={currentUserId}
                     friend={friend}
                     key={friend.id}
                     onBlock={(nextFriend) => setConfirmState({ friend: nextFriend, type: "block" })}
@@ -655,6 +656,7 @@ export function FriendsView() {
               <div className="space-y-3">
                 {sortedFriends.map((friend) => (
                   <FriendCard
+                    currentUserId={currentUserId}
                     friend={friend}
                     key={friend.id}
                     onBlock={(nextFriend) => setConfirmState({ friend: nextFriend, type: "block" })}

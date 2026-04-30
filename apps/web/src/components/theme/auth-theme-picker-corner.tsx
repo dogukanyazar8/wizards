@@ -2,20 +2,28 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Palette, X } from "lucide-react";
+import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LanguageSwitcher } from "@/components/locale/language-switcher";
 import { ThemePicker } from "@/components/theme/theme-picker";
 import { useI18n } from "@/components/providers/locale-provider";
+import { ADVANCED_WIZARDS_THEMES, normalizeWizardsThemeId } from "@/lib/appearance";
 
 const AUTH_THEME_ROUTES = new Set(["/login", "/register"]);
 
 export function AuthThemePickerCorner() {
   const pathname = usePathname();
   const { t } = useI18n();
+  const { resolvedTheme, theme } = useTheme();
   const panelRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!mobileOpen) {
@@ -51,6 +59,12 @@ export function AuthThemePickerCorner() {
     return null;
   }
 
+  const activeThemeId = mounted ? normalizeWizardsThemeId(theme ?? resolvedTheme) : null;
+  const activeThemeCategory =
+    activeThemeId && ADVANCED_WIZARDS_THEMES.some((themeOption) => themeOption.id === activeThemeId)
+      ? "advanced"
+      : "simple";
+
   return (
     <div className="absolute inset-x-4 top-3 z-30 lg:inset-x-auto lg:right-8 lg:top-8">
       <div className="hidden items-start gap-3 sm:flex">
@@ -69,7 +83,7 @@ export function AuthThemePickerCorner() {
           type="button"
         >
           <Palette className="h-4 w-4 text-[hsl(var(--primary))]" />
-          <span>{t("themes.tabs.simple")}</span>
+          <span>{t(`themes.tabs.${activeThemeCategory}`)}</span>
         </button>
       </div>
 

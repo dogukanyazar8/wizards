@@ -158,7 +158,7 @@ const NavigationPanel = React.memo(
         />
       </div>
       <div
-        className={isMobile ? "flex min-w-0 flex-1" : "hidden md:flex"}
+        className={isMobile ? "flex min-w-0 max-w-[calc(100vw-72px)] flex-1 overflow-hidden" : "hidden md:flex"}
         style={isMobile ? undefined : { width: `var(--channel-sidebar-width)` }}
       >
         <ChannelSidebar
@@ -656,11 +656,11 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
               animate={{ x: 0 }}
               aria-label={t("shell.mobile.workspaceNavigation")}
               aria-modal="true"
-              className="app-shell absolute inset-y-0 left-0 flex max-w-full shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)]"
+              className="app-shell absolute inset-y-0 left-0 flex max-w-[100vw] overflow-hidden shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)]"
               exit={{ x: -24 }}
               initial={{ x: -24 }}
               role="dialog"
-              style={{ width: `min(100vw, calc(${serverRailWidth}px + ${channelSidebarWidth}px))` }}
+              style={{ width: "min(100vw, 28rem)" }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
               suppressHydrationWarning
             >

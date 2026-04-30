@@ -131,6 +131,11 @@ export function SettingsSidebar() {
               section: "appearance",
             },
             {
+              label: t("settings.appearance.icons.title"),
+              panel: "appIcon",
+              section: "appearance",
+            },
+            {
               label: t("settings.appearance.advanced.serverRailTitle"),
               panel: "serverRail",
               section: "appearance",
@@ -163,7 +168,7 @@ export function SettingsSidebar() {
 
   return (
     <>
-      <aside className="app-panel rounded-[28px] border p-4 lg:hidden">
+      <aside className="app-panel min-w-0 max-w-full overflow-hidden rounded-[28px] border p-4 lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <Link
             className="app-panel-soft text-app-foreground inline-flex min-h-11 items-center gap-2 rounded-2xl border px-3 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
@@ -188,7 +193,7 @@ export function SettingsSidebar() {
 
         <nav
           aria-label={t("settings.title")}
-          className="-mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-1"
+          className="mt-4 flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-1"
         >
           {mobileSections.map((item) => (
             <button
@@ -210,7 +215,7 @@ export function SettingsSidebar() {
         {mobilePanelItems.length > 0 ? (
           <nav
             aria-label={`${t("settings.title")} ${t("common.overview")}`}
-            className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1"
+            className="mt-3 flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-1"
           >
             {mobilePanelItems.map((item) => {
               const isActive = section === item.section && (item.panel ?? null) === panel;
@@ -350,6 +355,11 @@ export function SettingsSidebar() {
 
             {advancedOpen ? (
               <div className="space-y-2 pl-4">
+                <SidebarItem
+                  active={section === "appearance" && panel === "appIcon"}
+                  label={t("settings.appearance.icons.title")}
+                  onClick={() => goTo("appearance", "appIcon")}
+                />
                 <SidebarItem
                   active={section === "appearance" && panel === "serverRail"}
                   label={t("settings.appearance.advanced.serverRailTitle")}

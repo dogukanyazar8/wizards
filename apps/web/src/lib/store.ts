@@ -14,6 +14,11 @@ import {
   clampNotificationPopupTimeoutSeconds,
   clampServerRailWidth,
 } from "@/lib/appearance";
+import {
+  DEFAULT_APP_ICON_ID,
+  isAppIconId,
+  type AppIconId,
+} from "@/lib/app-icons";
 import { patchLayoutSettings } from "@/lib/settings/client";
 
 export const APP_UI_STORAGE_KEY = "wizards-ui";
@@ -104,6 +109,7 @@ type ActiveRouteUpdate = Pick<
 
 interface AppState extends PersistedRouteState {
   appearanceHydrated: boolean;
+  appIconId: AppIconId;
   categoryModal: CategoryModalState;
   channelSidebarWidth: number;
   channelModal: ChannelModalState;
@@ -156,6 +162,7 @@ interface AppState extends PersistedRouteState {
   resetSessionUiState: () => void;
   setActiveRoute: (route: ActiveRouteUpdate) => void;
   setAppearanceHydrated: (hydrated: boolean) => void;
+  setAppIconId: (iconId: AppIconId) => void;
   setChannelSidebarWidth: (width: number) => void;
   setMainPanelWidth: (width: number) => void;
   setMobileSidebarOpen: (open: boolean) => void;
@@ -172,6 +179,7 @@ type PersistedAppState = Pick<
   | "activeArea"
   | "activeChannelId"
   | "activeServerId"
+  | "appIconId"
   | "channelSidebarWidth"
   | "collapsedCategories"
   | "lastChannelByServerId"
@@ -217,6 +225,7 @@ function createInitialState(): Omit<
   | "resetSessionUiState"
   | "setActiveRoute"
   | "setAppearanceHydrated"
+  | "setAppIconId"
   | "setChannelSidebarWidth"
   | "setMainPanelWidth"
   | "setMobileSidebarOpen"
@@ -232,6 +241,7 @@ function createInitialState(): Omit<
     activeChannelId: null,
     activeServerId: null,
     appearanceHydrated: false,
+    appIconId: DEFAULT_APP_ICON_ID,
     categoryModal: {
       open: false,
       serverId: null,
@@ -312,6 +322,7 @@ function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
         : "friends",
     activeChannelId: typeof value.activeChannelId === "string" ? value.activeChannelId : null,
     activeServerId: typeof value.activeServerId === "string" ? value.activeServerId : null,
+    appIconId: isAppIconId(value.appIconId) ? value.appIconId : DEFAULT_APP_ICON_ID,
     channelSidebarWidth: clampChannelSidebarWidth(
       typeof value.channelSidebarWidth === "number"
         ? value.channelSidebarWidth
@@ -561,6 +572,16 @@ export const useAppStore = create<AppState>()(
         set({
           appearanceHydrated: hydrated,
         }),
+      setAppIconId: (iconId) =>
+        set((state) => {
+          if (state.appIconId === iconId) {
+            return state;
+          }
+
+          return {
+            appIconId: iconId,
+          };
+        }),
       setChannelSidebarWidth: (width) =>
         set((state) => {
           const nextWidth = clampChannelSidebarWidth(width);
@@ -678,6 +699,7 @@ export const useAppStore = create<AppState>()(
         activeArea: state.activeArea,
         activeChannelId: state.activeChannelId,
         activeServerId: state.activeServerId,
+        appIconId: state.appIconId,
         channelSidebarWidth: state.channelSidebarWidth,
         collapsedCategories: state.collapsedCategories,
         lastChannelByServerId: state.lastChannelByServerId,

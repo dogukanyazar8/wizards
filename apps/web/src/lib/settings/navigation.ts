@@ -12,6 +12,7 @@ export type SettingsPanelKey =
   | "language"
   | "theme"
   | "advanced"
+  | "appIcon"
   | "serverRail"
   | "mainCanvas"
   | "channelSidebar"
@@ -29,7 +30,15 @@ export type SettingsSelection = {
 const PANELS_BY_SECTION: Record<SettingsSection, readonly SettingsPanelKey[]> = {
   account: [],
   voice: ["audio", "camera", "screenShare"],
-  appearance: ["language", "theme", "advanced", "serverRail", "mainCanvas", "channelSidebar"],
+  appearance: [
+    "language",
+    "theme",
+    "advanced",
+    "appIcon",
+    "serverRail",
+    "mainCanvas",
+    "channelSidebar",
+  ],
   notifications: ["general", "sounds"],
   about: ["overview", "build", "developer"],
 };
@@ -74,5 +83,11 @@ export function resolveSettingsSelection(searchParams: {
 }
 
 export function isAdvancedAppearancePanel(panel: SettingsPanelKey | null) {
-  return panel === "advanced" || panel === "serverRail" || panel === "mainCanvas" || panel === "channelSidebar";
+  return (
+    panel === "advanced" ||
+    panel === "appIcon" ||
+    panel === "serverRail" ||
+    panel === "mainCanvas" ||
+    panel === "channelSidebar"
+  );
 }

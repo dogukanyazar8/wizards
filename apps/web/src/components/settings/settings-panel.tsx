@@ -6,6 +6,7 @@ import {
   BellRing,
   Camera,
   ChevronRight,
+  ImageIcon,
   Info,
   Languages,
   LayoutPanelTop,
@@ -16,6 +17,7 @@ import {
   Volume2,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { UserStatus } from "@wizards/db";
 import { Button } from "@wizards/ui";
 import { useShallow } from "zustand/react/shallow";
@@ -43,6 +45,7 @@ import {
   MAIN_PANEL_WIDTH_STEP,
   SERVER_RAIL_WIDTH_STEP,
 } from "@/lib/appearance";
+import { APP_ICON_OPTIONS, type AppIconId } from "@/lib/app-icons";
 import {
   type AccountSettingsState,
   type UpdateAccountSettingsResult,
@@ -88,7 +91,7 @@ function SectionHero({
   title: string;
 }) {
   return (
-    <section className="app-panel rounded-[28px] border p-5 sm:rounded-[32px] sm:p-7">
+    <section className="app-panel min-w-0 max-w-full overflow-hidden rounded-[28px] border p-5 sm:rounded-[32px] sm:p-7">
       <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.24em]">{badge}</p>
       <h2 className="text-app-foreground mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h2>
       <p className="text-app-muted mt-3 max-w-3xl text-sm leading-7">{description}</p>
@@ -110,7 +113,7 @@ function SettingCard({
   title: string;
 }) {
   return (
-    <section className="app-panel rounded-[28px] border p-5 sm:rounded-[30px] sm:p-6">
+    <section className="app-panel min-w-0 max-w-full overflow-hidden rounded-[28px] border p-5 sm:rounded-[30px] sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="app-panel-soft mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-[hsl(var(--primary))]">
@@ -396,12 +399,14 @@ export function SettingsPanel({
     tone: "error" | "success";
     value: string;
   } | null>(null);
+  const [iconFeedbackVisible, setIconFeedbackVisible] = useState(false);
   const [accountFieldErrors, setAccountFieldErrors] = useState<
     Partial<Record<AccountField, string>>
   >({});
   const [isSavingAccount, startSavingAccount] = useTransition();
   const {
     applyPersistedSettings,
+    appIconId,
     channelSidebarWidth,
     mainPanelWidth,
     notificationAutoClose,
@@ -411,6 +416,7 @@ export function SettingsPanel({
     resetMainPanelWidth,
     resetServerRailWidth,
     serverRailWidth,
+    setAppIconId,
     setChannelSidebarWidth,
     setMainPanelWidth,
     setNotificationAutoClose,
@@ -420,6 +426,7 @@ export function SettingsPanel({
   } = useAppStore(
     useShallow((state) => ({
       applyPersistedSettings: state.applyPersistedSettings,
+      appIconId: state.appIconId,
       channelSidebarWidth: state.channelSidebarWidth,
       mainPanelWidth: state.mainPanelWidth,
       notificationAutoClose: state.notificationAutoClose,
@@ -429,6 +436,7 @@ export function SettingsPanel({
       resetMainPanelWidth: state.resetMainPanelWidth,
       resetServerRailWidth: state.resetServerRailWidth,
       serverRailWidth: state.serverRailWidth,
+      setAppIconId: state.setAppIconId,
       setChannelSidebarWidth: state.setChannelSidebarWidth,
       setMainPanelWidth: state.setMainPanelWidth,
       setNotificationAutoClose: state.setNotificationAutoClose,
@@ -461,6 +469,26 @@ export function SettingsPanel({
       voiceLeaveEnabled: state.voiceLeaveEnabled,
       voiceLeaveVolume: state.voiceLeaveVolume,
     })),
+  );
+
+  useEffect(() => {
+    if (!iconFeedbackVisible) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setIconFeedbackVisible(false);
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [iconFeedbackVisible]);
+
+  const handleAppIconChange = useCallback(
+    (nextIconId: AppIconId) => {
+      setAppIconId(nextIconId);
+      setIconFeedbackVisible(true);
+    },
+    [setAppIconId],
   );
 
   useEffect(() => {
@@ -858,7 +886,10 @@ export function SettingsPanel({
     );
   };
 
-  const renderAdvancedControls = (target: "all" | "serverRail" | "mainCanvas" | "channelSidebar") => {
+  const renderAdvancedControls = (
+    target: "all" | "appIcon" | "serverRail" | "mainCanvas" | "channelSidebar",
+  ) => {
+    const showAppIcon = target === "all" || target === "appIcon";
     const showServerRail = target === "all" || target === "serverRail";
     const showMainCanvas = target === "all" || target === "mainCanvas";
     const showChannelSidebar = target === "all" || target === "channelSidebar";
@@ -870,7 +901,11 @@ export function SettingsPanel({
           icon={LayoutPanelTop}
           title={t("settings.appearance.advanced.title")}
         >
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <InfoPill
+              label={t("settings.appearance.icons.title")}
+              value={t("settings.appearance.icons.description")}
+            />
             <InfoPill
               label={t("settings.appearance.advanced.serverRailTitle")}
               value={t("settings.appearance.advanced.serverRailDescription")}
@@ -885,6 +920,65 @@ export function SettingsPanel({
             />
           </div>
         </SettingCard>
+
+        {showAppIcon ? (
+          <SettingCard
+            description={t("settings.appearance.icons.description")}
+            icon={ImageIcon}
+            title={t("settings.appearance.icons.title")}
+          >
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {APP_ICON_OPTIONS.map((icon) => {
+                const selected = appIconId === icon.id;
+
+                return (
+                  <button
+                    aria-pressed={selected}
+                    className={cn(
+                      "group min-w-0 rounded-[24px] border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                      selected
+                        ? "border-[hsl(var(--primary)/0.55)] bg-[hsl(var(--primary)/0.12)] shadow-[0_18px_42px_hsl(var(--shadow-color)/0.1)]"
+                        : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.28)] hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--surface-soft)/0.48)]",
+                    )}
+                    key={icon.id}
+                    onClick={() => handleAppIconChange(icon.id)}
+                    type="button"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] border border-[hsl(var(--border)/0.65)] bg-[linear-gradient(145deg,hsl(var(--surface-card)),hsl(var(--surface-soft)/0.44))] p-2 shadow-inner">
+                        <Image
+                          alt=""
+                          className="h-11 w-11 object-contain transition group-hover:scale-105"
+                          height={44}
+                          src={icon.src}
+                          width={44}
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-app-foreground">
+                          {t(icon.labelKey)}
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-app-muted">
+                          {selected
+                            ? t("settings.appearance.icons.selected")
+                            : t("settings.appearance.icons.select")}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {iconFeedbackVisible ? (
+              <div className="mt-4 rounded-[22px] border border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.08)] px-4 py-3 text-sm text-[hsl(var(--success))]">
+                <p className="font-semibold">{t("settings.appearance.icons.updated")}</p>
+                <p className="mt-1 leading-6 text-app-muted">
+                  {t("settings.appearance.icons.updatedDescription")}
+                </p>
+              </div>
+            ) : null}
+          </SettingCard>
+        ) : null}
 
         {showServerRail ? (
           <RangeSliderCard
@@ -1049,7 +1143,11 @@ export function SettingsPanel({
             title={t("settings.appearance.advanced.title")}
           >
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-              <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <InfoPill
+                  label={t("settings.appearance.icons.title")}
+                  value={t("settings.appearance.icons.description")}
+                />
                 <InfoPill
                   label={t("settings.appearance.advanced.serverRailTitle")}
                   value={t("settings.appearance.advanced.serverRailDescription")}
@@ -1072,6 +1170,7 @@ export function SettingsPanel({
         ) : null}
 
         {panel === "advanced" ? renderAdvancedControls("all") : null}
+        {panel === "appIcon" ? renderAdvancedControls("appIcon") : null}
         {panel === "serverRail" ? renderAdvancedControls("serverRail") : null}
         {panel === "mainCanvas" ? renderAdvancedControls("mainCanvas") : null}
         {panel === "channelSidebar" ? renderAdvancedControls("channelSidebar") : null}
@@ -1340,7 +1439,7 @@ export function SettingsPanel({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6 overflow-hidden">
       {section === "account" ? renderAccountSection() : null}
       {section === "voice" ? renderVoiceSection() : null}
       {section === "appearance" ? renderAppearanceSection() : null}

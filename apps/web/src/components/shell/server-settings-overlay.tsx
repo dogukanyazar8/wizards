@@ -42,6 +42,7 @@ export function ServerSettingsOverlay({
   const router = useRouter();
   const closeServerSettings = useAppStore((state) => state.closeServerSettings);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const overviewSavedRef = useRef<HTMLDivElement | null>(null);
   const [tab, setTab] = useState<SettingsTab>("overview");
   const [name, setName] = useState(detail?.server.name ?? "");
   const [description, setDescription] = useState(
@@ -85,6 +86,19 @@ export function ServerSettingsOverlay({
     },
     [],
   );
+
+  useEffect(() => {
+    if (!overviewSaved) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      overviewSavedRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 50);
+  }, [overviewSaved]);
 
   const updateMutation = useMutation({
     onMutate: () => {
@@ -353,7 +367,7 @@ export function ServerSettingsOverlay({
                       </Button>
                     </div>
                     {overviewSaved ? (
-                      <div className="app-success rounded-[24px] border p-4">
+                      <div className="app-success rounded-[24px] border p-4" ref={overviewSavedRef}>
                         <p className="text-app-success text-xs font-semibold uppercase tracking-[0.2em]">
                           {t("serverSettings.overviewSavedTitle")}
                         </p>
