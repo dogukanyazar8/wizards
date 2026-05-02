@@ -8,14 +8,18 @@ import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useI18n } from "@/components/providers/locale-provider";
-import { loginAction } from "@/lib/auth/actions";
+import { loginAction, resendVerificationEmailAction } from "@/lib/auth/actions";
 
 type OAuthProvider = "github" | "google";
 
 export default function LoginPage() {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [serverError, setServerError] = useState<string | null>(null);
   const [oauthLoading, setOauthLoading] = useState<OAuthProvider | null>(null);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [resendError, setResendError] = useState<string | null>(null);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [isResendingVerification, setIsResendingVerification] = useState(false);
 
   const {
     register,
@@ -31,6 +35,9 @@ export default function LoginPage() {
 
   const onSubmit = async (values: LoginInput) => {
     setServerError(null);
+    setUnverifiedEmail(null);
+    setResendError(null);
+    setResendMessage(null);
 
     const formData = new FormData();
     formData.set("email", values.email);
@@ -40,11 +47,41 @@ export default function LoginPage() {
 
     if (!result.success) {
       setServerError(result.error ?? "auth.login.alertUnavailable");
+      setUnverifiedEmail(
+        result.error === "auth.login.emailNotVerified" ? result.email ?? values.email : null,
+      );
     }
+  };
+
+  const handleResendVerification = async () => {
+    if (!unverifiedEmail || isResendingVerification) {
+      return;
+    }
+
+    setIsResendingVerification(true);
+    setResendError(null);
+    setResendMessage(null);
+
+    const formData = new FormData();
+    formData.set("email", unverifiedEmail);
+    formData.set("locale", locale);
+
+    const result = await resendVerificationEmailAction(formData);
+
+    if (result.success) {
+      setResendMessage(result.message ?? "auth.emailVerification.resendGenericSuccess");
+    } else {
+      setResendError(result.error ?? "auth.emailVerification.sendFailed");
+    }
+
+    setIsResendingVerification(false);
   };
 
   const handleOAuthSignIn = async (provider: OAuthProvider) => {
     setServerError(null);
+    setUnverifiedEmail(null);
+    setResendError(null);
+    setResendMessage(null);
     setOauthLoading(provider);
 
     try {
@@ -112,9 +149,38 @@ export default function LoginPage() {
         </div>
 
         {serverError ? (
-          <p className="app-inline-alert rounded-2xl border px-4 py-3 text-sm">
-            {t(serverError)}
-          </p>
+          <div className="app-inline-alert rounded-2xl border px-4 py-3 text-sm" role="alert">
+            <p>{t(serverError)}</p>
+            {unverifiedEmail ? (
+              <div className="mt-3 space-y-3">
+                <p className="text-xs leading-5 opacity-80">
+                  {t("auth.login.emailNotVerifiedHelp")}
+                </p>
+                <button
+                  type="button"
+                  disabled={isResendingVerification}
+                  onClick={handleResendVerification}
+                  className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.64)] px-3 text-xs font-semibold text-[hsl(var(--foreground))] transition hover:bg-[hsl(var(--surface-soft)/0.72)] disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isResendingVerification
+                    ? t("auth.login.resendingVerification")
+                    : t("auth.login.resendVerification")}
+                </button>
+                <div aria-live="polite">
+                  {resendMessage ? (
+                    <p className="text-xs font-medium text-[hsl(var(--success))]">
+                      {t(resendMessage)}
+                    </p>
+                  ) : null}
+                  {resendError ? (
+                    <p className="text-xs font-medium text-[hsl(var(--danger))]">
+                      {t(resendError)}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
         ) : null}
 
         <button

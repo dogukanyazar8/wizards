@@ -49,6 +49,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "validation.password.confirmMismatch": "Passwords do not match.",
     "validation.password.max": "Password must be 100 characters or fewer.",
     "validation.password.min": "Password must be at least 8 characters.",
+    "validation.turnstile.invalid": "Please complete the security check again.",
+    "validation.turnstile.required": "Please complete the security check.",
     "validation.username.max": "Username must be 32 characters or fewer.",
     "validation.username.min": "Username must be at least 2 characters.",
     "validation.username.pattern": "Username can only include letters, numbers, and underscores.",
@@ -271,9 +273,12 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.forgotPassword": "Forgot password?",
     "auth.login.github": "GitHub",
     "auth.login.google": "Google",
-  "auth.login.invalidCredentials": "Invalid email or password.",
-  "auth.login.rateLimited": "Too many sign-in attempts. Please try again later.",
-  "auth.login.loggingIn": "Logging in...",
+    "auth.login.emailNotVerified": "Please verify your email before signing in.",
+    "auth.login.emailNotVerifiedHelp":
+      "Your password is correct, but this account still needs email verification.",
+    "auth.login.invalidCredentials": "Invalid email or password.",
+    "auth.login.rateLimited": "Too many sign-in attempts. Please try again later.",
+    "auth.login.loggingIn": "Logging in...",
     "auth.login.needAccountDescription":
       "Create a new profile and start testing servers, invites, and channel flows with your own workspace.",
     "auth.login.needAccountLabel": "Need an account?",
@@ -282,6 +287,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.oauthLoading": "Loading...",
     "auth.login.orContinueWith": "or continue with",
     "auth.login.passwordPlaceholder": "Enter your password",
+    "auth.login.resendVerification": "Resend verification email",
+    "auth.login.resendingVerification": "Sending verification email...",
     "auth.login.sharedDemoWorkspace": "Shared demo workspace",
     "auth.login.signInUnavailable": "Unable to log in right now.",
     "auth.login.testAccount": "Test Account",
@@ -293,6 +300,13 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.register.alertUnavailable": "Unable to create account.",
     "auth.register.autoLoginFailed": "Account created, but automatic sign-in failed. Please log in.",
     "auth.register.badge": "Join Wizards",
+    "auth.register.checkEmailBadge": "Verify email",
+    "auth.register.checkEmailDescription":
+      "We sent a verification link to {email}. Open it to activate your Wizards account.",
+    "auth.register.checkEmailHint":
+      "The link expires in 24 hours. If it does not arrive, check your spam folder or try registering again after the resend cooldown.",
+    "auth.register.checkEmailMessage": "Check your email to verify your account.",
+    "auth.register.checkEmailTitle": "Check your inbox",
     "auth.register.confirmPasswordPlaceholder": "Repeat your password",
     "auth.register.creating": "Creating account...",
     "auth.register.description":
@@ -306,6 +320,61 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.register.unable": "Unable to create account.",
     "auth.register.usernameHint": "Only letters, numbers, and underscores",
     "auth.register.usernameTaken": "Username already taken.",
+    "auth.register.verifiedPrompt": "Already verified your email?",
+
+    "auth.emailVerification.body":
+      "Confirm this email address to finish setting up your Wizards account.",
+    "auth.emailVerification.cta": "Verify email",
+    "auth.emailVerification.expires": "This link expires in {hours} hours.",
+    "auth.emailVerification.fallback":
+      "If the button does not work, paste this link into your browser:",
+    "auth.emailVerification.footer":
+      "Wizards keeps your conversations safer by verifying new accounts.",
+    "auth.emailVerification.greeting": "Hi {name},",
+    "auth.emailVerification.ignore":
+      "If you did not create a Wizards account, you can safely ignore this email.",
+    "auth.emailVerification.notConfigured":
+      "Email verification is not configured. Add Resend settings, then restart the app.",
+    "auth.emailVerification.rateLimited":
+      "Too many verification emails were requested. Please try again later.",
+    "auth.emailVerification.resendCta": "Send a new verification link",
+    "auth.emailVerification.resendGenericSuccess":
+      "If this email needs verification, we sent a new link.",
+    "auth.emailVerification.resendHelp":
+      "No email yet? You can request a fresh verification link without creating another account.",
+    "auth.emailVerification.resendingCta": "Sending verification link...",
+    "auth.emailVerification.senderRestricted":
+      "Resend test sender can only email your Resend account address. Test with that address, or verify a domain in Resend and update RESEND_FROM_EMAIL.",
+    "auth.emailVerification.sendFailed":
+      "We could not send the verification email right now. Please try again.",
+    "auth.emailVerification.subject": "Verify your Wizards email",
+    "auth.emailVerification.title": "Verify your email",
+
+    "auth.verifyEmail.badge": "Email Verification",
+    "auth.verifyEmail.expiredBody":
+      "This verification link has expired. Sign in with your email and password to request a fresh link.",
+    "auth.verifyEmail.expiredTitle": "Verification link expired",
+    "auth.verifyEmail.invalidBody":
+      "This verification link is invalid or has already been used. Sign in with your email and password to request a fresh link if needed.",
+    "auth.verifyEmail.invalidTitle": "Verification link is not valid",
+    "auth.verifyEmail.loginCta": "Continue to sign in",
+    "auth.verifyEmail.nextStepBody":
+      "You can now return to the sign-in screen. If the link failed, use the resend option shown after signing in.",
+    "auth.verifyEmail.nextStepTitle": "Next step",
+    "auth.verifyEmail.resendCta": "Go to sign in",
+    "auth.verifyEmail.successBody":
+      "Your email has been verified successfully. You can now sign in and continue to Wizards.",
+    "auth.verifyEmail.successTitle": "Email verified",
+
+    "auth.turnstile.help":
+      "This quick check helps protect Wizards from automated signups.",
+    "auth.turnstile.invalid": "Security check failed. Please try again.",
+    "auth.turnstile.label": "Security check",
+    "auth.turnstile.loading": "Loading security check...",
+    "auth.turnstile.notConfigured":
+      "Security check is not configured. Add the Turnstile site and secret keys, then restart the app.",
+    "auth.turnstile.unavailable":
+      "Security check is unavailable right now. Please try again.",
 
     "auth.forgot.badge": "Password Reset",
     "auth.forgot.backToLogin": "Back to login",
@@ -918,6 +987,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "validation.password.confirmMismatch": "Şifreler eşleşmiyor.",
     "validation.password.max": "Şifre en fazla 100 karakter olabilir.",
     "validation.password.min": "Şifre en az 8 karakter olmalıdır.",
+    "validation.turnstile.invalid": "Lütfen güvenlik doğrulamasını tekrar tamamla.",
+    "validation.turnstile.required": "Lütfen güvenlik doğrulamasını tamamla.",
     "validation.username.max": "Kullanıcı adı en fazla 32 karakter olabilir.",
     "validation.username.min": "Kullanıcı adı en az 2 karakter olmalıdır.",
     "validation.username.pattern": "Kullanıcı adı sadece harf, sayı ve alt çizgi içerebilir.",
@@ -1140,9 +1211,12 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.forgotPassword": "Şifremi unuttum?",
     "auth.login.github": "GitHub",
     "auth.login.google": "Google",
-  "auth.login.invalidCredentials": "E-posta veya şifre hatalı.",
-  "auth.login.rateLimited": "Çok fazla giriş denemesi yapıldı. Lütfen daha sonra tekrar dene.",
-  "auth.login.loggingIn": "Giriş yapılıyor...",
+    "auth.login.emailNotVerified": "Giriş yapmadan önce e-postanı doğrula.",
+    "auth.login.emailNotVerifiedHelp":
+      "Şifren doğru, ancak bu hesabın hâlâ e-posta doğrulamasına ihtiyacı var.",
+    "auth.login.invalidCredentials": "E-posta veya şifre hatalı.",
+    "auth.login.rateLimited": "Çok fazla giriş denemesi yapıldı. Lütfen daha sonra tekrar dene.",
+    "auth.login.loggingIn": "Giriş yapılıyor...",
     "auth.login.needAccountDescription":
       "Yeni bir profil oluştur ve kendi çalışma alanınla sunucu, davet ve kanal akışlarını test etmeye başla.",
     "auth.login.needAccountLabel": "Hesabın yok mu?",
@@ -1151,6 +1225,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.oauthLoading": "Yükleniyor...",
     "auth.login.orContinueWith": "veya şununla devam et",
     "auth.login.passwordPlaceholder": "Şifreni gir",
+    "auth.login.resendVerification": "Doğrulama e-postasını yeniden gönder",
+    "auth.login.resendingVerification": "Doğrulama e-postası gönderiliyor...",
     "auth.login.sharedDemoWorkspace": "Paylaşılan demo alanı",
     "auth.login.signInUnavailable": "Şu anda giriş yapılamıyor.",
     "auth.login.testAccount": "Test Hesap",
@@ -1163,6 +1239,13 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.register.autoLoginFailed":
       "Hesap oluşturuldu ancak otomatik giriş başarısız oldu. Lütfen giriş yapın.",
     "auth.register.badge": "Wizards'a Katıl",
+    "auth.register.checkEmailBadge": "E-postayı doğrula",
+    "auth.register.checkEmailDescription":
+      "{email} adresine bir doğrulama bağlantısı gönderdik. Wizards hesabını aktifleştirmek için bağlantıyı aç.",
+    "auth.register.checkEmailHint":
+      "Bağlantı 24 saat içinde sona erer. Gelmezse spam klasörünü kontrol et veya yeniden gönderme bekleme süresinden sonra tekrar kayıt olmayı dene.",
+    "auth.register.checkEmailMessage": "Hesabını doğrulamak için e-postanı kontrol et.",
+    "auth.register.checkEmailTitle": "Gelen kutunu kontrol et",
     "auth.register.confirmPasswordPlaceholder": "Şifreni tekrar gir",
     "auth.register.creating": "Hesap oluşturuluyor...",
     "auth.register.description":
@@ -1176,6 +1259,61 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.register.unable": "Hesap oluşturulamadı.",
     "auth.register.usernameHint": "Sadece harf, sayı ve alt çizgi",
     "auth.register.usernameTaken": "Bu kullanıcı adı zaten kullanımda.",
+    "auth.register.verifiedPrompt": "E-postanı doğruladın mı?",
+
+    "auth.emailVerification.body":
+      "Wizards hesabını kurmayı tamamlamak için bu e-posta adresini doğrula.",
+    "auth.emailVerification.cta": "E-postayı doğrula",
+    "auth.emailVerification.expires": "Bu bağlantı {hours} saat içinde sona erer.",
+    "auth.emailVerification.fallback":
+      "Buton çalışmazsa bu bağlantıyı tarayıcına yapıştır:",
+    "auth.emailVerification.footer":
+      "Wizards, yeni hesapları doğrulayarak konuşmalarını daha güvenli tutar.",
+    "auth.emailVerification.greeting": "Merhaba {name},",
+    "auth.emailVerification.ignore":
+      "Bir Wizards hesabı oluşturmadıysan bu e-postayı güvenle yok sayabilirsin.",
+    "auth.emailVerification.notConfigured":
+      "E-posta doğrulama yapılandırılmamış. Resend ayarlarını ekleyip uygulamayı yeniden başlat.",
+    "auth.emailVerification.rateLimited":
+      "Çok fazla doğrulama e-postası istendi. Lütfen daha sonra tekrar dene.",
+    "auth.emailVerification.resendCta": "Yeni doğrulama bağlantısı gönder",
+    "auth.emailVerification.resendGenericSuccess":
+      "Bu e-postanın doğrulamaya ihtiyacı varsa yeni bir bağlantı gönderdik.",
+    "auth.emailVerification.resendHelp":
+      "E-posta gelmedi mi? Yeni hesap oluşturmadan taze bir doğrulama bağlantısı isteyebilirsin.",
+    "auth.emailVerification.resendingCta": "Doğrulama bağlantısı gönderiliyor...",
+    "auth.emailVerification.senderRestricted":
+      "Resend test göndericisi yalnızca Resend hesabına bağlı e-posta adresine gönderim yapabilir. Bu adresle test et veya Resend'de bir domain doğrulayıp RESEND_FROM_EMAIL değerini güncelle.",
+    "auth.emailVerification.sendFailed":
+      "Doğrulama e-postasını şu anda gönderemedik. Lütfen tekrar dene.",
+    "auth.emailVerification.subject": "Wizards e-postanı doğrula",
+    "auth.emailVerification.title": "E-postanı doğrula",
+
+    "auth.verifyEmail.badge": "E-posta Doğrulama",
+    "auth.verifyEmail.expiredBody":
+      "Bu doğrulama bağlantısının süresi dolmuş. Yeni bir bağlantı istemek için e-posta ve şifrenle giriş yap.",
+    "auth.verifyEmail.expiredTitle": "Doğrulama bağlantısının süresi doldu",
+    "auth.verifyEmail.invalidBody":
+      "Bu doğrulama bağlantısı geçersiz veya daha önce kullanılmış. Gerekirse yeni bağlantı istemek için e-posta ve şifrenle giriş yap.",
+    "auth.verifyEmail.invalidTitle": "Doğrulama bağlantısı geçerli değil",
+    "auth.verifyEmail.loginCta": "Girişe devam et",
+    "auth.verifyEmail.nextStepBody":
+      "Artık giriş ekranına dönebilirsin. Bağlantı başarısız olduysa giriş yaptıktan sonra görünen yeniden gönder seçeneğini kullan.",
+    "auth.verifyEmail.nextStepTitle": "Sonraki adım",
+    "auth.verifyEmail.resendCta": "Girişe git",
+    "auth.verifyEmail.successBody":
+      "E-postan başarıyla doğrulandı. Artık giriş yapıp Wizards'a devam edebilirsin.",
+    "auth.verifyEmail.successTitle": "E-posta doğrulandı",
+
+    "auth.turnstile.help":
+      "Bu kısa kontrol, Wizards'ı otomatik kayıt denemelerine karşı korur.",
+    "auth.turnstile.invalid": "Güvenlik doğrulaması başarısız oldu. Lütfen tekrar dene.",
+    "auth.turnstile.label": "Güvenlik doğrulaması",
+    "auth.turnstile.loading": "Güvenlik doğrulaması yükleniyor...",
+    "auth.turnstile.notConfigured":
+      "Güvenlik doğrulaması yapılandırılmamış. Turnstile site ve secret key değerlerini ekleyip uygulamayı yeniden başlat.",
+    "auth.turnstile.unavailable":
+      "Güvenlik doğrulaması şu anda kullanılamıyor. Lütfen tekrar dene.",
 
     "auth.forgot.badge": "Şifre Sıfırlama",
     "auth.forgot.backToLogin": "Girişe dön",

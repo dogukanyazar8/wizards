@@ -1,9 +1,11 @@
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma, type User as PrismaUser } from "@wizards/db";
 import { LoginSchema } from "@wizards/types";
 import bcrypt from "bcryptjs";
 import NextAuth, { type NextAuthConfig, type NextAuthResult } from "next-auth";
-import type { Adapter, AdapterUser } from "next-auth/adapters";
+import type { Adapter, AdapterAccount, AdapterUser } from "next-auth/adapters";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
@@ -18,6 +20,85 @@ import { getRequestLocale } from "@/lib/locale/server";
 const MAX_USERNAME_LENGTH = 32;
 
 const USERNAME_SANITIZE_REGEX = /[^a-zA-Z0-9_]/g;
+const TURKISH_USERNAME_TRANSLITERATION: Record<string, string> = {
+  ç: "c",
+  Ç: "C",
+  ğ: "g",
+  Ğ: "G",
+  ı: "i",
+  I: "I",
+  İ: "I",
+  ö: "o",
+  Ö: "O",
+  ş: "s",
+  Ş: "S",
+  ü: "u",
+  Ü: "U",
+};
+
+function getAuthEnvCandidates() {
+  return [
+    resolve(process.cwd(), ".env.local"),
+    resolve(process.cwd(), ".env"),
+    resolve(process.cwd(), "apps/web/.env.local"),
+    resolve(process.cwd(), "apps/web/.env"),
+    resolve(process.cwd(), "../../.env.local"),
+    resolve(process.cwd(), "../../.env"),
+  ];
+}
+
+function loadAuthEnvironment() {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+
+  for (const candidate of getAuthEnvCandidates()) {
+    if (!existsSync(candidate)) {
+      continue;
+    }
+
+    try {
+      process.loadEnvFile(candidate);
+    } catch {
+      // Next.js will still load supported env files; this only protects the
+      // custom dev server and Auth.js route module from stale empty env values.
+    }
+  }
+}
+
+loadAuthEnvironment();
+
+function readLocalEnvValue(key: string): string {
+  if (process.env.NODE_ENV === "production") {
+    return "";
+  }
+
+  for (const candidate of getAuthEnvCandidates()) {
+    if (!existsSync(candidate)) {
+      continue;
+    }
+
+    try {
+      const content = readFileSync(candidate, "utf8");
+      const line = content
+        .split(/\r?\n/)
+        .find((item) => item.trim().startsWith(`${key}=`));
+
+      if (!line) {
+        continue;
+      }
+
+      return line
+        .slice(line.indexOf("=") + 1)
+        .trim()
+        .replace(/^['"]|['"]$/g, "");
+    } catch {
+      // Ignore unreadable local env files and keep checking other candidates.
+    }
+  }
+
+  return "";
+}
 
 export function normalizeAuthEmail(rawValue: unknown): string {
   if (typeof rawValue !== "string") {
@@ -28,7 +109,14 @@ export function normalizeAuthEmail(rawValue: unknown): string {
 }
 
 function normalizeUsername(rawValue: string): string {
-  const normalized = rawValue
+  const asciiValue = rawValue
+    .replace(/[çÇğĞıIİöÖşŞüÜ]/g, (character) => {
+      return TURKISH_USERNAME_TRANSLITERATION[character] ?? character;
+    })
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  const normalized = asciiValue
     .toLowerCase()
     .replace(USERNAME_SANITIZE_REGEX, "_")
     .replace(/_+/g, "_")
@@ -95,6 +183,64 @@ function stringOrNull(value: unknown): string | null {
 
 function stringOrEmpty(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function getEnvValue(...keys: string[]): string {
+  for (const key of keys) {
+    const value = process.env[key]?.trim() || readLocalEnvValue(key);
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+type OAuthAccountInput = AdapterAccount & {
+  access_token?: string;
+  expires_at?: number;
+  id_token?: string;
+  refresh_token?: string;
+  session_state?: string;
+  token_type?: string;
+};
+
+function stringField(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function numberField(value: unknown): number | null {
+  return typeof value === "number" ? value : null;
+}
+
+function isGoogleEmailVerified(profile: unknown): boolean {
+  return (
+    typeof profile === "object" &&
+    profile !== null &&
+    "email_verified" in profile &&
+    (profile as { email_verified?: unknown }).email_verified === true
+  );
+}
+
+function normalizeAdapterAccount(account: OAuthAccountInput) {
+  return {
+    userId: account.userId,
+    type: account.type,
+    provider: account.provider,
+    providerAccountId: account.providerAccountId,
+    refreshToken: stringField(account.refresh_token ?? account.refreshToken),
+    accessToken: stringField(account.access_token ?? account.accessToken),
+    expiresAt: numberField(account.expires_at ?? account.expiresAt),
+    tokenType: stringField(account.token_type ?? account.tokenType),
+    scope: stringField(account.scope),
+    idToken: stringField(account.id_token ?? account.idToken),
+    sessionState:
+      typeof account.session_state === "string"
+        ? account.session_state
+        : typeof account.sessionState === "string"
+          ? account.sessionState
+          : null,
+  };
 }
 
 const baseAdapter = PrismaAdapter(prisma);
@@ -217,6 +363,51 @@ const adapter: Adapter = {
 
     return mapUserToAdapterUser(updatedUser);
   },
+  async linkAccount(data) {
+    await prisma.account.create({
+      data: normalizeAdapterAccount(data as OAuthAccountInput),
+    });
+
+    return data;
+  },
+  async getUserByAccount(providerAccountId) {
+    const account = await prisma.account.findUnique({
+      where: {
+        provider_providerAccountId: providerAccountId,
+      },
+      include: {
+        user: true,
+      },
+    });
+
+    return account?.user ? mapUserToAdapterUser(account.user) : null;
+  },
+  async getAccount(providerAccountId, provider): Promise<AdapterAccount | null> {
+    const account = await prisma.account.findFirst({
+      where: {
+        provider,
+        providerAccountId,
+      },
+    });
+
+    if (!account) {
+      return null;
+    }
+
+    return {
+      userId: account.userId,
+      type: account.type as AdapterAccount["type"],
+      provider: account.provider,
+      providerAccountId: account.providerAccountId,
+      refresh_token: account.refreshToken,
+      access_token: account.accessToken,
+      expires_at: account.expiresAt,
+      token_type: account.tokenType,
+      scope: account.scope,
+      id_token: account.idToken,
+      session_state: account.sessionState,
+    } as AdapterAccount;
+  },
 };
 
 const authConfig = {
@@ -276,6 +467,7 @@ const authConfig = {
             username: true,
             displayName: true,
             avatarUrl: true,
+            emailVerified: true,
             locale: true,
             isBanned: true,
             passwordHash: true,
@@ -299,6 +491,11 @@ const authConfig = {
         if (user.isBanned) {
           return null;
         }
+
+        if (!user.emailVerified) {
+          return null;
+        }
+
         return {
           id: user.id,
           email: user.email,
@@ -313,8 +510,8 @@ const authConfig = {
       },
     }),
     GitHub({
-      clientId: process.env.GITHUB_CLIENT_ID ?? "",
-      clientSecret: process.env.GITHUB_CLIENT_SECRET ?? "",
+      clientId: getEnvValue("GITHUB_CLIENT_ID", "AUTH_GITHUB_ID"),
+      clientSecret: getEnvValue("GITHUB_CLIENT_SECRET", "AUTH_GITHUB_SECRET"),
       profile(profile) {
         const email = typeof profile.email === "string" ? profile.email : null;
         const login = typeof profile.login === "string" ? profile.login : "";
@@ -333,16 +530,19 @@ const authConfig = {
       },
     }),
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      clientId: getEnvValue("GOOGLE_CLIENT_ID", "AUTH_GOOGLE_ID"),
+      clientSecret: getEnvValue("GOOGLE_CLIENT_SECRET", "AUTH_GOOGLE_SECRET"),
+      allowDangerousEmailAccountLinking: true,
       profile(profile) {
         const email = typeof profile.email === "string" ? profile.email : null;
         const name = typeof profile.name === "string" ? profile.name : "";
         const image = typeof profile.picture === "string" ? profile.picture : null;
+        const emailVerified = isGoogleEmailVerified(profile) ? new Date() : null;
 
         return {
           id: profile.sub,
           email,
+          emailVerified,
           name,
           image,
           username: normalizeUsername(email?.split("@")[0] || name || "wizard"),
@@ -353,6 +553,13 @@ const authConfig = {
     }),
   ],
   callbacks: {
+    async signIn({ account, profile }) {
+      if (account?.provider === "google") {
+        return isGoogleEmailVerified(profile);
+      }
+
+      return true;
+    },
     async jwt({ token, user, trigger, session }) {
       if (user) {
         const userId = stringOrEmpty(user.id);
@@ -435,6 +642,21 @@ const authConfig = {
       }
 
       return session;
+    },
+  },
+  events: {
+    async signIn({ account, profile, user }) {
+      if (account?.provider !== "google" || !user.id || !isGoogleEmailVerified(profile)) {
+        return;
+      }
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          emailVerified: true,
+          emailVerifiedAt: new Date(),
+        },
+      });
     },
   },
 } satisfies NextAuthConfig;

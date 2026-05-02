@@ -18,6 +18,10 @@ export const RegisterSchema = z
       .min(8, "validation.password.min")
       .max(100, "validation.password.max"),
     confirmPassword: z.string(),
+    turnstileToken: z
+      .string()
+      .min(1, "validation.turnstile.required")
+      .max(4096, "validation.turnstile.invalid"),
   })
   .refine((data) => data.confirmPassword === data.password, {
     message: "validation.password.confirmMismatch",
