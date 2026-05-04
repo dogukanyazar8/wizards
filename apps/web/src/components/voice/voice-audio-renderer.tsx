@@ -2,8 +2,19 @@
 
 import { useEffect, useRef } from "react";
 import { RemoteAudioTrack, type Room, Track } from "livekit-client";
+import { DEFAULT_AUDIO_DEVICE_ID } from "@/store/voice-store";
 
-function RemoteAudioElement({ track }: { track: RemoteAudioTrack }) {
+type AudioElementWithSinkId = HTMLAudioElement & {
+  setSinkId?: (sinkId: string) => Promise<void>;
+};
+
+function RemoteAudioElement({
+  outputDeviceId,
+  track,
+}: {
+  outputDeviceId: string;
+  track: RemoteAudioTrack;
+}) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -18,10 +29,27 @@ function RemoteAudioElement({ track }: { track: RemoteAudioTrack }) {
     };
   }, [track]);
 
+  useEffect(() => {
+    const element = audioRef.current as AudioElementWithSinkId | null;
+    if (!element?.setSinkId) {
+      return;
+    }
+
+    void element
+      .setSinkId(outputDeviceId === DEFAULT_AUDIO_DEVICE_ID ? DEFAULT_AUDIO_DEVICE_ID : outputDeviceId)
+      .catch(() => undefined);
+  }, [outputDeviceId]);
+
   return <audio autoPlay hidden playsInline ref={audioRef} />;
 }
 
-export function VoiceAudioRenderer({ room }: { room: Room | null }) {
+export function VoiceAudioRenderer({
+  outputDeviceId,
+  room,
+}: {
+  outputDeviceId: string;
+  room: Room | null;
+}) {
   const audioTracks: Array<{ id: string; track: RemoteAudioTrack }> = [];
 
   if (room) {
@@ -47,7 +75,11 @@ export function VoiceAudioRenderer({ room }: { room: Room | null }) {
   return (
     <div aria-hidden="true" className="hidden">
       {audioTracks.map((entry) => (
-        <RemoteAudioElement key={entry.id} track={entry.track} />
+        <RemoteAudioElement
+          key={entry.id}
+          outputDeviceId={outputDeviceId}
+          track={entry.track}
+        />
       ))}
     </div>
   );

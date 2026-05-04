@@ -24,6 +24,22 @@ function getVoiceRoomName(channelId: string) {
 
 const VOICE_CLEANUP_DEBOUNCE_KEY = "voice:cleanup:last";
 
+async function ensureNotServerBanned(userId: string, serverId: string) {
+  const ban = await prisma.serverBan.findUnique({
+    where: {
+      serverId_userId: {
+        serverId,
+        userId,
+      },
+    },
+    select: { id: true },
+  });
+
+  if (ban) {
+    throw new ApiError("You are banned from this server", 403, "SERVER_BANNED");
+  }
+}
+
 export async function cleanupStaleVoiceStates() {
   const staleStates = await prisma.voiceState.findMany({
     where: {
@@ -120,15 +136,30 @@ async function requireVoiceMembership(userId: string, input: {
     throw new ApiError("Channel is not a voice channel", 400, "INVALID_CHANNEL_TYPE");
   }
 
-  const membership = await prisma.serverMember.findUnique({
-    where: {
-      userId_serverId: {
-        userId,
-        serverId: input.serverId,
+  const [membership, serverBan] = await Promise.all([
+    prisma.serverMember.findUnique({
+      where: {
+        userId_serverId: {
+          userId,
+          serverId: input.serverId,
+        },
       },
-    },
-    select: { id: true },
-  });
+      select: { id: true },
+    }),
+    prisma.serverBan.findUnique({
+      where: {
+        serverId_userId: {
+          serverId: input.serverId,
+          userId,
+        },
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  if (serverBan) {
+    throw new ApiError("You are banned from this server", 403, "SERVER_BANNED");
+  }
 
   if (!membership) {
     throw new ApiError("You are not a member of this server", 403, "FORBIDDEN");
@@ -227,6 +258,8 @@ export async function listVoiceStatesForServer(
   if (!membership) {
     throw new ApiError("You are not a member of this server", 403, "FORBIDDEN");
   }
+
+  await ensureNotServerBanned(userId, serverId);
 
   const states = await prisma.voiceState.findMany({
     where: { serverId },

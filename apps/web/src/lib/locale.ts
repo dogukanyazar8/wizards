@@ -65,6 +65,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "dm.sidebar.unknownUser": "Unknown user",
     "dm.sidebar.emptyConversation": "No messages yet",
     "dm.sidebar.hideConversation": "Hide conversation with {name}",
+    "dm.sidebar.loadMore": "Load older DMs",
+    "dm.sidebar.loadingMore": "Loading older DMs...",
     "dm.header.directMessage": "Direct message",
     "dm.header.voiceCall": "Voice call",
     "dm.header.voiceComingSoon": "Coming soon",
@@ -155,6 +157,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.controls.disconnect": "Disconnect",
     "voice.errors.microphoneDenied":
       "Microphone access was blocked. Allow microphone access in your browser to speak in this channel.",
+    "voice.errors.microphoneDeniedDesktop":
+      "Microphone access was blocked. Allow Whispr microphone access in your system privacy settings, then try again.",
     "voice.errors.microphoneEnableFailed": "Microphone could not be enabled right now.",
     "voice.errors.microphoneSettingsFailed": "Microphone settings could not be updated.",
     "voice.view.connecting": "Connecting to voice channel...",
@@ -205,7 +209,11 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.grid.krisp": "Krisp noise cancellation",
     "screenShare.errors.maxReached": "Maximum screen shares reached",
     "screenShare.errors.permissionDenied": "Screen sharing permission denied",
+    "screenShare.errors.permissionDeniedDesktop":
+      "Screen sharing permission was denied. Allow Whispr screen capture in your system privacy settings, then try again.",
     "screenShare.errors.notSupported": "Screen sharing is not supported in this browser",
+    "screenShare.errors.notSupportedDesktop":
+      "Screen sharing is not available in this desktop shell. Update your system WebView runtime or use the web app.",
     "screenShare.errors.startFailed": "Screen sharing could not be started",
     "screenShare.errors.qualityFailed": "Screen share quality could not be updated",
     "screenShare.fullscreenHint": "Double-click for fullscreen",
@@ -223,6 +231,25 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.badgeReady": "Ready",
     "voice.settings.badgeKrispActive": "Krisp active",
     "voice.settings.badgeWebRtc": "WebRTC active",
+    "voice.devices.defaultInput": "System default microphone",
+    "voice.devices.defaultOutput": "System default speaker",
+    "voice.devices.enumerationUnsupported":
+      "This browser cannot list audio devices. Whispr will use the system default.",
+    "voice.devices.inputDescription":
+      "Switch microphones instantly while voice is active. New devices appear automatically.",
+    "voice.devices.inputFallback": "Microphone {count}",
+    "voice.devices.inputLabel": "Input device",
+    "voice.devices.inputTitle": "Input device",
+    "voice.devices.liveUpdateHint": "Updates live when devices are plugged in or removed.",
+    "voice.devices.loading": "Checking devices...",
+    "voice.devices.outputDescription":
+      "Route voice playback to the speaker or headset you want to use.",
+    "voice.devices.outputFallback": "Speaker {count}",
+    "voice.devices.outputLabel": "Output device",
+    "voice.devices.outputTitle": "Output device",
+    "voice.devices.outputUnsupported":
+      "This browser cannot switch speakers directly. Use the system sound output instead.",
+    "voice.devices.refresh": "Refresh",
     "voice.settings.noiseSuppression": "Noise suppression",
     "voice.settings.noiseSuppressionDesc":
       "Reduces steady background sounds like fans, keyboard rumble, and room noise.",
@@ -1053,6 +1080,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "dm.sidebar.unknownUser": "Bilinmeyen kullanıcı",
     "dm.sidebar.emptyConversation": "Henüz mesaj yok",
     "dm.sidebar.hideConversation": "{name} ile olan sohbeti gizle",
+    "dm.sidebar.loadMore": "Eski DM'leri yükle",
+    "dm.sidebar.loadingMore": "Eski DM'ler yükleniyor...",
     "dm.header.directMessage": "Direkt mesaj",
     "dm.header.voiceCall": "Sesli arama",
     "dm.header.voiceComingSoon": "Yakında",
@@ -1143,6 +1172,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.controls.disconnect": "Bağlantıyı kes",
     "voice.errors.microphoneDenied":
       "Mikrofon erişimi engellendi. Bu kanalda konuşabilmek için tarayıcıda mikrofon izni ver.",
+    "voice.errors.microphoneDeniedDesktop":
+      "Mikrofon erişimi engellendi. Whispr için mikrofon iznini sistem gizlilik ayarlarından verip tekrar dene.",
     "voice.errors.microphoneEnableFailed": "Mikrofon şu anda etkinleştirilemedi.",
     "voice.errors.microphoneSettingsFailed": "Mikrofon ayarları güncellenemedi.",
     "voice.view.connecting": "Ses kanalına bağlanılıyor...",
@@ -1193,7 +1224,11 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.grid.krisp": "Krisp gürültü engelleme",
     "screenShare.errors.maxReached": "Maksimum ekran paylaşımı sınırına ulaşıldı",
     "screenShare.errors.permissionDenied": "Ekran paylaşımı izni reddedildi",
+    "screenShare.errors.permissionDeniedDesktop":
+      "Ekran paylaşımı izni reddedildi. Whispr için ekran yakalama iznini sistem gizlilik ayarlarından verip tekrar dene.",
     "screenShare.errors.notSupported": "Bu tarayıcı ekran paylaşımını desteklemiyor",
+    "screenShare.errors.notSupportedDesktop":
+      "Bu masaüstü kabuğunda ekran paylaşımı kullanılamıyor. Sistem WebView çalışma zamanını güncelle veya web uygulamasını kullan.",
     "screenShare.errors.startFailed": "Ekran paylaşımı başlatılamadı",
     "screenShare.errors.qualityFailed": "Ekran paylaşımı kalitesi güncellenemedi",
     "screenShare.fullscreenHint": "Tam ekran için çift tıkla",
@@ -1211,6 +1246,25 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.badgeReady": "Hazır",
     "voice.settings.badgeKrispActive": "Krisp aktif",
     "voice.settings.badgeWebRtc": "WebRTC aktif",
+    "voice.devices.defaultInput": "Sistem varsayılan mikrofonu",
+    "voice.devices.defaultOutput": "Sistem varsayılan hoparlörü",
+    "voice.devices.enumerationUnsupported":
+      "Bu tarayıcı ses aygıtlarını listeleyemiyor. Whispr sistem varsayılanını kullanacak.",
+    "voice.devices.inputDescription":
+      "Ses açıkken mikrofonu anında değiştir. Yeni aygıtlar otomatik görünür.",
+    "voice.devices.inputFallback": "Mikrofon {count}",
+    "voice.devices.inputLabel": "Giriş aygıtı",
+    "voice.devices.inputTitle": "Giriş aygıtı",
+    "voice.devices.liveUpdateHint": "Aygıt takıldığında veya çıkarıldığında liste canlı güncellenir.",
+    "voice.devices.loading": "Aygıtlar kontrol ediliyor...",
+    "voice.devices.outputDescription":
+      "Ses oynatmayı kullanmak istediğin hoparlör veya kulaklığa yönlendir.",
+    "voice.devices.outputFallback": "Hoparlör {count}",
+    "voice.devices.outputLabel": "Çıkış aygıtı",
+    "voice.devices.outputTitle": "Çıkış aygıtı",
+    "voice.devices.outputUnsupported":
+      "Bu tarayıcı hoparlörü doğrudan değiştiremiyor. Sistem ses çıkışını kullan.",
+    "voice.devices.refresh": "Yenile",
     "voice.settings.noiseSuppression": "Gürültü engelleme",
     "voice.settings.noiseSuppressionDesc":
       "Fan, klavye uğultusu ve oda gürültüsü gibi sürekli arka plan seslerini azaltır.",

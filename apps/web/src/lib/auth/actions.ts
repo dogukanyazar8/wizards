@@ -17,6 +17,7 @@ import {
   getTurnstileErrorMessageKey,
   verifyTurnstileToken,
 } from "@/lib/auth/turnstile";
+import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
 import { Prisma, prisma } from "@wizards/db";
 import { ForgotPasswordSchema, LoginSchema, RegisterSchema } from "@wizards/types";
 import bcrypt from "bcryptjs";
@@ -315,6 +316,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
   }
 
   const { email, password } = validation.data;
+  const redirectTo = getSafeAuthRedirectPath(getFormValue(formData, "callbackUrl"));
   const ipAddress = await getRequestIpAddress();
 
   try {
@@ -365,7 +367,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     await signIn("credentials", {
       email,
       password,
-      redirectTo: "/channels",
+      redirectTo,
     });
 
     return { success: true };

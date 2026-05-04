@@ -180,10 +180,7 @@ async function readWorkspacePresence(user: {
 }
 
 function looksLikeAdmin(role: RoleRecord) {
-  return (
-    (role.permissions & SERVER_ADMIN_PERMISSION) !== 0n ||
-    /admin|moderator/i.test(role.name)
-  );
+  return (role.permissions & SERVER_ADMIN_PERMISSION) !== 0n;
 }
 
 function deriveAccessLevel(ownerId: string, userId: string, roles: RoleRecord[]): WorkspaceAccessLevel {
@@ -230,34 +227,49 @@ async function generateInviteCode(tx: Prisma.TransactionClient = prisma) {
 }
 
 async function getAccessContext(userId: string, serverId: string): Promise<AccessContext> {
-  const membership = await prisma.serverMember.findFirst({
-    where: {
-      serverId,
-      userId,
-    },
-    select: {
-      id: true,
-      roles: {
-        select: {
-          role: {
-            select: {
-              color: true,
-              id: true,
-              name: true,
-              permissions: true,
+  const [membership, serverBan] = await Promise.all([
+    prisma.serverMember.findFirst({
+      where: {
+        serverId,
+        userId,
+      },
+      select: {
+        id: true,
+        roles: {
+          select: {
+            role: {
+              select: {
+                color: true,
+                id: true,
+                name: true,
+                permissions: true,
+              },
             },
           },
         },
-      },
-      server: {
-        select: {
-          id: true,
-          name: true,
-          ownerId: true,
+        server: {
+          select: {
+            id: true,
+            name: true,
+            ownerId: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.serverBan.findUnique({
+      where: {
+        serverId_userId: {
+          serverId,
+          userId,
+        },
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  if (serverBan) {
+    throw new ApiError("You are banned from this server", 403, "SERVER_BANNED");
+  }
 
   if (!membership) {
     throw new ApiError("Server not found", 404);
@@ -290,6 +302,27 @@ function ensureOwner(context: AccessContext) {
 
 function canAddMembers(accessLevel: WorkspaceAccessLevel, allowMemberAdds: boolean) {
   return accessLevel !== "MEMBER" || allowMemberAdds;
+}
+
+async function ensureUserNotServerBanned(
+  client: Pick<typeof prisma, "serverBan">,
+  serverId: string,
+  userId: string,
+  message = "You are banned from this server",
+) {
+  const ban = await client.serverBan.findUnique({
+    where: {
+      serverId_userId: {
+        serverId,
+        userId,
+      },
+    },
+    select: { id: true },
+  });
+
+  if (ban) {
+    throw new ApiError(message, 403, "SERVER_BANNED");
+  }
 }
 
 function mapServerSummary(args: {
@@ -1173,6 +1206,28 @@ export async function reorderWorkspaceChannels(
     throw new ApiError("One or more channels could not be found", 404);
   }
 
+  const categoryIds = Array.from(
+    new Set(items.flatMap((item) => (item.categoryId ? [item.categoryId] : []))),
+  );
+
+  if (categoryIds.length > 0) {
+    const existingCategories = await prisma.channelCategory.findMany({
+      where: {
+        id: {
+          in: categoryIds,
+        },
+        serverId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingCategories.length !== categoryIds.length) {
+      throw new ApiError("One or more categories could not be found", 404);
+    }
+  }
+
   await prisma.$transaction(
     items.map((item) =>
       prisma.channel.update({
@@ -1421,6 +1476,13 @@ export async function addWorkspaceServerMemberByUsername(
     throw new ApiError("This user cannot be added", 403, "FORBIDDEN");
   }
 
+  await ensureUserNotServerBanned(
+    prisma,
+    serverId,
+    targetUser.id,
+    "This user is banned from this server",
+  );
+
   if (targetUser.id === userId) {
     throw new ApiError("You are already in this server", 400, "ALREADY_MEMBER");
   }
@@ -1442,6 +1504,13 @@ export async function addWorkspaceServerMemberByUsername(
   }
 
   const result = await prisma.$transaction(async (tx) => {
+    await ensureUserNotServerBanned(
+      tx,
+      serverId,
+      targetUser.id,
+      "This user is banned from this server",
+    );
+
     const targetChannelId =
       server.systemChannelId ??
       (
@@ -1693,10 +1762,6 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
     throw new ApiError("Invite has expired", 400);
   }
 
-  if (invite.maxUses != null && invite.uses >= invite.maxUses) {
-    throw new ApiError("Invite has reached its usage limit", 400);
-  }
-
   const joiningUser = await prisma.user.findUnique({
     where: {
       id: userId,
@@ -1716,6 +1781,8 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
     throw new ApiError("Your account has been suspended", 403);
   }
 
+  await ensureUserNotServerBanned(prisma, invite.server.id, userId);
+
   const existingMember = await prisma.serverMember.findUnique({
     where: {
       userId_serverId: {
@@ -1730,6 +1797,39 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
 
   if (!existingMember) {
     const transactionResult = await prisma.$transaction(async (tx) => {
+      await ensureUserNotServerBanned(tx, invite.server.id, userId);
+
+      if (invite.maxUses != null) {
+        const claimResult = await tx.serverInvite.updateMany({
+          where: {
+            id: invite.id,
+            uses: {
+              lt: invite.maxUses,
+            },
+          },
+          data: {
+            uses: {
+              increment: 1,
+            },
+          },
+        });
+
+        if (claimResult.count !== 1) {
+          throw new ApiError("Invite has reached its usage limit", 400);
+        }
+      } else {
+        await tx.serverInvite.update({
+          where: {
+            id: invite.id,
+          },
+          data: {
+            uses: {
+              increment: 1,
+            },
+          },
+        });
+      }
+
       const targetChannelId =
         invite.channelId ??
         (
@@ -1794,17 +1894,6 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
           id: message.id,
         };
       }
-
-      await tx.serverInvite.update({
-        where: {
-          id: invite.id,
-        },
-        data: {
-          uses: {
-            increment: 1,
-          },
-        },
-      });
 
       return { message: systemMessage };
     });

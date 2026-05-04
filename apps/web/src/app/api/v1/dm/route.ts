@@ -1,14 +1,26 @@
 import { requireApiUserId } from "@/lib/auth/api";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { createOrOpenDirectMessage, listDirectMessages } from "@/lib/dm/service";
-import { CreateDMBodySchema } from "@/lib/dm/types";
+import { CreateDMBodySchema, DMConversationsQuerySchema } from "@/lib/dm/types";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const userId = await requireApiUserId();
-    const conversations = await listDirectMessages(userId);
+    const url = new URL(request.url);
+    const wantsPaginatedResponse =
+      url.searchParams.has("cursor") ||
+      url.searchParams.has("limit") ||
+      url.searchParams.get("paginated") === "1";
+    const query = DMConversationsQuerySchema.parse({
+      cursor: url.searchParams.get("cursor") ?? undefined,
+      limit: url.searchParams.get("limit") ?? undefined,
+    });
+    const result = await listDirectMessages(userId, {
+      ...(query.cursor ? { cursor: query.cursor } : {}),
+      limit: query.limit,
+    });
 
-    return Response.json(conversations);
+    return Response.json(wantsPaginatedResponse ? result : result.conversations);
   } catch (error) {
     return jsonError(error);
   }

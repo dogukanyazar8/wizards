@@ -85,6 +85,13 @@ export default async function ChannelPage({ params }: PageParams) {
     prisma.serverMember.findFirst({
       where: {
         serverId: normalizedServerId,
+        server: {
+          bans: {
+            none: {
+              userId: session.user.id,
+            },
+          },
+        },
         userId: session.user.id,
       },
       select: {

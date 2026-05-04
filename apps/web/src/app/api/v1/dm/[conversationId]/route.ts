@@ -1,11 +1,23 @@
 import { requireApiUserId } from "@/lib/auth/api";
 import { jsonError } from "@/lib/api";
-import { hideDirectMessage } from "@/lib/dm/service";
+import { getDirectMessageConversationForUser, hideDirectMessage } from "@/lib/dm/service";
 import { DMConversationParamsSchema } from "@/lib/dm/types";
 
 type RouteContext = {
   params: Promise<{ conversationId: string }>;
 };
+
+export async function GET(_: Request, context: RouteContext) {
+  try {
+    const userId = await requireApiUserId();
+    const { conversationId } = DMConversationParamsSchema.parse(await context.params);
+    const conversation = await getDirectMessageConversationForUser(conversationId, userId);
+
+    return Response.json(conversation);
+  } catch (error) {
+    return jsonError(error);
+  }
+}
 
 export async function DELETE(_: Request, context: RouteContext) {
   try {

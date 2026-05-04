@@ -3,6 +3,15 @@ import bcrypt from "bcryptjs";
 import { CONTRIBUTOR_NAMES, CORRUPTED_CONTRIBUTOR_NAMES } from "./contributors.js";
 
 const prisma = new PrismaClient();
+const DEFAULT_SEED_PASSWORD = "password123";
+
+function assertSeedIsAllowed() {
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_PRODUCTION_SEED !== "true") {
+    throw new Error(
+      "Refusing to run seed in production. Set ALLOW_PRODUCTION_SEED=true only for an intentional, audited seed run.",
+    );
+  }
+}
 
 async function ensureUser(args: {
   displayName: string;
@@ -197,7 +206,10 @@ async function repairContributorData() {
 }
 
 async function main() {
-  const passwordHash = await bcrypt.hash("password123", 12);
+  assertSeedIsAllowed();
+
+  const seedPassword = process.env.SEED_DEMO_PASSWORD ?? DEFAULT_SEED_PASSWORD;
+  const passwordHash = await bcrypt.hash(seedPassword, 12);
 
   const demoUser = await ensureUser({
     displayName: "Demo User",
@@ -296,8 +308,10 @@ async function main() {
   await Promise.all(CONTRIBUTOR_NAMES.map((name) => ensureContributor(name)));
 
   console.log("Seed complete");
-  console.log("Demo user: demo@whispr.team / password123");
-  console.log("Test user: test@whispr.team / password123");
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`Demo user: demo@whispr.team / ${seedPassword}`);
+    console.log(`Test user: test@whispr.team / ${seedPassword}`);
+  }
 }
 
 main()

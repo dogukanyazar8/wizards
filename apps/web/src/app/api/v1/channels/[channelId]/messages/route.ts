@@ -32,10 +32,25 @@ export async function GET(request: Request, context: RouteContext) {
       throw new ApiError("Channel not found", 404);
     }
 
-    const member = await prisma.serverMember.findFirst({
-      where: { serverId: channel.serverId, userId },
-      select: { id: true },
-    });
+    const [member, serverBan] = await Promise.all([
+      prisma.serverMember.findFirst({
+        where: { serverId: channel.serverId, userId },
+        select: { id: true },
+      }),
+      prisma.serverBan.findUnique({
+        where: {
+          serverId_userId: {
+            serverId: channel.serverId,
+            userId,
+          },
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    if (serverBan) {
+      throw new ApiError("You are banned from this server", 403, "SERVER_BANNED");
+    }
 
     if (!member) {
       throw new ApiError("Not a member of this server", 403);

@@ -6,6 +6,7 @@ import {
   type KrispAvailability,
 } from "@/components/providers/voice-provider";
 import { useI18n } from "@/components/providers/locale-provider";
+import { AudioDeviceSelect } from "@/components/voice/audio-device-select";
 import { cn } from "@/lib/utils";
 
 type VoicePreferenceToggleRowProps = {
@@ -117,6 +118,11 @@ export function VoicePreferencesPanel() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+        <AudioDeviceSelect kind="input" />
+        <AudioDeviceSelect kind="output" />
       </div>
 
       <VoicePreferenceToggleRow

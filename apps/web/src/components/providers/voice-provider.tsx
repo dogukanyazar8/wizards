@@ -28,6 +28,10 @@ import { useShallow } from "zustand/react/shallow";
 import type { KrispNoiseFilterProcessor } from "@livekit/krisp-noise-filter";
 import { useI18n } from "@/components/providers/locale-provider";
 import { VoiceAudioRenderer } from "@/components/voice/voice-audio-renderer";
+import {
+  WHISPR_DESKTOP_BEFORE_CLOSE_EVENT,
+  isWhisprDesktopRuntime,
+} from "@/lib/desktop/runtime";
 import { getSocket } from "@/lib/socket/client";
 import {
   deleteVoiceState,
@@ -49,6 +53,7 @@ import {
   type ScreenShareQualityId,
 } from "@/lib/voice/screen-share";
 import {
+  DEFAULT_AUDIO_DEVICE_ID,
   DEFAULT_PARTICIPANT_VOLUME,
   type VoiceAudioPreferences,
   useVoiceStore,
@@ -189,17 +194,24 @@ function isLiveKitCloudUrl(url: string) {
 function buildAudioCaptureOptions(
   audioPreferences: VoiceAudioPreferences,
 ): AudioCaptureOptions {
-  return {
+  const options: AudioCaptureOptions = {
     autoGainControl: audioPreferences.autoGainControl,
     echoCancellation: audioPreferences.echoCancellation,
     noiseSuppression: audioPreferences.noiseSuppression,
   };
+
+  if (audioPreferences.inputDeviceId !== DEFAULT_AUDIO_DEVICE_ID) {
+    options.deviceId = audioPreferences.inputDeviceId;
+  }
+
+  return options;
 }
 
 function getAudioPreferencesSignature(audioPreferences: VoiceAudioPreferences) {
   return [
     audioPreferences.autoGainControl,
     audioPreferences.echoCancellation,
+    audioPreferences.inputDeviceId,
     audioPreferences.krispNoiseCancellation,
     audioPreferences.noiseSuppression,
   ].join(":");
@@ -438,6 +450,7 @@ function notifyVoiceExit() {
 export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
+  const isDesktopRuntime = useMemo(isWhisprDesktopRuntime, []);
   const roomRef = useRef<Room | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const joinRequestRef = useRef<string | null>(null);
@@ -906,7 +919,9 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
     }
 
     if (!isScreenShareSupported()) {
-      const message = t("screenShare.errors.notSupported");
+      const message = isDesktopRuntime
+        ? t("screenShare.errors.notSupportedDesktop")
+        : t("screenShare.errors.notSupported");
       useVoiceStore.getState().setScreenShareError(message);
       setErrorMessage(message);
       return;
@@ -942,7 +957,9 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
       syncScreenShares(activeRoom);
     } catch (error) {
       const message = isScreenSharePermissionDenied(error)
-        ? t("screenShare.errors.permissionDenied")
+        ? isDesktopRuntime
+          ? t("screenShare.errors.permissionDeniedDesktop")
+          : t("screenShare.errors.permissionDenied")
         : error instanceof Error
           ? error.message
           : t("screenShare.errors.startFailed");
@@ -951,7 +968,7 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
       setErrorMessage(message);
       await stopScreenShare(activeRoom).catch(() => undefined);
     }
-  }, [stopScreenShare, syncScreenShares, t]);
+  }, [isDesktopRuntime, stopScreenShare, syncScreenShares, t]);
 
   const leaveChannel = useCallback(async () => {
     stopHeartbeat();
@@ -1006,7 +1023,9 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
     async ({ channelId, serverId: nextServerId }: { channelId: string; serverId: string }) => {
       const currentState = useVoiceStore.getState();
       const nextJoinKey = `${nextServerId}:${channelId}`;
-      const microphoneDeniedMessage = t("voice.errors.microphoneDenied");
+      const microphoneDeniedMessage = isDesktopRuntime
+        ? t("voice.errors.microphoneDeniedDesktop")
+        : t("voice.errors.microphoneDenied");
       const microphoneEnableFailedMessage = t("voice.errors.microphoneEnableFailed");
 
       if (
@@ -1213,6 +1232,7 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
     [
       applyAudioPreferencesToRoom,
       clearReconnectTimeout,
+      isDesktopRuntime,
       krispAvailability,
       leaveChannel,
       resetKrispProcessor,
@@ -1233,7 +1253,9 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
     }
 
     const nextMuted = !useVoiceStore.getState().isMuted;
-    const microphoneDeniedMessage = t("voice.errors.microphoneDenied");
+    const microphoneDeniedMessage = isDesktopRuntime
+      ? t("voice.errors.microphoneDeniedDesktop")
+      : t("voice.errors.microphoneDenied");
     const microphoneEnableFailedMessage = t("voice.errors.microphoneEnableFailed");
 
     if (nextMuted) {
@@ -1293,7 +1315,13 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
 
     useVoiceStore.getState().setMuted(nextMuted);
     syncParticipants(activeRoom);
-  }, [requestMicrophonePermission, syncKrispNoiseCancellation, syncParticipants, t]);
+  }, [
+    isDesktopRuntime,
+    requestMicrophonePermission,
+    syncKrispNoiseCancellation,
+    syncParticipants,
+    t,
+  ]);
 
   const toggleDeafen = useCallback(async () => {
     const activeRoom = roomRef.current;
@@ -1381,6 +1409,14 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
       clearReconnectTimeout();
 
       const activeRoom = roomRef.current;
+      const store = useVoiceStore.getState();
+
+      if (store.isScreenSharing && store.screenShareMode === "voice") {
+        emitVoiceScreenShareState(store.activeChannelId, store.serverId, false, {
+          force: true,
+        });
+      }
+
       if (activeRoom) {
         void stopScreenShare(activeRoom).catch(() => undefined);
         void stopLocalTracks(activeRoom).catch(() => undefined);
@@ -1394,11 +1430,18 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
 
     window.addEventListener("beforeunload", handlePageExit);
     window.addEventListener("pagehide", handlePageExit);
+    window.addEventListener(WHISPR_DESKTOP_BEFORE_CLOSE_EVENT, handlePageExit);
     return () => {
       window.removeEventListener("beforeunload", handlePageExit);
       window.removeEventListener("pagehide", handlePageExit);
+      window.removeEventListener(WHISPR_DESKTOP_BEFORE_CLOSE_EVENT, handlePageExit);
     };
-  }, [clearReconnectTimeout, stopHeartbeat, stopScreenShare]);
+  }, [
+    clearReconnectTimeout,
+    emitVoiceScreenShareState,
+    stopHeartbeat,
+    stopScreenShare,
+  ]);
 
   const value = useMemo<VoiceContextValue>(
     () => ({
@@ -1471,7 +1514,10 @@ export function VoiceProvider({ children, currentUser }: VoiceProviderProps) {
   return (
     <VoiceContext.Provider value={value}>
       {children}
-      <VoiceAudioRenderer room={room} />
+      <VoiceAudioRenderer
+        outputDeviceId={audioPreferences.outputDeviceId}
+        room={room}
+      />
     </VoiceContext.Provider>
   );
 }

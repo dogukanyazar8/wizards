@@ -14,7 +14,6 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import type { DMConversationDTO } from "@wizards/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -25,8 +24,9 @@ import { FriendCard } from "@/components/friends/friend-card";
 import { useSocket } from "@/hooks/use-socket";
 import {
   createDMConversationRequest,
+  type DMConversationsInfiniteData,
   dmQueryKeys,
-  upsertDMConversation,
+  upsertDMConversationPageData,
 } from "@/lib/dm/client";
 import {
   actOnFriendRequestRequest,
@@ -526,8 +526,8 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
       });
     },
     onSuccess: (conversation) => {
-      queryClient.setQueryData<DMConversationDTO[] | undefined>(dmQueryKeys.list, (current) =>
-        upsertDMConversation(current, conversation),
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
+        upsertDMConversationPageData(current, conversation),
       );
       router.push(`/channels/@me/${conversation.id}`);
     },

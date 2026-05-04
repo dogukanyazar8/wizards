@@ -5,19 +5,28 @@
   "engines": {
     "node": ">=22 <25"
   },
-  "packageManager": "pnpm@10.7.0",
+  "packageManager": "pnpm@10.33.2",
+  "pnpm": {
+    "overrides": {
+      "effect": "^3.21.2",
+      "postcss": "^8.5.13",
+      "svix": "^1.92.2"
+    }
+  },
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
+    "ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm audit --audit-level moderate",
     "lint": "turbo lint",
+    "test": "turbo test",
     "typecheck": "turbo typecheck",
     "format": "turbo format",
     "db:generate": "turbo db:generate",
     "contributors:sync": "pnpm --filter @wizards/db contributors:sync"
   },
   "devDependencies": {
-    "turbo": "^2.5.0",
-    "typescript": "^5.8.3",
-    "prettier": "^3.5.3"
+    "prettier": "^3.5.3",
+    "turbo": "^2.9.8",
+    "typescript": "^5.8.3"
   }
 }

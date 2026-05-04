@@ -57,7 +57,10 @@ export function FriendsSidebar({
   const { refetch: refetchPending } = pendingQuery;
   const {
     conversations,
+    fetchNextPage,
+    hasNextPage,
     hideConversation,
+    isFetchingNextPage,
     isHidingConversation,
     isLoading: conversationsLoading,
     markAsRead,
@@ -214,6 +217,20 @@ export function FriendsSidebar({
                   </div>
                 );
               })}
+              {hasNextPage ? (
+                <button
+                  className="mt-3 flex min-h-11 w-full items-center justify-center rounded-[18px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.34)] px-3 text-xs font-semibold text-app-muted transition hover:border-[hsl(var(--primary)/0.36)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isFetchingNextPage}
+                  onClick={() => {
+                    void fetchNextPage();
+                  }}
+                  type="button"
+                >
+                  {isFetchingNextPage
+                    ? t("dm.sidebar.loadingMore")
+                    : t("dm.sidebar.loadMore")}
+                </button>
+              ) : null}
             </div>
           )}
         </div>

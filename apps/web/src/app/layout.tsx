@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { auth } from "@/auth";
+import { DesktopExperience } from "@/components/desktop/desktop-experience";
 import { AppIconProvider } from "@/components/providers/app-icon-provider";
 import { SocketProvider } from "@/components/providers/socket-provider";
 import { SoundEffectsProvider } from "@/components/providers/sound-effects-provider";
@@ -64,7 +65,10 @@ export default async function RootLayout({
                 {currentUser ? (
                   <SocketProvider>
                     <SoundEffectsProvider currentUserId={currentUser.id}>
-                      <VoiceProvider currentUser={currentUser}>{children}</VoiceProvider>
+                      <VoiceProvider currentUser={currentUser}>
+                        <DesktopExperience />
+                        {children}
+                      </VoiceProvider>
                     </SoundEffectsProvider>
                   </SocketProvider>
                 ) : (

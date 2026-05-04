@@ -267,12 +267,23 @@ export async function editMessage(
     throw new ApiError("Cannot edit this message", 403);
   }
 
-  const member = await prisma.serverMember.findFirst({
-    where: { serverId: existing.channel.serverId, userId },
-    select: { id: true },
-  });
+  const [member, serverBan] = await Promise.all([
+    prisma.serverMember.findFirst({
+      where: { serverId: existing.channel.serverId, userId },
+      select: { id: true },
+    }),
+    prisma.serverBan.findUnique({
+      where: {
+        serverId_userId: {
+          serverId: existing.channel.serverId,
+          userId,
+        },
+      },
+      select: { id: true },
+    }),
+  ]);
 
-  if (!member) {
+  if (!member || serverBan) {
     throw new ApiError("Cannot edit this message", 403);
   }
 
@@ -301,17 +312,21 @@ export async function deleteMessage(
 ): Promise<void> {
   const existing = await prisma.message.findUnique({
     where: { id: messageId },
-    select: { userId: true },
+    select: { deletedAt: true, userId: true },
   });
 
-  if (!existing || (!isAdmin && existing.userId !== userId)) {
+  if (!existing || existing.deletedAt || (!isAdmin && existing.userId !== userId)) {
     throw new ApiError("Cannot delete this message", 403);
   }
 
-  await prisma.message.update({
-    where: { id: messageId },
+  const updateResult = await prisma.message.updateMany({
+    where: { deletedAt: null, id: messageId },
     data: { deletedAt: new Date() },
   });
+
+  if (updateResult.count !== 1) {
+    throw new ApiError("Cannot delete this message", 403);
+  }
 }
 
 export async function toggleReaction(
@@ -319,15 +334,33 @@ export async function toggleReaction(
   userId: string,
   emoji: string,
 ): Promise<MessageReaction[]> {
+  return setReaction(messageId, userId, emoji, undefined);
+}
+
+export async function setReaction(
+  messageId: string,
+  userId: string,
+  emoji: string,
+  shouldReact: boolean | undefined,
+): Promise<MessageReaction[]> {
   const normalizedEmoji = validateReactionEmoji(emoji);
+  const message = await prisma.message.findUnique({
+    where: { id: messageId },
+    select: { deletedAt: true },
+  });
+
+  if (!message || message.deletedAt) {
+    throw new ApiError("Message not found", 404, "NOT_FOUND");
+  }
+
   const existing = await prisma.reaction.findFirst({
     where: { messageId, userId, emoji: normalizedEmoji },
     select: { id: true },
   });
 
-  if (existing) {
+  if (existing && shouldReact !== true) {
     await prisma.reaction.delete({ where: { id: existing.id } });
-  } else {
+  } else if (!existing && shouldReact !== false) {
     await prisma.reaction.create({
       data: { messageId, userId, emoji: normalizedEmoji },
     });

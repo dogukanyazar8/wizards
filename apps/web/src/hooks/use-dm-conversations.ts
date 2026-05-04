@@ -1,18 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import type { DMConversationDTO } from "@wizards/types";
 import {
-  applyDMConversationPresenceUpdate,
-  applyDMConversationUpdate,
+  applyDMConversationPresenceUpdateToPageData,
+  applyDMConversationUpdateToPageData,
+  type DMConversationsInfiniteData,
   dmQueryKeys,
-  fetchDMConversations,
+  fetchDMConversationsPage,
+  flattenDMConversationPages,
   hideDMConversationRequest,
-  markDMConversationAsReadInCache,
+  markDMConversationAsReadInPageData,
   markDMConversationReadRequest,
-  removeDMConversationFromCache,
+  removeDMConversationFromPageData,
 } from "@/lib/dm/client";
 import {
   appendMessage,
@@ -20,6 +22,7 @@ import {
   mapDMMessageToChatMessage,
   type MessagePages,
 } from "@/hooks/use-messages";
+import type { DMConversationsPageResponse } from "@/lib/dm/types";
 import { useSocket } from "./use-socket";
 
 const EMPTY_CONVERSATIONS: DMConversationDTO[] = [];
@@ -42,8 +45,16 @@ export function useDMConversations(
       ? params.channelId
       : null;
 
-  const query = useQuery({
-    queryFn: fetchDMConversations,
+  const query = useInfiniteQuery<
+    DMConversationsPageResponse,
+    Error,
+    DMConversationsInfiniteData,
+    typeof dmQueryKeys.list,
+    string | undefined
+  >({
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) => fetchDMConversationsPage(pageParam),
     queryKey: dmQueryKeys.list,
     staleTime: 30_000,
   });
@@ -57,8 +68,8 @@ export function useDMConversations(
       preview: string;
       unreadCount: number;
     }) => {
-      queryClient.setQueryData<DMConversationDTO[] | undefined>(dmQueryKeys.list, (current) =>
-        applyDMConversationUpdate(
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
+        applyDMConversationUpdateToPageData(
           current,
           event.conversation,
           currentUserId,
@@ -86,10 +97,10 @@ export function useDMConversations(
         activeReadRequestsRef.current.add(event.conversationId);
         void markDMConversationReadRequest(event.conversationId)
           .then(() => {
-            queryClient.setQueryData<DMConversationDTO[] | undefined>(
+            queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
               dmQueryKeys.list,
               (current) =>
-                markDMConversationAsReadInCache(
+                markDMConversationAsReadInPageData(
                   current,
                   event.conversationId,
                   currentUserId,
@@ -107,8 +118,8 @@ export function useDMConversations(
       status: "ONLINE" | "IDLE" | "DND" | "OFFLINE";
       userId: string;
     }) => {
-      queryClient.setQueryData<DMConversationDTO[] | undefined>(dmQueryKeys.list, (current) =>
-        applyDMConversationPresenceUpdate(current, event),
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
+        applyDMConversationPresenceUpdateToPageData(current, event),
       );
     };
 
@@ -124,8 +135,8 @@ export function useDMConversations(
   const hideMutation = useMutation({
     mutationFn: (conversationId: string) => hideDMConversationRequest(conversationId),
     onSuccess: (_result, conversationId) => {
-      queryClient.setQueryData<DMConversationDTO[] | undefined>(dmQueryKeys.list, (current) =>
-        removeDMConversationFromCache(current, conversationId),
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
+        removeDMConversationFromPageData(current, conversationId),
       );
     },
   });
@@ -133,8 +144,8 @@ export function useDMConversations(
   const markAsReadMutation = useMutation({
     mutationFn: (conversationId: string) => markDMConversationReadRequest(conversationId),
     onSuccess: (_result, conversationId) => {
-      queryClient.setQueryData<DMConversationDTO[] | undefined>(dmQueryKeys.list, (current) =>
-        markDMConversationAsReadInCache(current, conversationId, currentUserId),
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
+        markDMConversationAsReadInPageData(current, conversationId, currentUserId),
       );
     },
   });
@@ -148,8 +159,8 @@ export function useDMConversations(
 
   const markAsRead = useCallback(
     async (conversationId: string) => {
-      queryClient.setQueryData<DMConversationDTO[] | undefined>(dmQueryKeys.list, (current) =>
-        markDMConversationAsReadInCache(current, conversationId, currentUserId),
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
+        markDMConversationAsReadInPageData(current, conversationId, currentUserId),
       );
       await markAsReadMutation.mutateAsync(conversationId);
     },
@@ -158,7 +169,7 @@ export function useDMConversations(
 
   return {
     ...query,
-    conversations: query.data ?? EMPTY_CONVERSATIONS,
+    conversations: query.data ? flattenDMConversationPages(query.data) : EMPTY_CONVERSATIONS,
     hideConversation,
     isHidingConversation: hideMutation.isPending,
     isMarkingAsRead: markAsReadMutation.isPending,

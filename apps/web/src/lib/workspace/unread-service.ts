@@ -179,6 +179,22 @@ export function getActiveChannelViewerUserIds(channelId: string) {
   return [...userIds];
 }
 
+export async function getActiveServerMemberUserIds(serverId: string) {
+  const io = getSocketServer();
+  if (!io) {
+    return [];
+  }
+
+  const sockets = await io.in(`server:${serverId}`).fetchSockets();
+  return Array.from(
+    new Set(
+      sockets
+        .map((socket) => socket.data.userId)
+        .filter((userId): userId is string => typeof userId === "string"),
+    ),
+  );
+}
+
 export async function emitServerUnreadUpdateToUser(userId: string, serverId: string) {
   const unreadCount = await getServerUnreadCount(userId, serverId);
   const io = getSocketServer();
@@ -197,22 +213,22 @@ export async function emitServerUnreadUpdatesForServer(
   serverId: string,
   memberUserIds?: string[],
 ) {
-  const userIds =
-    memberUserIds && memberUserIds.length > 0
-      ? Array.from(new Set(memberUserIds))
-      : (
-          await prisma.serverMember.findMany({
-            where: { serverId },
-            select: { userId: true },
-          })
-        ).map((member) => member.userId);
-
-  const unreadCounts = await getServerUnreadCountsBatch(userIds, serverId);
   const io = getSocketServer();
 
   if (!io) {
     return;
   }
+
+  const userIds =
+    memberUserIds
+      ? Array.from(new Set(memberUserIds.filter(Boolean)))
+      : await getActiveServerMemberUserIds(serverId);
+
+  if (userIds.length === 0) {
+    return;
+  }
+
+  const unreadCounts = await getServerUnreadCountsBatch(userIds, serverId);
 
   await Promise.all(
     userIds.map(async (userId) => {

@@ -16,25 +16,11 @@ import {
 import { normalizeAppLocale } from "@/lib/locale";
 import { persistUserLocale } from "@/lib/locale/persistence";
 import { getRequestLocale } from "@/lib/locale/server";
-
-const MAX_USERNAME_LENGTH = 32;
-
-const USERNAME_SANITIZE_REGEX = /[^a-zA-Z0-9_]/g;
-const TURKISH_USERNAME_TRANSLITERATION: Record<string, string> = {
-  ç: "c",
-  Ç: "C",
-  ğ: "g",
-  Ğ: "G",
-  ı: "i",
-  I: "I",
-  İ: "I",
-  ö: "o",
-  Ö: "O",
-  ş: "s",
-  Ş: "S",
-  ü: "u",
-  Ü: "U",
-};
+import {
+  MAX_USERNAME_LENGTH,
+  normalizeUsername as normalizeStableUsername,
+} from "@/lib/auth/username";
+import { isActiveAuthUser } from "@/lib/auth/access";
 
 function getAuthEnvCandidates() {
   return [
@@ -108,43 +94,21 @@ export function normalizeAuthEmail(rawValue: unknown): string {
   return rawValue.trim().toLowerCase();
 }
 
-function normalizeUsername(rawValue: string): string {
-  const asciiValue = rawValue
-    .replace(/[çÇğĞıIİöÖşŞüÜ]/g, (character) => {
-      return TURKISH_USERNAME_TRANSLITERATION[character] ?? character;
-    })
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "");
-
-  const normalized = asciiValue
-    .toLowerCase()
-    .replace(USERNAME_SANITIZE_REGEX, "_")
-    .replace(/_+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, MAX_USERNAME_LENGTH);
-
-  if (normalized.length >= 2) {
-    return normalized;
-  }
-
-  return `whispr_${crypto.randomUUID().replace(/-/g, "").slice(0, 10)}`;
-}
-
 function deriveBaseUsername(data: { email?: string | null; name?: string | null }): string {
   if (data.name && data.name.trim().length > 0) {
-    return normalizeUsername(data.name);
+    return normalizeStableUsername(data.name);
   }
 
   if (data.email) {
     const emailPrefix = data.email.split("@")[0] ?? "whispr";
-    return normalizeUsername(emailPrefix);
+    return normalizeStableUsername(emailPrefix);
   }
 
-  return normalizeUsername("whispr");
+  return normalizeStableUsername("whispr");
 }
 
 async function getUniqueUsername(seed: string): Promise<string> {
-  const safeSeed = normalizeUsername(seed);
+  const safeSeed = normalizeStableUsername(seed);
 
   for (let attempt = 0; attempt < 1000; attempt += 1) {
     const suffix = attempt === 0 ? "" : `_${attempt}`;
@@ -162,7 +126,7 @@ async function getUniqueUsername(seed: string): Promise<string> {
     }
   }
 
-  return normalizeUsername(`whispr_${Date.now().toString(36)}`);
+  return normalizeStableUsername(`whispr_${Date.now().toString(36)}`);
 }
 
 function mapUserToAdapterUser(
@@ -220,6 +184,68 @@ function isGoogleEmailVerified(profile: unknown): boolean {
     "email_verified" in profile &&
     (profile as { email_verified?: unknown }).email_verified === true
   );
+}
+
+function hasExplicitlyUnverifiedOAuthEmail(profile: unknown): boolean {
+  return (
+    typeof profile === "object" &&
+    profile !== null &&
+    "email_verified" in profile &&
+    (profile as { email_verified?: unknown }).email_verified === false
+  );
+}
+
+function getOAuthProfileEmail(profile: unknown): string {
+  if (
+    typeof profile !== "object" ||
+    profile === null ||
+    !("email" in profile) ||
+    typeof (profile as { email?: unknown }).email !== "string"
+  ) {
+    return "";
+  }
+
+  return normalizeAuthEmail((profile as { email: string }).email);
+}
+
+async function canOAuthUserSignIn(args: {
+  provider: string | undefined;
+  profile: unknown;
+  user: { email?: unknown; id?: unknown };
+}) {
+  if (args.provider === "google" && !isGoogleEmailVerified(args.profile)) {
+    return false;
+  }
+
+  if (args.provider !== "google" && hasExplicitlyUnverifiedOAuthEmail(args.profile)) {
+    return false;
+  }
+
+  const email = getOAuthProfileEmail(args.profile) || normalizeAuthEmail(args.user.email);
+  const userId = stringOrEmpty(args.user.id);
+  const where =
+    email && userId
+      ? { OR: [{ email }, { id: userId }] }
+      : email
+        ? { email }
+        : userId
+          ? { id: userId }
+          : null;
+
+  if (!where) {
+    return true;
+  }
+
+  const existingUser = await prisma.user.findFirst({
+    where,
+    select: {
+      emailVerified: true,
+      id: true,
+      isBanned: true,
+    },
+  });
+
+  return !existingUser || isActiveAuthUser(existingUser);
 }
 
 function normalizeAdapterAccount(account: OAuthAccountInput) {
@@ -524,7 +550,7 @@ const authConfig = {
           email,
           name,
           image,
-          username: normalizeUsername(login || email?.split("@")[0] || "whispr"),
+          username: normalizeStableUsername(login || email?.split("@")[0] || "whispr"),
           displayName: name,
           avatarUrl: image,
         };
@@ -548,7 +574,7 @@ const authConfig = {
           emailVerified,
           name,
           image,
-          username: normalizeUsername(email?.split("@")[0] || name || "whispr"),
+          username: normalizeStableUsername(email?.split("@")[0] || name || "whispr"),
           displayName: name,
           avatarUrl: image,
         };
@@ -556,30 +582,13 @@ const authConfig = {
     }),
   ],
   callbacks: {
-    async signIn({ account, profile }) {
-      if (account?.provider === "google") {
-        if (!isGoogleEmailVerified(profile)) {
-          return false;
-        }
-
-        const email =
-          typeof profile === "object" &&
-          profile !== null &&
-          "email" in profile &&
-          typeof (profile as { email?: unknown }).email === "string"
-            ? normalizeAuthEmail((profile as { email: string }).email)
-            : "";
-
-        if (!email) {
-          return false;
-        }
-
-        const existingUser = await prisma.user.findUnique({
-          where: { email },
-          select: { emailVerified: true, isBanned: true },
+    async signIn({ account, profile, user }) {
+      if (account?.type === "oauth") {
+        return canOAuthUserSignIn({
+          provider: account.provider,
+          profile,
+          user,
         });
-
-        return !existingUser || (existingUser.emailVerified && !existingUser.isBanned);
       }
 
       return true;

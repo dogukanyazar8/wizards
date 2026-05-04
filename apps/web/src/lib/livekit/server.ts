@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ApiError } from "@/lib/api";
+import { getBlockStatus } from "@/lib/friends/helpers";
 import type { CreateLiveKitTokenBody, LiveKitTokenResponse } from "./types";
 
 const LIVEKIT_TOKEN_TTL = "1h";
@@ -151,15 +152,30 @@ async function resolveVoiceRoomName(userId: string, channelId: string) {
     throw new ApiError("Channel is not a voice channel", 400, "INVALID_CHANNEL_TYPE");
   }
 
-  const membership = await prisma.serverMember.findUnique({
-    where: {
-      userId_serverId: {
-        userId,
-        serverId: channel.serverId,
+  const [membership, serverBan] = await Promise.all([
+    prisma.serverMember.findUnique({
+      where: {
+        userId_serverId: {
+          userId,
+          serverId: channel.serverId,
+        },
       },
-    },
-    select: { id: true },
-  });
+      select: { id: true },
+    }),
+    prisma.serverBan.findUnique({
+      where: {
+        serverId_userId: {
+          serverId: channel.serverId,
+          userId,
+        },
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  if (serverBan) {
+    throw new ApiError("You are banned from this server", 403, "SERVER_BANNED");
+  }
 
   if (!membership) {
     throw new ApiError("You do not have access to this channel", 403, "FORBIDDEN");
@@ -189,18 +205,21 @@ async function resolveDMRoomName(userId: string, conversationId: string) {
     throw new ApiError("Conversation not found", 404, "NOT_FOUND");
   }
 
-  const participant = await prisma.dMParticipant.findUnique({
-    where: {
-      conversationId_userId: {
-        conversationId,
-        userId,
-      },
-    },
-    select: { id: true },
+  const participants = await prisma.dMParticipant.findMany({
+    where: { conversationId },
+    select: { userId: true },
   });
 
-  if (!participant) {
+  if (!participants.some((participant) => participant.userId === userId)) {
     throw new ApiError("You do not have access to this conversation", 403, "FORBIDDEN");
+  }
+
+  const otherParticipants = participants.filter((participant) => participant.userId !== userId);
+  for (const participant of otherParticipants) {
+    const blockStatus = await getBlockStatus(userId, participant.userId);
+    if (blockStatus.blocked) {
+      throw new ApiError("You cannot join this DM call while a block is active", 403, "BLOCKED");
+    }
   }
 
   return `dm:${conversation.id}`;

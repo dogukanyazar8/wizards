@@ -1,6 +1,7 @@
 const TURNSTILE_SITEVERIFY_URL =
   "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const EXPECTED_TURNSTILE_ACTION = "register";
+const TURNSTILE_VERIFY_TIMEOUT_MS = 8000;
 
 type TurnstileSiteVerifyResponse = {
   action?: string;
@@ -72,10 +73,16 @@ export async function verifyTurnstileToken(token: string, remoteIp?: string) {
   }
 
   let result: TurnstileSiteVerifyResponse;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, TURNSTILE_VERIFY_TIMEOUT_MS);
+
   try {
     const response = await fetch(TURNSTILE_SITEVERIFY_URL, {
       body,
       method: "POST",
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -95,6 +102,8 @@ export async function verifyTurnstileToken(token: string, remoteIp?: string) {
       "VERIFY_FAILED",
       "Turnstile verification failed.",
     );
+  } finally {
+    clearTimeout(timeout);
   }
 
   if (!result.success) {

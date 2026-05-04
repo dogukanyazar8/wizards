@@ -11,20 +11,25 @@ import {
 export const DEFAULT_PARTICIPANT_VOLUME = 100;
 export const MAX_PARTICIPANT_VOLUME = 100;
 export const MIN_PARTICIPANT_VOLUME = 0;
+export const DEFAULT_AUDIO_DEVICE_ID = "default";
 export const VOICE_PREFERENCES_STORAGE_KEY = "wizards-voice";
 
 export interface VoiceAudioPreferences {
   autoGainControl: boolean;
   echoCancellation: boolean;
+  inputDeviceId: string;
   krispNoiseCancellation: boolean;
   noiseSuppression: boolean;
+  outputDeviceId: string;
 }
 
 export const DEFAULT_VOICE_AUDIO_PREFERENCES: VoiceAudioPreferences = {
   autoGainControl: true,
   echoCancellation: true,
+  inputDeviceId: DEFAULT_AUDIO_DEVICE_ID,
   krispNoiseCancellation: true,
   noiseSuppression: true,
+  outputDeviceId: DEFAULT_AUDIO_DEVICE_ID,
 };
 
 function clampParticipantVolume(value: number) {
@@ -63,6 +68,10 @@ function sanitizeAudioPreferences(value: unknown): VoiceAudioPreferences {
       typeof value.echoCancellation === "boolean"
         ? value.echoCancellation
         : DEFAULT_VOICE_AUDIO_PREFERENCES.echoCancellation,
+    inputDeviceId:
+      typeof value.inputDeviceId === "string" && value.inputDeviceId.trim()
+        ? value.inputDeviceId
+        : DEFAULT_VOICE_AUDIO_PREFERENCES.inputDeviceId,
     krispNoiseCancellation:
       typeof value.krispNoiseCancellation === "boolean"
         ? value.krispNoiseCancellation
@@ -71,6 +80,10 @@ function sanitizeAudioPreferences(value: unknown): VoiceAudioPreferences {
       typeof value.noiseSuppression === "boolean"
         ? value.noiseSuppression
         : DEFAULT_VOICE_AUDIO_PREFERENCES.noiseSuppression,
+    outputDeviceId:
+      typeof value.outputDeviceId === "string" && value.outputDeviceId.trim()
+        ? value.outputDeviceId
+        : DEFAULT_VOICE_AUDIO_PREFERENCES.outputDeviceId,
   };
 }
 

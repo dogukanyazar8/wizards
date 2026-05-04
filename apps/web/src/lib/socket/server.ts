@@ -5,6 +5,7 @@ import { getToken } from "next-auth/jwt";
 import { Prisma, prisma } from "@wizards/db";
 import type { UploadedAttachmentInput } from "@wizards/types";
 import { ApiError } from "@/lib/api";
+import { isActiveAuthUser } from "@/lib/auth/access";
 import {
   dmMessageInclude,
   dmNotificationUserSelect,
@@ -12,7 +13,7 @@ import {
   getDMDisplayName,
   mapDMMessagePayload,
   mapDMMessagePayloadWithReactions,
-  toggleDMReaction,
+  setDMReaction,
 } from "@/lib/dm/service";
 import { getBlockStatus } from "@/lib/friends/helpers";
 import {
@@ -39,6 +40,7 @@ import {
 import {
   emitServerUnreadUpdatesForServer,
   getActiveChannelViewerUserIds,
+  getActiveServerMemberUserIds,
   markChannelReadStates,
 } from "@/lib/workspace/unread-service";
 import { getServerMediaSettings } from "@/lib/workspace/server-features";
@@ -46,8 +48,20 @@ import {
   createMessage,
   deleteMessage,
   editMessage,
-  toggleReaction,
+  setReaction,
 } from "@/lib/workspace/message-service";
+import {
+  parseSocketPayload,
+  SocketConversationPayloadSchema,
+  SocketDMMessageSendPayloadSchema,
+  SocketDMScreenShareTargetPayloadSchema,
+  SocketIdSchema,
+  SocketMessageDeletePayloadSchema,
+  SocketMessageEditPayloadSchema,
+  SocketMessageReactionPayloadSchema,
+  SocketMessageSendPayloadSchema,
+  SocketVoiceScreenSharePayloadSchema,
+} from "@/lib/socket/schemas";
 import type {
   ClientToServerEvents,
   InterServerEvents,
@@ -58,8 +72,12 @@ import type {
 
 const CHANNEL_TYPING_EXPIRY = 3000;
 const DM_TYPING_EXPIRY = 3000;
+const MANAGE_MESSAGES_PERMISSION = 1n << 0n;
+const SOCKET_MAX_HTTP_BUFFER_SIZE = 1_048_576;
 const TYPING_KEY_TTL_SECONDS = 10;
-const PRESENCE_SOCKET_PREFIX = "presence:sockets:";
+const PRESENCE_SOCKET_PREFIX = "presence:socket-set:";
+const PRESENCE_SOCKET_TTL_SECONDS = 120;
+const PRESENCE_SOCKET_TTL_MS = PRESENCE_SOCKET_TTL_SECONDS * 1000;
 const DEFAULT_DEV_SOCKET_ORIGINS = [
   "http://localhost:3000",
   "http://localhost:8080",
@@ -97,6 +115,50 @@ function getPresenceSocketsKey(userId: string) {
   return `${PRESENCE_SOCKET_PREFIX}${userId}`;
 }
 
+async function prunePresenceSockets(
+  redis: ReturnType<typeof getRedis>,
+  userId: string,
+) {
+  const key = getPresenceSocketsKey(userId);
+  await redis.zremrangebyscore(key, "-inf", Date.now() - PRESENCE_SOCKET_TTL_MS);
+  return redis.zcard(key);
+}
+
+async function markPresenceSocketActive(
+  redis: ReturnType<typeof getRedis>,
+  userId: string,
+  socketId: string,
+) {
+  const key = getPresenceSocketsKey(userId);
+  await redis.zadd(key, Date.now(), socketId);
+  await redis.expire(key, PRESENCE_SOCKET_TTL_SECONDS);
+}
+
+async function addPresenceSocket(
+  redis: ReturnType<typeof getRedis>,
+  userId: string,
+  socketId: string,
+) {
+  const existingSocketCount = await prunePresenceSockets(redis, userId);
+  await markPresenceSocketActive(redis, userId, socketId);
+  return existingSocketCount === 0;
+}
+
+async function removePresenceSocket(
+  redis: ReturnType<typeof getRedis>,
+  userId: string,
+  socketId: string,
+) {
+  const key = getPresenceSocketsKey(userId);
+  await redis.zrem(key, socketId);
+  const remainingSocketCount = await prunePresenceSockets(redis, userId);
+  if (remainingSocketCount <= 0) {
+    await redis.del(key);
+  }
+
+  return remainingSocketCount;
+}
+
 function getOrigin(value: string | undefined) {
   if (!value?.trim()) {
     return null;
@@ -130,7 +192,7 @@ function getSocketAllowedOrigins() {
 
 function isSocketOriginAllowed(origin: string | undefined, allowedOrigins: Set<string>) {
   if (!origin) {
-    return true;
+    return process.env.NODE_ENV !== "production" || process.env.SOCKET_ALLOW_EMPTY_ORIGIN === "true";
   }
 
   const normalizedOrigin = getOrigin(origin);
@@ -277,7 +339,14 @@ async function createChannelMentionNotifications(args: {
 
 async function listServerIds(userId: string) {
   const memberships = await prisma.serverMember.findMany({
-    where: { userId },
+    where: {
+      userId,
+      server: {
+        bans: {
+          none: { userId },
+        },
+      },
+    },
     select: { serverId: true },
   });
 
@@ -303,6 +372,7 @@ export function initSocketServer(httpServer: HTTPServer) {
       },
       credentials: true,
     },
+    maxHttpBufferSize: SOCKET_MAX_HTTP_BUFFER_SIZE,
   });
   setSocketServer(io);
 
@@ -340,12 +410,14 @@ export function initSocketServer(httpServer: HTTPServer) {
         select: {
           customStatus: true,
           displayName: true,
+          emailVerified: true,
           id: true,
+          isBanned: true,
           username: true,
         },
       });
 
-      if (!user) {
+      if (!isActiveAuthUser(user)) {
         return next(new Error("Unauthorized"));
       }
 
@@ -369,7 +441,9 @@ export function initSocketServer(httpServer: HTTPServer) {
     const dmTypingConversations = new Set<string>();
     const dmTypingTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
     const presenceHeartbeat = setInterval(() => {
-      void redis.expire(getPresenceSocketsKey(userId), 120);
+      void markPresenceSocketActive(redis, userId, socket.id).catch((error) => {
+        logError("[socket] Presence heartbeat error", error);
+      });
     }, 60_000);
     socket.data.typingChannels = new Set<string>();
     socket.data.presenceCustomStatus = socket.data.presenceCustomStatus ?? null;
@@ -427,7 +501,16 @@ export function initSocketServer(httpServer: HTTPServer) {
       error: unknown,
     ) => {
       if (error instanceof ApiError) {
-        emitDMError(code, error.message);
+        const apiCode =
+          error.code === "UNAUTHORIZED" ||
+          error.code === "FORBIDDEN" ||
+          error.code === "BLOCKED" ||
+          error.code === "RATE_LIMITED" ||
+          error.code === "VALIDATION_ERROR" ||
+          error.code === "NOT_FOUND"
+            ? error.code
+            : code;
+        emitDMError(apiCode, error.message);
         return;
       }
 
@@ -470,6 +553,39 @@ export function initSocketServer(httpServer: HTTPServer) {
       return participants;
     }
 
+    async function requireUnblockedDMParticipants(conversationId: string) {
+      const participants = await getAuthorizedDMParticipants(conversationId);
+      if (!participants) {
+        return null;
+      }
+
+      const otherParticipants = participants.filter((participant) => participant.userId !== userId);
+      for (const participant of otherParticipants) {
+        const blockStatus = await getBlockStatus(userId, participant.userId);
+        if (blockStatus.blocked) {
+          throw new ApiError("You cannot use this DM while a block is active", 403, "BLOCKED");
+        }
+      }
+
+      return participants;
+    }
+
+    async function ensureNotServerBanned(serverId: string) {
+      const ban = await prisma.serverBan.findUnique({
+        where: {
+          serverId_userId: {
+            serverId,
+            userId,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (ban) {
+        throw new ApiError("You are banned from this server", 403, "SERVER_BANNED");
+      }
+    }
+
     async function ensureChannelMembership(channelId: string) {
       const channel = await prisma.channel.findUnique({
         where: { id: channelId },
@@ -479,6 +595,8 @@ export function initSocketServer(httpServer: HTTPServer) {
       if (!channel?.serverId) {
         throw new ApiError("Channel not found", 404, "CHANNEL_NOT_FOUND");
       }
+
+      await ensureNotServerBanned(channel.serverId);
 
       const member = await prisma.serverMember.findFirst({
         where: { serverId: channel.serverId, userId },
@@ -624,10 +742,9 @@ export function initSocketServer(httpServer: HTTPServer) {
         socket.data.presenceStatus = presence.status;
         socket.data.presenceCustomStatus = presence.customStatus;
 
-        const socketCount = await redis.incr(getPresenceSocketsKey(userId));
-        await redis.expire(getPresenceSocketsKey(userId), 120);
+        const isFirstActiveSocket = await addPresenceSocket(redis, userId, socket.id);
 
-        if (socketCount === 1) {
+        if (isFirstActiveSocket) {
           await broadcastPresenceUpdateToFriends(presence);
         }
       } catch (error) {
@@ -635,8 +752,9 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     })();
 
-    socket.on("channel:join", async (channelId: string) => {
+    socket.on("channel:join", async (rawChannelId: string) => {
       try {
+        const channelId = parseSocketPayload(SocketIdSchema, rawChannelId);
         const channel = await prisma.channel.findUnique({
           where: { id: channelId },
           select: { serverId: true },
@@ -646,6 +764,8 @@ export function initSocketServer(httpServer: HTTPServer) {
           socket.emit("error", { code: "CHANNEL_NOT_FOUND", message: "Channel not found" });
           return;
         }
+
+        await ensureNotServerBanned(channel.serverId);
 
         const member = await prisma.serverMember.findFirst({
           where: { serverId: channel.serverId, userId },
@@ -667,25 +787,18 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("channel:leave", (channelId: string) => {
-      socket.leave(channelId);
+    socket.on("channel:leave", (rawChannelId: string) => {
+      try {
+        const channelId = parseSocketPayload(SocketIdSchema, rawChannelId);
+        socket.leave(channelId);
+      } catch (error) {
+        emitSocketError("VALIDATION_ERROR", "Invalid channel payload.", error);
+      }
     });
 
-    socket.on("voice:screenshare:update", async (data) => {
+    socket.on("voice:screenshare:update", async (rawData) => {
       try {
-        if (
-          !data ||
-          typeof data.channelId !== "string" ||
-          typeof data.serverId !== "string" ||
-          typeof data.isScreenSharing !== "boolean"
-        ) {
-          socket.emit("error", {
-            code: "VALIDATION_ERROR",
-            message: "Invalid voice screen share payload.",
-          });
-          return;
-        }
-
+        const data = parseSocketPayload(SocketVoiceScreenSharePayloadSchema, rawData);
         const membership = await ensureChannelMembership(data.channelId);
         if (membership.serverId !== data.serverId) {
           socket.emit("error", {
@@ -721,8 +834,9 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("message:send", async (data) => {
+    socket.on("message:send", async (rawData) => {
       try {
+        const data = parseSocketPayload(SocketMessageSendPayloadSchema, rawData);
         try {
           const isAllowed = await checkRateLimit(redis, `rate:msg:${userId}`, 30, 60);
           if (!isAllowed) {
@@ -758,6 +872,8 @@ export function initSocketServer(httpServer: HTTPServer) {
           socket.emit("error", { code: "CHANNEL_NOT_FOUND", message: "Channel not found" });
           return;
         }
+
+        await ensureNotServerBanned(channel.serverId);
 
         const member = await prisma.serverMember.findFirst({
           where: { serverId: channel.serverId, userId },
@@ -804,7 +920,8 @@ export function initSocketServer(httpServer: HTTPServer) {
           attachmentInputs,
         );
         const messageCreatedAt = new Date(message.createdAt);
-        const readUserIds = [userId, ...getActiveChannelViewerUserIds(data.channelId)];
+        const activeChannelViewerUserIds = getActiveChannelViewerUserIds(data.channelId);
+        const readUserIds = [userId, ...activeChannelViewerUserIds];
 
         await markChannelReadStates({
           channelId: data.channelId,
@@ -813,7 +930,12 @@ export function initSocketServer(httpServer: HTTPServer) {
           userIds: readUserIds,
         });
 
-        await emitServerUnreadUpdatesForServer(channel.serverId);
+        const readUserIdSet = new Set(readUserIds);
+        const unreadUpdateUserIds = (await getActiveServerMemberUserIds(channel.serverId)).filter(
+          (memberUserId) => !readUserIdSet.has(memberUserId),
+        );
+
+        await emitServerUnreadUpdatesForServer(channel.serverId, unreadUpdateUserIds);
         void createChannelMentionNotifications({
           channelId: data.channelId,
           channelName: channel.name,
@@ -838,8 +960,9 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("message:edit", async (data) => {
+    socket.on("message:edit", async (rawData) => {
       try {
+        const data = parseSocketPayload(SocketMessageEditPayloadSchema, rawData);
         const message = await editMessage(data.messageId, userId, data.content);
         io.to(message.channelId).emit("message:updated", message);
       } catch (error) {
@@ -847,10 +970,11 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("message:delete", async (messageId: string) => {
+    socket.on("message:delete", async (rawMessageId: string) => {
       try {
-        const dbMessage = await prisma.message.findUnique({
-          where: { id: messageId },
+        const messageId = parseSocketPayload(SocketIdSchema, rawMessageId);
+        const dbMessage = await prisma.message.findFirst({
+          where: { deletedAt: null, id: messageId },
           select: {
             channelId: true,
             userId: true,
@@ -863,20 +987,20 @@ export function initSocketServer(httpServer: HTTPServer) {
           return;
         }
 
+        await ensureNotServerBanned(dbMessage.channel.serverId);
+
         const member = await prisma.serverMember.findFirst({
           where: { serverId: dbMessage.channel.serverId, userId },
           select: {
             roles: {
-              select: { role: { select: { permissions: true, name: true } } },
+              select: { role: { select: { permissions: true } } },
             },
           },
         });
 
         const isAdmin =
           member?.roles.some(
-            (roleAssignment) =>
-              (roleAssignment.role.permissions & (1n << 0n)) !== 0n ||
-              /admin|moderator/i.test(roleAssignment.role.name),
+            (roleAssignment) => (roleAssignment.role.permissions & MANAGE_MESSAGES_PERMISSION) !== 0n,
           ) ?? false;
 
         await deleteMessage(messageId, userId, isAdmin);
@@ -890,10 +1014,11 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("message:react", async (data) => {
+    socket.on("message:react", async (rawData) => {
       try {
-        const message = await prisma.message.findUnique({
-          where: { id: data.messageId },
+        const data = parseSocketPayload(SocketMessageReactionPayloadSchema, rawData);
+        const message = await prisma.message.findFirst({
+          where: { deletedAt: null, id: data.messageId },
           select: { channelId: true },
         });
 
@@ -903,7 +1028,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         }
 
         await ensureChannelMembership(message.channelId);
-        const reactions = await toggleReaction(data.messageId, userId, data.emoji);
+        const reactions = await setReaction(data.messageId, userId, data.emoji, true);
         io.to(message.channelId).emit("message:reaction_updated", {
           messageId: data.messageId,
           reactions,
@@ -913,10 +1038,11 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("message:unreact", async (data) => {
+    socket.on("message:unreact", async (rawData) => {
       try {
-        const message = await prisma.message.findUnique({
-          where: { id: data.messageId },
+        const data = parseSocketPayload(SocketMessageReactionPayloadSchema, rawData);
+        const message = await prisma.message.findFirst({
+          where: { deletedAt: null, id: data.messageId },
           select: { channelId: true },
         });
 
@@ -926,7 +1052,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         }
 
         await ensureChannelMembership(message.channelId);
-        const reactions = await toggleReaction(data.messageId, userId, data.emoji);
+        const reactions = await setReaction(data.messageId, userId, data.emoji, false);
         io.to(message.channelId).emit("message:reaction_updated", {
           messageId: data.messageId,
           reactions,
@@ -936,8 +1062,9 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("typing:start", async (channelId: string) => {
+    socket.on("typing:start", async (rawChannelId: string) => {
       try {
+        const channelId = parseSocketPayload(SocketIdSchema, rawChannelId);
         await ensureChannelMembership(channelId);
         const key = `typing:${channelId}`;
         socket.data.typingChannels.add(channelId);
@@ -955,8 +1082,9 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("typing:stop", async (channelId: string) => {
+    socket.on("typing:stop", async (rawChannelId: string) => {
       try {
+        const channelId = parseSocketPayload(SocketIdSchema, rawChannelId);
         await ensureChannelMembership(channelId);
         const key = `typing:${channelId}`;
         socket.data.typingChannels.delete(channelId);
@@ -973,8 +1101,9 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("dm:join", async (conversationId: string) => {
+    socket.on("dm:join", async (rawConversationId: string) => {
       try {
+        const conversationId = parseSocketPayload(SocketIdSchema, rawConversationId);
         if (!(await requireDMParticipant(conversationId))) {
           emitDMError("FORBIDDEN", "You are not allowed to join this DM");
           return;
@@ -986,8 +1115,9 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("dm:leave", async (conversationId: string) => {
+    socket.on("dm:leave", async (rawConversationId: string) => {
       try {
+        const conversationId = parseSocketPayload(SocketIdSchema, rawConversationId);
         if (!(await requireDMParticipant(conversationId))) {
           emitDMError("FORBIDDEN", "You are not allowed to leave this DM");
           return;
@@ -999,9 +1129,10 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("dm:screenshare:start", async (data) => {
+    socket.on("dm:screenshare:start", async (rawData) => {
       try {
-        const participants = await getAuthorizedDMParticipants(data.conversationId);
+        const data = parseSocketPayload(SocketConversationPayloadSchema, rawData);
+        const participants = await requireUnblockedDMParticipants(data.conversationId);
         if (!participants) {
           emitDMError("FORBIDDEN", "You are not a participant in this DM");
           return;
@@ -1030,9 +1161,10 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("dm:screenshare:accept", async (data) => {
+    socket.on("dm:screenshare:accept", async (rawData) => {
       try {
-        const participants = await getAuthorizedDMParticipants(data.conversationId);
+        const data = parseSocketPayload(SocketDMScreenShareTargetPayloadSchema, rawData);
+        const participants = await requireUnblockedDMParticipants(data.conversationId);
         if (!participants) {
           emitDMError("FORBIDDEN", "You are not a participant in this DM");
           return;
@@ -1055,9 +1187,10 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("dm:screenshare:decline", async (data) => {
+    socket.on("dm:screenshare:decline", async (rawData) => {
       try {
-        const participants = await getAuthorizedDMParticipants(data.conversationId);
+        const data = parseSocketPayload(SocketDMScreenShareTargetPayloadSchema, rawData);
+        const participants = await requireUnblockedDMParticipants(data.conversationId);
         if (!participants) {
           emitDMError("FORBIDDEN", "You are not a participant in this DM");
           return;
@@ -1080,9 +1213,10 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("dm:screenshare:stop", async (data) => {
+    socket.on("dm:screenshare:stop", async (rawData) => {
       try {
-        const participants = await getAuthorizedDMParticipants(data.conversationId);
+        const data = parseSocketPayload(SocketConversationPayloadSchema, rawData);
+        const participants = await requireUnblockedDMParticipants(data.conversationId);
         if (!participants) {
           emitDMError("FORBIDDEN", "You are not a participant in this DM");
           return;
@@ -1103,8 +1237,9 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("dm:message:send", async (data) => {
+    socket.on("dm:message:send", async (rawData) => {
       try {
+        const data = parseSocketPayload(SocketDMMessageSendPayloadSchema, rawData);
         if (!(await requireDMParticipant(data.conversationId))) {
           emitDMError("FORBIDDEN", "You are not a participant in this DM");
           return;
@@ -1340,9 +1475,10 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("dm:message:edit", async (data) => {
+    socket.on("dm:message:edit", async (rawData) => {
       try {
-        const trimmedContent = data.content?.trim() ?? "";
+        const data = parseSocketPayload(SocketMessageEditPayloadSchema, rawData);
+        const trimmedContent = data.content;
         if (!trimmedContent || trimmedContent.length > 2000) {
           emitDMError("VALIDATION_ERROR", "Message content must be between 1 and 2000 characters.");
           return;
@@ -1405,8 +1541,9 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("dm:message:delete", async (data) => {
+    socket.on("dm:message:delete", async (rawData) => {
       try {
+        const data = parseSocketPayload(SocketMessageDeletePayloadSchema, rawData);
         const existingMessage = await prisma.dMMessage.findUnique({
           where: { id: data.messageId },
           select: {
@@ -1462,8 +1599,9 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    const handleDMReaction = async (data: { emoji: string; messageId: string }) => {
+    const handleDMReaction = async (rawData: unknown, shouldReact: boolean) => {
       try {
+        const data = parseSocketPayload(SocketMessageReactionPayloadSchema, rawData);
         const message = await prisma.dMMessage.findUnique({
           where: { id: data.messageId },
           select: {
@@ -1482,7 +1620,7 @@ export function initSocketServer(httpServer: HTTPServer) {
           return;
         }
 
-        const reactions = await toggleDMReaction(data.messageId, userId, data.emoji);
+        const reactions = await setDMReaction(data.messageId, userId, data.emoji, shouldReact);
         io.to(`dm:${message.conversationId}`).emit("dm:message:reaction_updated", {
           messageId: data.messageId,
           reactions,
@@ -1504,11 +1642,16 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     };
 
-    socket.on("dm:message:react", handleDMReaction);
-    socket.on("dm:message:unreact", handleDMReaction);
+    socket.on("dm:message:react", (rawData) => {
+      void handleDMReaction(rawData, true);
+    });
+    socket.on("dm:message:unreact", (rawData) => {
+      void handleDMReaction(rawData, false);
+    });
 
-    socket.on("dm:typing:start", async (data) => {
+    socket.on("dm:typing:start", async (rawData) => {
       try {
+        const data = parseSocketPayload(SocketConversationPayloadSchema, rawData);
         if (!(await requireDMParticipant(data.conversationId))) {
           emitDMError("FORBIDDEN", "You are not a participant in this DM");
           return;
@@ -1520,8 +1663,9 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
     });
 
-    socket.on("dm:typing:stop", async (data) => {
+    socket.on("dm:typing:stop", async (rawData) => {
       try {
+        const data = parseSocketPayload(SocketConversationPayloadSchema, rawData);
         if (!(await requireDMParticipant(data.conversationId))) {
           emitDMError("FORBIDDEN", "You are not a participant in this DM");
           return;
@@ -1550,10 +1694,9 @@ export function initSocketServer(httpServer: HTTPServer) {
           Array.from(dmTypingConversations).map((conversationId) => stopDMTyping(conversationId)),
         );
 
-        const nextSocketCount = await redis.decr(getPresenceSocketsKey(userId));
+        const nextSocketCount = await removePresenceSocket(redis, userId, socket.id);
 
         if (nextSocketCount <= 0) {
-          await redis.del(getPresenceSocketsKey(userId));
           const presence = await cacheUserPresence(
             userId,
             "OFFLINE",

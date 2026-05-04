@@ -12,6 +12,10 @@ export default function MainError({
   reset: () => void;
 }) {
   const { t } = useI18n();
+  const description =
+    process.env.NODE_ENV === "development" && error.message
+      ? error.message
+      : t("errors.genericDescription");
 
   useEffect(() => {
     logError("[app] Main error boundary", error);
@@ -21,9 +25,7 @@ export default function MainError({
     <div className="flex h-screen items-center justify-center bg-app-background">
       <div className="text-center space-y-4">
         <p className="text-app-foreground text-sm font-semibold">{t("errors.genericTitle")}</p>
-        <p className="text-app-muted text-xs max-w-xs">
-          {error.message || t("errors.genericDescription")}
-        </p>
+        <p className="text-app-muted text-xs max-w-xs">{description}</p>
         <button
           onClick={reset}
           className="rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-medium text-[hsl(var(--primary-foreground))] transition hover:bg-[hsl(var(--primary)/0.9)]"

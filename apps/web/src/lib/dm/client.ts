@@ -1,13 +1,16 @@
 "use client";
 
+import type { InfiniteData } from "@tanstack/react-query";
 import {
   DMConversationDTOSchema,
   type DMConversationDTO,
 } from "@wizards/types";
 import type { FriendPresenceUpdateDto } from "@/lib/friends/types";
 import {
+  DMConversationsPageResponseSchema,
   DMConversationsResponseSchema,
   DMMessagesResponseSchema,
+  type DMConversationsPageResponse,
   type DMMessagesResponse,
 } from "@/lib/dm/types";
 import {
@@ -35,6 +38,8 @@ export const dmQueryKeys = {
   list: ["dm", "conversations"] as const,
   root: ["dm"] as const,
 };
+
+export type DMConversationsInfiniteData = InfiniteData<DMConversationsPageResponse>;
 
 async function requestJson<T>(url: string, options: RequestOptions = {}): Promise<T> {
   const { body, headers, ...init } = options;
@@ -97,6 +102,152 @@ export function upsertDMConversation(
   const nextConversations = conversations ?? [];
   const withoutCurrent = nextConversations.filter((item) => item.id !== conversation.id);
   return sortConversations([conversation, ...withoutCurrent]);
+}
+
+export function createDMConversationsInfiniteData(
+  conversations: DMConversationDTO[] = [],
+): DMConversationsInfiniteData {
+  return {
+    pageParams: [undefined],
+    pages: [
+      {
+        conversations: sortConversations(conversations),
+        nextCursor: null,
+      },
+    ],
+  };
+}
+
+export function flattenDMConversationPages(
+  data: DMConversationsInfiniteData | undefined,
+): DMConversationDTO[] {
+  if (!data) {
+    return [];
+  }
+
+  const conversationsById = new Map<string, DMConversationDTO>();
+  for (const page of data.pages) {
+    for (const conversation of page.conversations) {
+      conversationsById.set(conversation.id, conversation);
+    }
+  }
+
+  return sortConversations([...conversationsById.values()]);
+}
+
+export function upsertDMConversationPageData(
+  data: DMConversationsInfiniteData | undefined,
+  conversation: DMConversationDTO,
+): DMConversationsInfiniteData {
+  if (!data) {
+    return createDMConversationsInfiniteData([conversation]);
+  }
+
+  const pages = data.pages.map((page, index) => {
+    const conversationsWithoutCurrent = page.conversations.filter(
+      (item) => item.id !== conversation.id,
+    );
+
+    return {
+      ...page,
+      conversations:
+        index === 0
+          ? sortConversations([conversation, ...conversationsWithoutCurrent])
+          : conversationsWithoutCurrent,
+    };
+  });
+
+  return {
+    ...data,
+    pages,
+  };
+}
+
+export function removeDMConversationFromPageData(
+  data: DMConversationsInfiniteData | undefined,
+  conversationId: string,
+): DMConversationsInfiniteData | undefined {
+  if (!data) {
+    return data;
+  }
+
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      conversations: page.conversations.filter(
+        (conversation) => conversation.id !== conversationId,
+      ),
+    })),
+  };
+}
+
+export function markDMConversationAsReadInPageData(
+  data: DMConversationsInfiniteData | undefined,
+  conversationId: string,
+  currentUserId: string,
+): DMConversationsInfiniteData | undefined {
+  if (!data) {
+    return data;
+  }
+
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      conversations: page.conversations.map((conversation) =>
+        conversation.id === conversationId
+          ? withUnreadCount(conversation, currentUserId, 0)
+          : conversation,
+      ),
+    })),
+  };
+}
+
+export function applyDMConversationUpdateToPageData(
+  data: DMConversationsInfiniteData | undefined,
+  conversation: DMConversationDTO,
+  currentUserId: string,
+  activeConversationId: string | null,
+): DMConversationsInfiniteData {
+  const normalizedConversation =
+    activeConversationId === conversation.id
+      ? withUnreadCount(conversation, currentUserId, 0)
+      : conversation;
+
+  return upsertDMConversationPageData(data, normalizedConversation);
+}
+
+export function applyDMConversationPresenceUpdateToPageData(
+  data: DMConversationsInfiniteData | undefined,
+  update: FriendPresenceUpdateDto,
+): DMConversationsInfiniteData | undefined {
+  if (!data) {
+    return data;
+  }
+
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      conversations: page.conversations.map((conversation) => ({
+        ...conversation,
+        participants: conversation.participants.map((participant) =>
+          participant.userId === update.userId
+            ? {
+                ...participant,
+                status: update.status,
+                customStatus: update.customStatus,
+                presence: {
+                  status: update.status,
+                  customStatus: update.customStatus,
+                },
+              }
+            : participant,
+        ),
+      })),
+    })),
+  };
 }
 
 export function removeDMConversationFromCache(
@@ -207,6 +358,24 @@ export function getConversationPreview(
 export async function fetchDMConversations() {
   const payload = await requestJson<unknown>("/api/v1/dm");
   return DMConversationsResponseSchema.parse(payload);
+}
+
+export async function fetchDMConversationsPage(cursor?: string) {
+  const url = new URL("/api/v1/dm", window.location.origin);
+  url.searchParams.set("paginated", "1");
+  url.searchParams.set("limit", "50");
+
+  if (cursor) {
+    url.searchParams.set("cursor", cursor);
+  }
+
+  const payload = await requestJson<unknown>(url.toString());
+  return DMConversationsPageResponseSchema.parse(payload);
+}
+
+export async function fetchDMConversation(conversationId: string) {
+  const payload = await requestJson<unknown>(`/api/v1/dm/${conversationId}`);
+  return DMConversationDTOSchema.parse(payload);
 }
 
 export async function createDMConversationRequest(userId: string) {

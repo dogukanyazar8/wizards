@@ -18,6 +18,6 @@ app.prepare().then(() => {
   const httpServer = createServer(handler);
   initSocketServer(httpServer);
   httpServer.listen(PORT, () => {
-    console.log(`✅ Server running on http://localhost:${PORT}`);
+    console.info(`Server running on http://localhost:${PORT}`);
   });
 });

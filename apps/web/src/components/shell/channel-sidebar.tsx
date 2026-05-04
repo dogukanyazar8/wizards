@@ -45,6 +45,7 @@ import { Modal } from "@/components/ui/modal";
 import { ChannelItem } from "@/components/shell/channel-item";
 import { ChannelSidebarSkeleton } from "@/components/shell/shell-skeletons";
 import { NotificationBell } from "@/components/shared/notification-bell";
+import { AudioDeviceSelect } from "@/components/voice/audio-device-select";
 import { VoiceConnectionBar } from "@/components/voice/voice-connection-bar";
 import { useVoiceConnection } from "@/components/providers/voice-provider";
 import { cn } from "@/lib/utils";
@@ -354,6 +355,11 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
             >
               <Volume2 className={cn("h-4 w-4", isDeafened && "text-[hsl(var(--danger))]")} />
             </button>
+          </div>
+
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <AudioDeviceSelect kind="input" variant="compact" />
+            <AudioDeviceSelect kind="output" variant="compact" />
           </div>
         </div>
 

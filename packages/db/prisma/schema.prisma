@@ -419,6 +419,7 @@ model Server {
   @@index([name])
   @@index([inviteCode])
   @@index([ownerId])
+  @@index([discoverable])
 }
 
 model ServerMember {
@@ -439,6 +440,7 @@ model ServerMember {
   roles  MemberRole[] @relation("MemberToRole")
 
   @@unique([userId, serverId])
+  @@index([serverId, userId])
 }
 
 model Role {
@@ -565,6 +567,7 @@ model Channel {
   threadMessages      Message[]                   @relation("MessageThread")
 
   @@index([serverId])
+  @@index([serverId, type])
   @@index([type])
   @@index([name])
 }
@@ -614,6 +617,7 @@ model Message {
   content_search Unsupported("tsvector")? @map("content_search")
 
   @@index([channelId, createdAt])
+  @@index([channelId, threadId, createdAt])
   @@index([userId])
 }
 
@@ -652,6 +656,7 @@ model MessageMention {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId])
+  @@index([userId])
 }
 
 model Reaction {
@@ -667,6 +672,7 @@ model Reaction {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId, emoji])
+  @@index([messageId])
 }
 
 model PinnedMessage {
@@ -695,6 +701,7 @@ model ChannelReadState {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([channelId, userId])
+  @@index([userId, channelId, lastReadAt])
 }
 
 model UserChannelSettings {
@@ -742,6 +749,7 @@ model DMConversation {
   messages     DMMessage[]
 
   @@index([ownerId])
+  @@index([lastMessageAt])
 }
 
 model DMParticipant {
@@ -759,6 +767,7 @@ model DMParticipant {
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, userId])
+  @@index([userId, hiddenAt])
 }
 
 model DMMessage {

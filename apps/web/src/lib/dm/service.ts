@@ -10,7 +10,10 @@ import { ApiError } from "@/lib/api";
 import { areFriends, getBlockStatus } from "@/lib/friends/helpers";
 import { getRedis } from "@/lib/redis";
 import { normalizeAppLocale, translate } from "@/lib/locale";
-import type { DMMessagesResponse } from "./types";
+import type {
+  DMConversationsPageResponse,
+  DMMessagesResponse,
+} from "./types";
 
 export const dmAuthorSelect = {
   id: true,
@@ -120,6 +123,11 @@ type DMReactionRow = {
   emoji: string;
   messageId: string;
   userId: string;
+};
+
+type DMConversationPageRow = {
+  conversationId: string;
+  participantId: string;
 };
 
 const DM_PRESENCE_STATUSES = ["ONLINE", "IDLE", "DND", "OFFLINE", "INVISIBLE"] as const;
@@ -551,36 +559,106 @@ export async function createOrOpenDirectMessage(
   return await mapDMConversationDTO(conversation, userId, deletedMessageLabel);
 }
 
-export async function listDirectMessages(userId: string): Promise<DMConversationDTO[]> {
-  const [deletedMessageLabel, participations] = await Promise.all([
-    getDeletedMessageLabel(userId),
-    prisma.dMParticipant.findMany({
-      where: { userId },
-      include: {
-        conversation: {
-          include: dmConversationInclude,
+export async function listDirectMessages(
+  userId: string,
+  options: {
+    cursor?: string;
+    limit?: number;
+  } = {},
+): Promise<DMConversationsPageResponse> {
+  const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
+  const deletedMessageLabel = await getDeletedMessageLabel(userId);
+  let cursorSql = Prisma.sql``;
+
+  if (options.cursor) {
+    const cursorConversation = await prisma.dMConversation.findFirst({
+      where: {
+        id: options.cursor,
+        participants: {
+          some: {
+            userId,
+          },
         },
       },
-    }),
-  ]);
+      select: {
+        id: true,
+        lastMessageAt: true,
+      },
+    });
 
-  const visibleParticipations = participations
-    .filter(
-      (participant) =>
-        participant.hiddenAt === null ||
-        participant.conversation.lastMessageAt > participant.hiddenAt,
-    )
-    .sort(
-      (left, right) =>
-        right.conversation.lastMessageAt.getTime() -
-        left.conversation.lastMessageAt.getTime(),
-    );
+    if (!cursorConversation) {
+      throw new ApiError("Conversation not found", 404, "NOT_FOUND");
+    }
 
-  return Promise.all(
-    visibleParticipations.map((participant) =>
-      mapDMConversationDTO(participant.conversation, userId, deletedMessageLabel),
-    ),
+    cursorSql = Prisma.sql`
+      AND (
+        c."lastMessageAt" < ${cursorConversation.lastMessageAt}
+        OR (
+          c."lastMessageAt" = ${cursorConversation.lastMessageAt}
+          AND c."id" < ${cursorConversation.id}
+        )
+      )
+    `;
+  }
+
+  const rows = await prisma.$queryRaw<DMConversationPageRow[]>(Prisma.sql`
+    SELECT
+      p."id" AS "participantId",
+      p."conversationId" AS "conversationId"
+    FROM "DMParticipant" p
+    INNER JOIN "DMConversation" c
+      ON c."id" = p."conversationId"
+    WHERE p."userId" = ${userId}
+      AND (
+        p."hiddenAt" IS NULL
+        OR c."lastMessageAt" > p."hiddenAt"
+      )
+      ${cursorSql}
+    ORDER BY c."lastMessageAt" DESC, c."id" DESC
+    LIMIT ${limit + 1}
+  `);
+
+  const pageRows = rows.slice(0, limit);
+  const nextCursor = rows.length > limit ? pageRows.at(-1)?.conversationId ?? null : null;
+
+  if (pageRows.length === 0) {
+    return {
+      conversations: [],
+      nextCursor: null,
+    };
+  }
+
+  const participations = await prisma.dMParticipant.findMany({
+    where: {
+      id: {
+        in: pageRows.map((row) => row.participantId),
+      },
+    },
+    include: {
+      conversation: {
+        include: dmConversationInclude,
+      },
+    },
+  });
+
+  const participationById = new Map(
+    participations.map((participant) => [participant.id, participant]),
   );
+  const conversations = await Promise.all(
+    pageRows
+      .map((row) => participationById.get(row.participantId))
+      .filter((participant): participant is NonNullable<typeof participant> =>
+        Boolean(participant),
+      )
+      .map((participant) =>
+        mapDMConversationDTO(participant.conversation, userId, deletedMessageLabel),
+      ),
+  );
+
+  return {
+    conversations,
+    nextCursor,
+  };
 }
 
 export async function getDirectMessageConversationForUser(
@@ -696,6 +774,15 @@ export async function toggleDMReaction(
   userId: string,
   emoji: string,
 ): Promise<MessageReaction[]> {
+  return setDMReaction(messageId, userId, emoji, undefined);
+}
+
+export async function setDMReaction(
+  messageId: string,
+  userId: string,
+  emoji: string,
+  shouldReact: boolean | undefined,
+): Promise<MessageReaction[]> {
   const normalizedEmoji = validateDMReactionEmoji(emoji);
   const message = await prisma.dMMessage.findUnique({
     where: { id: messageId },
@@ -720,12 +807,12 @@ export async function toggleDMReaction(
     LIMIT 1
   `);
 
-  if (existing[0]) {
+  if (existing[0] && shouldReact !== true) {
     await prisma.$executeRaw(Prisma.sql`
       DELETE FROM "DMReaction"
       WHERE "id" = ${existing[0].id}
     `);
-  } else {
+  } else if (!existing[0] && shouldReact !== false) {
     await prisma.$executeRaw(Prisma.sql`
       INSERT INTO "DMReaction" ("id", "messageId", "userId", "emoji", "createdAt")
       VALUES (${randomUUID()}, ${messageId}, ${userId}, ${normalizedEmoji}, CURRENT_TIMESTAMP)
