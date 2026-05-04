@@ -20,6 +20,7 @@ import {
   cacheUserPresence,
   getUserPresenceBroadcast,
 } from "@/lib/friends/service";
+import { logError } from "@/lib/logger";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import {
   claimUploadedMessageAttachments,
@@ -29,6 +30,7 @@ import {
   parseUploadedAttachmentInputs,
 } from "@/lib/messages/attachments";
 import { getRedis, getRedisSub } from "@/lib/redis";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { setSocketServer } from "@/lib/socket/runtime";
 import {
   getVoiceScreenShareStateKey,
@@ -58,6 +60,12 @@ const CHANNEL_TYPING_EXPIRY = 3000;
 const DM_TYPING_EXPIRY = 3000;
 const TYPING_KEY_TTL_SECONDS = 10;
 const PRESENCE_SOCKET_PREFIX = "presence:sockets:";
+const DEFAULT_DEV_SOCKET_ORIGINS = [
+  "http://localhost:3000",
+  "http://localhost:8080",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:8080",
+];
 
 type NotificationRecord = {
   id: string;
@@ -87,6 +95,46 @@ type DMTypingEntry = {
 
 function getPresenceSocketsKey(userId: string) {
   return `${PRESENCE_SOCKET_PREFIX}${userId}`;
+}
+
+function getOrigin(value: string | undefined) {
+  if (!value?.trim()) {
+    return null;
+  }
+
+  try {
+    return new URL(value.trim()).origin;
+  } catch {
+    return null;
+  }
+}
+
+function getSocketAllowedOrigins() {
+  const configuredOrigins = (process.env.SOCKET_ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  const origins = [
+    ...configuredOrigins,
+    process.env.APP_URL,
+    process.env.AUTH_URL,
+    process.env.NEXTAUTH_URL,
+    ...(process.env.NODE_ENV === "production" ? [] : DEFAULT_DEV_SOCKET_ORIGINS),
+  ]
+    .map(getOrigin)
+    .filter((origin): origin is string => Boolean(origin));
+
+  return new Set(origins);
+}
+
+function isSocketOriginAllowed(origin: string | undefined, allowedOrigins: Set<string>) {
+  if (!origin) {
+    return true;
+  }
+
+  const normalizedOrigin = getOrigin(origin);
+  return Boolean(normalizedOrigin && allowedOrigins.has(normalizedOrigin));
 }
 
 function isRecord(value: Prisma.JsonValue | null): value is Prisma.JsonObject {
@@ -237,6 +285,7 @@ async function listServerIds(userId: string) {
 }
 
 export function initSocketServer(httpServer: HTTPServer) {
+  const allowedSocketOrigins = getSocketAllowedOrigins();
   const io = new Server<
     ClientToServerEvents,
     ServerToClientEvents,
@@ -244,7 +293,14 @@ export function initSocketServer(httpServer: HTTPServer) {
     SocketData
   >(httpServer, {
     cors: {
-      origin: process.env.NEXTAUTH_URL || "http://localhost:3000",
+      origin(origin, callback) {
+        if (isSocketOriginAllowed(origin, allowedSocketOrigins)) {
+          callback(null, true);
+          return;
+        }
+
+        callback(new Error("Socket origin is not allowed by this Whispr deployment."));
+      },
       credentials: true,
     },
   });
@@ -326,7 +382,7 @@ export function initSocketServer(httpServer: HTTPServer) {
           socket.join(`server:${serverId}`);
         }
       } catch (error) {
-        console.error("Server room join error:", error);
+        logError("[socket] Server room join error", error);
       }
     })();
 
@@ -352,7 +408,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         return;
       }
 
-      console.error(`[socket] ${code}`, error);
+      logError(`[socket] ${code}`, error);
       socket.emit("error", {
         code,
         message: fallbackMessage,
@@ -375,7 +431,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         return;
       }
 
-      console.error(`[socket] dm:${code}`, error);
+      logError(`[socket] dm:${code}`, error);
       emitDMError(code, fallbackMessage);
     };
 
@@ -575,7 +631,7 @@ export function initSocketServer(httpServer: HTTPServer) {
           await broadcastPresenceUpdateToFriends(presence);
         }
       } catch (error) {
-        console.error("Presence connect error:", error);
+        logError("[socket] Presence connect error", error);
       }
     })();
 
@@ -668,20 +724,21 @@ export function initSocketServer(httpServer: HTTPServer) {
     socket.on("message:send", async (data) => {
       try {
         try {
-          const key = `rate:msg:${userId}`;
-          const count = await redis.incr(key);
-          if (count === 1) {
-            await redis.expire(key, 60);
-          }
-          if (count > 30) {
+          const isAllowed = await checkRateLimit(redis, `rate:msg:${userId}`, 30, 60);
+          if (!isAllowed) {
             socket.emit("error", {
               code: "RATE_LIMIT",
               message: "Too many messages. Maximum 30 per minute.",
             });
             return;
           }
-        } catch {
-          // Allow message send if Redis is temporarily unavailable.
+        } catch (rateLimitError) {
+          logError("[socket] Message rate limit unavailable", rateLimitError);
+          socket.emit("error", {
+            code: "RATE_LIMIT_UNAVAILABLE",
+            message: "Message checks are temporarily unavailable. Please try again shortly.",
+          });
+          return;
         }
 
         const channel = await prisma.channel.findUnique({
@@ -784,15 +841,7 @@ export function initSocketServer(httpServer: HTTPServer) {
     socket.on("message:edit", async (data) => {
       try {
         const message = await editMessage(data.messageId, userId, data.content);
-
-        const dbMessage = await prisma.message.findUnique({
-          where: { id: data.messageId },
-          select: { channelId: true },
-        });
-
-        if (dbMessage) {
-          io.to(dbMessage.channelId).emit("message:updated", message);
-        }
+        io.to(message.channelId).emit("message:updated", message);
       } catch (error) {
         emitSocketError("MESSAGE_EDIT_ERROR", "Unable to edit message.", error);
       }
@@ -1062,17 +1111,23 @@ export function initSocketServer(httpServer: HTTPServer) {
         }
 
         try {
-          const key = `rate:dm:${userId}:${data.conversationId}`;
-          const count = await redis.incr(key);
-          if (count === 1) {
-            await redis.expire(key, 60);
-          }
-          if (count > 30) {
+          const isAllowed = await checkRateLimit(
+            redis,
+            `rate:dm:${userId}:${data.conversationId}`,
+            30,
+            60,
+          );
+          if (!isAllowed) {
             emitDMError("RATE_LIMITED", "Too many DM messages. Maximum 30 per minute.");
             return;
           }
-        } catch {
-          // Allow message send if Redis is temporarily unavailable.
+        } catch (rateLimitError) {
+          logError("[socket] DM message rate limit unavailable", rateLimitError);
+          emitDMError(
+            "RATE_LIMITED",
+            "Message checks are temporarily unavailable. Please try again shortly.",
+          );
+          return;
         }
 
         let attachmentInputs: UploadedAttachmentInput[];
@@ -1271,7 +1326,7 @@ export function initSocketServer(httpServer: HTTPServer) {
             );
           }
         } catch (notificationError) {
-          console.error("DM notification error:", notificationError);
+          logError("[socket] DM notification error", notificationError);
         }
 
         await stopDMTyping(data.conversationId);
@@ -1509,7 +1564,7 @@ export function initSocketServer(httpServer: HTTPServer) {
           }
         }
       } catch (error) {
-        console.error("Disconnect cleanup error:", error);
+        logError("[socket] Disconnect cleanup error", error);
       }
     });
   });

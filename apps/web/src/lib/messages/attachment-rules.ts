@@ -34,6 +34,24 @@ const MESSAGE_FILE_CONTENT_TYPE_SET = new Set<string>(MESSAGE_FILE_CONTENT_TYPES
 const MESSAGE_ATTACHMENT_CONTENT_TYPE_SET = new Set<string>(
   MESSAGE_ATTACHMENT_CONTENT_TYPES,
 );
+const MESSAGE_ATTACHMENT_EXTENSIONS_BY_TYPE = new Map<string, string[]>([
+  ["application/pdf", [".pdf"]],
+  ["application/msword", [".doc"]],
+  ["application/rtf", [".rtf"]],
+  ["application/vnd.ms-excel", [".xls"]],
+  ["application/vnd.ms-powerpoint", [".ppt"]],
+  ["application/vnd.openxmlformats-officedocument.presentationml.presentation", [".pptx"]],
+  ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", [".xlsx"]],
+  ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", [".docx"]],
+  ["image/gif", [".gif"]],
+  ["image/jpeg", [".jpg", ".jpeg"]],
+  ["image/png", [".png"]],
+  ["image/webp", [".webp"]],
+  ["text/csv", [".csv"]],
+  ["text/markdown", [".md", ".markdown"]],
+  ["text/plain", [".txt"]],
+]);
+const UNSAFE_FILENAME_PATTERN = /[\u0000-\u001f\u007f<>:"/\\|?*]/g;
 
 export const MESSAGE_ATTACHMENT_ACCEPT = [
   ...MESSAGE_ATTACHMENT_CONTENT_TYPES,
@@ -68,6 +86,38 @@ export function isMessageFileContentType(
 
 export function isSupportedMessageAttachmentContentType(contentType: string) {
   return MESSAGE_ATTACHMENT_CONTENT_TYPE_SET.has(contentType);
+}
+
+export function normalizeMessageAttachmentFilename(filename: string) {
+  const normalized = filename
+    .split(/[/\\]/)
+    .pop()
+    ?.replace(UNSAFE_FILENAME_PATTERN, "_")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!normalized) {
+    return "attachment";
+  }
+
+  return normalized.slice(0, 180);
+}
+
+export function isMessageAttachmentFilenameAllowed(contentType: string, filename: string) {
+  const allowedExtensions = MESSAGE_ATTACHMENT_EXTENSIONS_BY_TYPE.get(contentType);
+  if (!allowedExtensions) {
+    return false;
+  }
+
+  const normalizedFilename = normalizeMessageAttachmentFilename(filename).toLowerCase();
+  const lastDotIndex = normalizedFilename.lastIndexOf(".");
+
+  if (lastDotIndex === -1) {
+    return isMessageImageContentType(contentType);
+  }
+
+  const extension = normalizedFilename.slice(lastDotIndex);
+  return allowedExtensions.includes(extension);
 }
 
 export function getMessageAttachmentMaxBytes(contentType: string) {

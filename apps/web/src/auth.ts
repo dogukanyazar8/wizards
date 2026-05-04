@@ -418,7 +418,7 @@ const authConfig = {
     maxAge: 60 * 60 * 24 * 7,
   },
   jwt: {
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: 60 * 60 * 24 * 7,
   },
   cookies: {
     sessionToken: {
@@ -533,6 +533,8 @@ const authConfig = {
     Google({
       clientId: getEnvValue("GOOGLE_CLIENT_ID", "AUTH_GOOGLE_ID"),
       clientSecret: getEnvValue("GOOGLE_CLIENT_SECRET", "AUTH_GOOGLE_SECRET"),
+      // Google email auto-linking is only accepted by the signIn callback after
+      // provider email verification and local user status checks pass.
       allowDangerousEmailAccountLinking: true,
       profile(profile) {
         const email = typeof profile.email === "string" ? profile.email : null;
@@ -556,7 +558,28 @@ const authConfig = {
   callbacks: {
     async signIn({ account, profile }) {
       if (account?.provider === "google") {
-        return isGoogleEmailVerified(profile);
+        if (!isGoogleEmailVerified(profile)) {
+          return false;
+        }
+
+        const email =
+          typeof profile === "object" &&
+          profile !== null &&
+          "email" in profile &&
+          typeof (profile as { email?: unknown }).email === "string"
+            ? normalizeAuthEmail((profile as { email: string }).email)
+            : "";
+
+        if (!email) {
+          return false;
+        }
+
+        const existingUser = await prisma.user.findUnique({
+          where: { email },
+          select: { emailVerified: true, isBanned: true },
+        });
+
+        return !existingUser || (existingUser.emailVerified && !existingUser.isBanned);
       }
 
       return true;

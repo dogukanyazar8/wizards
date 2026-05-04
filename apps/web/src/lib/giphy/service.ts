@@ -3,6 +3,7 @@ import { prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { getRedis } from "@/lib/redis";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { logError } from "@/lib/logger";
 import { MESSAGE_GIF_MAX_BYTES } from "@/lib/messages/attachment-rules";
 
 const GIPHY_API_BASE = "https://api.giphy.com/v1/gifs";
@@ -160,7 +161,12 @@ async function enforceGiphyRateLimit(userId: string) {
     if (error instanceof ApiError) {
       throw error;
     }
-    // GIF search should remain available if Redis has a short outage.
+    logError("[giphy] Rate limit unavailable", error);
+    throw new ApiError(
+      "GIF checks are temporarily unavailable. Please try again shortly.",
+      503,
+      "RATE_LIMIT_UNAVAILABLE",
+    );
   }
 }
 

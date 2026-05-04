@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useI18n } from "@/components/providers/locale-provider";
+import { logError } from "@/lib/logger";
 
 export default function MainError({
   error,
@@ -13,7 +14,7 @@ export default function MainError({
   const { t } = useI18n();
 
   useEffect(() => {
-    console.error(error);
+    logError("[app] Main error boundary", error);
   }, [error]);
 
   return (

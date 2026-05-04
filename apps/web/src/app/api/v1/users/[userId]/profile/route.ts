@@ -11,7 +11,7 @@ type RouteContext = {
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    await requireApiUserId();
+    const requesterId = await requireApiUserId();
     const { userId } = await context.params;
 
     const user = await prisma.user.findUnique({
@@ -37,6 +37,20 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const serverId = request.nextUrl.searchParams.get("serverId");
 
     if (serverId) {
+      const requesterMember = await prisma.serverMember.findFirst({
+        where: {
+          serverId,
+          userId: requesterId,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!requesterMember) {
+        throw new ApiError("Server profile not found", 404);
+      }
+
       const member = await prisma.serverMember.findFirst({
         where: {
           userId,

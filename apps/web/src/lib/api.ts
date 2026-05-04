@@ -1,5 +1,8 @@
 import { type ZodSchema } from "zod";
 import { ZodError } from "zod";
+import { logError } from "@/lib/logger";
+
+const MAX_JSON_BODY_BYTES = 1_048_576;
 
 export class ApiError extends Error {
   constructor(
@@ -27,19 +30,67 @@ export function jsonError(error: unknown) {
     );
   }
 
-  console.error("[api] Unhandled error", error);
+  logError("[api] Unhandled error", error);
   return Response.json({ error: "Internal server error" }, { status: 500 });
+}
+
+async function readJsonBodyWithLimit(request: Request) {
+  const contentLengthHeader = request.headers.get("content-length");
+  const contentLength = contentLengthHeader ? Number(contentLengthHeader) : 0;
+
+  if (Number.isFinite(contentLength) && contentLength > MAX_JSON_BODY_BYTES) {
+    throw new ApiError("Request body too large", 413);
+  }
+
+  if (!request.body) {
+    return {};
+  }
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let receivedBytes = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    receivedBytes += value.byteLength;
+    if (receivedBytes > MAX_JSON_BODY_BYTES) {
+      throw new ApiError("Request body too large", 413);
+    }
+
+    chunks.push(value);
+  }
+
+  if (receivedBytes === 0) {
+    return {};
+  }
+
+  const buffer = new Uint8Array(receivedBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    buffer.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  const text = new TextDecoder().decode(buffer).trim();
+  if (!text) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new ApiError("Invalid request body", 400);
+  }
 }
 
 export async function parseJsonBody<TSchema extends ZodSchema>(
   request: Request,
   schema: TSchema,
 ): Promise<ReturnType<TSchema["parse"]>> {
-  const contentLength = Number(request.headers.get("content-length") ?? "0");
-  if (Number.isFinite(contentLength) && contentLength > 1_048_576) {
-    throw new ApiError("Request body too large", 413);
-  }
-
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonBodyWithLimit(request);
   return schema.parse(body);
 }

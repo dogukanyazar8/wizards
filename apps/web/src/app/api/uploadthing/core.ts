@@ -4,10 +4,13 @@ import { auth } from "@/auth";
 import { prisma } from "@wizards/db";
 import {
   getMessageAttachmentMaxBytes,
+  isMessageAttachmentFilenameAllowed,
   isSupportedMessageAttachmentContentType,
+  normalizeMessageAttachmentFilename,
 } from "@/lib/messages/attachments";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRedis } from "@/lib/redis";
+import { logError } from "@/lib/logger";
 
 const f = createUploadthing();
 
@@ -40,7 +43,8 @@ async function requireMessageUploadUser() {
     if (error instanceof UploadThingError) {
       throw error;
     }
-    // Uploads should not hard-fail because Redis is temporarily unavailable.
+    logError("[upload] Message attachment rate limit unavailable", error);
+    throw new UploadThingError("Upload checks are temporarily unavailable. Please try again shortly.");
   }
 
   return { userId };
@@ -62,6 +66,7 @@ async function createMessageAttachment({
 
   if (
     !isSupportedMessageAttachmentContentType(file.type) ||
+    !isMessageAttachmentFilenameAllowed(file.type, file.name) ||
     file.size <= 0 ||
     file.size > maxBytes
   ) {
@@ -72,7 +77,7 @@ async function createMessageAttachment({
     data: {
       userId: metadata.userId,
       url: file.ufsUrl,
-      filename: file.name,
+      filename: normalizeMessageAttachmentFilename(file.name),
       contentType: file.type,
       size: file.size,
     },
@@ -113,7 +118,8 @@ export const uploadRouter: FileRouter = {
         if (error instanceof UploadThingError) {
           throw error;
         }
-        // Uploads should not hard-fail because Redis is temporarily unavailable.
+        logError("[upload] Server icon rate limit unavailable", error);
+        throw new UploadThingError("Upload checks are temporarily unavailable. Please try again shortly.");
       }
 
       return { userId };

@@ -37,6 +37,22 @@ function getTurnstileSecret() {
   return secret;
 }
 
+function getExpectedHostnames() {
+  return [process.env.APP_URL, process.env.AUTH_URL, process.env.NEXTAUTH_URL]
+    .map((value) => {
+      if (!value?.trim()) {
+        return null;
+      }
+
+      try {
+        return new URL(value.trim()).hostname.toLowerCase();
+      } catch {
+        return null;
+      }
+    })
+    .filter((hostname): hostname is string => Boolean(hostname));
+}
+
 export async function verifyTurnstileToken(token: string, remoteIp?: string) {
   const normalizedToken = token.trim();
   if (!normalizedToken) {
@@ -92,6 +108,18 @@ export async function verifyTurnstileToken(token: string, remoteIp?: string) {
     throw new TurnstileVerificationError(
       "ACTION_MISMATCH",
       "Turnstile action mismatch.",
+    );
+  }
+
+  const expectedHostnames = getExpectedHostnames();
+  if (
+    result.hostname &&
+    expectedHostnames.length > 0 &&
+    !expectedHostnames.includes(result.hostname.toLowerCase())
+  ) {
+    throw new TurnstileVerificationError(
+      "ACTION_MISMATCH",
+      "Turnstile hostname mismatch.",
     );
   }
 

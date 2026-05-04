@@ -21,10 +21,12 @@ export {
   MESSAGE_IMAGE_CONTENT_TYPES,
   MESSAGE_IMAGE_MAX_BYTES,
   getMessageAttachmentMaxBytes,
+  isMessageAttachmentFilenameAllowed,
   isMessageFileContentType,
   isMessageGifContentType,
   isMessageImageContentType,
   isSupportedMessageAttachmentContentType,
+  normalizeMessageAttachmentFilename,
 } from "./attachment-rules";
 
 const UploadedAttachmentsSchema = z

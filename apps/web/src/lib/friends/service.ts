@@ -6,6 +6,7 @@ import { normalizeAppLocale, translate } from "@/lib/locale";
 import { getBlockStatus, getFriendship } from "@/lib/friends/helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getSocketServer } from "@/lib/socket/runtime";
+import { logError } from "@/lib/logger";
 import type {
   BlockStatus,
   FriendDto,
@@ -568,7 +569,12 @@ export async function sendFriendRequest(
     if (error instanceof ApiError) {
       throw error;
     }
-    // Fail open if Redis is temporarily unavailable.
+    logError("[friends] Rate limit unavailable", error);
+    throw new ApiError(
+      "Friend request checks are temporarily unavailable. Please try again shortly.",
+      503,
+      "RATE_LIMIT_UNAVAILABLE",
+    );
   }
 
   const [sender, receiver] = await Promise.all([

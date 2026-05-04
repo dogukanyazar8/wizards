@@ -254,17 +254,40 @@ export async function editMessage(
 ): Promise<ChatMessage> {
   const existing = await prisma.message.findUnique({
     where: { id: messageId },
-    select: { userId: true },
+    select: {
+      channel: {
+        select: { serverId: true },
+      },
+      deletedAt: true,
+      userId: true,
+    },
   });
 
-  if (!existing || existing.userId !== userId) {
+  if (!existing || !existing.channel.serverId || existing.deletedAt || existing.userId !== userId) {
+    throw new ApiError("Cannot edit this message", 403);
+  }
+
+  const member = await prisma.serverMember.findFirst({
+    where: { serverId: existing.channel.serverId, userId },
+    select: { id: true },
+  });
+
+  if (!member) {
     throw new ApiError("Cannot edit this message", 403);
   }
 
   const nextContent = validateEditableMessageContent(content);
-  const message = await prisma.message.update({
-    where: { id: messageId },
+  const updateResult = await prisma.message.updateMany({
+    where: { id: messageId, userId, deletedAt: null },
     data: { content: nextContent, editedAt: new Date() },
+  });
+
+  if (updateResult.count !== 1) {
+    throw new ApiError("Cannot edit this message", 403);
+  }
+
+  const message = await prisma.message.findUniqueOrThrow({
+    where: { id: messageId },
     include: messageInclude,
   }) as RawMessage;
 

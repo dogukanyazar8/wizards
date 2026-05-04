@@ -7,6 +7,7 @@ import { normalizeAppLocale } from "@/lib/locale";
 import { persistUserLocale } from "@/lib/locale/persistence";
 import { getRedis } from "@/lib/redis";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { logError } from "@/lib/logger";
 import {
   EmailVerificationError,
   sendVerificationEmail,
@@ -72,9 +73,12 @@ async function sendVerificationEmailWithRateLimit(input: {
         error: "auth.emailVerification.rateLimited",
       } as const;
     }
-  } catch {
-    // Email verification is security-sensitive, but Redis outages should not
-    // prevent a newly-created account from receiving its first verification link.
+  } catch (error) {
+    logError("[auth] Email verification rate limit unavailable", error);
+    return {
+      success: false,
+      error: "auth.emailVerification.sendFailed",
+    } as const;
   }
 
   try {
@@ -134,9 +138,9 @@ async function checkVerificationResendRateLimit(input: {
     ]);
 
     return cooldownAllowed && emailAllowed && ipAllowed;
-  } catch {
-    // Fail open if Redis is temporarily unavailable.
-    return true;
+  } catch (error) {
+    logError("[auth] Verification resend rate limit unavailable", error);
+    return false;
   }
 }
 
@@ -175,8 +179,12 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
         error: "auth.register.rateLimited",
       };
     }
-  } catch {
-    // Fail open if Redis is temporarily unavailable.
+  } catch (error) {
+    logError("[auth] Registration rate limit unavailable", error);
+    return {
+      success: false,
+      error: "auth.register.alertUnavailable",
+    };
   }
 
   try {
@@ -323,8 +331,12 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
         error: "auth.login.rateLimited",
       };
     }
-  } catch {
-    // Fail open if Redis is temporarily unavailable.
+  } catch (error) {
+    logError("[auth] Login rate limit unavailable", error);
+    return {
+      success: false,
+      error: "auth.login.alertUnavailable",
+    };
   }
 
   const user = await prisma.user.findUnique({
