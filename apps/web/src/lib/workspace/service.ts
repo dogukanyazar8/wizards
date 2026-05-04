@@ -12,6 +12,7 @@ import type {
   CreateInviteInput,
   CreateServerInput,
   DeleteServerInput,
+  UpdateCategoryInput,
   UpdateChannelInput,
   UpdateServerInput,
   WorkspaceAccessLevel,
@@ -24,6 +25,7 @@ import type {
 } from "@wizards/types";
 import { ApiError } from "@/lib/api";
 import { normalizeAppLocale, translate } from "@/lib/locale";
+import { getRedis } from "@/lib/redis";
 import type { NotificationSocketPayload } from "@/lib/socket/events";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { getMessageById } from "@/lib/workspace/message-service";
@@ -71,6 +73,8 @@ type ChannelRecord = {
   type: ChannelType;
 };
 
+type WorkspacePresenceStatus = "ONLINE" | "IDLE" | "DND" | "OFFLINE";
+
 function toWorkspaceChannel(channel: ChannelRecord): WorkspaceChannel {
   return {
     categoryId: channel.categoryId,
@@ -105,6 +109,74 @@ function normalizeChannelName(value: string) {
     .replace(/[^a-z0-9-]/g, "")
     .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function normalizeWorkspacePresenceStatus(value: unknown): WorkspacePresenceStatus | null {
+  if (value === "ONLINE" || value === "IDLE" || value === "DND") {
+    return value;
+  }
+
+  if (value === "OFFLINE" || value === "INVISIBLE") {
+    return "OFFLINE";
+  }
+
+  return null;
+}
+
+async function readWorkspacePresence(user: {
+  customStatus: string | null;
+  id: string;
+  status: string;
+}): Promise<{
+  customStatus: string | null;
+  status: WorkspacePresenceStatus;
+}> {
+  const fallback = {
+    customStatus: user.customStatus,
+    status: "OFFLINE" as const,
+  };
+
+  try {
+    const redis = getRedis();
+    const key = `presence:${user.id}`;
+    const keyType = await redis.type(key);
+
+    if (keyType === "hash") {
+      const record = await redis.hgetall(key);
+      return {
+        customStatus: record.customStatus || user.customStatus,
+        status: normalizeWorkspacePresenceStatus(record.status) ?? fallback.status,
+      };
+    }
+
+    if (keyType === "string") {
+      const raw = await redis.get(key);
+      if (!raw) {
+        return fallback;
+      }
+
+      const parsed = JSON.parse(raw) as {
+        customStatus?: unknown;
+        status?: unknown;
+      };
+
+      return {
+        customStatus:
+          typeof parsed.customStatus === "string" && parsed.customStatus.length > 0
+            ? parsed.customStatus
+            : user.customStatus,
+        status: normalizeWorkspacePresenceStatus(parsed.status) ?? fallback.status,
+      };
+    }
+  } catch {
+    const storedStatus = normalizeWorkspacePresenceStatus(user.status);
+    return {
+      customStatus: user.customStatus,
+      status: storedStatus ?? fallback.status,
+    };
+  }
+
+  return fallback;
 }
 
 function looksLikeAdmin(role: RoleRecord) {
@@ -248,7 +320,7 @@ function mapServerSummary(args: {
   };
 }
 
-function mapMembers(
+async function mapMembers(
   ownerId: string,
   members: Array<{
     id: string;
@@ -258,18 +330,21 @@ function mapMembers(
     }>;
     user: {
       avatarUrl: string | null;
+      customStatus: string | null;
       displayName: string | null;
       id: string;
+      status: string;
       username: string;
     };
   }>,
-): WorkspaceMember[] {
-  return members.map((member) => {
+): Promise<WorkspaceMember[]> {
+  return Promise.all(members.map(async (member) => {
     const roles = member.roles.map((entry) => ({
       color: entry.role.color,
       id: entry.role.id,
       name: entry.role.name,
     }));
+    const presence = await readWorkspacePresence(member.user);
 
     return {
       accessLevel: deriveAccessLevel(
@@ -278,13 +353,15 @@ function mapMembers(
         member.roles.map((entry) => entry.role),
       ),
       avatarUrl: member.user.avatarUrl,
+      customStatus: presence.customStatus,
       displayName: getDisplayName(member.user, member.nickname),
       id: member.id,
       roles,
+      status: presence.status,
       userId: member.user.id,
       username: member.user.username,
     };
-  });
+  }));
 }
 
 function mapInvites(
@@ -507,8 +584,10 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
             user: {
               select: {
                 avatarUrl: true,
+                customStatus: true,
                 displayName: true,
                 id: true,
+                status: true,
                 username: true,
               },
             },
@@ -558,10 +637,12 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
     ungroupedChannels,
   });
 
+  const members = await mapMembers(server.ownerId, server.members);
+
   return {
     categories,
     invites: mapInvites(invites),
-    members: mapMembers(server.ownerId, server.members),
+    members,
     server: {
       accessLevel: access.accessLevel,
       allowFileUploads: mediaSettings.allowFileUploads,
@@ -661,10 +742,10 @@ export async function createWorkspaceServer(userId: string, input: CreateServerI
     const generalChannel = await tx.channel.create({
       data: {
         categoryId: lobby.id,
-        name: "general",
+        name: "welcome-chat",
         position: 0,
         serverId: server.id,
-        topic: "Start the conversation here.",
+        topic: "Start the conversation and share the first update here.",
         type: ChannelType.TEXT,
       },
       select: {
@@ -675,7 +756,7 @@ export async function createWorkspaceServer(userId: string, input: CreateServerI
     await tx.channel.create({
       data: {
         categoryId: lobby.id,
-        name: "voice-lounge",
+        name: "live-room",
         position: 1,
         serverId: server.id,
         type: ChannelType.VOICE,
@@ -793,6 +874,11 @@ export async function leaveWorkspaceServer(userId: string, serverId: string) {
       },
     },
   });
+
+  const io = getSocketServer();
+  io?.to(`server:${serverId}`).emit("server:settings:updated", { serverId });
+  io?.to(`user:${userId}`).emit("server:settings:updated", { serverId });
+  await emitServerUnreadUpdatesForServer(serverId);
 }
 
 export async function createWorkspaceCategory(userId: string, serverId: string, input: CreateCategoryInput) {
@@ -811,7 +897,7 @@ export async function createWorkspaceCategory(userId: string, serverId: string, 
     },
   });
 
-  return prisma.channelCategory.create({
+  const category = await prisma.channelCategory.create({
     data: {
       name: input.name.trim().toUpperCase(),
       position: (lastCategory?.position ?? -1) + 1,
@@ -821,6 +907,97 @@ export async function createWorkspaceCategory(userId: string, serverId: string, 
       id: true,
     },
   });
+
+  getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
+    serverId,
+  });
+
+  return category;
+}
+
+export async function updateWorkspaceCategory(
+  userId: string,
+  serverId: string,
+  categoryId: string,
+  input: UpdateCategoryInput,
+) {
+  const access = await getAccessContext(userId, serverId);
+  ensureAdmin(access);
+
+  const category = await prisma.channelCategory.findFirst({
+    where: {
+      id: categoryId,
+      serverId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!category) {
+    throw new ApiError("Category not found", 404, "NOT_FOUND");
+  }
+
+  await prisma.channelCategory.update({
+    where: {
+      id: categoryId,
+    },
+    data: {
+      name: input.name.trim().toUpperCase(),
+    },
+  });
+
+  getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
+    serverId,
+  });
+
+  return { success: true as const };
+}
+
+export async function deleteWorkspaceCategory(
+  userId: string,
+  serverId: string,
+  categoryId: string,
+) {
+  const access = await getAccessContext(userId, serverId);
+  ensureAdmin(access);
+
+  const category = await prisma.channelCategory.findFirst({
+    where: {
+      id: categoryId,
+      serverId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!category) {
+    throw new ApiError("Category not found", 404, "NOT_FOUND");
+  }
+
+  await prisma.$transaction([
+    prisma.channel.updateMany({
+      where: {
+        categoryId,
+        serverId,
+      },
+      data: {
+        categoryId: null,
+      },
+    }),
+    prisma.channelCategory.delete({
+      where: {
+        id: categoryId,
+      },
+    }),
+  ]);
+
+  getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
+    serverId,
+  });
+
+  return { success: true as const };
 }
 
 export async function createWorkspaceChannel(userId: string, serverId: string, input: CreateChannelInput) {
@@ -1472,6 +1649,11 @@ export async function kickWorkspaceMember(userId: string, serverId: string, memb
       id: member.id,
     },
   });
+
+  const io = getSocketServer();
+  io?.to(`server:${serverId}`).emit("server:settings:updated", { serverId });
+  io?.to(`user:${member.userId}`).emit("server:settings:updated", { serverId });
+  await emitServerUnreadUpdatesForServer(serverId);
 }
 
 export async function joinWorkspaceServerByInvite(userId: string, code: string) {
@@ -1600,7 +1782,7 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
         const message = await tx.message.create({
           data: {
             channelId: targetChannelId,
-            content: `${joiningUser?.displayName ?? joiningUser?.username ?? "A new wizard"} joined the server.`,
+            content: `${joiningUser?.displayName ?? joiningUser?.username ?? "A new Whispr user"} joined the server.`,
             type: MessageType.SYSTEM_JOIN,
             userId,
           },
@@ -1640,6 +1822,22 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
         getSocketServer()?.to(transactionResult.message.channelId).emit("message:new", message);
       }
       await emitServerUnreadUpdatesForServer(invite.server.id);
+    }
+
+    const io = getSocketServer();
+
+    if (io) {
+      const sockets = await io.in(`user:${userId}`).fetchSockets();
+      for (const socket of sockets) {
+        socket.join(`server:${invite.server.id}`);
+      }
+
+      io.to(`server:${invite.server.id}`).emit("server:settings:updated", {
+        serverId: invite.server.id,
+      });
+      io.to(`user:${userId}`).emit("server:settings:updated", {
+        serverId: invite.server.id,
+      });
     }
   }
 

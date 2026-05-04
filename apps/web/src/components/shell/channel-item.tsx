@@ -42,12 +42,15 @@ export function ChannelItem({
     <div className="min-w-0 max-w-full overflow-hidden">
       <div
         className={cn(
-          "group flex min-w-0 max-w-full items-center gap-1.5 overflow-hidden rounded-2xl px-2 py-1.5 transition sm:gap-2",
+          "group relative flex min-w-0 max-w-full items-center gap-1.5 overflow-hidden rounded-[22px] border px-2 py-1.5 transition sm:gap-2",
           active
-            ? "bg-[hsl(var(--primary)/0.16)] text-[hsl(var(--foreground))]"
-            : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-[hsl(var(--foreground))]",
+            ? "border-[hsl(var(--primary)/0.28)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.18),hsl(var(--surface-card)/0.72))] text-[hsl(var(--foreground))] shadow-[0_14px_30px_hsl(var(--primary)/0.08)]"
+            : "border-transparent text-app-muted hover:border-[hsl(var(--border)/0.56)] hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-[hsl(var(--foreground))]",
         )}
       >
+        {active ? (
+          <span className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-[hsl(var(--primary))]" />
+        ) : null}
         <button
           aria-current={active ? "page" : undefined}
           aria-label={t(
@@ -56,7 +59,7 @@ export function ChannelItem({
               : "shell.channelItem.openTextChannel",
             { name },
           )}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)]"
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl px-2 py-1.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)]"
           onClick={onSelect}
           onFocus={onPrefetch}
           onKeyDown={(event) => {
@@ -67,11 +70,20 @@ export function ChannelItem({
           onMouseEnter={onPrefetch}
           type="button"
         >
-          <Icon className="h-4 w-4 shrink-0" />
-          <span className="min-w-0 truncate text-sm font-medium">{name}</span>
+          <span
+            className={cn(
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border transition",
+              active
+                ? "border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]"
+                : "border-[hsl(var(--border)/0.42)] bg-[hsl(var(--surface-card)/0.38)] text-app-soft group-hover:text-app-foreground",
+            )}
+          >
+            <Icon className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 truncate text-sm font-semibold tracking-[-0.01em]">{name}</span>
           {type === "VOICE" ? (
             <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-              <span className="text-[11px] font-semibold text-app-soft">
+              <span className="rounded-full border border-[hsl(var(--border)/0.55)] bg-[hsl(var(--surface-card)/0.42)] px-2 py-0.5 text-[11px] font-semibold text-app-soft">
                 {participantCount}/10
               </span>
               {previewParticipants.length > 0 ? (
@@ -100,7 +112,7 @@ export function ChannelItem({
           <div className="hidden items-center gap-1 opacity-0 transition group-hover:opacity-100 sm:flex">
             <button
               aria-label={t("shell.channelItem.edit", { name })}
-              className="text-app-muted rounded-lg p-1.5 transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-[hsl(var(--foreground))]"
+              className="text-app-muted rounded-xl p-1.5 transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-[hsl(var(--foreground))]"
               onClick={onEdit}
               type="button"
             >
@@ -108,7 +120,7 @@ export function ChannelItem({
             </button>
             <button
               aria-label={t("shell.channelItem.delete", { name })}
-              className="text-app-muted rounded-lg p-1.5 transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger-foreground))]"
+              className="text-app-muted rounded-xl p-1.5 transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger))]"
               onClick={onDelete}
               type="button"
             >

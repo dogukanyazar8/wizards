@@ -116,7 +116,7 @@ export default function RegisterPage() {
         </div>
 
         <div
-          className="rounded-[30px] border border-[hsl(var(--success)/0.28)] bg-[linear-gradient(135deg,hsl(var(--success)/0.12),hsl(var(--surface-card)/0.58))] p-5 shadow-[0_24px_60px_hsl(var(--shadow-color)/0.08)]"
+          className="auth-form-card rounded-[30px] border border-[hsl(var(--success)/0.28)] p-5"
           role="status"
         >
           <div className="flex items-start gap-4">
@@ -134,7 +134,7 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        <div className="space-y-3 rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.38)] p-4">
+        <div className="auth-form-card space-y-3 rounded-[28px] border p-4">
           <p className="text-app-muted text-sm leading-6">
             {t("auth.emailVerification.resendHelp")}
           </p>
@@ -190,7 +190,7 @@ export default function RegisterPage() {
       </div>
 
       <form
-        className="space-y-5 rounded-[30px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.42)] p-5 shadow-[0_24px_60px_hsl(var(--shadow-color)/0.08)]"
+        className="auth-form-card space-y-5 rounded-[30px] border p-5"
         onSubmit={handleSubmit(onSubmit)}
         noValidate
       >
@@ -203,7 +203,7 @@ export default function RegisterPage() {
             type="email"
             autoComplete="email"
             className="app-input h-12 w-full rounded-2xl border px-4 text-sm transition"
-            placeholder="you@wizards.app"
+            placeholder="you@whispr.team"
             {...register("email")}
           />
           {errors.email ? <p className="text-app-danger text-xs">{t(errors.email.message ?? "")}</p> : null}
@@ -218,7 +218,7 @@ export default function RegisterPage() {
             type="text"
             autoComplete="username"
             className="app-input h-12 w-full rounded-2xl border px-4 text-sm transition"
-            placeholder="wizard_user"
+            placeholder="whispr_user"
             {...register("username")}
           />
           <p className="text-app-soft text-xs">{t("auth.register.usernameHint")}</p>

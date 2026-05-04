@@ -48,7 +48,9 @@ export const WorkspaceMemberSchema = z.object({
   userId: z.string(),
   accessLevel: WorkspaceAccessLevelSchema,
   avatarUrl: z.string().nullable(),
+  customStatus: z.string().nullable(),
   displayName: z.string(),
+  status: z.enum(["ONLINE", "IDLE", "DND", "OFFLINE"]),
   username: z.string(),
   roles: z.array(RoleBadgeSchema),
 });
@@ -196,7 +198,7 @@ export const ReorderChannelsSchema = z.object({
 
 export const CreateInviteSchema = z.object({
   channelId: z.string().nullable().optional(),
-  expiresInHours: z.number().int().min(1).max(720).optional(),
+  expiresInHours: z.number().int().min(1).max(720).nullable().optional(),
   maxUses: z.number().int().min(1).max(1000).nullable().optional(),
 });
 

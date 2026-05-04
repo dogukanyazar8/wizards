@@ -1,5 +1,5 @@
 You are a Principal Software Engineer conducting a thorough technical audit of 
-the "Wizards" application — a Discord/Slack-like real-time communication platform.
+the "Whispr" application — a Discord/Slack-like real-time communication platform.
 Phases 1 through 4 have been implemented. Before proceeding to Phase 5 (real-time 
 messaging with Socket.io), perform a comprehensive audit to verify correctness, 
 security, and readiness.

@@ -83,7 +83,7 @@ export default function ForgotPasswordPage() {
             type="email"
             autoComplete="email"
             className="app-input h-12 w-full rounded-2xl border px-4 text-sm transition"
-            placeholder="you@wizards.app"
+            placeholder="you@whispr.team"
             {...register("email")}
           />
           {errors.email ? (

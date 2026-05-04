@@ -127,7 +127,7 @@ function normalizeUsername(rawValue: string): string {
     return normalized;
   }
 
-  return `wizard_${crypto.randomUUID().replace(/-/g, "").slice(0, 10)}`;
+  return `whispr_${crypto.randomUUID().replace(/-/g, "").slice(0, 10)}`;
 }
 
 function deriveBaseUsername(data: { email?: string | null; name?: string | null }): string {
@@ -136,11 +136,11 @@ function deriveBaseUsername(data: { email?: string | null; name?: string | null 
   }
 
   if (data.email) {
-    const emailPrefix = data.email.split("@")[0] ?? "wizard";
+    const emailPrefix = data.email.split("@")[0] ?? "whispr";
     return normalizeUsername(emailPrefix);
   }
 
-  return normalizeUsername("wizard");
+  return normalizeUsername("whispr");
 }
 
 async function getUniqueUsername(seed: string): Promise<string> {
@@ -162,7 +162,7 @@ async function getUniqueUsername(seed: string): Promise<string> {
     }
   }
 
-  return normalizeUsername(`wizard_${Date.now().toString(36)}`);
+  return normalizeUsername(`whispr_${Date.now().toString(36)}`);
 }
 
 function mapUserToAdapterUser(
@@ -269,6 +269,7 @@ const adapter: Adapter = {
         emailVerified: Boolean(data.emailVerified),
         emailVerifiedAt: data.emailVerified ?? null,
         locale: await getRequestLocale(),
+        status: "ONLINE",
         theme: DEFAULT_WIZARDS_THEME,
         settings: { create: {} },
         notificationSettings: { create: {} },
@@ -523,7 +524,7 @@ const authConfig = {
           email,
           name,
           image,
-          username: normalizeUsername(login || email?.split("@")[0] || "wizard"),
+          username: normalizeUsername(login || email?.split("@")[0] || "whispr"),
           displayName: name,
           avatarUrl: image,
         };
@@ -545,7 +546,7 @@ const authConfig = {
           emailVerified,
           name,
           image,
-          username: normalizeUsername(email?.split("@")[0] || name || "wizard"),
+          username: normalizeUsername(email?.split("@")[0] || name || "whispr"),
           displayName: name,
           avatarUrl: image,
         };

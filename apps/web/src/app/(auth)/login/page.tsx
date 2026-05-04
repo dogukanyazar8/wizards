@@ -12,6 +12,37 @@ import { loginAction, resendVerificationEmailAction } from "@/lib/auth/actions";
 
 type OAuthProvider = "github" | "google";
 
+function GitHubIcon() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-.88-.01-1.73-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.58 2.36 1.12 2.93.86.09-.67.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.35 9.35 0 0 1 12 7c.85 0 1.7.12 2.5.34 1.9-1.33 2.74-1.05 2.74-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.93-2.34 4.8-4.57 5.05.36.32.68.95.68 1.91 0 1.38-.01 2.49-.01 2.83 0 .27.18.59.69.49A10.12 10.12 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z" />
+    </svg>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24">
+      <path
+        fill="#4285F4"
+        d="M21.6 12.23c0-.76-.07-1.49-.19-2.19H12v4.14h5.38a4.6 4.6 0 0 1-1.99 3.02v2.51h3.23c1.89-1.74 2.98-4.3 2.98-7.48Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 22c2.7 0 4.96-.9 6.62-2.43l-3.23-2.51c-.9.6-2.05.95-3.39.95-2.6 0-4.81-1.76-5.6-4.13H3.06v2.6A10 10 0 0 0 12 22Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M6.4 13.88a6 6 0 0 1 0-3.76v-2.6H3.06a10 10 0 0 0 0 8.96l3.34-2.6Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.99c1.47 0 2.79.5 3.83 1.5l2.86-2.87C16.96 3.01 14.7 2 12 2a10 10 0 0 0-8.94 5.52l3.34 2.6C7.19 7.75 9.4 5.99 12 5.99Z"
+      />
+    </svg>
+  );
+}
+
 export default function LoginPage() {
   const { locale, t } = useI18n();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -109,7 +140,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <form className="space-y-5 rounded-[30px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.42)] p-5 shadow-[0_24px_60px_hsl(var(--shadow-color)/0.08)]" onSubmit={handleSubmit(onSubmit)} noValidate>
+      <form className="auth-form-card space-y-5 rounded-[30px] border p-5" onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="space-y-2">
           <label htmlFor="email" className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]">
             {t("common.email")}
@@ -119,7 +150,7 @@ export default function LoginPage() {
             type="email"
             autoComplete="email"
             className="app-input h-12 w-full rounded-2xl border px-4 text-sm transition"
-            placeholder="you@wizards.app"
+            placeholder="you@whispr.team"
             {...register("email")}
           />
           {errors.email ? <p className="text-app-danger text-xs">{t(errors.email.message ?? "")}</p> : null}
@@ -203,9 +234,10 @@ export default function LoginPage() {
       </form>
 
       <div className="space-y-3">
-        <div className="text-app-soft relative text-center text-xs uppercase tracking-[0.24em]">
-          <span className="bg-transparent px-2">{t("auth.login.orContinueWith")}</span>
-          <div className="absolute left-0 top-1/2 -z-10 h-px w-full bg-[hsl(var(--border)/0.72)]" />
+        <div className="text-app-soft flex items-center gap-3 text-center text-xs uppercase tracking-[0.24em]">
+          <span className="h-px flex-1 bg-gradient-to-r from-transparent to-[hsl(var(--border)/0.72)]" />
+          <span className="shrink-0">{t("auth.login.orContinueWith")}</span>
+          <span className="h-px flex-1 bg-gradient-to-l from-transparent to-[hsl(var(--border)/0.72)]" />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -213,18 +245,24 @@ export default function LoginPage() {
             type="button"
             disabled={oauthLoading !== null}
             onClick={() => handleOAuthSignIn("github")}
-            className="text-app-foreground h-12 rounded-2xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.3)] px-3 text-sm font-medium transition hover:border-[hsl(var(--border)/0.98)] hover:bg-[hsl(var(--surface-soft)/0.55)] disabled:cursor-not-allowed disabled:opacity-70"
+            className="auth-oauth-button inline-flex h-12 items-center justify-center gap-2 rounded-2xl border px-3 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {oauthLoading === "github" ? t("auth.login.oauthLoading") : t("auth.login.github")}
+            <GitHubIcon />
+            <span>
+              {oauthLoading === "github" ? t("auth.login.oauthLoading") : t("auth.login.github")}
+            </span>
           </button>
 
           <button
             type="button"
             disabled={oauthLoading !== null}
             onClick={() => handleOAuthSignIn("google")}
-            className="text-app-foreground h-12 rounded-2xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.3)] px-3 text-sm font-medium transition hover:border-[hsl(var(--border)/0.98)] hover:bg-[hsl(var(--surface-soft)/0.55)] disabled:cursor-not-allowed disabled:opacity-70"
+            className="auth-oauth-button inline-flex h-12 items-center justify-center gap-2 rounded-2xl border px-3 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {oauthLoading === "google" ? t("auth.login.oauthLoading") : t("auth.login.google")}
+            <GoogleIcon />
+            <span>
+              {oauthLoading === "google" ? t("auth.login.oauthLoading") : t("auth.login.google")}
+            </span>
           </button>
         </div>
       </div>

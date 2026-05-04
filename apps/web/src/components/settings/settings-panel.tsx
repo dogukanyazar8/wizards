@@ -66,6 +66,7 @@ import { cn } from "@/lib/utils";
 import { SOUND_EFFECT_PATHS, useSoundStore, type SoundEffectKey } from "@/store/sound-store";
 
 const NOTIFICATION_SOUND_OPTIONS = ["default", "soft", "pulse"] as const;
+const FEATURED_CONTRIBUTOR_NAME = "O\u011Fuz G\u00FC\u011F\u00FCmc\u00FCo\u011Flu";
 
 type NotificationSoundOption = (typeof NOTIFICATION_SOUND_OPTIONS)[number];
 
@@ -1357,6 +1358,12 @@ export function SettingsPanel({
     const showOverview = panel === null || panel === "overview";
     const showBuild = panel === null || panel === "build";
     const showDeveloper = panel === null || panel === "developer";
+    const featuredContributor = buildInfo.contributors.find(
+      (contributor) => contributor === FEATURED_CONTRIBUTOR_NAME,
+    );
+    const contributorList = featuredContributor
+      ? buildInfo.contributors.filter((contributor) => contributor !== featuredContributor)
+      : buildInfo.contributors;
 
     return (
       <div className="space-y-6">
@@ -1419,8 +1426,33 @@ export function SettingsPanel({
                   {t("settings.about.developer.contributorsDescription")}
                 </p>
 
+                {featuredContributor ? (
+                  <div className="relative mt-4 overflow-hidden rounded-[24px] border border-[hsl(var(--primary)/0.28)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.16),hsl(var(--surface)/0.9)_54%,hsl(var(--accent)/0.14))] p-4 shadow-[0_24px_72px_hsl(var(--primary)/0.14)]">
+                    <div className="absolute -right-12 -top-14 h-36 w-36 rounded-full bg-[hsl(var(--primary)/0.18)] blur-3xl" />
+                    <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--surface)/0.78)] text-sm font-bold text-[hsl(var(--primary))] shadow-inner">
+                          OG
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary))]">
+                            {t("settings.about.developer.featuredContributor")}
+                          </p>
+                          <p className="mt-1 truncate text-base font-semibold text-app-foreground">
+                            {featuredContributor}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--surface)/0.78)] px-3 py-1 text-xs font-semibold text-[hsl(var(--primary))]">
+                        <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                        {t("settings.about.developer.featuredContributorBadge")}
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  {buildInfo.contributors.map((contributor) => (
+                  {contributorList.map((contributor) => (
                     <div
                       className="app-panel rounded-[20px] border px-4 py-3"
                       key={contributor}

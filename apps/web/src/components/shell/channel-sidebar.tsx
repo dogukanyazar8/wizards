@@ -6,6 +6,7 @@ import {
   DndContext,
   type DragEndEvent,
   PointerSensor,
+  useDroppable,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -19,12 +20,19 @@ import { CSS } from "@dnd-kit/utilities";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
+  Edit3,
   GripVertical,
+  Hash,
   LogOut,
   Mic,
+  MoreHorizontal,
+  Plus,
   Settings2,
+  Trash2,
+  UserPlus,
   Volume2,
 } from "lucide-react";
+import { Button } from "@wizards/ui";
 import { useState } from "react";
 import type { WorkspaceChannel, WorkspaceServerDetail } from "@wizards/types";
 import { useShallow } from "zustand/react/shallow";
@@ -32,20 +40,17 @@ import { FriendsSidebar } from "@/components/friends/friends-sidebar";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useSocket } from "@/hooks/use-socket";
-import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
+import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
+import { Modal } from "@/components/ui/modal";
 import { ChannelItem } from "@/components/shell/channel-item";
 import { ChannelSidebarSkeleton } from "@/components/shell/shell-skeletons";
 import { NotificationBell } from "@/components/shared/notification-bell";
 import { VoiceConnectionBar } from "@/components/voice/voice-connection-bar";
 import { useVoiceConnection } from "@/components/providers/voice-provider";
-import {
-  APP_THEME_STORAGE_KEY,
-  clearLegacyAppearanceStorage,
-} from "@/lib/appearance";
-import { APP_LOCALE_STORAGE_KEY } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 import {
   applyChannelReorder,
+  deleteCategoryRequest,
   reorderChannelsRequest,
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
@@ -85,6 +90,14 @@ type SortableChannelRowProps = {
   voiceState?: VoiceChannelStateDTO | null;
 };
 
+type ChannelDropZoneProps = {
+  canManage: boolean;
+  categoryId: string | null;
+  children: React.ReactNode;
+  empty: boolean;
+  emptyLabel: string;
+};
+
 const SortableChannelRow = React.memo(function SortableChannelRow({
   active,
   canManage,
@@ -101,14 +114,15 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
     id: channel.id,
     data: { categoryId: channel.categoryId ?? null },
   });
+  const verticalTransform = transform ? { ...transform, x: 0 } : null;
 
   return (
-      <div
-        ref={setNodeRef}
-        className="min-w-0"
-        style={{
+    <div
+      ref={setNodeRef}
+      className="min-w-0"
+      style={{
         opacity: isDragging ? 0.75 : 1,
-        transform: CSS.Transform.toString(transform),
+        transform: verticalTransform ? CSS.Transform.toString(verticalTransform) : undefined,
         transition,
       }}
     >
@@ -145,6 +159,39 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
     </div>
   );
 });
+
+function ChannelDropZone({
+  canManage,
+  categoryId,
+  children,
+  empty,
+  emptyLabel,
+}: ChannelDropZoneProps) {
+  const { isOver, setNodeRef } = useDroppable({
+    disabled: !canManage,
+    id: `category:${categoryId ?? "uncategorized"}`,
+    data: { categoryId },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "min-h-8 rounded-[22px] border border-transparent p-1 transition",
+        canManage && isOver
+          ? "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.08)] shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.08)]"
+          : "",
+      )}
+    >
+      {children}
+      {canManage && empty ? (
+        <div className="rounded-2xl border border-dashed border-[hsl(var(--border)/0.55)] px-3 py-2 text-xs font-medium text-app-soft">
+          {emptyLabel}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 type UserProfileFooterProps = {
   user: {
@@ -197,11 +244,6 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
   }, [user.status]);
 
   const handleLogout = () => {
-    clearLegacyAppearanceStorage();
-    window.localStorage.removeItem(APP_THEME_STORAGE_KEY);
-    window.localStorage.removeItem(APP_LOCALE_STORAGE_KEY);
-    useAppStore.getState().resetSessionUiState();
-    useAppStore.persist.clearStorage();
     startLogoutTransition(async () => {
       await leaveChannel().catch(() => undefined);
       socket.disconnect();
@@ -317,7 +359,7 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
 
         <div className="grid grid-cols-3 gap-2 border-t border-[hsl(var(--border)/0.58)] pt-3">
           <div className="flex justify-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.28)]">
-            <NotificationBell />
+            <NotificationBell className="h-10 w-full rounded-2xl" />
           </div>
           <button
             aria-label={t("shell.user.appearanceSettings")}
@@ -401,6 +443,28 @@ export function ChannelSidebar({
     x: 0,
     y: 0,
   });
+  const [categoryMenu, setCategoryMenu] = useState<{
+    categoryId: string | null;
+    categoryName: string;
+    open: boolean;
+    x: number;
+    y: number;
+  }>({
+    categoryId: null,
+    categoryName: "",
+    open: false,
+    x: 0,
+    y: 0,
+  });
+  const [emptyMenu, setEmptyMenu] = useState({
+    open: false,
+    x: 0,
+    y: 0,
+  });
+  const [categoryToDelete, setCategoryToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -463,6 +527,29 @@ export function ChannelSidebar({
     },
   });
 
+  const deleteCategoryMutation = useMutation({
+    mutationFn: async () => {
+      if (!detail || !categoryToDelete) {
+        return;
+      }
+
+      return deleteCategoryRequest(detail.server.id, categoryToDelete.id);
+    },
+    onSuccess: async () => {
+      if (!detail) {
+        return;
+      }
+
+      setCategoryToDelete(null);
+      await queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.server(detail.server.id),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.servers,
+      });
+    },
+  });
+
   const serverId = detail?.server.id ?? null;
 
   const navigateToChannel = useCallback(
@@ -497,16 +584,24 @@ export function ChannelSidebar({
 
       const sourceCategoryId = (active.data.current?.categoryId ?? null) as string | null;
       const targetCategoryId = (over.data.current?.categoryId ?? null) as string | null;
+      const droppedOnCategory =
+        typeof over.id === "string" && over.id.startsWith("category:");
 
       const sourceChannels = getChannelsForCategory(sourceCategoryId, detail);
       const targetChannels = getChannelsForCategory(targetCategoryId, detail);
 
       const oldIndex = sourceChannels.findIndex((c) => c.id === active.id);
-      const newIndex = targetChannels.findIndex((c) => c.id === over.id);
+      const newIndex = droppedOnCategory
+        ? targetChannels.length
+        : targetChannels.findIndex((c) => c.id === over.id);
 
       if (oldIndex < 0 || newIndex < 0) return;
 
       if (sourceCategoryId === targetCategoryId) {
+        if (droppedOnCategory) {
+          return;
+        }
+
         const reordered = arrayMove(sourceChannels, oldIndex, newIndex);
         reorderMutation.mutate(buildReorderPayload(sourceCategoryId, reordered));
       } else {
@@ -560,57 +655,90 @@ export function ChannelSidebar({
     const collapsed = categoryId ? getCategoryCollapsed(categoryId) : false;
 
     return (
-      <div className="space-y-2" key={categoryId ?? "uncategorized"}>
-        <button
-          className="text-app-soft flex w-full items-center justify-between rounded-xl px-2 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.24em] transition hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-[hsl(var(--foreground))]"
-          onClick={() => {
-            if (categoryId) {
-              toggleCategoryCollapse(detail.server.id, categoryId);
-            }
-          }}
-          type="button"
-        >
-          <span>{label}</span>
-          {categoryId ? (
-            <ChevronDown className={cn("h-3.5 w-3.5 transition", collapsed && "-rotate-90")} />
+      <div
+        className="group/category space-y-2 rounded-[26px] border border-[hsl(var(--border)/0.32)] bg-[hsl(var(--surface-card)/0.18)] p-2"
+        data-sidebar-interactive="true"
+        key={categoryId ?? "uncategorized"}
+      >
+        <div className="flex items-center gap-1">
+          <button
+            className="text-app-soft flex min-w-0 flex-1 items-center justify-between rounded-2xl px-2.5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-[0.26em] transition hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-[hsl(var(--foreground))]"
+            onClick={() => {
+              if (categoryId) {
+                toggleCategoryCollapse(detail.server.id, categoryId);
+              }
+            }}
+            type="button"
+          >
+            <span className="truncate">{label}</span>
+            {categoryId ? (
+              <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 transition", collapsed && "-rotate-90")} />
+            ) : null}
+          </button>
+          {canManage && categoryId ? (
+            <button
+              aria-label={t("shell.channelSidebar.categoryActions")}
+              className="text-app-soft inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-transparent opacity-0 transition hover:border-[hsl(var(--border)/0.62)] hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] group-hover/category:opacity-100"
+              onClick={(event) => {
+                event.stopPropagation();
+                const rect = event.currentTarget.getBoundingClientRect();
+                setCategoryMenu({
+                  categoryId,
+                  categoryName: label,
+                  open: true,
+                  x: rect.left,
+                  y: rect.bottom + 8,
+                });
+              }}
+              type="button"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
           ) : null}
-        </button>
+        </div>
 
         {!collapsed ? (
           <SortableContext items={channels.map((channel) => channel.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-1">
-              {channels.map((channel) => {
-                const voiceState =
-                  channel.type === "VOICE"
-                    ? voiceStatesQuery.data?.find((state) => state.channelId === channel.id) ?? null
-                    : null;
+            <ChannelDropZone
+              canManage={canManage}
+              categoryId={categoryId}
+              empty={channels.length === 0}
+              emptyLabel={t("shell.channelSidebar.dropChannelsHere")}
+            >
+              <div className="space-y-1.5">
+                {channels.map((channel) => {
+                  const voiceState =
+                    channel.type === "VOICE"
+                      ? voiceStatesQuery.data?.find((state) => state.channelId === channel.id) ?? null
+                      : null;
 
-                return (
-                <SortableChannelRow
-                  active={channel.id === activeChannelId}
-                  canManage={canManage}
-                  channel={channel}
-                  currentUserId={currentUser.id}
-                  key={channel.id}
-                  onDelete={() => openDeleteChannelDialog(channel.id, channel.name)}
-                  onEdit={() =>
-                    openChannelModal({
-                      categoryId: channel.categoryId,
-                      channelId: channel.id,
-                      mode: "edit",
-                      serverId: detail.server.id,
-                      type: channel.type,
-                    })
-                  }
-                  onPrefetch={() => prefetchChannel(channel.id)}
-                  onSelect={() => {
-                    void navigateToChannel(channel.id, channel.type);
-                  }}
-                  voiceState={voiceState}
-                />
-                );
-              })}
-            </div>
+                  return (
+                    <SortableChannelRow
+                      active={channel.id === activeChannelId}
+                      canManage={canManage}
+                      channel={channel}
+                      currentUserId={currentUser.id}
+                      key={channel.id}
+                      onDelete={() => openDeleteChannelDialog(channel.id, channel.name)}
+                      onEdit={() =>
+                        openChannelModal({
+                          categoryId: channel.categoryId,
+                          channelId: channel.id,
+                          mode: "edit",
+                          serverId: detail.server.id,
+                          type: channel.type,
+                        })
+                      }
+                      onPrefetch={() => prefetchChannel(channel.id)}
+                      onSelect={() => {
+                        void navigateToChannel(channel.id, channel.type);
+                      }}
+                      voiceState={voiceState}
+                    />
+                  );
+                })}
+              </div>
+            </ChannelDropZone>
           </SortableContext>
         ) : null}
       </div>
@@ -622,7 +750,8 @@ export function ChannelSidebar({
       <div className="border-b border-[hsl(var(--border)/0.78)] p-3">
         <button
           aria-label={`Open ${detail.server.name} menu`}
-          className="app-panel flex h-12 w-full min-w-0 items-center justify-between gap-3 rounded-2xl border px-4 text-left transition hover:opacity-95"
+          className="app-panel flex min-h-[4.25rem] w-full min-w-0 items-center justify-between gap-3 rounded-[26px] border px-4 py-3 text-left shadow-[0_18px_38px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+          data-sidebar-interactive="true"
           onClick={(event) => {
             const rect = event.currentTarget.getBoundingClientRect();
             setHeaderMenu({
@@ -634,13 +763,60 @@ export function ChannelSidebar({
           type="button"
         >
           <div className="min-w-0">
-            <p className="text-app-foreground truncate text-sm font-semibold">{detail.server.name}</p>
-            <p className="text-app-soft truncate text-xs">
+            <p className="text-app-soft text-[10px] font-semibold uppercase tracking-[0.22em]">
+              {t("shell.channelSidebar.manageServer")}
+            </p>
+            <p className="text-app-foreground mt-1 truncate text-base font-semibold leading-5">
+              {detail.server.name}
+            </p>
+            <p className="text-app-soft mt-0.5 truncate text-xs">
               {t("shell.channelSidebar.membersCount", { count: detail.server.memberCount })}
             </p>
           </div>
-          <ChevronDown className="text-app-muted h-4 w-4 shrink-0" />
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted">
+            <ChevronDown className="h-4 w-4" />
+          </span>
         </button>
+        {canManage ? (
+          <div className="mt-2 grid grid-cols-3 gap-2" data-sidebar-interactive="true">
+            <button
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.28)] px-2 text-xs font-semibold text-app-muted transition hover:border-[hsl(var(--primary)/0.35)] hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              onClick={() =>
+                openChannelModal({
+                  mode: "create",
+                  serverId: detail.server.id,
+                  type: "TEXT",
+                })
+              }
+              type="button"
+            >
+              <Hash className="h-3.5 w-3.5" />
+              <span>{t("shell.channelSidebar.addTextChannel")}</span>
+            </button>
+            <button
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.28)] px-2 text-xs font-semibold text-app-muted transition hover:border-[hsl(var(--primary)/0.35)] hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              onClick={() =>
+                openChannelModal({
+                  mode: "create",
+                  serverId: detail.server.id,
+                  type: "VOICE",
+                })
+              }
+              type="button"
+            >
+              <Volume2 className="h-3.5 w-3.5" />
+              <span>{t("shell.channelSidebar.addVoiceChannel")}</span>
+            </button>
+            <button
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.28)] px-2 text-xs font-semibold text-app-muted transition hover:border-[hsl(var(--primary)/0.35)] hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              onClick={() => openInviteModal(detail.server.id)}
+              type="button"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              <span>{t("shell.channelSidebar.createInvite")}</span>
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <DndContext
@@ -648,9 +824,28 @@ export function ChannelSidebar({
         onDragEnd={handleDragEnd}
         sensors={sensors}
       >
-        <div className="min-w-0 flex-1 space-y-5 overflow-y-auto overflow-x-hidden p-3">
+        <div
+          className="min-w-0 flex-1 space-y-5 overflow-y-auto overflow-x-hidden p-3"
+          onContextMenu={(event) => {
+            if (!canManage) {
+              return;
+            }
+
+            const target = event.target;
+            if (target instanceof HTMLElement && target.closest("[data-sidebar-interactive='true']")) {
+              return;
+            }
+
+            event.preventDefault();
+            setEmptyMenu({
+              open: true,
+              x: event.clientX,
+              y: event.clientY,
+            });
+          }}
+        >
           {detail.categories.map((category) => renderChannelGroup(category.name, category.id, category.channels))}
-          {detail.ungroupedChannels.length > 0
+          {detail.ungroupedChannels.length > 0 || canManage
             ? renderChannelGroup(t("shell.channelSidebar.openChannels"), null, detail.ungroupedChannels)
             : null}
         </div>
@@ -687,6 +882,7 @@ export function ChannelSidebar({
             >
               {t("shell.channelSidebar.createInvite")}
             </ContextMenuItem>
+            <ContextMenuSeparator />
             <ContextMenuItem
               onClick={() => {
                 setHeaderMenu((state) => ({ ...state, open: false }));
@@ -726,6 +922,174 @@ export function ChannelSidebar({
           </div>
         )}
       </ContextMenu>
+
+      <ContextMenu
+        onClose={() => setCategoryMenu((state) => ({ ...state, open: false }))}
+        open={categoryMenu.open}
+        position={categoryMenu}
+      >
+        <div className="px-3 py-2">
+          <p className="text-app-soft text-[10px] font-semibold uppercase tracking-[0.2em]">
+            {t("shell.channelSidebar.categoryActions")}
+          </p>
+          <p className="mt-0.5 max-w-48 truncate text-sm font-semibold text-app-foreground">
+            {categoryMenu.categoryName}
+          </p>
+        </div>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onClick={() => {
+            if (!categoryMenu.categoryId) return;
+            setCategoryMenu((state) => ({ ...state, open: false }));
+            openCategoryModal(detail.server.id, {
+              categoryId: categoryMenu.categoryId,
+              mode: "edit",
+            });
+          }}
+        >
+          <Edit3 className="mr-2 h-4 w-4" />
+          {t("shell.channelSidebar.editCategory")}
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => {
+            if (!categoryMenu.categoryId) return;
+            setCategoryMenu((state) => ({ ...state, open: false }));
+            openChannelModal({
+              categoryId: categoryMenu.categoryId,
+              mode: "create",
+              serverId: detail.server.id,
+              type: "TEXT",
+            });
+          }}
+        >
+          <Hash className="mr-2 h-4 w-4" />
+          {t("shell.channelSidebar.createTextChannel")}
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => {
+            if (!categoryMenu.categoryId) return;
+            setCategoryMenu((state) => ({ ...state, open: false }));
+            openChannelModal({
+              categoryId: categoryMenu.categoryId,
+              mode: "create",
+              serverId: detail.server.id,
+              type: "VOICE",
+            });
+          }}
+        >
+          <Volume2 className="mr-2 h-4 w-4" />
+          {t("shell.channelSidebar.createVoiceChannel")}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          destructive
+          onClick={() => {
+            if (!categoryMenu.categoryId) return;
+            setCategoryToDelete({
+              id: categoryMenu.categoryId,
+              name: categoryMenu.categoryName,
+            });
+            setCategoryMenu((state) => ({ ...state, open: false }));
+          }}
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          {t("shell.channelSidebar.deleteCategory")}
+        </ContextMenuItem>
+      </ContextMenu>
+
+      <ContextMenu
+        onClose={() => setEmptyMenu((state) => ({ ...state, open: false }))}
+        open={emptyMenu.open}
+        position={emptyMenu}
+      >
+        <div className="px-3 py-2">
+          <p className="text-app-soft text-[10px] font-semibold uppercase tracking-[0.2em]">
+            {t("shell.channelSidebar.emptyAreaMenu")}
+          </p>
+        </div>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onClick={() => {
+            setEmptyMenu((state) => ({ ...state, open: false }));
+            openChannelModal({
+              mode: "create",
+              serverId: detail.server.id,
+              type: "TEXT",
+            });
+          }}
+        >
+          <Hash className="mr-2 h-4 w-4" />
+          {t("shell.channelSidebar.createTextChannel")}
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => {
+            setEmptyMenu((state) => ({ ...state, open: false }));
+            openChannelModal({
+              mode: "create",
+              serverId: detail.server.id,
+              type: "VOICE",
+            });
+          }}
+        >
+          <Volume2 className="mr-2 h-4 w-4" />
+          {t("shell.channelSidebar.createVoiceChannel")}
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => {
+            setEmptyMenu((state) => ({ ...state, open: false }));
+            openCategoryModal(detail.server.id);
+          }}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          {t("shell.channelSidebar.createCategory")}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onClick={() => {
+            setEmptyMenu((state) => ({ ...state, open: false }));
+            openInviteModal(detail.server.id);
+          }}
+        >
+          <UserPlus className="mr-2 h-4 w-4" />
+          {t("shell.channelSidebar.createInvite")}
+        </ContextMenuItem>
+      </ContextMenu>
+
+      <Modal
+        onClose={() => setCategoryToDelete(null)}
+        open={Boolean(categoryToDelete)}
+        title={
+          categoryToDelete
+            ? t("workspace.modal.categoryDeleteTitle", { name: categoryToDelete.name })
+            : t("shell.channelSidebar.deleteCategory")
+        }
+        {...(categoryToDelete
+          ? { description: t("shell.channelSidebar.deleteCategoryDescription") }
+          : {})}
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+          <Button
+            className="h-11 rounded-2xl"
+            disabled={deleteCategoryMutation.isPending}
+            onClick={() => setCategoryToDelete(null)}
+            type="button"
+            variant="outline"
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button
+            className="h-11 rounded-2xl border border-[hsl(var(--danger)/0.32)] bg-[hsl(var(--danger)/0.12)] text-[hsl(var(--danger))] hover:bg-[hsl(var(--danger)/0.18)]"
+            disabled={deleteCategoryMutation.isPending}
+            onClick={() => deleteCategoryMutation.mutate()}
+            type="button"
+            variant="outline"
+          >
+            {deleteCategoryMutation.isPending
+              ? t("workspace.modal.categoryDeleting")
+              : t("workspace.modal.categoryDeleteAction")}
+          </Button>
+        </div>
+      </Modal>
     </aside>
   );
 }

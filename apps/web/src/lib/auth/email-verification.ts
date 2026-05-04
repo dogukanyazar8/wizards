@@ -224,7 +224,7 @@ function renderVerificationEmail(input: {
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:28px;overflow:hidden;box-shadow:0 24px 70px rgba(15,23,42,0.10);">
             <tr>
               <td style="padding:32px 32px 20px;">
-                <div style="display:inline-block;border-radius:999px;border:1px solid #dfe3ff;background:#eef1ff;color:#4f46e5;font-size:12px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;padding:8px 12px;">Wizards</div>
+                <div style="display:inline-block;border-radius:999px;border:1px solid #dfe3ff;background:#eef1ff;color:#4f46e5;font-size:12px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;padding:8px 12px;">Whispr</div>
                 <h1 style="font-size:30px;line-height:1.15;margin:24px 0 12px;color:#111827;">${safeTitle}</h1>
                 <p style="font-size:16px;line-height:1.7;margin:0 0 12px;color:#4b5563;">${safeGreeting}</p>
                 <p style="font-size:16px;line-height:1.7;margin:0;color:#4b5563;">${safeBody}</p>

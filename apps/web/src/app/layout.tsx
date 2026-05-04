@@ -22,8 +22,8 @@ const displayFont = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Wizards",
-  description: "Wizards collaboration workspace",
+  title: "Whispr",
+  description: "Whispr collaboration workspace",
   icons: {
     apple: "/app-icons/wave-5.png",
     icon: "/app-icons/wave-5.png",
@@ -48,9 +48,9 @@ export default async function RootLayout({
             session.user.displayName ??
             session.user.username ??
             session.user.email ??
-            "Wizard",
+            "Whispr",
           username:
-            session.user.username ?? session.user.email?.split("@")[0] ?? "wizard",
+            session.user.username ?? session.user.email?.split("@")[0] ?? "whispr",
         }
       : null;
 

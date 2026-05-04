@@ -67,6 +67,8 @@ type ChannelModalState = {
 };
 
 type CategoryModalState = {
+  categoryId: string | null;
+  mode: "create" | "edit";
   open: boolean;
   serverId: string | null;
 };
@@ -142,7 +144,10 @@ interface AppState extends PersistedRouteState {
   closeServerModal: () => void;
   closeServerSettings: () => void;
   forgetServerState: (serverId: string) => void;
-  openCategoryModal: (serverId: string) => void;
+  openCategoryModal: (
+    serverId: string,
+    options?: { categoryId?: string | null; mode?: "create" | "edit" },
+  ) => void;
   openChannelModal: (options: {
     categoryId?: string | null;
     channelId?: string | null;
@@ -243,6 +248,8 @@ function createInitialState(): Omit<
     appearanceHydrated: false,
     appIconId: DEFAULT_APP_ICON_ID,
     categoryModal: {
+      categoryId: null,
+      mode: "create",
       open: false,
       serverId: null,
     },
@@ -368,6 +375,8 @@ export const useAppStore = create<AppState>()(
       closeCategoryModal: () =>
         set({
           categoryModal: {
+            categoryId: null,
+            mode: "create",
             open: false,
             serverId: null,
           },
@@ -445,9 +454,11 @@ export const useAppStore = create<AppState>()(
             lastChannelByServerId: nextLastChannelByServerId,
           };
         }),
-      openCategoryModal: (serverId) =>
+      openCategoryModal: (serverId, options = {}) =>
         set({
           categoryModal: {
+            categoryId: options.categoryId ?? null,
+            mode: options.mode ?? "create",
             open: true,
             serverId,
           },

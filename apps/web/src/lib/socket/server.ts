@@ -17,7 +17,8 @@ import {
 import { getBlockStatus } from "@/lib/friends/helpers";
 import {
   broadcastPresenceUpdateToFriends,
-  persistUserPresence,
+  cacheUserPresence,
+  getUserPresenceBroadcast,
 } from "@/lib/friends/service";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import {
@@ -131,6 +132,99 @@ function serializeNotification(notification: NotificationRecord): NotificationSo
     metadata: isRecord(notification.metadata) ? notification.metadata : null,
     createdAt: notification.createdAt.toISOString(),
   };
+}
+
+function extractMentionUsernames(content: string) {
+  const mentions = new Set<string>();
+  const mentionPattern = /(^|[\s([{])@([a-zA-Z0-9_.-]{2,32})/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = mentionPattern.exec(content)) !== null) {
+    mentions.add((match[2] ?? "").toLocaleLowerCase("en-US"));
+  }
+
+  return Array.from(mentions);
+}
+
+async function createChannelMentionNotifications(args: {
+  channelId: string;
+  channelName: string;
+  content: string;
+  io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
+  messageId: string;
+  senderId: string;
+  senderName: string;
+  serverId: string;
+}) {
+  const usernames = extractMentionUsernames(args.content);
+  if (usernames.length === 0) {
+    return;
+  }
+
+  const mentionedMembers = await prisma.serverMember.findMany({
+    where: {
+      serverId: args.serverId,
+      userId: { not: args.senderId },
+      user: {
+        username: {
+          in: usernames,
+        },
+      },
+    },
+    select: {
+      userId: true,
+      user: {
+        select: {
+          locale: true,
+        },
+      },
+    },
+  });
+
+  if (mentionedMembers.length === 0) {
+    return;
+  }
+
+  await prisma.messageMention.createMany({
+    data: mentionedMembers.map((member) => ({
+      messageId: args.messageId,
+      userId: member.userId,
+    })),
+    skipDuplicates: true,
+  });
+
+  const notifications = await Promise.all(
+    mentionedMembers.map(async (member) => {
+      const locale = normalizeAppLocale(member.user.locale);
+      const notification = await prisma.notification.create({
+        data: {
+          actionUrl: `/channels/${args.serverId}/${args.channelId}`,
+          body: translate(locale, "chat.mentions.notifyBody", {
+            channel: args.channelName,
+            name: args.senderName,
+          }),
+          metadata: {
+            channelId: args.channelId,
+            messageId: args.messageId,
+            senderId: args.senderId,
+            serverId: args.serverId,
+          },
+          title: translate(locale, "chat.mentions.notifyTitle"),
+          type: "MENTION",
+          userId: member.userId,
+        },
+      });
+
+      return {
+        payload: serializeNotification(notification as NotificationRecord),
+        userId: member.userId,
+      };
+    }),
+  );
+
+  for (const notification of notifications) {
+    args.io.to(`user:${notification.userId}`).emit("notification:new", notification.payload);
+  }
 }
 
 async function listServerIds(userId: string) {
@@ -460,10 +554,11 @@ export function initSocketServer(httpServer: HTTPServer) {
 
     void (async () => {
       try {
-        const presence = await persistUserPresence(
+        const preferredPresence = await getUserPresenceBroadcast(userId);
+        const presence = await cacheUserPresence(
           userId,
-          "ONLINE",
-          socket.data.presenceCustomStatus,
+          preferredPresence.status,
+          preferredPresence.customStatus,
         );
         if (!presence) {
           await redis.del(getPresenceSocketsKey(userId));
@@ -592,6 +687,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         const channel = await prisma.channel.findUnique({
           where: { id: data.channelId },
           select: {
+            name: true,
             server: {
               select: {
                 features: true,
@@ -661,6 +757,16 @@ export function initSocketServer(httpServer: HTTPServer) {
         });
 
         await emitServerUnreadUpdatesForServer(channel.serverId);
+        void createChannelMentionNotifications({
+          channelId: data.channelId,
+          channelName: channel.name,
+          content,
+          io,
+          messageId: message.id,
+          senderId: userId,
+          senderName: message.author.displayName ?? message.author.username,
+          serverId: channel.serverId,
+        }).catch(() => undefined);
         io.to(data.channelId).emit("message:new", message);
       } catch (error) {
         if (error instanceof ApiError) {
@@ -1393,7 +1499,7 @@ export function initSocketServer(httpServer: HTTPServer) {
 
         if (nextSocketCount <= 0) {
           await redis.del(getPresenceSocketsKey(userId));
-          const presence = await persistUserPresence(
+          const presence = await cacheUserPresence(
             userId,
             "OFFLINE",
             socket.data.presenceCustomStatus,

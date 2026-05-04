@@ -3,6 +3,7 @@ export const CONTRIBUTOR_NAMES = [
   "Atakan Tuymaz",
   "Emrullah Saku",
   "Fatih G\u00FCrb\u00FCzer",
+  "Mehmet U\u011Fur \u00C7etin",
   "Muhammet Y\u0131ld\u0131z",
   "O\u011Fuz G\u00FC\u011F\u00FCmc\u00FCo\u011Flu",
   "Sedat Sarp Kaplan",

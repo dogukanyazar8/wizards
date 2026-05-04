@@ -31,7 +31,7 @@ function formatNotificationDate(locale: string, createdAt: string) {
   }).format(new Date(createdAt));
 }
 
-export function NotificationBell() {
+export function NotificationBell({ className }: { className?: string } = {}) {
   const { locale, t } = useI18n();
   const router = useRouter();
   const socket = useSocket();
@@ -48,6 +48,7 @@ export function NotificationBell() {
     })),
   );
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const baseTitleRef = useRef<string | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
@@ -125,6 +126,23 @@ export function NotificationBell() {
   useEffect(() => {
     setUnreadCount(unreadQuery.data ?? 0);
   }, [unreadQuery.data]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    baseTitleRef.current ??= document.title.replace(/^\(\d+\+?\)\s*/, "") || "Whispr";
+    const baseTitle = baseTitleRef.current;
+    document.title =
+      unreadCount > 0
+        ? `(${unreadCount > 99 ? "99+" : unreadCount}) ${baseTitle}`
+        : baseTitle;
+
+    return () => {
+      document.title = baseTitle;
+    };
+  }, [unreadCount]);
 
   useEffect(() => {
     const handleIncomingNotification = () => {
@@ -293,7 +311,10 @@ export function NotificationBell() {
       <button
         ref={buttonRef}
         aria-label={t("notifications.bell.title")}
-        className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-[hsl(var(--foreground)/0.7)] transition hover:bg-[hsl(var(--surface-soft)/0.42)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+        className={cn(
+          "relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-[hsl(var(--foreground)/0.7)] transition hover:bg-[hsl(var(--surface-soft)/0.42)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
+          className,
+        )}
         onClick={handleToggle}
         type="button"
       >

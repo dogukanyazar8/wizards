@@ -383,6 +383,39 @@ export async function getUserPresenceBroadcast(
   };
 }
 
+export async function cacheUserPresence(
+  userId: string,
+  status: FriendPresenceStatus,
+  customStatus?: string | null,
+): Promise<FriendPresenceUpdateDto | null> {
+  let nextCustomStatus = customStatus ?? null;
+
+  if (customStatus === undefined) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { customStatus: true },
+    });
+
+    if (!user) {
+      await getRedis().del(getPresenceRedisKey(userId));
+      return null;
+    }
+
+    nextCustomStatus = user.customStatus ?? null;
+  }
+
+  await getRedis().hset(getPresenceRedisKey(userId), {
+    customStatus: nextCustomStatus ?? "",
+    status,
+  });
+
+  return {
+    userId,
+    status,
+    customStatus: nextCustomStatus,
+  };
+}
+
 export async function persistUserPresence(
   userId: string,
   status: FriendPresenceStatus,
@@ -395,17 +428,7 @@ export async function persistUserPresence(
       select: { customStatus: true },
     });
 
-    const nextCustomStatus = customStatus ?? user.customStatus ?? null;
-    await getRedis().hset(getPresenceRedisKey(userId), {
-      customStatus: nextCustomStatus ?? "",
-      status,
-    });
-
-    return {
-      userId,
-      status,
-      customStatus: nextCustomStatus,
-    };
+    return cacheUserPresence(userId, status, customStatus ?? user.customStatus ?? null);
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
       await getRedis().del(getPresenceRedisKey(userId));

@@ -4,10 +4,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FileText, ImageIcon, Loader2, Paperclip, Send, Smile, X } from "lucide-react";
-import type { MessageAttachment, UploadedAttachmentInput } from "@wizards/types";
+import type { MessageAttachment, UploadedAttachmentInput, WorkspaceMember } from "@wizards/types";
 import { EmojiPicker } from "./emoji-picker";
 import { GifPicker } from "./gif-picker";
 import { ReplyPreview } from "./reply-preview";
+import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useTyping } from "@/hooks/use-typing";
 import type { MessageMode } from "@/hooks/use-messages";
@@ -34,6 +35,7 @@ interface MessageInputProps {
     optimisticAttachments?: MessageAttachment[],
   ) => void;
   onCancelReply: () => void;
+  mentionMembers?: WorkspaceMember[];
   uploadthingEnabled: boolean;
 }
 
@@ -84,6 +86,21 @@ function readImageDimensions(previewUrl: string) {
   });
 }
 
+function getActiveMention(value: string, cursorIndex: number) {
+  const beforeCursor = value.slice(0, cursorIndex);
+  const match = /(^|[\s([{])@([a-zA-Z0-9_.-]{0,32})$/.exec(beforeCursor);
+  if (!match) {
+    return null;
+  }
+
+  const query = match[2] ?? "";
+  return {
+    end: cursorIndex,
+    query,
+    start: beforeCursor.length - query.length - 1,
+  };
+}
+
 export function MessageInput({
   conversationId,
   mode,
@@ -92,6 +109,7 @@ export function MessageInput({
   replyTo,
   onSend,
   onCancelReply,
+  mentionMembers = [],
   uploadthingEnabled,
 }: MessageInputProps) {
   const { t } = useI18n();
@@ -103,6 +121,8 @@ export function MessageInput({
   const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
+  const [selectionIndex, setSelectionIndex] = useState(0);
+  const [activeMentionIndex, setActiveMentionIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -125,6 +145,26 @@ export function MessageInput({
     (content.trim().length > 0 || readyAttachmentDrafts.length > 0) &&
     !hasUploadingAttachments &&
     !isUploadingAttachments;
+  const activeMention = useMemo(
+    () => getActiveMention(content, selectionIndex),
+    [content, selectionIndex],
+  );
+  const mentionSuggestions = useMemo(() => {
+    if (!activeMention || mode !== "channel") {
+      return [];
+    }
+
+    const query = activeMention.query.toLocaleLowerCase("en-US");
+    return mentionMembers
+      .filter((member) => {
+        const displayName = member.displayName ?? member.username;
+        return (
+          member.username.toLocaleLowerCase("en-US").includes(query) ||
+          displayName.toLocaleLowerCase("en-US").includes(query)
+        );
+      })
+      .slice(0, 6);
+  }, [activeMention, mentionMembers, mode]);
 
   const revokePreviewUrl = (previewUrl: string | undefined) => {
     if (previewUrl && previewUrlsRef.current.has(previewUrl)) {
@@ -152,6 +192,7 @@ export function MessageInput({
 
   const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(event.target.value);
+    setSelectionIndex(event.currentTarget.selectionStart ?? event.target.value.length);
 
     if (!typingTimeoutRef.current) {
       startTyping();
@@ -167,6 +208,28 @@ export function MessageInput({
         96,
       )}px`;
     }
+  };
+
+  const insertMention = (member: WorkspaceMember) => {
+    if (!activeMention) {
+      return;
+    }
+
+    const mentionText = `@${member.username} `;
+    const nextContent =
+      content.slice(0, activeMention.start) +
+      mentionText +
+      content.slice(activeMention.end);
+    const nextCursor = activeMention.start + mentionText.length;
+
+    setContent(nextContent);
+    setActiveMentionIndex(0);
+    setSelectionIndex(nextCursor);
+
+    window.requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(nextCursor, nextCursor);
+    });
   };
 
   const uploadAttachmentFiles = async (files: File[]) => {
@@ -428,11 +491,40 @@ export function MessageInput({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (mentionSuggestions.length > 0) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setActiveMentionIndex((current) => (current + 1) % mentionSuggestions.length);
+        return;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setActiveMentionIndex(
+          (current) => (current - 1 + mentionSuggestions.length) % mentionSuggestions.length,
+        );
+        return;
+      }
+
+      if (event.key === "Tab" || event.key === "Enter") {
+        event.preventDefault();
+        const selected = mentionSuggestions[activeMentionIndex] ?? mentionSuggestions[0];
+        if (selected) {
+          insertMention(selected);
+        }
+        return;
+      }
+    }
+
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       handleSend();
     }
   };
+
+  useEffect(() => {
+    setActiveMentionIndex(0);
+  }, [activeMention?.query]);
 
   useEffect(() => {
     const previewUrls = previewUrlsRef.current;
@@ -534,14 +626,70 @@ export function MessageInput({
               ref={textareaRef}
               value={content}
               onChange={handleInput}
+              onClick={(event) =>
+                setSelectionIndex(event.currentTarget.selectionStart ?? content.length)
+              }
               onKeyDown={handleKeyDown}
+              onKeyUp={(event) =>
+                setSelectionIndex(event.currentTarget.selectionStart ?? content.length)
+              }
               onPaste={handlePaste}
+              onSelect={(event) =>
+                setSelectionIndex(event.currentTarget.selectionStart ?? content.length)
+              }
               placeholder={
                 mode === "dm" ? t("dm.input.placeholder") : t("chat.input.placeholder")
               }
               className="max-h-24 min-h-[3rem] w-full resize-none rounded-[22px] bg-transparent px-2 py-2 pr-3 text-[16px] text-app-foreground placeholder-app-muted focus-visible:outline-none md:min-h-[3.25rem] md:rounded-[24px] md:pr-4 md:text-[15px]"
               rows={1}
             />
+
+            {activeMention && mode === "channel" ? (
+              <div className="absolute bottom-[calc(100%+0.5rem)] left-0 z-30 w-full max-w-sm rounded-[24px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.96)] p-2 shadow-[0_20px_50px_hsl(var(--shadow-color)/0.16)] backdrop-blur-xl">
+                <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-app-soft">
+                  {t("chat.mentions.title")}
+                </p>
+                {mentionSuggestions.length > 0 ? (
+                  <div className="space-y-1">
+                    {mentionSuggestions.map((member, index) => {
+                      const name = member.displayName ?? member.username;
+                      return (
+                        <button
+                          className={`flex w-full items-center gap-2 rounded-2xl px-2 py-2 text-left transition ${
+                            index === activeMentionIndex
+                              ? "bg-[hsl(var(--primary)/0.12)] text-app-foreground"
+                              : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.62)] hover:text-app-foreground"
+                          }`}
+                          key={member.userId}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            insertMention(member);
+                          }}
+                          type="button"
+                        >
+                          <Avatar
+                            alt={name}
+                            className="h-8 w-8 text-[11px]"
+                            fallback={name}
+                            src={member.avatarUrl}
+                          />
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold">{name}</span>
+                            <span className="block truncate text-xs text-app-soft">
+                              @{member.username}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="px-2 py-3 text-sm font-medium text-app-muted">
+                    {t("chat.mentions.empty")}
+                  </p>
+                )}
+              </div>
+            ) : null}
 
             <div className="mt-2 flex items-center justify-between gap-2 border-t border-[hsl(var(--border)/0.6)] px-1 pt-3 md:gap-3 md:px-2">
               <div className="flex min-w-0 flex-wrap items-center gap-2">

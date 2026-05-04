@@ -23,6 +23,7 @@ import {
   deleteChannelRequest,
   deleteServerRequest,
   updateChannelRequest,
+  updateCategoryRequest,
   updateServerRequest,
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
@@ -76,6 +77,10 @@ export function WorkspaceModals({
           (channel) => channel.id === channelModal.channelId,
         ) ?? null
       : null;
+  const editingCategory =
+    categoryModal.mode === "edit" && activeServerDetail
+      ? activeServerDetail.categories.find((category) => category.id === categoryModal.categoryId) ?? null
+      : null;
 
   const [serverName, setServerName] = useState("");
   const [serverDescription, setServerDescription] = useState("");
@@ -89,6 +94,7 @@ export function WorkspaceModals({
   const [categoryName, setCategoryName] = useState("");
   const [createdCategoryName, setCreatedCategoryName] = useState<string | null>(null);
   const [inviteHours, setInviteHours] = useState("24");
+  const [inviteNeverExpires, setInviteNeverExpires] = useState(false);
   const [inviteMaxUses, setInviteMaxUses] = useState("");
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
@@ -142,6 +148,7 @@ export function WorkspaceModals({
     if (!inviteModal.open) {
       setInviteLink(null);
       setInviteHours("24");
+      setInviteNeverExpires(false);
       setInviteMaxUses("");
       setInviteCopied(false);
     }
@@ -155,8 +162,17 @@ export function WorkspaceModals({
       }
       setCategoryName("");
       setCreatedCategoryName(null);
+      return;
     }
-  }, [categoryModal.open]);
+
+    if (categoryModal.mode === "edit") {
+      setCategoryName(editingCategory?.name ?? "");
+      return;
+    }
+
+    setCategoryName("");
+    setCreatedCategoryName(null);
+  }, [categoryModal.mode, categoryModal.open, editingCategory?.name]);
 
   useEffect(() => {
     return () => {
@@ -225,6 +241,15 @@ export function WorkspaceModals({
       }
 
       const nextCategoryName = categoryName.trim();
+      if (categoryModal.mode === "edit" && categoryModal.categoryId) {
+        await updateCategoryRequest(
+          categoryModal.serverId,
+          categoryModal.categoryId,
+          nextCategoryName,
+        );
+        return nextCategoryName;
+      }
+
       await createCategoryRequest(categoryModal.serverId, nextCategoryName);
       return nextCategoryName;
     },
@@ -235,7 +260,9 @@ export function WorkspaceModals({
 
       await invalidateServer(categoryModal.serverId);
       setCreatedCategoryName(nextCategoryName ?? categoryName.trim());
-      setCategoryName("");
+      if (categoryModal.mode === "create") {
+        setCategoryName("");
+      }
       categoryCloseTimerRef.current = setTimeout(() => {
         closeCategoryModal();
       }, 1100);
@@ -321,7 +348,7 @@ export function WorkspaceModals({
       }
 
       const result = await createInviteRequest(inviteModal.serverId, {
-        expiresInHours: Number(inviteHours || "24"),
+        expiresInHours: inviteNeverExpires ? null : Number(inviteHours || "24"),
         maxUses: inviteMaxUses ? Number(inviteMaxUses) : null,
       });
 
@@ -511,10 +538,18 @@ export function WorkspaceModals({
       </Modal>
 
       <Modal
-        description={t("workspace.modal.categoryDescription")}
+        description={
+          categoryModal.mode === "edit"
+            ? t("workspace.modal.categoryEditDescription")
+            : t("workspace.modal.categoryDescription")
+        }
         onClose={closeCategoryModal}
         open={categoryModal.open}
-        title={t("workspace.modal.categoryTitle")}
+        title={
+          categoryModal.mode === "edit"
+            ? t("workspace.modal.categoryEditTitle")
+            : t("workspace.modal.categoryTitle")
+        }
       >
         <form
           className="space-y-4"
@@ -546,7 +581,12 @@ export function WorkspaceModals({
                 {t("workspace.modal.categoryReady")}
               </p>
               <p className="text-app-foreground mt-2 text-sm font-medium">
-                {t("workspace.modal.categoryCreated", { name: createdCategoryName })}
+                {t(
+                  categoryModal.mode === "edit"
+                    ? "workspace.modal.categoryUpdated"
+                    : "workspace.modal.categoryCreated",
+                  { name: createdCategoryName },
+                )}
               </p>
             </div>
           ) : null}
@@ -556,8 +596,12 @@ export function WorkspaceModals({
             </Button>
             <Button className="w-full sm:w-auto" disabled={categoryMutation.isPending || categoryName.trim().length < 1} type="submit">
               {categoryMutation.isPending
-                ? t("workspace.modal.categoryCreating")
-                : t("workspace.modal.categoryTitle")}
+                ? categoryModal.mode === "edit"
+                  ? t("workspace.modal.categorySaving")
+                  : t("workspace.modal.categoryCreating")
+                : categoryModal.mode === "edit"
+                  ? t("workspace.modal.categorySave")
+                  : t("workspace.modal.categoryTitle")}
             </Button>
           </div>
         </form>
@@ -652,6 +696,7 @@ export function WorkspaceModals({
                 {t("workspace.modal.inviteExpires")}
               </label>
               <Input
+                disabled={inviteNeverExpires}
                 min={1}
                 onChange={(event) => setInviteHours(event.target.value)}
                 type="number"
@@ -671,6 +716,22 @@ export function WorkspaceModals({
               />
             </div>
           </div>
+          <label className="app-panel-soft flex cursor-pointer items-start gap-3 rounded-3xl border p-4 transition hover:border-[hsl(var(--primary)/0.32)] hover:bg-[hsl(var(--primary)/0.08)]">
+            <input
+              checked={inviteNeverExpires}
+              className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]"
+              onChange={(event) => setInviteNeverExpires(event.target.checked)}
+              type="checkbox"
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-app-foreground">
+                {t("workspace.modal.inviteNeverExpires")}
+              </span>
+              <span className="mt-1 block text-xs leading-5 text-app-muted">
+                {t("workspace.modal.inviteNeverExpiresDescription")}
+              </span>
+            </span>
+          </label>
           {inviteLink ? (
             <div className="app-success rounded-[24px] border p-4">
               <p className="text-app-success text-xs font-semibold uppercase tracking-[0.2em]">

@@ -24,9 +24,9 @@ export default async function MainLayout({ children }: { children: ReactNode }) 
     session.user.displayName ??
     session.user.username ??
     session.user.email ??
-    "Wizard";
+    "Whispr";
   const username =
-    user?.username ?? session.user.username ?? session.user.email?.split("@")[0] ?? "wizard";
+    user?.username ?? session.user.username ?? session.user.email?.split("@")[0] ?? "whispr";
 
   return (
     <>

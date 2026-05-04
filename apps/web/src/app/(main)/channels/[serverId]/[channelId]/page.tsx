@@ -46,9 +46,9 @@ export default async function ChannelPage({ params }: PageParams) {
   const normalizedServerId = decodeURIComponent(serverId);
 
   const currentUserDisplayName =
-    session.user.displayName ?? session.user.username ?? session.user.email ?? "Wizard";
+    session.user.displayName ?? session.user.username ?? session.user.email ?? "Whispr";
   const currentUserUsername =
-    session.user.username ?? session.user.email?.split("@")[0] ?? "wizard";
+    session.user.username ?? session.user.email?.split("@")[0] ?? "whispr";
   const uploadthingEnabled = Boolean(process.env.UPLOADTHING_TOKEN);
 
   if (normalizedServerId === "@me") {

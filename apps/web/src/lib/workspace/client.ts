@@ -167,6 +167,29 @@ export async function createCategoryRequest(serverId: string, name: string) {
   });
 }
 
+export async function updateCategoryRequest(
+  serverId: string,
+  categoryId: string,
+  name: string,
+) {
+  return requestJson<{ success: true }>(
+    `/api/v1/servers/${serverId}/categories/${categoryId}`,
+    {
+      body: { name },
+      method: "PATCH",
+    },
+  );
+}
+
+export async function deleteCategoryRequest(serverId: string, categoryId: string) {
+  return requestJson<{ success: true }>(
+    `/api/v1/servers/${serverId}/categories/${categoryId}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
 export async function createChannelRequest(
   serverId: string,
   input: {
@@ -222,7 +245,7 @@ export async function createInviteRequest(
   serverId: string,
   input: {
     channelId?: string | null;
-    expiresInHours?: number;
+    expiresInHours?: number | null;
     maxUses?: number | null;
   },
 ) {

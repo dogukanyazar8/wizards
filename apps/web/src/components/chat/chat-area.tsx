@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MonitorUp, Phone } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   ChatMessage,
   DMParticipantDTO,
@@ -28,6 +28,7 @@ import {
 import { useSocket } from "@/hooks/use-socket";
 import { useDMScreenShare } from "@/hooks/use-dm-screen-share";
 import { useTyping } from "@/hooks/use-typing";
+import { fetchWorkspaceServer, workspaceQueryKeys } from "@/lib/workspace/client";
 
 interface ChatAreaProps {
   conversationId: string;
@@ -138,6 +139,14 @@ export function ChatArea({
   const { t } = useI18n();
   const socket = useSocket();
   const queryClient = useQueryClient();
+  const serverMembersQuery = useQuery({
+    enabled: mode === "channel" && Boolean(serverId),
+    queryFn: () => fetchWorkspaceServer(serverId!),
+    queryKey: serverId
+      ? workspaceQueryKeys.server(serverId)
+      : ["workspace", "server", "idle"],
+    staleTime: 30_000,
+  });
   const { typingUsers } = useTyping(conversationId, mode);
   const dmScreenShare = useDMScreenShare({
     conversationId,
@@ -400,6 +409,7 @@ export function ChatArea({
             onCancelReply={() => setReplyTo(null)}
             allowFileUploads={mode === "channel" ? allowFileUploads : true}
             allowGifs={mode === "channel" ? allowGifs : true}
+            mentionMembers={mode === "channel" ? serverMembersQuery.data?.members ?? [] : []}
             uploadthingEnabled={uploadthingEnabled}
           />
         </>

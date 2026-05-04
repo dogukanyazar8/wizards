@@ -18,6 +18,7 @@ import { useI18n } from "@/components/providers/locale-provider";
 import { MainChannelPanel } from "@/components/shell/main-channel-panel";
 import { MobileDrawerTrigger, ServerRail } from "@/components/shell/server-rail";
 import { ServerSettingsOverlay } from "@/components/shell/server-settings-overlay";
+import { ServerMemberPanel } from "@/components/shell/server-member-panel";
 import { WorkspaceModals } from "@/components/shell/workspace-modals";
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
@@ -378,11 +379,41 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       }
     };
 
+    const handlePresenceUpdate = (data: {
+      customStatus: string | null;
+      status: "ONLINE" | "IDLE" | "DND" | "OFFLINE";
+      userId: string;
+    }) => {
+      queryClient.setQueriesData<WorkspaceServerDetail | undefined>(
+        { queryKey: workspaceQueryKeys.root },
+        (current) => {
+          if (!current || !("members" in current)) {
+            return current;
+          }
+
+          return {
+            ...current,
+            members: current.members.map((member) =>
+              member.userId === data.userId
+                ? {
+                    ...member,
+                    customStatus: data.customStatus,
+                    status: data.status,
+                  }
+                : member,
+            ),
+          };
+        },
+      );
+    };
+
     socket.on("server:unread:update", handleServerUnreadUpdate);
     socket.on("server:settings:updated", handleServerSettingsUpdated);
+    socket.on("presence:update", handlePresenceUpdate);
     return () => {
       socket.off("server:unread:update", handleServerUnreadUpdate);
       socket.off("server:settings:updated", handleServerSettingsUpdated);
+      socket.off("presence:update", handlePresenceUpdate);
     };
   }, [activeServerId, queryClient, router, socket]);
 
@@ -779,29 +810,34 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
         ) : null}
       </AnimatePresence>
 
-      <MainChannelPanel
-        categoryName={activeCategoryName}
-        channel={activeChannel}
-        contextLabel={!activeServerId ? t("friends.header.context") : undefined}
-        detailLabel={!activeServerId ? t("friends.header.detail") : undefined}
-        fallbackTitle={
-          activeServerId
-            ? t("shell.wizards.chooseChannel")
-            : isFriendsRoute
-              ? t("friends.sidebar.friends")
-              : t("shell.wizards.directMessages")
-        }
-        icon={!activeServerId ? Users : undefined}
-        leading={
-          <MobileShellControls
-            canGoBack={showMobileBackButton}
-            onBack={handleMobileBack}
-            onMenu={() => setMobileSidebarOpen(true)}
-          />
-        }
-      >
-        {children}
-      </MainChannelPanel>
+      <div className="flex min-w-0 flex-1">
+        <MainChannelPanel
+          categoryName={activeCategoryName}
+          channel={activeChannel}
+          contextLabel={!activeServerId ? t("friends.header.context") : undefined}
+          detailLabel={!activeServerId ? t("friends.header.detail") : undefined}
+          fallbackTitle={
+            activeServerId
+              ? t("shell.wizards.chooseChannel")
+              : isFriendsRoute
+                ? t("friends.sidebar.friends")
+                : t("shell.wizards.directMessages")
+          }
+          icon={!activeServerId ? Users : undefined}
+          leading={
+            <MobileShellControls
+              canGoBack={showMobileBackButton}
+              onBack={handleMobileBack}
+              onMenu={() => setMobileSidebarOpen(true)}
+            />
+          }
+        >
+          {children}
+        </MainChannelPanel>
+        {activeServerId && serverDetailQuery.data ? (
+          <ServerMemberPanel detail={serverDetailQuery.data} />
+        ) : null}
+      </div>
 
       <ContextMenu
         onClose={closeServerContextMenu}

@@ -37,7 +37,7 @@ export function ServerSettingsOverlay({
   open,
   uploadthingEnabled,
 }: ServerSettingsOverlayProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const queryClient = useQueryClient();
   const router = useRouter();
   const closeServerSettings = useAppStore((state) => state.closeServerSettings);
@@ -455,45 +455,68 @@ export function ServerSettingsOverlay({
                         {t("serverSettings.noInvites")}
                       </div>
                     ) : null}
-                    {detail.invites.map((invite) => (
-                      <div
-                        className="app-panel flex flex-col gap-4 rounded-[28px] border p-5 md:flex-row md:items-center"
-                        key={invite.id}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-app-foreground text-sm font-semibold">
-                            /invite/{invite.code}
-                          </p>
-                          <p className="text-app-soft mt-1 text-xs">
-                            Created by {invite.createdByDisplayName} • {invite.uses}
-                            {invite.maxUses ? ` / ${invite.maxUses}` : ""} uses
-                          </p>
+                    {detail.invites.map((invite) => {
+                      const expiresLabel = invite.expiresAt
+                        ? t("serverSettings.inviteExpiresAt", {
+                            date: new Intl.DateTimeFormat(locale, {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            }).format(new Date(invite.expiresAt)),
+                          })
+                        : t("serverSettings.invitePermanent");
+
+                      return (
+                        <div
+                          className="app-panel flex flex-col gap-4 rounded-[28px] border p-5 md:flex-row md:items-center"
+                          key={invite.id}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-app-foreground text-sm font-semibold">
+                              /invite/{invite.code}
+                            </p>
+                            <Badge
+                              className={
+                                invite.expiresAt
+                                  ? "mt-2 border-[hsl(var(--warning)/0.28)] bg-[hsl(var(--warning)/0.12)] text-[hsl(var(--warning))]"
+                                  : "mt-2 border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.12)] text-[hsl(var(--success))]"
+                              }
+                            >
+                              {expiresLabel}
+                            </Badge>
+                            <p className="text-app-soft mt-2 text-xs">
+                              {t("serverSettings.inviteCreatedBy", {
+                                maxUses: invite.maxUses ? ` / ${invite.maxUses}` : "",
+                                name: invite.createdByDisplayName,
+                                uses: invite.uses,
+                              })}
+                            </p>
+                          </div>
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <button
+                              className="app-panel-soft text-app-foreground inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                              onClick={async () => {
+                                await navigator.clipboard.writeText(
+                                  `${window.location.origin}/invite/${invite.code}`,
+                                );
+                              }}
+                              type="button"
+                            >
+                              <Copy className="h-4 w-4" />
+                              {t("serverSettings.copy")}
+                            </button>
+                            <button
+                              className="app-danger inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)]"
+                              disabled={revokeInviteMutation.isPending}
+                              onClick={() => revokeInviteMutation.mutate(invite.id)}
+                              type="button"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              {t("serverSettings.revoke")}
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                          <button
-                            className="app-panel-soft text-app-foreground inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                            onClick={async () => {
-                              await navigator.clipboard.writeText(
-                                `${window.location.origin}/invite/${invite.code}`,
-                              );
-                            }}
-                            type="button"
-                          >
-                            <Copy className="h-4 w-4" />
-                            {t("serverSettings.copy")}
-                          </button>
-                          <button
-                            className="app-danger inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)]"
-                            disabled={revokeInviteMutation.isPending}
-                            onClick={() => revokeInviteMutation.mutate(invite.id)}
-                            type="button"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            {t("serverSettings.revoke")}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : null}
 

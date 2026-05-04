@@ -201,30 +201,30 @@ async function main() {
 
   const demoUser = await ensureUser({
     displayName: "Demo User",
-    email: "demo@wizards.app",
+    email: "demo@whispr.team",
     passwordHash,
     username: "demo",
   });
 
   const testUser = await ensureUser({
     displayName: "Test User",
-    email: "test@wizards.app",
+    email: "test@whispr.team",
     passwordHash,
     username: "test",
   });
 
   const server = await prisma.server.upsert({
-    where: { inviteCode: "WIZARDS1" },
+    where: { inviteCode: "WHISPR1" },
     update: {
       isPublic: true,
-      name: "Wizards HQ",
+      name: "Whispr HQ",
       ownerId: demoUser.id,
     },
     create: {
       features: [],
-      inviteCode: "WIZARDS1",
+      inviteCode: "WHISPR1",
       isPublic: true,
-      name: "Wizards HQ",
+      name: "Whispr HQ",
       ownerId: demoUser.id,
     },
   });
@@ -257,7 +257,7 @@ async function main() {
     name: "general",
     position: 0,
     serverId: server.id,
-    topic: "Welcome to Wizards HQ!",
+    topic: "Welcome to Whispr HQ!",
     type: "TEXT",
   });
 
@@ -277,7 +277,7 @@ async function main() {
   });
 
   await prisma.serverInvite.upsert({
-    where: { code: "WIZARDS1" },
+    where: { code: "WHISPR1" },
     update: {
       channelId: generalChannel.id,
       createdById: demoUser.id,
@@ -285,7 +285,7 @@ async function main() {
     },
     create: {
       channelId: generalChannel.id,
-      code: "WIZARDS1",
+      code: "WHISPR1",
       createdById: demoUser.id,
       serverId: server.id,
     },
@@ -296,8 +296,8 @@ async function main() {
   await Promise.all(CONTRIBUTOR_NAMES.map((name) => ensureContributor(name)));
 
   console.log("Seed complete");
-  console.log("Demo user: demo@wizards.app / password123");
-  console.log("Test user: test@wizards.app / password123");
+  console.log("Demo user: demo@whispr.team / password123");
+  console.log("Test user: test@whispr.team / password123");
 }
 
 main()

@@ -34,8 +34,31 @@ function getPresenceDotClass(status: ChatMessage["author"]["status"] | undefined
   return "bg-slate-400 shadow-[0_0_0_3px_hsl(var(--muted)/0.18)]";
 }
 
+const mentionHrefPrefix = "mention:";
+
+function formatMentionsForMarkdown(content: string) {
+  return content.replace(/(^|[^\w`])@([a-zA-Z0-9_]{2,32})\b/g, (match, prefix: string, username: string) => {
+    if (match.includes("](")) {
+      return match;
+    }
+
+    return `${prefix}[@${username}](${mentionHrefPrefix}${username})`;
+  });
+}
+
 const markdownComponents = {
   a({ children, href, title }) {
+    if (href?.startsWith(mentionHrefPrefix)) {
+      return (
+        <span
+          className="inline-flex translate-y-[1px] items-center rounded-full border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.12)] px-2 py-0.5 text-[0.92em] font-semibold text-[hsl(var(--primary))] shadow-[0_8px_18px_hsl(var(--primary)/0.08)]"
+          title={`@${href.slice(mentionHrefPrefix.length)}`}
+        >
+          {children}
+        </span>
+      );
+    }
+
     return (
       <a
         href={href}
@@ -218,7 +241,7 @@ export const MessageItem = React.memo(
               )}
             </div>
 
-            <div className="relative min-w-0 pr-9 md:pr-36">
+            <div className="relative min-w-0 pr-9 md:pr-0">
               {!isGrouped && (
                 <div className="flex items-center gap-2 pr-2">
                   <span className="font-semibold text-app-foreground text-sm">
@@ -254,10 +277,28 @@ export const MessageItem = React.memo(
                   onCancel={() => setIsEditing(false)}
                 />
               ) : (
-                <div className="text-app-foreground break-words text-sm leading-6 [&_a]:text-[hsl(var(--primary))] [&_code]:break-words [&_ol]:my-2 [&_p]:m-0 [&_pre]:my-2 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_ul]:my-2">
-                  <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
-                    {message.content}
-                  </ReactMarkdown>
+                <div className="text-app-foreground break-words text-sm leading-6">
+                  <div className="inline max-w-full align-middle [&_a]:text-[hsl(var(--primary))] [&_code]:break-words [&_ol]:my-2 [&_p]:m-0 [&_p]:inline [&_pre]:my-2 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_ul]:my-2">
+                    <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+                      {formatMentionsForMarkdown(message.content)}
+                    </ReactMarkdown>
+                  </div>
+
+                  {!isOptimistic ? (
+                    <span className="ml-2 hidden align-middle opacity-0 transition md:inline-flex md:group-hover:opacity-100 md:focus-within:opacity-100">
+                      <MessageToolbar
+                        allowReact
+                        className="inline-flex scale-90"
+                        messageId={message.id}
+                        isOwner={isOwner}
+                        canModerate={canModerate}
+                        onReact={(emoji) => onReact(message.id, emoji)}
+                        onReply={() => onReply(message.id, message.author.displayName, message.content)}
+                        onEdit={() => setIsEditing(true)}
+                        onDelete={handleDelete}
+                      />
+                    </span>
+                  ) : null}
                 </div>
               )}
 
@@ -331,21 +372,6 @@ export const MessageItem = React.memo(
                 </div>
               ) : null}
 
-              {!isEditing && !isOptimistic ? (
-                <div className="pointer-events-none absolute right-0 top-0 z-20 hidden justify-end opacity-0 transition md:flex md:w-32 md:group-hover:opacity-100 md:focus-within:opacity-100">
-                  <MessageToolbar
-                    allowReact
-                    className="pointer-events-auto"
-                    messageId={message.id}
-                    isOwner={isOwner}
-                    canModerate={canModerate}
-                    onReact={(emoji) => onReact(message.id, emoji)}
-                    onReply={() => onReply(message.id, message.author.displayName, message.content)}
-                    onEdit={() => setIsEditing(true)}
-                    onDelete={handleDelete}
-                  />
-                </div>
-              ) : null}
             </div>
           </div>
         </div>

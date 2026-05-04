@@ -157,6 +157,22 @@ export async function updateAccountSettingsAction(
     },
   });
 
+  if (
+    updatedUser.status === "ONLINE" ||
+    updatedUser.status === "IDLE" ||
+    updatedUser.status === "DND" ||
+    updatedUser.status === "OFFLINE"
+  ) {
+    const presence = await persistUserPresence(
+      session.user.id,
+      updatedUser.status,
+    );
+
+    if (presence) {
+      await broadcastPresenceUpdateToFriends(presence);
+    }
+  }
+
   return {
     success: true,
     user: mapUserToAccountState(updatedUser),

@@ -248,27 +248,40 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.localOnlyDescription":
       "These settings affect only your device and do not change the mix for anyone else.",
 
-    "auth.layout.badge": "Wizards Workspace",
+    "auth.layout.badge": "WHISPR WORKSPACE",
     "auth.layout.description":
-      "Build compact servers, hop between channels instantly, and keep your team inside one crisp communication flow.",
+      "Whispr brings secure sign-in, realtime messaging, voice rooms, screen sharing, media-rich chat, and video-ready collaboration into one focused workspace.",
     "auth.layout.feature.customizable.description":
-      "Tune the rail and sidebar widths so the shell fits your workflow.",
-    "auth.layout.feature.customizable.title": "Customizable",
+      "Email verification, Turnstile protection, OAuth sign-in, and permission-aware access help keep every workspace safer.",
+    "auth.layout.feature.customizable.title": "Secure by default",
     "auth.layout.feature.multiUser.description":
-      "Spin up demo and test sessions side by side without losing context.",
-    "auth.layout.feature.multiUser.title": "Multi-user",
+      "Jump into voice, share your screen, tune participant volume, and keep live collaboration moving without leaving the room.",
+    "auth.layout.feature.multiUser.title": "Voice and screen",
     "auth.layout.feature.realtime.description":
-      "Low-friction chat with channels, invites, and role-aware access.",
-    "auth.layout.feature.realtime.title": "Realtime",
-    "auth.layout.title": "Conversations that feel fast, focused, and alive.",
+      "Send DMs, channel messages, images, files, GIFs, and reactions with presence updates that land instantly.",
+    "auth.layout.feature.realtime.title": "Rich messaging",
+    "auth.layout.signal.label": "Live signal",
+    "auth.layout.signal.0.title": "Realtime presence everywhere",
+    "auth.layout.signal.0.description":
+      "Friends, servers, DMs, unread badges, voice rooms, and notifications update without asking people to refresh.",
+    "auth.layout.signal.1.title": "Built for live conversation",
+    "auth.layout.signal.1.description":
+      "Use low-friction voice rooms, participant volume controls, screen sharing, and video-ready surfaces for faster teamwork.",
+    "auth.layout.signal.2.title": "Share more than text",
+    "auth.layout.signal.2.description":
+      "Images, screenshots, files, GIFs, reactions, and link previews keep context close to the conversation.",
+    "auth.layout.signal.3.title": "Protected from the first step",
+    "auth.layout.signal.3.description":
+      "Email verification, Cloudflare Turnstile, secure OAuth, and server-side permissions protect new and returning users.",
+    "auth.layout.title": "Secure realtime communication for modern teams.",
 
     "auth.login.alertUnavailable": "Unable to log in right now.",
     "auth.login.badge": "Sign In",
-    "auth.login.continue": "Continue to Wizards",
+    "auth.login.continue": "Continue to Whispr",
     "auth.login.demoAccount": "Demo Account",
     "auth.login.demoDescription": "Prefills demo credentials instantly.",
     "auth.login.description":
-      "Log in to jump straight into your servers, continue the conversation, and test multi-user flows without friction.",
+      "Return to your servers, DMs, voice rooms, screen shares, uploads, GIFs, reactions, and live notifications with secure verified access.",
     "auth.login.fastStart": "Fast start",
     "auth.login.forgotPassword": "Forgot password?",
     "auth.login.github": "GitHub",
@@ -280,7 +293,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.rateLimited": "Too many sign-in attempts. Please try again later.",
     "auth.login.loggingIn": "Logging in...",
     "auth.login.needAccountDescription":
-      "Create a new profile and start testing servers, invites, and channel flows with your own workspace.",
+      "Create a verified profile and start using realtime chat, private DMs, voice collaboration, screen sharing, uploads, and secure workspace controls.",
     "auth.login.needAccountLabel": "Need an account?",
     "auth.login.createAccount": "Create your account",
     "auth.login.oauthError": "OAuth sign-in failed. Please try again.",
@@ -299,10 +312,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
 
     "auth.register.alertUnavailable": "Unable to create account.",
     "auth.register.autoLoginFailed": "Account created, but automatic sign-in failed. Please log in.",
-    "auth.register.badge": "Join Wizards",
+    "auth.register.badge": "Join Whispr",
     "auth.register.checkEmailBadge": "Verify email",
     "auth.register.checkEmailDescription":
-      "We sent a verification link to {email}. Open it to activate your Wizards account.",
+      "We sent a verification link to {email}. Open it to activate your Whispr account.",
     "auth.register.checkEmailHint":
       "The link expires in 24 hours. If it does not arrive, check your spam folder or try registering again after the resend cooldown.",
     "auth.register.checkEmailMessage": "Check your email to verify your account.",
@@ -310,7 +323,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.register.confirmPasswordPlaceholder": "Repeat your password",
     "auth.register.creating": "Creating account...",
     "auth.register.description":
-      "Start building your Wizards community with your own profile and workspace.",
+      "Create a verified Whispr account for secure messaging, servers, DMs, voice rooms, screen sharing, media uploads, GIFs, reactions, and video-ready collaboration.",
   "auth.register.emailTaken": "Email already taken.",
   "auth.register.rateLimited": "Too many registration attempts. Please try again later.",
   "auth.register.haveAccount": "Already have an account?",
@@ -323,16 +336,16 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.register.verifiedPrompt": "Already verified your email?",
 
     "auth.emailVerification.body":
-      "Confirm this email address to finish setting up your Wizards account.",
+      "Confirm this email address to finish setting up your Whispr account.",
     "auth.emailVerification.cta": "Verify email",
     "auth.emailVerification.expires": "This link expires in {hours} hours.",
     "auth.emailVerification.fallback":
       "If the button does not work, paste this link into your browser:",
     "auth.emailVerification.footer":
-      "Wizards keeps your conversations safer by verifying new accounts.",
+      "Whispr keeps your conversations safer by verifying new accounts.",
     "auth.emailVerification.greeting": "Hi {name},",
     "auth.emailVerification.ignore":
-      "If you did not create a Wizards account, you can safely ignore this email.",
+      "If you did not create a Whispr account, you can safely ignore this email.",
     "auth.emailVerification.notConfigured":
       "Email verification is not configured. Add Resend settings, then restart the app.",
     "auth.emailVerification.rateLimited":
@@ -347,7 +360,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Resend test sender can only email your Resend account address. Test with that address, or verify a domain in Resend and update RESEND_FROM_EMAIL.",
     "auth.emailVerification.sendFailed":
       "We could not send the verification email right now. Please try again.",
-    "auth.emailVerification.subject": "Verify your Wizards email",
+    "auth.emailVerification.subject": "Verify your Whispr email",
     "auth.emailVerification.title": "Verify your email",
 
     "auth.verifyEmail.badge": "Email Verification",
@@ -363,11 +376,11 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.verifyEmail.nextStepTitle": "Next step",
     "auth.verifyEmail.resendCta": "Go to sign in",
     "auth.verifyEmail.successBody":
-      "Your email has been verified successfully. You can now sign in and continue to Wizards.",
+      "Your email has been verified successfully. You can now sign in and continue to Whispr.",
     "auth.verifyEmail.successTitle": "Email verified",
 
     "auth.turnstile.help":
-      "This quick check helps protect Wizards from automated signups.",
+      "This quick check helps protect Whispr from automated signups.",
     "auth.turnstile.invalid": "Security check failed. Please try again.",
     "auth.turnstile.label": "Security check",
     "auth.turnstile.loading": "Loading security check...",
@@ -392,7 +405,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.account.title": "My Account",
     "settings.account.nav": "Profile & Presence",
     "settings.account.description":
-      "Keep your public identity, sign-in email, and visible status aligned with how you want to show up across Wizards.",
+      "Keep your public identity, sign-in email, and visible status aligned with how you want to show up across Whispr.",
     "settings.account.summaryTitle": "Profile snapshot",
     "settings.account.summaryDescription":
       "A quick view of how your account appears across friends, DMs, and servers.",
@@ -401,7 +414,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Update your visible name, username, email, or preferred online status without leaving the workspace.",
     "settings.account.editHintTitle": "Ready when you are",
     "settings.account.editHintDescription":
-      "Open edit mode whenever you want to refresh the details other people see in Wizards.",
+      "Open edit mode whenever you want to refresh the details other people see in Whispr.",
     "settings.account.fields.displayName": "Display name",
     "settings.account.fields.status": "Online status",
     "settings.account.status.invisible": "Invisible",
@@ -453,12 +466,12 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Tune the channel list width so names and presence previews breathe properly.",
     "settings.appearance.icons.title": "App icon",
     "settings.appearance.icons.description":
-      "Choose the wave mark Wizards uses in browser tabs, mobile shortcuts, and installed app surfaces on this device.",
+      "Choose the wave mark Whispr uses in browser tabs, mobile shortcuts, and installed app surfaces on this device.",
     "settings.appearance.icons.select": "Use this icon",
     "settings.appearance.icons.selected": "Active icon",
     "settings.appearance.icons.updated": "App icon updated",
     "settings.appearance.icons.updatedDescription":
-      "No refresh needed. Wizards applies the browser and mobile icon instantly on this device.",
+      "No refresh needed. Whispr applies the browser and mobile icon instantly on this device.",
     "settings.appearance.icons.wave0": "Midnight pulse",
     "settings.appearance.icons.wave1": "Classic blue",
     "settings.appearance.icons.wave2": "Aurora wave",
@@ -474,7 +487,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Manage popup density, dismissal behavior, and which delivery surfaces stay active for your account.",
     "settings.notifications.desktop.title": "Desktop notifications",
     "settings.notifications.desktop.description":
-      "Allow native desktop alerts when Wizards is running in a browser context that supports them.",
+      "Allow native desktop alerts when Whispr is running in a browser context that supports them.",
     "settings.notifications.mobile.title": "Mobile notifications",
     "settings.notifications.mobile.description":
       "Keep mobile delivery enabled for account-level notification preferences.",
@@ -499,18 +512,18 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Play a different cue when someone leaves the voice channel while you remain connected.",
     "settings.notifications.soundProfile.title": "Sound profile",
     "settings.notifications.soundProfile.description":
-      "Pick the style Wizards should use when notification sounds are enabled.",
+      "Pick the style Whispr should use when notification sounds are enabled.",
     "settings.notifications.soundProfile.default": "Default",
     "settings.notifications.soundProfile.soft": "Soft",
     "settings.notifications.soundProfile.pulse": "Pulse",
-    "settings.about.badge": "About Wizards",
+    "settings.about.badge": "About Whispr",
     "settings.about.title": "About",
     "settings.about.description":
-      "Learn what Wizards is built for, which version you are running, and who is behind the project.",
+      "Learn what Whispr is built for, which version you are running, and who is behind the project.",
     "settings.about.overview.description":
-      "A quick look at the product direction and the communication experience Wizards is aiming to deliver.",
+      "A quick look at the product direction and the communication experience Whispr is aiming to deliver.",
     "settings.about.overview.body":
-      "Wizards is a real-time communication platform built for fast messaging, voice collaboration, and lightweight screen sharing.",
+      "Whispr is a real-time communication platform built for fast messaging, voice collaboration, and lightweight screen sharing.",
     "settings.about.overview.bodySecondary":
       "Powered by modern foundations like Next.js, WebSockets, and WebRTC with LiveKit, it is designed to stay responsive, focused, and easy to move through during live teamwork.",
     "settings.about.buildInfo.title": "Version / Build Info",
@@ -520,11 +533,13 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.about.buildInfo.lastUpdate": "Last update",
     "settings.about.developer.title": "Developer Info",
     "settings.about.developer.description":
-      "Project ownership and product direction for the Wizards workspace.",
+      "Project ownership and product direction for the Whispr workspace.",
     "settings.about.developer.name": "Developer",
     "settings.about.developer.contributors": "Contributors",
     "settings.about.developer.contributorsDescription":
-      "People who helped shape Wizards across product, feedback, and implementation.",
+      "People who helped shape Whispr across product, feedback, and implementation.",
+    "settings.about.developer.featuredContributor": "Most popular contributor",
+    "settings.about.developer.featuredContributorBadge": "Community favorite",
 
     "appearance.page.badge": "User Settings",
     "appearance.page.description":
@@ -574,7 +589,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "themes.tabs.advanced": "Advanced",
     "themes.page.simpleEyebrow": "Simple Themes",
     "themes.page.simpleTitle": "Familiar defaults",
-    "themes.page.simpleDescription": "Clean solid palettes for a classic Wizards workspace.",
+    "themes.page.simpleDescription": "Clean solid palettes for a classic Whispr workspace.",
     "themes.page.advancedEyebrow": "Advanced Themes",
     "themes.page.advancedTitle": "Expressive color palettes",
     "themes.page.advancedDescription":
@@ -651,7 +666,25 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.channelSidebar.createCategory": "Create Category",
     "shell.channelSidebar.createTextChannel": "Create Text Channel",
     "shell.channelSidebar.createVoiceChannel": "Create Voice Channel",
+    "shell.channelSidebar.dropChannelsHere": "Drop a channel here",
     "shell.channelSidebar.membersCount": "{count} members",
+    "shell.channelSidebar.manageServer": "Manage server",
+    "shell.channelSidebar.addTextChannel": "Text",
+    "shell.channelSidebar.addVoiceChannel": "Voice",
+    "shell.channelSidebar.categoryActions": "Category actions",
+    "shell.channelSidebar.editCategory": "Edit Category",
+    "shell.channelSidebar.deleteCategory": "Delete Category",
+    "shell.channelSidebar.deleteCategoryDescription":
+      "Channels in this category will move to Open Channels. Messages will stay safe.",
+    "shell.channelSidebar.emptyAreaMenu": "Sidebar actions",
+    "shell.memberPanel.subtitle": "{count} members",
+    "shell.memberPanel.online": "Online",
+    "shell.memberPanel.offline": "Offline",
+    "shell.memberPanel.emptyOnline": "No one is online right now",
+    "shell.memberPanel.emptyOffline": "No offline members",
+    "shell.memberPanel.owner": "Owner",
+    "shell.memberPanel.admin": "Admin",
+    "shell.memberPanel.member": "Member",
     "shell.user.toggleMute": "Toggle mute",
     "shell.user.toggleDeafen": "Toggle deafen",
     "shell.user.status": "Online status",
@@ -796,6 +829,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.typing.one": "{name} is typing...",
     "chat.typing.two": "{first} and {second} are typing...",
     "chat.typing.many": "Several people are typing...",
+    "chat.mentions.title": "Mention someone",
+    "chat.mentions.empty": "No matching members",
+    "chat.mentions.notifyTitle": "You were mentioned",
+    "chat.mentions.notifyBody": "{name} mentioned you in #{channel}.",
 
   "notifications.bell.title": "Notifications",
   "notifications.actor.system": "System",
@@ -874,6 +911,14 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.categoryName": "Category Name",
     "workspace.modal.categoryPlaceholder": "Launch Zone",
     "workspace.modal.categoryCreating": "Creating...",
+    "workspace.modal.categoryEditTitle": "Edit Category",
+    "workspace.modal.categoryEditDescription": "Rename this category without moving its channels.",
+    "workspace.modal.categoryUpdated": "#{name} has been updated.",
+    "workspace.modal.categorySave": "Save Category",
+    "workspace.modal.categorySaving": "Saving...",
+    "workspace.modal.categoryDeleteTitle": "Delete {name}?",
+    "workspace.modal.categoryDeleteAction": "Delete Category",
+    "workspace.modal.categoryDeleting": "Deleting...",
     "workspace.modal.categoryReady": "Ready to Organize",
     "workspace.modal.categoryCreated": "#{name} is now available in your sidebar.",
     "workspace.modal.channelEditTitle": "Edit Channel",
@@ -891,6 +936,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.inviteTitle": "Create Invite",
     "workspace.modal.inviteDescription": "Generate a fresh invite code and share it instantly.",
     "workspace.modal.inviteExpires": "Expires In (Hours)",
+    "workspace.modal.inviteNeverExpires": "Never expires",
+    "workspace.modal.inviteNeverExpiresDescription":
+      "Create a permanent invite link that stays active until an admin revokes it.",
     "workspace.modal.inviteMaxUses": "Max Uses",
     "workspace.modal.inviteUnlimited": "Unlimited",
     "workspace.modal.inviteReady": "Ready to Share",
@@ -927,6 +975,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "serverSettings.noInvites":
       "No active invites yet. Generate one from the server menu or the quick invite modal.",
     "serverSettings.inviteCreatedBy": "Created by {name} • {uses}{maxUses} uses",
+    "serverSettings.inviteExpiresAt": "Expires {date}",
+    "serverSettings.invitePermanent": "Permanent",
     "serverSettings.copy": "Copy",
     "serverSettings.revoke": "Revoke",
     "serverSettings.deleteTitle": "Delete This Server",
@@ -938,7 +988,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "invite.error.badge": "Invite Error",
     "invite.error.title": "This invite can't be used",
     "invite.error.fallback": "Something went wrong while joining this invite.",
-    "invite.error.back": "Back to Wizards",
+    "invite.error.back": "Back to Whispr",
     "invite.error.notFound": "Invite not found.",
     "invite.error.expired": "Invite has expired.",
     "invite.error.limit": "Invite has reached its usage limit.",
@@ -1186,27 +1236,40 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.localOnlyDescription":
       "Bu ayarlar yalnızca senin cihazını etkiler ve başkalarının miksini değiştirmez.",
 
-    "auth.layout.badge": "Wizards Workspace",
+    "auth.layout.badge": "WHISPR WORKSPACE",
     "auth.layout.description":
-      "Kompakt sunucular kur, kanallar arasında anında geçiş yap ve ekibini temiz bir iletişim akışında tut.",
+      "Whispr; güvenli giriş, gerçek zamanlı mesajlaşma, ses odaları, ekran paylaşımı, zengin medya sohbeti ve video görüşmeye hazır iş birliğini tek odaklı çalışma alanında toplar.",
     "auth.layout.feature.customizable.description":
-      "Ray ve kenar çubuğu genişliklerini iş akışına göre ayarla.",
-    "auth.layout.feature.customizable.title": "Özelleştirilebilir",
+      "E-posta doğrulama, Turnstile koruması, OAuth girişi ve izin kontrollü erişim her çalışma alanını daha güvenli tutar.",
+    "auth.layout.feature.customizable.title": "Varsayılan güvenlik",
     "auth.layout.feature.multiUser.description":
-      "Demo ve test oturumlarını bağlam kaybetmeden yan yana aç.",
-    "auth.layout.feature.multiUser.title": "Çok kullanıcılı",
+      "Sese katıl, ekranını paylaş, katılımcı ses seviyesini ayarla ve canlı iş birliğini odadan çıkmadan sürdür.",
+    "auth.layout.feature.multiUser.title": "Ses ve ekran",
     "auth.layout.feature.realtime.description":
-      "Kanallar, davetler ve rol bazlı erişimle düşük sürtünmeli sohbet.",
-    "auth.layout.feature.realtime.title": "Gerçek zamanlı",
-    "auth.layout.title": "Hızlı, odaklı ve canlı hissettiren konuşmalar.",
+      "DM, kanal mesajı, görsel, dosya, GIF ve tepki gönder; durum güncellemeleri anında herkese ulaşsın.",
+    "auth.layout.feature.realtime.title": "Zengin mesajlaşma",
+    "auth.layout.signal.label": "Canlı sinyal",
+    "auth.layout.signal.0.title": "Her yerde gerçek zamanlı durum",
+    "auth.layout.signal.0.description":
+      "Arkadaşlar, sunucular, DM'ler, okunmamış rozetler, ses odaları ve bildirimler sayfa yenilemeden güncellenir.",
+    "auth.layout.signal.1.title": "Canlı konuşma için üretildi",
+    "auth.layout.signal.1.description":
+      "Ses odaları, katılımcı ses kontrolleri, ekran paylaşımı ve video görüşmeye hazır alanlarla ekip akışını hızlandır.",
+    "auth.layout.signal.2.title": "Metinden fazlasını paylaş",
+    "auth.layout.signal.2.description":
+      "Görseller, ekran görüntüleri, dosyalar, GIF'ler, tepkiler ve bağlantılar konuşmanın bağlamını yanında tutar.",
+    "auth.layout.signal.3.title": "İlk adımdan itibaren korumalı",
+    "auth.layout.signal.3.description":
+      "E-posta doğrulama, Cloudflare Turnstile, güvenli OAuth ve sunucu taraflı izinler yeni ve mevcut kullanıcıları korur.",
+    "auth.layout.title": "Modern ekipler için güvenli gerçek zamanlı iletişim.",
 
     "auth.login.alertUnavailable": "Şu anda giriş yapılamıyor.",
     "auth.login.badge": "Giriş Yap",
-    "auth.login.continue": "Wizards'a Devam Et",
+    "auth.login.continue": "Whispr'a Devam Et",
     "auth.login.demoAccount": "Demo Hesap",
     "auth.login.demoDescription": "Demo bilgilerini anında doldurur.",
     "auth.login.description":
-      "Sunucularına hemen dönmek, konuşmaya kaldığın yerden devam etmek ve çok kullanıcılı akışları sorunsuz test etmek için giriş yap.",
+      "Sunucularına, DM'lerine, ses odalarına, ekran paylaşımlarına, yüklemelerine, GIF'lerine, tepkilerine ve canlı bildirimlerine güvenli doğrulanmış erişimle geri dön.",
     "auth.login.fastStart": "Hızlı başlangıç",
     "auth.login.forgotPassword": "Şifremi unuttum?",
     "auth.login.github": "GitHub",
@@ -1218,7 +1281,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.rateLimited": "Çok fazla giriş denemesi yapıldı. Lütfen daha sonra tekrar dene.",
     "auth.login.loggingIn": "Giriş yapılıyor...",
     "auth.login.needAccountDescription":
-      "Yeni bir profil oluştur ve kendi çalışma alanınla sunucu, davet ve kanal akışlarını test etmeye başla.",
+      "Doğrulanmış profilini oluştur; gerçek zamanlı sohbet, özel DM, sesli iş birliği, ekran paylaşımı, yüklemeler ve güvenli çalışma alanı kontrollerini kullanmaya başla.",
     "auth.login.needAccountLabel": "Hesabın yok mu?",
     "auth.login.createAccount": "Hesabını oluştur",
     "auth.login.oauthError": "OAuth girişi başarısız oldu. Lütfen tekrar dene.",
@@ -1238,10 +1301,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.register.alertUnavailable": "Hesap oluşturulamadı.",
     "auth.register.autoLoginFailed":
       "Hesap oluşturuldu ancak otomatik giriş başarısız oldu. Lütfen giriş yapın.",
-    "auth.register.badge": "Wizards'a Katıl",
+    "auth.register.badge": "WHISPR'A KATIL",
     "auth.register.checkEmailBadge": "E-postayı doğrula",
     "auth.register.checkEmailDescription":
-      "{email} adresine bir doğrulama bağlantısı gönderdik. Wizards hesabını aktifleştirmek için bağlantıyı aç.",
+      "{email} adresine bir doğrulama bağlantısı gönderdik. Whispr hesabını aktifleştirmek için bağlantıyı aç.",
     "auth.register.checkEmailHint":
       "Bağlantı 24 saat içinde sona erer. Gelmezse spam klasörünü kontrol et veya yeniden gönderme bekleme süresinden sonra tekrar kayıt olmayı dene.",
     "auth.register.checkEmailMessage": "Hesabını doğrulamak için e-postanı kontrol et.",
@@ -1249,7 +1312,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.register.confirmPasswordPlaceholder": "Şifreni tekrar gir",
     "auth.register.creating": "Hesap oluşturuluyor...",
     "auth.register.description":
-      "Kendi profilin ve çalışma alanınla Wizards topluluğunu oluşturmaya başla.",
+      "Güvenli mesajlaşma, sunucular, DM'ler, ses odaları, ekran paylaşımı, medya yükleme, GIF'ler, tepkiler ve video görüşmeye hazır iş birliği için doğrulanmış Whispr hesabını oluştur.",
   "auth.register.emailTaken": "Bu e-posta zaten kullanımda.",
   "auth.register.rateLimited": "Çok fazla kayıt denemesi yapıldı. Lütfen daha sonra tekrar dene.",
   "auth.register.haveAccount": "Zaten hesabın var mı?",
@@ -1262,16 +1325,16 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.register.verifiedPrompt": "E-postanı doğruladın mı?",
 
     "auth.emailVerification.body":
-      "Wizards hesabını kurmayı tamamlamak için bu e-posta adresini doğrula.",
+      "Whispr hesabını kurmayı tamamlamak için bu e-posta adresini doğrula.",
     "auth.emailVerification.cta": "E-postayı doğrula",
     "auth.emailVerification.expires": "Bu bağlantı {hours} saat içinde sona erer.",
     "auth.emailVerification.fallback":
       "Buton çalışmazsa bu bağlantıyı tarayıcına yapıştır:",
     "auth.emailVerification.footer":
-      "Wizards, yeni hesapları doğrulayarak konuşmalarını daha güvenli tutar.",
+      "Whispr, yeni hesapları doğrulayarak konuşmalarını daha güvenli tutar.",
     "auth.emailVerification.greeting": "Merhaba {name},",
     "auth.emailVerification.ignore":
-      "Bir Wizards hesabı oluşturmadıysan bu e-postayı güvenle yok sayabilirsin.",
+      "Bir Whispr hesabı oluşturmadıysan bu e-postayı güvenle yok sayabilirsin.",
     "auth.emailVerification.notConfigured":
       "E-posta doğrulama yapılandırılmamış. Resend ayarlarını ekleyip uygulamayı yeniden başlat.",
     "auth.emailVerification.rateLimited":
@@ -1286,7 +1349,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Resend test göndericisi yalnızca Resend hesabına bağlı e-posta adresine gönderim yapabilir. Bu adresle test et veya Resend'de bir domain doğrulayıp RESEND_FROM_EMAIL değerini güncelle.",
     "auth.emailVerification.sendFailed":
       "Doğrulama e-postasını şu anda gönderemedik. Lütfen tekrar dene.",
-    "auth.emailVerification.subject": "Wizards e-postanı doğrula",
+    "auth.emailVerification.subject": "Whispr e-postanı doğrula",
     "auth.emailVerification.title": "E-postanı doğrula",
 
     "auth.verifyEmail.badge": "E-posta Doğrulama",
@@ -1302,11 +1365,11 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.verifyEmail.nextStepTitle": "Sonraki adım",
     "auth.verifyEmail.resendCta": "Girişe git",
     "auth.verifyEmail.successBody":
-      "E-postan başarıyla doğrulandı. Artık giriş yapıp Wizards'a devam edebilirsin.",
+      "E-postan başarıyla doğrulandı. Artık giriş yapıp Whispr'a devam edebilirsin.",
     "auth.verifyEmail.successTitle": "E-posta doğrulandı",
 
     "auth.turnstile.help":
-      "Bu kısa kontrol, Wizards'ı otomatik kayıt denemelerine karşı korur.",
+      "Bu kısa kontrol, Whispr'ı otomatik kayıt denemelerine karşı korur.",
     "auth.turnstile.invalid": "Güvenlik doğrulaması başarısız oldu. Lütfen tekrar dene.",
     "auth.turnstile.label": "Güvenlik doğrulaması",
     "auth.turnstile.loading": "Güvenlik doğrulaması yükleniyor...",
@@ -1332,7 +1395,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.account.title": "Hesabım",
     "settings.account.nav": "Profil ve Durum",
     "settings.account.description":
-      "Wizards genelinde nasıl göründüğünü belirleyen görünen adını, giriş e-postanı ve çevrimiçi durumunu tek yerde yönet.",
+      "Whispr genelinde nasıl göründüğünü belirleyen görünen adını, giriş e-postanı ve çevrimiçi durumunu tek yerde yönet.",
     "settings.account.summaryTitle": "Profil özeti",
     "settings.account.summaryDescription":
       "Arkadaşlar, DM'ler ve sunucular içinde hesabının nasıl göründüğüne dair hızlı bir görünüm.",
@@ -1341,7 +1404,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Görünür adını, kullanıcı adını, e-postanı veya tercih ettiğin çevrimiçi durumu çalışma alanından çıkmadan güncelle.",
     "settings.account.editHintTitle": "Hazır olduğunda",
     "settings.account.editHintDescription":
-      "Wizards içinde diğer insanların gördüğü bilgileri yenilemek istediğinde düzenleme modunu aç.",
+      "Whispr içinde diğer insanların gördüğü bilgileri yenilemek istediğinde düzenleme modunu aç.",
     "settings.account.fields.displayName": "Görünen ad",
     "settings.account.fields.status": "Çevrimiçi durum",
     "settings.account.status.invisible": "Görünmez",
@@ -1393,12 +1456,12 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Kanal listesi genişliğini, adlar ve durum önizlemeleri rahat nefes alacak şekilde ayarla.",
     "settings.appearance.icons.title": "Uygulama ikonu",
     "settings.appearance.icons.description":
-      "Wizards'ın tarayıcı sekmelerinde, mobil kısayollarda ve bu cihazdaki yüklü uygulama yüzeylerinde kullanacağı dalga işaretini seç.",
+      "Whispr'ın tarayıcı sekmelerinde, mobil kısayollarda ve bu cihazdaki yüklü uygulama yüzeylerinde kullanacağı dalga işaretini seç.",
     "settings.appearance.icons.select": "Bu ikonu kullan",
     "settings.appearance.icons.selected": "Aktif ikon",
     "settings.appearance.icons.updated": "Uygulama ikonu güncellendi",
     "settings.appearance.icons.updatedDescription":
-      "Sayfayı yenilemeye gerek yok. Wizards tarayıcı ve mobil ikonunu bu cihazda anında uygular.",
+      "Sayfayı yenilemeye gerek yok. Whispr tarayıcı ve mobil ikonunu bu cihazda anında uygular.",
     "settings.appearance.icons.wave0": "Gece sinyali",
     "settings.appearance.icons.wave1": "Klasik mavi",
     "settings.appearance.icons.wave2": "Aurora dalgası",
@@ -1414,7 +1477,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Açılır pencere yoğunluğunu, kapanma davranışını ve hesabın için aktif kalacak bildirim yüzeylerini yönet.",
     "settings.notifications.desktop.title": "Masaüstü bildirimleri",
     "settings.notifications.desktop.description":
-      "Wizards destekleyen bir tarayıcı bağlamında çalışırken yerel masaüstü uyarılarına izin ver.",
+      "Whispr destekleyen bir tarayıcı bağlamında çalışırken yerel masaüstü uyarılarına izin ver.",
     "settings.notifications.mobile.title": "Mobil bildirimler",
     "settings.notifications.mobile.description":
       "Hesap seviyesindeki bildirim tercihleri için mobil teslimatı açık tut.",
@@ -1439,18 +1502,18 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Sen bağlı kalırken birisi ses kanalından ayrıldığında farklı bir çıkış sesi çal.",
     "settings.notifications.soundProfile.title": "Ses profili",
     "settings.notifications.soundProfile.description":
-      "Bildirim sesleri açıkken Wizards'ın hangi stili kullanacağını seç.",
+      "Bildirim sesleri açıkken Whispr'ın hangi stili kullanacağını seç.",
     "settings.notifications.soundProfile.default": "Varsayılan",
     "settings.notifications.soundProfile.soft": "Yumuşak",
     "settings.notifications.soundProfile.pulse": "Pulse",
-    "settings.about.badge": "Wizards Hakkında",
+    "settings.about.badge": "Whispr Hakkında",
     "settings.about.title": "Hakkında",
     "settings.about.description":
-      "Wizards'ın ne için üretildiğini, hangi sürümü çalıştırdığını ve projenin arkasında kim olduğunu gör.",
+      "Whispr'ın ne için üretildiğini, hangi sürümü çalıştırdığını ve projenin arkasında kim olduğunu gör.",
     "settings.about.overview.description":
-      "Ürün yönünü ve Wizards'ın sunmayı hedeflediği iletişim deneyimini hızlıca özetler.",
+      "Ürün yönünü ve Whispr'ın sunmayı hedeflediği iletişim deneyimini hızlıca özetler.",
     "settings.about.overview.body":
-      "Wizards; hızlı mesajlaşma, sesli iş birliği ve hafif ekran paylaşımı için tasarlanmış gerçek zamanlı bir iletişim platformudur.",
+      "Whispr; hızlı mesajlaşma, sesli iş birliği ve hafif ekran paylaşımı için tasarlanmış gerçek zamanlı bir iletişim platformudur.",
     "settings.about.overview.bodySecondary":
       "Next.js, WebSockets ve LiveKit destekli WebRTC gibi modern temeller üzerine kurulu olan yapı; canlı takım çalışmasında hızlı, akıcı ve odaklı kalacak şekilde tasarlanmıştır.",
     "settings.about.buildInfo.title": "Sürüm / Build Bilgisi",
@@ -1460,11 +1523,13 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.about.buildInfo.lastUpdate": "Son güncelleme",
     "settings.about.developer.title": "Geliştirici Bilgisi",
     "settings.about.developer.description":
-      "Wizards çalışma alanının ürün sahipliği ve geliştirme yönü.",
+      "Whispr çalışma alanının ürün sahipliği ve geliştirme yönü.",
     "settings.about.developer.name": "Geliştirici",
     "settings.about.developer.contributors": "Katkıda Bulunanlar",
     "settings.about.developer.contributorsDescription":
-      "Wizards'ın ürün, geri bildirim ve geliştirme sürecine katkı sağlayan kişiler.",
+      "Whispr'ın ürün, geri bildirim ve geliştirme sürecine katkı sağlayan kişiler.",
+    "settings.about.developer.featuredContributor": "En popüler katkıda bulunan",
+    "settings.about.developer.featuredContributorBadge": "Topluluk favorisi",
 
     "appearance.page.badge": "Kullanıcı Ayarları",
     "appearance.page.description":
@@ -1514,7 +1579,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "themes.tabs.advanced": "Gelişmiş",
     "themes.page.simpleEyebrow": "Basit Temalar",
     "themes.page.simpleTitle": "Tanıdık varsayılanlar",
-    "themes.page.simpleDescription": "Klasik Wizards görünümü için temiz düz paletler.",
+    "themes.page.simpleDescription": "Klasik Whispr görünümü için temiz düz paletler.",
     "themes.page.advancedEyebrow": "Gelişmiş Temalar",
     "themes.page.advancedTitle": "İddialı renk paletleri",
     "themes.page.advancedDescription":
@@ -1591,7 +1656,25 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.channelSidebar.createCategory": "Kategori Oluştur",
     "shell.channelSidebar.createTextChannel": "Yazı Kanalı Oluştur",
     "shell.channelSidebar.createVoiceChannel": "Sesli Kanal Oluştur",
+    "shell.channelSidebar.dropChannelsHere": "Kanalı buraya bırak",
     "shell.channelSidebar.membersCount": "{count} üye",
+    "shell.channelSidebar.manageServer": "Sunucuyu yönet",
+    "shell.channelSidebar.addTextChannel": "Yazı",
+    "shell.channelSidebar.addVoiceChannel": "Ses",
+    "shell.channelSidebar.categoryActions": "Kategori işlemleri",
+    "shell.channelSidebar.editCategory": "Kategoriyi Düzenle",
+    "shell.channelSidebar.deleteCategory": "Kategoriyi Sil",
+    "shell.channelSidebar.deleteCategoryDescription":
+      "Bu kategorideki kanallar Açık Kanallar bölümüne taşınır. Mesajlar güvende kalır.",
+    "shell.channelSidebar.emptyAreaMenu": "Sidebar işlemleri",
+    "shell.memberPanel.subtitle": "{count} üye",
+    "shell.memberPanel.online": "Çevrimiçi",
+    "shell.memberPanel.offline": "Çevrimdışı",
+    "shell.memberPanel.emptyOnline": "Şu anda çevrimiçi kimse yok",
+    "shell.memberPanel.emptyOffline": "Çevrimdışı üye yok",
+    "shell.memberPanel.owner": "Sahip",
+    "shell.memberPanel.admin": "Admin",
+    "shell.memberPanel.member": "Üye",
     "shell.user.toggleMute": "Sesi kapat",
     "shell.user.toggleDeafen": "Kulaklığı kapat",
     "shell.user.status": "Çevrimiçi durum",
@@ -1736,6 +1819,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.typing.one": "{name} yazıyor...",
     "chat.typing.two": "{first} ve {second} yazıyor...",
     "chat.typing.many": "Birkaç kişi yazıyor...",
+    "chat.mentions.title": "Birini etiketle",
+    "chat.mentions.empty": "Eşleşen üye yok",
+    "chat.mentions.notifyTitle": "Etiketlendin",
+    "chat.mentions.notifyBody": "{name} seni #{channel} kanalında etiketledi.",
 
   "notifications.bell.title": "Bildirimler",
   "notifications.actor.system": "Sistem",
@@ -1814,6 +1901,14 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.categoryName": "Kategori Adı",
     "workspace.modal.categoryPlaceholder": "Başlangıç Alanı",
     "workspace.modal.categoryCreating": "Oluşturuluyor...",
+    "workspace.modal.categoryEditTitle": "Kategoriyi Düzenle",
+    "workspace.modal.categoryEditDescription": "Kanallarını taşımadan bu kategoriyi yeniden adlandır.",
+    "workspace.modal.categoryUpdated": "#{name} güncellendi.",
+    "workspace.modal.categorySave": "Kategoriyi Kaydet",
+    "workspace.modal.categorySaving": "Kaydediliyor...",
+    "workspace.modal.categoryDeleteTitle": "{name} silinsin mi?",
+    "workspace.modal.categoryDeleteAction": "Kategoriyi Sil",
+    "workspace.modal.categoryDeleting": "Siliniyor...",
     "workspace.modal.categoryReady": "Kullanıma Hazır",
     "workspace.modal.categoryCreated": "#{name} artık kenar çubuğunda hazır.",
     "workspace.modal.channelEditTitle": "Kanalı Düzenle",
@@ -1831,6 +1926,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.inviteTitle": "Davet Oluştur",
     "workspace.modal.inviteDescription": "Yeni bir davet kodu üret ve anında paylaş.",
     "workspace.modal.inviteExpires": "Geçerlilik Süresi (Saat)",
+    "workspace.modal.inviteNeverExpires": "Süresiz davet",
+    "workspace.modal.inviteNeverExpiresDescription":
+      "Bir admin iptal edene kadar aktif kalacak kalıcı bir davet bağlantısı oluştur.",
     "workspace.modal.inviteMaxUses": "Maksimum Kullanım",
     "workspace.modal.inviteUnlimited": "Sınırsız",
     "workspace.modal.inviteReady": "Paylaşıma Hazır",
@@ -1868,6 +1966,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "serverSettings.noInvites":
       "Henüz etkin davet yok. Sunucu menüsünden veya hızlı davet penceresinden bir tane oluştur.",
     "serverSettings.inviteCreatedBy": "{name} tarafından oluşturuldu • {uses}{maxUses} kullanım",
+    "serverSettings.inviteExpiresAt": "{date} tarihinde biter",
+    "serverSettings.invitePermanent": "Kalıcı",
     "serverSettings.copy": "Kopyala",
     "serverSettings.revoke": "İptal Et",
     "serverSettings.deleteTitle": "Bu Sunucuyu Sil",
@@ -1879,7 +1979,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "invite.error.badge": "Davet Hatası",
     "invite.error.title": "Bu davet kullanılamıyor",
     "invite.error.fallback": "Bu davete katılırken bir sorun oluştu.",
-    "invite.error.back": "Wizards'a Dön",
+    "invite.error.back": "Whispr'a Dön",
     "invite.error.notFound": "Davet bulunamadı.",
     "invite.error.expired": "Davetin süresi dolmuş.",
     "invite.error.limit": "Davet kullanım sınırına ulaştı.",

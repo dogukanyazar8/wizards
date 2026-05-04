@@ -22,7 +22,6 @@ export async function getServerUnreadCounts(userId: string, serverIds: string[])
     FROM "ServerMember" sm
     LEFT JOIN "Channel" c
       ON c."serverId" = sm."serverId"
-      AND c."parentId" IS NULL
       AND c."type" = 'TEXT'
     LEFT JOIN "ChannelReadState" crs
       ON crs."channelId" = c."id"
@@ -72,7 +71,6 @@ export async function getServerUnreadCountsBatch(userIds: string[], serverId: st
     FROM "ServerMember" sm
     LEFT JOIN "Channel" c
       ON c."serverId" = sm."serverId"
-      AND c."parentId" IS NULL
       AND c."type" = 'TEXT'
     LEFT JOIN "ChannelReadState" crs
       ON crs."channelId" = c."id"
