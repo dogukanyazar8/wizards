@@ -17,6 +17,7 @@ export function getSocket(): Socket<ServerToClientEvents, ClientToServerEvents> 
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
+      withCredentials: true,
     };
     socket = socketUrl ? io(socketUrl, options) : io(options);
   }

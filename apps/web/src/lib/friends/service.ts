@@ -70,6 +70,8 @@ type FriendsUpdatedReason =
   | "friend_removed"
   | "unblocked";
 
+export const PRESENCE_CACHE_TTL_SECONDS = 180;
+
 function getPresenceRedisKey(userId: string) {
   return `presence:${userId}`;
 }
@@ -288,10 +290,16 @@ export async function cacheUserPresence(
     nextCustomStatus = user.customStatus ?? null;
   }
 
-  await getRedis().hset(getPresenceRedisKey(userId), {
-    customStatus: nextCustomStatus ?? "",
-    status,
-  });
+  const redis = getRedis();
+  const key = getPresenceRedisKey(userId);
+  await redis
+    .pipeline()
+    .hset(key, {
+      customStatus: nextCustomStatus ?? "",
+      status,
+    })
+    .expire(key, PRESENCE_CACHE_TTL_SECONDS)
+    .exec();
 
   return {
     userId,

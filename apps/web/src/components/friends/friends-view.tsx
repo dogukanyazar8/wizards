@@ -4,9 +4,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Ban,
   Check,
+  CheckCircle2,
   Clock3,
   Loader2,
   SendHorizontal,
+  UserMinus,
   UserPlus,
   Users,
   X,
@@ -231,6 +233,46 @@ function SectionHeading({
   );
 }
 
+function FriendsFeedbackNotice({
+  feedback,
+}: {
+  feedback: {
+    message: string;
+    tone: "error" | "success";
+  } | null;
+}) {
+  if (!feedback) {
+    return null;
+  }
+
+  const success = feedback.tone === "success";
+  const Icon = success ? CheckCircle2 : X;
+
+  return (
+    <div
+      aria-live="polite"
+      className={`mt-3 flex items-center gap-3 rounded-[22px] border px-4 py-3 text-sm shadow-[0_16px_42px_hsl(var(--shadow-color)/0.08)] ${
+        success
+          ? "border-[hsl(var(--success)/0.26)] bg-[hsl(var(--success)/0.08)] text-app-success"
+          : "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.08)] text-app-danger"
+      }`}
+      data-testid="friend-feedback"
+      role="status"
+    >
+      <span
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border ${
+          success
+            ? "border-[hsl(var(--success)/0.26)] bg-[hsl(var(--success)/0.12)]"
+            : "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.12)]"
+        }`}
+      >
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 font-medium">{feedback.message}</span>
+    </div>
+  );
+}
+
 function ConfirmDialog({
   busy,
   confirmLabel,
@@ -238,6 +280,7 @@ function ConfirmDialog({
   onClose,
   onConfirm,
   open,
+  safetyDescription,
   title,
 }: {
   busy: boolean;
@@ -246,6 +289,7 @@ function ConfirmDialog({
   onClose: () => void;
   onConfirm: () => void;
   open: boolean;
+  safetyDescription: string;
   title: string;
 }) {
   const { t } = useI18n();
@@ -257,9 +301,19 @@ function ConfirmDialog({
       open={open}
       title={title}
     >
-      <div className="flex justify-end gap-3">
+      <div className="rounded-[24px] border border-[hsl(var(--danger)/0.18)] bg-[hsl(var(--danger)/0.06)] p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.1)] text-app-danger">
+            <UserMinus className="h-5 w-5" />
+          </div>
+          <p className="text-sm leading-6 text-app-muted">
+            {safetyDescription}
+          </p>
+        </div>
+      </div>
+      <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button
-          className="rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+          className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-60"
           disabled={busy}
           onClick={onClose}
           type="button"
@@ -267,12 +321,13 @@ function ConfirmDialog({
           {t("common.cancel")}
         </button>
         <button
-          className="rounded-2xl bg-[hsl(var(--danger))] px-4 py-2 text-sm font-semibold text-[hsl(var(--danger-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:opacity-60"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--danger))] px-4 py-2 text-sm font-semibold text-[hsl(var(--danger-foreground))] shadow-[0_16px_34px_hsl(var(--danger)/0.18)] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:opacity-60"
           disabled={busy}
           onClick={onConfirm}
           type="button"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : confirmLabel}
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserMinus className="h-4 w-4" />}
+          {confirmLabel}
         </button>
       </div>
     </Modal>
@@ -500,10 +555,45 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
     },
   });
 
-  const removeFriendMutation = useMutation({
-    mutationFn: (friendUserId: string) => removeFriendRequest(friendUserId),
-    onSettled: async () => {
+  const removeFriendMutation = useMutation<
+    { success: true },
+    Error,
+    FriendDto,
+    { previousFriends: FriendDto[] | undefined }
+  >({
+    mutationFn: (friend) => removeFriendRequest(friend.id),
+    onMutate: async (friend) => {
+      await queryClient.cancelQueries({ queryKey: friendsQueryKeys.list });
+
+      const previousFriends = queryClient.getQueryData<FriendDto[]>(friendsQueryKeys.list);
+
+      queryClient.setQueryData<FriendDto[] | undefined>(friendsQueryKeys.list, (current) =>
+        current?.filter((candidate) => candidate.id !== friend.id),
+      );
       setConfirmState(null);
+      setFeedback(null);
+
+      return { previousFriends };
+    },
+    onError: (_error, _friend, context) => {
+      if (context?.previousFriends) {
+        queryClient.setQueryData(friendsQueryKeys.list, context.previousFriends);
+      }
+      setFeedback({
+        message: t("friends.remove.error"),
+        tone: "error",
+      });
+    },
+    onSuccess: (_result, friend) => {
+      setFeedback({
+        message: t("friends.remove.success", {
+          name: friend.displayName ?? friend.username,
+        }),
+        tone: "success",
+      });
+      scheduleSuccessFeedbackClear();
+    },
+    onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: friendsQueryKeys.root });
     },
   });
@@ -620,6 +710,7 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
               />
             </div>
           </div>
+          <FriendsFeedbackNotice feedback={feedback} />
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6">
@@ -784,19 +875,6 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
                 </div>
               </div>
 
-              {feedback ? (
-                <div
-                  className={`mt-5 rounded-2xl border px-4 py-3 text-sm ${
-                    feedback.tone === "success"
-                      ? "border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.08)] text-[hsl(var(--success))]"
-                      : "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.08)] text-[hsl(var(--danger-foreground))]"
-                  }`}
-                  data-testid="friend-feedback"
-                >
-                  {feedback.message}
-                </div>
-              ) : null}
-
               <label
                 className="mt-6 block text-sm font-medium text-app-foreground"
                 htmlFor="friend-username"
@@ -912,9 +990,14 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
             return;
           }
 
-          removeFriendMutation.mutate(confirmState.friend.id);
+          removeFriendMutation.mutate(confirmState.friend);
         }}
         open={Boolean(confirmState)}
+        safetyDescription={
+          confirmState?.type === "block"
+            ? t("friends.confirm.block.safety")
+            : t("friends.confirm.remove.safety")
+        }
         title={
           confirmState?.type === "block"
             ? t("friends.confirm.block.title", {

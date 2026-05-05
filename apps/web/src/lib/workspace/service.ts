@@ -25,7 +25,7 @@ import type {
 } from "@wizards/types";
 import { ApiError } from "@/lib/api";
 import { normalizeAppLocale, translate } from "@/lib/locale";
-import { readPresenceMap, type VisiblePresenceStatus } from "@/lib/presence";
+import { readPresenceMap } from "@/lib/presence";
 import { getRedis } from "@/lib/redis";
 import type { NotificationSocketPayload } from "@/lib/socket/events";
 import { getSocketServer } from "@/lib/socket/runtime";
@@ -75,7 +75,6 @@ type ChannelRecord = {
   type: ChannelType;
 };
 
-type WorkspacePresenceStatus = VisiblePresenceStatus;
 const SERVER_DETAIL_MEMBER_LIMIT = 100;
 const SERVER_MEMBERS_PAGE_LIMIT = 100;
 
@@ -113,18 +112,6 @@ function normalizeChannelName(value: string) {
     .replace(/[^a-z0-9-]/g, "")
     .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "");
-}
-
-function normalizeWorkspacePresenceStatus(value: unknown): WorkspacePresenceStatus | null {
-  if (value === "ONLINE" || value === "IDLE" || value === "DND") {
-    return value;
-  }
-
-  if (value === "OFFLINE" || value === "INVISIBLE") {
-    return "OFFLINE";
-  }
-
-  return null;
 }
 
 function looksLikeAdmin(role: RoleRecord) {
@@ -340,7 +327,7 @@ async function mapMembers(
     getRedis(),
     members.map((member) => ({
       customStatus: member.user.customStatus,
-      status: normalizeWorkspacePresenceStatus(member.user.status) ?? "OFFLINE",
+      status: "OFFLINE",
       userId: member.user.id,
     })),
   );
@@ -353,7 +340,7 @@ async function mapMembers(
     }));
     const presence = presenceByUserId.get(member.user.id) ?? {
       customStatus: member.user.customStatus,
-      status: normalizeWorkspacePresenceStatus(member.user.status) ?? "OFFLINE",
+      status: "OFFLINE" as const,
     };
 
     return {

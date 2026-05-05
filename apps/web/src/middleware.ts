@@ -86,7 +86,7 @@ function buildContentSecurityPolicy(nonce: string) {
     "script-src": unique([
       "'self'",
       `'nonce-${nonce}'`,
-      ...(isDevelopment ? ["'unsafe-eval'", "'unsafe-inline'"] : ["'strict-dynamic'"]),
+      ...(isDevelopment ? ["'unsafe-eval'"] : ["'strict-dynamic'"]),
       "https://challenges.cloudflare.com",
     ]),
     "style-src": ["'self'", "'unsafe-inline'"],
@@ -99,8 +99,8 @@ function buildContentSecurityPolicy(nonce: string) {
     .join("; ");
 }
 
-function attachSecurityHeaders(response: NextResponse, nonce: string) {
-  response.headers.set("Content-Security-Policy", buildContentSecurityPolicy(nonce));
+function attachSecurityHeaders(response: NextResponse, cspHeader: string, nonce: string) {
+  response.headers.set("Content-Security-Policy", cspHeader);
   response.headers.set("x-nonce", nonce);
   return response;
 }
@@ -129,8 +129,10 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
   const nonce = createNonce();
+  const cspHeader = buildContentSecurityPolicy(nonce);
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", cspHeader);
 
   let isAuthenticated = false;
   try {
@@ -152,6 +154,7 @@ export async function middleware(request: NextRequest) {
   if (!isAuthenticated && isProtectedRoute(pathname)) {
     return attachSecurityHeaders(
       NextResponse.redirect(new URL("/login", request.nextUrl.origin)),
+      cspHeader,
       nonce,
     );
   }
@@ -159,6 +162,7 @@ export async function middleware(request: NextRequest) {
   if (isAuthenticated && REDIRECT_IF_AUTHENTICATED.has(pathname)) {
     return attachSecurityHeaders(
       NextResponse.redirect(new URL("/channels", request.nextUrl.origin)),
+      cspHeader,
       nonce,
     );
   }
@@ -169,6 +173,7 @@ export async function middleware(request: NextRequest) {
         headers: requestHeaders,
       },
     }),
+    cspHeader,
     nonce,
   );
 }

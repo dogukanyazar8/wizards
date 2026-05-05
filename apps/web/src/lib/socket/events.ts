@@ -67,6 +67,7 @@ export interface ClientToServerEvents {
     fromUserId: string;
   }) => void;
   "dm:screenshare:stop": (data: { conversationId: string }) => void;
+  "presence:activity": (data: { status: "ONLINE" | "IDLE" }) => void;
   "voice:join": (data: { channelId: string; serverId: string }) => void;
   "voice:leave": (data: { channelId: string; serverId: string }) => void;
   "voice:screenshare:update": (data: {

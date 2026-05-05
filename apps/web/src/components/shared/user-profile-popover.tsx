@@ -518,22 +518,54 @@ function AcceptDeclineButtons({ requestId }: { requestId: string }) {
 function RemoveFriendButton({ userId }: { userId: string }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
 
-  const mutation = useMutation({
+  const mutation = useMutation<
+    { success: true },
+    Error,
+    void,
+    { previousFriends: FriendDto[] | undefined }
+  >({
     mutationFn: () => removeFriendRequest(userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: friendsQueryKeys.list });
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: friendsQueryKeys.list });
+      const previousFriends = queryClient.getQueryData<FriendDto[]>(friendsQueryKeys.list);
+      queryClient.setQueryData<FriendDto[] | undefined>(friendsQueryKeys.list, (current) =>
+        current?.filter((friend) => friend.id !== userId),
+      );
+      setError(null);
+
+      return { previousFriends };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousFriends) {
+        queryClient.setQueryData(friendsQueryKeys.list, context.previousFriends);
+      }
+      setError(t("friends.remove.error"));
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: friendsQueryKeys.root });
     },
   });
 
   return (
-    <button
-      onClick={() => mutation.mutate()}
-      disabled={mutation.isPending}
-      className="w-full rounded-2xl border border-[hsl(var(--danger)/0.38)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-sm font-semibold text-app-danger transition hover:bg-[hsl(var(--danger)/0.14)] disabled:opacity-50"
-    >
-      {mutation.isPending ? "..." : t("profile.removeFriend")}
-    </button>
+    <div className="space-y-2">
+      {error ? (
+        <p
+          className="rounded-2xl border border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-xs font-medium text-app-danger"
+          role="alert"
+        >
+          {error}
+        </p>
+      ) : null}
+      <button
+        onClick={() => mutation.mutate()}
+        disabled={mutation.isPending}
+        className="w-full rounded-2xl border border-[hsl(var(--danger)/0.38)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-sm font-semibold text-app-danger transition hover:bg-[hsl(var(--danger)/0.14)] disabled:opacity-50"
+      >
+        {mutation.isPending ? "..." : t("profile.removeFriend")}
+      </button>
+    </div>
   );
 }
 

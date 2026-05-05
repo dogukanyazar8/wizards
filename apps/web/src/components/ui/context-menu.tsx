@@ -90,6 +90,7 @@ export function ContextMenu({ children, onClose, open, position }: ContextMenuPr
                 : { opacity: 0, scale: 0.96, y: -4 }
             }
             onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
             role="menu"
             {...(isMobileViewport
               ? {}

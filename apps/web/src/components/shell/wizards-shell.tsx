@@ -26,6 +26,7 @@ import { Modal } from "@/components/ui/modal";
 import { useSocket } from "@/hooks/use-socket";
 import { useDMConversations } from "@/hooks/use-dm-conversations";
 import { useAppearanceHydration } from "@/hooks/use-appearance-hydration";
+import { usePresenceActivity } from "@/hooks/use-presence-activity";
 import type { NotificationSocketPayload } from "@/lib/socket/events";
 import { useAppStore } from "@/lib/store";
 import {
@@ -137,6 +138,7 @@ interface NavigationPanelProps {
   onOpenCreateServer: () => void;
   onOpenServerContextMenu: (serverId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
   onOpenSettings: () => void;
+  onCurrentUserStatusChange: (status: "ONLINE" | "IDLE" | "DND" | "OFFLINE") => void;
   serverRailIconSize: number;
   serverRailWidth: number;
   isServerRailIconOnly: boolean;
@@ -163,6 +165,7 @@ const NavigationPanel = React.memo(
     onOpenCreateServer,
     onOpenServerContextMenu,
     onOpenSettings,
+    onCurrentUserStatusChange,
     serverRailIconSize,
     serverRailWidth,
     isServerRailIconOnly,
@@ -203,6 +206,7 @@ const NavigationPanel = React.memo(
           detail={serverDetailQueryData ?? null}
           loading={Boolean(activeServerId) && serverDetailQueryLoading}
           onNavigate={onNavigate}
+          onCurrentUserStatusChange={onCurrentUserStatusChange}
           onOpenSettings={onOpenSettings}
           onPrefetch={onPrefetch}
         />
@@ -280,6 +284,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const [addMemberServer, setAddMemberServer] = React.useState<WorkspaceServerSummary | null>(null);
   const [addMemberUsername, setAddMemberUsername] = React.useState("");
   const [addMemberSuccess, setAddMemberSuccess] = React.useState<string | null>(null);
+  const [currentUserStatus, setCurrentUserStatus] = React.useState(currentUser.status);
   const [leaveServerCandidate, setLeaveServerCandidate] =
     React.useState<WorkspaceServerSummary | null>(null);
   const {
@@ -347,6 +352,22 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   });
 
   const { conversations: dmConversations } = useDMConversations(currentUser.id);
+
+  const visibleCurrentUser = useMemo(
+    () => ({
+      ...currentUser,
+      status: currentUserStatus,
+    }),
+    [currentUser, currentUserStatus],
+  );
+  usePresenceActivity({
+    socket,
+    status: currentUserStatus,
+  });
+
+  useEffect(() => {
+    setCurrentUserStatus(currentUser.status);
+  }, [currentUser.status]);
 
   useEffect(() => {
     if (layoutSettings) {
@@ -459,6 +480,10 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       status: "ONLINE" | "IDLE" | "DND" | "OFFLINE";
       userId: string;
     }) => {
+      if (data.userId === currentUser.id) {
+        setCurrentUserStatus(data.status);
+      }
+
       queryClient.setQueriesData<WorkspaceServerDetail | undefined>(
         { queryKey: workspaceQueryKeys.root },
         (current) => {
@@ -494,7 +519,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       socket.off("notification:new", handleNotificationNew);
       socket.off("presence:update", handlePresenceUpdate);
     };
-  }, [activeServerId, queryClient, router, socket]);
+  }, [activeServerId, currentUser.id, queryClient, router, socket]);
 
   const cachedServerDetail = activeServerId
     ? queryClient.getQueryData<Awaited<ReturnType<typeof fetchWorkspaceServer>>>(
@@ -877,7 +902,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
           serversQueryLoading={serversQuery.isLoading}
           serverDetailQueryData={serverDetailQuery.data}
           serverDetailQueryLoading={serverDetailQuery.isLoading}
-          currentUser={currentUser}
+          currentUser={visibleCurrentUser}
           currentUserId={currentUser.id}
           onNavigate={navigate}
           onPrefetch={prefetch}
@@ -890,6 +915,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
             });
           }}
           onOpenSettings={openSettings}
+          onCurrentUserStatusChange={setCurrentUserStatus}
           serverRailIconSize={serverRailIconSize}
           serverRailWidth={serverRailWidth}
           isServerRailIconOnly={isServerRailIconOnly}
@@ -935,7 +961,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                 serversQueryLoading={serversQuery.isLoading}
                 serverDetailQueryData={serverDetailQuery.data}
                 serverDetailQueryLoading={serverDetailQuery.isLoading}
-                currentUser={currentUser}
+                currentUser={visibleCurrentUser}
                 currentUserId={currentUser.id}
                 onNavigate={navigate}
                 onPrefetch={prefetch}
@@ -948,6 +974,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                   });
                 }}
                 onOpenSettings={openSettings}
+                onCurrentUserStatusChange={setCurrentUserStatus}
                 serverRailIconSize={serverRailIconSize}
                 serverRailWidth={serverRailWidth}
                 isServerRailIconOnly={false}

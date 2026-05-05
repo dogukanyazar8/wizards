@@ -21,6 +21,7 @@ export interface VoiceAudioPreferences {
   krispNoiseCancellation: boolean;
   noiseSuppression: boolean;
   outputDeviceId: string;
+  voiceIsolation: boolean;
 }
 
 export const DEFAULT_VOICE_AUDIO_PREFERENCES: VoiceAudioPreferences = {
@@ -30,7 +31,10 @@ export const DEFAULT_VOICE_AUDIO_PREFERENCES: VoiceAudioPreferences = {
   krispNoiseCancellation: true,
   noiseSuppression: true,
   outputDeviceId: DEFAULT_AUDIO_DEVICE_ID,
+  voiceIsolation: true,
 };
+
+const CLEAN_VOICE_PROCESSING_VERSION = 2;
 
 function clampParticipantVolume(value: number) {
   return Math.min(MAX_PARTICIPANT_VOLUME, Math.max(MIN_PARTICIPANT_VOLUME, Math.round(value)));
@@ -54,7 +58,7 @@ function sanitizeParticipantVolumes(value: unknown): Record<string, number> {
   );
 }
 
-function sanitizeAudioPreferences(value: unknown): VoiceAudioPreferences {
+export function sanitizeAudioPreferences(value: unknown): VoiceAudioPreferences {
   if (!isRecord(value)) {
     return DEFAULT_VOICE_AUDIO_PREFERENCES;
   }
@@ -84,6 +88,28 @@ function sanitizeAudioPreferences(value: unknown): VoiceAudioPreferences {
       typeof value.outputDeviceId === "string" && value.outputDeviceId.trim()
         ? value.outputDeviceId
         : DEFAULT_VOICE_AUDIO_PREFERENCES.outputDeviceId,
+    voiceIsolation:
+      typeof value.voiceIsolation === "boolean"
+        ? value.voiceIsolation
+        : DEFAULT_VOICE_AUDIO_PREFERENCES.voiceIsolation,
+  };
+}
+
+function needsCleanVoiceMigration(value: unknown) {
+  return (
+    !isRecord(value) ||
+    value.audioProcessingVersion !== CLEAN_VOICE_PROCESSING_VERSION
+  );
+}
+
+function applyCleanVoiceDefaults(preferences: VoiceAudioPreferences) {
+  return {
+    ...preferences,
+    autoGainControl: true,
+    echoCancellation: true,
+    krispNoiseCancellation: true,
+    noiseSuppression: true,
+    voiceIsolation: true,
   };
 }
 
@@ -92,6 +118,7 @@ function sanitizeScreenShareQuality(value: unknown): ScreenShareQualityId {
 }
 
 type PersistedVoiceStoreState = {
+  audioProcessingVersion: number;
   audioPreferences: VoiceAudioPreferences;
   hasConfiguredKrispPreference: boolean;
   participantVolumes: Record<string, number>;
@@ -139,6 +166,7 @@ export const useVoiceStore = create<VoiceStoreState>()(
   persist(
     (set) => ({
       activeChannelId: null,
+      audioProcessingVersion: CLEAN_VOICE_PROCESSING_VERSION,
       audioPreferences: DEFAULT_VOICE_AUDIO_PREFERENCES,
       clearScreenShareState: () =>
         set({
@@ -292,19 +320,27 @@ export const useVoiceStore = create<VoiceStoreState>()(
         return {
           ...currentState,
           audioPreferences:
-            persistedState.hasConfiguredKrispPreference === true
-              ? sanitizeAudioPreferences(persistedState.audioPreferences)
-              : {
-                  ...sanitizeAudioPreferences(persistedState.audioPreferences),
-                  krispNoiseCancellation: true,
-                },
-          hasConfiguredKrispPreference: persistedState.hasConfiguredKrispPreference === true,
+            needsCleanVoiceMigration(persistedState)
+              ? applyCleanVoiceDefaults(
+                  sanitizeAudioPreferences(persistedState.audioPreferences),
+                )
+              : persistedState.hasConfiguredKrispPreference === true
+                ? sanitizeAudioPreferences(persistedState.audioPreferences)
+                : {
+                    ...sanitizeAudioPreferences(persistedState.audioPreferences),
+                    krispNoiseCancellation: true,
+                  },
+          audioProcessingVersion: CLEAN_VOICE_PROCESSING_VERSION,
+          hasConfiguredKrispPreference: needsCleanVoiceMigration(persistedState)
+            ? false
+            : persistedState.hasConfiguredKrispPreference === true,
           participantVolumes: sanitizeParticipantVolumes(persistedState.participantVolumes),
           screenShareQuality: sanitizeScreenShareQuality(persistedState.screenShareQuality),
         };
       },
       name: VOICE_PREFERENCES_STORAGE_KEY,
       partialize: (state): PersistedVoiceStoreState => ({
+        audioProcessingVersion: state.audioProcessingVersion,
         audioPreferences: state.audioPreferences,
         hasConfiguredKrispPreference: state.hasConfiguredKrispPreference,
         participantVolumes: state.participantVolumes,

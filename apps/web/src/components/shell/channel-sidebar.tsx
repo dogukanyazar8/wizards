@@ -20,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
+  Clock3,
   Edit3,
   GripVertical,
   Hash,
@@ -56,6 +57,10 @@ import {
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
 import { useVoiceStates } from "@/hooks/use-voice-states";
+import {
+  PRESENCE_IDLE_TIMEOUT_OPTIONS,
+  usePresenceIdleTimeoutPreference,
+} from "@/hooks/use-presence-activity";
 import { useAppStore } from "@/lib/store";
 import { updatePresenceStatusAction } from "@/lib/account/actions";
 import { logoutAction } from "@/lib/auth/actions";
@@ -75,6 +80,7 @@ type ChannelSidebarProps = {
   detail: WorkspaceServerDetail | null;
   loading: boolean;
   onNavigate: (href: string) => void;
+  onCurrentUserStatusChange: (status: PresenceStatus) => void;
   onOpenSettings: () => void;
   onPrefetch?: (href: string) => void;
 };
@@ -206,6 +212,7 @@ type UserProfileFooterProps = {
     username: string;
   };
   onOpenAppearanceSettings: () => void;
+  onStatusChange: (status: PresenceStatus) => void;
 };
 
 const USER_STATUS_OPTIONS: Array<{
@@ -234,12 +241,17 @@ function getStatusDotClass(status: PresenceStatus) {
   return "bg-slate-400 shadow-[0_0_0_3px_hsl(var(--muted)/0.18)]";
 }
 
-function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooterProps) {
+function UserProfileFooter({
+  user,
+  onOpenAppearanceSettings,
+  onStatusChange,
+}: UserProfileFooterProps) {
   const { t } = useI18n();
   const socket = useSocket();
   const [isLoggingOut, startLogoutTransition] = useTransition();
   const [isUpdatingStatus, startStatusTransition] = useTransition();
   const [status, setStatus] = useState<PresenceStatus>(user.status);
+  const { idleTimeoutMinutes, setIdleTimeoutMinutes } = usePresenceIdleTimeoutPreference();
   const { activeChannelId, isDeafened, isMuted, leaveChannel, toggleDeafen, toggleMute } =
     useVoiceConnection();
 
@@ -258,15 +270,18 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
   const handleStatusChange = (nextStatus: PresenceStatus) => {
     const previousStatus = status;
     setStatus(nextStatus);
+    onStatusChange(nextStatus);
     startStatusTransition(async () => {
       const result = await updatePresenceStatusAction(nextStatus);
 
       if (!result.success || !result.status) {
         setStatus(previousStatus);
+        onStatusChange(previousStatus);
         return;
       }
 
       setStatus(result.status);
+      onStatusChange(result.status);
     });
   };
 
@@ -361,6 +376,34 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
             </button>
           </div>
 
+          <div className="mt-2 flex items-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-soft)/0.26)] px-3 py-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2 text-app-muted">
+              <Clock3 className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate text-[11px] font-semibold">
+                {t("shell.user.idleAfter")}
+              </span>
+            </div>
+            <label className="sr-only" htmlFor="user-presence-idle-timeout">
+              {t("shell.user.idleAfterTitle")}
+            </label>
+            <div className="relative shrink-0">
+              <select
+                className="h-8 appearance-none rounded-xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.82)] px-2.5 pr-7 text-[11px] font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-card))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                id="user-presence-idle-timeout"
+                onChange={(event) => setIdleTimeoutMinutes(Number(event.target.value))}
+                title={t("shell.user.idleAfterTitle")}
+                value={idleTimeoutMinutes}
+              >
+                {PRESENCE_IDLE_TIMEOUT_OPTIONS.map((minutes) => (
+                  <option key={minutes} value={minutes}>
+                    {t("shell.user.idleMinutes", { count: minutes })}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-app-muted" />
+            </div>
+          </div>
+
           <div className="mt-2 grid grid-cols-2 gap-2">
             <AudioDeviceSelect kind="input" variant="compact" />
             <AudioDeviceSelect kind="output" variant="compact" />
@@ -423,6 +466,7 @@ export function ChannelSidebar({
   detail,
   loading,
   onNavigate,
+  onCurrentUserStatusChange,
   onOpenSettings,
   onPrefetch,
 }: ChannelSidebarProps) {
@@ -659,7 +703,11 @@ export function ChannelSidebar({
           data-notification-popup-anchor="controls-border"
         >
           <VoiceConnectionBar />
-          <UserProfileFooter user={currentUser} onOpenAppearanceSettings={onOpenSettings} />
+          <UserProfileFooter
+            user={currentUser}
+            onOpenAppearanceSettings={onOpenSettings}
+            onStatusChange={onCurrentUserStatusChange}
+          />
         </div>
       </aside>
     );
@@ -878,7 +926,11 @@ export function ChannelSidebar({
         data-notification-popup-anchor="controls-border"
       >
         <VoiceConnectionBar />
-        <UserProfileFooter user={currentUser} onOpenAppearanceSettings={onOpenSettings} />
+        <UserProfileFooter
+          user={currentUser}
+          onOpenAppearanceSettings={onOpenSettings}
+          onStatusChange={onCurrentUserStatusChange}
+        />
       </div>
 
       <ContextMenu

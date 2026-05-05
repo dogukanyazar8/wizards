@@ -15,7 +15,7 @@ export type WhisprVersionPayload = {
 };
 
 export const WHISPR_APP_VERSION =
-  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.6.0";
+  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.7.0";
 export const WHISPR_BUILD_ID =
   process.env.NEXT_PUBLIC_WHISPR_BUILD_ID ?? "development";
 export const WHISPR_BUILD_TIME =
@@ -24,6 +24,24 @@ export const WHISPR_RELEASE_CHANNEL =
   process.env.NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL ?? "development";
 
 export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
+  {
+    categoryKey: "app.update.category.voice",
+    descriptionKey: "app.update.notes.voice.description",
+    id: "voice-stability-cleanup",
+    titleKey: "app.update.notes.voice.title",
+  },
+  {
+    categoryKey: "app.update.category.notifications",
+    descriptionKey: "app.update.notes.sounds.description",
+    id: "whispr-sound-defaults",
+    titleKey: "app.update.notes.sounds.title",
+  },
+  {
+    categoryKey: "app.update.category.friends",
+    descriptionKey: "app.update.notes.friends.description",
+    id: "friend-removal-polish",
+    titleKey: "app.update.notes.friends.title",
+  },
   {
     categoryKey: "app.update.category.devices",
     descriptionKey: "app.update.notes.devices.description",

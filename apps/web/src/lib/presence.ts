@@ -15,6 +15,9 @@ export type PresenceFields = {
 
 type RedisPresenceStatus = VisiblePresenceStatus | "INVISIBLE";
 
+const PRESENCE_SOCKET_PREFIX = "presence:socket-set:";
+const PRESENCE_SOCKET_TTL_MS = 120_000;
+
 const PRESENCE_STATUSES = new Set<RedisPresenceStatus>([
   "ONLINE",
   "IDLE",
@@ -124,25 +127,42 @@ export async function readPresenceMap(
 
   try {
     const keys = uniqueFallbacks.map((fallback) => `presence:${fallback.userId}`);
-    const typePipeline = redis.pipeline();
-    for (const key of keys) {
-      typePipeline.type(key);
+    const socketKeys = uniqueFallbacks.map(
+      (fallback) => `${PRESENCE_SOCKET_PREFIX}${fallback.userId}`,
+    );
+    const now = Date.now();
+    const presencePipeline = redis.pipeline();
+    for (let index = 0; index < uniqueFallbacks.length; index += 1) {
+      const key = keys[index];
+      const socketKey = socketKeys[index];
+      if (!key || !socketKey) {
+        continue;
+      }
+
+      presencePipeline.zremrangebyscore(socketKey, "-inf", now - PRESENCE_SOCKET_TTL_MS);
+      presencePipeline.zcard(socketKey);
+      presencePipeline.type(key);
     }
 
-    const typeResults = await typePipeline.exec();
-    if (!typeResults) {
+    const presenceResults = await presencePipeline.exec();
+    if (!presenceResults) {
       return result;
     }
 
     const valueRequests: Array<{
       fallback: PresenceFallback;
+      hasActiveSocket: boolean;
       key: string;
       type: "hash" | "string";
     }> = [];
 
-    for (const [index, [, rawType]] of typeResults.entries()) {
+    for (const [index, fallback] of uniqueFallbacks.entries()) {
+      const resultOffset = index * 3;
+      const [, rawSocketCount] = presenceResults[resultOffset + 1] ?? [];
+      const [, rawType] = presenceResults[resultOffset + 2] ?? [];
+      const socketCount =
+        typeof rawSocketCount === "number" ? rawSocketCount : Number(rawSocketCount ?? 0);
       const keyType = typeof rawType === "string" ? rawType : "";
-      const fallback = uniqueFallbacks[index];
       const key = keys[index];
 
       if (!fallback || !key) {
@@ -152,6 +172,7 @@ export async function readPresenceMap(
       if (keyType === "hash" || keyType === "string") {
         valueRequests.push({
           fallback,
+          hasActiveSocket: socketCount > 0,
           key,
           type: keyType,
         });
@@ -186,13 +207,15 @@ export async function readPresenceMap(
         customStatus: request.fallback.customStatus,
         status: request.fallback.status,
       };
-
-      result.set(
-        request.fallback.userId,
+      const parsedPresence =
         request.type === "hash" && isRecord(value)
           ? parsePresenceRecord(value, fallback)
-          : parsePresencePayload(typeof value === "string" ? value : null, fallback),
-      );
+          : parsePresencePayload(typeof value === "string" ? value : null, fallback);
+
+      result.set(request.fallback.userId, {
+        customStatus: parsedPresence.customStatus,
+        status: request.hasActiveSocket ? parsedPresence.status : "OFFLINE",
+      });
     }
   } catch {
     return result;

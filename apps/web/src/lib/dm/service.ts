@@ -14,6 +14,7 @@ import {
 } from "@/lib/friends/helpers";
 import { getRedis } from "@/lib/redis";
 import { normalizeAppLocale, translate } from "@/lib/locale";
+import { readPresenceMap, type PresenceFields } from "@/lib/presence";
 import { canStartDirectMessage } from "@/lib/privacy-policy";
 import type {
   DMConversationsPageResponse,
@@ -135,117 +136,9 @@ type DMConversationPageRow = {
   participantId: string;
 };
 
-const DM_PRESENCE_STATUSES = ["ONLINE", "IDLE", "DND", "OFFLINE", "INVISIBLE"] as const;
-
-type RedisPresenceStatus = (typeof DM_PRESENCE_STATUSES)[number];
-
-type PresenceFields = Pick<DMParticipantDTO, "customStatus" | "status">;
-
-function isPresenceStatus(value: string): value is RedisPresenceStatus {
-  return DM_PRESENCE_STATUSES.includes(value as RedisPresenceStatus);
-}
-
-function normalizePresenceStatus(value: unknown): RedisPresenceStatus | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const normalized = value.trim().toUpperCase();
-  return isPresenceStatus(normalized) ? normalized : null;
-}
-
-function toVisiblePresenceStatus(
-  status: RedisPresenceStatus | null,
-): DMParticipantDTO["status"] | null {
-  if (!status) {
-    return null;
-  }
-
-  return status === "INVISIBLE" ? "OFFLINE" : status;
-}
-
-function normalizeNullableString(value: unknown): string | null | undefined {
-  if (value === null) {
-    return null;
-  }
-
-  if (typeof value !== "string") {
-    return undefined;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function parsePresenceRecord(
-  record: Record<string, unknown>,
-  fallback: PresenceFields,
-): PresenceFields {
-  const customStatus = normalizeNullableString(record.customStatus);
-  const customStatusSnake = normalizeNullableString(record.custom_status);
-
-  return {
-    status:
-      toVisiblePresenceStatus(normalizePresenceStatus(record.status)) ??
-      toVisiblePresenceStatus(normalizePresenceStatus(record.presence)) ??
-      fallback.status,
-    customStatus:
-      customStatus !== undefined
-        ? customStatus
-        : customStatusSnake !== undefined
-          ? customStatusSnake
-          : fallback.customStatus,
-  };
-}
-
-function parsePresencePayload(rawValue: string | null, fallback: PresenceFields): PresenceFields {
-  if (!rawValue) {
-    return fallback;
-  }
-
-  const directStatus = normalizePresenceStatus(rawValue);
-  if (directStatus) {
-    return {
-      ...fallback,
-      status: toVisiblePresenceStatus(directStatus) ?? fallback.status,
-    };
-  }
-
-  try {
-    const parsed: unknown = JSON.parse(rawValue);
-    if (isRecord(parsed)) {
-      return parsePresenceRecord(parsed, fallback);
-    }
-  } catch {
-    return fallback;
-  }
-
-  return fallback;
-}
-
 async function readPresence(userId: string, fallback: PresenceFields): Promise<PresenceFields> {
-  const redis = getRedis();
-  const key = `presence:${userId}`;
-
-  try {
-    const keyType = await redis.type(key);
-
-    if (keyType === "string") {
-      return parsePresencePayload(await redis.get(key), fallback);
-    }
-
-    if (keyType === "hash") {
-      return parsePresenceRecord(await redis.hgetall(key), fallback);
-    }
-  } catch {
-    return fallback;
-  }
-
-  return fallback;
+  const presence = await readPresenceMap(getRedis(), [{ ...fallback, userId }]);
+  return presence.get(userId) ?? fallback;
 }
 
 function normalizeConversationType(type: string): DMConversationDTO["type"] {

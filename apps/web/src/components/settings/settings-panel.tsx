@@ -68,12 +68,17 @@ import {
 } from "@/lib/settings/navigation";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { SOUND_EFFECT_PATHS, useSoundStore, type SoundEffectKey } from "@/store/sound-store";
+import {
+  DEFAULT_SOUND_EFFECT_PROFILES,
+  isSoundProfileKey,
+  resolveSoundEffectPath,
+  SOUND_PROFILE_OPTIONS,
+  useSoundStore,
+  type SoundEffectKey,
+  type SoundProfileKey,
+} from "@/store/sound-store";
 
-const NOTIFICATION_SOUND_OPTIONS = ["default", "soft", "pulse"] as const;
 const FEATURED_CONTRIBUTOR_NAME = "O\u011Fuz G\u00FC\u011F\u00FCmc\u00FCo\u011Flu";
-
-type NotificationSoundOption = (typeof NOTIFICATION_SOUND_OPTIONS)[number];
 
 type SettingsPanelProps = {
   buildInfo: {
@@ -207,7 +212,11 @@ function SoundVolumeRow({
   label,
   onChange,
   onPreview,
+  onProfileChange,
   onVolumeChange,
+  profileLabel,
+  profileOptions,
+  profileValue,
   previewLabel,
   testId,
   volume,
@@ -218,7 +227,11 @@ function SoundVolumeRow({
   label: string;
   onChange: (nextValue: boolean) => void;
   onPreview: () => void;
+  onProfileChange: (nextValue: SoundProfileKey) => void;
   onVolumeChange: (nextValue: number) => void;
+  profileLabel: string;
+  profileOptions: Array<{ label: string; value: SoundProfileKey }>;
+  profileValue: SoundProfileKey;
   previewLabel: string;
   testId?: string;
   volume: number;
@@ -243,7 +256,7 @@ function SoundVolumeRow({
           <button
             aria-label={label}
             aria-checked={checked}
-          className={cn(
+            className={cn(
               "relative inline-flex h-8 w-14 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-7 sm:w-12",
               checked
                 ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
@@ -255,36 +268,61 @@ function SoundVolumeRow({
             type="button"
           >
             <span
-            className={cn(
+              className={cn(
                 "absolute left-1 h-6 w-6 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition sm:h-5 sm:w-5",
                 checked && "translate-x-6 bg-[hsl(var(--primary))] sm:translate-x-5",
-            )}
-          />
+              )}
+            />
           </button>
         </div>
       </div>
 
-      <div className="mt-4">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <label className="text-xs font-semibold uppercase tracking-[0.16em] text-app-soft">
-            {volumeLabel}
+      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_minmax(180px,240px)]">
+        <div>
+          <label
+            className="text-xs font-semibold uppercase tracking-[0.16em] text-app-soft"
+            htmlFor={testId ? `${testId}-profile` : undefined}
+          >
+            {profileLabel}
           </label>
-          <span className="rounded-full border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] px-2.5 py-1 text-xs font-semibold text-app-foreground">
-            {volume}%
-          </span>
+          <select
+            className="app-panel mt-2 w-full rounded-2xl border px-4 py-3 text-sm text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            disabled={!checked}
+            id={testId ? `${testId}-profile` : undefined}
+            data-testid={testId ? `${testId}-profile` : undefined}
+            onChange={(event) => onProfileChange(event.target.value as SoundProfileKey)}
+            value={profileValue}
+          >
+            {profileOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
-        <input
-          aria-label={volumeLabel}
-          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.9)] accent-[hsl(var(--primary))] disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={!checked}
-          data-testid={testId ? `${testId}-volume` : undefined}
-          max={100}
-          min={0}
-          onChange={(event) => onVolumeChange(Number(event.target.value))}
-          step={1}
-          type="range"
-          value={volume}
-        />
+
+        <div>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <label className="text-xs font-semibold uppercase tracking-[0.16em] text-app-soft">
+              {volumeLabel}
+            </label>
+            <span className="rounded-full border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] px-2.5 py-1 text-xs font-semibold text-app-foreground">
+              {volume}%
+            </span>
+          </div>
+          <input
+            aria-label={volumeLabel}
+            className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.9)] accent-[hsl(var(--primary))] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!checked}
+            data-testid={testId ? `${testId}-volume` : undefined}
+            max={100}
+            min={0}
+            onChange={(event) => onVolumeChange(Number(event.target.value))}
+            step={1}
+            type="range"
+            value={volume}
+          />
+        </div>
       </div>
     </div>
   );
@@ -475,24 +513,32 @@ export function SettingsPanel({
     notificationVolume,
     setNotificationVolume,
     setVoiceJoinEnabled,
+    setVoiceJoinSoundFile,
     setVoiceJoinVolume,
     setVoiceLeaveEnabled,
+    setVoiceLeaveSoundFile,
     setVoiceLeaveVolume,
     voiceJoinEnabled,
+    voiceJoinSoundFile,
     voiceJoinVolume,
     voiceLeaveEnabled,
+    voiceLeaveSoundFile,
     voiceLeaveVolume,
   } = useSoundStore(
     useShallow((state) => ({
       notificationVolume: state.notificationVolume,
       setNotificationVolume: state.setNotificationVolume,
       setVoiceJoinEnabled: state.setVoiceJoinEnabled,
+      setVoiceJoinSoundFile: state.setVoiceJoinSoundFile,
       setVoiceJoinVolume: state.setVoiceJoinVolume,
       setVoiceLeaveEnabled: state.setVoiceLeaveEnabled,
+      setVoiceLeaveSoundFile: state.setVoiceLeaveSoundFile,
       setVoiceLeaveVolume: state.setVoiceLeaveVolume,
       voiceJoinEnabled: state.voiceJoinEnabled,
+      voiceJoinSoundFile: state.voiceJoinSoundFile,
       voiceJoinVolume: state.voiceJoinVolume,
       voiceLeaveEnabled: state.voiceLeaveEnabled,
+      voiceLeaveSoundFile: state.voiceLeaveSoundFile,
       voiceLeaveVolume: state.voiceLeaveVolume,
     })),
   );
@@ -574,8 +620,8 @@ export function SettingsPanel({
     [patchSettingsMutation],
   );
 
-  const previewSound = useCallback((effect: SoundEffectKey, volume: number) => {
-    const audio = new Audio(SOUND_EFFECT_PATHS[effect]);
+  const previewSound = useCallback((effect: SoundEffectKey, volume: number, profile: SoundProfileKey) => {
+    const audio = new Audio(resolveSoundEffectPath(effect, profile));
     audio.volume = Math.min(1, Math.max(0, volume / 100));
     audio.play().catch(() => {
       // The preview is user-triggered, but browsers may still reject playback.
@@ -646,12 +692,15 @@ export function SettingsPanel({
 
   const soundProfileOptions = useMemo(
     () =>
-      NOTIFICATION_SOUND_OPTIONS.map((option) => ({
+      SOUND_PROFILE_OPTIONS.map((option) => ({
         label: t(`settings.notifications.soundProfile.${option}`),
         value: option,
       })),
     [t],
   );
+  const notificationSoundFile = isSoundProfileKey(serverSettings?.notificationSoundFile)
+    ? serverSettings.notificationSoundFile
+    : DEFAULT_SOUND_EFFECT_PROFILES.notification;
 
   const accountStatusOptions = useMemo(
     () => [
@@ -1436,8 +1485,16 @@ export function SettingsPanel({
                 description={t("settings.notifications.soundToggle.description")}
                 label={t("settings.notifications.soundToggle.title")}
                 onChange={(nextValue) => updateServerSettings({ notificationSound: nextValue })}
-                onPreview={() => previewSound("notification", notificationVolume)}
+                onPreview={() =>
+                  previewSound("notification", notificationVolume, notificationSoundFile)
+                }
+                onProfileChange={(nextValue) =>
+                  updateServerSettings({ notificationSoundFile: nextValue })
+                }
                 onVolumeChange={setNotificationVolume}
+                profileLabel={t("settings.notifications.soundProfile.title")}
+                profileOptions={soundProfileOptions}
+                profileValue={notificationSoundFile}
                 previewLabel={t("settings.notifications.sound.preview")}
                 testId="settings-notification-sound"
                 volume={notificationVolume}
@@ -1448,8 +1505,12 @@ export function SettingsPanel({
                 description={t("settings.notifications.voiceJoinSound.description")}
                 label={t("settings.notifications.voiceJoinSound.title")}
                 onChange={setVoiceJoinEnabled}
-                onPreview={() => previewSound("voiceJoin", voiceJoinVolume)}
+                onPreview={() => previewSound("voiceJoin", voiceJoinVolume, voiceJoinSoundFile)}
+                onProfileChange={setVoiceJoinSoundFile}
                 onVolumeChange={setVoiceJoinVolume}
+                profileLabel={t("settings.notifications.soundProfile.title")}
+                profileOptions={soundProfileOptions}
+                profileValue={voiceJoinSoundFile}
                 previewLabel={t("settings.notifications.sound.preview")}
                 testId="settings-voice-join-sound"
                 volume={voiceJoinVolume}
@@ -1460,42 +1521,19 @@ export function SettingsPanel({
                 description={t("settings.notifications.voiceLeaveSound.description")}
                 label={t("settings.notifications.voiceLeaveSound.title")}
                 onChange={setVoiceLeaveEnabled}
-                onPreview={() => previewSound("voiceLeave", voiceLeaveVolume)}
+                onPreview={() =>
+                  previewSound("voiceLeave", voiceLeaveVolume, voiceLeaveSoundFile)
+                }
+                onProfileChange={setVoiceLeaveSoundFile}
                 onVolumeChange={setVoiceLeaveVolume}
+                profileLabel={t("settings.notifications.soundProfile.title")}
+                profileOptions={soundProfileOptions}
+                profileValue={voiceLeaveSoundFile}
                 previewLabel={t("settings.notifications.sound.preview")}
                 testId="settings-voice-leave-sound"
                 volume={voiceLeaveVolume}
                 volumeLabel={t("settings.notifications.sound.volume")}
               />
-              <div className="app-panel-soft rounded-[24px] border p-4">
-                <label
-                  className="text-sm font-semibold text-app-foreground"
-                  htmlFor="notification-sound-profile"
-                >
-                  {t("settings.notifications.soundProfile.title")}
-                </label>
-                <p className="text-app-muted mt-1 text-sm leading-6">
-                  {t("settings.notifications.soundProfile.description")}
-                </p>
-                <select
-                  className="app-panel mt-4 w-full rounded-2xl border px-4 py-3 text-sm text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                  disabled={!serverSettings?.notificationSound}
-                  id="notification-sound-profile"
-                  data-testid="settings-notification-sound-profile"
-                  onChange={(event) =>
-                    updateServerSettings({
-                      notificationSoundFile: event.target.value as NotificationSoundOption,
-                    })
-                  }
-                  value={serverSettings?.notificationSoundFile ?? "default"}
-                >
-                  {soundProfileOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
               <p className="text-app-muted rounded-[20px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.22)] px-4 py-3 text-xs leading-5">
                 {t("settings.notifications.sound.localDeviceNote")}
               </p>

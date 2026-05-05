@@ -1,4 +1,4 @@
-import type { Server as HTTPServer } from "http";
+import type { IncomingMessage, Server as HTTPServer } from "http";
 import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { getToken } from "next-auth/jwt";
@@ -17,6 +17,7 @@ import {
 } from "@/lib/dm/service";
 import { getBlockStatus } from "@/lib/friends/helpers";
 import {
+  PRESENCE_CACHE_TTL_SECONDS,
   broadcastPresenceUpdateToFriends,
   cacheUserPresence,
   getUserPresenceBroadcast,
@@ -61,6 +62,7 @@ import {
   SocketMessageEditPayloadSchema,
   SocketMessageReactionPayloadSchema,
   SocketMessageSendPayloadSchema,
+  SocketPresenceActivityPayloadSchema,
   SocketVoiceScreenSharePayloadSchema,
 } from "@/lib/socket/schemas";
 import type {
@@ -131,8 +133,12 @@ async function markPresenceSocketActive(
   socketId: string,
 ) {
   const key = getPresenceSocketsKey(userId);
-  await redis.zadd(key, Date.now(), socketId);
-  await redis.expire(key, PRESENCE_SOCKET_TTL_SECONDS);
+  await redis
+    .pipeline()
+    .zadd(key, Date.now(), socketId)
+    .expire(key, PRESENCE_SOCKET_TTL_SECONDS)
+    .expire(`presence:${userId}`, PRESENCE_CACHE_TTL_SECONDS)
+    .exec();
 }
 
 async function addPresenceSocket(
@@ -198,6 +204,45 @@ function isSocketOriginAllowed(origin: string | undefined, allowedOrigins: Set<s
 
   const normalizedOrigin = getOrigin(origin);
   return Boolean(normalizedOrigin && allowedOrigins.has(normalizedOrigin));
+}
+
+function getFirstHeaderValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+
+  return value;
+}
+
+function getSocketRequestOrigin(request: IncomingMessage) {
+  const forwardedHost = getFirstHeaderValue(request.headers["x-forwarded-host"]);
+  const host = forwardedHost ?? request.headers.host;
+
+  if (!host?.trim()) {
+    return null;
+  }
+
+  const forwardedProto = getFirstHeaderValue(request.headers["x-forwarded-proto"]);
+  const proto = forwardedProto?.split(",")[0]?.trim() || "https";
+  return getOrigin(`${proto}://${host}`);
+}
+
+function isSocketRequestAllowed(
+  request: IncomingMessage,
+  allowedOrigins: Set<string>,
+) {
+  const origin = getFirstHeaderValue(request.headers.origin);
+
+  if (origin) {
+    return isSocketOriginAllowed(origin, allowedOrigins);
+  }
+
+  const requestOrigin = getSocketRequestOrigin(request);
+  if (requestOrigin && allowedOrigins.has(requestOrigin)) {
+    return true;
+  }
+
+  return process.env.NODE_ENV !== "production" || process.env.SOCKET_ALLOW_EMPTY_ORIGIN === "true";
 }
 
 function isRecord(value: Prisma.JsonValue | null): value is Prisma.JsonObject {
@@ -362,9 +407,12 @@ export function initSocketServer(httpServer: HTTPServer) {
     InterServerEvents,
     SocketData
   >(httpServer, {
+    allowRequest(request, callback) {
+      callback(null, isSocketRequestAllowed(request, allowedSocketOrigins));
+    },
     cors: {
       origin(origin, callback) {
-        if (isSocketOriginAllowed(origin, allowedSocketOrigins)) {
+        if (!origin || isSocketOriginAllowed(origin, allowedSocketOrigins)) {
           callback(null, true);
           return;
         }
@@ -743,11 +791,9 @@ export function initSocketServer(httpServer: HTTPServer) {
         socket.data.presenceStatus = presence.status;
         socket.data.presenceCustomStatus = presence.customStatus;
 
-        const isFirstActiveSocket = await addPresenceSocket(redis, userId, socket.id);
+        await addPresenceSocket(redis, userId, socket.id);
 
-        if (isFirstActiveSocket) {
-          await broadcastPresenceUpdateToFriends(presence);
-        }
+        await broadcastPresenceUpdateToFriends(presence);
       } catch (error) {
         logError("[socket] Presence connect error", error);
       }
@@ -1680,6 +1726,40 @@ export function initSocketServer(httpServer: HTTPServer) {
         await stopDMTyping(data.conversationId);
       } catch (error) {
         emitSafeDMError("FORBIDDEN", "Unable to update DM typing state.", error);
+      }
+    });
+
+    socket.on("presence:activity", async (rawData) => {
+      try {
+        const data = parseSocketPayload(SocketPresenceActivityPayloadSchema, rawData);
+        const preferredPresence = await getUserPresenceBroadcast(userId);
+
+        if (preferredPresence.status === "DND" || preferredPresence.status === "OFFLINE") {
+          return;
+        }
+
+        if (data.status === "ONLINE" && preferredPresence.status === "IDLE") {
+          return;
+        }
+
+        const presence = await cacheUserPresence(
+          userId,
+          data.status,
+          preferredPresence.customStatus,
+        );
+
+        if (!presence) {
+          await redis.del(getPresenceSocketsKey(userId));
+          socket.disconnect(true);
+          return;
+        }
+
+        socket.data.presenceStatus = presence.status;
+        socket.data.presenceCustomStatus = presence.customStatus;
+        await markPresenceSocketActive(redis, userId, socket.id);
+        await broadcastPresenceUpdateToFriends(presence);
+      } catch (error) {
+        emitSocketError("PRESENCE_UPDATE_ERROR", "Unable to update presence.", error);
       }
     });
 

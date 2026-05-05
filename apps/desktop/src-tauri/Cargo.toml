@@ -1,6 +1,6 @@
 [package]
 name = "whispr-desktop"
-version = "0.6.0"
+version = "0.7.0"
 description = "Whispr desktop shell"
 authors = ["Whispr"]
 edition = "2021"

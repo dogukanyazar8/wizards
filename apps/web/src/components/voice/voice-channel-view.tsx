@@ -497,6 +497,7 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
     audioPreferences.noiseSuppression ? t("voice.grid.noiseSuppression") : null,
     audioPreferences.echoCancellation ? t("voice.grid.echoCancellation") : null,
     audioPreferences.autoGainControl ? t("voice.grid.autoGainControl") : null,
+    audioPreferences.voiceIsolation ? t("voice.grid.voiceIsolation") : null,
     audioPreferences.krispNoiseCancellation ? t("voice.grid.krisp") : null,
   ].filter((value): value is string => Boolean(value));
 

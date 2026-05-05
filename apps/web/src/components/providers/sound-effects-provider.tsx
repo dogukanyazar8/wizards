@@ -8,8 +8,10 @@ import { useSocket } from "@/hooks/use-socket";
 import { fetchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
 import { useVoiceStore } from "@/store/voice-store";
 import {
-  SOUND_EFFECT_PATHS,
+  resolveSoundEffectPath,
+  SOUND_PROFILE_PATHS,
   type SoundEffectKey,
+  type SoundProfileKey,
   useSoundStore,
 } from "@/store/sound-store";
 
@@ -27,22 +29,26 @@ export function SoundEffectsProvider({
   currentUserId,
 }: SoundEffectsProviderProps) {
   const socket = useSocket();
-  const audioCacheRef = useRef<Map<SoundEffectKey, HTMLAudioElement>>(new Map());
+  const audioCacheRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const hasTrackedActiveChannelRef = useRef(false);
   const previousActiveChannelIdRef = useRef<string | null>(null);
   const activeChannelId = useVoiceStore((state) => state.activeChannelId);
   const {
     notificationVolume,
     voiceJoinEnabled,
+    voiceJoinSoundFile,
     voiceJoinVolume,
     voiceLeaveEnabled,
+    voiceLeaveSoundFile,
     voiceLeaveVolume,
   } = useSoundStore(
     useShallow((state) => ({
       notificationVolume: state.notificationVolume,
       voiceJoinEnabled: state.voiceJoinEnabled,
+      voiceJoinSoundFile: state.voiceJoinSoundFile,
       voiceJoinVolume: state.voiceJoinVolume,
       voiceLeaveEnabled: state.voiceLeaveEnabled,
+      voiceLeaveSoundFile: state.voiceLeaveSoundFile,
       voiceLeaveVolume: state.voiceLeaveVolume,
     })),
   );
@@ -54,25 +60,27 @@ export function SoundEffectsProvider({
     staleTime: Infinity,
   });
 
-  const getAudio = useCallback((effect: SoundEffectKey) => {
-    let audio = audioCacheRef.current.get(effect);
+  const getAudio = useCallback((effect: SoundEffectKey, profile?: SoundProfileKey | string) => {
+    const source = resolveSoundEffectPath(effect, profile);
+    const cacheKey = `${effect}:${source}`;
+    let audio = audioCacheRef.current.get(cacheKey);
 
     if (!audio) {
-      audio = new Audio(SOUND_EFFECT_PATHS[effect]);
+      audio = new Audio(source);
       audio.preload = "auto";
-      audioCacheRef.current.set(effect, audio);
+      audioCacheRef.current.set(cacheKey, audio);
     }
 
     return audio;
   }, []);
 
   const playSound = useCallback(
-    (effect: SoundEffectKey, volume: number) => {
+    (effect: SoundEffectKey, volume: number, profile?: SoundProfileKey | string) => {
       if (typeof window === "undefined" || volume <= 0) {
         return;
       }
 
-      const baseAudio = getAudio(effect);
+      const baseAudio = getAudio(effect, profile);
       const audio = baseAudio.cloneNode(true) as HTMLAudioElement;
       audio.volume = toAudioVolume(volume);
       audio.play().catch(() => {
@@ -84,8 +92,13 @@ export function SoundEffectsProvider({
 
   useEffect(() => {
     const warmUpAudio = () => {
-      (Object.keys(SOUND_EFFECT_PATHS) as SoundEffectKey[]).forEach((effect) => {
-        getAudio(effect).load();
+      Object.entries(SOUND_PROFILE_PATHS).forEach(([profile, source]) => {
+        const effect = source.includes("voice-join")
+          ? "voiceJoin"
+          : source.includes("voice-leave")
+            ? "voiceLeave"
+            : "notification";
+        getAudio(effect, profile).load();
       });
     };
 
@@ -114,19 +127,21 @@ export function SoundEffectsProvider({
     previousActiveChannelIdRef.current = activeChannelId;
 
     if (activeChannelId && voiceJoinEnabled) {
-      playSound("voiceJoin", voiceJoinVolume);
+      playSound("voiceJoin", voiceJoinVolume, voiceJoinSoundFile);
       return;
     }
 
     if (previousActiveChannelId && voiceLeaveEnabled) {
-      playSound("voiceLeave", voiceLeaveVolume);
+      playSound("voiceLeave", voiceLeaveVolume, voiceLeaveSoundFile);
     }
   }, [
     activeChannelId,
     playSound,
     voiceJoinEnabled,
+    voiceJoinSoundFile,
     voiceJoinVolume,
     voiceLeaveEnabled,
+    voiceLeaveSoundFile,
     voiceLeaveVolume,
   ]);
 
@@ -147,13 +162,13 @@ export function SoundEffectsProvider({
 
       if (data.action === "join") {
         if (data.userId !== currentUserId && currentUserStillInChannel && voiceJoinEnabled) {
-          playSound("voiceJoin", voiceJoinVolume);
+          playSound("voiceJoin", voiceJoinVolume, voiceJoinSoundFile);
         }
         return;
       }
 
       if (currentUserStillInChannel && data.userId !== currentUserId && voiceLeaveEnabled) {
-        playSound("voiceLeave", voiceLeaveVolume);
+        playSound("voiceLeave", voiceLeaveVolume, voiceLeaveSoundFile);
       }
     };
 
@@ -168,8 +183,10 @@ export function SoundEffectsProvider({
     playSound,
     socket,
     voiceJoinEnabled,
+    voiceJoinSoundFile,
     voiceJoinVolume,
     voiceLeaveEnabled,
+    voiceLeaveSoundFile,
     voiceLeaveVolume,
   ]);
 
@@ -179,7 +196,7 @@ export function SoundEffectsProvider({
         return;
       }
 
-      playSound("notification", notificationVolume);
+      playSound("notification", notificationVolume, settingsQuery.data?.notificationSoundFile);
     };
 
     socket.on("notification:new", handleIncomingNotification);
@@ -187,7 +204,13 @@ export function SoundEffectsProvider({
     return () => {
       socket.off("notification:new", handleIncomingNotification);
     };
-  }, [notificationVolume, playSound, settingsQuery.data?.notificationSound, socket]);
+  }, [
+    notificationVolume,
+    playSound,
+    settingsQuery.data?.notificationSound,
+    settingsQuery.data?.notificationSoundFile,
+    socket,
+  ]);
 
   return children;
 }

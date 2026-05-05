@@ -70,6 +70,12 @@ export const SocketVoiceScreenSharePayloadSchema = z
   })
   .strict();
 
+export const SocketPresenceActivityPayloadSchema = z
+  .object({
+    status: z.enum(["ONLINE", "IDLE"]),
+  })
+  .strict();
+
 export function parseSocketPayload<T>(schema: z.ZodType<T>, payload: unknown): T {
   const parsed = schema.safeParse(payload);
   if (!parsed.success) {

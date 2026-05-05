@@ -148,6 +148,11 @@ const E2E_VOICE_HEARTBEAT_INTERVAL_MS = 10_000;
 const E2E_MICROPHONE_DENIED_KEY = "whispr:e2e:deny-microphone";
 const E2E_SCREEN_SHARE_DENIED_KEY = "whispr:e2e:deny-screen-share";
 const KRISP_PROCESSOR_NAME = "livekit-noise-filter";
+const PREFERRED_KRISP_QUALITY = "high";
+const FALLBACK_KRISP_QUALITY = "medium";
+const KRISP_BUFFER_DROP_MS = 300;
+const KRISP_BUFFER_OVERFLOW_MS = 200;
+const LIVEKIT_CONNECT_RETRY_DELAYS_MS = [650, 1_500] as const;
 
 const VoiceContext = createContext<VoiceContextValue | null>(null);
 
@@ -201,6 +206,52 @@ function isMicrophoneDeviceUnavailable(error: unknown) {
   );
 }
 
+function isMicrophoneConstraintError(error: unknown) {
+  if (error instanceof DOMException) {
+    return (
+      error.name === "OverconstrainedError" ||
+      error.name === "ConstraintNotSatisfiedError"
+    );
+  }
+
+  return (
+    error instanceof Error &&
+    /overconstrainederror|constraintnotsatisfiederror|constraint/i.test(error.message)
+  );
+}
+
+function isTransientLiveKitConnectionError(error: unknown) {
+  return (
+    error instanceof Error &&
+    /could not establish pc connection|ice|network|timeout|transport|signaling/i.test(
+      error.message,
+    )
+  );
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function connectLiveKitRoomWithRetry(room: Room, url: string, token: string) {
+  for (let attempt = 0; attempt <= LIVEKIT_CONNECT_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      await room.connect(url, token);
+      return;
+    } catch (error) {
+      const retryDelay = LIVEKIT_CONNECT_RETRY_DELAYS_MS[attempt];
+      if (retryDelay === undefined || !isTransientLiveKitConnectionError(error)) {
+        throw error;
+      }
+
+      await room.disconnect(true).catch(() => undefined);
+      await wait(retryDelay);
+    }
+  }
+}
+
 async function getMicrophonePermissionState() {
   if (typeof navigator === "undefined" || !("permissions" in navigator)) {
     return null;
@@ -244,13 +295,28 @@ function isLiveKitCloudUrl(url: string) {
   return /livekit\.cloud/i.test(url);
 }
 
+function supportsMediaConstraint(name: string) {
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getSupportedConstraints) {
+    return false;
+  }
+
+  return (navigator.mediaDevices.getSupportedConstraints() as Record<string, boolean>)[name] === true;
+}
+
 function buildAudioCaptureOptions(
   audioPreferences: VoiceAudioPreferences,
 ): AudioCaptureOptions {
   const options: AudioCaptureOptions = {
     autoGainControl: audioPreferences.autoGainControl,
+    channelCount: { ideal: 1 },
     echoCancellation: audioPreferences.echoCancellation,
     noiseSuppression: audioPreferences.noiseSuppression,
+    // Keep advanced browser cleanup as a preference, not a hard requirement.
+    // Unsupported or unavailable implementations should not block microphone access.
+    voiceIsolation:
+      audioPreferences.voiceIsolation && supportsMediaConstraint("voiceIsolation")
+        ? { ideal: true }
+        : false,
   };
 
   if (audioPreferences.inputDeviceId !== DEFAULT_AUDIO_DEVICE_ID) {
@@ -260,14 +326,8 @@ function buildAudioCaptureOptions(
   return options;
 }
 
-function getAudioPreferencesSignature(audioPreferences: VoiceAudioPreferences) {
-  return [
-    audioPreferences.autoGainControl,
-    audioPreferences.echoCancellation,
-    audioPreferences.inputDeviceId,
-    audioPreferences.krispNoiseCancellation,
-    audioPreferences.noiseSuppression,
-  ].join(":");
+function getAudioCaptureRestartSignature(audioPreferences: VoiceAudioPreferences) {
+  return audioPreferences.inputDeviceId;
 }
 
 function parseParticipantMetadata(participant: Participant): ParticipantMetadata {
@@ -438,6 +498,10 @@ function getLocalMicrophoneTrack(targetRoom: Room | null) {
     targetRoom?.localParticipant.getTrackPublication(Track.Source.Microphone)?.track ?? null;
 
   return microphonePublication instanceof LocalAudioTrack ? microphonePublication : null;
+}
+
+function isLocalMicrophoneTrackLive(track: LocalAudioTrack | null) {
+  return track?.mediaStreamTrack.readyState === "live";
 }
 
 function getLocalScreenShareTrack(targetRoom: Room | null) {
@@ -978,6 +1042,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const krispProcessorRef = useRef<KrispNoiseFilterProcessor | null>(null);
   const lastEmittedScreenShareStateRef = useRef<boolean | null>(null);
+  const connectionWarningMessageRef = useRef<string | null>(null);
   const cleanupVoiceResourcesRef = useRef<() => void>(() => undefined);
   const microphoneSettingsFailedMessageRef = useRef(
     t("voice.errors.microphoneSettingsFailed"),
@@ -1041,6 +1106,24 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
+  }, []);
+
+  const setConnectionWarning = useCallback((message: string) => {
+    const previousWarning = connectionWarningMessageRef.current;
+    connectionWarningMessageRef.current = message;
+    setErrorMessage((current) =>
+      !current || current === previousWarning ? message : current,
+    );
+  }, []);
+
+  const clearConnectionWarning = useCallback(() => {
+    const previousWarning = connectionWarningMessageRef.current;
+    connectionWarningMessageRef.current = null;
+    if (!previousWarning) {
+      return;
+    }
+
+    setErrorMessage((current) => (current === previousWarning ? null : current));
   }, []);
 
   const getParticipantVolume = useCallback(
@@ -1259,7 +1342,9 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
 
     if (!krispProcessorRef.current) {
       krispProcessorRef.current = krispModule.KrispNoiseFilter({
-        quality: "medium",
+        bufferDropMs: KRISP_BUFFER_DROP_MS,
+        bufferOverflowMs: KRISP_BUFFER_OVERFLOW_MS,
+        quality: PREFERRED_KRISP_QUALITY,
       });
     }
 
@@ -1274,6 +1359,22 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
 
     setIsKrispNoiseCancellationActive(false);
   }, []);
+
+  const createFallbackKrispProcessor = useCallback(async () => {
+    const krispModule = await ensureKrispSupport();
+    if (!krispModule) {
+      return null;
+    }
+
+    await resetKrispProcessor();
+    krispProcessorRef.current = krispModule.KrispNoiseFilter({
+      bufferDropMs: KRISP_BUFFER_DROP_MS,
+      bufferOverflowMs: KRISP_BUFFER_OVERFLOW_MS,
+      quality: FALLBACK_KRISP_QUALITY,
+    });
+
+    return krispProcessorRef.current;
+  }, [ensureKrispSupport, resetKrispProcessor]);
 
   const detachKrispNoiseCancellation = useCallback(
     async (track: LocalAudioTrack | null = getLocalMicrophoneTrack(roomRef.current)) => {
@@ -1302,8 +1403,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         return false;
       }
 
-      try {
-        const processor = await getOrCreateKrispProcessor();
+      const enableProcessor = async (processor: KrispNoiseFilterProcessor | null) => {
         if (!processor) {
           setIsKrispNoiseCancellationActive(false);
           return false;
@@ -1325,6 +1425,18 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         setIsKrispNoiseCancellationActive(isActive === true);
         setKrispAvailability("available");
         return isActive === true;
+      };
+
+      try {
+        const processor = await getOrCreateKrispProcessor();
+        return await enableProcessor(processor);
+      } catch (error) {
+        logError("[voice] High quality Krisp failed, retrying stable quality", error);
+      }
+
+      try {
+        const fallbackProcessor = await createFallbackKrispProcessor();
+        return await enableProcessor(fallbackProcessor);
       } catch (error) {
         // Krisp is an enhancement; keep the published microphone alive and fall back to WebRTC.
         logError("[voice] Krisp noise cancellation failed", error);
@@ -1334,7 +1446,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         return false;
       }
     },
-    [detachKrispNoiseCancellation, getOrCreateKrispProcessor],
+    [createFallbackKrispProcessor, detachKrispNoiseCancellation, getOrCreateKrispProcessor],
   );
 
   const enableLocalMicrophone = useCallback(
@@ -1354,19 +1466,38 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
           preferences.inputDeviceId !== DEFAULT_AUDIO_DEVICE_ID &&
           isMicrophoneDeviceUnavailable(error);
 
-        if (!shouldRetryWithDefaultDevice) {
+        const shouldRetryWithStableProcessing =
+          !shouldRetryWithDefaultDevice &&
+          preferences.voiceIsolation &&
+          isMicrophoneConstraintError(error);
+
+        if (!shouldRetryWithDefaultDevice && !shouldRetryWithStableProcessing) {
           throw error;
         }
 
-        logError("[voice] Selected microphone unavailable, retrying system default", error);
+        logError(
+          shouldRetryWithDefaultDevice
+            ? "[voice] Selected microphone unavailable, retrying system default"
+            : "[voice] Advanced microphone processing unavailable, retrying stable profile",
+          error,
+        );
         const fallbackPreferences = {
           ...preferences,
-          inputDeviceId: DEFAULT_AUDIO_DEVICE_ID,
+          inputDeviceId: shouldRetryWithDefaultDevice
+            ? DEFAULT_AUDIO_DEVICE_ID
+            : preferences.inputDeviceId,
+          voiceIsolation: shouldRetryWithStableProcessing ? false : preferences.voiceIsolation,
         };
 
-        useVoiceStore
-          .getState()
-          .setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
+        if (shouldRetryWithDefaultDevice) {
+          useVoiceStore
+            .getState()
+            .setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
+        }
+
+        if (shouldRetryWithStableProcessing) {
+          useVoiceStore.getState().setAudioPreference("voiceIsolation", false);
+        }
 
         await targetRoom.localParticipant.setMicrophoneEnabled(
           true,
@@ -1396,7 +1527,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         return;
       }
 
-      const nextSignature = getAudioPreferencesSignature(audioPreferences);
+      const nextSignature = getAudioCaptureRestartSignature(audioPreferences);
       const shouldRestartCapture =
         appliedAudioPreferencesSignatureRef.current !== nextSignature;
 
@@ -1412,24 +1543,46 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
               audioPreferences.inputDeviceId !== DEFAULT_AUDIO_DEVICE_ID &&
               isMicrophoneDeviceUnavailable(error);
 
-            if (!shouldRetryWithDefaultDevice) {
+            const shouldRetryWithStableProcessing =
+              !shouldRetryWithDefaultDevice &&
+              audioPreferences.voiceIsolation &&
+              isMicrophoneConstraintError(error);
+
+            if (!shouldRetryWithDefaultDevice && !shouldRetryWithStableProcessing) {
               throw error;
             }
 
-            logError("[voice] Microphone restart failed, retrying system default", error);
+            logError(
+              shouldRetryWithDefaultDevice
+                ? "[voice] Microphone restart failed, retrying system default"
+                : "[voice] Advanced microphone restart failed, retrying stable profile",
+              error,
+            );
             const fallbackPreferences = {
               ...audioPreferences,
-              inputDeviceId: DEFAULT_AUDIO_DEVICE_ID,
+              inputDeviceId: shouldRetryWithDefaultDevice
+                ? DEFAULT_AUDIO_DEVICE_ID
+                : audioPreferences.inputDeviceId,
+              voiceIsolation: shouldRetryWithStableProcessing
+                ? false
+                : audioPreferences.voiceIsolation,
             };
 
-            useVoiceStore
-              .getState()
-              .setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
+            if (shouldRetryWithDefaultDevice) {
+              useVoiceStore
+                .getState()
+                .setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
+            }
+
+            if (shouldRetryWithStableProcessing) {
+              useVoiceStore.getState().setAudioPreference("voiceIsolation", false);
+            }
+
             await localMicrophoneTrack.restartTrack(
               buildAudioCaptureOptions(fallbackPreferences),
             );
             appliedAudioPreferencesSignatureRef.current =
-              getAudioPreferencesSignature(fallbackPreferences);
+              getAudioCaptureRestartSignature(fallbackPreferences);
           }
         }
 
@@ -1724,17 +1877,21 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
           state === ConnectionState.SignalReconnecting
         ) {
           clearReconnectTimeout();
+          setConnectionWarning(t("voice.errors.connectionUnstable"));
           reconnectTimeoutRef.current = setTimeout(() => {
-            setErrorMessage("Voice reconnection timed out.");
-            void leaveChannel();
+            setConnectionWarning(t("voice.errors.connectionStillReconnecting"));
           }, RECONNECT_TIMEOUT_MS);
           return;
         }
 
         clearReconnectTimeout();
+        if (state === ConnectionState.Connected) {
+          clearConnectionWarning();
+        }
       });
       nextRoom.on("reconnected", () => {
         clearReconnectTimeout();
+        clearConnectionWarning();
         void upsertVoiceState({
           channelId,
           serverId: nextServerId,
@@ -1746,11 +1903,20 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
           .catch(() => {
             setErrorMessage("Voice state could not be restored.");
           });
-        void applyAudioPreferencesToRoom(nextRoom).catch(() => undefined);
+        void applyAudioPreferencesToRoom(nextRoom).catch((error) => {
+          if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(nextRoom))) {
+            logError("[voice] Post-reconnect audio preference sync skipped", error);
+            return;
+          }
+          setErrorMessage(microphoneEnableFailedMessage);
+        });
         syncRoomParticipants();
       });
       nextRoom.on("disconnected", () => {
         setConnectionState(ConnectionState.Disconnected);
+        if (roomRef.current === nextRoom && useVoiceStore.getState().sessionId) {
+          setConnectionWarning(t("voice.errors.connectionFailed"));
+        }
       });
 
       try {
@@ -1763,7 +1929,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
           setKrispAvailability("checking");
         }
 
-        await nextRoom.connect(tokenResponse.url, tokenResponse.token);
+        await connectLiveKitRoomWithRetry(nextRoom, tokenResponse.url, tokenResponse.token);
         setConnectionState(nextRoom.state);
 
         const state = await upsertVoiceState({
@@ -1804,12 +1970,19 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
               );
             }
             appliedAudioPreferencesSignatureRef.current =
-              getAudioPreferencesSignature(preferences);
+              getAudioCaptureRestartSignature(preferences);
             setErrorMessage(null);
             useVoiceStore.getState().setMuted(false);
             syncParticipants(nextRoom);
           })
           .catch((error) => {
+            if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(nextRoom))) {
+              logError("[voice] Microphone enable reported an error after track was published", error);
+              setErrorMessage(null);
+              syncParticipants(nextRoom);
+              return;
+            }
+
             setIsKrispNoiseCancellationActive(false);
             useVoiceStore.getState().setMuted(true);
             setErrorMessage(
@@ -1830,7 +2003,13 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         await nextRoom.disconnect(true).catch(() => undefined);
         await resetKrispProcessor();
         useVoiceStore.getState().leave();
-        setErrorMessage(error instanceof Error ? error.message : "Failed to join voice channel.");
+        setErrorMessage(
+          isMicrophonePermissionDenied(error)
+            ? microphoneDeniedMessage
+            : isMicrophoneDeviceUnavailable(error)
+              ? microphoneEnableFailedMessage
+              : t("voice.errors.connectionFailed"),
+        );
         throw error;
       } finally {
         if (joinRequestRef.current === nextJoinKey) {
@@ -1841,6 +2020,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     },
     [
       applyAudioPreferencesToRoom,
+      clearConnectionWarning,
       clearReconnectTimeout,
       enableLocalMicrophone,
       isDesktopRuntime,
@@ -1849,6 +2029,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       resetKrispProcessor,
       requestMicrophonePermission,
       startHeartbeat,
+      setConnectionWarning,
       syncKrispNoiseCancellation,
       syncParticipants,
       syncScreenShares,
@@ -1907,9 +2088,17 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
           );
         }
         appliedAudioPreferencesSignatureRef.current =
-          getAudioPreferencesSignature(preferences);
+          getAudioCaptureRestartSignature(preferences);
         setErrorMessage(null);
       } catch (error) {
+        if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(activeRoom))) {
+          logError("[voice] Microphone unmute reported an error after track was published", error);
+          useVoiceStore.getState().setMuted(false);
+          setErrorMessage(null);
+          syncParticipants(activeRoom);
+          return;
+        }
+
         setIsKrispNoiseCancellationActive(false);
         useVoiceStore.getState().setMuted(true);
         setErrorMessage(
@@ -1983,7 +2172,12 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       return;
     }
 
-    void applyAudioPreferencesToRoom(activeRoom).catch(() => {
+    void applyAudioPreferencesToRoom(activeRoom).catch((error) => {
+      if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(activeRoom))) {
+        logError("[voice] Audio preference sync failed while microphone remained live", error);
+        return;
+      }
+
       setErrorMessage(microphoneSettingsFailedMessageRef.current);
     });
   }, [applyAudioPreferencesToRoom]);

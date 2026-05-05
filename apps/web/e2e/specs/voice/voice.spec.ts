@@ -41,6 +41,28 @@ async function openVoiceChannel(page: Page): Promise<{
   return route;
 }
 
+async function sendMessage(page: Page, content: string): Promise<void> {
+  await page.getByTestId("message-input").fill(content);
+  await page.getByTestId("message-send-button").click();
+}
+
+async function setRangeValue(page: Page, testId: string, value: number): Promise<void> {
+  await page.getByTestId(testId).evaluate(
+    (element, nextValue) => {
+      const input = element as HTMLInputElement;
+      const valueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value",
+      )?.set;
+
+      valueSetter?.call(input, String(nextValue));
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    },
+    value,
+  );
+}
+
 function voiceSidebarParticipant(page: Page, username: string) {
   return page.getByTestId(`voice-sidebar-participant-${username}`);
 }
@@ -137,6 +159,42 @@ test.describe("voice and screen share", () => {
     await expectVoiceParticipantCount(voiceChannelId, 1);
   });
 
+  test("saving settings and sending messages keeps voice connected", async ({ page }) => {
+    const { serverId, textChannelId, voiceChannelId } = await getE2EServerRoute();
+    const message = `Voice stays live while chatting ${Date.now()}`;
+
+    await loginAs(page, "alice");
+    await openVoiceChannel(page);
+    await page.goto("/settings?section=notifications&panel=general");
+    await expect(page.getByTestId("settings-panel")).toBeVisible({ timeout: 10_000 });
+
+    await setRangeValue(page, "settings-notification-limit", 6);
+    await expectVoiceParticipantCount(voiceChannelId, 1);
+
+    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await expect(page.getByTestId("voice-connection-bar")).toBeVisible({ timeout: 10_000 });
+    await sendMessage(page, message);
+
+    await expect(page.getByTestId("message-item").filter({ hasText: message })).toBeVisible();
+    await expectVoiceParticipantCount(voiceChannelId, 1);
+  });
+
+  test("voice settings clean profile applies without disconnecting", async ({ page }) => {
+    const { voiceChannelId } = await getE2EServerRoute();
+
+    await loginAs(page, "alice");
+    await openVoiceChannel(page);
+    await page.getByTestId("voice-control-settings").click();
+
+    await expect(page.getByTestId("voice-settings-modal")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("voice-clean-voice-status")).toBeVisible();
+    await page.getByTestId("voice-clean-voice-profile").click();
+
+    await expect(page.getByTestId("voice-connection-bar")).toBeVisible();
+    await expect(page.getByTestId("voice-settings-modal")).toBeVisible();
+    await expectVoiceParticipantCount(voiceChannelId, 1);
+  });
+
   test("screen share can be started and quality options render", async ({ page }) => {
     await loginAs(page, "alice");
     await openVoiceChannel(page);
@@ -155,6 +213,34 @@ test.describe("voice and screen share", () => {
 
     await page.getByTestId("screen-share-quality-h1440fps30").click();
     await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
+  });
+
+  test("screen share does not break microphone controls", async ({ page }) => {
+    const { voiceChannelId } = await getE2EServerRoute();
+
+    await loginAs(page, "alice");
+    await openVoiceChannel(page);
+    await page.getByTestId("voice-control-screen-share").click();
+
+    await expect(page.getByTestId("voice-control-screen-share")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await page.getByTestId("voice-control-mute").click();
+    await expect(page.getByTestId("voice-control-mute")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await page.getByTestId("voice-control-mute").click();
+    await expect(page.getByTestId("voice-control-mute")).toHaveAttribute(
+      "data-active",
+      "false",
+    );
+    await expect(page.getByTestId("voice-control-screen-share")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await expectVoiceParticipantCount(voiceChannelId, 1);
   });
 
   test("screen share state appears in the sidebar for other members", async ({

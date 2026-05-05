@@ -57,6 +57,18 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.category.performance": "Performance",
     "app.update.category.desktop": "Desktop",
     "app.update.category.quality": "Quality",
+    "app.update.category.voice": "Voice",
+    "app.update.category.notifications": "Sounds",
+    "app.update.category.friends": "Friends",
+    "app.update.notes.voice.title": "More stable, cleaner voice channels",
+    "app.update.notes.voice.description":
+      "Voice sessions now avoid duplicate joins, preserve calls while settings change, separate network/device errors, and keep browser cleanup enabled by default.",
+    "app.update.notes.sounds.title": "New Whispr sound defaults",
+    "app.update.notes.sounds.description":
+      "Notification, voice join, and voice leave cues now use the new Whispr sounds by default while the classic sounds remain selectable in settings.",
+    "app.update.notes.friends.title": "Safer friend removal",
+    "app.update.notes.friends.description":
+      "Removing a friend now uses a polished confirmation flow, prevents accidental DM navigation, updates the list immediately, and rolls back safely on errors.",
     "app.update.notes.devices.title": "Shared microphone and speaker selection",
     "app.update.notes.devices.description":
       "User bar selectors and Voice settings now share the same device flow across browser, mobile responsive, and Tauri desktop surfaces.",
@@ -161,10 +173,16 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "friends.pending.outgoingTitle": "Outgoing Requests",
     "friends.confirm.block.title": "Block {name}?",
     "friends.confirm.block.description": "This cannot be undone.",
+    "friends.confirm.block.safety":
+      "Blocking also removes the friendship and prevents new direct contact until you unblock them.",
     "friends.confirm.block.action": "Block",
     "friends.confirm.remove.title": "Remove {name}?",
     "friends.confirm.remove.description": "They will disappear from your friends list.",
+    "friends.confirm.remove.safety":
+      "This only removes the friendship. Existing conversations stay available unless you delete them separately.",
     "friends.confirm.remove.action": "Remove Friend",
+    "friends.remove.success": "{name} was removed from your friends.",
+    "friends.remove.error": "We couldn't remove this friend right now. Please try again.",
     "friends.message.placeholder": "Direct messages land in Phase 6D.",
     "friends.status.online": "Online",
     "friends.status.idle": "Idle",
@@ -192,6 +210,12 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Microphone access was blocked. Allow Whispr microphone access in your system privacy settings, then try again.",
     "voice.errors.microphoneEnableFailed": "Microphone could not be enabled right now.",
     "voice.errors.microphoneSettingsFailed": "Microphone settings could not be updated.",
+    "voice.errors.connectionFailed":
+      "Voice connection could not be established. Check your network and try again.",
+    "voice.errors.connectionUnstable":
+      "Voice connection is unstable. Whispr is reconnecting without leaving the room.",
+    "voice.errors.connectionStillReconnecting":
+      "Voice is still reconnecting. Keep this tab open while Whispr restores the call.",
     "voice.view.connecting": "Connecting to voice channel...",
     "voice.view.disconnectedTitle": "You left this voice channel",
     "voice.view.disconnectedDescription":
@@ -237,6 +261,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.grid.noiseSuppression": "Noise suppression",
     "voice.grid.echoCancellation": "Echo cancellation",
     "voice.grid.autoGainControl": "Auto gain control",
+    "voice.grid.voiceIsolation": "Voice isolation",
     "voice.grid.krisp": "Krisp noise cancellation",
     "screenShare.errors.maxReached": "Maximum screen shares reached",
     "screenShare.errors.permissionDenied": "Screen sharing permission denied",
@@ -262,6 +287,25 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.badgeReady": "Ready",
     "voice.settings.badgeKrispActive": "Krisp active",
     "voice.settings.badgeWebRtc": "WebRTC active",
+    "voice.settings.applyCleanVoiceProfile": "Optimize clean voice",
+    "voice.settings.cleanVoiceKrisp": "Clean voice active",
+    "voice.settings.cleanVoiceKrispDescription":
+      "Krisp and browser cleanup are active. Your microphone is optimized for speech before it reaches the room.",
+    "voice.settings.cleanVoiceChecking": "Checking clean voice",
+    "voice.settings.cleanVoiceCheckingDescription":
+      "Whispr is checking whether enhanced Krisp cleanup is available. Browser cleanup stays active meanwhile.",
+    "voice.settings.cleanVoiceWebRtc": "Browser cleanup active",
+    "voice.settings.cleanVoiceWebRtcDescription":
+      "Krisp is not active right now, so Whispr is keeping WebRTC echo, gain, and noise cleanup enabled.",
+    "voice.settings.cleanVoiceLimited": "Clean voice is limited",
+    "voice.settings.cleanVoiceLimitedDescription":
+      "Recommended cleanup is not fully active. Turn on the clean voice profile for better keyboard and room-noise control.",
+    "voice.settings.cleanVoiceFeatureNoise": "Room-noise control",
+    "voice.settings.cleanVoiceFeatureEcho": "Echo protection",
+    "voice.settings.cleanVoiceFeatureGain": "Stable voice level",
+    "voice.settings.advancedTitle": "Advanced microphone controls",
+    "voice.settings.advancedDescription":
+      "Only change these if you are troubleshooting. Capture changes are saved safely and avoid interrupting an active call.",
     "voice.devices.defaultInput": "System default microphone",
     "voice.devices.defaultOutput": "System default speaker",
     "voice.devices.enumerationUnsupported":
@@ -284,6 +328,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.noiseSuppression": "Noise suppression",
     "voice.settings.noiseSuppressionDesc":
       "Reduces steady background sounds like fans, keyboard rumble, and room noise.",
+    "voice.settings.voiceIsolation": "Voice isolation",
+    "voice.settings.voiceIsolationDesc":
+      "Asks supported browsers for stronger voice-first cleanup before Whispr adds Krisp.",
     "voice.settings.echoCancellation": "Echo cancellation",
     "voice.settings.echoCancellationDesc":
       "Prevents your speakers from feeding back into your microphone during conversations.",
@@ -570,10 +617,15 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Play a different cue when someone leaves the voice channel while you remain connected.",
     "settings.notifications.soundProfile.title": "Sound profile",
     "settings.notifications.soundProfile.description":
-      "Pick the style Whispr should use when notification sounds are enabled.",
-    "settings.notifications.soundProfile.default": "Default",
-    "settings.notifications.soundProfile.soft": "Soft",
-    "settings.notifications.soundProfile.pulse": "Pulse",
+      "Pick the sound Whispr should use for this alert.",
+    "settings.notifications.soundProfile.default": "Whispr notification",
+    "settings.notifications.soundProfile.soft": "Classic notification",
+    "settings.notifications.soundProfile.pulse": "Classic pulse",
+    "settings.notifications.soundProfile.voiceJoin": "Whispr voice join",
+    "settings.notifications.soundProfile.voiceLeave": "Whispr voice leave",
+    "settings.notifications.soundProfile.legacyNotification": "Classic notification",
+    "settings.notifications.soundProfile.legacyVoiceJoin": "Classic voice join",
+    "settings.notifications.soundProfile.legacyVoiceLeave": "Classic voice leave",
     "settings.about.badge": "About Whispr",
     "settings.about.title": "About",
     "settings.about.description":
@@ -764,6 +816,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.user.toggleDeafen": "Toggle deafen",
     "shell.user.status": "Online status",
     "shell.user.statusTitle": "Change online status",
+    "shell.user.idleAfter": "Idle after",
+    "shell.user.idleAfterTitle": "Set automatic idle timeout",
+    "shell.user.idleMinutes": "{count} min",
     "shell.user.appearanceSettings": "Open settings",
     "shell.user.appearanceSettingsTitle": "Settings",
     "shell.user.logout": "Log out",
@@ -1138,6 +1193,18 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.category.performance": "Performans",
     "app.update.category.desktop": "Masaüstü",
     "app.update.category.quality": "Kalite",
+    "app.update.category.voice": "Ses",
+    "app.update.category.notifications": "Sesler",
+    "app.update.category.friends": "Arkadaşlar",
+    "app.update.notes.voice.title": "Daha stabil ve temiz ses kanalları",
+    "app.update.notes.voice.description":
+      "Ses oturumları artık çift bağlanmaları önlüyor, ayarlar değişirken görüşmeyi koruyor, ağ/cihaz hatalarını ayırıyor ve tarayıcı temizliğini varsayılan açık tutuyor.",
+    "app.update.notes.sounds.title": "Yeni Whispr varsayılan sesleri",
+    "app.update.notes.sounds.description":
+      "Bildirim, ses kanalına katılma ve ayrılma sesleri artık varsayılan olarak yeni Whispr seslerini kullanıyor; klasik sesler ayarlardan seçilebilir kalıyor.",
+    "app.update.notes.friends.title": "Daha güvenli arkadaş kaldırma",
+    "app.update.notes.friends.description":
+      "Arkadaş kaldırma artık modern onay akışı kullanıyor, yanlışlıkla DM yönlendirmesini önlüyor, listeyi anında güncelliyor ve hata olursa güvenle geri alıyor.",
     "app.update.notes.devices.title": "Ortak mikrofon ve hoparlör seçimi",
     "app.update.notes.devices.description":
       "User bar seçicileri ve Ses ayarları artık tarayıcı, mobil responsive ve Tauri masaüstü yüzeylerinde aynı cihaz akışını kullanıyor.",
@@ -1242,10 +1309,16 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "friends.pending.outgoingTitle": "Giden İstekler",
     "friends.confirm.block.title": "{name} engellensin mi?",
     "friends.confirm.block.description": "Bu işlem geri alınamaz.",
+    "friends.confirm.block.safety":
+      "Engelleme arkadaşlığı da kaldırır ve engeli kaldırana kadar yeni doğrudan iletişimi önler.",
     "friends.confirm.block.action": "Engelle",
     "friends.confirm.remove.title": "{name} kaldırılsın mı?",
     "friends.confirm.remove.description": "Bu kişi arkadaş listenden kaldırılacak.",
+    "friends.confirm.remove.safety":
+      "Bu işlem yalnızca arkadaşlığı kaldırır. Mevcut konuşmalar ayrıca silinmediği sürece korunur.",
     "friends.confirm.remove.action": "Arkadaşı Kaldır",
+    "friends.remove.success": "{name} arkadaşlarından kaldırıldı.",
+    "friends.remove.error": "Bu arkadaş şu anda kaldırılamadı. Lütfen tekrar dene.",
     "friends.message.placeholder": "Direkt mesajlar 6D aşamasında gelecek.",
     "friends.status.online": "Çevrimiçi",
     "friends.status.idle": "Boşta",
@@ -1273,6 +1346,12 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Mikrofon erişimi engellendi. Whispr için mikrofon iznini sistem gizlilik ayarlarından verip tekrar dene.",
     "voice.errors.microphoneEnableFailed": "Mikrofon şu anda etkinleştirilemedi.",
     "voice.errors.microphoneSettingsFailed": "Mikrofon ayarları güncellenemedi.",
+    "voice.errors.connectionFailed":
+      "Ses bağlantısı kurulamadı. Ağ bağlantını kontrol edip tekrar dene.",
+    "voice.errors.connectionUnstable":
+      "Ses bağlantısı kararsız. Whispr odadan çıkmadan yeniden bağlanıyor.",
+    "voice.errors.connectionStillReconnecting":
+      "Ses hâlâ yeniden bağlanıyor. Whispr görüşmeyi toparlarken bu sekmeyi açık tut.",
     "voice.view.connecting": "Ses kanalına bağlanılıyor...",
     "voice.view.disconnectedTitle": "Bu ses kanalından ayrıldın",
     "voice.view.disconnectedDescription":
@@ -1318,6 +1397,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.grid.noiseSuppression": "Gürültü engelleme",
     "voice.grid.echoCancellation": "Eko engelleme",
     "voice.grid.autoGainControl": "Otomatik kazanç kontrolü",
+    "voice.grid.voiceIsolation": "Ses izolasyonu",
     "voice.grid.krisp": "Krisp gürültü engelleme",
     "screenShare.errors.maxReached": "Maksimum ekran paylaşımı sınırına ulaşıldı",
     "screenShare.errors.permissionDenied": "Ekran paylaşımı izni reddedildi",
@@ -1343,6 +1423,25 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.badgeReady": "Hazır",
     "voice.settings.badgeKrispActive": "Krisp aktif",
     "voice.settings.badgeWebRtc": "WebRTC aktif",
+    "voice.settings.applyCleanVoiceProfile": "Temiz sesi optimize et",
+    "voice.settings.cleanVoiceKrisp": "Temiz ses aktif",
+    "voice.settings.cleanVoiceKrispDescription":
+      "Krisp ve tarayıcı temizliği aktif. Mikrofonun odaya ulaşmadan önce konuşma için optimize ediliyor.",
+    "voice.settings.cleanVoiceChecking": "Temiz ses kontrol ediliyor",
+    "voice.settings.cleanVoiceCheckingDescription":
+      "Whispr gelişmiş Krisp temizliğinin kullanılabilirliğini kontrol ediyor. Bu sırada tarayıcı temizliği açık kalır.",
+    "voice.settings.cleanVoiceWebRtc": "Tarayıcı temizliği aktif",
+    "voice.settings.cleanVoiceWebRtcDescription":
+      "Krisp şu anda aktif değil; Whispr WebRTC eko, kazanç ve gürültü temizliğini açık tutuyor.",
+    "voice.settings.cleanVoiceLimited": "Temiz ses sınırlı",
+    "voice.settings.cleanVoiceLimitedDescription":
+      "Önerilen temizleme tam olarak aktif değil. Klavye ve oda gürültüsünü daha iyi kontrol etmek için temiz ses profilini aç.",
+    "voice.settings.cleanVoiceFeatureNoise": "Oda gürültüsü kontrolü",
+    "voice.settings.cleanVoiceFeatureEcho": "Eko koruması",
+    "voice.settings.cleanVoiceFeatureGain": "Stabil ses seviyesi",
+    "voice.settings.advancedTitle": "Gelişmiş mikrofon kontrolleri",
+    "voice.settings.advancedDescription":
+      "Yalnızca sorun giderirken değiştir. Ses yakalama değişiklikleri güvenli şekilde saklanır ve aktif görüşmeyi kesmez.",
     "voice.devices.defaultInput": "Sistem varsayılan mikrofonu",
     "voice.devices.defaultOutput": "Sistem varsayılan hoparlörü",
     "voice.devices.enumerationUnsupported":
@@ -1365,6 +1464,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.noiseSuppression": "Gürültü engelleme",
     "voice.settings.noiseSuppressionDesc":
       "Fan, klavye uğultusu ve oda gürültüsü gibi sürekli arka plan seslerini azaltır.",
+    "voice.settings.voiceIsolation": "Ses izolasyonu",
+    "voice.settings.voiceIsolationDesc":
+      "Destekleyen tarayıcılarda Whispr Krisp'i eklemeden önce daha güçlü konuşma odaklı temizleme ister.",
     "voice.settings.echoCancellation": "Eko engelleme",
     "voice.settings.echoCancellationDesc":
       "Konuşma sırasında hoparlör sesinin yeniden mikrofona dönmesini önler.",
@@ -1653,10 +1755,15 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Sen bağlı kalırken birisi ses kanalından ayrıldığında farklı bir çıkış sesi çal.",
     "settings.notifications.soundProfile.title": "Ses profili",
     "settings.notifications.soundProfile.description":
-      "Bildirim sesleri açıkken Whispr'ın hangi stili kullanacağını seç.",
-    "settings.notifications.soundProfile.default": "Varsayılan",
-    "settings.notifications.soundProfile.soft": "Yumuşak",
-    "settings.notifications.soundProfile.pulse": "Pulse",
+      "Whispr'ın bu uyarı için kullanacağı sesi seç.",
+    "settings.notifications.soundProfile.default": "Whispr bildirimi",
+    "settings.notifications.soundProfile.soft": "Klasik bildirim",
+    "settings.notifications.soundProfile.pulse": "Klasik pulse",
+    "settings.notifications.soundProfile.voiceJoin": "Whispr ses kanalı girişi",
+    "settings.notifications.soundProfile.voiceLeave": "Whispr ses kanalı çıkışı",
+    "settings.notifications.soundProfile.legacyNotification": "Klasik bildirim",
+    "settings.notifications.soundProfile.legacyVoiceJoin": "Klasik ses kanalı girişi",
+    "settings.notifications.soundProfile.legacyVoiceLeave": "Klasik ses kanalı çıkışı",
     "settings.about.badge": "Whispr Hakkında",
     "settings.about.title": "Hakkında",
     "settings.about.description":
@@ -1847,6 +1954,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.user.toggleDeafen": "Kulaklığı kapat",
     "shell.user.status": "Çevrimiçi durum",
     "shell.user.statusTitle": "Çevrimiçi durumunu değiştir",
+    "shell.user.idleAfter": "Boşta say",
+    "shell.user.idleAfterTitle": "Otomatik boşta süresini ayarla",
+    "shell.user.idleMinutes": "{count} dk",
     "shell.user.appearanceSettings": "Ayarları aç",
     "shell.user.appearanceSettingsTitle": "Ayarlar",
     "shell.user.logout": "Çıkış yap",
