@@ -5,20 +5,48 @@ const packageJson = JSON.parse(
   readFileSync(new URL("./package.json", import.meta.url), "utf8"),
 ) as { version?: string };
 
-const whisprVersion = packageJson.version ?? "0.0.0";
+function firstNonEmpty(...values: Array<string | undefined>) {
+  return values.map((value) => value?.trim()).find(Boolean);
+}
+
+function shortId(value: string | undefined, length = 8) {
+  const normalized = value?.trim();
+  return normalized ? normalized.slice(0, length) : undefined;
+}
+
+const whisprVersion =
+  firstNonEmpty(process.env.WHISPR_VERSION, packageJson.version) ?? "0.0.0";
 const whisprBuildTime =
-  process.env.NEXT_PUBLIC_WHISPR_BUILD_TIME ?? new Date().toISOString();
+  firstNonEmpty(process.env.WHISPR_BUILD_TIME) ?? new Date().toISOString();
+const whisprCommitId = shortId(
+  firstNonEmpty(
+    process.env.RAILWAY_GIT_COMMIT_SHA,
+    process.env.VERCEL_GIT_COMMIT_SHA,
+    process.env.GITHUB_SHA,
+  ),
+);
+const whisprDeployId = shortId(
+  firstNonEmpty(
+    process.env.RAILWAY_DEPLOYMENT_ID,
+    process.env.VERCEL_DEPLOYMENT_ID,
+  ),
+);
+const whisprGeneratedBuildId = [whisprCommitId, whisprDeployId]
+  .filter(Boolean)
+  .join("-");
 const whisprBuildId =
-  process.env.NEXT_PUBLIC_WHISPR_BUILD_ID ??
-  process.env.RAILWAY_GIT_COMMIT_SHA ??
-  process.env.VERCEL_GIT_COMMIT_SHA ??
-  process.env.GITHUB_SHA ??
-  `${whisprVersion}-${whisprBuildTime}`;
+  firstNonEmpty(
+    whisprGeneratedBuildId,
+    process.env.WHISPR_BUILD_ID,
+    `${whisprVersion}-${whisprBuildTime.replace(/[:.]/g, "-")}`,
+  ) ?? "development";
 const whisprReleaseChannel =
-  process.env.NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL ??
-  process.env.RAILWAY_ENVIRONMENT_NAME ??
-  process.env.NODE_ENV ??
-  "development";
+  firstNonEmpty(
+    process.env.WHISPR_RELEASE_CHANNEL,
+    process.env.RAILWAY_ENVIRONMENT_NAME,
+    process.env.VERCEL_ENV,
+    process.env.NODE_ENV,
+  ) ?? "development";
 
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },

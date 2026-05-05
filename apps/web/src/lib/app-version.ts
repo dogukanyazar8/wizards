@@ -15,7 +15,7 @@ export type WhisprVersionPayload = {
 };
 
 export const WHISPR_APP_VERSION =
-  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.0.0";
+  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.6.0";
 export const WHISPR_BUILD_ID =
   process.env.NEXT_PUBLIC_WHISPR_BUILD_ID ?? "development";
 export const WHISPR_BUILD_TIME =
