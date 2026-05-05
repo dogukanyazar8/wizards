@@ -24,7 +24,7 @@ async function syncContributors() {
   });
 
   console.log(`Synced ${CONTRIBUTOR_NAMES.length} contributor records.`);
-  console.log(contributors.map((contributor) => `- ${contributor.name}`).join("\n"));
+  console.log(contributors.map((contributor: { name: string }) => `- ${contributor.name}`).join("\n"));
 }
 
 syncContributors()
