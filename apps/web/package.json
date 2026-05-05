@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && tsx watch server.ts",
-    "build": "node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && next build",
+    "build": "pnpm --filter @wizards/db db:generate && node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && next build",
     "start": "node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && tsx server.ts",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
