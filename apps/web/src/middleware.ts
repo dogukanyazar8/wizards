@@ -114,6 +114,17 @@ function isProtectedRoute(pathname: string): boolean {
   );
 }
 
+function getSessionCookieConfig() {
+  const secureCookie = process.env.NODE_ENV === "production";
+
+  return {
+    cookieName: secureCookie
+      ? "__Secure-authjs.session-token"
+      : "authjs.session-token",
+    secureCookie,
+  };
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
@@ -124,8 +135,11 @@ export async function middleware(request: NextRequest) {
   let isAuthenticated = false;
   try {
     if (secret) {
+      const sessionCookie = getSessionCookieConfig();
       const token = await getToken({
+        cookieName: sessionCookie.cookieName,
         req: request,
+        secureCookie: sessionCookie.secureCookie,
         secret,
       });
       isAuthenticated = Boolean(token);
