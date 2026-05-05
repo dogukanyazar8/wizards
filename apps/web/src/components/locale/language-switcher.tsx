@@ -49,7 +49,7 @@ export function LanguageSwitcher({
   };
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("space-y-2", className)} data-testid="language-switcher">
       <div
         className={cn(
           "inline-flex items-center rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.4)] p-1",
@@ -67,6 +67,8 @@ export function LanguageSwitcher({
                   ? "bg-[hsl(var(--surface-card))] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.12)]"
                   : "text-app-soft hover:text-app-foreground",
               )}
+              data-active={active ? "true" : "false"}
+              data-testid={`language-option-${option}`}
               key={option}
               onClick={() => applyLocale(option)}
               type="button"

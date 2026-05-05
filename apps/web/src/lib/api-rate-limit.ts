@@ -30,6 +30,7 @@ export const API_RATE_LIMITS = {
   "notification:mark-read": { limit: 120, windowSeconds: 60 },
   "server:create": { limit: 10, windowSeconds: 60 * 60 },
   "server:delete": { limit: 5, windowSeconds: 60 * 60 },
+  "server:list": { limit: 240, windowSeconds: 60 },
   "server:update": { limit: 30, windowSeconds: 60 },
   "settings:update": { limit: 60, windowSeconds: 60 },
   "voice:heartbeat": { limit: 240, windowSeconds: 60 },

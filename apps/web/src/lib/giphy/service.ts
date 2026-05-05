@@ -11,6 +11,30 @@ const GIPHY_DEFAULT_LIMIT = 24;
 const GIPHY_MAX_LIMIT = 36;
 const GIPHY_RATING = "pg";
 const GIPHY_BUNDLE = "messaging_non_clips";
+const E2E_GIF_DATA_URL =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+const E2E_GIFS: GiphyGifDTO[] = [
+  {
+    giphyUrl: "https://giphy.com/gifs/whispr-e2e-one",
+    height: 1,
+    id: "whispr-e2e-gif-1",
+    previewUrl: E2E_GIF_DATA_URL,
+    size: 42,
+    title: "Whispr E2E GIF",
+    url: E2E_GIF_DATA_URL,
+    width: 1,
+  },
+  {
+    giphyUrl: "https://giphy.com/gifs/whispr-e2e-two",
+    height: 1,
+    id: "whispr-e2e-gif-2",
+    previewUrl: E2E_GIF_DATA_URL,
+    size: 42,
+    title: "Whispr E2E Celebration",
+    url: E2E_GIF_DATA_URL,
+    width: 1,
+  },
+];
 
 export const GiphySearchQuerySchema = z.object({
   q: z.string().trim().max(50).optional().default(""),
@@ -170,6 +194,14 @@ async function enforceGiphyRateLimit(userId: string) {
   }
 }
 
+function isE2EGiphyMockEnabled() {
+  return (
+    process.env.E2E_TEST_MODE === "true" &&
+    process.env.E2E_MOCK_GIPHY === "true" &&
+    process.env.NODE_ENV !== "production"
+  );
+}
+
 async function fetchGiphyJson<T>(url: URL): Promise<T> {
   const response = await fetch(url, {
     cache: "no-store",
@@ -191,6 +223,17 @@ export async function listGiphyGifs(args: {
   query: string;
   userId: string;
 }) {
+  if (isE2EGiphyMockEnabled()) {
+    const query = args.query.trim().toLocaleLowerCase("en-US");
+    const gifs = query
+      ? E2E_GIFS.filter((gif) => gif.title.toLocaleLowerCase("en-US").includes(query))
+      : E2E_GIFS;
+
+    return {
+      gifs: gifs.slice(args.offset, args.offset + args.limit),
+    };
+  }
+
   await enforceGiphyRateLimit(args.userId);
 
   const apiKey = getGiphyApiKey();
@@ -219,6 +262,49 @@ export async function listGiphyGifs(args: {
 }
 
 export async function createGiphyAttachment(userId: string, gifId: string) {
+  if (isE2EGiphyMockEnabled()) {
+    const gif = E2E_GIFS.find((item) => item.id === gifId);
+
+    if (!gif) {
+      throw new ApiError("GIF was not found.", 404, "GIF_NOT_FOUND");
+    }
+
+    const attachment = await prisma.attachment.create({
+      data: {
+        contentType: "image/gif",
+        description: gif.title,
+        filename: `giphy-${gif.id}.gif`,
+        height: gif.height,
+        size: gif.size,
+        url: gif.url,
+        userId,
+        width: gif.width,
+      },
+      select: {
+        contentType: true,
+        filename: true,
+        height: true,
+        id: true,
+        size: true,
+        url: true,
+        width: true,
+      },
+    });
+
+    return {
+      attachment: {
+        ...attachment,
+        height: attachment.height ?? undefined,
+        width: attachment.width ?? undefined,
+      },
+      input: {
+        height: attachment.height,
+        id: attachment.id,
+        width: attachment.width,
+      },
+    };
+  }
+
   await enforceGiphyRateLimit(userId);
 
   const apiKey = getGiphyApiKey();

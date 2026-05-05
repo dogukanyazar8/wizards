@@ -68,6 +68,7 @@ export function FriendCard({
     <div
       aria-label={t("friends.actions.message")}
       className="app-panel group flex cursor-pointer items-center justify-between gap-3 rounded-[24px] border p-3 transition focus-within:ring-2 focus-within:ring-[hsl(var(--ring)/0.45)] hover:-translate-y-0.5 hover:shadow-[0_18px_42px_hsl(var(--shadow-color)/0.1)] sm:gap-4 sm:rounded-[28px] sm:p-4"
+      data-testid={`friend-card-${friend.username}`}
       onClick={openMessage}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {

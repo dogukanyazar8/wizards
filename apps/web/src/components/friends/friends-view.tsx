@@ -129,12 +129,14 @@ function FriendsTabButton({
   icon: Icon,
   label,
   onClick,
+  testId,
 }: {
   active: boolean;
   badge?: number;
   icon: LucideIcon;
   label: string;
   onClick: () => void;
+  testId?: string;
 }) {
   return (
     <button
@@ -144,6 +146,7 @@ function FriendsTabButton({
           ? "border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--foreground))]"
           : "border-[hsl(var(--border)/0.78)] bg-[hsl(var(--surface-soft)/0.36)] text-app-muted hover:text-[hsl(var(--foreground))]"
       }`}
+      data-testid={testId}
       onClick={onClick}
       role="tab"
       type="button"
@@ -289,7 +292,10 @@ function PendingRequestRow({
   const displayName = counterpart.displayName ?? counterpart.username;
 
   return (
-    <div className="app-panel flex flex-col gap-3 rounded-[24px] border p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:rounded-[28px] sm:p-4">
+    <div
+      className="app-panel flex flex-col gap-3 rounded-[24px] border p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:rounded-[28px] sm:p-4"
+      data-testid={`friend-request-${type}-${counterpart.username}`}
+    >
       <div className="flex min-w-0 items-center gap-3 sm:gap-4">
         <Avatar
           alt={displayName}
@@ -581,12 +587,14 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
                 icon={Users}
                 label={t("friends.tabs.online")}
                 onClick={() => setActiveTab("online")}
+                testId="friends-tab-online"
               />
               <FriendsTabButton
                 active={activeTab === "all"}
                 icon={Users}
                 label={t("friends.tabs.all")}
                 onClick={() => setActiveTab("all")}
+                testId="friends-tab-all"
               />
               <FriendsTabButton
                 active={activeTab === "pending"}
@@ -594,18 +602,21 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
                 icon={Clock3}
                 label={t("friends.tabs.pending")}
                 onClick={() => setActiveTab("pending")}
+                testId="friends-tab-pending"
               />
               <FriendsTabButton
                 active={activeTab === "add"}
                 icon={UserPlus}
                 label={t("friends.tabs.addFriend")}
                 onClick={() => setActiveTab("add")}
+                testId="friends-tab-add"
               />
               <FriendsTabButton
                 active={activeTab === "blocked"}
                 icon={Ban}
                 label={t("friends.tabs.blocked")}
                 onClick={() => setActiveTab("blocked")}
+                testId="friends-tab-blocked"
               />
             </div>
           </div>
@@ -690,6 +701,7 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
                             <button
                               aria-label={t("friends.actions.accept")}
                               className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--success))] text-white transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--success)/0.45)]"
+                              data-testid={`friend-request-accept-${request.sender.username}`}
                               onClick={() =>
                                 requestActionMutation.mutate({
                                   action: "accept",
@@ -703,6 +715,7 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
                             <button
                               aria-label={t("friends.actions.decline")}
                               className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--danger))] text-[hsl(var(--danger-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)]"
+                              data-testid={`friend-request-decline-${request.sender.username}`}
                               onClick={() =>
                                 requestActionMutation.mutate({
                                   action: "decline",
@@ -778,6 +791,7 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
                       ? "border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.08)] text-[hsl(var(--success))]"
                       : "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.08)] text-[hsl(var(--danger-foreground))]"
                   }`}
+                  data-testid="friend-feedback"
                 >
                   {feedback.message}
                 </div>
@@ -802,6 +816,7 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
               >
                 <Input
                   autoComplete="off"
+                  data-testid="friend-username-input"
                   id="friend-username"
                   onChange={(event) => handleUsernameChange(event.target.value)}
                   placeholder={t("friends.addFriend.placeholder")}
@@ -809,6 +824,7 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
                 />
                 <button
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-5 text-sm font-semibold text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.45)] disabled:opacity-60"
+                  data-testid="send-friend-request-button"
                   disabled={!canSendRequest || sendRequestMutation.isPending}
                   type="submit"
                 >

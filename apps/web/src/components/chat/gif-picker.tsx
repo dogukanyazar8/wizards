@@ -148,6 +148,7 @@ export function GifPicker({ onClose, onSelect }: GifPickerProps) {
   return (
     <div
       className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-[90] max-h-[70dvh] rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.96)] p-3 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.22)] backdrop-blur-xl md:absolute md:inset-x-auto md:bottom-full md:left-0 md:mb-3 md:max-h-none md:w-[min(22rem,calc(100vw-2rem))]"
+      data-testid="gif-picker"
       ref={containerRef}
     >
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -169,6 +170,7 @@ export function GifPicker({ onClose, onSelect }: GifPickerProps) {
         <Search className="h-4 w-4 text-app-soft" />
         <input
           className="min-w-0 flex-1 bg-transparent text-sm text-app-foreground placeholder-app-muted outline-none"
+          data-testid="gif-search-input"
           maxLength={50}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t("chat.gifs.searchPlaceholder")}
@@ -193,6 +195,8 @@ export function GifPicker({ onClose, onSelect }: GifPickerProps) {
               <button
                 aria-label={t("chat.gifs.selectGif", { title: gif.title })}
                 className="group/gif relative aspect-square overflow-hidden rounded-[18px] border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.45)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                data-gif-id={gif.id}
+                data-testid="gif-option"
                 disabled={Boolean(selectedGifId)}
                 key={gif.id}
                 onClick={() => void handleSelect(gif)}

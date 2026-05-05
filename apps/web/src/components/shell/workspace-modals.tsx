@@ -223,14 +223,18 @@ export function WorkspaceModals({
     },
     onSuccess: async (result) => {
       closeServerModal();
-      await queryClient.invalidateQueries({
-        queryKey: workspaceQueryKeys.servers,
-      });
 
-      if ("serverId" in result && result.serverId) {
+      if (result && "serverId" in result && result.serverId) {
+        void queryClient.invalidateQueries({
+          queryKey: workspaceQueryKeys.servers,
+        });
         onNavigate(result.channelId ? `/channels/${result.serverId}/${result.channelId}` : "/channels");
         return;
       }
+
+      await queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.servers,
+      });
 
       if (activeServerDetail) {
         await queryClient.invalidateQueries({
@@ -461,6 +465,9 @@ export function WorkspaceModals({
       >
         <form
           className="space-y-4"
+          data-testid={
+            serverModal.mode === "edit" ? "server-edit-form" : "server-create-form"
+          }
           onSubmit={(event) => {
             event.preventDefault();
             serverMutation.mutate();
@@ -481,6 +488,7 @@ export function WorkspaceModals({
               onChange={(event) => setServerName(event.target.value)}
               placeholder={t("workspace.modal.serverNamePlaceholder")}
               required
+              data-testid="server-name-input"
               value={serverName}
             />
             {serverName.trim().length > 0 && serverName.trim().length < 2 ? (
@@ -499,6 +507,7 @@ export function WorkspaceModals({
                 )
               }
               placeholder={t("workspace.modal.serverShortNamePlaceholder")}
+              data-testid="server-short-name-input"
               value={serverShortName}
             />
             <p className="text-xs leading-5 text-app-muted">
@@ -513,6 +522,7 @@ export function WorkspaceModals({
               maxLength={160}
               onChange={(event) => setServerDescription(event.target.value)}
               placeholder={t("workspace.modal.serverDescriptionPlaceholder")}
+              data-testid="server-description-input"
               value={serverDescription}
             />
           </div>
@@ -555,7 +565,12 @@ export function WorkspaceModals({
             <Button className="w-full sm:w-auto" onClick={closeServerModal} type="button" variant="outline">
               {t("common.cancel")}
             </Button>
-            <Button className="w-full sm:w-auto" disabled={serverMutation.isPending || serverName.trim().length < 2} type="submit">
+            <Button
+              className="w-full sm:w-auto"
+              data-testid="server-submit-button"
+              disabled={serverMutation.isPending || serverName.trim().length < 2}
+              type="submit"
+            >
               {serverMutation.isPending
                 ? t("common.saving")
                 : serverModal.mode === "edit"

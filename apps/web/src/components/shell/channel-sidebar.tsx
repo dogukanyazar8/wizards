@@ -88,6 +88,7 @@ type SortableChannelRowProps = {
   onEdit: () => void;
   onPrefetch?: () => void;
   onSelect: () => void;
+  testId?: string;
   voiceState?: VoiceChannelStateDTO | null;
 };
 
@@ -108,6 +109,7 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
   onEdit,
   onPrefetch,
   onSelect,
+  testId,
   voiceState = null,
 }: SortableChannelRowProps) {
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
@@ -154,6 +156,7 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
             type={channel.type}
             voiceState={voiceState}
             {...(onPrefetch ? { onPrefetch } : {})}
+            {...(testId ? { testId } : {})}
           />
         </div>
       </div>
@@ -271,6 +274,7 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
     <div
       className="app-panel rounded-[26px] border p-3 shadow-[0_18px_45px_hsl(var(--shadow-color)/0.08)]"
       data-notification-popup-anchor="user"
+      data-testid="user-bar"
       data-user-bar-anchor="true"
     >
       <div className="space-y-3">
@@ -370,6 +374,7 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
           <button
             aria-label={t("shell.user.appearanceSettings")}
             className="inline-flex h-10 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.28)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            data-testid="user-settings-button"
             onClick={onOpenAppearanceSettings}
             title={t("shell.user.appearanceSettingsTitle")}
             type="button"
@@ -379,6 +384,7 @@ function UserProfileFooter({ user, onOpenAppearanceSettings }: UserProfileFooter
           <button
             aria-label={t("shell.user.logout")}
             className="inline-flex h-10 items-center justify-center rounded-2xl border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:cursor-not-allowed disabled:opacity-60"
+            data-testid="user-logout-button"
             disabled={isLoggingOut}
             onClick={handleLogout}
             title={t("shell.user.logoutTitle")}
@@ -626,7 +632,10 @@ export function ChannelSidebar({
 
   if (loading) {
     return (
-      <aside className="app-sidebar h-full w-full min-w-0 overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0">
+      <aside
+        className="app-sidebar h-full w-full min-w-0 overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0"
+        data-testid="channel-sidebar"
+      >
         <ChannelSidebarSkeleton />
       </aside>
     );
@@ -634,7 +643,10 @@ export function ChannelSidebar({
 
   if (!detail) {
     return (
-      <aside className="app-sidebar flex h-full w-full min-w-0 flex-col overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0">
+      <aside
+        className="app-sidebar flex h-full w-full min-w-0 flex-col overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0"
+        data-testid="channel-sidebar"
+      >
         <div className="min-h-0 flex-1 p-4">
           <FriendsSidebar
             currentUserId={currentUser.id}
@@ -739,6 +751,7 @@ export function ChannelSidebar({
                       onSelect={() => {
                         void navigateToChannel(channel.id, channel.type);
                       }}
+                      testId={`channel-item-${channel.id}`}
                       voiceState={voiceState}
                     />
                   );
@@ -752,7 +765,10 @@ export function ChannelSidebar({
   };
 
   return (
-    <aside className="app-sidebar flex h-full w-full min-w-0 flex-col overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0">
+    <aside
+      className="app-sidebar flex h-full w-full min-w-0 flex-col overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0"
+      data-testid="channel-sidebar"
+    >
       <div className="border-b border-[hsl(var(--border)/0.78)] p-3">
         <button
           aria-label={`Open ${detail.server.name} menu`}

@@ -168,7 +168,10 @@ export function SettingsSidebar() {
 
   return (
     <>
-      <aside className="app-panel min-w-0 max-w-full overflow-hidden rounded-[28px] border p-4 lg:hidden">
+      <aside
+        className="app-panel min-w-0 max-w-full overflow-hidden rounded-[28px] border p-4 lg:hidden"
+        data-testid="settings-mobile-sidebar"
+      >
         <div className="flex items-center justify-between gap-3">
           <Link
             className="app-panel-soft text-app-foreground inline-flex min-h-11 items-center gap-2 rounded-2xl border px-3 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
@@ -203,6 +206,7 @@ export function SettingsSidebar() {
                   ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
                   : "app-panel-soft text-app-muted hover:text-app-foreground",
               )}
+              data-testid={`settings-mobile-section-${item.section}`}
               key={item.section}
               onClick={() => goTo(item.section)}
               type="button"
@@ -228,6 +232,7 @@ export function SettingsSidebar() {
                       ? "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.12)] text-app-foreground"
                       : "app-panel-soft text-app-muted hover:text-app-foreground",
                   )}
+                  data-testid={`settings-mobile-panel-${item.section}-${item.panel ?? "all"}`}
                   key={`${item.section}-${item.panel ?? "all"}`}
                   onClick={() => goTo(item.section, item.panel ?? null)}
                   type="button"

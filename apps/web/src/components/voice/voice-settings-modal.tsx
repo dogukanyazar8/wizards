@@ -20,7 +20,9 @@ export function VoiceSettingsModal({ onClose, open }: VoiceSettingsModalProps) {
       open={open}
       title={t("voice.settings.title")}
     >
-      <VoicePreferencesPanel />
+      <div data-testid="voice-settings-modal">
+        <VoicePreferencesPanel />
+      </div>
     </Modal>
   );
 }

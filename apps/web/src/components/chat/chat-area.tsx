@@ -222,7 +222,7 @@ export function ChatArea({
   }, [mode, queryClient, queryKey, socket]);
 
   const handleSend = useCallback(
-    (
+    async (
       content: string,
       replyToId?: string,
       attachments: UploadedAttachmentInput[] = [],
@@ -230,6 +230,8 @@ export function ChatArea({
     ) => {
       const tempId = `optimistic-${Date.now()}`;
       tempIdRef.current = tempId;
+
+      await queryClient.cancelQueries({ exact: true, queryKey });
 
       queryClient.setQueryData<MessagePages>(queryKey, (current) =>
         appendMessage(

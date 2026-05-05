@@ -48,6 +48,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
     <div
       ref={pickerRef}
       className="app-emoji-picker fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-[90] max-h-[70dvh] overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.76)] bg-[hsl(var(--surface-overlay)/0.98)] p-3 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.24)] backdrop-blur-2xl md:absolute md:inset-x-auto md:bottom-full md:left-0 md:mb-3 md:max-h-none md:w-[min(23rem,calc(100vw-2rem))]"
+      data-testid="emoji-picker"
     >
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
@@ -62,6 +63,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
         <button
           aria-label={t("common.close")}
           className="rounded-full border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.55)] p-2 text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+          data-testid="emoji-picker-close"
           onClick={onClose}
           type="button"
         >

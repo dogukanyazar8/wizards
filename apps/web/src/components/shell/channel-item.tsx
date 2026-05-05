@@ -15,6 +15,7 @@ type ChannelItemProps = {
   onEdit: () => void;
   onPrefetch?: () => void;
   onSelect: () => void;
+  testId?: string;
   type: "TEXT" | "VOICE";
   voiceState?: VoiceChannelStateDTO | null;
 };
@@ -28,6 +29,7 @@ export function ChannelItem({
   onEdit,
   onPrefetch,
   onSelect,
+  testId,
   type,
   voiceState = null,
 }: ChannelItemProps) {
@@ -68,6 +70,7 @@ export function ChannelItem({
             }
           }}
           onMouseEnter={onPrefetch}
+          data-testid={testId}
           type="button"
         >
           <span
@@ -139,6 +142,8 @@ export function ChannelItem({
             return (
               <div
                 className="app-panel-soft flex min-h-9 items-center gap-2 rounded-2xl border px-2.5 py-1.5 text-xs text-app-muted"
+                data-testid={`voice-sidebar-participant-${participant.username}`}
+                data-user-id={participant.userId}
                 key={participant.userId}
               >
                 <Avatar
@@ -158,6 +163,7 @@ export function ChannelItem({
                 {participant.isScreenSharing ? (
                   <span
                     className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.12)] px-1.5 py-0.5 text-[10px] font-semibold text-[hsl(var(--success))]"
+                    data-testid={`voice-sidebar-screen-share-${participant.username}`}
                     title={t("voice.sidebar.screenSharing")}
                   >
                     <MonitorUp className="h-3 w-3" />

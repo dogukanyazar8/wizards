@@ -50,10 +50,17 @@ type UserProfilePopoverProps = {
   userId: string;
   currentUserId: string;
   serverId?: string;
+  testId?: string;
   children: React.ReactNode;
 };
 
-export function UserProfilePopover({ userId, currentUserId, serverId, children }: UserProfilePopoverProps) {
+export function UserProfilePopover({
+  userId,
+  currentUserId,
+  serverId,
+  testId,
+  children,
+}: UserProfilePopoverProps) {
   const { t } = useI18n();
 
   const [open, setOpen] = useState(false);
@@ -199,6 +206,7 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
         }}
         role="button"
         tabIndex={0}
+        data-testid={testId}
         className="cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
       >
         {children}
@@ -218,6 +226,7 @@ export function UserProfilePopover({ userId, currentUserId, serverId, children }
             ) : null}
             <motion.div
               ref={popoverRef}
+              data-testid="user-profile-popover"
               className={cn(
                 "fixed z-[91] overflow-hidden border border-[hsl(var(--border)/0.88)] bg-[hsl(var(--surface-overlay)/0.98)] shadow-[0_28px_80px_hsl(var(--shadow-color)/0.28)] backdrop-blur-2xl",
                 isMobileViewport

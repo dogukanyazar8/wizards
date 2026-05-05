@@ -53,7 +53,10 @@ export function MessageEditor({ initialContent, onSave, onCancel }: MessageEdito
   };
 
   return (
-    <div className="my-2 overflow-hidden rounded-[24px] border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--surface-card)/0.88)] shadow-[0_18px_42px_hsl(var(--shadow-color)/0.08)] backdrop-blur-xl">
+    <div
+      className="my-2 overflow-hidden rounded-[24px] border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--surface-card)/0.88)] shadow-[0_18px_42px_hsl(var(--shadow-color)/0.08)] backdrop-blur-xl"
+      data-testid="message-editor"
+    >
       <div className="border-b border-[hsl(var(--border)/0.5)] px-3 py-2">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-app-soft">
           {t("chat.editor.title")}
@@ -64,6 +67,7 @@ export function MessageEditor({ initialContent, onSave, onCancel }: MessageEdito
         <textarea
           aria-label={t("chat.editor.title")}
           className="min-h-[92px] w-full resize-none rounded-[20px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.38)] px-3 py-3 text-sm leading-6 text-app-foreground outline-none transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.48)] focus:bg-[hsl(var(--surface-card)/0.82)] focus:ring-2 focus:ring-[hsl(var(--primary)/0.16)]"
+          data-testid="message-editor-input"
           maxLength={MAX_MESSAGE_LENGTH}
           onChange={(event) => setContent(event.target.value)}
           onKeyDown={handleKeyDown}
@@ -91,6 +95,7 @@ export function MessageEditor({ initialContent, onSave, onCancel }: MessageEdito
         <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.1)] px-4 text-sm font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.34)] sm:min-h-10"
+            data-testid="message-editor-cancel"
             onClick={onCancel}
             type="button"
           >
@@ -99,6 +104,7 @@ export function MessageEditor({ initialContent, onSave, onCancel }: MessageEdito
           </button>
           <button
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.16)] px-4 text-sm font-semibold text-[hsl(var(--success))] shadow-[0_14px_32px_hsl(var(--success)/0.14)] transition hover:bg-[hsl(var(--success)/0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--success)/0.34)] disabled:cursor-not-allowed disabled:border-[hsl(var(--border)/0.55)] disabled:bg-[hsl(var(--surface-soft)/0.42)] disabled:text-app-soft disabled:shadow-none sm:min-h-10"
+            data-testid="message-editor-save"
             disabled={!canSave}
             onClick={save}
             type="button"

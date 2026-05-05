@@ -191,6 +191,7 @@ export default function RegisterPage() {
 
       <form
         className="auth-form-card space-y-5 rounded-[30px] border p-5"
+        data-testid="register-form"
         onSubmit={handleSubmit(onSubmit)}
         noValidate
       >

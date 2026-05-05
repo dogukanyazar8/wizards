@@ -262,6 +262,7 @@ export function AudioDeviceSelect({
         position === "compact" && kind === "output" && "right-0",
         position === "panel" && "left-0 right-0 top-[calc(100%+0.75rem)]",
       )}
+      data-testid={`audio-device-select-${kind}-menu`}
     >
       <div className="flex items-center justify-between gap-3 border-b border-[hsl(var(--border)/0.54)] px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2.5">
@@ -281,6 +282,7 @@ export function AudioDeviceSelect({
           aria-label={t("voice.devices.refresh")}
           className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.5)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.86)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60"
           disabled={isLoading}
+          data-testid={`audio-device-select-${kind}-menu-refresh`}
           onClick={handleRefresh}
           type="button"
         >
@@ -309,6 +311,8 @@ export function AudioDeviceSelect({
                   : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.64)] hover:text-app-foreground",
                 isActive && !isSelected && "bg-[hsl(var(--surface-soft)/0.52)]",
               )}
+              data-device-id={device.deviceId}
+              data-testid={`audio-device-select-${kind}-option`}
               id={`${listboxId}-${device.deviceId}`}
               key={device.deviceId}
               onClick={() => handleSelect(device.deviceId)}
@@ -361,6 +365,7 @@ export function AudioDeviceSelect({
     return (
       <div
         className={cn("relative min-w-0", isOpen && "z-[96]")}
+        data-testid={`audio-device-select-${kind}-compact`}
         onKeyDown={handleKeyDown}
         ref={rootRef}
       >
@@ -376,6 +381,7 @@ export function AudioDeviceSelect({
             isDisabled && "cursor-not-allowed opacity-60",
           )}
           disabled={isDisabled}
+          data-testid={`audio-device-select-${kind}-trigger`}
           onClick={() => setIsOpen((current) => !current)}
           title={selectedLabel}
           type="button"
@@ -402,6 +408,7 @@ export function AudioDeviceSelect({
         "app-panel-soft relative rounded-[22px] border p-3 sm:rounded-[24px] sm:p-4",
         isOpen && "z-[96]",
       )}
+      data-testid={`audio-device-select-${kind}-panel`}
       onKeyDown={handleKeyDown}
       ref={rootRef}
     >
@@ -422,6 +429,7 @@ export function AudioDeviceSelect({
             <button
               className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.42)] px-3 text-xs font-semibold text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60"
               disabled={isLoading}
+              data-testid={`audio-device-select-${kind}-refresh`}
               onClick={handleRefresh}
               type="button"
             >
@@ -442,6 +450,7 @@ export function AudioDeviceSelect({
                   "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.09)] shadow-[0_18px_46px_hsl(var(--primary)/0.12)]",
               )}
               disabled={isDisabled}
+              data-testid={`audio-device-select-${kind}-trigger`}
               onClick={() => setIsOpen((current) => !current)}
               type="button"
             >

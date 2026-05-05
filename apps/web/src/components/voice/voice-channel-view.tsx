@@ -70,7 +70,12 @@ function VoiceParticipantCard({
   const displayName = participant.displayName ?? participant.username;
 
   return (
-    <div className="app-panel relative flex h-full min-h-[17rem] flex-col overflow-hidden rounded-[24px] border p-3 sm:min-h-[20rem] sm:rounded-[28px] sm:p-4 lg:min-h-[22rem]">
+    <div
+      className="app-panel relative flex h-full min-h-[17rem] flex-col overflow-hidden rounded-[24px] border p-3 sm:min-h-[20rem] sm:rounded-[28px] sm:p-4 lg:min-h-[22rem]"
+      data-testid="voice-participant-card"
+      data-user-id={participant.userId}
+      data-username={participant.username}
+    >
       <div className="mb-3 flex items-start justify-between gap-3 sm:mb-5">
         <div className="flex min-w-0 items-center gap-3">
           <div className={cn("rounded-full transition", getSpeakingClass(participant))}>
@@ -250,7 +255,10 @@ function ScreenShareStage({
     activeShare?.displayName ?? activeShare?.username ?? t("voice.screenShare.unknownSharer");
 
   return (
-    <div className="grid flex-1 gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
+    <div
+      className="grid flex-1 gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]"
+      data-testid="voice-screen-share-stage"
+    >
       <div className="app-panel relative min-h-[22rem] overflow-hidden rounded-[26px] border p-3 sm:min-h-[30rem] sm:rounded-[32px] sm:p-4">
         <div className="mb-3 flex flex-col gap-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
@@ -367,6 +375,7 @@ function ScreenShareStage({
                         : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] hover:bg-[hsl(var(--surface-soft)/0.72)]",
                     )}
                     disabled={isApplyingQuality}
+                    data-testid={`screen-share-quality-${option.id}`}
                     key={option.id}
                     onClick={() => onSelectQuality(option.id)}
                     type="button"
@@ -427,7 +436,7 @@ function renderGridParticipants(
   participants: VoiceParticipantViewModel[],
 ) {
   if (!room) {
-    return [];
+    return participants;
   }
 
   const currentParticipantOrder = new Map(
@@ -493,7 +502,10 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
 
   if ((!hasRequestedJoin || isJoining) && !errorMessage) {
     return (
-      <div className="flex h-full items-center justify-center bg-transparent">
+      <div
+        className="flex h-full items-center justify-center bg-transparent"
+        data-testid="voice-connecting-state"
+      >
         <div className="text-center">
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-app-muted" />
           <p className="mt-3 text-sm font-medium text-app-foreground">
@@ -506,7 +518,10 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
 
   if (!room && !errorMessage && activeChannelId !== channelId) {
     return (
-      <div className="flex h-full items-center justify-center bg-transparent p-6">
+      <div
+        className="flex h-full items-center justify-center bg-transparent p-6"
+        data-testid="voice-disconnected-state"
+      >
         <div className="app-panel max-w-md rounded-[28px] border p-8 text-center">
           <p className="text-base font-semibold text-app-foreground">
             {t("voice.view.disconnectedTitle")}
@@ -533,7 +548,10 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
 
   if (errorMessage && !room) {
     return (
-      <div className="flex h-full items-center justify-center bg-transparent">
+      <div
+        className="flex h-full items-center justify-center bg-transparent"
+        data-testid="voice-error-state"
+      >
         <div className="max-w-md text-center">
           <p className="text-base font-semibold text-app-foreground">
             {t("voice.view.errorTitle")}
@@ -545,7 +563,10 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
   }
 
   return (
-    <div className="relative h-full overflow-y-auto bg-transparent p-3 sm:p-5 md:p-6">
+    <div
+      className="relative h-full overflow-y-auto bg-transparent p-3 sm:p-5 md:p-6"
+      data-testid="voice-channel-view"
+    >
       {showReconnectOverlay ? (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-[hsl(var(--background)/0.75)] backdrop-blur-sm">
           <div className="app-panel rounded-[28px] border px-6 py-5 text-center shadow-[0_18px_50px_hsl(var(--shadow-color)/0.14)]">
@@ -571,7 +592,10 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
         </div>
 
         {errorMessage ? (
-          <div className="mb-4 rounded-[24px] border border-[hsl(var(--warning)/0.24)] bg-[hsl(var(--warning)/0.08)] px-4 py-3">
+          <div
+            className="mb-4 rounded-[24px] border border-[hsl(var(--warning)/0.24)] bg-[hsl(var(--warning)/0.08)] px-4 py-3"
+            data-testid="voice-inline-error"
+          >
             <p className="text-sm font-medium text-app-foreground">{errorMessage}</p>
           </div>
         ) : null}

@@ -26,6 +26,7 @@ import { Modal } from "@/components/ui/modal";
 import { useSocket } from "@/hooks/use-socket";
 import { useDMConversations } from "@/hooks/use-dm-conversations";
 import { useAppearanceHydration } from "@/hooks/use-appearance-hydration";
+import type { NotificationSocketPayload } from "@/lib/socket/events";
 import { useAppStore } from "@/lib/store";
 import {
   addServerMemberRequest,
@@ -229,6 +230,7 @@ function MobileShellControls({
         <button
           aria-label={t("common.back")}
           className="app-panel-soft text-app-foreground inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          data-testid="mobile-shell-back-button"
           onClick={onBack}
           type="button"
         >
@@ -386,6 +388,14 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   }, [pathname, setMobileSidebarOpen]);
 
   useEffect(() => {
+    const refreshWorkspaceServers = () => {
+      void queryClient.fetchQuery({
+        queryFn: fetchWorkspaceServers,
+        queryKey: workspaceQueryKeys.servers,
+        staleTime: 0,
+      });
+    };
+
     const handleServerUnreadUpdate = (data: { serverId: string; unreadCount: number }) => {
       queryClient.setQueryData<WorkspaceServerSummary[] | undefined>(
         workspaceQueryKeys.servers,
@@ -408,15 +418,39 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     };
 
     const handleServerSettingsUpdated = (data: { serverId: string }) => {
-      void queryClient.invalidateQueries({
-        queryKey: workspaceQueryKeys.servers,
-      });
+      refreshWorkspaceServers();
       void queryClient.invalidateQueries({
         queryKey: workspaceQueryKeys.server(data.serverId),
       });
 
       if (data.serverId === activeServerId) {
         router.refresh();
+      }
+    };
+
+    const handleServerMembershipAdded = (data: { serverId: string }) => {
+      refreshWorkspaceServers();
+      void queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.server(data.serverId),
+      });
+    };
+
+    const handleNotificationNew = (notification: NotificationSocketPayload) => {
+      if (notification.type !== "SERVER_INVITE") {
+        return;
+      }
+
+      const serverId =
+        typeof notification.metadata?.serverId === "string"
+          ? notification.metadata.serverId
+          : null;
+
+      refreshWorkspaceServers();
+
+      if (serverId) {
+        void queryClient.invalidateQueries({
+          queryKey: workspaceQueryKeys.server(serverId),
+        });
       }
     };
 
@@ -449,11 +483,15 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     };
 
     socket.on("server:unread:update", handleServerUnreadUpdate);
+    socket.on("server:membership:added", handleServerMembershipAdded);
     socket.on("server:settings:updated", handleServerSettingsUpdated);
+    socket.on("notification:new", handleNotificationNew);
     socket.on("presence:update", handlePresenceUpdate);
     return () => {
       socket.off("server:unread:update", handleServerUnreadUpdate);
+      socket.off("server:membership:added", handleServerMembershipAdded);
       socket.off("server:settings:updated", handleServerSettingsUpdated);
+      socket.off("notification:new", handleNotificationNew);
       socket.off("presence:update", handlePresenceUpdate);
     };
   }, [activeServerId, queryClient, router, socket]);
@@ -872,6 +910,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
           >
             <div
               className="absolute inset-0 bg-[hsl(var(--backdrop)/0.6)]"
+              data-testid="mobile-workspace-drawer-backdrop"
               onClick={() => setMobileSidebarOpen(false)}
             />
             <motion.div
@@ -879,6 +918,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
               aria-label={t("shell.mobile.workspaceNavigation")}
               aria-modal="true"
               className="app-shell absolute inset-y-0 left-0 flex max-w-[100vw] overflow-hidden shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)]"
+              data-testid="mobile-workspace-drawer"
               exit={{ x: -24 }}
               initial={{ x: -24 }}
               role="dialog"
@@ -957,6 +997,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       >
         {canAddUserFromContextMenu ? (
           <ContextMenuItem
+            data-testid="server-context-add-user"
             onClick={() => {
               closeServerContextMenu();
               if (contextServer) {
@@ -972,6 +1013,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
         {canAddUserFromContextMenu && canManageContextServer ? <ContextMenuSeparator /> : null}
         {canManageContextServer ? (
           <ContextMenuItem
+            data-testid="server-context-invite"
             onClick={() => {
               closeServerContextMenu();
               if (contextServer) {
@@ -986,6 +1028,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
         {canManageContextServer ? <ContextMenuSeparator /> : null}
         {canManageContextServer ? (
           <ContextMenuItem
+            data-testid="server-context-settings"
             onClick={() => {
               closeServerContextMenu();
               if (contextServer) {
@@ -1042,6 +1085,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
             </label>
             <Input
               autoComplete="off"
+              data-testid="add-server-member-input"
               maxLength={32}
               onChange={(event) => {
                 setAddMemberUsername(event.target.value);
@@ -1055,7 +1099,10 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
           </div>
 
           {addMemberSuccess ? (
-            <div className="app-success rounded-[24px] border p-4">
+            <div
+              className="app-success rounded-[24px] border p-4"
+              data-testid="add-server-member-success"
+            >
               <p className="text-app-success text-xs font-semibold uppercase tracking-[0.2em]">
                 {t("workspace.modal.addMemberSuccessTitle")}
               </p>
@@ -1087,6 +1134,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
             </Button>
             <Button
               className="w-full sm:w-auto"
+              data-testid="add-server-member-submit"
               disabled={addMemberMutation.isPending || addMemberUsername.trim().length < 2}
               type="submit"
             >

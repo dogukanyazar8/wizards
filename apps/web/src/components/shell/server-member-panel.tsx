@@ -63,7 +63,10 @@ function MemberRow({ member }: { member: WorkspaceMember }) {
   const role = getMemberRole(member);
 
   return (
-    <div className="group/member flex min-w-0 items-center gap-3 rounded-[22px] border border-transparent px-2.5 py-2 transition hover:border-[hsl(var(--border)/0.58)] hover:bg-[hsl(var(--surface-soft)/0.36)]">
+    <div
+      className="group/member flex min-w-0 items-center gap-3 rounded-[22px] border border-transparent px-2.5 py-2 transition hover:border-[hsl(var(--border)/0.58)] hover:bg-[hsl(var(--surface-soft)/0.36)]"
+      data-testid={`server-member-${member.username}`}
+    >
       <div className="relative shrink-0">
         <Avatar
           alt={member.displayName}
@@ -146,7 +149,10 @@ export function ServerMemberPanel({ detail }: ServerMemberPanelProps) {
   const offlineMembers = members.filter((member) => member.status === "OFFLINE");
 
   return (
-    <aside className="hidden h-full w-[312px] shrink-0 border-l border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.74),hsl(var(--surface-soft)/0.34))] p-4 backdrop-blur-xl xl:flex xl:flex-col">
+    <aside
+      className="hidden h-full w-[312px] shrink-0 border-l border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.74),hsl(var(--surface-soft)/0.34))] p-4 backdrop-blur-xl xl:flex xl:flex-col"
+      data-testid="server-member-panel"
+    >
       <div className="rounded-[30px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.66)] p-4 shadow-[0_22px_54px_hsl(var(--shadow-color)/0.08)]">
         <div className="flex items-center gap-3">
           <div className="app-panel-soft flex h-12 w-12 items-center justify-center rounded-[20px] border">

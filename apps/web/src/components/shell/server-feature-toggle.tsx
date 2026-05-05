@@ -7,6 +7,7 @@ type ServerFeatureToggleProps = {
   description: string;
   disabled?: boolean;
   onChange: (checked: boolean) => void;
+  testId?: string;
   title: string;
 };
 
@@ -15,6 +16,7 @@ export function ServerFeatureToggle({
   description,
   disabled = false,
   onChange,
+  testId,
   title,
 }: ServerFeatureToggleProps) {
   return (
@@ -22,6 +24,7 @@ export function ServerFeatureToggle({
       aria-checked={checked}
       className="group flex w-full items-center justify-between gap-4 rounded-[22px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.34)] p-4 text-left transition hover:border-[hsl(var(--primary)/0.35)] hover:bg-[hsl(var(--surface-soft)/0.52)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
       disabled={disabled}
+      data-testid={testId}
       onClick={() => onChange(!checked)}
       role="switch"
       type="button"

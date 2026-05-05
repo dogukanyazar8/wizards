@@ -315,12 +315,16 @@ export function NotificationBell({ className }: { className?: string } = {}) {
           "relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-[hsl(var(--foreground)/0.7)] transition hover:bg-[hsl(var(--surface-soft)/0.42)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
           className,
         )}
+        data-testid="notification-bell-button"
         onClick={handleToggle}
         type="button"
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 ? (
-          <span className="absolute -right-1 -top-1 inline-flex min-w-[1.4rem] items-center justify-center rounded-full border border-[hsl(var(--surface-card))] bg-[hsl(var(--danger))] px-1.5 py-0.5 text-[10px] font-semibold text-[hsl(var(--danger-foreground))] shadow-[0_10px_22px_hsl(var(--shadow-color)/0.18)]">
+          <span
+            className="absolute -right-1 -top-1 inline-flex min-w-[1.4rem] items-center justify-center rounded-full border border-[hsl(var(--surface-card))] bg-[hsl(var(--danger))] px-1.5 py-0.5 text-[10px] font-semibold text-[hsl(var(--danger-foreground))] shadow-[0_10px_22px_hsl(var(--shadow-color)/0.18)]"
+            data-testid="notification-bell-badge"
+          >
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         ) : null}
@@ -509,6 +513,7 @@ function NotificationItem({
           ? "border-[hsl(var(--border)/0.62)] opacity-80 hover:bg-[hsl(var(--surface-soft)/0.28)]"
           : "border-[hsl(var(--primary)/0.28)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.12),hsl(var(--surface-card)/0.92))] shadow-[0_16px_34px_hsl(var(--shadow-color)/0.08)] hover:opacity-95"
       }`}
+      data-testid="notification-item"
     >
       <button
         className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"

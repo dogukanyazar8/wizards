@@ -145,7 +145,12 @@ export function LoginClient({ callbackUrl }: LoginClientProps) {
         </div>
       </div>
 
-      <form className="auth-form-card space-y-5 rounded-[30px] border p-5" onSubmit={handleSubmit(onSubmit)} noValidate>
+      <form
+        className="auth-form-card space-y-5 rounded-[30px] border p-5"
+        data-testid="login-form"
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+      >
         <div className="space-y-2">
           <label htmlFor="email" className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]">
             {t("common.email")}

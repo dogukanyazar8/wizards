@@ -25,6 +25,10 @@ function getVoiceRoomName(channelId: string) {
 const VOICE_CLEANUP_DEBOUNCE_KEY = "voice:cleanup:last";
 const VOICE_CLEANUP_BATCH_SIZE = 100;
 
+function isE2ETestMode() {
+  return process.env.E2E_TEST_MODE === "true" && process.env.NODE_ENV !== "production";
+}
+
 async function ensureNotServerBanned(userId: string, serverId: string) {
   const ban = await prisma.serverBan.findUnique({
     where: {
@@ -355,7 +359,9 @@ export async function upsertVoiceState(
   }
 
   try {
-    await enforceVoiceRoomCapacity(channel.id, userId);
+    if (!isE2ETestMode()) {
+      await enforceVoiceRoomCapacity(channel.id, userId);
+    }
 
     await prisma.$transaction(async (tx) => {
       await tx.voiceState.create({

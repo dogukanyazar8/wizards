@@ -47,6 +47,8 @@ function ThemeSwatchButton({
     return (
       <button
         className="group flex flex-col items-center gap-2 text-center"
+        data-selected={selected ? "true" : "false"}
+        data-testid={`theme-option-${theme.id}`}
         onClick={() => onSelect(theme.id)}
         type="button"
       >
@@ -82,6 +84,8 @@ function ThemeSwatchButton({
             ? "border-[hsl(var(--primary))] shadow-[0_0_0_4px_hsl(var(--primary)/0.18)]"
             : "border-[hsl(var(--border)/0.72)] hover:border-[hsl(var(--primary)/0.45)]",
         )}
+        data-selected={selected ? "true" : "false"}
+        data-testid={`theme-option-${theme.id}`}
         onClick={() => onSelect(theme.id)}
         style={{ background }}
         title={label}
@@ -104,6 +108,8 @@ function ThemeSwatchButton({
           ? "border-[hsl(var(--primary)/0.55)] shadow-[0_0_0_3px_hsl(var(--primary)/0.14)]"
           : "hover:border-[hsl(var(--primary)/0.35)] hover:bg-[hsl(var(--surface-soft)/0.44)]",
       )}
+      data-selected={selected ? "true" : "false"}
+      data-testid={`theme-option-${theme.id}`}
       onClick={() => onSelect(theme.id)}
       type="button"
     >
@@ -243,7 +249,7 @@ export function ThemePicker({
   }
 
   return (
-    <div className={cn("space-y-8", className)}>
+    <div className={cn("space-y-8", className)} data-testid="theme-picker">
       <section className="space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>

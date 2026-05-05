@@ -75,6 +75,9 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
                 "group/image relative overflow-hidden rounded-[22px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.38)] shadow-[0_18px_38px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                 imageAttachments.length === 1 ? "inline-flex w-full max-w-full p-1" : "aspect-square",
               )}
+              data-content-type={attachment.contentType}
+              data-filename={attachment.filename}
+              data-testid="message-image-attachment"
               key={attachment.id}
               onClick={() => setSelectedImage(attachment)}
               type="button"
@@ -110,6 +113,9 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
               })}
               className="group/file flex min-w-0 items-center gap-3 rounded-[22px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.34)] p-3 text-left shadow-[0_18px_38px_hsl(var(--shadow-color)/0.07)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] hover:bg-[hsl(var(--surface-card)/0.82)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               download={attachment.filename}
+              data-content-type={attachment.contentType}
+              data-filename={attachment.filename}
+              data-testid="message-file-attachment"
               href={attachment.url}
               key={attachment.id}
               rel="noreferrer"

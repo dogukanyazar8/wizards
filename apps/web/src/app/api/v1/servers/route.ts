@@ -10,7 +10,7 @@ import {
 export async function GET() {
   try {
     const userId = await requireApiUserId();
-    await enforceApiRateLimit(userId, "server:create");
+    await enforceApiRateLimit(userId, "server:list");
     const servers = await listWorkspaceServers(userId);
 
     return Response.json({ servers });

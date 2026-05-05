@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { MoreHorizontal, UserMinus, UserPlus } from "lucide-react";
 import { Button } from "@wizards/ui";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { MessageMode } from "@/hooks/use-messages";
@@ -36,6 +36,14 @@ function getPresenceDotClass(status: ChatMessage["author"]["status"] | undefined
 
 const mentionHrefPrefix = "mention:";
 
+function markdownUrlTransform(url: string) {
+  if (url.startsWith(mentionHrefPrefix)) {
+    return url;
+  }
+
+  return defaultUrlTransform(url);
+}
+
 function formatMentionsForMarkdown(content: string) {
   return content.replace(/(^|[^\w`])@([a-zA-Z0-9_]{2,32})\b/g, (match, prefix: string, username: string) => {
     if (match.includes("](")) {
@@ -52,6 +60,8 @@ const markdownComponents = {
       return (
         <span
           className="inline-flex translate-y-[1px] items-center rounded-full border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.12)] px-2 py-0.5 text-[0.92em] font-semibold text-[hsl(var(--primary))] shadow-[0_8px_18px_hsl(var(--primary)/0.08)]"
+          data-mention-username={href.slice(mentionHrefPrefix.length)}
+          data-testid="message-mention"
           title={`@${href.slice(mentionHrefPrefix.length)}`}
         >
           {children}
@@ -204,6 +214,8 @@ export const MessageItem = React.memo(
             "group relative px-1 transition sm:px-4",
             isOptimistic && "opacity-60",
           )}
+          data-message-id={message.id}
+          data-testid="message-item"
         >
           {showGroupSeparator ? (
             <div className="absolute inset-x-1 top-0 h-px bg-[hsl(var(--border)/0.34)] sm:inset-x-4" />
@@ -221,7 +233,11 @@ export const MessageItem = React.memo(
                   {formattedTime}
                 </span>
               ) : (
-                <UserProfilePopover userId={message.author.id} currentUserId={currentUserId}>
+                <UserProfilePopover
+                  userId={message.author.id}
+                  currentUserId={currentUserId}
+                  testId={`message-author-profile-${message.author.username}`}
+                >
                   <span className="relative inline-flex">
                     <Avatar
                       src={message.author.avatarUrl}
@@ -279,7 +295,11 @@ export const MessageItem = React.memo(
               ) : (
                 <div className="text-app-foreground break-words text-sm leading-6">
                   <div className="inline max-w-full align-middle [&_a]:text-[hsl(var(--primary))] [&_code]:break-words [&_ol]:my-2 [&_p]:m-0 [&_p]:inline [&_pre]:my-2 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_ul]:my-2">
-                    <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+                    <ReactMarkdown
+                      components={markdownComponents}
+                      remarkPlugins={[remarkGfm]}
+                      urlTransform={markdownUrlTransform}
+                    >
                       {formatMentionsForMarkdown(message.content)}
                     </ReactMarkdown>
                   </div>
@@ -319,6 +339,8 @@ export const MessageItem = React.memo(
                           ? "border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
                           : "bg-app-surface-soft hover:bg-app-surface",
                       )}
+                      data-emoji={reaction.emoji}
+                      data-testid="message-reaction"
                       onClick={() => onReact(message.id, reaction.emoji)}
                       type="button"
                     >
@@ -333,6 +355,7 @@ export const MessageItem = React.memo(
                   aria-expanded={actionsOpen}
                   aria-label={t("chat.message.moreActions")}
                   className="app-panel-soft absolute right-0 top-0 z-10 flex h-8 w-8 items-center justify-center rounded-full border text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.1)] transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:hidden"
+                  data-testid="message-mobile-actions"
                   onClick={(event) => {
                     event.stopPropagation();
                     setActionsOpen((current) => !current);
@@ -383,7 +406,10 @@ export const MessageItem = React.memo(
           open={deleteDialogOpen}
           title={t("chat.message.deleteDialogTitle")}
         >
-          <div className="rounded-[24px] border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] p-4">
+          <div
+            className="rounded-[24px] border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] p-4"
+            data-testid="message-delete-dialog"
+          >
             <p className="text-sm font-medium text-app-foreground">
               {t("chat.message.deleteDialogBody")}
             </p>
@@ -392,6 +418,7 @@ export const MessageItem = React.memo(
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               className="w-full rounded-2xl sm:w-auto"
+              data-testid="message-delete-cancel"
               onClick={() => setDeleteDialogOpen(false)}
               type="button"
               variant="outline"
@@ -400,6 +427,7 @@ export const MessageItem = React.memo(
             </Button>
             <Button
               className="w-full rounded-2xl bg-[hsl(var(--danger))] text-white hover:bg-[hsl(var(--danger)/0.9)] sm:w-auto"
+              data-testid="message-delete-confirm"
               onClick={confirmDelete}
               type="button"
             >

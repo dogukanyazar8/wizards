@@ -158,12 +158,14 @@ function ToggleRow({
   disabled = false,
   label,
   onChange,
+  testId,
 }: {
   checked: boolean;
   description: string;
   disabled?: boolean;
   label: string;
   onChange: (nextValue: boolean) => void;
+  testId?: string;
 }) {
   return (
     <div className="app-panel-soft rounded-[24px] border p-4">
@@ -181,6 +183,7 @@ function ToggleRow({
               : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
             disabled && "cursor-not-allowed opacity-55",
           )}
+          data-testid={testId}
           disabled={disabled}
           onClick={() => onChange(!checked)}
           role="switch"
@@ -206,6 +209,7 @@ function SoundVolumeRow({
   onPreview,
   onVolumeChange,
   previewLabel,
+  testId,
   volume,
   volumeLabel,
 }: {
@@ -216,6 +220,7 @@ function SoundVolumeRow({
   onPreview: () => void;
   onVolumeChange: (nextValue: number) => void;
   previewLabel: string;
+  testId?: string;
   volume: number;
   volumeLabel: string;
 }) {
@@ -244,6 +249,7 @@ function SoundVolumeRow({
                 ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
                 : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
             )}
+            data-testid={testId ? `${testId}-toggle` : undefined}
             onClick={() => onChange(!checked)}
             role="switch"
             type="button"
@@ -271,6 +277,7 @@ function SoundVolumeRow({
           aria-label={volumeLabel}
           className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.9)] accent-[hsl(var(--primary))] disabled:cursor-not-allowed disabled:opacity-50"
           disabled={!checked}
+          data-testid={testId ? `${testId}-volume` : undefined}
           max={100}
           min={0}
           onChange={(event) => onVolumeChange(Number(event.target.value))}
@@ -291,6 +298,7 @@ function RangeSliderCard({
   onChange,
   preview,
   step,
+  testId,
   title,
   value,
 }: {
@@ -301,6 +309,7 @@ function RangeSliderCard({
   onChange: (nextValue: number) => void;
   preview: ReactNode;
   step: number;
+  testId?: string;
   title: string;
   value: number;
 }) {
@@ -324,6 +333,7 @@ function RangeSliderCard({
           className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.9)] accent-[hsl(var(--primary))]"
           max={max}
           min={min}
+          data-testid={testId}
           onChange={(event) => onChange(Number(event.target.value))}
           step={step}
           type="range"
@@ -574,6 +584,7 @@ export function SettingsPanel({
 
   const handleServerRailWidthChange = useCallback(
     (nextValue: number) => {
+      void queryClient.cancelQueries({ queryKey: settingsQueryKeys.layout });
       setServerRailWidth(nextValue);
       queryClient.setQueryData<UserLayoutSettings | undefined>(
         settingsQueryKeys.layout,
@@ -599,6 +610,7 @@ export function SettingsPanel({
 
   const handleChannelSidebarWidthChange = useCallback(
     (nextValue: number) => {
+      void queryClient.cancelQueries({ queryKey: settingsQueryKeys.layout });
       setChannelSidebarWidth(nextValue);
       queryClient.setQueryData<UserLayoutSettings | undefined>(
         settingsQueryKeys.layout,
@@ -610,6 +622,7 @@ export function SettingsPanel({
 
   const handleNotificationLimitChange = useCallback(
     (nextValue: number) => {
+      void queryClient.cancelQueries({ queryKey: settingsQueryKeys.layout });
       setNotificationLimit(nextValue);
       queryClient.setQueryData<UserLayoutSettings | undefined>(
         settingsQueryKeys.layout,
@@ -621,6 +634,7 @@ export function SettingsPanel({
 
   const handleNotificationAutoCloseChange = useCallback(
     (nextValue: boolean) => {
+      void queryClient.cancelQueries({ queryKey: settingsQueryKeys.layout });
       setNotificationAutoClose(nextValue);
       queryClient.setQueryData<UserLayoutSettings | undefined>(
         settingsQueryKeys.layout,
@@ -962,6 +976,8 @@ export function SettingsPanel({
                         ? "border-[hsl(var(--primary)/0.55)] bg-[hsl(var(--primary)/0.12)] shadow-[0_18px_42px_hsl(var(--shadow-color)/0.1)]"
                         : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.28)] hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--surface-soft)/0.48)]",
                     )}
+                    data-selected={selected ? "true" : "false"}
+                    data-testid={`app-icon-option-${icon.id}`}
                     key={icon.id}
                     onClick={() => handleAppIconChange(icon.id)}
                     type="button"
@@ -992,7 +1008,10 @@ export function SettingsPanel({
               })}
             </div>
             {iconFeedbackVisible ? (
-              <div className="mt-4 rounded-[22px] border border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.08)] px-4 py-3 text-sm text-[hsl(var(--success))]">
+              <div
+                className="mt-4 rounded-[22px] border border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.08)] px-4 py-3 text-sm text-[hsl(var(--success))]"
+                data-testid="app-icon-feedback"
+              >
                 <p className="font-semibold">{t("settings.appearance.icons.updated")}</p>
                 <p className="mt-1 leading-6 text-app-muted">
                   {t("settings.appearance.icons.updatedDescription")}
@@ -1021,8 +1040,9 @@ export function SettingsPanel({
                       "rounded-2xl border px-3 py-2 text-sm font-semibold transition",
                       serverRailCollapsed
                         ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
-                        : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground",
+                      : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground",
                     )}
+                    data-testid="settings-server-rail-collapse"
                     onClick={() => handleServerRailCollapsedChange(true)}
                     type="button"
                   >
@@ -1033,8 +1053,9 @@ export function SettingsPanel({
                       "rounded-2xl border px-3 py-2 text-sm font-semibold transition",
                       !serverRailCollapsed
                         ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
-                        : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground",
+                      : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground",
                     )}
+                    data-testid="settings-server-rail-expand"
                     onClick={() => handleServerRailCollapsedChange(false)}
                     type="button"
                   >
@@ -1067,6 +1088,7 @@ export function SettingsPanel({
               </div>
             }
             step={SERVER_RAIL_WIDTH_STEP}
+            testId="settings-server-rail-width"
             title={t("settings.appearance.advanced.serverRailTitle")}
             value={serverRailWidth}
           />
@@ -1110,6 +1132,7 @@ export function SettingsPanel({
               </div>
             }
             step={SERVER_RAIL_ICON_SIZE_STEP}
+            testId="settings-server-rail-icon-size"
             title={t("appearance.serverRail.iconsTitle")}
             value={serverRailIconSize}
           />
@@ -1144,6 +1167,7 @@ export function SettingsPanel({
               </div>
             }
             step={MAIN_PANEL_WIDTH_STEP}
+            testId="settings-main-canvas-width"
             title={t("settings.appearance.advanced.mainCanvasTitle")}
             value={mainPanelWidth}
           />
@@ -1192,6 +1216,7 @@ export function SettingsPanel({
               </div>
             }
             step={CHANNEL_SIDEBAR_WIDTH_STEP}
+            testId="settings-channel-sidebar-width"
             title={t("settings.appearance.advanced.channelSidebarTitle")}
             value={channelSidebarWidth}
           />
@@ -1213,6 +1238,7 @@ export function SettingsPanel({
               resetChannelSidebarWidth();
               resetMainPanelWidth();
             }}
+            data-testid="settings-layout-reset"
             type="button"
             variant="outline"
           >
@@ -1327,6 +1353,7 @@ export function SettingsPanel({
                 <input
                   aria-label={t("appearance.notifications.count")}
                   className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.9)] accent-[hsl(var(--primary))]"
+                  data-testid="settings-notification-limit"
                   max={Math.max(...NOTIFICATION_LIMIT_OPTIONS)}
                   min={Math.min(...NOTIFICATION_LIMIT_OPTIONS)}
                   onChange={(event) => handleNotificationLimitChange(Number(event.target.value))}
@@ -1350,6 +1377,7 @@ export function SettingsPanel({
                 <input
                   aria-label={t("appearance.notifications.duration")}
                   className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.9)] accent-[hsl(var(--primary))]"
+                  data-testid="settings-notification-duration"
                   max={MAX_NOTIFICATION_POPUP_TIMEOUT_SECONDS}
                   min={MIN_NOTIFICATION_POPUP_TIMEOUT_SECONDS}
                   onChange={(event) =>
@@ -1369,24 +1397,28 @@ export function SettingsPanel({
                 description={t("appearance.notifications.autoCloseDesc")}
                 label={t("appearance.notifications.autoClose")}
                 onChange={handleNotificationAutoCloseChange}
+                testId="settings-notification-auto-close"
               />
               <ToggleRow
                 checked={serverSettings?.desktopNotifications ?? true}
                 description={t("settings.notifications.desktop.description")}
                 label={t("settings.notifications.desktop.title")}
                 onChange={(nextValue) => updateServerSettings({ desktopNotifications: nextValue })}
+                testId="settings-desktop-notifications"
               />
               <ToggleRow
                 checked={serverSettings?.mobileNotifications ?? true}
                 description={t("settings.notifications.mobile.description")}
                 label={t("settings.notifications.mobile.title")}
                 onChange={(nextValue) => updateServerSettings({ mobileNotifications: nextValue })}
+                testId="settings-mobile-notifications"
               />
               <ToggleRow
                 checked={serverSettings?.emailNotifications ?? false}
                 description={t("settings.notifications.email.description")}
                 label={t("settings.notifications.email.title")}
                 onChange={(nextValue) => updateServerSettings({ emailNotifications: nextValue })}
+                testId="settings-email-notifications"
               />
             </div>
           </SettingCard>
@@ -1407,6 +1439,7 @@ export function SettingsPanel({
                 onPreview={() => previewSound("notification", notificationVolume)}
                 onVolumeChange={setNotificationVolume}
                 previewLabel={t("settings.notifications.sound.preview")}
+                testId="settings-notification-sound"
                 volume={notificationVolume}
                 volumeLabel={t("settings.notifications.sound.volume")}
               />
@@ -1418,6 +1451,7 @@ export function SettingsPanel({
                 onPreview={() => previewSound("voiceJoin", voiceJoinVolume)}
                 onVolumeChange={setVoiceJoinVolume}
                 previewLabel={t("settings.notifications.sound.preview")}
+                testId="settings-voice-join-sound"
                 volume={voiceJoinVolume}
                 volumeLabel={t("settings.notifications.sound.volume")}
               />
@@ -1429,6 +1463,7 @@ export function SettingsPanel({
                 onPreview={() => previewSound("voiceLeave", voiceLeaveVolume)}
                 onVolumeChange={setVoiceLeaveVolume}
                 previewLabel={t("settings.notifications.sound.preview")}
+                testId="settings-voice-leave-sound"
                 volume={voiceLeaveVolume}
                 volumeLabel={t("settings.notifications.sound.volume")}
               />
@@ -1446,6 +1481,7 @@ export function SettingsPanel({
                   className="app-panel mt-4 w-full rounded-2xl border px-4 py-3 text-sm text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                   disabled={!serverSettings?.notificationSound}
                   id="notification-sound-profile"
+                  data-testid="settings-notification-sound-profile"
                   onChange={(event) =>
                     updateServerSettings({
                       notificationSoundFile: event.target.value as NotificationSoundOption,
@@ -1586,7 +1622,7 @@ export function SettingsPanel({
   };
 
   return (
-    <div className="min-w-0 max-w-full space-y-6 overflow-hidden">
+    <div className="min-w-0 max-w-full space-y-6 overflow-hidden" data-testid="settings-panel">
       {section === "account" ? renderAccountSection() : null}
       {section === "voice" ? renderVoiceSection() : null}
       {section === "appearance" ? renderAppearanceSection() : null}

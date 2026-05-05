@@ -14,7 +14,10 @@ export function ReplyPreview({ replyTo, onCancel }: ReplyPreviewProps) {
   if (!replyTo) return null;
 
   return (
-    <div className="bg-app-surface-soft flex items-center gap-2 rounded border-l-2 border-[hsl(var(--primary))] px-3 py-2">
+    <div
+      className="bg-app-surface-soft flex items-center gap-2 rounded border-l-2 border-[hsl(var(--primary))] px-3 py-2"
+      data-testid="reply-preview"
+    >
       <span className="text-app-muted shrink-0 text-xs">
         {t("chat.reply.replyingTo", { author: replyTo.authorName })}
       </span>
@@ -24,6 +27,7 @@ export function ReplyPreview({ replyTo, onCancel }: ReplyPreviewProps) {
       <button
         aria-label={t("chat.reply.cancel")}
         className="text-app-muted hover:text-app-foreground shrink-0 transition"
+        data-testid="reply-preview-cancel"
         onClick={onCancel}
       >
         <X className="h-3 w-3" />

@@ -31,7 +31,10 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       </div>
       <AuthThemePickerCorner />
 
-      <div className="auth-frame relative mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-7xl items-stretch overflow-hidden rounded-[38px] border shadow-[0_30px_90px_hsl(var(--shadow-color)/0.26)] backdrop-blur-xl">
+      <div
+        className="auth-frame relative mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-7xl items-stretch overflow-hidden rounded-[38px] border shadow-[0_30px_90px_hsl(var(--shadow-color)/0.26)] backdrop-blur-xl"
+        data-testid="auth-frame"
+      >
         <section className="auth-hero relative hidden min-w-0 flex-1 overflow-hidden px-10 py-12 lg:flex lg:flex-col lg:justify-between">
           <div className="pointer-events-none absolute inset-0">
             <div className="auth-mesh-layer auth-mesh-layer-a absolute left-12 top-10 h-40 w-40 rounded-full bg-[hsl(var(--primary)/0.18)] blur-3xl" />
@@ -143,7 +146,10 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </div>
         </section>
 
-        <section className="auth-panel relative flex w-full items-center justify-center px-4 py-8 sm:px-8 lg:w-[min(540px,42vw)] lg:px-10">
+        <section
+          className="auth-panel relative flex w-full items-center justify-center px-4 py-8 sm:px-8 lg:w-[min(540px,42vw)] lg:px-10"
+          data-testid="auth-panel"
+        >
           <div className="w-full max-w-md">{children}</div>
         </section>
       </div>

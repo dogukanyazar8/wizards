@@ -1798,6 +1798,7 @@ export async function addWorkspaceServerMemberByUsername(
   };
 
   io?.to(`user:${targetUser.id}`).emit("notification:new", notificationPayload);
+  io?.to(`user:${targetUser.id}`).emit("server:membership:added", { serverId });
   io?.to(`user:${targetUser.id}`).emit("server:settings:updated", { serverId });
   io?.to(`server:${serverId}`).emit("server:settings:updated", { serverId });
   await emitServerUnreadUpdatesForServer(serverId);

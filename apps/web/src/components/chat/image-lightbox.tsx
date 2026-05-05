@@ -31,7 +31,7 @@ export function ImageLightbox({ image, onClose }: ImageLightboxProps) {
       title={t("chat.attachments.imageViewer")}
     >
       {image ? (
-        <div className="space-y-4">
+        <div className="space-y-4" data-testid="image-lightbox">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="min-w-0 truncate text-sm font-medium text-app-muted">
               {image.filename}
@@ -41,6 +41,7 @@ export function ImageLightbox({ image, onClose }: ImageLightboxProps) {
               <button
                 aria-label={t("chat.attachments.zoomOut")}
                 className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-full border text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:p-2"
+                data-testid="image-lightbox-zoom-out"
                 onClick={() => setZoom((current) => Math.max(0.5, current - 0.25))}
                 type="button"
               >
@@ -49,6 +50,7 @@ export function ImageLightbox({ image, onClose }: ImageLightboxProps) {
               <button
                 aria-label={t("chat.attachments.resetZoom")}
                 className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-full border text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:p-2"
+                data-testid="image-lightbox-reset-zoom"
                 onClick={() => setZoom(1)}
                 type="button"
               >
@@ -57,6 +59,7 @@ export function ImageLightbox({ image, onClose }: ImageLightboxProps) {
               <button
                 aria-label={t("chat.attachments.zoomIn")}
                 className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-full border text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:p-2"
+                data-testid="image-lightbox-zoom-in"
                 onClick={() => setZoom((current) => Math.min(3, current + 0.25))}
                 type="button"
               >
@@ -65,6 +68,7 @@ export function ImageLightbox({ image, onClose }: ImageLightboxProps) {
               <a
                 aria-label={t("chat.attachments.openOriginal")}
                 className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-full border text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:p-2"
+                data-testid="image-lightbox-open-original"
                 href={image.url}
                 rel="noreferrer"
                 target="_blank"

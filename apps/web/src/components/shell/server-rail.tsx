@@ -272,7 +272,10 @@ export function ServerRail({
 
   if (loading) {
     return (
-      <aside className="app-rail h-full w-[var(--server-rail-width)] shrink-0 border-r border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.9),hsl(var(--surface-soft)/0.34))] backdrop-blur-xl">
+      <aside
+        className="app-rail h-full w-[var(--server-rail-width)] shrink-0 border-r border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.9),hsl(var(--surface-soft)/0.34))] backdrop-blur-xl"
+        data-testid="server-rail"
+      >
         <ServerRailSkeleton />
       </aside>
     );
@@ -284,6 +287,7 @@ export function ServerRail({
         "app-rail flex h-full w-[var(--server-rail-width)] shrink-0 flex-col border-r border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.74),hsl(var(--surface-soft)/0.34))] pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-xl",
         isIconOnly ? "px-2 pb-3" : "px-3 pb-4",
       )}
+      data-testid="server-rail"
       onContextMenu={handleRailContextMenu}
     >
       <div
@@ -302,6 +306,7 @@ export function ServerRail({
           labelPreview="DM"
           onClick={() => onNavigate("/channels/@me")}
           showLabel={!isIconOnly}
+          testId="server-rail-dm"
           {...(onPrefetch ? { onPrefetch: () => onPrefetch("/channels/@me") } : {})}
         />
       </div>
@@ -368,6 +373,7 @@ export function ServerRail({
                   onContextMenu={(event) => onOpenServerContextMenu(server.id, event)}
                   reorderable={orderedServers.length > 1}
                   showLabel={!isIconOnly}
+                  testId={`server-rail-server-${server.id}`}
                   {...(onPrefetch ? { onPrefetch: () => onPrefetch(getServerHref(server)) } : {})}
                 />
               </Reorder.Item>
@@ -389,6 +395,7 @@ export function ServerRail({
               onFocus={showAddTooltip}
               onMouseEnter={showAddTooltip}
               onMouseLeave={() => setAddTooltipPos(null)}
+              data-testid="create-server-button"
               type="button"
               whileHover={{ scale: 1.018, x: 1 }}
               whileTap={{ scale: 0.985 }}
@@ -542,6 +549,7 @@ export function MobileDrawerTrigger({ onClick }: { onClick: () => void }) {
     <button
       aria-label={t("shell.mobile.openWorkspaceNavigation")}
       className="app-panel-soft text-app-foreground inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] md:hidden"
+      data-testid="mobile-workspace-drawer-button"
       onClick={onClick}
       type="button"
     >

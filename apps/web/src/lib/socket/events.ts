@@ -100,6 +100,7 @@ export interface ServerToClientEvents {
     reason: "deleted" | "kicked" | "left";
     serverId: string;
   }) => void;
+  "server:membership:added": (data: { serverId: string }) => void;
   "server:settings:updated": (data: { serverId: string }) => void;
   "dm:message:new": (message: DMMessagePayload) => void;
   "dm:message:updated": (message: DMMessagePayload) => void;

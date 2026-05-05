@@ -87,6 +87,7 @@ type VoiceControlButtonProps = {
   disabled?: boolean;
   icon: ReactNode;
   onClick?: () => void;
+  testId?: string;
   title?: string;
 };
 
@@ -97,6 +98,7 @@ function VoiceControlButton({
   disabled = false,
   icon,
   onClick,
+  testId,
   title,
 }: VoiceControlButtonProps) {
   return (
@@ -111,6 +113,8 @@ function VoiceControlButton({
           : "app-panel-soft hover:opacity-90",
         disabled && "cursor-not-allowed opacity-55",
       )}
+      data-active={active ? "true" : "false"}
+      data-testid={testId}
       disabled={disabled}
       onClick={onClick}
       title={title}
@@ -159,6 +163,7 @@ export function VoiceConnectionBar() {
       <div
         className="app-panel mb-3 rounded-[22px] border p-3 sm:rounded-[24px]"
         data-notification-popup-anchor="voice"
+        data-testid="voice-connection-bar"
       >
         <div className="mb-3">
           <p className="truncate text-sm font-semibold text-app-foreground">
@@ -180,6 +185,7 @@ export function VoiceConnectionBar() {
             onClick={() => {
               void toggleMute();
             }}
+            testId="voice-control-mute"
             title={isMuted ? t("voice.controls.unmute") : t("voice.controls.mute")}
           />
           <VoiceControlButton
@@ -191,6 +197,7 @@ export function VoiceConnectionBar() {
             onClick={() => {
               void toggleDeafen();
             }}
+            testId="voice-control-deafen"
             title={isDeafened ? t("voice.controls.undeafen") : t("voice.controls.deafen")}
           />
           <VoiceControlButton
@@ -204,6 +211,7 @@ export function VoiceConnectionBar() {
             onClick={() => {
               void toggleScreenShare();
             }}
+            testId="voice-control-screen-share"
             title={
               isScreenSharing
                 ? t("voice.screenShare.stop")
@@ -214,12 +222,14 @@ export function VoiceConnectionBar() {
             ariaLabel={t("voice.controls.settings")}
             icon={<SlidersHorizontal className="h-4 w-4" />}
             onClick={() => setShowVoiceSettingsModal(true)}
+            testId="voice-control-settings"
             title={t("voice.controls.settings")}
           />
           <VoiceControlButton
             ariaLabel={t("voice.controls.camera")}
             icon={<Video className="h-4 w-4" />}
             onClick={() => setShowCameraModal(true)}
+            testId="voice-control-camera"
             title={t("voice.controls.cameraSoon")}
           />
           <VoiceControlButton
@@ -237,6 +247,7 @@ export function VoiceConnectionBar() {
                 }
               });
             }}
+            testId="voice-control-disconnect"
             title={t("voice.controls.disconnect")}
           />
         </div>

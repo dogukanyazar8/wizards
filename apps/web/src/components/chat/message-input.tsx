@@ -543,7 +543,10 @@ export function MessageInput({
   }, [allowGifs]);
 
   return (
-    <div className="sticky bottom-0 z-20 space-y-3 border-t border-app-border bg-[hsl(var(--surface-card)/0.82)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl md:static md:p-5">
+    <div
+      className="sticky bottom-0 z-20 space-y-3 border-t border-app-border bg-[hsl(var(--surface-card)/0.82)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl md:static md:p-5"
+      data-testid="message-composer"
+    >
       <ReplyPreview replyTo={replyTo} onCancel={onCancelReply} />
 
       <div className="app-panel rounded-[26px] border p-3 shadow-[0_20px_44px_hsl(var(--shadow-color)/0.08)] md:rounded-[30px]">
@@ -552,6 +555,9 @@ export function MessageInput({
             {attachmentDrafts.map((draft) => (
               <div
                 className="group/attachment relative aspect-square overflow-hidden rounded-[20px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.42)]"
+                data-filename={draft.filename}
+                data-status={draft.status}
+                data-testid="attachment-draft"
                 key={draft.localId}
               >
                 {draft.kind === "image" && draft.previewUrl ? (
@@ -616,7 +622,9 @@ export function MessageInput({
 
         {attachmentUploadError ? (
           <div className="mb-3 rounded-2xl border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-xs font-medium text-[hsl(var(--danger))]">
+            <span data-testid="attachment-upload-error">
             {attachmentUploadError}
+            </span>
           </div>
         ) : null}
 
@@ -640,12 +648,16 @@ export function MessageInput({
               placeholder={
                 mode === "dm" ? t("dm.input.placeholder") : t("chat.input.placeholder")
               }
+              data-testid="message-input"
               className="max-h-24 min-h-[3rem] w-full resize-none rounded-[22px] bg-transparent px-2 py-2 pr-3 text-[16px] text-app-foreground placeholder-app-muted focus-visible:outline-none md:min-h-[3.25rem] md:rounded-[24px] md:pr-4 md:text-[15px]"
               rows={1}
             />
 
             {activeMention && mode === "channel" ? (
-              <div className="absolute bottom-[calc(100%+0.5rem)] left-0 z-30 w-full max-w-sm rounded-[24px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.96)] p-2 shadow-[0_20px_50px_hsl(var(--shadow-color)/0.16)] backdrop-blur-xl">
+              <div
+                className="absolute bottom-[calc(100%+0.5rem)] left-0 z-30 w-full max-w-sm rounded-[24px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.96)] p-2 shadow-[0_20px_50px_hsl(var(--shadow-color)/0.16)] backdrop-blur-xl"
+                data-testid="mention-suggestions"
+              >
                 <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-app-soft">
                   {t("chat.mentions.title")}
                 </p>
@@ -660,6 +672,7 @@ export function MessageInput({
                               ? "bg-[hsl(var(--primary)/0.12)] text-app-foreground"
                               : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.62)] hover:text-app-foreground"
                           }`}
+                          data-testid={`mention-suggestion-${member.username}`}
                           key={member.userId}
                           onMouseDown={(event) => {
                             event.preventDefault();
@@ -696,6 +709,7 @@ export function MessageInput({
                 <input
                   accept={MESSAGE_ATTACHMENT_ACCEPT}
                   className="hidden"
+                  data-testid="message-file-input"
                   multiple
                   onChange={handleFileSelect}
                   ref={fileInputRef}
@@ -721,6 +735,7 @@ export function MessageInput({
                     onPointerDown={(event) => event.stopPropagation()}
                     className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] px-3 py-2 text-xs font-medium text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:min-h-0 md:py-1.5"
                     aria-label={t("chat.input.openEmojiPicker")}
+                    data-testid="emoji-picker-button"
                     type="button"
                   >
                     <Smile className="h-4 w-4" />
@@ -738,6 +753,7 @@ export function MessageInput({
                   <button
                     aria-label={t("chat.gifs.openPicker")}
                     className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.26)] px-3 py-2 text-xs font-medium text-app-soft transition hover:border-[hsl(var(--primary)/0.38)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-50 md:min-h-0 md:py-1.5"
+                    data-testid="gif-picker-button"
                     disabled={!allowGifs}
                     onClick={() => {
                       if (!allowGifs) {
@@ -760,6 +776,7 @@ export function MessageInput({
                 <button
                   aria-label={t("chat.attachments.attachFile")}
                   className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.26)] px-3 py-2 text-xs font-medium text-app-soft transition hover:border-[hsl(var(--primary)/0.38)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-50 md:min-h-0 md:py-1.5"
+                  data-testid="message-file-button"
                   disabled={!allowFileUploads}
                   onClick={() => {
                     if (!allowFileUploads) {
@@ -803,6 +820,7 @@ export function MessageInput({
             disabled={!canSend}
             className="inline-flex h-12 min-w-12 items-center justify-center gap-2 rounded-[20px] bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--primary)/0.82))] px-3 text-sm font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_18px_34px_hsl(var(--shadow-color)/0.16)] transition hover:-translate-y-0.5 hover:opacity-95 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:min-w-[3.25rem] md:px-4"
             aria-label={t("chat.input.sendMessage")}
+            data-testid="message-send-button"
             type="button"
           >
             <span className="hidden sm:inline">{t("chat.input.sendMessage")}</span>

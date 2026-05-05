@@ -224,6 +224,7 @@ export function ServerSettingsOverlay({
         <motion.div
           animate={{ opacity: 1 }}
           className="fixed inset-0 z-[95] bg-[hsl(var(--backdrop)/0.6)] backdrop-blur-2xl"
+          data-testid="server-settings-overlay"
           exit={{ opacity: 0 }}
           initial={{ opacity: 0 }}
         >
@@ -291,6 +292,7 @@ export function ServerSettingsOverlay({
                   <button
                     aria-label={t("serverSettings.closeOverlay")}
                     className="app-panel-soft text-app-muted min-h-11 min-w-11 rounded-2xl border p-3 transition hover:opacity-90 hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                    data-testid="server-settings-close-button"
                     onClick={closeServerSettings}
                     type="button"
                   >
@@ -376,6 +378,7 @@ export function ServerSettingsOverlay({
                           description={t("workspace.media.gifs.description")}
                           disabled={updateMutation.isPending}
                           onChange={setAllowGifs}
+                          testId="server-media-gifs-toggle"
                           title={t("workspace.media.gifs.title")}
                         />
                         <ServerFeatureToggle
@@ -383,6 +386,7 @@ export function ServerSettingsOverlay({
                           description={t("workspace.media.files.description")}
                           disabled={updateMutation.isPending}
                           onChange={setAllowFileUploads}
+                          testId="server-media-files-toggle"
                           title={t("workspace.media.files.title")}
                         />
                       </div>
@@ -407,6 +411,7 @@ export function ServerSettingsOverlay({
                     <div className="flex justify-stretch sm:justify-end">
                       <Button
                         className="w-full sm:w-auto"
+                        data-testid="server-settings-save-overview"
                         disabled={updateMutation.isPending}
                         onClick={() => updateMutation.mutate()}
                         type="button"
@@ -415,7 +420,11 @@ export function ServerSettingsOverlay({
                       </Button>
                     </div>
                     {overviewSaved ? (
-                      <div className="app-success rounded-[24px] border p-4" ref={overviewSavedRef}>
+                      <div
+                        className="app-success rounded-[24px] border p-4"
+                        data-testid="server-settings-overview-saved"
+                        ref={overviewSavedRef}
+                      >
                         <p className="text-app-success text-xs font-semibold uppercase tracking-[0.2em]">
                           {t("serverSettings.overviewSavedTitle")}
                         </p>

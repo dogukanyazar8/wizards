@@ -167,6 +167,7 @@ export function FriendsSidebar({
                           ? "border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.12)]"
                           : "border-transparent hover:border-[hsl(var(--border)/0.72)] hover:bg-[hsl(var(--surface-soft)/0.28)]"
                       }`}
+                      data-testid={`dm-conversation-${conversation.id}`}
                       onClick={() => {
                         if (unreadCount > 0) {
                           void markAsRead(conversation.id);
@@ -194,7 +195,11 @@ export function FriendsSidebar({
                           <p className="text-app-foreground truncate text-sm font-semibold">
                             {displayName}
                           </p>
-                          {unreadCount > 0 ? <Badge>{unreadCount}</Badge> : null}
+                          {unreadCount > 0 ? (
+                            <span data-testid={`dm-conversation-${conversation.id}-unread-badge`}>
+                              <Badge>{unreadCount}</Badge>
+                            </span>
+                          ) : null}
                         </div>
                         <p className="mt-1 truncate text-xs text-app-muted">{preview}</p>
                       </div>

@@ -21,6 +21,7 @@ type ServerIconProps = {
   onPrefetch?: () => void;
   reorderable?: boolean;
   showLabel?: boolean;
+  testId?: string;
 };
 
 export function ServerIcon({
@@ -37,6 +38,7 @@ export function ServerIcon({
   onPrefetch,
   reorderable = false,
   showLabel = false,
+  testId,
 }: ServerIconProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null);
@@ -98,6 +100,7 @@ export function ServerIcon({
           showTooltip();
         }}
         onMouseLeave={hideTooltip}
+        data-testid={testId}
         type="button"
         whileHover={showLabel ? { scale: 1.018, x: 1 } : { scale: 1.06, y: -1 }}
         whileTap={showLabel ? { scale: 0.985 } : { scale: 0.97 }}
@@ -145,6 +148,7 @@ export function ServerIcon({
                 ? "left-8 top-7"
                 : "bottom-0 right-0 translate-x-[24%] translate-y-[18%]",
             )}
+            data-testid={testId ? `${testId}-unread-badge` : undefined}
           >
             {badgeCount > 99 ? "99+" : badgeCount}
           </span>

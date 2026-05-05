@@ -9,6 +9,14 @@
       "cache": false,
       "persistent": true
     },
+    "e2e": {
+      "cache": false,
+      "outputs": ["apps/web/playwright-report/**", "apps/web/test-results/**"]
+    },
+    "e2e:smoke": {
+      "cache": false,
+      "outputs": ["apps/web/playwright-report/**", "apps/web/test-results/**"]
+    },
     "lint": {
       "dependsOn": ["^lint"],
       "outputs": []
