@@ -1,4 +1,5 @@
 import { requireApiUserId } from "@/lib/auth/api";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import {
   clearVoiceState,
@@ -10,6 +11,7 @@ import { UpsertVoiceStateBodySchema } from "@/lib/voice/types";
 export async function POST(request: Request) {
   try {
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "voice:state");
     const input = await parseJsonBody(request, UpsertVoiceStateBodySchema);
     const previousState = await clearVoiceState(userId);
     const state = await upsertVoiceState(userId, input);
@@ -42,6 +44,7 @@ export async function POST(request: Request) {
 export async function DELETE() {
   try {
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "voice:state");
     const existingState = await clearVoiceState(userId);
 
     if (existingState) {

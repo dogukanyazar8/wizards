@@ -23,6 +23,7 @@ function getVoiceRoomName(channelId: string) {
 }
 
 const VOICE_CLEANUP_DEBOUNCE_KEY = "voice:cleanup:last";
+const VOICE_CLEANUP_BATCH_SIZE = 100;
 
 async function ensureNotServerBanned(userId: string, serverId: string) {
   const ban = await prisma.serverBan.findUnique({
@@ -41,59 +42,67 @@ async function ensureNotServerBanned(userId: string, serverId: string) {
 }
 
 export async function cleanupStaleVoiceStates() {
-  const staleStates = await prisma.voiceState.findMany({
-    where: {
-      lastHeartbeat: {
-        lt: getStaleVoiceHeartbeatCutoff(),
+  const cutoff = getStaleVoiceHeartbeatCutoff();
+
+  while (true) {
+    const staleStates = await prisma.voiceState.findMany({
+      orderBy: {
+        lastHeartbeat: "asc",
       },
-    },
-    select: {
-      channelId: true,
-      serverId: true,
-      userId: true,
-    },
-  });
-
-  if (staleStates.length === 0) {
-    return;
-  }
-
-  await prisma.voiceState.deleteMany({
-    where: {
-      lastHeartbeat: {
-        lt: getStaleVoiceHeartbeatCutoff(),
+      select: {
+        channelId: true,
+        serverId: true,
+        userId: true,
       },
-    },
-  });
+      take: VOICE_CLEANUP_BATCH_SIZE,
+      where: {
+        lastHeartbeat: {
+          lt: cutoff,
+        },
+      },
+    });
 
-  const redis = getRedis();
-  await Promise.all(
-    staleStates.map((state) =>
-      redis
-        .del(getVoiceScreenShareStateKey(state.channelId, state.userId))
-        .catch(() => undefined),
-    ),
-  );
-
-  const channelsToRefresh = new Map<string, (typeof staleStates)[number]>();
-
-  for (const state of staleStates) {
-    const key = `${state.serverId}:${state.channelId}`;
-    if (!channelsToRefresh.has(key)) {
-      channelsToRefresh.set(key, state);
+    if (staleStates.length === 0) {
+      return;
     }
-  }
 
-  await Promise.all(
-    [...channelsToRefresh.values()].map((state) =>
-      emitVoiceStateUpdate({
-        action: "leave",
-        channelId: state.channelId,
-        serverId: state.serverId,
-        userId: state.userId,
-      }),
-    ),
-  );
+    await prisma.voiceState.deleteMany({
+      where: {
+        userId: {
+          in: staleStates.map((state) => state.userId),
+        },
+      },
+    });
+
+    const redis = getRedis();
+    await Promise.all(
+      staleStates.map((state) =>
+        redis
+          .del(getVoiceScreenShareStateKey(state.channelId, state.userId))
+          .catch(() => undefined),
+      ),
+    );
+
+    const channelsToRefresh = new Map<string, (typeof staleStates)[number]>();
+
+    for (const state of staleStates) {
+      const key = `${state.serverId}:${state.channelId}`;
+      if (!channelsToRefresh.has(key)) {
+        channelsToRefresh.set(key, state);
+      }
+    }
+
+    await Promise.all(
+      [...channelsToRefresh.values()].map((state) =>
+        emitVoiceStateUpdate({
+          action: "leave",
+          channelId: state.channelId,
+          serverId: state.serverId,
+          userId: state.userId,
+        }),
+      ),
+    );
+  }
 }
 
 async function maybeCleanupStaleVoiceStates() {

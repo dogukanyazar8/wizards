@@ -29,7 +29,7 @@ npx turbo run typecheck
 Build the Windows desktop installer:
 
 ```powershell
-$env:TAURI_WEB_URL="https://your-whispr-origin.example"
+$env:TAURI_WEB_URL="https://app.your-whispr-domain.com"
 pnpm --filter @wizards/desktop build:desktop
 ```
 

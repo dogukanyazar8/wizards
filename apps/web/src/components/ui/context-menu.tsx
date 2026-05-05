@@ -95,8 +95,8 @@ export function ContextMenu({ children, onClose, open, position }: ContextMenuPr
               ? {}
               : {
                   style: {
-                    left: Math.min(position.x, window.innerWidth - 240),
-                    top: Math.min(position.y, window.innerHeight - 220),
+                    left: Math.max(12, Math.min(position.x, window.innerWidth - 292)),
+                    top: Math.max(12, Math.min(position.y, window.innerHeight - 360)),
                   },
                 })}
             transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}

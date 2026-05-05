@@ -1,4 +1,5 @@
 import { requireApiUserId } from "@/lib/auth/api";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { ApiError, jsonError } from "@/lib/api";
 import { getChannelMessages } from "@/lib/workspace/message-service";
 import { getSocketServer } from "@/lib/socket/runtime";
@@ -13,6 +14,7 @@ type RouteContext = {
 export async function GET(request: Request, context: RouteContext) {
   try {
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "channel:clear-history");
     const { channelId } = await context.params;
     const { searchParams } = new URL(request.url);
 

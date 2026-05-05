@@ -5,21 +5,21 @@
   "identifier": "com.whispr.desktop",
   "build": {
     "devUrl": "http://localhost:3000",
-    "frontendDist": "https://whispr.example.com",
+    "frontendDist": "https://whispr.invalid",
     "removeUnusedCommands": true
   },
   "app": {
     "withGlobalTauri": false,
     "windows": [],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; base-uri 'self'; connect-src 'self' http://localhost:3000 http://127.0.0.1:3000 ws://localhost:3000 ws://127.0.0.1:3000 https://api.giphy.com https://*.giphy.com https://*.livekit.cloud https://*.ufs.sh https://*.uploadthing.com https://challenges.cloudflare.com wss://*.livekit.cloud; font-src 'self' data:; form-action 'self'; frame-ancestors 'none'; frame-src 'self' https://challenges.cloudflare.com; img-src 'self' blob: data: https://*.giphy.com https://*.googleusercontent.com https://*.ufs.sh https://*.uploadthing.com https://avatars.githubusercontent.com https://media*.giphy.com; media-src 'self' blob: data: https://*.ufs.sh https://*.uploadthing.com; object-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:",
       "capabilities": [
         {
           "identifier": "whispr-desktop-native-ux",
           "description": "Whispr remote web content receives only the minimal Tauri permissions required for native desktop UX.",
           "windows": ["main"],
           "remote": {
-            "urls": ["http://localhost:3000", "http://127.0.0.1:3000"]
+            "urls": ["https://whispr.invalid", "http://localhost:3000", "http://127.0.0.1:3000"]
           },
           "permissions": [
             "notification:allow-is-permission-granted",

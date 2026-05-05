@@ -559,9 +559,6 @@ const authConfig = {
     Google({
       clientId: getEnvValue("GOOGLE_CLIENT_ID", "AUTH_GOOGLE_ID"),
       clientSecret: getEnvValue("GOOGLE_CLIENT_SECRET", "AUTH_GOOGLE_SECRET"),
-      // Google email auto-linking is only accepted by the signIn callback after
-      // provider email verification and local user status checks pass.
-      allowDangerousEmailAccountLinking: true,
       profile(profile) {
         const email = typeof profile.email === "string" ? profile.email : null;
         const name = typeof profile.name === "string" ? profile.name : "";

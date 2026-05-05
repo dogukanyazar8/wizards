@@ -1,5 +1,6 @@
 import { createServer } from "http";
 import next from "next";
+import { assertWebEnvironment } from "./src/lib/env.js";
 import { initSocketServer } from "./src/lib/socket/server.js";
 
 try {
@@ -9,6 +10,8 @@ try {
 }
 
 const dev = process.env.NODE_ENV !== "production";
+assertWebEnvironment(process.env, dev ? "development" : "production");
+
 const app = next({ dev });
 const handler = app.getRequestHandler();
 

@@ -32,6 +32,7 @@ import {
 } from "@/lib/messages/attachments";
 import { getRedis, getRedisSub } from "@/lib/redis";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { checkDMMessageRateLimits } from "@/lib/socket/rate-limits";
 import { setSocketServer } from "@/lib/socket/runtime";
 import {
   getVoiceScreenShareStateKey,
@@ -1246,13 +1247,18 @@ export function initSocketServer(httpServer: HTTPServer) {
         }
 
         try {
-          const isAllowed = await checkRateLimit(
+          const rateLimitResult = await checkDMMessageRateLimits({
+            conversationId: data.conversationId,
             redis,
-            `rate:dm:${userId}:${data.conversationId}`,
-            30,
-            60,
-          );
-          if (!isAllowed) {
+            userId,
+          });
+
+          if (rateLimitResult === "global") {
+            emitDMError("RATE_LIMITED", "Too many DM messages. Please slow down.");
+            return;
+          }
+
+          if (rateLimitResult === "conversation") {
             emitDMError("RATE_LIMITED", "Too many DM messages. Maximum 30 per minute.");
             return;
           }

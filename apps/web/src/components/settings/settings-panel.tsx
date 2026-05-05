@@ -31,18 +31,23 @@ import {
   CHANNEL_SIDEBAR_WIDTH_STEP,
   DEFAULT_CHANNEL_SIDEBAR_WIDTH,
   DEFAULT_MAIN_PANEL_WIDTH,
+  DEFAULT_SERVER_RAIL_ICON_SIZE,
   DEFAULT_SERVER_RAIL_WIDTH,
+  EXPANDED_MIN_SERVER_RAIL_WIDTH,
+  ICON_ONLY_SERVER_RAIL_WIDTH,
   MAX_CHANNEL_SIDEBAR_WIDTH,
   MAX_MAIN_PANEL_WIDTH,
+  MAX_SERVER_RAIL_ICON_SIZE,
   MAX_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
   MAX_SERVER_RAIL_WIDTH,
   MIN_CHANNEL_SIDEBAR_WIDTH,
   MIN_MAIN_PANEL_WIDTH,
   MIN_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
-  MIN_SERVER_RAIL_WIDTH,
+  MIN_SERVER_RAIL_ICON_SIZE,
   NOTIFICATION_LIMIT_OPTIONS,
   NOTIFICATION_POPUP_TIMEOUT_STEP,
   MAIN_PANEL_WIDTH_STEP,
+  SERVER_RAIL_ICON_SIZE_STEP,
   SERVER_RAIL_WIDTH_STEP,
 } from "@/lib/appearance";
 import { APP_ICON_OPTIONS, type AppIconId } from "@/lib/app-icons";
@@ -299,6 +304,8 @@ function RangeSliderCard({
   title: string;
   value: number;
 }) {
+  const sliderValue = Math.min(max, Math.max(min, value));
+
   return (
     <SettingCard
       description={description}
@@ -320,7 +327,7 @@ function RangeSliderCard({
           onChange={(event) => onChange(Number(event.target.value))}
           step={step}
           type="range"
-          value={value}
+          value={sliderValue}
         />
         <div className="text-app-muted mt-3 flex items-center justify-between text-xs font-medium">
           <span>{labels[0]}</span>
@@ -416,6 +423,8 @@ export function SettingsPanel({
     resetChannelSidebarWidth,
     resetMainPanelWidth,
     resetServerRailWidth,
+    serverRailCollapsed,
+    serverRailIconSize,
     serverRailWidth,
     setAppIconId,
     setChannelSidebarWidth,
@@ -423,6 +432,8 @@ export function SettingsPanel({
     setNotificationAutoClose,
     setNotificationLimit,
     setNotificationPopupTimeoutSeconds,
+    setServerRailCollapsed,
+    setServerRailIconSize,
     setServerRailWidth,
   } = useAppStore(
     useShallow((state) => ({
@@ -436,6 +447,8 @@ export function SettingsPanel({
       resetChannelSidebarWidth: state.resetChannelSidebarWidth,
       resetMainPanelWidth: state.resetMainPanelWidth,
       resetServerRailWidth: state.resetServerRailWidth,
+      serverRailCollapsed: state.serverRailCollapsed,
+      serverRailIconSize: state.serverRailIconSize,
       serverRailWidth: state.serverRailWidth,
       setAppIconId: state.setAppIconId,
       setChannelSidebarWidth: state.setChannelSidebarWidth,
@@ -443,6 +456,8 @@ export function SettingsPanel({
       setNotificationAutoClose: state.setNotificationAutoClose,
       setNotificationLimit: state.setNotificationLimit,
       setNotificationPopupTimeoutSeconds: state.setNotificationPopupTimeoutSeconds,
+      setServerRailCollapsed: state.setServerRailCollapsed,
+      setServerRailIconSize: state.setServerRailIconSize,
       setServerRailWidth: state.setServerRailWidth,
     })),
   );
@@ -566,6 +581,13 @@ export function SettingsPanel({
       );
     },
     [queryClient, setServerRailWidth],
+  );
+
+  const handleServerRailCollapsedChange = useCallback(
+    (collapsed: boolean) => {
+      setServerRailCollapsed(collapsed);
+    },
+    [setServerRailCollapsed],
   );
 
   const handleMainCanvasWidthChange = useCallback(
@@ -989,16 +1011,53 @@ export function SettingsPanel({
               t("appearance.serverRail.spacious"),
             ]}
             max={MAX_SERVER_RAIL_WIDTH}
-            min={MIN_SERVER_RAIL_WIDTH}
+            min={EXPANDED_MIN_SERVER_RAIL_WIDTH}
             onChange={handleServerRailWidthChange}
             preview={
               <div className="app-panel-soft rounded-[24px] border p-4">
+                <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button
+                    className={cn(
+                      "rounded-2xl border px-3 py-2 text-sm font-semibold transition",
+                      serverRailCollapsed
+                        ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
+                        : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground",
+                    )}
+                    onClick={() => handleServerRailCollapsedChange(true)}
+                    type="button"
+                  >
+                    {t("appearance.serverRail.iconOnly")}
+                  </button>
+                  <button
+                    className={cn(
+                      "rounded-2xl border px-3 py-2 text-sm font-semibold transition",
+                      !serverRailCollapsed
+                        ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
+                        : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground",
+                    )}
+                    onClick={() => handleServerRailCollapsedChange(false)}
+                    type="button"
+                  >
+                    {t("appearance.serverRail.expanded")}
+                  </button>
+                </div>
                 <div className="flex items-center gap-3">
                   <div
                     className="app-panel-soft shrink-0 rounded-[22px] border p-3"
-                    style={{ width: `min(${Math.max(72, serverRailWidth)}px, 28vw)` }}
+                    style={{
+                      width: `min(${Math.max(
+                        72,
+                        serverRailCollapsed ? ICON_ONLY_SERVER_RAIL_WIDTH : serverRailWidth,
+                      )}px, 28vw)`,
+                    }}
                   >
-                    <div className="mx-auto h-10 w-10 rounded-[16px] bg-[hsl(var(--primary)/0.18)]" />
+                    <div
+                      className="mx-auto rounded-[16px] bg-[hsl(var(--primary)/0.18)]"
+                      style={{
+                        height: serverRailIconSize,
+                        width: serverRailIconSize,
+                      }}
+                    />
                   </div>
                   <div className="app-panel min-w-0 flex-1 rounded-[22px] border p-4">
                     <div className="h-4 w-32 rounded-full bg-[hsl(var(--surface-soft))]" />
@@ -1010,6 +1069,49 @@ export function SettingsPanel({
             step={SERVER_RAIL_WIDTH_STEP}
             title={t("settings.appearance.advanced.serverRailTitle")}
             value={serverRailWidth}
+          />
+        ) : null}
+
+        {showServerRail ? (
+          <RangeSliderCard
+            description={t("appearance.serverRail.iconsTitle")}
+            labels={[
+              t("appearance.serverRail.iconSmall"),
+              t("appearance.serverRail.iconBalanced"),
+              t("appearance.serverRail.iconLarge"),
+            ]}
+            max={MAX_SERVER_RAIL_ICON_SIZE}
+            min={MIN_SERVER_RAIL_ICON_SIZE}
+            onChange={setServerRailIconSize}
+            preview={
+              <div className="app-panel-soft rounded-[24px] border p-4">
+                <div className="flex items-center gap-3">
+                  {["DM", "W", "PU"].map((label, index) => (
+                    <div
+                      className={cn(
+                        "flex items-center justify-center rounded-[18px] border text-xs font-bold uppercase transition",
+                        index === 1
+                          ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.16)] text-[hsl(var(--primary))]"
+                          : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.66)] text-app-muted",
+                      )}
+                      key={label}
+                      style={{
+                        height: serverRailIconSize,
+                        width: serverRailIconSize,
+                      }}
+                    >
+                      {label}
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs leading-5 text-app-muted">
+                  {t("appearance.serverRail.iconsDescription")}
+                </p>
+              </div>
+            }
+            step={SERVER_RAIL_ICON_SIZE_STEP}
+            title={t("appearance.serverRail.iconsTitle")}
+            value={serverRailIconSize}
           />
         ) : null}
 
@@ -1063,9 +1165,20 @@ export function SettingsPanel({
                 <div className="flex items-center gap-3">
                   <div
                     className="app-panel-soft shrink-0 rounded-[22px] border p-3"
-                    style={{ width: `${Math.max(72, serverRailWidth)}px` }}
+                    style={{
+                      width: `${Math.max(
+                        72,
+                        serverRailCollapsed ? ICON_ONLY_SERVER_RAIL_WIDTH : serverRailWidth,
+                      )}px`,
+                    }}
                   >
-                    <div className="mx-auto h-10 w-10 rounded-[16px] bg-[hsl(var(--primary)/0.18)]" />
+                    <div
+                      className="mx-auto rounded-[16px] bg-[hsl(var(--primary)/0.18)]"
+                      style={{
+                        height: serverRailIconSize,
+                        width: serverRailIconSize,
+                      }}
+                    />
                   </div>
                   <div
                     className="app-panel shrink-0 rounded-[24px] border p-4"
@@ -1089,11 +1202,14 @@ export function SettingsPanel({
             className="w-full sm:w-auto"
             disabled={
               serverRailWidth === DEFAULT_SERVER_RAIL_WIDTH &&
+              !serverRailCollapsed &&
+              serverRailIconSize === DEFAULT_SERVER_RAIL_ICON_SIZE &&
               channelSidebarWidth === DEFAULT_CHANNEL_SIDEBAR_WIDTH &&
               mainPanelWidth === DEFAULT_MAIN_PANEL_WIDTH
             }
             onClick={() => {
               resetServerRailWidth();
+              setServerRailIconSize(DEFAULT_SERVER_RAIL_ICON_SIZE);
               resetChannelSidebarWidth();
               resetMainPanelWidth();
             }}

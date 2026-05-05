@@ -1,95 +1,29 @@
 import type { NextConfig } from "next";
+import { readFileSync } from "node:fs";
 
-function getOrigin(value: string | undefined) {
-  if (!value?.trim()) {
-    return null;
-  }
+const packageJson = JSON.parse(
+  readFileSync(new URL("./package.json", import.meta.url), "utf8"),
+) as { version?: string };
 
-  try {
-    return new URL(value.trim()).origin;
-  } catch {
-    return null;
-  }
-}
-
-function unique(values: Array<string | null | undefined>) {
-  return Array.from(new Set(values.filter(Boolean))) as string[];
-}
-
-function buildContentSecurityPolicy() {
-  const isDevelopment = process.env.NODE_ENV !== "production";
-  const appOrigins = unique([
-    getOrigin(process.env.APP_URL),
-    getOrigin(process.env.AUTH_URL),
-    getOrigin(process.env.NEXTAUTH_URL),
-  ]);
-  const liveKitOrigins = unique([
-    getOrigin(process.env.LIVEKIT_URL),
-    getOrigin(process.env.NEXT_PUBLIC_LIVEKIT_URL),
-  ]);
-
-  const directives = {
-    "base-uri": ["'self'"],
-    "connect-src": unique([
-      "'self'",
-      ...appOrigins,
-      ...liveKitOrigins,
-      "https://api.giphy.com",
-      "https://*.giphy.com",
-      "https://*.livekit.cloud",
-      "https://*.ufs.sh",
-      "https://*.uploadthing.com",
-      "https://challenges.cloudflare.com",
-      "wss://*.livekit.cloud",
-      ...(isDevelopment
-        ? ["http://localhost:*", "http://127.0.0.1:*", "ws://localhost:*", "ws://127.0.0.1:*"]
-        : []),
-    ]),
-    "default-src": ["'self'"],
-    "font-src": ["'self'", "data:"],
-    "form-action": ["'self'"],
-    "frame-ancestors": ["'none'"],
-    "frame-src": ["'self'", "https://challenges.cloudflare.com"],
-    "img-src": [
-      "'self'",
-      "blob:",
-      "data:",
-      "https://*.giphy.com",
-      "https://*.googleusercontent.com",
-      "https://*.ufs.sh",
-      "https://*.uploadthing.com",
-      "https://avatars.githubusercontent.com",
-      "https://media*.giphy.com",
-    ],
-    "media-src": [
-      "'self'",
-      "blob:",
-      "data:",
-      "https://*.ufs.sh",
-      "https://*.uploadthing.com",
-    ],
-    "object-src": ["'none'"],
-    "script-src": [
-      "'self'",
-      "'unsafe-inline'",
-      ...(isDevelopment ? ["'unsafe-eval'"] : []),
-      "https://challenges.cloudflare.com",
-    ],
-    "style-src": ["'self'", "'unsafe-inline'"],
-    "worker-src": ["'self'", "blob:"],
-    ...(isDevelopment ? {} : { "upgrade-insecure-requests": [] }),
-  };
-
-  return Object.entries(directives)
-    .map(([key, values]) => (values.length > 0 ? `${key} ${values.join(" ")}` : key))
-    .join("; ");
-}
+const whisprVersion = packageJson.version ?? "0.0.0";
+const whisprBuildTime =
+  process.env.NEXT_PUBLIC_WHISPR_BUILD_TIME ?? new Date().toISOString();
+const whisprBuildId =
+  process.env.NEXT_PUBLIC_WHISPR_BUILD_ID ??
+  process.env.RAILWAY_GIT_COMMIT_SHA ??
+  process.env.VERCEL_GIT_COMMIT_SHA ??
+  process.env.GITHUB_SHA ??
+  `${whisprVersion}-${whisprBuildTime}`;
+const whisprReleaseChannel =
+  process.env.NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL ??
+  process.env.RAILWAY_ENVIRONMENT_NAME ??
+  process.env.NODE_ENV ??
+  "development";
 
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Content-Security-Policy", value: buildContentSecurityPolicy() },
   {
     key: "Permissions-Policy",
     value: "camera=(self), microphone=(self), geolocation=()",
@@ -97,6 +31,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_WHISPR_BUILD_ID: whisprBuildId,
+    NEXT_PUBLIC_WHISPR_BUILD_TIME: whisprBuildTime,
+    NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL: whisprReleaseChannel,
+    NEXT_PUBLIC_WHISPR_VERSION: whisprVersion,
+  },
   reactStrictMode: true,
   transpilePackages: ["@wizards/ui", "@wizards/types", "@wizards/db"],
   async headers() {

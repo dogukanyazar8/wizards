@@ -43,6 +43,36 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "common.username": "Username",
     "common.voice": "Voice",
 
+    "app.update.badge": "Update ready",
+    "app.update.title": "A newer Whispr build is ready",
+    "app.update.description":
+      "You are using v{current}. Refresh to move to v{latest} with the latest fixes, optimizations, and UI updates.",
+    "app.update.refresh": "Refresh now",
+    "app.update.later": "Later",
+    "app.update.whatsNew": "What's new",
+    "app.update.currentBuild": "Current build {build}",
+    "app.update.latestBuild": "Latest build {build}",
+    "app.update.category.devices": "Devices",
+    "app.update.category.security": "Security",
+    "app.update.category.performance": "Performance",
+    "app.update.category.desktop": "Desktop",
+    "app.update.category.quality": "Quality",
+    "app.update.notes.devices.title": "Shared microphone and speaker selection",
+    "app.update.notes.devices.description":
+      "User bar selectors and Voice settings now share the same device flow across browser, mobile responsive, and Tauri desktop surfaces.",
+    "app.update.notes.security.title": "Production hardening pass",
+    "app.update.notes.security.description":
+      "Auth access checks, socket payload schemas, safer redirects, generic production errors, and CI coverage make the platform safer by default.",
+    "app.update.notes.performance.title": "Faster realtime messaging paths",
+    "app.update.notes.performance.description":
+      "DM conversations now paginate, server unread updates target active users, invite usage is atomic, and hot-path membership indexes are in place.",
+    "app.update.notes.desktop.title": "Desktop readiness foundation",
+    "app.update.notes.desktop.description":
+      "The initial Tauri shell, desktop runtime helpers, QA notes, and media permission guidance are ready without changing the web experience.",
+    "app.update.notes.quality.title": "Cleaner developer workflow",
+    "app.update.notes.quality.description":
+      "ESLint now runs through the supported CLI path, lint warnings are clean, and startup output avoids noisy or broken terminal text.",
+
     "validation.channel.pattern": "Channel names must use lowercase letters, numbers, or hyphens.",
     "validation.email.invalid": "Please enter a valid email address.",
     "validation.form.atLeastOne": "At least one field must be provided.",
@@ -54,6 +84,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "validation.username.max": "Username must be 32 characters or fewer.",
     "validation.username.min": "Username must be at least 2 characters.",
     "validation.username.pattern": "Username can only include letters, numbers, and underscores.",
+    "validation.server.shortNamePattern": "Server short names can use up to 4 letters, numbers, hyphens, or underscores.",
 
     "friends.notification.request.title": "New friend request",
     "friends.notification.request.body": "{name} sent you a friend request.",
@@ -585,6 +616,14 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "appearance.serverRail.compact": "Compact",
     "appearance.serverRail.balanced": "Balanced",
     "appearance.serverRail.spacious": "Spacious",
+    "appearance.serverRail.iconOnly": "Icon-only",
+    "appearance.serverRail.expanded": "Expanded",
+    "appearance.serverRail.iconsTitle": "Server icon size",
+    "appearance.serverRail.iconsDescription":
+      "Tune the DM and server avatar scale in the left rail without changing the rest of the shell.",
+    "appearance.serverRail.iconSmall": "Small",
+    "appearance.serverRail.iconBalanced": "Balanced",
+    "appearance.serverRail.iconLarge": "Large",
     "appearance.sidebar.eyebrow": "Channel Sidebar",
     "appearance.sidebar.title": "Give channel names a little more breathing room",
     "appearance.sidebar.compact": "Compact",
@@ -680,8 +719,17 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "themes.descriptions.theme-royal-blue": "Bold saturated royal",
 
     "shell.serverRail.directMessages": "Direct messages",
+    "shell.serverRail.servers": "Servers",
     "shell.serverRail.createServer": "Create a server",
+    "shell.serverRail.createShort": "New",
     "shell.serverRail.addServer": "Add Server",
+    "shell.serverRail.resetOrder": "Reset order",
+    "shell.serverRail.collapse": "Show icons only",
+    "shell.serverRail.expand": "Expand sidebar",
+    "shell.serverRail.customize": "Rail controls",
+    "shell.serverRail.customizeHint": "Live size and spacing",
+    "shell.serverRail.width": "Rail width",
+    "shell.serverRail.iconSize": "Icon size",
     "shell.mobile.openWorkspaceNavigation": "Open workspace navigation",
     "shell.mobile.workspaceNavigation": "Workspace navigation",
     "shell.channelSidebar.empty":
@@ -895,10 +943,24 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.serverEditTitle": "Edit Server",
     "workspace.modal.serverDescription":
       "Spin up a new server with its first channels already in place.",
-    "workspace.modal.serverNamePlaceholder": "The Arcane Atelier",
+    "workspace.modal.serverIcon": "Server icon",
+    "workspace.modal.serverIconDescription":
+      "Upload a square image for the rail. A live preview keeps the crop feeling intentional.",
+    "workspace.modal.serverIconUploadsDisabled":
+      "Add `UPLOADTHING_TOKEN` to enable cloud uploads.",
+    "workspace.modal.serverIconUploading": "Uploading icon... {progress}%",
+    "workspace.modal.serverIconChoose": "Choose image",
+    "workspace.modal.serverIconClear": "Clear",
+    "workspace.modal.serverNamePlaceholder": "Whispr",
+    "workspace.modal.serverShortName": "Short name",
+    "workspace.modal.serverShortNamePlaceholder": "WSPR",
+    "workspace.modal.serverShortNameHint":
+      "Up to 4 characters shown in the server rail. Leave blank to use the server name.",
     "workspace.modal.serverDescriptionPlaceholder":
       "A polished space for your team, club, or community.",
     "workspace.modal.serverNameMin": "At least 2 characters required",
+    "workspace.modal.serverSaveError":
+      "We could not save this server right now. Please refresh and try again.",
     "workspace.media.title": "Text channel media",
     "workspace.media.description":
       "Choose which rich message tools members can use in this server's text channels.",
@@ -992,6 +1054,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "serverSettings.tab.invites": "Invites",
     "serverSettings.tab.danger": "Danger Zone",
     "serverSettings.serverName": "Server Name",
+    "serverSettings.serverShortName": "Short Name",
+    "serverSettings.serverShortNamePlaceholder": "WSPR",
+    "serverSettings.serverShortNameHint":
+      "This compact label appears in the server rail and can be changed anytime.",
     "serverSettings.access": "Access",
     "serverSettings.memberCount": "{count} Members",
     "serverSettings.saveOverview": "Save Overview",
@@ -1058,6 +1124,36 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "common.username": "Kullanıcı Adı",
     "common.voice": "Sesli",
 
+    "app.update.badge": "Güncelleme hazır",
+    "app.update.title": "Yeni bir Whispr sürümü hazır",
+    "app.update.description":
+      "Şu anda v{current} kullanıyorsun. En yeni düzeltmeler, optimizasyonlar ve arayüz yenilikleri için v{latest} sürümüne geçmek üzere yenile.",
+    "app.update.refresh": "Şimdi yenile",
+    "app.update.later": "Daha sonra",
+    "app.update.whatsNew": "Neler yeni",
+    "app.update.currentBuild": "Mevcut build {build}",
+    "app.update.latestBuild": "Yeni build {build}",
+    "app.update.category.devices": "Cihazlar",
+    "app.update.category.security": "Güvenlik",
+    "app.update.category.performance": "Performans",
+    "app.update.category.desktop": "Masaüstü",
+    "app.update.category.quality": "Kalite",
+    "app.update.notes.devices.title": "Ortak mikrofon ve hoparlör seçimi",
+    "app.update.notes.devices.description":
+      "User bar seçicileri ve Ses ayarları artık tarayıcı, mobil responsive ve Tauri masaüstü yüzeylerinde aynı cihaz akışını kullanıyor.",
+    "app.update.notes.security.title": "Production güvenlik güçlendirmesi",
+    "app.update.notes.security.description":
+      "Auth erişim kontrolleri, socket payload şemaları, güvenli yönlendirmeler, genel production hataları ve CI kapsamı platformu varsayılan olarak daha güvenli yapıyor.",
+    "app.update.notes.performance.title": "Daha hızlı gerçek zamanlı mesajlaşma yolları",
+    "app.update.notes.performance.description":
+      "DM konuşmaları sayfalanıyor, sunucu okunmamış güncellemeleri aktif kullanıcılara hedefleniyor, davet kullanımı atomik ve hot-path üyelik indexleri hazır.",
+    "app.update.notes.desktop.title": "Masaüstü hazırlık temeli",
+    "app.update.notes.desktop.description":
+      "İlk Tauri kabuğu, masaüstü runtime yardımcıları, QA notları ve medya izin yönlendirmeleri web deneyimini değiştirmeden hazırlandı.",
+    "app.update.notes.quality.title": "Daha temiz geliştirici akışı",
+    "app.update.notes.quality.description":
+      "ESLint artık desteklenen CLI yolundan çalışıyor, lint uyarıları temiz ve başlangıç çıktısı gürültüsüz/bozuk karaktersiz.",
+
     "validation.channel.pattern": "Kanal adları sadece küçük harf, sayı veya tire içerebilir.",
     "validation.email.invalid": "Geçerli bir e-posta adresi girin.",
     "validation.form.atLeastOne": "En az bir alan gönderilmelidir.",
@@ -1069,6 +1165,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "validation.username.max": "Kullanıcı adı en fazla 32 karakter olabilir.",
     "validation.username.min": "Kullanıcı adı en az 2 karakter olmalıdır.",
     "validation.username.pattern": "Kullanıcı adı sadece harf, sayı ve alt çizgi içerebilir.",
+    "validation.server.shortNamePattern": "Sunucu kısaltması en fazla 4 harf, sayı, tire veya alt çizgi içerebilir.",
 
     "friends.notification.request.title": "Yeni arkadaşlık isteği",
     "friends.notification.request.body": "{name} sana arkadaşlık isteği gönderdi.",
@@ -1602,6 +1699,14 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "appearance.serverRail.compact": "Kompakt",
     "appearance.serverRail.balanced": "Dengeli",
     "appearance.serverRail.spacious": "Geniş",
+    "appearance.serverRail.iconOnly": "Sadece ikon",
+    "appearance.serverRail.expanded": "Genişletilmiş",
+    "appearance.serverRail.iconsTitle": "Sunucu ikon boyutu",
+    "appearance.serverRail.iconsDescription":
+      "DM ve sunucu avatarlarının sol raydaki ölçeğini kabuğun geri kalanını değiştirmeden ayarla.",
+    "appearance.serverRail.iconSmall": "Küçük",
+    "appearance.serverRail.iconBalanced": "Dengeli",
+    "appearance.serverRail.iconLarge": "Büyük",
     "appearance.sidebar.eyebrow": "Kanal Kenar Çubuğu",
     "appearance.sidebar.title": "Kanal adlarına biraz daha nefes alanı ver",
     "appearance.sidebar.compact": "Kompakt",
@@ -1697,8 +1802,17 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "themes.descriptions.theme-royal-blue": "Cesur doygun kraliyet tonu",
 
     "shell.serverRail.directMessages": "Direkt Mesajlar",
+    "shell.serverRail.servers": "Sunucular",
     "shell.serverRail.createServer": "Sunucu oluştur",
+    "shell.serverRail.createShort": "Yeni",
     "shell.serverRail.addServer": "Sunucu Ekle",
+    "shell.serverRail.resetOrder": "Sıralamayı sıfırla",
+    "shell.serverRail.collapse": "Sadece ikonları göster",
+    "shell.serverRail.expand": "Sidebar'ı genişlet",
+    "shell.serverRail.customize": "Ray kontrolleri",
+    "shell.serverRail.customizeHint": "Canlı boyut ve aralık",
+    "shell.serverRail.width": "Ray genişliği",
+    "shell.serverRail.iconSize": "İkon boyutu",
     "shell.mobile.openWorkspaceNavigation": "Çalışma alanı gezinmesini aç",
     "shell.mobile.workspaceNavigation": "Çalışma alanı gezinmesi",
     "shell.channelSidebar.empty":
@@ -1912,10 +2026,24 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.serverEditTitle": "Sunucuyu Düzenle",
     "workspace.modal.serverDescription":
       "İlk kanalları hazır olan yeni bir sunucuyu hemen oluştur.",
-    "workspace.modal.serverNamePlaceholder": "Arcane Atelier",
+    "workspace.modal.serverIcon": "Sunucu ikonu",
+    "workspace.modal.serverIconDescription":
+      "Rayda kullanılacak kare bir görsel yükle. Canlı önizleme kırpmanın bilinçli hissettirmesini sağlar.",
+    "workspace.modal.serverIconUploadsDisabled":
+      "Bulut yüklemelerini açmak için `UPLOADTHING_TOKEN` ekle.",
+    "workspace.modal.serverIconUploading": "İkon yükleniyor... {progress}%",
+    "workspace.modal.serverIconChoose": "Görsel seç",
+    "workspace.modal.serverIconClear": "Temizle",
+    "workspace.modal.serverNamePlaceholder": "Whispr",
+    "workspace.modal.serverShortName": "Kısaltma",
+    "workspace.modal.serverShortNamePlaceholder": "WSPR",
+    "workspace.modal.serverShortNameHint":
+      "Sunucu rayında görünen en fazla 4 karakterlik kısa ad. Boş bırakırsan sunucu adından üretilir.",
     "workspace.modal.serverDescriptionPlaceholder":
       "Takımın, kulübün veya topluluğun için özenli bir alan.",
     "workspace.modal.serverNameMin": "En az 2 karakter gerekli",
+    "workspace.modal.serverSaveError":
+      "Sunucu şu anda kaydedilemedi. Lütfen sayfayı yenileyip tekrar dene.",
     "workspace.media.title": "Yazı kanalı medyası",
     "workspace.media.description":
       "Üyelerin bu sunucunun yazı kanallarında hangi zengin mesaj araçlarını kullanabileceğini seç.",
@@ -2010,6 +2138,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "serverSettings.tab.invites": "Davetler",
     "serverSettings.tab.danger": "Tehlike Bölgesi",
     "serverSettings.serverName": "Sunucu Adı",
+    "serverSettings.serverShortName": "Sunucu Kısaltması",
+    "serverSettings.serverShortNamePlaceholder": "WSPR",
+    "serverSettings.serverShortNameHint":
+      "Bu kısa etiket sunucu rayında görünür ve istediğin zaman değiştirilebilir.",
     "serverSettings.access": "Erişim",
     "serverSettings.memberCount": "{count} Üye",
     "serverSettings.saveOverview": "Genel Bakışı Kaydet",

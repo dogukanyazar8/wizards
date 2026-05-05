@@ -7,9 +7,14 @@ import type {
 } from "@wizards/types";
 import { Prisma, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
-import { areFriends, getBlockStatus } from "@/lib/friends/helpers";
+import {
+  areFriends,
+  getBlockStatus,
+  haveMutualServers,
+} from "@/lib/friends/helpers";
 import { getRedis } from "@/lib/redis";
 import { normalizeAppLocale, translate } from "@/lib/locale";
+import { canStartDirectMessage } from "@/lib/privacy-policy";
 import type {
   DMConversationsPageResponse,
   DMMessagesResponse,
@@ -513,14 +518,28 @@ export async function createOrOpenDirectMessage(
     throw new ApiError("User not found", 404, "NOT_FOUND");
   }
 
-  const isFriend = await areFriends(userId, targetUserId);
-  if (!isFriend) {
-    throw new ApiError("You can only DM friends", 403, "NOT_FRIENDS");
-  }
-
   const blockStatus = await getBlockStatus(userId, targetUserId);
   if (blockStatus.blocked) {
     throw new ApiError("You cannot DM this user", 403, "BLOCKED");
+  }
+
+  const [isFriend, targetSettings, sharesMutualServers] = await Promise.all([
+    areFriends(userId, targetUserId),
+    prisma.userSettings.findUnique({
+      where: { userId: targetUserId },
+      select: { dmPolicy: true },
+    }),
+    haveMutualServers(userId, targetUserId),
+  ]);
+  const dmPolicy = targetSettings?.dmPolicy ?? "FRIENDS";
+
+  if (
+    !canStartDirectMessage(dmPolicy, {
+      areFriends: isFriend,
+      haveMutualServers: sharesMutualServers,
+    })
+  ) {
+    throw new ApiError("You cannot DM this user", 403, "DM_POLICY");
   }
 
   const existingConversation = await findDirectConversation(userId, targetUserId);

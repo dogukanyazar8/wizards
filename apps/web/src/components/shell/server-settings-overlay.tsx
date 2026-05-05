@@ -45,6 +45,7 @@ export function ServerSettingsOverlay({
   const overviewSavedRef = useRef<HTMLDivElement | null>(null);
   const [tab, setTab] = useState<SettingsTab>("overview");
   const [name, setName] = useState(detail?.server.name ?? "");
+  const [shortName, setShortName] = useState(detail?.server.shortName ?? "");
   const [description, setDescription] = useState(
     detail?.server.description ?? "",
   );
@@ -68,6 +69,7 @@ export function ServerSettingsOverlay({
     }
 
     setName(detail?.server.name ?? "");
+    setShortName(detail?.server.shortName ?? "");
     setDescription(detail?.server.description ?? "");
     setIconUrl(detail?.server.iconUrl ?? null);
     setAllowGifs(detail?.server.allowGifs ?? true);
@@ -80,6 +82,7 @@ export function ServerSettingsOverlay({
     detail?.server.description,
     detail?.server.iconUrl,
     detail?.server.name,
+    detail?.server.shortName,
     open,
   ]);
 
@@ -121,6 +124,7 @@ export function ServerSettingsOverlay({
         description,
         iconUrl,
         name,
+        shortName,
       });
     },
     onSuccess: async (result) => {
@@ -145,6 +149,7 @@ export function ServerSettingsOverlay({
                   allowMemberAdds: updatedDetail.server.allowMemberAdds,
                   iconUrl: updatedDetail.server.iconUrl,
                   name: updatedDetail.server.name,
+                  shortName: updatedDetail.server.shortName,
                 }
               : server,
           ),
@@ -296,12 +301,12 @@ export function ServerSettingsOverlay({
                 {tab === "overview" ? (
                   <div className="space-y-6">
                     <ServerIconField
-                      label={name || detail.server.name}
+                      label={shortName || name || detail.server.name}
                       onChange={setIconUrl}
                       uploadthingEnabled={uploadthingEnabled}
                       value={iconUrl}
                     />
-                    <div className="grid gap-4 md:grid-cols-[1.2fr,0.8fr]">
+                    <div className="grid gap-4 md:grid-cols-[1.15fr,0.85fr,0.85fr]">
                       <div className="app-panel rounded-[28px] border p-4 sm:p-5">
                         <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
                           {t("serverSettings.serverName")}
@@ -311,6 +316,25 @@ export function ServerSettingsOverlay({
                           onChange={(event) => setName(event.target.value)}
                           value={name}
                         />
+                      </div>
+                      <div className="app-panel rounded-[28px] border p-4 sm:p-5">
+                        <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+                          {t("serverSettings.serverShortName")}
+                        </label>
+                        <Input
+                          className="mt-3"
+                          maxLength={4}
+                          onChange={(event) =>
+                            setShortName(
+                              Array.from(event.target.value.trim().toUpperCase()).slice(0, 4).join(""),
+                            )
+                          }
+                          placeholder={t("serverSettings.serverShortNamePlaceholder")}
+                          value={shortName}
+                        />
+                        <p className="mt-2 text-xs leading-5 text-app-muted">
+                          {t("serverSettings.serverShortNameHint")}
+                        </p>
                       </div>
                       <div className="app-panel rounded-[28px] border p-4 sm:p-5">
                         <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">

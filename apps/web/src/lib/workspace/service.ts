@@ -25,6 +25,7 @@ import type {
 } from "@wizards/types";
 import { ApiError } from "@/lib/api";
 import { normalizeAppLocale, translate } from "@/lib/locale";
+import { readPresenceMap, type VisiblePresenceStatus } from "@/lib/presence";
 import { getRedis } from "@/lib/redis";
 import type { NotificationSocketPayload } from "@/lib/socket/events";
 import { getSocketServer } from "@/lib/socket/runtime";
@@ -59,6 +60,7 @@ type RoleRecord = {
 type AccessContext = {
   accessLevel: WorkspaceAccessLevel;
   memberId: string;
+  ownerId: string;
   serverId: string;
   serverName: string;
   userId: string;
@@ -73,7 +75,9 @@ type ChannelRecord = {
   type: ChannelType;
 };
 
-type WorkspacePresenceStatus = "ONLINE" | "IDLE" | "DND" | "OFFLINE";
+type WorkspacePresenceStatus = VisiblePresenceStatus;
+const SERVER_DETAIL_MEMBER_LIMIT = 100;
+const SERVER_MEMBERS_PAGE_LIMIT = 100;
 
 function toWorkspaceChannel(channel: ChannelRecord): WorkspaceChannel {
   return {
@@ -121,62 +125,6 @@ function normalizeWorkspacePresenceStatus(value: unknown): WorkspacePresenceStat
   }
 
   return null;
-}
-
-async function readWorkspacePresence(user: {
-  customStatus: string | null;
-  id: string;
-  status: string;
-}): Promise<{
-  customStatus: string | null;
-  status: WorkspacePresenceStatus;
-}> {
-  const fallback = {
-    customStatus: user.customStatus,
-    status: "OFFLINE" as const,
-  };
-
-  try {
-    const redis = getRedis();
-    const key = `presence:${user.id}`;
-    const keyType = await redis.type(key);
-
-    if (keyType === "hash") {
-      const record = await redis.hgetall(key);
-      return {
-        customStatus: record.customStatus || user.customStatus,
-        status: normalizeWorkspacePresenceStatus(record.status) ?? fallback.status,
-      };
-    }
-
-    if (keyType === "string") {
-      const raw = await redis.get(key);
-      if (!raw) {
-        return fallback;
-      }
-
-      const parsed = JSON.parse(raw) as {
-        customStatus?: unknown;
-        status?: unknown;
-      };
-
-      return {
-        customStatus:
-          typeof parsed.customStatus === "string" && parsed.customStatus.length > 0
-            ? parsed.customStatus
-            : user.customStatus,
-        status: normalizeWorkspacePresenceStatus(parsed.status) ?? fallback.status,
-      };
-    }
-  } catch {
-    const storedStatus = normalizeWorkspacePresenceStatus(user.status);
-    return {
-      customStatus: user.customStatus,
-      status: storedStatus ?? fallback.status,
-    };
-  }
-
-  return fallback;
 }
 
 function looksLikeAdmin(role: RoleRecord) {
@@ -282,6 +230,7 @@ async function getAccessContext(userId: string, serverId: string): Promise<Acces
       membership.roles.map((entry) => entry.role),
     ),
     memberId: membership.id,
+    ownerId: membership.server.ownerId,
     serverId: membership.server.id,
     serverName: membership.server.name,
     userId,
@@ -302,6 +251,20 @@ function ensureOwner(context: AccessContext) {
 
 function canAddMembers(accessLevel: WorkspaceAccessLevel, allowMemberAdds: boolean) {
   return accessLevel !== "MEMBER" || allowMemberAdds;
+}
+
+async function detachUserFromServerSocketRoom(userId: string, serverId: string) {
+  const io = getSocketServer();
+  if (!io) {
+    return null;
+  }
+
+  const sockets = await io.in(`user:${userId}`).fetchSockets();
+  for (const socket of sockets) {
+    socket.leave(`server:${serverId}`);
+  }
+
+  return io;
 }
 
 async function ensureUserNotServerBanned(
@@ -336,6 +299,7 @@ function mapServerSummary(args: {
   inviteCode: string | null;
   memberCount: number;
   name: string;
+  shortName: string | null;
   unreadCount: number;
 }): WorkspaceServerSummary {
   return {
@@ -349,6 +313,7 @@ function mapServerSummary(args: {
     inviteCode: args.inviteCode,
     memberCount: args.memberCount,
     name: args.name,
+    shortName: args.shortName,
     unreadCount: args.unreadCount,
   };
 }
@@ -371,13 +336,25 @@ async function mapMembers(
     };
   }>,
 ): Promise<WorkspaceMember[]> {
-  return Promise.all(members.map(async (member) => {
+  const presenceByUserId = await readPresenceMap(
+    getRedis(),
+    members.map((member) => ({
+      customStatus: member.user.customStatus,
+      status: normalizeWorkspacePresenceStatus(member.user.status) ?? "OFFLINE",
+      userId: member.user.id,
+    })),
+  );
+
+  return members.map((member) => {
     const roles = member.roles.map((entry) => ({
       color: entry.role.color,
       id: entry.role.id,
       name: entry.role.name,
     }));
-    const presence = await readWorkspacePresence(member.user);
+    const presence = presenceByUserId.get(member.user.id) ?? {
+      customStatus: member.user.customStatus,
+      status: normalizeWorkspacePresenceStatus(member.user.status) ?? "OFFLINE",
+    };
 
     return {
       accessLevel: deriveAccessLevel(
@@ -394,7 +371,7 @@ async function mapMembers(
       userId: member.user.id,
       username: member.user.username,
     };
-  }));
+  });
 }
 
 function mapInvites(
@@ -454,6 +431,13 @@ export async function listWorkspaceServers(userId: string) {
       joinedAt: "asc",
     },
     where: {
+      server: {
+        bans: {
+          none: {
+            userId,
+          },
+        },
+      },
       userId,
     },
     select: {
@@ -495,6 +479,7 @@ export async function listWorkspaceServers(userId: string) {
           inviteCode: true,
           name: true,
           ownerId: true,
+          shortName: true,
         },
       },
     },
@@ -521,6 +506,7 @@ export async function listWorkspaceServers(userId: string) {
       inviteCode: membership.server.inviteCode,
       memberCount: membership.server._count.members,
       name: membership.server.name,
+      shortName: membership.server.shortName,
       unreadCount: unreadCounts.get(membership.server.id) ?? 0,
     });
   });
@@ -596,9 +582,14 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
         id: true,
         inviteCode: true,
         members: {
-          orderBy: {
-            joinedAt: "asc",
-          },
+          orderBy: [
+            {
+              joinedAt: "asc",
+            },
+            {
+              id: "asc",
+            },
+          ],
           select: {
             id: true,
             nickname: true,
@@ -625,9 +616,11 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
               },
             },
           },
+          take: SERVER_DETAIL_MEMBER_LIMIT + 1,
         },
         name: true,
         ownerId: true,
+        shortName: true,
       },
     }),
     isAdmin
@@ -670,11 +663,19 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
     ungroupedChannels,
   });
 
-  const members = await mapMembers(server.ownerId, server.members);
+  const memberRows = server.members.slice(0, SERVER_DETAIL_MEMBER_LIMIT);
+  const members = await mapMembers(server.ownerId, memberRows);
 
   return {
     categories,
     invites: mapInvites(invites),
+    memberPage: {
+      limit: SERVER_DETAIL_MEMBER_LIMIT,
+      nextCursor:
+        server.members.length > SERVER_DETAIL_MEMBER_LIMIT
+          ? memberRows.at(-1)?.id ?? null
+          : null,
+    },
     members,
     server: {
       accessLevel: access.accessLevel,
@@ -690,9 +691,113 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
       isOwner: access.accessLevel === "OWNER",
       memberCount: server._count.members,
       name: server.name,
+      shortName: server.shortName,
       unreadCount,
     },
     ungroupedChannels,
+  };
+}
+
+export async function listWorkspaceServerMembers(
+  userId: string,
+  serverId: string,
+  options: {
+    cursor?: string;
+    limit?: number;
+  } = {},
+) {
+  const access = await getAccessContext(userId, serverId);
+  const limit = Math.min(
+    Math.max(options.limit ?? SERVER_MEMBERS_PAGE_LIMIT, 1),
+    SERVER_MEMBERS_PAGE_LIMIT,
+  );
+  let cursorFilter: Prisma.ServerMemberWhereInput = {};
+
+  if (options.cursor) {
+    const cursorMember = await prisma.serverMember.findFirst({
+      where: {
+        id: options.cursor,
+        serverId,
+      },
+      select: {
+        id: true,
+        joinedAt: true,
+      },
+    });
+
+    if (!cursorMember) {
+      throw new ApiError("Member cursor not found", 404, "NOT_FOUND");
+    }
+
+    cursorFilter = {
+      OR: [
+        {
+          joinedAt: {
+            gt: cursorMember.joinedAt,
+          },
+        },
+        {
+          id: {
+            gt: cursorMember.id,
+          },
+          joinedAt: cursorMember.joinedAt,
+        },
+      ],
+    };
+  }
+
+  const rows = await prisma.serverMember.findMany({
+    orderBy: [
+      {
+        joinedAt: "asc",
+      },
+      {
+        id: "asc",
+      },
+    ],
+    select: {
+      id: true,
+      nickname: true,
+      roles: {
+        select: {
+          role: {
+            select: {
+              color: true,
+              id: true,
+              name: true,
+              permissions: true,
+            },
+          },
+        },
+      },
+      user: {
+        select: {
+          avatarUrl: true,
+          customStatus: true,
+          displayName: true,
+          id: true,
+          status: true,
+          username: true,
+        },
+      },
+    },
+    take: limit + 1,
+    where: {
+      serverId,
+      ...cursorFilter,
+    },
+  });
+  const pageRows = rows.slice(0, limit);
+
+  return {
+    memberPage: {
+      limit,
+      nextCursor: rows.length > limit ? pageRows.at(-1)?.id ?? null : null,
+    },
+    members: await mapMembers(
+      access.ownerId,
+      pageRows,
+    ),
   };
 }
 
@@ -712,6 +817,7 @@ export async function createWorkspaceServer(userId: string, input: CreateServerI
         inviteCode,
         name: input.name.trim(),
         ownerId: userId,
+        shortName: input.shortName ?? null,
       },
       select: {
         id: true,
@@ -837,6 +943,10 @@ export async function updateWorkspaceServer(userId: string, serverId: string, in
     data.description = input.description;
   }
 
+  if (input.shortName !== undefined) {
+    data.shortName = input.shortName;
+  }
+
   if (input.iconUrl !== undefined) {
     data.iconUrl = input.iconUrl;
   }
@@ -885,11 +995,34 @@ export async function deleteWorkspaceServer(
     throw new ApiError("Server name confirmation did not match", 400);
   }
 
+  const members = await prisma.serverMember.findMany({
+    where: {
+      serverId,
+    },
+    select: {
+      userId: true,
+    },
+  });
+
   await prisma.server.delete({
     where: {
       id: serverId,
     },
   });
+
+  const io = getSocketServer();
+  if (io) {
+    for (const member of members) {
+      const sockets = await io.in(`user:${member.userId}`).fetchSockets();
+      for (const socket of sockets) {
+        socket.leave(`server:${serverId}`);
+      }
+      io.to(`user:${member.userId}`).emit("server:membership:removed", {
+        reason: "deleted",
+        serverId,
+      });
+    }
+  }
 }
 
 export async function leaveWorkspaceServer(userId: string, serverId: string) {
@@ -908,8 +1041,12 @@ export async function leaveWorkspaceServer(userId: string, serverId: string) {
     },
   });
 
-  const io = getSocketServer();
+  const io = await detachUserFromServerSocketRoom(userId, serverId);
   io?.to(`server:${serverId}`).emit("server:settings:updated", { serverId });
+  io?.to(`user:${userId}`).emit("server:membership:removed", {
+    reason: "left",
+    serverId,
+  });
   io?.to(`user:${userId}`).emit("server:settings:updated", { serverId });
   await emitServerUnreadUpdatesForServer(serverId);
 }
@@ -1719,8 +1856,12 @@ export async function kickWorkspaceMember(userId: string, serverId: string, memb
     },
   });
 
-  const io = getSocketServer();
+  const io = await detachUserFromServerSocketRoom(member.userId, serverId);
   io?.to(`server:${serverId}`).emit("server:settings:updated", { serverId });
+  io?.to(`user:${member.userId}`).emit("server:membership:removed", {
+    reason: "kicked",
+    serverId,
+  });
   io?.to(`user:${member.userId}`).emit("server:settings:updated", { serverId });
   await emitServerUnreadUpdatesForServer(serverId);
 }

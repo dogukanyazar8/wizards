@@ -3,6 +3,7 @@ import {
   UpdateServerSchema,
 } from "@wizards/types";
 import { requireApiUserId } from "@/lib/auth/api";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import {
   deleteWorkspaceServer,
@@ -19,6 +20,7 @@ type RouteContext = {
 export async function GET(_: Request, context: RouteContext) {
   try {
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "server:update");
     const { serverId } = await context.params;
     const detail = await getWorkspaceServerDetail(userId, serverId);
 
@@ -31,6 +33,7 @@ export async function GET(_: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "server:delete");
     const { serverId } = await context.params;
     const input = await parseJsonBody(request, UpdateServerSchema);
     const detail = await updateWorkspaceServer(userId, serverId, input);

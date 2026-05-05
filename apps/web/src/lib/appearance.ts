@@ -316,10 +316,16 @@ export function getThemePreviewBackground(preview: WizardsThemePreview) {
   return `linear-gradient(135deg, ${preview.stops[0]} 0%, ${preview.stops[1]} 55%, ${preview.stops[2]} 100%)`;
 }
 
-export const DEFAULT_SERVER_RAIL_WIDTH = 88;
-export const MIN_SERVER_RAIL_WIDTH = 80;
-export const MAX_SERVER_RAIL_WIDTH = 124;
+export const ICON_ONLY_SERVER_RAIL_WIDTH = 88;
+export const EXPANDED_MIN_SERVER_RAIL_WIDTH = 136;
+export const DEFAULT_SERVER_RAIL_WIDTH = 136;
+export const MIN_SERVER_RAIL_WIDTH = ICON_ONLY_SERVER_RAIL_WIDTH;
+export const MAX_SERVER_RAIL_WIDTH = 184;
 export const SERVER_RAIL_WIDTH_STEP = 4;
+export const DEFAULT_SERVER_RAIL_ICON_SIZE = 40;
+export const MIN_SERVER_RAIL_ICON_SIZE = 34;
+export const MAX_SERVER_RAIL_ICON_SIZE = 54;
+export const SERVER_RAIL_ICON_SIZE_STEP = 2;
 export const DEFAULT_CHANNEL_SIDEBAR_WIDTH = 288;
 export const MIN_CHANNEL_SIDEBAR_WIDTH = 248;
 export const MAX_CHANNEL_SIDEBAR_WIDTH = 384;
@@ -349,6 +355,20 @@ const NOTIFICATION_AUTO_CLOSE_STORAGE_KEY = "wizards.notificationAutoClose";
 
 export function clampServerRailWidth(value: number) {
   return Math.min(MAX_SERVER_RAIL_WIDTH, Math.max(MIN_SERVER_RAIL_WIDTH, value));
+}
+
+export function clampExpandedServerRailWidth(value: number) {
+  return Math.min(
+    MAX_SERVER_RAIL_WIDTH,
+    Math.max(EXPANDED_MIN_SERVER_RAIL_WIDTH, value),
+  );
+}
+
+export function clampServerRailIconSize(value: number) {
+  return Math.min(
+    MAX_SERVER_RAIL_ICON_SIZE,
+    Math.max(MIN_SERVER_RAIL_ICON_SIZE, value),
+  );
 }
 
 export function readStoredServerRailWidth() {

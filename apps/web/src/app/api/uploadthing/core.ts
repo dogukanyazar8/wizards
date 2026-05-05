@@ -14,6 +14,18 @@ import { logError } from "@/lib/logger";
 
 const f = createUploadthing();
 
+export function isUploadUserAllowed(user: {
+  emailVerified: boolean;
+  id: string;
+  isBanned: boolean;
+} | null): user is {
+  emailVerified: true;
+  id: string;
+  isBanned: false;
+} {
+  return Boolean(user && user.emailVerified && !user.isBanned);
+}
+
 async function requireUploadUser() {
   const session = await auth();
   const userId = session?.user?.id;
@@ -22,7 +34,20 @@ async function requireUploadUser() {
     throw new UploadThingError("Unauthorized");
   }
 
-  return { userId };
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      emailVerified: true,
+      id: true,
+      isBanned: true,
+    },
+  });
+
+  if (!isUploadUserAllowed(user)) {
+    throw new UploadThingError("Unauthorized");
+  }
+
+  return { userId: user.id };
 }
 
 async function requireMessageUploadUser() {

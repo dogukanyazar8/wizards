@@ -303,7 +303,7 @@ model UserSettings {
   dmPolicy              DmPolicy                  @default(FRIENDS)
   showReadReceipts      Boolean                   @default(true)
   nsfwAllowed           Boolean                   @default(false)
-  serverRailWidth       Int                       @default(88)
+  serverRailWidth       Int                       @default(136)
   channelSidebarWidth   Int                       @default(288)
   notificationLimit     Int                       @default(5)
   notificationAutoClose Boolean                   @default(true)
@@ -376,6 +376,7 @@ model FriendRequest {
 model Server {
   id                    String                @id @default(uuid())
   name                  String
+  shortName             String?               @db.VarChar(4)
   description           String?
   iconUrl               String?
   iconHash              String?

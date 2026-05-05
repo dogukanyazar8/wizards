@@ -83,6 +83,7 @@ export function WorkspaceModals({
       : null;
 
   const [serverName, setServerName] = useState("");
+  const [serverShortName, setServerShortName] = useState("");
   const [serverDescription, setServerDescription] = useState("");
   const [serverIconUrl, setServerIconUrl] = useState<string | null>(null);
   const [serverAllowGifs, setServerAllowGifs] = useState(true);
@@ -108,6 +109,7 @@ export function WorkspaceModals({
 
     if (serverModal.mode === "edit" && activeServerDetail) {
       setServerName(activeServerDetail.server.name);
+      setServerShortName(activeServerDetail.server.shortName ?? "");
       setServerDescription(activeServerDetail.server.description ?? "");
       setServerIconUrl(activeServerDetail.server.iconUrl ?? null);
       setServerAllowGifs(activeServerDetail.server.allowGifs);
@@ -117,6 +119,7 @@ export function WorkspaceModals({
     }
 
     setServerName("");
+    setServerShortName("");
     setServerDescription("");
     setServerIconUrl(null);
     setServerAllowGifs(true);
@@ -129,6 +132,7 @@ export function WorkspaceModals({
     activeServerDetail?.server.description,
     activeServerDetail?.server.iconUrl,
     activeServerDetail?.server.name,
+    activeServerDetail?.server.shortName,
     activeServerDetail,
     serverModal.mode,
     serverModal.open,
@@ -203,6 +207,7 @@ export function WorkspaceModals({
           description: serverDescription,
           iconUrl: serverIconUrl,
           name: serverName,
+          shortName: serverShortName,
         });
       }
 
@@ -213,6 +218,7 @@ export function WorkspaceModals({
         description: serverDescription,
         iconUrl: serverIconUrl,
         name: serverName,
+        shortName: serverShortName,
       });
     },
     onSuccess: async (result) => {
@@ -461,7 +467,7 @@ export function WorkspaceModals({
           }}
         >
           <ServerIconField
-            label={serverName || "WZ"}
+            label={serverShortName || serverName || "WZ"}
             onChange={setServerIconUrl}
             uploadthingEnabled={uploadthingEnabled}
             value={serverIconUrl}
@@ -480,6 +486,24 @@ export function WorkspaceModals({
             {serverName.trim().length > 0 && serverName.trim().length < 2 ? (
               <p className="text-app-danger text-xs">{t("workspace.modal.serverNameMin")}</p>
             ) : null}
+          </div>
+          <div className="space-y-2">
+            <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+              {t("workspace.modal.serverShortName")}
+            </label>
+            <Input
+              maxLength={4}
+              onChange={(event) =>
+                setServerShortName(
+                  Array.from(event.target.value.trim().toUpperCase()).slice(0, 4).join(""),
+                )
+              }
+              placeholder={t("workspace.modal.serverShortNamePlaceholder")}
+              value={serverShortName}
+            />
+            <p className="text-xs leading-5 text-app-muted">
+              {t("workspace.modal.serverShortNameHint")}
+            </p>
           </div>
           <div className="space-y-2">
             <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
@@ -522,6 +546,11 @@ export function WorkspaceModals({
               title={t("workspace.members.allowAdds.title")}
             />
           </div>
+          {serverMutation.error ? (
+            <div className="app-danger rounded-[24px] border p-4 text-sm font-medium">
+              {t("workspace.modal.serverSaveError")}
+            </div>
+          ) : null}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button className="w-full sm:w-auto" onClick={closeServerModal} type="button" variant="outline">
               {t("common.cancel")}

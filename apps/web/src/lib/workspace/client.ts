@@ -3,6 +3,7 @@
 import {
   WorkspaceServerResponseSchema,
   WorkspaceServersResponseSchema,
+  WorkspaceMembersResponseSchema,
   type UpdateChannelInput,
   type WorkspaceCategory,
   type WorkspaceChannel,
@@ -96,6 +97,26 @@ export async function fetchWorkspaceServer(serverId: string) {
   return parsed.detail;
 }
 
+export async function fetchWorkspaceServerMembers(
+  serverId: string,
+  options: {
+    cursor?: string;
+    limit?: number;
+  } = {},
+) {
+  const params = new URLSearchParams();
+  if (options.cursor) {
+    params.set("cursor", options.cursor);
+  }
+  if (options.limit) {
+    params.set("limit", String(options.limit));
+  }
+
+  const query = params.size > 0 ? `?${params.toString()}` : "";
+  const payload = await requestJson<unknown>(`/api/v1/servers/${serverId}/members${query}`);
+  return WorkspaceMembersResponseSchema.parse(payload);
+}
+
 export async function createServerRequest(input: {
   allowFileUploads?: boolean;
   allowGifs?: boolean;
@@ -103,6 +124,7 @@ export async function createServerRequest(input: {
   description?: string | null;
   iconUrl?: string | null;
   name: string;
+  shortName?: string | null;
 }) {
   return requestJson<{
     channelId: string | null;
@@ -122,6 +144,7 @@ export async function updateServerRequest(
     description?: string | null;
     iconUrl?: string | null;
     name?: string;
+    shortName?: string | null;
   },
 ) {
   return requestJson<{ detail: WorkspaceServerDetail }>(`/api/v1/servers/${serverId}`, {

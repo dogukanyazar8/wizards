@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@wizards/db";
 import { requireApiUserId } from "@/lib/auth/api";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
 import {
   MAX_NOTIFICATION_LIMIT,
@@ -125,6 +126,7 @@ export async function GET() {
 export async function PATCH(request: Request) {
   try {
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "settings:update");
     const body = await parseJsonBody(request, PatchSettingsSchema);
 
     const layoutData: Partial<{

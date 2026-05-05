@@ -1,5 +1,6 @@
 import { prisma } from "@wizards/db";
 import { requireApiUserId } from "@/lib/auth/api";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { ApiError, jsonError } from "@/lib/api";
 import {
   emitServerUnreadUpdateToUser,
@@ -15,6 +16,7 @@ type RouteContext = {
 export async function PATCH(_: Request, context: RouteContext) {
   try {
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "channel:mark-read");
     const { channelId } = await context.params;
 
     const channel = await prisma.channel.findUnique({

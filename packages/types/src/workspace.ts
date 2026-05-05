@@ -17,6 +17,23 @@ const optionalTrimmedString = (maxLength: number) =>
     .or(z.null())
     .transform((value) => emptyStringToNull(value));
 
+const optionalServerShortName = z
+  .string()
+  .trim()
+  .max(4)
+  .regex(/^[\p{L}\p{N}][\p{L}\p{N}_-]{0,3}$/u, "validation.server.shortNamePattern")
+  .optional()
+  .or(z.literal(""))
+  .or(z.null())
+  .transform((value) => {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    const normalized = emptyStringToNull(value);
+    return normalized ? normalized.toUpperCase() : null;
+  });
+
 export const WorkspaceAccessLevelSchema = z.enum(["OWNER", "ADMIN", "MEMBER"]);
 
 export const WorkspaceChannelTypeSchema = z.enum(["TEXT", "VOICE"]);
@@ -66,6 +83,11 @@ export const WorkspaceInviteSchema = z.object({
   uses: z.number().int().nonnegative(),
 });
 
+export const WorkspaceMemberPageSchema = z.object({
+  limit: z.number().int().positive(),
+  nextCursor: z.string().nullable(),
+});
+
 export const WorkspaceServerSummarySchema = z.object({
   allowFileUploads: z.boolean(),
   allowGifs: z.boolean(),
@@ -75,6 +97,7 @@ export const WorkspaceServerSummarySchema = z.object({
   inviteCode: z.string().nullable(),
   memberCount: z.number().int().nonnegative(),
   name: z.string(),
+  shortName: z.string().nullable(),
   defaultChannelId: z.string().nullable(),
   accessLevel: WorkspaceAccessLevelSchema,
   unreadCount: z.number().int().nonnegative(),
@@ -88,6 +111,7 @@ export const WorkspaceServerDetailSchema = z.object({
   }),
   categories: z.array(WorkspaceCategorySchema),
   invites: z.array(WorkspaceInviteSchema),
+  memberPage: WorkspaceMemberPageSchema,
   members: z.array(WorkspaceMemberSchema),
   ungroupedChannels: z.array(WorkspaceChannelSchema),
 });
@@ -98,6 +122,11 @@ export const WorkspaceServersResponseSchema = z.object({
 
 export const WorkspaceServerResponseSchema = z.object({
   detail: WorkspaceServerDetailSchema,
+});
+
+export const WorkspaceMembersResponseSchema = z.object({
+  memberPage: WorkspaceMemberPageSchema,
+  members: z.array(WorkspaceMemberSchema),
 });
 
 export const CreateServerSchema = z.object({
@@ -113,6 +142,7 @@ export const CreateServerSchema = z.object({
     .or(z.null())
     .transform((value) => emptyStringToNull(value)),
   name: z.string().trim().min(2).max(64),
+  shortName: optionalServerShortName,
 });
 
 export const UpdateServerSchema = z
@@ -129,9 +159,11 @@ export const UpdateServerSchema = z
       .or(z.null())
       .transform((value) => emptyStringToNull(value)),
     name: z.string().trim().min(2).max(64).optional(),
+    shortName: optionalServerShortName,
   })
   .refine((value) =>
     value.name !== undefined ||
+    value.shortName !== undefined ||
     value.description !== undefined ||
     value.iconUrl !== undefined ||
     value.allowGifs !== undefined ||
@@ -208,6 +240,8 @@ export type WorkspaceChannel = z.infer<typeof WorkspaceChannelSchema>;
 export type WorkspaceChannelType = z.infer<typeof WorkspaceChannelTypeSchema>;
 export type WorkspaceInvite = z.infer<typeof WorkspaceInviteSchema>;
 export type WorkspaceMember = z.infer<typeof WorkspaceMemberSchema>;
+export type WorkspaceMemberPage = z.infer<typeof WorkspaceMemberPageSchema>;
+export type WorkspaceMembersResponse = z.infer<typeof WorkspaceMembersResponseSchema>;
 export type WorkspaceServerDetail = z.infer<typeof WorkspaceServerDetailSchema>;
 export type WorkspaceServerSummary = z.infer<typeof WorkspaceServerSummarySchema>;
 export type CreateServerInput = z.infer<typeof CreateServerSchema>;

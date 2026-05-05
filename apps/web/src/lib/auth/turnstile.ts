@@ -38,8 +38,10 @@ function getTurnstileSecret() {
   return secret;
 }
 
-function getExpectedHostnames() {
-  return [process.env.APP_URL, process.env.AUTH_URL, process.env.NEXTAUTH_URL]
+export function getExpectedTurnstileHostnames(
+  env: Record<string, string | undefined> = process.env,
+) {
+  return [env.APP_URL, env.AUTH_URL, env.NEXTAUTH_URL]
     .map((value) => {
       if (!value?.trim()) {
         return null;
@@ -52,6 +54,30 @@ function getExpectedHostnames() {
       }
     })
     .filter((hostname): hostname is string => Boolean(hostname));
+}
+
+export function assertTurnstileHostnameAllowed(
+  hostname: string | undefined,
+  expectedHostnames: string[],
+  isProduction = process.env.NODE_ENV === "production",
+) {
+  if (expectedHostnames.length === 0) {
+    if (isProduction) {
+      throw new TurnstileVerificationError(
+        "CONFIGURATION_ERROR",
+        "Turnstile hostname validation is not configured.",
+      );
+    }
+
+    return;
+  }
+
+  if (hostname && !expectedHostnames.includes(hostname.toLowerCase())) {
+    throw new TurnstileVerificationError(
+      "ACTION_MISMATCH",
+      "Turnstile hostname mismatch.",
+    );
+  }
 }
 
 export async function verifyTurnstileToken(token: string, remoteIp?: string) {
@@ -120,17 +146,11 @@ export async function verifyTurnstileToken(token: string, remoteIp?: string) {
     );
   }
 
-  const expectedHostnames = getExpectedHostnames();
-  if (
-    result.hostname &&
-    expectedHostnames.length > 0 &&
-    !expectedHostnames.includes(result.hostname.toLowerCase())
-  ) {
-    throw new TurnstileVerificationError(
-      "ACTION_MISMATCH",
-      "Turnstile hostname mismatch.",
-    );
-  }
+  assertTurnstileHostnameAllowed(
+    result.hostname,
+    getExpectedTurnstileHostnames(),
+    process.env.NODE_ENV === "production",
+  );
 
   return true;
 }

@@ -250,12 +250,23 @@ export async function createLiveKitToken(
     select: {
       avatarUrl: true,
       displayName: true,
+      emailVerified: true,
+      isBanned: true,
+      id: true,
       username: true,
     },
   });
 
   if (!user) {
     throw new ApiError("User not found", 404, "NOT_FOUND");
+  }
+
+  if (user.isBanned) {
+    throw new ApiError("Your account has been suspended", 403, "ACCOUNT_SUSPENDED");
+  }
+
+  if (!user.emailVerified) {
+    throw new ApiError("Email verification is required", 403, "EMAIL_VERIFICATION_REQUIRED");
   }
 
   const { apiKey, apiSecret } = getLiveKitCredentials();

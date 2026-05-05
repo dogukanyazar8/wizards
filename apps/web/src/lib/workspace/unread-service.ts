@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Prisma, prisma } from "@wizards/db";
 import { getSocketServer } from "@/lib/socket/runtime";
 
@@ -131,30 +132,21 @@ export async function markChannelReadStates(args: {
     return;
   }
 
-  await prisma.$transaction(
-    uniqueUserIds.map((userId) =>
-      prisma.channelReadState.upsert({
-        where: {
-          channelId_userId: {
-            channelId: args.channelId,
-            userId,
-          },
-        },
-        update: {
-          lastReadAt: args.lastReadAt,
-          lastReadMessageId: args.lastReadMessageId ?? null,
-          mentionCount: 0,
-        },
-        create: {
-          channelId: args.channelId,
-          userId,
-          lastReadAt: args.lastReadAt,
-          lastReadMessageId: args.lastReadMessageId ?? null,
-          mentionCount: 0,
-        },
-      }),
-    ),
-  );
+  const lastReadMessageId = args.lastReadMessageId ?? null;
+  const values = uniqueUserIds.map((userId) => Prisma.sql`
+    (${randomUUID()}, ${args.channelId}, ${userId}, ${args.lastReadAt}, ${lastReadMessageId}, 0)
+  `);
+
+  await prisma.$executeRaw(Prisma.sql`
+    INSERT INTO "ChannelReadState"
+      ("id", "channelId", "userId", "lastReadAt", "lastReadMessageId", "mentionCount")
+    VALUES ${Prisma.join(values)}
+    ON CONFLICT ("channelId", "userId")
+    DO UPDATE SET
+      "lastReadAt" = EXCLUDED."lastReadAt",
+      "lastReadMessageId" = EXCLUDED."lastReadMessageId",
+      "mentionCount" = 0
+  `);
 }
 
 export function getActiveChannelViewerUserIds(channelId: string) {

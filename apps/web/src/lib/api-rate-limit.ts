@@ -1,0 +1,74 @@
+import { ApiError } from "@/lib/api";
+import { logError } from "@/lib/logger";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getRedis } from "@/lib/redis";
+
+export const API_RATE_LIMITS = {
+  "category:create": { limit: 30, windowSeconds: 60 },
+  "category:delete": { limit: 30, windowSeconds: 60 },
+  "category:update": { limit: 30, windowSeconds: 60 },
+  "channel:clear-history": { limit: 10, windowSeconds: 60 },
+  "channel:create": { limit: 30, windowSeconds: 60 },
+  "channel:delete": { limit: 30, windowSeconds: 60 },
+  "channel:mark-read": { limit: 180, windowSeconds: 60 },
+  "channel:reorder": { limit: 20, windowSeconds: 60 },
+  "channel:update": { limit: 30, windowSeconds: 60 },
+  "dm:create": { limit: 30, windowSeconds: 60 },
+  "dm:hide": { limit: 60, windowSeconds: 60 },
+  "dm:mark-read": { limit: 180, windowSeconds: 60 },
+  "friend:block": { limit: 30, windowSeconds: 10 * 60 },
+  "friend:remove": { limit: 30, windowSeconds: 10 * 60 },
+  "friend:request": { limit: 20, windowSeconds: 10 * 60 },
+  "friend:request-action": { limit: 60, windowSeconds: 10 * 60 },
+  "giphy:attachment": { limit: 60, windowSeconds: 60 },
+  "invite:create": { limit: 20, windowSeconds: 10 * 60 },
+  "invite:revoke": { limit: 60, windowSeconds: 10 * 60 },
+  "member:add": { limit: 30, windowSeconds: 10 * 60 },
+  "member:kick": { limit: 30, windowSeconds: 10 * 60 },
+  "member:leave": { limit: 20, windowSeconds: 10 * 60 },
+  "notification:clear": { limit: 30, windowSeconds: 60 },
+  "notification:mark-read": { limit: 120, windowSeconds: 60 },
+  "server:create": { limit: 10, windowSeconds: 60 * 60 },
+  "server:delete": { limit: 5, windowSeconds: 60 * 60 },
+  "server:update": { limit: 30, windowSeconds: 60 },
+  "settings:update": { limit: 60, windowSeconds: 60 },
+  "voice:heartbeat": { limit: 240, windowSeconds: 60 },
+  "voice:state": { limit: 60, windowSeconds: 60 },
+} as const;
+
+export type ApiRateLimitAction = keyof typeof API_RATE_LIMITS;
+
+export function getApiRateLimitConfig(action: ApiRateLimitAction) {
+  return API_RATE_LIMITS[action];
+}
+
+export async function enforceApiRateLimit(
+  userId: string,
+  action: ApiRateLimitAction,
+) {
+  const config = getApiRateLimitConfig(action);
+
+  try {
+    const isAllowed = await checkRateLimit(
+      getRedis(),
+      `rate:api:${action}:${userId}`,
+      config.limit,
+      config.windowSeconds,
+    );
+
+    if (!isAllowed) {
+      throw new ApiError("Too many requests. Please try again shortly.", 429, "RATE_LIMITED");
+    }
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    logError(`[api-rate-limit] ${action} unavailable`, error);
+    throw new ApiError(
+      "Request checks are temporarily unavailable. Please try again shortly.",
+      503,
+      "RATE_LIMIT_UNAVAILABLE",
+    );
+  }
+}

@@ -3,6 +3,7 @@
 import { ImagePlus, LoaderCircle, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
+import { useI18n } from "@/components/providers/locale-provider";
 import { useUploadThing } from "@/lib/uploadthing";
 
 type ServerIconFieldProps = {
@@ -18,6 +19,7 @@ export function ServerIconField({
   uploadthingEnabled,
   value,
 }: ServerIconFieldProps) {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [localPreview, setLocalPreview] = useState<string | null>(value ?? null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -54,21 +56,21 @@ export function ServerIconField({
         />
 
         <div className="min-w-0 flex-1">
-          <p className="text-app-foreground text-sm font-semibold">Server Icon</p>
+          <p className="text-app-foreground text-sm font-semibold">{t("workspace.modal.serverIcon")}</p>
           <p className="text-app-muted mt-1 text-xs leading-5">
-            Upload a square image for the rail. A live preview keeps the crop feeling intentional.
+            {t("workspace.modal.serverIconDescription")}
           </p>
           {uploadError ? (
             <p className="text-app-danger mt-2 text-xs">{uploadError}</p>
           ) : null}
           {!uploadthingEnabled ? (
             <p className="text-app-warning mt-2 text-xs">
-              Add `UPLOADTHING_TOKEN` to enable cloud uploads.
+              {t("workspace.modal.serverIconUploadsDisabled")}
             </p>
           ) : null}
           {isUploading ? (
             <p className="text-app-accent mt-2 text-xs">
-              Uploading icon... {progress}%
+              {t("workspace.modal.serverIconUploading", { progress })}
             </p>
           ) : null}
         </div>
@@ -107,7 +109,7 @@ export function ServerIconField({
           type="button"
         >
           {isUploading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-          Choose Image
+          {t("workspace.modal.serverIconChoose")}
         </button>
 
         <button
@@ -120,7 +122,7 @@ export function ServerIconField({
           type="button"
         >
           <Trash2 className="h-4 w-4" />
-          Clear
+          {t("workspace.modal.serverIconClear")}
         </button>
       </div>
     </div>

@@ -38,6 +38,9 @@ import {
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
 import { fetchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
+import {
+  ICON_ONLY_SERVER_RAIL_WIDTH,
+} from "@/lib/appearance";
 
 type WizardsShellProps = {
   children?: React.ReactNode;
@@ -133,6 +136,14 @@ interface NavigationPanelProps {
   onOpenCreateServer: () => void;
   onOpenServerContextMenu: (serverId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
   onOpenSettings: () => void;
+  serverRailIconSize: number;
+  serverRailWidth: number;
+  isServerRailIconOnly: boolean;
+  currentUserId: string;
+  onExpandServerRail: () => void;
+  onCollapseServerRail: () => void;
+  onServerRailIconSizeChange: (size: number) => void;
+  onServerRailWidthChange: (width: number) => void;
 }
 
 const NavigationPanel = React.memo(
@@ -151,22 +162,38 @@ const NavigationPanel = React.memo(
     onOpenCreateServer,
     onOpenServerContextMenu,
     onOpenSettings,
+    serverRailIconSize,
+    serverRailWidth,
+    isServerRailIconOnly,
+    currentUserId,
+    onExpandServerRail,
+    onCollapseServerRail,
+    onServerRailIconSizeChange,
+    onServerRailWidthChange,
   }: NavigationPanelProps) => (
     <>
-      <div className={isMobile ? "flex h-full w-[72px] shrink-0 [--server-rail-width:72px]" : "hidden md:flex"}>
+      <div className={isMobile ? "flex h-full w-[112px] shrink-0 [--server-rail-width:112px]" : "hidden md:flex"}>
         <ServerRail
           activeServerId={activeServerId}
+          currentUserId={currentUserId}
           dmUnreadCount={dmUnreadCount}
+          iconSize={serverRailIconSize}
+          isIconOnly={isServerRailIconOnly}
           loading={serversQueryLoading}
           onNavigate={onNavigate}
           onOpenCreateServer={onOpenCreateServer}
           onOpenServerContextMenu={onOpenServerContextMenu}
           onPrefetch={onPrefetch}
+          onSetIconSize={onServerRailIconSizeChange}
+          onSetExpanded={onExpandServerRail}
+          onSetIconOnly={onCollapseServerRail}
+          onSetWidth={onServerRailWidthChange}
+          serverRailWidth={serverRailWidth}
           servers={servers}
         />
       </div>
       <div
-        className={isMobile ? "flex min-w-0 max-w-[calc(100vw-72px)] flex-1 overflow-hidden" : "hidden md:flex"}
+        className={isMobile ? "flex min-w-0 max-w-[calc(100vw-112px)] flex-1 overflow-hidden" : "hidden md:flex"}
         style={isMobile ? undefined : { width: `var(--channel-sidebar-width)` }}
       >
         <ChannelSidebar
@@ -268,10 +295,15 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     persistedActiveArea,
     persistedActiveChannelId,
     persistedActiveServerId,
+    serverRailCollapsed,
+    serverRailIconSize,
     serverRailWidth,
     serverContextMenu,
     serverSettingsServerId,
     setActiveRoute,
+    setServerRailCollapsed,
+    setServerRailIconSize,
+    setServerRailWidth,
     setMobileSidebarOpen,
     applyPersistedSettings,
   } = useAppStore(
@@ -290,10 +322,15 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       persistedActiveArea: state.activeArea,
       persistedActiveChannelId: state.activeChannelId,
       persistedActiveServerId: state.activeServerId,
+      serverRailCollapsed: state.serverRailCollapsed,
+      serverRailIconSize: state.serverRailIconSize,
       serverRailWidth: state.serverRailWidth,
       serverContextMenu: state.serverContextMenu,
       serverSettingsServerId: state.serverSettingsServerId,
       setActiveRoute: state.setActiveRoute,
+      setServerRailCollapsed: state.setServerRailCollapsed,
+      setServerRailIconSize: state.setServerRailIconSize,
+      setServerRailWidth: state.setServerRailWidth,
       setMobileSidebarOpen: state.setMobileSidebarOpen,
       applyPersistedSettings: state.applyPersistedSettings,
     })),
@@ -323,6 +360,10 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const isDmRoute = rawServerId === "@me" && Boolean(activeChannelId);
   const isServerIndexRoute = Boolean(activeServerId && !activeChannelId);
   const isServerConversationRoute = Boolean(activeServerId && activeChannelId);
+  const isServerRailIconOnly = serverRailCollapsed;
+  const displayServerRailWidth = isServerRailIconOnly
+    ? ICON_ONLY_SERVER_RAIL_WIDTH
+    : serverRailWidth;
   const showMobileBackButton = isDmRoute || isServerConversationRoute;
 
   useEffect(() => {
@@ -503,10 +544,63 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   });
 
   const isServersLoading = serversQuery.isLoading;
+  const isServersRefreshing = serversQuery.isLoading || serversQuery.isFetching;
   const servers = useMemo<WorkspaceServerSummary[]>(
     () => serversQuery.data ?? [],
     [serversQuery.data],
   );
+  const removeServerAccess = React.useCallback(
+    (serverId: string) => {
+      forgetServerState(serverId);
+      queryClient.removeQueries({
+        queryKey: workspaceQueryKeys.server(serverId),
+      });
+
+      const currentServers =
+        queryClient.getQueryData<WorkspaceServerSummary[]>(workspaceQueryKeys.servers) ??
+        servers;
+      const nextServers = currentServers.filter((server) => server.id !== serverId);
+      queryClient.setQueryData(workspaceQueryKeys.servers, nextServers);
+
+      if (serverId === activeServerId && (isServerConversationRoute || isServerIndexRoute)) {
+        router.replace(getWorkspaceFallbackHref(nextServers, serverId));
+      }
+    },
+    [
+      activeServerId,
+      forgetServerState,
+      isServerConversationRoute,
+      isServerIndexRoute,
+      queryClient,
+      router,
+      servers,
+    ],
+  );
+  useEffect(() => {
+    const handleServerMembershipRemoved = (data: {
+      reason: "deleted" | "kicked" | "left";
+      serverId: string;
+    }) => {
+      removeServerAccess(data.serverId);
+      void queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.servers,
+      });
+    };
+
+    socket.on("server:membership:removed", handleServerMembershipRemoved);
+    return () => {
+      socket.off("server:membership:removed", handleServerMembershipRemoved);
+    };
+  }, [queryClient, removeServerAccess, socket]);
+  useEffect(() => {
+    if (!activeServerId || !(serverDetailQuery.error instanceof WorkspaceClientError)) {
+      return;
+    }
+
+    if (serverDetailQuery.error.status === 403 || serverDetailQuery.error.status === 404) {
+      removeServerAccess(activeServerId);
+    }
+  }, [activeServerId, removeServerAccess, serverDetailQuery.error]);
   const dmUnreadCount = useMemo(
     () =>
       dmConversations.reduce((total, conversation) => {
@@ -534,9 +628,10 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     () =>
       ({
         "--channel-sidebar-width": `${channelSidebarWidth}px`,
-        "--server-rail-width": `${serverRailWidth}px`,
+        "--server-rail-icon-size": `${serverRailIconSize}px`,
+        "--server-rail-width": `${displayServerRailWidth}px`,
       }) as CSSProperties,
-    [channelSidebarWidth, serverRailWidth],
+    [channelSidebarWidth, displayServerRailWidth, serverRailIconSize],
   );
 
   useEffect(() => {
@@ -600,7 +695,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   ]);
 
   useEffect(() => {
-    if (!appearanceHydrated || !activeServerId || isServersLoading) {
+    if (!appearanceHydrated || !activeServerId || isServersRefreshing) {
       return;
     }
 
@@ -619,7 +714,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     forgetServerState,
     isServerConversationRoute,
     isServerIndexRoute,
-    isServersLoading,
+    isServersRefreshing,
     router,
     servers,
   ]);
@@ -732,7 +827,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     >
       <div
         className="hidden h-full shrink-0 md:flex"
-        style={{ width: `calc(${serverRailWidth}px + ${channelSidebarWidth}px)` }}
+        style={{ width: `calc(${displayServerRailWidth}px + ${channelSidebarWidth}px)` }}
         suppressHydrationWarning
       >
         <NavigationPanel
@@ -745,6 +840,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
           serverDetailQueryData={serverDetailQuery.data}
           serverDetailQueryLoading={serverDetailQuery.isLoading}
           currentUser={currentUser}
+          currentUserId={currentUser.id}
           onNavigate={navigate}
           onPrefetch={prefetch}
           onOpenCreateServer={() => openServerModal({ mode: "create" })}
@@ -756,6 +852,13 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
             });
           }}
           onOpenSettings={openSettings}
+          serverRailIconSize={serverRailIconSize}
+          serverRailWidth={serverRailWidth}
+          isServerRailIconOnly={isServerRailIconOnly}
+          onExpandServerRail={() => setServerRailCollapsed(false)}
+          onCollapseServerRail={() => setServerRailCollapsed(true)}
+          onServerRailIconSizeChange={setServerRailIconSize}
+          onServerRailWidthChange={setServerRailWidth}
         />
       </div>
 
@@ -793,6 +896,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                 serverDetailQueryData={serverDetailQuery.data}
                 serverDetailQueryLoading={serverDetailQuery.isLoading}
                 currentUser={currentUser}
+                currentUserId={currentUser.id}
                 onNavigate={navigate}
                 onPrefetch={prefetch}
                 onOpenCreateServer={() => openServerModal({ mode: "create" })}
@@ -804,6 +908,13 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                   });
                 }}
                 onOpenSettings={openSettings}
+                serverRailIconSize={serverRailIconSize}
+                serverRailWidth={serverRailWidth}
+                isServerRailIconOnly={false}
+                onExpandServerRail={() => setServerRailCollapsed(false)}
+                onCollapseServerRail={() => setServerRailCollapsed(true)}
+                onServerRailIconSizeChange={setServerRailIconSize}
+                onServerRailWidthChange={setServerRailWidth}
               />
             </motion.div>
           </motion.div>

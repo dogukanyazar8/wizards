@@ -1,12 +1,18 @@
-import type Redis from "ioredis";
 import { Prisma, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { getRedis } from "@/lib/redis";
 import { normalizeAppLocale, translate } from "@/lib/locale";
-import { getBlockStatus, getFriendship } from "@/lib/friends/helpers";
+import {
+  getBlockStatus,
+  getFriendship,
+  haveMutualFriends,
+  haveMutualServers,
+} from "@/lib/friends/helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { logError } from "@/lib/logger";
+import { readPresenceMap } from "@/lib/presence";
+import { canSendFriendRequest } from "@/lib/privacy-policy";
 import type {
   BlockStatus,
   FriendDto,
@@ -40,16 +46,6 @@ const friendListUserSelect = {
   customStatus: true,
 } as const;
 
-const FRIEND_PRESENCE_STATUSES = [
-  "ONLINE",
-  "IDLE",
-  "DND",
-  "OFFLINE",
-  "INVISIBLE",
-] as const;
-
-type RedisPresenceStatus = (typeof FRIEND_PRESENCE_STATUSES)[number];
-
 type FriendRequestRecord = {
   id: string;
   senderId: string;
@@ -65,11 +61,6 @@ type NotificationUserRecord = FriendUserDto & {
   locale: string;
 };
 
-type FriendListUserRecord = FriendUserDto & {
-  customStatus: string | null;
-};
-
-type PresenceFields = Pick<FriendDto, "customStatus" | "status">;
 type FriendsUpdatedReason =
   | "blocked"
   | "friend_request_accepted"
@@ -78,114 +69,6 @@ type FriendsUpdatedReason =
   | "friend_request_rejected"
   | "friend_removed"
   | "unblocked";
-
-function isPresenceStatus(value: string): value is RedisPresenceStatus {
-  return FRIEND_PRESENCE_STATUSES.includes(value as RedisPresenceStatus);
-}
-
-function normalizePresenceStatus(value: unknown): RedisPresenceStatus | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const normalized = value.trim().toUpperCase();
-  return isPresenceStatus(normalized) ? normalized : null;
-}
-
-function toVisiblePresenceStatus(status: RedisPresenceStatus | null): FriendPresenceStatus | null {
-  if (!status) {
-    return null;
-  }
-
-  return status === "INVISIBLE" ? "OFFLINE" : status;
-}
-
-function normalizeNullableString(value: unknown): string | null | undefined {
-  if (value === null) {
-    return null;
-  }
-
-  if (typeof value !== "string") {
-    return undefined;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function parsePresenceRecord(
-  record: Record<string, unknown>,
-  fallback: PresenceFields,
-): PresenceFields {
-  const customStatus = normalizeNullableString(record.customStatus);
-  const customStatusSnake = normalizeNullableString(record.custom_status);
-
-  return {
-    status:
-      toVisiblePresenceStatus(normalizePresenceStatus(record.status)) ??
-      toVisiblePresenceStatus(normalizePresenceStatus(record.presence)) ??
-      fallback.status,
-    customStatus:
-      customStatus !== undefined
-        ? customStatus
-        : customStatusSnake !== undefined
-          ? customStatusSnake
-          : fallback.customStatus,
-  };
-}
-
-function parsePresencePayload(rawValue: string | null, fallback: PresenceFields): PresenceFields {
-  if (!rawValue) {
-    return fallback;
-  }
-
-  const directStatus = normalizePresenceStatus(rawValue);
-  if (directStatus) {
-    return {
-      ...fallback,
-      status: toVisiblePresenceStatus(directStatus) ?? fallback.status,
-    };
-  }
-
-  try {
-    const parsed: unknown = JSON.parse(rawValue);
-    if (isRecord(parsed)) {
-      return parsePresenceRecord(parsed, fallback);
-    }
-  } catch {
-    return fallback;
-  }
-
-  return fallback;
-}
-
-async function readPresence(
-  redis: Redis,
-  userId: string,
-  fallback: PresenceFields,
-): Promise<PresenceFields> {
-  const key = `presence:${userId}`;
-
-  try {
-    const keyType = await redis.type(key);
-
-    if (keyType === "string") {
-      return parsePresencePayload(await redis.get(key), fallback);
-    }
-
-    if (keyType === "hash") {
-      return parsePresenceRecord(await redis.hgetall(key), fallback);
-    }
-  } catch {
-    return fallback;
-  }
-
-  return fallback;
-}
 
 function getPresenceRedisKey(userId: string) {
   return `presence:${userId}`;
@@ -448,15 +331,7 @@ export async function broadcastPresenceUpdateToFriends(
     return;
   }
 
-  const serverMemberships = await prisma.serverMember.findMany({
-    where: { userId: update.userId },
-    select: { serverId: true },
-  });
-  const serverIds = serverMemberships.map((membership) => membership.serverId);
-
-  // Presence is rendered in friends, DMs, and shared server message history.
-  // Emit to user rooms only; never broadcast presence globally.
-  const [friendships, memberships] = await Promise.all([
+  const [friendships, serverMemberships] = await Promise.all([
     prisma.friendRequest.findMany({
       where: {
         status: "ACCEPTED",
@@ -468,11 +343,8 @@ export async function broadcastPresenceUpdateToFriends(
       },
     }),
     prisma.serverMember.findMany({
-      distinct: ["userId"],
-      where: {
-        serverId: { in: serverIds },
-      },
-      select: { userId: true },
+      where: { userId: update.userId },
+      select: { serverId: true },
     }),
   ]);
 
@@ -484,12 +356,12 @@ export async function broadcastPresenceUpdateToFriends(
     targetUserIds.add(friendId);
   }
 
-  for (const membership of memberships) {
-    targetUserIds.add(membership.userId);
-  }
-
   for (const targetUserId of targetUserIds) {
     io.to(`user:${targetUserId}`).emit("presence:update", update);
+  }
+
+  for (const membership of serverMemberships) {
+    io.to(`server:${membership.serverId}`).emit("presence:update", update);
   }
 }
 
@@ -506,28 +378,34 @@ export async function listFriends(userId: string): Promise<FriendDto[]> {
     orderBy: { updatedAt: "desc" },
   });
 
-  const redis = getRedis();
-
-  return Promise.all(
-    friendships.map(async (friendship) => {
-      const friend: FriendListUserRecord =
-        friendship.senderId === userId ? friendship.receiver : friendship.sender;
-      const presence = await readPresence(redis, friend.id, {
-        status: "OFFLINE",
-        customStatus: friend.customStatus,
-      });
-
-      return {
-        id: friend.id,
-        username: friend.username,
-        displayName: friend.displayName,
-        avatarUrl: friend.avatarUrl,
-        status: presence.status,
-        customStatus: presence.customStatus,
-        presence,
-      };
-    }),
+  const friends = friendships.map((friendship) =>
+    friendship.senderId === userId ? friendship.receiver : friendship.sender,
   );
+  const presenceByUserId = await readPresenceMap(
+    getRedis(),
+    friends.map((friend) => ({
+      customStatus: friend.customStatus,
+      status: "OFFLINE",
+      userId: friend.id,
+    })),
+  );
+
+  return friends.map((friend) => {
+    const presence = presenceByUserId.get(friend.id) ?? {
+      status: "OFFLINE" as const,
+      customStatus: friend.customStatus,
+    };
+
+    return {
+      id: friend.id,
+      username: friend.username,
+      displayName: friend.displayName,
+      avatarUrl: friend.avatarUrl,
+      status: presence.status,
+      customStatus: presence.customStatus,
+      presence,
+    };
+  });
 }
 
 export async function listPendingFriendRequests(userId: string): Promise<PendingFriendsResponse> {
@@ -598,6 +476,25 @@ export async function sendFriendRequest(
 
   ensureDistinctUsers(senderId, receiver.id);
   ensureNotBlocked(await getBlockStatus(senderId, receiver.id));
+
+  const receiverSettings = await prisma.userSettings.findUnique({
+    where: { userId: receiver.id },
+    select: { friendRequestPolicy: true },
+  });
+  const friendRequestPolicy = receiverSettings?.friendRequestPolicy ?? "EVERYONE";
+  const [sharesMutualServers, sharesMutualFriends] = await Promise.all([
+    haveMutualServers(senderId, receiver.id),
+    haveMutualFriends(senderId, receiver.id),
+  ]);
+
+  if (
+    !canSendFriendRequest(friendRequestPolicy, {
+      haveMutualFriends: sharesMutualFriends,
+      haveMutualServers: sharesMutualServers,
+    })
+  ) {
+    throw new ApiError("This user is not accepting friend requests", 403, "FRIEND_REQUEST_POLICY");
+  }
 
   const friendship = await getFriendship(senderId, receiver.id);
   if (friendship) {

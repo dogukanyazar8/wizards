@@ -96,6 +96,10 @@ export interface ServerToClientEvents {
     reactions: MessageReaction[];
   }) => void;
   "server:unread:update": (data: { serverId: string; unreadCount: number }) => void;
+  "server:membership:removed": (data: {
+    reason: "deleted" | "kicked" | "left";
+    serverId: string;
+  }) => void;
   "server:settings:updated": (data: { serverId: string }) => void;
   "dm:message:new": (message: DMMessagePayload) => void;
   "dm:message:updated": (message: DMMessagePayload) => void;

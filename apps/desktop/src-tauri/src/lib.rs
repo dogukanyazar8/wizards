@@ -143,15 +143,24 @@ fn request_app_quit(app: &tauri::AppHandle) {
 }
 
 fn configured_app_url() -> Url {
-    let fallback = if cfg!(debug_assertions) {
-        "http://localhost:3000"
-    } else {
-        "https://whispr.example.com"
+    let raw_url = match std::env::var("WHISPR_DESKTOP_WEB_URL") {
+        Ok(value) => value,
+        Err(_) if cfg!(debug_assertions) => "http://localhost:3000".into(),
+        Err(_) => {
+            panic!(
+                "WHISPR_DESKTOP_WEB_URL is required for production desktop builds. \
+                 Use apps/desktop/scripts/run-tauri.mjs build with TAURI_WEB_URL set."
+            )
+        }
     };
 
-    let raw_url = std::env::var("WHISPR_DESKTOP_WEB_URL").unwrap_or_else(|_| fallback.into());
+    let url = Url::parse(&raw_url).expect("WHISPR_DESKTOP_WEB_URL must be a valid URL");
 
-    Url::parse(&raw_url).expect("WHISPR_DESKTOP_WEB_URL must be a valid URL")
+    if !cfg!(debug_assertions) && url.scheme() != "https" {
+        panic!("WHISPR_DESKTOP_WEB_URL must use HTTPS in production desktop builds");
+    }
+
+    url
 }
 
 fn is_same_origin(candidate: &Url, allowed_origin: &Url) -> bool {
@@ -203,7 +212,7 @@ fn set_oauth_navigation_active(oauth_navigation_active: &Arc<Mutex<bool>>, next_
 
 fn open_external_url(url: &Url) {
     match url.scheme() {
-        "http" | "https" | "mailto" | "tel" => {
+        "https" | "mailto" | "tel" => {
             if let Err(error) = open::that(url.as_str()) {
                 eprintln!("Failed to open external URL in default browser: {error}");
             }

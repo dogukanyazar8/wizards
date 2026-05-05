@@ -1008,12 +1008,6 @@ export function ChannelSidebar({
         open={emptyMenu.open}
         position={emptyMenu}
       >
-        <div className="px-3 py-2">
-          <p className="text-app-soft text-[10px] font-semibold uppercase tracking-[0.2em]">
-            {t("shell.channelSidebar.emptyAreaMenu")}
-          </p>
-        </div>
-        <ContextMenuSeparator />
         <ContextMenuItem
           onClick={() => {
             setEmptyMenu((state) => ({ ...state, open: false }));

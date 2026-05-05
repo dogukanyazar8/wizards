@@ -1,11 +1,13 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
 type AvatarProps = {
   alt: string;
   className?: string;
   fallback: string;
+  style?: CSSProperties;
   src?: string | null | undefined;
 };
 
@@ -27,7 +29,7 @@ function getFallbackInitials(value: string) {
   return `${tokens[0]![0] ?? ""}${tokens[tokens.length - 1]![0] ?? ""}`.toUpperCase();
 }
 
-export function Avatar({ alt, className, fallback, src }: AvatarProps) {
+export function Avatar({ alt, className, fallback, src, style }: AvatarProps) {
   return (
     <div
       aria-label={alt}
@@ -37,6 +39,7 @@ export function Avatar({ alt, className, fallback, src }: AvatarProps) {
         className,
       )}
       role="img"
+      style={style}
     >
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element

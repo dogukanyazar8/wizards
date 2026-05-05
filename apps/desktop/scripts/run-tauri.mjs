@@ -30,6 +30,7 @@ const capabilityUrls =
   command === "dev"
     ? Array.from(new Set([originPattern(devUrl), "http://localhost:3000", "http://127.0.0.1:3000"]))
     : [originPattern(webUrl)];
+const desktopCsp = buildDesktopCsp(webUrl, command);
 const tauriEnv = {
   ...process.env,
   PATH: withRustupPath(process.env.PATH),
@@ -52,6 +53,7 @@ await writeFile(
         withGlobalTauri: false,
         windows: [],
         security: {
+          csp: desktopCsp,
           capabilities: [
             {
               identifier: "whispr-desktop-native-ux",
@@ -141,6 +143,63 @@ function parseUrl(value, name) {
 
 function originPattern(url) {
   return `${url.protocol}//${url.host}`;
+}
+
+function buildDesktopCsp(webUrl, mode) {
+  const connectSources = new Set([
+    "'self'",
+    originPattern(webUrl),
+    "https://api.giphy.com",
+    "https://*.giphy.com",
+    "https://*.livekit.cloud",
+    "https://*.ufs.sh",
+    "https://*.uploadthing.com",
+    "https://challenges.cloudflare.com",
+    "wss://*.livekit.cloud",
+  ]);
+
+  if (mode === "dev") {
+    connectSources.add("http://localhost:*");
+    connectSources.add("http://127.0.0.1:*");
+    connectSources.add("ws://localhost:*");
+    connectSources.add("ws://127.0.0.1:*");
+  }
+
+  const directives = {
+    "base-uri": ["'self'"],
+    "connect-src": [...connectSources],
+    "default-src": ["'self'"],
+    "font-src": ["'self'", "data:"],
+    "form-action": ["'self'"],
+    "frame-ancestors": ["'none'"],
+    "frame-src": ["'self'", "https://challenges.cloudflare.com"],
+    "img-src": [
+      "'self'",
+      "blob:",
+      "data:",
+      "https://*.giphy.com",
+      "https://*.googleusercontent.com",
+      "https://*.ufs.sh",
+      "https://*.uploadthing.com",
+      "https://avatars.githubusercontent.com",
+      "https://media*.giphy.com",
+    ],
+    "media-src": [
+      "'self'",
+      "blob:",
+      "data:",
+      "https://*.ufs.sh",
+      "https://*.uploadthing.com",
+    ],
+    "object-src": ["'none'"],
+    "script-src": ["'self'", "https://challenges.cloudflare.com"],
+    "style-src": ["'self'", "'unsafe-inline'"],
+    "worker-src": ["'self'", "blob:"],
+  };
+
+  return Object.entries(directives)
+    .map(([key, values]) => `${key} ${values.join(" ")}`)
+    .join("; ");
 }
 
 function isLoopbackHost(hostname) {

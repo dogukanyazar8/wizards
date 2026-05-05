@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { auth } from "@/auth";
+import { AppUpdateNotifier } from "@/components/app/app-update-notifier";
 import { DesktopExperience } from "@/components/desktop/desktop-experience";
 import { AppIconProvider } from "@/components/providers/app-icon-provider";
 import { SocketProvider } from "@/components/providers/socket-provider";
@@ -62,6 +63,7 @@ export default async function RootLayout({
           <LocaleProvider initialLocale={locale}>
             <AppIconProvider>
               <QueryProvider>
+                <AppUpdateNotifier />
                 {currentUser ? (
                   <SocketProvider>
                     <SoundEffectsProvider currentUserId={currentUser.id}>

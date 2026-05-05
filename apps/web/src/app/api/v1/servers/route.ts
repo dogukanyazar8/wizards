@@ -1,5 +1,6 @@
 import { CreateServerSchema } from "@wizards/types";
 import { requireApiUserId } from "@/lib/auth/api";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import {
   createWorkspaceServer,
@@ -9,6 +10,7 @@ import {
 export async function GET() {
   try {
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "server:create");
     const servers = await listWorkspaceServers(userId);
 
     return Response.json({ servers });

@@ -57,3 +57,60 @@ export async function areFriends(userA: string, userB: string): Promise<boolean>
 
   return friendship !== null;
 }
+
+export async function haveMutualServers(userA: string, userB: string): Promise<boolean> {
+  const sharedMembership = await prisma.serverMember.findFirst({
+    where: {
+      userId: userA,
+      server: {
+        members: {
+          some: {
+            userId: userB,
+          },
+        },
+      },
+    },
+    select: { id: true },
+  });
+
+  return sharedMembership !== null;
+}
+
+export async function haveMutualFriends(userA: string, userB: string): Promise<boolean> {
+  const userAFriendships = await prisma.friendRequest.findMany({
+    where: {
+      status: "ACCEPTED",
+      OR: [{ senderId: userA }, { receiverId: userA }],
+    },
+    select: {
+      receiverId: true,
+      senderId: true,
+    },
+  });
+  const userAFriendIds = userAFriendships.map((friendship) =>
+    friendship.senderId === userA ? friendship.receiverId : friendship.senderId,
+  );
+
+  if (userAFriendIds.length === 0) {
+    return false;
+  }
+
+  const mutualFriendship = await prisma.friendRequest.findFirst({
+    where: {
+      status: "ACCEPTED",
+      OR: [
+        {
+          receiverId: userB,
+          senderId: { in: userAFriendIds },
+        },
+        {
+          receiverId: { in: userAFriendIds },
+          senderId: userB,
+        },
+      ],
+    },
+    select: { id: true },
+  });
+
+  return mutualFriendship !== null;
+}

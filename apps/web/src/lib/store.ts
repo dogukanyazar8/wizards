@@ -7,12 +7,14 @@ import {
   DEFAULT_NOTIFICATION_LIMIT,
   DEFAULT_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
   DEFAULT_SERVER_RAIL_WIDTH,
+  DEFAULT_SERVER_RAIL_ICON_SIZE,
   MAX_NOTIFICATION_LIMIT,
   MIN_NOTIFICATION_LIMIT,
   clampChannelSidebarWidth,
+  clampExpandedServerRailWidth,
   clampMainPanelWidth,
   clampNotificationPopupTimeoutSeconds,
-  clampServerRailWidth,
+  clampServerRailIconSize,
 } from "@/lib/appearance";
 import {
   DEFAULT_APP_ICON_ID,
@@ -125,6 +127,8 @@ interface AppState extends PersistedRouteState {
   notificationLimit: number;
   notificationPopupTimeoutSeconds: number;
   ready: boolean;
+  serverRailCollapsed: boolean;
+  serverRailIconSize: number;
   serverRailWidth: number;
   serverContextMenu: ServerContextMenuState;
   serverModal: ServerModalState;
@@ -175,6 +179,8 @@ interface AppState extends PersistedRouteState {
   setNotificationLimit: (limit: number) => void;
   setNotificationPopupTimeoutSeconds: (seconds: number) => void;
   setReady: (ready: boolean) => void;
+  setServerRailCollapsed: (collapsed: boolean) => void;
+  setServerRailIconSize: (size: number) => void;
   setServerRailWidth: (width: number) => void;
   toggleCategoryCollapse: (serverId: string, categoryId: string) => void;
 }
@@ -192,6 +198,8 @@ type PersistedAppState = Pick<
   | "notificationAutoClose"
   | "notificationLimit"
   | "notificationPopupTimeoutSeconds"
+  | "serverRailCollapsed"
+  | "serverRailIconSize"
   | "serverRailWidth"
 >;
 
@@ -238,6 +246,8 @@ function createInitialState(): Omit<
   | "setNotificationLimit"
   | "setNotificationPopupTimeoutSeconds"
   | "setReady"
+  | "setServerRailCollapsed"
+  | "setServerRailIconSize"
   | "setServerRailWidth"
   | "toggleCategoryCollapse"
 > {
@@ -277,6 +287,8 @@ function createInitialState(): Omit<
     notificationLimit: DEFAULT_NOTIFICATION_LIMIT,
     notificationPopupTimeoutSeconds: DEFAULT_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
     ready: false,
+    serverRailCollapsed: false,
+    serverRailIconSize: DEFAULT_SERVER_RAIL_ICON_SIZE,
     serverContextMenu: {
       open: false,
       serverId: null,
@@ -354,8 +366,19 @@ function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
         ? value.notificationPopupTimeoutSeconds
         : DEFAULT_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
     ),
-    serverRailWidth: clampServerRailWidth(
-      typeof value.serverRailWidth === "number" ? value.serverRailWidth : DEFAULT_SERVER_RAIL_WIDTH,
+    serverRailCollapsed:
+      typeof value.serverRailCollapsed === "boolean"
+        ? value.serverRailCollapsed
+        : false,
+    serverRailIconSize: clampServerRailIconSize(
+      typeof value.serverRailIconSize === "number"
+        ? value.serverRailIconSize
+        : DEFAULT_SERVER_RAIL_ICON_SIZE,
+    ),
+    serverRailWidth: clampExpandedServerRailWidth(
+      typeof value.serverRailWidth === "number"
+        ? value.serverRailWidth
+        : DEFAULT_SERVER_RAIL_WIDTH,
     ),
   };
 }
@@ -370,7 +393,7 @@ export const useAppStore = create<AppState>()(
           channelSidebarWidth: clampChannelSidebarWidth(settings.channelSidebarWidth),
           notificationAutoClose: settings.notificationAutoClose,
           notificationLimit: clampNotificationLimit(settings.notificationLimit),
-          serverRailWidth: clampServerRailWidth(settings.serverRailWidth),
+          serverRailWidth: clampExpandedServerRailWidth(settings.serverRailWidth),
         }),
       closeCategoryModal: () =>
         set({
@@ -540,11 +563,17 @@ export const useAppStore = create<AppState>()(
         }),
       resetServerRailWidth: () =>
         set((state) => {
-          if (state.serverRailWidth === DEFAULT_SERVER_RAIL_WIDTH) {
+          if (
+            state.serverRailWidth === DEFAULT_SERVER_RAIL_WIDTH &&
+            !state.serverRailCollapsed
+          ) {
             return state;
           }
 
+          scheduleSyncToDb({ serverRailWidth: DEFAULT_SERVER_RAIL_WIDTH });
+
           return {
+            serverRailCollapsed: false,
             serverRailWidth: DEFAULT_SERVER_RAIL_WIDTH,
           };
         }),
@@ -652,17 +681,40 @@ export const useAppStore = create<AppState>()(
         set({
           ready,
         }),
+      setServerRailCollapsed: (collapsed) =>
+        set((state) => {
+          if (state.serverRailCollapsed === collapsed) {
+            return state;
+          }
+
+          return {
+            serverRailCollapsed: collapsed,
+          };
+        }),
+      setServerRailIconSize: (size) =>
+        set((state) => {
+          const nextSize = clampServerRailIconSize(size);
+
+          if (state.serverRailIconSize === nextSize) {
+            return state;
+          }
+
+          return {
+            serverRailIconSize: nextSize,
+          };
+        }),
       setServerRailWidth: (width) =>
         set((state) => {
-          const nextWidth = clampServerRailWidth(width);
+          const nextWidth = clampExpandedServerRailWidth(width);
 
-          if (state.serverRailWidth === nextWidth) {
+          if (state.serverRailWidth === nextWidth && !state.serverRailCollapsed) {
             return state;
           }
 
           scheduleSyncToDb({ serverRailWidth: nextWidth });
 
           return {
+            serverRailCollapsed: false,
             serverRailWidth: nextWidth,
           };
         }),
@@ -684,14 +736,16 @@ export const useAppStore = create<AppState>()(
           return persistedState;
         }
 
+        let nextPersistedState: Record<string, unknown> = persistedState;
+
         if (version < 2) {
           const nextMainPanelWidth =
-            typeof persistedState.mainPanelWidth === "number"
-              ? persistedState.mainPanelWidth
+            typeof nextPersistedState.mainPanelWidth === "number"
+              ? nextPersistedState.mainPanelWidth
               : LEGACY_DEFAULT_MAIN_PANEL_WIDTH;
 
-          return {
-            ...persistedState,
+          nextPersistedState = {
+            ...nextPersistedState,
             mainPanelWidth:
               nextMainPanelWidth === LEGACY_DEFAULT_MAIN_PANEL_WIDTH
                 ? DEFAULT_MAIN_PANEL_WIDTH
@@ -699,7 +753,38 @@ export const useAppStore = create<AppState>()(
           };
         }
 
-        return persistedState;
+        if (
+          version < 3 &&
+          typeof nextPersistedState.serverRailWidth === "number" &&
+          nextPersistedState.serverRailWidth === 88
+        ) {
+          nextPersistedState = {
+            ...nextPersistedState,
+            serverRailCollapsed: true,
+            serverRailWidth: DEFAULT_SERVER_RAIL_WIDTH,
+          };
+        }
+
+        if (version < 4) {
+          nextPersistedState = {
+            ...nextPersistedState,
+            serverRailCollapsed:
+              typeof nextPersistedState.serverRailCollapsed === "boolean"
+                ? nextPersistedState.serverRailCollapsed
+                : false,
+            serverRailIconSize:
+              typeof nextPersistedState.serverRailIconSize === "number"
+                ? nextPersistedState.serverRailIconSize
+                : DEFAULT_SERVER_RAIL_ICON_SIZE,
+            serverRailWidth: clampExpandedServerRailWidth(
+              typeof nextPersistedState.serverRailWidth === "number"
+                ? nextPersistedState.serverRailWidth
+                : DEFAULT_SERVER_RAIL_WIDTH,
+            ),
+          };
+        }
+
+        return nextPersistedState;
       },
       merge: (persistedState, currentState) => ({
         ...currentState,
@@ -718,10 +803,12 @@ export const useAppStore = create<AppState>()(
         notificationAutoClose: state.notificationAutoClose,
         notificationLimit: state.notificationLimit,
         notificationPopupTimeoutSeconds: state.notificationPopupTimeoutSeconds,
+        serverRailCollapsed: state.serverRailCollapsed,
+        serverRailIconSize: state.serverRailIconSize,
         serverRailWidth: state.serverRailWidth,
       }),
       storage: createJSONStorage(() => localStorage),
-      version: 2,
+      version: 4,
     },
   ),
 );
