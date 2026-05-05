@@ -32,6 +32,7 @@ import {
   WHISPR_DESKTOP_BEFORE_CLOSE_EVENT,
   isWhisprDesktopRuntime,
 } from "@/lib/desktop/runtime";
+import { logError } from "@/lib/logger";
 import { getSocket } from "@/lib/socket/client";
 import {
   deleteVoiceState,
@@ -146,6 +147,7 @@ const RECONNECT_TIMEOUT_MS = 30_000;
 const E2E_VOICE_HEARTBEAT_INTERVAL_MS = 10_000;
 const E2E_MICROPHONE_DENIED_KEY = "whispr:e2e:deny-microphone";
 const E2E_SCREEN_SHARE_DENIED_KEY = "whispr:e2e:deny-screen-share";
+const KRISP_PROCESSOR_NAME = "livekit-noise-filter";
 
 const VoiceContext = createContext<VoiceContextValue | null>(null);
 
@@ -179,6 +181,39 @@ function isMicrophonePermissionDenied(error: unknown) {
       error.message,
     )
   );
+}
+
+function isMicrophoneDeviceUnavailable(error: unknown) {
+  if (error instanceof DOMException) {
+    return (
+      error.name === "AbortError" ||
+      error.name === "NotFoundError" ||
+      error.name === "NotReadableError" ||
+      error.name === "OverconstrainedError"
+    );
+  }
+
+  return (
+    error instanceof Error &&
+    /aborterror|notfounderror|notreadableerror|overconstrainederror|could not start audio source|device not found|requested device not found|audio input device/i.test(
+      error.message,
+    )
+  );
+}
+
+async function getMicrophonePermissionState() {
+  if (typeof navigator === "undefined" || !("permissions" in navigator)) {
+    return null;
+  }
+
+  try {
+    const status = await navigator.permissions.query({
+      name: "microphone" as PermissionName,
+    });
+    return status.state;
+  } catch {
+    return null;
+  }
 }
 
 function isScreenSharePermissionDenied(error: unknown) {
@@ -432,6 +467,14 @@ async function stopLocalTracks(room: Room) {
   const localTracks = publications
     .map((publication) => publication.track)
     .filter((track): track is LocalTrack => track instanceof LocalTrack);
+
+  await Promise.all(
+    localTracks.map((track) =>
+      track instanceof LocalAudioTrack && track.getProcessor()
+        ? track.stopProcessor().catch(() => undefined)
+        : Promise.resolve(),
+    ),
+  );
 
   await Promise.all(
     localTracks.map((track) =>
@@ -1006,17 +1049,14 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   );
 
   const requestMicrophonePermission = useCallback(
-    async (preferences: VoiceAudioPreferences) => {
+    async () => {
       if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
         return false;
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: buildAudioCaptureOptions(preferences),
-      });
-
-      for (const track of stream.getTracks()) {
-        track.stop();
+      const permissionState = await getMicrophonePermissionState();
+      if (permissionState === "denied") {
+        return false;
       }
 
       return true;
@@ -1025,10 +1065,8 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   );
 
   const prepareForVoiceJoin = useCallback(async () => {
-    const currentPreferences = useVoiceStore.getState().audioPreferences;
-
     try {
-      const granted = await requestMicrophonePermission(currentPreferences);
+      const granted = await requestMicrophonePermission();
       preparedMicrophoneAccessRef.current = granted;
       return granted;
     } catch (error) {
@@ -1221,7 +1259,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
 
     if (!krispProcessorRef.current) {
       krispProcessorRef.current = krispModule.KrispNoiseFilter({
-        quality: "high",
+        quality: "medium",
       });
     }
 
@@ -1237,37 +1275,111 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     setIsKrispNoiseCancellationActive(false);
   }, []);
 
+  const detachKrispNoiseCancellation = useCallback(
+    async (track: LocalAudioTrack | null = getLocalMicrophoneTrack(roomRef.current)) => {
+      const processor = krispProcessorRef.current;
+
+      if (processor) {
+        await processor.setEnabled(false).catch(() => undefined);
+      }
+
+      if (track?.getProcessor()?.name === KRISP_PROCESSOR_NAME) {
+        await track.stopProcessor().catch((error) => {
+          logError("[voice] Krisp processor cleanup failed", error);
+        });
+      }
+
+      krispProcessorRef.current = null;
+      setIsKrispNoiseCancellationActive(false);
+    },
+    [],
+  );
+
   const syncKrispNoiseCancellation = useCallback(
     async (track: LocalAudioTrack, enabled: boolean) => {
       if (!enabled) {
-        const currentProcessor = track.getProcessor();
-        if (currentProcessor?.name === "livekit-noise-filter") {
-          if (krispProcessorRef.current) {
-            await krispProcessorRef.current.setEnabled(false).catch(() => undefined);
-          }
+        await detachKrispNoiseCancellation(track);
+        return false;
+      }
+
+      try {
+        const processor = await getOrCreateKrispProcessor();
+        if (!processor) {
+          setIsKrispNoiseCancellationActive(false);
+          return false;
         }
 
+        const currentProcessor = track.getProcessor();
+        if (currentProcessor?.name === KRISP_PROCESSOR_NAME && currentProcessor !== processor) {
+          await track.stopProcessor().catch(() => undefined);
+        }
+
+        if (track.getProcessor()?.name !== KRISP_PROCESSOR_NAME) {
+          await track.setProcessor(
+            processor as unknown as TrackProcessor<Track.Kind.Audio, AudioProcessorOptions>,
+          );
+        }
+
+        const nextEnabled = await processor.setEnabled(true);
+        const isActive = nextEnabled ?? processor.isEnabled();
+        setIsKrispNoiseCancellationActive(isActive === true);
+        setKrispAvailability("available");
+        return isActive === true;
+      } catch (error) {
+        // Krisp is an enhancement; keep the published microphone alive and fall back to WebRTC.
+        logError("[voice] Krisp noise cancellation failed", error);
+        await detachKrispNoiseCancellation(track);
+        setKrispAvailability("unavailable");
         setIsKrispNoiseCancellationActive(false);
-        return;
+        return false;
       }
-
-      const processor = await getOrCreateKrispProcessor();
-      if (!processor) {
-        setIsKrispNoiseCancellationActive(false);
-        return;
-      }
-
-      const currentProcessor = track.getProcessor();
-      if (!currentProcessor || currentProcessor.name !== "livekit-noise-filter") {
-        await track.setProcessor(
-          processor as unknown as TrackProcessor<Track.Kind.Audio, AudioProcessorOptions>,
-        );
-      }
-
-      await processor.setEnabled(true);
-      setIsKrispNoiseCancellationActive(true);
     },
-    [getOrCreateKrispProcessor],
+    [detachKrispNoiseCancellation, getOrCreateKrispProcessor],
+  );
+
+  const enableLocalMicrophone = useCallback(
+    async (targetRoom: Room, preferences: VoiceAudioPreferences) => {
+      try {
+        await targetRoom.localParticipant.setMicrophoneEnabled(
+          true,
+          buildAudioCaptureOptions(preferences),
+        );
+
+        return {
+          preferences,
+          track: getLocalMicrophoneTrack(targetRoom),
+        };
+      } catch (error) {
+        const shouldRetryWithDefaultDevice =
+          preferences.inputDeviceId !== DEFAULT_AUDIO_DEVICE_ID &&
+          isMicrophoneDeviceUnavailable(error);
+
+        if (!shouldRetryWithDefaultDevice) {
+          throw error;
+        }
+
+        logError("[voice] Selected microphone unavailable, retrying system default", error);
+        const fallbackPreferences = {
+          ...preferences,
+          inputDeviceId: DEFAULT_AUDIO_DEVICE_ID,
+        };
+
+        useVoiceStore
+          .getState()
+          .setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
+
+        await targetRoom.localParticipant.setMicrophoneEnabled(
+          true,
+          buildAudioCaptureOptions(fallbackPreferences),
+        );
+
+        return {
+          preferences: fallbackPreferences,
+          track: getLocalMicrophoneTrack(targetRoom),
+        };
+      }
+    },
+    [],
   );
 
   const applyAudioPreferencesToRoom = useCallback(
@@ -1292,8 +1404,33 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
 
       try {
         if (shouldRestartCapture) {
-          await localMicrophoneTrack.restartTrack(buildAudioCaptureOptions(audioPreferences));
-          appliedAudioPreferencesSignatureRef.current = nextSignature;
+          try {
+            await localMicrophoneTrack.restartTrack(buildAudioCaptureOptions(audioPreferences));
+            appliedAudioPreferencesSignatureRef.current = nextSignature;
+          } catch (error) {
+            const shouldRetryWithDefaultDevice =
+              audioPreferences.inputDeviceId !== DEFAULT_AUDIO_DEVICE_ID &&
+              isMicrophoneDeviceUnavailable(error);
+
+            if (!shouldRetryWithDefaultDevice) {
+              throw error;
+            }
+
+            logError("[voice] Microphone restart failed, retrying system default", error);
+            const fallbackPreferences = {
+              ...audioPreferences,
+              inputDeviceId: DEFAULT_AUDIO_DEVICE_ID,
+            };
+
+            useVoiceStore
+              .getState()
+              .setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
+            await localMicrophoneTrack.restartTrack(
+              buildAudioCaptureOptions(fallbackPreferences),
+            );
+            appliedAudioPreferencesSignatureRef.current =
+              getAudioPreferencesSignature(fallbackPreferences);
+          }
         }
 
         await syncKrispNoiseCancellation(
@@ -1525,7 +1662,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         hasMicrophoneAccess = preparedMicrophoneAccess;
       } else {
         try {
-          hasMicrophoneAccess = await requestMicrophonePermission(currentState.audioPreferences);
+          hasMicrophoneAccess = await requestMicrophonePermission();
         } catch (error) {
           if (isMicrophonePermissionDenied(error)) {
             hasMicrophoneAccess = false;
@@ -1655,22 +1792,19 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
           return;
         }
 
-        void nextRoom.localParticipant
-          .setMicrophoneEnabled(
-            true,
-            buildAudioCaptureOptions(useVoiceStore.getState().audioPreferences),
-          )
-          .then(async () => {
-            const localMicrophoneTrack = getLocalMicrophoneTrack(nextRoom);
+        void enableLocalMicrophone(
+          nextRoom,
+          useVoiceStore.getState().audioPreferences,
+        )
+          .then(async ({ preferences, track: localMicrophoneTrack }) => {
             if (localMicrophoneTrack) {
               await syncKrispNoiseCancellation(
                 localMicrophoneTrack,
-                useVoiceStore.getState().audioPreferences.krispNoiseCancellation,
+                preferences.krispNoiseCancellation,
               );
             }
-            appliedAudioPreferencesSignatureRef.current = getAudioPreferencesSignature(
-              useVoiceStore.getState().audioPreferences,
-            );
+            appliedAudioPreferencesSignatureRef.current =
+              getAudioPreferencesSignature(preferences);
             setErrorMessage(null);
             useVoiceStore.getState().setMuted(false);
             syncParticipants(nextRoom);
@@ -1708,6 +1842,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     [
       applyAudioPreferencesToRoom,
       clearReconnectTimeout,
+      enableLocalMicrophone,
       isDesktopRuntime,
       krispAvailability,
       leaveChannel,
@@ -1747,7 +1882,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       const nextAudioPreferences = useVoiceStore.getState().audioPreferences;
 
       try {
-        await requestMicrophonePermission(nextAudioPreferences);
+        await requestMicrophonePermission();
       } catch (error) {
         if (isMicrophonePermissionDenied(error)) {
           setErrorMessage(microphoneDeniedMessage);
@@ -1761,20 +1896,18 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       }
 
       try {
-        await activeRoom.localParticipant.setMicrophoneEnabled(
-          true,
-          buildAudioCaptureOptions(nextAudioPreferences),
+        const { preferences, track: localMicrophoneTrack } = await enableLocalMicrophone(
+          activeRoom,
+          nextAudioPreferences,
         );
-
-        const localMicrophoneTrack = getLocalMicrophoneTrack(activeRoom);
         if (localMicrophoneTrack) {
           await syncKrispNoiseCancellation(
             localMicrophoneTrack,
-            nextAudioPreferences.krispNoiseCancellation,
+            preferences.krispNoiseCancellation,
           );
         }
         appliedAudioPreferencesSignatureRef.current =
-          getAudioPreferencesSignature(nextAudioPreferences);
+          getAudioPreferencesSignature(preferences);
         setErrorMessage(null);
       } catch (error) {
         setIsKrispNoiseCancellationActive(false);
@@ -1793,6 +1926,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     syncParticipants(activeRoom);
   }, [
     isDesktopRuntime,
+    enableLocalMicrophone,
     requestMicrophonePermission,
     syncKrispNoiseCancellation,
     syncParticipants,
