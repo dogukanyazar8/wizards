@@ -34,6 +34,15 @@ const optionalServerShortName = z
     return normalized ? normalized.toUpperCase() : null;
   });
 
+const workspaceNameSchema = (maxLength: number, patternMessage: string) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .max(maxLength)
+    .regex(/[\p{L}\p{N}]/u, patternMessage)
+    .regex(/^[\p{L}\p{N}\p{M} _-]+$/u, patternMessage);
+
 export const WorkspaceAccessLevelSchema = z.enum(["OWNER", "ADMIN", "MEMBER"]);
 
 export const WorkspaceChannelTypeSchema = z.enum(["TEXT", "VOICE"]);
@@ -48,10 +57,12 @@ export const WorkspaceChannelSchema = z.object({
   id: z.string(),
   categoryId: z.string().nullable(),
   locked: z.boolean().default(false),
+  mentionCount: z.number().int().nonnegative().default(0),
   name: z.string(),
   topic: z.string().nullable(),
   type: WorkspaceChannelTypeSchema,
   position: z.number().int().nonnegative(),
+  unreadCount: z.number().int().nonnegative().default(0),
 });
 
 export const WorkspaceCategorySchema = z.object({
@@ -97,6 +108,7 @@ export const WorkspaceServerSummarySchema = z.object({
   iconUrl: z.string().nullable(),
   inviteCode: z.string().nullable(),
   memberCount: z.number().int().nonnegative(),
+  messageCharacterLimit: z.number().int().positive(),
   name: z.string(),
   shortName: z.string().nullable(),
   defaultChannelId: z.string().nullable(),
@@ -161,6 +173,7 @@ export const UpdateServerSchema = z
       .or(z.null())
       .transform((value) => emptyStringToNull(value)),
     name: z.string().trim().min(2).max(64).optional(),
+    messageCharacterLimit: z.number().int().min(250).max(40000).optional(),
     shortName: optionalServerShortName,
   })
   .refine((value) =>
@@ -168,6 +181,7 @@ export const UpdateServerSchema = z
     value.shortName !== undefined ||
     value.description !== undefined ||
     value.iconUrl !== undefined ||
+    value.messageCharacterLimit !== undefined ||
     value.allowGifs !== undefined ||
     value.allowFileUploads !== undefined ||
     value.allowMemberAdds !== undefined, {
@@ -183,21 +197,16 @@ export const DeleteServerSchema = z.object({
 });
 
 export const CreateCategorySchema = z.object({
-  name: z.string().trim().min(1).max(32),
+  name: workspaceNameSchema(48, "validation.category.pattern"),
 });
 
 export const UpdateCategorySchema = z.object({
-  name: z.string().trim().min(1).max(32),
+  name: workspaceNameSchema(48, "validation.category.pattern"),
 });
 
 export const CreateChannelSchema = z.object({
   categoryId: z.string().nullable().optional(),
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .max(32)
-    .regex(/^[a-z0-9-]+$/, "validation.channel.pattern"),
+  name: workspaceNameSchema(48, "validation.channel.pattern"),
   topic: optionalTrimmedString(120),
   type: WorkspaceChannelTypeSchema,
 });
@@ -205,13 +214,7 @@ export const CreateChannelSchema = z.object({
 export const UpdateChannelSchema = z
   .object({
     categoryId: z.string().nullable().optional(),
-    name: z
-      .string()
-      .trim()
-      .min(1)
-      .max(32)
-      .regex(/^[a-z0-9-]+$/, "validation.channel.pattern")
-      .optional(),
+    name: workspaceNameSchema(48, "validation.channel.pattern").optional(),
     topic: optionalTrimmedString(120),
     locked: z.boolean().optional(),
   })
@@ -231,6 +234,17 @@ export const ReorderChannelsSchema = z.object({
     .array(
       z.object({
         categoryId: z.string().nullable(),
+        id: z.string(),
+        position: z.number().int().nonnegative(),
+      }),
+    )
+    .min(1),
+});
+
+export const ReorderCategoriesSchema = z.object({
+  items: z
+    .array(
+      z.object({
         id: z.string(),
         position: z.number().int().nonnegative(),
       }),
@@ -262,5 +276,6 @@ export type UpdateCategoryInput = z.infer<typeof UpdateCategorySchema>;
 export type CreateChannelInput = z.infer<typeof CreateChannelSchema>;
 export type UpdateChannelInput = z.infer<typeof UpdateChannelSchema>;
 export type ReorderChannelsInput = z.infer<typeof ReorderChannelsSchema>;
+export type ReorderCategoriesInput = z.infer<typeof ReorderCategoriesSchema>;
 export type CreateInviteInput = z.infer<typeof CreateInviteSchema>;
 export type AddServerMemberInput = z.infer<typeof AddServerMemberSchema>;

@@ -44,6 +44,7 @@ export function MessageList({
   const hasScrolledInitialRef = useRef(false);
   const initialScrollCompleteRef = useRef(false);
   const lastNewestMessageIdRef = useRef<string | null>(null);
+  const lastNewestMessageActivityRef = useRef<string | null>(null);
   const scrollFrameRef = useRef<number | null>(null);
   const scrollTimeoutRefs = useRef<number[]>([]);
   const lastHighlightedMessageIdRef = useRef<string | null>(null);
@@ -146,6 +147,7 @@ export function MessageList({
     hasScrolledInitialRef.current = false;
     initialScrollCompleteRef.current = false;
     lastNewestMessageIdRef.current = null;
+    lastNewestMessageActivityRef.current = null;
     lastHighlightedMessageIdRef.current = null;
     setShowScrollButton(false);
     setUnreadJumpDismissed(false);
@@ -174,7 +176,23 @@ export function MessageList({
     }
 
     const allMessages = [...data.pages].reverse().flatMap((page) => page.messages) ?? [];
-    const newestMessageId = allMessages.at(-1)?.id ?? null;
+    const newestMessage = allMessages.at(-1) ?? null;
+    const newestMessageId = newestMessage?.id ?? null;
+    const newestMessageActivity = newestMessage
+      ? [
+          newestMessage.id,
+          newestMessage.content,
+          newestMessage.editedAt ?? "",
+          newestMessage.deletedAt ?? "",
+          newestMessage.reactions
+            .map((reaction) => `${reaction.emoji}:${reaction.count}:${reaction.userIds.join(",")}`)
+            .join("|"),
+          newestMessage.threadSummary?.replyCount ?? 0,
+          newestMessage.threadSummary?.lastReplyAt ?? "",
+          newestMessage.attachments.length,
+          newestMessage.deliveryStatus ?? "",
+        ].join("::")
+      : null;
 
     if (allMessages.length === 0) {
       lastNewestMessageIdRef.current = null;
@@ -187,11 +205,15 @@ export function MessageList({
     const isInitialLoad = !hasScrolledInitialRef.current;
     const hasNewLatestMessage =
       newestMessageId !== null && newestMessageId !== lastNewestMessageIdRef.current;
+    const hasLatestInteraction =
+      newestMessageActivity !== null &&
+      newestMessageActivity !== lastNewestMessageActivityRef.current;
     const hasTargetMessage =
       Boolean(targetMessageId) &&
       allMessages.some((message) => message.id === targetMessageId);
 
     lastNewestMessageIdRef.current = newestMessageId;
+    lastNewestMessageActivityRef.current = newestMessageActivity;
 
     if (
       targetMessageId &&
@@ -204,7 +226,7 @@ export function MessageList({
       return;
     }
 
-    if (isInitialLoad || hasNewLatestMessage) {
+    if (isInitialLoad || hasNewLatestMessage || hasLatestInteraction) {
       hasScrolledInitialRef.current = true;
       scheduleScrollToBottom({
         completeInitial: isInitialLoad || !initialScrollCompleteRef.current,

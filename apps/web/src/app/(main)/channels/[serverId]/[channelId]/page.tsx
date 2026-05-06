@@ -77,6 +77,7 @@ export default async function ChannelPage({ params }: PageParams) {
         server: {
           select: {
             features: true,
+            messageCharacterLimit: true,
           },
         },
         topic: true,
@@ -133,6 +134,7 @@ export default async function ChannelPage({ params }: PageParams) {
     <ChannelConversationPage
       allowFileUploads={mediaSettings.allowFileUploads}
       allowGifs={mediaSettings.allowGifs}
+      messageCharacterLimit={channel.server?.messageCharacterLimit ?? 2000}
       channelId={channelId}
       channelLocked={channel.locked}
       channelName={channel.name}

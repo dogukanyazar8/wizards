@@ -23,6 +23,7 @@ interface ThreadPanelProps {
   disabled?: boolean;
   disabledReason?: string | undefined;
   mentionMembers: WorkspaceServerDetail["members"];
+  messageCharacterLimit?: number | null;
   mode: MessageMode;
   onClose: () => void;
   parentMessage: ChatMessage;
@@ -38,6 +39,7 @@ export function ThreadPanel({
   disabled = false,
   disabledReason,
   mentionMembers,
+  messageCharacterLimit = 2000,
   mode,
   onClose,
   parentMessage,
@@ -273,6 +275,7 @@ export function ThreadPanel({
           conversationId={conversationId}
           disabled={disabled}
           disabledReason={disabledReason}
+          maxLength={messageCharacterLimit}
           mentionMembers={mode === "channel" ? mentionMembers : []}
           mode={mode}
           onCancelReply={() => setReplyTo(null)}

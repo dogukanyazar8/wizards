@@ -44,6 +44,7 @@ interface MessageInputProps {
   onCancelReply: () => void;
   mentionMembers?: WorkspaceMember[];
   uploadthingEnabled: boolean;
+  maxLength?: number | null;
   variant?: "default" | "thread";
 }
 
@@ -122,6 +123,7 @@ export function MessageInput({
   onCancelReply,
   mentionMembers = [],
   uploadthingEnabled,
+  maxLength = MAX_MESSAGE_LENGTH,
   variant = "default",
 }: MessageInputProps) {
   const { t } = useI18n();
@@ -142,6 +144,8 @@ export function MessageInput({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const previewUrlsRef = useRef<Set<string>>(new Set());
   const isThreadComposer = variant === "thread";
+  const effectiveMaxLength = maxLength ?? Number.POSITIVE_INFINITY;
+  const hasFiniteMaxLength = Number.isFinite(effectiveMaxLength);
 
   const readyAttachmentDrafts = useMemo(
     () =>
@@ -159,7 +163,7 @@ export function MessageInput({
   const disabledMessage = disabledReason ?? t("chat.input.disabled");
   const canSend =
     (content.trim().length > 0 || readyAttachmentDrafts.length > 0) &&
-    content.length <= MAX_MESSAGE_LENGTH &&
+    content.length <= effectiveMaxLength &&
     !hasUploadingAttachments &&
     !isUploadingAttachments &&
     !disabled;
@@ -199,7 +203,7 @@ export function MessageInput({
     selectionStart: number,
     selectionEnd = selectionStart,
   ) => {
-    if (nextContent.length > MAX_MESSAGE_LENGTH) {
+    if (nextContent.length > effectiveMaxLength) {
       return;
     }
 
@@ -1100,7 +1104,7 @@ export function MessageInput({
                   ? "max-h-20 min-h-[2.5rem]"
                   : "max-h-24 min-h-[2.75rem] md:min-h-[3rem]",
               )}
-              maxLength={MAX_MESSAGE_LENGTH}
+              maxLength={hasFiniteMaxLength ? effectiveMaxLength : undefined}
               rows={1}
             />
 
@@ -1298,11 +1302,16 @@ export function MessageInput({
               </div>
 
               <span
-                className={`text-xs font-medium ${
-                  content.length > 1800 ? "text-app-danger" : "text-app-soft"
-                }`}
+                className={cn(
+                  "text-xs font-medium",
+                  hasFiniteMaxLength && content.length > effectiveMaxLength * 0.9
+                    ? "text-app-danger"
+                    : "text-app-soft",
+                )}
               >
-                {content.length}/{MAX_MESSAGE_LENGTH}
+                {hasFiniteMaxLength
+                  ? `${content.length}/${effectiveMaxLength}`
+                  : t("chat.input.adminUnlimited")}
               </span>
             </div>
           </div>

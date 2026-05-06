@@ -486,7 +486,7 @@ export function WorkspaceModals({
           }}
         >
           <ServerIconField
-            label={serverShortName || serverName || "WZ"}
+            label={serverShortName || serverName || "Whispr"}
             onChange={setServerIconUrl}
             uploadthingEnabled={uploadthingEnabled}
             value={serverIconUrl}
@@ -614,12 +614,20 @@ export function WorkspaceModals({
             categoryMutation.mutate();
           }}
         >
-          <div className="space-y-2">
+          <div className="app-panel-soft rounded-[24px] border p-4">
+            <div className="mb-3">
+              <p className="text-app-foreground text-sm font-semibold">
+                {t("workspace.modal.categoryName")}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-app-muted">
+                {t("workspace.modal.categoryHint")}
+              </p>
+            </div>
             <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
               {t("workspace.modal.categoryName")}
             </label>
             <Input
-              maxLength={32}
+              maxLength={48}
               onChange={(event) => {
                 setCategoryName(event.target.value);
                 if (createdCategoryName) {
@@ -682,14 +690,26 @@ export function WorkspaceModals({
             channelMutation.mutate();
           }}
         >
-          <div className="space-y-2">
+          <div className="app-panel-soft rounded-[24px] border p-4">
+            <div className="mb-3">
+              <p className="text-app-foreground text-sm font-semibold">
+                {t("workspace.modal.channelName")}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-app-muted">
+                {t("workspace.modal.channelHint")}
+              </p>
+            </div>
             <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
               {t("workspace.modal.channelName")}
             </label>
             <Input
-              maxLength={32}
+              maxLength={48}
               onChange={(event) => setChannelName(event.target.value)}
-              placeholder={channelModal.type === "VOICE" ? "strategy-room" : "product-updates"}
+              placeholder={
+                channelModal.type === "VOICE"
+                  ? t("workspace.modal.channelVoicePlaceholder")
+                  : t("workspace.modal.channelTextPlaceholder")
+              }
               required
               value={channelName}
             />

@@ -27,9 +27,9 @@ export const metadata: Metadata = {
   title: "Whispr",
   description: "Whispr collaboration workspace",
   icons: {
-    apple: "/app-icons/wave-5.png",
-    icon: "/app-icons/wave-5.png",
-    shortcut: "/app-icons/wave-5.png",
+    apple: "/app-icons/whispr.png",
+    icon: "/app-icons/whispr.png",
+    shortcut: "/app-icons/whispr.png",
   },
 };
 

@@ -21,6 +21,7 @@ interface ChannelConversationPageProps {
   currentUserDisplayName: string;
   currentUserId: string;
   currentUserUsername: string;
+  messageCharacterLimit: number;
   serverId: string;
   uploadthingEnabled: boolean;
 }
@@ -36,6 +37,7 @@ export function ChannelConversationPage({
   currentUserDisplayName,
   currentUserId,
   currentUserUsername,
+  messageCharacterLimit,
   serverId,
   uploadthingEnabled,
 }: ChannelConversationPageProps) {
@@ -115,6 +117,7 @@ export function ChannelConversationPage({
       allowFileUploads={allowFileUploads}
       allowGifs={allowGifs}
       initialUnreadMessageId={initialUnreadMessageId}
+      messageCharacterLimit={canModerate ? null : messageCharacterLimit}
       uploadthingEnabled={uploadthingEnabled}
     />
   );

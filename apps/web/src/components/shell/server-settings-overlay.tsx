@@ -59,6 +59,9 @@ export function ServerSettingsOverlay({
   const [allowMemberAdds, setAllowMemberAdds] = useState(
     detail?.server.allowMemberAdds ?? true,
   );
+  const [messageCharacterLimit, setMessageCharacterLimit] = useState(
+    detail?.server.messageCharacterLimit ?? 2000,
+  );
   const [overviewSaved, setOverviewSaved] = useState(false);
 
   useEffect(() => {
@@ -75,12 +78,14 @@ export function ServerSettingsOverlay({
     setAllowGifs(detail?.server.allowGifs ?? true);
     setAllowFileUploads(detail?.server.allowFileUploads ?? true);
     setAllowMemberAdds(detail?.server.allowMemberAdds ?? true);
+    setMessageCharacterLimit(detail?.server.messageCharacterLimit ?? 2000);
   }, [
     detail?.server.allowFileUploads,
     detail?.server.allowGifs,
     detail?.server.allowMemberAdds,
     detail?.server.description,
     detail?.server.iconUrl,
+    detail?.server.messageCharacterLimit,
     detail?.server.name,
     detail?.server.shortName,
     open,
@@ -123,6 +128,7 @@ export function ServerSettingsOverlay({
         allowMemberAdds,
         description,
         iconUrl,
+        messageCharacterLimit,
         name,
         shortName,
       });
@@ -147,6 +153,7 @@ export function ServerSettingsOverlay({
                   allowFileUploads: updatedDetail.server.allowFileUploads,
                   allowGifs: updatedDetail.server.allowGifs,
                   allowMemberAdds: updatedDetail.server.allowMemberAdds,
+                  messageCharacterLimit: updatedDetail.server.messageCharacterLimit,
                   iconUrl: updatedDetail.server.iconUrl,
                   name: updatedDetail.server.name,
                   shortName: updatedDetail.server.shortName,
@@ -389,6 +396,50 @@ export function ServerSettingsOverlay({
                           testId="server-media-files-toggle"
                           title={t("workspace.media.files.title")}
                         />
+                      </div>
+                    </div>
+                    <div className="app-panel rounded-[28px] border p-4 sm:p-5">
+                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+                            {t("workspace.messages.limitTitle")}
+                          </p>
+                          <p className="mt-2 text-sm leading-6 text-app-muted">
+                            {t("workspace.messages.limitDescription")}
+                          </p>
+                        </div>
+                        <div className="w-full md:w-[12rem]">
+                          <label className="sr-only" htmlFor="server-message-limit">
+                            {t("workspace.messages.limitTitle")}
+                          </label>
+                          <Input
+                            id="server-message-limit"
+                            max={40000}
+                            min={250}
+                            onChange={(event) =>
+                              setMessageCharacterLimit(
+                                Math.min(40000, Math.max(250, Number(event.target.value) || 2000)),
+                              )
+                            }
+                            type="number"
+                            value={messageCharacterLimit}
+                          />
+                        </div>
+                      </div>
+                      <input
+                        aria-label={t("workspace.messages.limitTitle")}
+                        className="mt-5 w-full accent-[hsl(var(--primary))]"
+                        max={40000}
+                        min={250}
+                        onChange={(event) => setMessageCharacterLimit(Number(event.target.value))}
+                        step={250}
+                        type="range"
+                        value={messageCharacterLimit}
+                      />
+                      <div className="mt-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.14em] text-app-soft">
+                        <span>250</span>
+                        <span>{t("workspace.messages.adminUnlimited")}</span>
+                        <span>40000</span>
                       </div>
                     </div>
                     <div className="app-panel rounded-[28px] border p-4 sm:p-5">

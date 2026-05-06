@@ -1070,6 +1070,7 @@ export function initSocketServer(httpServer: HTTPServer) {
             server: {
               select: {
                 features: true,
+                messageCharacterLimit: true,
                 ownerId: true,
               },
             },
@@ -1115,6 +1116,12 @@ export function initSocketServer(httpServer: HTTPServer) {
             (roleAssignment) =>
               (roleAssignment.role.permissions & MANAGE_MESSAGES_PERMISSION) !== 0n,
           );
+        const canBypassMessageLimit =
+          channel.server?.ownerId === userId ||
+          member.roles.some(
+            (roleAssignment) =>
+              (roleAssignment.role.permissions & MANAGE_MESSAGES_PERMISSION) !== 0n,
+          );
 
         if (!canPostInLockedChannel) {
           throw new ApiError("This channel is read-only.", 403, "CHANNEL_LOCKED");
@@ -1143,7 +1150,11 @@ export function initSocketServer(httpServer: HTTPServer) {
           }
         }
 
-        const content = normalizeMessageContentForSend(data.content, attachmentInputs);
+        const content = normalizeMessageContentForSend(
+          data.content,
+          attachmentInputs,
+          canBypassMessageLimit ? null : channel.server?.messageCharacterLimit ?? 2000,
+        );
         const message = await createMessage(
           data.channelId,
           userId,
@@ -1209,7 +1220,49 @@ export function initSocketServer(httpServer: HTTPServer) {
     socket.on("message:edit", async (rawData) => {
       try {
         const data = parseSocketPayload(SocketMessageEditPayloadSchema, rawData);
-        const message = await editMessage(data.messageId, userId, data.content);
+        const existing = await prisma.message.findUnique({
+          where: { id: data.messageId },
+          select: {
+            channel: {
+              select: {
+                server: {
+                  select: {
+                    messageCharacterLimit: true,
+                    ownerId: true,
+                  },
+                },
+                serverId: true,
+              },
+            },
+          },
+        });
+
+        if (!existing?.channel.serverId || !existing.channel.server) {
+          socket.emit("error", { code: "MESSAGE_NOT_FOUND", message: "Message not found" });
+          return;
+        }
+
+        const member = await prisma.serverMember.findFirst({
+          where: { serverId: existing.channel.serverId, userId },
+          select: {
+            roles: {
+              select: { role: { select: { permissions: true } } },
+            },
+          },
+        });
+        const canBypassMessageLimit =
+          existing.channel.server.ownerId === userId ||
+          (member?.roles.some(
+            (roleAssignment) =>
+              (roleAssignment.role.permissions & MANAGE_MESSAGES_PERMISSION) !== 0n,
+          ) ?? false);
+
+        const message = await editMessage(
+          data.messageId,
+          userId,
+          data.content,
+          canBypassMessageLimit ? null : existing.channel.server.messageCharacterLimit,
+        );
         io.to(message.channelId).emit("message:updated", message);
       } catch (error) {
         emitSocketError("MESSAGE_EDIT_ERROR", "Unable to edit message.", error);

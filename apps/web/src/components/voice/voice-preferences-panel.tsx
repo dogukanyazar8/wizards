@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Radio, ShieldCheck, SlidersHorizontal, Sparkles } from "lucide-react";
+import {
+  ChevronDown,
+  Radio,
+  RotateCcw,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+} from "lucide-react";
 import {
   useVoiceConnection,
   type KrispAvailability,
@@ -25,6 +32,8 @@ function resolveKrispHelperText(status: KrispAvailability, t: (key: string) => s
       return t("voice.settings.krispAvailable");
     case "checking":
       return t("voice.settings.krispChecking");
+    case "blocked_by_security_policy":
+      return t("voice.settings.krispBlockedBySecurityPolicy");
     case "requires_livekit_cloud":
       return t("voice.settings.krispRequiresCloud");
     case "unsupported_browser":
@@ -122,7 +131,9 @@ export function VoicePreferencesPanel() {
     audioPreferences,
     isApplyingAudioPreferences,
     isKrispNoiseCancellationActive,
+    isRecoveringKrispNoiseCancellation,
     krispAvailability,
+    retryKrispNoiseCancellation,
     setAudioPreference,
   } = useVoiceConnection();
 
@@ -140,6 +151,7 @@ export function VoicePreferencesPanel() {
     setAudioPreference("echoCancellation", true);
     setAudioPreference("autoGainControl", true);
     setAudioPreference("krispNoiseCancellation", true);
+    void retryKrispNoiseCancellation();
     setCleanVoiceFeedbackVisible(true);
 
     if (cleanVoiceFeedbackTimerRef.current) {
@@ -211,15 +223,34 @@ export function VoicePreferencesPanel() {
               ))}
             </div>
 
-            <button
-              className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.12)] px-4 py-2 text-sm font-semibold text-[hsl(var(--primary))] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-              data-testid="voice-clean-voice-profile"
-              onClick={applyCleanVoiceProfile}
-              type="button"
-            >
-              <Sparkles className="h-4 w-4" />
-              {t("voice.settings.applyCleanVoiceProfile")}
-            </button>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <button
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.12)] px-4 py-2 text-sm font-semibold text-[hsl(var(--primary))] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                data-testid="voice-clean-voice-profile"
+                onClick={applyCleanVoiceProfile}
+                type="button"
+              >
+                <Sparkles className="h-4 w-4" />
+                {t("voice.settings.applyCleanVoiceProfile")}
+              </button>
+              <button
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] px-4 py-2 text-sm font-semibold text-app-foreground transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.08)] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                data-testid="voice-krisp-retry"
+                disabled={isRecoveringKrispNoiseCancellation}
+                onClick={() => void retryKrispNoiseCancellation()}
+                type="button"
+              >
+                <RotateCcw
+                  className={cn(
+                    "h-4 w-4",
+                    isRecoveringKrispNoiseCancellation && "animate-spin",
+                  )}
+                />
+                {isRecoveringKrispNoiseCancellation
+                  ? t("voice.settings.retryingKrisp")
+                  : t("voice.settings.retryKrisp")}
+              </button>
+            </div>
             {cleanVoiceFeedbackVisible ? (
               <p
                 className="mt-3 rounded-2xl border border-[hsl(var(--success)/0.26)] bg-[hsl(var(--success)/0.1)] px-3 py-2 text-xs font-semibold leading-5 text-app-foreground"

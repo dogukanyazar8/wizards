@@ -94,6 +94,7 @@ export interface VoiceScreenShareViewModel {
 
 export type KrispAvailability =
   | "available"
+  | "blocked_by_security_policy"
   | "checking"
   | "requires_livekit_cloud"
   | "unavailable"
@@ -109,6 +110,7 @@ type VoiceContextValue = {
   isDeafened: boolean;
   isJoining: boolean;
   isKrispNoiseCancellationActive: boolean;
+  isRecoveringKrispNoiseCancellation: boolean;
   isMuted: boolean;
   isScreenSharing: boolean;
   krispAvailability: KrispAvailability;
@@ -127,6 +129,7 @@ type VoiceContextValue = {
   setActiveScreenShareId: (id: string) => void;
   setParticipantVolume: (userId: string, volume: number) => void;
   setScreenShareQuality: (qualityId: ScreenShareQualityId) => Promise<void>;
+  retryKrispNoiseCancellation: () => Promise<boolean>;
   prepareForVoiceJoin: () => Promise<boolean>;
   joinChannel: (input: { channelId: string; serverId: string }) => Promise<void>;
   leaveChannel: () => Promise<void>;
@@ -231,6 +234,19 @@ function isTransientLiveKitConnectionError(error: unknown) {
     /could not establish pc connection|ice|network|timeout|transport|signaling/i.test(
       error.message,
     )
+  );
+}
+
+function isLikelyKrispSecurityPolicyError(error: unknown) {
+  const message =
+    error instanceof Error
+      ? `${error.name} ${error.message}`
+      : typeof error === "string"
+        ? error
+        : "";
+
+  return /content security policy|script-src|worker-src|wasm|webassembly|unsafe-eval|audioWorklet|worklet|blob:/i.test(
+    message,
   );
 }
 
@@ -1070,6 +1086,7 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       isDeafened,
       isJoining,
       isKrispNoiseCancellationActive: false,
+      isRecoveringKrispNoiseCancellation: false,
       isMuted,
       isScreenSharing,
       krispAvailability: "requires_livekit_cloud",
@@ -1085,6 +1102,7 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       setActiveScreenShareId,
       setParticipantVolume: useVoiceStore.getState().setParticipantVolume,
       setScreenShareQuality,
+      retryKrispNoiseCancellation: async () => false,
       prepareForVoiceJoin,
       joinChannel,
       leaveChannel,
@@ -1157,6 +1175,8 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const [isApplyingAudioPreferences, setIsApplyingAudioPreferences] = useState(false);
   const [isApplyingScreenShareQuality, setIsApplyingScreenShareQuality] = useState(false);
   const [isKrispNoiseCancellationActive, setIsKrispNoiseCancellationActive] = useState(false);
+  const [isRecoveringKrispNoiseCancellation, setIsRecoveringKrispNoiseCancellation] =
+    useState(false);
 
   useEffect(() => {
     microphoneSettingsFailedMessageRef.current = t("voice.errors.microphoneSettingsFailed");
@@ -1459,8 +1479,10 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
 
       setKrispAvailability("available");
       return krispModule;
-    } catch {
-      setKrispAvailability("unavailable");
+    } catch (error) {
+      setKrispAvailability(
+        isLikelyKrispSecurityPolicyError(error) ? "blocked_by_security_policy" : "unavailable",
+      );
       return null;
     }
   }, []);
@@ -1562,6 +1584,9 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         const processor = await getOrCreateKrispProcessor();
         return await enableProcessor(processor);
       } catch (error) {
+        if (isLikelyKrispSecurityPolicyError(error)) {
+          setKrispAvailability("blocked_by_security_policy");
+        }
         logError("[voice] High quality Krisp failed, retrying stable quality", error);
       }
 
@@ -1572,7 +1597,9 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         // Krisp is an enhancement; keep the published microphone alive and fall back to WebRTC.
         logError("[voice] Krisp noise cancellation failed", error);
         await detachKrispNoiseCancellation(track);
-        setKrispAvailability("unavailable");
+        setKrispAvailability(
+          isLikelyKrispSecurityPolicyError(error) ? "blocked_by_security_policy" : "unavailable",
+        );
         setIsKrispNoiseCancellationActive(false);
         return false;
       }
@@ -1728,6 +1755,35 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     },
     [audioPreferences, syncKrispNoiseCancellation, syncParticipants],
   );
+
+  const retryKrispNoiseCancellation = useCallback(async () => {
+    setIsRecoveringKrispNoiseCancellation(true);
+    setKrispAvailability("checking");
+
+    try {
+      await resetKrispProcessor();
+      useVoiceStore.getState().setAudioPreference("krispNoiseCancellation", true);
+
+      const activeRoom = roomRef.current;
+      const localMicrophoneTrack = getLocalMicrophoneTrack(activeRoom);
+
+      if (!activeRoom || !localMicrophoneTrack || useVoiceStore.getState().isMuted) {
+        const krispModule = await ensureKrispSupport();
+        return krispModule !== null;
+      }
+
+      const isActive = await syncKrispNoiseCancellation(localMicrophoneTrack, true);
+      syncParticipants(activeRoom);
+      return isActive;
+    } finally {
+      setIsRecoveringKrispNoiseCancellation(false);
+    }
+  }, [
+    ensureKrispSupport,
+    resetKrispProcessor,
+    syncKrispNoiseCancellation,
+    syncParticipants,
+  ]);
 
   const setActiveScreenShareId = useCallback(
     (id: string) => {
@@ -1924,6 +1980,8 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         ? t("voice.errors.microphoneDeniedDesktop")
         : t("voice.errors.microphoneDenied");
       const microphoneEnableFailedMessage = t("voice.errors.microphoneEnableFailed");
+      const shouldStartMuted = currentState.isMuted;
+      const shouldStartDeafened = currentState.isDeafened;
 
       if (
         currentState.activeChannelId === channelId &&
@@ -1938,11 +1996,13 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         return;
       }
 
-      let hasMicrophoneAccess = false;
+      let hasMicrophoneAccess = shouldStartMuted;
       const preparedMicrophoneAccess = preparedMicrophoneAccessRef.current;
       preparedMicrophoneAccessRef.current = null;
 
-      if (preparedMicrophoneAccess !== null) {
+      if (shouldStartMuted) {
+        hasMicrophoneAccess = true;
+      } else if (preparedMicrophoneAccess !== null) {
         hasMicrophoneAccess = preparedMicrophoneAccess;
       } else {
         try {
@@ -2074,17 +2134,25 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
           serverId: nextServerId,
           sessionId,
         });
-        useVoiceStore.getState().setMuted(!hasMicrophoneAccess);
-        useVoiceStore.getState().setDeafened(false);
+        useVoiceStore.getState().setMuted(shouldStartMuted || !hasMicrophoneAccess);
+        useVoiceStore.getState().setDeafened(shouldStartDeafened);
 
         updateVoiceStatesCache(nextServerId, channelId, state.participants);
         startHeartbeat(sessionId);
         void nextRoom.startAudio().catch(() => undefined);
+        applyRemoteAudioState(nextRoom, shouldStartDeafened, useVoiceStore.getState().participantVolumes);
         syncRoomParticipants();
 
         if (!hasMicrophoneAccess) {
           setIsKrispNoiseCancellationActive(false);
           setErrorMessage(microphoneDeniedMessage);
+          syncParticipants(nextRoom);
+          return;
+        }
+
+        if (shouldStartMuted) {
+          setIsKrispNoiseCancellationActive(false);
+          setErrorMessage(null);
           syncParticipants(nextRoom);
           return;
         }
@@ -2172,6 +2240,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const toggleMute = useCallback(async () => {
     const activeRoom = roomRef.current;
     if (!activeRoom) {
+      useVoiceStore.getState().toggleMute();
       return;
     }
 
@@ -2256,6 +2325,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const toggleDeafen = useCallback(async () => {
     const activeRoom = roomRef.current;
     if (!activeRoom) {
+      useVoiceStore.getState().toggleDeafen();
       return;
     }
 
@@ -2390,6 +2460,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       isDeafened,
       isJoining,
       isKrispNoiseCancellationActive,
+      isRecoveringKrispNoiseCancellation,
       isMuted,
       isScreenSharing,
       krispAvailability,
@@ -2405,6 +2476,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       setActiveScreenShareId,
       setParticipantVolume: useVoiceStore.getState().setParticipantVolume,
       setScreenShareQuality,
+      retryKrispNoiseCancellation,
       prepareForVoiceJoin,
       joinChannel,
       leaveChannel,
@@ -2425,6 +2497,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       isDeafened,
       isJoining,
       isKrispNoiseCancellationActive,
+      isRecoveringKrispNoiseCancellation,
       isMuted,
       isScreenSharing,
       joinChannel,
@@ -2433,6 +2506,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       participants,
       prepareForVoiceJoin,
       room,
+      retryKrispNoiseCancellation,
       screenShareError,
       screenShares,
       screenShareQuality,

@@ -12,6 +12,7 @@ import type {
   CreateInviteInput,
   CreateServerInput,
   DeleteServerInput,
+  ReorderCategoriesInput,
   UpdateCategoryInput,
   UpdateChannelInput,
   UpdateServerInput,
@@ -33,6 +34,7 @@ import { getMessageById } from "@/lib/workspace/message-service";
 import {
   emitServerUnreadUpdatesForServer,
   getActiveChannelViewerUserIds,
+  getServerChannelUnreadCounts,
   getServerMentionCount,
   getServerMentionCounts,
   getServerUnreadCount,
@@ -81,15 +83,22 @@ type ChannelRecord = {
 const SERVER_DETAIL_MEMBER_LIMIT = 100;
 const SERVER_MEMBERS_PAGE_LIMIT = 100;
 
-function toWorkspaceChannel(channel: ChannelRecord): WorkspaceChannel {
+function toWorkspaceChannel(
+  channel: ChannelRecord,
+  unreadCounts?: Map<string, { mentionCount: number; unreadCount: number }>,
+): WorkspaceChannel {
+  const counts = unreadCounts?.get(channel.id);
+
   return {
     categoryId: channel.categoryId,
     id: channel.id,
     locked: channel.locked,
+    mentionCount: counts?.mentionCount ?? 0,
     name: channel.name,
     position: channel.position,
     topic: channel.topic,
     type: channel.type === ChannelType.VOICE ? "VOICE" : "TEXT",
+    unreadCount: counts?.unreadCount ?? 0,
   };
 }
 
@@ -108,14 +117,18 @@ function getDisplayName(
   return nickname ?? user.displayName ?? user.username;
 }
 
-function normalizeChannelName(value: string) {
-  return value
+function normalizeWorkspaceLabel(value: string, maxLength = 48) {
+  const normalized = value
+    .normalize("NFC")
     .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/\s+/g, " ")
+    .replace(/[^\p{L}\p{N}\p{M} _-]/gu, "");
+
+  if (!/[\p{L}\p{N}]/u.test(normalized)) {
+    return "";
+  }
+
+  return Array.from(normalized).slice(0, maxLength).join("").trim();
 }
 
 function looksLikeAdmin(role: RoleRecord) {
@@ -289,6 +302,7 @@ function mapServerSummary(args: {
   id: string;
   inviteCode: string | null;
   memberCount: number;
+  messageCharacterLimit: number;
   mentionCount: number;
   name: string;
   shortName: string | null;
@@ -304,6 +318,7 @@ function mapServerSummary(args: {
     id: args.id,
     inviteCode: args.inviteCode,
     memberCount: args.memberCount,
+    messageCharacterLimit: args.messageCharacterLimit,
     mentionCount: args.mentionCount,
     name: args.name,
     shortName: args.shortName,
@@ -401,9 +416,10 @@ function mapCategories(
     name: string;
     position: number;
   }>,
+  unreadCounts?: Map<string, { mentionCount: number; unreadCount: number }>,
 ): WorkspaceCategory[] {
   return categories.map((category) => ({
-    channels: category.channels.map(toWorkspaceChannel),
+    channels: category.channels.map((channel) => toWorkspaceChannel(channel, unreadCounts)),
     id: category.id,
     name: category.name,
     position: category.position,
@@ -470,6 +486,7 @@ export async function listWorkspaceServers(userId: string) {
           features: true,
           id: true,
           inviteCode: true,
+          messageCharacterLimit: true,
           name: true,
           ownerId: true,
           shortName: true,
@@ -501,6 +518,7 @@ export async function listWorkspaceServers(userId: string) {
       id: membership.server.id,
       inviteCode: membership.server.inviteCode,
       memberCount: membership.server._count.members,
+      messageCharacterLimit: membership.server.messageCharacterLimit,
       mentionCount: mentionCounts.get(membership.server.id) ?? 0,
       name: membership.server.name,
       shortName: membership.server.shortName,
@@ -513,7 +531,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
   const access = await getAccessContext(userId, serverId);
   const isAdmin = access.accessLevel !== "MEMBER";
 
-  const [server, invites, unreadCount, mentionCount] = await Promise.all([
+  const [server, invites, unreadCount, mentionCount, channelUnreadCounts] = await Promise.all([
     prisma.server.findUnique({
       where: {
         id: serverId,
@@ -580,6 +598,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
         iconUrl: true,
         id: true,
         inviteCode: true,
+        messageCharacterLimit: true,
         members: {
           orderBy: [
             {
@@ -649,14 +668,17 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
       : Promise.resolve([]),
     getServerUnreadCount(userId, serverId),
     getServerMentionCount(userId, serverId),
+    getServerChannelUnreadCounts(userId, serverId),
   ]);
 
   if (!server) {
     throw new ApiError("Server not found", 404);
   }
 
-  const categories = mapCategories(server.categories);
-  const ungroupedChannels = server.channels.map(toWorkspaceChannel);
+  const categories = mapCategories(server.categories, channelUnreadCounts);
+  const ungroupedChannels = server.channels.map((channel) =>
+    toWorkspaceChannel(channel, channelUnreadCounts),
+  );
   const mediaSettings = getServerMediaSettings(server.features);
   const defaultChannelId = pickDefaultChannelId({
     categories,
@@ -690,6 +712,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
       isAdmin,
       isOwner: access.accessLevel === "OWNER",
       memberCount: server._count.members,
+      messageCharacterLimit: server.messageCharacterLimit,
       mentionCount,
       name: server.name,
       shortName: server.shortName,
@@ -870,7 +893,7 @@ export async function createWorkspaceServer(userId: string, input: CreateServerI
 
     const lobby = await tx.channelCategory.create({
       data: {
-        name: "LOBBY",
+        name: "Lobby",
         position: 0,
         serverId: server.id,
       },
@@ -950,6 +973,10 @@ export async function updateWorkspaceServer(userId: string, serverId: string, in
 
   if (input.iconUrl !== undefined) {
     data.iconUrl = input.iconUrl;
+  }
+
+  if (input.messageCharacterLimit !== undefined) {
+    data.messageCharacterLimit = input.messageCharacterLimit;
   }
 
   if (
@@ -1070,7 +1097,7 @@ export async function createWorkspaceCategory(userId: string, serverId: string, 
 
   const category = await prisma.channelCategory.create({
     data: {
-      name: input.name.trim().toUpperCase(),
+      name: normalizeWorkspaceLabel(input.name),
       position: (lastCategory?.position ?? -1) + 1,
       serverId,
     },
@@ -1114,7 +1141,7 @@ export async function updateWorkspaceCategory(
       id: categoryId,
     },
     data: {
-      name: input.name.trim().toUpperCase(),
+      name: normalizeWorkspaceLabel(input.name),
     },
   });
 
@@ -1175,7 +1202,7 @@ export async function createWorkspaceChannel(userId: string, serverId: string, i
   const access = await getAccessContext(userId, serverId);
   ensureAdmin(access);
 
-  const normalizedName = normalizeChannelName(input.name);
+  const normalizedName = normalizeWorkspaceLabel(input.name);
 
   if (!normalizedName) {
     throw new ApiError("Channel name must include at least one letter or number", 400);
@@ -1287,7 +1314,7 @@ export async function updateWorkspaceChannel(userId: string, channelId: string, 
   const data: Prisma.ChannelUpdateInput = {};
 
   if (input.name !== undefined) {
-    const normalizedName = normalizeChannelName(input.name);
+    const normalizedName = normalizeWorkspaceLabel(input.name);
 
     if (!normalizedName) {
       throw new ApiError("Channel name must include at least one letter or number", 400);
@@ -1383,6 +1410,50 @@ export async function reorderWorkspaceChannels(
       }),
     ),
   );
+}
+
+export async function reorderWorkspaceCategories(
+  userId: string,
+  serverId: string,
+  items: ReorderCategoriesInput["items"],
+) {
+  const access = await getAccessContext(userId, serverId);
+  ensureAdmin(access);
+
+  const existingCategories = await prisma.channelCategory.findMany({
+    where: {
+      id: {
+        in: items.map((item) => item.id),
+      },
+      serverId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existingCategories.length !== items.length) {
+    throw new ApiError("One or more categories could not be found", 404);
+  }
+
+  await prisma.$transaction(
+    items.map((item) =>
+      prisma.channelCategory.update({
+        where: {
+          id: item.id,
+        },
+        data: {
+          position: item.position,
+        },
+      }),
+    ),
+  );
+
+  getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
+    serverId,
+  });
+
+  return { success: true as const };
 }
 
 export async function deleteWorkspaceChannel(userId: string, channelId: string) {

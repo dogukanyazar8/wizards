@@ -6,6 +6,7 @@ import { getRedis } from "@/lib/redis";
 export const API_RATE_LIMITS = {
   "category:create": { limit: 30, windowSeconds: 60 },
   "category:delete": { limit: 30, windowSeconds: 60 },
+  "category:reorder": { limit: 20, windowSeconds: 60 },
   "category:update": { limit: 30, windowSeconds: 60 },
   "channel:clear-history": { limit: 10, windowSeconds: 60 },
   "channel:create": { limit: 30, windowSeconds: 60 },

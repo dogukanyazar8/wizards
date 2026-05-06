@@ -532,6 +532,10 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
               }
             : current,
       );
+
+      void queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.server(data.serverId),
+      });
     };
 
     const handleServerSettingsUpdated = (data: { serverId: string }) => {

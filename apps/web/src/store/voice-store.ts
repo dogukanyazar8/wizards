@@ -203,16 +203,12 @@ export const useVoiceStore = create<VoiceStoreState>()(
       join: ({ channelId, serverId, sessionId }) =>
         set({
           activeChannelId: channelId,
-          isDeafened: false,
-          isMuted: false,
           serverId,
           sessionId,
         }),
       leave: () =>
         set({
           activeChannelId: null,
-          isDeafened: false,
-          isMuted: false,
           serverId: null,
           sessionId: null,
           isScreenSharing: false,

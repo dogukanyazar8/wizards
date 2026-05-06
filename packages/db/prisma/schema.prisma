@@ -400,6 +400,7 @@ model Server {
   afkTimeout            Int                   @default(300)
   isNsfw                Boolean               @default(false)
   features              String[]
+  messageCharacterLimit Int                   @default(2000)
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
 

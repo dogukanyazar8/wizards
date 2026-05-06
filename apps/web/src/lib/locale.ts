@@ -97,7 +97,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.quality.description":
       "ESLint now runs through the supported CLI path, lint warnings are clean, and startup output avoids noisy or broken terminal text.",
 
-    "validation.channel.pattern": "Channel names must use lowercase letters, numbers, or hyphens.",
+    "validation.category.pattern":
+      "Category names can use letters, numbers, spaces, hyphens, or underscores.",
+    "validation.channel.pattern":
+      "Channel names can use letters, numbers, spaces, hyphens, or underscores.",
     "validation.email.invalid": "Please enter a valid email address.",
     "validation.form.atLeastOne": "At least one field must be provided.",
     "validation.password.confirmMismatch": "Passwords do not match.",
@@ -300,6 +303,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.badgeKrispActive": "Krisp active",
     "voice.settings.badgeWebRtc": "WebRTC active",
     "voice.settings.applyCleanVoiceProfile": "Optimize clean voice",
+    "voice.settings.retryKrisp": "Retry Krisp",
+    "voice.settings.retryingKrisp": "Retrying Krisp...",
     "voice.settings.cleanVoiceProfileApplied":
       "Clean voice profile applied: noise suppression, echo cancellation, stable gain, voice isolation, and Krisp preference are enabled.",
     "voice.settings.cleanVoiceKrisp": "Clean voice active",
@@ -357,6 +362,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.krispAvailable":
       "Enhanced LiveKit Cloud Krisp filtering is available in this browser and will be preferred by default.",
     "voice.settings.krispChecking": "Checking browser compatibility for Krisp...",
+    "voice.settings.krispBlockedBySecurityPolicy":
+      "Krisp was blocked by the browser security policy. Whispr keeps WebRTC cleanup active and can retry once the page has the latest security headers.",
     "voice.settings.krispRequiresCloud":
       "Krisp needs a LiveKit Cloud room and will stay off while using local development rooms.",
     "voice.settings.krispUnsupportedBrowser":
@@ -615,12 +622,13 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Tune the channel list width so names and presence previews breathe properly.",
     "settings.appearance.icons.title": "App icon",
     "settings.appearance.icons.description":
-      "Choose the wave mark Whispr uses in browser tabs, mobile shortcuts, and installed app surfaces on this device.",
+      "Choose the mark Whispr uses in browser tabs, mobile shortcuts, and installed app surfaces on this device.",
     "settings.appearance.icons.select": "Use this icon",
     "settings.appearance.icons.selected": "Active icon",
     "settings.appearance.icons.updated": "App icon updated",
     "settings.appearance.icons.updatedDescription":
       "No refresh needed. Whispr applies the browser and mobile icon instantly on this device.",
+    "settings.appearance.icons.whispr": "Whispr mark",
     "settings.appearance.icons.wave0": "Midnight pulse",
     "settings.appearance.icons.wave1": "Classic blue",
     "settings.appearance.icons.wave2": "Aurora wave",
@@ -850,6 +858,11 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.channelSidebar.addTextChannel": "Text",
     "shell.channelSidebar.addVoiceChannel": "Voice",
     "shell.channelSidebar.categoryActions": "Category actions",
+    "shell.channelSidebar.dragCategory": "Drag category {name}",
+    "shell.channelSidebar.categoryMoveControls": "Move category {name}",
+    "shell.channelSidebar.categoryMoveHint": "Drag, or use the arrows to move this category.",
+    "shell.channelSidebar.moveCategoryUp": "Move {name} up",
+    "shell.channelSidebar.moveCategoryDown": "Move {name} down",
     "shell.channelSidebar.editCategory": "Edit Category",
     "shell.channelSidebar.deleteCategory": "Delete Category",
     "shell.channelSidebar.deleteCategoryDescription":
@@ -870,6 +883,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.user.idleAfter": "Idle after",
     "shell.user.idleAfterTitle": "Set automatic idle timeout",
     "shell.user.idleMinutes": "{count} min",
+    "shell.user.quickMenu": "Account quick controls",
     "shell.user.appearanceSettings": "Open settings",
     "shell.user.appearanceSettingsTitle": "Settings",
     "shell.user.logout": "Log out",
@@ -913,6 +927,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.footer.codex": "Codex Software",
     "shell.channelItem.openTextChannel": "Open text channel {name}",
     "shell.channelItem.openVoiceChannel": "Open voice channel {name}",
+    "shell.channelItem.mentionCount": "{count} mentions",
+    "shell.channelItem.unreadCount": "{count} unread messages",
     "shell.channelItem.edit": "Edit channel {name}",
     "shell.channelItem.delete": "Delete channel {name}",
 
@@ -1056,6 +1072,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.input.pollQuestion": "Question",
     "chat.input.pollTemplate": "**Poll:** Question\n- [ ] Option 1\n- [ ] Option 2",
     "chat.input.quoteFallback": "quoted text",
+    "chat.input.adminUnlimited": "Admin unlimited",
     "chat.emoji.title": "Emoji",
     "chat.emoji.hint": "Pick an emoji that fits the moment.",
     "chat.attachments.fileTooLarge": "Images must be 8MB or smaller.",
@@ -1152,7 +1169,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Spin up a new server with its first channels already in place.",
     "workspace.modal.serverIcon": "Server icon",
     "workspace.modal.serverIconDescription":
-      "Upload a square image for the rail. A live preview keeps the crop feeling intentional.",
+      "Upload a square image for the rail. The preview keeps the server identity clear.",
     "workspace.modal.serverIconUploadsDisabled":
       "Add `UPLOADTHING_TOKEN` to enable cloud uploads.",
     "workspace.modal.serverIconUploading": "Uploading icon... {progress}%",
@@ -1177,6 +1194,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.media.files.title": "File uploads",
     "workspace.media.files.description":
       "Allow screenshots, images, and documents in server text channels.",
+    "workspace.messages.limitTitle": "Message character limit",
+    "workspace.messages.limitDescription":
+      "Set the maximum length regular members can send in this server. Admins and the owner can always send longer moderation updates.",
+    "workspace.messages.adminUnlimited": "Admins unlimited",
     "workspace.members.title": "Member access",
     "workspace.members.description":
       "Control whether regular members can add people by username.",
@@ -1204,6 +1225,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.addMemberMissingServer": "Choose a server first.",
     "workspace.modal.categoryTitle": "Create Category",
     "workspace.modal.categoryDescription": "Add a new category block to organize channels.",
+    "workspace.modal.categoryHint":
+      "Turkish characters, spaces, hyphens, and underscores are supported.",
     "workspace.modal.categoryName": "Category Name",
     "workspace.modal.categoryPlaceholder": "Launch Zone",
     "workspace.modal.categoryCreating": "Creating...",
@@ -1222,6 +1245,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.channelCreateVoiceTitle": "Create Voice Channel",
     "workspace.modal.channelDescription":
       "Create or refine a channel. Renames update optimistically so the sidebar stays snappy.",
+    "workspace.modal.channelHint":
+      "Use a readable name with spaces or Turkish characters; Whispr keeps routes ID-based.",
+    "workspace.modal.channelTextPlaceholder": "welcome chat",
+    "workspace.modal.channelVoicePlaceholder": "live room",
     "workspace.modal.channelName": "Channel Name",
     "workspace.modal.channelTopicPlaceholder": "What belongs in this channel?",
     "workspace.modal.channelTopic": "Topic",
@@ -1388,7 +1415,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.quality.description":
       "ESLint artık desteklenen CLI yolundan çalışıyor, lint uyarıları temiz ve başlangıç çıktısı gürültüsüz/bozuk karaktersiz.",
 
-    "validation.channel.pattern": "Kanal adları sadece küçük harf, sayı veya tire içerebilir.",
+    "validation.category.pattern":
+      "Kategori adları harf, sayı, boşluk, tire veya alt çizgi içerebilir.",
+    "validation.channel.pattern":
+      "Kanal adları harf, sayı, boşluk, tire veya alt çizgi içerebilir.",
     "validation.email.invalid": "Geçerli bir e-posta adresi girin.",
     "validation.form.atLeastOne": "En az bir alan gönderilmelidir.",
     "validation.password.confirmMismatch": "Şifreler eşleşmiyor.",
@@ -1591,6 +1621,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.badgeKrispActive": "Krisp aktif",
     "voice.settings.badgeWebRtc": "WebRTC aktif",
     "voice.settings.applyCleanVoiceProfile": "Temiz sesi optimize et",
+    "voice.settings.retryKrisp": "Krisp'i yeniden dene",
+    "voice.settings.retryingKrisp": "Krisp yeniden deneniyor...",
     "voice.settings.cleanVoiceProfileApplied":
       "Temiz ses profili uygulandı: gürültü engelleme, eko engelleme, stabil kazanç, ses izolasyonu ve Krisp tercihi açıldı.",
     "voice.settings.cleanVoiceKrisp": "Temiz ses aktif",
@@ -1648,6 +1680,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.krispAvailable":
       "Gelişmiş LiveKit Cloud Krisp filtreleme bu tarayıcıda kullanılabilir ve varsayılan olarak tercih edilir.",
     "voice.settings.krispChecking": "Krisp için tarayıcı uyumluluğu kontrol ediliyor...",
+    "voice.settings.krispBlockedBySecurityPolicy":
+      "Krisp tarayıcı güvenlik politikası tarafından engellendi. Whispr WebRTC temizliğini açık tutar ve sayfa en güncel güvenlik başlıklarını aldığında yeniden deneyebilir.",
     "voice.settings.krispRequiresCloud":
       "Krisp bir LiveKit Cloud odası gerektirir ve local geliştirme odalarında kapalı kalır.",
     "voice.settings.krispUnsupportedBrowser":
@@ -1908,12 +1942,13 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Kanal listesi genişliğini, adlar ve durum önizlemeleri rahat nefes alacak şekilde ayarla.",
     "settings.appearance.icons.title": "Uygulama ikonu",
     "settings.appearance.icons.description":
-      "Whispr'ın tarayıcı sekmelerinde, mobil kısayollarda ve bu cihazdaki yüklü uygulama yüzeylerinde kullanacağı dalga işaretini seç.",
+      "Whispr'ın tarayıcı sekmelerinde, mobil kısayollarda ve bu cihazdaki yüklü uygulama yüzeylerinde kullanacağı işareti seç.",
     "settings.appearance.icons.select": "Bu ikonu kullan",
     "settings.appearance.icons.selected": "Aktif ikon",
     "settings.appearance.icons.updated": "Uygulama ikonu güncellendi",
     "settings.appearance.icons.updatedDescription":
       "Sayfayı yenilemeye gerek yok. Whispr tarayıcı ve mobil ikonunu bu cihazda anında uygular.",
+    "settings.appearance.icons.whispr": "Whispr işareti",
     "settings.appearance.icons.wave0": "Gece sinyali",
     "settings.appearance.icons.wave1": "Klasik mavi",
     "settings.appearance.icons.wave2": "Aurora dalgası",
@@ -2143,6 +2178,11 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.channelSidebar.addTextChannel": "Yazı",
     "shell.channelSidebar.addVoiceChannel": "Ses",
     "shell.channelSidebar.categoryActions": "Kategori işlemleri",
+    "shell.channelSidebar.dragCategory": "{name} kategorisini sürükle",
+    "shell.channelSidebar.categoryMoveControls": "{name} kategorisini taşı",
+    "shell.channelSidebar.categoryMoveHint": "Kategoriyi sürükle veya oklarla yukarı/aşağı taşı.",
+    "shell.channelSidebar.moveCategoryUp": "{name} kategorisini yukarı taşı",
+    "shell.channelSidebar.moveCategoryDown": "{name} kategorisini aşağı taşı",
     "shell.channelSidebar.editCategory": "Kategoriyi Düzenle",
     "shell.channelSidebar.deleteCategory": "Kategoriyi Sil",
     "shell.channelSidebar.deleteCategoryDescription":
@@ -2163,6 +2203,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.user.idleAfter": "Boşta say",
     "shell.user.idleAfterTitle": "Otomatik boşta süresini ayarla",
     "shell.user.idleMinutes": "{count} dk",
+    "shell.user.quickMenu": "Hesap hızlı kontrolleri",
     "shell.user.appearanceSettings": "Ayarları aç",
     "shell.user.appearanceSettingsTitle": "Ayarlar",
     "shell.user.logout": "Çıkış yap",
@@ -2206,6 +2247,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.footer.codex": "Codex Software",
     "shell.channelItem.openTextChannel": "{name} yazı kanalını aç",
     "shell.channelItem.openVoiceChannel": "{name} ses kanalını aç",
+    "shell.channelItem.mentionCount": "{count} etiketleme",
+    "shell.channelItem.unreadCount": "{count} okunmamış mesaj",
     "shell.channelItem.edit": "{name} kanalını düzenle",
     "shell.channelItem.delete": "{name} kanalını sil",
 
@@ -2349,6 +2392,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.input.pollQuestion": "Soru",
     "chat.input.pollTemplate": "**Anket:** Soru\n- [ ] Seçenek 1\n- [ ] Seçenek 2",
     "chat.input.quoteFallback": "alıntı metni",
+    "chat.input.adminUnlimited": "Admin sınırsız",
     "chat.emoji.title": "Emoji",
     "chat.emoji.hint": "O ana en uygun emojiyi seç.",
     "chat.attachments.fileTooLarge": "Görseller 8MB veya daha küçük olmalı.",
@@ -2445,7 +2489,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "İlk kanalları hazır olan yeni bir sunucuyu hemen oluştur.",
     "workspace.modal.serverIcon": "Sunucu ikonu",
     "workspace.modal.serverIconDescription":
-      "Rayda kullanılacak kare bir görsel yükle. Canlı önizleme kırpmanın bilinçli hissettirmesini sağlar.",
+      "Sunucu rayı için kare bir görsel yükle. Önizleme sunucu kimliğini net gösterir.",
     "workspace.modal.serverIconUploadsDisabled":
       "Bulut yüklemelerini açmak için `UPLOADTHING_TOKEN` ekle.",
     "workspace.modal.serverIconUploading": "İkon yükleniyor... {progress}%",
@@ -2470,6 +2514,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.media.files.title": "Dosya yükleme",
     "workspace.media.files.description":
       "Sunucu yazı kanallarında ekran görüntüsü, görsel ve belge yüklemeye izin ver.",
+    "workspace.messages.limitTitle": "Mesaj karakter limiti",
+    "workspace.messages.limitDescription":
+      "Bu sunucuda normal üyelerin gönderebileceği maksimum mesaj uzunluğunu belirle. Adminler ve sunucu sahibi uzun yönetim mesajları gönderebilir.",
+    "workspace.messages.adminUnlimited": "Adminler sınırsız",
     "workspace.members.title": "Üye erişimi",
     "workspace.members.description":
       "Normal üyelerin kullanıcı adıyla kişi ekleyip ekleyemeyeceğini yönet.",
@@ -2498,6 +2546,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.categoryTitle": "Kategori Oluştur",
     "workspace.modal.categoryDescription": "Kanalları düzenlemek için yeni bir kategori bloğu ekle.",
     "workspace.modal.categoryName": "Kategori Adı",
+    "workspace.modal.categoryHint":
+      "Türkçe karakter, boşluk, tire ve alt çizgi desteklenir.",
     "workspace.modal.categoryPlaceholder": "Başlangıç Alanı",
     "workspace.modal.categoryCreating": "Oluşturuluyor...",
     "workspace.modal.categoryEditTitle": "Kategoriyi Düzenle",
@@ -2516,6 +2566,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.channelDescription":
       "Bir kanal oluştur veya düzenle. Yeniden adlandırmalar, kenar çubuğu akıcı kalsın diye anında yansır.",
     "workspace.modal.channelName": "Kanal Adı",
+    "workspace.modal.channelHint":
+      "Boşluklu veya Türkçe karakterli okunabilir adlar kullanabilirsin; Whispr rotaları ID ile korur.",
+    "workspace.modal.channelTextPlaceholder": "karşılama sohbeti",
+    "workspace.modal.channelVoicePlaceholder": "canlı oda",
     "workspace.modal.channelTopicPlaceholder": "Bu kanalda neler paylaşılmalı?",
     "workspace.modal.channelTopic": "Konu",
     "workspace.modal.channelReadOnly": "Salt okunur kanal",

@@ -1,12 +1,14 @@
 import { Prisma, prisma } from "@wizards/db";
-import type {
-  ChatMessage,
-  ChatMessageType,
-  MessageAttachment,
-  MessageReaction,
-  MessageThreadSummary,
-  ReplyTo,
-  UploadedAttachmentInput,
+import {
+  MESSAGE_CONTENT_DEFAULT_LIMIT,
+  MESSAGE_CONTENT_HARD_LIMIT,
+  type ChatMessage,
+  type ChatMessageType,
+  type MessageAttachment,
+  type MessageReaction,
+  type MessageThreadSummary,
+  type ReplyTo,
+  type UploadedAttachmentInput,
 } from "@wizards/types";
 import { ApiError } from "@/lib/api";
 import {
@@ -31,10 +33,20 @@ function validateReactionEmoji(emoji: string) {
   return trimmed;
 }
 
-function validateEditableMessageContent(content: string) {
+function validateEditableMessageContent(
+  content: string,
+  maxLength: number | null = MESSAGE_CONTENT_DEFAULT_LIMIT,
+) {
   const trimmed = content.trim();
-  if (!trimmed || trimmed.length > 2000) {
-    throw new ApiError("Message content must be between 1 and 2000 characters.", 400);
+  const effectiveMaxLength =
+    maxLength === null ? MESSAGE_CONTENT_HARD_LIMIT : Math.min(maxLength, MESSAGE_CONTENT_HARD_LIMIT);
+
+  if (!trimmed || trimmed.length > effectiveMaxLength) {
+    throw new ApiError(
+      `Message content must be between 1 and ${effectiveMaxLength} characters.`,
+      400,
+      "MESSAGE_TOO_LONG",
+    );
   }
 
   return trimmed;
@@ -644,6 +656,7 @@ export async function editMessage(
   messageId: string,
   userId: string,
   content: string,
+  maxLength: number | null = MESSAGE_CONTENT_DEFAULT_LIMIT,
 ): Promise<ChatMessage> {
   const existing = await prisma.message.findUnique({
     where: { id: messageId },
@@ -680,7 +693,7 @@ export async function editMessage(
     throw new ApiError("Cannot edit this message", 403);
   }
 
-  const nextContent = validateEditableMessageContent(content);
+  const nextContent = validateEditableMessageContent(content, maxLength);
   const updateResult = await prisma.message.updateMany({
     where: { id: messageId, userId, deletedAt: null },
     data: { content: nextContent, editedAt: new Date() },

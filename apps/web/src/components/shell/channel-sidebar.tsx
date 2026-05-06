@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useTransition } from "react";
+import React, { useCallback, useEffect, useRef, useTransition } from "react";
 import {
   closestCenter,
   DndContext,
@@ -19,6 +19,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowDown,
+  ArrowUp,
   ChevronDown,
   Clock3,
   Edit3,
@@ -51,8 +53,10 @@ import { VoiceConnectionBar } from "@/components/voice/voice-connection-bar";
 import { useVoiceConnection } from "@/components/providers/voice-provider";
 import { cn } from "@/lib/utils";
 import {
+  applyCategoryReorder,
   applyChannelReorder,
   deleteCategoryRequest,
+  reorderCategoriesRequest,
   reorderChannelsRequest,
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
@@ -98,6 +102,19 @@ type SortableChannelRowProps = {
   voiceState?: VoiceChannelStateDTO | null;
 };
 
+type SortableCategoryGroupProps = {
+  canManage: boolean;
+  categoryId: string;
+  children: (
+    sortable: Pick<ReturnType<typeof useSortable>, "attributes" | "isDragging" | "listeners">,
+  ) => React.ReactNode;
+};
+
+type CategorySortableHandle = Pick<
+  ReturnType<typeof useSortable>,
+  "attributes" | "isDragging" | "listeners"
+>;
+
 type ChannelDropZoneProps = {
   canManage: boolean;
   categoryId: string | null;
@@ -121,7 +138,7 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
     disabled: !canManage,
     id: channel.id,
-    data: { categoryId: channel.categoryId ?? null },
+    data: { categoryId: channel.categoryId ?? null, itemType: "channel" },
   });
   const verticalTransform = transform ? { ...transform, x: 0 } : null;
 
@@ -155,11 +172,13 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
             active={active}
             canManage={canManage}
             currentUserId={currentUserId}
+            mentionCount={channel.mentionCount}
             name={channel.name}
             onDelete={onDelete}
             onEdit={onEdit}
             onSelect={onSelect}
             type={channel.type}
+            unreadCount={channel.unreadCount}
             voiceState={voiceState}
             {...(onPrefetch ? { onPrefetch } : {})}
             {...(testId ? { testId } : {})}
@@ -169,6 +188,32 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
     </div>
   );
 });
+
+function SortableCategoryGroup({
+  canManage,
+  categoryId,
+  children,
+}: SortableCategoryGroupProps) {
+  const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
+    disabled: !canManage,
+    id: `category-sort:${categoryId}`,
+    data: { categoryId, itemType: "category" },
+  });
+  const verticalTransform = transform ? { ...transform, x: 0 } : null;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        opacity: isDragging ? 0.78 : 1,
+        transform: verticalTransform ? CSS.Transform.toString(verticalTransform) : undefined,
+        transition,
+      }}
+    >
+      {children({ attributes, isDragging, listeners })}
+    </div>
+  );
+}
 
 function ChannelDropZone({
   canManage,
@@ -251,8 +296,10 @@ function UserProfileFooter({
   const [isLoggingOut, startLogoutTransition] = useTransition();
   const [isUpdatingStatus, startStatusTransition] = useTransition();
   const [status, setStatus] = useState<PresenceStatus>(user.status);
+  const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
+  const quickMenuRef = useRef<HTMLDivElement | null>(null);
   const { idleTimeoutMinutes, setIdleTimeoutMinutes } = usePresenceIdleTimeoutPreference();
-  const { activeChannelId, isDeafened, isMuted, leaveChannel, toggleDeafen, toggleMute } =
+  const { isDeafened, isMuted, leaveChannel, toggleDeafen, toggleMute } =
     useVoiceConnection();
 
   useEffect(() => {
@@ -285,156 +332,210 @@ function UserProfileFooter({
     });
   };
 
+  useEffect(() => {
+    if (!isQuickMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (
+        quickMenuRef.current &&
+        event.target instanceof Node &&
+        !quickMenuRef.current.contains(event.target)
+      ) {
+        setIsQuickMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsQuickMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isQuickMenuOpen]);
+
   return (
     <div
-      className="app-panel rounded-[26px] border p-3 shadow-[0_18px_45px_hsl(var(--shadow-color)/0.08)]"
+      className="app-panel relative rounded-[30px] border p-3 shadow-[0_20px_50px_hsl(var(--shadow-color)/0.09)]"
       data-notification-popup-anchor="user"
       data-testid="user-bar"
       data-user-bar-anchor="true"
+      ref={quickMenuRef}
     >
       <div className="space-y-3">
-        <div className="rounded-[22px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.52)] p-2.5">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="relative shrink-0">
+        <div className="rounded-[28px] border border-[hsl(var(--border)/0.64)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.88),hsl(var(--surface-soft)/0.4))] p-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <div className="relative shrink-0 drop-shadow-[0_12px_24px_hsl(var(--shadow-color)/0.12)]">
               <Avatar
                 alt={user.displayName}
-                className="h-12 w-12"
+                className="h-14 w-14"
                 fallback={user.displayName}
                 src={user.avatarUrl}
               />
               <span
                 aria-hidden="true"
                 className={cn(
-                  "absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-[hsl(var(--surface-card))]",
+                  "absolute bottom-0 right-0 h-4 w-4 rounded-full border-[3px] border-[hsl(var(--surface-card))]",
                   getStatusDotClass(status),
                 )}
               />
             </div>
 
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[15px] font-semibold leading-5 text-app-foreground">
+            <div className="min-w-[8rem] flex-1">
+              <p className="truncate text-[16px] font-bold leading-5 text-app-foreground">
                 {user.displayName}
               </p>
               <p className="truncate text-xs font-medium text-app-muted">@{user.username}</p>
+              <div className="mt-1 inline-flex max-w-full items-center gap-1.5 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.72)] px-2.5 py-1">
+                <span className={cn("h-2.5 w-2.5 rounded-full", getStatusDotClass(status))} />
+                <label className="sr-only" htmlFor="user-presence-status">
+                  {t("shell.user.status")}
+                </label>
+                <select
+                  className="max-w-[8rem] appearance-none bg-transparent pr-5 text-xs font-semibold text-app-muted outline-none transition hover:text-app-foreground disabled:cursor-wait disabled:opacity-70"
+                  disabled={isUpdatingStatus}
+                  id="user-presence-status"
+                  onChange={(event) => handleStatusChange(event.target.value as PresenceStatus)}
+                  title={t("shell.user.statusTitle")}
+                  value={status}
+                >
+                  {USER_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {t(option.key)}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none -ml-5 h-3.5 w-3.5 text-app-muted" />
+              </div>
             </div>
-          </div>
 
-          <div className="mt-3 flex items-center gap-2">
-            <label className="sr-only" htmlFor="user-presence-status">
-              {t("shell.user.status")}
-            </label>
-            <div className="relative min-w-0 flex-1">
-              <select
-                className="h-10 w-full appearance-none rounded-2xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-soft)/0.42)] px-3 pr-8 text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-70"
-                disabled={isUpdatingStatus}
-                id="user-presence-status"
-                onChange={(event) => handleStatusChange(event.target.value as PresenceStatus)}
-                title={t("shell.user.statusTitle")}
-                value={status}
+            <div className="ml-auto grid grid-cols-4 gap-2">
+              <button
+                aria-label={t("shell.user.toggleMute")}
+                className={cn(
+                  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft)/0.74)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  isMuted
+                    ? "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
+                    : "border-[hsl(var(--border)/0.66)]",
+                )}
+                onClick={() => {
+                  void toggleMute();
+                }}
+                type="button"
               >
-                {USER_STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {t(option.key)}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-app-muted" />
-            </div>
+                <Mic className={cn("h-[18px] w-[18px]", isMuted && "text-[hsl(var(--danger))]")} />
+              </button>
 
-            <button
-              aria-label={t("shell.user.toggleMute")}
-              className={cn(
-                "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-                activeChannelId
-                  ? "border-[hsl(var(--border)/0.66)] text-app-foreground"
-                  : "border-[hsl(var(--border)/0.45)] text-app-muted disabled:cursor-not-allowed disabled:opacity-55",
-              )}
-              disabled={!activeChannelId}
-              onClick={() => {
-                void toggleMute();
-              }}
-              type="button"
-            >
-              <Mic className={cn("h-4 w-4", isMuted && "text-[hsl(var(--danger))]")} />
-            </button>
-
-            <button
-              aria-label={t("shell.user.toggleDeafen")}
-              className={cn(
-                "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-                activeChannelId
-                  ? "border-[hsl(var(--border)/0.66)] text-app-foreground"
-                  : "border-[hsl(var(--border)/0.45)] text-app-muted disabled:cursor-not-allowed disabled:opacity-55",
-              )}
-              disabled={!activeChannelId}
-              onClick={() => {
-                void toggleDeafen();
-              }}
-              type="button"
-            >
-              <Volume2 className={cn("h-4 w-4", isDeafened && "text-[hsl(var(--danger))]")} />
-            </button>
-          </div>
-
-          <div className="mt-2 flex items-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-soft)/0.26)] px-3 py-2">
-            <div className="flex min-w-0 flex-1 items-center gap-2 text-app-muted">
-              <Clock3 className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate text-[11px] font-semibold">
-                {t("shell.user.idleAfter")}
-              </span>
-            </div>
-            <label className="sr-only" htmlFor="user-presence-idle-timeout">
-              {t("shell.user.idleAfterTitle")}
-            </label>
-            <div className="relative shrink-0">
-              <select
-                className="h-8 appearance-none rounded-xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.82)] px-2.5 pr-7 text-[11px] font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-card))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                id="user-presence-idle-timeout"
-                onChange={(event) => setIdleTimeoutMinutes(Number(event.target.value))}
-                title={t("shell.user.idleAfterTitle")}
-                value={idleTimeoutMinutes}
+              <button
+                aria-label={t("shell.user.toggleDeafen")}
+                className={cn(
+                  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft)/0.74)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  isDeafened
+                    ? "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
+                    : "border-[hsl(var(--border)/0.66)]",
+                )}
+                onClick={() => {
+                  void toggleDeafen();
+                }}
+                type="button"
               >
-                {PRESENCE_IDLE_TIMEOUT_OPTIONS.map((minutes) => (
-                  <option key={minutes} value={minutes}>
-                    {t("shell.user.idleMinutes", { count: minutes })}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-app-muted" />
+                <Volume2 className={cn("h-[18px] w-[18px]", isDeafened && "text-[hsl(var(--danger))]")} />
+              </button>
+
+              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.72)] shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)]">
+                <NotificationBell className="h-11 w-11 rounded-full" />
+              </div>
+
+              <button
+                aria-label={t("shell.user.appearanceSettings")}
+                className={cn(
+                  "inline-flex h-11 w-11 items-center justify-center rounded-full border border-[hsl(var(--primary)/0.26)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] shadow-[0_10px_26px_hsl(var(--primary)/0.1)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  isQuickMenuOpen && "bg-[hsl(var(--primary)/0.18)]",
+                )}
+                data-testid="user-settings-button"
+                onClick={() => setIsQuickMenuOpen((open) => !open)}
+                title={t("shell.user.appearanceSettingsTitle")}
+                type="button"
+              >
+                <Settings2 className="h-[18px] w-[18px]" />
+              </button>
             </div>
           </div>
 
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <AudioDeviceSelect kind="input" variant="compact" />
-            <AudioDeviceSelect kind="output" variant="compact" />
-          </div>
-        </div>
+          {isQuickMenuOpen ? (
+            <div
+              aria-label={t("shell.user.quickMenu")}
+              className="absolute bottom-[calc(100%+0.75rem)] right-0 z-40 w-[min(24rem,calc(100vw-2rem))] rounded-[30px] border border-[hsl(var(--border)/0.78)] bg-[hsl(var(--surface-card)/0.98)] p-4 shadow-[0_28px_80px_hsl(var(--shadow-color)/0.22)] backdrop-blur-2xl"
+              role="dialog"
+            >
+              <div className="absolute -bottom-2 right-9 h-4 w-4 rotate-45 border-b border-r border-[hsl(var(--border)/0.78)] bg-[hsl(var(--surface-card)/0.98)]" />
+              <div className="mt-0 flex items-center gap-2 rounded-[22px] border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-soft)/0.28)] px-3 py-2">
+                <div className="flex min-w-0 flex-1 items-center gap-2 text-app-muted">
+                  <Clock3 className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate text-[11px] font-semibold">
+                    {t("shell.user.idleAfter")}
+                  </span>
+                </div>
+                <label className="sr-only" htmlFor="user-presence-idle-timeout">
+                  {t("shell.user.idleAfterTitle")}
+                </label>
+                <div className="relative shrink-0">
+                  <select
+                    className="h-8 appearance-none rounded-xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.82)] px-2.5 pr-7 text-[11px] font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-card))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                    id="user-presence-idle-timeout"
+                    onChange={(event) => setIdleTimeoutMinutes(Number(event.target.value))}
+                    title={t("shell.user.idleAfterTitle")}
+                    value={idleTimeoutMinutes}
+                  >
+                    {PRESENCE_IDLE_TIMEOUT_OPTIONS.map((minutes) => (
+                      <option key={minutes} value={minutes}>
+                        {t("shell.user.idleMinutes", { count: minutes })}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-app-muted" />
+                </div>
+              </div>
 
-        <div className="grid grid-cols-3 gap-2 border-t border-[hsl(var(--border)/0.58)] pt-3">
-          <div className="flex justify-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.28)]">
-            <NotificationBell className="h-10 w-full rounded-2xl" />
-          </div>
-          <button
-            aria-label={t("shell.user.appearanceSettings")}
-            className="inline-flex h-10 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.28)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-            data-testid="user-settings-button"
-            onClick={onOpenAppearanceSettings}
-            title={t("shell.user.appearanceSettingsTitle")}
-            type="button"
-          >
-            <Settings2 className="h-4 w-4" />
-          </button>
-          <button
-            aria-label={t("shell.user.logout")}
-            className="inline-flex h-10 items-center justify-center rounded-2xl border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:cursor-not-allowed disabled:opacity-60"
-            data-testid="user-logout-button"
-            disabled={isLoggingOut}
-            onClick={handleLogout}
-            title={t("shell.user.logoutTitle")}
-            type="button"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <AudioDeviceSelect kind="input" variant="compact" />
+                <AudioDeviceSelect kind="output" variant="compact" />
+              </div>
+
+              <button
+                className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[20px] border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.08)] px-4 py-2 text-sm font-semibold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                onClick={() => {
+                  setIsQuickMenuOpen(false);
+                  onOpenAppearanceSettings();
+                }}
+                type="button"
+              >
+                <Settings2 className="h-4 w-4" />
+                {t("shell.user.appearanceSettingsTitle")}
+              </button>
+
+              <button
+                aria-label={t("shell.user.logout")}
+                className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[20px] border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.1)] text-sm font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:cursor-not-allowed disabled:opacity-60"
+                data-testid="user-logout-button"
+                disabled={isLoggingOut}
+                onClick={handleLogout}
+                title={t("shell.user.logoutTitle")}
+                type="button"
+              >
+                <LogOut className="h-4 w-4" />
+                {t("shell.user.logout")}
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
@@ -583,6 +684,59 @@ export function ChannelSidebar({
     },
   });
 
+  const categoryReorderMutation = useMutation<
+    { success: true },
+    Error,
+    Array<{ id: string; position: number }>,
+    { previousDetail: WorkspaceServerDetail | null }
+  >({
+    mutationKey: ["workspace", "reorder-categories", detail?.server.id],
+    mutationFn: (items: Array<{ id: string; position: number }>) => {
+      if (!detail) {
+        return Promise.resolve({ success: true as const });
+      }
+
+      return reorderCategoriesRequest(detail.server.id, items);
+    },
+    onError: (_error, _variables, context) => {
+      if (detail && context?.previousDetail) {
+        queryClient.setQueryData(workspaceQueryKeys.server(detail.server.id), context.previousDetail);
+      }
+    },
+    onMutate: async (items) => {
+      if (!detail) {
+        return { previousDetail: null };
+      }
+
+      await queryClient.cancelQueries({
+        queryKey: workspaceQueryKeys.server(detail.server.id),
+      });
+
+      const previousDetail =
+        queryClient.getQueryData<WorkspaceServerDetail>(
+          workspaceQueryKeys.server(detail.server.id),
+        ) ?? null;
+
+      if (previousDetail) {
+        queryClient.setQueryData(
+          workspaceQueryKeys.server(detail.server.id),
+          applyCategoryReorder(previousDetail, items),
+        );
+      }
+
+      return { previousDetail };
+    },
+    onSettled: () => {
+      if (!detail) {
+        return;
+      }
+
+      void queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.server(detail.server.id),
+      });
+    },
+  });
+
   const deleteCategoryMutation = useMutation({
     mutationFn: async () => {
       if (!detail || !categoryToDelete) {
@@ -633,10 +787,64 @@ export function ChannelSidebar({
     [serverId, onPrefetch],
   );
 
+  const moveCategory = useCallback(
+    (categoryId: string, direction: "down" | "up") => {
+      if (!detail) {
+        return;
+      }
+
+      const oldIndex = detail.categories.findIndex((category) => category.id === categoryId);
+      if (oldIndex < 0) {
+        return;
+      }
+
+      const newIndex = direction === "up" ? oldIndex - 1 : oldIndex + 1;
+      if (newIndex < 0 || newIndex >= detail.categories.length) {
+        return;
+      }
+
+      const reordered = arrayMove(detail.categories, oldIndex, newIndex);
+      categoryReorderMutation.mutate(
+        reordered.map((category, index) => ({
+          id: category.id,
+          position: index,
+        })),
+      );
+    },
+    [categoryReorderMutation, detail],
+  );
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
       if (!over || active.id === over.id || !detail) return;
+
+      const activeType = active.data.current?.itemType;
+
+      if (activeType === "category") {
+        const sourceCategoryId = active.data.current?.categoryId as string | undefined;
+        const targetCategoryId = over.data.current?.categoryId as string | undefined;
+
+        if (!sourceCategoryId || !targetCategoryId || sourceCategoryId === targetCategoryId) {
+          return;
+        }
+
+        const oldIndex = detail.categories.findIndex((category) => category.id === sourceCategoryId);
+        const newIndex = detail.categories.findIndex((category) => category.id === targetCategoryId);
+
+        if (oldIndex < 0 || newIndex < 0) {
+          return;
+        }
+
+        const reordered = arrayMove(detail.categories, oldIndex, newIndex);
+        categoryReorderMutation.mutate(
+          reordered.map((category, index) => ({
+            id: category.id,
+            position: index,
+          })),
+        );
+        return;
+      }
 
       const sourceCategoryId = (active.data.current?.categoryId ?? null) as string | null;
       const targetCategoryId = (over.data.current?.categoryId ?? null) as string | null;
@@ -671,7 +879,7 @@ export function ChannelSidebar({
         ]);
       }
     },
-    [detail, reorderMutation],
+    [categoryReorderMutation, detail, reorderMutation],
   );
 
   if (loading) {
@@ -717,8 +925,19 @@ export function ChannelSidebar({
   const getCategoryCollapsed = (categoryId: string) =>
     collapsedCategories[`${detail.server.id}:${categoryId}`] ?? false;
 
-  const renderChannelGroup = (label: string, categoryId: string | null, channels: WorkspaceChannel[]) => {
+  const renderChannelGroup = (
+    label: string,
+    categoryId: string | null,
+    channels: WorkspaceChannel[],
+    categorySortable?: CategorySortableHandle,
+  ) => {
     const collapsed = categoryId ? getCategoryCollapsed(categoryId) : false;
+    const categoryIndex = categoryId
+      ? detail.categories.findIndex((category) => category.id === categoryId)
+      : -1;
+    const canMoveCategoryUp = categoryIndex > 0;
+    const canMoveCategoryDown =
+      categoryIndex >= 0 && categoryIndex < detail.categories.length - 1;
 
     return (
       <div
@@ -727,6 +946,53 @@ export function ChannelSidebar({
         key={categoryId ?? "uncategorized"}
       >
         <div className="flex items-center gap-1">
+          {canManage && categoryId && categorySortable ? (
+            <button
+              aria-label={t("shell.channelSidebar.dragCategory", { name: label })}
+              className={cn(
+                "text-app-soft inline-flex h-8 w-7 shrink-0 items-center justify-center rounded-xl transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                categorySortable.isDragging && "cursor-grabbing text-app-foreground",
+              )}
+              type="button"
+              {...categorySortable.attributes}
+              {...categorySortable.listeners}
+            >
+              <GripVertical className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+          {canManage && categoryId ? (
+            <div
+              aria-label={t("shell.channelSidebar.categoryMoveControls", { name: label })}
+              className="hidden shrink-0 items-center rounded-2xl border border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-card)/0.64)] p-0.5 shadow-[0_10px_22px_hsl(var(--shadow-color)/0.08)] group-hover/category:flex group-focus-within/category:flex"
+            >
+              <button
+                aria-label={t("shell.channelSidebar.moveCategoryUp", { name: label })}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-xl text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-35"
+                disabled={!canMoveCategoryUp || categoryReorderMutation.isPending}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  moveCategory(categoryId, "up");
+                }}
+                title={t("shell.channelSidebar.moveCategoryUp", { name: label })}
+                type="button"
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+              </button>
+              <button
+                aria-label={t("shell.channelSidebar.moveCategoryDown", { name: label })}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-xl text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-35"
+                disabled={!canMoveCategoryDown || categoryReorderMutation.isPending}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  moveCategory(categoryId, "down");
+                }}
+                title={t("shell.channelSidebar.moveCategoryDown", { name: label })}
+                type="button"
+              >
+                <ArrowDown className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : null}
           <button
             className="text-app-soft flex min-w-0 flex-1 items-center justify-between rounded-2xl px-2.5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-[0.26em] transition hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-[hsl(var(--foreground))]"
             onClick={() => {
@@ -762,6 +1028,11 @@ export function ChannelSidebar({
             </button>
           ) : null}
         </div>
+        {canManage && categoryId ? (
+          <p className="px-2.5 text-[10px] font-medium leading-4 text-app-soft opacity-0 transition group-hover/category:opacity-100 group-focus-within/category:opacity-100">
+            {t("shell.channelSidebar.categoryMoveHint")}
+          </p>
+        ) : null}
 
         {!collapsed ? (
           <SortableContext items={channels.map((channel) => channel.id)} strategy={verticalListSortingStrategy}>
@@ -914,8 +1185,23 @@ export function ChannelSidebar({
             });
           }}
         >
-          {detail.categories.map((category) => renderChannelGroup(category.name, category.id, category.channels))}
-          {detail.ungroupedChannels.length > 0 || canManage
+          <SortableContext
+            items={detail.categories.map((category) => `category-sort:${category.id}`)}
+            strategy={verticalListSortingStrategy}
+          >
+            {detail.categories.map((category) => (
+              <SortableCategoryGroup
+                canManage={canManage}
+                categoryId={category.id}
+                key={category.id}
+              >
+                {(sortable) =>
+                  renderChannelGroup(category.name, category.id, category.channels, sortable)
+                }
+              </SortableCategoryGroup>
+            ))}
+          </SortableContext>
+          {detail.ungroupedChannels.length > 0
             ? renderChannelGroup(t("shell.channelSidebar.openChannels"), null, detail.ungroupedChannels)
             : null}
         </div>

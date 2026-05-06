@@ -11,12 +11,14 @@ type ChannelItemProps = {
   canManage: boolean;
   currentUserId?: string;
   name: string;
+  mentionCount?: number;
   onDelete: () => void;
   onEdit: () => void;
   onPrefetch?: () => void;
   onSelect: () => void;
   testId?: string;
   type: "TEXT" | "VOICE";
+  unreadCount?: number;
   voiceState?: VoiceChannelStateDTO | null;
 };
 
@@ -24,6 +26,7 @@ export function ChannelItem({
   active,
   canManage,
   currentUserId,
+  mentionCount = 0,
   name,
   onDelete,
   onEdit,
@@ -31,6 +34,7 @@ export function ChannelItem({
   onSelect,
   testId,
   type,
+  unreadCount = 0,
   voiceState = null,
 }: ChannelItemProps) {
   const { t } = useI18n();
@@ -84,6 +88,24 @@ export function ChannelItem({
             <Icon className="h-4 w-4" />
           </span>
           <span className="min-w-0 truncate text-sm font-semibold tracking-[-0.01em]">{name}</span>
+          {type === "TEXT" && unreadCount > 0 ? (
+            <span
+              className={cn(
+                "ml-auto inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full border px-1.5 text-[11px] font-black shadow-[0_10px_22px_hsl(var(--primary)/0.12)]",
+                mentionCount > 0
+                  ? "border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.14)] text-[hsl(var(--danger))]"
+                  : "border-[hsl(var(--primary)/0.26)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]",
+              )}
+              title={t(
+                mentionCount > 0
+                  ? "shell.channelItem.mentionCount"
+                  : "shell.channelItem.unreadCount",
+                { count: mentionCount > 0 ? mentionCount : unreadCount },
+              )}
+            >
+              {mentionCount > 0 ? `@${mentionCount}` : unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          ) : null}
           {type === "VOICE" ? (
             <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
               <span className="rounded-full border border-[hsl(var(--border)/0.55)] bg-[hsl(var(--surface-card)/0.42)] px-2 py-0.5 text-[11px] font-semibold text-app-soft">

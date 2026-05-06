@@ -1,9 +1,14 @@
-import { UploadedAttachmentInputSchema } from "@wizards/types";
+import {
+  MESSAGE_CONTENT_DEFAULT_LIMIT,
+  MESSAGE_CONTENT_HARD_LIMIT,
+  UploadedAttachmentInputSchema,
+} from "@wizards/types";
 import { z } from "zod";
 import { ApiError } from "../api";
 
 const SOCKET_ID_MAX_LENGTH = 128;
-const SOCKET_MESSAGE_MAX_LENGTH = 2000;
+const SOCKET_CHANNEL_MESSAGE_MAX_LENGTH = MESSAGE_CONTENT_HARD_LIMIT;
+const SOCKET_DM_MESSAGE_MAX_LENGTH = MESSAGE_CONTENT_DEFAULT_LIMIT;
 const SOCKET_EMOJI_MAX_LENGTH = 64;
 const SOCKET_ATTACHMENT_MAX_COUNT = 5;
 
@@ -15,7 +20,7 @@ export const SocketMessageSendPayloadSchema = z
   .object({
     attachments: z.array(UploadedAttachmentInputSchema).max(SOCKET_ATTACHMENT_MAX_COUNT).optional(),
     channelId: SocketIdSchema,
-    content: z.string().max(SOCKET_MESSAGE_MAX_LENGTH),
+    content: z.string().max(SOCKET_CHANNEL_MESSAGE_MAX_LENGTH),
     replyToId: SocketOptionalIdSchema,
     threadParentId: SocketOptionalIdSchema,
   })
@@ -25,7 +30,7 @@ export const SocketDMMessageSendPayloadSchema = z
   .object({
     attachments: z.array(UploadedAttachmentInputSchema).max(SOCKET_ATTACHMENT_MAX_COUNT).optional(),
     conversationId: SocketIdSchema,
-    content: z.string().max(SOCKET_MESSAGE_MAX_LENGTH),
+    content: z.string().max(SOCKET_DM_MESSAGE_MAX_LENGTH),
     replyToId: SocketOptionalIdSchema,
     threadParentId: SocketOptionalIdSchema,
   })
@@ -33,7 +38,7 @@ export const SocketDMMessageSendPayloadSchema = z
 
 export const SocketMessageEditPayloadSchema = z
   .object({
-    content: z.string().trim().min(1).max(SOCKET_MESSAGE_MAX_LENGTH),
+    content: z.string().trim().min(1).max(SOCKET_CHANNEL_MESSAGE_MAX_LENGTH),
     messageId: SocketIdSchema,
   })
   .strict();

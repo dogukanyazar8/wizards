@@ -53,6 +53,7 @@ interface ChatAreaProps {
   canModerate: boolean;
   directMessageParticipant?: DMParticipantDTO | null;
   initialUnreadMessageId?: string | null;
+  messageCharacterLimit?: number | null;
   serverId?: string;
   uploadthingEnabled: boolean;
 }
@@ -185,6 +186,7 @@ export function ChatArea({
   canModerate,
   directMessageParticipant = null,
   initialUnreadMessageId = null,
+  messageCharacterLimit = 2000,
   serverId,
   uploadthingEnabled,
 }: ChatAreaProps) {
@@ -959,6 +961,7 @@ export function ChatArea({
             onCancelReply={() => setReplyTo(null)}
             allowFileUploads={mode === "channel" ? allowFileUploads : true}
             allowGifs={mode === "channel" ? allowGifs : true}
+            maxLength={mode === "channel" ? messageCharacterLimit : 2000}
             mentionMembers={mode === "channel" ? serverMembersQuery.data?.members ?? [] : []}
             uploadthingEnabled={uploadthingEnabled}
           />
@@ -972,6 +975,7 @@ export function ChatArea({
               disabled={isChannelReadOnly}
               disabledReason={isChannelReadOnly ? t("chat.channel.readOnlyComposer") : undefined}
               mentionMembers={mode === "channel" ? serverMembersQuery.data?.members ?? [] : []}
+              messageCharacterLimit={mode === "channel" ? messageCharacterLimit : 2000}
               mode={mode}
               onClose={closeThreadPanel}
               parentMessage={selectedThread}

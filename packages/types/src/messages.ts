@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+export const MESSAGE_CONTENT_HARD_LIMIT = 40000;
+export const MESSAGE_CONTENT_DEFAULT_LIMIT = 2000;
+
 export const MessageAuthorSchema = z.object({
   id: z.string(),
   username: z.string(),
@@ -107,7 +110,7 @@ export const MessageSearchResponseSchema = z.object({
 
 export const SendMessageInputSchema = z.object({
   channelId: z.string(),
-  content: z.string().max(2000),
+  content: z.string().max(MESSAGE_CONTENT_HARD_LIMIT),
   replyToId: z.string().optional(),
   threadParentId: z.string().optional(),
   attachments: z.array(UploadedAttachmentInputSchema).max(5).default([]),
@@ -121,7 +124,7 @@ export const SendMessageInputSchema = z.object({
 
 export const EditMessageInputSchema = z.object({
   messageId: z.string(),
-  content: z.string().min(1).max(2000),
+  content: z.string().min(1).max(MESSAGE_CONTENT_HARD_LIMIT),
 });
 
 export type MessageAuthor = z.infer<typeof MessageAuthorSchema>;

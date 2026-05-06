@@ -1,6 +1,11 @@
-export const DEFAULT_APP_ICON_ID = "wave-5";
+export const DEFAULT_APP_ICON_ID = "whispr";
 
 export const APP_ICON_OPTIONS = [
+  {
+    id: "whispr",
+    src: "/app-icons/whispr.png",
+    labelKey: "settings.appearance.icons.whispr",
+  },
   {
     id: "wave-5",
     src: "/app-icons/wave-5.png",

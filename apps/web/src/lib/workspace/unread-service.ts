@@ -8,8 +8,49 @@ type ServerUnreadCountRow = {
   unreadCount: bigint | number;
 };
 
+type ChannelUnreadCountRow = {
+  channelId: string;
+  mentionCount: bigint | number;
+  unreadCount: bigint | number;
+};
+
 function toUnreadCount(value: bigint | number) {
   return typeof value === "bigint" ? Number(value) : value;
+}
+
+export async function getServerChannelUnreadCounts(userId: string, serverId: string) {
+  const rows = await prisma.$queryRaw<ChannelUnreadCountRow[]>(Prisma.sql`
+    SELECT
+      c."id" AS "channelId",
+      COUNT(m."id")::bigint AS "unreadCount",
+      COALESCE(crs."mentionCount", 0)::bigint AS "mentionCount"
+    FROM "Channel" c
+    INNER JOIN "ServerMember" sm
+      ON sm."serverId" = c."serverId"
+      AND sm."userId" = ${userId}
+    LEFT JOIN "ChannelReadState" crs
+      ON crs."channelId" = c."id"
+      AND crs."userId" = ${userId}
+    LEFT JOIN "Message" m
+      ON m."channelId" = c."id"
+      AND m."threadId" IS NULL
+      AND m."threadParentId" IS NULL
+      AND m."createdAt" > COALESCE(crs."lastReadAt", sm."joinedAt")
+    WHERE c."serverId" = ${serverId}
+      AND c."type" = 'TEXT'
+      AND c."parentId" IS NULL
+    GROUP BY c."id", crs."mentionCount"
+  `);
+
+  const counts = new Map<string, { mentionCount: number; unreadCount: number }>();
+  for (const row of rows) {
+    counts.set(row.channelId, {
+      mentionCount: toUnreadCount(row.mentionCount),
+      unreadCount: toUnreadCount(row.unreadCount),
+    });
+  }
+
+  return counts;
 }
 
 export async function getServerUnreadCounts(userId: string, serverIds: string[]) {

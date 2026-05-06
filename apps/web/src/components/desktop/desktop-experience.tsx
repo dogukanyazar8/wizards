@@ -137,7 +137,7 @@ function sendWebNotificationFallback(
 
   const notification = new Notification("Whispr", {
     body: getNotificationBody(payload.type),
-    icon: "/app-icons/wave-5.png",
+    icon: "/app-icons/whispr.png",
     tag: payload.id,
   });
 

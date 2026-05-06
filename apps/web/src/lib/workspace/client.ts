@@ -161,6 +161,7 @@ export async function updateServerRequest(
     allowMemberAdds?: boolean;
     description?: string | null;
     iconUrl?: string | null;
+    messageCharacterLimit?: number;
     name?: string;
     shortName?: string | null;
   },
@@ -320,6 +321,19 @@ export async function reorderChannelsRequest(
   });
 }
 
+export async function reorderCategoriesRequest(
+  serverId: string,
+  items: Array<{
+    id: string;
+    position: number;
+  }>,
+) {
+  return requestJson<{ success: true }>(`/api/v1/servers/${serverId}/categories/reorder`, {
+    body: { items },
+    method: "POST",
+  });
+}
+
 export async function createInviteRequest(
   serverId: string,
   input: {
@@ -443,6 +457,26 @@ export function applyChannelReorder(
       channels: sortChannels(grouped.get(category.id) ?? []),
     })),
     ungroupedChannels: sortChannels(grouped.get(null) ?? []),
+  };
+}
+
+export function applyCategoryReorder(
+  detail: WorkspaceServerDetail,
+  items: Array<{
+    id: string;
+    position: number;
+  }>,
+) {
+  const positionMap = new Map(items.map((item) => [item.id, item.position]));
+
+  return {
+    ...detail,
+    categories: [...detail.categories]
+      .map((category) => ({
+        ...category,
+        position: positionMap.get(category.id) ?? category.position,
+      }))
+      .sort((left, right) => left.position - right.position),
   };
 }
 

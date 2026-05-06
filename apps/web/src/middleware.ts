@@ -89,6 +89,10 @@ function buildContentSecurityPolicy(nonce: string) {
       "'self'",
       `'nonce-${nonce}'`,
       ...(isDevelopment ? ["'unsafe-eval'"] : ["'strict-dynamic'"]),
+      // LiveKit Krisp uses a WASM-backed blob AudioWorklet/Worker for local noise filtering.
+      // Keep this scoped to script execution primitives instead of broadly relaxing the policy.
+      "'wasm-unsafe-eval'",
+      "blob:",
       "https://challenges.cloudflare.com",
     ]),
     "style-src": ["'self'", "'unsafe-inline'"],

@@ -1,5 +1,7 @@
 import { type Prisma } from "@wizards/db";
 import {
+  MESSAGE_CONTENT_DEFAULT_LIMIT,
+  MESSAGE_CONTENT_HARD_LIMIT,
   UploadedAttachmentInputSchema,
   type UploadedAttachmentInput,
 } from "@wizards/types";
@@ -64,11 +66,20 @@ export function parseUploadedAttachmentInputs(value: unknown): UploadedAttachmen
 export function normalizeMessageContentForSend(
   rawContent: unknown,
   attachments: UploadedAttachmentInput[],
+  maxLength: number | null = MESSAGE_CONTENT_DEFAULT_LIMIT,
 ) {
   const content = typeof rawContent === "string" ? rawContent.trim() : "";
+  const effectiveMaxLength =
+    maxLength === null
+      ? MESSAGE_CONTENT_HARD_LIMIT
+      : Math.min(maxLength, MESSAGE_CONTENT_HARD_LIMIT);
 
-  if (content.length > 2000) {
-    throw new ApiError("Message content must be 2000 characters or fewer.", 400);
+  if (content.length > effectiveMaxLength) {
+    throw new ApiError(
+      `Message content must be ${effectiveMaxLength} characters or fewer.`,
+      400,
+      "MESSAGE_TOO_LONG",
+    );
   }
 
   if (!content && attachments.length === 0) {
