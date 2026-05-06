@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { UserProfileUpdatedPayload } from "@/lib/socket/events";
 import { fetchVoiceStates, voiceQueryKeys } from "@/lib/voice/client";
 import type { VoiceChannelStateDTO } from "@/lib/voice/types";
 import { useSocket } from "./use-socket";
@@ -92,6 +93,29 @@ function applyVoiceScreenShareUpdate(
   });
 }
 
+function applyVoiceProfileUpdate(
+  current: VoiceChannelStateDTO[] | undefined,
+  profile: UserProfileUpdatedPayload,
+) {
+  if (!current) {
+    return current;
+  }
+
+  return current.map((state) => ({
+    ...state,
+    participants: state.participants.map((participant) =>
+      participant.userId === profile.userId
+        ? {
+            ...participant,
+            avatarUrl: profile.avatarUrl,
+            displayName: profile.displayName ?? profile.username,
+            username: profile.username,
+          }
+        : participant,
+    ),
+  }));
+}
+
 export function useVoiceStates(serverId: string | null) {
   const socket = useSocket();
   const queryClient = useQueryClient();
@@ -142,11 +166,20 @@ export function useVoiceStates(serverId: string | null) {
       );
     };
 
+    const handleProfileUpdate = (data: UserProfileUpdatedPayload) => {
+      queryClient.setQueryData<VoiceChannelStateDTO[] | undefined>(
+        voiceQueryKeys.serverStates(serverId),
+        (current) => applyVoiceProfileUpdate(current, data),
+      );
+    };
+
     socket.on("voice:state:update", handleVoiceStateUpdate);
     socket.on("voice:screenshare:update", handleVoiceScreenShareUpdate);
+    socket.on("user:profile:updated", handleProfileUpdate);
     return () => {
       socket.off("voice:state:update", handleVoiceStateUpdate);
       socket.off("voice:screenshare:update", handleVoiceScreenShareUpdate);
+      socket.off("user:profile:updated", handleProfileUpdate);
     };
   }, [queryClient, serverId, socket]);
 

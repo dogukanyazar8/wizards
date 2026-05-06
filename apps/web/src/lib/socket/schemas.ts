@@ -17,6 +17,7 @@ export const SocketMessageSendPayloadSchema = z
     channelId: SocketIdSchema,
     content: z.string().max(SOCKET_MESSAGE_MAX_LENGTH),
     replyToId: SocketOptionalIdSchema,
+    threadParentId: SocketOptionalIdSchema,
   })
   .strict();
 
@@ -26,6 +27,7 @@ export const SocketDMMessageSendPayloadSchema = z
     conversationId: SocketIdSchema,
     content: z.string().max(SOCKET_MESSAGE_MAX_LENGTH),
     replyToId: SocketOptionalIdSchema,
+    threadParentId: SocketOptionalIdSchema,
   })
   .strict();
 

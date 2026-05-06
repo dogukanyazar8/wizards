@@ -71,6 +71,54 @@ async function addQuickReaction(page: Page, message: Locator, emoji: string): Pr
 }
 
 test.describe("message interactions", () => {
+  test("message list exposes an accessible live history", async ({ page }) => {
+    const { serverId, textChannelId } = await getE2EServerRoute();
+
+    await loginAs(page, "alice");
+    await page.goto(`/channels/${serverId}/${textChannelId}`);
+
+    const messageList = page.getByTestId("message-list");
+    await expect(messageList).toBeVisible({ timeout: 10_000 });
+    await expect(messageList).toHaveAttribute("role", "log");
+    await expect(messageList).toHaveAttribute("aria-live", "polite");
+  });
+
+  test("search panel behaves like a dismissible dialog", async ({ page }) => {
+    const { serverId, textChannelId } = await getE2EServerRoute();
+
+    await loginAs(page, "alice");
+    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await page.getByTestId("message-search-open").click();
+
+    const searchPanel = page.getByTestId("message-search-panel");
+    await expect(searchPanel).toBeVisible({ timeout: 10_000 });
+    await expect(searchPanel).toHaveAttribute("role", "dialog");
+    await expect(searchPanel).toHaveAttribute("aria-modal", "true");
+
+    await page.keyboard.press("Escape");
+    await expect(searchPanel).toBeHidden({ timeout: 10_000 });
+  });
+
+  test("thread panel opens as an accessible dialog and closes with Escape", async ({ page }) => {
+    const { serverId, textChannelId } = await getE2EServerRoute();
+    const content = `Thread accessibility target ${Date.now()}`;
+
+    await loginAs(page, "alice");
+    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await sendMessage(page, content);
+
+    const message = await waitForActionableMessage(page, content);
+    await message.getByTestId("message-action-thread").first().click();
+
+    const threadPanel = page.getByTestId("thread-panel");
+    await expect(threadPanel).toBeVisible({ timeout: 10_000 });
+    await expect(threadPanel).toHaveAttribute("role", "dialog");
+    await expect(threadPanel).toHaveAttribute("aria-modal", "true");
+
+    await page.keyboard.press("Escape");
+    await expect(threadPanel).toBeHidden({ timeout: 10_000 });
+  });
+
   test("user can react to a server message", async ({ page }) => {
     const { serverId, textChannelId } = await getE2EServerRoute();
     const content = `Server reaction target ${Date.now()}`;

@@ -363,6 +363,7 @@ export function ServerRail({
                   iconUrl={server.iconUrl}
                   label={server.name}
                   labelPreview={getServerShortLabel(server)}
+                  mentionCount={server.mentionCount}
                   onClick={() => {
                     if (recentlyDraggedServerIdRef.current === server.id) {
                       return;

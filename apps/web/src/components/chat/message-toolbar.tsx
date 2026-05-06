@@ -2,7 +2,17 @@
 
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MessageCircle, Pencil, SmilePlus, Trash2 } from "lucide-react";
+import {
+  Copy,
+  Link2,
+  MessageCircle,
+  MessagesSquare,
+  Pencil,
+  Pin,
+  PinOff,
+  SmilePlus,
+  Trash2,
+} from "lucide-react";
 import { useI18n } from "@/components/providers/locale-provider";
 
 const QUICK_REACTIONS = [
@@ -16,26 +26,38 @@ const QUICK_REACTIONS = [
 
 interface MessageToolbarProps {
   allowReact?: boolean;
+  allowThread?: boolean;
   className?: string;
   messageId: string;
   isOwner: boolean;
   canModerate: boolean;
+  isPinned?: boolean;
   onReact: (emoji: string) => void;
   onReply: () => void;
+  onThread: () => void;
+  onCopyLink?: () => void;
+  onCopyRawText?: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onPin?: (() => void | Promise<void>) | undefined;
 }
 
 export function MessageToolbar({
   allowReact = true,
+  allowThread = true,
   className,
   messageId,
   isOwner,
   canModerate,
+  isPinned = false,
   onReact,
   onReply,
+  onThread,
+  onCopyLink,
+  onCopyRawText,
   onEdit,
   onDelete,
+  onPin,
 }: MessageToolbarProps) {
   const { t } = useI18n();
   const [showReactionMenu, setShowReactionMenu] = useState(false);
@@ -114,15 +136,17 @@ export function MessageToolbar({
       ? createPortal(
           <div
             className="app-panel fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-[90] flex items-center justify-center gap-1 rounded-[24px] border px-2 py-2 shadow-[0_14px_32px_hsl(var(--shadow-color)/0.18)] md:inset-x-auto md:bottom-auto md:rounded-full md:py-1"
+            aria-label={t("chat.message.reactionMenu")}
             data-testid="reaction-picker"
             onPointerDown={(event) => event.stopPropagation()}
             ref={reactionMenuRef}
+            role="menu"
             style={reactionMenuStyle}
           >
             {QUICK_REACTIONS.map((emoji) => (
               <button
                 key={emoji}
-                aria-label={t("chat.message.addReaction")}
+                aria-label={t("chat.message.reactWith", { emoji })}
                 className="flex h-11 w-11 items-center justify-center rounded-full text-lg transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:h-auto md:w-auto md:px-2 md:py-1 md:text-base"
                 data-emoji={emoji}
                 data-testid="reaction-option"
@@ -130,6 +154,7 @@ export function MessageToolbar({
                   onReact(emoji);
                   setShowReactionMenu(false);
                 }}
+                role="menuitem"
                 type="button"
               >
                 {emoji}
@@ -153,7 +178,7 @@ export function MessageToolbar({
             title={t("chat.message.react")}
             className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
             aria-expanded={showReactionMenu}
-            aria-haspopup="true"
+            aria-haspopup="menu"
             aria-label={t("chat.message.addReaction")}
             data-testid="message-action-react"
             ref={reactionButtonRef}
@@ -166,6 +191,19 @@ export function MessageToolbar({
         </div>
       ) : null}
 
+      {allowThread ? (
+        <button
+          onClick={onThread}
+          title={t("chat.thread.open")}
+          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
+          aria-label={t("chat.thread.open")}
+          data-testid="message-action-thread"
+          type="button"
+        >
+          <MessagesSquare className="h-4 w-4 text-app-muted hover:text-app-foreground" />
+        </button>
+      ) : null}
+
       <button
         onClick={onReply}
         title={t("chat.message.reply")}
@@ -176,6 +214,49 @@ export function MessageToolbar({
       >
         <MessageCircle className="h-4 w-4 text-app-muted hover:text-app-foreground" />
       </button>
+
+      {onCopyLink ? (
+        <button
+          onClick={onCopyLink}
+          title={t("chat.message.copyLink")}
+          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
+          aria-label={t("chat.message.copyLink")}
+          data-testid="message-action-copy-link"
+          type="button"
+        >
+          <Link2 className="h-4 w-4 text-app-muted hover:text-app-foreground" />
+        </button>
+      ) : null}
+
+      {onCopyRawText ? (
+        <button
+          onClick={onCopyRawText}
+          title={t("chat.message.copyRawText")}
+          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
+          aria-label={t("chat.message.copyRawText")}
+          data-testid="message-action-copy-raw"
+          type="button"
+        >
+          <Copy className="h-4 w-4 text-app-muted hover:text-app-foreground" />
+        </button>
+      ) : null}
+
+      {canModerate && onPin ? (
+        <button
+          onClick={onPin}
+          title={isPinned ? t("chat.message.unpin") : t("chat.message.pin")}
+          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
+          aria-label={isPinned ? t("chat.message.unpin") : t("chat.message.pin")}
+          data-testid={isPinned ? "message-action-unpin" : "message-action-pin"}
+          type="button"
+        >
+          {isPinned ? (
+            <PinOff className="h-4 w-4 text-app-muted hover:text-app-foreground" />
+          ) : (
+            <Pin className="h-4 w-4 text-app-muted hover:text-app-foreground" />
+          )}
+        </button>
+      ) : null}
 
       {isOwner ? (
         <button

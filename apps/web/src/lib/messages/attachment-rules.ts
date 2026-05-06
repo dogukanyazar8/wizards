@@ -19,18 +19,27 @@ export const MESSAGE_FILE_CONTENT_TYPES = [
   "text/plain",
 ] as const;
 
+export const MESSAGE_VIDEO_CONTENT_TYPES = [
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+] as const;
+
 export const MESSAGE_ATTACHMENT_CONTENT_TYPES = [
   ...MESSAGE_IMAGE_CONTENT_TYPES,
   ...MESSAGE_FILE_CONTENT_TYPES,
+  ...MESSAGE_VIDEO_CONTENT_TYPES,
 ] as const;
 
 export const MESSAGE_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 export const MESSAGE_GIF_MAX_BYTES = 8 * 1024 * 1024;
 export const MESSAGE_FILE_MAX_BYTES = 16 * 1024 * 1024;
+export const MESSAGE_VIDEO_MAX_BYTES = 32 * 1024 * 1024;
 export const MESSAGE_ATTACHMENT_MAX_COUNT = 5;
 
 const MESSAGE_IMAGE_CONTENT_TYPE_SET = new Set<string>(MESSAGE_IMAGE_CONTENT_TYPES);
 const MESSAGE_FILE_CONTENT_TYPE_SET = new Set<string>(MESSAGE_FILE_CONTENT_TYPES);
+const MESSAGE_VIDEO_CONTENT_TYPE_SET = new Set<string>(MESSAGE_VIDEO_CONTENT_TYPES);
 const MESSAGE_ATTACHMENT_CONTENT_TYPE_SET = new Set<string>(
   MESSAGE_ATTACHMENT_CONTENT_TYPES,
 );
@@ -47,6 +56,9 @@ const MESSAGE_ATTACHMENT_EXTENSIONS_BY_TYPE = new Map<string, string[]>([
   ["image/jpeg", [".jpg", ".jpeg"]],
   ["image/png", [".png"]],
   ["image/webp", [".webp"]],
+  ["video/mp4", [".mp4"]],
+  ["video/quicktime", [".mov", ".qt"]],
+  ["video/webm", [".webm"]],
   ["text/csv", [".csv"]],
   ["text/markdown", [".md", ".markdown"]],
   ["text/plain", [".txt"]],
@@ -59,6 +71,8 @@ export const MESSAGE_ATTACHMENT_ACCEPT = [
   ".doc",
   ".docx",
   ".md",
+  ".mov",
+  ".mp4",
   ".pdf",
   ".ppt",
   ".pptx",
@@ -66,6 +80,7 @@ export const MESSAGE_ATTACHMENT_ACCEPT = [
   ".txt",
   ".xls",
   ".xlsx",
+  ".webm",
 ].join(",");
 
 export function isMessageImageContentType(
@@ -82,6 +97,12 @@ export function isMessageFileContentType(
   contentType: string,
 ): contentType is (typeof MESSAGE_FILE_CONTENT_TYPES)[number] {
   return MESSAGE_FILE_CONTENT_TYPE_SET.has(contentType);
+}
+
+export function isMessageVideoContentType(
+  contentType: string,
+): contentType is (typeof MESSAGE_VIDEO_CONTENT_TYPES)[number] {
+  return MESSAGE_VIDEO_CONTENT_TYPE_SET.has(contentType);
 }
 
 export function isSupportedMessageAttachmentContentType(contentType: string) {
@@ -131,6 +152,10 @@ export function getMessageAttachmentMaxBytes(contentType: string) {
 
   if (isMessageFileContentType(contentType)) {
     return MESSAGE_FILE_MAX_BYTES;
+  }
+
+  if (isMessageVideoContentType(contentType)) {
+    return MESSAGE_VIDEO_MAX_BYTES;
   }
 
   return 0;

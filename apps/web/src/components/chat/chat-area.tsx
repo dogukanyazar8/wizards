@@ -1,18 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MonitorUp, Phone } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createPortal } from "react-dom";
+import { AtSign, Bell, BellOff, ChevronDown, Lock, MonitorUp, Phone, Pin, Search, X } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   ChatMessage,
+  DMMessagePayload,
   DMParticipantDTO,
   MessageAttachment,
   UploadedAttachmentInput,
 } from "@wizards/types";
 import { MessageList } from "./message-list";
 import { MessageInput } from "./message-input";
+import { MessageSearchPanel } from "./message-search-panel";
+import { ThreadPanel } from "./thread-panel";
 import { TypingIndicator } from "./typing-indicator";
-import { ClearChannelHistoryAction } from "./clear-channel-history-action";
 import {
   DMScreenSharePanel,
   IncomingDMScreenShareModal,
@@ -28,13 +31,20 @@ import {
 import { useSocket } from "@/hooks/use-socket";
 import { useDMScreenShare } from "@/hooks/use-dm-screen-share";
 import { useTyping } from "@/hooks/use-typing";
-import { fetchWorkspaceServer, workspaceQueryKeys } from "@/lib/workspace/client";
+import {
+  fetchChannelNotificationSettings,
+  fetchChannelPinnedMessages,
+  fetchWorkspaceServer,
+  updateChannelNotificationSettings,
+  workspaceQueryKeys,
+} from "@/lib/workspace/client";
 
 interface ChatAreaProps {
   conversationId: string;
   mode: MessageMode;
   allowFileUploads?: boolean;
   allowGifs?: boolean;
+  channelLocked?: boolean;
   channelName?: string;
   channelTopic?: string | null;
   currentUserId: string;
@@ -42,6 +52,7 @@ interface ChatAreaProps {
   currentUserUsername: string;
   canModerate: boolean;
   directMessageParticipant?: DMParticipantDTO | null;
+  initialUnreadMessageId?: string | null;
   serverId?: string;
   uploadthingEnabled: boolean;
 }
@@ -113,6 +124,7 @@ function buildOptimisticMessage(input: {
         }
       : undefined,
     createdAt: new Date().toISOString(),
+    deliveryStatus: "sending",
     type: "DEFAULT",
     reactions: [],
     attachments: input.attachments,
@@ -121,18 +133,58 @@ function buildOptimisticMessage(input: {
   };
 }
 
+type PendingMessagePayload = {
+  attachments: UploadedAttachmentInput[];
+  content: string;
+  optimisticAttachments: MessageAttachment[];
+  replyTo:
+    | {
+        authorName: string;
+        content: string;
+        id: string;
+      }
+    | null;
+  replyToId?: string | undefined;
+  tempId: string;
+};
+
+type FloatingPanelPosition = {
+  left: number;
+  top: number;
+  width: number;
+};
+
+function getFloatingPanelPosition(anchor: HTMLElement | null): FloatingPanelPosition | null {
+  if (!anchor || typeof window === "undefined") {
+    return null;
+  }
+
+  const rect = anchor.getBoundingClientRect();
+  const margin = 12;
+  const gap = 8;
+  const width = Math.min(320, window.innerWidth - margin * 2);
+  const left = Math.min(
+    Math.max(rect.right - width, margin),
+    window.innerWidth - width - margin,
+  );
+  const top = Math.min(rect.bottom + gap, window.innerHeight - margin);
+
+  return { left, top, width };
+}
+
 export function ChatArea({
   conversationId,
   mode,
   allowFileUploads = true,
   allowGifs = true,
-  channelName,
+  channelLocked = false,
   channelTopic = null,
   currentUserId,
   currentUserDisplayName,
   currentUserUsername,
   canModerate,
   directMessageParticipant = null,
+  initialUnreadMessageId = null,
   serverId,
   uploadthingEnabled,
 }: ChatAreaProps) {
@@ -147,6 +199,29 @@ export function ChatArea({
       : ["workspace", "server", "idle"],
     staleTime: 30_000,
   });
+  const pinnedMessagesQuery = useQuery({
+    enabled: mode === "channel",
+    queryFn: () => fetchChannelPinnedMessages(conversationId),
+    queryKey: workspaceQueryKeys.pinnedMessages(conversationId),
+    staleTime: 30_000,
+  });
+  const notificationSettingsQuery = useQuery({
+    enabled: mode === "channel",
+    queryFn: () => fetchChannelNotificationSettings(conversationId),
+    queryKey: ["workspace", "channel", conversationId, "notification-settings"],
+    staleTime: 30_000,
+  });
+  const notificationSettingsMutation = useMutation({
+    mutationFn: (level: "all" | "mentions" | "muted") =>
+      updateChannelNotificationSettings(conversationId, level),
+    onSuccess: (settings) => {
+      queryClient.setQueryData(
+        ["workspace", "channel", conversationId, "notification-settings"],
+        settings,
+      );
+      setShowNotificationMenu(false);
+    },
+  });
   const { typingUsers } = useTyping(conversationId, mode);
   const dmScreenShare = useDMScreenShare({
     conversationId,
@@ -154,29 +229,133 @@ export function ChatArea({
     currentUserId,
     currentUserUsername,
   });
-  const tempIdRef = useRef<string | null>(null);
+  const pendingMessagesRef = useRef<Map<string, PendingMessagePayload>>(new Map());
+  const pendingOrderRef = useRef<string[]>([]);
+  const notificationButtonRef = useRef<HTMLButtonElement | null>(null);
+  const searchButtonRef = useRef<HTMLButtonElement | null>(null);
   const [replyTo, setReplyTo] = useState<{
     id: string;
     authorName: string;
     content: string;
   } | null>(null);
+  const [selectedThread, setSelectedThread] = useState<ChatMessage | null>(null);
+  const [showPinnedMessages, setShowPinnedMessages] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showNotificationMenu, setShowNotificationMenu] = useState(false);
+  const [notificationMenuPosition, setNotificationMenuPosition] =
+    useState<FloatingPanelPosition | null>(null);
 
   const queryKey = useMemo(
     () => getMessagesQueryKey(mode, conversationId),
     [conversationId, mode],
   );
+  const visibleChannelTopic = useMemo(() => {
+    const normalized = channelTopic?.trim() ?? "";
+    if (
+      normalized === "Start the conversation and share the first update here."
+    ) {
+      return "";
+    }
+
+    return normalized;
+  }, [channelTopic]);
 
   const handleReply = useCallback((id: string, authorName: string, content: string) => {
     setReplyTo({ id, authorName, content });
   }, []);
 
   useEffect(() => {
-    const rollbackOptimisticMessage = () => {
-      if (!tempIdRef.current) {
+    setSelectedThread(null);
+    setShowPinnedMessages(false);
+    setShowSearch(false);
+    setShowNotificationMenu(false);
+  }, [conversationId, mode]);
+
+  const updateNotificationMenuPosition = useCallback(() => {
+    setNotificationMenuPosition(getFloatingPanelPosition(notificationButtonRef.current));
+  }, []);
+
+  useEffect(() => {
+    if (!showNotificationMenu) {
+      setNotificationMenuPosition(null);
+      return;
+    }
+
+    updateNotificationMenuPosition();
+
+    window.addEventListener("resize", updateNotificationMenuPosition);
+    window.addEventListener("scroll", updateNotificationMenuPosition, true);
+    return () => {
+      window.removeEventListener("resize", updateNotificationMenuPosition);
+      window.removeEventListener("scroll", updateNotificationMenuPosition, true);
+    };
+  }, [showNotificationMenu, updateNotificationMenuPosition]);
+
+  useEffect(() => {
+    if (!showNotificationMenu) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setShowNotificationMenu(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showNotificationMenu]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isShortcut = (event.ctrlKey || event.metaKey) && (event.key === "k" || event.key === "f");
+      if (!isShortcut) {
         return;
       }
 
-      const failedId = tempIdRef.current;
+      const target = event.target;
+      const isTypingTarget =
+        target instanceof HTMLElement &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable);
+
+      if (event.key === "f" && isTypingTarget) {
+        return;
+      }
+
+      event.preventDefault();
+      setShowSearch(true);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const handlePinsUpdated = (data: { channelId: string }) => {
+      if (data.channelId !== conversationId) {
+        return;
+      }
+
+      void queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.pinnedMessages(conversationId),
+      });
+    };
+
+    socket.on("message:pins_updated", handlePinsUpdated);
+
+    return () => {
+      socket.off("message:pins_updated", handlePinsUpdated);
+    };
+  }, [conversationId, queryClient, socket]);
+
+  const removeOptimisticMessage = useCallback(
+    (messageId: string) => {
+      pendingMessagesRef.current.delete(messageId);
+      pendingOrderRef.current = pendingOrderRef.current.filter((id) => id !== messageId);
+
       queryClient.setQueryData<MessagePages>(queryKey, (current) => {
         if (!current) {
           return current;
@@ -186,11 +365,79 @@ export function ChatArea({
           ...current,
           pages: current.pages.map((page) => ({
             ...page,
-            messages: page.messages.filter((message) => message.id !== failedId),
+            messages: page.messages.filter((message) => message.id !== messageId),
           })),
         };
       });
-      tempIdRef.current = null;
+    },
+    [queryClient, queryKey],
+  );
+
+  const markOptimisticMessageFailed = useCallback(
+    (messageId: string, errorMessage?: string) => {
+      queryClient.setQueryData<MessagePages>(queryKey, (current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          pages: current.pages.map((page) => ({
+            ...page,
+            messages: page.messages.map((message) =>
+              message.id === messageId
+                ? {
+                    ...message,
+                    deliveryStatus: "failed" as const,
+                    errorMessage,
+                  }
+                : message,
+            ),
+          })),
+        };
+      });
+    },
+    [queryClient, queryKey],
+  );
+
+  const markOptimisticMessageSending = useCallback(
+    (messageId: string) => {
+      queryClient.setQueryData<MessagePages>(queryKey, (current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          pages: current.pages.map((page) => ({
+            ...page,
+            messages: page.messages.map((message) =>
+              message.id === messageId
+                ? {
+                    ...message,
+                    deliveryStatus: "sending" as const,
+                    errorMessage: undefined,
+                  }
+                : message,
+            ),
+          })),
+        };
+      });
+    },
+    [queryClient, queryKey],
+  );
+
+  useEffect(() => {
+    const failLatestOptimisticMessage = (errorMessage?: string) => {
+      const latestPendingId = [...pendingOrderRef.current]
+        .reverse()
+        .find((id) => pendingMessagesRef.current.has(id));
+
+      if (!latestPendingId) {
+        return;
+      }
+
+      markOptimisticMessageFailed(latestPendingId, errorMessage);
     };
 
     if (mode === "channel") {
@@ -199,9 +446,12 @@ export function ChatArea({
           data.code === "MESSAGE_SEND_ERROR" ||
           data.code === "MESSAGE_VALIDATION_ERROR" ||
           data.code === "INVALID_ATTACHMENT" ||
-          data.code === "RATE_LIMIT"
+          data.code === "RATE_LIMIT" ||
+          data.code === "CHANNEL_LOCKED" ||
+          data.code === "FILE_UPLOADS_DISABLED" ||
+          data.code === "GIFS_DISABLED"
         ) {
-          rollbackOptimisticMessage();
+          failLatestOptimisticMessage(data.message);
         }
       };
 
@@ -211,15 +461,66 @@ export function ChatArea({
       };
     }
 
-    const handleDMError = () => {
-      rollbackOptimisticMessage();
+    const handleDMError = (data?: { message?: string }) => {
+      failLatestOptimisticMessage(data?.message);
     };
 
     socket.on("dm:error", handleDMError);
     return () => {
       socket.off("dm:error", handleDMError);
     };
-  }, [mode, queryClient, queryKey, socket]);
+  }, [markOptimisticMessageFailed, mode, socket]);
+
+  useEffect(() => {
+    const clearConfirmedPending = (message: {
+      attachments?: Array<{ id: string }>;
+      author?: { id: string };
+      content: string;
+    }) => {
+      if (message.author?.id !== currentUserId) {
+        return;
+      }
+
+      for (const [tempId, payload] of pendingMessagesRef.current.entries()) {
+        const sameContent = payload.content === message.content;
+        const sameAttachments =
+          payload.optimisticAttachments.length === (message.attachments?.length ?? 0) &&
+          payload.optimisticAttachments.every((attachment) =>
+            message.attachments?.some((confirmed) => confirmed.id === attachment.id),
+          );
+
+        if (sameContent && sameAttachments) {
+          pendingMessagesRef.current.delete(tempId);
+          pendingOrderRef.current = pendingOrderRef.current.filter((id) => id !== tempId);
+          return;
+        }
+      }
+    };
+
+    if (mode === "channel") {
+      const handleMessage = (message: ChatMessage) => {
+        if (message.channelId === conversationId) {
+          clearConfirmedPending(message);
+        }
+      };
+
+      socket.on("message:new", handleMessage);
+      return () => {
+        socket.off("message:new", handleMessage);
+      };
+    }
+
+    const handleDMMessage = (message: DMMessagePayload) => {
+      if (message.conversationId === conversationId) {
+        clearConfirmedPending(message);
+      }
+    };
+
+    socket.on("dm:message:new", handleDMMessage);
+    return () => {
+      socket.off("dm:message:new", handleDMMessage);
+    };
+  }, [conversationId, currentUserId, mode, socket]);
 
   const handleSend = useCallback(
     async (
@@ -229,7 +530,16 @@ export function ChatArea({
       optimisticAttachments: MessageAttachment[] = [],
     ) => {
       const tempId = `optimistic-${Date.now()}`;
-      tempIdRef.current = tempId;
+      const payload: PendingMessagePayload = {
+        attachments,
+        content,
+        optimisticAttachments,
+        replyTo,
+        replyToId,
+        tempId,
+      };
+      pendingMessagesRef.current.set(tempId, payload);
+      pendingOrderRef.current = [...pendingOrderRef.current, tempId].slice(-20);
 
       await queryClient.cancelQueries({ exact: true, queryKey });
 
@@ -280,19 +590,137 @@ export function ChatArea({
     ],
   );
 
+  const retryOptimisticMessage = useCallback(
+    (messageId: string) => {
+      const payload = pendingMessagesRef.current.get(messageId);
+      if (!payload) {
+        removeOptimisticMessage(messageId);
+        return;
+      }
+
+      markOptimisticMessageSending(messageId);
+
+      if (mode === "channel") {
+        socket.emit("message:send", {
+          channelId: conversationId,
+          content: payload.content,
+          attachments: payload.attachments,
+          ...(payload.replyToId ? { replyToId: payload.replyToId } : {}),
+        });
+        return;
+      }
+
+      socket.emit("dm:message:send", {
+        conversationId,
+        content: payload.content,
+        attachments: payload.attachments,
+        ...(payload.replyToId ? { replyToId: payload.replyToId } : {}),
+      });
+    },
+    [
+      conversationId,
+      markOptimisticMessageSending,
+      mode,
+      removeOptimisticMessage,
+      socket,
+    ],
+  );
+
   const directMessageDisplayName =
     directMessageParticipant?.displayName ?? directMessageParticipant?.username ?? null;
   const directMessageStatusLabel = directMessageParticipant
     ? directMessageParticipant.customStatus ?? t(getStatusKey(directMessageParticipant.status))
     : t("dm.header.directMessage");
-  const showChannelAdminBar =
-    mode === "channel" &&
-    canModerate &&
-    Boolean(channelName) &&
-    Boolean(serverId);
+  const isChannelReadOnly = mode === "channel" && channelLocked && !canModerate;
+  const pinnedMessages = pinnedMessagesQuery.data ?? [];
+  const hasPinnedMessages = mode === "channel" && pinnedMessages.length > 0;
+  const notificationLevel = notificationSettingsQuery.data?.level ?? "all";
+  const NotificationIcon =
+    notificationLevel === "muted"
+      ? BellOff
+      : notificationLevel === "mentions"
+        ? AtSign
+        : Bell;
+
+  const jumpToMessage = useCallback((messageId: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("message", messageId);
+    window.history.pushState(null, "", url);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+
+    const target = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (target instanceof HTMLElement) {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.dataset.jumpHighlight = "true";
+      window.setTimeout(() => {
+        delete target.dataset.jumpHighlight;
+      }, 1400);
+    }
+  }, []);
+
+  const closeThreadPanel = useCallback(() => {
+    setSelectedThread(null);
+
+    window.requestAnimationFrame(() => {
+      const mainComposerInput = document.querySelector<HTMLTextAreaElement>(
+        '[data-composer-variant="default"] [data-testid="message-input"]',
+      );
+      mainComposerInput?.focus({ preventScroll: true });
+    });
+  }, []);
 
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-transparent">
+      {showNotificationMenu &&
+      notificationMenuPosition &&
+      typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[1000]"
+              onPointerDown={() => setShowNotificationMenu(false)}
+              role="presentation"
+            >
+              <div
+                className="app-panel fixed rounded-[22px] border bg-[hsl(var(--surface-card))] p-2 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.2)] backdrop-blur-xl"
+                data-testid="channel-notification-settings-menu"
+                onPointerDown={(event) => event.stopPropagation()}
+                role="menu"
+                style={{
+                  left: notificationMenuPosition.left,
+                  top: notificationMenuPosition.top,
+                  width: notificationMenuPosition.width,
+                }}
+              >
+                {(["all", "mentions", "muted"] as const).map((level) => {
+                  const Icon =
+                    level === "muted" ? BellOff : level === "mentions" ? AtSign : Bell;
+
+                  return (
+                    <button
+                      className="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-sm font-semibold text-app-foreground transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
+                      disabled={notificationSettingsMutation.isPending}
+                      key={level}
+                      onClick={() => {
+                        notificationSettingsMutation.mutate(level);
+                      }}
+                      role="menuitem"
+                      type="button"
+                    >
+                      <Icon className="h-4 w-4 text-app-muted" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block">{t(`chat.notifications.${level}`)}</span>
+                        <span className="block text-[11px] font-medium text-app-muted">
+                          {t(`chat.notifications.${level}Hint`)}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
       {mode === "dm" && directMessageParticipant ? (
         <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-app-border bg-[hsl(var(--surface-card)/0.78)] px-3 py-3 backdrop-blur-xl md:px-5 md:py-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -342,24 +770,138 @@ export function ChatArea({
         </div>
       ) : null}
 
-      {showChannelAdminBar ? (
-        <div className="border-b border-app-border bg-[hsl(var(--surface-card)/0.56)] px-3 py-3 backdrop-blur-xl md:px-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-app-soft text-[11px] font-semibold uppercase tracking-[0.18em]">
-                {t("chat.channel.adminTools")}
-              </p>
-              <p className="mt-1 truncate text-xs text-app-muted">
-                {channelTopic && channelTopic.trim().length > 0
-                  ? channelTopic
-                  : t("chat.channel.clearHistoryHelp")}
-              </p>
+      <div className="relative border-b border-app-border bg-[hsl(var(--surface-card)/0.42)] px-3 py-2 backdrop-blur-xl md:px-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="min-w-0 truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-app-soft sm:text-xs sm:normal-case sm:tracking-normal sm:text-app-muted">
+            {mode === "channel"
+              ? visibleChannelTopic.length > 0
+                ? visibleChannelTopic
+                : t("chat.search.channelHint")
+              : t("chat.search.dmHint")}
+          </p>
+          <div className="inline-flex w-fit max-w-full shrink-0 items-center gap-1 rounded-[20px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.38)] p-1 shadow-[0_12px_28px_hsl(var(--shadow-color)/0.06)]">
+            {mode === "channel" ? (
+              <div className="relative">
+                <button
+                  aria-expanded={showNotificationMenu}
+                  aria-haspopup="menu"
+                  className="inline-flex min-h-9 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                  data-testid="channel-notification-settings-open"
+                  onClick={() => setShowNotificationMenu((current) => !current)}
+                  ref={notificationButtonRef}
+                  type="button"
+                >
+                  <NotificationIcon className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">
+                    {t(`chat.notifications.${notificationLevel}`)}
+                  </span>
+                </button>
+              </div>
+            ) : null}
+            <button
+              aria-expanded={showSearch}
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+              data-testid="message-search-open"
+              onClick={() => setShowSearch(true)}
+              ref={searchButtonRef}
+              type="button"
+            >
+              <Search className="h-3.5 w-3.5" />
+              {t("chat.search.open")}
+              <span className="hidden rounded-full border border-[hsl(var(--border)/0.58)] px-1.5 py-0.5 text-[10px] text-app-soft sm:inline">
+                Ctrl K
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {showSearch ? (
+          <MessageSearchPanel
+            anchorRef={searchButtonRef}
+            conversationId={conversationId}
+            mode={mode}
+            onClose={() => setShowSearch(false)}
+            onJumpToMessage={jumpToMessage}
+          />
+        ) : null}
+      </div>
+
+      {hasPinnedMessages ? (
+        <div className="relative border-b border-app-border bg-[hsl(var(--surface-card)/0.62)] px-3 py-2 backdrop-blur-xl md:px-5">
+          <button
+            aria-expanded={showPinnedMessages}
+            className="inline-flex max-w-full items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] px-3 py-1.5 text-xs font-bold text-[hsl(var(--primary))] shadow-[0_10px_24px_hsl(var(--primary)/0.08)] transition hover:bg-[hsl(var(--primary)/0.15)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            data-testid="channel-pins-toggle"
+            onClick={() => setShowPinnedMessages((current) => !current)}
+            type="button"
+          >
+            <Pin className="h-3.5 w-3.5" />
+            {t("chat.pins.title", { count: pinnedMessages.length })}
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+
+          {showPinnedMessages ? (
+            <div
+              className="app-panel absolute left-3 right-3 top-[calc(100%+0.5rem)] z-40 max-h-[42dvh] overflow-y-auto rounded-[26px] border p-2 shadow-[0_26px_60px_hsl(var(--shadow-color)/0.18)] md:left-5 md:right-auto md:w-[26rem]"
+              data-testid="channel-pins-list"
+            >
+              <div className="mb-2 flex items-center justify-between gap-3 px-2 py-1">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-app-soft">
+                  {t("chat.pins.pinnedMessages")}
+                </p>
+                <button
+                  aria-label={t("common.close")}
+                  className="rounded-full p-1 text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                  onClick={() => setShowPinnedMessages(false)}
+                  type="button"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="space-y-1">
+                {pinnedMessages.map((message) => (
+                  <button
+                    className="flex w-full min-w-0 items-start gap-3 rounded-[20px] px-3 py-2 text-left transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                    key={message.id}
+                    onClick={() => {
+                      setShowPinnedMessages(false);
+                      jumpToMessage(message.id);
+                    }}
+                    type="button"
+                  >
+                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.6)] text-[hsl(var(--primary))]">
+                      <Pin className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-semibold text-app-foreground">
+                        {message.author.displayName}
+                      </span>
+                      <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-app-muted">
+                        {message.content || t("chat.pins.attachmentOnly")}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
-            <ClearChannelHistoryAction
-              channelId={conversationId}
-              channelName={channelName!}
-              serverId={serverId!}
-            />
+          ) : null}
+        </div>
+      ) : null}
+
+      {isChannelReadOnly ? (
+        <div className="border-b border-[hsl(var(--warning)/0.22)] bg-[hsl(var(--warning)/0.08)] px-3 py-3 backdrop-blur-xl md:px-5">
+          <div className="flex items-start gap-3 rounded-[22px] border border-[hsl(var(--warning)/0.22)] bg-[hsl(var(--surface-card)/0.72)] px-3 py-3 shadow-[0_14px_36px_hsl(var(--shadow-color)/0.08)]">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--warning)/0.14)] text-[hsl(var(--warning))]">
+              <Lock className="h-4 w-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-bold text-app-foreground">
+                {t("chat.channel.readOnlyTitle")}
+              </span>
+              <span className="mt-0.5 block text-xs leading-5 text-app-muted">
+                {t("chat.channel.readOnlyDescription")}
+              </span>
+            </span>
           </div>
         </div>
       ) : null}
@@ -400,12 +942,18 @@ export function ChatArea({
             mode={mode}
             currentUserId={currentUserId}
             canModerate={canModerate}
+            initialUnreadMessageId={initialUnreadMessageId}
+            onRemoveOptimistic={removeOptimisticMessage}
             onReply={handleReply}
+            onRetry={retryOptimisticMessage}
+            onThread={setSelectedThread}
           />
           <TypingIndicator typingUsers={typingUsers} />
           <MessageInput
             conversationId={conversationId}
             mode={mode}
+            disabled={isChannelReadOnly}
+            disabledReason={isChannelReadOnly ? t("chat.channel.readOnlyComposer") : undefined}
             replyTo={replyTo}
             onSend={handleSend}
             onCancelReply={() => setReplyTo(null)}
@@ -414,6 +962,22 @@ export function ChatArea({
             mentionMembers={mode === "channel" ? serverMembersQuery.data?.members ?? [] : []}
             uploadthingEnabled={uploadthingEnabled}
           />
+          {selectedThread ? (
+            <ThreadPanel
+              allowFileUploads={mode === "channel" ? allowFileUploads : true}
+              allowGifs={mode === "channel" ? allowGifs : true}
+              canModerate={canModerate}
+              conversationId={conversationId}
+              currentUserId={currentUserId}
+              disabled={isChannelReadOnly}
+              disabledReason={isChannelReadOnly ? t("chat.channel.readOnlyComposer") : undefined}
+              mentionMembers={mode === "channel" ? serverMembersQuery.data?.members ?? [] : []}
+              mode={mode}
+              onClose={closeThreadPanel}
+              parentMessage={selectedThread}
+              uploadthingEnabled={uploadthingEnabled}
+            />
+          ) : null}
         </>
       )}
     </div>

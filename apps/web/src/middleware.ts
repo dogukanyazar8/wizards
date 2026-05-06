@@ -46,6 +46,8 @@ function buildContentSecurityPolicy(nonce: string) {
       "https://api.giphy.com",
       "https://*.giphy.com",
       "https://*.livekit.cloud",
+      "https://livekit.io",
+      "https://integrations.livekit.io",
       "https://*.ufs.sh",
       "https://*.uploadthing.com",
       "https://challenges.cloudflare.com",

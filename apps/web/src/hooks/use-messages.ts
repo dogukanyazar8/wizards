@@ -53,6 +53,8 @@ function mapDMAttachments(message: DMMessagePayload): MessageAttachment[] {
     size: attachment.size,
     width: attachment.width ?? undefined,
     height: attachment.height ?? undefined,
+    duration: attachment.duration ?? undefined,
+    thumbnailUrl: attachment.thumbnailUrl ?? undefined,
   }));
 }
 
@@ -70,6 +72,8 @@ export function mapDMMessageToChatMessage(message: DMMessagePayload): ChatMessag
     },
     content: message.deletedAt ? "" : message.content,
     type: "DEFAULT",
+    threadParentId: message.threadParentId,
+    threadSummary: message.threadSummary,
     reactions: message.reactions,
     attachments: mapDMAttachments(message),
     replyTo: mapDMReplyTo(message.replyTo),
@@ -204,6 +208,53 @@ function updateReactions(
   };
 }
 
+function updateThreadSummary(
+  old: MessagePages | undefined,
+  message: ChatMessage,
+): MessagePages | undefined {
+  if (!old || !message.threadParentId) {
+    return old;
+  }
+
+  return {
+    ...old,
+    pages: old.pages.map((page) => ({
+      ...page,
+      messages: page.messages.map((candidate) => {
+        if (candidate.id !== message.threadParentId) {
+          return candidate;
+        }
+
+        const currentSummary = candidate.threadSummary ?? {
+          replyCount: 0,
+          lastReplyAt: null,
+          recentRepliers: [],
+        };
+        const withoutAuthor = currentSummary.recentRepliers.filter(
+          (user) => user.userId !== message.author.id,
+        );
+
+        return {
+          ...candidate,
+          threadSummary: {
+            replyCount: currentSummary.replyCount + 1,
+            lastReplyAt: message.createdAt,
+            recentRepliers: [
+              {
+                userId: message.author.id,
+                username: message.author.username,
+                displayName: message.author.displayName,
+                avatarUrl: message.author.avatarUrl,
+              },
+              ...withoutAuthor,
+            ].slice(0, 3),
+          },
+        };
+      }),
+    })),
+  };
+}
+
 function updateAuthorPresence(
   old: MessagePages | undefined,
   data: FriendPresenceUpdateDto,
@@ -286,6 +337,13 @@ export function useMessages(mode: MessageMode, conversationId: string) {
   useEffect(() => {
     if (mode === "channel") {
       const handleNewMessage = (message: ChatMessage) => {
+        if (message.channelId === conversationId && message.threadParentId) {
+          queryClient.setQueryData<MessagePages>(queryKey, (old) =>
+            updateThreadSummary(old, message),
+          );
+          return;
+        }
+
         if (message.channelId === conversationId) {
           queryClient.setQueryData<MessagePages>(queryKey, (old) => appendMessage(old, message));
         }
@@ -332,9 +390,18 @@ export function useMessages(mode: MessageMode, conversationId: string) {
     }
 
     const handleNewMessage = (message: DMMessagePayload) => {
+      const chatMessage = mapDMMessageToChatMessage(message);
+
+      if (message.conversationId === conversationId && message.threadParentId) {
+        queryClient.setQueryData<MessagePages>(queryKey, (old) =>
+          updateThreadSummary(old, chatMessage),
+        );
+        return;
+      }
+
       if (message.conversationId === conversationId) {
         queryClient.setQueryData<MessagePages>(queryKey, (old) =>
-          appendMessage(old, mapDMMessageToChatMessage(message)),
+          appendMessage(old, chatMessage),
         );
       }
     };

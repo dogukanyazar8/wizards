@@ -3,6 +3,7 @@ import { Prisma, prisma } from "@wizards/db";
 import { getSocketServer } from "@/lib/socket/runtime";
 
 type ServerUnreadCountRow = {
+  mentionCount?: bigint | number;
   serverId: string;
   unreadCount: bigint | number;
 };
@@ -30,6 +31,7 @@ export async function getServerUnreadCounts(userId: string, serverIds: string[])
     LEFT JOIN "Message" m
       ON m."channelId" = c."id"
       AND m."threadId" IS NULL
+      AND m."threadParentId" IS NULL
       AND m."createdAt" > COALESCE(crs."lastReadAt", sm."joinedAt")
     WHERE sm."userId" = ${userId}
       AND sm."serverId" IN (${Prisma.join(serverIds)})
@@ -46,6 +48,73 @@ export async function getServerUnreadCounts(userId: string, serverIds: string[])
   }
 
   return unreadCounts;
+}
+
+export async function getServerMentionCounts(userId: string, serverIds: string[]) {
+  if (serverIds.length === 0) {
+    return new Map<string, number>();
+  }
+
+  const rows = await prisma.$queryRaw<Array<{ serverId: string; mentionCount: bigint | number }>>(Prisma.sql`
+    SELECT
+      c."serverId" AS "serverId",
+      COALESCE(SUM(crs."mentionCount"), 0)::bigint AS "mentionCount"
+    FROM "ChannelReadState" crs
+    INNER JOIN "Channel" c
+      ON c."id" = crs."channelId"
+      AND c."type" = 'TEXT'
+    WHERE crs."userId" = ${userId}
+      AND c."serverId" IN (${Prisma.join(serverIds)})
+    GROUP BY c."serverId"
+  `);
+
+  const mentionCounts = new Map<string, number>();
+  for (const serverId of serverIds) {
+    mentionCounts.set(serverId, 0);
+  }
+
+  for (const row of rows) {
+    mentionCounts.set(row.serverId, toUnreadCount(row.mentionCount));
+  }
+
+  return mentionCounts;
+}
+
+export async function getServerMentionCount(userId: string, serverId: string) {
+  const mentionCounts = await getServerMentionCounts(userId, [serverId]);
+  return mentionCounts.get(serverId) ?? 0;
+}
+
+export async function getServerMentionCountsBatch(userIds: string[], serverId: string) {
+  const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
+  const mentionCounts = new Map<string, number>();
+
+  for (const userId of uniqueUserIds) {
+    mentionCounts.set(userId, 0);
+  }
+
+  if (uniqueUserIds.length === 0) {
+    return mentionCounts;
+  }
+
+  const rows = await prisma.$queryRaw<Array<{ userId: string; mentionCount: bigint | number }>>(Prisma.sql`
+    SELECT
+      crs."userId" AS "userId",
+      COALESCE(SUM(crs."mentionCount"), 0)::bigint AS "mentionCount"
+    FROM "ChannelReadState" crs
+    INNER JOIN "Channel" c
+      ON c."id" = crs."channelId"
+      AND c."type" = 'TEXT'
+    WHERE c."serverId" = ${serverId}
+      AND crs."userId" IN (${Prisma.join(uniqueUserIds)})
+    GROUP BY crs."userId"
+  `);
+
+  for (const row of rows) {
+    mentionCounts.set(row.userId, toUnreadCount(row.mentionCount));
+  }
+
+  return mentionCounts;
 }
 
 export async function getServerUnreadCount(userId: string, serverId: string) {
@@ -79,6 +148,7 @@ export async function getServerUnreadCountsBatch(userIds: string[], serverId: st
     LEFT JOIN "Message" m
       ON m."channelId" = c."id"
       AND m."threadId" IS NULL
+      AND m."threadParentId" IS NULL
       AND m."createdAt" > COALESCE(crs."lastReadAt", sm."joinedAt")
     WHERE sm."serverId" = ${serverId}
       AND sm."userId" IN (${Prisma.join(uniqueUserIds)})
@@ -188,11 +258,15 @@ export async function getActiveServerMemberUserIds(serverId: string) {
 }
 
 export async function emitServerUnreadUpdateToUser(userId: string, serverId: string) {
-  const unreadCount = await getServerUnreadCount(userId, serverId);
+  const [unreadCount, mentionCount] = await Promise.all([
+    getServerUnreadCount(userId, serverId),
+    getServerMentionCount(userId, serverId),
+  ]);
   const io = getSocketServer();
 
   if (io) {
     io.to(`user:${userId}`).emit("server:unread:update", {
+      mentionCount,
       serverId,
       unreadCount,
     });
@@ -220,11 +294,15 @@ export async function emitServerUnreadUpdatesForServer(
     return;
   }
 
-  const unreadCounts = await getServerUnreadCountsBatch(userIds, serverId);
+  const [unreadCounts, mentionCountByUserId] = await Promise.all([
+    getServerUnreadCountsBatch(userIds, serverId),
+    getServerMentionCountsBatch(userIds, serverId),
+  ]);
 
   await Promise.all(
     userIds.map(async (userId) => {
       io.to(`user:${userId}`).emit("server:unread:update", {
+        mentionCount: mentionCountByUserId.get(userId) ?? 0,
         serverId,
         unreadCount: unreadCounts.get(userId) ?? 0,
       });

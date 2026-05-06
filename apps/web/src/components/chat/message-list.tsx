@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import type { ChatMessage } from "@wizards/types";
 import { MessageItem } from "./message-item";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useMessages, type MessageMode } from "@/hooks/use-messages";
@@ -12,7 +13,11 @@ interface MessageListProps {
   mode: MessageMode;
   currentUserId: string;
   canModerate: boolean;
+  initialUnreadMessageId?: string | null;
+  onRemoveOptimistic: (id: string) => void;
   onReply: (id: string, author: string, content: string) => void;
+  onRetry: (id: string) => void;
+  onThread: (message: ChatMessage) => void;
 }
 
 export function MessageList({
@@ -20,9 +25,13 @@ export function MessageList({
   mode,
   currentUserId,
   canModerate,
+  initialUnreadMessageId = null,
+  onRemoveOptimistic,
   onReply,
+  onRetry,
+  onThread,
 }: MessageListProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const socket = useSocket();
   const { data, error, fetchNextPage, hasNextPage, isLoading } = useMessages(
     mode,
@@ -37,6 +46,9 @@ export function MessageList({
   const lastNewestMessageIdRef = useRef<string | null>(null);
   const scrollFrameRef = useRef<number | null>(null);
   const scrollTimeoutRefs = useRef<number[]>([]);
+  const lastHighlightedMessageIdRef = useRef<string | null>(null);
+  const [targetMessageId, setTargetMessageId] = useState<string | null>(null);
+  const [unreadJumpDismissed, setUnreadJumpDismissed] = useState(false);
 
   const forceScrollToBottom = useCallback(() => {
     if (!listRef.current) {
@@ -118,11 +130,43 @@ export function MessageList({
   }, [fetchNextPage, hasNextPage, isLoading]);
 
   useEffect(() => {
+    const readTargetMessage = () => {
+      setTargetMessageId(new URLSearchParams(window.location.search).get("message"));
+    };
+
+    readTargetMessage();
+    window.addEventListener("popstate", readTargetMessage);
+
+    return () => {
+      window.removeEventListener("popstate", readTargetMessage);
+    };
+  }, []);
+
+  useEffect(() => {
     hasScrolledInitialRef.current = false;
     initialScrollCompleteRef.current = false;
     lastNewestMessageIdRef.current = null;
+    lastHighlightedMessageIdRef.current = null;
     setShowScrollButton(false);
+    setUnreadJumpDismissed(false);
   }, [conversationId, mode]);
+
+  const scrollToMessage = useCallback((messageId: string) => {
+    window.requestAnimationFrame(() => {
+      const target = document.querySelector(`[data-message-id="${messageId}"]`);
+
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.dataset.jumpHighlight = "true";
+      lastHighlightedMessageIdRef.current = messageId;
+      window.setTimeout(() => {
+        delete target.dataset.jumpHighlight;
+      }, 1600);
+    });
+  }, []);
 
   useLayoutEffect(() => {
     if (!data?.pages) {
@@ -143,8 +187,22 @@ export function MessageList({
     const isInitialLoad = !hasScrolledInitialRef.current;
     const hasNewLatestMessage =
       newestMessageId !== null && newestMessageId !== lastNewestMessageIdRef.current;
+    const hasTargetMessage =
+      Boolean(targetMessageId) &&
+      allMessages.some((message) => message.id === targetMessageId);
 
     lastNewestMessageIdRef.current = newestMessageId;
+
+    if (
+      targetMessageId &&
+      hasTargetMessage &&
+      lastHighlightedMessageIdRef.current !== targetMessageId
+    ) {
+      hasScrolledInitialRef.current = true;
+      initialScrollCompleteRef.current = true;
+      scrollToMessage(targetMessageId);
+      return;
+    }
 
     if (isInitialLoad || hasNewLatestMessage) {
       hasScrolledInitialRef.current = true;
@@ -152,7 +210,20 @@ export function MessageList({
         completeInitial: isInitialLoad || !initialScrollCompleteRef.current,
       });
     }
-  }, [data?.pages, scheduleScrollToBottom]);
+  }, [data?.pages, scheduleScrollToBottom, scrollToMessage, targetMessageId]);
+
+  useEffect(() => {
+    if (!targetMessageId || !data?.pages || !(hasNextPage ?? false) || isLoading) {
+      return;
+    }
+
+    const allMessages = [...data.pages].reverse().flatMap((page) => page.messages);
+    if (allMessages.some((message) => message.id === targetMessageId)) {
+      return;
+    }
+
+    void fetchNextPage();
+  }, [data?.pages, fetchNextPage, hasNextPage, isLoading, targetMessageId]);
 
   const handleScroll = useCallback(() => {
     if (!listRef.current) {
@@ -181,24 +252,55 @@ export function MessageList({
     () =>
       allMessages.map((message, index) => {
         const previousMessage = allMessages[index - 1];
+        const messageDate = new Date(message.createdAt);
+        const previousDate = previousMessage ? new Date(previousMessage.createdAt) : null;
+        const showDateSeparator =
+          index === 0 ||
+          !previousDate ||
+          messageDate.toDateString() !== previousDate.toDateString();
         const isGrouped =
           index > 0 &&
           previousMessage !== undefined &&
           message.type === "DEFAULT" &&
           previousMessage.type === "DEFAULT" &&
           previousMessage.author.id === message.author.id &&
-          new Date(message.createdAt).getTime() -
-            new Date(previousMessage.createdAt).getTime() <
-            7 * 60 * 1000;
+          Math.abs(
+            new Date(message.createdAt).getTime() -
+              new Date(previousMessage.createdAt).getTime(),
+          ) < 20 * 60 * 1000;
         const showGroupSeparator =
           index > 0 &&
           !isGrouped &&
           message.type === "DEFAULT" &&
           previousMessage?.type === "DEFAULT";
 
-        return { isGrouped, message, showGroupSeparator };
+        return { isGrouped, message, showDateSeparator, showGroupSeparator };
       }),
     [allMessages],
+  );
+
+  const formatDateSeparator = useCallback(
+    (isoDate: string) => {
+      const date = new Date(isoDate);
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(today.getDate() - 1);
+
+      if (date.toDateString() === today.toDateString()) {
+        return t("chat.date.today");
+      }
+
+      if (date.toDateString() === yesterday.toDateString()) {
+        return t("chat.date.yesterday");
+      }
+
+      return date.toLocaleDateString(locale, {
+        day: "numeric",
+        month: "long",
+        year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
+      });
+    },
+    [locale, t],
   );
 
   const handleReact = useCallback(
@@ -224,9 +326,30 @@ export function MessageList({
     <div
       ref={listRef}
       onScroll={handleScroll}
-      className="relative flex-1 space-y-0 overflow-y-auto overscroll-contain bg-transparent px-1 py-3 sm:px-3 md:px-4"
+      className="relative flex-1 space-y-0 overflow-y-auto overscroll-contain bg-transparent px-1 py-1.5 sm:px-2 md:px-2"
+      aria-label={t("chat.list.ariaLabel")}
+      aria-live="polite"
+      aria-relevant="additions text"
+      data-testid="message-list"
+      role="log"
     >
       <div ref={observerRef} className="h-1" />
+
+      {initialUnreadMessageId && !unreadJumpDismissed ? (
+        <div className="sticky top-3 z-20 mb-3 flex justify-center">
+          <button
+            className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.12)] px-4 py-2 text-xs font-bold text-[hsl(var(--primary))] shadow-[0_14px_34px_hsl(var(--primary)/0.12)] backdrop-blur-xl transition hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            data-testid="jump-to-unread-button"
+            onClick={() => {
+              setUnreadJumpDismissed(true);
+              scrollToMessage(initialUnreadMessageId);
+            }}
+            type="button"
+          >
+            {t("chat.unread.jump")}
+          </button>
+        </div>
+      ) : null}
 
       {isLoading && allMessages.length === 0 ? (
         <div className="flex h-full items-center justify-center text-app-muted">
@@ -247,23 +370,39 @@ export function MessageList({
         <div className="flex h-full items-center justify-center text-app-muted">
           <div className="text-center">
             <p className="text-sm">{t("chat.list.emptyTitle")}</p>
-            <p className="text-xs">{t("chat.list.emptyDescription")}</p>
           </div>
         </div>
       ) : null}
 
-      {groupedMessages.map(({ message, isGrouped, showGroupSeparator }) => (
-        <MessageItem
-          key={message.id}
-          mode={mode}
-          message={message}
-          isGrouped={isGrouped}
-          showGroupSeparator={showGroupSeparator}
-          currentUserId={currentUserId}
-          canModerate={canModerate}
-          onReact={handleReact}
-          onReply={handleReply}
-        />
+      {groupedMessages.map(({ message, isGrouped, showDateSeparator, showGroupSeparator }) => (
+        <div key={message.id}>
+          {showDateSeparator ? (
+            <div
+              className="sticky top-2 z-10 my-1.5 flex items-center gap-2 px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-app-soft sm:px-3"
+              data-testid="message-date-separator"
+              role="separator"
+            >
+              <span className="h-px flex-1 bg-[hsl(var(--border)/0.62)]" />
+              <span className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.9)] px-2.5 py-0.5 shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)] backdrop-blur-xl">
+                {formatDateSeparator(message.createdAt)}
+              </span>
+              <span className="h-px flex-1 bg-[hsl(var(--border)/0.62)]" />
+            </div>
+          ) : null}
+          <MessageItem
+            mode={mode}
+            message={message}
+            isGrouped={isGrouped}
+            showGroupSeparator={showGroupSeparator}
+            currentUserId={currentUserId}
+            canModerate={canModerate}
+            onReact={handleReact}
+            onRemoveOptimistic={onRemoveOptimistic}
+            onReply={handleReply}
+            onRetry={onRetry}
+            onThread={onThread}
+          />
+        </div>
       ))}
 
       <div ref={bottomRef} className="h-1" />

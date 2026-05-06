@@ -20,6 +20,7 @@ export type SettingsPanelKey =
   | "sounds"
   | "overview"
   | "build"
+  | "whatsNew"
   | "developer";
 
 export type SettingsSelection = {
@@ -40,7 +41,7 @@ const PANELS_BY_SECTION: Record<SettingsSection, readonly SettingsPanelKey[]> = 
     "channelSidebar",
   ],
   notifications: ["general", "sounds"],
-  about: ["overview", "build", "developer"],
+  about: ["overview", "build", "whatsNew", "developer"],
 };
 
 export function buildSettingsHref(

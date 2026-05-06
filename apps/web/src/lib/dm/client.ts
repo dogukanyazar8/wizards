@@ -10,8 +10,10 @@ import {
   DMConversationsPageResponseSchema,
   DMConversationsResponseSchema,
   DMMessagesResponseSchema,
+  DMThreadMessagesResponseSchema,
   type DMConversationsPageResponse,
   type DMMessagesResponse,
+  type DMThreadMessagesResponse,
 } from "@/lib/dm/types";
 import {
   isMessageGifContentType,
@@ -408,4 +410,22 @@ export async function fetchDMMessages(conversationId: string, cursor?: string) {
 
   const payload = await requestJson<DMMessagesResponse>(url.toString());
   return DMMessagesResponseSchema.parse(payload);
+}
+
+export async function fetchDMThreadMessages(
+  conversationId: string,
+  parentMessageId: string,
+  cursor?: string,
+) {
+  const url = new URL(
+    `/api/v1/dm/${conversationId}/messages/${parentMessageId}/thread`,
+    window.location.origin,
+  );
+
+  if (cursor) {
+    url.searchParams.set("cursor", cursor);
+  }
+
+  const payload = await requestJson<DMThreadMessagesResponse>(url.toString());
+  return DMThreadMessagesResponseSchema.parse(payload);
 }

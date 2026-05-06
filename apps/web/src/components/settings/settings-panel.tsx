@@ -24,7 +24,9 @@ import { useShallow } from "zustand/react/shallow";
 import type { UserLayoutSettings } from "@/app/api/v1/users/me/settings/route";
 import { LanguageSwitcher } from "@/components/locale/language-switcher";
 import { useI18n } from "@/components/providers/locale-provider";
+import { ProfileAvatarField } from "@/components/settings/profile-avatar-field";
 import { ThemePicker } from "@/components/theme/theme-picker";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { VoicePreferencesPanel } from "@/components/voice/voice-preferences-panel";
 import {
@@ -77,17 +79,23 @@ import {
   type SoundEffectKey,
   type SoundProfileKey,
 } from "@/store/sound-store";
+import type { WhisprReleaseNote } from "@/lib/app-version";
 
 const FEATURED_CONTRIBUTOR_NAME = "O\u011Fuz G\u00FC\u011F\u00FCmc\u00FCo\u011Flu";
 
 type SettingsPanelProps = {
   buildInfo: {
+    buildId: string;
+    buildTime: string;
     contributors: string[];
     developerName: string;
     lastUpdated: string;
+    notes: WhisprReleaseNote[];
+    releaseChannel: string;
     version: string;
   };
   initialAccount: AccountSettingsState;
+  uploadthingEnabled: boolean;
 };
 
 type AccountField = "displayName" | "email" | "status" | "username";
@@ -442,6 +450,7 @@ function buildAvatarFallback(account: AccountSettingsState) {
 export function SettingsPanel({
   buildInfo,
   initialAccount,
+  uploadthingEnabled,
 }: SettingsPanelProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -748,12 +757,29 @@ export function SettingsPanel({
 
       setAccountState(result.user);
       setAccountDraft(result.user);
+      window.dispatchEvent(
+        new CustomEvent("whispr:account-updated", {
+          detail: result.user,
+        }),
+      );
       setAccountFieldErrors({});
       setAccountFeedback({
         tone: "success",
         value: t("settings.account.saved"),
       });
       setIsEditingAccount(false);
+    });
+  };
+
+  const handleAvatarUpdated = (nextAccount: AccountSettingsState) => {
+    setAccountState(nextAccount);
+    setAccountDraft((current) => ({
+      ...current,
+      avatarUrl: nextAccount.avatarUrl,
+    }));
+    setAccountFeedback({
+      tone: "success",
+      value: t("settings.account.avatar.saved"),
     });
   };
 
@@ -776,9 +802,12 @@ export function SettingsPanel({
           >
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex min-w-0 items-center gap-4">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,hsl(var(--primary)/0.28),hsl(var(--primary)/0.12))] text-lg font-semibold text-app-foreground sm:h-20 sm:w-20 sm:rounded-[26px] sm:text-xl">
-                  {buildAvatarFallback(accountState)}
-                </div>
+                <Avatar
+                  alt={visibleName}
+                  className="h-16 w-16 rounded-[24px] bg-[linear-gradient(135deg,hsl(var(--primary)/0.28),hsl(var(--primary)/0.12))] text-lg shadow-[0_18px_48px_hsl(var(--shadow-color)/0.1)] sm:h-20 sm:w-20 sm:rounded-[26px] sm:text-xl"
+                  fallback={buildAvatarFallback(accountState)}
+                  src={accountState.avatarUrl}
+                />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-lg font-semibold text-app-foreground sm:text-xl">{visibleName}</p>
@@ -807,6 +836,18 @@ export function SettingsPanel({
                 )}
               />
             </div>
+          </SettingCard>
+
+          <SettingCard
+            description={t("settings.account.avatar.description")}
+            icon={Camera}
+            title={t("settings.account.avatar.title")}
+          >
+            <ProfileAvatarField
+              account={accountState}
+              onAvatarUpdated={handleAvatarUpdated}
+              uploadthingEnabled={uploadthingEnabled}
+            />
           </SettingCard>
 
           <SettingCard
@@ -1547,6 +1588,7 @@ export function SettingsPanel({
   const renderAboutSection = () => {
     const showOverview = panel === null || panel === "overview";
     const showBuild = panel === null || panel === "build";
+    const showWhatsNew = panel === null || panel === "whatsNew";
     const showDeveloper = panel === null || panel === "developer";
     const featuredContributor = buildInfo.contributors.find(
       (contributor) => contributor === FEATURED_CONTRIBUTOR_NAME,
@@ -1586,12 +1628,73 @@ export function SettingsPanel({
             icon={LayoutPanelTop}
             title={t("settings.about.buildInfo.title")}
           >
-            <div className="grid gap-3 md:grid-cols-2">
-              <InfoPill label={t("settings.about.buildInfo.version")} value={buildInfo.version} />
-              <InfoPill
-                label={t("settings.about.buildInfo.lastUpdate")}
-                value={buildInfo.lastUpdated}
-              />
+            <div className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <InfoPill label={t("settings.about.buildInfo.version")} value={buildInfo.version} />
+                <InfoPill
+                  label={t("settings.about.buildInfo.lastUpdate")}
+                  value={buildInfo.lastUpdated}
+                />
+                <InfoPill
+                  label={t("settings.about.buildInfo.buildId")}
+                  value={buildInfo.buildId}
+                />
+                <InfoPill
+                  label={t("settings.about.buildInfo.releaseChannel")}
+                  value={buildInfo.releaseChannel}
+                />
+                <InfoPill
+                  label={t("settings.about.buildInfo.buildTime")}
+                  value={
+                    buildInfo.buildTime || t("settings.about.buildInfo.developmentBuild")
+                  }
+                />
+              </div>
+
+              <div className="app-panel-soft inline-flex max-w-full flex-wrap items-center gap-2 rounded-[22px] border px-4 py-3 text-[11px] font-semibold text-app-muted shadow-[0_14px_32px_hsl(var(--shadow-color)/0.06)]">
+                <span className="text-app-foreground">{t("shell.footer.builtWith")}</span>
+                <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 text-[hsl(var(--primary))]">
+                  AI
+                </span>
+                <span className="text-app-soft">/</span>
+                <span>{t("shell.footer.codex")}</span>
+                <span className="text-app-soft">/</span>
+                <span>{buildInfo.lastUpdated}</span>
+              </div>
+            </div>
+          </SettingCard>
+        ) : null}
+
+        {showWhatsNew ? (
+          <SettingCard
+            description={t("settings.about.whatsNew.description")}
+            icon={Sparkles}
+            title={t("settings.about.whatsNew.title")}
+          >
+            <div className="grid gap-3">
+              {buildInfo.notes.map((note) => (
+                <article
+                  className="app-panel-soft rounded-[24px] border p-4 shadow-[0_14px_34px_hsl(var(--shadow-color)/0.05)]"
+                  key={note.id}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[hsl(var(--primary))]">
+                        {t(note.categoryKey)}
+                      </p>
+                      <h4 className="mt-2 text-base font-semibold text-app-foreground">
+                        {t(note.titleKey)}
+                      </h4>
+                    </div>
+                    <span className="rounded-full border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.1)] px-3 py-1 text-[11px] font-bold text-[hsl(var(--primary))]">
+                      v{buildInfo.version}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-app-muted">
+                    {t(note.descriptionKey)}
+                  </p>
+                </article>
+              ))}
             </div>
           </SettingCard>
         ) : null}

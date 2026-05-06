@@ -25,9 +25,13 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { useSocket } from "@/hooks/use-socket";
 import { useDMConversations } from "@/hooks/use-dm-conversations";
+import type { MessagePages } from "@/hooks/use-messages";
 import { useAppearanceHydration } from "@/hooks/use-appearance-hydration";
 import { usePresenceActivity } from "@/hooks/use-presence-activity";
-import type { NotificationSocketPayload } from "@/lib/socket/events";
+import type {
+  NotificationSocketPayload,
+  UserProfileUpdatedPayload,
+} from "@/lib/socket/events";
 import { useAppStore } from "@/lib/store";
 import {
   addServerMemberRequest,
@@ -40,6 +44,10 @@ import {
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
 import { fetchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
+import {
+  dmQueryKeys,
+  type DMConversationsInfiniteData,
+} from "@/lib/dm/client";
 import {
   ICON_ONLY_SERVER_RAIL_WIDTH,
 } from "@/lib/appearance";
@@ -82,6 +90,77 @@ function findActiveCategoryName(
   }
 
   return detail.categories.find((category) => category.id === channel.categoryId)?.name ?? null;
+}
+
+type AccountUpdatedEventPayload = Omit<UserProfileUpdatedPayload, "userId"> & {
+  email?: string;
+  id: string;
+};
+
+function patchMessageAuthors(
+  current: MessagePages | undefined,
+  profile: UserProfileUpdatedPayload,
+): MessagePages | undefined {
+  if (!current) {
+    return current;
+  }
+
+  return {
+    ...current,
+    pages: current.pages.map((page) => ({
+      ...page,
+      messages: page.messages.map((message) =>
+        message.author.id === profile.userId
+          ? {
+              ...message,
+              author: {
+                ...message.author,
+                avatarUrl: profile.avatarUrl,
+                customStatus: profile.customStatus,
+                displayName: profile.displayName ?? profile.username,
+                status: profile.status,
+                username: profile.username,
+              },
+            }
+          : message,
+      ),
+    })),
+  };
+}
+
+function patchDMConversationParticipants(
+  current: DMConversationsInfiniteData | undefined,
+  profile: UserProfileUpdatedPayload,
+): DMConversationsInfiniteData | undefined {
+  if (!current) {
+    return current;
+  }
+
+  return {
+    ...current,
+    pages: current.pages.map((page) => ({
+      ...page,
+      conversations: page.conversations.map((conversation) => ({
+        ...conversation,
+        participants: conversation.participants.map((participant) =>
+          participant.userId === profile.userId
+            ? {
+                ...participant,
+                avatarUrl: profile.avatarUrl,
+                customStatus: profile.customStatus,
+                displayName: profile.displayName ?? profile.username,
+                presence: {
+                  customStatus: profile.customStatus,
+                  status: profile.status,
+                },
+                status: profile.status,
+                username: profile.username,
+              }
+            : participant,
+        ),
+      })),
+    })),
+  };
 }
 
 function getServerIndexHref(server: WorkspaceServerSummary) {
@@ -284,12 +363,14 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const [addMemberServer, setAddMemberServer] = React.useState<WorkspaceServerSummary | null>(null);
   const [addMemberUsername, setAddMemberUsername] = React.useState("");
   const [addMemberSuccess, setAddMemberSuccess] = React.useState<string | null>(null);
+  const [currentUserSnapshot, setCurrentUserSnapshot] = React.useState(currentUser);
   const [currentUserStatus, setCurrentUserStatus] = React.useState(currentUser.status);
   const [leaveServerCandidate, setLeaveServerCandidate] =
     React.useState<WorkspaceServerSummary | null>(null);
   const {
     appearanceHydrated,
     closeServerContextMenu,
+    closeServerSettings,
     channelSidebarWidth,
     forgetServerState,
     lastChannelByServerId,
@@ -317,6 +398,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     useShallow((state) => ({
       appearanceHydrated: state.appearanceHydrated,
       closeServerContextMenu: state.closeServerContextMenu,
+      closeServerSettings: state.closeServerSettings,
       channelSidebarWidth: state.channelSidebarWidth,
       forgetServerState: state.forgetServerState,
       lastChannelByServerId: state.lastChannelByServerId,
@@ -351,14 +433,14 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     refetchOnMount: false,
   });
 
-  const { conversations: dmConversations } = useDMConversations(currentUser.id);
+  const { conversations: dmConversations } = useDMConversations(currentUserSnapshot.id);
 
   const visibleCurrentUser = useMemo(
     () => ({
-      ...currentUser,
+      ...currentUserSnapshot,
       status: currentUserStatus,
     }),
-    [currentUser, currentUserStatus],
+    [currentUserSnapshot, currentUserStatus],
   );
   usePresenceActivity({
     socket,
@@ -366,8 +448,9 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   });
 
   useEffect(() => {
+    setCurrentUserSnapshot(currentUser);
     setCurrentUserStatus(currentUser.status);
-  }, [currentUser.status]);
+  }, [currentUser]);
 
   useEffect(() => {
     if (layoutSettings) {
@@ -417,10 +500,20 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       });
     };
 
-    const handleServerUnreadUpdate = (data: { serverId: string; unreadCount: number }) => {
+    const handleServerUnreadUpdate = (data: {
+      mentionCount?: number;
+      serverId: string;
+      unreadCount: number;
+    }) => {
       queryClient.setQueryData<WorkspaceServerSummary[] | undefined>(
         workspaceQueryKeys.servers,
-        (current) => applyServerUnreadCount(current, data.serverId, data.unreadCount),
+        (current) =>
+          applyServerUnreadCount(
+            current,
+            data.serverId,
+            data.unreadCount,
+            data.mentionCount,
+          ),
       );
 
       queryClient.setQueryData<WorkspaceServerDetail | undefined>(
@@ -431,6 +524,9 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                 ...current,
                 server: {
                   ...current.server,
+                  ...(data.mentionCount !== undefined
+                    ? { mentionCount: data.mentionCount }
+                    : {}),
                   unreadCount: data.unreadCount,
                 },
               }
@@ -507,19 +603,108 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       );
     };
 
+    const applyUserProfileUpdate = (data: UserProfileUpdatedPayload) => {
+      if (data.userId === currentUser.id) {
+        setCurrentUserSnapshot((current) => ({
+          ...current,
+          avatarUrl: data.avatarUrl,
+          displayName: data.displayName ?? data.username,
+          status: data.status,
+          username: data.username,
+        }));
+        setCurrentUserStatus(data.status);
+      }
+
+      queryClient.setQueriesData<WorkspaceServerDetail | undefined>(
+        { queryKey: workspaceQueryKeys.root },
+        (current) => {
+          if (!current || !("members" in current)) {
+            return current;
+          }
+
+          return {
+            ...current,
+            members: current.members.map((member) =>
+              member.userId === data.userId
+                ? {
+                    ...member,
+                    avatarUrl: data.avatarUrl,
+                    customStatus: data.customStatus,
+                    displayName: data.displayName ?? data.username,
+                    status: data.status,
+                    username: data.username,
+                  }
+                : member,
+            ),
+          };
+        },
+      );
+
+      queryClient.setQueriesData<MessagePages | undefined>(
+        { queryKey: ["messages"] },
+        (current) => patchMessageAuthors(current, data),
+      );
+
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
+        dmQueryKeys.list,
+        (current) => patchDMConversationParticipants(current, data),
+      );
+    };
+
+    const handleAccountUpdated = (event: Event) => {
+      if (!(event instanceof CustomEvent)) {
+        return;
+      }
+
+      const detail = event.detail as Partial<AccountUpdatedEventPayload> | null;
+      if (!detail || detail.id !== currentUser.id) {
+        return;
+      }
+
+      const nextStatus =
+        detail.status === "ONLINE" ||
+        detail.status === "IDLE" ||
+        detail.status === "DND" ||
+        detail.status === "OFFLINE"
+          ? detail.status
+          : "OFFLINE";
+
+      applyUserProfileUpdate({
+        avatarUrl: detail.avatarUrl ?? null,
+        customStatus: detail.customStatus ?? null,
+        displayName:
+          typeof detail.displayName === "string" ? detail.displayName : null,
+        status: nextStatus,
+        userId: detail.id,
+        username: detail.username ?? currentUserSnapshot.username,
+      });
+    };
+
     socket.on("server:unread:update", handleServerUnreadUpdate);
     socket.on("server:membership:added", handleServerMembershipAdded);
     socket.on("server:settings:updated", handleServerSettingsUpdated);
     socket.on("notification:new", handleNotificationNew);
     socket.on("presence:update", handlePresenceUpdate);
+    socket.on("user:profile:updated", applyUserProfileUpdate);
+    window.addEventListener("whispr:account-updated", handleAccountUpdated);
     return () => {
       socket.off("server:unread:update", handleServerUnreadUpdate);
       socket.off("server:membership:added", handleServerMembershipAdded);
       socket.off("server:settings:updated", handleServerSettingsUpdated);
       socket.off("notification:new", handleNotificationNew);
       socket.off("presence:update", handlePresenceUpdate);
+      socket.off("user:profile:updated", applyUserProfileUpdate);
+      window.removeEventListener("whispr:account-updated", handleAccountUpdated);
     };
-  }, [activeServerId, currentUser.id, queryClient, router, socket]);
+  }, [
+    activeServerId,
+    currentUser.id,
+    currentUserSnapshot.username,
+    currentUserStatus,
+    queryClient,
+    router,
+    socket,
+  ]);
 
   const cachedServerDetail = activeServerId
     ? queryClient.getQueryData<Awaited<ReturnType<typeof fetchWorkspaceServer>>>(
@@ -870,6 +1055,16 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     setMobileSidebarOpen(false);
     router.push("/settings");
   };
+
+  const openDeleteServerFromSettings = React.useCallback(
+    (serverId: string, serverName: string) => {
+      closeServerSettings();
+      window.requestAnimationFrame(() => {
+        openDeleteServerDialog(serverId, serverName);
+      });
+    },
+    [closeServerSettings, openDeleteServerDialog],
+  );
 
   const handleMobileBack = () => {
     if (isDmRoute) {
@@ -1240,7 +1435,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
 
       <ServerSettingsOverlay
         detail={serverSettingsServerId === activeServerId ? (serverDetailQuery.data ?? null) : null}
-        onOpenDeleteServer={openDeleteServerDialog}
+        onOpenDeleteServer={openDeleteServerFromSettings}
         open={Boolean(serverSettingsServerId && serverSettingsServerId === activeServerId)}
         uploadthingEnabled={uploadthingEnabled}
       />

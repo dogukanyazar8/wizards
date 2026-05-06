@@ -287,6 +287,7 @@ export async function createLiveKitToken(
     canPublish: true,
     canPublishData: true,
     canSubscribe: true,
+    canUpdateOwnMetadata: true,
   });
 
   return {

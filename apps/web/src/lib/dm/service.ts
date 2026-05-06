@@ -3,6 +3,7 @@ import type {
   DMConversationDTO,
   DMMessagePayload,
   DMParticipantDTO,
+  MessageThreadSummary,
   MessageReaction,
 } from "@wizards/types";
 import { Prisma, prisma } from "@wizards/db";
@@ -48,6 +49,8 @@ export const dmAttachmentSelect = {
   size: true,
   width: true,
   height: true,
+  duration: true,
+  thumbnailUrl: true,
 } as const;
 
 const dmReplyInclude = {
@@ -90,6 +93,7 @@ type DMMessageNode = {
   userId: string;
   content: string;
   replyToId: string | null;
+  threadParentId: string | null;
   editedAt: Date | null;
   deletedAt: Date | null;
   createdAt: Date;
@@ -109,6 +113,8 @@ type DMMessageNode = {
     size: number;
     width: number | null;
     height: number | null;
+    duration: number | null;
+    thumbnailUrl: string | null;
   }>;
   reactions?: Array<{
     emoji: string;
@@ -134,6 +140,12 @@ type DMReactionRow = {
 type DMConversationPageRow = {
   conversationId: string;
   participantId: string;
+};
+
+type DMThreadSummaryRow = {
+  lastReplyAt: Date | null;
+  replyCount: number;
+  threadParentId: string;
 };
 
 async function readPresence(userId: string, fallback: PresenceFields): Promise<PresenceFields> {
@@ -172,6 +184,86 @@ function groupDMReactions(
     count: userIds.size,
     userIds: Array.from(userIds),
   }));
+}
+
+function createEmptyThreadSummary(): MessageThreadSummary {
+  return {
+    replyCount: 0,
+    lastReplyAt: null,
+    recentRepliers: [],
+  };
+}
+
+async function getDMThreadSummaryMap(parentMessageIds: string[]) {
+  if (parentMessageIds.length === 0) {
+    return new Map<string, MessageThreadSummary>();
+  }
+
+  const counts = await prisma.$queryRaw<DMThreadSummaryRow[]>(Prisma.sql`
+    SELECT
+      "threadParentId",
+      COUNT(*)::int AS "replyCount",
+      MAX("createdAt") AS "lastReplyAt"
+    FROM "DMMessage"
+    WHERE "threadParentId" IN (${Prisma.join(parentMessageIds)})
+      AND "deletedAt" IS NULL
+    GROUP BY "threadParentId"
+  `);
+
+  const latestReplies = await prisma.dMMessage.findMany({
+    where: {
+      threadParentId: { in: parentMessageIds },
+      deletedAt: null,
+    },
+    orderBy: { createdAt: "desc" },
+    take: Math.min(parentMessageIds.length * 4, 200),
+    select: {
+      threadParentId: true,
+      author: {
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  });
+
+  const summaries = new Map<string, MessageThreadSummary>();
+  for (const row of counts) {
+    if (!row.threadParentId) {
+      continue;
+    }
+
+    summaries.set(row.threadParentId, {
+      replyCount: row.replyCount,
+      lastReplyAt: row.lastReplyAt?.toISOString() ?? null,
+      recentRepliers: [],
+    });
+  }
+
+  for (const reply of latestReplies) {
+    if (!reply.threadParentId) {
+      continue;
+    }
+
+    const summary = summaries.get(reply.threadParentId);
+    if (!summary || summary.recentRepliers.some((user) => user.userId === reply.author.id)) {
+      continue;
+    }
+
+    if (summary.recentRepliers.length < 3) {
+      summary.recentRepliers.push({
+        userId: reply.author.id,
+        username: reply.author.username,
+        displayName: reply.author.displayName,
+        avatarUrl: reply.author.avatarUrl,
+      });
+    }
+  }
+
+  return summaries;
 }
 
 async function getDMReactionMap(messageIds: string[]) {
@@ -226,6 +318,7 @@ function mapDMReply(
   message: DMMessageNode | null | undefined,
   depth: number,
   reactionsByMessageId: Map<string, DMReactionRow[]> = new Map(),
+  threadSummaryByMessageId: Map<string, MessageThreadSummary> = new Map(),
 ): DMMessagePayload | null {
   if (!message) {
     return null;
@@ -233,7 +326,12 @@ function mapDMReply(
 
   const nextReply =
     depth > 0
-      ? mapDMReply(message.reply ?? null, depth - 1, reactionsByMessageId)
+      ? mapDMReply(
+          message.reply ?? null,
+          depth - 1,
+          reactionsByMessageId,
+          threadSummaryByMessageId,
+        )
       : null;
 
   return {
@@ -242,6 +340,8 @@ function mapDMReply(
     userId: message.userId,
     content: message.deletedAt ? "" : message.content,
     replyToId: message.replyToId,
+    threadParentId: message.threadParentId,
+    threadSummary: threadSummaryByMessageId.get(message.id) ?? createEmptyThreadSummary(),
     editedAt: message.editedAt?.toISOString() ?? null,
     deletedAt: message.deletedAt?.toISOString() ?? null,
     createdAt: message.createdAt.toISOString(),
@@ -266,6 +366,8 @@ function mapDMReply(
       size: attachment.size,
       width: attachment.width,
       height: attachment.height,
+      duration: attachment.duration,
+      thumbnailUrl: attachment.thumbnailUrl,
     })),
     reactions: groupDMReactions(
       reactionsByMessageId.get(message.id) ?? message.reactions ?? [],
@@ -277,15 +379,24 @@ function mapDMReply(
 export function mapDMMessagePayload(
   message: RawDMMessage,
   reactionsByMessageId?: Map<string, DMReactionRow[]>,
+  threadSummaryByMessageId?: Map<string, MessageThreadSummary>,
 ): DMMessagePayload {
-  return mapDMReply(message, 2, reactionsByMessageId) as DMMessagePayload;
+  return mapDMReply(
+    message,
+    2,
+    reactionsByMessageId,
+    threadSummaryByMessageId,
+  ) as DMMessagePayload;
 }
 
 export async function mapDMMessagePayloadWithReactions(
   message: RawDMMessage,
 ): Promise<DMMessagePayload> {
-  const reactionsByMessageId = await getDMReactionMap([message.id]);
-  return mapDMMessagePayload(message, reactionsByMessageId);
+  const [reactionsByMessageId, threadSummaryByMessageId] = await Promise.all([
+    getDMReactionMap([message.id]),
+    getDMThreadSummaryMap([message.id]),
+  ]);
+  return mapDMMessagePayload(message, reactionsByMessageId, threadSummaryByMessageId);
 }
 
 async function getDeletedMessageLabel(userId: string) {
@@ -620,6 +731,7 @@ export async function listDMMessages(
   const messages = await prisma.dMMessage.findMany({
     where: {
       conversationId,
+      threadParentId: null,
       ...(cursorCreatedAt
         ? {
             createdAt: {
@@ -636,11 +748,90 @@ export async function listDMMessages(
   const hasMore = messages.length > limit;
   const pageMessages = hasMore ? messages.slice(0, limit) : messages;
   const nextCursor = hasMore ? pageMessages[pageMessages.length - 1]?.id ?? null : null;
-  const reactionsByMessageId = await getDMReactionMap(
-    pageMessages.map((message) => message.id),
-  );
+  const messageIds = pageMessages.map((message) => message.id);
+  const [reactionsByMessageId, threadSummaryByMessageId] = await Promise.all([
+    getDMReactionMap(messageIds),
+    getDMThreadSummaryMap(messageIds),
+  ]);
 
   return {
+    messages: [...pageMessages]
+      .reverse()
+      .map((message) =>
+        mapDMMessagePayload(message, reactionsByMessageId, threadSummaryByMessageId),
+      ),
+    nextCursor,
+  };
+}
+
+export async function listDMThreadMessages(
+  userId: string,
+  conversationId: string,
+  parentMessageId: string,
+  cursor: string | undefined,
+  limit: number,
+): Promise<DMMessagesResponse & { parent: DMMessagePayload }> {
+  await requireDMParticipant(userId, conversationId);
+
+  const parent = await prisma.dMMessage.findFirst({
+    where: {
+      id: parentMessageId,
+      conversationId,
+      threadParentId: null,
+    },
+    include: dmMessageInclude,
+  });
+
+  if (!parent) {
+    throw new ApiError("Thread parent message not found", 404, "THREAD_PARENT_NOT_FOUND");
+  }
+
+  let cursorCreatedAt: Date | null = null;
+  if (cursor) {
+    const cursorMessage = await prisma.dMMessage.findFirst({
+      where: {
+        id: cursor,
+        conversationId,
+        threadParentId: parentMessageId,
+      },
+      select: { createdAt: true },
+    });
+
+    if (!cursorMessage) {
+      throw new ApiError("Message not found", 404, "NOT_FOUND");
+    }
+
+    cursorCreatedAt = cursorMessage.createdAt;
+  }
+
+  const messages = await prisma.dMMessage.findMany({
+    where: {
+      conversationId,
+      threadParentId: parentMessageId,
+      ...(cursorCreatedAt
+        ? {
+            createdAt: {
+              lt: cursorCreatedAt,
+            },
+          }
+        : {}),
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    include: dmMessageInclude,
+  });
+
+  const hasMore = messages.length > limit;
+  const pageMessages = hasMore ? messages.slice(0, limit) : messages;
+  const nextCursor = hasMore ? pageMessages[pageMessages.length - 1]?.id ?? null : null;
+  const messageIds = [parent.id, ...pageMessages.map((message) => message.id)];
+  const [reactionsByMessageId, threadSummaryByMessageId] = await Promise.all([
+    getDMReactionMap(messageIds),
+    getDMThreadSummaryMap([parent.id]),
+  ]);
+
+  return {
+    parent: mapDMMessagePayload(parent, reactionsByMessageId, threadSummaryByMessageId),
     messages: [...pageMessages]
       .reverse()
       .map((message) => mapDMMessagePayload(message, reactionsByMessageId)),

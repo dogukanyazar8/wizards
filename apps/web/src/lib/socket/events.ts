@@ -28,6 +28,15 @@ export interface NotificationSocketPayload {
   createdAt: string;
 }
 
+export interface UserProfileUpdatedPayload {
+  avatarUrl: string | null;
+  customStatus: string | null;
+  displayName: string | null;
+  status: FriendPresenceUpdateDto["status"];
+  userId: string;
+  username: string;
+}
+
 export interface ClientToServerEvents {
   "channel:join": (channelId: string) => void;
   "channel:leave": (channelId: string) => void;
@@ -36,6 +45,7 @@ export interface ClientToServerEvents {
     channelId: string;
     content: string;
     replyToId?: string;
+    threadParentId?: string;
   }) => void;
   "message:edit": (data: { messageId: string; content: string }) => void;
   "message:delete": (messageId: string) => void;
@@ -50,6 +60,7 @@ export interface ClientToServerEvents {
     conversationId: string;
     content: string;
     replyToId?: string;
+    threadParentId?: string;
   }) => void;
   "dm:message:edit": (data: { messageId: string; content: string }) => void;
   "dm:message:delete": (data: { messageId: string }) => void;
@@ -92,11 +103,16 @@ export interface ServerToClientEvents {
   "message:updated": (message: ChatMessage) => void;
   "message:deleted": (data: { messageId: string; channelId: string }) => void;
   "message:history_cleared": (data: { channelId: string }) => void;
+  "message:pins_updated": (data: { channelId: string }) => void;
   "message:reaction_updated": (data: {
     messageId: string;
     reactions: MessageReaction[];
   }) => void;
-  "server:unread:update": (data: { serverId: string; unreadCount: number }) => void;
+  "server:unread:update": (data: {
+    mentionCount?: number;
+    serverId: string;
+    unreadCount: number;
+  }) => void;
   "server:membership:removed": (data: {
     reason: "deleted" | "kicked" | "left";
     serverId: string;
@@ -154,6 +170,7 @@ export interface ServerToClientEvents {
     message: string;
   }) => void;
   "presence:update": (data: FriendPresenceUpdateDto) => void;
+  "user:profile:updated": (data: UserProfileUpdatedPayload) => void;
   "typing:update": (data: { channelId: string; users: string[] }) => void;
   "notification:new": (notification: NotificationSocketPayload) => void;
   "voice:state:update": (data: {
@@ -186,6 +203,7 @@ export interface InterServerEvents {
     reactions: MessageReaction[];
   }) => void;
   "presence:update": (data: FriendPresenceUpdateDto) => void;
+  "user:profile:updated": (data: UserProfileUpdatedPayload) => void;
   "typing:update": (data: { channelId: string; users: string[] }) => void;
 }
 

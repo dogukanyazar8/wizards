@@ -12,7 +12,7 @@ import {
 const E2EUploadSchema = z.object({
   contentType: z.string().trim().min(1).max(120),
   dataUrl: z.string().trim().min(1).max(1_000_000),
-  endpoint: z.enum(["messageAttachmentUploader", "serverIconUploader"]),
+  endpoint: z.enum(["messageAttachmentUploader", "profileAvatarUploader", "serverIconUploader"]),
   filename: z.string().trim().min(1).max(255),
   size: z.number().int().min(1).max(16 * 1024 * 1024),
 });
@@ -41,9 +41,9 @@ export async function POST(request: Request) {
 
     assertDataUrlMatchesContentType(input.dataUrl, input.contentType);
 
-    if (input.endpoint === "serverIconUploader") {
+    if (input.endpoint === "serverIconUploader" || input.endpoint === "profileAvatarUploader") {
       if (!input.contentType.startsWith("image/")) {
-        throw new ApiError("Invalid E2E server icon upload.", 400, "INVALID_E2E_UPLOAD");
+        throw new ApiError("Invalid E2E image upload.", 400, "INVALID_E2E_UPLOAD");
       }
 
       return Response.json({

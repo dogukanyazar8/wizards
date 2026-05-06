@@ -16,6 +16,7 @@ type ServerIconProps = {
   iconUrl?: string | null;
   label: string;
   labelPreview?: string;
+  mentionCount?: number;
   onClick: () => void;
   onContextMenu?: (event: React.MouseEvent<HTMLButtonElement>) => void;
   onPrefetch?: () => void;
@@ -33,6 +34,7 @@ export function ServerIcon({
   iconUrl,
   label,
   labelPreview,
+  mentionCount = 0,
   onClick,
   onContextMenu,
   onPrefetch,
@@ -139,7 +141,20 @@ export function ServerIcon({
             className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[hsl(var(--muted-foreground)/0.46)] opacity-0 transition group-hover:opacity-100"
           />
         ) : null}
-        {badgeCount > 0 ? (
+        {mentionCount > 0 ? (
+          <span
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute inline-flex min-w-[1.45rem] items-center justify-center whitespace-nowrap rounded-full border border-[hsl(var(--background)/0.36)] bg-[hsl(var(--primary))] px-1.5 py-0.5 text-[10px] font-black leading-none text-[hsl(var(--primary-foreground))] shadow-[0_10px_24px_hsl(var(--primary)/0.36)]",
+              showLabel
+                ? "left-8 top-7"
+                : "bottom-0 right-0 translate-x-[24%] translate-y-[18%]",
+            )}
+            data-testid={testId ? `${testId}-mention-badge` : undefined}
+          >
+            @{mentionCount > 99 ? "99+" : mentionCount}
+          </span>
+        ) : badgeCount > 0 ? (
           <span
             aria-hidden="true"
             className={cn(

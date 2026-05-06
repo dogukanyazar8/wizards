@@ -47,6 +47,7 @@ export const RoleBadgeSchema = z.object({
 export const WorkspaceChannelSchema = z.object({
   id: z.string(),
   categoryId: z.string().nullable(),
+  locked: z.boolean().default(false),
   name: z.string(),
   topic: z.string().nullable(),
   type: WorkspaceChannelTypeSchema,
@@ -100,6 +101,7 @@ export const WorkspaceServerSummarySchema = z.object({
   shortName: z.string().nullable(),
   defaultChannelId: z.string().nullable(),
   accessLevel: WorkspaceAccessLevelSchema,
+  mentionCount: z.number().int().nonnegative().default(0),
   unreadCount: z.number().int().nonnegative(),
 });
 
@@ -211,10 +213,18 @@ export const UpdateChannelSchema = z
       .regex(/^[a-z0-9-]+$/, "validation.channel.pattern")
       .optional(),
     topic: optionalTrimmedString(120),
+    locked: z.boolean().optional(),
   })
-  .refine((value) => value.name !== undefined || value.categoryId !== undefined || value.topic !== undefined, {
-    message: "validation.form.atLeastOne",
-  });
+  .refine(
+    (value) =>
+      value.name !== undefined ||
+      value.categoryId !== undefined ||
+      value.topic !== undefined ||
+      value.locked !== undefined,
+    {
+      message: "validation.form.atLeastOne",
+    },
+  );
 
 export const ReorderChannelsSchema = z.object({
   items: z

@@ -92,6 +92,7 @@ export function WorkspaceModals({
   const [channelName, setChannelName] = useState("");
   const [channelTopic, setChannelTopic] = useState("");
   const [channelCategoryId, setChannelCategoryId] = useState<string | null>(null);
+  const [channelLocked, setChannelLocked] = useState(false);
   const [categoryName, setCategoryName] = useState("");
   const [createdCategoryName, setCreatedCategoryName] = useState<string | null>(null);
   const [inviteHours, setInviteHours] = useState("24");
@@ -146,7 +147,15 @@ export function WorkspaceModals({
     setChannelName(editingChannel?.name ?? "");
     setChannelTopic(editingChannel?.topic ?? "");
     setChannelCategoryId(editingChannel?.categoryId ?? channelModal.categoryId ?? null);
-  }, [channelModal.categoryId, channelModal.open, editingChannel?.categoryId, editingChannel?.name, editingChannel?.topic]);
+    setChannelLocked(editingChannel?.locked ?? false);
+  }, [
+    channelModal.categoryId,
+    channelModal.open,
+    editingChannel?.categoryId,
+    editingChannel?.locked,
+    editingChannel?.name,
+    editingChannel?.topic,
+  ]);
 
   useEffect(() => {
     if (!inviteModal.open) {
@@ -288,6 +297,7 @@ export function WorkspaceModals({
       if (channelModal.mode === "edit" && channelModal.channelId) {
         return updateChannelRequest(channelModal.channelId, {
           categoryId: channelCategoryId,
+          locked: channelLocked,
           name: channelName,
           topic: channelTopic,
         });
@@ -323,6 +333,7 @@ export function WorkspaceModals({
           workspaceQueryKeys.server(activeServerDetail.server.id),
           applyChannelPatch(previousDetail, channelModal.channelId, {
             categoryId: channelCategoryId,
+            locked: channelLocked,
             name: channelName,
             topic: channelTopic,
           }),
@@ -348,6 +359,7 @@ export function WorkspaceModals({
       closeChannelModal();
       setChannelName("");
       setChannelTopic("");
+      setChannelLocked(false);
     },
   });
 
@@ -693,6 +705,14 @@ export function WorkspaceModals({
               value={channelTopic}
             />
           </div>
+          {channelModal.mode === "edit" && channelModal.type === "TEXT" ? (
+            <ServerFeatureToggle
+              checked={channelLocked}
+              description={t("workspace.modal.channelReadOnlyDescription")}
+              onChange={setChannelLocked}
+              title={t("workspace.modal.channelReadOnly")}
+            />
+          ) : null}
           {activeServerDetail ? (
             <div className="space-y-2">
               <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">

@@ -1,9 +1,11 @@
 "use client";
 
+import { z } from "zod";
 import {
   WorkspaceServerResponseSchema,
   WorkspaceServersResponseSchema,
   WorkspaceMembersResponseSchema,
+  ChatMessageSchema,
   type UpdateChannelInput,
   type WorkspaceCategory,
   type WorkspaceChannel,
@@ -28,9 +30,23 @@ type RequestOptions = Omit<RequestInit, "body"> & {
 
 export const workspaceQueryKeys = {
   root: ["workspace"] as const,
+  pinnedMessages: (channelId: string) =>
+    ["workspace", "channel", channelId, "pinned-messages"] as const,
   server: (serverId: string) => ["workspace", "server", serverId] as const,
   servers: ["workspace", "servers"] as const,
 };
+
+const WorkspaceChannelPinnedMessagesResponseSchema = z.object({
+  messages: z.array(ChatMessageSchema),
+});
+
+const WorkspaceChannelPinResponseSchema = z.object({
+  message: ChatMessageSchema,
+});
+
+const ChannelNotificationSettingsResponseSchema = z.object({
+  level: z.enum(["all", "mentions", "muted"]),
+});
 
 async function requestJson<T>(url: string, options: RequestOptions = {}): Promise<T> {
   const { body, headers, ...init } = options;
@@ -76,6 +92,7 @@ export function applyServerUnreadCount(
   servers: WorkspaceServerSummary[] | undefined,
   serverId: string,
   unreadCount: number,
+  mentionCount?: number,
 ) {
   if (!servers) {
     return servers;
@@ -85,6 +102,7 @@ export function applyServerUnreadCount(
     server.id === serverId
       ? {
           ...server,
+          ...(mentionCount !== undefined ? { mentionCount } : {}),
           unreadCount,
         }
       : server,
@@ -250,6 +268,44 @@ export async function clearChannelMessagesRequest(channelId: string) {
   );
 }
 
+export async function fetchChannelPinnedMessages(channelId: string) {
+  const payload = await requestJson<unknown>(`/api/v1/channels/${channelId}/pins`);
+  const parsed = WorkspaceChannelPinnedMessagesResponseSchema.parse(payload);
+  return parsed.messages;
+}
+
+export async function pinChannelMessageRequest(channelId: string, messageId: string) {
+  const payload = await requestJson<unknown>(
+    `/api/v1/channels/${channelId}/messages/${messageId}/pin`,
+    { method: "POST" },
+  );
+  return WorkspaceChannelPinResponseSchema.parse(payload).message;
+}
+
+export async function unpinChannelMessageRequest(channelId: string, messageId: string) {
+  const payload = await requestJson<unknown>(
+    `/api/v1/channels/${channelId}/messages/${messageId}/pin`,
+    { method: "DELETE" },
+  );
+  return WorkspaceChannelPinResponseSchema.parse(payload).message;
+}
+
+export async function fetchChannelNotificationSettings(channelId: string) {
+  const payload = await requestJson<unknown>(`/api/v1/channels/${channelId}/notification-settings`);
+  return ChannelNotificationSettingsResponseSchema.parse(payload);
+}
+
+export async function updateChannelNotificationSettings(
+  channelId: string,
+  level: "all" | "mentions" | "muted",
+) {
+  const payload = await requestJson<unknown>(`/api/v1/channels/${channelId}/notification-settings`, {
+    body: { level },
+    method: "PATCH",
+  });
+  return ChannelNotificationSettingsResponseSchema.parse(payload);
+}
+
 export async function reorderChannelsRequest(
   serverId: string,
   items: Array<{
@@ -400,6 +456,8 @@ export function getServerHref(server: WorkspaceServerSummary) {
 
 export async function markChannelReadRequest(channelId: string) {
   return requestJson<{
+    firstUnreadMessageId: string | null;
+    mentionCount: number;
     serverId: string;
     unreadCount: number;
   }>(`/api/v1/channels/${channelId}/read`, {

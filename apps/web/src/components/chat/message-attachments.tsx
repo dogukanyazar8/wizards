@@ -3,12 +3,13 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useMemo, useState } from "react";
-import { Download, ExternalLink, FileText, ImageIcon } from "lucide-react";
+import { Download, ExternalLink, FileText, ImageIcon, Play } from "lucide-react";
 import type { MessageAttachment } from "@wizards/types";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
   isMessageGifContentType,
   isMessageImageContentType,
+  isMessageVideoContentType,
 } from "@/lib/messages/attachment-rules";
 import { cn } from "@/lib/utils";
 import { ImageLightbox } from "./image-lightbox";
@@ -19,14 +20,14 @@ type MessageAttachmentsProps = {
 
 function gridClassName(count: number) {
   if (count <= 1) {
-    return "grid-cols-1 w-full max-w-[28rem]";
+    return "grid-cols-1 w-full max-w-[26rem]";
   }
 
   if (count === 2) {
-    return "grid-cols-2 w-full max-w-[34rem]";
+    return "grid-cols-2 w-full max-w-[32rem]";
   }
 
-  return "grid-cols-2 w-full max-w-[38rem] sm:grid-cols-3";
+  return "grid-cols-2 w-full max-w-[36rem] sm:grid-cols-3";
 }
 
 function formatAttachmentSize(size: number) {
@@ -54,7 +55,16 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
     [attachments],
   );
   const fileAttachments = useMemo(
-    () => attachments.filter((attachment) => !isMessageImageContentType(attachment.contentType)),
+    () =>
+      attachments.filter(
+        (attachment) =>
+          !isMessageImageContentType(attachment.contentType) &&
+          !isMessageVideoContentType(attachment.contentType),
+      ),
+    [attachments],
+  );
+  const videoAttachments = useMemo(
+    () => attachments.filter((attachment) => isMessageVideoContentType(attachment.contentType)),
     [attachments],
   );
 
@@ -65,14 +75,14 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
   return (
     <>
       {imageAttachments.length > 0 ? (
-        <div className={cn("mt-3 grid gap-2", gridClassName(imageAttachments.length))}>
+        <div className={cn("mt-2 grid gap-1.5", gridClassName(imageAttachments.length))}>
           {imageAttachments.map((attachment, index) => (
             <button
               aria-label={t("chat.attachments.openImage", {
                 filename: attachment.filename,
               })}
               className={cn(
-                "group/image relative overflow-hidden rounded-[22px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.38)] shadow-[0_18px_38px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                "group/image relative overflow-hidden rounded-[20px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.38)] shadow-[0_14px_30px_hsl(var(--shadow-color)/0.07)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                 imageAttachments.length === 1 ? "inline-flex w-full max-w-full p-1" : "aspect-square",
               )}
               data-content-type={attachment.contentType}
@@ -87,7 +97,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
                 className={cn(
                   "h-full w-full transition duration-200 group-hover/image:scale-[1.02]",
                   imageAttachments.length === 1
-                    ? "h-auto max-h-[18rem] max-w-full rounded-[18px] object-contain sm:max-h-[24rem]"
+                    ? "h-auto max-h-[16rem] max-w-full rounded-2xl object-contain sm:max-h-[22rem]"
                     : "object-cover",
                 )}
                 loading="lazy"
@@ -104,14 +114,52 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
         </div>
       ) : null}
 
+      {videoAttachments.length > 0 ? (
+        <div className="mt-2 grid w-full max-w-[32rem] gap-1.5">
+          {videoAttachments.map((attachment) => (
+            <div
+              className="overflow-hidden rounded-[22px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.82)] shadow-[0_14px_30px_hsl(var(--shadow-color)/0.07)]"
+              data-content-type={attachment.contentType}
+              data-filename={attachment.filename}
+              data-testid="message-video-attachment"
+              key={attachment.id}
+            >
+              <video
+                className="max-h-[28rem] w-full bg-black"
+                controls
+                playsInline
+                preload="metadata"
+                src={attachment.url}
+              />
+              <div className="flex items-center justify-between gap-3 px-3 py-2">
+                <span className="flex min-w-0 items-center gap-2 text-xs font-semibold text-app-foreground">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.55)] text-app-soft">
+                    <Play className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="truncate">{attachment.filename}</span>
+                </span>
+                <a
+                  className="shrink-0 rounded-full border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.55)] px-2.5 py-1 text-[11px] font-semibold text-app-soft transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                  href={attachment.url}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {t("chat.attachments.openOriginal")}
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       {fileAttachments.length > 0 ? (
-        <div className="mt-3 grid w-full max-w-[34rem] gap-2">
+        <div className="mt-2 grid w-full max-w-[32rem] gap-1.5">
           {fileAttachments.map((attachment) => (
             <a
               aria-label={t("chat.attachments.openFile", {
                 filename: attachment.filename,
               })}
-              className="group/file flex min-w-0 items-center gap-3 rounded-[22px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.34)] p-3 text-left shadow-[0_18px_38px_hsl(var(--shadow-color)/0.07)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] hover:bg-[hsl(var(--surface-card)/0.82)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="group/file flex min-w-0 items-center gap-3 rounded-[20px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.34)] px-3 py-2.5 text-left shadow-[0_14px_30px_hsl(var(--shadow-color)/0.06)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] hover:bg-[hsl(var(--surface-card)/0.82)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               download={attachment.filename}
               data-content-type={attachment.contentType}
               data-filename={attachment.filename}
@@ -121,8 +169,8 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
               rel="noreferrer"
               target="_blank"
             >
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.7)] bg-white/72 text-app-soft shadow-sm">
-                <FileText className="h-5 w-5" />
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.7)] bg-white/72 text-app-soft shadow-sm">
+                <FileText className="h-4 w-4" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold text-app-foreground">

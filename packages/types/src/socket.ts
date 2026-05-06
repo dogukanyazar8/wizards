@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { MessageReactionSchema, type MessageReaction } from "./messages";
+import {
+  MessageReactionSchema,
+  MessageThreadSummarySchema,
+  type MessageReaction,
+  type MessageThreadSummary,
+} from "./messages";
 
 export type DMPresenceStatus = "ONLINE" | "IDLE" | "DND" | "OFFLINE";
 export type DMConversationType = "DM" | "GROUP_DM";
@@ -26,6 +31,8 @@ export interface DMMessageAttachmentPayload {
   size: number;
   width: number | null;
   height: number | null;
+  duration: number | null;
+  thumbnailUrl: string | null;
 }
 
 export interface DMMessagePayload {
@@ -34,6 +41,8 @@ export interface DMMessagePayload {
   userId: string;
   content: string;
   replyToId: string | null;
+  threadParentId: string | null;
+  threadSummary?: MessageThreadSummary | undefined;
   editedAt: string | null;
   deletedAt: string | null;
   createdAt: string;
@@ -86,6 +95,8 @@ export const DMMessageAttachmentSchema = z.object({
   size: z.number().int().nonnegative(),
   width: z.number().int().nullable(),
   height: z.number().int().nullable(),
+  duration: z.number().positive().nullable(),
+  thumbnailUrl: z.string().nullable(),
 });
 
 export const DMMessagePayloadSchema: z.ZodType<DMMessagePayload> = z.lazy(() =>
@@ -95,6 +106,8 @@ export const DMMessagePayloadSchema: z.ZodType<DMMessagePayload> = z.lazy(() =>
     userId: z.string(),
     content: z.string(),
     replyToId: z.string().nullable(),
+    threadParentId: z.string().nullable(),
+    threadSummary: MessageThreadSummarySchema.optional(),
     editedAt: z.string().nullable(),
     deletedAt: z.string().nullable(),
     createdAt: z.string(),

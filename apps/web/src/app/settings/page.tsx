@@ -4,6 +4,7 @@ import { prisma } from "@wizards/db";
 import { redirect } from "next/navigation";
 import { SettingsPanel } from "@/components/settings/settings-panel";
 import { getCurrentUser, requireAuth } from "@/lib/auth/utils";
+import { getWhisprVersionPayload } from "@/lib/app-version";
 
 async function getPackageVersion() {
   const packageJsonPath = path.join(process.cwd(), "package.json");
@@ -32,26 +33,45 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
-  const [contributors, version] = await Promise.all([getContributors(), getPackageVersion()]);
+  const [contributors, packageVersion] = await Promise.all([
+    getContributors(),
+    getPackageVersion(),
+  ]);
+  const versionPayload = getWhisprVersionPayload();
   const lastUpdated = new Intl.DateTimeFormat(session.user.locale ?? "en", {
     dateStyle: "long",
   }).format(new Date());
+  const parsedBuildTime = versionPayload.buildTime
+    ? new Date(versionPayload.buildTime)
+    : null;
+  const buildTime = parsedBuildTime && !Number.isNaN(parsedBuildTime.getTime())
+    ? new Intl.DateTimeFormat(session.user.locale ?? "en", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(parsedBuildTime)
+    : "";
 
   return (
     <SettingsPanel
       buildInfo={{
+        buildId: versionPayload.buildId,
+        buildTime,
         contributors,
         developerName: "Do\u011Fukan Yazar",
         lastUpdated,
-        version,
+        notes: versionPayload.notes,
+        releaseChannel: versionPayload.releaseChannel,
+        version: versionPayload.version || packageVersion,
       }}
       initialAccount={{
         avatarUrl: user.avatarUrl,
         displayName: user.displayName,
         email: user.email,
+        id: user.id,
         status: user.status,
         username: user.username,
       }}
+      uploadthingEnabled={Boolean(process.env.UPLOADTHING_TOKEN)}
     />
   );
 }

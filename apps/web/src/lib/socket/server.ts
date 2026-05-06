@@ -40,6 +40,7 @@ import {
   VOICE_SCREEN_SHARE_STATE_TTL_SECONDS,
 } from "@/lib/voice/screen-share-state";
 import {
+  emitServerUnreadUpdateToUser,
   emitServerUnreadUpdatesForServer,
   getActiveChannelViewerUserIds,
   getActiveServerMemberUserIds,
@@ -78,6 +79,8 @@ const DM_TYPING_EXPIRY = 3000;
 const MANAGE_MESSAGES_PERMISSION = 1n << 0n;
 const SOCKET_MAX_HTTP_BUFFER_SIZE = 1_048_576;
 const TYPING_KEY_TTL_SECONDS = 10;
+const TYPING_RATE_LIMIT = 24;
+const TYPING_RATE_WINDOW_SECONDS = 10;
 const PRESENCE_SOCKET_PREFIX = "presence:socket-set:";
 const PRESENCE_SOCKET_TTL_SECONDS = 120;
 const PRESENCE_SOCKET_TTL_MS = PRESENCE_SOCKET_TTL_SECONDS * 1000;
@@ -311,16 +314,21 @@ async function createChannelMentionNotifications(args: {
   senderId: string;
   senderName: string;
   serverId: string;
+  skipUserIds?: string[];
 }) {
   const usernames = extractMentionUsernames(args.content);
   if (usernames.length === 0) {
     return;
   }
 
+  const skipUserIds = new Set(args.skipUserIds ?? []);
   const mentionedMembers = await prisma.serverMember.findMany({
     where: {
       serverId: args.serverId,
-      userId: { not: args.senderId },
+      userId:
+        skipUserIds.size > 0
+          ? { not: args.senderId, notIn: [...skipUserIds] }
+          : { not: args.senderId },
       user: {
         username: {
           in: usernames,
@@ -328,6 +336,7 @@ async function createChannelMentionNotifications(args: {
       },
     },
     select: {
+      joinedAt: true,
       userId: true,
       user: {
         select: {
@@ -341,16 +350,95 @@ async function createChannelMentionNotifications(args: {
     return;
   }
 
+  const mentionedUserIds = mentionedMembers.map((member) => member.userId);
+  const [channelSettings, serverSettings] = await Promise.all([
+    prisma.userChannelSettings.findMany({
+      where: {
+        channelId: args.channelId,
+        userId: { in: mentionedUserIds },
+      },
+      select: {
+        messageNotifications: true,
+        muted: true,
+        mutedUntil: true,
+        userId: true,
+      },
+    }),
+    prisma.userServerSettings.findMany({
+      where: {
+        serverId: args.serverId,
+        userId: { in: mentionedUserIds },
+      },
+      select: {
+        messageNotifications: true,
+        muted: true,
+        mutedUntil: true,
+        userId: true,
+      },
+    }),
+  ]);
+  const now = new Date();
+  const channelSettingsByUserId = new Map(channelSettings.map((setting) => [setting.userId, setting]));
+  const serverSettingsByUserId = new Map(serverSettings.map((setting) => [setting.userId, setting]));
+  const isMuted = (setting: { muted: boolean; mutedUntil: Date | null } | undefined) =>
+    Boolean(setting?.muted) || Boolean(setting?.mutedUntil && setting.mutedUntil > now);
+  const shouldReceiveMention = (userId: string) => {
+    const channelSetting = channelSettingsByUserId.get(userId);
+    const serverSetting = serverSettingsByUserId.get(userId);
+
+    if (isMuted(channelSetting) || isMuted(serverSetting)) {
+      return false;
+    }
+
+    if (
+      channelSetting?.messageNotifications === "NOTHING" ||
+      serverSetting?.messageNotifications === "NOTHING"
+    ) {
+      return false;
+    }
+
+    return true;
+  };
+  const mentionRecipients = mentionedMembers.filter((member) => shouldReceiveMention(member.userId));
+
+  if (mentionRecipients.length === 0) {
+    return;
+  }
+
   await prisma.messageMention.createMany({
-    data: mentionedMembers.map((member) => ({
+    data: mentionRecipients.map((member) => ({
       messageId: args.messageId,
       userId: member.userId,
     })),
     skipDuplicates: true,
   });
 
+  await Promise.all(
+    mentionRecipients.map((member) =>
+      prisma.channelReadState.upsert({
+        where: {
+          channelId_userId: {
+            channelId: args.channelId,
+            userId: member.userId,
+          },
+        },
+        create: {
+          channelId: args.channelId,
+          lastReadAt: member.joinedAt,
+          mentionCount: 1,
+          userId: member.userId,
+        },
+        update: {
+          mentionCount: {
+            increment: 1,
+          },
+        },
+      }),
+    ),
+  );
+
   const notifications = await Promise.all(
-    mentionedMembers.map(async (member) => {
+    mentionRecipients.map(async (member) => {
       const locale = normalizeAppLocale(member.user.locale);
       const notification = await prisma.notification.create({
         data: {
@@ -380,7 +468,65 @@ async function createChannelMentionNotifications(args: {
 
   for (const notification of notifications) {
     args.io.to(`user:${notification.userId}`).emit("notification:new", notification.payload);
+    void emitServerUnreadUpdateToUser(notification.userId, args.serverId).catch(() => undefined);
   }
+}
+
+async function createChannelThreadReplyNotification(args: {
+  channelId: string;
+  channelName: string;
+  content: string;
+  io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
+  parentMessageId: string;
+  senderId: string;
+  senderName: string;
+  serverId: string;
+}) {
+  const parent = await prisma.message.findFirst({
+    where: {
+      id: args.parentMessageId,
+      channelId: args.channelId,
+      deletedAt: null,
+      userId: { not: args.senderId },
+    },
+    select: {
+      userId: true,
+      author: {
+        select: {
+          locale: true,
+        },
+      },
+    },
+  });
+
+  if (!parent) {
+    return;
+  }
+
+  const locale = normalizeAppLocale(parent.author.locale);
+  const notification = await prisma.notification.create({
+    data: {
+      actionUrl: `/channels/${args.serverId}/${args.channelId}?thread=${args.parentMessageId}`,
+      body: translate(locale, "chat.thread.notifyBody", {
+        channel: args.channelName,
+        name: args.senderName,
+      }),
+      metadata: {
+        channelId: args.channelId,
+        parentMessageId: args.parentMessageId,
+        serverId: args.serverId,
+        threadReplyPreview: args.content.slice(0, 180),
+      },
+      title: translate(locale, "chat.thread.notifyTitle"),
+      type: "SYSTEM",
+      userId: parent.userId,
+    },
+  });
+
+  args.io.to(`user:${parent.userId}`).emit(
+    "notification:new",
+    serializeNotification(notification as NotificationRecord),
+  );
 }
 
 async function listServerIds(userId: string) {
@@ -775,6 +921,20 @@ export function initSocketServer(httpServer: HTTPServer) {
       await emitDMTypingUpdate(conversationId);
     }
 
+    async function isTypingEventAllowed(scope: string) {
+      try {
+        return await checkRateLimit(
+          redis,
+          `rate:typing:${userId}:${scope}`,
+          TYPING_RATE_LIMIT,
+          TYPING_RATE_WINDOW_SECONDS,
+        );
+      } catch (error) {
+        logError("[socket] Typing rate limit unavailable", error);
+        return false;
+      }
+    }
+
     void (async () => {
       try {
         const preferredPresence = await getUserPresenceBroadcast(userId);
@@ -905,10 +1065,12 @@ export function initSocketServer(httpServer: HTTPServer) {
         const channel = await prisma.channel.findUnique({
           where: { id: data.channelId },
           select: {
+            locked: true,
             name: true,
             server: {
               select: {
                 features: true,
+                ownerId: true,
               },
             },
             serverId: true,
@@ -924,7 +1086,18 @@ export function initSocketServer(httpServer: HTTPServer) {
 
         const member = await prisma.serverMember.findFirst({
           where: { serverId: channel.serverId, userId },
-          select: { id: true },
+          select: {
+            id: true,
+            roles: {
+              select: {
+                role: {
+                  select: {
+                    permissions: true,
+                  },
+                },
+              },
+            },
+          },
         });
 
         if (!member) {
@@ -933,6 +1106,18 @@ export function initSocketServer(httpServer: HTTPServer) {
             message: "Not a member of this server",
           });
           return;
+        }
+
+        const canPostInLockedChannel =
+          !channel.locked ||
+          channel.server?.ownerId === userId ||
+          member.roles.some(
+            (roleAssignment) =>
+              (roleAssignment.role.permissions & MANAGE_MESSAGES_PERMISSION) !== 0n,
+          );
+
+        if (!canPostInLockedChannel) {
+          throw new ApiError("This channel is read-only.", 403, "CHANNEL_LOCKED");
         }
 
         const attachmentInputs = parseUploadedAttachmentInputs(data.attachments);
@@ -965,6 +1150,7 @@ export function initSocketServer(httpServer: HTTPServer) {
           content,
           data.replyToId,
           attachmentInputs,
+          data.threadParentId,
         );
         const messageCreatedAt = new Date(message.createdAt);
         const activeChannelViewerUserIds = getActiveChannelViewerUserIds(data.channelId);
@@ -992,7 +1178,20 @@ export function initSocketServer(httpServer: HTTPServer) {
           senderId: userId,
           senderName: message.author.displayName ?? message.author.username,
           serverId: channel.serverId,
+          skipUserIds: readUserIds,
         }).catch(() => undefined);
+        if (data.threadParentId) {
+          void createChannelThreadReplyNotification({
+            channelId: data.channelId,
+            channelName: channel.name,
+            content,
+            io,
+            parentMessageId: data.threadParentId,
+            senderId: userId,
+            senderName: message.author.displayName ?? message.author.username,
+            serverId: channel.serverId,
+          }).catch(() => undefined);
+        }
         io.to(data.channelId).emit("message:new", message);
       } catch (error) {
         if (error instanceof ApiError) {
@@ -1112,6 +1311,9 @@ export function initSocketServer(httpServer: HTTPServer) {
     socket.on("typing:start", async (rawChannelId: string) => {
       try {
         const channelId = parseSocketPayload(SocketIdSchema, rawChannelId);
+        if (!(await isTypingEventAllowed(`channel:${channelId}`))) {
+          return;
+        }
         await ensureChannelMembership(channelId);
         const key = `typing:${channelId}`;
         socket.data.typingChannels.add(channelId);
@@ -1348,6 +1550,23 @@ export function initSocketServer(httpServer: HTTPServer) {
           }
         }
 
+        if (data.threadParentId) {
+          const threadParentMessage = await prisma.dMMessage.findFirst({
+            where: {
+              id: data.threadParentId,
+              conversationId: data.conversationId,
+              deletedAt: null,
+              threadParentId: null,
+            },
+            select: { id: true },
+          });
+
+          if (!threadParentMessage) {
+            emitDMError("NOT_FOUND", "Thread parent message was not found.");
+            return;
+          }
+        }
+
         const participants = await prisma.dMParticipant.findMany({
           where: { conversationId: data.conversationId },
           select: {
@@ -1374,6 +1593,7 @@ export function initSocketServer(httpServer: HTTPServer) {
               userId,
               content,
               replyToId: data.replyToId ?? null,
+              threadParentId: data.threadParentId ?? null,
             },
             select: { id: true, createdAt: true },
           });
@@ -1704,6 +1924,9 @@ export function initSocketServer(httpServer: HTTPServer) {
     socket.on("dm:typing:start", async (rawData) => {
       try {
         const data = parseSocketPayload(SocketConversationPayloadSchema, rawData);
+        if (!(await isTypingEventAllowed(`dm:${data.conversationId}`))) {
+          return;
+        }
         if (!(await requireDMParticipant(data.conversationId))) {
           emitDMError("FORBIDDEN", "You are not a participant in this DM");
           return;

@@ -34,6 +34,7 @@ import {
 } from "@/lib/desktop/runtime";
 import { logError } from "@/lib/logger";
 import { getSocket } from "@/lib/socket/client";
+import type { UserProfileUpdatedPayload } from "@/lib/socket/events";
 import {
   deleteVoiceState,
   fetchLiveKitToken,
@@ -140,6 +141,10 @@ type ParticipantMetadata = {
   avatarUrl?: string | null;
   displayName?: string | null;
   username?: string | null;
+};
+
+type VoiceAccountUpdatedEventPayload = Partial<Omit<UserProfileUpdatedPayload, "userId">> & {
+  id?: string;
 };
 
 const NEXT_PUBLIC_LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "";
@@ -328,6 +333,69 @@ function buildAudioCaptureOptions(
 
 function getAudioCaptureRestartSignature(audioPreferences: VoiceAudioPreferences) {
   return audioPreferences.inputDeviceId;
+}
+
+function mergeCurrentUserProfile(
+  currentUser: VoiceProviderProps["currentUser"],
+  profile: Pick<UserProfileUpdatedPayload, "avatarUrl" | "displayName" | "username">,
+): VoiceProviderProps["currentUser"] {
+  const username = profile.username?.trim() || currentUser.username;
+
+  return {
+    ...currentUser,
+    avatarUrl: profile.avatarUrl ?? null,
+    displayName: profile.displayName?.trim() || username,
+    username,
+  };
+}
+
+function useVoiceCurrentUserSnapshot(currentUser: VoiceProviderProps["currentUser"]) {
+  const [snapshot, setSnapshot] = useState(currentUser);
+
+  useEffect(() => {
+    setSnapshot(currentUser);
+  }, [currentUser]);
+
+  useEffect(() => {
+    const applyProfileUpdate = (profile: UserProfileUpdatedPayload) => {
+      if (profile.userId !== currentUser.id) {
+        return;
+      }
+
+      setSnapshot((current) => mergeCurrentUserProfile(current, profile));
+    };
+
+    const handleAccountUpdated = (event: Event) => {
+      if (!(event instanceof CustomEvent)) {
+        return;
+      }
+
+      const detail = event.detail as VoiceAccountUpdatedEventPayload | null;
+      const username = detail?.username;
+      if (!detail || detail.id !== currentUser.id || typeof username !== "string") {
+        return;
+      }
+
+      setSnapshot((current) =>
+        mergeCurrentUserProfile(current, {
+          avatarUrl: detail.avatarUrl ?? null,
+          displayName: detail.displayName ?? null,
+          username,
+        }),
+      );
+    };
+
+    const socket = getSocket();
+    socket.on("user:profile:updated", applyProfileUpdate);
+    window.addEventListener("whispr:account-updated", handleAccountUpdated);
+
+    return () => {
+      socket.off("user:profile:updated", applyProfileUpdate);
+      window.removeEventListener("whispr:account-updated", handleAccountUpdated);
+    };
+  }, [currentUser.id]);
+
+  return snapshot;
 }
 
 function parseParticipantMetadata(participant: Participant): ParticipantMetadata {
@@ -871,6 +939,33 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   }, []);
 
   useEffect(() => {
+    setParticipants((current) =>
+      current.map((participant) =>
+        participant.isLocal
+          ? {
+              ...participant,
+              avatarUrl: currentUser.avatarUrl ?? null,
+              displayName: currentUser.displayName,
+              username: currentUser.username,
+            }
+          : participant,
+      ),
+    );
+    setScreenShares((current) =>
+      current.map((share) =>
+        share.isLocal
+          ? {
+              ...share,
+              avatarUrl: currentUser.avatarUrl ?? null,
+              displayName: currentUser.displayName,
+              username: currentUser.username,
+            }
+          : share,
+      ),
+    );
+  }, [currentUser.avatarUrl, currentUser.displayName, currentUser.username]);
+
+  useEffect(() => {
     const socket = getSocket();
 
     const handleVoiceStateUpdate = (data: {
@@ -1272,6 +1367,42 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     },
     [currentUser, emitVoiceScreenShareState],
   );
+
+  useEffect(() => {
+    const activeRoom = room;
+    if (!activeRoom) {
+      return;
+    }
+
+    const metadata = JSON.stringify({
+      avatarUrl: currentUser.avatarUrl ?? null,
+      displayName: currentUser.displayName,
+      username: currentUser.username,
+    });
+    const name = currentUser.displayName || currentUser.username;
+
+    if (activeRoom.localParticipant.metadata !== metadata) {
+      void activeRoom.localParticipant.setMetadata(metadata).catch((error) => {
+        logError("[voice] Local participant metadata update failed", error);
+      });
+    }
+
+    if (activeRoom.localParticipant.name !== name) {
+      void activeRoom.localParticipant.setName(name).catch((error) => {
+        logError("[voice] Local participant name update failed", error);
+      });
+    }
+
+    syncParticipants(activeRoom);
+    syncScreenShares(activeRoom);
+  }, [
+    currentUser.avatarUrl,
+    currentUser.displayName,
+    currentUser.username,
+    room,
+    syncParticipants,
+    syncScreenShares,
+  ]);
 
   const updateVoiceStatesCache = useCallback(
     (
@@ -2327,11 +2458,14 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
 }
 
 export function VoiceProvider(props: VoiceProviderProps) {
+  const currentUser = useVoiceCurrentUserSnapshot(props.currentUser);
+  const nextProps = { ...props, currentUser };
+
   if (isE2EVoiceMockEnabled()) {
-    return <E2EVoiceProvider {...props} />;
+    return <E2EVoiceProvider {...nextProps} />;
   }
 
-  return <LiveVoiceProvider {...props} />;
+  return <LiveVoiceProvider {...nextProps} />;
 }
 
 export function useVoiceConnection() {

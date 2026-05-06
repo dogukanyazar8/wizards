@@ -42,6 +42,7 @@ export async function PATCH(_: Request, context: RouteContext) {
         },
         select: {
           id: true,
+          joinedAt: true,
         },
       }),
       prisma.serverBan.findUnique({
@@ -63,10 +64,42 @@ export async function PATCH(_: Request, context: RouteContext) {
       throw new ApiError("You are not a member of this server", 403);
     }
 
+    const readState = await prisma.channelReadState.findUnique({
+      where: {
+        channelId_userId: {
+          channelId,
+          userId,
+        },
+      },
+      select: {
+        lastReadAt: true,
+      },
+    });
+
+    const unreadBaseline = readState?.lastReadAt ?? membership.joinedAt;
+    const firstUnreadMessage = await prisma.message.findFirst({
+      where: {
+        channelId,
+        createdAt: {
+          gt: unreadBaseline,
+        },
+        deletedAt: null,
+        threadId: null,
+        threadParentId: null,
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+      select: {
+        id: true,
+      },
+    });
+
     const latestMessage = await prisma.message.findFirst({
       where: {
         channelId,
         threadId: null,
+        threadParentId: null,
       },
       orderBy: {
         createdAt: "desc",
@@ -86,6 +119,8 @@ export async function PATCH(_: Request, context: RouteContext) {
     const unreadCount = await emitServerUnreadUpdateToUser(userId, channel.serverId);
 
     return Response.json({
+      firstUnreadMessageId: firstUnreadMessage?.id ?? null,
+      mentionCount: 0,
       serverId: channel.serverId,
       unreadCount,
     });

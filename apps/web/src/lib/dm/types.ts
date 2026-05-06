@@ -16,6 +16,10 @@ export interface DMMessagesResponse {
   nextCursor: string | null;
 }
 
+export interface DMThreadMessagesResponse extends DMMessagesResponse {
+  parent: DMMessagePayload;
+}
+
 export interface DMConversationsPageResponse {
   conversations: DMConversationDTO[];
   nextCursor: string | null;
@@ -24,6 +28,10 @@ export interface DMConversationsPageResponse {
 export const DMMessagesResponseSchema = z.object({
   messages: z.array(DMMessagePayloadSchema),
   nextCursor: z.string().nullable(),
+});
+
+export const DMThreadMessagesResponseSchema = DMMessagesResponseSchema.extend({
+  parent: DMMessagePayloadSchema,
 });
 
 export const DMConversationsResponseSchema = z.array(DMConversationDTOSchema);

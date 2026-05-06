@@ -33,6 +33,8 @@ import { getMessageById } from "@/lib/workspace/message-service";
 import {
   emitServerUnreadUpdatesForServer,
   getActiveChannelViewerUserIds,
+  getServerMentionCount,
+  getServerMentionCounts,
   getServerUnreadCount,
   getServerUnreadCounts,
   markChannelReadStates,
@@ -69,6 +71,7 @@ type AccessContext = {
 type ChannelRecord = {
   categoryId: string | null;
   id: string;
+  locked: boolean;
   name: string;
   position: number;
   topic: string | null;
@@ -82,6 +85,7 @@ function toWorkspaceChannel(channel: ChannelRecord): WorkspaceChannel {
   return {
     categoryId: channel.categoryId,
     id: channel.id,
+    locked: channel.locked,
     name: channel.name,
     position: channel.position,
     topic: channel.topic,
@@ -285,6 +289,7 @@ function mapServerSummary(args: {
   id: string;
   inviteCode: string | null;
   memberCount: number;
+  mentionCount: number;
   name: string;
   shortName: string | null;
   unreadCount: number;
@@ -299,6 +304,7 @@ function mapServerSummary(args: {
     id: args.id,
     inviteCode: args.inviteCode,
     memberCount: args.memberCount,
+    mentionCount: args.mentionCount,
     name: args.name,
     shortName: args.shortName,
     unreadCount: args.unreadCount,
@@ -473,7 +479,10 @@ export async function listWorkspaceServers(userId: string) {
   });
 
   const serverIds = memberships.map((membership) => membership.server.id);
-  const unreadCounts = await getServerUnreadCounts(userId, serverIds);
+  const [unreadCounts, mentionCounts] = await Promise.all([
+    getServerUnreadCounts(userId, serverIds),
+    getServerMentionCounts(userId, serverIds),
+  ]);
 
   return memberships.map((membership) => {
     const mediaSettings = getServerMediaSettings(membership.server.features);
@@ -492,6 +501,7 @@ export async function listWorkspaceServers(userId: string) {
       id: membership.server.id,
       inviteCode: membership.server.inviteCode,
       memberCount: membership.server._count.members,
+      mentionCount: mentionCounts.get(membership.server.id) ?? 0,
       name: membership.server.name,
       shortName: membership.server.shortName,
       unreadCount: unreadCounts.get(membership.server.id) ?? 0,
@@ -503,7 +513,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
   const access = await getAccessContext(userId, serverId);
   const isAdmin = access.accessLevel !== "MEMBER";
 
-  const [server, invites, unreadCount] = await Promise.all([
+  const [server, invites, unreadCount, mentionCount] = await Promise.all([
     prisma.server.findUnique({
       where: {
         id: serverId,
@@ -526,6 +536,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
               select: {
                 categoryId: true,
                 id: true,
+                locked: true,
                 name: true,
                 position: true,
                 topic: true,
@@ -550,6 +561,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
           select: {
             categoryId: true,
             id: true,
+            locked: true,
             name: true,
             position: true,
             topic: true,
@@ -636,6 +648,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
         })
       : Promise.resolve([]),
     getServerUnreadCount(userId, serverId),
+    getServerMentionCount(userId, serverId),
   ]);
 
   if (!server) {
@@ -677,6 +690,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
       isAdmin,
       isOwner: access.accessLevel === "OWNER",
       memberCount: server._count.members,
+      mentionCount,
       name: server.name,
       shortName: server.shortName,
       unreadCount,
@@ -871,7 +885,7 @@ export async function createWorkspaceServer(userId: string, input: CreateServerI
         name: "welcome-chat",
         position: 0,
         serverId: server.id,
-        topic: "Start the conversation and share the first update here.",
+        topic: null,
         type: ChannelType.TEXT,
       },
       select: {
@@ -1286,6 +1300,10 @@ export async function updateWorkspaceChannel(userId: string, channelId: string, 
     data.topic = input.topic;
   }
 
+  if (input.locked !== undefined) {
+    data.locked = input.locked;
+  }
+
   if (input.categoryId !== undefined) {
     data.category = input.categoryId ? { connect: { id: input.categoryId } } : { disconnect: true };
   }
@@ -1420,8 +1438,14 @@ export async function clearWorkspaceChannelHistory(userId: string, channelId: st
   const deletedCount = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw(Prisma.sql`
       UPDATE "Message"
-      SET "replyToId" = NULL
+      SET "replyToId" = NULL,
+          "threadParentId" = NULL
       WHERE "replyToId" IN (
+        SELECT "id"
+        FROM "Message"
+        WHERE "channelId" = ${channelId}
+      )
+      OR "threadParentId" IN (
         SELECT "id"
         FROM "Message"
         WHERE "channelId" = ${channelId}

@@ -593,6 +593,7 @@ model Message {
   content         String      @db.Text
   type            MessageType @default(DEFAULT)
   replyToId       String?
+  threadParentId  String?
   threadId        String?
   mentionEveryone Boolean     @default(false)
   isPinned        Boolean     @default(false)
@@ -609,6 +610,8 @@ model Message {
   author      User             @relation("MessageAuthor", fields: [userId], references: [id], onDelete: Cascade)
   reply       Message?         @relation("MessageReply", fields: [replyToId], references: [id], onDelete: Restrict)
   replies     Message[]        @relation("MessageReply")
+  threadParent Message?        @relation("MessageThreadParent", fields: [threadParentId], references: [id], onDelete: Cascade)
+  threadReplies Message[]      @relation("MessageThreadParent")
   thread      Channel?         @relation("MessageThread", fields: [threadId], references: [id], onDelete: Cascade)
   mentions    MessageMention[]
   reactions   Reaction[]
@@ -618,7 +621,9 @@ model Message {
   content_search Unsupported("tsvector")? @map("content_search")
 
   @@index([channelId, createdAt])
+  @@index([channelId, threadParentId, createdAt])
   @@index([channelId, threadId, createdAt])
+  @@index([threadParentId, createdAt])
   @@index([userId])
 }
 
@@ -688,6 +693,7 @@ model PinnedMessage {
   pinnedBy User    @relation(fields: [pinnedById], references: [id], onDelete: Cascade)
 
   @@unique([channelId, messageId])
+  @@index([channelId, pinnedAt])
 }
 
 model ChannelReadState {
@@ -777,6 +783,7 @@ model DMMessage {
   userId         String
   content        String    @db.Text
   replyToId      String?
+  threadParentId String?
   editedAt       DateTime?
   deletedAt      DateTime?
   createdAt      DateTime  @default(now())
@@ -785,12 +792,16 @@ model DMMessage {
   author       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   reply        DMMessage?     @relation("DMMessageReply", fields: [replyToId], references: [id], onDelete: Restrict)
   replies      DMMessage[]    @relation("DMMessageReply")
+  threadParent DMMessage?     @relation("DMMessageThreadParent", fields: [threadParentId], references: [id], onDelete: Cascade)
+  threadReplies DMMessage[]   @relation("DMMessageThreadParent")
   attachments  Attachment[]   @relation("DMMessageAttachment")
   reactions    DMReaction[]
 
   content_search Unsupported("tsvector")? @map("content_search")
 
   @@index([conversationId, createdAt])
+  @@index([conversationId, threadParentId, createdAt])
+  @@index([threadParentId, createdAt])
   @@index([userId])
 }
 

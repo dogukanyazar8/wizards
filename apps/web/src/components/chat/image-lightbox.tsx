@@ -70,7 +70,7 @@ export function ImageLightbox({ image, onClose }: ImageLightboxProps) {
                 className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-full border text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:p-2"
                 data-testid="image-lightbox-open-original"
                 href={image.url}
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 target="_blank"
               >
                 <ExternalLink className="h-4 w-4" />

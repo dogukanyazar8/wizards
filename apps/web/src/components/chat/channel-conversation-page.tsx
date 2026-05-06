@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { WorkspaceServerDetail, WorkspaceServerSummary } from "@wizards/types";
 import { ChatArea } from "@/components/chat/chat-area";
@@ -15,6 +15,7 @@ interface ChannelConversationPageProps {
   allowGifs: boolean;
   canModerate: boolean;
   channelId: string;
+  channelLocked: boolean;
   channelName: string;
   channelTopic: string | null;
   currentUserDisplayName: string;
@@ -29,6 +30,7 @@ export function ChannelConversationPage({
   allowGifs,
   canModerate,
   channelId,
+  channelLocked,
   channelName,
   channelTopic,
   currentUserDisplayName,
@@ -39,6 +41,7 @@ export function ChannelConversationPage({
 }: ChannelConversationPageProps) {
   const queryClient = useQueryClient();
   const markedChannelRef = useRef<string | null>(null);
+  const [initialUnreadMessageId, setInitialUnreadMessageId] = useState<string | null>(null);
 
   useEffect(() => {
     if (markedChannelRef.current === channelId) {
@@ -56,7 +59,13 @@ export function ChannelConversationPage({
 
         queryClient.setQueryData<WorkspaceServerSummary[] | undefined>(
           workspaceQueryKeys.servers,
-          (current) => applyServerUnreadCount(current, response.serverId, response.unreadCount),
+          (current) =>
+            applyServerUnreadCount(
+              current,
+              response.serverId,
+              response.unreadCount,
+              response.mentionCount,
+            ),
         );
 
         queryClient.setQueryData<WorkspaceServerDetail | undefined>(
@@ -67,6 +76,7 @@ export function ChannelConversationPage({
                   ...current,
                   server: {
                     ...current.server,
+                    mentionCount: response.mentionCount,
                     unreadCount: response.unreadCount,
                   },
                 }
@@ -79,6 +89,7 @@ export function ChannelConversationPage({
         void queryClient.invalidateQueries({
           queryKey: workspaceQueryKeys.server(serverId),
         });
+        setInitialUnreadMessageId(response.firstUnreadMessageId);
       })
       .catch(() => {
         // Ignore transient read-sync failures; a socket refresh can reconcile later.
@@ -93,6 +104,7 @@ export function ChannelConversationPage({
     <ChatArea
       conversationId={channelId}
       mode="channel"
+      channelLocked={channelLocked}
       channelName={channelName}
       channelTopic={channelTopic}
       currentUserId={currentUserId}
@@ -102,6 +114,7 @@ export function ChannelConversationPage({
       serverId={serverId}
       allowFileUploads={allowFileUploads}
       allowGifs={allowGifs}
+      initialUnreadMessageId={initialUnreadMessageId}
       uploadthingEnabled={uploadthingEnabled}
     />
   );

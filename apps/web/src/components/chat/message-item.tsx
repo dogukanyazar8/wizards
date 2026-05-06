@@ -1,68 +1,208 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { MoreHorizontal, UserMinus, UserPlus } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronRight,
+  MessageCircleMore,
+  MoreHorizontal,
+  Pin,
+  RotateCcw,
+  Trash2,
+  UserMinus,
+  UserPlus,
+} from "lucide-react";
 import { Button } from "@wizards/ui";
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { MessageMode } from "@/hooks/use-messages";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  getMessagesQueryKey,
+  type MessageMode,
+  type MessagePages,
+} from "@/hooks/use-messages";
 import { Avatar } from "@/components/ui/avatar";
 import { Modal } from "@/components/ui/modal";
 import { UserProfilePopover } from "@/components/shared/user-profile-popover";
 import { MessageEditor } from "./message-editor";
 import { MessageAttachments } from "./message-attachments";
 import { MessageToolbar } from "./message-toolbar";
+import { LinkPreviewCard } from "./link-preview-card";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useSocket } from "@/hooks/use-socket";
+import {
+  pinChannelMessageRequest,
+  unpinChannelMessageRequest,
+  workspaceQueryKeys,
+} from "@/lib/workspace/client";
 import type { ChatMessage } from "@wizards/types";
 import { cn } from "@/lib/utils";
 
-function getPresenceDotClass(status: ChatMessage["author"]["status"] | undefined) {
-  if (status === "ONLINE") {
-    return "bg-emerald-400 shadow-[0_0_0_3px_hsl(var(--success)/0.12)]";
-  }
-
-  if (status === "IDLE") {
-    return "bg-amber-400 shadow-[0_0_0_3px_hsl(var(--warning)/0.12)]";
-  }
-
-  if (status === "DND") {
-    return "bg-rose-500 shadow-[0_0_0_3px_hsl(var(--danger)/0.12)]";
-  }
-
-  return "bg-slate-400 shadow-[0_0_0_3px_hsl(var(--muted)/0.18)]";
-}
-
 const mentionHrefPrefix = "mention:";
+const underlineHrefPrefix = "underline:";
 
 function markdownUrlTransform(url: string) {
-  if (url.startsWith(mentionHrefPrefix)) {
+  if (url.startsWith(mentionHrefPrefix) || url.startsWith(underlineHrefPrefix)) {
     return url;
   }
 
   return defaultUrlTransform(url);
 }
 
-function formatMentionsForMarkdown(content: string) {
-  return content.replace(/(^|[^\w`])@([a-zA-Z0-9_]{2,32})\b/g, (match, prefix: string, username: string) => {
-    if (match.includes("](")) {
-      return match;
+const codeKeywordPattern =
+  /\b(?:async|await|break|catch|class|const|continue|else|export|false|finally|for|from|function|if|import|interface|let|new|null|return|throw|true|try|type|undefined|var|while)\b/g;
+const codeTokenPattern =
+  /("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\/\/.*|#.*|\b\d+(?:\.\d+)?\b)/g;
+
+function renderHighlightedCodeLine(line: string, lineIndex: number) {
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+
+  const pushText = (value: string, keyPrefix: string) => {
+    let keywordCursor = 0;
+    for (const match of value.matchAll(codeKeywordPattern)) {
+      const keyword = match[0];
+      const index = match.index ?? 0;
+      if (index > keywordCursor) {
+        parts.push(value.slice(keywordCursor, index));
+      }
+      parts.push(
+        <span className="text-[hsl(var(--primary))]" key={`${keyPrefix}-kw-${index}`}>
+          {keyword}
+        </span>,
+      );
+      keywordCursor = index + keyword.length;
     }
 
-    return `${prefix}[@${username}](${mentionHrefPrefix}${username})`;
-  });
+    if (keywordCursor < value.length) {
+      parts.push(value.slice(keywordCursor));
+    }
+  };
+
+  for (const match of line.matchAll(codeTokenPattern)) {
+    const token = match[0];
+    const index = match.index ?? 0;
+    if (index > cursor) {
+      pushText(line.slice(cursor, index), `${lineIndex}-${cursor}`);
+    }
+
+    const tokenClass =
+      token.startsWith("//") || token.startsWith("#")
+        ? "text-app-soft italic"
+        : /^\d/.test(token)
+          ? "text-[hsl(var(--warning))]"
+          : "text-[hsl(var(--success))]";
+
+    parts.push(
+      <span className={tokenClass} key={`${lineIndex}-token-${index}`}>
+        {token}
+      </span>,
+    );
+    cursor = index + token.length;
+  }
+
+  if (cursor < line.length) {
+    pushText(line.slice(cursor), `${lineIndex}-${cursor}`);
+  }
+
+  return parts.length > 0 ? parts : "\u00A0";
 }
 
-const markdownComponents = {
+function CodeBlock({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string | undefined;
+}) {
+  const rawCode = String(children).replace(/\n$/, "");
+  const language = /language-([\w-]+)/.exec(className ?? "")?.[1] ?? "text";
+  const isBlock = Boolean(className) || rawCode.includes("\n");
+
+  if (!isBlock) {
+    return (
+      <code className="rounded-md border border-[hsl(var(--border)/0.55)] bg-[hsl(var(--surface-soft)/0.6)] px-1.5 py-0.5 text-[0.88em] font-semibold text-app-foreground">
+        {children}
+      </code>
+    );
+  }
+
+  return (
+    <div className="my-3 overflow-hidden rounded-[20px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.92)] shadow-[0_18px_42px_hsl(var(--shadow-color)/0.08)]">
+      <div className="flex items-center justify-between border-b border-[hsl(var(--border)/0.55)] px-4 py-2">
+        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-app-soft">
+          {language}
+        </span>
+        <span className="h-2 w-2 rounded-full bg-[hsl(var(--success))] shadow-[0_0_0_4px_hsl(var(--success)/0.1)]" />
+      </div>
+      <pre className="max-w-full overflow-x-auto px-4 py-3 text-[13px] leading-6 text-app-foreground">
+        <code className="font-mono">
+          {rawCode.split("\n").map((line, index) => (
+            <span className="block min-h-6" key={`${index}-${line}`}>
+              {renderHighlightedCodeLine(line, index)}
+            </span>
+          ))}
+        </code>
+      </pre>
+    </div>
+  );
+}
+
+function escapeMarkdownLabel(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/\[/g, "\\[").replace(/\]/g, "\\]");
+}
+
+function formatMessageContentForMarkdown(content: string) {
+  return content
+    .split(/(```[\s\S]*?```|`[^`\n]*`)/g)
+    .map((segment, index) => {
+      if (index % 2 === 1) {
+        return segment;
+      }
+
+      return segment
+        .replace(/\+\+([^+\n]+?)\+\+/g, (_match, value: string) => {
+          const label = escapeMarkdownLabel(value);
+          return `[${label}](${underlineHrefPrefix})`;
+        })
+        .replace(
+          /(^|[^\w`])@([a-zA-Z0-9_]{2,32})\b/g,
+          (match, prefix: string, username: string) => {
+            if (prefix === "[" || match.includes("](")) {
+              return match;
+            }
+
+            return `${prefix}[@${username}](${mentionHrefPrefix}${username})`;
+          },
+        );
+    })
+    .join("");
+}
+
+function createMarkdownComponents(
+  t: (key: string, values?: Record<string, string | number>) => string,
+) {
+  return {
   a({ children, href, title }) {
+    if (href?.startsWith(underlineHrefPrefix)) {
+      return (
+        <span className="underline decoration-[hsl(var(--primary)/0.5)] decoration-2 underline-offset-4">
+          {children}
+        </span>
+      );
+    }
+
     if (href?.startsWith(mentionHrefPrefix)) {
+      const username = href.slice(mentionHrefPrefix.length);
+
       return (
         <span
+          aria-label={t("chat.mentions.inlineAria", { username: `@${username}` })}
           className="inline-flex translate-y-[1px] items-center rounded-full border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.12)] px-2 py-0.5 text-[0.92em] font-semibold text-[hsl(var(--primary))] shadow-[0_8px_18px_hsl(var(--primary)/0.08)]"
-          data-mention-username={href.slice(mentionHrefPrefix.length)}
+          data-mention-username={username}
           data-testid="message-mention"
-          title={`@${href.slice(mentionHrefPrefix.length)}`}
+          title={`@${username}`}
         >
           {children}
         </span>
@@ -81,7 +221,14 @@ const markdownComponents = {
       </a>
     );
   },
-} satisfies Components;
+  code({ children, className }) {
+    return <CodeBlock className={className}>{children}</CodeBlock>;
+  },
+  pre({ children }) {
+    return <>{children}</>;
+  },
+  } satisfies Components;
+}
 
 interface MessageItemProps {
   mode: MessageMode;
@@ -91,7 +238,10 @@ interface MessageItemProps {
   currentUserId: string;
   canModerate: boolean;
   onReact: (messageId: string, emoji: string) => void;
+  onRemoveOptimistic: (id: string) => void;
   onReply: (id: string, author: string, content: string) => void;
+  onRetry: (id: string) => void;
+  onThread: (message: ChatMessage) => void;
 }
 
 export const MessageItem = React.memo(
@@ -103,22 +253,53 @@ export const MessageItem = React.memo(
     currentUserId,
     canModerate,
     onReact,
+    onRemoveOptimistic,
     onReply,
+    onRetry,
+    onThread,
   }: MessageItemProps) {
     const { locale, t } = useI18n();
     const socket = useSocket();
+    const queryClient = useQueryClient();
     const [isEditing, setIsEditing] = useState(false);
     const [actionsOpen, setActionsOpen] = useState(false);
+    const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const actionsRef = useRef<HTMLDivElement>(null);
     const moreButtonRef = useRef<HTMLButtonElement>(null);
     const isOwner = message.author.id === currentUserId;
     const isDeleted = message.deletedAt !== null;
     const isOptimistic = message.id.startsWith("optimistic-");
+    const isFailed = message.deliveryStatus === "failed";
+    const threadReplyCount = message.threadSummary?.replyCount ?? 0;
+    const recentThreadRepliers = message.threadSummary?.recentRepliers ?? [];
+    const lastThreadReplier = recentThreadRepliers[0] ?? null;
     const formattedTime = new Date(message.createdAt).toLocaleTimeString(locale, {
       hour: "2-digit",
       minute: "2-digit",
     });
+    const threadLastReplyLabel = message.threadSummary?.lastReplyAt
+      ? (() => {
+          const replyDate = new Date(message.threadSummary.lastReplyAt);
+          const today = new Date();
+          const time = replyDate.toLocaleTimeString(locale, {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          if (replyDate.toDateString() === today.toDateString()) {
+            return t("chat.thread.lastReplyToday", { time });
+          }
+
+          return t("chat.thread.lastReplyAt", {
+            date: replyDate.toLocaleDateString(locale, {
+              day: "numeric",
+              month: "short",
+            }),
+          });
+        })()
+      : null;
+    const markdownComponents = React.useMemo(() => createMarkdownComponents(t), [t]);
 
     const handleEdit = (newContent: string) => {
       if (newContent.trim()) {
@@ -136,6 +317,74 @@ export const MessageItem = React.memo(
 
     const handleDelete = () => {
       setDeleteDialogOpen(true);
+    };
+
+    const applyMessageUpdate = (updatedMessage: ChatMessage) => {
+      queryClient.setQueryData<MessagePages>(
+        getMessagesQueryKey("channel", updatedMessage.channelId),
+        (current) => {
+          if (!current) {
+            return current;
+          }
+
+          return {
+            ...current,
+            pages: current.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((candidate) =>
+                candidate.id === updatedMessage.id ? updatedMessage : candidate,
+              ),
+            })),
+          };
+        },
+      );
+      void queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.pinnedMessages(updatedMessage.channelId),
+      });
+    };
+
+    const handlePinToggle = async () => {
+      if (mode !== "channel") {
+        return;
+      }
+
+      try {
+        const updatedMessage = message.isPinned
+          ? await unpinChannelMessageRequest(message.channelId, message.id)
+          : await pinChannelMessageRequest(message.channelId, message.id);
+
+        applyMessageUpdate(updatedMessage);
+        setActionsOpen(false);
+      } catch {
+        showCopyFeedback("chat.message.pinFailed");
+      }
+    };
+
+    const showCopyFeedback = (translationKey: string) => {
+      setCopyFeedback(t(translationKey));
+      window.setTimeout(() => setCopyFeedback(null), 1400);
+    };
+
+    const copyMessageLink = async () => {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("message", message.id);
+        await navigator.clipboard.writeText(url.toString());
+        showCopyFeedback("chat.message.linkCopied");
+        setActionsOpen(false);
+      } catch {
+        showCopyFeedback("chat.message.copyFailed");
+      }
+    };
+
+    const copyRawText = async () => {
+      try {
+        await navigator.clipboard.writeText(message.content);
+        showCopyFeedback("chat.message.rawTextCopied");
+        setActionsOpen(false);
+      } catch {
+        showCopyFeedback("chat.message.copyFailed");
+      }
     };
 
     const confirmDelete = () => {
@@ -190,7 +439,7 @@ export const MessageItem = React.memo(
           : t("chat.message.systemJoin", { name: message.author.displayName });
 
       return (
-        <div className="px-2 py-3 sm:px-4">
+        <div className="px-2 py-2 sm:px-3" role="status" aria-live="polite">
           <div className="app-system-message mx-auto flex max-w-xl items-center justify-center gap-3 rounded-full border px-4 py-2 text-xs font-medium">
             <Icon className="app-system-message-icon h-3.5 w-3.5" />
             <span>{systemContent}</span>
@@ -201,7 +450,11 @@ export const MessageItem = React.memo(
 
     if (isDeleted) {
       return (
-        <div className="px-4 py-1 text-xs italic text-app-muted">
+        <div
+          aria-label={t("chat.message.deleted")}
+          className="px-4 py-1 text-xs italic text-app-muted"
+          role="note"
+        >
           {t("chat.message.deleted")}
         </div>
       );
@@ -211,25 +464,33 @@ export const MessageItem = React.memo(
       <>
         <div
           className={cn(
-            "group relative px-1 transition sm:px-4",
-            isOptimistic && "opacity-60",
+            "group relative px-1 transition sm:px-2",
+            "data-[jump-highlight=true]:rounded-3xl data-[jump-highlight=true]:bg-[hsl(var(--primary)/0.12)] data-[jump-highlight=true]:ring-2 data-[jump-highlight=true]:ring-[hsl(var(--primary)/0.28)]",
+            isOptimistic && !isFailed && "opacity-70",
+            isFailed && "opacity-95",
           )}
+          aria-label={t("chat.message.itemAria", {
+            author: message.author.displayName,
+            time: formattedTime,
+          })}
           data-message-id={message.id}
           data-testid="message-item"
+          role="article"
+          tabIndex={-1}
         >
           {showGroupSeparator ? (
-            <div className="absolute inset-x-1 top-0 h-px bg-[hsl(var(--border)/0.34)] sm:inset-x-4" />
+            <div className="absolute inset-x-1 top-0 h-px bg-[hsl(var(--border)/0.34)] sm:inset-x-3" />
           ) : null}
 
           <div
             className={cn(
-              "grid grid-cols-[2.5rem_minmax(0,1fr)] gap-2 rounded-2xl transition hover:bg-[hsl(var(--surface-soft)/0.28)] sm:grid-cols-[3rem_minmax(0,1fr)] sm:gap-3",
-              isGrouped ? "min-h-[36px] py-1.5" : "min-h-[56px] py-2",
+              "grid grid-cols-[2rem_minmax(0,1fr)] gap-2 rounded-[16px] transition hover:bg-[hsl(var(--surface-soft)/0.26)] sm:grid-cols-[2.5rem_minmax(0,1fr)]",
+              isGrouped ? "min-h-[24px] py-0" : "min-h-[40px] py-1",
             )}
           >
             <div className="flex justify-center pt-0.5">
               {isGrouped ? (
-                <span className="w-10 text-right text-[11px] text-app-soft opacity-0 transition group-hover:opacity-100">
+                <span className="w-8 text-right text-[10px] text-app-soft opacity-0 transition group-hover:opacity-100">
                   {formattedTime}
                 </span>
               ) : (
@@ -242,15 +503,8 @@ export const MessageItem = React.memo(
                     <Avatar
                       src={message.author.avatarUrl}
                       alt={message.author.displayName}
-                      className="h-9 w-9 flex-shrink-0 sm:h-10 sm:w-10"
+                      className="h-7 w-7 flex-shrink-0 sm:h-8 sm:w-8"
                       fallback={message.author.displayName[0] || "?"}
-                    />
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[hsl(var(--surface-card))] sm:h-3.5 sm:w-3.5",
-                        getPresenceDotClass(message.author.status),
-                      )}
                     />
                   </span>
                 </UserProfilePopover>
@@ -259,31 +513,48 @@ export const MessageItem = React.memo(
 
             <div className="relative min-w-0 pr-9 md:pr-0">
               {!isGrouped && (
-                <div className="flex items-center gap-2 pr-2">
-                  <span className="font-semibold text-app-foreground text-sm">
+                <div className="flex items-center gap-1.5 pr-2 leading-5">
+                  <span className="text-[13px] font-bold text-app-foreground">
                     {message.author.displayName}
                   </span>
-                  <span
-                    aria-label={message.author.customStatus ?? message.author.status ?? undefined}
-                    className={cn(
-                      "h-2 w-2 shrink-0 rounded-full",
-                      getPresenceDotClass(message.author.status),
-                    )}
-                    title={message.author.customStatus ?? message.author.status ?? undefined}
-                  />
-                  <span className="shrink-0 text-xs text-app-muted">{formattedTime}</span>
+                  <span className="shrink-0 text-[11px] font-medium text-app-muted">{formattedTime}</span>
+                  {message.isPinned ? (
+                    <span
+                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[hsl(var(--primary))]"
+                      data-testid="message-pinned-badge"
+                    >
+                      <Pin className="h-3 w-3" />
+                      {t("chat.message.pinned")}
+                    </span>
+                  ) : null}
                 </div>
               )}
 
               {message.replyTo && !isEditing && (
-                <div className="mb-1.5 flex items-start gap-1.5 rounded border-l-2 border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--surface-soft)/0.4)] px-2 py-1">
+                  <button
+                    aria-label={t("chat.message.replyPreviewAria", {
+                      author: message.replyTo.authorName,
+                    })}
+                    className="mb-1 flex max-w-full items-start gap-1.5 rounded border-l-2 border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--surface-soft)/0.4)] px-2 py-0.5 text-left transition hover:bg-[hsl(var(--primary)/0.1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                    onClick={() => {
+                      const target = document.querySelector(`[data-message-id="${message.replyTo?.id}"]`);
+                      if (target instanceof HTMLElement) {
+                        target.scrollIntoView({ behavior: "smooth", block: "center" });
+                        target.dataset.jumpHighlight = "true";
+                        window.setTimeout(() => {
+                          delete target.dataset.jumpHighlight;
+                        }, 1400);
+                      }
+                    }}
+                    type="button"
+                  >
                   <span className="shrink-0 text-[11px] font-medium text-[hsl(var(--primary))]">
                     {message.replyTo.authorName}
                   </span>
                   <p className="min-w-0 truncate text-[11px] text-app-muted">
                     {message.replyTo.content}
                   </p>
-                </div>
+                  </button>
               )}
 
               {isEditing ? (
@@ -293,29 +564,40 @@ export const MessageItem = React.memo(
                   onCancel={() => setIsEditing(false)}
                 />
               ) : (
-                <div className="text-app-foreground break-words text-sm leading-6">
+                <div className="max-w-[76rem] break-words text-[14px] leading-[1.45] text-app-foreground sm:text-[14.5px]">
                   <div className="inline max-w-full align-middle [&_a]:text-[hsl(var(--primary))] [&_code]:break-words [&_ol]:my-2 [&_p]:m-0 [&_p]:inline [&_pre]:my-2 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_ul]:my-2">
                     <ReactMarkdown
                       components={markdownComponents}
                       remarkPlugins={[remarkGfm]}
                       urlTransform={markdownUrlTransform}
                     >
-                      {formatMentionsForMarkdown(message.content)}
+                      {formatMessageContentForMarkdown(message.content)}
                     </ReactMarkdown>
+                    {message.editedAt ? (
+                      <span className="ml-1.5 align-baseline text-[11px] font-medium italic text-app-soft">
+                        {t("chat.message.edited")}
+                      </span>
+                    ) : null}
                   </div>
 
                   {!isOptimistic ? (
                     <span className="ml-2 hidden align-middle opacity-0 transition md:inline-flex md:group-hover:opacity-100 md:focus-within:opacity-100">
                       <MessageToolbar
                         allowReact
+                        allowThread={!message.threadParentId}
                         className="inline-flex scale-90"
                         messageId={message.id}
                         isOwner={isOwner}
                         canModerate={canModerate}
+                        isPinned={Boolean(message.isPinned)}
                         onReact={(emoji) => onReact(message.id, emoji)}
                         onReply={() => onReply(message.id, message.author.displayName, message.content)}
+                        onThread={() => onThread(message)}
+                        onCopyLink={copyMessageLink}
+                        onCopyRawText={copyRawText}
                         onEdit={() => setIsEditing(true)}
                         onDelete={handleDelete}
+                        onPin={mode === "channel" ? handlePinToggle : undefined}
                       />
                     </span>
                   ) : null}
@@ -323,18 +605,104 @@ export const MessageItem = React.memo(
               )}
 
               {!isEditing ? <MessageAttachments attachments={message.attachments} /> : null}
+              {!isEditing ? <LinkPreviewCard content={message.content} /> : null}
 
-              {message.editedAt && !isEditing && (
-                <span className="text-xs text-app-muted italic">{t("chat.message.edited")}</span>
-              )}
+              {copyFeedback ? (
+                <div className="mt-2 inline-flex rounded-full border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.85)] px-3 py-1 text-[11px] font-semibold text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
+                  {copyFeedback}
+                </div>
+              ) : null}
+
+              {threadReplyCount > 0 && !isEditing ? (
+                <button
+                  className="mt-1 inline-flex max-w-full items-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--primary)/0.08)] px-2.5 py-1 text-xs font-semibold text-[hsl(var(--primary))] shadow-[0_10px_24px_hsl(var(--shadow-color)/0.06)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--primary)/0.13)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
+                  data-testid="message-thread-preview"
+                  onClick={() => onThread(message)}
+                  type="button"
+                >
+                  {recentThreadRepliers.length > 0 ? (
+                    <span className="flex shrink-0 items-center -space-x-1">
+                      {recentThreadRepliers.slice(0, 3).map((user) => (
+                        <Avatar
+                          alt={user.displayName ?? user.username}
+                          className="h-5 w-5 border border-[hsl(var(--surface-card))] bg-[hsl(var(--surface-card))] text-[9px]"
+                          fallback={user.displayName ?? user.username}
+                          key={user.userId}
+                          src={user.avatarUrl}
+                        />
+                      ))}
+                    </span>
+                  ) : (
+                    <MessageCircleMore className="h-3.5 w-3.5 shrink-0" />
+                  )}
+                  <span className="shrink-0">
+                    {t("chat.thread.replyCount", { count: threadReplyCount })}
+                  </span>
+                  {threadLastReplyLabel ? (
+                    <span className="min-w-0 truncate text-app-muted">
+                      / {threadLastReplyLabel}
+                    </span>
+                  ) : null}
+                  {lastThreadReplier ? (
+                    <span className="hidden min-w-0 max-w-[9rem] truncate text-app-muted sm:inline">
+                      / {lastThreadReplier.displayName ?? lastThreadReplier.username}
+                    </span>
+                  ) : null}
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-app-soft" />
+                </button>
+              ) : null}
+
+              {message.deliveryStatus ? (
+                <div
+                  className={`mt-1.5 inline-flex flex-wrap items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${
+                    isFailed
+                      ? "border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] text-[hsl(var(--danger))]"
+                      : "border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--primary)/0.08)] text-app-muted"
+                  }`}
+                  data-testid={`message-delivery-${message.deliveryStatus}`}
+                >
+                  {isFailed ? <AlertCircle className="h-3.5 w-3.5" /> : null}
+                  <span>
+                    {isFailed
+                      ? message.errorMessage ?? t("chat.message.sendFailed")
+                      : t("chat.message.sending")}
+                  </span>
+                  {isFailed ? (
+                    <>
+                      <button
+                        className="inline-flex items-center gap-1 rounded-full bg-white/65 px-2 py-1 text-[hsl(var(--danger))] transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.35)]"
+                        data-testid="message-retry"
+                        onClick={() => onRetry(message.id)}
+                        type="button"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        {t("chat.message.retry")}
+                      </button>
+                      <button
+                        className="inline-flex items-center gap-1 rounded-full bg-white/65 px-2 py-1 text-app-muted transition hover:bg-white hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.35)]"
+                        data-testid="message-remove-failed"
+                        onClick={() => onRemoveOptimistic(message.id)}
+                        type="button"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        {t("chat.message.removeFailed")}
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
 
               {message.reactions.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
+                <div className="mt-1 flex flex-wrap gap-1">
                   {message.reactions.map((reaction) => (
                     <button
+                      aria-label={t("chat.message.reactionAria", {
+                        count: reaction.count,
+                        emoji: reaction.emoji,
+                      })}
                       key={reaction.emoji}
                       className={cn(
-                        "rounded-full px-2 py-1 text-xs transition",
+                        "rounded-full px-2 py-0.5 text-xs transition",
                         reaction.userIds.includes(currentUserId)
                           ? "border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
                           : "bg-app-surface-soft hover:bg-app-surface",
@@ -375,10 +743,18 @@ export const MessageItem = React.memo(
                 >
                   <MessageToolbar
                     allowReact
+                    allowThread={!message.threadParentId}
                     messageId={message.id}
                     isOwner={isOwner}
                     canModerate={canModerate}
+                    isPinned={Boolean(message.isPinned)}
                     onReact={(emoji) => onReact(message.id, emoji)}
+                    onCopyLink={copyMessageLink}
+                    onCopyRawText={copyRawText}
+                    onThread={() => {
+                      setActionsOpen(false);
+                      onThread(message);
+                    }}
                     onReply={() => {
                       setActionsOpen(false);
                       onReply(message.id, message.author.displayName, message.content);
@@ -391,6 +767,7 @@ export const MessageItem = React.memo(
                       setActionsOpen(false);
                       handleDelete();
                     }}
+                    onPin={mode === "channel" ? handlePinToggle : undefined}
                   />
                 </div>
               ) : null}
@@ -448,11 +825,21 @@ export const MessageItem = React.memo(
     prev.message.author.customStatus === next.message.author.customStatus &&
     prev.message.editedAt === next.message.editedAt &&
     prev.message.deletedAt === next.message.deletedAt &&
+    prev.message.isPinned === next.message.isPinned &&
+    prev.message.pinnedAt === next.message.pinnedAt &&
+    prev.message.deliveryStatus === next.message.deliveryStatus &&
+    prev.message.errorMessage === next.message.errorMessage &&
     prev.message.replyTo?.id === next.message.replyTo?.id &&
+    prev.message.threadSummary?.replyCount === next.message.threadSummary?.replyCount &&
+    prev.message.threadSummary?.lastReplyAt === next.message.threadSummary?.lastReplyAt &&
+    prev.message.threadSummary?.recentRepliers === next.message.threadSummary?.recentRepliers &&
     prev.isGrouped === next.isGrouped &&
     prev.showGroupSeparator === next.showGroupSeparator &&
     prev.currentUserId === next.currentUserId &&
     prev.canModerate === next.canModerate &&
     prev.onReact === next.onReact &&
-    prev.onReply === next.onReply,
+    prev.onRemoveOptimistic === next.onRemoveOptimistic &&
+    prev.onReply === next.onReply &&
+    prev.onRetry === next.onRetry &&
+    prev.onThread === next.onThread,
 );

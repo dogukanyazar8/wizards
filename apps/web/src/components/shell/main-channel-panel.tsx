@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Hash, Volume2 } from "lucide-react";
 import type { WorkspaceChannel } from "@wizards/types";
@@ -19,33 +18,6 @@ type MainChannelPanelProps = {
   leading?: React.ReactNode;
   trailing?: React.ReactNode;
 };
-
-function WorkspaceSignature() {
-  const { locale, t } = useI18n();
-
-  const todayLabel = useMemo(
-    () =>
-      new Intl.DateTimeFormat(locale, {
-        dateStyle: "medium",
-      }).format(new Date()),
-    [locale],
-  );
-
-  return (
-    <div className="hidden justify-center px-4 pb-4 pt-1 md:flex">
-      <div className="app-panel-soft inline-flex flex-wrap items-center justify-center gap-2 rounded-full border px-4 py-2 text-[11px] font-medium text-app-muted shadow-[0_14px_32px_hsl(var(--shadow-color)/0.08)]">
-        <span className="text-app-foreground">{t("shell.footer.builtWith")}</span>
-        <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 text-[hsl(var(--primary))]">
-          AI
-        </span>
-        <span className="text-app-soft">/</span>
-        <span>{t("shell.footer.codex")}</span>
-        <span className="text-app-soft">/</span>
-        <span>{todayLabel}</span>
-      </div>
-    </div>
-  );
-}
 
 function EmptyChannelState({
   channel,
@@ -181,11 +153,11 @@ export function MainChannelPanel({
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-0 pb-0 pt-0 md:px-6 md:pb-4 md:pt-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-0 pb-0 pt-0 md:px-2 md:pb-2 md:pt-2">
         <div
-          className="mx-auto flex min-h-0 w-full flex-1 overflow-hidden border-x-0 border-y border-[hsl(var(--border)/0.76)] bg-[linear-gradient(160deg,hsl(var(--surface-card)/0.88),hsl(var(--surface-soft)/0.28))] shadow-none md:rounded-[34px] md:border md:shadow-[0_32px_80px_hsl(var(--shadow-color)/0.09)]"
+          className="mx-auto flex min-h-0 w-full flex-1 overflow-hidden border-x-0 border-y border-[hsl(var(--border)/0.72)] bg-[linear-gradient(160deg,hsl(var(--surface-card)/0.9),hsl(var(--surface-soft)/0.22))] shadow-none md:rounded-[28px] md:border md:shadow-[0_24px_62px_hsl(var(--shadow-color)/0.075)]"
           data-main-panel-frame="true"
-          style={{ maxWidth: `${mainPanelWidth}px` }}
+          style={{ maxWidth: children ? "100%" : `${mainPanelWidth}px` }}
         >
           {children ? (
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
@@ -195,7 +167,6 @@ export function MainChannelPanel({
         </div>
       </div>
 
-      <WorkspaceSignature />
     </section>
   );
 }

@@ -72,6 +72,7 @@ export default async function ChannelPage({ params }: PageParams) {
       },
       select: {
         id: true,
+        locked: true,
         name: true,
         server: {
           select: {
@@ -133,6 +134,7 @@ export default async function ChannelPage({ params }: PageParams) {
       allowFileUploads={mediaSettings.allowFileUploads}
       allowGifs={mediaSettings.allowGifs}
       channelId={channelId}
+      channelLocked={channel.locked}
       channelName={channel.name}
       channelTopic={channel.topic}
       serverId={normalizedServerId}

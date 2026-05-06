@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Radio, ShieldCheck, SlidersHorizontal, Sparkles } from "lucide-react";
 import {
   useVoiceConnection,
@@ -56,7 +57,10 @@ function resolveCleanVoiceStatus(args: {
 
   if (args.krispEnabled) {
     return {
-      description: args.t("voice.settings.cleanVoiceWebRtcDescription"),
+      description:
+        args.krispAvailability === "available"
+          ? args.t("voice.settings.cleanVoiceWebRtcDescription")
+          : resolveKrispHelperText(args.krispAvailability, args.t),
       label: args.t("voice.settings.cleanVoiceWebRtc"),
     };
   }
@@ -112,6 +116,8 @@ export function VoicePreferenceToggleRow({
 
 export function VoicePreferencesPanel() {
   const { t } = useI18n();
+  const [cleanVoiceFeedbackVisible, setCleanVoiceFeedbackVisible] = useState(false);
+  const cleanVoiceFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
     audioPreferences,
     isApplyingAudioPreferences,
@@ -134,7 +140,26 @@ export function VoicePreferencesPanel() {
     setAudioPreference("echoCancellation", true);
     setAudioPreference("autoGainControl", true);
     setAudioPreference("krispNoiseCancellation", true);
+    setCleanVoiceFeedbackVisible(true);
+
+    if (cleanVoiceFeedbackTimerRef.current) {
+      clearTimeout(cleanVoiceFeedbackTimerRef.current);
+    }
+
+    cleanVoiceFeedbackTimerRef.current = setTimeout(() => {
+      setCleanVoiceFeedbackVisible(false);
+      cleanVoiceFeedbackTimerRef.current = null;
+    }, 3200);
   };
+
+  useEffect(
+    () => () => {
+      if (cleanVoiceFeedbackTimerRef.current) {
+        clearTimeout(cleanVoiceFeedbackTimerRef.current);
+      }
+    },
+    [],
+  );
 
   return (
     <div className="space-y-4">
@@ -195,6 +220,14 @@ export function VoicePreferencesPanel() {
               <Sparkles className="h-4 w-4" />
               {t("voice.settings.applyCleanVoiceProfile")}
             </button>
+            {cleanVoiceFeedbackVisible ? (
+              <p
+                className="mt-3 rounded-2xl border border-[hsl(var(--success)/0.26)] bg-[hsl(var(--success)/0.1)] px-3 py-2 text-xs font-semibold leading-5 text-app-foreground"
+                data-testid="voice-clean-voice-feedback"
+              >
+                {t("voice.settings.cleanVoiceProfileApplied")}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>

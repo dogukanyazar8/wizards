@@ -75,6 +75,31 @@ async function requireMessageUploadUser() {
   return { userId };
 }
 
+async function requireProfileAvatarUploadUser() {
+  const { userId } = await requireUploadUser();
+
+  try {
+    const allowed = await checkRateLimit(
+      getRedis(),
+      `rate:upload:profile-avatar:${userId}`,
+      10,
+      300,
+    );
+
+    if (!allowed) {
+      throw new UploadThingError("Too many avatar uploads. Please try again shortly.");
+    }
+  } catch (error) {
+    if (error instanceof UploadThingError) {
+      throw error;
+    }
+    logError("[upload] Profile avatar rate limit unavailable", error);
+    throw new UploadThingError("Upload checks are temporarily unavailable. Please try again shortly.");
+  }
+
+  return { userId };
+}
+
 async function createMessageAttachment({
   file,
   metadata,
@@ -114,11 +139,33 @@ async function createMessageAttachment({
       size: true,
       width: true,
       height: true,
+      duration: true,
+      thumbnailUrl: true,
     },
   });
 }
 
 export const uploadRouter: FileRouter = {
+  profileAvatarUploader: f({
+    "image/jpeg": {
+      maxFileCount: 1,
+      maxFileSize: "4MB",
+    },
+    "image/png": {
+      maxFileCount: 1,
+      maxFileSize: "4MB",
+    },
+    "image/webp": {
+      maxFileCount: 1,
+      maxFileSize: "4MB",
+    },
+  })
+    .middleware(requireProfileAvatarUploadUser)
+    .onUploadComplete(async ({ file }) => {
+      return {
+        url: file.ufsUrl,
+      };
+    }),
   serverIconUploader: f({
     image: {
       maxFileCount: 1,
@@ -234,6 +281,18 @@ export const uploadRouter: FileRouter = {
     "text/plain": {
       maxFileCount: 5,
       maxFileSize: "16MB",
+    },
+    "video/mp4": {
+      maxFileCount: 5,
+      maxFileSize: "32MB",
+    },
+    "video/quicktime": {
+      maxFileCount: 5,
+      maxFileSize: "32MB",
+    },
+    "video/webm": {
+      maxFileCount: 5,
+      maxFileSize: "32MB",
     },
   })
     .middleware(requireMessageUploadUser)
