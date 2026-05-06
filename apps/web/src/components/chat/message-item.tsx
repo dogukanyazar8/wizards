@@ -269,6 +269,9 @@ export const MessageItem = React.memo(
     const moreButtonRef = useRef<HTMLButtonElement>(null);
     const isOwner = message.author.id === currentUserId;
     const isDeleted = message.deletedAt !== null;
+    const canRemoveDeletedPlaceholder =
+      isDeleted &&
+      (canModerate || message.deletedById === currentUserId || (!message.deletedById && isOwner));
     const isOptimistic = message.id.startsWith("optimistic-");
     const isFailed = message.deliveryStatus === "failed";
     const threadReplyCount = message.threadSummary?.replyCount ?? 0;
@@ -450,13 +453,64 @@ export const MessageItem = React.memo(
 
     if (isDeleted) {
       return (
-        <div
-          aria-label={t("chat.message.deleted")}
-          className="px-4 py-1 text-xs italic text-app-muted"
-          role="note"
-        >
-          {t("chat.message.deleted")}
-        </div>
+        <>
+          <div
+            aria-label={t("chat.message.deleted")}
+            className="group flex items-center gap-2 px-4 py-1 text-xs italic text-app-muted"
+            role="note"
+          >
+            <span>{t("chat.message.deleted")}</span>
+            {canRemoveDeletedPlaceholder ? (
+              <button
+                aria-label={t("chat.message.removeDeletedPlaceholderAria")}
+                className="inline-flex items-center gap-1 rounded-full border border-[hsl(var(--danger)/0.18)] bg-[hsl(var(--danger)/0.07)] px-2 py-0.5 text-[11px] font-semibold not-italic text-[hsl(var(--danger))] opacity-0 transition hover:bg-[hsl(var(--danger)/0.12)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.28)] group-hover:opacity-100"
+                data-testid="message-remove-deleted-placeholder"
+                onClick={() => setDeleteDialogOpen(true)}
+                type="button"
+              >
+                <Trash2 className="h-3 w-3" />
+                {t("chat.message.removeDeletedPlaceholder")}
+              </button>
+            ) : null}
+          </div>
+
+          <Modal
+            className="max-w-md"
+            description={t("chat.message.removeDeletedDialogDescription")}
+            onClose={() => setDeleteDialogOpen(false)}
+            open={deleteDialogOpen}
+            title={t("chat.message.removeDeletedDialogTitle")}
+          >
+            <div
+              className="rounded-[24px] border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] p-4"
+              data-testid="message-remove-deleted-dialog"
+            >
+              <p className="text-sm font-medium text-app-foreground">
+                {t("chat.message.removeDeletedDialogBody")}
+              </p>
+            </div>
+
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                className="w-full rounded-2xl sm:w-auto"
+                data-testid="message-remove-deleted-cancel"
+                onClick={() => setDeleteDialogOpen(false)}
+                type="button"
+                variant="outline"
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button
+                className="w-full rounded-2xl bg-[hsl(var(--danger))] text-white hover:bg-[hsl(var(--danger)/0.9)] sm:w-auto"
+                data-testid="message-remove-deleted-confirm"
+                onClick={confirmDelete}
+                type="button"
+              >
+                {t("chat.message.removeDeletedPlaceholder")}
+              </Button>
+            </div>
+          </Modal>
+        </>
       );
     }
 

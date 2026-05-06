@@ -87,6 +87,7 @@ type ChannelSidebarProps = {
   onCurrentUserStatusChange: (status: PresenceStatus) => void;
   onOpenSettings: () => void;
   onPrefetch?: (href: string) => void;
+  showUserFooter?: boolean;
 };
 
 type SortableChannelRowProps = {
@@ -286,7 +287,7 @@ function getStatusDotClass(status: PresenceStatus) {
   return "bg-slate-400 shadow-[0_0_0_3px_hsl(var(--muted)/0.18)]";
 }
 
-function UserProfileFooter({
+export function UserProfileFooter({
   user,
   onOpenAppearanceSettings,
   onStatusChange,
@@ -297,7 +298,8 @@ function UserProfileFooter({
   const [isUpdatingStatus, startStatusTransition] = useTransition();
   const [status, setStatus] = useState<PresenceStatus>(user.status);
   const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
-  const quickMenuRef = useRef<HTMLDivElement | null>(null);
+  const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
+  const userBarRef = useRef<HTMLDivElement | null>(null);
   const { idleTimeoutMinutes, setIdleTimeoutMinutes } = usePresenceIdleTimeoutPreference();
   const { isDeafened, isMuted, leaveChannel, toggleDeafen, toggleMute } =
     useVoiceConnection();
@@ -315,6 +317,7 @@ function UserProfileFooter({
   };
 
   const handleStatusChange = (nextStatus: PresenceStatus) => {
+    setIsStatusMenuOpen(false);
     const previousStatus = status;
     setStatus(nextStatus);
     onStatusChange(nextStatus);
@@ -333,23 +336,25 @@ function UserProfileFooter({
   };
 
   useEffect(() => {
-    if (!isQuickMenuOpen) {
+    if (!isQuickMenuOpen && !isStatusMenuOpen) {
       return;
     }
 
     const handlePointerDown = (event: PointerEvent) => {
       if (
-        quickMenuRef.current &&
+        userBarRef.current &&
         event.target instanceof Node &&
-        !quickMenuRef.current.contains(event.target)
+        !userBarRef.current.contains(event.target)
       ) {
         setIsQuickMenuOpen(false);
+        setIsStatusMenuOpen(false);
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsQuickMenuOpen(false);
+        setIsStatusMenuOpen(false);
       }
     };
 
@@ -360,68 +365,97 @@ function UserProfileFooter({
       window.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isQuickMenuOpen]);
+  }, [isQuickMenuOpen, isStatusMenuOpen]);
+
+  const currentStatusOption =
+    USER_STATUS_OPTIONS.find((option) => option.value === status) ?? {
+      key: "friends.status.online",
+      value: "ONLINE" as const,
+    };
 
   return (
     <div
-      className="app-panel relative rounded-[30px] border p-3 shadow-[0_20px_50px_hsl(var(--shadow-color)/0.09)]"
+      className="app-panel relative rounded-[32px] border px-4 py-3 shadow-[0_22px_54px_hsl(var(--shadow-color)/0.1)]"
       data-notification-popup-anchor="user"
       data-testid="user-bar"
       data-user-bar-anchor="true"
-      ref={quickMenuRef}
+      ref={userBarRef}
     >
-      <div className="space-y-3">
-        <div className="rounded-[28px] border border-[hsl(var(--border)/0.64)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.88),hsl(var(--surface-soft)/0.4))] p-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-3">
-            <div className="relative shrink-0 drop-shadow-[0_12px_24px_hsl(var(--shadow-color)/0.12)]">
-              <Avatar
-                alt={user.displayName}
-                className="h-14 w-14"
-                fallback={user.displayName}
-                src={user.avatarUrl}
-              />
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "absolute bottom-0 right-0 h-4 w-4 rounded-full border-[3px] border-[hsl(var(--surface-card))]",
-                  getStatusDotClass(status),
-                )}
-              />
-            </div>
+      <div className="flex min-w-0 items-center gap-4">
+        <div className="relative shrink-0 drop-shadow-[0_14px_28px_hsl(var(--shadow-color)/0.12)]">
+          <Avatar
+            alt={user.displayName}
+            className="h-16 w-16"
+            fallback={user.displayName}
+            src={user.avatarUrl}
+          />
+          <span
+            aria-hidden="true"
+            className={cn(
+              "absolute bottom-1 right-1 h-4 w-4 rounded-full border-[3px] border-[hsl(var(--surface-card))]",
+              getStatusDotClass(status),
+            )}
+          />
+        </div>
 
-            <div className="min-w-[8rem] flex-1">
-              <p className="truncate text-[16px] font-bold leading-5 text-app-foreground">
-                {user.displayName}
-              </p>
-              <p className="truncate text-xs font-medium text-app-muted">@{user.username}</p>
-              <div className="mt-1 inline-flex max-w-full items-center gap-1.5 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.72)] px-2.5 py-1">
-                <span className={cn("h-2.5 w-2.5 rounded-full", getStatusDotClass(status))} />
-                <label className="sr-only" htmlFor="user-presence-status">
-                  {t("shell.user.status")}
-                </label>
-                <select
-                  className="max-w-[8rem] appearance-none bg-transparent pr-5 text-xs font-semibold text-app-muted outline-none transition hover:text-app-foreground disabled:cursor-wait disabled:opacity-70"
-                  disabled={isUpdatingStatus}
-                  id="user-presence-status"
-                  onChange={(event) => handleStatusChange(event.target.value as PresenceStatus)}
-                  title={t("shell.user.statusTitle")}
-                  value={status}
-                >
-                  {USER_STATUS_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {t(option.key)}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none -ml-5 h-3.5 w-3.5 text-app-muted" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[17px] font-extrabold leading-5 tracking-[-0.02em] text-app-foreground">
+            {user.displayName}
+          </p>
+          <p className="mt-1 truncate text-[13px] font-semibold text-app-muted">@{user.username}</p>
+          <div className="relative mt-1.5 inline-flex max-w-full">
+            <button
+              aria-expanded={isStatusMenuOpen}
+              aria-haspopup="listbox"
+              aria-label={t("shell.user.status")}
+              className="inline-flex max-w-full items-center gap-1.5 bg-transparent p-0 text-left text-[13px] font-semibold text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
+              disabled={isUpdatingStatus}
+              onClick={() => setIsStatusMenuOpen((open) => !open)}
+              title={t("shell.user.statusTitle")}
+              type="button"
+            >
+              <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", getStatusDotClass(status))} />
+              <span className="truncate">{t(currentStatusOption.key)}</span>
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-app-soft" />
+            </button>
+
+            {isStatusMenuOpen ? (
+              <div
+                className="absolute bottom-[calc(100%+0.55rem)] left-0 z-50 w-52 rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.98)] p-2 shadow-[0_24px_70px_hsl(var(--shadow-color)/0.22)] backdrop-blur-2xl"
+                role="listbox"
+              >
+                {USER_STATUS_OPTIONS.map((option) => {
+                  const selected = option.value === status;
+
+                  return (
+                    <button
+                      aria-selected={selected}
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-[18px] px-3 py-2 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]",
+                        selected
+                          ? "bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]"
+                          : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-app-foreground",
+                      )}
+                      key={option.value}
+                      onClick={() => handleStatusChange(option.value)}
+                      role="option"
+                      type="button"
+                    >
+                      <span className={cn("h-2.5 w-2.5 rounded-full", getStatusDotClass(option.value))} />
+                      <span>{t(option.key)}</span>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
+            ) : null}
+          </div>
+        </div>
 
-            <div className="ml-auto grid grid-cols-4 gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
               <button
                 aria-label={t("shell.user.toggleMute")}
                 className={cn(
-                  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft)/0.74)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  "inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft)/0.74)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                   isMuted
                     ? "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
                     : "border-[hsl(var(--border)/0.66)]",
@@ -437,7 +471,7 @@ function UserProfileFooter({
               <button
                 aria-label={t("shell.user.toggleDeafen")}
                 className={cn(
-                  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft)/0.74)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  "inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft)/0.74)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                   isDeafened
                     ? "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
                     : "border-[hsl(var(--border)/0.66)]",
@@ -450,14 +484,14 @@ function UserProfileFooter({
                 <Volume2 className={cn("h-[18px] w-[18px]", isDeafened && "text-[hsl(var(--danger))]")} />
               </button>
 
-              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.72)] shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)]">
-                <NotificationBell className="h-11 w-11 rounded-full" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.72)] shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft)/0.74)]">
+                <NotificationBell className="h-12 w-12 rounded-full hover:bg-transparent" />
               </div>
 
               <button
                 aria-label={t("shell.user.appearanceSettings")}
                 className={cn(
-                  "inline-flex h-11 w-11 items-center justify-center rounded-full border border-[hsl(var(--primary)/0.26)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] shadow-[0_10px_26px_hsl(var(--primary)/0.1)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  "inline-flex h-12 w-12 items-center justify-center rounded-full border border-[hsl(var(--primary)/0.28)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.16),hsl(var(--surface-card)/0.78))] text-[hsl(var(--primary))] shadow-[0_14px_30px_hsl(var(--primary)/0.12)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                   isQuickMenuOpen && "bg-[hsl(var(--primary)/0.18)]",
                 )}
                 data-testid="user-settings-button"
@@ -467,29 +501,34 @@ function UserProfileFooter({
               >
                 <Settings2 className="h-[18px] w-[18px]" />
               </button>
-            </div>
-          </div>
+        </div>
 
           {isQuickMenuOpen ? (
             <div
               aria-label={t("shell.user.quickMenu")}
-              className="absolute bottom-[calc(100%+0.75rem)] right-0 z-40 w-[min(24rem,calc(100vw-2rem))] rounded-[30px] border border-[hsl(var(--border)/0.78)] bg-[hsl(var(--surface-card)/0.98)] p-4 shadow-[0_28px_80px_hsl(var(--shadow-color)/0.22)] backdrop-blur-2xl"
+              className="absolute bottom-[calc(100%+0.75rem)] left-2 right-[-2px] z-40 rounded-[28px] border border-[hsl(var(--border)/0.76)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.99),hsl(var(--surface-soft)/0.86))] p-4 shadow-[0_28px_78px_hsl(var(--shadow-color)/0.19)] backdrop-blur-2xl sm:left-auto sm:w-[23rem]"
               role="dialog"
             >
-              <div className="absolute -bottom-2 right-9 h-4 w-4 rotate-45 border-b border-r border-[hsl(var(--border)/0.78)] bg-[hsl(var(--surface-card)/0.98)]" />
-              <div className="mt-0 flex items-center gap-2 rounded-[22px] border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-soft)/0.28)] px-3 py-2">
-                <div className="flex min-w-0 flex-1 items-center gap-2 text-app-muted">
-                  <Clock3 className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate text-[11px] font-semibold">
+              <div className="absolute -bottom-2 right-7 h-4 w-4 rotate-45 border-b border-r border-[hsl(var(--border)/0.76)] bg-[hsl(var(--surface-soft)/0.9)]" />
+
+              <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_8rem] items-center gap-2.5">
+                <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
+                  <Clock3 className="h-[18px] w-[18px]" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
                     {t("shell.user.idleAfter")}
-                  </span>
+                  </p>
+                  <p className="mt-0.5 text-[13px] leading-5 text-app-muted">
+                    {t("shell.user.idleAfterDescription")}
+                  </p>
                 </div>
                 <label className="sr-only" htmlFor="user-presence-idle-timeout">
                   {t("shell.user.idleAfterTitle")}
                 </label>
-                <div className="relative shrink-0">
+                <div className="relative min-w-0">
                   <select
-                    className="h-8 appearance-none rounded-xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.82)] px-2.5 pr-7 text-[11px] font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-card))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                    className="h-10 w-full appearance-none rounded-2xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.86)] px-3 pr-8 text-[13px] font-bold text-app-foreground shadow-[inset_0_1px_0_hsl(var(--background)/0.5)] transition hover:bg-[hsl(var(--surface-card))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                     id="user-presence-idle-timeout"
                     onChange={(event) => setIdleTimeoutMinutes(Number(event.target.value))}
                     title={t("shell.user.idleAfterTitle")}
@@ -501,42 +540,94 @@ function UserProfileFooter({
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-app-muted" />
+                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-app-muted" />
                 </div>
               </div>
 
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <AudioDeviceSelect kind="input" variant="compact" />
-                <AudioDeviceSelect kind="output" variant="compact" />
+              <div className="my-4 h-px bg-[hsl(var(--border)/0.6)]" />
+
+              <div className="grid gap-3.5">
+                <div className="grid grid-cols-[2.5rem_minmax(0,1fr)_minmax(12rem,14rem)] items-center gap-2.5">
+                  <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
+                    <Mic className="h-[18px] w-[18px]" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
+                      {t("shell.user.microphone")}
+                    </p>
+                    <p className="mt-0.5 truncate text-[13px] text-app-muted">
+                      {t("shell.user.inputDevice")}
+                    </p>
+                  </div>
+                  <div className="min-w-0">
+                    <AudioDeviceSelect kind="input" showIcon={false} variant="compact" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[2.5rem_minmax(0,1fr)_minmax(12rem,14rem)] items-center gap-2.5">
+                  <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
+                    <Volume2 className="h-[18px] w-[18px]" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
+                      {t("shell.user.speaker")}
+                    </p>
+                    <p className="mt-0.5 truncate text-[13px] text-app-muted">
+                      {t("shell.user.outputDevice")}
+                    </p>
+                  </div>
+                  <div className="min-w-0">
+                    <AudioDeviceSelect kind="output" showIcon={false} variant="compact" />
+                  </div>
+                </div>
               </div>
 
+              <div className="my-4 h-px bg-[hsl(var(--border)/0.6)]" />
+
               <button
-                className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[20px] border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.08)] px-4 py-2 text-sm font-semibold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="grid w-full grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-2.5 rounded-[22px] px-0 py-0 text-left transition hover:translate-x-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                 onClick={() => {
                   setIsQuickMenuOpen(false);
                   onOpenAppearanceSettings();
                 }}
                 type="button"
               >
-                <Settings2 className="h-4 w-4" />
-                {t("shell.user.appearanceSettingsTitle")}
+                <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.08)] text-[hsl(var(--primary))]">
+                  <Settings2 className="h-[18px] w-[18px]" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
+                    {t("shell.user.appearanceSettingsTitle")}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[13px] text-app-muted">
+                    {t("shell.user.settingsDescription")}
+                  </span>
+                </span>
               </button>
 
               <button
                 aria-label={t("shell.user.logout")}
-                className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[20px] border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.1)] text-sm font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-3.5 grid w-full grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-2.5 rounded-[22px] px-0 py-0 text-left transition hover:translate-x-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:cursor-not-allowed disabled:opacity-60"
                 data-testid="user-logout-button"
                 disabled={isLoggingOut}
                 onClick={handleLogout}
                 title={t("shell.user.logoutTitle")}
                 type="button"
               >
-                <LogOut className="h-4 w-4" />
-                {t("shell.user.logout")}
+                <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.08)] text-[hsl(var(--danger))]">
+                  <LogOut className="h-[18px] w-[18px]" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-[15px] font-extrabold tracking-[-0.02em] text-[hsl(var(--danger))]">
+                    {t("shell.user.logout")}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[13px] text-app-muted">
+                    {t("shell.user.logoutDescription")}
+                  </span>
+                </span>
               </button>
             </div>
           ) : null}
-        </div>
       </div>
     </div>
   );
@@ -570,6 +661,7 @@ export function ChannelSidebar({
   onCurrentUserStatusChange,
   onOpenSettings,
   onPrefetch,
+  showUserFooter = true,
 }: ChannelSidebarProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -906,17 +998,19 @@ export function ChannelSidebar({
             onPrefetch={onPrefetch}
           />
         </div>
-        <div
-          className="border-t border-[hsl(var(--border)/0.78)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3"
-          data-notification-popup-anchor="controls-border"
-        >
-          <VoiceConnectionBar />
-          <UserProfileFooter
-            user={currentUser}
-            onOpenAppearanceSettings={onOpenSettings}
-            onStatusChange={onCurrentUserStatusChange}
-          />
-        </div>
+        {showUserFooter ? (
+          <div
+            className="border-t border-[hsl(var(--border)/0.78)] py-3 pl-3 pr-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3"
+            data-notification-popup-anchor="controls-border"
+          >
+            <VoiceConnectionBar />
+            <UserProfileFooter
+              user={currentUser}
+              onOpenAppearanceSettings={onOpenSettings}
+              onStatusChange={onCurrentUserStatusChange}
+            />
+          </div>
+        ) : null}
       </aside>
     );
   }
@@ -1207,17 +1301,19 @@ export function ChannelSidebar({
         </div>
       </DndContext>
 
-      <div
-        className="border-t border-[hsl(var(--border)/0.78)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3"
-        data-notification-popup-anchor="controls-border"
-      >
-        <VoiceConnectionBar />
-        <UserProfileFooter
-          user={currentUser}
-          onOpenAppearanceSettings={onOpenSettings}
-          onStatusChange={onCurrentUserStatusChange}
-        />
-      </div>
+      {showUserFooter ? (
+        <div
+          className="border-t border-[hsl(var(--border)/0.78)] py-3 pl-3 pr-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3"
+          data-notification-popup-anchor="controls-border"
+        >
+          <VoiceConnectionBar />
+          <UserProfileFooter
+            user={currentUser}
+            onOpenAppearanceSettings={onOpenSettings}
+            onStatusChange={onCurrentUserStatusChange}
+          />
+        </div>
+      ) : null}
 
       <ContextMenu
         onClose={() => setHeaderMenu((state) => ({ ...state, open: false }))}

@@ -131,6 +131,7 @@ function buildOptimisticMessage(input: {
     attachments: input.attachments,
     editedAt: null,
     deletedAt: null,
+    deletedById: null,
   };
 }
 

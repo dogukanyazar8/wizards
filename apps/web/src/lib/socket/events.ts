@@ -101,7 +101,12 @@ export interface ServerToClientEvents {
   }) => void;
   "message:new": (message: ChatMessage) => void;
   "message:updated": (message: ChatMessage) => void;
-  "message:deleted": (data: { messageId: string; channelId: string }) => void;
+  "message:deleted": (data: {
+    messageId: string;
+    channelId: string;
+    deletedById?: string;
+  }) => void;
+  "message:removed": (data: { messageId: string; channelId: string }) => void;
   "message:history_cleared": (data: { channelId: string }) => void;
   "message:pins_updated": (data: { channelId: string }) => void;
   "message:reaction_updated": (data: {
@@ -122,6 +127,11 @@ export interface ServerToClientEvents {
   "dm:message:new": (message: DMMessagePayload) => void;
   "dm:message:updated": (message: DMMessagePayload) => void;
   "dm:message:deleted": (data: {
+    messageId: string;
+    conversationId: string;
+    deletedById?: string;
+  }) => void;
+  "dm:message:removed": (data: {
     messageId: string;
     conversationId: string;
   }) => void;
@@ -196,7 +206,12 @@ export interface ServerToClientEvents {
 export interface InterServerEvents {
   "message:new": (message: ChatMessage) => void;
   "message:updated": (message: ChatMessage) => void;
-  "message:deleted": (data: { messageId: string; channelId: string }) => void;
+  "message:deleted": (data: {
+    messageId: string;
+    channelId: string;
+    deletedById?: string;
+  }) => void;
+  "message:removed": (data: { messageId: string; channelId: string }) => void;
   "message:history_cleared": (data: { channelId: string }) => void;
   "message:reaction_updated": (data: {
     messageId: string;

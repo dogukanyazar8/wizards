@@ -81,6 +81,7 @@ const dmConversationInclude = {
     },
   },
   messages: {
+    where: { placeholderRemovedAt: null },
     orderBy: { createdAt: "desc" },
     take: 1,
     include: dmMessageInclude,
@@ -96,7 +97,9 @@ type DMMessageNode = {
   threadParentId: string | null;
   editedAt: Date | null;
   deletedAt: Date | null;
-  createdAt: Date;
+  deletedById: string | null;
+  placeholderRemovedAt: Date | null;
+    createdAt: Date;
   author: {
     id: string;
     username: string;
@@ -204,16 +207,18 @@ async function getDMThreadSummaryMap(parentMessageIds: string[]) {
       "threadParentId",
       COUNT(*)::int AS "replyCount",
       MAX("createdAt") AS "lastReplyAt"
-    FROM "DMMessage"
-    WHERE "threadParentId" IN (${Prisma.join(parentMessageIds)})
-      AND "deletedAt" IS NULL
-    GROUP BY "threadParentId"
-  `);
+      FROM "DMMessage"
+      WHERE "threadParentId" IN (${Prisma.join(parentMessageIds)})
+        AND "deletedAt" IS NULL
+        AND "placeholderRemovedAt" IS NULL
+      GROUP BY "threadParentId"
+    `);
 
   const latestReplies = await prisma.dMMessage.findMany({
     where: {
       threadParentId: { in: parentMessageIds },
       deletedAt: null,
+      placeholderRemovedAt: null,
     },
     orderBy: { createdAt: "desc" },
     take: Math.min(parentMessageIds.length * 4, 200),
@@ -344,6 +349,7 @@ function mapDMReply(
     threadSummary: threadSummaryByMessageId.get(message.id) ?? createEmptyThreadSummary(),
     editedAt: message.editedAt?.toISOString() ?? null,
     deletedAt: message.deletedAt?.toISOString() ?? null,
+    deletedById: message.deletedById,
     createdAt: message.createdAt.toISOString(),
     author: {
       id: message.author.id,
@@ -732,6 +738,7 @@ export async function listDMMessages(
     where: {
       conversationId,
       threadParentId: null,
+      placeholderRemovedAt: null,
       ...(cursorCreatedAt
         ? {
             createdAt: {
@@ -778,6 +785,7 @@ export async function listDMThreadMessages(
       id: parentMessageId,
       conversationId,
       threadParentId: null,
+      placeholderRemovedAt: null,
     },
     include: dmMessageInclude,
   });
@@ -808,6 +816,7 @@ export async function listDMThreadMessages(
     where: {
       conversationId,
       threadParentId: parentMessageId,
+      placeholderRemovedAt: null,
       ...(cursorCreatedAt
         ? {
             createdAt: {
@@ -892,10 +901,11 @@ export async function setDMReaction(
     select: {
       conversationId: true,
       deletedAt: true,
+      placeholderRemovedAt: true,
     },
   });
 
-  if (!message || message.deletedAt) {
+  if (!message || message.deletedAt || message.placeholderRemovedAt) {
     throw new ApiError("Message not found", 404, "NOT_FOUND");
   }
 

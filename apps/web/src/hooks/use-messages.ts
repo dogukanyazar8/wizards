@@ -80,6 +80,7 @@ export function mapDMMessageToChatMessage(message: DMMessagePayload): ChatMessag
     createdAt: message.createdAt,
     editedAt: message.editedAt,
     deletedAt: message.deletedAt,
+    deletedById: message.deletedById,
   };
 }
 
@@ -163,7 +164,7 @@ function updateMessage(
 
 function markMessageDeleted(
   old: MessagePages | undefined,
-  data: { messageId: string },
+  data: { messageId: string; deletedById?: string },
 ): MessagePages | undefined {
   if (!old) {
     return old;
@@ -180,9 +181,27 @@ function markMessageDeleted(
               deletedAt: new Date().toISOString(),
               content: "",
               reactions: [],
+              deletedById: data.deletedById ?? message.deletedById ?? null,
             }
           : message,
       ),
+    })),
+  };
+}
+
+function removeMessage(
+  old: MessagePages | undefined,
+  data: { messageId: string },
+): MessagePages | undefined {
+  if (!old) {
+    return old;
+  }
+
+  return {
+    ...old,
+    pages: old.pages.map((page) => ({
+      ...page,
+      messages: page.messages.filter((message) => message.id !== data.messageId),
     })),
   };
 }
@@ -355,9 +374,19 @@ export function useMessages(mode: MessageMode, conversationId: string) {
         }
       };
 
-      const handleDeletedMessage = (data: { messageId: string; channelId: string }) => {
+      const handleDeletedMessage = (data: {
+        messageId: string;
+        channelId: string;
+        deletedById?: string;
+      }) => {
         if (data.channelId === conversationId) {
           queryClient.setQueryData<MessagePages>(queryKey, (old) => markMessageDeleted(old, data));
+        }
+      };
+
+      const handleRemovedMessage = (data: { messageId: string; channelId: string }) => {
+        if (data.channelId === conversationId) {
+          queryClient.setQueryData<MessagePages>(queryKey, (old) => removeMessage(old, data));
         }
       };
 
@@ -377,6 +406,7 @@ export function useMessages(mode: MessageMode, conversationId: string) {
       socket.on("message:new", handleNewMessage);
       socket.on("message:updated", handleUpdatedMessage);
       socket.on("message:deleted", handleDeletedMessage);
+      socket.on("message:removed", handleRemovedMessage);
       socket.on("message:history_cleared", handleHistoryCleared);
       socket.on("message:reaction_updated", handleReactionUpdated);
 
@@ -384,6 +414,7 @@ export function useMessages(mode: MessageMode, conversationId: string) {
         socket.off("message:new", handleNewMessage);
         socket.off("message:updated", handleUpdatedMessage);
         socket.off("message:deleted", handleDeletedMessage);
+        socket.off("message:removed", handleRemovedMessage);
         socket.off("message:history_cleared", handleHistoryCleared);
         socket.off("message:reaction_updated", handleReactionUpdated);
       };
@@ -414,9 +445,19 @@ export function useMessages(mode: MessageMode, conversationId: string) {
       }
     };
 
-    const handleDeletedMessage = (data: { conversationId: string; messageId: string }) => {
+    const handleDeletedMessage = (data: {
+      conversationId: string;
+      messageId: string;
+      deletedById?: string;
+    }) => {
       if (data.conversationId === conversationId) {
         queryClient.setQueryData<MessagePages>(queryKey, (old) => markMessageDeleted(old, data));
+      }
+    };
+
+    const handleRemovedMessage = (data: { conversationId: string; messageId: string }) => {
+      if (data.conversationId === conversationId) {
+        queryClient.setQueryData<MessagePages>(queryKey, (old) => removeMessage(old, data));
       }
     };
 
@@ -430,12 +471,14 @@ export function useMessages(mode: MessageMode, conversationId: string) {
     socket.on("dm:message:new", handleNewMessage);
     socket.on("dm:message:updated", handleUpdatedMessage);
     socket.on("dm:message:deleted", handleDeletedMessage);
+    socket.on("dm:message:removed", handleRemovedMessage);
     socket.on("dm:message:reaction_updated", handleReactionUpdated);
 
     return () => {
       socket.off("dm:message:new", handleNewMessage);
       socket.off("dm:message:updated", handleUpdatedMessage);
       socket.off("dm:message:deleted", handleDeletedMessage);
+      socket.off("dm:message:removed", handleRemovedMessage);
       socket.off("dm:message:reaction_updated", handleReactionUpdated);
     };
   }, [conversationId, mode, queryClient, queryKey, socket]);

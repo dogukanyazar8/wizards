@@ -270,12 +270,17 @@ export function NotificationBell({ className }: { className?: string } = {}) {
     }
 
     const rect = buttonRef.current.getBoundingClientRect();
+    const controlsRoot = buttonRef.current.closest<HTMLElement>(
+      "[data-notification-popup-anchor='controls-border']",
+    );
+    const userBarAnchor = buttonRef.current.closest<HTMLElement>("[data-user-bar-anchor='true']");
     const sidebarRoot = buttonRef.current.closest<HTMLElement>(".app-sidebar");
     const anchorElement =
+      controlsRoot ??
       sidebarRoot?.querySelector<HTMLElement>("[data-notification-popup-anchor='controls-border']") ??
       sidebarRoot?.querySelector<HTMLElement>("[data-notification-popup-anchor='voice']") ??
       sidebarRoot?.querySelector<HTMLElement>("[data-notification-popup-anchor='user']") ??
-      buttonRef.current.closest<HTMLElement>("[data-user-bar-anchor='true']");
+      userBarAnchor;
     const userBarRect = anchorElement?.getBoundingClientRect() ?? rect;
     const minMargin = 16;
     const popupWidth = Math.min(384, window.innerWidth - minMargin * 2);
@@ -283,7 +288,7 @@ export function NotificationBell({ className }: { className?: string } = {}) {
     const bottom = Math.max(minMargin, window.innerHeight - userBarRect.top + gapFromBar);
     const maxHeight = Math.max(280, userBarRect.top - gapFromBar - minMargin);
 
-    let left = userBarRect.left - 4;
+    let left = userBarRect.right - popupWidth;
     left = Math.max(minMargin, Math.min(left, window.innerWidth - popupWidth - minMargin));
 
     setDropdownPos({ bottom, left, maxHeight });

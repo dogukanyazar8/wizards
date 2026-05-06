@@ -80,6 +80,7 @@ export const ChatMessageSchema = z.object({
   errorMessage: z.string().optional(),
   editedAt: z.string().datetime().nullable(),
   deletedAt: z.string().datetime().nullable(),
+  deletedById: z.string().nullable().optional(),
 });
 
 export const MessagesResponseSchema = z.object({

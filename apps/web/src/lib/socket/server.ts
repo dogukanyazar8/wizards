@@ -1273,11 +1273,16 @@ export function initSocketServer(httpServer: HTTPServer) {
       try {
         const messageId = parseSocketPayload(SocketIdSchema, rawMessageId);
         const dbMessage = await prisma.message.findFirst({
-          where: { deletedAt: null, id: messageId },
+          where: { id: messageId, placeholderRemovedAt: null },
           select: {
             channelId: true,
             userId: true,
-            channel: { select: { serverId: true } },
+            channel: {
+              select: {
+                serverId: true,
+                server: { select: { ownerId: true } },
+              },
+            },
           },
         });
 
@@ -1297,17 +1302,26 @@ export function initSocketServer(httpServer: HTTPServer) {
           },
         });
 
-        const isAdmin =
+        const hasManageMessages =
           member?.roles.some(
             (roleAssignment) => (roleAssignment.role.permissions & MANAGE_MESSAGES_PERMISSION) !== 0n,
           ) ?? false;
+        const isAdmin = dbMessage.channel.server?.ownerId === userId || hasManageMessages;
 
-        await deleteMessage(messageId, userId, isAdmin);
+        const deleteResult = await deleteMessage(messageId, userId, isAdmin);
 
-        io.to(dbMessage.channelId).emit("message:deleted", {
-          messageId,
-          channelId: dbMessage.channelId,
-        });
+        if (deleteResult === "removed") {
+          io.to(dbMessage.channelId).emit("message:removed", {
+            messageId,
+            channelId: dbMessage.channelId,
+          });
+        } else {
+          io.to(dbMessage.channelId).emit("message:deleted", {
+            messageId,
+            channelId: dbMessage.channelId,
+            deletedById: userId,
+          });
+        }
       } catch (error) {
         emitSocketError("MESSAGE_DELETE_ERROR", "Unable to delete message.", error);
       }
@@ -1317,7 +1331,7 @@ export function initSocketServer(httpServer: HTTPServer) {
       try {
         const data = parseSocketPayload(SocketMessageReactionPayloadSchema, rawData);
         const message = await prisma.message.findFirst({
-          where: { deletedAt: null, id: data.messageId },
+          where: { deletedAt: null, id: data.messageId, placeholderRemovedAt: null },
           select: { channelId: true },
         });
 
@@ -1341,7 +1355,7 @@ export function initSocketServer(httpServer: HTTPServer) {
       try {
         const data = parseSocketPayload(SocketMessageReactionPayloadSchema, rawData);
         const message = await prisma.message.findFirst({
-          where: { deletedAt: null, id: data.messageId },
+          where: { deletedAt: null, id: data.messageId, placeholderRemovedAt: null },
           select: { channelId: true },
         });
 
@@ -1593,6 +1607,7 @@ export function initSocketServer(httpServer: HTTPServer) {
               id: data.replyToId,
               conversationId: data.conversationId,
               deletedAt: null,
+              placeholderRemovedAt: null,
             },
             select: { id: true },
           });
@@ -1609,6 +1624,7 @@ export function initSocketServer(httpServer: HTTPServer) {
               id: data.threadParentId,
               conversationId: data.conversationId,
               deletedAt: null,
+              placeholderRemovedAt: null,
               threadParentId: null,
             },
             select: { id: true },
@@ -1813,11 +1829,14 @@ export function initSocketServer(httpServer: HTTPServer) {
           where: { id: data.messageId },
           select: {
             conversationId: true,
+            deletedAt: true,
+            deletedById: true,
+            placeholderRemovedAt: true,
             userId: true,
           },
         });
 
-        if (!existingMessage) {
+        if (!existingMessage || existingMessage.deletedAt || existingMessage.placeholderRemovedAt) {
           emitDMError("NOT_FOUND", "Message not found.");
           return;
         }
@@ -1838,6 +1857,7 @@ export function initSocketServer(httpServer: HTTPServer) {
               id: data.messageId,
               userId,
               deletedAt: null,
+              placeholderRemovedAt: null,
             },
             data: {
               content: trimmedContent,
@@ -1873,17 +1893,53 @@ export function initSocketServer(httpServer: HTTPServer) {
           where: { id: data.messageId },
           select: {
             conversationId: true,
+            deletedAt: true,
+            deletedById: true,
+            placeholderRemovedAt: true,
             userId: true,
           },
         });
 
-        if (!existingMessage) {
+        if (!existingMessage || existingMessage.placeholderRemovedAt) {
           emitDMError("NOT_FOUND", "Message not found.");
           return;
         }
 
         if (!(await requireDMParticipant(existingMessage.conversationId))) {
           emitDMError("FORBIDDEN", "You are not a participant in this DM");
+          return;
+        }
+
+        if (existingMessage.deletedAt) {
+          const canRemovePlaceholder =
+            existingMessage.deletedById === userId ||
+            (!existingMessage.deletedById && existingMessage.userId === userId);
+
+          if (!canRemovePlaceholder) {
+            emitDMError("FORBIDDEN", "You can only remove your own deleted DM notices.");
+            return;
+          }
+
+          const removeResult = await prisma.dMMessage.updateMany({
+            where: {
+              deletedAt: { not: null },
+              id: data.messageId,
+              placeholderRemovedAt: null,
+            },
+            data: {
+              placeholderRemovedAt: new Date(),
+            },
+          });
+
+          if (removeResult.count !== 1) {
+            emitDMError("NOT_FOUND", "Message not found.");
+            return;
+          }
+
+          io.to(`dm:${existingMessage.conversationId}`).emit("dm:message:removed", {
+            messageId: data.messageId,
+            conversationId: existingMessage.conversationId,
+          });
           return;
         }
 
@@ -1898,15 +1954,18 @@ export function initSocketServer(httpServer: HTTPServer) {
               id: data.messageId,
               userId,
               deletedAt: null,
+              placeholderRemovedAt: null,
             },
             data: {
               deletedAt: new Date(),
+              deletedById: userId,
             },
           });
 
           io.to(`dm:${existingMessage.conversationId}`).emit("dm:message:deleted", {
             messageId: data.messageId,
             conversationId: existingMessage.conversationId,
+            deletedById: userId,
           });
         } catch (error) {
           if (
@@ -1932,10 +1991,11 @@ export function initSocketServer(httpServer: HTTPServer) {
           select: {
             conversationId: true,
             deletedAt: true,
+            placeholderRemovedAt: true,
           },
         });
 
-        if (!message || message.deletedAt) {
+        if (!message || message.deletedAt || message.placeholderRemovedAt) {
           emitDMError("NOT_FOUND", "Message not found.");
           return;
         }

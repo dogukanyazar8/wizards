@@ -13,13 +13,14 @@ import type {
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Button } from "@wizards/ui";
 import { useShallow } from "zustand/react/shallow";
-import { ChannelSidebar } from "@/components/shell/channel-sidebar";
+import { ChannelSidebar, UserProfileFooter } from "@/components/shell/channel-sidebar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { MainChannelPanel } from "@/components/shell/main-channel-panel";
 import { MobileDrawerTrigger, ServerRail } from "@/components/shell/server-rail";
 import { ServerSettingsOverlay } from "@/components/shell/server-settings-overlay";
 import { ServerMemberPanel } from "@/components/shell/server-member-panel";
 import { WorkspaceModals } from "@/components/shell/workspace-modals";
+import { VoiceConnectionBar } from "@/components/voice/voice-connection-bar";
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -254,43 +255,57 @@ const NavigationPanel = React.memo(
     onServerRailIconSizeChange,
     onServerRailWidthChange,
   }: NavigationPanelProps) => (
-    <>
-      <div className={isMobile ? "flex h-full w-[112px] shrink-0 [--server-rail-width:112px]" : "hidden md:flex"}>
-        <ServerRail
-          activeServerId={activeServerId}
-          currentUserId={currentUserId}
-          dmUnreadCount={dmUnreadCount}
-          iconSize={serverRailIconSize}
-          isIconOnly={isServerRailIconOnly}
-          loading={serversQueryLoading}
-          onNavigate={onNavigate}
-          onOpenCreateServer={onOpenCreateServer}
-          onOpenServerContextMenu={onOpenServerContextMenu}
-          onPrefetch={onPrefetch}
-          onSetIconSize={onServerRailIconSizeChange}
-          onSetExpanded={onExpandServerRail}
-          onSetIconOnly={onCollapseServerRail}
-          onSetWidth={onServerRailWidthChange}
-          serverRailWidth={serverRailWidth}
-          servers={servers}
-        />
+    <div className={isMobile ? "flex h-full min-w-0 flex-1 flex-col" : "hidden h-full min-w-0 flex-col md:flex"}>
+      <div className="flex min-h-0 flex-1">
+        <div className={isMobile ? "flex h-full w-[112px] shrink-0 [--server-rail-width:112px]" : "flex h-full shrink-0"}>
+          <ServerRail
+            activeServerId={activeServerId}
+            currentUserId={currentUserId}
+            dmUnreadCount={dmUnreadCount}
+            iconSize={serverRailIconSize}
+            isIconOnly={isServerRailIconOnly}
+            loading={serversQueryLoading}
+            onNavigate={onNavigate}
+            onOpenCreateServer={onOpenCreateServer}
+            onOpenServerContextMenu={onOpenServerContextMenu}
+            onPrefetch={onPrefetch}
+            onSetIconSize={onServerRailIconSizeChange}
+            onSetExpanded={onExpandServerRail}
+            onSetIconOnly={onCollapseServerRail}
+            onSetWidth={onServerRailWidthChange}
+            serverRailWidth={serverRailWidth}
+            servers={servers}
+          />
+        </div>
+        <div
+          className={isMobile ? "flex min-w-0 max-w-[calc(100vw-112px)] flex-1 overflow-hidden" : "flex min-w-0 overflow-hidden"}
+          style={isMobile ? undefined : { width: `var(--channel-sidebar-width)` }}
+        >
+          <ChannelSidebar
+            activeChannelId={activeChannelId}
+            currentUser={currentUser}
+            detail={serverDetailQueryData ?? null}
+            loading={Boolean(activeServerId) && serverDetailQueryLoading}
+            onNavigate={onNavigate}
+            onCurrentUserStatusChange={onCurrentUserStatusChange}
+            onOpenSettings={onOpenSettings}
+            onPrefetch={onPrefetch}
+            showUserFooter={false}
+          />
+        </div>
       </div>
       <div
-        className={isMobile ? "flex min-w-0 max-w-[calc(100vw-112px)] flex-1 overflow-hidden" : "hidden md:flex"}
-        style={isMobile ? undefined : { width: `var(--channel-sidebar-width)` }}
+        className="border-t border-[hsl(var(--border)/0.78)] py-3 pl-3 pr-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3"
+        data-notification-popup-anchor="controls-border"
       >
-        <ChannelSidebar
-          activeChannelId={activeChannelId}
-          currentUser={currentUser}
-          detail={serverDetailQueryData ?? null}
-          loading={Boolean(activeServerId) && serverDetailQueryLoading}
-          onNavigate={onNavigate}
-          onCurrentUserStatusChange={onCurrentUserStatusChange}
-          onOpenSettings={onOpenSettings}
-          onPrefetch={onPrefetch}
+        <VoiceConnectionBar />
+        <UserProfileFooter
+          user={currentUser}
+          onOpenAppearanceSettings={onOpenSettings}
+          onStatusChange={onCurrentUserStatusChange}
         />
       </div>
-    </>
+    </div>
   ),
 );
 

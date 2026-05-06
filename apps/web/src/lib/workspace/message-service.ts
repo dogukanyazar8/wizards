@@ -204,16 +204,18 @@ async function getThreadSummaryMap(parentMessageIds: string[]) {
       "threadParentId",
       COUNT(*)::int AS "replyCount",
       MAX("createdAt") AS "lastReplyAt"
-    FROM "Message"
-    WHERE "threadParentId" IN (${Prisma.join(parentMessageIds)})
-      AND "deletedAt" IS NULL
-    GROUP BY "threadParentId"
-  `);
+      FROM "Message"
+      WHERE "threadParentId" IN (${Prisma.join(parentMessageIds)})
+        AND "deletedAt" IS NULL
+        AND "placeholderRemovedAt" IS NULL
+      GROUP BY "threadParentId"
+    `);
 
   const latestReplies = await prisma.message.findMany({
     where: {
       threadParentId: { in: parentMessageIds },
       deletedAt: null,
+      placeholderRemovedAt: null,
     },
     orderBy: { createdAt: "desc" },
     take: Math.min(parentMessageIds.length * 4, 200),
@@ -319,6 +321,7 @@ function mapRawMessage(
     createdAt: message.createdAt.toISOString(),
     editedAt: message.editedAt?.toISOString() ?? null,
     deletedAt: message.deletedAt?.toISOString() ?? null,
+    deletedById: message.deletedById,
   };
 }
 
@@ -332,6 +335,7 @@ export async function getChannelMessages(
       channelId,
       threadParentId: null,
       threadId: null,
+      placeholderRemovedAt: null,
     },
     include: messageInclude,
     orderBy: { createdAt: "desc" as const },
@@ -371,6 +375,7 @@ export async function getChannelThreadMessages(
       id: parentMessageId,
       channelId,
       threadParentId: null,
+      placeholderRemovedAt: null,
     },
     include: messageInclude,
   }) as RawMessage | null;
@@ -383,6 +388,7 @@ export async function getChannelThreadMessages(
     where: {
       channelId,
       threadParentId: parentMessageId,
+      placeholderRemovedAt: null,
     },
     include: messageInclude,
     orderBy: { createdAt: "desc" as const },
@@ -409,8 +415,8 @@ export async function getChannelThreadMessages(
 }
 
 export async function getMessageById(messageId: string): Promise<ChatMessage | null> {
-  const message = await prisma.message.findUnique({
-    where: { id: messageId },
+  const message = await prisma.message.findFirst({
+    where: { id: messageId, placeholderRemovedAt: null },
     include: messageInclude,
   }) as RawMessage | null;
 
@@ -434,6 +440,7 @@ export async function listChannelPinnedMessages(
       channelId,
       message: {
         deletedAt: null,
+        placeholderRemovedAt: null,
       },
     },
     orderBy: { pinnedAt: "desc" },
@@ -467,6 +474,7 @@ export async function pinChannelMessage(
       id: messageId,
       channelId,
       deletedAt: null,
+      placeholderRemovedAt: null,
     },
     select: { id: true },
   });
@@ -617,6 +625,7 @@ async function createTypedMessage(args: {
           id: args.threadParentId,
           channelId: args.channelId,
           deletedAt: null,
+          placeholderRemovedAt: null,
           threadParentId: null,
         },
         select: { id: true },
@@ -665,11 +674,18 @@ export async function editMessage(
         select: { serverId: true },
       },
       deletedAt: true,
+      placeholderRemovedAt: true,
       userId: true,
     },
   });
 
-  if (!existing || !existing.channel.serverId || existing.deletedAt || existing.userId !== userId) {
+  if (
+    !existing ||
+    !existing.channel.serverId ||
+    existing.deletedAt ||
+    existing.placeholderRemovedAt ||
+    existing.userId !== userId
+  ) {
     throw new ApiError("Cannot edit this message", 403);
   }
 
@@ -695,7 +711,7 @@ export async function editMessage(
 
   const nextContent = validateEditableMessageContent(content, maxLength);
   const updateResult = await prisma.message.updateMany({
-    where: { id: messageId, userId, deletedAt: null },
+    where: { id: messageId, userId, deletedAt: null, placeholderRemovedAt: null },
     data: { content: nextContent, editedAt: new Date() },
   });
 
@@ -715,24 +731,61 @@ export async function deleteMessage(
   messageId: string,
   userId: string,
   isAdmin: boolean,
-): Promise<void> {
+): Promise<"deleted" | "removed"> {
   const existing = await prisma.message.findUnique({
     where: { id: messageId },
-    select: { deletedAt: true, userId: true },
+    select: {
+      deletedAt: true,
+      deletedById: true,
+      placeholderRemovedAt: true,
+      userId: true,
+    },
   });
 
-  if (!existing || existing.deletedAt || (!isAdmin && existing.userId !== userId)) {
+  if (!existing || existing.placeholderRemovedAt) {
+    throw new ApiError("Cannot delete this message", 403);
+  }
+
+  if (existing.deletedAt) {
+    const canRemovePlaceholder =
+      isAdmin ||
+      existing.deletedById === userId ||
+      (!existing.deletedById && existing.userId === userId);
+
+    if (!canRemovePlaceholder) {
+      throw new ApiError("Cannot remove this deleted message notice", 403);
+    }
+
+    const updateResult = await prisma.message.updateMany({
+      where: {
+        deletedAt: { not: null },
+        id: messageId,
+        placeholderRemovedAt: null,
+      },
+      data: { placeholderRemovedAt: new Date() },
+    });
+
+    if (updateResult.count !== 1) {
+      throw new ApiError("Cannot remove this deleted message notice", 403);
+    }
+
+    return "removed";
+  }
+
+  if (!isAdmin && existing.userId !== userId) {
     throw new ApiError("Cannot delete this message", 403);
   }
 
   const updateResult = await prisma.message.updateMany({
-    where: { deletedAt: null, id: messageId },
-    data: { deletedAt: new Date() },
+    where: { deletedAt: null, id: messageId, placeholderRemovedAt: null },
+    data: { deletedAt: new Date(), deletedById: userId },
   });
 
   if (updateResult.count !== 1) {
     throw new ApiError("Cannot delete this message", 403);
   }
+
+  return "deleted";
 }
 
 export async function toggleReaction(
@@ -752,10 +805,10 @@ export async function setReaction(
   const normalizedEmoji = validateReactionEmoji(emoji);
   const message = await prisma.message.findUnique({
     where: { id: messageId },
-    select: { deletedAt: true },
+    select: { deletedAt: true, placeholderRemovedAt: true },
   });
 
-  if (!message || message.deletedAt) {
+  if (!message || message.deletedAt || message.placeholderRemovedAt) {
     throw new ApiError("Message not found", 404, "NOT_FOUND");
   }
 

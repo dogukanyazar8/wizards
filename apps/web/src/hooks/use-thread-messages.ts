@@ -101,7 +101,7 @@ function updateThreadMessage(
 
 function markThreadMessageDeleted(
   old: ThreadMessagePages | undefined,
-  messageId: string,
+  data: { messageId: string; deletedById?: string },
 ): ThreadMessagePages | undefined {
   if (!old) {
     return old;
@@ -112,24 +112,43 @@ function markThreadMessageDeleted(
     pages: old.pages.map((page) => ({
       ...page,
       parent:
-        page.parent.id === messageId
+        page.parent.id === data.messageId
           ? {
               ...page.parent,
               content: "",
               deletedAt: new Date().toISOString(),
+              deletedById: data.deletedById ?? page.parent.deletedById ?? null,
               reactions: [],
             }
           : page.parent,
       messages: page.messages.map((message) =>
-        message.id === messageId
+        message.id === data.messageId
           ? {
               ...message,
               content: "",
               deletedAt: new Date().toISOString(),
+              deletedById: data.deletedById ?? message.deletedById ?? null,
               reactions: [],
             }
           : message,
       ),
+    })),
+  };
+}
+
+function removeThreadMessage(
+  old: ThreadMessagePages | undefined,
+  messageId: string,
+): ThreadMessagePages | undefined {
+  if (!old) {
+    return old;
+  }
+
+  return {
+    ...old,
+    pages: old.pages.map((page) => ({
+      ...page,
+      messages: page.messages.filter((message) => message.id !== messageId),
     })),
   };
 }
@@ -226,10 +245,22 @@ export function useThreadMessages(
         }
       };
 
-      const handleDeletedMessage = (data: { channelId: string; messageId: string }) => {
+      const handleDeletedMessage = (data: {
+        channelId: string;
+        messageId: string;
+        deletedById?: string;
+      }) => {
         if (data.channelId === conversationId) {
           queryClient.setQueryData<ThreadMessagePages>(queryKey, (old) =>
-            markThreadMessageDeleted(old, data.messageId),
+            markThreadMessageDeleted(old, data),
+          );
+        }
+      };
+
+      const handleRemovedMessage = (data: { channelId: string; messageId: string }) => {
+        if (data.channelId === conversationId) {
+          queryClient.setQueryData<ThreadMessagePages>(queryKey, (old) =>
+            removeThreadMessage(old, data.messageId),
           );
         }
       };
@@ -246,12 +277,14 @@ export function useThreadMessages(
       socket.on("message:new", handleNewMessage);
       socket.on("message:updated", handleUpdatedMessage);
       socket.on("message:deleted", handleDeletedMessage);
+      socket.on("message:removed", handleRemovedMessage);
       socket.on("message:reaction_updated", handleReactionUpdated);
 
       return () => {
         socket.off("message:new", handleNewMessage);
         socket.off("message:updated", handleUpdatedMessage);
         socket.off("message:deleted", handleDeletedMessage);
+        socket.off("message:removed", handleRemovedMessage);
         socket.off("message:reaction_updated", handleReactionUpdated);
       };
     }
@@ -272,10 +305,22 @@ export function useThreadMessages(
       }
     };
 
-    const handleDeletedMessage = (data: { conversationId: string; messageId: string }) => {
+    const handleDeletedMessage = (data: {
+      conversationId: string;
+      messageId: string;
+      deletedById?: string;
+    }) => {
       if (data.conversationId === conversationId) {
         queryClient.setQueryData<ThreadMessagePages>(queryKey, (old) =>
-          markThreadMessageDeleted(old, data.messageId),
+          markThreadMessageDeleted(old, data),
+        );
+      }
+    };
+
+    const handleRemovedMessage = (data: { conversationId: string; messageId: string }) => {
+      if (data.conversationId === conversationId) {
+        queryClient.setQueryData<ThreadMessagePages>(queryKey, (old) =>
+          removeThreadMessage(old, data.messageId),
         );
       }
     };
@@ -292,12 +337,14 @@ export function useThreadMessages(
     socket.on("dm:message:new", handleNewMessage);
     socket.on("dm:message:updated", handleUpdatedMessage);
     socket.on("dm:message:deleted", handleDeletedMessage);
+    socket.on("dm:message:removed", handleRemovedMessage);
     socket.on("dm:message:reaction_updated", handleReactionUpdated);
 
     return () => {
       socket.off("dm:message:new", handleNewMessage);
       socket.off("dm:message:updated", handleUpdatedMessage);
       socket.off("dm:message:deleted", handleDeletedMessage);
+      socket.off("dm:message:removed", handleRemovedMessage);
       socket.off("dm:message:reaction_updated", handleReactionUpdated);
     };
   }, [conversationId, mode, parentMessageId, queryClient, queryKey, socket]);

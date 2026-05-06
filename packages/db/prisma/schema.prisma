@@ -224,35 +224,35 @@ model User {
   updatedAt             DateTime    @updatedAt
 
   // Relations
-  accounts               Account[]
-  sessions               Session[]
+  accounts                Account[]
+  sessions                Session[]
   emailVerificationTokens EmailVerificationToken[]
-  settings               UserSettings?
-  notificationSettings   UserNotificationSettings?
-  friendRequestsSent     FriendRequest[]           @relation("FriendRequestSender")
-  friendRequestsReceived FriendRequest[]           @relation("FriendRequestReceiver")
-  ownedServers           Server[]                  @relation("ServerOwner")
-  serverMembers          ServerMember[]
-  bannedFromServers      ServerBan[]               @relation("BanUser")
-  serverBans             ServerBan[]               @relation("BanModerator")
-  serverInvites          ServerInvite[]
-  messages               Message[]                 @relation("MessageAuthor")
-  reactions              Reaction[]
-  messageMentions        MessageMention[]
-  pinnedMessages         PinnedMessage[]
-  channelReadStates      ChannelReadState[]
-  userChannelSettings    UserChannelSettings[]
-  userServerSettings     UserServerSettings[]
-  dmParticipants         DMParticipant[]
-  dmMessages             DMMessage[]
-  dmReactions            DMReaction[]
-  attachments            Attachment[]
-  notifications          Notification[]
-  emojis                 Emoji[]
-  webhooks               Webhook[]
-  auditLogs              AuditLog[]
-  voiceState             VoiceState?
-  scheduledEvents        ScheduledEvent[]
+  settings                UserSettings?
+  notificationSettings    UserNotificationSettings?
+  friendRequestsSent      FriendRequest[]           @relation("FriendRequestSender")
+  friendRequestsReceived  FriendRequest[]           @relation("FriendRequestReceiver")
+  ownedServers            Server[]                  @relation("ServerOwner")
+  serverMembers           ServerMember[]
+  bannedFromServers       ServerBan[]               @relation("BanUser")
+  serverBans              ServerBan[]               @relation("BanModerator")
+  serverInvites           ServerInvite[]
+  messages                Message[]                 @relation("MessageAuthor")
+  reactions               Reaction[]
+  messageMentions         MessageMention[]
+  pinnedMessages          PinnedMessage[]
+  channelReadStates       ChannelReadState[]
+  userChannelSettings     UserChannelSettings[]
+  userServerSettings      UserServerSettings[]
+  dmParticipants          DMParticipant[]
+  dmMessages              DMMessage[]
+  dmReactions             DMReaction[]
+  attachments             Attachment[]
+  notifications           Notification[]
+  emojis                  Emoji[]
+  webhooks                Webhook[]
+  auditLogs               AuditLog[]
+  voiceState              VoiceState?
+  scheduledEvents         ScheduledEvent[]
 
   @@index([email])
   @@index([username])
@@ -588,42 +588,45 @@ model ChannelPermissionOverride {
 }
 
 model Message {
-  id              String      @id @default(uuid())
-  channelId       String
-  userId          String
-  content         String      @db.Text
-  type            MessageType @default(DEFAULT)
-  replyToId       String?
-  threadParentId  String?
-  threadId        String?
-  mentionEveryone Boolean     @default(false)
-  isPinned        Boolean     @default(false)
-  pinnedAt        DateTime?
-  pinnedById      String?
-  flags           Int         @default(0)
-  editedAt        DateTime?
-  deletedAt       DateTime?
-  tts             Boolean     @default(false)
-  webhookId       String?
-  createdAt       DateTime    @default(now())
+  id                   String      @id @default(uuid())
+  channelId            String
+  userId               String
+  content              String      @db.Text
+  type                 MessageType @default(DEFAULT)
+  replyToId            String?
+  threadParentId       String?
+  threadId             String?
+  mentionEveryone      Boolean     @default(false)
+  isPinned             Boolean     @default(false)
+  pinnedAt             DateTime?
+  pinnedById           String?
+  flags                Int         @default(0)
+  editedAt             DateTime?
+  deletedAt            DateTime?
+  deletedById          String?
+  placeholderRemovedAt DateTime?
+  tts                  Boolean     @default(false)
+  webhookId            String?
+  createdAt            DateTime    @default(now())
 
-  channel     Channel          @relation("MessageChannel", fields: [channelId], references: [id], onDelete: Cascade)
-  author      User             @relation("MessageAuthor", fields: [userId], references: [id], onDelete: Cascade)
-  reply       Message?         @relation("MessageReply", fields: [replyToId], references: [id], onDelete: Restrict)
-  replies     Message[]        @relation("MessageReply")
-  threadParent Message?        @relation("MessageThreadParent", fields: [threadParentId], references: [id], onDelete: Cascade)
-  threadReplies Message[]      @relation("MessageThreadParent")
-  thread      Channel?         @relation("MessageThread", fields: [threadId], references: [id], onDelete: Cascade)
-  mentions    MessageMention[]
-  reactions   Reaction[]
-  attachments Attachment[]     @relation("MessageAttachment")
-  pinned      PinnedMessage[]
+  channel       Channel          @relation("MessageChannel", fields: [channelId], references: [id], onDelete: Cascade)
+  author        User             @relation("MessageAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  reply         Message?         @relation("MessageReply", fields: [replyToId], references: [id], onDelete: Restrict)
+  replies       Message[]        @relation("MessageReply")
+  threadParent  Message?         @relation("MessageThreadParent", fields: [threadParentId], references: [id], onDelete: Cascade)
+  threadReplies Message[]        @relation("MessageThreadParent")
+  thread        Channel?         @relation("MessageThread", fields: [threadId], references: [id], onDelete: Cascade)
+  mentions      MessageMention[]
+  reactions     Reaction[]
+  attachments   Attachment[]     @relation("MessageAttachment")
+  pinned        PinnedMessage[]
 
   content_search Unsupported("tsvector")? @map("content_search")
 
   @@index([channelId, createdAt])
   @@index([channelId, threadParentId, createdAt])
   @@index([channelId, threadId, createdAt])
+  @@index([channelId, placeholderRemovedAt])
   @@index([threadParentId, createdAt])
   @@index([userId])
 }
@@ -779,29 +782,32 @@ model DMParticipant {
 }
 
 model DMMessage {
-  id             String    @id @default(uuid())
-  conversationId String
-  userId         String
-  content        String    @db.Text
-  replyToId      String?
-  threadParentId String?
-  editedAt       DateTime?
-  deletedAt      DateTime?
-  createdAt      DateTime  @default(now())
+  id                   String    @id @default(uuid())
+  conversationId       String
+  userId               String
+  content              String    @db.Text
+  replyToId            String?
+  threadParentId       String?
+  editedAt             DateTime?
+  deletedAt            DateTime?
+  deletedById          String?
+  placeholderRemovedAt DateTime?
+  createdAt            DateTime  @default(now())
 
-  conversation DMConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  author       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reply        DMMessage?     @relation("DMMessageReply", fields: [replyToId], references: [id], onDelete: Restrict)
-  replies      DMMessage[]    @relation("DMMessageReply")
-  threadParent DMMessage?     @relation("DMMessageThreadParent", fields: [threadParentId], references: [id], onDelete: Cascade)
-  threadReplies DMMessage[]   @relation("DMMessageThreadParent")
-  attachments  Attachment[]   @relation("DMMessageAttachment")
-  reactions    DMReaction[]
+  conversation  DMConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reply         DMMessage?     @relation("DMMessageReply", fields: [replyToId], references: [id], onDelete: Restrict)
+  replies       DMMessage[]    @relation("DMMessageReply")
+  threadParent  DMMessage?     @relation("DMMessageThreadParent", fields: [threadParentId], references: [id], onDelete: Cascade)
+  threadReplies DMMessage[]    @relation("DMMessageThreadParent")
+  attachments   Attachment[]   @relation("DMMessageAttachment")
+  reactions     DMReaction[]
 
   content_search Unsupported("tsvector")? @map("content_search")
 
   @@index([conversationId, createdAt])
   @@index([conversationId, threadParentId, createdAt])
+  @@index([conversationId, placeholderRemovedAt])
   @@index([threadParentId, createdAt])
   @@index([userId])
 }

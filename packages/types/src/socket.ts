@@ -45,6 +45,7 @@ export interface DMMessagePayload {
   threadSummary?: MessageThreadSummary | undefined;
   editedAt: string | null;
   deletedAt: string | null;
+  deletedById: string | null;
   createdAt: string;
   author: DMMessageAuthorPayload;
   attachments: DMMessageAttachmentPayload[];
@@ -110,6 +111,7 @@ export const DMMessagePayloadSchema: z.ZodType<DMMessagePayload> = z.lazy(() =>
     threadSummary: MessageThreadSummarySchema.optional(),
     editedAt: z.string().nullable(),
     deletedAt: z.string().nullable(),
+    deletedById: z.string().nullable(),
     createdAt: z.string(),
     author: DMMessageAuthorSchema,
     attachments: z.array(DMMessageAttachmentSchema),

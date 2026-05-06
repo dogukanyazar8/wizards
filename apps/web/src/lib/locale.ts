@@ -881,12 +881,20 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.user.status": "Online status",
     "shell.user.statusTitle": "Change online status",
     "shell.user.idleAfter": "Idle after",
+    "shell.user.idleAfterDescription":
+      "Automatically show yourself as idle after a short period of inactivity.",
     "shell.user.idleAfterTitle": "Set automatic idle timeout",
     "shell.user.idleMinutes": "{count} min",
+    "shell.user.inputDevice": "Input device",
+    "shell.user.microphone": "Microphone",
+    "shell.user.outputDevice": "Output device",
     "shell.user.quickMenu": "Account quick controls",
     "shell.user.appearanceSettings": "Open settings",
     "shell.user.appearanceSettingsTitle": "Settings",
+    "shell.user.settingsDescription": "Open Whispr settings and preferences",
+    "shell.user.speaker": "Speaker",
     "shell.user.logout": "Log out",
+    "shell.user.logoutDescription": "Sign out of your Whispr account",
     "shell.user.logoutTitle": "Log out",
     "shell.main.openConversation": "Open conversation",
     "shell.main.workspaceOverview": "Workspace overview",
@@ -934,12 +942,19 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
 
     "chat.message.deleteConfirm": "Delete this message?",
     "chat.message.deleteDialogTitle": "Delete message?",
-    "chat.message.deleteDialogDescription":
-      "This removes the message from the conversation for everyone.",
-    "chat.message.deleteDialogBody":
-      "This action cannot be undone, but the conversation will stay intact.",
-    "chat.message.deleted": "This message was deleted.",
-    "chat.message.edited": "(edited)",
+      "chat.message.deleteDialogDescription":
+        "This removes the message from the conversation for everyone.",
+      "chat.message.deleteDialogBody":
+        "This action cannot be undone, but the conversation will stay intact.",
+      "chat.message.deleted": "This message was deleted.",
+      "chat.message.removeDeletedPlaceholder": "Remove notice",
+      "chat.message.removeDeletedPlaceholderAria": "Remove deleted message notice",
+      "chat.message.removeDeletedDialogTitle": "Remove deleted message notice?",
+      "chat.message.removeDeletedDialogDescription":
+        "This hides the deleted-message notice without changing the rest of the conversation.",
+      "chat.message.removeDeletedDialogBody":
+        "Only the user who deleted it or a server admin can remove this notice.",
+      "chat.message.edited": "(edited)",
     "chat.message.systemJoin": "{name} joined the server.",
     "chat.message.systemLeave": "{name} left the server.",
     "chat.message.react": "React",
@@ -2201,12 +2216,20 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.user.status": "Çevrimiçi durum",
     "shell.user.statusTitle": "Çevrimiçi durumunu değiştir",
     "shell.user.idleAfter": "Boşta say",
+    "shell.user.idleAfterDescription":
+      "Belirli süre etkinlik olmadığında kendini otomatik olarak boşta göster.",
     "shell.user.idleAfterTitle": "Otomatik boşta süresini ayarla",
     "shell.user.idleMinutes": "{count} dk",
+    "shell.user.inputDevice": "Giriş cihazı",
+    "shell.user.microphone": "Mikrofon",
+    "shell.user.outputDevice": "Çıkış cihazı",
     "shell.user.quickMenu": "Hesap hızlı kontrolleri",
     "shell.user.appearanceSettings": "Ayarları aç",
     "shell.user.appearanceSettingsTitle": "Ayarlar",
+    "shell.user.settingsDescription": "Whispr ayarlarını ve tercihlerini aç",
+    "shell.user.speaker": "Hoparlör",
     "shell.user.logout": "Çıkış yap",
+    "shell.user.logoutDescription": "Whispr hesabından çıkış yap",
     "shell.user.logoutTitle": "Çıkış yap",
     "shell.main.openConversation": "Açık konuşma",
     "shell.main.workspaceOverview": "Çalışma alanı özeti",
@@ -2254,12 +2277,19 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
 
     "chat.message.deleteConfirm": "Bu mesaj silinsin mi?",
     "chat.message.deleteDialogTitle": "Mesaj silinsin mi?",
-    "chat.message.deleteDialogDescription":
-      "Bu işlem mesajı konuşmadan herkes için kaldırır.",
-    "chat.message.deleteDialogBody":
-      "Bu işlem geri alınamaz, ancak konuşmanın geri kalanı korunur.",
-    "chat.message.deleted": "Bu mesaj silindi.",
-    "chat.message.edited": "(düzenlendi)",
+      "chat.message.deleteDialogDescription":
+        "Bu işlem mesajı konuşmadan herkes için kaldırır.",
+      "chat.message.deleteDialogBody":
+        "Bu işlem geri alınamaz, ancak konuşmanın geri kalanı korunur.",
+      "chat.message.deleted": "Bu mesaj silindi.",
+      "chat.message.removeDeletedPlaceholder": "Bilgiyi kaldır",
+      "chat.message.removeDeletedPlaceholderAria": "Silinen mesaj bilgisini kaldır",
+      "chat.message.removeDeletedDialogTitle": "Silinen mesaj bilgisi kaldırılsın mı?",
+      "chat.message.removeDeletedDialogDescription":
+        "Bu işlem konuşmanın geri kalanını değiştirmeden silinen mesaj bilgisini gizler.",
+      "chat.message.removeDeletedDialogBody":
+        "Bu bilgiyi yalnızca mesajı silen kullanıcı veya sunucu admini kaldırabilir.",
+      "chat.message.edited": "(düzenlendi)",
     "chat.message.systemJoin": "{name} sunucuya katıldı.",
     "chat.message.systemLeave": "{name} sunucudan ayrıldı.",
     "chat.message.react": "Tepki Ver",

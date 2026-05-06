@@ -20,6 +20,7 @@ import { DEFAULT_AUDIO_DEVICE_ID } from "@/store/voice-store";
 
 type AudioDeviceSelectProps = {
   kind: "input" | "output";
+  showIcon?: boolean;
   variant?: "compact" | "panel";
 };
 
@@ -83,6 +84,7 @@ function withDefaultOption(
 
 export function AudioDeviceSelect({
   kind,
+  showIcon = true,
   variant = "panel",
 }: AudioDeviceSelectProps) {
   const { t } = useI18n();
@@ -257,9 +259,7 @@ export function AudioDeviceSelect({
       className={cn(
         "absolute z-[95] overflow-hidden rounded-[24px] border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.96)] p-2 shadow-[0_24px_70px_hsl(var(--shadow-color)/0.24)] backdrop-blur-2xl",
         position === "compact" &&
-          "bottom-[calc(100%+0.55rem)] w-[min(19rem,calc(100vw-1.5rem))]",
-        position === "compact" && kind === "input" && "left-0",
-        position === "compact" && kind === "output" && "right-0",
+          "bottom-[calc(100%+0.55rem)] right-0 w-[min(22rem,calc(100vw-1.5rem))]",
         position === "panel" && "left-0 right-0 top-[calc(100%+0.75rem)]",
       )}
       data-testid={`audio-device-select-${kind}-menu`}
@@ -355,7 +355,7 @@ export function AudioDeviceSelect({
         })}
       </div>
 
-      <p className="border-t border-[hsl(var(--border)/0.48)] px-3 pb-1 pt-2 text-[11px] leading-4 text-app-soft">
+      <p className="mt-2 border-t border-[hsl(var(--border)/0.48)] px-3 pb-2 pt-3 text-[11px] leading-4 text-app-soft">
         {statusText}
       </p>
     </div>
@@ -386,7 +386,7 @@ export function AudioDeviceSelect({
           title={selectedLabel}
           type="button"
         >
-          <Icon className="h-3.5 w-3.5 shrink-0" />
+          {showIcon ? <Icon className="h-3.5 w-3.5 shrink-0" /> : null}
           <span className="min-w-0 flex-1 truncate text-[11px] font-semibold">
             {isLoading ? t("voice.devices.loading") : selectedLabel}
           </span>
