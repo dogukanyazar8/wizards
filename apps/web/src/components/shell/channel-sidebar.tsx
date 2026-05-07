@@ -30,7 +30,9 @@ import {
   Mic,
   MoreHorizontal,
   Plus,
+  RotateCcw,
   Settings2,
+  SlidersHorizontal,
   Trash2,
   UserPlus,
   Volume2,
@@ -69,6 +71,11 @@ import { useAppStore } from "@/lib/store";
 import { updatePresenceStatusAction } from "@/lib/account/actions";
 import { logoutAction } from "@/lib/auth/actions";
 import type { VoiceChannelStateDTO } from "@/lib/voice/types";
+import {
+  CHANNEL_SIDEBAR_WIDTH_STEP,
+  MAX_CHANNEL_SIDEBAR_WIDTH,
+  MIN_CHANNEL_SIDEBAR_WIDTH,
+} from "@/lib/appearance";
 
 type PresenceStatus = "ONLINE" | "IDLE" | "DND" | "OFFLINE";
 
@@ -157,7 +164,7 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
         {canManage ? (
           <button
             aria-label={`Drag channel ${channel.name}`}
-            className="text-app-soft rounded-lg p-1 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
+            className="text-app-soft rounded-lg p-0.5 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
             type="button"
             {...attributes}
             {...listeners}
@@ -233,7 +240,7 @@ function ChannelDropZone({
     <div
       ref={setNodeRef}
       className={cn(
-        "min-h-8 rounded-[22px] border border-transparent p-1 transition",
+        "min-h-6 rounded-[20px] border border-transparent px-0.5 py-0.5 transition",
         canManage && isOver
           ? "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.08)] shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.08)]"
           : "",
@@ -285,6 +292,46 @@ function getStatusDotClass(status: PresenceStatus) {
   }
 
   return "bg-slate-400 shadow-[0_0_0_3px_hsl(var(--muted)/0.18)]";
+}
+
+function SidebarTuningControl({
+  label,
+  max,
+  min,
+  onChange,
+  step,
+  value,
+}: {
+  label: string;
+  max: number;
+  min: number;
+  onChange: (value: number) => void;
+  step: number;
+  value: number;
+}) {
+  return (
+    <label className="block rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.36)] p-3">
+      <span className="mb-2 flex items-center justify-between gap-3">
+        <span className="text-xs font-semibold text-app-foreground">{label}</span>
+        <span className="rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.68)] px-2 py-0.5 text-[11px] font-bold text-app-muted">
+          {value}px
+        </span>
+      </span>
+      <input
+        className="h-2 w-full cursor-pointer accent-[hsl(var(--primary))]"
+        max={max}
+        min={min}
+        onChange={(event) => onChange(Number(event.target.value))}
+        step={step}
+        type="range"
+        value={value}
+      />
+      <span className="mt-1 flex justify-between text-[10px] font-semibold uppercase tracking-[0.12em] text-app-soft">
+        <span>{min}px</span>
+        <span>{max}px</span>
+      </span>
+    </label>
+  );
 }
 
 export function UserProfileFooter({
@@ -547,37 +594,41 @@ export function UserProfileFooter({
               <div className="my-4 h-px bg-[hsl(var(--border)/0.6)]" />
 
               <div className="grid gap-3.5">
-                <div className="grid grid-cols-[2.5rem_minmax(0,1fr)_minmax(12rem,14rem)] items-center gap-2.5">
+                <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-start gap-2.5">
                   <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
                     <Mic className="h-[18px] w-[18px]" />
                   </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
-                      {t("shell.user.microphone")}
-                    </p>
-                    <p className="mt-0.5 truncate text-[13px] text-app-muted">
-                      {t("shell.user.inputDevice")}
-                    </p>
-                  </div>
-                  <div className="min-w-0">
-                    <AudioDeviceSelect kind="input" showIcon={false} variant="compact" />
+                  <div className="min-w-0 space-y-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
+                        {t("shell.user.microphone")}
+                      </p>
+                      <p className="mt-0.5 truncate text-[13px] text-app-muted">
+                        {t("shell.user.inputDevice")}
+                      </p>
+                    </div>
+                    <div className="min-w-0">
+                      <AudioDeviceSelect kind="input" showIcon={false} variant="compact" />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-[2.5rem_minmax(0,1fr)_minmax(12rem,14rem)] items-center gap-2.5">
+                <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-start gap-2.5">
                   <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
                     <Volume2 className="h-[18px] w-[18px]" />
                   </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
-                      {t("shell.user.speaker")}
-                    </p>
-                    <p className="mt-0.5 truncate text-[13px] text-app-muted">
-                      {t("shell.user.outputDevice")}
-                    </p>
-                  </div>
-                  <div className="min-w-0">
-                    <AudioDeviceSelect kind="output" showIcon={false} variant="compact" />
+                  <div className="min-w-0 space-y-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
+                        {t("shell.user.speaker")}
+                      </p>
+                      <p className="mt-0.5 truncate text-[13px] text-app-muted">
+                        {t("shell.user.outputDevice")}
+                      </p>
+                    </div>
+                    <div className="min-w-0">
+                      <AudioDeviceSelect kind="output" showIcon={false} variant="compact" />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -668,21 +719,27 @@ export function ChannelSidebar({
   const voiceStatesQuery = useVoiceStates(detail?.server.id ?? null);
   const { prepareForVoiceJoin } = useVoiceConnection();
   const {
+    channelSidebarWidth,
     collapsedCategories,
     openCategoryModal,
     openChannelModal,
     openDeleteChannelDialog,
     openInviteModal,
     openServerSettings,
+    resetChannelSidebarWidth,
+    setChannelSidebarWidth,
     toggleCategoryCollapse,
   } = useAppStore(
     useShallow((state) => ({
+      channelSidebarWidth: state.channelSidebarWidth,
       collapsedCategories: state.collapsedCategories,
       openCategoryModal: state.openCategoryModal,
       openChannelModal: state.openChannelModal,
       openDeleteChannelDialog: state.openDeleteChannelDialog,
       openInviteModal: state.openInviteModal,
       openServerSettings: state.openServerSettings,
+      resetChannelSidebarWidth: state.resetChannelSidebarWidth,
+      setChannelSidebarWidth: state.setChannelSidebarWidth,
       toggleCategoryCollapse: state.toggleCategoryCollapse,
     })),
   );
@@ -855,15 +912,13 @@ export function ChannelSidebar({
   const serverId = detail?.server.id ?? null;
 
   const navigateToChannel = useCallback(
-    async (channelId: string, channelType: "TEXT" | "VOICE") => {
+    (channelId: string, channelType: "TEXT" | "VOICE") => {
       if (!serverId) return;
 
       if (channelType === "VOICE") {
-        try {
-          await prepareForVoiceJoin();
-        } catch {
+        void prepareForVoiceJoin().catch(() => {
           // Join flow inside the voice view handles the final fallback state.
-        }
+        });
       }
 
       onNavigate(`/channels/${serverId}/${channelId}`);
@@ -974,6 +1029,66 @@ export function ChannelSidebar({
     [categoryReorderMutation, detail, reorderMutation],
   );
 
+  const renderSidebarControls = () => (
+    <div className="space-y-2 px-2 py-2">
+      <div className="flex items-start gap-2 px-1">
+        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted">
+          <SlidersHorizontal className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-xs font-bold text-app-foreground">
+            {t("shell.channelSidebar.customize")}
+          </p>
+          <p className="mt-0.5 text-[11px] leading-4 text-app-soft">
+            {t("shell.channelSidebar.customizeHint")}
+          </p>
+        </div>
+      </div>
+      <SidebarTuningControl
+        label={t("shell.channelSidebar.width")}
+        max={MAX_CHANNEL_SIDEBAR_WIDTH}
+        min={MIN_CHANNEL_SIDEBAR_WIDTH}
+        onChange={setChannelSidebarWidth}
+        step={CHANNEL_SIDEBAR_WIDTH_STEP}
+        value={channelSidebarWidth}
+      />
+      <button
+        className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-xs font-bold text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.55)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+        onClick={() => {
+          resetChannelSidebarWidth();
+          setHeaderMenu((state) => ({ ...state, open: false }));
+          setEmptyMenu((state) => ({ ...state, open: false }));
+          setCategoryMenu((state) => ({ ...state, open: false }));
+        }}
+        type="button"
+      >
+        <RotateCcw className="h-3.5 w-3.5" />
+        {t("appearance.resetSidebar")}
+      </button>
+    </div>
+  );
+
+  const setAllCategoriesCollapsed = useCallback(
+    (collapsed: boolean) => {
+      if (!detail) {
+        return;
+      }
+
+      detail.categories.forEach((category) => {
+        const key = `${detail.server.id}:${category.id}`;
+        const isCollapsed = collapsedCategories[key] ?? false;
+        if (isCollapsed !== collapsed) {
+          toggleCategoryCollapse(detail.server.id, category.id);
+        }
+      });
+
+      setHeaderMenu((state) => ({ ...state, open: false }));
+      setEmptyMenu((state) => ({ ...state, open: false }));
+      setCategoryMenu((state) => ({ ...state, open: false }));
+    },
+    [collapsedCategories, detail, toggleCategoryCollapse],
+  );
+
   if (loading) {
     return (
       <aside
@@ -1035,7 +1150,7 @@ export function ChannelSidebar({
 
     return (
       <div
-        className="group/category space-y-2 rounded-[26px] border border-[hsl(var(--border)/0.32)] bg-[hsl(var(--surface-card)/0.18)] p-2"
+        className="group/category space-y-1 rounded-[22px] border border-[hsl(var(--border)/0.32)] bg-[hsl(var(--surface-card)/0.18)] px-1.5 py-1.5"
         data-sidebar-interactive="true"
         key={categoryId ?? "uncategorized"}
       >
@@ -1044,7 +1159,7 @@ export function ChannelSidebar({
             <button
               aria-label={t("shell.channelSidebar.dragCategory", { name: label })}
               className={cn(
-                "text-app-soft inline-flex h-8 w-7 shrink-0 items-center justify-center rounded-xl transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                "text-app-soft inline-flex h-7 w-6 shrink-0 items-center justify-center rounded-xl transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                 categorySortable.isDragging && "cursor-grabbing text-app-foreground",
               )}
               type="button"
@@ -1088,7 +1203,7 @@ export function ChannelSidebar({
             </div>
           ) : null}
           <button
-            className="text-app-soft flex min-w-0 flex-1 items-center justify-between rounded-2xl px-2.5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-[0.26em] transition hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-[hsl(var(--foreground))]"
+            className="text-app-soft flex min-w-0 flex-1 items-center justify-between rounded-2xl px-2 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.24em] transition hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-[hsl(var(--foreground))]"
             onClick={() => {
               if (categoryId) {
                 toggleCategoryCollapse(detail.server.id, categoryId);
@@ -1104,7 +1219,7 @@ export function ChannelSidebar({
           {canManage && categoryId ? (
             <button
               aria-label={t("shell.channelSidebar.categoryActions")}
-              className="text-app-soft inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-transparent opacity-0 transition hover:border-[hsl(var(--border)/0.62)] hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] group-hover/category:opacity-100"
+              className="text-app-soft inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-2xl border border-transparent opacity-0 transition hover:border-[hsl(var(--border)/0.62)] hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] group-hover/category:opacity-100"
               onClick={(event) => {
                 event.stopPropagation();
                 const rect = event.currentTarget.getBoundingClientRect();
@@ -1123,7 +1238,7 @@ export function ChannelSidebar({
           ) : null}
         </div>
         {canManage && categoryId ? (
-          <p className="px-2.5 text-[10px] font-medium leading-4 text-app-soft opacity-0 transition group-hover/category:opacity-100 group-focus-within/category:opacity-100">
+          <p className="hidden px-2.5 text-[10px] font-medium leading-4 text-app-soft transition group-hover/category:block group-focus-within/category:block">
             {t("shell.channelSidebar.categoryMoveHint")}
           </p>
         ) : null}
@@ -1136,7 +1251,7 @@ export function ChannelSidebar({
               empty={channels.length === 0}
               emptyLabel={t("shell.channelSidebar.dropChannelsHere")}
             >
-              <div className="space-y-1.5">
+              <div className="space-y-0.5">
                 {channels.map((channel) => {
                   const voiceState =
                     channel.type === "VOICE"
@@ -1260,12 +1375,8 @@ export function ChannelSidebar({
         sensors={sensors}
       >
         <div
-          className="min-w-0 flex-1 space-y-5 overflow-y-auto overflow-x-hidden p-3"
+          className="min-w-0 flex-1 space-y-2.5 overflow-y-auto overflow-x-hidden p-3"
           onContextMenu={(event) => {
-            if (!canManage) {
-              return;
-            }
-
             const target = event.target;
             if (target instanceof HTMLElement && target.closest("[data-sidebar-interactive='true']")) {
               return;
@@ -1377,6 +1488,23 @@ export function ChannelSidebar({
             {t("shell.channelSidebar.memberView")}
           </div>
         )}
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          disabled={detail.categories.length === 0}
+          onClick={() => setAllCategoriesCollapsed(false)}
+        >
+          <ChevronDown className="mr-2 h-4 w-4" />
+          {t("shell.channelSidebar.expandAllCategories")}
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={detail.categories.length === 0}
+          onClick={() => setAllCategoriesCollapsed(true)}
+        >
+          <ChevronDown className="mr-2 h-4 w-4 -rotate-90" />
+          {t("shell.channelSidebar.collapseAllCategories")}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        {renderSidebarControls()}
       </ContextMenu>
 
       <ContextMenu
@@ -1451,6 +1579,21 @@ export function ChannelSidebar({
           <Trash2 className="mr-2 h-4 w-4" />
           {t("shell.channelSidebar.deleteCategory")}
         </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          disabled={detail.categories.length === 0}
+          onClick={() => setAllCategoriesCollapsed(false)}
+        >
+          <ChevronDown className="mr-2 h-4 w-4" />
+          {t("shell.channelSidebar.expandAllCategories")}
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={detail.categories.length === 0}
+          onClick={() => setAllCategoriesCollapsed(true)}
+        >
+          <ChevronDown className="mr-2 h-4 w-4 -rotate-90" />
+          {t("shell.channelSidebar.collapseAllCategories")}
+        </ContextMenuItem>
       </ContextMenu>
 
       <ContextMenu
@@ -1458,51 +1601,72 @@ export function ChannelSidebar({
         open={emptyMenu.open}
         position={emptyMenu}
       >
+        {canManage ? (
+          <>
+            <ContextMenuItem
+              onClick={() => {
+                setEmptyMenu((state) => ({ ...state, open: false }));
+                openChannelModal({
+                  mode: "create",
+                  serverId: detail.server.id,
+                  type: "TEXT",
+                });
+              }}
+            >
+              <Hash className="mr-2 h-4 w-4" />
+              {t("shell.channelSidebar.createTextChannel")}
+            </ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => {
+                setEmptyMenu((state) => ({ ...state, open: false }));
+                openChannelModal({
+                  mode: "create",
+                  serverId: detail.server.id,
+                  type: "VOICE",
+                });
+              }}
+            >
+              <Volume2 className="mr-2 h-4 w-4" />
+              {t("shell.channelSidebar.createVoiceChannel")}
+            </ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => {
+                setEmptyMenu((state) => ({ ...state, open: false }));
+                openCategoryModal(detail.server.id);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {t("shell.channelSidebar.createCategory")}
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onClick={() => {
+                setEmptyMenu((state) => ({ ...state, open: false }));
+                openInviteModal(detail.server.id);
+              }}
+            >
+              <UserPlus className="mr-2 h-4 w-4" />
+              {t("shell.channelSidebar.createInvite")}
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+          </>
+        ) : null}
         <ContextMenuItem
-          onClick={() => {
-            setEmptyMenu((state) => ({ ...state, open: false }));
-            openChannelModal({
-              mode: "create",
-              serverId: detail.server.id,
-              type: "TEXT",
-            });
-          }}
+          disabled={detail.categories.length === 0}
+          onClick={() => setAllCategoriesCollapsed(false)}
         >
-          <Hash className="mr-2 h-4 w-4" />
-          {t("shell.channelSidebar.createTextChannel")}
+          <ChevronDown className="mr-2 h-4 w-4" />
+          {t("shell.channelSidebar.expandAllCategories")}
         </ContextMenuItem>
         <ContextMenuItem
-          onClick={() => {
-            setEmptyMenu((state) => ({ ...state, open: false }));
-            openChannelModal({
-              mode: "create",
-              serverId: detail.server.id,
-              type: "VOICE",
-            });
-          }}
+          disabled={detail.categories.length === 0}
+          onClick={() => setAllCategoriesCollapsed(true)}
         >
-          <Volume2 className="mr-2 h-4 w-4" />
-          {t("shell.channelSidebar.createVoiceChannel")}
-        </ContextMenuItem>
-        <ContextMenuItem
-          onClick={() => {
-            setEmptyMenu((state) => ({ ...state, open: false }));
-            openCategoryModal(detail.server.id);
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          {t("shell.channelSidebar.createCategory")}
+          <ChevronDown className="mr-2 h-4 w-4 -rotate-90" />
+          {t("shell.channelSidebar.collapseAllCategories")}
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem
-          onClick={() => {
-            setEmptyMenu((state) => ({ ...state, open: false }));
-            openInviteModal(detail.server.id);
-          }}
-        >
-          <UserPlus className="mr-2 h-4 w-4" />
-          {t("shell.channelSidebar.createInvite")}
-        </ContextMenuItem>
+        {renderSidebarControls()}
       </ContextMenu>
 
       <Modal

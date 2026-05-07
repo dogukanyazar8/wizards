@@ -50,6 +50,7 @@ export function MessageList({
   const lastHighlightedMessageIdRef = useRef<string | null>(null);
   const [targetMessageId, setTargetMessageId] = useState<string | null>(null);
   const [unreadJumpDismissed, setUnreadJumpDismissed] = useState(false);
+  const [deletedNoticeNow, setDeletedNoticeNow] = useState(() => Date.now());
 
   const forceScrollToBottom = useCallback(() => {
     if (!listRef.current) {
@@ -266,9 +267,37 @@ export function MessageList({
   }, [forceScrollToBottom]);
 
   const allMessages = useMemo(
-    () => (data?.pages ? [...data.pages].reverse().flatMap((page) => page.messages) : []),
-    [data?.pages],
+    () =>
+      (data?.pages ? [...data.pages].reverse().flatMap((page) => page.messages) : []).filter(
+        (message) => {
+          if (!message.deletedAt || !message.placeholderExpiresAt) {
+            return true;
+          }
+
+          return Date.parse(message.placeholderExpiresAt) > deletedNoticeNow;
+        },
+      ),
+    [data?.pages, deletedNoticeNow],
   );
+
+  useEffect(() => {
+    const nextExpiry = allMessages
+      .filter((message) => message.deletedAt && message.placeholderExpiresAt)
+      .map((message) => Date.parse(message.placeholderExpiresAt!))
+      .filter((timestamp) => Number.isFinite(timestamp) && timestamp > deletedNoticeNow)
+      .sort((left, right) => left - right)[0];
+
+    if (!nextExpiry) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(
+      () => setDeletedNoticeNow(Date.now()),
+      Math.max(1000, nextExpiry - Date.now() + 100),
+    );
+
+    return () => window.clearTimeout(timeoutId);
+  }, [allMessages, deletedNoticeNow]);
 
   const groupedMessages = useMemo(
     () =>

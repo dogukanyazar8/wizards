@@ -16,6 +16,12 @@ export const MessageReactionSchema = z.object({
   emoji: z.string(),
   count: z.number().int().positive(),
   userIds: z.array(z.string()),
+  users: z.array(z.object({
+    id: z.string(),
+    username: z.string(),
+    displayName: z.string().nullable(),
+    avatarUrl: z.string().nullable(),
+  })).optional(),
 });
 
 export const MessageAttachmentSchema = z.object({
@@ -81,6 +87,7 @@ export const ChatMessageSchema = z.object({
   editedAt: z.string().datetime().nullable(),
   deletedAt: z.string().datetime().nullable(),
   deletedById: z.string().nullable().optional(),
+  placeholderExpiresAt: z.string().datetime().nullable().optional(),
 });
 
 export const MessagesResponseSchema = z.object({

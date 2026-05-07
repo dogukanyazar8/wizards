@@ -164,7 +164,7 @@ function updateMessage(
 
 function markMessageDeleted(
   old: MessagePages | undefined,
-  data: { messageId: string; deletedById?: string },
+  data: { messageId: string; deletedById?: string; placeholderExpiresAt?: string | null },
 ): MessagePages | undefined {
   if (!old) {
     return old;
@@ -182,6 +182,7 @@ function markMessageDeleted(
               content: "",
               reactions: [],
               deletedById: data.deletedById ?? message.deletedById ?? null,
+              placeholderExpiresAt: data.placeholderExpiresAt ?? message.placeholderExpiresAt ?? null,
             }
           : message,
       ),
@@ -378,6 +379,7 @@ export function useMessages(mode: MessageMode, conversationId: string) {
         messageId: string;
         channelId: string;
         deletedById?: string;
+        placeholderExpiresAt?: string | null;
       }) => {
         if (data.channelId === conversationId) {
           queryClient.setQueryData<MessagePages>(queryKey, (old) => markMessageDeleted(old, data));

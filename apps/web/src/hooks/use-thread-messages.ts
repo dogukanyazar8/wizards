@@ -101,7 +101,7 @@ function updateThreadMessage(
 
 function markThreadMessageDeleted(
   old: ThreadMessagePages | undefined,
-  data: { messageId: string; deletedById?: string },
+  data: { messageId: string; deletedById?: string; placeholderExpiresAt?: string | null },
 ): ThreadMessagePages | undefined {
   if (!old) {
     return old;
@@ -118,6 +118,8 @@ function markThreadMessageDeleted(
               content: "",
               deletedAt: new Date().toISOString(),
               deletedById: data.deletedById ?? page.parent.deletedById ?? null,
+              placeholderExpiresAt:
+                data.placeholderExpiresAt ?? page.parent.placeholderExpiresAt ?? null,
               reactions: [],
             }
           : page.parent,
@@ -128,6 +130,8 @@ function markThreadMessageDeleted(
               content: "",
               deletedAt: new Date().toISOString(),
               deletedById: data.deletedById ?? message.deletedById ?? null,
+              placeholderExpiresAt:
+                data.placeholderExpiresAt ?? message.placeholderExpiresAt ?? null,
               reactions: [],
             }
           : message,
@@ -249,6 +253,7 @@ export function useThreadMessages(
         channelId: string;
         messageId: string;
         deletedById?: string;
+        placeholderExpiresAt?: string | null;
       }) => {
         if (data.channelId === conversationId) {
           queryClient.setQueryData<ThreadMessagePages>(queryKey, (old) =>

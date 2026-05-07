@@ -31,6 +31,26 @@ type ServerSettingsOverlayProps = {
   uploadthingEnabled: boolean;
 };
 
+const DELETED_NOTICE_OPTIONS = [5, 15, 30, 60, 180, 360, 1440] as const;
+
+function formatDeletedNoticeDuration(minutes: number, locale: string) {
+  if (minutes < 60) {
+    return locale === "tr" ? `${minutes} dakika` : `${minutes} minutes`;
+  }
+
+  if (minutes === 60) {
+    return locale === "tr" ? "1 saat" : "1 hour";
+  }
+
+  if (minutes < 1440) {
+    const hours = minutes / 60;
+    return locale === "tr" ? `${hours} saat` : `${hours} hours`;
+  }
+
+  const days = minutes / 1440;
+  return locale === "tr" ? `${days} gün` : `${days} days`;
+}
+
 export function ServerSettingsOverlay({
   detail,
   onOpenDeleteServer,
@@ -62,6 +82,9 @@ export function ServerSettingsOverlay({
   const [messageCharacterLimit, setMessageCharacterLimit] = useState(
     detail?.server.messageCharacterLimit ?? 2000,
   );
+  const [deletedMessageNoticeMinutes, setDeletedMessageNoticeMinutes] = useState(
+    detail?.server.deletedMessageNoticeMinutes ?? 60,
+  );
   const [overviewSaved, setOverviewSaved] = useState(false);
 
   useEffect(() => {
@@ -79,6 +102,7 @@ export function ServerSettingsOverlay({
     setAllowFileUploads(detail?.server.allowFileUploads ?? true);
     setAllowMemberAdds(detail?.server.allowMemberAdds ?? true);
     setMessageCharacterLimit(detail?.server.messageCharacterLimit ?? 2000);
+    setDeletedMessageNoticeMinutes(detail?.server.deletedMessageNoticeMinutes ?? 60);
   }, [
     detail?.server.allowFileUploads,
     detail?.server.allowGifs,
@@ -86,6 +110,7 @@ export function ServerSettingsOverlay({
     detail?.server.description,
     detail?.server.iconUrl,
     detail?.server.messageCharacterLimit,
+    detail?.server.deletedMessageNoticeMinutes,
     detail?.server.name,
     detail?.server.shortName,
     open,
@@ -129,6 +154,7 @@ export function ServerSettingsOverlay({
         description,
         iconUrl,
         messageCharacterLimit,
+        deletedMessageNoticeMinutes,
         name,
         shortName,
       });
@@ -154,6 +180,8 @@ export function ServerSettingsOverlay({
                   allowGifs: updatedDetail.server.allowGifs,
                   allowMemberAdds: updatedDetail.server.allowMemberAdds,
                   messageCharacterLimit: updatedDetail.server.messageCharacterLimit,
+                  deletedMessageNoticeMinutes:
+                    updatedDetail.server.deletedMessageNoticeMinutes,
                   iconUrl: updatedDetail.server.iconUrl,
                   name: updatedDetail.server.name,
                   shortName: updatedDetail.server.shortName,
@@ -440,6 +468,40 @@ export function ServerSettingsOverlay({
                         <span>250</span>
                         <span>{t("workspace.messages.adminUnlimited")}</span>
                         <span>40000</span>
+                      </div>
+                    </div>
+                    <div className="app-panel rounded-[28px] border p-4 sm:p-5">
+                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+                            {t("workspace.messages.deletedNoticeTitle")}
+                          </p>
+                          <p className="mt-2 text-sm leading-6 text-app-muted">
+                            {t("workspace.messages.deletedNoticeDescription")}
+                          </p>
+                        </div>
+                        <div className="w-full md:w-[13rem]">
+                          <label
+                            className="sr-only"
+                            htmlFor="server-deleted-message-notice"
+                          >
+                            {t("workspace.messages.deletedNoticeTitle")}
+                          </label>
+                          <select
+                            className="h-12 w-full rounded-2xl border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.9)] px-3 text-sm font-semibold text-app-foreground shadow-[0_14px_34px_hsl(var(--shadow-color)/0.08)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
+                            id="server-deleted-message-notice"
+                            onChange={(event) =>
+                              setDeletedMessageNoticeMinutes(Number(event.target.value))
+                            }
+                            value={deletedMessageNoticeMinutes}
+                          >
+                            {DELETED_NOTICE_OPTIONS.map((minutes) => (
+                              <option key={minutes} value={minutes}>
+                                {formatDeletedNoticeDuration(minutes, locale)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </div>
                     <div className="app-panel rounded-[28px] border p-4 sm:p-5">

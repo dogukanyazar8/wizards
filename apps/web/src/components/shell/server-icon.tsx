@@ -47,6 +47,13 @@ export function ServerIcon({
   const preview = labelPreview ?? fallback;
   const resolvedIconSize = iconSize ?? (showLabel ? 40 : 48);
   const resolvedRowHeight = Math.max(56, resolvedIconSize + 14);
+  const activeIndicatorHeight = Math.max(34, Math.min(42, resolvedIconSize));
+  const activeIndicatorLeft = showLabel
+    ? "0.125rem"
+    : `calc(50% - ${resolvedIconSize / 2 + 8}px)`;
+  const activeIndicatorTop = showLabel
+    ? (resolvedRowHeight - activeIndicatorHeight) / 2
+    : Math.max(0, (resolvedIconSize - activeIndicatorHeight) / 2);
 
   const showTooltip = () => {
     if (!buttonRef.current) return;
@@ -62,25 +69,28 @@ export function ServerIcon({
   useEffect(() => () => setTooltipPos(null), []);
 
   return (
-    <div className={cn("relative flex items-center justify-center", showLabel && "w-full")}>
+    <div className="relative flex w-full items-center justify-center">
       <motion.span
         animate={{
           opacity: active ? 1 : 0,
           scaleY: active ? 1 : 0.4,
         }}
-        className={cn(
-          "absolute rounded-full bg-[hsl(var(--primary))] shadow-[0_0_18px_hsl(var(--primary)/0.4)]",
-          showLabel ? "-left-2 h-9 w-1" : "-left-3 h-10 w-1",
-        )}
+        className="pointer-events-none absolute z-20 w-1.5 rounded-full bg-[linear-gradient(180deg,hsl(var(--primary)),hsl(var(--ambient-1)))] shadow-[0_0_20px_hsl(var(--primary)/0.46)]"
+        style={{
+          height: activeIndicatorHeight,
+          left: activeIndicatorLeft,
+          top: activeIndicatorTop,
+          transformOrigin: "center",
+        }}
         transition={{ duration: 0.16 }}
       />
-
       <motion.button
         ref={buttonRef}
         aria-current={active ? "page" : undefined}
         aria-label={label}
         className={cn(
           "group relative outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.7)]",
+          !showLabel && "mx-auto flex items-center justify-center",
           showLabel &&
             "flex w-full items-center gap-2.5 rounded-[22px] border px-2.5 text-left transition-all duration-200",
           showLabel && reorderable && "pr-5",

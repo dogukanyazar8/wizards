@@ -1276,6 +1276,7 @@ export function initSocketServer(httpServer: HTTPServer) {
           where: { id: messageId, placeholderRemovedAt: null },
           select: {
             channelId: true,
+            isPinned: true,
             userId: true,
             channel: {
               select: {
@@ -1310,7 +1311,7 @@ export function initSocketServer(httpServer: HTTPServer) {
 
         const deleteResult = await deleteMessage(messageId, userId, isAdmin);
 
-        if (deleteResult === "removed") {
+        if (deleteResult.status === "removed") {
           io.to(dbMessage.channelId).emit("message:removed", {
             messageId,
             channelId: dbMessage.channelId,
@@ -1320,6 +1321,13 @@ export function initSocketServer(httpServer: HTTPServer) {
             messageId,
             channelId: dbMessage.channelId,
             deletedById: userId,
+            placeholderExpiresAt: deleteResult.placeholderExpiresAt,
+          });
+        }
+
+        if (dbMessage.isPinned) {
+          io.to(dbMessage.channelId).emit("message:pins_updated", {
+            channelId: dbMessage.channelId,
           });
         }
       } catch (error) {

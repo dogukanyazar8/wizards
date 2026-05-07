@@ -42,7 +42,7 @@ export type WizardsThemeDefinition = {
   preview: WizardsThemePreview;
 };
 
-export const DEFAULT_WIZARDS_THEME: WizardsThemeId = "theme-dark";
+export const DEFAULT_WIZARDS_THEME: WizardsThemeId = "theme-light";
 
 export const LEGACY_THEME_ALIASES: Record<string, WizardsThemeId> = {
   dark: "theme-dark",
@@ -327,8 +327,8 @@ export const MIN_SERVER_RAIL_ICON_SIZE = 34;
 export const MAX_SERVER_RAIL_ICON_SIZE = 54;
 export const SERVER_RAIL_ICON_SIZE_STEP = 2;
 export const DEFAULT_CHANNEL_SIDEBAR_WIDTH = 288;
-export const MIN_CHANNEL_SIDEBAR_WIDTH = 248;
-export const MAX_CHANNEL_SIDEBAR_WIDTH = 384;
+export const MIN_CHANNEL_SIDEBAR_WIDTH = 264;
+export const MAX_CHANNEL_SIDEBAR_WIDTH = 600;
 export const CHANNEL_SIDEBAR_WIDTH_STEP = 8;
 export const LEGACY_DEFAULT_MAIN_PANEL_WIDTH = 1280;
 export const DEFAULT_MAIN_PANEL_WIDTH = 1400;

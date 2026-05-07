@@ -303,6 +303,7 @@ function mapServerSummary(args: {
   inviteCode: string | null;
   memberCount: number;
   messageCharacterLimit: number;
+  deletedMessageNoticeMinutes: number;
   mentionCount: number;
   name: string;
   shortName: string | null;
@@ -319,6 +320,7 @@ function mapServerSummary(args: {
     inviteCode: args.inviteCode,
     memberCount: args.memberCount,
     messageCharacterLimit: args.messageCharacterLimit,
+    deletedMessageNoticeMinutes: args.deletedMessageNoticeMinutes,
     mentionCount: args.mentionCount,
     name: args.name,
     shortName: args.shortName,
@@ -487,6 +489,7 @@ export async function listWorkspaceServers(userId: string) {
           id: true,
           inviteCode: true,
           messageCharacterLimit: true,
+          deletedMessageNoticeMinutes: true,
           name: true,
           ownerId: true,
           shortName: true,
@@ -519,6 +522,7 @@ export async function listWorkspaceServers(userId: string) {
       inviteCode: membership.server.inviteCode,
       memberCount: membership.server._count.members,
       messageCharacterLimit: membership.server.messageCharacterLimit,
+      deletedMessageNoticeMinutes: membership.server.deletedMessageNoticeMinutes,
       mentionCount: mentionCounts.get(membership.server.id) ?? 0,
       name: membership.server.name,
       shortName: membership.server.shortName,
@@ -599,6 +603,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
         id: true,
         inviteCode: true,
         messageCharacterLimit: true,
+        deletedMessageNoticeMinutes: true,
         members: {
           orderBy: [
             {
@@ -713,6 +718,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
       isOwner: access.accessLevel === "OWNER",
       memberCount: server._count.members,
       messageCharacterLimit: server.messageCharacterLimit,
+      deletedMessageNoticeMinutes: server.deletedMessageNoticeMinutes,
       mentionCount,
       name: server.name,
       shortName: server.shortName,
@@ -979,6 +985,10 @@ export async function updateWorkspaceServer(userId: string, serverId: string, in
     data.messageCharacterLimit = input.messageCharacterLimit;
   }
 
+  if (input.deletedMessageNoticeMinutes !== undefined) {
+    data.deletedMessageNoticeMinutes = input.deletedMessageNoticeMinutes;
+  }
+
   if (
     input.allowGifs !== undefined ||
     input.allowFileUploads !== undefined ||
@@ -1002,6 +1012,19 @@ export async function updateWorkspaceServer(userId: string, serverId: string, in
     },
     data,
   });
+
+  if (input.deletedMessageNoticeMinutes !== undefined) {
+    await prisma.$executeRaw`
+      UPDATE "Message"
+      SET "placeholderExpiresAt" =
+        "deletedAt" + (${input.deletedMessageNoticeMinutes}::int * INTERVAL '1 minute')
+      WHERE "deletedAt" IS NOT NULL
+        AND "placeholderRemovedAt" IS NULL
+        AND "channelId" IN (
+          SELECT "id" FROM "Channel" WHERE "serverId" = ${serverId}
+        )
+    `;
+  }
 
   const detail = await getWorkspaceServerDetail(userId, serverId);
   getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {

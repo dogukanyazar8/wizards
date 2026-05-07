@@ -11,6 +11,7 @@ import { VoiceProvider } from "@/components/providers/voice-provider";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
 import { getRequestLocale } from "@/lib/locale/server";
 
 const bodyFont = Plus_Jakarta_Sans({
@@ -59,7 +60,11 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning>
       <body className={`${bodyFont.variable} ${displayFont.variable}`}>
-        <ThemeProvider storageKey="wizards-theme" defaultTheme={theme} attribute="class">
+        <ThemeProvider
+          storageKey="wizards-theme"
+          defaultTheme={theme ?? DEFAULT_WIZARDS_THEME}
+          attribute="class"
+        >
           <LocaleProvider initialLocale={locale}>
             <AppIconProvider>
               <QueryProvider>

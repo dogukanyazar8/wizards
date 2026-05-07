@@ -105,6 +105,7 @@ export interface ServerToClientEvents {
     messageId: string;
     channelId: string;
     deletedById?: string;
+    placeholderExpiresAt?: string | null;
   }) => void;
   "message:removed": (data: { messageId: string; channelId: string }) => void;
   "message:history_cleared": (data: { channelId: string }) => void;
@@ -210,6 +211,7 @@ export interface InterServerEvents {
     messageId: string;
     channelId: string;
     deletedById?: string;
+    placeholderExpiresAt?: string | null;
   }) => void;
   "message:removed": (data: { messageId: string; channelId: string }) => void;
   "message:history_cleared": (data: { channelId: string }) => void;

@@ -374,35 +374,36 @@ model FriendRequest {
 }
 
 model Server {
-  id                    String                @id @default(uuid())
-  name                  String
-  shortName             String?               @db.VarChar(4)
-  description           String?
-  iconUrl               String?
-  iconHash              String?
-  bannerUrl             String?
-  splashUrl             String?
-  ownerId               String
-  inviteCode            String                @unique @map("invite_code") @db.VarChar(8)
-  isPublic              Boolean               @default(false)
-  discoverable          Boolean               @default(false)
-  verificationLevel     VerificationLevel     @default(NONE)
-  defaultNotifications  NotificationLevel     @default(ALL_MESSAGES)
-  explicitContentFilter ExplicitContentFilter @default(DISABLED)
-  systemChannelId       String?
-  rulesChannelId        String?
-  maxMembers            Int                   @default(500000)
-  preferredLocale       String                @default("en") @db.VarChar(10)
-  boostLevel            Int                   @default(0)
-  boostCount            Int                   @default(0)
-  vanityUrlCode         String?               @unique @map("vanity_url_code")
-  afkChannelId          String?
-  afkTimeout            Int                   @default(300)
-  isNsfw                Boolean               @default(false)
-  features              String[]
-  messageCharacterLimit Int                   @default(2000)
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  id                          String                @id @default(uuid())
+  name                        String
+  shortName                   String?               @db.VarChar(4)
+  description                 String?
+  iconUrl                     String?
+  iconHash                    String?
+  bannerUrl                   String?
+  splashUrl                   String?
+  ownerId                     String
+  inviteCode                  String                @unique @map("invite_code") @db.VarChar(8)
+  isPublic                    Boolean               @default(false)
+  discoverable                Boolean               @default(false)
+  verificationLevel           VerificationLevel     @default(NONE)
+  defaultNotifications        NotificationLevel     @default(ALL_MESSAGES)
+  explicitContentFilter       ExplicitContentFilter @default(DISABLED)
+  systemChannelId             String?
+  rulesChannelId              String?
+  maxMembers                  Int                   @default(500000)
+  preferredLocale             String                @default("en") @db.VarChar(10)
+  boostLevel                  Int                   @default(0)
+  boostCount                  Int                   @default(0)
+  vanityUrlCode               String?               @unique @map("vanity_url_code")
+  afkChannelId                String?
+  afkTimeout                  Int                   @default(300)
+  isNsfw                      Boolean               @default(false)
+  features                    String[]
+  messageCharacterLimit       Int                   @default(2000)
+  deletedMessageNoticeMinutes Int                   @default(60)
+  createdAt                   DateTime              @default(now())
+  updatedAt                   DateTime              @updatedAt
 
   owner              User                 @relation("ServerOwner", fields: [ownerId], references: [id])
   members            ServerMember[]
@@ -605,6 +606,7 @@ model Message {
   deletedAt            DateTime?
   deletedById          String?
   placeholderRemovedAt DateTime?
+  placeholderExpiresAt DateTime?
   tts                  Boolean     @default(false)
   webhookId            String?
   createdAt            DateTime    @default(now())
@@ -627,6 +629,7 @@ model Message {
   @@index([channelId, threadParentId, createdAt])
   @@index([channelId, threadId, createdAt])
   @@index([channelId, placeholderRemovedAt])
+  @@index([channelId, placeholderRemovedAt, placeholderExpiresAt])
   @@index([threadParentId, createdAt])
   @@index([userId])
 }

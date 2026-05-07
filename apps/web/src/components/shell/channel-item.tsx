@@ -48,14 +48,14 @@ export function ChannelItem({
     <div className="min-w-0 max-w-full overflow-hidden">
       <div
         className={cn(
-          "group relative flex min-w-0 max-w-full items-center gap-1.5 overflow-hidden rounded-[22px] border px-2 py-1.5 transition sm:gap-2",
+          "group relative flex min-w-0 max-w-full items-center gap-1 overflow-hidden rounded-[20px] border px-1.5 py-1 transition sm:gap-1.5",
           active
             ? "border-[hsl(var(--primary)/0.28)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.18),hsl(var(--surface-card)/0.72))] text-[hsl(var(--foreground))] shadow-[0_14px_30px_hsl(var(--primary)/0.08)]"
             : "border-transparent text-app-muted hover:border-[hsl(var(--border)/0.56)] hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-[hsl(var(--foreground))]",
         )}
       >
         {active ? (
-          <span className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-[hsl(var(--primary))]" />
+          <span className="absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full bg-[hsl(var(--primary))]" />
         ) : null}
         <button
           aria-current={active ? "page" : undefined}
@@ -65,7 +65,7 @@ export function ChannelItem({
               : "shell.channelItem.openTextChannel",
             { name },
           )}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl px-2 py-1.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)]"
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl px-2 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)]"
           onClick={onSelect}
           onFocus={onPrefetch}
           onKeyDown={(event) => {
@@ -79,13 +79,13 @@ export function ChannelItem({
         >
           <span
             className={cn(
-              "flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border transition",
+              "flex h-6 w-6 shrink-0 items-center justify-center rounded-xl border transition",
               active
                 ? "border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]"
                 : "border-[hsl(var(--border)/0.42)] bg-[hsl(var(--surface-card)/0.38)] text-app-soft group-hover:text-app-foreground",
             )}
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="h-3.5 w-3.5" />
           </span>
           <span className="min-w-0 truncate text-sm font-semibold tracking-[-0.01em]">{name}</span>
           {type === "TEXT" && unreadCount > 0 ? (

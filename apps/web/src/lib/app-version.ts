@@ -15,7 +15,7 @@ export type WhisprVersionPayload = {
 };
 
 export const WHISPR_APP_VERSION =
-  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.0";
+  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.1";
 export const WHISPR_BUILD_ID =
   process.env.NEXT_PUBLIC_WHISPR_BUILD_ID ?? "development";
 export const WHISPR_BUILD_TIME =
@@ -47,48 +47,6 @@ export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
     descriptionKey: "app.update.notes.voice.description",
     id: "voice-stability-cleanup",
     titleKey: "app.update.notes.voice.title",
-  },
-  {
-    categoryKey: "app.update.category.notifications",
-    descriptionKey: "app.update.notes.sounds.description",
-    id: "whispr-sound-defaults",
-    titleKey: "app.update.notes.sounds.title",
-  },
-  {
-    categoryKey: "app.update.category.friends",
-    descriptionKey: "app.update.notes.friends.description",
-    id: "friend-removal-polish",
-    titleKey: "app.update.notes.friends.title",
-  },
-  {
-    categoryKey: "app.update.category.devices",
-    descriptionKey: "app.update.notes.devices.description",
-    id: "shared-audio-device-selection",
-    titleKey: "app.update.notes.devices.title",
-  },
-  {
-    categoryKey: "app.update.category.security",
-    descriptionKey: "app.update.notes.security.description",
-    id: "production-hardening",
-    titleKey: "app.update.notes.security.title",
-  },
-  {
-    categoryKey: "app.update.category.performance",
-    descriptionKey: "app.update.notes.performance.description",
-    id: "messaging-performance",
-    titleKey: "app.update.notes.performance.title",
-  },
-  {
-    categoryKey: "app.update.category.desktop",
-    descriptionKey: "app.update.notes.desktop.description",
-    id: "desktop-readiness",
-    titleKey: "app.update.notes.desktop.title",
-  },
-  {
-    categoryKey: "app.update.category.quality",
-    descriptionKey: "app.update.notes.quality.description",
-    id: "developer-quality",
-    titleKey: "app.update.notes.quality.title",
   },
 ];
 

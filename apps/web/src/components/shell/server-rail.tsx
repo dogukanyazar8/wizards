@@ -292,7 +292,7 @@ export function ServerRail({
     >
       <div
         className={cn(
-          "w-full shrink-0 rounded-[30px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.66)] shadow-[0_22px_54px_hsl(var(--shadow-color)/0.08)]",
+          "relative w-full shrink-0 rounded-[30px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.66)] shadow-[0_22px_54px_hsl(var(--shadow-color)/0.08)]",
           isIconOnly ? "p-2" : "p-2.5",
         )}
         data-server-rail-item
@@ -335,7 +335,7 @@ export function ServerRail({
           >
             {orderedServers.map((server) => (
               <Reorder.Item
-                className="relative list-none"
+                className="relative w-full list-none"
                 data-server-rail-item
                 key={server.id}
                 onDragEnd={() => {

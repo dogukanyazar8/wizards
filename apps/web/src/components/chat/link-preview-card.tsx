@@ -62,7 +62,7 @@ export function LinkPreviewCard({
     return (
       <div
         className={cn(
-          "mt-3 flex w-full max-w-[34rem] items-center gap-2 rounded-[22px] border border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-soft)/0.28)] px-3 py-2 text-xs font-medium text-app-muted",
+          "mt-1.5 flex w-full max-w-[34rem] items-center gap-2 rounded-[18px] border border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-soft)/0.28)] px-3 py-2 text-xs font-medium text-app-muted",
           className,
         )}
       >
@@ -81,7 +81,7 @@ export function LinkPreviewCard({
   return (
     <a
       className={cn(
-        "mt-3 grid w-full max-w-[34rem] overflow-hidden rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.78)] text-left shadow-[0_18px_38px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:grid-cols-[minmax(0,1fr)_8rem]",
+        "mt-1.5 grid w-full max-w-[34rem] overflow-hidden rounded-[20px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.78)] text-left shadow-[0_14px_30px_hsl(var(--shadow-color)/0.07)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:grid-cols-[minmax(0,1fr)_8rem]",
         className,
       )}
       data-testid="message-link-preview"

@@ -80,6 +80,14 @@ const messageInclude = {
     select: {
       emoji: true,
       userId: true,
+      user: {
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+      },
     },
   },
   reply: {
@@ -101,18 +109,61 @@ type MessageThreadSummaryRow = {
   threadParentId: string;
 };
 
-function groupReactions(reactions: { emoji: string; userId: string }[]): MessageReaction[] {
-  const grouped = new Map<string, Set<string>>();
+const DEFAULT_DELETED_MESSAGE_NOTICE_MINUTES = 60;
+
+function addMinutes(date: Date, minutes: number) {
+  return new Date(date.getTime() + minutes * 60_000);
+}
+
+function visibleMessageWhere(now: Date = new Date()): Prisma.MessageWhereInput {
+  return {
+    placeholderRemovedAt: null,
+    OR: [
+      { deletedAt: null },
+      { placeholderExpiresAt: { gt: now } },
+    ],
+  };
+}
+
+function groupReactions(
+  reactions: Array<{
+    emoji: string;
+    userId: string;
+    user?: {
+      id: string;
+      username: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    };
+  }>,
+): MessageReaction[] {
+  const grouped = new Map<
+    string,
+    {
+      userIds: Set<string>;
+      users: Map<string, {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      }>;
+    }
+  >();
   for (const reaction of reactions) {
     if (!grouped.has(reaction.emoji)) {
-      grouped.set(reaction.emoji, new Set());
+      grouped.set(reaction.emoji, { userIds: new Set(), users: new Map() });
     }
-    grouped.get(reaction.emoji)!.add(reaction.userId);
+    const entry = grouped.get(reaction.emoji)!;
+    entry.userIds.add(reaction.userId);
+    if (reaction.user) {
+      entry.users.set(reaction.userId, reaction.user);
+    }
   }
-  return Array.from(grouped.entries()).map(([emoji, userIds]) => ({
+  return Array.from(grouped.entries()).map(([emoji, entry]) => ({
     emoji,
-    count: userIds.size,
-    userIds: Array.from(userIds),
+    count: entry.userIds.size,
+    userIds: Array.from(entry.userIds),
+    users: Array.from(entry.users.values()),
   }));
 }
 
@@ -322,6 +373,7 @@ function mapRawMessage(
     editedAt: message.editedAt?.toISOString() ?? null,
     deletedAt: message.deletedAt?.toISOString() ?? null,
     deletedById: message.deletedById,
+    placeholderExpiresAt: message.placeholderExpiresAt?.toISOString() ?? null,
   };
 }
 
@@ -335,7 +387,7 @@ export async function getChannelMessages(
       channelId,
       threadParentId: null,
       threadId: null,
-      placeholderRemovedAt: null,
+      ...visibleMessageWhere(),
     },
     include: messageInclude,
     orderBy: { createdAt: "desc" as const },
@@ -375,7 +427,7 @@ export async function getChannelThreadMessages(
       id: parentMessageId,
       channelId,
       threadParentId: null,
-      placeholderRemovedAt: null,
+      ...visibleMessageWhere(),
     },
     include: messageInclude,
   }) as RawMessage | null;
@@ -388,7 +440,7 @@ export async function getChannelThreadMessages(
     where: {
       channelId,
       threadParentId: parentMessageId,
-      placeholderRemovedAt: null,
+      ...visibleMessageWhere(),
     },
     include: messageInclude,
     orderBy: { createdAt: "desc" as const },
@@ -416,7 +468,7 @@ export async function getChannelThreadMessages(
 
 export async function getMessageById(messageId: string): Promise<ChatMessage | null> {
   const message = await prisma.message.findFirst({
-    where: { id: messageId, placeholderRemovedAt: null },
+    where: { id: messageId, ...visibleMessageWhere() },
     include: messageInclude,
   }) as RawMessage | null;
 
@@ -727,16 +779,27 @@ export async function editMessage(
   return mapRawMessage(message);
 }
 
+export type DeleteMessageResult =
+  | { status: "deleted"; placeholderExpiresAt: string | null }
+  | { status: "removed" };
+
 export async function deleteMessage(
   messageId: string,
   userId: string,
   isAdmin: boolean,
-): Promise<"deleted" | "removed"> {
+): Promise<DeleteMessageResult> {
   const existing = await prisma.message.findUnique({
     where: { id: messageId },
     select: {
       deletedAt: true,
       deletedById: true,
+      channel: {
+        select: {
+          server: {
+            select: { deletedMessageNoticeMinutes: true },
+          },
+        },
+      },
       placeholderRemovedAt: true,
       userId: true,
     },
@@ -769,23 +832,32 @@ export async function deleteMessage(
       throw new ApiError("Cannot remove this deleted message notice", 403);
     }
 
-    return "removed";
+    return { status: "removed" };
   }
 
   if (!isAdmin && existing.userId !== userId) {
     throw new ApiError("Cannot delete this message", 403);
   }
 
+  const deletedAt = new Date();
+  const noticeMinutes =
+    existing.channel.server?.deletedMessageNoticeMinutes ?? DEFAULT_DELETED_MESSAGE_NOTICE_MINUTES;
+  const placeholderExpiresAt = addMinutes(deletedAt, noticeMinutes);
+
   const updateResult = await prisma.message.updateMany({
     where: { deletedAt: null, id: messageId, placeholderRemovedAt: null },
-    data: { deletedAt: new Date(), deletedById: userId },
+    data: {
+      deletedAt,
+      deletedById: userId,
+      placeholderExpiresAt,
+    },
   });
 
   if (updateResult.count !== 1) {
     throw new ApiError("Cannot delete this message", 403);
   }
 
-  return "deleted";
+  return { status: "deleted", placeholderExpiresAt: placeholderExpiresAt.toISOString() };
 }
 
 export async function toggleReaction(
@@ -827,7 +899,18 @@ export async function setReaction(
 
   const reactions = await prisma.reaction.findMany({
     where: { messageId },
-    select: { emoji: true, userId: true },
+    select: {
+      emoji: true,
+      userId: true,
+      user: {
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+      },
+    },
   });
 
   return groupReactions(reactions);

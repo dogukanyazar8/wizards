@@ -162,6 +162,7 @@ export async function updateServerRequest(
     description?: string | null;
     iconUrl?: string | null;
     messageCharacterLimit?: number;
+    deletedMessageNoticeMinutes?: number;
     name?: string;
     shortName?: string | null;
   },

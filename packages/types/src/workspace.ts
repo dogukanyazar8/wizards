@@ -109,6 +109,7 @@ export const WorkspaceServerSummarySchema = z.object({
   inviteCode: z.string().nullable(),
   memberCount: z.number().int().nonnegative(),
   messageCharacterLimit: z.number().int().positive(),
+  deletedMessageNoticeMinutes: z.number().int().min(5).max(10080),
   name: z.string(),
   shortName: z.string().nullable(),
   defaultChannelId: z.string().nullable(),
@@ -174,6 +175,7 @@ export const UpdateServerSchema = z
       .transform((value) => emptyStringToNull(value)),
     name: z.string().trim().min(2).max(64).optional(),
     messageCharacterLimit: z.number().int().min(250).max(40000).optional(),
+    deletedMessageNoticeMinutes: z.number().int().min(5).max(10080).optional(),
     shortName: optionalServerShortName,
   })
   .refine((value) =>
@@ -182,6 +184,7 @@ export const UpdateServerSchema = z
     value.description !== undefined ||
     value.iconUrl !== undefined ||
     value.messageCharacterLimit !== undefined ||
+    value.deletedMessageNoticeMinutes !== undefined ||
     value.allowGifs !== undefined ||
     value.allowFileUploads !== undefined ||
     value.allowMemberAdds !== undefined, {

@@ -132,6 +132,7 @@ function buildOptimisticMessage(input: {
     editedAt: null,
     deletedAt: null,
     deletedById: null,
+    placeholderExpiresAt: null,
   };
 }
 
@@ -180,7 +181,6 @@ export function ChatArea({
   allowFileUploads = true,
   allowGifs = true,
   channelLocked = false,
-  channelTopic = null,
   currentUserId,
   currentUserDisplayName,
   currentUserUsername,
@@ -252,17 +252,6 @@ export function ChatArea({
     () => getMessagesQueryKey(mode, conversationId),
     [conversationId, mode],
   );
-  const visibleChannelTopic = useMemo(() => {
-    const normalized = channelTopic?.trim() ?? "";
-    if (
-      normalized === "Start the conversation and share the first update here."
-    ) {
-      return "";
-    }
-
-    return normalized;
-  }, [channelTopic]);
-
   const handleReply = useCallback((id: string, authorName: string, content: string) => {
     setReplyTo({ id, authorName, content });
   }, []);
@@ -448,11 +437,16 @@ export function ChatArea({
         if (
           data.code === "MESSAGE_SEND_ERROR" ||
           data.code === "MESSAGE_VALIDATION_ERROR" ||
+          data.code === "MESSAGE_TOO_LONG" ||
+          data.code === "VALIDATION_ERROR" ||
           data.code === "INVALID_ATTACHMENT" ||
           data.code === "RATE_LIMIT" ||
           data.code === "CHANNEL_LOCKED" ||
           data.code === "FILE_UPLOADS_DISABLED" ||
-          data.code === "GIFS_DISABLED"
+          data.code === "GIFS_DISABLED" ||
+          data.code === "FORBIDDEN" ||
+          data.code === "NOT_A_MEMBER" ||
+          data.code === "CHANNEL_NOT_FOUND"
         ) {
           failLatestOptimisticMessage(data.message);
         }
@@ -635,7 +629,9 @@ export function ChatArea({
     ? directMessageParticipant.customStatus ?? t(getStatusKey(directMessageParticipant.status))
     : t("dm.header.directMessage");
   const isChannelReadOnly = mode === "channel" && channelLocked && !canModerate;
-  const pinnedMessages = pinnedMessagesQuery.data ?? [];
+  const pinnedMessages = (pinnedMessagesQuery.data ?? []).filter(
+    (message) => !message.deletedAt,
+  );
   const hasPinnedMessages = mode === "channel" && pinnedMessages.length > 0;
   const notificationLevel = notificationSettingsQuery.data?.level ?? "all";
   const NotificationIcon =
@@ -644,6 +640,12 @@ export function ChatArea({
       : notificationLevel === "mentions"
         ? AtSign
         : Bell;
+
+  useEffect(() => {
+    if (pinnedMessages.length === 0) {
+      setShowPinnedMessages(false);
+    }
+  }, [pinnedMessages.length]);
 
   const jumpToMessage = useCallback((messageId: string) => {
     const url = new URL(window.location.href);
@@ -773,15 +775,77 @@ export function ChatArea({
         </div>
       ) : null}
 
-      <div className="relative border-b border-app-border bg-[hsl(var(--surface-card)/0.42)] px-3 py-2 backdrop-blur-xl md:px-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="min-w-0 truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-app-soft sm:text-xs sm:normal-case sm:tracking-normal sm:text-app-muted">
-            {mode === "channel"
-              ? visibleChannelTopic.length > 0
-                ? visibleChannelTopic
-                : t("chat.search.channelHint")
-              : t("chat.search.dmHint")}
-          </p>
+      <div className="relative z-20 bg-[hsl(var(--surface-card)/0.22)] px-3 py-1.5 backdrop-blur-xl md:px-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="relative min-w-0 flex-1">
+            {hasPinnedMessages ? (
+              <>
+                <button
+                  aria-expanded={showPinnedMessages}
+                  className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.1)] px-2.5 text-[11px] font-bold text-[hsl(var(--primary))] shadow-[0_8px_18px_hsl(var(--primary)/0.08)] transition hover:bg-[hsl(var(--primary)/0.15)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                  data-testid="channel-pins-toggle"
+                  onClick={() => setShowPinnedMessages((current) => !current)}
+                  type="button"
+                >
+                  <Pin className="h-3 w-3" />
+                  {t("chat.pins.title", { count: pinnedMessages.length })}
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+
+                {showPinnedMessages ? (
+                  <div
+                    className="absolute left-0 top-[calc(100%+0.45rem)] z-[90] max-h-[min(48dvh,26rem)] w-[min(30rem,calc(100vw-2rem))] overflow-y-auto rounded-[26px] border border-[hsl(var(--border)/0.82)] bg-[hsl(var(--background))] p-3 shadow-[0_32px_80px_hsl(var(--shadow-color)/0.3)] ring-1 ring-[hsl(var(--background)/0.9)]"
+                    data-testid="channel-pins-list"
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-3 px-2 py-1.5">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-app-soft">
+                        {t("chat.pins.pinnedMessages")}
+                      </p>
+                      <button
+                        aria-label={t("common.close")}
+                        className="rounded-full p-1 text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                        onClick={() => setShowPinnedMessages(false)}
+                        type="button"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {pinnedMessages.map((message) => (
+                        <button
+                          className="grid w-full min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-[20px] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card))] px-3 py-2.5 text-left shadow-[0_12px_28px_hsl(var(--shadow-color)/0.07)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                          key={message.id}
+                          onClick={() => {
+                            setShowPinnedMessages(false);
+                            jumpToMessage(message.id);
+                          }}
+                          type="button"
+                        >
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] shadow-[0_10px_24px_hsl(var(--primary)/0.1)]">
+                            <Pin className="h-3.5 w-3.5" />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="flex min-w-0 items-center gap-2">
+                              <span className="truncate text-sm font-bold text-app-foreground">
+                                {message.author.displayName}
+                              </span>
+                              <span className="shrink-0 rounded-full border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.13em] text-[hsl(var(--primary))]">
+                                {t("chat.pins.badge")}
+                              </span>
+                            </span>
+                            <span className="mt-1 block line-clamp-3 whitespace-pre-wrap break-words text-sm leading-5 text-app-muted">
+                              {message.content || t("chat.pins.attachmentOnly")}
+                            </span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+
           <div className="inline-flex w-fit max-w-full shrink-0 items-center gap-1 rounded-[20px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.38)] p-1 shadow-[0_12px_28px_hsl(var(--shadow-color)/0.06)]">
             {mode === "channel" ? (
               <div className="relative">
@@ -828,68 +892,6 @@ export function ChatArea({
           />
         ) : null}
       </div>
-
-      {hasPinnedMessages ? (
-        <div className="relative border-b border-app-border bg-[hsl(var(--surface-card)/0.62)] px-3 py-2 backdrop-blur-xl md:px-5">
-          <button
-            aria-expanded={showPinnedMessages}
-            className="inline-flex max-w-full items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] px-3 py-1.5 text-xs font-bold text-[hsl(var(--primary))] shadow-[0_10px_24px_hsl(var(--primary)/0.08)] transition hover:bg-[hsl(var(--primary)/0.15)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-            data-testid="channel-pins-toggle"
-            onClick={() => setShowPinnedMessages((current) => !current)}
-            type="button"
-          >
-            <Pin className="h-3.5 w-3.5" />
-            {t("chat.pins.title", { count: pinnedMessages.length })}
-            <ChevronDown className="h-3.5 w-3.5" />
-          </button>
-
-          {showPinnedMessages ? (
-            <div
-              className="app-panel absolute left-3 right-3 top-[calc(100%+0.5rem)] z-40 max-h-[42dvh] overflow-y-auto rounded-[26px] border p-2 shadow-[0_26px_60px_hsl(var(--shadow-color)/0.18)] md:left-5 md:right-auto md:w-[26rem]"
-              data-testid="channel-pins-list"
-            >
-              <div className="mb-2 flex items-center justify-between gap-3 px-2 py-1">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-app-soft">
-                  {t("chat.pins.pinnedMessages")}
-                </p>
-                <button
-                  aria-label={t("common.close")}
-                  className="rounded-full p-1 text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                  onClick={() => setShowPinnedMessages(false)}
-                  type="button"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="space-y-1">
-                {pinnedMessages.map((message) => (
-                  <button
-                    className="flex w-full min-w-0 items-start gap-3 rounded-[20px] px-3 py-2 text-left transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
-                    key={message.id}
-                    onClick={() => {
-                      setShowPinnedMessages(false);
-                      jumpToMessage(message.id);
-                    }}
-                    type="button"
-                  >
-                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.6)] text-[hsl(var(--primary))]">
-                      <Pin className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-semibold text-app-foreground">
-                        {message.author.displayName}
-                      </span>
-                      <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-app-muted">
-                        {message.content || t("chat.pins.attachmentOnly")}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
 
       {isChannelReadOnly ? (
         <div className="border-b border-[hsl(var(--warning)/0.22)] bg-[hsl(var(--warning)/0.08)] px-3 py-3 backdrop-blur-xl md:px-5">

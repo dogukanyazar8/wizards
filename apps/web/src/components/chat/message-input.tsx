@@ -3,7 +3,26 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FileText, ImageIcon, Loader2, Paperclip, Send, Smile, Video, X } from "lucide-react";
+import {
+  Bold,
+  Braces,
+  ChartNoAxesColumnIncreasing,
+  Code2,
+  FileText,
+  ImageIcon,
+  Italic,
+  List,
+  ListOrdered,
+  Loader2,
+  Paperclip,
+  Quote,
+  Send,
+  Smile,
+  Strikethrough,
+  Underline,
+  Video,
+  X,
+} from "lucide-react";
 import type { MessageAttachment, UploadedAttachmentInput, WorkspaceMember } from "@wizards/types";
 import { EmojiPicker } from "./emoji-picker";
 import { GifPicker } from "./gif-picker";
@@ -190,13 +209,13 @@ export function MessageInput({
 
   const formatButtonLabelClass = isThreadComposer ? "sr-only" : "hidden sm:inline";
   const compactToolButtonClass = cn(
-    "inline-flex items-center justify-center gap-1.5 rounded-full border text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-50",
+    "inline-flex items-center justify-center gap-1.5 rounded-[14px] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card)/0.92)] text-[12.5px] font-semibold text-app-muted shadow-[0_8px_20px_hsl(var(--shadow-color)/0.04)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.24)] hover:bg-[hsl(var(--surface-card))] hover:text-app-foreground hover:shadow-[0_12px_26px_hsl(var(--shadow-color)/0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.44)] disabled:cursor-not-allowed disabled:opacity-55",
     isThreadComposer
       ? "h-9 w-9 px-0"
-      : "min-h-10 px-3 py-2 md:min-h-0 md:py-1.5",
+      : "min-h-8 px-2.5 py-1.5 md:min-h-0",
   );
   const formattingActionButtonClass =
-    "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.62)] px-3 py-1.5 text-xs font-bold text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.06)] transition hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-not-allowed disabled:opacity-50";
+    "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[13px] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card)/0.92)] px-2.5 py-1.5 text-[12.5px] font-bold text-app-muted shadow-[0_8px_18px_hsl(var(--shadow-color)/0.04)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.26)] hover:bg-[hsl(var(--primary)/0.07)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.4)] disabled:cursor-not-allowed disabled:opacity-50";
 
   const updateContentWithSelection = (
     nextContent: string,
@@ -259,9 +278,13 @@ export function MessageInput({
       .split(/\r?\n/)
       .map((line) => `${prefix}${line || fallback}`)
       .join("\n");
-    const nextContent = content.slice(0, start) + formatted + content.slice(end);
+    const leadingBreak = start > 0 && !content.slice(0, start).endsWith("\n") ? "\n" : "";
+    const trailingBreak = end < content.length && !content.slice(end).startsWith("\n") ? "\n" : "";
+    const insertion = `${leadingBreak}${formatted}${trailingBreak}`;
+    const nextContent = content.slice(0, start) + insertion + content.slice(end);
+    const selectionStart = start + leadingBreak.length;
 
-    updateContentWithSelection(nextContent, start, start + formatted.length);
+    updateContentWithSelection(nextContent, selectionStart, selectionStart + formatted.length);
   };
 
   const insertOrderedList = () => {
@@ -275,9 +298,13 @@ export function MessageInput({
       .split(/\r?\n/)
       .map((line, index) => `${index + 1}. ${line || t("chat.input.listFallback")}`)
       .join("\n");
-    const nextContent = content.slice(0, start) + formatted + content.slice(end);
+    const leadingBreak = start > 0 && !content.slice(0, start).endsWith("\n") ? "\n" : "";
+    const trailingBreak = end < content.length && !content.slice(end).startsWith("\n") ? "\n" : "";
+    const insertion = `${leadingBreak}${formatted}${trailingBreak}`;
+    const nextContent = content.slice(0, start) + insertion + content.slice(end);
+    const selectionStart = start + leadingBreak.length;
 
-    updateContentWithSelection(nextContent, start, start + formatted.length);
+    updateContentWithSelection(nextContent, selectionStart, selectionStart + formatted.length);
   };
 
   const insertCodeBlock = () => {
@@ -334,18 +361,25 @@ export function MessageInput({
   };
 
   const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setContent(event.target.value);
-    setSelectionIndex(event.currentTarget.selectionStart ?? event.target.value.length);
+    const nextContent = event.target.value;
+    setContent(nextContent);
+    setSelectionIndex(event.currentTarget.selectionStart ?? nextContent.length);
 
-    if (!typingTimeoutRef.current) {
-      startTyping();
-    }
-
-    clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => {
-      stopTyping();
+    if (nextContent.trim().length === 0) {
+      clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = undefined;
-    }, 3000);
+      stopTyping();
+    } else {
+      if (!typingTimeoutRef.current) {
+        startTyping();
+      }
+
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        stopTyping();
+        typingTimeoutRef.current = undefined;
+      }, 3000);
+    }
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -786,10 +820,10 @@ export function MessageInput({
   return (
     <div
       className={cn(
-        "sticky bottom-0 z-20 border-t border-app-border bg-[hsl(var(--surface-card)/0.88)] backdrop-blur-xl md:static",
+        "sticky bottom-0 z-20 border-t border-app-border bg-[hsl(var(--surface-card)/0.9)] backdrop-blur-xl md:static",
         isThreadComposer
           ? "space-y-2 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:p-3"
-          : "space-y-3 p-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:p-4",
+          : "space-y-3 p-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:p-4 md:pt-3",
       )}
       data-testid="message-composer"
       data-composer-variant={isThreadComposer ? "thread" : "default"}
@@ -802,7 +836,7 @@ export function MessageInput({
 
       <div
         className={cn(
-          "app-panel relative border shadow-[0_18px_38px_hsl(var(--shadow-color)/0.08)]",
+          "relative border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.96)] shadow-[0_20px_54px_hsl(var(--shadow-color)/0.085),inset_0_1px_0_hsl(var(--background)/0.56)]",
           isThreadComposer
             ? "rounded-[22px] p-2"
             : "rounded-[24px] p-2.5 md:rounded-[28px] md:p-3",
@@ -922,42 +956,13 @@ export function MessageInput({
           </div>
         ) : null}
 
-        <div className={cn("flex gap-2", isThreadComposer ? "flex-col" : "items-end md:gap-3")}>
+        <div className="relative flex flex-col">
           <div className="relative flex-1">
-            <div
-              className={cn(
-                "mb-1.5 flex items-center justify-between gap-2 border-b border-[hsl(var(--border)/0.42)] pb-1.5",
-                isThreadComposer ? "px-1" : "px-1 md:px-2",
-              )}
-            >
-              <button
-                aria-expanded={showFormattingToolbar}
-                aria-label={t("chat.input.toggleFormatting")}
-                className={cn(
-                  "inline-flex min-h-9 items-center gap-2 rounded-2xl border px-3 py-1.5 text-xs font-black tracking-[0.08em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]",
-                  showFormattingToolbar
-                    ? "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))] shadow-[0_14px_28px_hsl(var(--primary)/0.1)]"
-                    : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.36)] text-app-muted hover:bg-app-surface-soft hover:text-app-foreground",
-                )}
-                data-testid="message-formatting-toggle"
-                onClick={() => setShowFormattingToolbar((current) => !current)}
-                type="button"
-              >
-                Aa
-                <span className="hidden font-bold tracking-normal sm:inline">
-                  {t("chat.input.formatting")}
-                </span>
-              </button>
-              <span className="hidden truncate text-[11px] font-medium text-app-soft sm:block">
-                {t("chat.input.formattingHint")}
-              </span>
-            </div>
-
             {showFormattingToolbar ? (
               <div
                 aria-label={t("chat.input.formatting")}
                 className={cn(
-                  "mb-2 flex flex-wrap items-center gap-1.5 rounded-[22px] border border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-soft)/0.38)] p-2 shadow-[inset_0_1px_0_hsl(var(--surface-card)/0.5)]",
+                  "flex flex-wrap items-center gap-1.5 rounded-t-[20px] border border-b-0 border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-card)/0.94)] p-1.5 shadow-[inset_0_1px_0_hsl(var(--background)/0.52)]",
                   isThreadComposer ? "max-h-36 overflow-y-auto" : "",
                 )}
                 data-testid="message-formatting-toolbar"
@@ -970,7 +975,7 @@ export function MessageInput({
                   onMouseDown={(event) => event.preventDefault()}
                   type="button"
                 >
-                  <span className="font-black">B</span>
+                  <Bold className="h-4 w-4" />
                   <span className="sr-only sm:not-sr-only">{t("chat.input.bold")}</span>
                 </button>
                 <button
@@ -980,7 +985,7 @@ export function MessageInput({
                   onMouseDown={(event) => event.preventDefault()}
                   type="button"
                 >
-                  <span className="font-black italic">I</span>
+                  <Italic className="h-4 w-4" />
                   <span className="sr-only sm:not-sr-only">{t("chat.input.italic")}</span>
                 </button>
                 <button
@@ -992,7 +997,7 @@ export function MessageInput({
                   onMouseDown={(event) => event.preventDefault()}
                   type="button"
                 >
-                  <span className="font-black underline underline-offset-4">U</span>
+                  <Underline className="h-4 w-4" />
                   <span className="sr-only sm:not-sr-only">{t("chat.input.underline")}</span>
                 </button>
                 <button
@@ -1004,7 +1009,7 @@ export function MessageInput({
                   onMouseDown={(event) => event.preventDefault()}
                   type="button"
                 >
-                  <span className="font-black line-through">S</span>
+                  <Strikethrough className="h-4 w-4" />
                   <span className="sr-only sm:not-sr-only">
                     {t("chat.input.strikethrough")}
                   </span>
@@ -1016,7 +1021,7 @@ export function MessageInput({
                   onMouseDown={(event) => event.preventDefault()}
                   type="button"
                 >
-                  <span aria-hidden="true">•</span>
+                  <List className="h-4 w-4" />
                   <span>{t("chat.input.bulletedList")}</span>
                 </button>
                 <button
@@ -1026,7 +1031,7 @@ export function MessageInput({
                   onMouseDown={(event) => event.preventDefault()}
                   type="button"
                 >
-                  <span aria-hidden="true">1.</span>
+                  <ListOrdered className="h-4 w-4" />
                   <span>{t("chat.input.orderedList")}</span>
                 </button>
                 <button
@@ -1036,7 +1041,7 @@ export function MessageInput({
                   onMouseDown={(event) => event.preventDefault()}
                   type="button"
                 >
-                  <span aria-hidden="true">&gt;</span>
+                  <Quote className="h-4 w-4" />
                   <span>{t("chat.input.quote")}</span>
                 </button>
                 <button
@@ -1046,7 +1051,7 @@ export function MessageInput({
                   onMouseDown={(event) => event.preventDefault()}
                   type="button"
                 >
-                  <span className="font-mono">&lt;/&gt;</span>
+                  <Code2 className="h-4 w-4" />
                   <span>{t("chat.input.inlineCode")}</span>
                 </button>
                 <button
@@ -1056,7 +1061,7 @@ export function MessageInput({
                   onMouseDown={(event) => event.preventDefault()}
                   type="button"
                 >
-                  <span className="font-mono">{"{ }"}</span>
+                  <Braces className="h-4 w-4" />
                   <span>{t("chat.input.codeBlock")}</span>
                 </button>
                 <button
@@ -1069,7 +1074,7 @@ export function MessageInput({
                   onMouseDown={(event) => event.preventDefault()}
                   type="button"
                 >
-                  <span aria-hidden="true">☑</span>
+                  <ChartNoAxesColumnIncreasing className="h-4 w-4" />
                   <span>{t("chat.input.poll")}</span>
                 </button>
               </div>
@@ -1099,10 +1104,13 @@ export function MessageInput({
               disabled={disabled}
               data-testid="message-input"
               className={cn(
-                "w-full resize-none rounded-[20px] bg-transparent px-2 py-1.5 pr-3 text-[15px] leading-6 text-app-foreground placeholder-app-muted focus-visible:outline-none md:pr-4",
+                "w-full resize-none border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-overlay)/0.52)] px-4 py-3 pr-4 text-[15px] leading-7 text-app-foreground shadow-[inset_0_1px_0_hsl(var(--background)/0.55)] placeholder-app-muted focus-visible:border-[hsl(var(--primary)/0.34)] focus-visible:bg-[hsl(var(--surface-card)/0.96)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.16)]",
+                showFormattingToolbar
+                  ? "rounded-b-[22px] rounded-t-none"
+                  : "rounded-[22px]",
                 isThreadComposer
-                  ? "max-h-20 min-h-[2.5rem]"
-                  : "max-h-24 min-h-[2.75rem] md:min-h-[3rem]",
+                  ? "max-h-[8.5rem] min-h-[4.75rem]"
+                  : "max-h-[12rem] min-h-[6.25rem] md:min-h-[6.75rem]",
               )}
               maxLength={hasFiniteMaxLength ? effectiveMaxLength : undefined}
               rows={1}
@@ -1161,8 +1169,8 @@ export function MessageInput({
 
             <div
               className={cn(
-                "mt-1.5 flex items-center justify-between gap-2 border-t border-[hsl(var(--border)/0.52)] px-1 pt-2",
-                isThreadComposer ? "flex-nowrap" : "md:gap-3 md:px-2",
+                "mt-2 flex flex-wrap items-center justify-between gap-2.5 border-t border-[hsl(var(--border)/0.5)] px-1 pt-2.5",
+                isThreadComposer ? "gap-2" : "md:gap-3 md:px-2",
               )}
             >
               <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -1176,6 +1184,24 @@ export function MessageInput({
                   ref={fileInputRef}
                   type="file"
                 />
+
+                <button
+                  aria-expanded={showFormattingToolbar}
+                  aria-label={t("chat.input.toggleFormatting")}
+                  className={cn(
+                    compactToolButtonClass,
+                    showFormattingToolbar
+                      ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))] shadow-[0_12px_26px_hsl(var(--primary)/0.12)]"
+                      : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted hover:text-app-foreground",
+                  )}
+                  data-testid="message-formatting-toggle"
+                  onClick={() => setShowFormattingToolbar((current) => !current)}
+                  title={t("chat.input.toggleFormatting")}
+                  type="button"
+                >
+                  <span className="text-[13px] font-black tracking-[-0.04em]">Aa</span>
+                  <span className={formatButtonLabelClass}>{t("chat.input.formatting")}</span>
+                </button>
 
                 <div className="relative inline-flex">
                   {showEmojiPicker ? (
@@ -1301,39 +1327,48 @@ export function MessageInput({
                 </button>
               </div>
 
-              <span
+              <div
                 className={cn(
-                  "text-xs font-medium",
-                  hasFiniteMaxLength && content.length > effectiveMaxLength * 0.9
-                    ? "text-app-danger"
-                    : "text-app-soft",
+                  "ml-auto flex items-center gap-3",
+                  isThreadComposer ? "w-full justify-between" : "",
                 )}
               >
-                {hasFiniteMaxLength
-                  ? `${content.length}/${effectiveMaxLength}`
-                  : t("chat.input.adminUnlimited")}
-              </span>
+                <span
+                  className={cn(
+                    "whitespace-nowrap text-xs font-semibold",
+                    hasFiniteMaxLength && content.length > effectiveMaxLength * 0.9
+                      ? "text-app-danger"
+                      : "text-app-muted",
+                  )}
+                >
+                  {hasFiniteMaxLength
+                    ? `${content.length}/${effectiveMaxLength}`
+                    : t("chat.input.adminUnlimited")}
+                </span>
+
+                <button
+                  onClick={handleSend}
+                  disabled={disabled}
+                  aria-disabled={!canSend}
+                  className={cn(
+                    "inline-flex items-center justify-center gap-2 rounded-[18px] border border-[hsl(var(--primary)/0.32)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.94),hsl(var(--primary))_50%,hsl(var(--ambient-1)/0.9))] px-4 text-sm font-extrabold text-white shadow-[0_16px_34px_hsl(var(--primary)/0.26),inset_0_1px_0_rgba(255,255,255,0.28)] ring-1 ring-white/20 transition hover:-translate-y-0.5 hover:scale-[1.012] hover:shadow-[0_20px_48px_hsl(var(--primary)/0.34),inset_0_1px_0_rgba(255,255,255,0.34)] hover:saturate-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.58)] disabled:cursor-not-allowed disabled:opacity-75",
+                    !canSend && !disabled ? "saturate-[0.92]" : "",
+                    isThreadComposer
+                      ? "h-10 min-w-[8rem]"
+                      : "h-11 min-w-[9.25rem] md:min-w-[9.75rem]",
+                  )}
+                  aria-label={t("chat.input.sendMessage")}
+                  data-testid="message-send-button"
+                  type="button"
+                >
+                  <span className={isThreadComposer ? "inline" : "hidden sm:inline"}>
+                    {t("chat.input.sendMessage")}
+                  </span>
+                  <Send className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
-
-          <button
-            onClick={handleSend}
-            disabled={!canSend}
-            className={cn(
-              "inline-flex items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--primary)/0.82))] text-sm font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_18px_34px_hsl(var(--shadow-color)/0.16)] transition hover:-translate-y-0.5 hover:opacity-95 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-              isThreadComposer
-                ? "h-10 w-full px-3"
-                : "h-12 min-w-12 px-3 sm:min-w-[3.25rem] md:px-4",
-            )}
-            aria-label={t("chat.input.sendMessage")}
-            data-testid="message-send-button"
-            type="button"
-          >
-            <span className={isThreadComposer ? "inline" : "hidden sm:inline"}>
-              {t("chat.input.sendMessage")}
-            </span>
-            <Send className="h-4 w-4" />
-          </button>
         </div>
       </div>
     </div>
