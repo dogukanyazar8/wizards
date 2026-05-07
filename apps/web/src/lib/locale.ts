@@ -72,30 +72,30 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.servers.title": "Voice QA coverage",
     "app.update.notes.servers.description":
       "Voice E2E smoke checks now target the redesigned room controls for mute, deafen, screen share, and leave flows.",
-    "app.update.notes.voice.title": "Premium voice room",
+    "app.update.notes.voice.title": "Real-time voice activity",
     "app.update.notes.voice.description":
-      "Voice channels now use a full-height participant grid, compact participant list, and polished bottom call controls.",
+      "Voice cards and the participant list now react to live microphone intensity with smoother, faster waveforms.",
     "app.update.notes.sounds.title": "New Whispr sound defaults",
     "app.update.notes.sounds.description":
       "Notification, voice join, and voice leave cues now use the new Whispr sounds by default while the classic sounds remain selectable in settings.",
     "app.update.notes.friends.title": "Safer friend removal",
     "app.update.notes.friends.description":
       "Removing a friend now uses a polished confirmation flow, prevents accidental DM navigation, updates the list immediately, and rolls back safely on errors.",
-    "app.update.notes.devices.title": "Shared microphone and speaker selection",
+    "app.update.notes.devices.title": "Microphone and output status",
     "app.update.notes.devices.description":
-      "User bar selectors and Voice settings now share the same device flow across browser, mobile responsive, and Tauri desktop surfaces.",
+      "Voice room cards now show clear microphone and audio output state pills, including muted and deafened states.",
     "app.update.notes.security.title": "Production hardening pass",
     "app.update.notes.security.description":
       "Auth access checks, socket payload schemas, safer redirects, generic production errors, and CI coverage make the platform safer by default.",
     "app.update.notes.performance.title": "Faster realtime messaging paths",
     "app.update.notes.performance.description":
       "DM conversations now paginate, server unread updates target active users, invite usage is atomic, and hot-path membership indexes are in place.",
-    "app.update.notes.desktop.title": "Desktop readiness foundation",
+    "app.update.notes.desktop.title": "Shared audio UI across surfaces",
     "app.update.notes.desktop.description":
-      "The initial Tauri shell, desktop runtime helpers, QA notes, and media permission guidance are ready without changing the web experience.",
-    "app.update.notes.quality.title": "Cleaner developer workflow",
+      "The voice feedback UI stays in the shared web layer so browser, mobile responsive, and Tauri desktop surfaces get the same behavior.",
+    "app.update.notes.quality.title": "Polished voice feedback",
     "app.update.notes.quality.description":
-      "ESLint now runs through the supported CLI path, lint warnings are clean, and startup output avoids noisy or broken terminal text.",
+      "Participant cards now use a taller responsive waveform, avatar glow, and compact status badges without changing the call connection.",
 
     "validation.category.pattern":
       "Category names can use letters, numbers, spaces, hyphens, or underscores.",
@@ -257,6 +257,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.room.connected": "Connected",
     "voice.room.speaking": "Speaking",
     "voice.room.microphoneOn": "Microphone on",
+    "voice.room.microphoneActive": "Microphone active",
+    "voice.room.microphoneClosed": "Microphone off",
+    "voice.room.outputActive": "Audio output active",
+    "voice.room.outputClosed": "Audio output off",
     "voice.room.screenSharing": "Sharing screen",
     "voice.room.localMuted": "You are muted locally",
     "voice.room.localLive": "Your microphone is live",
@@ -1448,30 +1452,30 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.servers.title": "Ses QA kapsamı",
     "app.update.notes.servers.description":
       "Voice E2E smoke kontrolleri artık yenilenen oda kontrollerinde sustur, sağırlaştır, ekran paylaşımı ve ayrıl akışlarını izliyor.",
-    "app.update.notes.voice.title": "Premium ses odası",
+    "app.update.notes.voice.title": "Anlık ses aktivitesi",
     "app.update.notes.voice.description":
-      "Ses kanalları artık tam yüksekliği kullanan katılımcı grid'i, kompakt katılımcı listesi ve modern alt çağrı kontrolleriyle açılır.",
+      "Ses kartları ve katılımcı listesi artık canlı mikrofon şiddetine daha hızlı ve daha akıcı waveform'larla tepki veriyor.",
     "app.update.notes.sounds.title": "Yeni Whispr varsayılan sesleri",
     "app.update.notes.sounds.description":
       "Bildirim, ses kanalına katılma ve ayrılma sesleri artık varsayılan olarak yeni Whispr seslerini kullanıyor; klasik sesler ayarlardan seçilebilir kalıyor.",
     "app.update.notes.friends.title": "Daha güvenli arkadaş kaldırma",
     "app.update.notes.friends.description":
       "Arkadaş kaldırma artık modern onay akışı kullanıyor, yanlışlıkla DM yönlendirmesini önlüyor, listeyi anında güncelliyor ve hata olursa güvenle geri alıyor.",
-    "app.update.notes.devices.title": "Ortak mikrofon ve hoparlör seçimi",
+    "app.update.notes.devices.title": "Mikrofon ve ses çıkışı durumu",
     "app.update.notes.devices.description":
-      "User bar seçicileri ve Ses ayarları artık tarayıcı, mobil responsive ve Tauri masaüstü yüzeylerinde aynı cihaz akışını kullanıyor.",
+      "Ses odası kartları artık mikrofon ve ses çıkışı durumunu, kapalı ve sağırlaştırılmış durumlar dahil, net rozetlerle gösteriyor.",
     "app.update.notes.security.title": "Production güvenlik güçlendirmesi",
     "app.update.notes.security.description":
       "Auth erişim kontrolleri, socket payload şemaları, güvenli yönlendirmeler, genel production hataları ve CI kapsamı platformu varsayılan olarak daha güvenli yapıyor.",
     "app.update.notes.performance.title": "Daha hızlı gerçek zamanlı mesajlaşma yolları",
     "app.update.notes.performance.description":
       "DM konuşmaları sayfalanıyor, sunucu okunmamış güncellemeleri aktif kullanıcılara hedefleniyor, davet kullanımı atomik ve hot-path üyelik indexleri hazır.",
-    "app.update.notes.desktop.title": "Masaüstü hazırlık temeli",
+    "app.update.notes.desktop.title": "Tüm yüzeylerde ortak ses UI",
     "app.update.notes.desktop.description":
-      "İlk Tauri kabuğu, masaüstü runtime yardımcıları, QA notları ve medya izin yönlendirmeleri web deneyimini değiştirmeden hazırlandı.",
-    "app.update.notes.quality.title": "Daha temiz geliştirici akışı",
+      "Ses geri bildirim UI'ı ortak web katmanında kaldığı için tarayıcı, mobil responsive ve Tauri masaüstü aynı davranışı kullanıyor.",
+    "app.update.notes.quality.title": "Ses geri bildirimi cilalandı",
     "app.update.notes.quality.description":
-      "ESLint artık desteklenen CLI yolundan çalışıyor, lint uyarıları temiz ve başlangıç çıktısı gürültüsüz/bozuk karaktersiz.",
+      "Katılımcı kartları artık bağlantıyı değiştirmeden daha yüksek responsive waveform, avatar parlaması ve kompakt durum rozetleri kullanıyor.",
 
     "validation.category.pattern":
       "Kategori adları harf, sayı, boşluk, tire veya alt çizgi içerebilir.",
@@ -1633,6 +1637,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.room.connected": "Bağlı",
     "voice.room.speaking": "Konuşuyor",
     "voice.room.microphoneOn": "Mikrofon açık",
+    "voice.room.microphoneActive": "Mikrofon aktif",
+    "voice.room.microphoneClosed": "Mikrofon kapalı",
+    "voice.room.outputActive": "Ses çıkışı açık",
+    "voice.room.outputClosed": "Ses çıkışı kapalı",
     "voice.room.screenSharing": "Ekran paylaşıyor",
     "voice.room.localMuted": "Yerel olarak sessizsin",
     "voice.room.localLive": "Mikrofonun yayında",

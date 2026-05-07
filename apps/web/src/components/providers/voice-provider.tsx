@@ -72,6 +72,7 @@ type VoiceProviderProps = {
 };
 
 export interface VoiceParticipantViewModel {
+  audioLevel: number;
   avatarUrl: string | null;
   displayName: string | null;
   isLocal: boolean;
@@ -79,6 +80,112 @@ export interface VoiceParticipantViewModel {
   isSpeaking: boolean;
   userId: string;
   username: string;
+}
+
+type VoiceParticipantAudioActivity = Pick<
+  VoiceParticipantViewModel,
+  "audioLevel" | "isMuted" | "isSpeaking"
+>;
+
+const VOICE_AUDIO_LEVEL_SYNC_INTERVAL_MS = 33;
+const VOICE_AUDIO_LEVEL_CHANGE_THRESHOLD = 0.01;
+const VOICE_AUDIO_LEVEL_IDLE_THRESHOLD = 0.006;
+const VOICE_AUDIO_LEVEL_SPEAKING_THRESHOLD = 0.025;
+
+type WindowWithWebkitAudioContext = Window & {
+  webkitAudioContext?: typeof AudioContext;
+};
+
+type LocalVoiceAudioLevelMonitor = {
+  dispose: () => void;
+  readLevel: () => number;
+};
+
+function normalizeVoiceAudioLevel(audioLevel: number) {
+  if (!Number.isFinite(audioLevel)) {
+    return 0;
+  }
+
+  return Math.min(1, Math.max(0, audioLevel));
+}
+
+function getParticipantAudioActivity(
+  participant: Participant,
+): VoiceParticipantAudioActivity {
+  const microphonePublication = participant.getTrackPublication(Track.Source.Microphone);
+  const isMuted = microphonePublication?.isMuted ?? !participant.isMicrophoneEnabled;
+  const audioLevel = isMuted ? 0 : normalizeVoiceAudioLevel(participant.audioLevel);
+  const isSpeaking =
+    !isMuted &&
+    audioLevel > VOICE_AUDIO_LEVEL_IDLE_THRESHOLD &&
+    (participant.isSpeaking || audioLevel >= VOICE_AUDIO_LEVEL_SPEAKING_THRESHOLD);
+
+  return {
+    audioLevel,
+    isMuted,
+    isSpeaking,
+  };
+}
+
+function shouldUpdateParticipantAudioActivity(
+  current: VoiceParticipantViewModel,
+  next: VoiceParticipantAudioActivity,
+) {
+  return (
+    current.isMuted !== next.isMuted ||
+    current.isSpeaking !== next.isSpeaking ||
+    Math.abs(current.audioLevel - next.audioLevel) >= VOICE_AUDIO_LEVEL_CHANGE_THRESHOLD
+  );
+}
+
+function createLocalVoiceAudioLevelMonitor(
+  track: LocalAudioTrack,
+): LocalVoiceAudioLevelMonitor | null {
+  if (typeof window === "undefined" || track.mediaStreamTrack.readyState !== "live") {
+    return null;
+  }
+
+  const AudioContextConstructor =
+    window.AudioContext ?? (window as WindowWithWebkitAudioContext).webkitAudioContext;
+
+  if (!AudioContextConstructor) {
+    return null;
+  }
+
+  try {
+    const audioContext = new AudioContextConstructor();
+    const analyser = audioContext.createAnalyser();
+    const source = audioContext.createMediaStreamSource(
+      new MediaStream([track.mediaStreamTrack]),
+    );
+
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.18;
+    const samples = new Uint8Array(analyser.fftSize);
+    source.connect(analyser);
+    void audioContext.resume().catch(() => undefined);
+
+    return {
+      dispose: () => {
+        source.disconnect();
+        void audioContext.close().catch(() => undefined);
+      },
+      readLevel: () => {
+        analyser.getByteTimeDomainData(samples);
+
+        let sum = 0;
+        for (const sample of samples) {
+          const amplitude = (sample - 128) / 128;
+          sum += amplitude * amplitude;
+        }
+
+        const rms = Math.sqrt(sum / samples.length);
+        return normalizeVoiceAudioLevel((rms - 0.008) * 8);
+      },
+    };
+  } catch {
+    return null;
+  }
 }
 
 export interface VoiceScreenShareViewModel {
@@ -662,6 +769,7 @@ function mapE2EVoiceParticipants(
   isMuted: boolean,
 ): VoiceParticipantViewModel[] {
   return participants.map((participant) => ({
+    audioLevel: 0,
     avatarUrl: participant.avatarUrl,
     displayName: participant.displayName,
     isLocal: participant.userId === currentUser.id,
@@ -877,7 +985,14 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     useVoiceStore.getState().setMuted(nextMuted);
     setParticipants((current) =>
       current.map((participant) =>
-        participant.isLocal ? { ...participant, isMuted: nextMuted } : participant,
+        participant.isLocal
+          ? {
+              ...participant,
+              audioLevel: nextMuted ? 0 : participant.audioLevel,
+              isMuted: nextMuted,
+              isSpeaking: nextMuted ? false : participant.isSpeaking,
+            }
+          : participant,
       ),
     );
   }, []);
@@ -1290,14 +1405,12 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         ...targetRoom.remoteParticipants.values(),
       ].map((participant) => {
         const profile = getParticipantProfile(participant, currentUser);
-        const microphonePublication = participant.getTrackPublication(Track.Source.Microphone);
+        const audioActivity = getParticipantAudioActivity(participant);
 
         return {
           ...profile,
+          ...audioActivity,
           isLocal: participant.identity === currentUser.id,
-          isMuted:
-            microphonePublication?.isMuted ?? !participant.isMicrophoneEnabled,
-          isSpeaking: participant.isSpeaking && participant.audioLevel > 0.05,
         } satisfies VoiceParticipantViewModel;
       });
 
@@ -1305,6 +1418,106 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     },
     [currentUser],
   );
+
+  useEffect(() => {
+    if (!room || typeof window === "undefined") {
+      return;
+    }
+
+    let animationFrameId = 0;
+    let lastSyncAt = 0;
+    let localAudioLevelMonitor: LocalVoiceAudioLevelMonitor | null = null;
+    let monitoredLocalTrack: MediaStreamTrack | null = null;
+
+    const getLocalAudioLevelMonitor = () => {
+      const localMicrophoneTrack = getLocalMicrophoneTrack(room);
+      const nextLocalTrack = localMicrophoneTrack?.mediaStreamTrack ?? null;
+
+      if (nextLocalTrack === monitoredLocalTrack) {
+        return localAudioLevelMonitor;
+      }
+
+      localAudioLevelMonitor?.dispose();
+      monitoredLocalTrack = nextLocalTrack;
+      localAudioLevelMonitor = localMicrophoneTrack
+        ? createLocalVoiceAudioLevelMonitor(localMicrophoneTrack)
+        : null;
+
+      return localAudioLevelMonitor;
+    };
+
+    const syncAudioLevels = (timestamp: number) => {
+      if (timestamp - lastSyncAt >= VOICE_AUDIO_LEVEL_SYNC_INTERVAL_MS) {
+        lastSyncAt = timestamp;
+
+        const liveParticipants = new Map<string, Participant>();
+        liveParticipants.set(room.localParticipant.identity, room.localParticipant);
+        room.remoteParticipants.forEach((participant) => {
+          liveParticipants.set(participant.identity, participant);
+        });
+
+        setParticipants((currentParticipants) => {
+          let hasChanges = false;
+          const nextParticipants = currentParticipants.map((participant) => {
+            const liveParticipant = liveParticipants.get(participant.userId);
+
+            if (!liveParticipant) {
+              return participant;
+            }
+
+            const audioActivity = getParticipantAudioActivity(liveParticipant);
+            if (
+              liveParticipant.identity === room.localParticipant.identity &&
+              audioActivity.isMuted
+            ) {
+              localAudioLevelMonitor?.dispose();
+              localAudioLevelMonitor = null;
+              monitoredLocalTrack = null;
+            }
+
+            const nextAudioActivity =
+              liveParticipant.identity === room.localParticipant.identity &&
+              !audioActivity.isMuted
+                ? (() => {
+                    const localAudioLevel =
+                      getLocalAudioLevelMonitor()?.readLevel() ?? audioActivity.audioLevel;
+
+                    return {
+                      ...audioActivity,
+                      audioLevel: localAudioLevel,
+                      isSpeaking:
+                        localAudioLevel > VOICE_AUDIO_LEVEL_IDLE_THRESHOLD &&
+                        (audioActivity.isSpeaking ||
+                          localAudioLevel >= VOICE_AUDIO_LEVEL_SPEAKING_THRESHOLD),
+                    };
+                  })()
+                : audioActivity;
+
+            if (!shouldUpdateParticipantAudioActivity(participant, nextAudioActivity)) {
+              return participant;
+            }
+
+            hasChanges = true;
+            return {
+              ...participant,
+              ...nextAudioActivity,
+            };
+          });
+
+          return hasChanges ? nextParticipants : currentParticipants;
+        });
+      }
+
+      animationFrameId = window.requestAnimationFrame(syncAudioLevels);
+    };
+
+    animationFrameId = window.requestAnimationFrame(syncAudioLevels);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      localAudioLevelMonitor?.dispose();
+    };
+  }, [room]);
 
   const emitVoiceScreenShareState = useCallback(
     (

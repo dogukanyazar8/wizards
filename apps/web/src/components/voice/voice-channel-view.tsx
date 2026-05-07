@@ -51,6 +51,7 @@ type VoiceChannelViewProps = {
 
 type VoiceParticipantTileProps = {
   isScreenSharing: boolean;
+  isLocalOutputMuted: boolean;
   onResetVolume: () => void;
   onSetVolume: (volume: number) => void;
   participant: VoiceParticipantViewModel;
@@ -103,32 +104,130 @@ function getParticipantGridStyle(count: number): CSSProperties {
   } as CSSProperties;
 }
 
-function AudioActivityBars({ active }: { active: boolean }) {
+const VOICE_WAVEFORM_PATTERN = [
+  0.14, 0.18, 0.2, 0.28, 0.5, 0.86, 0.44, 0.22, 0.18, 0.24, 0.36, 0.66, 0.94,
+  0.46, 0.24, 0.18, 0.22, 0.36, 0.7, 0.98, 0.58, 0.28, 0.2, 0.16,
+];
+
+function normalizeWaveformLevel(level: number) {
+  if (!Number.isFinite(level)) {
+    return 0;
+  }
+
+  return Math.min(1, Math.max(0, level));
+}
+
+function VoiceLevelWaveform({
+  active,
+  compact = false,
+  level,
+  muted = false,
+}: {
+  active: boolean;
+  compact?: boolean;
+  level: number;
+  muted?: boolean;
+}) {
+  const normalizedLevel = muted ? 0 : normalizeWaveformLevel(level);
+  const displayLevel = active ? Math.max(normalizedLevel, 0.16) : normalizedLevel * 0.42;
+  const maxHeight = compact ? 18 : 39;
+  const minHeight = compact ? 3 : 5;
+  const center = (VOICE_WAVEFORM_PATTERN.length - 1) / 2;
+
   return (
     <div
       aria-hidden="true"
       className={cn(
-        "flex h-8 items-center justify-center gap-1",
-        active ? "text-[hsl(var(--primary))]" : "text-app-soft",
+        "flex items-center justify-center",
+        compact ? "h-5 w-24 gap-[3px]" : "mt-5 h-12 w-full max-w-[29rem] gap-1 sm:gap-1.5",
       )}
     >
-      {[0, 1, 2, 3].map((index) => (
-        <span
-          className={cn(
-            "block w-1.5 rounded-full transition-all duration-300",
-            active
-              ? "animate-pulse bg-[hsl(var(--primary))]"
-              : "bg-[hsl(var(--muted)/0.38)]",
-          )}
-          key={index}
-          style={{
-            animationDelay: `${index * 100}ms`,
-            height: active ? `${14 + ((index * 7) % 16)}px` : `${8 + index * 3}px`,
-          }}
-        />
-      ))}
+      {VOICE_WAVEFORM_PATTERN.map((shape, index) => {
+        const distanceFromCenter = Math.abs(index - center) / center;
+        const centerBoost = 1 - distanceFromCenter * 0.48;
+        const height =
+          minHeight + (maxHeight - minHeight) * Math.min(1, displayLevel * shape * centerBoost);
+        const isLit = !muted && (active || normalizedLevel > 0.035);
+
+        return (
+          <span
+            aria-hidden="true"
+            className={cn(
+              "block rounded-full transition-[height,opacity,background-color,box-shadow] ease-out",
+              compact ? "w-[3px]" : "w-1 sm:w-1.5",
+              muted
+                ? "bg-[hsl(var(--muted)/0.32)]"
+                : isLit
+                  ? "bg-[hsl(var(--primary))] shadow-[0_0_12px_hsl(var(--primary)/0.28)]"
+                  : "bg-[hsl(var(--primary)/0.20)]",
+            )}
+            key={`${shape}-${index}`}
+            style={{
+              height: `${height}px`,
+              opacity: muted ? 0.46 : isLit ? 0.64 + displayLevel * 0.36 : 0.34,
+              transitionDuration: muted ? "150ms" : "70ms",
+            }}
+          />
+        );
+      })}
     </div>
   );
+}
+
+function MicrophoneStatusPill({ muted }: { muted: boolean }) {
+  const { t } = useI18n();
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-bold shadow-[0_14px_38px_hsl(var(--shadow-color)/0.08)] transition",
+        muted
+          ? "border-[hsl(var(--danger)/0.20)] bg-[hsl(var(--danger)/0.08)] text-[hsl(var(--danger))]"
+          : "border-[hsl(var(--success)/0.20)] bg-[hsl(var(--success)/0.10)] text-[hsl(var(--success))]",
+      )}
+    >
+      {muted ? (
+        <MicOff className="h-[18px] w-[18px]" />
+      ) : (
+        <Mic className="h-[18px] w-[18px]" />
+      )}
+      {muted ? t("voice.room.microphoneClosed") : t("voice.room.microphoneActive")}
+    </span>
+  );
+}
+
+function OutputStatusPill({ muted }: { muted: boolean }) {
+  const { t } = useI18n();
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-bold shadow-[0_14px_38px_hsl(var(--shadow-color)/0.08)] transition",
+        muted
+          ? "border-[hsl(var(--danger)/0.20)] bg-[hsl(var(--danger)/0.08)] text-[hsl(var(--danger))]"
+          : "border-[hsl(var(--success)/0.20)] bg-[hsl(var(--success)/0.10)] text-[hsl(var(--success))]",
+      )}
+    >
+      {muted ? (
+        <VolumeX className="h-[18px] w-[18px]" />
+      ) : (
+        <Volume2 className="h-[18px] w-[18px]" />
+      )}
+      {muted ? t("voice.room.outputClosed") : t("voice.room.outputActive")}
+    </span>
+  );
+}
+
+function getAvatarGlowStyle(participant: VoiceParticipantViewModel): CSSProperties | undefined {
+  if (participant.isMuted || !participant.isSpeaking) {
+    return undefined;
+  }
+
+  const level = normalizeWaveformLevel(participant.audioLevel);
+
+  return {
+    boxShadow: `0 0 ${18 + level * 52}px hsl(var(--primary) / ${0.18 + level * 0.22})`,
+  };
 }
 
 async function toggleElementFullscreen(element: HTMLElement | null) {
@@ -178,6 +277,7 @@ function ScreenShareVideo({
 
 function VoiceParticipantTile({
   isScreenSharing,
+  isLocalOutputMuted,
   onResetVolume,
   onSetVolume,
   participant,
@@ -185,6 +285,7 @@ function VoiceParticipantTile({
 }: VoiceParticipantTileProps) {
   const { t } = useI18n();
   const displayName = participant.displayName ?? participant.username;
+  const avatarGlowStyle = getAvatarGlowStyle(participant);
 
   return (
     <article
@@ -234,6 +335,7 @@ function VoiceParticipantTile({
               ? "bg-[hsl(var(--primary)/0.16)] ring-4 ring-[hsl(var(--primary)/0.12)]"
               : "bg-[hsl(var(--surface-card)/0.58)] ring-1 ring-[hsl(var(--border)/0.58)]",
           )}
+          style={avatarGlowStyle}
         >
           <Avatar
             alt={displayName}
@@ -251,12 +353,17 @@ function VoiceParticipantTile({
             {participant.isLocal ? ` / ${t("voice.grid.you")}` : ""}
           </p>
         </div>
-        <AudioActivityBars active={participant.isSpeaking} />
+        <VoiceLevelWaveform
+          active={participant.isSpeaking}
+          level={participant.audioLevel}
+          muted={participant.isMuted}
+        />
       </div>
 
       {participant.isLocal ? (
-        <div className="shrink-0 rounded-[20px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.56)] px-3 py-2 text-center text-xs font-semibold text-app-muted">
-          {participant.isMuted ? t("voice.room.localMuted") : t("voice.room.localLive")}
+        <div className="flex shrink-0 flex-wrap justify-center gap-2 pb-1">
+          <MicrophoneStatusPill muted={participant.isMuted} />
+          <OutputStatusPill muted={isLocalOutputMuted} />
         </div>
       ) : (
         <div className="shrink-0 rounded-[20px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.56)] px-3 py-2">
@@ -394,7 +501,12 @@ function VoiceParticipantsSidebar({
                       className="h-3.5 w-3.5 text-[hsl(var(--success))]"
                     />
                   )}
-                  <AudioActivityBars active={participant.isSpeaking} />
+                  <VoiceLevelWaveform
+                    active={participant.isSpeaking}
+                    compact
+                    level={participant.audioLevel}
+                    muted={participant.isMuted}
+                  />
                 </div>
               </div>
             );
@@ -968,6 +1080,7 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
                 >
                   {orderedParticipants.map((participant) => (
                     <VoiceParticipantTile
+                      isLocalOutputMuted={isDeafened}
                       isScreenSharing={screenShareParticipantIds.has(participant.userId)}
                       key={participant.userId}
                       onResetVolume={() => resetParticipantVolume(participant.userId)}

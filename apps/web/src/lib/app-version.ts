@@ -15,7 +15,7 @@ export type WhisprVersionPayload = {
 };
 
 export const WHISPR_APP_VERSION =
-  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.2";
+  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.3";
 export const WHISPR_BUILD_ID =
   process.env.NEXT_PUBLIC_WHISPR_BUILD_ID ?? "development";
 export const WHISPR_BUILD_TIME =
@@ -27,26 +27,26 @@ export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
   {
     categoryKey: "app.update.category.voice",
     descriptionKey: "app.update.notes.voice.description",
-    id: "premium-voice-room",
+    id: "realtime-voice-activity",
     titleKey: "app.update.notes.voice.title",
   },
   {
-    categoryKey: "app.update.category.servers",
-    descriptionKey: "app.update.notes.settings.description",
-    id: "voice-controls-consolidated",
-    titleKey: "app.update.notes.settings.title",
-  },
-  {
-    categoryKey: "app.update.category.messaging",
-    descriptionKey: "app.update.notes.messaging.description",
-    id: "transparent-chat-controls",
-    titleKey: "app.update.notes.messaging.title",
+    categoryKey: "app.update.category.devices",
+    descriptionKey: "app.update.notes.devices.description",
+    id: "voice-input-output-status",
+    titleKey: "app.update.notes.devices.title",
   },
   {
     categoryKey: "app.update.category.quality",
-    descriptionKey: "app.update.notes.servers.description",
-    id: "voice-e2e-coverage",
-    titleKey: "app.update.notes.servers.title",
+    descriptionKey: "app.update.notes.quality.description",
+    id: "voice-room-feedback-polish",
+    titleKey: "app.update.notes.quality.title",
+  },
+  {
+    categoryKey: "app.update.category.desktop",
+    descriptionKey: "app.update.notes.desktop.description",
+    id: "shared-audio-feedback",
+    titleKey: "app.update.notes.desktop.title",
   },
 ];
 
