@@ -775,14 +775,14 @@ export function ChatArea({
         </div>
       ) : null}
 
-      <div className="relative z-20 bg-[hsl(var(--surface-card)/0.22)] px-3 py-1.5 backdrop-blur-xl md:px-4">
+      <div className="relative z-20 bg-transparent px-3 py-1 md:px-4">
         <div className="flex items-center justify-between gap-3">
           <div className="relative min-w-0 flex-1">
             {hasPinnedMessages ? (
               <>
                 <button
                   aria-expanded={showPinnedMessages}
-                  className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.1)] px-2.5 text-[11px] font-bold text-[hsl(var(--primary))] shadow-[0_8px_18px_hsl(var(--primary)/0.08)] transition hover:bg-[hsl(var(--primary)/0.15)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                  className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--surface-card)/0.24)] px-2.5 text-[11px] font-bold text-[hsl(var(--primary))] shadow-[0_8px_18px_hsl(var(--primary)/0.06)] backdrop-blur-md transition hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                   data-testid="channel-pins-toggle"
                   onClick={() => setShowPinnedMessages((current) => !current)}
                   type="button"
@@ -846,13 +846,13 @@ export function ChatArea({
             ) : null}
           </div>
 
-          <div className="inline-flex w-fit max-w-full shrink-0 items-center gap-1 rounded-[20px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.38)] p-1 shadow-[0_12px_28px_hsl(var(--shadow-color)/0.06)]">
+          <div className="inline-flex w-fit max-w-full shrink-0 items-center gap-1 rounded-[20px] border border-[hsl(var(--border)/0.22)] bg-[hsl(var(--surface-card)/0.20)] p-1 shadow-[0_12px_28px_hsl(var(--shadow-color)/0.04)] backdrop-blur-md">
             {mode === "channel" ? (
               <div className="relative">
                 <button
                   aria-expanded={showNotificationMenu}
                   aria-haspopup="menu"
-                  className="inline-flex min-h-9 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                  className="inline-flex min-h-9 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
                   data-testid="channel-notification-settings-open"
                   onClick={() => setShowNotificationMenu((current) => !current)}
                   ref={notificationButtonRef}
@@ -867,7 +867,7 @@ export function ChatArea({
             ) : null}
             <button
               aria-expanded={showSearch}
-              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
               data-testid="message-search-open"
               onClick={() => setShowSearch(true)}
               ref={searchButtonRef}

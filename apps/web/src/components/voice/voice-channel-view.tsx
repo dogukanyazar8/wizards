@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import {
   ConnectionState,
   LocalVideoTrack,
@@ -8,13 +15,20 @@ import {
   type Room,
 } from "livekit-client";
 import {
+  ChevronDown,
   Loader2,
   Maximize2,
+  Mic,
   MicOff,
   MonitorUp,
+  PhoneOff,
   RotateCcw,
+  Settings2,
+  Sparkles,
+  Users,
   Video,
   Volume2,
+  VolumeX,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -23,6 +37,7 @@ import {
   type VoiceParticipantViewModel,
   type VoiceScreenShareViewModel,
 } from "@/components/providers/voice-provider";
+import { VoiceSettingsModal } from "@/components/voice/voice-settings-modal";
 import {
   SCREEN_SHARE_QUALITY_OPTIONS,
   type ScreenShareQualityId,
@@ -34,22 +49,27 @@ type VoiceChannelViewProps = {
   serverId: string;
 };
 
-type VoiceParticipantCardProps = {
-  audioPreferenceBadges: string[];
-  isKrispNoiseCancellationActive: boolean;
+type VoiceParticipantTileProps = {
+  isScreenSharing: boolean;
   onResetVolume: () => void;
   onSetVolume: (volume: number) => void;
   participant: VoiceParticipantViewModel;
   participantVolume: number;
 };
 
-function getSpeakingClass(participant: VoiceParticipantViewModel) {
-  if (participant.isSpeaking) {
-    return "ring-4 ring-[hsl(var(--success)/0.55)]";
-  }
-
-  return "ring-1 ring-[hsl(var(--border)/0.8)]";
-}
+type RoomControlButtonProps = {
+  active?: boolean;
+  ariaLabel: string;
+  children?: ReactNode;
+  destructive?: boolean;
+  disabled?: boolean;
+  icon: ReactNode;
+  label: string;
+  onClick?: () => void;
+  showChevron?: boolean;
+  testId?: string;
+  title?: string;
+};
 
 function isReconnectState(state: ConnectionState) {
   return (
@@ -58,129 +78,55 @@ function isReconnectState(state: ConnectionState) {
   );
 }
 
-function VoiceParticipantCard({
-  audioPreferenceBadges,
-  isKrispNoiseCancellationActive,
-  onResetVolume,
-  onSetVolume,
-  participant,
-  participantVolume,
-}: VoiceParticipantCardProps) {
-  const { t } = useI18n();
-  const displayName = participant.displayName ?? participant.username;
+function getSpeakingClass(isSpeaking: boolean) {
+  return isSpeaking
+    ? "border-[hsl(var(--primary)/0.46)] shadow-[0_0_0_4px_hsl(var(--primary)/0.12),0_24px_70px_hsl(var(--primary)/0.12)]"
+    : "border-[hsl(var(--border)/0.66)] shadow-[0_18px_54px_hsl(var(--shadow-color)/0.08)]";
+}
 
+function getParticipantGridClass() {
+  return cn(
+    "grid h-full min-h-0 w-full gap-3 sm:gap-4",
+    "grid-cols-1 grid-rows-[repeat(var(--voice-grid-mobile-rows),minmax(0,1fr))]",
+    "sm:grid-cols-[repeat(var(--voice-grid-columns),minmax(0,1fr))] sm:grid-rows-[repeat(var(--voice-grid-rows),minmax(0,1fr))]",
+  );
+}
+
+function getParticipantGridStyle(count: number): CSSProperties {
+  const columns = count <= 1 ? 1 : count <= 4 ? 2 : count <= 9 ? 3 : 4;
+  const rows = Math.max(1, Math.ceil(count / columns));
+
+  return {
+    "--voice-grid-columns": String(columns),
+    "--voice-grid-mobile-rows": String(Math.max(1, count)),
+    "--voice-grid-rows": String(rows),
+  } as CSSProperties;
+}
+
+function AudioActivityBars({ active }: { active: boolean }) {
   return (
     <div
-      className="app-panel relative flex h-full min-h-[17rem] flex-col overflow-hidden rounded-[24px] border p-3 sm:min-h-[20rem] sm:rounded-[28px] sm:p-4 lg:min-h-[22rem]"
-      data-testid="voice-participant-card"
-      data-user-id={participant.userId}
-      data-username={participant.username}
-    >
-      <div className="mb-3 flex items-start justify-between gap-3 sm:mb-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className={cn("rounded-full transition", getSpeakingClass(participant))}>
-            <Avatar
-              alt={displayName}
-              className="h-12 w-12 border-none text-sm sm:h-14 sm:w-14"
-              fallback={displayName}
-              src={participant.avatarUrl}
-            />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-app-foreground">
-              {displayName}
-            </p>
-            <p className="truncate text-xs text-app-muted">
-              @{participant.username}
-              {participant.isLocal ? ` / ${t("voice.grid.you")}` : ""}
-            </p>
-          </div>
-        </div>
-
-        {participant.isMuted ? (
-          <span
-            className="rounded-full border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.12)] p-2 text-[hsl(var(--danger))]"
-            title={t("voice.grid.muted")}
-          >
-            <MicOff className="h-4 w-4" />
-          </span>
-        ) : null}
-      </div>
-
-      <div className="flex min-h-[8rem] flex-1 items-center justify-center rounded-[20px] border border-dashed border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-soft)/0.42)] text-center sm:rounded-[22px]">
-        <div className="space-y-2">
-          <Video className="mx-auto h-8 w-8 text-app-muted" />
-          <p className="text-sm font-medium text-app-foreground">
-            {t("voice.grid.videoSoon")}
-          </p>
-          <p className="text-xs text-app-muted">{t("voice.grid.videoPhase8")}</p>
-        </div>
-      </div>
-
-      {participant.isLocal ? (
-        <div className="app-panel-soft mt-3 rounded-[20px] border p-3 sm:mt-4 sm:rounded-[22px] sm:p-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-            <p className="text-sm font-semibold text-app-foreground">
-              {t("voice.grid.processing")}
-            </p>
-            <span className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-app-soft">
-              {isKrispNoiseCancellationActive
-                ? t("voice.grid.krispActive")
-                : t("voice.grid.browserProcessing")}
-            </span>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {audioPreferenceBadges.map((badge) => (
-              <span
-                className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.48)] px-3 py-1 text-xs font-medium text-app-foreground"
-                key={badge}
-              >
-                {badge}
-              </span>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="app-panel-soft mt-3 rounded-[20px] border p-3 sm:mt-4 sm:rounded-[22px] sm:p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-app-foreground">
-                {t("voice.grid.remoteVolume")}
-              </p>
-              <p className="mt-1 text-xs text-app-muted">
-                {t("voice.grid.remoteVolumeDescription")}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)] px-3 py-1 text-xs font-semibold text-app-foreground">
-                {participantVolume}%
-              </span>
-              <button
-                aria-label={t("voice.grid.resetVolume")}
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.48)] text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:p-2"
-                onClick={onResetVolume}
-                type="button"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-4 flex items-center gap-3">
-            <Volume2 className="h-4 w-4 shrink-0 text-app-muted" />
-            <input
-              aria-label={t("voice.grid.remoteVolume")}
-              className="h-3 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.86)] accent-[hsl(var(--primary))] sm:h-2"
-              max={100}
-              min={0}
-              onChange={(event) => onSetVolume(Number(event.target.value))}
-              step={5}
-              type="range"
-              value={participantVolume}
-            />
-          </div>
-        </div>
+      aria-hidden="true"
+      className={cn(
+        "flex h-8 items-center justify-center gap-1",
+        active ? "text-[hsl(var(--primary))]" : "text-app-soft",
       )}
+    >
+      {[0, 1, 2, 3].map((index) => (
+        <span
+          className={cn(
+            "block w-1.5 rounded-full transition-all duration-300",
+            active
+              ? "animate-pulse bg-[hsl(var(--primary))]"
+              : "bg-[hsl(var(--muted)/0.38)]",
+          )}
+          key={index}
+          style={{
+            animationDelay: `${index * 100}ms`,
+            height: active ? `${14 + ((index * 7) % 16)}px` : `${8 + index * 3}px`,
+          }}
+        />
+      ))}
     </div>
   );
 }
@@ -230,6 +176,392 @@ function ScreenShareVideo({
   );
 }
 
+function VoiceParticipantTile({
+  isScreenSharing,
+  onResetVolume,
+  onSetVolume,
+  participant,
+  participantVolume,
+}: VoiceParticipantTileProps) {
+  const { t } = useI18n();
+  const displayName = participant.displayName ?? participant.username;
+
+  return (
+    <article
+      className={cn(
+        "relative flex h-full min-h-0 flex-col overflow-hidden rounded-[30px] border bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.92),hsl(var(--surface-soft)/0.44))] p-3 transition sm:p-4",
+        getSpeakingClass(participant.isSpeaking),
+      )}
+      data-speaking={participant.isSpeaking ? "true" : "false"}
+      data-testid="voice-participant-card"
+      data-user-id={participant.userId}
+      data-username={participant.username}
+    >
+      <div className="flex shrink-0 items-start justify-between gap-3">
+        <div className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 py-1 text-[11px] font-semibold text-app-muted">
+          <span className="h-2.5 w-2.5 rounded-full bg-[hsl(var(--success))] shadow-[0_0_0_4px_hsl(var(--success)/0.12)]" />
+          {participant.isSpeaking
+            ? t("voice.room.speaking")
+            : t("voice.room.connected")}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {isScreenSharing ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 text-[11px] font-semibold text-[hsl(var(--primary))]">
+              <MonitorUp className="h-3.5 w-3.5" />
+              {t("voice.room.screenSharing")}
+            </span>
+          ) : null}
+          <span
+            className={cn(
+              "inline-flex h-9 w-9 items-center justify-center rounded-full border",
+              participant.isMuted
+                ? "border-[hsl(var(--danger)/0.26)] bg-[hsl(var(--danger)/0.12)] text-[hsl(var(--danger))]"
+                : "border-[hsl(var(--success)/0.22)] bg-[hsl(var(--success)/0.10)] text-[hsl(var(--success))]",
+            )}
+            title={participant.isMuted ? t("voice.grid.muted") : t("voice.room.microphoneOn")}
+          >
+            {participant.isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-3 text-center">
+        <div
+          className={cn(
+            "rounded-full p-1 transition",
+            participant.isSpeaking
+              ? "bg-[hsl(var(--primary)/0.16)] ring-4 ring-[hsl(var(--primary)/0.12)]"
+              : "bg-[hsl(var(--surface-card)/0.58)] ring-1 ring-[hsl(var(--border)/0.58)]",
+          )}
+        >
+          <Avatar
+            alt={displayName}
+            className="h-[clamp(3.75rem,8vh,6rem)] w-[clamp(3.75rem,8vh,6rem)] border-none text-lg"
+            fallback={displayName}
+            src={participant.avatarUrl}
+          />
+        </div>
+        <div className="mt-3 min-w-0">
+          <p className="truncate text-base font-semibold text-app-foreground sm:text-lg">
+            {displayName}
+          </p>
+          <p className="mt-1 truncate text-sm font-medium text-app-muted">
+            @{participant.username}
+            {participant.isLocal ? ` / ${t("voice.grid.you")}` : ""}
+          </p>
+        </div>
+        <AudioActivityBars active={participant.isSpeaking} />
+      </div>
+
+      {participant.isLocal ? (
+        <div className="shrink-0 rounded-[20px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.56)] px-3 py-2 text-center text-xs font-semibold text-app-muted">
+          {participant.isMuted ? t("voice.room.localMuted") : t("voice.room.localLive")}
+        </div>
+      ) : (
+        <div className="shrink-0 rounded-[20px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.56)] px-3 py-2">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-app-soft">
+              {t("voice.grid.remoteVolume")}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-app-foreground">
+                {participantVolume}%
+              </span>
+              <button
+                aria-label={t("voice.grid.resetVolume")}
+                className="flex h-7 w-7 items-center justify-center rounded-full border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.52)] text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                onClick={onResetVolume}
+                type="button"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Volume2 className="h-4 w-4 shrink-0 text-app-muted" />
+            <input
+              aria-label={t("voice.grid.remoteVolume")}
+              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.86)] accent-[hsl(var(--primary))]"
+              max={100}
+              min={0}
+              onChange={(event) => onSetVolume(Number(event.target.value))}
+              step={5}
+              type="range"
+              value={participantVolume}
+            />
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
+
+function VoiceEmptyState() {
+  const { t } = useI18n();
+
+  return (
+    <div
+      className="flex min-h-[22rem] items-center justify-center rounded-[30px] border border-dashed border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.32)] p-8 text-center"
+      data-testid="voice-empty-state"
+    >
+      <div className="max-w-sm">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.10)] text-[hsl(var(--primary))]">
+          <Users className="h-6 w-6" />
+        </div>
+        <p className="mt-4 text-base font-semibold text-app-foreground">
+          {t("voice.room.emptyTitle")}
+        </p>
+        <p className="mt-2 text-sm text-app-muted">
+          {t("voice.room.emptyDescription")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function VoiceParticipantsSidebar({
+  participants,
+  screenShares,
+}: {
+  participants: VoiceParticipantViewModel[];
+  screenShares: VoiceScreenShareViewModel[];
+}) {
+  const { t } = useI18n();
+
+  return (
+    <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-[30px] border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.62)] p-3 shadow-[0_18px_54px_hsl(var(--shadow-color)/0.07)] xl:p-4">
+      <div className="mb-3 flex shrink-0 items-center justify-between gap-3 px-1">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-app-soft">
+          {t("voice.room.participantsTitle", { count: participants.length })}
+        </p>
+        <span className="rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.44)] px-2 py-0.5 text-xs font-semibold text-app-muted">
+          {participants.length}
+        </span>
+      </div>
+
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
+        {participants.length > 0 ? (
+          participants.map((participant) => {
+            const displayName = participant.displayName ?? participant.username;
+            const isScreenSharing = screenShares.some(
+              (share) => share.participantId === participant.userId,
+            );
+
+            return (
+              <div
+                className={cn(
+                  "flex min-w-0 items-center gap-3 rounded-[22px] border px-2.5 py-2 transition",
+                  participant.isSpeaking
+                    ? "border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.10)]"
+                    : "border-transparent bg-transparent hover:border-[hsl(var(--border)/0.56)] hover:bg-[hsl(var(--surface-soft)/0.34)]",
+                )}
+                key={participant.userId}
+              >
+                <div className="relative shrink-0">
+                  <Avatar
+                    alt={displayName}
+                    className="h-10 w-10 border-none text-xs"
+                    fallback={displayName}
+                    src={participant.avatarUrl}
+                  />
+                  <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[hsl(var(--surface-card))] bg-[hsl(var(--success))]" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-app-foreground">
+                    {displayName}
+                  </p>
+                  <p className="truncate text-xs font-medium text-app-muted">
+                    @{participant.username}
+                    {participant.isLocal ? ` / ${t("voice.grid.you")}` : ""}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5 text-app-muted">
+                  {isScreenSharing ? (
+                    <MonitorUp
+                      aria-label={t("voice.room.screenSharing")}
+                      className="h-3.5 w-3.5 text-[hsl(var(--primary))]"
+                    />
+                  ) : null}
+                  {participant.isMuted ? (
+                    <MicOff
+                      aria-label={t("voice.grid.muted")}
+                      className="h-3.5 w-3.5 text-[hsl(var(--danger))]"
+                    />
+                  ) : (
+                    <Mic
+                      aria-label={t("voice.room.microphoneOn")}
+                      className="h-3.5 w-3.5 text-[hsl(var(--success))]"
+                    />
+                  )}
+                  <AudioActivityBars active={participant.isSpeaking} />
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="rounded-[24px] border border-dashed border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-soft)/0.28)] px-4 py-6 text-center text-sm font-medium text-app-muted">
+            {t("voice.room.emptyTitle")}
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function RoomControlButton({
+  active = false,
+  ariaLabel,
+  children,
+  destructive = false,
+  disabled = false,
+  icon,
+  label,
+  onClick,
+  showChevron = false,
+  testId,
+  title,
+}: RoomControlButtonProps) {
+  return (
+    <button
+      aria-label={ariaLabel}
+      className={cn(
+        "group flex min-w-[4.75rem] flex-col items-center gap-1 rounded-[22px] border px-3 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+        destructive
+          ? "border-[hsl(var(--danger)/0.30)] bg-[hsl(var(--danger)/0.12)] text-[hsl(var(--danger))] hover:bg-[hsl(var(--danger)/0.18)] focus-visible:ring-[hsl(var(--danger)/0.45)]"
+          : active
+            ? "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]"
+            : "border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.78)] text-app-muted hover:bg-[hsl(var(--surface-soft)/0.62)] hover:text-app-foreground",
+        disabled && "cursor-not-allowed opacity-55",
+      )}
+      data-active={active ? "true" : "false"}
+      data-testid={testId}
+      disabled={disabled}
+      onClick={onClick}
+      title={title}
+      type="button"
+    >
+      <span className="relative flex h-11 w-11 items-center justify-center rounded-full border border-current/10 bg-white/44 shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]">
+        {icon}
+        {showChevron ? (
+          <ChevronDown className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-card))] p-0.5 text-app-soft" />
+        ) : null}
+      </span>
+      <span className="max-w-[5.25rem] truncate">{label}</span>
+      {children}
+    </button>
+  );
+}
+
+function VoiceControlBar({
+  isDeafened,
+  isMuted,
+  isScreenSharing,
+  leaveChannel,
+  toggleDeafen,
+  toggleMute,
+  toggleScreenShare,
+}: {
+  isDeafened: boolean;
+  isMuted: boolean;
+  isScreenSharing: boolean;
+  leaveChannel: () => Promise<void>;
+  toggleDeafen: () => Promise<void>;
+  toggleMute: () => Promise<void>;
+  toggleScreenShare: () => Promise<void>;
+}) {
+  const { t } = useI18n();
+  const [showVoiceSettingsModal, setShowVoiceSettingsModal] = useState(false);
+
+  return (
+    <>
+      <div className="sticky bottom-3 z-20 mt-5 flex justify-center">
+        <div className="flex max-w-full gap-2 overflow-x-auto rounded-[30px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] p-2 shadow-[0_24px_70px_hsl(var(--shadow-color)/0.14)] backdrop-blur-xl">
+          <RoomControlButton
+            active={isMuted}
+            ariaLabel={isMuted ? t("voice.controls.unmute") : t("voice.controls.mute")}
+            icon={isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+            label={isMuted ? t("voice.controls.unmuteShort") : t("voice.controls.muteShort")}
+            onClick={() => {
+              void toggleMute();
+            }}
+            testId="voice-room-control-mute"
+            title={isMuted ? t("voice.controls.unmute") : t("voice.controls.mute")}
+          />
+          <RoomControlButton
+            active={isDeafened}
+            ariaLabel={isDeafened ? t("voice.controls.undeafen") : t("voice.controls.deafen")}
+            icon={
+              isDeafened ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />
+            }
+            label={isDeafened ? t("voice.controls.undeafenShort") : t("voice.controls.deafenShort")}
+            onClick={() => {
+              void toggleDeafen();
+            }}
+            testId="voice-room-control-deafen"
+            title={isDeafened ? t("voice.controls.undeafen") : t("voice.controls.deafen")}
+          />
+          <RoomControlButton
+            active={isScreenSharing}
+            ariaLabel={
+              isScreenSharing
+                ? t("voice.screenShare.stop")
+                : t("voice.screenShare.share")
+            }
+            icon={<MonitorUp className="h-5 w-5" />}
+            label={
+              isScreenSharing
+                ? t("voice.controls.stopShareShort")
+                : t("voice.controls.shareShort")
+            }
+            onClick={() => {
+              void toggleScreenShare();
+            }}
+            testId="voice-room-control-screen-share"
+            title={
+              isScreenSharing
+                ? t("voice.screenShare.stop")
+                : t("voice.screenShare.share")
+            }
+          />
+          <RoomControlButton
+            ariaLabel={t("voice.controls.camera")}
+            disabled
+            icon={<Video className="h-5 w-5" />}
+            label={t("voice.controls.cameraShort")}
+            testId="voice-room-control-camera"
+            title={t("voice.controls.cameraSoon")}
+          />
+          <RoomControlButton
+            ariaLabel={t("voice.controls.settings")}
+            icon={<Settings2 className="h-5 w-5" />}
+            label={t("voice.controls.settingsShort")}
+            onClick={() => setShowVoiceSettingsModal(true)}
+            testId="voice-room-control-settings"
+            title={t("voice.controls.settings")}
+          />
+          <RoomControlButton
+            ariaLabel={t("voice.controls.disconnect")}
+            destructive
+            icon={<PhoneOff className="h-5 w-5" />}
+            label={t("voice.controls.leaveShort")}
+            onClick={() => {
+              void leaveChannel();
+            }}
+            testId="voice-room-control-disconnect"
+            title={t("voice.controls.disconnect")}
+          />
+        </div>
+      </div>
+
+      <VoiceSettingsModal
+        onClose={() => setShowVoiceSettingsModal(false)}
+        open={showVoiceSettingsModal}
+      />
+    </>
+  );
+}
+
 function ScreenShareStage({
   activeShare,
   isApplyingQuality,
@@ -256,10 +588,10 @@ function ScreenShareStage({
 
   return (
     <div
-      className="grid flex-1 gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]"
+      className="grid flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_15rem]"
       data-testid="voice-screen-share-stage"
     >
-      <div className="app-panel relative min-h-[22rem] overflow-hidden rounded-[26px] border p-3 sm:min-h-[30rem] sm:rounded-[32px] sm:p-4">
+      <div className="relative min-h-[22rem] overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.72)] p-3 sm:min-h-[28rem] sm:p-4">
         <div className="mb-3 flex flex-col gap-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-app-soft">
@@ -281,7 +613,7 @@ function ScreenShareStage({
         </div>
 
         <div
-          className="group relative flex min-h-[16rem] items-center justify-center rounded-[22px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] sm:h-[calc(100%-4.75rem)] sm:min-h-[24rem] sm:rounded-[26px]"
+          className="group relative flex min-h-[16rem] items-center justify-center rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] sm:h-[calc(100%-4.75rem)] sm:min-h-[23rem]"
           onDoubleClick={() => {
             void toggleElementFullscreen(stageRef.current);
           }}
@@ -305,7 +637,7 @@ function ScreenShareStage({
         </div>
       </div>
 
-      <aside className="app-panel flex min-h-[12rem] flex-col rounded-[24px] border p-3 sm:rounded-[28px] sm:p-4">
+      <aside className="rounded-[28px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.58)] p-3">
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-app-soft">
           {t("voice.screenShare.activeShares")}
         </p>
@@ -374,8 +706,8 @@ function ScreenShareStage({
                         ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.15)]"
                         : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] hover:bg-[hsl(var(--surface-soft)/0.72)]",
                     )}
-                    disabled={isApplyingQuality}
                     data-testid={`screen-share-quality-${option.id}`}
+                    disabled={isApplyingQuality}
                     key={option.id}
                     onClick={() => onSelectQuality(option.id)}
                     type="button"
@@ -410,7 +742,9 @@ function ScreenShareStage({
                 <div
                   className={cn(
                     "rounded-full transition",
-                    getSpeakingClass(participant),
+                    participant.isSpeaking
+                      ? "ring-4 ring-[hsl(var(--primary)/0.22)]"
+                      : "ring-1 ring-[hsl(var(--border)/0.8)]",
                   )}
                   key={participant.userId}
                   title={displayName}
@@ -459,14 +793,16 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
   const {
     activeChannelId,
     activeScreenShareId,
-    audioPreferences,
     connectionState,
     errorMessage,
     getParticipantVolume,
     isApplyingScreenShareQuality,
+    isDeafened,
     isJoining,
-    isKrispNoiseCancellationActive,
+    isMuted,
+    isScreenSharing,
     joinChannel,
+    leaveChannel,
     participants,
     resetParticipantVolume,
     room,
@@ -476,6 +812,9 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
     setScreenShareQuality,
     stopScreenShare,
     screenShareQuality,
+    toggleDeafen,
+    toggleMute,
+    toggleScreenShare,
   } = useVoiceConnection();
   const [hasRequestedJoin, setHasRequestedJoin] = useState(false);
 
@@ -493,13 +832,10 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
     screenShares.find((share) => share.id === activeScreenShareId) ??
     screenShares[0] ??
     null;
-  const localAudioPreferenceBadges = [
-    audioPreferences.noiseSuppression ? t("voice.grid.noiseSuppression") : null,
-    audioPreferences.echoCancellation ? t("voice.grid.echoCancellation") : null,
-    audioPreferences.autoGainControl ? t("voice.grid.autoGainControl") : null,
-    audioPreferences.voiceIsolation ? t("voice.grid.voiceIsolation") : null,
-    audioPreferences.krispNoiseCancellation ? t("voice.grid.krisp") : null,
-  ].filter((value): value is string => Boolean(value));
+  const screenShareParticipantIds = useMemo(
+    () => new Set(screenShares.map((share) => share.participantId)),
+    [screenShares],
+  );
 
   if ((!hasRequestedJoin || isJoining) && !errorMessage) {
     return (
@@ -565,11 +901,11 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
 
   return (
     <div
-      className="relative h-full overflow-y-auto bg-transparent p-3 sm:p-5 md:p-6"
+      className="relative h-full overflow-hidden bg-transparent p-2 sm:p-3 md:p-4"
       data-testid="voice-channel-view"
     >
       {showReconnectOverlay ? (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[hsl(var(--background)/0.75)] backdrop-blur-sm">
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-[hsl(var(--background)/0.75)] backdrop-blur-sm">
           <div className="app-panel rounded-[28px] border px-6 py-5 text-center shadow-[0_18px_50px_hsl(var(--shadow-color)/0.14)]">
             <Loader2 className="mx-auto h-7 w-7 animate-spin text-app-muted" />
             <p className="mt-3 text-sm font-semibold text-app-foreground">
@@ -579,63 +915,89 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
         </div>
       ) : null}
 
-      <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col">
-        <div className="mb-4 sm:mb-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-app-soft">
-            {t("voice.view.eyebrow")}
-          </p>
-          <h1 className="mt-2 text-xl font-semibold text-app-foreground sm:text-2xl">
-            {t("voice.view.title")}
-          </h1>
-          <p className="mt-2 text-sm text-app-muted">
-            {t("voice.view.participants", { count: orderedParticipants.length })}
-          </p>
-        </div>
-
-        {errorMessage ? (
-          <div
-            className="mb-4 rounded-[24px] border border-[hsl(var(--warning)/0.24)] bg-[hsl(var(--warning)/0.08)] px-4 py-3"
-            data-testid="voice-inline-error"
-          >
-            <p className="text-sm font-medium text-app-foreground">{errorMessage}</p>
+      <div className="flex h-full min-h-0 w-full flex-col">
+        <section className="flex h-full min-h-0 flex-1 flex-col bg-transparent p-0">
+          <div className="mb-3 flex shrink-0 flex-col gap-3 px-1 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-app-soft">
+                {t("voice.view.eyebrow")}
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-app-foreground">
+                {t("voice.view.title")}
+              </h2>
+              <p className="mt-2 text-sm font-medium text-app-muted">
+                {t("voice.view.participants", { count: participantCount })}
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.10)] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--primary))]">
+              <Sparkles className="h-3.5 w-3.5" />
+              {t("voice.room.premiumSignal")}
+            </div>
           </div>
-        ) : null}
 
-        {screenShares.length > 0 ? (
-          <ScreenShareStage
-            activeShare={activeScreenShare}
-            onSelectShare={setActiveScreenShareId}
-            onSelectQuality={(qualityId) => {
-              void setScreenShareQuality(qualityId);
-            }}
-            onStopShare={() => {
-              void stopScreenShare();
-            }}
-            participants={orderedParticipants}
-            screenShares={screenShares}
-            selectedQuality={screenShareQuality}
-            isApplyingQuality={isApplyingScreenShareQuality}
+          {errorMessage ? (
+            <div
+              className="mb-4 rounded-[24px] border border-[hsl(var(--warning)/0.24)] bg-[hsl(var(--warning)/0.08)] px-4 py-3"
+              data-testid="voice-inline-error"
+            >
+              <p className="text-sm font-medium text-app-foreground">{errorMessage}</p>
+            </div>
+          ) : null}
+
+          <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
+            <div className="min-h-0 min-w-0">
+              {screenShares.length > 0 ? (
+                <ScreenShareStage
+                  activeShare={activeScreenShare}
+                  onSelectShare={setActiveScreenShareId}
+                  onSelectQuality={(qualityId) => {
+                    void setScreenShareQuality(qualityId);
+                  }}
+                  onStopShare={() => {
+                    void stopScreenShare();
+                  }}
+                  participants={orderedParticipants}
+                  screenShares={screenShares}
+                  selectedQuality={screenShareQuality}
+                  isApplyingQuality={isApplyingScreenShareQuality}
+                />
+              ) : participantCount > 0 ? (
+                <div
+                  className={getParticipantGridClass()}
+                  style={getParticipantGridStyle(participantCount)}
+                >
+                  {orderedParticipants.map((participant) => (
+                    <VoiceParticipantTile
+                      isScreenSharing={screenShareParticipantIds.has(participant.userId)}
+                      key={participant.userId}
+                      onResetVolume={() => resetParticipantVolume(participant.userId)}
+                      onSetVolume={(volume) => setParticipantVolume(participant.userId, volume)}
+                      participant={participant}
+                      participantVolume={getParticipantVolume(participant.userId)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <VoiceEmptyState />
+              )}
+            </div>
+
+            <VoiceParticipantsSidebar
+              participants={orderedParticipants}
+              screenShares={screenShares}
+            />
+          </div>
+
+          <VoiceControlBar
+            isDeafened={isDeafened}
+            isMuted={isMuted}
+            isScreenSharing={isScreenSharing}
+            leaveChannel={leaveChannel}
+            toggleDeafen={toggleDeafen}
+            toggleMute={toggleMute}
+            toggleScreenShare={toggleScreenShare}
           />
-        ) : (
-          <div
-            className="grid flex-1 gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))] sm:gap-4 sm:[grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]"
-            style={{
-              gridAutoRows: participantCount > 0 ? "minmax(0, 1fr)" : undefined,
-            }}
-          >
-            {orderedParticipants.map((participant) => (
-              <VoiceParticipantCard
-                audioPreferenceBadges={localAudioPreferenceBadges}
-                isKrispNoiseCancellationActive={isKrispNoiseCancellationActive}
-                key={participant.userId}
-                onResetVolume={() => resetParticipantVolume(participant.userId)}
-                onSetVolume={(volume) => setParticipantVolume(participant.userId, volume)}
-                participant={participant}
-                participantVolume={getParticipantVolume(participant.userId)}
-              />
-            ))}
-          </div>
-        )}
+        </section>
       </div>
     </div>
   );

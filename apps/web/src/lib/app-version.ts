@@ -25,28 +25,28 @@ export const WHISPR_RELEASE_CHANNEL =
 
 export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
   {
-    categoryKey: "app.update.category.messaging",
-    descriptionKey: "app.update.notes.messaging.description",
-    id: "messaging-separator-polish",
-    titleKey: "app.update.notes.messaging.title",
+    categoryKey: "app.update.category.voice",
+    descriptionKey: "app.update.notes.voice.description",
+    id: "premium-voice-room",
+    titleKey: "app.update.notes.voice.title",
   },
   {
     categoryKey: "app.update.category.servers",
     descriptionKey: "app.update.notes.settings.description",
-    id: "channel-sidebar-alignment",
+    id: "voice-controls-consolidated",
     titleKey: "app.update.notes.settings.title",
+  },
+  {
+    categoryKey: "app.update.category.messaging",
+    descriptionKey: "app.update.notes.messaging.description",
+    id: "transparent-chat-controls",
+    titleKey: "app.update.notes.messaging.title",
   },
   {
     categoryKey: "app.update.category.quality",
     descriptionKey: "app.update.notes.servers.description",
-    id: "thread-prop-cleanup",
+    id: "voice-e2e-coverage",
     titleKey: "app.update.notes.servers.title",
-  },
-  {
-    categoryKey: "app.update.category.settings",
-    descriptionKey: "app.update.notes.voice.description",
-    id: "short-release-notes",
-    titleKey: "app.update.notes.voice.title",
   },
 ];
 

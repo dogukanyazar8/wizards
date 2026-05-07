@@ -37,7 +37,9 @@ async function openVoiceChannel(page: Page): Promise<{
   const route = await getE2EServerRoute();
   await page.goto(`/channels/${route.serverId}/${route.voiceChannelId}`);
   await expect(page.getByTestId("voice-channel-view")).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByTestId("voice-connection-bar")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId("voice-room-control-disconnect")).toBeVisible({
+    timeout: 10_000,
+  });
   return route;
 }
 
@@ -86,26 +88,26 @@ test.describe("voice and screen share", () => {
     });
     await expectVoiceParticipantCount(voiceChannelId, 1);
 
-    await page.getByTestId("voice-control-mute").click();
-    await expect(page.getByTestId("voice-control-mute")).toHaveAttribute(
+    await page.getByTestId("voice-room-control-mute").click();
+    await expect(page.getByTestId("voice-room-control-mute")).toHaveAttribute(
       "data-active",
       "true",
     );
 
-    await page.getByTestId("voice-control-mute").click();
-    await expect(page.getByTestId("voice-control-mute")).toHaveAttribute(
+    await page.getByTestId("voice-room-control-mute").click();
+    await expect(page.getByTestId("voice-room-control-mute")).toHaveAttribute(
       "data-active",
       "false",
     );
 
-    await page.getByTestId("voice-control-deafen").click();
-    await expect(page.getByTestId("voice-control-deafen")).toHaveAttribute(
+    await page.getByTestId("voice-room-control-deafen").click();
+    await expect(page.getByTestId("voice-room-control-deafen")).toHaveAttribute(
       "data-active",
       "true",
     );
 
-    await page.getByTestId("voice-control-disconnect").click();
-    await expect(page.getByTestId("voice-connection-bar")).toBeHidden({
+    await page.getByTestId("voice-room-control-disconnect").click();
+    await expect(page.getByTestId("voice-participant-card")).toBeHidden({
       timeout: 10_000,
     });
     await expectVoiceParticipantCount(voiceChannelId, 0);
@@ -126,7 +128,7 @@ test.describe("voice and screen share", () => {
         timeout: 10_000,
       });
 
-      await alice.page.getByTestId("voice-control-disconnect").click();
+      await alice.page.getByTestId("voice-room-control-disconnect").click();
       await expect(voiceSidebarParticipant(bob.page, e2eUsers.alice.username)).toBeHidden({
         timeout: 10_000,
       });
@@ -155,7 +157,9 @@ test.describe("voice and screen share", () => {
     await expectVoiceParticipantCount(voiceChannelId, 1);
 
     await page.goto(`/channels/${serverId}/${voiceChannelId}`);
-    await expect(page.getByTestId("voice-connection-bar")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("voice-room-control-disconnect")).toBeVisible({
+      timeout: 10_000,
+    });
     await expectVoiceParticipantCount(voiceChannelId, 1);
   });
 
@@ -172,7 +176,6 @@ test.describe("voice and screen share", () => {
     await expectVoiceParticipantCount(voiceChannelId, 1);
 
     await page.goto(`/channels/${serverId}/${textChannelId}`);
-    await expect(page.getByTestId("voice-connection-bar")).toBeVisible({ timeout: 10_000 });
     await sendMessage(page, message);
 
     await expect(page.getByTestId("message-item").filter({ hasText: message })).toBeVisible();
@@ -184,13 +187,13 @@ test.describe("voice and screen share", () => {
 
     await loginAs(page, "alice");
     await openVoiceChannel(page);
-    await page.getByTestId("voice-control-settings").click();
+    await page.getByTestId("voice-room-control-settings").click();
 
     await expect(page.getByTestId("voice-settings-modal")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId("voice-clean-voice-status")).toBeVisible();
     await page.getByTestId("voice-clean-voice-profile").click();
 
-    await expect(page.getByTestId("voice-connection-bar")).toBeVisible();
+    await expect(page.getByTestId("voice-room-control-disconnect")).toBeVisible();
     await expect(page.getByTestId("voice-settings-modal")).toBeVisible();
     await expectVoiceParticipantCount(voiceChannelId, 1);
   });
@@ -199,8 +202,8 @@ test.describe("voice and screen share", () => {
     await loginAs(page, "alice");
     await openVoiceChannel(page);
 
-    await page.getByTestId("voice-control-screen-share").click();
-    await expect(page.getByTestId("voice-control-screen-share")).toHaveAttribute(
+    await page.getByTestId("voice-room-control-screen-share").click();
+    await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
       "data-active",
       "true",
     );
@@ -220,23 +223,23 @@ test.describe("voice and screen share", () => {
 
     await loginAs(page, "alice");
     await openVoiceChannel(page);
-    await page.getByTestId("voice-control-screen-share").click();
+    await page.getByTestId("voice-room-control-screen-share").click();
 
-    await expect(page.getByTestId("voice-control-screen-share")).toHaveAttribute(
+    await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
       "data-active",
       "true",
     );
-    await page.getByTestId("voice-control-mute").click();
-    await expect(page.getByTestId("voice-control-mute")).toHaveAttribute(
+    await page.getByTestId("voice-room-control-mute").click();
+    await expect(page.getByTestId("voice-room-control-mute")).toHaveAttribute(
       "data-active",
       "true",
     );
-    await page.getByTestId("voice-control-mute").click();
-    await expect(page.getByTestId("voice-control-mute")).toHaveAttribute(
+    await page.getByTestId("voice-room-control-mute").click();
+    await expect(page.getByTestId("voice-room-control-mute")).toHaveAttribute(
       "data-active",
       "false",
     );
-    await expect(page.getByTestId("voice-control-screen-share")).toHaveAttribute(
+    await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
       "data-active",
       "true",
     );
@@ -253,7 +256,7 @@ test.describe("voice and screen share", () => {
     try {
       await bob.page.goto(`/channels/${serverId}/${textChannelId}`);
       await alice.page.goto(`/channels/${serverId}/${voiceChannelId}`);
-      await alice.page.getByTestId("voice-control-screen-share").click();
+      await alice.page.getByTestId("voice-room-control-screen-share").click();
 
       await expect(
         bob.page.getByTestId(`voice-sidebar-screen-share-${e2eUsers.alice.username}`),
@@ -286,13 +289,13 @@ test.describe("voice and screen share", () => {
       timeout: 10_000,
     });
     await expect(errorState).toContainText(/microphone|mikrofon|blocked|engellendi/i);
-    await expect(page.getByTestId("voice-control-mute")).toHaveAttribute(
+    await expect(page.getByTestId("voice-room-control-mute")).toHaveAttribute(
       "data-active",
       "true",
     );
 
-    await page.getByTestId("voice-control-screen-share").click();
-    await expect(page.getByTestId("voice-control-screen-share")).toHaveAttribute(
+    await page.getByTestId("voice-room-control-screen-share").click();
+    await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
       "data-active",
       "false",
     );

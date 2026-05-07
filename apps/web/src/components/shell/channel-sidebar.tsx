@@ -51,7 +51,6 @@ import { ChannelItem } from "@/components/shell/channel-item";
 import { ChannelSidebarSkeleton } from "@/components/shell/shell-skeletons";
 import { NotificationBell } from "@/components/shared/notification-bell";
 import { AudioDeviceSelect } from "@/components/voice/audio-device-select";
-import { VoiceConnectionBar } from "@/components/voice/voice-connection-bar";
 import { useVoiceConnection } from "@/components/providers/voice-provider";
 import { cn } from "@/lib/utils";
 import {
@@ -1118,7 +1117,6 @@ export function ChannelSidebar({
             className="border-t border-[hsl(var(--border)/0.78)] py-3 pl-3 pr-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3"
             data-notification-popup-anchor="controls-border"
           >
-            <VoiceConnectionBar />
             <UserProfileFooter
               user={currentUser}
               onOpenAppearanceSettings={onOpenSettings}
@@ -1417,7 +1415,6 @@ export function ChannelSidebar({
           className="border-t border-[hsl(var(--border)/0.78)] py-3 pl-3 pr-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3"
           data-notification-popup-anchor="controls-border"
         >
-          <VoiceConnectionBar />
           <UserProfileFooter
             user={currentUser}
             onOpenAppearanceSettings={onOpenSettings}

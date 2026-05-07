@@ -20,7 +20,6 @@ import { MobileDrawerTrigger, ServerRail } from "@/components/shell/server-rail"
 import { ServerSettingsOverlay } from "@/components/shell/server-settings-overlay";
 import { ServerMemberPanel } from "@/components/shell/server-member-panel";
 import { WorkspaceModals } from "@/components/shell/workspace-modals";
-import { VoiceConnectionBar } from "@/components/voice/voice-connection-bar";
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -298,7 +297,6 @@ const NavigationPanel = React.memo(
         className="border-t border-[hsl(var(--border)/0.78)] py-3 pl-3 pr-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3"
         data-notification-popup-anchor="controls-border"
       >
-        <VoiceConnectionBar />
         <UserProfileFooter
           user={currentUser}
           onOpenAppearanceSettings={onOpenSettings}
