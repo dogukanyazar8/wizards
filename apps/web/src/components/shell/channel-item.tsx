@@ -48,7 +48,7 @@ export function ChannelItem({
     <div className="min-w-0 max-w-full overflow-hidden">
       <div
         className={cn(
-          "group relative flex min-w-0 max-w-full items-center gap-1 overflow-hidden rounded-[20px] border px-1.5 py-1 transition sm:gap-1.5",
+          "group relative flex min-w-0 max-w-full items-center gap-0.5 overflow-hidden rounded-[20px] border px-0.5 py-1 transition sm:gap-1",
           active
             ? "border-[hsl(var(--primary)/0.28)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.18),hsl(var(--surface-card)/0.72))] text-[hsl(var(--foreground))] shadow-[0_14px_30px_hsl(var(--primary)/0.08)]"
             : "border-transparent text-app-muted hover:border-[hsl(var(--border)/0.56)] hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-[hsl(var(--foreground))]",
@@ -65,7 +65,7 @@ export function ChannelItem({
               : "shell.channelItem.openTextChannel",
             { name },
           )}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl px-2 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)]"
+          className="flex min-w-0 flex-1 items-center gap-1.5 rounded-2xl px-1.5 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)]"
           onClick={onSelect}
           onFocus={onPrefetch}
           onKeyDown={(event) => {
@@ -156,7 +156,7 @@ export function ChannelItem({
       </div>
 
       {type === "VOICE" && visibleParticipantRows.length > 0 ? (
-        <div className="mt-1.5 space-y-1.5 pl-8 sm:pl-10">
+        <div className="mt-1.5 space-y-1.5 pl-6 sm:pl-7">
           {visibleParticipantRows.map((participant) => {
             const participantLabel = participant.displayName ?? participant.username;
             const isCurrentUser = participant.userId === currentUserId;

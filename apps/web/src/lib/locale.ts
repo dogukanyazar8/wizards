@@ -63,18 +63,18 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.category.messaging": "Messaging",
     "app.update.category.settings": "Settings",
     "app.update.category.servers": "Servers",
-    "app.update.notes.messaging.title": "Cleaner messaging and threads",
+    "app.update.notes.messaging.title": "Cleaner message flow",
     "app.update.notes.messaging.description":
-      "Messaging now includes threads, richer formatting tools, pins, search, link previews, safer media handling, inline edited labels, outside-click thread closing, and focus recovery.",
-    "app.update.notes.settings.title": "Light default and new Whispr icon",
+      "Message divider lines now appear only for day changes, keeping chats easier to scan.",
+    "app.update.notes.settings.title": "Tighter channel alignment",
     "app.update.notes.settings.description":
-      "First-time visitors now start in Light theme, and the default app icon has been refreshed while existing icon choices remain available.",
-    "app.update.notes.servers.title": "Server and channel polish",
+      "Text and voice channels sit closer to the left edge under categories for a cleaner sidebar.",
+    "app.update.notes.servers.title": "Thread cleanup",
     "app.update.notes.servers.description":
-      "Server rail controls, channel/sidebar interactions, member visibility, and server delete confirmation timing have been tightened so workspace navigation feels more predictable.",
-    "app.update.notes.voice.title": "More stable, cleaner voice channels",
+      "Thread message rendering now shares the same compact separator behavior as the main chat.",
+    "app.update.notes.voice.title": "Shorter release notes",
     "app.update.notes.voice.description":
-      "Voice sessions now avoid duplicate joins, preserve calls while settings change, separate network/device errors, and keep browser cleanup enabled by default.",
+      "The What’s New panel stays focused with four concise highlights for this build.",
     "app.update.notes.sounds.title": "New Whispr sound defaults",
     "app.update.notes.sounds.description":
       "Notification, voice join, and voice leave cues now use the new Whispr sounds by default while the classic sounds remain selectable in settings.",
@@ -1416,18 +1416,18 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.category.messaging": "Mesajlaşma",
     "app.update.category.settings": "Ayarlar",
     "app.update.category.servers": "Sunucular",
-    "app.update.notes.messaging.title": "Daha temiz mesajlaşma ve thread akışı",
+    "app.update.notes.messaging.title": "Daha temiz mesaj akışı",
     "app.update.notes.messaging.description":
-      "Mesajlaşmaya thread'ler, zengin biçimlendirme araçları, pinler, arama, link önizlemeleri, güvenli medya iyileştirmeleri, satır içi düzenlendi bilgisi, dış tıklamayla thread kapatma ve focus geri dönüşü eklendi.",
-    "app.update.notes.settings.title": "Açık varsayılan tema ve yeni Whispr ikonu",
+      "Mesaj ayraçları artık yalnızca gün değişiminde görünür, sohbetler daha rahat taranır.",
+    "app.update.notes.settings.title": "Daha sıkı kanal hizası",
     "app.update.notes.settings.description":
-      "Whispr'a ilk kez gelen kullanıcılar artık Light tema ile başlar; varsayılan uygulama ikonu yenilenirken eski ikon seçenekleri korunur.",
-    "app.update.notes.servers.title": "Sunucu ve kanal deneyimi iyileşti",
+      "Metin ve ses kanalları kategori altında sola daha yakın hizalanarak sidebar daha temiz görünür.",
+    "app.update.notes.servers.title": "Thread temizliği",
     "app.update.notes.servers.description":
-      "Sunucu rayı kontrolleri, kanal/sidebar etkileşimleri, üye görünürlüğü ve sunucu silme onay zamanlaması daha öngörülebilir bir çalışma alanı deneyimi için düzeltildi.",
-    "app.update.notes.voice.title": "Daha stabil ve temiz ses kanalları",
+      "Thread mesajları da ana sohbetle aynı kompakt ayraç davranışını kullanır.",
+    "app.update.notes.voice.title": "Kısa sürüm notları",
     "app.update.notes.voice.description":
-      "Ses oturumları artık çift bağlanmaları önlüyor, ayarlar değişirken görüşmeyi koruyor, ağ/cihaz hatalarını ayırıyor ve tarayıcı temizliğini varsayılan açık tutuyor.",
+      "Neler Yeni paneli bu build için dört kısa ve odaklı maddeyle sade tutuldu.",
     "app.update.notes.sounds.title": "Yeni Whispr varsayılan sesleri",
     "app.update.notes.sounds.description":
       "Bildirim, ses kanalına katılma ve ayrılma sesleri artık varsayılan olarak yeni Whispr seslerini kullanıyor; klasik sesler ayarlardan seçilebilir kalıyor.",

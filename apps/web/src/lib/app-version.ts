@@ -15,7 +15,7 @@ export type WhisprVersionPayload = {
 };
 
 export const WHISPR_APP_VERSION =
-  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.1";
+  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.2";
 export const WHISPR_BUILD_ID =
   process.env.NEXT_PUBLIC_WHISPR_BUILD_ID ?? "development";
 export const WHISPR_BUILD_TIME =
@@ -27,25 +27,25 @@ export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
   {
     categoryKey: "app.update.category.messaging",
     descriptionKey: "app.update.notes.messaging.description",
-    id: "messaging-thread-polish",
+    id: "messaging-separator-polish",
     titleKey: "app.update.notes.messaging.title",
   },
   {
-    categoryKey: "app.update.category.settings",
+    categoryKey: "app.update.category.servers",
     descriptionKey: "app.update.notes.settings.description",
-    id: "settings-release-notes",
+    id: "channel-sidebar-alignment",
     titleKey: "app.update.notes.settings.title",
   },
   {
-    categoryKey: "app.update.category.servers",
+    categoryKey: "app.update.category.quality",
     descriptionKey: "app.update.notes.servers.description",
-    id: "server-sidebar-settings-polish",
+    id: "thread-prop-cleanup",
     titleKey: "app.update.notes.servers.title",
   },
   {
-    categoryKey: "app.update.category.voice",
+    categoryKey: "app.update.category.settings",
     descriptionKey: "app.update.notes.voice.description",
-    id: "voice-stability-cleanup",
+    id: "short-release-notes",
     titleKey: "app.update.notes.voice.title",
   },
 ];

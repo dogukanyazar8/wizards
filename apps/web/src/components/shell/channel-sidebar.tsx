@@ -160,11 +160,11 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
         transition,
       }}
     >
-      <div className="flex min-w-0 items-center gap-1">
+      <div className="flex min-w-0 items-center gap-0.5">
         {canManage ? (
           <button
             aria-label={`Drag channel ${channel.name}`}
-            className="text-app-soft rounded-lg p-0.5 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
+            className="text-app-soft -ml-0.5 rounded-lg p-0.5 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
             type="button"
             {...attributes}
             {...listeners}

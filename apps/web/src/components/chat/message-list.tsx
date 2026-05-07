@@ -319,13 +319,7 @@ export function MessageList({
             new Date(message.createdAt).getTime() -
               new Date(previousMessage.createdAt).getTime(),
           ) < 20 * 60 * 1000;
-        const showGroupSeparator =
-          index > 0 &&
-          !isGrouped &&
-          message.type === "DEFAULT" &&
-          previousMessage?.type === "DEFAULT";
-
-        return { isGrouped, message, showDateSeparator, showGroupSeparator };
+        return { isGrouped, message, showDateSeparator };
       }),
     [allMessages],
   );
@@ -425,7 +419,7 @@ export function MessageList({
         </div>
       ) : null}
 
-      {groupedMessages.map(({ message, isGrouped, showDateSeparator, showGroupSeparator }) => (
+      {groupedMessages.map(({ message, isGrouped, showDateSeparator }) => (
         <div key={message.id}>
           {showDateSeparator ? (
             <div
@@ -444,7 +438,6 @@ export function MessageList({
             mode={mode}
             message={message}
             isGrouped={isGrouped}
-            showGroupSeparator={showGroupSeparator}
             currentUserId={currentUserId}
             canModerate={canModerate}
             onReact={handleReact}

@@ -595,7 +595,6 @@ interface MessageItemProps {
   mode: MessageMode;
   message: ChatMessage;
   isGrouped: boolean;
-  showGroupSeparator: boolean;
   currentUserId: string;
   canModerate: boolean;
   onReact: (messageId: string, emoji: string) => void;
@@ -610,7 +609,6 @@ export const MessageItem = React.memo(
     mode,
     message,
     isGrouped,
-    showGroupSeparator,
     currentUserId,
     canModerate,
     onReact,
@@ -905,10 +903,6 @@ export const MessageItem = React.memo(
           role="article"
           tabIndex={-1}
         >
-          {showGroupSeparator ? (
-            <div className="absolute inset-x-1 top-0 h-px bg-[hsl(var(--border)/0.34)] sm:inset-x-3" />
-          ) : null}
-
           <div
             className={cn(
               "grid grid-cols-[1.8rem_minmax(0,1fr)] items-start gap-2 rounded-[12px] transition hover:bg-[hsl(var(--surface-soft)/0.22)] sm:grid-cols-[2.25rem_minmax(0,1fr)]",
@@ -1283,7 +1277,6 @@ export const MessageItem = React.memo(
     prev.message.threadSummary?.lastReplyAt === next.message.threadSummary?.lastReplyAt &&
     prev.message.threadSummary?.recentRepliers === next.message.threadSummary?.recentRepliers &&
     prev.isGrouped === next.isGrouped &&
-    prev.showGroupSeparator === next.showGroupSeparator &&
     prev.currentUserId === next.currentUserId &&
     prev.canModerate === next.canModerate &&
     prev.onReact === next.onReact &&

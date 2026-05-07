@@ -203,7 +203,6 @@ export function ThreadPanel({
             onReply={handleReply}
             onRetry={() => undefined}
             onThread={() => undefined}
-            showGroupSeparator={false}
           />
         </div>
 
@@ -259,7 +258,6 @@ export function ThreadPanel({
                   onReply={handleReply}
                   onRetry={() => undefined}
                   onThread={() => undefined}
-                  showGroupSeparator={!isGrouped && index > 0}
                 />
               );
             })}
