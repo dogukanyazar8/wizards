@@ -8,10 +8,12 @@ import {
   LocalVideoTrack,
   Room,
   Track,
+  VideoPresets,
   type AudioCaptureOptions,
   type Participant,
   type RemoteVideoTrack,
   type TrackProcessor,
+  type VideoCaptureOptions,
 } from "livekit-client";
 import {
   createContext,
@@ -28,10 +30,7 @@ import { useShallow } from "zustand/react/shallow";
 import type { KrispNoiseFilterProcessor } from "@livekit/krisp-noise-filter";
 import { useI18n } from "@/components/providers/locale-provider";
 import { VoiceAudioRenderer } from "@/components/voice/voice-audio-renderer";
-import {
-  WHISPR_DESKTOP_BEFORE_CLOSE_EVENT,
-  isWhisprDesktopRuntime,
-} from "@/lib/desktop/runtime";
+import { WHISPR_DESKTOP_BEFORE_CLOSE_EVENT, isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import { logError } from "@/lib/logger";
 import { getSocket } from "@/lib/socket/client";
 import type { UserProfileUpdatedPayload } from "@/lib/socket/events";
@@ -42,13 +41,9 @@ import {
   upsertVoiceState,
   voiceQueryKeys,
 } from "@/lib/voice/client";
-import {
-  VOICE_HEARTBEAT_INTERVAL_MS,
-  type VoiceChannelStateDTO,
-} from "@/lib/voice/types";
+import { VOICE_HEARTBEAT_INTERVAL_MS, type VoiceChannelStateDTO } from "@/lib/voice/types";
 import {
   applyScreenShareEncodingToSender,
-  buildScreenShareMediaConstraints,
   getScreenShareCaptureOptions,
   getScreenSharePublishOptions,
   getScreenShareQualityPreset,
@@ -74,7 +69,9 @@ type VoiceProviderProps = {
 export interface VoiceParticipantViewModel {
   audioLevel: number;
   avatarUrl: string | null;
+  cameraTrack: LocalVideoTrack | RemoteVideoTrack | null;
   displayName: string | null;
+  isCameraEnabled: boolean;
   isLocal: boolean;
   isMuted: boolean;
   isSpeaking: boolean;
@@ -109,9 +106,7 @@ function normalizeVoiceAudioLevel(audioLevel: number) {
   return Math.min(1, Math.max(0, audioLevel));
 }
 
-function getParticipantAudioActivity(
-  participant: Participant,
-): VoiceParticipantAudioActivity {
+function getParticipantAudioActivity(participant: Participant): VoiceParticipantAudioActivity {
   const microphonePublication = participant.getTrackPublication(Track.Source.Microphone);
   const isMuted = microphonePublication?.isMuted ?? !participant.isMicrophoneEnabled;
   const audioLevel = isMuted ? 0 : normalizeVoiceAudioLevel(participant.audioLevel);
@@ -155,9 +150,7 @@ function createLocalVoiceAudioLevelMonitor(
   try {
     const audioContext = new AudioContextConstructor();
     const analyser = audioContext.createAnalyser();
-    const source = audioContext.createMediaStreamSource(
-      new MediaStream([track.mediaStreamTrack]),
-    );
+    const source = audioContext.createMediaStreamSource(new MediaStream([track.mediaStreamTrack]));
 
     analyser.fftSize = 512;
     analyser.smoothingTimeConstant = 0.18;
@@ -207,12 +200,24 @@ export type KrispAvailability =
   | "unavailable"
   | "unsupported_browser";
 
+export type VoiceCameraStatus =
+  | "device-unavailable"
+  | "disabled"
+  | "enabled"
+  | "error"
+  | "permission-denied"
+  | "starting"
+  | "stopping";
+
 type VoiceContextValue = {
   activeChannelId: string | null;
   audioPreferences: VoiceAudioPreferences;
+  cameraError: string | null;
+  cameraStatus: VoiceCameraStatus;
   connectionState: ConnectionState;
   errorMessage: string | null;
   getParticipantVolume: (userId: string) => number;
+  isCameraEnabled: boolean;
   isApplyingAudioPreferences: boolean;
   isDeafened: boolean;
   isJoining: boolean;
@@ -240,9 +245,11 @@ type VoiceContextValue = {
   prepareForVoiceJoin: () => Promise<boolean>;
   joinChannel: (input: { channelId: string; serverId: string }) => Promise<void>;
   leaveChannel: () => Promise<void>;
+  stopCamera: () => Promise<void>;
   stopScreenShare: () => Promise<void>;
   isApplyingScreenShareQuality: boolean;
   toggleDeafen: () => Promise<void>;
+  toggleCamera: () => Promise<void>;
   toggleMute: () => Promise<void>;
   toggleScreenShare: () => Promise<void>;
 };
@@ -260,8 +267,13 @@ type VoiceAccountUpdatedEventPayload = Partial<Omit<UserProfileUpdatedPayload, "
 const NEXT_PUBLIC_LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "";
 const RECONNECT_TIMEOUT_MS = 30_000;
 const E2E_VOICE_HEARTBEAT_INTERVAL_MS = 10_000;
+const E2E_CAMERA_DENIED_KEY = "whispr:e2e:deny-camera";
 const E2E_MICROPHONE_DENIED_KEY = "whispr:e2e:deny-microphone";
 const E2E_SCREEN_SHARE_DENIED_KEY = "whispr:e2e:deny-screen-share";
+const E2E_CAMERA_TRACK = {
+  attach: (element: HTMLMediaElement) => element,
+  detach: (element?: HTMLMediaElement) => (element ? [element] : []),
+} as unknown as LocalVideoTrack;
 const KRISP_PROCESSOR_NAME = "livekit-noise-filter";
 const PREFERRED_KRISP_QUALITY = "high";
 const FALLBACK_KRISP_QUALITY = "medium";
@@ -272,10 +284,7 @@ const LIVEKIT_CONNECT_RETRY_DELAYS_MS = [650, 1_500] as const;
 const VoiceContext = createContext<VoiceContextValue | null>(null);
 
 function isE2EVoiceMockEnabled() {
-  return (
-    process.env.NEXT_PUBLIC_E2E_TEST_MODE === "true" &&
-    process.env.NODE_ENV !== "production"
-  );
+  return process.env.NEXT_PUBLIC_E2E_TEST_MODE === "true" && process.env.NODE_ENV !== "production";
 }
 
 function getE2EFlag(key: string) {
@@ -297,9 +306,7 @@ function isMicrophonePermissionDenied(error: unknown) {
 
   return (
     error instanceof Error &&
-    /notallowederror|permission denied|permissiondeniederror|securityerror/i.test(
-      error.message,
-    )
+    /notallowederror|permission denied|permissiondeniederror|securityerror/i.test(error.message)
   );
 }
 
@@ -323,10 +330,7 @@ function isMicrophoneDeviceUnavailable(error: unknown) {
 
 function isMicrophoneConstraintError(error: unknown) {
   if (error instanceof DOMException) {
-    return (
-      error.name === "OverconstrainedError" ||
-      error.name === "ConstraintNotSatisfiedError"
-    );
+    return error.name === "OverconstrainedError" || error.name === "ConstraintNotSatisfiedError";
   }
 
   return (
@@ -335,12 +339,43 @@ function isMicrophoneConstraintError(error: unknown) {
   );
 }
 
+function isCameraPermissionDenied(error: unknown) {
+  if (error instanceof DOMException) {
+    return (
+      error.name === "NotAllowedError" ||
+      error.name === "PermissionDeniedError" ||
+      error.name === "SecurityError"
+    );
+  }
+
+  return (
+    error instanceof Error &&
+    /notallowederror|permission denied|permissiondeniederror|securityerror/i.test(error.message)
+  );
+}
+
+function isCameraDeviceUnavailable(error: unknown) {
+  if (error instanceof DOMException) {
+    return (
+      error.name === "AbortError" ||
+      error.name === "NotFoundError" ||
+      error.name === "NotReadableError" ||
+      error.name === "OverconstrainedError"
+    );
+  }
+
+  return (
+    error instanceof Error &&
+    /aborterror|notfounderror|notreadableerror|overconstrainederror|could not start video source|device not found|requested device not found|video input device/i.test(
+      error.message,
+    )
+  );
+}
+
 function isTransientLiveKitConnectionError(error: unknown) {
   return (
     error instanceof Error &&
-    /could not establish pc connection|ice|network|timeout|transport|signaling/i.test(
-      error.message,
-    )
+    /could not establish pc connection|ice|network|timeout|transport|signaling/i.test(error.message)
   );
 }
 
@@ -414,9 +449,11 @@ function isScreenSharePermissionDenied(error: unknown) {
 }
 
 function isScreenShareSupported() {
-  return Boolean(
-    typeof navigator !== "undefined" && navigator.mediaDevices?.getDisplayMedia,
-  );
+  return Boolean(typeof navigator !== "undefined" && navigator.mediaDevices?.getDisplayMedia);
+}
+
+function isCameraSupported() {
+  return Boolean(typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia);
 }
 
 function isLiveKitCloudUrl(url: string) {
@@ -428,12 +465,12 @@ function supportsMediaConstraint(name: string) {
     return false;
   }
 
-  return (navigator.mediaDevices.getSupportedConstraints() as Record<string, boolean>)[name] === true;
+  return (
+    (navigator.mediaDevices.getSupportedConstraints() as Record<string, boolean>)[name] === true
+  );
 }
 
-function buildAudioCaptureOptions(
-  audioPreferences: VoiceAudioPreferences,
-): AudioCaptureOptions {
+function buildAudioCaptureOptions(audioPreferences: VoiceAudioPreferences): AudioCaptureOptions {
   const options: AudioCaptureOptions = {
     autoGainControl: audioPreferences.autoGainControl,
     channelCount: { ideal: 1 },
@@ -452,6 +489,14 @@ function buildAudioCaptureOptions(
   }
 
   return options;
+}
+
+function buildCameraCaptureOptions(): VideoCaptureOptions {
+  return {
+    facingMode: "user",
+    frameRate: { ideal: 30, max: 30 },
+    resolution: VideoPresets.h720.resolution,
+  };
 }
 
 function getAudioCaptureRestartSignature(audioPreferences: VoiceAudioPreferences) {
@@ -562,6 +607,19 @@ function getParticipantProfile(
   };
 }
 
+function getParticipantCameraState(
+  participant: Participant,
+): Pick<VoiceParticipantViewModel, "cameraTrack" | "isCameraEnabled"> {
+  const cameraPublication = participant.getTrackPublication(Track.Source.Camera);
+  const cameraTrack = cameraPublication?.videoTrack ?? null;
+  const isCameraEnabled = Boolean(cameraTrack) && cameraPublication?.isMuted !== true;
+
+  return {
+    cameraTrack: isCameraEnabled ? cameraTrack : null,
+    isCameraEnabled,
+  };
+}
+
 function getScreenShareId(participantId: string, trackSid: string) {
   return `${participantId}:${trackSid}`;
 }
@@ -577,8 +635,7 @@ function collectScreenShares(
       return participant
         .getTrackPublications()
         .filter(
-          (publication) =>
-            publication.source === Track.Source.ScreenShare && !publication.isMuted,
+          (publication) => publication.source === Track.Source.ScreenShare && !publication.isMuted,
         )
         .map((publication) => ({
           avatarUrl: profile.avatarUrl,
@@ -601,8 +658,7 @@ function countActiveScreenShares(targetRoom: Room) {
       participant
         .getTrackPublications()
         .filter(
-          (publication) =>
-            publication.source === Track.Source.ScreenShare && !publication.isMuted,
+          (publication) => publication.source === Track.Source.ScreenShare && !publication.isMuted,
         ).length,
     0,
   );
@@ -695,11 +751,26 @@ function isLocalMicrophoneTrackLive(track: LocalAudioTrack | null) {
   return track?.mediaStreamTrack.readyState === "live";
 }
 
+function getLocalCameraTrack(targetRoom: Room | null) {
+  const cameraPublication =
+    targetRoom?.localParticipant.getTrackPublication(Track.Source.Camera)?.track ?? null;
+
+  return cameraPublication instanceof LocalVideoTrack ? cameraPublication : null;
+}
+
+function isLocalCameraTrackLive(track: LocalVideoTrack | null) {
+  return track?.mediaStreamTrack.readyState === "live";
+}
+
 function getLocalScreenShareTrack(targetRoom: Room | null) {
   const screenShareTrack =
     targetRoom?.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track ?? null;
 
   return screenShareTrack instanceof LocalVideoTrack ? screenShareTrack : null;
+}
+
+function isLocalScreenShareTrackLive(track: LocalVideoTrack | null) {
+  return track?.mediaStreamTrack.readyState === "live";
 }
 
 async function applyScreenShareQualityToTrack(
@@ -711,10 +782,6 @@ async function applyScreenShareQualityToTrack(
   if (track.sender) {
     await applyScreenShareEncodingToSender(track.sender, preset.encoding);
   }
-
-  await track.mediaStreamTrack
-    .applyConstraints(buildScreenShareMediaConstraints(qualityId))
-    .catch(() => undefined);
 }
 
 async function stopLocalTracks(room: Room) {
@@ -766,18 +833,26 @@ function notifyVoiceExit() {
 function mapE2EVoiceParticipants(
   currentUser: VoiceProviderProps["currentUser"],
   participants: VoiceChannelStateDTO["participants"],
+  isCameraEnabled: boolean,
   isMuted: boolean,
 ): VoiceParticipantViewModel[] {
-  return participants.map((participant) => ({
-    audioLevel: 0,
-    avatarUrl: participant.avatarUrl,
-    displayName: participant.displayName,
-    isLocal: participant.userId === currentUser.id,
-    isMuted: participant.userId === currentUser.id ? isMuted : false,
-    isSpeaking: false,
-    userId: participant.userId,
-    username: participant.username,
-  }));
+  return participants.map((participant) => {
+    const participantCameraEnabled =
+      participant.userId === currentUser.id ? isCameraEnabled : false;
+
+    return {
+      audioLevel: 0,
+      avatarUrl: participant.avatarUrl,
+      cameraTrack: participantCameraEnabled ? E2E_CAMERA_TRACK : null,
+      displayName: participant.displayName,
+      isCameraEnabled: participantCameraEnabled,
+      isLocal: participant.userId === currentUser.id,
+      isMuted: participant.userId === currentUser.id ? isMuted : false,
+      isSpeaking: false,
+      userId: participant.userId,
+      username: participant.username,
+    };
+  });
 }
 
 function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
@@ -787,6 +862,8 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const [participants, setParticipants] = useState<VoiceParticipantViewModel[]>([]);
   const [screenShares, setScreenShares] = useState<VoiceScreenShareViewModel[]>([]);
   const [activeScreenShareId, setActiveScreenShareIdState] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraStatus, setCameraStatus] = useState<VoiceCameraStatus>("disabled");
   const [connectionState, setConnectionState] = useState<ConnectionState>(
     ConnectionState.Disconnected,
   );
@@ -845,11 +922,12 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         mapE2EVoiceParticipants(
           currentUser,
           stateParticipants,
+          cameraStatus === "enabled",
           useVoiceStore.getState().isMuted,
         ),
       );
     },
-    [currentUser],
+    [cameraStatus, currentUser],
   );
 
   const setVoiceStateCache = useCallback(
@@ -875,12 +953,7 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       queryClient.setQueryData<VoiceChannelStateDTO[] | undefined>(
         voiceQueryKeys.serverStates(targetServerId),
         (current) =>
-          mapVoiceScreenShareStateCache(
-            current,
-            targetChannelId,
-            currentUser.id,
-            isSharing,
-          ),
+          mapVoiceScreenShareStateCache(current, targetChannelId, currentUser.id, isSharing),
       );
 
       getSocket().emit("voice:screenshare:update", {
@@ -903,12 +976,29 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     emitScreenShareState(targetChannelId, targetServerId, false);
   }, [emitScreenShareState]);
 
+  const stopCamera = useCallback(async () => {
+    setCameraStatus("disabled");
+    setCameraError(null);
+    setParticipants((current) =>
+      current.map((participant) =>
+        participant.isLocal
+          ? {
+              ...participant,
+              cameraTrack: null,
+              isCameraEnabled: false,
+            }
+          : participant,
+      ),
+    );
+  }, []);
+
   const leaveChannel = useCallback(async () => {
     const store = useVoiceStore.getState();
     const targetChannelId = store.activeChannelId;
     const targetServerId = store.serverId;
 
     stopHeartbeat();
+    await stopCamera();
     await stopScreenShare();
     setParticipants([]);
     setConnectionState(ConnectionState.Disconnected);
@@ -923,7 +1013,7 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     }
 
     store.leave();
-  }, [setVoiceStateCache, stopHeartbeat, stopScreenShare]);
+  }, [setVoiceStateCache, stopCamera, stopHeartbeat, stopScreenShare]);
 
   const joinChannel = useCallback(
     async ({ channelId, serverId: nextServerId }: { channelId: string; serverId: string }) => {
@@ -969,9 +1059,7 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         useVoiceStore.getState().leave();
         setParticipants([]);
         setConnectionState(ConnectionState.Disconnected);
-        setErrorMessage(
-          error instanceof Error ? error.message : t("voice.view.errorTitle"),
-        );
+        setErrorMessage(error instanceof Error ? error.message : t("voice.view.errorTitle"));
         throw error;
       } finally {
         setIsJoining(false);
@@ -1000,6 +1088,41 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const toggleDeafen = useCallback(async () => {
     useVoiceStore.getState().setDeafened(!useVoiceStore.getState().isDeafened);
   }, []);
+
+  const toggleCamera = useCallback(async () => {
+    if (cameraStatus === "starting" || cameraStatus === "stopping") {
+      return;
+    }
+
+    if (cameraStatus === "enabled") {
+      setCameraStatus("stopping");
+      await stopCamera();
+      return;
+    }
+
+    setCameraStatus("starting");
+    setCameraError(null);
+
+    if (getE2EFlag(E2E_CAMERA_DENIED_KEY)) {
+      const message = t("voice.errors.cameraDenied");
+      setCameraStatus("permission-denied");
+      setCameraError(message);
+      return;
+    }
+
+    setCameraStatus("enabled");
+    setParticipants((current) =>
+      current.map((participant) =>
+        participant.isLocal
+          ? {
+              ...participant,
+              cameraTrack: E2E_CAMERA_TRACK,
+              isCameraEnabled: true,
+            }
+          : participant,
+      ),
+    );
+  }, [cameraStatus, stopCamera, t]);
 
   const toggleScreenShare = useCallback(async () => {
     const store = useVoiceStore.getState();
@@ -1193,9 +1316,12 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     () => ({
       activeChannelId,
       audioPreferences,
+      cameraError,
+      cameraStatus,
       connectionState,
       errorMessage,
       getParticipantVolume,
+      isCameraEnabled: cameraStatus === "enabled",
       isApplyingAudioPreferences: false,
       isApplyingScreenShareQuality,
       isDeafened,
@@ -1221,8 +1347,10 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       prepareForVoiceJoin,
       joinChannel,
       leaveChannel,
+      stopCamera,
       stopScreenShare,
       toggleDeafen,
+      toggleCamera,
       toggleMute,
       toggleScreenShare,
     }),
@@ -1230,6 +1358,8 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       activeChannelId,
       activeScreenShareId,
       audioPreferences,
+      cameraError,
+      cameraStatus,
       connectionState,
       errorMessage,
       getParticipantVolume,
@@ -1248,7 +1378,9 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       serverId,
       setActiveScreenShareId,
       setScreenShareQuality,
+      stopCamera,
       stopScreenShare,
+      toggleCamera,
       toggleDeafen,
       toggleMute,
       toggleScreenShare,
@@ -1267,14 +1399,16 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const joinRequestRef = useRef<string | null>(null);
   const preparedMicrophoneAccessRef = useRef<boolean | null>(null);
   const appliedAudioPreferencesSignatureRef = useRef<string | null>(null);
+  const microphoneRecoveryPromiseRef = useRef<{
+    promise: Promise<boolean>;
+    room: Room;
+  } | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const krispProcessorRef = useRef<KrispNoiseFilterProcessor | null>(null);
   const lastEmittedScreenShareStateRef = useRef<boolean | null>(null);
   const connectionWarningMessageRef = useRef<string | null>(null);
   const cleanupVoiceResourcesRef = useRef<() => void>(() => undefined);
-  const microphoneSettingsFailedMessageRef = useRef(
-    t("voice.errors.microphoneSettingsFailed"),
-  );
+  const microphoneSettingsFailedMessageRef = useRef(t("voice.errors.microphoneSettingsFailed"));
   const supportsLiveKitCloudNoiseCancellationRef = useRef(
     isLiveKitCloudUrl(NEXT_PUBLIC_LIVEKIT_URL),
   );
@@ -1282,6 +1416,8 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const [participants, setParticipants] = useState<VoiceParticipantViewModel[]>([]);
   const [screenShares, setScreenShares] = useState<VoiceScreenShareViewModel[]>([]);
   const [activeScreenShareId, setActiveScreenShareIdState] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraStatus, setCameraStatus] = useState<VoiceCameraStatus>("disabled");
   const [connectionState, setConnectionState] = useState<ConnectionState>(
     ConnectionState.Disconnected,
   );
@@ -1341,9 +1477,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const setConnectionWarning = useCallback((message: string) => {
     const previousWarning = connectionWarningMessageRef.current;
     connectionWarningMessageRef.current = message;
-    setErrorMessage((current) =>
-      !current || current === previousWarning ? message : current,
-    );
+    setErrorMessage((current) => (!current || current === previousWarning ? message : current));
   }, []);
 
   const clearConnectionWarning = useCallback(() => {
@@ -1361,21 +1495,18 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     [participantVolumes],
   );
 
-  const requestMicrophonePermission = useCallback(
-    async () => {
-      if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-        return false;
-      }
+  const requestMicrophonePermission = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      return false;
+    }
 
-      const permissionState = await getMicrophonePermissionState();
-      if (permissionState === "denied") {
-        return false;
-      }
+    const permissionState = await getMicrophonePermissionState();
+    if (permissionState === "denied") {
+      return false;
+    }
 
-      return true;
-    },
-    [],
-  );
+    return true;
+  }, []);
 
   const prepareForVoiceJoin = useCallback(async () => {
     try {
@@ -1406,15 +1537,32 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       ].map((participant) => {
         const profile = getParticipantProfile(participant, currentUser);
         const audioActivity = getParticipantAudioActivity(participant);
+        const cameraState = getParticipantCameraState(participant);
 
         return {
           ...profile,
           ...audioActivity,
+          ...cameraState,
           isLocal: participant.identity === currentUser.id,
         } satisfies VoiceParticipantViewModel;
       });
 
       setParticipants(nextParticipants);
+      setCameraStatus((current) => {
+        if (current === "starting" || current === "stopping") {
+          return current;
+        }
+
+        if (isLocalCameraTrackLive(getLocalCameraTrack(targetRoom))) {
+          return "enabled";
+        }
+
+        return current === "permission-denied" ||
+          current === "device-unavailable" ||
+          current === "error"
+          ? current
+          : "disabled";
+      });
     },
     [currentUser],
   );
@@ -1476,8 +1624,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
             }
 
             const nextAudioActivity =
-              liveParticipant.identity === room.localParticipant.identity &&
-              !audioActivity.isMuted
+              liveParticipant.identity === room.localParticipant.identity && !audioActivity.isMuted
                 ? (() => {
                     const localAudioLevel =
                       getLocalAudioLevelMonitor()?.readLevel() ?? audioActivity.audioLevel;
@@ -1861,9 +2008,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         };
 
         if (shouldRetryWithDefaultDevice) {
-          useVoiceStore
-            .getState()
-            .setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
+          useVoiceStore.getState().setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
         }
 
         if (shouldRetryWithStableProcessing) {
@@ -1899,8 +2044,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       }
 
       const nextSignature = getAudioCaptureRestartSignature(audioPreferences);
-      const shouldRestartCapture =
-        appliedAudioPreferencesSignatureRef.current !== nextSignature;
+      const shouldRestartCapture = appliedAudioPreferencesSignatureRef.current !== nextSignature;
 
       setIsApplyingAudioPreferences(true);
 
@@ -1940,18 +2084,14 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
             };
 
             if (shouldRetryWithDefaultDevice) {
-              useVoiceStore
-                .getState()
-                .setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
+              useVoiceStore.getState().setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
             }
 
             if (shouldRetryWithStableProcessing) {
               useVoiceStore.getState().setAudioPreference("voiceIsolation", false);
             }
 
-            await localMicrophoneTrack.restartTrack(
-              buildAudioCaptureOptions(fallbackPreferences),
-            );
+            await localMicrophoneTrack.restartTrack(buildAudioCaptureOptions(fallbackPreferences));
             appliedAudioPreferencesSignatureRef.current =
               getAudioCaptureRestartSignature(fallbackPreferences);
           }
@@ -1967,6 +2107,114 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       }
     },
     [audioPreferences, syncKrispNoiseCancellation, syncParticipants],
+  );
+
+  const ensureLocalMicrophonePublished = useCallback(
+    async (targetRoom: Room) => {
+      if (useVoiceStore.getState().isMuted) {
+        return false;
+      }
+
+      if (roomRef.current !== targetRoom || targetRoom.state === ConnectionState.Disconnected) {
+        return false;
+      }
+
+      if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(targetRoom))) {
+        return true;
+      }
+
+      if (microphoneRecoveryPromiseRef.current?.room === targetRoom) {
+        return microphoneRecoveryPromiseRef.current.promise;
+      }
+
+      const recovery = (async () => {
+        const microphoneDeniedMessage = isDesktopRuntime
+          ? t("voice.errors.microphoneDeniedDesktop")
+          : t("voice.errors.microphoneDenied");
+        const microphoneEnableFailedMessage = t("voice.errors.microphoneEnableFailed");
+
+        try {
+          const hasMicrophoneAccess = await requestMicrophonePermission();
+          if (!hasMicrophoneAccess) {
+            useVoiceStore.getState().setMuted(true);
+            setIsKrispNoiseCancellationActive(false);
+            setErrorMessage(microphoneDeniedMessage);
+            syncParticipants(targetRoom);
+            return false;
+          }
+
+          if (roomRef.current !== targetRoom || targetRoom.state === ConnectionState.Disconnected) {
+            return false;
+          }
+
+          const { preferences, track: localMicrophoneTrack } = await enableLocalMicrophone(
+            targetRoom,
+            useVoiceStore.getState().audioPreferences,
+          );
+
+          if (roomRef.current !== targetRoom) {
+            await stopLocalTracks(targetRoom).catch(() => undefined);
+            return false;
+          }
+
+          if (localMicrophoneTrack) {
+            await syncKrispNoiseCancellation(
+              localMicrophoneTrack,
+              preferences.krispNoiseCancellation,
+            );
+          }
+
+          appliedAudioPreferencesSignatureRef.current =
+            getAudioCaptureRestartSignature(preferences);
+          useVoiceStore.getState().setMuted(false);
+          setErrorMessage(null);
+          syncParticipants(targetRoom);
+          return true;
+        } catch (error) {
+          if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(targetRoom))) {
+            logError(
+              "[voice] Microphone recovery reported an error after track was published",
+              error,
+            );
+            useVoiceStore.getState().setMuted(false);
+            setErrorMessage(null);
+            syncParticipants(targetRoom);
+            return true;
+          }
+
+          setIsKrispNoiseCancellationActive(false);
+          if (isMicrophonePermissionDenied(error)) {
+            useVoiceStore.getState().setMuted(true);
+            setErrorMessage(microphoneDeniedMessage);
+          } else {
+            setErrorMessage(microphoneEnableFailedMessage);
+          }
+          syncParticipants(targetRoom);
+          return false;
+        }
+      })();
+
+      microphoneRecoveryPromiseRef.current = {
+        promise: recovery,
+        room: targetRoom,
+      };
+
+      try {
+        return await recovery;
+      } finally {
+        if (microphoneRecoveryPromiseRef.current?.promise === recovery) {
+          microphoneRecoveryPromiseRef.current = null;
+        }
+      }
+    },
+    [
+      enableLocalMicrophone,
+      isDesktopRuntime,
+      requestMicrophonePermission,
+      syncKrispNoiseCancellation,
+      syncParticipants,
+      t,
+    ],
   );
 
   const retryKrispNoiseCancellation = useCallback(async () => {
@@ -1991,69 +2239,70 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     } finally {
       setIsRecoveringKrispNoiseCancellation(false);
     }
-  }, [
-    ensureKrispSupport,
-    resetKrispProcessor,
-    syncKrispNoiseCancellation,
-    syncParticipants,
-  ]);
+  }, [ensureKrispSupport, resetKrispProcessor, syncKrispNoiseCancellation, syncParticipants]);
 
-  const setActiveScreenShareId = useCallback(
-    (id: string) => {
-      setActiveScreenShareIdState(id);
-      useVoiceStore.getState().setScreenShareState({
-        activeSharerId: id,
-        channelId: useVoiceStore.getState().activeChannelId,
-        conversationId: null,
-        isSharing: useVoiceStore.getState().isScreenSharing,
-        mode: "voice",
-      });
-    },
-    [],
-  );
+  const setActiveScreenShareId = useCallback((id: string) => {
+    setActiveScreenShareIdState(id);
+    useVoiceStore.getState().setScreenShareState({
+      activeSharerId: id,
+      channelId: useVoiceStore.getState().activeChannelId,
+      conversationId: null,
+      isSharing: useVoiceStore.getState().isScreenSharing,
+      mode: "voice",
+    });
+  }, []);
 
-  const stopScreenShare = useCallback(async (targetRoom?: Room | null) => {
-    const activeRoom = targetRoom ?? roomRef.current;
-    if (!activeRoom) {
+  const stopScreenShare = useCallback(
+    async (targetRoom?: Room | null) => {
+      const activeRoom = targetRoom ?? roomRef.current;
+      if (!activeRoom) {
+        useVoiceStore.getState().clearScreenShareState();
+        setScreenShares([]);
+        setActiveScreenShareIdState(null);
+        return;
+      }
+
+      const localScreenTracks = activeRoom.localParticipant
+        .getTrackPublications()
+        .filter((publication) => publication.source === Track.Source.ScreenShare)
+        .map((publication) => publication.track)
+        .filter((track): track is LocalTrack => track instanceof LocalTrack);
+
+      const unpublishedByLiveKit = await activeRoom.localParticipant
+        .setScreenShareEnabled(false)
+        .then(() => true)
+        .catch(() => false);
+
+      if (!unpublishedByLiveKit) {
+        await Promise.all(
+          localScreenTracks.map((track) =>
+            activeRoom.localParticipant.unpublishTrack(track, true).catch(() => undefined),
+          ),
+        );
+      }
+
+      for (const track of localScreenTracks) {
+        track.detach();
+      }
+
       useVoiceStore.getState().clearScreenShareState();
-      setScreenShares([]);
-      setActiveScreenShareIdState(null);
-      return;
-    }
-
-    const localScreenTracks = activeRoom.localParticipant
-      .getTrackPublications()
-      .filter((publication) => publication.source === Track.Source.ScreenShare)
-      .map((publication) => publication.track)
-      .filter((track): track is LocalTrack => track instanceof LocalTrack);
-
-    const unpublishedByLiveKit = await activeRoom.localParticipant
-      .setScreenShareEnabled(false)
-      .then(() => true)
-      .catch(() => false);
-
-    if (!unpublishedByLiveKit) {
-      await Promise.all(
-        localScreenTracks.map((track) =>
-          activeRoom.localParticipant.unpublishTrack(track, true).catch(() => undefined),
-        ),
-      );
-    }
-
-    for (const track of localScreenTracks) {
-      track.detach();
-    }
-
-    useVoiceStore.getState().clearScreenShareState();
-    syncScreenShares(activeRoom);
-  }, [syncScreenShares]);
+      syncScreenShares(activeRoom);
+    },
+    [syncScreenShares],
+  );
 
   const setScreenShareQuality = useCallback(
     async (qualityId: ScreenShareQualityId) => {
       useVoiceStore.getState().setScreenShareQuality(qualityId);
 
-      const localScreenShareTrack = getLocalScreenShareTrack(roomRef.current);
-      if (!localScreenShareTrack) {
+      const activeRoom = roomRef.current;
+      const localScreenShareTrack = getLocalScreenShareTrack(activeRoom);
+      if (
+        !activeRoom ||
+        activeRoom.state === ConnectionState.Disconnected ||
+        !localScreenShareTrack ||
+        !isLocalScreenShareTrackLive(localScreenShareTrack)
+      ) {
         return;
       }
 
@@ -2061,7 +2310,9 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       try {
         await applyScreenShareQualityToTrack(localScreenShareTrack, qualityId);
         setErrorMessage(null);
-        syncScreenShares(roomRef.current);
+        if (roomRef.current === activeRoom) {
+          syncScreenShares(activeRoom);
+        }
       } catch {
         const message = t("screenShare.errors.qualityFailed");
         useVoiceStore.getState().setScreenShareError(message);
@@ -2072,6 +2323,120 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     },
     [syncScreenShares, t],
   );
+
+  const stopCamera = useCallback(
+    async (targetRoom?: Room | null, options: { clearError?: boolean } = {}) => {
+      const activeRoom = targetRoom ?? roomRef.current;
+      setCameraStatus("stopping");
+
+      if (!activeRoom) {
+        setCameraStatus("disabled");
+        if (options.clearError !== false) {
+          setCameraError(null);
+        }
+        return;
+      }
+
+      const localCameraTracks = activeRoom.localParticipant
+        .getTrackPublications()
+        .filter((publication) => publication.source === Track.Source.Camera)
+        .map((publication) => publication.track)
+        .filter((track): track is LocalVideoTrack => track instanceof LocalVideoTrack);
+
+      const unpublishedByLiveKit = await activeRoom.localParticipant
+        .setCameraEnabled(false)
+        .then(() => true)
+        .catch(() => false);
+
+      if (!unpublishedByLiveKit) {
+        await Promise.all(
+          localCameraTracks.map((track) =>
+            activeRoom.localParticipant.unpublishTrack(track, true).catch(() => undefined),
+          ),
+        );
+      }
+
+      for (const track of localCameraTracks) {
+        track.stop();
+        track.detach();
+      }
+
+      setCameraStatus("disabled");
+      if (options.clearError !== false) {
+        setCameraError(null);
+      }
+      syncParticipants(activeRoom);
+    },
+    [syncParticipants],
+  );
+
+  const toggleCamera = useCallback(async () => {
+    const activeRoom = roomRef.current;
+    if (!activeRoom || cameraStatus === "starting" || cameraStatus === "stopping") {
+      return;
+    }
+
+    if (isLocalCameraTrackLive(getLocalCameraTrack(activeRoom))) {
+      await stopCamera(activeRoom);
+      return;
+    }
+
+    if (!isCameraSupported()) {
+      const message = t("voice.errors.cameraNotSupported");
+      setCameraStatus("error");
+      setCameraError(message);
+      return;
+    }
+
+    setCameraStatus("starting");
+    setCameraError(null);
+
+    try {
+      const publication = await activeRoom.localParticipant.setCameraEnabled(
+        true,
+        buildCameraCaptureOptions(),
+        { source: Track.Source.Camera },
+      );
+      const localCameraTrack =
+        publication?.track instanceof LocalVideoTrack
+          ? publication.track
+          : getLocalCameraTrack(activeRoom);
+
+      if (localCameraTrack) {
+        localCameraTrack.mediaStreamTrack.addEventListener(
+          "ended",
+          () => {
+            void stopCamera(activeRoom).catch(() => undefined);
+          },
+          { once: true },
+        );
+      }
+
+      setCameraStatus("enabled");
+      setCameraError(null);
+      syncParticipants(activeRoom);
+    } catch (error) {
+      await stopCamera(activeRoom, { clearError: false }).catch(() => undefined);
+
+      const status: VoiceCameraStatus = isCameraPermissionDenied(error)
+        ? "permission-denied"
+        : isCameraDeviceUnavailable(error)
+          ? "device-unavailable"
+          : "error";
+      const message =
+        status === "permission-denied"
+          ? isDesktopRuntime
+            ? t("voice.errors.cameraDeniedDesktop")
+            : t("voice.errors.cameraDenied")
+          : status === "device-unavailable"
+            ? t("voice.errors.cameraUnavailable")
+            : t("voice.errors.cameraStartFailed");
+
+      setCameraStatus(status);
+      setCameraError(message);
+      syncParticipants(activeRoom);
+    }
+  }, [cameraStatus, isDesktopRuntime, stopCamera, syncParticipants, t]);
 
   const toggleScreenShare = useCallback(async () => {
     const activeRoom = roomRef.current;
@@ -2148,21 +2513,27 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
 
     roomRef.current = null;
     appliedAudioPreferencesSignatureRef.current = null;
+    microphoneRecoveryPromiseRef.current = null;
     lastEmittedScreenShareStateRef.current = null;
     setRoom(null);
     setParticipants([]);
     setScreenShares([]);
     setActiveScreenShareIdState(null);
+    setCameraStatus("disabled");
+    setCameraError(null);
     setConnectionState(ConnectionState.Disconnected);
     setErrorMessage(null);
 
     if (activeRoom) {
       activeRoom.removeAllListeners();
       await stopScreenShare(activeRoom).catch(() => undefined);
+      await stopCamera(activeRoom).catch(() => undefined);
       await stopLocalTracks(activeRoom).catch(() => undefined);
       await activeRoom.disconnect(true).catch(() => undefined);
+      setParticipants([]);
       setScreenShares([]);
       setActiveScreenShareIdState(null);
+      setCameraStatus("disabled");
       useVoiceStore.getState().clearScreenShareState();
     }
 
@@ -2181,6 +2552,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     clearReconnectTimeout,
     resetKrispProcessor,
     stopHeartbeat,
+    stopCamera,
     stopScreenShare,
     updateVoiceStatesCache,
   ]);
@@ -2241,6 +2613,8 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       joinRequestRef.current = nextJoinKey;
       setIsJoining(true);
       setErrorMessage(null);
+      setCameraError(null);
+      setCameraStatus("disabled");
 
       const sessionId = crypto.randomUUID();
       const nextRoom = new Room({
@@ -2307,13 +2681,21 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
           .catch(() => {
             setErrorMessage("Voice state could not be restored.");
           });
-        void applyAudioPreferencesToRoom(nextRoom).catch((error) => {
-          if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(nextRoom))) {
-            logError("[voice] Post-reconnect audio preference sync skipped", error);
-            return;
-          }
-          setErrorMessage(microphoneEnableFailedMessage);
-        });
+        void ensureLocalMicrophonePublished(nextRoom)
+          .then((recovered) => {
+            if (!recovered) {
+              return undefined;
+            }
+
+            return applyAudioPreferencesToRoom(nextRoom);
+          })
+          .catch((error) => {
+            if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(nextRoom))) {
+              logError("[voice] Post-reconnect microphone sync skipped", error);
+              return;
+            }
+            setErrorMessage(microphoneEnableFailedMessage);
+          });
         syncRoomParticipants();
       });
       nextRoom.on("disconnected", () => {
@@ -2353,7 +2735,11 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         updateVoiceStatesCache(nextServerId, channelId, state.participants);
         startHeartbeat(sessionId);
         void nextRoom.startAudio().catch(() => undefined);
-        applyRemoteAudioState(nextRoom, shouldStartDeafened, useVoiceStore.getState().participantVolumes);
+        applyRemoteAudioState(
+          nextRoom,
+          shouldStartDeafened,
+          useVoiceStore.getState().participantVolumes,
+        );
         syncRoomParticipants();
 
         if (!hasMicrophoneAccess) {
@@ -2370,10 +2756,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
           return;
         }
 
-        void enableLocalMicrophone(
-          nextRoom,
-          useVoiceStore.getState().audioPreferences,
-        )
+        void enableLocalMicrophone(nextRoom, useVoiceStore.getState().audioPreferences)
           .then(async ({ preferences, track: localMicrophoneTrack }) => {
             if (localMicrophoneTrack) {
               await syncKrispNoiseCancellation(
@@ -2389,7 +2772,10 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
           })
           .catch((error) => {
             if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(nextRoom))) {
-              logError("[voice] Microphone enable reported an error after track was published", error);
+              logError(
+                "[voice] Microphone enable reported an error after track was published",
+                error,
+              );
               setErrorMessage(null);
               syncParticipants(nextRoom);
               return;
@@ -2408,6 +2794,8 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         roomRef.current = null;
         setRoom(null);
         setParticipants([]);
+        setCameraError(null);
+        setCameraStatus("disabled");
         setConnectionState(ConnectionState.Disconnected);
         appliedAudioPreferencesSignatureRef.current = null;
         nextRoom.removeAllListeners();
@@ -2435,6 +2823,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       clearConnectionWarning,
       clearReconnectTimeout,
       enableLocalMicrophone,
+      ensureLocalMicrophonePublished,
       isDesktopRuntime,
       krispAvailability,
       leaveChannel,
@@ -2500,8 +2889,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
             preferences.krispNoiseCancellation,
           );
         }
-        appliedAudioPreferencesSignatureRef.current =
-          getAudioCaptureRestartSignature(preferences);
+        appliedAudioPreferencesSignatureRef.current = getAudioCaptureRestartSignature(preferences);
         setErrorMessage(null);
       } catch (error) {
         if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(activeRoom))) {
@@ -2601,15 +2989,17 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     clearReconnectTimeout();
 
     const activeRoom = roomRef.current;
+    microphoneRecoveryPromiseRef.current = null;
     if (activeRoom) {
       activeRoom.removeAllListeners();
       void stopScreenShare(activeRoom).catch(() => undefined);
+      void stopCamera(activeRoom).catch(() => undefined);
       void stopLocalTracks(activeRoom).catch(() => undefined);
       void activeRoom.disconnect(true).catch(() => undefined);
     }
 
     void resetKrispProcessor();
-  }, [clearReconnectTimeout, resetKrispProcessor, stopHeartbeat, stopScreenShare]);
+  }, [clearReconnectTimeout, resetKrispProcessor, stopCamera, stopHeartbeat, stopScreenShare]);
 
   useEffect(() => {
     cleanupVoiceResourcesRef.current = cleanupVoiceResources;
@@ -2637,6 +3027,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
 
       if (activeRoom) {
         void stopScreenShare(activeRoom).catch(() => undefined);
+        void stopCamera(activeRoom).catch(() => undefined);
         void stopLocalTracks(activeRoom).catch(() => undefined);
         void activeRoom.disconnect(true).catch(() => undefined);
       }
@@ -2657,6 +3048,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   }, [
     clearReconnectTimeout,
     emitVoiceScreenShareState,
+    stopCamera,
     stopHeartbeat,
     stopScreenShare,
   ]);
@@ -2665,9 +3057,12 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     () => ({
       activeChannelId,
       audioPreferences,
+      cameraError,
+      cameraStatus,
       connectionState,
       errorMessage,
       getParticipantVolume,
+      isCameraEnabled: cameraStatus === "enabled",
       isApplyingAudioPreferences,
       isApplyingScreenShareQuality,
       isDeafened,
@@ -2693,8 +3088,10 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       prepareForVoiceJoin,
       joinChannel,
       leaveChannel,
+      stopCamera,
       stopScreenShare,
       toggleDeafen,
+      toggleCamera,
       toggleMute,
       toggleScreenShare,
     }),
@@ -2702,6 +3099,8 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       activeChannelId,
       activeScreenShareId,
       audioPreferences,
+      cameraError,
+      cameraStatus,
       connectionState,
       errorMessage,
       getParticipantVolume,
@@ -2726,7 +3125,9 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       serverId,
       setActiveScreenShareId,
       setScreenShareQuality,
+      stopCamera,
       stopScreenShare,
+      toggleCamera,
       toggleDeafen,
       toggleMute,
       toggleScreenShare,
@@ -2736,10 +3137,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   return (
     <VoiceContext.Provider value={value}>
       {children}
-      <VoiceAudioRenderer
-        outputDeviceId={audioPreferences.outputDeviceId}
-        room={room}
-      />
+      <VoiceAudioRenderer outputDeviceId={audioPreferences.outputDeviceId} room={room} />
     </VoiceContext.Provider>
   );
 }

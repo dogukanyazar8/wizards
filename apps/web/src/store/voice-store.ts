@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import {
   DEFAULT_SCREEN_SHARE_QUALITY_ID,
-  isScreenShareQualityId,
+  normalizeScreenShareQualityId,
   type ScreenShareQualityId,
 } from "@/lib/voice/screen-share";
 
@@ -96,10 +96,7 @@ export function sanitizeAudioPreferences(value: unknown): VoiceAudioPreferences 
 }
 
 function needsCleanVoiceMigration(value: unknown) {
-  return (
-    !isRecord(value) ||
-    value.audioProcessingVersion !== CLEAN_VOICE_PROCESSING_VERSION
-  );
+  return !isRecord(value) || value.audioProcessingVersion !== CLEAN_VOICE_PROCESSING_VERSION;
 }
 
 function applyCleanVoiceDefaults(preferences: VoiceAudioPreferences) {
@@ -114,7 +111,7 @@ function applyCleanVoiceDefaults(preferences: VoiceAudioPreferences) {
 }
 
 function sanitizeScreenShareQuality(value: unknown): ScreenShareQualityId {
-  return isScreenShareQualityId(value) ? value : DEFAULT_SCREEN_SHARE_QUALITY_ID;
+  return normalizeScreenShareQualityId(value);
 }
 
 type PersistedVoiceStoreState = {
@@ -242,9 +239,7 @@ export const useVoiceStore = create<VoiceStoreState>()(
               ...state.audioPreferences,
               [key]: value,
             },
-            ...(key === "krispNoiseCancellation"
-              ? { hasConfiguredKrispPreference: true }
-              : {}),
+            ...(key === "krispNoiseCancellation" ? { hasConfiguredKrispPreference: true } : {}),
           };
         }),
       toggleDeafen: () =>
@@ -315,17 +310,14 @@ export const useVoiceStore = create<VoiceStoreState>()(
 
         return {
           ...currentState,
-          audioPreferences:
-            needsCleanVoiceMigration(persistedState)
-              ? applyCleanVoiceDefaults(
-                  sanitizeAudioPreferences(persistedState.audioPreferences),
-                )
-              : persistedState.hasConfiguredKrispPreference === true
-                ? sanitizeAudioPreferences(persistedState.audioPreferences)
-                : {
-                    ...sanitizeAudioPreferences(persistedState.audioPreferences),
-                    krispNoiseCancellation: true,
-                  },
+          audioPreferences: needsCleanVoiceMigration(persistedState)
+            ? applyCleanVoiceDefaults(sanitizeAudioPreferences(persistedState.audioPreferences))
+            : persistedState.hasConfiguredKrispPreference === true
+              ? sanitizeAudioPreferences(persistedState.audioPreferences)
+              : {
+                  ...sanitizeAudioPreferences(persistedState.audioPreferences),
+                  krispNoiseCancellation: true,
+                },
           audioProcessingVersion: CLEAN_VOICE_PROCESSING_VERSION,
           hasConfiguredKrispPreference: needsCleanVoiceMigration(persistedState)
             ? false
