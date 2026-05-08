@@ -8,15 +8,11 @@ import { useI18n } from "@/components/providers/locale-provider";
 import { useAppStore } from "@/lib/store";
 
 type MainChannelPanelProps = {
-  categoryName?: string | null;
   channel?: WorkspaceChannel | null;
   children?: React.ReactNode;
-  contextLabel?: string | undefined;
-  detailLabel?: string | undefined;
   fallbackTitle: string;
   icon?: LucideIcon | undefined;
   leading?: React.ReactNode;
-  trailing?: React.ReactNode;
 };
 
 function EmptyChannelState({
@@ -61,18 +57,9 @@ function EmptyChannelState({
 
         <div className="space-y-3">
           {[
-            [
-              t("shell.main.browseServersTitle"),
-              t("shell.main.browseServersDescription"),
-            ],
-            [
-              t("shell.main.tuneLayoutTitle"),
-              t("shell.main.tuneLayoutDescription"),
-            ],
-            [
-              t("shell.main.startTalkingTitle"),
-              t("shell.main.startTalkingDescription"),
-            ],
+            [t("shell.main.browseServersTitle"), t("shell.main.browseServersDescription")],
+            [t("shell.main.tuneLayoutTitle"), t("shell.main.tuneLayoutDescription")],
+            [t("shell.main.startTalkingTitle"), t("shell.main.startTalkingDescription")],
           ].map(([cardTitle, description]) => (
             <div
               className="app-panel rounded-[28px] border p-5 shadow-[0_16px_36px_hsl(var(--shadow-color)/0.06)]"
@@ -89,69 +76,22 @@ function EmptyChannelState({
 }
 
 export function MainChannelPanel({
-  categoryName,
   channel,
   children,
-  contextLabel,
-  detailLabel,
   fallbackTitle,
   icon,
   leading,
-  trailing,
 }: MainChannelPanelProps) {
-  const { t } = useI18n();
   const { mainPanelWidth } = useAppStore(
     useShallow((state) => ({
       mainPanelWidth: state.mainPanelWidth,
     })),
   );
   const Icon = icon ?? (channel?.type === "VOICE" ? Volume2 : Hash);
-  const title = channel ? `#${channel.name}` : fallbackTitle;
-  const resolvedContextLabel =
-    contextLabel ??
-    (categoryName
-      ? categoryName
-      : channel
-        ? t("shell.main.openConversation")
-        : t("shell.main.workspaceOverview"));
-  const resolvedDetailLabel =
-    detailLabel ??
-    (channel
-      ? t("shell.main.channelType", {
-          type: channel.type === "VOICE" ? t("common.voice") : t("common.text"),
-        })
-      : t("shell.main.pickServerOrChannel"));
 
   return (
-    <section className="app-main-gradient flex min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="sticky top-0 z-30 border-b border-[hsl(var(--border)/0.78)] bg-[hsl(var(--background)/0.82)] px-3 py-3 backdrop-blur-2xl md:static md:bg-transparent md:px-6 md:py-4 md:backdrop-blur-none">
-        <div className="flex items-center justify-between gap-3 md:gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            {leading}
-            <div className="app-panel-soft text-app-foreground hidden h-11 w-11 shrink-0 items-center justify-center rounded-[18px] border shadow-[0_18px_40px_hsl(var(--shadow-color)/0.08)] sm:flex">
-              <Icon className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <h1 className="text-app-foreground truncate text-sm font-semibold md:text-base">
-                  {title}
-                </h1>
-                <span className="hidden rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.52)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-app-soft sm:inline-flex">
-                  {resolvedDetailLabel}
-                </span>
-              </div>
-              <div className="mt-2 hidden flex-wrap items-center gap-2 text-xs sm:flex">
-                <span className="text-app-muted">{resolvedContextLabel}</span>
-                <span className="text-app-soft">/</span>
-                <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 font-medium text-[hsl(var(--primary))]">
-                  {t("shell.main.liveWorkspace")}
-                </span>
-              </div>
-            </div>
-          </div>
-          {trailing ? <div className="shrink-0">{trailing}</div> : null}
-        </div>
-      </header>
+    <section className="app-main-gradient relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      {leading ? <div className="absolute left-3 top-3 z-40 md:hidden">{leading}</div> : null}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-0 pb-0 pt-0 md:px-2 md:pb-2 md:pt-2">
         <div
@@ -166,7 +106,6 @@ export function MainChannelPanel({
           )}
         </div>
       </div>
-
     </section>
   );
 }

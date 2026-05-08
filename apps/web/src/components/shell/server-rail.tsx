@@ -15,7 +15,6 @@ import {
 import type { WorkspaceServerSummary } from "@wizards/types";
 import { useI18n } from "@/components/providers/locale-provider";
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
-import { getServerHref } from "@/lib/workspace/client";
 import { ServerRailSkeleton } from "@/components/shell/shell-skeletons";
 import { ServerIcon } from "@/components/shell/server-icon";
 import {
@@ -41,6 +40,7 @@ type ServerRailProps = {
   onOpenCreateServer: () => void;
   onOpenServerContextMenu: (serverId: string, event: MouseEvent<HTMLButtonElement>) => void;
   onPrefetch?: (href: string) => void;
+  resolveServerHref: (server: WorkspaceServerSummary) => string;
   onSetIconSize: (size: number) => void;
   onSetExpanded?: () => void;
   onSetIconOnly?: () => void;
@@ -176,6 +176,7 @@ export function ServerRail({
   onOpenCreateServer,
   onOpenServerContextMenu,
   onPrefetch,
+  resolveServerHref,
   onSetIconSize,
   onSetExpanded,
   onSetIconOnly,
@@ -246,9 +247,7 @@ export function ServerRail({
   }, [orderStorageKey]);
 
   const closeRailContextMenu = useCallback(() => {
-    setRailContextMenu((current) =>
-      current.open ? { open: false, x: 0, y: 0 } : current,
-    );
+    setRailContextMenu((current) => (current.open ? { open: false, x: 0, y: 0 } : current));
   }, []);
 
   const handleRailContextMenu = (event: MouseEvent<HTMLElement>) => {
@@ -333,52 +332,56 @@ export function ServerRail({
             onReorder={persistServerOrder}
             values={orderedServerIds}
           >
-            {orderedServers.map((server) => (
-              <Reorder.Item
-                className="relative w-full list-none"
-                data-server-rail-item
-                key={server.id}
-                onDragEnd={() => {
-                  setDraggingServerId(null);
-                  recentlyDraggedServerIdRef.current = server.id;
-                  window.setTimeout(() => {
-                    if (recentlyDraggedServerIdRef.current === server.id) {
-                      recentlyDraggedServerIdRef.current = null;
-                    }
-                  }, 120);
-                }}
-                onDragStart={() => setDraggingServerId(server.id)}
-                value={server.id}
-                whileDrag={{
-                  scale: 1.04,
-                  zIndex: 20,
-                }}
-              >
-                <ServerIcon
-                  active={server.id === activeServerId}
-                  badgeCount={server.unreadCount}
-                  className={draggingServerId === server.id ? "cursor-grabbing" : "cursor-grab"}
-                  fallback={server.name}
-                  iconSize={iconSize}
-                  iconUrl={server.iconUrl}
-                  label={server.name}
-                  labelPreview={getServerShortLabel(server)}
-                  mentionCount={server.mentionCount}
-                  onClick={() => {
-                    if (recentlyDraggedServerIdRef.current === server.id) {
-                      return;
-                    }
+            {orderedServers.map((server) => {
+              const serverHref = resolveServerHref(server);
 
-                    onNavigate(getServerHref(server));
+              return (
+                <Reorder.Item
+                  className="relative w-full list-none"
+                  data-server-rail-item
+                  key={server.id}
+                  onDragEnd={() => {
+                    setDraggingServerId(null);
+                    recentlyDraggedServerIdRef.current = server.id;
+                    window.setTimeout(() => {
+                      if (recentlyDraggedServerIdRef.current === server.id) {
+                        recentlyDraggedServerIdRef.current = null;
+                      }
+                    }, 120);
                   }}
-                  onContextMenu={(event) => onOpenServerContextMenu(server.id, event)}
-                  reorderable={orderedServers.length > 1}
-                  showLabel={!isIconOnly}
-                  testId={`server-rail-server-${server.id}`}
-                  {...(onPrefetch ? { onPrefetch: () => onPrefetch(getServerHref(server)) } : {})}
-                />
-              </Reorder.Item>
-            ))}
+                  onDragStart={() => setDraggingServerId(server.id)}
+                  value={server.id}
+                  whileDrag={{
+                    scale: 1.04,
+                    zIndex: 20,
+                  }}
+                >
+                  <ServerIcon
+                    active={server.id === activeServerId}
+                    badgeCount={server.unreadCount}
+                    className={draggingServerId === server.id ? "cursor-grabbing" : "cursor-grab"}
+                    fallback={server.name}
+                    iconSize={iconSize}
+                    iconUrl={server.iconUrl}
+                    label={server.name}
+                    labelPreview={getServerShortLabel(server)}
+                    mentionCount={server.mentionCount}
+                    onClick={() => {
+                      if (recentlyDraggedServerIdRef.current === server.id) {
+                        return;
+                      }
+
+                      onNavigate(serverHref);
+                    }}
+                    onContextMenu={(event) => onOpenServerContextMenu(server.id, event)}
+                    reorderable={orderedServers.length > 1}
+                    showLabel={!isIconOnly}
+                    testId={`server-rail-server-${server.id}`}
+                    {...(onPrefetch ? { onPrefetch: () => onPrefetch(serverHref) } : {})}
+                  />
+                </Reorder.Item>
+              );
+            })}
           </Reorder.Group>
 
           <div className={orderedServers.length > 0 ? "mt-3" : ""} data-server-rail-item>
@@ -487,10 +490,12 @@ export function ServerRail({
                 onSetIconOnly();
               }}
             >
-              {isIconOnly ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-              {isIconOnly
-                ? t("shell.serverRail.expand")
-                : t("shell.serverRail.collapse")}
+              {isIconOnly ? (
+                <PanelLeftOpen className="h-4 w-4" />
+              ) : (
+                <PanelLeftClose className="h-4 w-4" />
+              )}
+              {isIconOnly ? t("shell.serverRail.expand") : t("shell.serverRail.collapse")}
             </ContextMenuItem>
             <ContextMenuSeparator />
             <div className="w-60 space-y-3 px-2 py-2">

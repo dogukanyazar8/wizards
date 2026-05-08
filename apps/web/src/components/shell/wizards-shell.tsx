@@ -5,11 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, UserPlus, Users } from "lucide-react";
 import React, { type CSSProperties } from "react";
 import { useEffect, useMemo } from "react";
-import type {
-  WorkspaceChannel,
-  WorkspaceServerDetail,
-  WorkspaceServerSummary,
-} from "@wizards/types";
+import type { WorkspaceServerDetail, WorkspaceServerSummary } from "@wizards/types";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Button } from "@wizards/ui";
 import { useShallow } from "zustand/react/shallow";
@@ -28,10 +24,7 @@ import { useDMConversations } from "@/hooks/use-dm-conversations";
 import type { MessagePages } from "@/hooks/use-messages";
 import { useAppearanceHydration } from "@/hooks/use-appearance-hydration";
 import { usePresenceActivity } from "@/hooks/use-presence-activity";
-import type {
-  NotificationSocketPayload,
-  UserProfileUpdatedPayload,
-} from "@/lib/socket/events";
+import type { NotificationSocketPayload, UserProfileUpdatedPayload } from "@/lib/socket/events";
 import { useAppStore } from "@/lib/store";
 import {
   addServerMemberRequest,
@@ -44,13 +37,9 @@ import {
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
 import { fetchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
-import {
-  dmQueryKeys,
-  type DMConversationsInfiniteData,
-} from "@/lib/dm/client";
-import {
-  ICON_ONLY_SERVER_RAIL_WIDTH,
-} from "@/lib/appearance";
+import { dmQueryKeys, type DMConversationsInfiniteData } from "@/lib/dm/client";
+import { ICON_ONLY_SERVER_RAIL_WIDTH } from "@/lib/appearance";
+import { useVoiceStore } from "@/store/voice-store";
 
 type WizardsShellProps = {
   children?: React.ReactNode;
@@ -81,15 +70,17 @@ function findActiveChannel(
   );
 }
 
-function findActiveCategoryName(
-  channel: WorkspaceChannel | null,
-  detail?: Awaited<ReturnType<typeof fetchWorkspaceServer>> | null,
-) {
-  if (!channel || !detail) {
+function getFirstTextChannelId(detail?: Awaited<ReturnType<typeof fetchWorkspaceServer>> | null) {
+  if (!detail) {
     return null;
   }
 
-  return detail.categories.find((category) => category.id === channel.categoryId)?.name ?? null;
+  return (
+    [
+      ...detail.ungroupedChannels,
+      ...detail.categories.flatMap((category) => category.channels),
+    ].find((channel) => channel.type === "TEXT")?.id ?? null
+  );
 }
 
 type AccountUpdatedEventPayload = Omit<UserProfileUpdatedPayload, "userId"> & {
@@ -173,27 +164,91 @@ function getWorkspaceFallbackHref(
   servers: WorkspaceServerSummary[],
   excludedServerId?: string | null,
 ) {
-  const nextServer =
-    servers.find((server) => server.id !== excludedServerId) ??
-    servers[0] ??
-    null;
+  const nextServer = servers.find((server) => server.id !== excludedServerId) ?? servers[0] ?? null;
 
   return nextServer ? getServerIndexHref(nextServer) : "/channels/@me";
+}
+
+function getActiveVoiceChannelIdForServer(
+  serverId: string,
+  activeVoiceRoute: { channelId: string | null; serverId: string | null },
+) {
+  return activeVoiceRoute.serverId === serverId ? activeVoiceRoute.channelId : null;
+}
+
+function getServerRestoreChannelId(
+  server: WorkspaceServerSummary,
+  lastChannelByServerId: Record<string, string>,
+  activeVoiceRoute: { channelId: string | null; serverId: string | null },
+  detail?: Awaited<ReturnType<typeof fetchWorkspaceServer>> | null,
+) {
+  const activeVoiceChannelId = getActiveVoiceChannelIdForServer(server.id, activeVoiceRoute);
+  if (activeVoiceChannelId) {
+    return activeVoiceChannelId;
+  }
+
+  if (!detail) {
+    return lastChannelByServerId[server.id] ? null : (server.defaultChannelId ?? null);
+  }
+
+  const rememberedChannelId = lastChannelByServerId[server.id] ?? null;
+  const rememberedChannel = findActiveChannel(server.id, rememberedChannelId, detail);
+  if (rememberedChannel?.type === "TEXT") {
+    return rememberedChannel.id;
+  }
+
+  const defaultChannel = findActiveChannel(server.id, server.defaultChannelId, detail);
+  if (defaultChannel?.type === "TEXT") {
+    return defaultChannel.id;
+  }
+
+  return getFirstTextChannelId(detail);
+}
+
+function getServerRestoreHref(
+  server: WorkspaceServerSummary,
+  lastChannelByServerId: Record<string, string>,
+  activeVoiceRoute: { channelId: string | null; serverId: string | null },
+  detail?: Awaited<ReturnType<typeof fetchWorkspaceServer>> | null,
+) {
+  const channelId = getServerRestoreChannelId(
+    server,
+    lastChannelByServerId,
+    activeVoiceRoute,
+    detail,
+  );
+  return channelId ? `/channels/${server.id}/${channelId}` : `/channels/${server.id}`;
 }
 
 function getPreferredServerChannelId(
   serverId: string,
   detail: Awaited<ReturnType<typeof fetchWorkspaceServer>> | null | undefined,
   lastChannelByServerId: Record<string, string>,
+  activeVoiceRoute: { channelId: string | null; serverId: string | null },
 ) {
   if (!detail) {
     return null;
   }
 
+  const activeVoiceChannelId = getActiveVoiceChannelIdForServer(serverId, activeVoiceRoute);
+  const activeVoiceChannel = findActiveChannel(serverId, activeVoiceChannelId, detail);
+
+  if (activeVoiceChannel?.type === "VOICE") {
+    return activeVoiceChannel.id;
+  }
+
   const rememberedChannelId = lastChannelByServerId[serverId] ?? null;
   const rememberedChannel = findActiveChannel(serverId, rememberedChannelId, detail);
+  if (rememberedChannel?.type === "TEXT") {
+    return rememberedChannel.id;
+  }
 
-  return rememberedChannel?.id ?? detail.server.defaultChannelId ?? null;
+  const defaultChannel = findActiveChannel(serverId, detail.server.defaultChannelId, detail);
+  if (defaultChannel?.type === "TEXT") {
+    return defaultChannel.id;
+  }
+
+  return getFirstTextChannelId(detail);
 }
 
 interface NavigationPanelProps {
@@ -218,6 +273,7 @@ interface NavigationPanelProps {
   onOpenServerContextMenu: (serverId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
   onOpenSettings: () => void;
   onCurrentUserStatusChange: (status: "ONLINE" | "IDLE" | "DND" | "OFFLINE") => void;
+  resolveServerHref: (server: WorkspaceServerSummary) => string;
   serverRailIconSize: number;
   serverRailWidth: number;
   isServerRailIconOnly: boolean;
@@ -245,6 +301,7 @@ const NavigationPanel = React.memo(
     onOpenServerContextMenu,
     onOpenSettings,
     onCurrentUserStatusChange,
+    resolveServerHref,
     serverRailIconSize,
     serverRailWidth,
     isServerRailIconOnly,
@@ -254,9 +311,19 @@ const NavigationPanel = React.memo(
     onServerRailIconSizeChange,
     onServerRailWidthChange,
   }: NavigationPanelProps) => (
-    <div className={isMobile ? "flex h-full min-w-0 flex-1 flex-col" : "hidden h-full min-w-0 flex-col md:flex"}>
+    <div
+      className={
+        isMobile ? "flex h-full min-w-0 flex-1 flex-col" : "hidden h-full min-w-0 flex-col md:flex"
+      }
+    >
       <div className="flex min-h-0 flex-1">
-        <div className={isMobile ? "flex h-full w-[112px] shrink-0 [--server-rail-width:112px]" : "flex h-full shrink-0"}>
+        <div
+          className={
+            isMobile
+              ? "flex h-full w-[112px] shrink-0 [--server-rail-width:112px]"
+              : "flex h-full shrink-0"
+          }
+        >
           <ServerRail
             activeServerId={activeServerId}
             currentUserId={currentUserId}
@@ -268,6 +335,7 @@ const NavigationPanel = React.memo(
             onOpenCreateServer={onOpenCreateServer}
             onOpenServerContextMenu={onOpenServerContextMenu}
             onPrefetch={onPrefetch}
+            resolveServerHref={resolveServerHref}
             onSetIconSize={onServerRailIconSizeChange}
             onSetExpanded={onExpandServerRail}
             onSetIconOnly={onCollapseServerRail}
@@ -277,7 +345,11 @@ const NavigationPanel = React.memo(
           />
         </div>
         <div
-          className={isMobile ? "flex min-w-0 max-w-[calc(100vw-112px)] flex-1 overflow-hidden" : "flex min-w-0 overflow-hidden"}
+          className={
+            isMobile
+              ? "flex min-w-0 max-w-[calc(100vw-112px)] flex-1 overflow-hidden"
+              : "flex min-w-0 overflow-hidden"
+          }
           style={isMobile ? undefined : { width: `var(--channel-sidebar-width)` }}
         >
           <ChannelSidebar
@@ -437,6 +509,19 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       applyPersistedSettings: state.applyPersistedSettings,
     })),
   );
+  const { activeVoiceChannelId, activeVoiceServerId } = useVoiceStore(
+    useShallow((state) => ({
+      activeVoiceChannelId: state.activeChannelId,
+      activeVoiceServerId: state.serverId,
+    })),
+  );
+  const activeVoiceRoute = useMemo(
+    () => ({
+      channelId: activeVoiceChannelId,
+      serverId: activeVoiceServerId,
+    }),
+    [activeVoiceChannelId, activeVoiceServerId],
+  );
 
   const { data: layoutSettings } = useQuery({
     queryKey: settingsQueryKeys.layout,
@@ -471,11 +556,13 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     }
   }, [layoutSettings, applyPersistedSettings]);
 
-  const rawServerId = typeof params.serverId === "string" ? decodeURIComponent(params.serverId) : null;
+  const rawServerId =
+    typeof params.serverId === "string" ? decodeURIComponent(params.serverId) : null;
   const activeServerId = rawServerId === "@me" ? null : rawServerId;
   const activeChannelId = typeof params.channelId === "string" ? params.channelId : null;
   const isChannelsRootRoute = pathname === "/channels";
-  const isFriendsRoute = pathname === "/channels/@me" || (rawServerId === "@me" && !activeChannelId);
+  const isFriendsRoute =
+    pathname === "/channels/@me" || (rawServerId === "@me" && !activeChannelId);
   const isDmRoute = rawServerId === "@me" && Boolean(activeChannelId);
   const isServerIndexRoute = Boolean(activeServerId && !activeChannelId);
   const isServerConversationRoute = Boolean(activeServerId && activeChannelId);
@@ -521,12 +608,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       queryClient.setQueryData<WorkspaceServerSummary[] | undefined>(
         workspaceQueryKeys.servers,
         (current) =>
-          applyServerUnreadCount(
-            current,
-            data.serverId,
-            data.unreadCount,
-            data.mentionCount,
-          ),
+          applyServerUnreadCount(current, data.serverId, data.unreadCount, data.mentionCount),
       );
 
       queryClient.setQueryData<WorkspaceServerDetail | undefined>(
@@ -537,9 +619,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                 ...current,
                 server: {
                   ...current.server,
-                  ...(data.mentionCount !== undefined
-                    ? { mentionCount: data.mentionCount }
-                    : {}),
+                  ...(data.mentionCount !== undefined ? { mentionCount: data.mentionCount } : {}),
                   unreadCount: data.unreadCount,
                 },
               }
@@ -575,9 +655,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       }
 
       const serverId =
-        typeof notification.metadata?.serverId === "string"
-          ? notification.metadata.serverId
-          : null;
+        typeof notification.metadata?.serverId === "string" ? notification.metadata.serverId : null;
 
       refreshWorkspaceServers();
 
@@ -657,9 +735,8 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
         },
       );
 
-      queryClient.setQueriesData<MessagePages | undefined>(
-        { queryKey: ["messages"] },
-        (current) => patchMessageAuthors(current, data),
+      queryClient.setQueriesData<MessagePages | undefined>({ queryKey: ["messages"] }, (current) =>
+        patchMessageAuthors(current, data),
       );
 
       queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
@@ -689,8 +766,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       applyUserProfileUpdate({
         avatarUrl: detail.avatarUrl ?? null,
         customStatus: detail.customStatus ?? null,
-        displayName:
-          typeof detail.displayName === "string" ? detail.displayName : null,
+        displayName: typeof detail.displayName === "string" ? detail.displayName : null,
         status: nextStatus,
         userId: detail.id,
         username: detail.username ?? currentUserSnapshot.username,
@@ -822,8 +898,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       });
 
       const currentServers =
-        queryClient.getQueryData<WorkspaceServerSummary[]>(workspaceQueryKeys.servers) ??
-        servers;
+        queryClient.getQueryData<WorkspaceServerSummary[]>(workspaceQueryKeys.servers) ?? servers;
       const nextServers = currentServers.filter((server) => server.id !== serverId);
       queryClient.setQueryData(workspaceQueryKeys.servers, nextServers);
 
@@ -878,10 +953,27 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     [currentUser.id, dmConversations],
   );
   const activeChannel = findActiveChannel(activeServerId, activeChannelId, serverDetailQuery.data);
-  const activeCategoryName = findActiveCategoryName(activeChannel, serverDetailQuery.data);
   const preferredServerChannelId = activeServerId
-    ? getPreferredServerChannelId(activeServerId, serverDetailQuery.data, lastChannelByServerId)
+    ? getPreferredServerChannelId(
+        activeServerId,
+        serverDetailQuery.data,
+        lastChannelByServerId,
+        activeVoiceRoute,
+      )
     : null;
+  const resolveServerHref = React.useCallback(
+    (server: WorkspaceServerSummary) => {
+      const detail =
+        server.id === activeServerId
+          ? serverDetailQuery.data
+          : queryClient.getQueryData<Awaited<ReturnType<typeof fetchWorkspaceServer>>>(
+              workspaceQueryKeys.server(server.id),
+            );
+
+      return getServerRestoreHref(server, lastChannelByServerId, activeVoiceRoute, detail);
+    },
+    [activeServerId, activeVoiceRoute, lastChannelByServerId, queryClient, serverDetailQuery.data],
+  );
   const contextServer = servers.find((server) => server.id === serverContextMenu.serverId) ?? null;
   const canAddUserFromContextMenu = Boolean(
     contextServer && (contextServer.accessLevel !== "MEMBER" || contextServer.allowMemberAdds),
@@ -909,10 +1001,9 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
         return;
       }
 
-      const persistedServer =
-        persistedActiveServerId
-          ? servers.find((server) => server.id === persistedActiveServerId) ?? null
-          : null;
+      const persistedServer = persistedActiveServerId
+        ? (servers.find((server) => server.id === persistedActiveServerId) ?? null)
+        : null;
 
       if (persistedActiveArea === "server" && persistedActiveServerId) {
         if (!persistedServer) {
@@ -921,15 +1012,24 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
           return;
         }
 
-        const restoredChannelId =
-          lastChannelByServerId[persistedActiveServerId] ??
-          persistedActiveChannelId ??
-          persistedServer.defaultChannelId;
+        const persistedServerDetail =
+          queryClient.getQueryData<Awaited<ReturnType<typeof fetchWorkspaceServer>>>(
+            workspaceQueryKeys.server(persistedServer.id),
+          ) ?? null;
+        const restoredChannelId = getServerRestoreChannelId(
+          persistedServer,
+          {
+            ...lastChannelByServerId,
+            ...(persistedActiveChannelId ? { [persistedServer.id]: persistedActiveChannelId } : {}),
+          },
+          activeVoiceRoute,
+          persistedServerDetail,
+        );
 
         router.replace(
           restoredChannelId
             ? `/channels/${persistedActiveServerId}/${restoredChannelId}`
-            : getServerIndexHref(persistedServer),
+            : `/channels/${persistedActiveServerId}`,
         );
         return;
       }
@@ -947,6 +1047,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       router.replace(getWorkspaceFallbackHref(servers));
     }
   }, [
+    activeVoiceRoute,
     appearanceHydrated,
     forgetServerState,
     isChannelsRootRoute,
@@ -954,6 +1055,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     persistedActiveArea,
     persistedActiveChannelId,
     persistedActiveServerId,
+    queryClient,
     router,
     servers,
     isServersLoading,
@@ -966,10 +1068,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
 
     const hasServerAccess = servers.some((server) => server.id === activeServerId);
 
-    if (
-      !hasServerAccess &&
-      (isServerConversationRoute || isServerIndexRoute)
-    ) {
+    if (!hasServerAccess && (isServerConversationRoute || isServerIndexRoute)) {
       forgetServerState(activeServerId);
       router.replace(getWorkspaceFallbackHref(servers, activeServerId));
     }
@@ -1128,6 +1227,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
           }}
           onOpenSettings={openSettings}
           onCurrentUserStatusChange={setCurrentUserStatus}
+          resolveServerHref={resolveServerHref}
           serverRailIconSize={serverRailIconSize}
           serverRailWidth={serverRailWidth}
           isServerRailIconOnly={isServerRailIconOnly}
@@ -1187,6 +1287,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                 }}
                 onOpenSettings={openSettings}
                 onCurrentUserStatusChange={setCurrentUserStatus}
+                resolveServerHref={resolveServerHref}
                 serverRailIconSize={serverRailIconSize}
                 serverRailWidth={serverRailWidth}
                 isServerRailIconOnly={false}
@@ -1202,10 +1303,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
 
       <div className="flex min-w-0 flex-1">
         <MainChannelPanel
-          categoryName={activeCategoryName}
           channel={activeChannel}
-          contextLabel={!activeServerId ? t("friends.header.context") : undefined}
-          detailLabel={!activeServerId ? t("friends.header.detail") : undefined}
           fallbackTitle={
             activeServerId
               ? t("shell.wizards.chooseChannel")
@@ -1345,9 +1443,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
               <p className="text-app-success text-xs font-semibold uppercase tracking-[0.2em]">
                 {t("workspace.modal.addMemberSuccessTitle")}
               </p>
-              <p className="text-app-foreground mt-2 text-sm font-medium">
-                {addMemberSuccess}
-              </p>
+              <p className="text-app-foreground mt-2 text-sm font-medium">{addMemberSuccess}</p>
             </div>
           ) : null}
 

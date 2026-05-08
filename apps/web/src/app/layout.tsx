@@ -8,6 +8,7 @@ import { AppIconProvider } from "@/components/providers/app-icon-provider";
 import { SocketProvider } from "@/components/providers/socket-provider";
 import { SoundEffectsProvider } from "@/components/providers/sound-effects-provider";
 import { VoiceProvider } from "@/components/providers/voice-provider";
+import { ActiveVoiceReminder } from "@/components/voice/active-voice-reminder";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -42,20 +43,15 @@ export default async function RootLayout({
   const session = await auth();
   const locale = await getRequestLocale(session?.user?.locale);
   const theme = session?.user?.theme || undefined;
-  const currentUser =
-    session?.user
-      ? {
-          id: session.user.id,
-          avatarUrl: session.user.avatarUrl ?? session.user.image ?? null,
-          displayName:
-            session.user.displayName ??
-            session.user.username ??
-            session.user.email ??
-            "Whispr",
-          username:
-            session.user.username ?? session.user.email?.split("@")[0] ?? "whispr",
-        }
-      : null;
+  const currentUser = session?.user
+    ? {
+        id: session.user.id,
+        avatarUrl: session.user.avatarUrl ?? session.user.image ?? null,
+        displayName:
+          session.user.displayName ?? session.user.username ?? session.user.email ?? "Whispr",
+        username: session.user.username ?? session.user.email?.split("@")[0] ?? "whispr",
+      }
+    : null;
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -75,6 +71,7 @@ export default async function RootLayout({
                       <VoiceProvider currentUser={currentUser}>
                         <DesktopExperience />
                         {children}
+                        <ActiveVoiceReminder />
                       </VoiceProvider>
                     </SoundEffectsProvider>
                   </SocketProvider>

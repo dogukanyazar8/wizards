@@ -82,6 +82,27 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
     .toBeLessThanOrEqual(2);
 }
 
+async function expectElementWithinViewport(page: Page, testId: string): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.getByTestId(testId).evaluate((element) => {
+          const rect = element.getBoundingClientRect();
+          return Math.ceil(
+            Math.max(
+              0,
+              -rect.left,
+              -rect.top,
+              rect.right - window.innerWidth,
+              rect.bottom - window.innerHeight,
+            ),
+          );
+        }),
+      { timeout: 10_000 },
+    )
+    .toBeLessThanOrEqual(2);
+}
+
 test.describe("voice and screen share", () => {
   test.beforeEach(async () => {
     await clearE2EVoiceStates();
@@ -223,6 +244,12 @@ test.describe("voice and screen share", () => {
     await openVoiceChannel(page);
     await page.goto("/settings?section=notifications&panel=general");
     await expect(page.getByTestId("settings-panel")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("active-voice-reminder")).toBeVisible();
+    await page.getByTestId("active-voice-reminder-return").click();
+    await expect(page).toHaveURL(new RegExp(`/channels/${serverId}/${voiceChannelId}$`));
+    await expect(page.getByTestId("active-voice-reminder")).toBeHidden();
+    await page.goto("/settings?section=notifications&panel=general");
+    await expect(page.getByTestId("settings-panel")).toBeVisible({ timeout: 10_000 });
 
     await setRangeValue(page, "settings-notification-limit", 6);
     await expectVoiceParticipantCount(voiceChannelId, 1);
@@ -262,11 +289,12 @@ test.describe("voice and screen share", () => {
     await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByTestId("screen-share-quality-h720fps30")).toBeVisible();
-    await expect(page.getByTestId("screen-share-quality-h1080fps30")).toBeVisible();
-    await expect(page.getByTestId("screen-share-quality-h1440fps30")).toBeVisible();
+    await expectElementWithinViewport(page, "voice-screen-share-stage");
+    await expect(page.getByTestId("screen-share-quality-select")).toBeVisible();
+    await expect(page.getByTestId("screen-share-quality-select").locator("option")).toHaveCount(3);
 
-    await page.getByTestId("screen-share-quality-h1440fps30").click();
+    await page.getByTestId("screen-share-quality-select").selectOption("h1440fps60");
+    await expect(page.getByTestId("screen-share-quality-select")).toHaveValue("h1440fps60");
     await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
   });
 
@@ -287,6 +315,12 @@ test.describe("voice and screen share", () => {
       "true",
     );
     await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
+    await expect(page.getByTestId("voice-stage-camera-pip")).toBeVisible();
+    await expect(page.getByTestId("voice-stage-primary-screen")).toBeVisible();
+    await page.getByTestId("voice-stage-focus-camera").click();
+    await expect(page.getByTestId("voice-stage-primary-camera")).toBeVisible();
+    await page.getByTestId("voice-stage-focus-screen").click();
+    await expect(page.getByTestId("voice-stage-primary-screen")).toBeVisible();
     await page.getByTestId("voice-room-control-mute").click();
     await expect(page.getByTestId("voice-room-control-mute")).toHaveAttribute(
       "data-active",
@@ -312,6 +346,112 @@ test.describe("voice and screen share", () => {
     );
     await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
     await expectVoiceParticipantCount(voiceChannelId, 1);
+  });
+
+  test("camera stays visible when screen share starts after video", async ({ page }) => {
+    await loginAs(page, "alice");
+    await openVoiceChannel(page);
+
+    await page.getByTestId("voice-room-control-camera").click();
+    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
+
+    await page.getByTestId("voice-room-control-screen-share").click();
+    await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
+    await expect(page.getByTestId("voice-stage-camera-pip")).toBeVisible();
+    await expectElementWithinViewport(page, "voice-screen-share-stage");
+
+    await page.getByTestId("voice-stage-focus-camera").click();
+    await expect(page.getByTestId("voice-stage-primary-camera")).toBeVisible();
+    await expect(page.getByTestId("voice-stage-screen-pip")).toBeVisible();
+  });
+
+  test("returning to a server restores active voice without interrupting video or screen share", async ({
+    page,
+  }) => {
+    const { serverId, textChannelId, voiceChannelId } = await getE2EServerRoute();
+
+    await loginAs(page, "alice");
+    await openVoiceChannel(page);
+
+    await page.getByTestId("voice-room-control-screen-share").click();
+    await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+
+    await page.getByTestId("voice-room-control-camera").click();
+    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
+
+    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await expect(page.getByTestId("message-input")).toBeVisible({ timeout: 10_000 });
+    await expectVoiceParticipantCount(voiceChannelId, 1);
+
+    await page.goto("/channels/@me");
+    await page.getByTestId(`server-rail-server-${serverId}`).click();
+
+    await expect(page).toHaveURL(new RegExp(`/channels/${serverId}/${voiceChannelId}$`));
+    await expect(page.getByTestId("voice-channel-view")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
+    await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
+    await expectVoiceParticipantCount(voiceChannelId, 1);
+  });
+
+  test("returning to a server after leaving voice opens the first text channel", async ({
+    page,
+  }) => {
+    const { serverId, textChannelId, voiceChannelId } = await getE2EServerRoute();
+
+    await loginAs(page, "alice");
+    await openVoiceChannel(page);
+
+    await page.getByTestId("voice-room-control-disconnect").click();
+    await expect(page.getByTestId("voice-participant-card")).toBeHidden({
+      timeout: 10_000,
+    });
+    await expectVoiceParticipantCount(voiceChannelId, 0);
+
+    await page.goto("/channels/@me");
+    await page.getByTestId(`server-rail-server-${serverId}`).click();
+
+    await expect(page).toHaveURL(new RegExp(`/channels/${serverId}/${textChannelId}$`));
+    await expect(page.getByTestId("message-input")).toBeVisible({ timeout: 10_000 });
+    await expectVoiceParticipantCount(voiceChannelId, 0);
+  });
+
+  test("returning to a server restores the last text channel without an active voice session", async ({
+    page,
+  }) => {
+    const { serverId, textChannelId } = await getE2EServerRoute();
+
+    await loginAs(page, "alice");
+    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await expect(page.getByTestId("message-input")).toBeVisible({ timeout: 10_000 });
+
+    await page.goto("/channels/@me");
+    await page.getByTestId(`server-rail-server-${serverId}`).click();
+
+    await expect(page).toHaveURL(new RegExp(`/channels/${serverId}/${textChannelId}$`));
+    await expect(page.getByTestId("message-input")).toBeVisible({ timeout: 10_000 });
   });
 
   test("voice video layout stays contained on desktop and mobile", async ({ page }) => {

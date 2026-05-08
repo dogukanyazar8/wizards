@@ -45,6 +45,8 @@ type VoiceParticipantTileProps = {
   participantVolume: number;
 };
 
+type VoiceStageFocus = "camera" | "screen";
+
 type RoomControlButtonProps = {
   active?: boolean;
   ariaLabel: string;
@@ -758,81 +760,211 @@ function VoiceControlBar({
 }
 
 function ScreenShareStage({
+  activeCameraParticipant,
   activeShare,
+  cameraParticipants,
   isApplyingQuality,
+  onSelectCameraParticipant,
   onSelectShare,
+  onSelectStageFocus,
   onSelectQuality,
   onStopShare,
-  participants,
   screenShares,
   selectedQuality,
+  stageFocus,
 }: {
+  activeCameraParticipant: VoiceParticipantViewModel | null;
   activeShare: VoiceScreenShareViewModel | null;
+  cameraParticipants: VoiceParticipantViewModel[];
   isApplyingQuality: boolean;
+  onSelectCameraParticipant: (participantId: string) => void;
   onSelectShare: (id: string) => void;
+  onSelectStageFocus: (focus: VoiceStageFocus) => void;
   onSelectQuality: (qualityId: ScreenShareQualityId) => void;
   onStopShare: () => void;
-  participants: VoiceParticipantViewModel[];
   screenShares: VoiceScreenShareViewModel[];
   selectedQuality: ScreenShareQualityId;
+  stageFocus: VoiceStageFocus;
 }) {
   const { t } = useI18n();
   const stageRef = useRef<HTMLDivElement | null>(null);
   const sharerName =
     activeShare?.displayName ?? activeShare?.username ?? t("voice.screenShare.unknownSharer");
+  const activeCameraTrack = activeCameraParticipant?.cameraTrack ?? null;
+  const activeCameraName =
+    activeCameraParticipant?.displayName ??
+    activeCameraParticipant?.username ??
+    t("voice.screenShare.focusCamera");
+  const canFocusCamera = Boolean(activeCameraParticipant && activeCameraTrack);
+  const primaryFocus: VoiceStageFocus =
+    stageFocus === "camera" && canFocusCamera ? "camera" : "screen";
 
   return (
     <div
-      className="grid flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_15rem]"
+      className="grid h-full min-h-0 gap-3 overflow-hidden lg:grid-cols-[minmax(0,1fr)_14rem]"
       data-testid="voice-screen-share-stage"
     >
-      <div className="relative min-h-[22rem] overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.72)] p-3 sm:min-h-[28rem] sm:p-4">
-        <div className="mb-3 flex flex-col gap-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.72)] p-3 sm:p-4">
+        <div className="mb-3 flex shrink-0 flex-col gap-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-app-soft">
               {t("voice.screenShare.stage")}
             </p>
             <p className="mt-1 truncate text-lg font-semibold text-app-foreground">
-              {t("voice.screenShare.sharedBy", { name: sharerName })}
+              {primaryFocus === "camera"
+                ? t("voice.screenShare.cameraBy", { name: activeCameraName })
+                : t("voice.screenShare.sharedBy", { name: sharerName })}
             </p>
           </div>
-          {activeShare?.isLocal ? (
-            <button
-              className="min-h-11 rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.12)] px-4 py-2 text-sm font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-              onClick={onStopShare}
-              type="button"
+          <div className="flex flex-wrap items-center gap-2">
+            <div
+              aria-label={t("voice.screenShare.focusLabel")}
+              className="inline-flex rounded-2xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-soft)/0.44)] p-1"
+              role="group"
             >
-              {t("voice.screenShare.stop")}
-            </button>
-          ) : null}
+              <button
+                className={cn(
+                  "inline-flex min-h-9 items-center gap-2 rounded-xl px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  primaryFocus === "screen"
+                    ? "bg-[hsl(var(--surface-card))] text-app-foreground shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]"
+                    : "text-app-muted hover:text-app-foreground",
+                )}
+                data-testid="voice-stage-focus-screen"
+                onClick={() => onSelectStageFocus("screen")}
+                type="button"
+              >
+                <MonitorUp className="h-4 w-4" />
+                {t("voice.screenShare.focusScreen")}
+              </button>
+              <button
+                className={cn(
+                  "inline-flex min-h-9 items-center gap-2 rounded-xl px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  primaryFocus === "camera"
+                    ? "bg-[hsl(var(--surface-card))] text-app-foreground shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]"
+                    : "text-app-muted hover:text-app-foreground",
+                  !canFocusCamera && "cursor-not-allowed opacity-45",
+                )}
+                data-testid="voice-stage-focus-camera"
+                disabled={!canFocusCamera}
+                onClick={() => onSelectStageFocus("camera")}
+                type="button"
+              >
+                <Video className="h-4 w-4" />
+                {t("voice.screenShare.focusCamera")}
+              </button>
+            </div>
+            {activeShare?.isLocal ? (
+              <button
+                className="min-h-10 rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.12)] px-4 py-2 text-sm font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                onClick={onStopShare}
+                type="button"
+              >
+                {t("voice.screenShare.stop")}
+              </button>
+            ) : null}
+          </div>
         </div>
 
         <div
-          className="group relative flex min-h-[16rem] items-center justify-center rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] sm:h-[calc(100%-4.75rem)] sm:min-h-[23rem]"
+          className="group relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)]"
           onDoubleClick={() => {
             void toggleElementFullscreen(stageRef.current);
           }}
           ref={stageRef}
           title={t("screenShare.fullscreenHint")}
         >
-          {activeShare?.track ? (
-            <ScreenShareVideo track={activeShare.track} />
+          {primaryFocus === "camera" && activeCameraParticipant && activeCameraTrack ? (
+            <div
+              className="relative h-full min-h-0 w-full overflow-hidden bg-black"
+              data-testid="voice-stage-primary-camera"
+            >
+              <ParticipantCameraVideo
+                isLocal={activeCameraParticipant.isLocal}
+                track={activeCameraTrack}
+              />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/76 via-black/36 to-transparent p-4 text-white">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/18 bg-black/34 px-3 py-1 text-xs font-semibold backdrop-blur-xl">
+                  <Video className="h-3.5 w-3.5" />
+                  {t("voice.screenShare.primaryCamera")}
+                </span>
+                <p className="mt-3 truncate text-xl font-semibold">{activeCameraName}</p>
+                <p className="truncate text-sm font-medium text-white/72">
+                  @{activeCameraParticipant.username}
+                  {activeCameraParticipant.isLocal ? ` / ${t("voice.grid.you")}` : ""}
+                </p>
+              </div>
+            </div>
           ) : (
-            <div className="text-center">
-              <MonitorUp className="mx-auto h-9 w-9 text-app-muted" />
-              <p className="mt-3 text-sm font-semibold text-app-foreground">
-                {t("voice.screenShare.waitingForTrack")}
-              </p>
+            <div className="h-full min-h-0 w-full" data-testid="voice-stage-primary-screen">
+              {activeShare?.track ? (
+                <ScreenShareVideo track={activeShare.track} />
+              ) : (
+                <div className="flex h-full min-h-0 items-center justify-center text-center">
+                  <div>
+                    <MonitorUp className="mx-auto h-9 w-9 text-app-muted" />
+                    <p className="mt-3 text-sm font-semibold text-app-foreground">
+                      {t("voice.screenShare.waitingForTrack")}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
-          <div className="pointer-events-none absolute bottom-4 right-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/46 px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-[0_14px_36px_rgba(0,0,0,0.22)] backdrop-blur-xl transition group-hover:opacity-100">
+
+          {primaryFocus === "screen" && activeCameraParticipant && activeCameraTrack ? (
+            <button
+              className="absolute bottom-4 right-4 z-10 w-[min(14rem,46vw)] overflow-hidden rounded-[22px] border border-white/22 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.28)] transition hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              data-testid="voice-stage-camera-pip"
+              onClick={() => onSelectStageFocus("camera")}
+              type="button"
+            >
+              <span className="absolute left-2 top-2 z-10 inline-flex items-center gap-1.5 rounded-full border border-white/18 bg-black/44 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-xl">
+                <Video className="h-3 w-3" />
+                {t("voice.screenShare.cameraPreview")}
+              </span>
+              <div className="aspect-video">
+                <ParticipantCameraVideo
+                  isLocal={activeCameraParticipant.isLocal}
+                  track={activeCameraTrack}
+                />
+              </div>
+              <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/72 to-transparent px-3 py-2 text-left text-xs font-semibold text-white">
+                {activeCameraName}
+              </span>
+            </button>
+          ) : null}
+
+          {primaryFocus === "camera" && activeShare ? (
+            <button
+              className="absolute bottom-4 right-4 z-10 w-[min(15rem,50vw)] overflow-hidden rounded-[22px] border border-white/22 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.28)] transition hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              data-testid="voice-stage-screen-pip"
+              onClick={() => onSelectStageFocus("screen")}
+              type="button"
+            >
+              <span className="absolute left-2 top-2 z-10 inline-flex items-center gap-1.5 rounded-full border border-white/18 bg-black/44 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-xl">
+                <MonitorUp className="h-3 w-3" />
+                {t("voice.screenShare.focusScreen")}
+              </span>
+              <div className="aspect-video">
+                {activeShare.track ? (
+                  <ScreenShareVideo track={activeShare.track} />
+                ) : (
+                  <div className="flex h-full items-center justify-center bg-[hsl(var(--surface-soft)/0.42)] text-white">
+                    <MonitorUp className="h-6 w-6 opacity-70" />
+                  </div>
+                )}
+              </div>
+            </button>
+          ) : null}
+
+          <div className="pointer-events-none absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/46 px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-[0_14px_36px_rgba(0,0,0,0.22)] backdrop-blur-xl transition group-hover:opacity-100">
             <Maximize2 className="h-3.5 w-3.5" />
             {t("screenShare.fullscreenHint")}
           </div>
         </div>
       </div>
 
-      <aside className="rounded-[28px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.58)] p-3">
+      <aside className="flex h-full min-h-0 flex-col overflow-y-auto rounded-[28px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.58)] p-3">
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-app-soft">
           {t("voice.screenShare.activeShares")}
         </p>
@@ -872,50 +1004,46 @@ function ScreenShareStage({
           })}
         </div>
 
-        {activeShare?.isLocal ? (
-          <div className="mt-5 border-t border-app-border pt-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-app-soft">
-                  {t("voice.screenShare.quality.title")}
-                </p>
-                <p className="mt-1 text-xs text-app-muted">
-                  {t("voice.screenShare.quality.description")}
-                </p>
-              </div>
-              {isApplyingQuality ? (
-                <Loader2 className="h-4 w-4 animate-spin text-app-muted" />
-              ) : null}
-            </div>
-            <div className="grid gap-2">
-              {SCREEN_SHARE_QUALITY_OPTIONS.map((option) => {
-                const isSelected = selectedQuality === option.id;
+        {cameraParticipants.length > 0 ? (
+          <div className="mt-4 border-t border-app-border pt-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-app-soft">
+              {t("voice.screenShare.cameraPreview")}
+            </p>
+            <div className="space-y-2">
+              {cameraParticipants.map((participant) => {
+                const displayName = participant.displayName ?? participant.username;
+                const isActive = activeCameraParticipant?.userId === participant.userId;
 
                 return (
                   <button
                     className={cn(
-                      "min-h-14 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-                      isSelected
-                        ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.15)]"
+                      "flex min-h-11 w-full items-center gap-3 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                      isActive
+                        ? "border-[hsl(var(--success)/0.38)] bg-[hsl(var(--success)/0.12)]"
                         : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] hover:bg-[hsl(var(--surface-soft)/0.72)]",
                     )}
-                    data-testid={`screen-share-quality-${option.id}`}
-                    disabled={isApplyingQuality}
-                    key={option.id}
-                    onClick={() => onSelectQuality(option.id)}
+                    data-testid={`voice-stage-camera-option-${participant.userId}`}
+                    key={participant.userId}
+                    onClick={() => {
+                      onSelectCameraParticipant(participant.userId);
+                      onSelectStageFocus("camera");
+                    }}
                     type="button"
                   >
-                    <span className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-semibold text-app-foreground">
-                        {t(option.labelKey)}
-                      </span>
-                      <span className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.72)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-app-soft">
-                        {option.shortLabel}
-                      </span>
-                    </span>
-                    <span className="mt-1 block text-xs text-app-muted">
-                      {t(option.descriptionKey)}
-                    </span>
+                    <Avatar
+                      alt={displayName}
+                      className="h-8 w-8 border-none text-xs"
+                      fallback={displayName}
+                      src={participant.avatarUrl}
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-app-foreground">
+                        {displayName}
+                      </p>
+                      <p className="truncate text-xs text-app-muted">
+                        {participant.isLocal ? t("voice.grid.you") : `@${participant.username}`}
+                      </p>
+                    </div>
                   </button>
                 );
               })}
@@ -923,36 +1051,57 @@ function ScreenShareStage({
           </div>
         ) : null}
 
-        <div className="mt-5 border-t border-app-border pt-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-app-soft">
-            {t("voice.screenShare.participants")}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {participants.map((participant) => {
-              const displayName = participant.displayName ?? participant.username;
-
-              return (
-                <div
+        {activeShare?.isLocal ? (
+          <div className="mt-4 border-t border-app-border pt-4">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <label
+                className="text-xs font-semibold uppercase tracking-[0.2em] text-app-soft"
+                htmlFor="screen-share-quality-select"
+              >
+                {t("voice.screenShare.quality.title")}
+              </label>
+              {isApplyingQuality ? (
+                <Loader2 className="h-4 w-4 animate-spin text-app-muted" />
+              ) : null}
+            </div>
+            <div className="relative">
+              <select
+                className="min-h-11 w-full appearance-none rounded-2xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.58)] px-3 py-2 pr-9 text-sm font-semibold text-app-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+                data-testid="screen-share-quality-select"
+                disabled={isApplyingQuality}
+                id="screen-share-quality-select"
+                onChange={(event) => onSelectQuality(event.target.value as ScreenShareQualityId)}
+                value={selectedQuality}
+              >
+                {SCREEN_SHARE_QUALITY_OPTIONS.map((option) => (
+                  <option
+                    data-testid={`screen-share-quality-${option.id}`}
+                    key={option.id}
+                    value={option.id}
+                  >
+                    {t(option.labelKey)}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-muted" />
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {SCREEN_SHARE_QUALITY_OPTIONS.map((option) => (
+                <span
                   className={cn(
-                    "rounded-full transition",
-                    participant.isSpeaking
-                      ? "ring-4 ring-[hsl(var(--primary)/0.22)]"
-                      : "ring-1 ring-[hsl(var(--border)/0.8)]",
+                    "rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]",
+                    selectedQuality === option.id
+                      ? "border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]"
+                      : "border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-soft)/0.42)] text-app-soft",
                   )}
-                  key={participant.userId}
-                  title={displayName}
+                  key={option.id}
                 >
-                  <Avatar
-                    alt={displayName}
-                    className="h-9 w-9 border-none text-xs"
-                    fallback={displayName}
-                    src={participant.avatarUrl}
-                  />
-                </div>
-              );
-            })}
+                  {option.shortLabel}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
       </aside>
     </div>
   );
@@ -1011,6 +1160,9 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
     toggleScreenShare,
   } = useVoiceConnection();
   const [hasRequestedJoin, setHasRequestedJoin] = useState(false);
+  const [activeCameraParticipantId, setActiveCameraParticipantId] = useState<string | null>(null);
+  const [stageFocus, setStageFocus] = useState<VoiceStageFocus>("screen");
+  const previousScreenShareCountRef = useRef(0);
 
   useEffect(() => {
     setHasRequestedJoin(true);
@@ -1019,15 +1171,56 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
     });
   }, [channelId, joinChannel, serverId]);
 
-  const orderedParticipants = renderGridParticipants(room, participants);
+  const orderedParticipants = useMemo(
+    () => renderGridParticipants(room, participants),
+    [participants, room],
+  );
   const showReconnectOverlay = isReconnectState(connectionState);
   const participantCount = orderedParticipants.length;
   const activeScreenShare =
     screenShares.find((share) => share.id === activeScreenShareId) ?? screenShares[0] ?? null;
+  const cameraParticipants = useMemo(
+    () =>
+      orderedParticipants.filter(
+        (participant) => participant.isCameraEnabled && participant.cameraTrack,
+      ),
+    [orderedParticipants],
+  );
+  const activeCameraParticipant = useMemo(
+    () =>
+      cameraParticipants.find((participant) => participant.userId === activeCameraParticipantId) ??
+      cameraParticipants.find((participant) => participant.isLocal) ??
+      cameraParticipants[0] ??
+      null,
+    [activeCameraParticipantId, cameraParticipants],
+  );
   const screenShareParticipantIds = useMemo(
     () => new Set(screenShares.map((share) => share.participantId)),
     [screenShares],
   );
+
+  useEffect(() => {
+    const previousCount = previousScreenShareCountRef.current;
+    if (screenShares.length > 0 && previousCount === 0) {
+      setStageFocus("screen");
+    }
+    previousScreenShareCountRef.current = screenShares.length;
+  }, [screenShares.length]);
+
+  useEffect(() => {
+    if (
+      activeCameraParticipantId &&
+      !cameraParticipants.some((participant) => participant.userId === activeCameraParticipantId)
+    ) {
+      setActiveCameraParticipantId(null);
+    }
+  }, [activeCameraParticipantId, cameraParticipants]);
+
+  useEffect(() => {
+    if (stageFocus === "camera" && cameraParticipants.length === 0) {
+      setStageFocus("screen");
+    }
+  }, [cameraParticipants.length, stageFocus]);
 
   if ((!hasRequestedJoin || isJoining) && !errorMessage) {
     return (
@@ -1143,22 +1336,26 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
             </div>
           ) : null}
 
-          <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-            <div className="min-h-0 min-w-0">
+          <div className="grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,1fr)_20rem]">
+            <div className="h-full min-h-0 min-w-0 overflow-hidden">
               {screenShares.length > 0 ? (
                 <ScreenShareStage
+                  activeCameraParticipant={activeCameraParticipant}
                   activeShare={activeScreenShare}
+                  cameraParticipants={cameraParticipants}
+                  isApplyingQuality={isApplyingScreenShareQuality}
+                  onSelectCameraParticipant={setActiveCameraParticipantId}
                   onSelectShare={setActiveScreenShareId}
+                  onSelectStageFocus={setStageFocus}
                   onSelectQuality={(qualityId) => {
                     void setScreenShareQuality(qualityId);
                   }}
                   onStopShare={() => {
                     void stopScreenShare();
                   }}
-                  participants={orderedParticipants}
                   screenShares={screenShares}
                   selectedQuality={screenShareQuality}
-                  isApplyingQuality={isApplyingScreenShareQuality}
+                  stageFocus={stageFocus}
                 />
               ) : participantCount > 0 ? (
                 <div

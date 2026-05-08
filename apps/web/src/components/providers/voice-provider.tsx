@@ -44,7 +44,6 @@ import {
 import { VOICE_HEARTBEAT_INTERVAL_MS, type VoiceChannelStateDTO } from "@/lib/voice/types";
 import {
   applyScreenShareEncodingToSender,
-  buildScreenShareMediaConstraints,
   getScreenShareCaptureOptions,
   getScreenSharePublishOptions,
   getScreenShareQualityPreset,
@@ -770,6 +769,10 @@ function getLocalScreenShareTrack(targetRoom: Room | null) {
   return screenShareTrack instanceof LocalVideoTrack ? screenShareTrack : null;
 }
 
+function isLocalScreenShareTrackLive(track: LocalVideoTrack | null) {
+  return track?.mediaStreamTrack.readyState === "live";
+}
+
 async function applyScreenShareQualityToTrack(
   track: LocalVideoTrack,
   qualityId: ScreenShareQualityId,
@@ -779,10 +782,6 @@ async function applyScreenShareQualityToTrack(
   if (track.sender) {
     await applyScreenShareEncodingToSender(track.sender, preset.encoding);
   }
-
-  await track.mediaStreamTrack
-    .applyConstraints(buildScreenShareMediaConstraints(qualityId))
-    .catch(() => undefined);
 }
 
 async function stopLocalTracks(room: Room) {
@@ -1400,6 +1399,10 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const joinRequestRef = useRef<string | null>(null);
   const preparedMicrophoneAccessRef = useRef<boolean | null>(null);
   const appliedAudioPreferencesSignatureRef = useRef<string | null>(null);
+  const microphoneRecoveryPromiseRef = useRef<{
+    promise: Promise<boolean>;
+    room: Room;
+  } | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const krispProcessorRef = useRef<KrispNoiseFilterProcessor | null>(null);
   const lastEmittedScreenShareStateRef = useRef<boolean | null>(null);
@@ -2106,6 +2109,114 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     [audioPreferences, syncKrispNoiseCancellation, syncParticipants],
   );
 
+  const ensureLocalMicrophonePublished = useCallback(
+    async (targetRoom: Room) => {
+      if (useVoiceStore.getState().isMuted) {
+        return false;
+      }
+
+      if (roomRef.current !== targetRoom || targetRoom.state === ConnectionState.Disconnected) {
+        return false;
+      }
+
+      if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(targetRoom))) {
+        return true;
+      }
+
+      if (microphoneRecoveryPromiseRef.current?.room === targetRoom) {
+        return microphoneRecoveryPromiseRef.current.promise;
+      }
+
+      const recovery = (async () => {
+        const microphoneDeniedMessage = isDesktopRuntime
+          ? t("voice.errors.microphoneDeniedDesktop")
+          : t("voice.errors.microphoneDenied");
+        const microphoneEnableFailedMessage = t("voice.errors.microphoneEnableFailed");
+
+        try {
+          const hasMicrophoneAccess = await requestMicrophonePermission();
+          if (!hasMicrophoneAccess) {
+            useVoiceStore.getState().setMuted(true);
+            setIsKrispNoiseCancellationActive(false);
+            setErrorMessage(microphoneDeniedMessage);
+            syncParticipants(targetRoom);
+            return false;
+          }
+
+          if (roomRef.current !== targetRoom || targetRoom.state === ConnectionState.Disconnected) {
+            return false;
+          }
+
+          const { preferences, track: localMicrophoneTrack } = await enableLocalMicrophone(
+            targetRoom,
+            useVoiceStore.getState().audioPreferences,
+          );
+
+          if (roomRef.current !== targetRoom) {
+            await stopLocalTracks(targetRoom).catch(() => undefined);
+            return false;
+          }
+
+          if (localMicrophoneTrack) {
+            await syncKrispNoiseCancellation(
+              localMicrophoneTrack,
+              preferences.krispNoiseCancellation,
+            );
+          }
+
+          appliedAudioPreferencesSignatureRef.current =
+            getAudioCaptureRestartSignature(preferences);
+          useVoiceStore.getState().setMuted(false);
+          setErrorMessage(null);
+          syncParticipants(targetRoom);
+          return true;
+        } catch (error) {
+          if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(targetRoom))) {
+            logError(
+              "[voice] Microphone recovery reported an error after track was published",
+              error,
+            );
+            useVoiceStore.getState().setMuted(false);
+            setErrorMessage(null);
+            syncParticipants(targetRoom);
+            return true;
+          }
+
+          setIsKrispNoiseCancellationActive(false);
+          if (isMicrophonePermissionDenied(error)) {
+            useVoiceStore.getState().setMuted(true);
+            setErrorMessage(microphoneDeniedMessage);
+          } else {
+            setErrorMessage(microphoneEnableFailedMessage);
+          }
+          syncParticipants(targetRoom);
+          return false;
+        }
+      })();
+
+      microphoneRecoveryPromiseRef.current = {
+        promise: recovery,
+        room: targetRoom,
+      };
+
+      try {
+        return await recovery;
+      } finally {
+        if (microphoneRecoveryPromiseRef.current?.promise === recovery) {
+          microphoneRecoveryPromiseRef.current = null;
+        }
+      }
+    },
+    [
+      enableLocalMicrophone,
+      isDesktopRuntime,
+      requestMicrophonePermission,
+      syncKrispNoiseCancellation,
+      syncParticipants,
+      t,
+    ],
+  );
+
   const retryKrispNoiseCancellation = useCallback(async () => {
     setIsRecoveringKrispNoiseCancellation(true);
     setKrispAvailability("checking");
@@ -2184,8 +2295,14 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     async (qualityId: ScreenShareQualityId) => {
       useVoiceStore.getState().setScreenShareQuality(qualityId);
 
-      const localScreenShareTrack = getLocalScreenShareTrack(roomRef.current);
-      if (!localScreenShareTrack) {
+      const activeRoom = roomRef.current;
+      const localScreenShareTrack = getLocalScreenShareTrack(activeRoom);
+      if (
+        !activeRoom ||
+        activeRoom.state === ConnectionState.Disconnected ||
+        !localScreenShareTrack ||
+        !isLocalScreenShareTrackLive(localScreenShareTrack)
+      ) {
         return;
       }
 
@@ -2193,7 +2310,9 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       try {
         await applyScreenShareQualityToTrack(localScreenShareTrack, qualityId);
         setErrorMessage(null);
-        syncScreenShares(roomRef.current);
+        if (roomRef.current === activeRoom) {
+          syncScreenShares(activeRoom);
+        }
       } catch {
         const message = t("screenShare.errors.qualityFailed");
         useVoiceStore.getState().setScreenShareError(message);
@@ -2394,6 +2513,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
 
     roomRef.current = null;
     appliedAudioPreferencesSignatureRef.current = null;
+    microphoneRecoveryPromiseRef.current = null;
     lastEmittedScreenShareStateRef.current = null;
     setRoom(null);
     setParticipants([]);
@@ -2561,13 +2681,21 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
           .catch(() => {
             setErrorMessage("Voice state could not be restored.");
           });
-        void applyAudioPreferencesToRoom(nextRoom).catch((error) => {
-          if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(nextRoom))) {
-            logError("[voice] Post-reconnect audio preference sync skipped", error);
-            return;
-          }
-          setErrorMessage(microphoneEnableFailedMessage);
-        });
+        void ensureLocalMicrophonePublished(nextRoom)
+          .then((recovered) => {
+            if (!recovered) {
+              return undefined;
+            }
+
+            return applyAudioPreferencesToRoom(nextRoom);
+          })
+          .catch((error) => {
+            if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(nextRoom))) {
+              logError("[voice] Post-reconnect microphone sync skipped", error);
+              return;
+            }
+            setErrorMessage(microphoneEnableFailedMessage);
+          });
         syncRoomParticipants();
       });
       nextRoom.on("disconnected", () => {
@@ -2695,6 +2823,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       clearConnectionWarning,
       clearReconnectTimeout,
       enableLocalMicrophone,
+      ensureLocalMicrophonePublished,
       isDesktopRuntime,
       krispAvailability,
       leaveChannel,
@@ -2860,6 +2989,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     clearReconnectTimeout();
 
     const activeRoom = roomRef.current;
+    microphoneRecoveryPromiseRef.current = null;
     if (activeRoom) {
       activeRoom.removeAllListeners();
       void stopScreenShare(activeRoom).catch(() => undefined);
