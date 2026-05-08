@@ -51,8 +51,10 @@ import {
 } from "@/lib/voice/screen-share";
 import {
   DEFAULT_AUDIO_DEVICE_ID,
+  DEFAULT_CAMERA_DEVICE_ID,
   DEFAULT_PARTICIPANT_VOLUME,
   type VoiceAudioPreferences,
+  type VoiceCameraPreferences,
   useVoiceStore,
 } from "@/store/voice-store";
 
@@ -491,12 +493,18 @@ function buildAudioCaptureOptions(audioPreferences: VoiceAudioPreferences): Audi
   return options;
 }
 
-function buildCameraCaptureOptions(): VideoCaptureOptions {
-  return {
+function buildCameraCaptureOptions(cameraPreferences: VoiceCameraPreferences): VideoCaptureOptions {
+  const options: VideoCaptureOptions = {
     facingMode: "user",
     frameRate: { ideal: 30, max: 30 },
     resolution: VideoPresets.h720.resolution,
   };
+
+  if (cameraPreferences.deviceId !== DEFAULT_CAMERA_DEVICE_ID) {
+    options.deviceId = cameraPreferences.deviceId;
+  }
+
+  return options;
 }
 
 function getAudioCaptureRestartSignature(audioPreferences: VoiceAudioPreferences) {
@@ -1439,6 +1447,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const {
     activeChannelId,
     audioPreferences,
+    cameraPreferences,
     isDeafened,
     isMuted,
     isScreenSharing,
@@ -1450,6 +1459,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     useShallow((state) => ({
       activeChannelId: state.activeChannelId,
       audioPreferences: state.audioPreferences,
+      cameraPreferences: state.cameraPreferences,
       isDeafened: state.isDeafened,
       isMuted: state.isMuted,
       isScreenSharing: state.isScreenSharing,
@@ -2394,7 +2404,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     try {
       const publication = await activeRoom.localParticipant.setCameraEnabled(
         true,
-        buildCameraCaptureOptions(),
+        buildCameraCaptureOptions(cameraPreferences),
         { source: Track.Source.Camera },
       );
       const localCameraTrack =
@@ -2436,7 +2446,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       setCameraError(message);
       syncParticipants(activeRoom);
     }
-  }, [cameraStatus, isDesktopRuntime, stopCamera, syncParticipants, t]);
+  }, [cameraPreferences, cameraStatus, isDesktopRuntime, stopCamera, syncParticipants, t]);
 
   const toggleScreenShare = useCallback(async () => {
     const activeRoom = roomRef.current;

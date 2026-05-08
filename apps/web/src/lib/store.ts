@@ -122,6 +122,7 @@ interface AppState extends PersistedRouteState {
   deleteServerDialog: DeleteServerDialogState;
   inviteModal: InviteModalState;
   mainPanelWidth: number;
+  desktopNotificationPreviews: boolean;
   mobileSidebarOpen: boolean;
   notificationAutoClose: boolean;
   notificationLimit: number;
@@ -173,6 +174,7 @@ interface AppState extends PersistedRouteState {
   setAppearanceHydrated: (hydrated: boolean) => void;
   setAppIconId: (iconId: AppIconId) => void;
   setChannelSidebarWidth: (width: number) => void;
+  setDesktopNotificationPreviews: (enabled: boolean) => void;
   setMainPanelWidth: (width: number) => void;
   setMobileSidebarOpen: (open: boolean) => void;
   setNotificationAutoClose: (autoClose: boolean) => void;
@@ -193,6 +195,7 @@ type PersistedAppState = Pick<
   | "appIconId"
   | "channelSidebarWidth"
   | "collapsedCategories"
+  | "desktopNotificationPreviews"
   | "lastChannelByServerId"
   | "mainPanelWidth"
   | "notificationAutoClose"
@@ -240,6 +243,7 @@ function createInitialState(): Omit<
   | "setAppearanceHydrated"
   | "setAppIconId"
   | "setChannelSidebarWidth"
+  | "setDesktopNotificationPreviews"
   | "setMainPanelWidth"
   | "setMobileSidebarOpen"
   | "setNotificationAutoClose"
@@ -282,6 +286,7 @@ function createInitialState(): Omit<
     },
     lastChannelByServerId: {},
     mainPanelWidth: DEFAULT_MAIN_PANEL_WIDTH,
+    desktopNotificationPreviews: false,
     mobileSidebarOpen: false,
     notificationAutoClose: true,
     notificationLimit: DEFAULT_NOTIFICATION_LIMIT,
@@ -349,6 +354,10 @@ function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
     ),
     collapsedCategories: sanitizeBooleanRecord(value.collapsedCategories),
     lastChannelByServerId: sanitizeStringRecord(value.lastChannelByServerId),
+    desktopNotificationPreviews:
+      typeof value.desktopNotificationPreviews === "boolean"
+        ? value.desktopNotificationPreviews
+        : false,
     mainPanelWidth: clampMainPanelWidth(
       typeof value.mainPanelWidth === "number"
         ? value.mainPanelWidth
@@ -636,6 +645,10 @@ export const useAppStore = create<AppState>()(
             channelSidebarWidth: nextWidth,
           };
         }),
+      setDesktopNotificationPreviews: (enabled) =>
+        set({
+          desktopNotificationPreviews: enabled,
+        }),
       setMainPanelWidth: (width) =>
         set((state) => {
           const nextWidth = clampMainPanelWidth(width);
@@ -784,6 +797,16 @@ export const useAppStore = create<AppState>()(
           };
         }
 
+        if (version < 5) {
+          nextPersistedState = {
+            ...nextPersistedState,
+            desktopNotificationPreviews:
+              typeof nextPersistedState.desktopNotificationPreviews === "boolean"
+                ? nextPersistedState.desktopNotificationPreviews
+                : false,
+          };
+        }
+
         return nextPersistedState;
       },
       merge: (persistedState, currentState) => ({
@@ -798,6 +821,7 @@ export const useAppStore = create<AppState>()(
         appIconId: state.appIconId,
         channelSidebarWidth: state.channelSidebarWidth,
         collapsedCategories: state.collapsedCategories,
+        desktopNotificationPreviews: state.desktopNotificationPreviews,
         lastChannelByServerId: state.lastChannelByServerId,
         mainPanelWidth: state.mainPanelWidth,
         notificationAutoClose: state.notificationAutoClose,
@@ -808,7 +832,7 @@ export const useAppStore = create<AppState>()(
         serverRailWidth: state.serverRailWidth,
       }),
       storage: createJSONStorage(() => localStorage),
-      version: 4,
+      version: 5,
     },
   ),
 );

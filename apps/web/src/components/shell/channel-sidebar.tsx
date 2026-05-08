@@ -196,11 +196,7 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
   );
 });
 
-function SortableCategoryGroup({
-  canManage,
-  categoryId,
-  children,
-}: SortableCategoryGroupProps) {
+function SortableCategoryGroup({ canManage, categoryId, children }: SortableCategoryGroupProps) {
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
     disabled: !canManage,
     id: `category-sort:${categoryId}`,
@@ -347,8 +343,7 @@ export function UserProfileFooter({
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const userBarRef = useRef<HTMLDivElement | null>(null);
   const { idleTimeoutMinutes, setIdleTimeoutMinutes } = usePresenceIdleTimeoutPreference();
-  const { isDeafened, isMuted, leaveChannel, toggleDeafen, toggleMute } =
-    useVoiceConnection();
+  const { isDeafened, isMuted, leaveChannel, toggleDeafen, toggleMute } = useVoiceConnection();
 
   useEffect(() => {
     setStatus(user.status);
@@ -413,25 +408,24 @@ export function UserProfileFooter({
     };
   }, [isQuickMenuOpen, isStatusMenuOpen]);
 
-  const currentStatusOption =
-    USER_STATUS_OPTIONS.find((option) => option.value === status) ?? {
-      key: "friends.status.online",
-      value: "ONLINE" as const,
-    };
+  const currentStatusOption = USER_STATUS_OPTIONS.find((option) => option.value === status) ?? {
+    key: "friends.status.online",
+    value: "ONLINE" as const,
+  };
 
   return (
     <div
-      className="app-panel relative rounded-[32px] border px-4 py-3 shadow-[0_22px_54px_hsl(var(--shadow-color)/0.1)]"
+      className="app-panel relative min-w-0 rounded-[28px] border px-3 py-3 shadow-[0_22px_54px_hsl(var(--shadow-color)/0.1)] sm:rounded-[32px] sm:px-4"
       data-notification-popup-anchor="user"
       data-testid="user-bar"
       data-user-bar-anchor="true"
       ref={userBarRef}
     >
-      <div className="flex min-w-0 items-center gap-4">
+      <div className="flex min-w-0 flex-wrap items-center gap-3 sm:gap-4">
         <div className="relative shrink-0 drop-shadow-[0_14px_28px_hsl(var(--shadow-color)/0.12)]">
           <Avatar
             alt={user.displayName}
-            className="h-16 w-16"
+            className="h-14 w-14 sm:h-16 sm:w-16"
             fallback={user.displayName}
             src={user.avatarUrl}
           />
@@ -460,7 +454,9 @@ export function UserProfileFooter({
               title={t("shell.user.statusTitle")}
               type="button"
             >
-              <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", getStatusDotClass(status))} />
+              <span
+                className={cn("h-2.5 w-2.5 shrink-0 rounded-full", getStatusDotClass(status))}
+              />
               <span className="truncate">{t(currentStatusOption.key)}</span>
               <ChevronDown className="h-3.5 w-3.5 shrink-0 text-app-soft" />
             </button>
@@ -487,7 +483,9 @@ export function UserProfileFooter({
                       role="option"
                       type="button"
                     >
-                      <span className={cn("h-2.5 w-2.5 rounded-full", getStatusDotClass(option.value))} />
+                      <span
+                        className={cn("h-2.5 w-2.5 rounded-full", getStatusDotClass(option.value))}
+                      />
                       <span>{t(option.key)}</span>
                     </button>
                   );
@@ -497,196 +495,195 @@ export function UserProfileFooter({
           </div>
         </div>
 
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-              <button
-                aria-label={t("shell.user.toggleMute")}
-                className={cn(
-                  "inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft)/0.74)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-                  isMuted
-                    ? "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
-                    : "border-[hsl(var(--border)/0.66)]",
-                )}
-                onClick={() => {
-                  void toggleMute();
-                }}
-                type="button"
-              >
-                <Mic className={cn("h-[18px] w-[18px]", isMuted && "text-[hsl(var(--danger))]")} />
-              </button>
+        <div className="ml-auto grid shrink-0 grid-cols-4 gap-1.5 sm:flex sm:items-center sm:gap-2">
+          <button
+            aria-label={t("shell.user.toggleMute")}
+            className={cn(
+              "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft)/0.74)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-12 sm:w-12",
+              isMuted
+                ? "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
+                : "border-[hsl(var(--border)/0.66)]",
+            )}
+            onClick={() => {
+              void toggleMute();
+            }}
+            type="button"
+          >
+            <Mic className={cn("h-[18px] w-[18px]", isMuted && "text-[hsl(var(--danger))]")} />
+          </button>
 
-              <button
-                aria-label={t("shell.user.toggleDeafen")}
-                className={cn(
-                  "inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft)/0.74)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-                  isDeafened
-                    ? "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
-                    : "border-[hsl(var(--border)/0.66)]",
-                )}
-                onClick={() => {
-                  void toggleDeafen();
-                }}
-                type="button"
-              >
-                <Volume2 className={cn("h-[18px] w-[18px]", isDeafened && "text-[hsl(var(--danger))]")} />
-              </button>
+          <button
+            aria-label={t("shell.user.toggleDeafen")}
+            className={cn(
+              "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft)/0.74)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-12 sm:w-12",
+              isDeafened
+                ? "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
+                : "border-[hsl(var(--border)/0.66)]",
+            )}
+            onClick={() => {
+              void toggleDeafen();
+            }}
+            type="button"
+          >
+            <Volume2
+              className={cn("h-[18px] w-[18px]", isDeafened && "text-[hsl(var(--danger))]")}
+            />
+          </button>
 
-              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.72)] shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft)/0.74)]">
-                <NotificationBell className="h-12 w-12 rounded-full hover:bg-transparent" />
-              </div>
+          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.72)] shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft)/0.74)] sm:h-12 sm:w-12">
+            <NotificationBell className="h-12 w-12 rounded-full hover:bg-transparent" />
+          </div>
 
-              <button
-                aria-label={t("shell.user.appearanceSettings")}
-                className={cn(
-                  "inline-flex h-12 w-12 items-center justify-center rounded-full border border-[hsl(var(--primary)/0.28)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.16),hsl(var(--surface-card)/0.78))] text-[hsl(var(--primary))] shadow-[0_14px_30px_hsl(var(--primary)/0.12)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-                  isQuickMenuOpen && "bg-[hsl(var(--primary)/0.18)]",
-                )}
-                data-testid="user-settings-button"
-                onClick={() => setIsQuickMenuOpen((open) => !open)}
-                title={t("shell.user.appearanceSettingsTitle")}
-                type="button"
-              >
-                <Settings2 className="h-[18px] w-[18px]" />
-              </button>
+          <button
+            aria-label={t("shell.user.appearanceSettings")}
+            className={cn(
+              "inline-flex h-11 w-11 items-center justify-center rounded-full border border-[hsl(var(--primary)/0.28)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.16),hsl(var(--surface-card)/0.78))] text-[hsl(var(--primary))] shadow-[0_14px_30px_hsl(var(--primary)/0.12)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-12 sm:w-12",
+              isQuickMenuOpen && "bg-[hsl(var(--primary)/0.18)]",
+            )}
+            data-testid="user-settings-button"
+            onClick={() => setIsQuickMenuOpen((open) => !open)}
+            title={t("shell.user.appearanceSettingsTitle")}
+            type="button"
+          >
+            <Settings2 className="h-[18px] w-[18px]" />
+          </button>
         </div>
 
-          {isQuickMenuOpen ? (
-            <div
-              aria-label={t("shell.user.quickMenu")}
-              className="absolute bottom-[calc(100%+0.75rem)] left-2 right-[-2px] z-40 rounded-[28px] border border-[hsl(var(--border)/0.76)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.99),hsl(var(--surface-soft)/0.86))] p-4 shadow-[0_28px_78px_hsl(var(--shadow-color)/0.19)] backdrop-blur-2xl sm:left-auto sm:w-[23rem]"
-              role="dialog"
-            >
-              <div className="absolute -bottom-2 right-7 h-4 w-4 rotate-45 border-b border-r border-[hsl(var(--border)/0.76)] bg-[hsl(var(--surface-soft)/0.9)]" />
+        {isQuickMenuOpen ? (
+          <div
+            aria-label={t("shell.user.quickMenu")}
+            className="absolute bottom-[calc(100%+0.75rem)] left-2 right-2 z-40 max-h-[min(32rem,calc(100dvh-8rem))] overflow-y-auto rounded-[28px] border border-[hsl(var(--border)/0.76)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.99),hsl(var(--surface-soft)/0.86))] p-4 shadow-[0_28px_78px_hsl(var(--shadow-color)/0.19)] backdrop-blur-2xl sm:left-auto sm:right-[-2px] sm:w-[min(23rem,calc(100vw-2rem))]"
+            role="dialog"
+          >
+            <div className="absolute -bottom-2 right-7 h-4 w-4 rotate-45 border-b border-r border-[hsl(var(--border)/0.76)] bg-[hsl(var(--surface-soft)/0.9)]" />
 
-              <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_8rem] items-center gap-2.5">
-                <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
-                  <Clock3 className="h-[18px] w-[18px]" />
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
-                    {t("shell.user.idleAfter")}
-                  </p>
-                  <p className="mt-0.5 text-[13px] leading-5 text-app-muted">
-                    {t("shell.user.idleAfterDescription")}
-                  </p>
-                </div>
-                <label className="sr-only" htmlFor="user-presence-idle-timeout">
-                  {t("shell.user.idleAfterTitle")}
-                </label>
-                <div className="relative min-w-0">
-                  <select
-                    className="h-10 w-full appearance-none rounded-2xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.86)] px-3 pr-8 text-[13px] font-bold text-app-foreground shadow-[inset_0_1px_0_hsl(var(--background)/0.5)] transition hover:bg-[hsl(var(--surface-card))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                    id="user-presence-idle-timeout"
-                    onChange={(event) => setIdleTimeoutMinutes(Number(event.target.value))}
-                    title={t("shell.user.idleAfterTitle")}
-                    value={idleTimeoutMinutes}
-                  >
-                    {PRESENCE_IDLE_TIMEOUT_OPTIONS.map((minutes) => (
-                      <option key={minutes} value={minutes}>
-                        {t("shell.user.idleMinutes", { count: minutes })}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-app-muted" />
-                </div>
+            <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_8rem] items-center gap-2.5">
+              <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
+                <Clock3 className="h-[18px] w-[18px]" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
+                  {t("shell.user.idleAfter")}
+                </p>
+                <p className="mt-0.5 text-[13px] leading-5 text-app-muted">
+                  {t("shell.user.idleAfterDescription")}
+                </p>
               </div>
-
-              <div className="my-4 h-px bg-[hsl(var(--border)/0.6)]" />
-
-              <div className="grid gap-3.5">
-                <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-start gap-2.5">
-                  <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
-                    <Mic className="h-[18px] w-[18px]" />
-                  </span>
-                  <div className="min-w-0 space-y-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
-                        {t("shell.user.microphone")}
-                      </p>
-                      <p className="mt-0.5 truncate text-[13px] text-app-muted">
-                        {t("shell.user.inputDevice")}
-                      </p>
-                    </div>
-                    <div className="min-w-0">
-                      <AudioDeviceSelect kind="input" showIcon={false} variant="compact" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-start gap-2.5">
-                  <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
-                    <Volume2 className="h-[18px] w-[18px]" />
-                  </span>
-                  <div className="min-w-0 space-y-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
-                        {t("shell.user.speaker")}
-                      </p>
-                      <p className="mt-0.5 truncate text-[13px] text-app-muted">
-                        {t("shell.user.outputDevice")}
-                      </p>
-                    </div>
-                    <div className="min-w-0">
-                      <AudioDeviceSelect kind="output" showIcon={false} variant="compact" />
-                    </div>
-                  </div>
-                </div>
+              <label className="sr-only" htmlFor="user-presence-idle-timeout">
+                {t("shell.user.idleAfterTitle")}
+              </label>
+              <div className="relative min-w-0">
+                <select
+                  className="h-10 w-full appearance-none rounded-2xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.86)] px-3 pr-8 text-[13px] font-bold text-app-foreground shadow-[inset_0_1px_0_hsl(var(--background)/0.5)] transition hover:bg-[hsl(var(--surface-card))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                  id="user-presence-idle-timeout"
+                  onChange={(event) => setIdleTimeoutMinutes(Number(event.target.value))}
+                  title={t("shell.user.idleAfterTitle")}
+                  value={idleTimeoutMinutes}
+                >
+                  {PRESENCE_IDLE_TIMEOUT_OPTIONS.map((minutes) => (
+                    <option key={minutes} value={minutes}>
+                      {t("shell.user.idleMinutes", { count: minutes })}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-app-muted" />
               </div>
-
-              <div className="my-4 h-px bg-[hsl(var(--border)/0.6)]" />
-
-              <button
-                className="grid w-full grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-2.5 rounded-[22px] px-0 py-0 text-left transition hover:translate-x-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                onClick={() => {
-                  setIsQuickMenuOpen(false);
-                  onOpenAppearanceSettings();
-                }}
-                type="button"
-              >
-                <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.08)] text-[hsl(var(--primary))]">
-                  <Settings2 className="h-[18px] w-[18px]" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
-                    {t("shell.user.appearanceSettingsTitle")}
-                  </span>
-                  <span className="mt-0.5 block truncate text-[13px] text-app-muted">
-                    {t("shell.user.settingsDescription")}
-                  </span>
-                </span>
-              </button>
-
-              <button
-                aria-label={t("shell.user.logout")}
-                className="mt-3.5 grid w-full grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-2.5 rounded-[22px] px-0 py-0 text-left transition hover:translate-x-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:cursor-not-allowed disabled:opacity-60"
-                data-testid="user-logout-button"
-                disabled={isLoggingOut}
-                onClick={handleLogout}
-                title={t("shell.user.logoutTitle")}
-                type="button"
-              >
-                <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.08)] text-[hsl(var(--danger))]">
-                  <LogOut className="h-[18px] w-[18px]" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-[15px] font-extrabold tracking-[-0.02em] text-[hsl(var(--danger))]">
-                    {t("shell.user.logout")}
-                  </span>
-                  <span className="mt-0.5 block truncate text-[13px] text-app-muted">
-                    {t("shell.user.logoutDescription")}
-                  </span>
-                </span>
-              </button>
             </div>
-          ) : null}
+
+            <div className="my-4 h-px bg-[hsl(var(--border)/0.6)]" />
+
+            <div className="grid gap-3.5">
+              <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-start gap-2.5">
+                <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
+                  <Mic className="h-[18px] w-[18px]" />
+                </span>
+                <div className="min-w-0 space-y-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
+                      {t("shell.user.microphone")}
+                    </p>
+                    <p className="mt-0.5 truncate text-[13px] text-app-muted">
+                      {t("shell.user.inputDevice")}
+                    </p>
+                  </div>
+                  <div className="min-w-0">
+                    <AudioDeviceSelect kind="input" showIcon={false} variant="compact" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-start gap-2.5">
+                <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
+                  <Volume2 className="h-[18px] w-[18px]" />
+                </span>
+                <div className="min-w-0 space-y-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
+                      {t("shell.user.speaker")}
+                    </p>
+                    <p className="mt-0.5 truncate text-[13px] text-app-muted">
+                      {t("shell.user.outputDevice")}
+                    </p>
+                  </div>
+                  <div className="min-w-0">
+                    <AudioDeviceSelect kind="output" showIcon={false} variant="compact" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="my-4 h-px bg-[hsl(var(--border)/0.6)]" />
+
+            <button
+              className="grid w-full grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-2.5 rounded-[22px] px-0 py-0 text-left transition hover:translate-x-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              onClick={() => {
+                setIsQuickMenuOpen(false);
+                onOpenAppearanceSettings();
+              }}
+              type="button"
+            >
+              <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.08)] text-[hsl(var(--primary))]">
+                <Settings2 className="h-[18px] w-[18px]" />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
+                  {t("shell.user.appearanceSettingsTitle")}
+                </span>
+                <span className="mt-0.5 block truncate text-[13px] text-app-muted">
+                  {t("shell.user.settingsDescription")}
+                </span>
+              </span>
+            </button>
+
+            <button
+              aria-label={t("shell.user.logout")}
+              className="mt-3.5 grid w-full grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-2.5 rounded-[22px] px-0 py-0 text-left transition hover:translate-x-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:cursor-not-allowed disabled:opacity-60"
+              data-testid="user-logout-button"
+              disabled={isLoggingOut}
+              onClick={handleLogout}
+              title={t("shell.user.logoutTitle")}
+              type="button"
+            >
+              <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.08)] text-[hsl(var(--danger))]">
+                <LogOut className="h-[18px] w-[18px]" />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-[15px] font-extrabold tracking-[-0.02em] text-[hsl(var(--danger))]">
+                  {t("shell.user.logout")}
+                </span>
+                <span className="mt-0.5 block truncate text-[13px] text-app-muted">
+                  {t("shell.user.logoutDescription")}
+                </span>
+              </span>
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
 
-function buildReorderPayload(
-  categoryId: string | null,
-  channels: WorkspaceChannel[],
-) {
+function buildReorderPayload(categoryId: string | null, channels: WorkspaceChannel[]) {
   return channels.map((channel, index) => ({
     categoryId,
     id: channel.id,
@@ -793,9 +790,16 @@ export function ChannelSidebar({
 
       return reorderChannelsRequest(detail.server.id, items);
     },
-    onError: (_error, _variables, context: { previousDetail: WorkspaceServerDetail | null } | undefined) => {
+    onError: (
+      _error,
+      _variables,
+      context: { previousDetail: WorkspaceServerDetail | null } | undefined,
+    ) => {
       if (detail && context?.previousDetail) {
-        queryClient.setQueryData(workspaceQueryKeys.server(detail.server.id), context.previousDetail);
+        queryClient.setQueryData(
+          workspaceQueryKeys.server(detail.server.id),
+          context.previousDetail,
+        );
       }
     },
     onMutate: async (items) => {
@@ -848,7 +852,10 @@ export function ChannelSidebar({
     },
     onError: (_error, _variables, context) => {
       if (detail && context?.previousDetail) {
-        queryClient.setQueryData(workspaceQueryKeys.server(detail.server.id), context.previousDetail);
+        queryClient.setQueryData(
+          workspaceQueryKeys.server(detail.server.id),
+          context.previousDetail,
+        );
       }
     },
     onMutate: async (items) => {
@@ -975,8 +982,12 @@ export function ChannelSidebar({
           return;
         }
 
-        const oldIndex = detail.categories.findIndex((category) => category.id === sourceCategoryId);
-        const newIndex = detail.categories.findIndex((category) => category.id === targetCategoryId);
+        const oldIndex = detail.categories.findIndex(
+          (category) => category.id === sourceCategoryId,
+        );
+        const newIndex = detail.categories.findIndex(
+          (category) => category.id === targetCategoryId,
+        );
 
         if (oldIndex < 0 || newIndex < 0) {
           return;
@@ -994,8 +1005,7 @@ export function ChannelSidebar({
 
       const sourceCategoryId = (active.data.current?.categoryId ?? null) as string | null;
       const targetCategoryId = (over.data.current?.categoryId ?? null) as string | null;
-      const droppedOnCategory =
-        typeof over.id === "string" && over.id.startsWith("category:");
+      const droppedOnCategory = typeof over.id === "string" && over.id.startsWith("category:");
 
       const sourceChannels = getChannelsForCategory(sourceCategoryId, detail);
       const targetChannels = getChannelsForCategory(targetCategoryId, detail);
@@ -1143,8 +1153,7 @@ export function ChannelSidebar({
       ? detail.categories.findIndex((category) => category.id === categoryId)
       : -1;
     const canMoveCategoryUp = categoryIndex > 0;
-    const canMoveCategoryDown =
-      categoryIndex >= 0 && categoryIndex < detail.categories.length - 1;
+    const canMoveCategoryDown = categoryIndex >= 0 && categoryIndex < detail.categories.length - 1;
 
     return (
       <div
@@ -1211,7 +1220,9 @@ export function ChannelSidebar({
           >
             <span className="truncate">{label}</span>
             {categoryId ? (
-              <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 transition", collapsed && "-rotate-90")} />
+              <ChevronDown
+                className={cn("h-3.5 w-3.5 shrink-0 transition", collapsed && "-rotate-90")}
+              />
             ) : null}
           </button>
           {canManage && categoryId ? (
@@ -1242,7 +1253,10 @@ export function ChannelSidebar({
         ) : null}
 
         {!collapsed ? (
-          <SortableContext items={channels.map((channel) => channel.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext
+            items={channels.map((channel) => channel.id)}
+            strategy={verticalListSortingStrategy}
+          >
             <ChannelDropZone
               canManage={canManage}
               categoryId={categoryId}
@@ -1253,7 +1267,8 @@ export function ChannelSidebar({
                 {channels.map((channel) => {
                   const voiceState =
                     channel.type === "VOICE"
-                      ? voiceStatesQuery.data?.find((state) => state.channelId === channel.id) ?? null
+                      ? (voiceStatesQuery.data?.find((state) => state.channelId === channel.id) ??
+                        null)
                       : null;
 
                   return (
@@ -1367,16 +1382,15 @@ export function ChannelSidebar({
         ) : null}
       </div>
 
-      <DndContext
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-        sensors={sensors}
-      >
+      <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd} sensors={sensors}>
         <div
           className="min-w-0 flex-1 space-y-2.5 overflow-y-auto overflow-x-hidden p-3"
           onContextMenu={(event) => {
             const target = event.target;
-            if (target instanceof HTMLElement && target.closest("[data-sidebar-interactive='true']")) {
+            if (
+              target instanceof HTMLElement &&
+              target.closest("[data-sidebar-interactive='true']")
+            ) {
               return;
             }
 
@@ -1405,7 +1419,11 @@ export function ChannelSidebar({
             ))}
           </SortableContext>
           {detail.ungroupedChannels.length > 0
-            ? renderChannelGroup(t("shell.channelSidebar.openChannels"), null, detail.ungroupedChannels)
+            ? renderChannelGroup(
+                t("shell.channelSidebar.openChannels"),
+                null,
+                detail.ungroupedChannels,
+              )
             : null}
         </div>
       </DndContext>

@@ -24,10 +24,12 @@ import { useShallow } from "zustand/react/shallow";
 import type { UserLayoutSettings } from "@/app/api/v1/users/me/settings/route";
 import { LanguageSwitcher } from "@/components/locale/language-switcher";
 import { useI18n } from "@/components/providers/locale-provider";
+import { DesktopDiagnosticsPanel } from "@/components/desktop/desktop-diagnostics-panel";
 import { ProfileAvatarField } from "@/components/settings/profile-avatar-field";
 import { ThemePicker } from "@/components/theme/theme-picker";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { CameraPreferencesPanel } from "@/components/voice/camera-preferences-panel";
 import { VoicePreferencesPanel } from "@/components/voice/voice-preferences-panel";
 import {
   CHANNEL_SIDEBAR_WIDTH_STEP,
@@ -53,16 +55,13 @@ import {
   SERVER_RAIL_WIDTH_STEP,
 } from "@/lib/appearance";
 import { APP_ICON_OPTIONS, type AppIconId } from "@/lib/app-icons";
+import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import {
   type AccountSettingsState,
   type UpdateAccountSettingsResult,
   updateAccountSettingsAction,
 } from "@/lib/account/actions";
-import {
-  fetchLayoutSettings,
-  patchLayoutSettings,
-  settingsQueryKeys,
-} from "@/lib/settings/client";
+import { fetchLayoutSettings, patchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
 import {
   buildSettingsHref,
   resolveSettingsSelection,
@@ -112,7 +111,9 @@ function SectionHero({
   return (
     <section className="app-panel min-w-0 max-w-full overflow-hidden rounded-[28px] border p-5 sm:rounded-[32px] sm:p-7">
       <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.24em]">{badge}</p>
-      <h2 className="text-app-foreground mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h2>
+      <h2 className="text-app-foreground mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
+        {title}
+      </h2>
       <p className="text-app-muted mt-3 max-w-3xl text-sm leading-7">{description}</p>
     </section>
   );
@@ -143,20 +144,18 @@ function SettingCard({
             <p className="text-app-muted mt-1 text-sm leading-6">{description}</p>
           </div>
         </div>
-        {badge ? <Badge className="shrink-0" tone="muted">{badge}</Badge> : null}
+        {badge ? (
+          <Badge className="shrink-0" tone="muted">
+            {badge}
+          </Badge>
+        ) : null}
       </div>
       <div className="mt-5">{children}</div>
     </section>
   );
 }
 
-function InfoPill({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function InfoPill({ label, value }: { label: string; value: string }) {
   return (
     <div className="app-panel-soft rounded-[22px] border p-4">
       <p className="text-app-soft text-[11px] font-semibold uppercase tracking-[0.18em]">{label}</p>
@@ -362,11 +361,7 @@ function RangeSliderCard({
   const sliderValue = Math.min(max, Math.max(min, value));
 
   return (
-    <SettingCard
-      description={description}
-      icon={LayoutPanelTop}
-      title={title}
-    >
+    <SettingCard description={description} icon={LayoutPanelTop} title={title}>
       <div className="flex items-center justify-end">
         <div className="app-panel-soft inline-flex items-center gap-2 rounded-2xl border px-3 py-2">
           <span className="text-app-foreground text-sm font-medium">{value}px</span>
@@ -396,13 +391,7 @@ function RangeSliderCard({
   );
 }
 
-function ComingSoonCard({
-  description,
-  title,
-}: {
-  description: string;
-  title: string;
-}) {
+function ComingSoonCard({ description, title }: { description: string; title: string }) {
   return (
     <div className="app-panel-soft rounded-[24px] border border-dashed p-5">
       <div className="flex items-start gap-3">
@@ -418,11 +407,7 @@ function ComingSoonCard({
   );
 }
 
-function StatusDot({
-  status,
-}: {
-  status: UserStatus;
-}) {
+function StatusDot({ status }: { status: UserStatus }) {
   const colorClass =
     status === UserStatus.ONLINE
       ? "bg-emerald-400"
@@ -465,6 +450,7 @@ export function SettingsPanel({
     value: string;
   } | null>(null);
   const [iconFeedbackVisible, setIconFeedbackVisible] = useState(false);
+  const [isDesktopRuntime, setIsDesktopRuntime] = useState(false);
   const [accountFieldErrors, setAccountFieldErrors] = useState<
     Partial<Record<AccountField, string>>
   >({});
@@ -473,6 +459,7 @@ export function SettingsPanel({
     applyPersistedSettings,
     appIconId,
     channelSidebarWidth,
+    desktopNotificationPreviews,
     mainPanelWidth,
     notificationAutoClose,
     notificationLimit,
@@ -485,6 +472,7 @@ export function SettingsPanel({
     serverRailWidth,
     setAppIconId,
     setChannelSidebarWidth,
+    setDesktopNotificationPreviews,
     setMainPanelWidth,
     setNotificationAutoClose,
     setNotificationLimit,
@@ -497,6 +485,7 @@ export function SettingsPanel({
       applyPersistedSettings: state.applyPersistedSettings,
       appIconId: state.appIconId,
       channelSidebarWidth: state.channelSidebarWidth,
+      desktopNotificationPreviews: state.desktopNotificationPreviews,
       mainPanelWidth: state.mainPanelWidth,
       notificationAutoClose: state.notificationAutoClose,
       notificationLimit: state.notificationLimit,
@@ -509,6 +498,7 @@ export function SettingsPanel({
       serverRailWidth: state.serverRailWidth,
       setAppIconId: state.setAppIconId,
       setChannelSidebarWidth: state.setChannelSidebarWidth,
+      setDesktopNotificationPreviews: state.setDesktopNotificationPreviews,
       setMainPanelWidth: state.setMainPanelWidth,
       setNotificationAutoClose: state.setNotificationAutoClose,
       setNotificationLimit: state.setNotificationLimit,
@@ -579,7 +569,14 @@ export function SettingsPanel({
 
   useEffect(() => {
     window.scrollTo({ left: 0, top: 0 });
+
+    const settingsScrollRoot = document.querySelector<HTMLElement>("[data-settings-scroll-root]");
+    settingsScrollRoot?.scrollTo({ left: 0, top: 0 });
   }, [panel, section]);
+
+  useEffect(() => {
+    setIsDesktopRuntime(isWhisprDesktopRuntime());
+  }, []);
 
   const settingsQuery = useQuery({
     queryFn: fetchLayoutSettings,
@@ -629,13 +626,16 @@ export function SettingsPanel({
     [patchSettingsMutation],
   );
 
-  const previewSound = useCallback((effect: SoundEffectKey, volume: number, profile: SoundProfileKey) => {
-    const audio = new Audio(resolveSoundEffectPath(effect, profile));
-    audio.volume = Math.min(1, Math.max(0, volume / 100));
-    audio.play().catch(() => {
-      // The preview is user-triggered, but browsers may still reject playback.
-    });
-  }, []);
+  const previewSound = useCallback(
+    (effect: SoundEffectKey, volume: number, profile: SoundProfileKey) => {
+      const audio = new Audio(resolveSoundEffectPath(effect, profile));
+      audio.volume = Math.min(1, Math.max(0, volume / 100));
+      audio.play().catch(() => {
+        // The preview is user-triggered, but browsers may still reject playback.
+      });
+    },
+    [],
+  );
 
   const handleServerRailWidthChange = useCallback(
     (nextValue: number) => {
@@ -744,7 +744,9 @@ export function SettingsPanel({
 
   const saveAccount = () => {
     startSavingAccount(async () => {
-      const result = (await updateAccountSettingsAction(accountDraft)) as UpdateAccountSettingsResult;
+      const result = (await updateAccountSettingsAction(
+        accountDraft,
+      )) as UpdateAccountSettingsResult;
 
       if (!result.success || !result.user) {
         setAccountFieldErrors(result.fieldErrors ?? {});
@@ -810,7 +812,9 @@ export function SettingsPanel({
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="truncate text-lg font-semibold text-app-foreground sm:text-xl">{visibleName}</p>
+                    <p className="truncate text-lg font-semibold text-app-foreground sm:text-xl">
+                      {visibleName}
+                    </p>
                     <StatusDot status={accountState.status} />
                   </div>
                   <p className="mt-1 text-sm text-app-muted">@{accountState.username}</p>
@@ -818,7 +822,12 @@ export function SettingsPanel({
                 </div>
               </div>
 
-              <Button className="w-full sm:w-auto" onClick={() => setIsEditingAccount(true)} type="button" variant="outline">
+              <Button
+                className="w-full sm:w-auto"
+                onClick={() => setIsEditingAccount(true)}
+                type="button"
+                variant="outline"
+              >
                 {t("common.edit")}
               </Button>
             </div>
@@ -870,7 +879,9 @@ export function SettingsPanel({
                     value={accountDraft.displayName ?? ""}
                   />
                   {accountFieldErrors.displayName ? (
-                    <p className="mt-2 text-xs text-app-danger">{t(accountFieldErrors.displayName)}</p>
+                    <p className="mt-2 text-xs text-app-danger">
+                      {t(accountFieldErrors.displayName)}
+                    </p>
                   ) : null}
                 </label>
 
@@ -880,9 +891,7 @@ export function SettingsPanel({
                   </span>
                   <input
                     className="app-panel w-full rounded-2xl border px-4 py-3 text-sm text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                    onChange={(event) =>
-                      handleAccountDraftChange("username", event.target.value)
-                    }
+                    onChange={(event) => handleAccountDraftChange("username", event.target.value)}
                     type="text"
                     value={accountDraft.username}
                   />
@@ -937,10 +946,20 @@ export function SettingsPanel({
                 ) : null}
 
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-                  <Button className="w-full sm:w-auto" onClick={cancelAccountEditing} type="button" variant="outline">
+                  <Button
+                    className="w-full sm:w-auto"
+                    onClick={cancelAccountEditing}
+                    type="button"
+                    variant="outline"
+                  >
                     {t("common.cancel")}
                   </Button>
-                  <Button className="w-full sm:w-auto" disabled={isSavingAccount} onClick={saveAccount} type="button">
+                  <Button
+                    className="w-full sm:w-auto"
+                    disabled={isSavingAccount}
+                    onClick={saveAccount}
+                    type="button"
+                  >
                     {isSavingAccount ? t("common.saving") : t("common.save")}
                   </Button>
                 </div>
@@ -979,19 +998,43 @@ export function SettingsPanel({
           title={t("settings.groups.voiceVideo.title")}
         />
 
+        {isDesktopRuntime ? (
+          <SettingCard
+            description={t("settings.voice.desktopPermissions.description")}
+            icon={MonitorUp}
+            title={t("settings.voice.desktopPermissions.title")}
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              <InfoPill
+                label={t("settings.voice.desktopPermissions.microphone.label")}
+                value={t("settings.voice.desktopPermissions.microphone.value")}
+              />
+              <InfoPill
+                label={t("settings.voice.desktopPermissions.camera.label")}
+                value={t("settings.voice.desktopPermissions.camera.value")}
+              />
+              <InfoPill
+                label={t("settings.voice.desktopPermissions.screenShare.label")}
+                value={t("settings.voice.desktopPermissions.screenShare.value")}
+              />
+              <InfoPill
+                label={t("settings.voice.desktopPermissions.cleanup.label")}
+                value={t("settings.voice.desktopPermissions.cleanup.value")}
+              />
+            </div>
+          </SettingCard>
+        ) : null}
+
         {showAudio ? <VoicePreferencesPanel /> : null}
 
         {showCamera ? (
           <SettingCard
-            badge="Phase 8"
+            badge={t("settings.voice.camera.badge")}
             description={t("settings.voice.camera.description")}
             icon={Camera}
             title={t("settings.voice.camera.title")}
           >
-            <ComingSoonCard
-              description={t("settings.voice.camera.description")}
-              title={t("settings.voice.camera.title")}
-            />
+            <CameraPreferencesPanel />
           </SettingCard>
         ) : null}
 
@@ -1130,7 +1173,7 @@ export function SettingsPanel({
                       "rounded-2xl border px-3 py-2 text-sm font-semibold transition",
                       serverRailCollapsed
                         ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
-                      : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground",
+                        : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground",
                     )}
                     data-testid="settings-server-rail-collapse"
                     onClick={() => handleServerRailCollapsedChange(true)}
@@ -1143,7 +1186,7 @@ export function SettingsPanel({
                       "rounded-2xl border px-3 py-2 text-sm font-semibold transition",
                       !serverRailCollapsed
                         ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
-                      : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground",
+                        : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground",
                     )}
                     data-testid="settings-server-rail-expand"
                     onClick={() => handleServerRailCollapsedChange(false)}
@@ -1348,7 +1391,7 @@ export function SettingsPanel({
           title={t("settings.groups.appearance.title")}
         />
 
-        {(panel === null || panel === "language") ? (
+        {panel === null || panel === "language" ? (
           <SettingCard
             description={t("settings.appearance.language.description")}
             icon={Languages}
@@ -1358,7 +1401,7 @@ export function SettingsPanel({
           </SettingCard>
         ) : null}
 
-        {(panel === null || panel === "theme") ? (
+        {panel === null || panel === "theme" ? (
           <SettingCard
             description={t("settings.appearance.theme.description")}
             icon={Sparkles}
@@ -1497,6 +1540,13 @@ export function SettingsPanel({
                 testId="settings-desktop-notifications"
               />
               <ToggleRow
+                checked={desktopNotificationPreviews}
+                description={t("settings.notifications.desktopPreviews.description")}
+                label={t("settings.notifications.desktopPreviews.title")}
+                onChange={setDesktopNotificationPreviews}
+                testId="settings-desktop-notification-previews"
+              />
+              <ToggleRow
                 checked={serverSettings?.mobileNotifications ?? true}
                 description={t("settings.notifications.mobile.description")}
                 label={t("settings.notifications.mobile.title")}
@@ -1562,9 +1612,7 @@ export function SettingsPanel({
                 description={t("settings.notifications.voiceLeaveSound.description")}
                 label={t("settings.notifications.voiceLeaveSound.title")}
                 onChange={setVoiceLeaveEnabled}
-                onPreview={() =>
-                  previewSound("voiceLeave", voiceLeaveVolume, voiceLeaveSoundFile)
-                }
+                onPreview={() => previewSound("voiceLeave", voiceLeaveVolume, voiceLeaveSoundFile)}
                 onProfileChange={setVoiceLeaveSoundFile}
                 onVolumeChange={setVoiceLeaveVolume}
                 profileLabel={t("settings.notifications.soundProfile.title")}
@@ -1589,6 +1637,7 @@ export function SettingsPanel({
     const showOverview = panel === null || panel === "overview";
     const showBuild = panel === null || panel === "build";
     const showWhatsNew = panel === null || panel === "whatsNew";
+    const showDesktop = panel === null || panel === "desktop";
     const showDeveloper = panel === null || panel === "developer";
     const featuredContributor = buildInfo.contributors.find(
       (contributor) => contributor === FEATURED_CONTRIBUTOR_NAME,
@@ -1635,19 +1684,14 @@ export function SettingsPanel({
                   label={t("settings.about.buildInfo.lastUpdate")}
                   value={buildInfo.lastUpdated}
                 />
-                <InfoPill
-                  label={t("settings.about.buildInfo.buildId")}
-                  value={buildInfo.buildId}
-                />
+                <InfoPill label={t("settings.about.buildInfo.buildId")} value={buildInfo.buildId} />
                 <InfoPill
                   label={t("settings.about.buildInfo.releaseChannel")}
                   value={buildInfo.releaseChannel}
                 />
                 <InfoPill
                   label={t("settings.about.buildInfo.buildTime")}
-                  value={
-                    buildInfo.buildTime || t("settings.about.buildInfo.developmentBuild")
-                  }
+                  value={buildInfo.buildTime || t("settings.about.buildInfo.developmentBuild")}
                 />
               </div>
 
@@ -1690,12 +1734,20 @@ export function SettingsPanel({
                       v{buildInfo.version}
                     </span>
                   </div>
-                  <p className="mt-3 text-sm leading-6 text-app-muted">
-                    {t(note.descriptionKey)}
-                  </p>
+                  <p className="mt-3 text-sm leading-6 text-app-muted">{t(note.descriptionKey)}</p>
                 </article>
               ))}
             </div>
+          </SettingCard>
+        ) : null}
+
+        {showDesktop ? (
+          <SettingCard
+            description={t("settings.about.desktop.description")}
+            icon={MonitorUp}
+            title={t("settings.about.desktop.title")}
+          >
+            <DesktopDiagnosticsPanel />
           </SettingCard>
         ) : null}
 
@@ -1746,10 +1798,7 @@ export function SettingsPanel({
 
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
                   {contributorList.map((contributor) => (
-                    <div
-                      className="app-panel rounded-[20px] border px-4 py-3"
-                      key={contributor}
-                    >
+                    <div className="app-panel rounded-[20px] border px-4 py-3" key={contributor}>
                       <p className="text-sm font-medium text-app-foreground">{contributor}</p>
                     </div>
                   ))}
@@ -1763,7 +1812,10 @@ export function SettingsPanel({
   };
 
   return (
-    <div className="min-w-0 max-w-full space-y-6 overflow-hidden" data-testid="settings-panel">
+    <div
+      className="min-w-0 max-w-full space-y-6 overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+6rem)] lg:pb-0"
+      data-testid="settings-panel"
+    >
       {section === "account" ? renderAccountSection() : null}
       {section === "voice" ? renderVoiceSection() : null}
       {section === "appearance" ? renderAppearanceSection() : null}

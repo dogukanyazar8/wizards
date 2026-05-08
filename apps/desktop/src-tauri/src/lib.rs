@@ -4,6 +4,7 @@ use std::{
 };
 
 use tauri::{
+    AppHandle,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     webview::NewWindowResponse,
@@ -18,13 +19,32 @@ Object.defineProperty(window, "__WHISPR_DESKTOP__", {
   enumerable: false,
   writable: false
 });
+const markWhisprDesktopChrome = () => {
+  document.documentElement?.classList.add("whispr-desktop-chrome");
+};
+if (document.documentElement) {
+  markWhisprDesktopChrome();
+} else {
+  document.addEventListener("DOMContentLoaded", markWhisprDesktopChrome, { once: true });
+}
 "#;
 
 const DESKTOP_BEFORE_CLOSE_SCRIPT: &str =
     r#"window.dispatchEvent(new Event("whispr:desktop-before-close"));"#;
 
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            show_main_window(app);
+            handle_desktop_deep_links(app, argv.iter().map(String::as_str));
+        }));
+    }
+
+    builder
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             let app_url = configured_app_url();
@@ -37,8 +57,9 @@ pub fn run() {
             let main_window =
                 WebviewWindowBuilder::new(app, "main", WebviewUrl::External(app_url.clone()))
                     .title(app_name)
-                    .inner_size(1280.0, 820.0)
+                    .inner_size(1920.0, 1080.0)
                     .min_inner_size(960.0, 640.0)
+                    .decorations(false)
                     .resizable(true)
                     .center()
                     .initialization_script(DESKTOP_INIT_SCRIPT)
@@ -73,6 +94,8 @@ pub fn run() {
                 }
             });
 
+            setup_deep_links(app.handle())?;
+
             Ok(())
         })
         .run(tauri::generate_context!())
@@ -81,6 +104,11 @@ pub fn run() {
 
 fn setup_tray(app: &mut tauri::App, app_name: &str) -> tauri::Result<()> {
     let show_item = MenuItem::with_id(app, "show", format!("Show {app_name}"), true, None::<&str>)?;
+    let settings_item = MenuItem::with_id(app, "settings", "Open Settings", true, None::<&str>)?;
+    let diagnostics_item =
+        MenuItem::with_id(app, "diagnostics", "Desktop Diagnostics", true, None::<&str>)?;
+    let mute_item = MenuItem::with_id(app, "toggle_mute", "Toggle Mute", true, None::<&str>)?;
+    let deafen_item = MenuItem::with_id(app, "toggle_deafen", "Toggle Deafen", true, None::<&str>)?;
     let updates_item = MenuItem::with_id(
         app,
         "updates",
@@ -90,7 +118,21 @@ fn setup_tray(app: &mut tauri::App, app_name: &str) -> tauri::Result<()> {
     )?;
     let separator = PredefinedMenuItem::separator(app)?;
     let quit_item = MenuItem::with_id(app, "quit", format!("Quit {app_name}"), true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show_item, &updates_item, &separator, &quit_item])?;
+    let command_separator = PredefinedMenuItem::separator(app)?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &show_item,
+            &settings_item,
+            &diagnostics_item,
+            &command_separator,
+            &mute_item,
+            &deafen_item,
+            &updates_item,
+            &separator,
+            &quit_item,
+        ],
+    )?;
 
     let mut tray_builder = TrayIconBuilder::with_id("whispr-main")
         .tooltip(format!("{app_name} Desktop"))
@@ -98,6 +140,10 @@ fn setup_tray(app: &mut tauri::App, app_name: &str) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
             "show" => show_main_window(app),
+            "settings" => dispatch_desktop_command(app, "open-settings", None),
+            "diagnostics" => dispatch_desktop_command(app, "open-desktop-diagnostics", None),
+            "toggle_mute" => dispatch_desktop_command(app, "toggle-mute", None),
+            "toggle_deafen" => dispatch_desktop_command(app, "toggle-deafen", None),
             "quit" => request_app_quit(app),
             _ => {}
         })
@@ -137,9 +183,121 @@ fn request_app_quit(app: &tauri::AppHandle) {
 
     let app_handle = app.clone();
     std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(250));
+        std::thread::sleep(Duration::from_millis(500));
         app_handle.exit(0);
     });
+}
+
+fn setup_deep_links(app: &AppHandle) -> tauri::Result<()> {
+    #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+    {
+        use tauri_plugin_deep_link::DeepLinkExt;
+
+        let app_handle = app.clone();
+        match app.deep_link().get_current() {
+            Ok(Some(urls)) => {
+                handle_desktop_deep_links(&app_handle, urls.iter().map(Url::as_str));
+            }
+            Ok(None) => {}
+            Err(error) => {
+                eprintln!("Failed to read initial desktop deep links: {error}");
+            }
+        }
+
+        let app_handle = app.clone();
+        app.deep_link().on_open_url(move |event| {
+            show_main_window(&app_handle);
+            handle_desktop_deep_links(&app_handle, event.urls().iter().map(Url::as_str));
+        });
+    }
+
+    Ok(())
+}
+
+fn handle_desktop_deep_links<'a, I>(app: &AppHandle, urls: I)
+where
+    I: IntoIterator<Item = &'a str>,
+{
+    for raw_url in urls {
+        if let Some(path) = safe_desktop_deep_link_path(raw_url) {
+            dispatch_desktop_command(app, "navigate", Some(&path));
+            break;
+        }
+    }
+}
+
+fn safe_desktop_deep_link_path(raw_url: &str) -> Option<String> {
+    let url = Url::parse(raw_url).ok()?;
+    if url.scheme() != "whispr" {
+        return None;
+    }
+
+    let host = url.host_str().unwrap_or_default();
+    let path = url.path();
+    let mut route = match host {
+        "channels" => format!("/channels{path}"),
+        "invite" => format!("/invite{path}"),
+        "open" => {
+            if path.is_empty() || path == "/" {
+                "/channels".to_string()
+            } else {
+                path.to_string()
+            }
+        }
+        "settings" => format!("/settings{path}"),
+        _ if host.is_empty() && !path.is_empty() => path.to_string(),
+        _ => return None,
+    };
+
+    if route.len() > 512
+        || !route.starts_with('/')
+        || route.starts_with("//")
+        || route.contains('\\')
+        || !is_safe_internal_desktop_path(&route)
+    {
+        return None;
+    }
+
+    if let Some(query) = url.query() {
+        if query.len() > 256 || query.contains('\\') {
+            return None;
+        }
+
+        route.push('?');
+        route.push_str(query);
+    }
+
+    Some(route)
+}
+
+fn is_safe_internal_desktop_path(route: &str) -> bool {
+    route == "/"
+        || route == "/channels"
+        || route == "/settings"
+        || route.starts_with("/channels/")
+        || route.starts_with("/settings/")
+        || route.starts_with("/invite/")
+}
+
+fn dispatch_desktop_command(app: &AppHandle, command: &str, path: Option<&str>) {
+    show_main_window(app);
+
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+
+    let Ok(command_json) = serde_json::to_string(command) else {
+        return;
+    };
+    let path_json = match path {
+        Some(value) => serde_json::to_string(value).unwrap_or_else(|_| "null".to_string()),
+        None => "null".to_string(),
+    };
+    let script = format!(
+        "window.dispatchEvent(new CustomEvent('whispr:desktop-command', {{ detail: {{ command: {command_json}, path: {path_json} }} }}));"
+    );
+
+    let _ = window.eval(&script);
 }
 
 fn configured_app_url() -> Url {

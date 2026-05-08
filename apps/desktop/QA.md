@@ -32,6 +32,8 @@ Run this checklist against a fresh Windows install after a production desktop bu
 - Use desktop back navigation.
 - Open an external link and confirm it opens in the system browser.
 - Confirm an unsupported or arbitrary external origin is not loaded inside the WebView.
+- Open `whispr://channels`, `whispr://settings`, and an invite deep link and confirm they focus the existing window.
+- Open an unsupported `whispr://` route and confirm it is ignored.
 
 ## Realtime Messaging
 
@@ -77,10 +79,21 @@ Run this checklist against a fresh Windows install after a production desktop bu
 - Receive a mention notification while the app is backgrounded.
 - Receive a friend request notification while the app is backgrounded.
 - Confirm notification content does not leak message previews.
+- Enable message previews and confirm native notifications show only expected title/body text.
 - Disable desktop notifications and confirm native notifications stop.
 - Confirm unread badge behavior if supported by the OS/runtime.
 - Click tray Show and confirm the window focuses.
+- Click tray Settings and Desktop Diagnostics and confirm they route safely inside Whispr.
+- Click tray mute/deafen actions during a voice session and confirm they match the in-app state.
 - Click tray Quit and confirm the app exits cleanly.
+
+## Desktop Diagnostics
+
+- Open Settings -> About -> Desktop Diagnostics.
+- Confirm runtime shows desktop inside Tauri and web inside a normal browser.
+- Confirm network and Socket.IO indicators change correctly when the network is disconnected and restored.
+- Confirm notification permission status matches the OS/browser permission.
+- Confirm voice lifecycle shows connected while in a voice channel and idle after leaving.
 
 ## Settings And Shortcuts
 

@@ -1,24 +1,32 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
-import { Palette, X } from "lucide-react";
+import { ChevronDown, Globe2, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { LanguageSwitcher } from "@/components/locale/language-switcher";
-import { ThemePicker } from "@/components/theme/theme-picker";
 import { useI18n } from "@/components/providers/locale-provider";
-import { ADVANCED_WIZARDS_THEMES, normalizeWizardsThemeId } from "@/lib/appearance";
+import {
+  DEFAULT_WIZARDS_THEME,
+  WIZARDS_THEMES,
+  normalizeWizardsThemeId,
+  type WizardsThemeId,
+} from "@/lib/appearance";
+import { type AppLocale } from "@/lib/locale";
+import { cn } from "@/lib/utils";
 
 const AUTH_THEME_ROUTES = new Set(["/login", "/register"]);
+const LANGUAGE_OPTIONS: AppLocale[] = ["tr", "en"];
+
+function getThemeMode(themeId: WizardsThemeId) {
+  return WIZARDS_THEMES.find((theme) => theme.id === themeId)?.mode ?? "light";
+}
 
 export function AuthThemePickerCorner() {
   const pathname = usePathname();
-  const { t } = useI18n();
-  const { resolvedTheme, theme } = useTheme();
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const { locale, setLocale, t } = useI18n();
+  const { resolvedTheme, setTheme, theme } = useTheme();
+  const languageMenuRef = useRef<HTMLDivElement | null>(null);
+  const [languageOpen, setLanguageOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -26,23 +34,23 @@ export function AuthThemePickerCorner() {
   }, []);
 
   useEffect(() => {
-    if (!mobileOpen) {
+    if (!languageOpen) {
       return;
     }
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
 
-      if (panelRef.current?.contains(target) || triggerRef.current?.contains(target)) {
+      if (languageMenuRef.current?.contains(target)) {
         return;
       }
 
-      setMobileOpen(false);
+      setLanguageOpen(false);
     };
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setMobileOpen(false);
+        setLanguageOpen(false);
       }
     };
 
@@ -53,74 +61,91 @@ export function AuthThemePickerCorner() {
       document.removeEventListener("pointerdown", handlePointerDown, true);
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [mobileOpen]);
+  }, [languageOpen]);
 
   if (!AUTH_THEME_ROUTES.has(pathname)) {
     return null;
   }
 
-  const activeThemeId = mounted ? normalizeWizardsThemeId(theme ?? resolvedTheme) : null;
-  const activeThemeCategory =
-    activeThemeId && ADVANCED_WIZARDS_THEMES.some((themeOption) => themeOption.id === activeThemeId)
-      ? "advanced"
-      : "simple";
+  const activeThemeId = mounted
+    ? normalizeWizardsThemeId(theme ?? resolvedTheme)
+    : DEFAULT_WIZARDS_THEME;
+  const activeMode = getThemeMode(activeThemeId);
 
   return (
-    <div className="absolute inset-x-4 top-3 z-30 lg:inset-x-auto lg:right-8 lg:top-8">
-      <div className="hidden items-start gap-3 sm:flex">
-        <LanguageSwitcher />
-        <ThemePicker variant="compact" />
-      </div>
-
-      <div className="flex items-center justify-end gap-2 sm:hidden">
-        <LanguageSwitcher className="shrink-0" />
-        <button
-          aria-expanded={mobileOpen}
-          aria-label={t("themes.page.simpleTitle")}
-          className="app-overlay inline-flex min-h-11 items-center gap-2 rounded-full border px-3 text-xs font-semibold text-app-foreground shadow-[0_16px_40px_hsl(var(--shadow-color)/0.16)] backdrop-blur-xl transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-          onClick={() => setMobileOpen((current) => !current)}
-          ref={triggerRef}
-          type="button"
-        >
-          <Palette className="h-4 w-4 text-[hsl(var(--primary))]" />
-          <span>{t(`themes.tabs.${activeThemeCategory}`)}</span>
-        </button>
-      </div>
-
-      <AnimatePresence>
-        {mobileOpen ? (
-          <motion.div
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            className="fixed inset-x-3 top-[4.25rem] z-40 sm:hidden"
-            exit={{ opacity: 0, y: -8, scale: 0.98 }}
-            initial={{ opacity: 0, y: -8, scale: 0.98 }}
-            ref={panelRef}
-            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+    <div className="absolute inset-x-4 top-4 z-30 flex justify-end sm:top-6 lg:right-8 lg:top-8">
+      <div className="auth-top-controls flex flex-wrap items-center justify-end gap-3">
+        <div className="auth-theme-switch inline-flex rounded-full border p-1">
+          <button
+            className={cn(
+              "inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-sm font-semibold transition",
+              activeMode === "light"
+                ? "bg-[hsl(var(--surface-card))] text-app-foreground shadow-[0_12px_28px_hsl(var(--shadow-color)/0.12)]"
+                : "text-app-muted hover:text-app-foreground",
+            )}
+            onClick={() => setTheme("theme-light")}
+            type="button"
           >
-            <div className="app-overlay max-h-[min(28rem,calc(100dvh-5rem))] overflow-y-auto rounded-[28px] border p-3 shadow-[0_22px_60px_hsl(var(--shadow-color)/0.2)] backdrop-blur-xl">
-              <div className="mb-3 flex items-center justify-between gap-3 px-1">
-                <div>
-                  <p className="text-app-soft text-[11px] font-semibold uppercase tracking-[0.22em]">
-                    {t("themes.page.simpleEyebrow")}
-                  </p>
-                  <p className="text-app-foreground mt-1 text-sm font-semibold">
-                    {t("themes.page.simpleTitle")}
-                  </p>
-                </div>
-                <button
-                  aria-label={t("common.close")}
-                  className="app-panel-soft flex min-h-10 min-w-10 items-center justify-center rounded-full border text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                  onClick={() => setMobileOpen(false)}
-                  type="button"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <ThemePicker className="w-full shadow-none" variant="compact" />
+            <Sun className="h-4 w-4 text-[hsl(var(--primary))]" />
+            <span>{t("auth.controls.light")}</span>
+          </button>
+          <button
+            className={cn(
+              "inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-sm font-semibold transition",
+              activeMode === "dark"
+                ? "bg-[hsl(var(--surface-card))] text-app-foreground shadow-[0_12px_28px_hsl(var(--shadow-color)/0.12)]"
+                : "text-app-muted hover:text-app-foreground",
+            )}
+            onClick={() => setTheme("theme-dark")}
+            type="button"
+          >
+            <Moon className="h-4 w-4" />
+            <span>{t("auth.controls.dark")}</span>
+          </button>
+        </div>
+
+        <div className="relative" ref={languageMenuRef}>
+          <button
+            aria-expanded={languageOpen}
+            className="auth-language-trigger inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.64)]"
+            onClick={() => setLanguageOpen((current) => !current)}
+            type="button"
+          >
+            <Globe2 className="h-4 w-4" />
+            <span>{t(`appearance.language.${locale}Full`)}</span>
+            <ChevronDown className={cn("h-4 w-4 transition", languageOpen && "rotate-180")} />
+          </button>
+
+          {languageOpen ? (
+            <div className="auth-language-menu absolute right-0 mt-2 w-44 rounded-[20px] border p-1 shadow-[0_20px_50px_hsl(var(--shadow-color)/0.18)]">
+              {LANGUAGE_OPTIONS.map((option) => {
+                const active = locale === option;
+
+                return (
+                  <button
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm font-semibold transition",
+                      active
+                        ? "bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]"
+                        : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.68)] hover:text-app-foreground",
+                    )}
+                    data-active={active ? "true" : "false"}
+                    key={option}
+                    onClick={() => {
+                      setLocale(option);
+                      setLanguageOpen(false);
+                    }}
+                    type="button"
+                  >
+                    <span>{t(`appearance.language.${option}Full`)}</span>
+                    <span className="text-xs">{t(`appearance.language.${option}`)}</span>
+                  </button>
+                );
+              })}
             </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }

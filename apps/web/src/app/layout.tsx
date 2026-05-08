@@ -4,6 +4,7 @@ import "./globals.css";
 import { auth } from "@/auth";
 import { AppUpdateNotifier } from "@/components/app/app-update-notifier";
 import { DesktopExperience } from "@/components/desktop/desktop-experience";
+import { DesktopWindowChrome } from "@/components/desktop/desktop-window-chrome";
 import { AppIconProvider } from "@/components/providers/app-icon-provider";
 import { SocketProvider } from "@/components/providers/socket-provider";
 import { SoundEffectsProvider } from "@/components/providers/sound-effects-provider";
@@ -64,6 +65,7 @@ export default async function RootLayout({
           <LocaleProvider initialLocale={locale}>
             <AppIconProvider>
               <QueryProvider>
+                <DesktopWindowChrome />
                 <AppUpdateNotifier />
                 {currentUser ? (
                   <SocketProvider>

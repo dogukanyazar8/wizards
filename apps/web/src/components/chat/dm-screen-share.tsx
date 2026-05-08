@@ -3,10 +3,7 @@
 import { useEffect, useRef } from "react";
 import { ConnectionState, LocalVideoTrack, type RemoteVideoTrack } from "livekit-client";
 import { Loader2, Maximize2, MonitorUp, PhoneOff } from "lucide-react";
-import type {
-  ActiveDMScreenShare,
-  IncomingDMScreenShare,
-} from "@/hooks/use-dm-screen-share";
+import type { ActiveDMScreenShare, IncomingDMScreenShare } from "@/hooks/use-dm-screen-share";
 import { Avatar } from "@/components/ui/avatar";
 import { Modal } from "@/components/ui/modal";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -25,11 +22,7 @@ async function toggleElementFullscreen(element: HTMLElement | null) {
   await element.requestFullscreen().catch(() => undefined);
 }
 
-function ScreenShareVideo({
-  track,
-}: {
-  track: LocalVideoTrack | RemoteVideoTrack | null;
-}) {
+function ScreenShareVideo({ track }: { track: LocalVideoTrack | RemoteVideoTrack | null }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -93,9 +86,7 @@ export function IncomingDMScreenShareModal({
               src={null}
             />
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-app-foreground">
-                {displayName}
-              </p>
+              <p className="truncate text-sm font-semibold text-app-foreground">{displayName}</p>
               <p className="text-xs text-app-muted">
                 {t("dm.screenShare.autoDecline", {
                   seconds: incomingShare.countdown,
@@ -145,8 +136,8 @@ export function DMScreenSharePanel({
     connectionState === ConnectionState.SignalReconnecting;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-transparent p-5">
-      <div className="app-panel relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[32px] border p-4">
+    <div className="flex min-h-0 flex-1 flex-col bg-transparent p-3 sm:p-5">
+      <div className="app-panel relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[26px] border p-3 sm:rounded-[32px] sm:p-4">
         {isReconnecting ? (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-[hsl(var(--background)/0.72)] backdrop-blur-sm">
             <div className="app-panel rounded-[24px] border px-5 py-4 text-center">
@@ -158,7 +149,7 @@ export function DMScreenSharePanel({
           </div>
         ) : null}
 
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-3 flex flex-col gap-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-app-soft">
               {t("dm.screenShare.title")}
@@ -171,7 +162,7 @@ export function DMScreenSharePanel({
           </div>
           <button
             className={cn(
-              "inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+              "inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:w-auto",
               activeShare.isLocal
                 ? "border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.12)] text-[hsl(var(--danger))] hover:bg-[hsl(var(--danger)/0.16)]"
                 : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)] text-app-foreground hover:bg-[hsl(var(--surface-soft)/0.82)]",
@@ -194,7 +185,7 @@ export function DMScreenSharePanel({
         </div>
 
         <div
-          className="group relative flex min-h-[24rem] flex-1 items-center justify-center rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.44)]"
+          className="group relative flex min-h-[16rem] flex-1 items-center justify-center overflow-hidden rounded-[22px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.44)] sm:min-h-[24rem] sm:rounded-[28px]"
           onDoubleClick={() => {
             void toggleElementFullscreen(stageRef.current);
           }}

@@ -84,7 +84,12 @@ Recommended desktop job shape:
 - Confirm `TAURI_WEB_URL` points to the intended HTTPS Whispr production origin.
 - Confirm no database, Auth.js, LiveKit, UploadThing, email, Turnstile, Redis, or Prisma secrets are present in desktop source/config.
 - Confirm Tauri capabilities remain limited to notification permissions.
+- Confirm Tauri window permissions remain limited to close, minimize, maximize, and drag for the custom desktop titlebar.
 - Confirm external navigation still opens in the system browser.
 - Confirm OAuth provider navigation remains limited to active Auth.js sign-in/callback flow.
+- Confirm `whispr://` deep links are restricted to allowed internal routes and do not open arbitrary origins.
+- Confirm the single-instance plugin focuses the existing app window instead of creating duplicate voice/socket sessions.
+- Confirm desktop notification previews are disabled by default unless the user enables them locally.
+- Confirm Settings -> About -> Desktop Diagnostics reports expected origin, network, socket, notification, and voice state.
 - Confirm generated installer is not committed.
 - Complete the desktop QA checklist in `QA.md`.

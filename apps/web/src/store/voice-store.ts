@@ -12,6 +12,7 @@ export const DEFAULT_PARTICIPANT_VOLUME = 100;
 export const MAX_PARTICIPANT_VOLUME = 100;
 export const MIN_PARTICIPANT_VOLUME = 0;
 export const DEFAULT_AUDIO_DEVICE_ID = "default";
+export const DEFAULT_CAMERA_DEVICE_ID = DEFAULT_AUDIO_DEVICE_ID;
 export const VOICE_PREFERENCES_STORAGE_KEY = "wizards-voice";
 
 export interface VoiceAudioPreferences {
@@ -32,6 +33,22 @@ export const DEFAULT_VOICE_AUDIO_PREFERENCES: VoiceAudioPreferences = {
   noiseSuppression: true,
   outputDeviceId: DEFAULT_AUDIO_DEVICE_ID,
   voiceIsolation: true,
+};
+
+export type VoiceCameraRotation = 0 | 90 | 180 | 270;
+
+export interface VoiceCameraPreferences {
+  backgroundBlur: boolean;
+  deviceId: string;
+  mirrorPreview: boolean;
+  rotation: VoiceCameraRotation;
+}
+
+export const DEFAULT_VOICE_CAMERA_PREFERENCES: VoiceCameraPreferences = {
+  backgroundBlur: false,
+  deviceId: DEFAULT_CAMERA_DEVICE_ID,
+  mirrorPreview: true,
+  rotation: 0,
 };
 
 const CLEAN_VOICE_PROCESSING_VERSION = 2;
@@ -95,6 +112,32 @@ export function sanitizeAudioPreferences(value: unknown): VoiceAudioPreferences 
   };
 }
 
+function sanitizeCameraRotation(value: unknown): VoiceCameraRotation {
+  return value === 90 || value === 180 || value === 270 ? value : 0;
+}
+
+export function sanitizeCameraPreferences(value: unknown): VoiceCameraPreferences {
+  if (!isRecord(value)) {
+    return DEFAULT_VOICE_CAMERA_PREFERENCES;
+  }
+
+  return {
+    backgroundBlur:
+      typeof value.backgroundBlur === "boolean"
+        ? value.backgroundBlur
+        : DEFAULT_VOICE_CAMERA_PREFERENCES.backgroundBlur,
+    deviceId:
+      typeof value.deviceId === "string" && value.deviceId.trim()
+        ? value.deviceId
+        : DEFAULT_VOICE_CAMERA_PREFERENCES.deviceId,
+    mirrorPreview:
+      typeof value.mirrorPreview === "boolean"
+        ? value.mirrorPreview
+        : DEFAULT_VOICE_CAMERA_PREFERENCES.mirrorPreview,
+    rotation: sanitizeCameraRotation(value.rotation),
+  };
+}
+
 function needsCleanVoiceMigration(value: unknown) {
   return !isRecord(value) || value.audioProcessingVersion !== CLEAN_VOICE_PROCESSING_VERSION;
 }
@@ -117,6 +160,7 @@ function sanitizeScreenShareQuality(value: unknown): ScreenShareQualityId {
 type PersistedVoiceStoreState = {
   audioProcessingVersion: number;
   audioPreferences: VoiceAudioPreferences;
+  cameraPreferences: VoiceCameraPreferences;
   hasConfiguredKrispPreference: boolean;
   participantVolumes: Record<string, number>;
   screenShareQuality: ScreenShareQualityId;
@@ -139,9 +183,14 @@ interface VoiceStoreState extends PersistedVoiceStoreState {
   join: (input: { channelId: string; serverId: string; sessionId: string }) => void;
   leave: () => void;
   resetParticipantVolume: (userId: string) => void;
+  resetCameraPreferences: () => void;
   setAudioPreference: <Key extends keyof VoiceAudioPreferences>(
     key: Key,
     value: VoiceAudioPreferences[Key],
+  ) => void;
+  setCameraPreference: <Key extends keyof VoiceCameraPreferences>(
+    key: Key,
+    value: VoiceCameraPreferences[Key],
   ) => void;
   toggleDeafen: () => void;
   toggleMute: () => void;
@@ -165,6 +214,7 @@ export const useVoiceStore = create<VoiceStoreState>()(
       activeChannelId: null,
       audioProcessingVersion: CLEAN_VOICE_PROCESSING_VERSION,
       audioPreferences: DEFAULT_VOICE_AUDIO_PREFERENCES,
+      cameraPreferences: DEFAULT_VOICE_CAMERA_PREFERENCES,
       clearScreenShareState: () =>
         set({
           isScreenSharing: false,
@@ -228,6 +278,10 @@ export const useVoiceStore = create<VoiceStoreState>()(
             participantVolumes: nextParticipantVolumes,
           };
         }),
+      resetCameraPreferences: () =>
+        set({
+          cameraPreferences: DEFAULT_VOICE_CAMERA_PREFERENCES,
+        }),
       setAudioPreference: (key, value) =>
         set((state) => {
           if (state.audioPreferences[key] === value) {
@@ -240,6 +294,19 @@ export const useVoiceStore = create<VoiceStoreState>()(
               [key]: value,
             },
             ...(key === "krispNoiseCancellation" ? { hasConfiguredKrispPreference: true } : {}),
+          };
+        }),
+      setCameraPreference: (key, value) =>
+        set((state) => {
+          if (state.cameraPreferences[key] === value) {
+            return state;
+          }
+
+          return {
+            cameraPreferences: {
+              ...state.cameraPreferences,
+              [key]: value,
+            },
           };
         }),
       toggleDeafen: () =>
@@ -322,6 +389,7 @@ export const useVoiceStore = create<VoiceStoreState>()(
           hasConfiguredKrispPreference: needsCleanVoiceMigration(persistedState)
             ? false
             : persistedState.hasConfiguredKrispPreference === true,
+          cameraPreferences: sanitizeCameraPreferences(persistedState.cameraPreferences),
           participantVolumes: sanitizeParticipantVolumes(persistedState.participantVolumes),
           screenShareQuality: sanitizeScreenShareQuality(persistedState.screenShareQuality),
         };
@@ -330,6 +398,7 @@ export const useVoiceStore = create<VoiceStoreState>()(
       partialize: (state): PersistedVoiceStoreState => ({
         audioProcessingVersion: state.audioProcessingVersion,
         audioPreferences: state.audioPreferences,
+        cameraPreferences: state.cameraPreferences,
         hasConfiguredKrispPreference: state.hasConfiguredKrispPreference,
         participantVolumes: state.participantVolumes,
         screenShareQuality: state.screenShareQuality,

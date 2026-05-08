@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ConnectionState, LocalVideoTrack, type RemoteVideoTrack, type Room } from "livekit-client";
+import { useShallow } from "zustand/react/shallow";
 import {
   ChevronDown,
   Loader2,
@@ -30,6 +31,7 @@ import {
 import { VoiceSettingsModal } from "@/components/voice/voice-settings-modal";
 import { SCREEN_SHARE_QUALITY_OPTIONS, type ScreenShareQualityId } from "@/lib/voice/screen-share";
 import { cn } from "@/lib/utils";
+import { useVoiceStore } from "@/store/voice-store";
 
 type VoiceChannelViewProps = {
   channelId: string;
@@ -283,6 +285,21 @@ function ParticipantCameraVideo({
   track: LocalVideoTrack | RemoteVideoTrack;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const { mirrorPreview, rotation } = useVoiceStore(
+    useShallow((state) => ({
+      mirrorPreview: state.cameraPreferences.mirrorPreview,
+      rotation: state.cameraPreferences.rotation,
+    })),
+  );
+  const localPreviewStyle = useMemo<CSSProperties | undefined>(() => {
+    if (!isLocal) {
+      return undefined;
+    }
+
+    return {
+      transform: `scaleX(${mirrorPreview ? -1 : 1}) rotate(${rotation}deg)`,
+    };
+  }, [isLocal, mirrorPreview, rotation]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -301,11 +318,12 @@ function ParticipantCameraVideo({
   return (
     <video
       autoPlay
-      className={cn("h-full w-full bg-black object-cover", isLocal && "-scale-x-100")}
+      className="h-full w-full bg-black object-cover"
       data-testid="voice-participant-camera-video"
       muted={isLocal}
       playsInline
       ref={videoRef}
+      style={localPreviewStyle}
     />
   );
 }
@@ -496,7 +514,7 @@ function VoiceParticipantsSidebar({
   const { t } = useI18n();
 
   return (
-    <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-[30px] border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.62)] p-3 shadow-[0_18px_54px_hsl(var(--shadow-color)/0.07)] xl:p-4">
+    <aside className="flex max-h-44 min-h-0 flex-col overflow-hidden rounded-[24px] border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.62)] p-3 shadow-[0_18px_54px_hsl(var(--shadow-color)/0.07)] xl:h-full xl:max-h-none xl:rounded-[30px] xl:p-4">
       <div className="mb-3 flex shrink-0 items-center justify-between gap-3 px-1">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-app-soft">
           {t("voice.room.participantsTitle", { count: participants.length })}
@@ -603,7 +621,7 @@ function RoomControlButton({
     <button
       aria-label={ariaLabel}
       className={cn(
-        "group flex min-w-[4.75rem] flex-col items-center gap-1 rounded-[22px] border px-3 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+        "group flex min-w-[4rem] flex-col items-center gap-1 rounded-[20px] border px-2 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:min-w-[4.75rem] sm:rounded-[22px] sm:px-3",
         destructive
           ? "border-[hsl(var(--danger)/0.30)] bg-[hsl(var(--danger)/0.12)] text-[hsl(var(--danger))] hover:bg-[hsl(var(--danger)/0.18)] focus-visible:ring-[hsl(var(--danger)/0.45)]"
           : active
@@ -618,13 +636,13 @@ function RoomControlButton({
       title={title}
       type="button"
     >
-      <span className="relative flex h-11 w-11 items-center justify-center rounded-full border border-current/10 bg-white/44 shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]">
+      <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-current/10 bg-white/44 shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)] sm:h-11 sm:w-11">
         {icon}
         {showChevron ? (
           <ChevronDown className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-card))] p-0.5 text-app-soft" />
         ) : null}
       </span>
-      <span className="max-w-[5.25rem] truncate">{label}</span>
+      <span className="max-w-[4.25rem] truncate sm:max-w-[5.25rem]">{label}</span>
       {children}
     </button>
   );
@@ -666,8 +684,8 @@ function VoiceControlBar({
 
   return (
     <>
-      <div className="sticky bottom-3 z-20 mt-5 flex justify-center">
-        <div className="flex max-w-full gap-2 overflow-x-auto rounded-[30px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] p-2 shadow-[0_24px_70px_hsl(var(--shadow-color)/0.14)] backdrop-blur-xl">
+      <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-20 mt-4 flex justify-center sm:bottom-3 sm:mt-5">
+        <div className="flex max-w-full gap-1.5 overflow-x-auto overscroll-x-contain rounded-[26px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.9)] p-1.5 shadow-[0_24px_70px_hsl(var(--shadow-color)/0.14)] backdrop-blur-xl sm:gap-2 sm:rounded-[30px] sm:p-2">
           <RoomControlButton
             active={isMuted}
             ariaLabel={isMuted ? t("voice.controls.unmute") : t("voice.controls.mute")}
@@ -801,11 +819,11 @@ function ScreenShareStage({
 
   return (
     <div
-      className="grid h-full min-h-0 gap-3 overflow-hidden lg:grid-cols-[minmax(0,1fr)_14rem]"
+      className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-3 overflow-hidden lg:grid-cols-[minmax(0,1fr)_14rem] lg:grid-rows-1"
       data-testid="voice-screen-share-stage"
     >
-      <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.72)] p-3 sm:p-4">
-        <div className="mb-3 flex shrink-0 flex-col gap-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-[24px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.72)] p-2.5 sm:rounded-[28px] sm:p-4">
+        <div className="mb-2 flex shrink-0 flex-col gap-2 sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-app-soft">
               {t("voice.screenShare.stage")}
@@ -816,15 +834,15 @@ function ScreenShareStage({
                 : t("voice.screenShare.sharedBy", { name: sharerName })}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             <div
               aria-label={t("voice.screenShare.focusLabel")}
-              className="inline-flex rounded-2xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-soft)/0.44)] p-1"
+              className="grid w-full grid-cols-2 rounded-2xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-soft)/0.44)] p-1 sm:inline-flex sm:w-auto"
               role="group"
             >
               <button
                 className={cn(
-                  "inline-flex min-h-9 items-center gap-2 rounded-xl px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  "inline-flex min-h-9 items-center justify-center gap-2 rounded-xl px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                   primaryFocus === "screen"
                     ? "bg-[hsl(var(--surface-card))] text-app-foreground shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]"
                     : "text-app-muted hover:text-app-foreground",
@@ -838,7 +856,7 @@ function ScreenShareStage({
               </button>
               <button
                 className={cn(
-                  "inline-flex min-h-9 items-center gap-2 rounded-xl px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  "inline-flex min-h-9 items-center justify-center gap-2 rounded-xl px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                   primaryFocus === "camera"
                     ? "bg-[hsl(var(--surface-card))] text-app-foreground shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]"
                     : "text-app-muted hover:text-app-foreground",
@@ -855,7 +873,7 @@ function ScreenShareStage({
             </div>
             {activeShare?.isLocal ? (
               <button
-                className="min-h-10 rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.12)] px-4 py-2 text-sm font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="min-h-10 w-full rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.12)] px-4 py-2 text-sm font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:w-auto"
                 onClick={onStopShare}
                 type="button"
               >
@@ -913,7 +931,7 @@ function ScreenShareStage({
 
           {primaryFocus === "screen" && activeCameraParticipant && activeCameraTrack ? (
             <button
-              className="absolute bottom-4 right-4 z-10 w-[min(14rem,46vw)] overflow-hidden rounded-[22px] border border-white/22 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.28)] transition hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              className="absolute bottom-3 right-3 z-10 w-[min(12rem,54vw)] overflow-hidden rounded-[18px] border border-white/22 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.28)] transition hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:bottom-4 sm:right-4 sm:w-[min(14rem,46vw)] sm:rounded-[22px]"
               data-testid="voice-stage-camera-pip"
               onClick={() => onSelectStageFocus("camera")}
               type="button"
@@ -936,7 +954,7 @@ function ScreenShareStage({
 
           {primaryFocus === "camera" && activeShare ? (
             <button
-              className="absolute bottom-4 right-4 z-10 w-[min(15rem,50vw)] overflow-hidden rounded-[22px] border border-white/22 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.28)] transition hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              className="absolute bottom-3 right-3 z-10 w-[min(12rem,54vw)] overflow-hidden rounded-[18px] border border-white/22 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.28)] transition hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:bottom-4 sm:right-4 sm:w-[min(15rem,50vw)] sm:rounded-[22px]"
               data-testid="voice-stage-screen-pip"
               onClick={() => onSelectStageFocus("screen")}
               type="button"
@@ -957,14 +975,14 @@ function ScreenShareStage({
             </button>
           ) : null}
 
-          <div className="pointer-events-none absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/46 px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-[0_14px_36px_rgba(0,0,0,0.22)] backdrop-blur-xl transition group-hover:opacity-100">
+          <div className="pointer-events-none absolute bottom-4 left-4 hidden items-center gap-2 rounded-full border border-white/20 bg-black/46 px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-[0_14px_36px_rgba(0,0,0,0.22)] backdrop-blur-xl transition group-hover:opacity-100 sm:inline-flex">
             <Maximize2 className="h-3.5 w-3.5" />
             {t("screenShare.fullscreenHint")}
           </div>
         </div>
       </div>
 
-      <aside className="flex h-full min-h-0 flex-col overflow-y-auto rounded-[28px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.58)] p-3">
+      <aside className="flex max-h-48 min-h-0 flex-col overflow-y-auto rounded-[24px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.58)] p-3 lg:h-full lg:max-h-none lg:rounded-[28px]">
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-app-soft">
           {t("voice.screenShare.activeShares")}
         </p>
@@ -1284,7 +1302,7 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
 
   return (
     <div
-      className="relative h-full overflow-hidden bg-transparent p-2 sm:p-3 md:p-4"
+      className="relative h-full overflow-hidden bg-transparent p-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3 md:p-4"
       data-testid="voice-channel-view"
     >
       {showReconnectOverlay ? (
@@ -1300,21 +1318,21 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
 
       <div className="flex h-full min-h-0 w-full flex-col">
         <section className="flex h-full min-h-0 flex-1 flex-col bg-transparent p-0">
-          <div className="mb-3 flex shrink-0 flex-col gap-3 px-1 sm:flex-row sm:items-start sm:justify-between">
+          <div className="mb-2 flex shrink-0 flex-col gap-2 px-1 sm:mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-app-soft">
                 {t("voice.view.eyebrow")}
               </p>
-              <h2 className="mt-2 text-2xl font-semibold text-app-foreground">
+              <h2 className="mt-1 text-xl font-semibold text-app-foreground sm:mt-2 sm:text-2xl">
                 {t("voice.view.title")}
               </h2>
-              <p className="mt-2 text-sm font-medium text-app-muted">
+              <p className="mt-1 text-sm font-medium text-app-muted sm:mt-2">
                 {t("voice.view.participants", { count: participantCount })}
               </p>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.10)] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--primary))]">
+            <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.10)] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--primary))]">
               <Sparkles className="h-3.5 w-3.5" />
-              {t("voice.room.premiumSignal")}
+              <span className="truncate">{t("voice.room.premiumSignal")}</span>
             </div>
           </div>
 
@@ -1336,7 +1354,7 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
             </div>
           ) : null}
 
-          <div className="grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,1fr)_20rem]">
+          <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3 overflow-hidden xl:grid-cols-[minmax(0,1fr)_20rem] xl:grid-rows-1 xl:gap-4">
             <div className="h-full min-h-0 min-w-0 overflow-hidden">
               {screenShares.length > 0 ? (
                 <ScreenShareStage

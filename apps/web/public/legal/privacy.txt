@@ -1,0 +1,351 @@
+Whispr Gizlilik Politikası
+
+Son Güncelleme Tarihi: 08.05.2026
+Proje / Hizmet: Whispr
+Planlanan Ticari Unvan: CDX Software
+İletişim: support@whispr.team
+
+1. Giriş
+
+Bu Gizlilik Politikası, CDX Software ticari unvanı altında yürütülmesi planlanan Whispr uygulaması, web sitesi, masaüstü uygulaması, mobil uygulaması, API servisleri ve bunlara bağlı tüm hizmetlerin kullanımı sırasında kişisel verilerin nasıl toplandığını, işlendiğini, saklandığını, aktarıldığını ve korunduğunu açıklar.
+
+Whispr, CDX Software ticari unvanı altında yürütülmesi planlanan bir yazılım projesidir. CDX Software’in şirket kuruluş süreci tamamlanana kadar bu belgede “CDX Software” ifadesi, Whispr projesini yürüten proje sahibini ve ileride kurulması planlanan ticari yapıyı ifade eder. Şirket kuruluşu tamamlandığında bu belge resmi şirket unvanı, adresi ve diğer yasal bilgilerle güncellenecektir.
+
+Whispr; mesajlaşma, sesli görüşme, görüntülü görüşme, ekran paylaşımı, topluluk yönetimi, ekip iletişimi, arkadaşlık sistemi, kullanıcı profilleri ve benzeri iletişim özellikleri sunan bir platformdur.
+
+Bu politika; kullanıcılar, ziyaretçiler, hesap sahipleri, topluluk yöneticileri, ekip üyeleri, oyun toplulukları, kurumsal kullanıcılar ve Whispr hizmetleriyle etkileşime geçen diğer kişiler için geçerlidir.
+
+2. Veri Sorumlusu
+
+Şirket kuruluş süreci tamamlanana kadar Whispr hizmeti ve veri işleme süreçleri proje sahibi tarafından yönetilir. Bu süreçte kişisel veri talepleri, gizlilik talepleri ve destek talepleri için support@whispr.team adresi kullanılabilir.
+
+CDX Software şirket kuruluşu tamamlandıktan sonra veri sorumlusu bilgileri, resmi şirket unvanı, adresi ve gerekli diğer yasal bilgilerle güncellenecektir.
+
+İletişim:
+support@whispr.team
+
+Adres:
+Şirket kuruluş süreci tamamlandıktan sonra güncellenecektir.
+
+3. Topladığımız Kişisel Veriler
+
+Whispr’i kullanırken aşağıdaki veri kategorileri işlenebilir.
+
+3.1. Hesap Bilgileri
+
+- Ad ve soyad
+- Kullanıcı adı
+- E-posta adresi
+- Şifre hash değeri
+- Profil fotoğrafı
+- Dil tercihi
+- Tema tercihi
+- Hesap oluşturma tarihi
+- Hesap durumu
+- Kullanıcı ID bilgisi
+
+Şifreler düz metin olarak saklanmaz. Kullanıcı şifreleri güvenli hash algoritmaları kullanılarak saklanır.
+
+3.2. Profil ve Kullanıcı Tercihleri
+
+- Biyografi
+- Durum mesajı
+- Çevrimiçi / çevrimdışı durumu
+- Son görülme bilgisi
+- Bildirim tercihleri
+- Gizlilik tercihleri
+- Engellenen kullanıcılar
+- Arkadaşlık ilişkileri
+- Topluluk ve sunucu üyelikleri
+
+3.3. İletişim İçeriği
+
+Whispr’in özelliklerine göre aşağıdaki içerikler işlenebilir:
+
+- Direkt mesajlar
+- Grup mesajları
+- Kanal mesajları
+- Dosya paylaşımları
+- Emoji, reaksiyon ve yanıtlar
+- Mesaj düzenleme ve silme kayıtları
+- Sesli ve görüntülü görüşme oturum bilgileri
+- Ekran paylaşımı oturum bilgileri
+
+Whispr gerçek zamanlı iletişim hizmeti sunduğu için mesaj ve medya içerikleri hizmetin sağlanması amacıyla sistemlerimizde işlenebilir.
+
+3.4. Teknik Veriler
+
+- IP adresi
+- Cihaz türü
+- İşletim sistemi
+- Tarayıcı türü ve sürümü
+- Uygulama sürümü
+- Oturum bilgileri
+- Hata kayıtları
+- Çökme raporları
+- Performans kayıtları
+- Güvenlik logları
+- Bağlantı zamanı
+- Kullanılan özellikler
+- Yaklaşık konum bilgisi
+
+3.5. Güvenlik ve Moderasyon Verileri
+
+- Giriş denemeleri
+- Şüpheli işlem kayıtları
+- Spam, kötüye kullanım ve ihlal bildirimleri
+- Kullanıcı şikayetleri
+- Engelleme ve raporlama kayıtları
+- Topluluk kurallarının ihlaline ilişkin kayıtlar
+- Hesap kısıtlama veya askıya alma bilgileri
+
+3.6. Çerez ve Benzeri Teknolojilerle Toplanan Veriler
+
+- Oturum çerezleri
+- Tercih çerezleri
+- Analitik çerezleri
+- Güvenlik çerezleri
+- Cihaz tanımlayıcıları
+- Kullanım istatistikleri
+
+Detaylı bilgi için Whispr Çerez Politikası’na bakabilirsiniz.
+
+4. Kişisel Verileri Toplama Yöntemleri
+
+Kişisel verileriniz aşağıdaki yollarla toplanabilir:
+
+- Hesap oluşturmanız
+- Giriş yapmanız
+- Profil bilgilerinizi düzenlemeniz
+- Mesaj göndermeniz
+- Sesli veya görüntülü görüşmeye katılmanız
+- Dosya paylaşmanız
+- Topluluklara katılmanız
+- Destek veya geri bildirim göndermeniz
+- Çerez tercihlerinizi belirlemeniz veya çerezlerin cihazınıza yerleştirilmesi
+- Uygulama ve web sitesi üzerinden otomatik teknik kayıtların oluşması
+
+5. Kişisel Verileri İşleme Amaçlarımız
+
+Kişisel verileriniz aşağıdaki amaçlarla işlenebilir:
+
+- Hesap oluşturma ve kimlik doğrulama
+- Kullanıcı giriş işlemlerinin yürütülmesi
+- Mesajlaşma hizmetlerinin sağlanması
+- Sesli ve görüntülü görüşme özelliklerinin çalıştırılması
+- Arkadaşlık, topluluk ve kanal özelliklerinin sunulması
+- Bildirimlerin gönderilmesi
+- Güvenlik, kötüye kullanım önleme ve dolandırıcılık tespiti
+- Kullanıcı destek süreçlerinin yürütülmesi
+- Hata ayıklama ve performans iyileştirme
+- Hizmet kalitesinin artırılması
+- Yasal yükümlülüklerin yerine getirilmesi
+- Kullanım şartlarının uygulanması
+- Topluluk güvenliğinin sağlanması
+- Kullanıcı deneyiminin kişiselleştirilmesi
+- İstatistiksel ve analitik değerlendirme yapılması
+
+6. Hukuki Sebepler
+
+Kişisel verileriniz, uygulanabilir mevzuata göre aşağıdaki hukuki sebeplerle işlenebilir:
+
+- Bir sözleşmenin kurulması veya ifası için gerekli olması
+- Hukuki yükümlülüklerin yerine getirilmesi
+- Meşru menfaatlerimizin bulunması
+- Bir hakkın tesisi, kullanılması veya korunması
+- Açık rızanızın bulunması
+- Kanunlarda açıkça öngörülmesi
+
+Örneğin, hesap oluşturma ve giriş işlemleri hizmet sözleşmesinin ifası için; güvenlik logları meşru menfaat ve güvenlik amacıyla; pazarlama veya zorunlu olmayan çerezler ise açık rıza temelinde işlenebilir.
+
+7. Mesajlar ve İletişim İçerikleri
+
+Whispr, kullanıcıların birbirleriyle iletişim kurmasını sağlayan bir platformdur. Bu nedenle mesaj, dosya ve medya içerikleri hizmetin çalışması için işlenebilir.
+
+CDX Software, kullanıcı mesajlarını hizmeti sağlamak, güvenliği korumak, kötüye kullanımı önlemek, yasal yükümlülükleri yerine getirmek veya kullanıcı şikayetlerini değerlendirmek dışında incelememeyi hedefler.
+
+Ancak aşağıdaki durumlarda içeriklere erişim gerekebilir:
+
+- Kullanıcının açık şekilde destek talebi göndermesi
+- Yasal makamların geçerli talepleri
+- Güvenlik ihlali veya kötüye kullanım şüphesi
+- Platform kurallarının ciddi ihlali
+- Çocuk güvenliği, tehdit, taciz, dolandırıcılık veya zararlı faaliyet bildirimi
+
+8. Sesli ve Görüntülü Görüşmeler
+
+Whispr, sesli ve görüntülü iletişim özellikleri sunabilir. Bu özelliklerin çalışması için aşağıdaki teknik bilgiler işlenebilir:
+
+- Görüşme oturumu bilgileri
+- Katılımcı bilgileri
+- Bağlantı kalitesi
+- IP adresi
+- Cihaz ve tarayıcı bilgisi
+- Mikrofon, kamera ve ekran paylaşımı izinleri
+- Görüşme süresi
+- Teknik hata kayıtları
+
+Whispr, açıkça belirtilmediği ve kullanıcıdan geçerli onay alınmadığı sürece sesli veya görüntülü görüşmeleri kaydetmez.
+
+9. Dosya ve Medya Paylaşımları
+
+Kullanıcılar Whispr üzerinden dosya, görsel, video veya diğer medya içeriklerini paylaşabilir.
+
+Bu içerikler aşağıdaki amaçlarla işlenebilir:
+
+- İlgili kullanıcılara iletilmek
+- Depolanmak
+- Önizleme oluşturmak
+- Güvenlik taramasından geçirilmek
+- Kötüye kullanımın önlenmesi
+
+Kullanıcılar, paylaştıkları içeriklerin hukuka uygun olmasından kendileri sorumludur.
+
+10. Çocukların Gizliliği
+
+Whispr’i kullanmak için en az 15 yaşında olmanız gerekir. Bulunduğunuz ülkede daha yüksek bir yaş sınırı uygulanıyorsa, o yaş sınırı geçerlidir.
+
+18 yaşından küçük kullanıcıların Whispr’i ebeveyn veya yasal temsilci onayıyla kullanması gerekir.
+
+Whispr, yaş sınırına uymayan veya çocuklara ait kişisel verilerin izinsiz işlendiğini tespit ettiği hesapları kısıtlayabilir, silebilir veya ek doğrulama talep edebilir.
+
+11. Kişisel Verilerin Aktarılması
+
+Kişisel verileriniz aşağıdaki taraflarla paylaşılabilir:
+
+- Bulut altyapı sağlayıcıları
+- Veri tabanı ve barındırma hizmet sağlayıcıları
+- E-posta servis sağlayıcıları
+- Bildirim servisleri
+- Analitik ve hata izleme servisleri
+- Kimlik doğrulama sağlayıcıları
+- Ödeme altyapısı sağlayıcıları
+- Yetkili kamu kurum ve kuruluşları
+- Hukuki danışmanlar ve denetçiler
+- Güvenlik ve kötüye kullanım önleme hizmet sağlayıcıları
+
+Aktarım yalnızca gerekli olduğu ölçüde yapılır.
+
+12. Yurt Dışına Veri Aktarımı
+
+Whispr; barındırma, kimlik doğrulama, e-posta gönderimi, hata izleme, analitik veya sesli/görüntülü iletişim altyapısı için Türkiye dışında bulunan hizmet sağlayıcılarla çalışabilir.
+
+Bu sağlayıcılar arasında Railway, LiveKit, Google, Microsoft, Apple, Discord ve ileride kullanılabilecek benzer teknik hizmet sağlayıcıları yer alabilir. Bu liste, gerçekten kullanılan servisler netleştikçe güncellenmelidir.
+
+Bu durumda kişisel verileriniz, uygulanabilir mevzuata uygun şekilde yurt dışındaki hizmet sağlayıcılara aktarılabilir.
+
+Yurt dışı aktarım için gerekli hukuki mekanizmalar, açık rıza, standart sözleşmeler, yeterlilik kararları veya ilgili mevzuatta öngörülen diğer yöntemler olabilir.
+
+13. Veri Saklama Süreleri
+
+Kişisel verileriniz yalnızca gerekli olduğu süre boyunca saklanır.
+
+Genel saklama yaklaşımı:
+
+| Veri Türü | Saklama Süresi |
+|---|---|
+| Hesap bilgileri | Hesap aktif olduğu sürece |
+| Mesaj içerikleri | Kullanıcı veya sistem tarafından silinene kadar |
+| Güvenlik logları | Genellikle 6-24 ay |
+| Hata kayıtları | Genellikle 3-12 ay |
+| Destek talepleri | Talep kapandıktan sonra makul süre |
+| Çerez verileri | Çerez türüne göre değişir |
+| Yasal kayıtlar | Mevzuatta öngörülen süre boyunca |
+
+Bu süreler ürünün gerçek teknik yapısına göre netleştirilmelidir.
+
+14. Veri Güvenliği
+
+CDX Software, kişisel verilerin güvenliğini sağlamak için teknik ve idari önlemler alır.
+
+Bu önlemler şunları içerebilir:
+
+- Şifrelerin hashlenerek saklanması
+- HTTPS/TLS kullanımı
+- Yetki kontrolü
+- Oturum güvenliği
+- Erişim logları
+- Güvenlik duvarları
+- Rate limiting
+- Kötüye kullanım tespiti
+- Veri tabanı erişim kısıtlamaları
+- Düzenli güvenlik güncellemeleri
+- Yedekleme ve felaket kurtarma önlemleri
+
+Hiçbir sistem tamamen risksiz değildir. Bu nedenle kullanıcıların güçlü şifre kullanması, hesap bilgilerini paylaşmaması ve şüpheli durumları bildirmesi gerekir.
+
+15. Kullanıcı Hakları
+
+Uygulanabilir mevzuata göre aşağıdaki haklara sahip olabilirsiniz:
+
+- Kişisel verilerinizin işlenip işlenmediğini öğrenme
+- İşlenen verilere erişim talep etme
+- Eksik veya yanlış verilerin düzeltilmesini isteme
+- Verilerin silinmesini veya yok edilmesini talep etme
+- İşlemenin sınırlandırılmasını isteme
+- İşlemeye itiraz etme
+- Açık rızaya dayalı işlemlerde rızayı geri çekme
+- Verilerin aktarıldığı üçüncü kişileri öğrenme
+- Otomatik karar verme süreçlerine itiraz etme
+- Zarara uğramanız halinde tazminat talep etme
+- Yetkili veri koruma otoritesine başvurma
+
+Taleplerinizi support@whispr.team adresine iletebilirsiniz.
+
+16. Hesap Silme
+
+Kullanıcılar hesap silme talebinde bulunabilir.
+
+Hesap silindiğinde:
+
+- Profil bilgileri silinebilir veya anonimleştirilebilir.
+- Bazı mesajlar diğer kullanıcıların konuşma geçmişinde görünmeye devam edebilir.
+- Güvenlik, yasal yükümlülük veya uyuşmazlık çözümü için bazı kayıtlar sınırlı süre saklanabilir.
+- Topluluklarda paylaşılan içerikler, sistem bütünlüğü için anonim kullanıcıya bağlanabilir.
+
+17. Üçüncü Taraf Hizmetler
+
+Whispr, bazı özellikler için üçüncü taraf hizmetlerden yararlanabilir.
+
+Örnek:
+
+- Railway: barındırma ve altyapı
+- PostgreSQL: veri tabanı
+- Redis: önbellek, oturum ve gerçek zamanlı durum yönetimi
+- LiveKit: sesli/görüntülü görüşme altyapısı
+- Google: sosyal giriş
+- Microsoft: sosyal giriş
+- Apple: sosyal giriş
+- Discord: sosyal giriş
+- E-posta servis sağlayıcısı: kullanılan servis netleştiğinde güncellenecektir.
+- Hata izleme ve analitik servisleri: kullanılması halinde bu politika güncellenecektir.
+
+Bu üçüncü tarafların kendi gizlilik politikaları geçerli olabilir.
+
+18. Otomatik Karar Verme
+
+Whispr, güvenlik, spam önleme, kötüye kullanım tespiti veya hesap koruma amacıyla otomatik sistemler kullanabilir.
+
+Bu sistemler:
+
+- Şüpheli giriş denemelerini tespit edebilir.
+- Spam davranışlarını sınırlayabilir.
+- Hesapları geçici olarak kısıtlayabilir.
+- Topluluk güvenliği için risk sinyalleri üretebilir.
+
+Önemli sonuç doğuran tamamen otomatik kararlar uygulanacaksa, kullanıcılara ayrıca bilgi verilmelidir.
+
+19. Politika Değişiklikleri
+
+Bu Gizlilik Politikası zaman zaman güncellenebilir.
+
+Önemli değişikliklerde kullanıcılar uygulama içi bildirim, e-posta veya web sitesi üzerinden bilgilendirilebilir.
+
+Güncel politika her zaman Whispr web sitesi veya uygulaması üzerinden erişilebilir olacaktır.
+
+20. İletişim
+
+Gizlilik ve kişisel veri talepleriniz için:
+
+CDX Software
+E-posta: support@whispr.team

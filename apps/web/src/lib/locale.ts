@@ -27,6 +27,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "common.edit": "Edit",
     "common.email": "Email",
     "common.generate": "Generate",
+    "common.hide": "Hide",
     "common.invites": "Invites",
     "common.language": "Dil / Language",
     "common.members": "Members",
@@ -37,11 +38,15 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "common.save": "Save",
     "common.saving": "Saving...",
     "common.settings": "Settings",
+    "common.show": "Show",
     "common.server": "server",
     "common.text": "Text",
     "common.topic": "Topic",
     "common.username": "Username",
     "common.voice": "Voice",
+
+    "auth.controls.dark": "Dark",
+    "auth.controls.light": "Light",
 
     "app.update.badge": "Update ready",
     "app.update.title": "A newer Whispr build is ready",
@@ -405,6 +410,52 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.devices.outputUnsupported":
       "This browser cannot switch speakers directly. Use the system sound output instead.",
     "voice.devices.refresh": "Refresh",
+    "voice.camera.blurDescription":
+      "Adds a soft, privacy-friendly backdrop to your local preview while we keep the outgoing camera track untouched.",
+    "voice.camera.blurTitle": "Soft backdrop",
+    "voice.camera.defaultDevice": "System default camera",
+    "voice.camera.deviceDescription":
+      "Switch cameras without refreshing. New cameras appear as soon as the browser reports them.",
+    "voice.camera.deviceFallback": "Camera {count}",
+    "voice.camera.deviceLabel": "Camera device",
+    "voice.camera.deviceTitle": "Camera device",
+    "voice.camera.enumerationUnsupported":
+      "This browser cannot list cameras until permission is granted. Whispr will use the system default camera.",
+    "voice.camera.liveUpdateHint": "Updates live when cameras are plugged in or removed.",
+    "voice.camera.loading": "Checking cameras...",
+    "voice.camera.mirrorBadge": "Mirrored",
+    "voice.camera.mirrorDescription":
+      "Show your local preview the way a mirror does. Remote video remains unchanged.",
+    "voice.camera.mirrorTitle": "Mirror preview",
+    "voice.camera.previewBadge": "Local preview",
+    "voice.camera.previewDenied":
+      "Camera access was blocked. Allow camera access in your browser or system privacy settings, then try again.",
+    "voice.camera.previewDescription":
+      "Check framing, lighting, mirror, rotation, and soft backdrop before turning video on in a room.",
+    "voice.camera.previewDeviceUnavailable":
+      "That camera is not available right now. It may be unplugged, busy in another app, or blocked by the OS.",
+    "voice.camera.previewError": "The camera preview could not be started right now.",
+    "voice.camera.previewIdleDescription":
+      "Start preview when you are ready. Whispr will not request camera access before you do.",
+    "voice.camera.previewIdleTitle": "Preview is off",
+    "voice.camera.previewReady": "Preview running",
+    "voice.camera.previewReadyDescription":
+      "Live preview from {device}. This stream stays local and stops when you leave settings.",
+    "voice.camera.previewStarting": "Starting camera...",
+    "voice.camera.previewTitle": "Camera check",
+    "voice.camera.previewUnsupported": "Camera preview is not supported in this browser.",
+    "voice.camera.privacyDescription":
+      "Preview uses browser/Tauri media permission prompts, stores only safe local preferences, and stops all tracks when closed.",
+    "voice.camera.privacyTitle": "Private by default",
+    "voice.camera.refresh": "Refresh",
+    "voice.camera.reset": "Reset camera settings",
+    "voice.camera.rotateLeft": "Rotate left",
+    "voice.camera.rotateLeftDescription": "Turn the local preview 90 degrees counter-clockwise.",
+    "voice.camera.rotateRight": "Rotate right",
+    "voice.camera.rotateRightDescription": "Turn the local preview 90 degrees clockwise.",
+    "voice.camera.rotationBadge": "{degrees}°",
+    "voice.camera.startPreview": "Start preview",
+    "voice.camera.stopPreview": "Stop preview",
     "voice.settings.noiseSuppression": "Noise suppression",
     "voice.settings.noiseSuppressionDesc":
       "Reduces steady background sounds like fans, keyboard rumble, and room noise.",
@@ -437,7 +488,39 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
 
     "auth.layout.badge": "WHISPR WORKSPACE",
     "auth.layout.description":
-      "Whispr brings secure sign-in, realtime messaging, voice rooms, screen sharing, media-rich chat, and video-ready collaboration into one focused workspace.",
+      "Whispr keeps corporate teams, individual conversations, and game communities connected with calm, secure realtime communication.",
+    "auth.layout.heroCopy.0.description":
+      "Whispr helps organizations, individuals, and game communities\ncommunicate, collaborate, and stay securely connected.",
+    "auth.layout.heroCopy.0.titleLineOne": "Secure communication,",
+    "auth.layout.heroCopy.0.titleLineTwo": "for every community.",
+    "auth.layout.heroCopy.1.description":
+      "Whispr brings messaging, voice, video, and screen sharing\ntogether in permission-aware secure spaces.\nTeams and communities keep moving without friction.",
+    "auth.layout.heroCopy.1.titleLineOne": "Your privacy protected,",
+    "auth.layout.heroCopy.1.titleLineTwo": "your flow accelerated.",
+    "auth.layout.heroCopy.2.description":
+      "Voice rooms, video calls, and file sharing meet in one calm experience.\nYour connection stays secure, and control stays with you.",
+    "auth.layout.heroCopy.2.titleLineOne": "Live collaboration,",
+    "auth.layout.heroCopy.2.titleLineTwo": "wherever work happens.",
+    "auth.layout.heroCopy.3.description":
+      "From corporate teams to private chats and game communities,\nWhispr simplifies trusted communication.\nFast, modern, and privacy-minded.",
+    "auth.layout.heroCopy.3.titleLineOne": "Teams, friends,",
+    "auth.layout.heroCopy.3.titleLineTwo": "and players in one place.",
+    "auth.layout.loginDescription":
+      "Whispr helps organizations, individuals, and game communities communicate, collaborate, and stay securely connected.",
+    "auth.layout.registerDescription":
+      "Join Whispr and communicate securely and continuously with your teams, friends, or game communities.\nChoose your experience and join the platform.",
+    "auth.layout.audience.gamer.description":
+      "Join communities, build your team,\nand reach victories together.",
+    "auth.layout.audience.gamer.title": "Gamer",
+    "auth.layout.audience.heading": "Who is Whispr for?",
+    "auth.layout.audience.note":
+      "Your choice personalizes the experience; sign-in and account flows are similar.",
+    "auth.layout.audience.personal.description":
+      "Talk with friends, share files,\nand stay connected anytime.",
+    "auth.layout.audience.personal.title": "Individual User",
+    "auth.layout.audience.team.description":
+      "Organize team communication, manage projects,\nand create together.",
+    "auth.layout.audience.team.title": "Corporate / Team",
     "auth.layout.feature.customizable.description":
       "Email verification, Turnstile protection, OAuth sign-in, and permission-aware access help keep every workspace safer.",
     "auth.layout.feature.customizable.title": "Secure by default",
@@ -460,11 +543,20 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.layout.signal.3.title": "Protected from the first step",
     "auth.layout.signal.3.description":
       "Email verification, Cloudflare Turnstile, secure OAuth, and server-side permissions protect new and returning users.",
-    "auth.layout.title": "Secure realtime communication for modern teams.",
+    "auth.layout.footerCopyright": "© 2026 Whispr",
+    "auth.layout.footerCookies": "Cookie Policy",
+    "auth.layout.footerPrivacy": "Privacy Policy",
+    "auth.layout.footerTerms": "Terms of Use",
+    "auth.layout.securityLine": "End-to-end encrypted, secure, privacy-minded experience.",
+    "auth.layout.systemStatus": "All systems active",
+    "auth.layout.title": "Secure communication, for every community.",
+    "auth.layout.titleLineOne": "Secure communication,",
+    "auth.layout.titleLineTwo": "for every community.",
+    "auth.layout.welcome": "Welcome",
 
     "auth.login.alertUnavailable": "Unable to log in right now.",
     "auth.login.badge": "Sign In",
-    "auth.login.continue": "Continue to Whispr",
+    "auth.login.continue": "Sign In",
     "auth.login.demoAccount": "Demo Account",
     "auth.login.demoDescription": "Prefills demo credentials instantly.",
     "auth.login.description":
@@ -476,17 +568,23 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.emailNotVerified": "Please verify your email before signing in.",
     "auth.login.emailNotVerifiedHelp":
       "Your password is correct, but this account still needs email verification.",
+    "auth.login.emailLabel": "Email address",
+    "auth.login.emailPlaceholder": "example@email.com",
     "auth.login.invalidCredentials": "Invalid email or password.",
     "auth.login.rateLimited": "Too many sign-in attempts. Please try again later.",
     "auth.login.loggingIn": "Logging in...",
     "auth.login.needAccountDescription":
       "Create a verified profile and start using realtime chat, private DMs, voice collaboration, screen sharing, uploads, and secure workspace controls.",
     "auth.login.needAccountLabel": "Need an account?",
-    "auth.login.createAccount": "Create your account",
+    "auth.login.createAccount": "Create Account",
+    "auth.login.createAccountInline": "Create account",
+    "auth.login.noAccount": "Don't have an account?",
     "auth.login.oauthError": "OAuth sign-in failed. Please try again.",
     "auth.login.oauthLoading": "Loading...",
     "auth.login.orContinueWith": "or continue with",
+    "auth.login.passwordLabel": "Password",
     "auth.login.passwordPlaceholder": "Enter your password",
+    "auth.login.rememberMe": "Remember me",
     "auth.login.resendVerification": "Resend verification email",
     "auth.login.resendingVerification": "Sending verification email...",
     "auth.login.sharedDemoWorkspace": "Shared demo workspace",
@@ -508,16 +606,25 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "The link expires in 24 hours. If it does not arrive, check your spam folder or try registering again after the resend cooldown.",
     "auth.register.checkEmailMessage": "Check your email to verify your account.",
     "auth.register.checkEmailTitle": "Check your inbox",
-    "auth.register.confirmPasswordPlaceholder": "Repeat your password",
+    "auth.register.confirmPasswordLabel": "Confirm Password",
+    "auth.register.confirmPasswordPlaceholder": "At least 8 characters",
     "auth.register.creating": "Creating account...",
     "auth.register.description":
-      "Create a verified Whispr account for secure messaging, servers, DMs, voice rooms, screen sharing, media uploads, GIFs, reactions, and video-ready collaboration.",
+      "Choose the profile type that best fits your experience.\nYour choice personalizes your experience.",
     "auth.register.emailTaken": "Email already taken.",
+    "auth.register.fullNameLabel": "Full Name",
+    "auth.register.fullNamePlaceholder": "Enter your full name",
     "auth.register.rateLimited": "Too many registration attempts. Please try again later.",
     "auth.register.haveAccount": "Already have an account?",
-    "auth.register.passwordPlaceholder": "Create a strong password",
+    "auth.register.orSignUpWith": "or sign up with",
+    "auth.register.passwordHelp":
+      "A strong password contains letters, numbers, and special characters.",
+    "auth.register.passwordLabel": "Password",
+    "auth.register.passwordPlaceholder": "At least 8 characters",
+    "auth.register.privacyLink": "Privacy Policy",
     "auth.register.signIn": "Sign in",
-    "auth.register.title": "Create an account",
+    "auth.register.termsLink": "Terms of Use",
+    "auth.register.title": "Join Whispr",
     "auth.register.unable": "Unable to create account.",
     "auth.register.usernameHint": "Only letters, numbers, and underscores",
     "auth.register.usernameTaken": "Username already taken.",
@@ -644,14 +751,30 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.groups.voiceVideo.badge": "Voice & Video",
     "settings.groups.voiceVideo.title": "Voice & Video",
     "settings.groups.voiceVideo.description":
-      "Fine-tune how your microphone is processed today, and preview the communication surfaces planned next.",
+      "Fine-tune your microphone, camera preview, and realtime media surfaces from one focused control room.",
     "settings.voice.audio.title": "Audio",
+    "settings.voice.camera.badge": "Live preview",
     "settings.voice.camera.title": "Camera",
     "settings.voice.camera.description":
-      "Camera controls and video call surfaces arrive in Phase 8. Your current voice setup will stay compatible.",
+      "Choose your camera, preview your framing, and tune local preview controls before turning video on.",
     "settings.voice.screenShare.title": "Screen Sharing",
     "settings.voice.screenShare.description":
       "Richer screen sharing controls will land in Phase 8 with the same visual language and room flow.",
+    "settings.voice.desktopPermissions.title": "Desktop media safety",
+    "settings.voice.desktopPermissions.description":
+      "Whispr Desktop keeps media permissions in the shared web layer while the native shell handles window close and lifecycle cleanup.",
+    "settings.voice.desktopPermissions.microphone.label": "Microphone",
+    "settings.voice.desktopPermissions.microphone.value":
+      "Uses the browser permission prompt and the selected Whispr input device.",
+    "settings.voice.desktopPermissions.camera.label": "Camera",
+    "settings.voice.desktopPermissions.camera.value":
+      "Requested only when the user starts camera preview or turns video on.",
+    "settings.voice.desktopPermissions.screenShare.label": "Screen share",
+    "settings.voice.desktopPermissions.screenShare.value":
+      "Requires explicit user selection and stops through the existing LiveKit flow.",
+    "settings.voice.desktopPermissions.cleanup.label": "Close behavior",
+    "settings.voice.desktopPermissions.cleanup.value":
+      "The desktop shell signals Whispr before quit so voice and screen share cleanup can run.",
     "settings.groups.appearance.badge": "Appearance",
     "settings.groups.appearance.title": "Appearance",
     "settings.groups.appearance.description":
@@ -700,6 +823,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.notifications.desktop.title": "Desktop notifications",
     "settings.notifications.desktop.description":
       "Allow native desktop alerts when Whispr is running in a browser context that supports them.",
+    "settings.notifications.desktopPreviews.title": "Show message previews on desktop",
+    "settings.notifications.desktopPreviews.description":
+      "When off, desktop notifications use generic text so private messages are not exposed on the OS notification surface.",
     "settings.notifications.mobile.title": "Mobile notifications",
     "settings.notifications.mobile.description":
       "Keep mobile delivery enabled for account-level notification preferences.",
@@ -755,6 +881,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.about.whatsNew.title": "What’s New",
     "settings.about.whatsNew.description":
       "Review the latest product updates, fixes, polish, and performance improvements included in this Whispr build.",
+    "settings.about.desktop.title": "Desktop Diagnostics",
+    "settings.about.desktop.description":
+      "Inspect the Tauri shell, socket connection, notification permission, and active voice lifecycle without changing your session.",
     "settings.about.developer.title": "Developer Info",
     "settings.about.developer.description":
       "Project ownership and product direction for the Whispr workspace.",
@@ -764,6 +893,44 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "People who helped shape Whispr across product, feedback, and implementation.",
     "settings.about.developer.featuredContributor": "Most popular contributor",
     "settings.about.developer.featuredContributorBadge": "Community favorite",
+
+    "desktop.health.offline.title": "Whispr is offline",
+    "desktop.health.offline.description":
+      "Your current view stays open. Messages, presence, and calls will resume after the network returns.",
+    "desktop.health.socket.title": "Realtime connection is reconnecting",
+    "desktop.health.socket.description":
+      "Whispr is keeping the session alive while Socket.IO reconnects. Avoid sending critical messages until it is back.",
+    "desktop.diagnostics.kicker": "Desktop",
+    "desktop.diagnostics.title": "Desktop readiness check",
+    "desktop.diagnostics.description":
+      "A quick health panel for the secure Tauri wrapper, realtime socket, media lifecycle, and notification surface.",
+    "desktop.diagnostics.runtime.desktop": "desktop",
+    "desktop.diagnostics.runtime.web": "web",
+    "desktop.diagnostics.origin.label": "Web origin",
+    "desktop.diagnostics.origin.allowed": "allowed",
+    "desktop.diagnostics.origin.browser": "browser",
+    "desktop.diagnostics.network.label": "Network",
+    "desktop.diagnostics.network.detail":
+      "Uses the same authenticated web, API, and socket flows as Whispr Web.",
+    "desktop.diagnostics.network.online": "online",
+    "desktop.diagnostics.network.offline": "offline",
+    "desktop.diagnostics.socket.label": "Socket.IO",
+    "desktop.diagnostics.socket.detail":
+      "Realtime messaging, presence, notifications, and channel updates depend on this connection.",
+    "desktop.diagnostics.socket.connected": "connected",
+    "desktop.diagnostics.socket.disconnected": "reconnecting",
+    "desktop.diagnostics.voice.label": "Voice lifecycle",
+    "desktop.diagnostics.voice.detail":
+      "Voice cleanup is signaled before desktop quit without storing tokens or passwords locally.",
+    "desktop.diagnostics.voice.connected": "connected",
+    "desktop.diagnostics.voice.idle": "idle",
+    "desktop.diagnostics.notifications.label": "Notifications",
+    "desktop.diagnostics.notifications.detail":
+      "Native alerts stay permission-gated and can hide message previews for privacy.",
+    "desktop.diagnostics.shell.label": "Native shell",
+    "desktop.diagnostics.shell.detail":
+      "Tray actions, single-instance focus, safe deep links, and external-link handoff are additive desktop behavior.",
+    "desktop.diagnostics.shell.ready": "ready",
 
     "appearance.page.badge": "User Settings",
     "appearance.page.description":
@@ -776,6 +943,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "appearance.language.title": "Choose your interface language",
     "appearance.language.tr": "TR",
     "appearance.language.en": "EN",
+    "appearance.language.trFull": "Turkish",
+    "appearance.language.enFull": "English",
     "appearance.language.eyebrow": "Dil / Language",
     "appearance.serverRail.eyebrow": "Server Rail",
     "appearance.serverRail.title": "Widen the server column to reduce crowding",
@@ -1434,6 +1603,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "common.edit": "Düzenle",
     "common.email": "E-posta",
     "common.generate": "Oluştur",
+    "common.hide": "Gizle",
     "common.invites": "Davetler",
     "common.language": "Dil / Language",
     "common.members": "Üyeler",
@@ -1444,11 +1614,15 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "common.save": "Kaydet",
     "common.saving": "Kaydediliyor...",
     "common.settings": "Ayarlar",
+    "common.show": "Göster",
     "common.server": "sunucu",
     "common.text": "Yazı",
     "common.topic": "Konu",
     "common.username": "Kullanıcı Adı",
     "common.voice": "Sesli",
+
+    "auth.controls.dark": "Koyu",
+    "auth.controls.light": "Açık",
 
     "app.update.badge": "Güncelleme hazır",
     "app.update.title": "Yeni bir Whispr sürümü hazır",
@@ -1815,6 +1989,53 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.devices.outputUnsupported":
       "Bu tarayıcı hoparlörü doğrudan değiştiremiyor. Sistem ses çıkışını kullan.",
     "voice.devices.refresh": "Yenile",
+    "voice.camera.blurDescription":
+      "Giden kamera akışına dokunmadan yerel önizlemene gizlilik dostu yumuşak bir arka plan ekler.",
+    "voice.camera.blurTitle": "Yumuşak arka plan",
+    "voice.camera.defaultDevice": "Sistem varsayılan kamerası",
+    "voice.camera.deviceDescription":
+      "Sayfayı yenilemeden kamera değiştir. Yeni kameralar tarayıcı bildirdiği anda görünür.",
+    "voice.camera.deviceFallback": "Kamera {count}",
+    "voice.camera.deviceLabel": "Kamera aygıtı",
+    "voice.camera.deviceTitle": "Kamera aygıtı",
+    "voice.camera.enumerationUnsupported":
+      "Bu tarayıcı izin verilmeden kameraları listeleyemiyor. Whispr sistem varsayılan kamerasını kullanacak.",
+    "voice.camera.liveUpdateHint":
+      "Kamera takıldığında veya çıkarıldığında liste canlı güncellenir.",
+    "voice.camera.loading": "Kameralar kontrol ediliyor...",
+    "voice.camera.mirrorBadge": "Aynalı",
+    "voice.camera.mirrorDescription":
+      "Yerel önizlemeni ayna gibi gösterir. Uzak video değişmeden kalır.",
+    "voice.camera.mirrorTitle": "Önizlemeyi aynala",
+    "voice.camera.previewBadge": "Yerel önizleme",
+    "voice.camera.previewDenied":
+      "Kamera erişimi engellendi. Tarayıcı veya sistem gizlilik ayarlarından kamera izni verip tekrar dene.",
+    "voice.camera.previewDescription":
+      "Bir odada videoyu açmadan önce kadrajını, ışığını, aynalamayı, rotasyonu ve yumuşak arka planı kontrol et.",
+    "voice.camera.previewDeviceUnavailable":
+      "Bu kamera şu anda kullanılamıyor. Çıkarılmış, başka bir uygulamada meşgul veya işletim sistemi tarafından engellenmiş olabilir.",
+    "voice.camera.previewError": "Kamera önizlemesi şu anda başlatılamadı.",
+    "voice.camera.previewIdleDescription":
+      "Hazır olduğunda önizlemeyi başlat. Whispr sen başlatmadan kamera erişimi istemez.",
+    "voice.camera.previewIdleTitle": "Önizleme kapalı",
+    "voice.camera.previewReady": "Önizleme çalışıyor",
+    "voice.camera.previewReadyDescription":
+      "{device} üzerinden canlı önizleme. Bu akış yerel kalır ve ayarlardan çıkınca durur.",
+    "voice.camera.previewStarting": "Kamera açılıyor...",
+    "voice.camera.previewTitle": "Kamera kontrolü",
+    "voice.camera.previewUnsupported": "Bu tarayıcı kamera önizlemesini desteklemiyor.",
+    "voice.camera.privacyDescription":
+      "Önizleme tarayıcı/Tauri medya izinlerini kullanır, yalnızca güvenli yerel tercihleri saklar ve kapatıldığında tüm track'leri durdurur.",
+    "voice.camera.privacyTitle": "Varsayılan olarak gizli",
+    "voice.camera.refresh": "Yenile",
+    "voice.camera.reset": "Kamera ayarlarını sıfırla",
+    "voice.camera.rotateLeft": "Sola döndür",
+    "voice.camera.rotateLeftDescription": "Yerel önizlemeyi saat yönünün tersine 90 derece çevir.",
+    "voice.camera.rotateRight": "Sağa döndür",
+    "voice.camera.rotateRightDescription": "Yerel önizlemeyi saat yönünde 90 derece çevir.",
+    "voice.camera.rotationBadge": "{degrees}°",
+    "voice.camera.startPreview": "Önizlemeyi başlat",
+    "voice.camera.stopPreview": "Önizlemeyi durdur",
     "voice.settings.noiseSuppression": "Gürültü engelleme",
     "voice.settings.noiseSuppressionDesc":
       "Fan, klavye uğultusu ve oda gürültüsü gibi sürekli arka plan seslerini azaltır.",
@@ -1847,7 +2068,39 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
 
     "auth.layout.badge": "WHISPR WORKSPACE",
     "auth.layout.description":
-      "Whispr; güvenli giriş, gerçek zamanlı mesajlaşma, ses odaları, ekran paylaşımı, zengin medya sohbeti ve video görüşmeye hazır iş birliğini tek odaklı çalışma alanında toplar.",
+      "Whispr; kurumsal ekipleri, bireysel sohbetleri ve oyun topluluklarını sakin, güvenli ve gerçek zamanlı iletişimle bağlı tutar.",
+    "auth.layout.heroCopy.0.description":
+      "Whispr, kurumların, bireylerin ve oyun topluluklarının\niletişimini güçlendiren, iş birliğini ve bağlantıyı\nkolaylaştıran güvenli bir platformdur.",
+    "auth.layout.heroCopy.0.titleLineOne": "Güvenli iletişim,",
+    "auth.layout.heroCopy.0.titleLineTwo": "her topluluk için.",
+    "auth.layout.heroCopy.1.description":
+      "Whispr; mesajlaşma, ses, görüntü ve ekran paylaşımını\nizin kontrollü güvenli alanlarda bir araya getirir.\nEkipler ve topluluklar kesintisiz çalışır.",
+    "auth.layout.heroCopy.1.titleLineOne": "Gizliliğiniz korunur,",
+    "auth.layout.heroCopy.1.titleLineTwo": "akışınız hızlanır.",
+    "auth.layout.heroCopy.2.description":
+      "Ses odaları, görüntülü görüşmeler ve dosya paylaşımı\ntek bir sakin deneyimde buluşur.\nBağlantınız güvenli, kontrol sizdedir.",
+    "auth.layout.heroCopy.2.titleLineOne": "Canlı iş birliği,",
+    "auth.layout.heroCopy.2.titleLineTwo": "her yerde yanında.",
+    "auth.layout.heroCopy.3.description":
+      "Kurumsal ekiplerden özel sohbetlere ve oyun topluluklarına\nkadar Whispr güvenilir iletişimi sadeleştirir.\nHızlı, modern ve gizliliğe duyarlı.",
+    "auth.layout.heroCopy.3.titleLineOne": "Takımlar, dostlar,",
+    "auth.layout.heroCopy.3.titleLineTwo": "oyuncular için tek alan.",
+    "auth.layout.loginDescription":
+      "Whispr, kurumların, bireylerin ve oyun topluluklarının\niletişimini güçlendiren, iş birliğini ve bağlantıyı\nkolaylaştıran güvenli bir platformdur.",
+    "auth.layout.registerDescription":
+      "Whispr’e katılın, ekiplerinizle, arkadaşlarınızla veya\noyun topluluklarınızla güvenli ve kesintisiz iletişim kurun.\nDeneyiminizi seçin, platforma katılın.",
+    "auth.layout.audience.gamer.description":
+      "Topluluklara katılın, takımınızı kurun\nve zaferlere birlikte ulaşın.",
+    "auth.layout.audience.gamer.title": "Oyuncu",
+    "auth.layout.audience.heading": "Whispr kimler için?",
+    "auth.layout.audience.note":
+      "Seçiminiz deneyiminizi kişiselleştirir, giriş ve hesap işlemleri benzerdir.",
+    "auth.layout.audience.personal.description":
+      "Arkadaşlarınızla konuşun, dosya\npaylaşın ve her an bağlantıda kalın.",
+    "auth.layout.audience.personal.title": "Bireysel Kullanıcı",
+    "auth.layout.audience.team.description":
+      "Ekip iletişimini düzenleyin, projeleri\nyönetin ve birlikte üretin.",
+    "auth.layout.audience.team.title": "Kurumsal / Takım",
     "auth.layout.feature.customizable.description":
       "E-posta doğrulama, Turnstile koruması, OAuth girişi ve izin kontrollü erişim her çalışma alanını daha güvenli tutar.",
     "auth.layout.feature.customizable.title": "Varsayılan güvenlik",
@@ -1870,11 +2123,21 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.layout.signal.3.title": "İlk adımdan itibaren korumalı",
     "auth.layout.signal.3.description":
       "E-posta doğrulama, Cloudflare Turnstile, güvenli OAuth ve sunucu taraflı izinler yeni ve mevcut kullanıcıları korur.",
-    "auth.layout.title": "Modern ekipler için güvenli gerçek zamanlı iletişim.",
+    "auth.layout.footerCopyright": "© 2026 Whispr",
+    "auth.layout.footerCookies": "Çerez Politikası",
+    "auth.layout.footerPrivacy": "Gizlilik Politikası",
+    "auth.layout.footerTerms": "Kullanım Şartları",
+    "auth.layout.securityLine":
+      "Uçtan uca şifreleme ile güvenli, gizliliğe önem veren bir deneyim.",
+    "auth.layout.systemStatus": "Tüm sistemler aktif",
+    "auth.layout.title": "Güvenli iletişim, her topluluk için.",
+    "auth.layout.titleLineOne": "Güvenli iletişim,",
+    "auth.layout.titleLineTwo": "her topluluk için.",
+    "auth.layout.welcome": "Hoş geldiniz",
 
     "auth.login.alertUnavailable": "Şu anda giriş yapılamıyor.",
     "auth.login.badge": "Giriş Yap",
-    "auth.login.continue": "Whispr'a Devam Et",
+    "auth.login.continue": "Giriş Yap",
     "auth.login.demoAccount": "Demo Hesap",
     "auth.login.demoDescription": "Demo bilgilerini anında doldurur.",
     "auth.login.description":
@@ -1886,17 +2149,23 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.emailNotVerified": "Giriş yapmadan önce e-postanı doğrula.",
     "auth.login.emailNotVerifiedHelp":
       "Şifren doğru, ancak bu hesabın hâlâ e-posta doğrulamasına ihtiyacı var.",
+    "auth.login.emailLabel": "E-posta adresiniz",
+    "auth.login.emailPlaceholder": "ornek@eposta.com",
     "auth.login.invalidCredentials": "E-posta veya şifre hatalı.",
     "auth.login.rateLimited": "Çok fazla giriş denemesi yapıldı. Lütfen daha sonra tekrar dene.",
     "auth.login.loggingIn": "Giriş yapılıyor...",
     "auth.login.needAccountDescription":
       "Doğrulanmış profilini oluştur; gerçek zamanlı sohbet, özel DM, sesli iş birliği, ekran paylaşımı, yüklemeler ve güvenli çalışma alanı kontrollerini kullanmaya başla.",
     "auth.login.needAccountLabel": "Hesabın yok mu?",
-    "auth.login.createAccount": "Hesabını oluştur",
+    "auth.login.createAccount": "Hesap Oluştur",
+    "auth.login.createAccountInline": "Hesap oluşturun",
+    "auth.login.noAccount": "Hesabınız yok mu?",
     "auth.login.oauthError": "OAuth girişi başarısız oldu. Lütfen tekrar dene.",
     "auth.login.oauthLoading": "Yükleniyor...",
     "auth.login.orContinueWith": "veya şununla devam et",
-    "auth.login.passwordPlaceholder": "Şifreni gir",
+    "auth.login.passwordLabel": "Şifreniz",
+    "auth.login.passwordPlaceholder": "Şifrenizi girin",
+    "auth.login.rememberMe": "Beni hatırla",
     "auth.login.resendVerification": "Doğrulama e-postasını yeniden gönder",
     "auth.login.resendingVerification": "Doğrulama e-postası gönderiliyor...",
     "auth.login.sharedDemoWorkspace": "Paylaşılan demo alanı",
@@ -1918,16 +2187,24 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Bağlantı 24 saat içinde sona erer. Gelmezse spam klasörünü kontrol et veya yeniden gönderme bekleme süresinden sonra tekrar kayıt olmayı dene.",
     "auth.register.checkEmailMessage": "Hesabını doğrulamak için e-postanı kontrol et.",
     "auth.register.checkEmailTitle": "Gelen kutunu kontrol et",
-    "auth.register.confirmPasswordPlaceholder": "Şifreni tekrar gir",
+    "auth.register.confirmPasswordLabel": "Şifre Tekrar",
+    "auth.register.confirmPasswordPlaceholder": "En az 8 karakter",
     "auth.register.creating": "Hesap oluşturuluyor...",
     "auth.register.description":
-      "Güvenli mesajlaşma, sunucular, DM'ler, ses odaları, ekran paylaşımı, medya yükleme, GIF'ler, tepkiler ve video görüşmeye hazır iş birliği için doğrulanmış Whispr hesabını oluştur.",
+      "Deneyiminize en uygun profil türünü seçin.\nSeçiminiz, deneyiminizi kişiselleştirir.",
     "auth.register.emailTaken": "Bu e-posta zaten kullanımda.",
+    "auth.register.fullNameLabel": "Ad Soyad",
+    "auth.register.fullNamePlaceholder": "Adınızı ve soyadınızı girin",
     "auth.register.rateLimited": "Çok fazla kayıt denemesi yapıldı. Lütfen daha sonra tekrar dene.",
     "auth.register.haveAccount": "Zaten hesabın var mı?",
-    "auth.register.passwordPlaceholder": "Güçlü bir şifre oluştur",
+    "auth.register.orSignUpWith": "veya şununla kaydolun",
+    "auth.register.passwordHelp": "Güçlü bir şifre; harf, rakam ve özel karakter içerir.",
+    "auth.register.passwordLabel": "Şifre",
+    "auth.register.passwordPlaceholder": "En az 8 karakter",
+    "auth.register.privacyLink": "Gizlilik Politikası",
     "auth.register.signIn": "Giriş yap",
-    "auth.register.title": "Hesap oluştur",
+    "auth.register.termsLink": "Kullanım Şartları",
+    "auth.register.title": "Whispr’e katılın",
     "auth.register.unable": "Hesap oluşturulamadı.",
     "auth.register.usernameHint": "Sadece harf, sayı ve alt çizgi",
     "auth.register.usernameTaken": "Bu kullanıcı adı zaten kullanımda.",
@@ -2053,14 +2330,30 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.groups.voiceVideo.badge": "Ses ve Görüntü",
     "settings.groups.voiceVideo.title": "Ses ve Görüntü",
     "settings.groups.voiceVideo.description":
-      "Mikrofonunun bugün nasıl işlendiğini ayarla ve sıradaki iletişim yüzeylerini şimdiden gör.",
+      "Mikrofonunu, kamera önizlemeni ve gerçek zamanlı medya yüzeylerini tek odaklı kontrol alanından ayarla.",
     "settings.voice.audio.title": "Ses",
+    "settings.voice.camera.badge": "Canlı önizleme",
     "settings.voice.camera.title": "Kamera",
     "settings.voice.camera.description":
-      "Kamera kontrolleri ve görüntülü görüşme yüzeyleri Phase 8 ile gelecek. Mevcut ses kurulumun uyumlu kalacak.",
+      "Videoyu açmadan önce kameranı seç, kadrajını gör ve yerel önizleme kontrollerini ayarla.",
     "settings.voice.screenShare.title": "Ekran Paylaşımı",
     "settings.voice.screenShare.description":
       "Daha zengin ekran paylaşımı kontrolleri Phase 8 ile aynı görsel dil ve oda akışıyla gelecek.",
+    "settings.voice.desktopPermissions.title": "Masaüstü medya güvenliği",
+    "settings.voice.desktopPermissions.description":
+      "Whispr Desktop medya izinlerini ortak web katmanında tutar; native kabuk pencere kapanışı ve yaşam döngüsü temizliğini yönetir.",
+    "settings.voice.desktopPermissions.microphone.label": "Mikrofon",
+    "settings.voice.desktopPermissions.microphone.value":
+      "Tarayıcı izin istemini ve Whispr'da seçili giriş cihazını kullanır.",
+    "settings.voice.desktopPermissions.camera.label": "Kamera",
+    "settings.voice.desktopPermissions.camera.value":
+      "Yalnızca kullanıcı kamera önizlemesini başlatınca veya videoyu açınca istenir.",
+    "settings.voice.desktopPermissions.screenShare.label": "Ekran paylaşımı",
+    "settings.voice.desktopPermissions.screenShare.value":
+      "Açık kullanıcı seçimi gerektirir ve mevcut LiveKit akışı üzerinden durdurulur.",
+    "settings.voice.desktopPermissions.cleanup.label": "Kapanış davranışı",
+    "settings.voice.desktopPermissions.cleanup.value":
+      "Desktop kabuğu çıkmadan önce Whispr'a sinyal gönderir; ses ve ekran paylaşımı temizliği çalışabilir.",
     "settings.groups.appearance.badge": "Görünüm",
     "settings.groups.appearance.title": "Görünüm",
     "settings.groups.appearance.description":
@@ -2109,6 +2402,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.notifications.desktop.title": "Masaüstü bildirimleri",
     "settings.notifications.desktop.description":
       "Whispr destekleyen bir tarayıcı bağlamında çalışırken yerel masaüstü uyarılarına izin ver.",
+    "settings.notifications.desktopPreviews.title": "Masaüstünde mesaj önizlemelerini göster",
+    "settings.notifications.desktopPreviews.description":
+      "Kapalıyken masaüstü bildirimleri genel metin kullanır; özel mesajlar işletim sistemi bildirim alanında görünmez.",
     "settings.notifications.mobile.title": "Mobil bildirimler",
     "settings.notifications.mobile.description":
       "Hesap seviyesindeki bildirim tercihleri için mobil teslimatı açık tut.",
@@ -2164,6 +2460,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.about.whatsNew.title": "Neler Yeni",
     "settings.about.whatsNew.description":
       "Bu Whispr build'i ile gelen son ürün yeniliklerini, düzeltmeleri, tasarım iyileştirmelerini ve performans güncellemelerini incele.",
+    "settings.about.desktop.title": "Masaüstü Tanılama",
+    "settings.about.desktop.description":
+      "Oturumunu değiştirmeden Tauri kabuğunu, socket bağlantısını, bildirim iznini ve aktif ses yaşam döngüsünü incele.",
     "settings.about.developer.title": "Geliştirici Bilgisi",
     "settings.about.developer.description":
       "Whispr çalışma alanının ürün sahipliği ve geliştirme yönü.",
@@ -2173,6 +2472,44 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Whispr'ın ürün, geri bildirim ve geliştirme sürecine katkı sağlayan kişiler.",
     "settings.about.developer.featuredContributor": "En popüler katkıda bulunan",
     "settings.about.developer.featuredContributorBadge": "Topluluk favorisi",
+
+    "desktop.health.offline.title": "Whispr çevrimdışı",
+    "desktop.health.offline.description":
+      "Mevcut görünüm açık kalır. Ağ geri geldiğinde mesajlar, durum bilgisi ve aramalar devam eder.",
+    "desktop.health.socket.title": "Gerçek zamanlı bağlantı yeniden bağlanıyor",
+    "desktop.health.socket.description":
+      "Socket.IO yeniden bağlanırken Whispr oturumu canlı tutar. Geri gelene kadar kritik mesaj göndermekten kaçın.",
+    "desktop.diagnostics.kicker": "Masaüstü",
+    "desktop.diagnostics.title": "Masaüstü hazır olma kontrolü",
+    "desktop.diagnostics.description":
+      "Güvenli Tauri wrapper, gerçek zamanlı socket, medya yaşam döngüsü ve bildirim yüzeyi için hızlı sağlık paneli.",
+    "desktop.diagnostics.runtime.desktop": "masaüstü",
+    "desktop.diagnostics.runtime.web": "web",
+    "desktop.diagnostics.origin.label": "Web origin",
+    "desktop.diagnostics.origin.allowed": "izinli",
+    "desktop.diagnostics.origin.browser": "tarayıcı",
+    "desktop.diagnostics.network.label": "Ağ",
+    "desktop.diagnostics.network.detail":
+      "Whispr Web ile aynı kimliği doğrulanmış web, API ve socket akışlarını kullanır.",
+    "desktop.diagnostics.network.online": "çevrimiçi",
+    "desktop.diagnostics.network.offline": "çevrimdışı",
+    "desktop.diagnostics.socket.label": "Socket.IO",
+    "desktop.diagnostics.socket.detail":
+      "Gerçek zamanlı mesajlaşma, durum bilgisi, bildirimler ve kanal güncellemeleri bu bağlantıya bağlıdır.",
+    "desktop.diagnostics.socket.connected": "bağlı",
+    "desktop.diagnostics.socket.disconnected": "yeniden bağlanıyor",
+    "desktop.diagnostics.voice.label": "Ses yaşam döngüsü",
+    "desktop.diagnostics.voice.detail":
+      "Desktop çıkmadan önce ses temizliği sinyallenir; parola veya token yerelde saklanmaz.",
+    "desktop.diagnostics.voice.connected": "bağlı",
+    "desktop.diagnostics.voice.idle": "boşta",
+    "desktop.diagnostics.notifications.label": "Bildirimler",
+    "desktop.diagnostics.notifications.detail":
+      "Native uyarılar izin kontrollüdür ve gizlilik için mesaj önizlemelerini gizleyebilir.",
+    "desktop.diagnostics.shell.label": "Native kabuk",
+    "desktop.diagnostics.shell.detail":
+      "Tray işlemleri, single-instance focus, güvenli deep link ve harici link devri ek masaüstü davranışlarıdır.",
+    "desktop.diagnostics.shell.ready": "hazır",
 
     "appearance.page.badge": "Kullanıcı Ayarları",
     "appearance.page.description":
@@ -2185,6 +2522,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "appearance.language.title": "Arayüz dilini seç",
     "appearance.language.tr": "TR",
     "appearance.language.en": "EN",
+    "appearance.language.trFull": "Türkçe",
+    "appearance.language.enFull": "İngilizce",
     "appearance.language.eyebrow": "Dil / Language",
     "appearance.serverRail.eyebrow": "Sunucu Rayı",
     "appearance.serverRail.title": "Kalabalığı azaltmak için sunucu sütununu genişlet",

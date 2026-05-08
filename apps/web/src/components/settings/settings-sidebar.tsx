@@ -105,6 +105,7 @@ export function SettingsSidebar() {
     { label: t("common.overview"), panel: "overview", section: "about" },
     { label: t("settings.about.buildInfo.title"), panel: "build", section: "about" },
     { label: t("settings.about.whatsNew.title"), panel: "whatsNew", section: "about" },
+    { label: t("settings.about.desktop.title"), panel: "desktop", section: "about" },
     { label: t("settings.about.developer.title"), panel: "developer", section: "about" },
   ];
 

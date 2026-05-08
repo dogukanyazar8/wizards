@@ -93,7 +93,7 @@ export function MainChannelPanel({
     <section className="app-main-gradient relative flex min-h-0 flex-1 flex-col overflow-hidden">
       {leading ? <div className="absolute left-3 top-3 z-40 md:hidden">{leading}</div> : null}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-0 pb-0 pt-0 md:px-2 md:pb-2 md:pt-2">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-0 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-0 md:px-2 md:pb-2 md:pt-2">
         <div
           className="mx-auto flex min-h-0 w-full flex-1 overflow-hidden border-x-0 border-y border-[hsl(var(--border)/0.72)] bg-[linear-gradient(160deg,hsl(var(--surface-card)/0.9),hsl(var(--surface-soft)/0.22))] shadow-none md:rounded-[28px] md:border md:shadow-[0_24px_62px_hsl(var(--shadow-color)/0.075)]"
           data-main-panel-frame="true"

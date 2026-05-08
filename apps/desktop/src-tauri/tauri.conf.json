@@ -19,15 +19,34 @@
           "description": "Whispr remote web content receives only the minimal Tauri permissions required for native desktop UX.",
           "windows": ["main"],
           "remote": {
-            "urls": ["https://whispr.invalid", "http://localhost:3000", "http://127.0.0.1:3000"]
+            "urls": [
+              "https://whispr.invalid",
+              "https://whispr.invalid/*",
+              "http://localhost:3000",
+              "http://localhost:3000/*",
+              "http://127.0.0.1:3000",
+              "http://127.0.0.1:3000/*"
+            ]
           },
           "permissions": [
             "notification:allow-is-permission-granted",
             "notification:allow-notify",
-            "notification:allow-request-permission"
+            "notification:allow-request-permission",
+            "core:window:allow-close",
+            "core:window:allow-internal-toggle-maximize",
+            "core:window:allow-minimize",
+            "core:window:allow-start-dragging",
+            "core:window:allow-toggle-maximize"
           ]
         }
       ]
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["whispr"]
+      }
     }
   },
   "bundle": {

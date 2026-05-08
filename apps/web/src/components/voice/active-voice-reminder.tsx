@@ -155,15 +155,15 @@ export function ActiveVoiceReminder() {
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.85rem)] z-[90] flex justify-center sm:bottom-5"
+      className="pointer-events-none fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-[60] flex justify-center sm:inset-x-4 sm:bottom-5"
       data-testid="active-voice-reminder"
     >
-      <div className="pointer-events-auto flex w-full max-w-3xl flex-col gap-3 rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.98),hsl(var(--surface-soft)/0.9))] p-3 shadow-[0_24px_80px_hsl(var(--shadow-color)/0.24)] backdrop-blur-2xl sm:flex-row sm:items-center sm:p-3.5">
+      <div className="pointer-events-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl flex-col gap-3 overflow-y-auto rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.98),hsl(var(--surface-soft)/0.9))] p-2.5 shadow-[0_24px_80px_hsl(var(--shadow-color)/0.24)] backdrop-blur-2xl sm:flex-row sm:items-center sm:rounded-[28px] sm:p-3.5">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.12)] text-[hsl(var(--success))] shadow-[0_14px_32px_hsl(var(--success)/0.12)]">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.12)] text-[hsl(var(--success))] shadow-[0_14px_32px_hsl(var(--success)/0.12)] sm:h-12 sm:w-12">
             <Volume2 className="h-5 w-5" />
           </span>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <p className="truncate text-sm font-extrabold text-app-foreground sm:text-base">
                 {channelName
@@ -210,7 +210,7 @@ export function ActiveVoiceReminder() {
           </div>
         </div>
 
-        <div className="flex shrink-0 gap-2 sm:ml-auto">
+        <div className="grid w-full shrink-0 grid-cols-2 gap-2 sm:ml-auto sm:flex sm:w-auto">
           <button
             className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.12)] px-3 text-sm font-bold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:flex-none"
             data-testid="active-voice-reminder-return"

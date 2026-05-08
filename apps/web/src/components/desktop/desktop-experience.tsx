@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useSocket } from "@/hooks/use-socket";
@@ -10,8 +10,15 @@ import {
 } from "@/lib/notifications/client";
 import type { NotificationSocketPayload } from "@/lib/socket/events";
 import { fetchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
-import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
+import {
+  WHISPR_DESKTOP_COMMAND_EVENT,
+  isSafeDesktopInternalPath,
+  isWhisprDesktopRuntime,
+  type WhisprDesktopCommandDetail,
+} from "@/lib/desktop/runtime";
+import { useAppStore } from "@/lib/store";
 import { useVoiceConnection } from "@/components/providers/voice-provider";
+import { useI18n } from "@/components/providers/locale-provider";
 
 type BadgeNavigator = Navigator & {
   clearAppBadge?: () => Promise<void>;
@@ -44,16 +51,7 @@ function isEditableTarget(target: EventTarget | null) {
   );
 }
 
-function isSafeInternalPath(value: string | null): value is string {
-  return Boolean(
-    value &&
-      value.startsWith("/") &&
-      !value.startsWith("//") &&
-      !value.includes("\\"),
-  );
-}
-
-function getNotificationBody(type: NotificationSocketPayload["type"]) {
+function getGenericNotificationBody(type: NotificationSocketPayload["type"]) {
   switch (type) {
     case "DM":
       return "New direct message in Whispr.";
@@ -71,6 +69,29 @@ function getNotificationBody(type: NotificationSocketPayload["type"]) {
     default:
       return "New Whispr notification.";
   }
+}
+
+function clampNotificationText(value: string, maxLength = 120) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 3)}...`;
+}
+
+function getNotificationCopy(payload: NotificationSocketPayload, showPreviews: boolean) {
+  if (!showPreviews) {
+    return {
+      body: getGenericNotificationBody(payload.type),
+      title: "Whispr",
+    };
+  }
+
+  return {
+    body: clampNotificationText(payload.body || getGenericNotificationBody(payload.type)),
+    title: clampNotificationText(payload.title || "Whispr", 80),
+  };
 }
 
 async function getNotificationApi() {
@@ -112,16 +133,20 @@ function requestNotificationPermissionOnInteraction(enabled: boolean) {
   };
 }
 
-async function sendNativeNotification(payload: NotificationSocketPayload) {
+async function sendNativeNotification(
+  payload: NotificationSocketPayload,
+  showPreviews: boolean,
+) {
   const api = await getNotificationApi();
 
   if (!api || !(await api.isPermissionGranted().catch(() => false))) {
     return false;
   }
 
+  const copy = getNotificationCopy(payload, showPreviews);
   api.sendNotification({
-    body: getNotificationBody(payload.type),
-    title: "Whispr",
+    body: copy.body,
+    title: copy.title,
   });
 
   return true;
@@ -129,14 +154,16 @@ async function sendNativeNotification(payload: NotificationSocketPayload) {
 
 function sendWebNotificationFallback(
   payload: NotificationSocketPayload,
+  showPreviews: boolean,
   onNavigate: (path: string) => void,
 ) {
   if (!("Notification" in window) || Notification.permission !== "granted") {
     return;
   }
 
-  const notification = new Notification("Whispr", {
-    body: getNotificationBody(payload.type),
+  const copy = getNotificationCopy(payload, showPreviews);
+  const notification = new Notification(copy.title, {
+    body: copy.body,
     icon: "/app-icons/whispr.png",
     tag: payload.id,
   });
@@ -144,7 +171,7 @@ function sendWebNotificationFallback(
   notification.onclick = () => {
     window.focus();
     const actionUrl = payload.actionUrl;
-    if (isSafeInternalPath(actionUrl)) {
+    if (isSafeDesktopInternalPath(actionUrl)) {
       onNavigate(actionUrl);
     }
     notification.close();
@@ -164,12 +191,53 @@ function applyAppBadge(unreadCount: number) {
   }
 }
 
+function DesktopConnectionHealth({
+  isOnline,
+  socketConnected,
+  t,
+}: {
+  isOnline: boolean;
+  socketConnected: boolean;
+  t: (key: string) => string;
+}) {
+  if (isOnline && socketConnected) {
+    return null;
+  }
+
+  const title = isOnline
+    ? t("desktop.health.socket.title")
+    : t("desktop.health.offline.title");
+  const description = isOnline
+    ? t("desktop.health.socket.description")
+    : t("desktop.health.offline.description");
+
+  return (
+    <div className="pointer-events-none fixed left-1/2 top-4 z-[90] w-[min(92vw,520px)] -translate-x-1/2">
+      <div className="pointer-events-auto rounded-[24px] border border-amber-200/80 bg-white/95 px-4 py-3 text-sm text-slate-700 shadow-[0_20px_60px_rgba(148,163,184,0.28)] backdrop-blur-xl">
+        <div className="flex items-start gap-3">
+          <span className="mt-1 inline-flex size-2.5 shrink-0 rounded-full bg-amber-400 shadow-[0_0_0_6px_rgba(251,191,36,0.16)]" />
+          <span className="min-w-0">
+            <span className="block font-semibold text-slate-900">{title}</span>
+            <span className="mt-1 block text-xs leading-5 text-slate-500">{description}</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DesktopExperience() {
   const router = useRouter();
   const socket = useSocket();
   const queryClient = useQueryClient();
   const voice = useVoiceConnection();
-  const isDesktop = useMemo(isWhisprDesktopRuntime, []);
+  const { t } = useI18n();
+  const desktopNotificationPreviews = useAppStore(
+    (state) => state.desktopNotificationPreviews,
+  );
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [socketConnected, setSocketConnected] = useState(false);
 
   const settingsQuery = useQuery({
     enabled: isDesktop,
@@ -188,6 +256,76 @@ export function DesktopExperience() {
 
   const desktopNotificationsEnabled =
     settingsQuery.isSuccess && settingsQuery.data.desktopNotifications !== false;
+
+  useEffect(() => {
+    setIsDesktop(isWhisprDesktopRuntime());
+  }, []);
+
+  useEffect(() => {
+    if (!isDesktop) {
+      return;
+    }
+
+    const syncOnlineState = () => setIsOnline(navigator.onLine);
+    const syncSocketState = () => setSocketConnected(socket.connected);
+
+    syncOnlineState();
+    syncSocketState();
+
+    window.addEventListener("online", syncOnlineState);
+    window.addEventListener("offline", syncOnlineState);
+    socket.on("connect", syncSocketState);
+    socket.on("connect_error", syncSocketState);
+    socket.on("disconnect", syncSocketState);
+
+    return () => {
+      window.removeEventListener("online", syncOnlineState);
+      window.removeEventListener("offline", syncOnlineState);
+      socket.off("connect", syncSocketState);
+      socket.off("connect_error", syncSocketState);
+      socket.off("disconnect", syncSocketState);
+    };
+  }, [isDesktop, socket]);
+
+  useEffect(() => {
+    if (!isDesktop) {
+      return;
+    }
+
+    const handleDesktopCommand = (event: Event) => {
+      const detail = (event as CustomEvent<WhisprDesktopCommandDetail>).detail;
+
+      if (!detail?.command) {
+        return;
+      }
+
+      switch (detail.command) {
+        case "navigate":
+          if (isSafeDesktopInternalPath(detail.path)) {
+            router.push(detail.path);
+          }
+          break;
+        case "open-desktop-diagnostics":
+          router.push("/settings?section=about&panel=desktop");
+          break;
+        case "open-settings":
+          router.push("/settings");
+          break;
+        case "toggle-deafen":
+          void voice.toggleDeafen();
+          break;
+        case "toggle-mute":
+          void voice.toggleMute();
+          break;
+      }
+    };
+
+    window.addEventListener(WHISPR_DESKTOP_COMMAND_EVENT, handleDesktopCommand);
+
+    return () => {
+      window.removeEventListener(WHISPR_DESKTOP_COMMAND_EVENT, handleDesktopCommand);
+    };
+  }, [isDesktop, router, voice]);
 
   useEffect(() => {
     if (!isDesktop) {
@@ -222,9 +360,11 @@ export function DesktopExperience() {
       }
 
       if (DESKTOP_NOTIFICATION_TYPES.has(payload.type)) {
-        void sendNativeNotification(payload).then((sent) => {
+        void sendNativeNotification(payload, desktopNotificationPreviews).then((sent) => {
           if (!sent) {
-            sendWebNotificationFallback(payload, (path) => router.push(path));
+            sendWebNotificationFallback(payload, desktopNotificationPreviews, (path) =>
+              router.push(path),
+            );
           }
         });
       }
@@ -241,7 +381,14 @@ export function DesktopExperience() {
       socket.off("notification:new", handleNotification);
       socket.off("friends:updated", handleFriendsUpdated);
     };
-  }, [desktopNotificationsEnabled, isDesktop, queryClient, router, socket]);
+  }, [
+    desktopNotificationPreviews,
+    desktopNotificationsEnabled,
+    isDesktop,
+    queryClient,
+    router,
+    socket,
+  ]);
 
   useEffect(() => {
     if (!isDesktop) {
@@ -287,5 +434,15 @@ export function DesktopExperience() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isDesktop, router, voice]);
 
-  return null;
+  if (!isDesktop) {
+    return null;
+  }
+
+  return (
+    <DesktopConnectionHealth
+      isOnline={isOnline}
+      socketConnected={socketConnected}
+      t={t}
+    />
+  );
 }

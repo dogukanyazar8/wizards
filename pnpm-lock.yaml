@@ -67,6 +67,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.75.2
         version: 5.99.2(react@19.2.5)
+      '@tauri-apps/api':
+        specifier: ^2.11.0
+        version: 2.11.0
       '@tauri-apps/plugin-notification':
         specifier: ^2.3.3
         version: 2.3.3

@@ -1,0 +1,247 @@
+Whispr Çerez Politikası
+
+Son Güncelleme Tarihi: 08.05.2026
+Proje / Hizmet: Whispr
+Planlanan Ticari Unvan: CDX Software
+İletişim: support@whispr.team
+
+1. Giriş
+
+Bu Çerez Politikası, CDX Software ticari unvanı altında yürütülmesi planlanan Whispr web sitesi, web uygulaması, masaüstü uygulaması ve ilgili çevrimiçi hizmetlerde kullanılan çerezleri ve benzeri teknolojileri açıklar.
+
+Whispr, CDX Software ticari unvanı altında yürütülmesi planlanan bir yazılım projesidir. CDX Software’in şirket kuruluş süreci tamamlanana kadar bu belgede “CDX Software” ifadesi, Whispr projesini yürüten proje sahibini ve ileride kurulması planlanan ticari yapıyı ifade eder. Şirket kuruluşu tamamlandığında bu belge resmi şirket unvanı, adresi ve diğer yasal bilgilerle güncellenecektir.
+
+Çerezler; web sitelerinin ve uygulamaların çalışmasını sağlamak, oturumları yönetmek, tercihleri hatırlamak, güvenliği artırmak, performansı ölçmek ve kullanıcı deneyimini geliştirmek için kullanılabilir.
+
+2. Çerez Nedir?
+
+Çerezler, ziyaret ettiğiniz web sitesi tarafından tarayıcınıza veya cihazınıza yerleştirilen küçük metin dosyalarıdır.
+
+Çerezler sayesinde:
+
+- Oturumunuz açık kalabilir.
+- Dil ve tema tercihleriniz hatırlanabilir.
+- Güvenlik kontrolleri yapılabilir.
+- Site performansı ölçülebilir.
+- Kullanıcı deneyimi iyileştirilebilir.
+
+3. Kullandığımız Teknolojiler
+
+Whispr aşağıdaki teknolojileri kullanabilir:
+
+- HTTP çerezleri
+- Local storage
+- Session storage
+- Piksel etiketleri
+- SDK tanımlayıcıları
+- Cihaz tanımlayıcıları
+- Analitik araçları
+- Güvenlik tokenları
+
+Bu politika kapsamında “çerez” ifadesi, benzer takip ve depolama teknolojilerini de kapsar.
+
+4. Çerez Türleri
+
+4.1. Zorunlu Çerezler
+
+Bu çerezler Whispr’in çalışması için gereklidir.
+
+Örnek amaçlar:
+
+- Oturum açma
+- Kimlik doğrulama
+- Güvenlik
+- CSRF koruması
+- Dil seçiminin temel olarak uygulanması
+- Form güvenliği
+- Sunucu yük dengeleme
+
+Bu çerezler olmadan hizmetin bazı bölümleri çalışmayabilir.
+
+4.2. Tercih Çerezleri
+
+Bu çerezler kullanıcı tercihlerini hatırlamak için kullanılır.
+
+Örnek:
+
+- Dil tercihi
+- Tema tercihi
+- Bildirim tercihleri
+- Arayüz ayarları
+- Profil görünüm tercihleri
+
+4.3. Analitik ve Performans Çerezleri
+
+Bu çerezler Whispr’in nasıl kullanıldığını anlamamıza yardımcı olur.
+
+Örnek:
+
+- Hangi sayfaların ziyaret edildiği
+- Hangi özelliklerin kullanıldığı
+- Hata oranları
+- Performans ölçümleri
+- Kullanıcı akışları
+- Cihaz ve tarayıcı bilgileri
+
+Bu veriler genellikle hizmeti iyileştirmek için toplu veya anonimleştirilmiş şekilde değerlendirilir.
+
+4.4. Güvenlik Çerezleri
+
+Bu çerezler hesap ve platform güvenliği için kullanılır.
+
+Örnek:
+
+- Şüpheli giriş denemelerini tespit etme
+- Bot trafiğini azaltma
+- Oturum güvenliğini sağlama
+- Yetkisiz erişimi engelleme
+- Rate limiting uygulama
+
+4.5. Pazarlama Çerezleri
+
+Whispr şu anda pazarlama veya davranışsal reklamcılık amacıyla çerez kullanmamayı hedefler. İleride pazarlama, reklam veya kampanya ölçümü amacıyla çerez kullanılması halinde, gerekli durumlarda kullanıcılardan açık rıza alınacaktır.
+
+Örnek pazarlama amaçları:
+
+- Kampanya performansını ölçme
+- Reklam etkinliğini analiz etme
+- Yeniden hedefleme
+- İlgi alanına dayalı içerik sunma
+
+5. Birinci Taraf ve Üçüncü Taraf Çerezler
+
+Birinci Taraf Çerezler
+
+Doğrudan Whispr tarafından yerleştirilen çerezlerdir.
+
+Örnek:
+
+- Oturum çerezi
+- Tema tercihi
+- Dil tercihi
+- Güvenlik tokenı
+
+Üçüncü Taraf Çerezler
+
+Whispr’in kullandığı üçüncü taraf servisler tarafından yerleştirilen çerezlerdir.
+
+Örnek:
+
+- Analitik servisleri
+- Giriş sağlayıcıları
+- Hata izleme servisleri
+- Reklam veya pazarlama servisleri
+- Video, medya veya gömülü içerik servisleri
+
+Üçüncü taraf çerezler ilgili servis sağlayıcının politikalarına da tabi olabilir.
+
+6. Kullanılabilecek Çerez Örnekleri
+
+Aşağıdaki tablo örnek olarak hazırlanmıştır. Gerçek çerez isimleri, ürün geliştirme ve canlı ortam doğrulaması tamamlandıktan sonra teknik olarak kontrol edilmelidir.
+
+| Çerez / Teknoloji | Sağlayıcı | Tür | Amaç | Süre | Zorunlu mu? |
+|---|---|---|---|---|---|
+| whispr_session | Whispr | Zorunlu | Oturum yönetimi | Oturum süresi | Evet |
+| csrf_token | Whispr | Zorunlu | Form ve istek güvenliği | Oturum süresi | Evet |
+| next-auth.session-token | Whispr / NextAuth | Zorunlu | Kullanıcı oturumunu yönetme | Oturum veya yapılandırılan süre | Evet |
+| next-auth.csrf-token | Whispr / NextAuth | Zorunlu | CSRF güvenliği | Oturum veya yapılandırılan süre | Evet |
+| next-auth.callback-url | Whispr / NextAuth | Zorunlu / Tercih | Giriş sonrası yönlendirme | Oturum veya yapılandırılan süre | Evet |
+| theme | Whispr | Tercih | Açık/koyu tema tercihini saklama | 6-12 ay | Hayır |
+| locale | Whispr | Tercih | Dil tercihini saklama | 6-12 ay | Hayır |
+| remember_me | Whispr | Tercih / Zorunlu olabilir | Kullanıcının oturum tercihini hatırlama | 30 gün | Duruma göre |
+| analytics_id | Analitik sağlayıcısı | Analitik | Kullanım ölçümü | 6-24 ay | Hayır |
+| device_id | Whispr | Güvenlik | Cihaz tanıma ve güvenlik | 6-24 ay | Duruma göre |
+
+Not: Üretim ortamında güvenli çerezler “__Secure-” veya “__Host-” önekleriyle oluşturulabilir. Gerçek çerez isimleri, canlı ortamda tarayıcı geliştirici araçları üzerinden doğrulanmalıdır.
+
+7. Çerezleri Hangi Amaçlarla Kullanıyoruz?
+
+Whispr çerezleri aşağıdaki amaçlarla kullanabilir:
+
+- Hizmeti çalıştırmak
+- Oturumları yönetmek
+- Kullanıcı güvenliğini sağlamak
+- Dil ve tema tercihlerini hatırlamak
+- Performansı ölçmek
+- Hataları tespit etmek
+- Kullanıcı deneyimini iyileştirmek
+- Kötüye kullanımı önlemek
+- Yasal yükümlülükleri yerine getirmek
+- İstatistiksel analiz yapmak
+- Pazarlama faaliyetlerini ölçmek
+
+8. Çerezlerde Hukuki Dayanak
+
+Çerezlerin hukuki dayanağı çerez türüne göre değişebilir.
+
+- Zorunlu çerezler: Hizmetin sağlanması, güvenlik ve meşru menfaat
+- Tercih çerezleri: Kullanıcı tercihi veya açık rıza
+- Analitik çerezler: Açık rıza veya uygulanabilir hukuka göre meşru menfaat
+- Pazarlama çerezleri: Açık rıza
+- Güvenlik çerezleri: Meşru menfaat ve hukuki yükümlülük
+
+Zorunlu olmayan çerezler için çerez yönetim paneli üzerinden onay alınması gerekir.
+
+9. Çerez Tercihlerinizi Nasıl Yönetebilirsiniz?
+
+Çerez tercihlerinizi aşağıdaki yollarla yönetebilirsiniz:
+
+- Whispr çerez tercih paneli
+- Tarayıcı ayarları
+- Mobil cihaz gizlilik ayarları
+- Üçüncü taraf servislerin tercih panelleri
+
+Tarayıcı üzerinden çerezleri silebilir, engelleyebilir veya belirli siteler için sınırlandırabilirsiniz.
+
+Ancak zorunlu çerezleri devre dışı bırakmanız halinde Whispr’in bazı özellikleri düzgün çalışmayabilir.
+
+10. Tarayıcı Üzerinden Çerezleri Yönetme
+
+Genel olarak tarayıcı ayarlarından:
+
+- Çerezleri silebilirsiniz.
+- Tüm çerezleri engelleyebilirsiniz.
+- Üçüncü taraf çerezleri engelleyebilirsiniz.
+- Belirli siteler için izin verebilirsiniz.
+- Tarayıcı kapatıldığında çerezleri otomatik silebilirsiniz.
+
+Her tarayıcının çerez ayarları farklıdır. Chrome, Edge, Safari, Firefox ve diğer tarayıcıların gizlilik ayarlarını kontrol etmeniz gerekir.
+
+11. Çerez Rızasının Geri Alınması
+
+Zorunlu olmayan çerezlere verdiğiniz rızayı istediğiniz zaman geri alabilirsiniz.
+
+Rızanızı geri aldığınızda:
+
+- Yeni çerezler yerleştirilmez.
+- Daha önce yerleştirilen bazı çerezleri tarayıcıdan ayrıca silmeniz gerekebilir.
+- Bazı kişiselleştirme veya analiz özellikleri devre dışı kalabilir.
+
+12. Üçüncü Taraf Çerezler ve Entegrasyonlar
+
+Whispr aşağıdaki kategorilerde üçüncü taraf servisler kullanabilir:
+
+- Kimlik doğrulama sağlayıcıları
+- Analitik servisleri
+- Hata izleme servisleri
+- Bulut altyapı sağlayıcıları
+- Ödeme servisleri
+- Reklam ve pazarlama servisleri
+- Müşteri destek servisleri
+
+Gerçek servisler netleştikçe bu politika güncellenmelidir. Kullanılması muhtemel veya planlanan servisler arasında Google, Microsoft, Apple, Discord, Railway, LiveKit ve benzeri teknik hizmet sağlayıcıları bulunabilir.
+
+Bu servislerin kendi çerez ve gizlilik politikaları olabilir.
+
+13. Çerez Politikası Değişiklikleri
+
+Bu Çerez Politikası zaman zaman güncellenebilir.
+
+Önemli değişikliklerde kullanıcılar web sitesi, uygulama içi bildirim veya e-posta yoluyla bilgilendirilebilir.
+
+14. İletişim
+
+Çerezler ve kişisel verilerinizle ilgili sorular için:
+
+CDX Software
+E-posta: support@whispr.team

@@ -1,0 +1,256 @@
+Whispr Kullanım Şartları
+
+Son Güncelleme Tarihi: 08.05.2026
+Proje / Hizmet: Whispr
+Planlanan Ticari Unvan: CDX Software
+İletişim: support@whispr.team
+
+1. Giriş
+
+Bu Kullanım Şartları, CDX Software ticari unvanı altında yürütülmesi planlanan Whispr uygulaması, web sitesi, masaüstü uygulaması, mobil uygulaması, API servisleri ve ilişkili tüm hizmetlerin kullanım koşullarını düzenler.
+
+Whispr, CDX Software ticari unvanı altında yürütülmesi planlanan bir yazılım projesidir. CDX Software’in şirket kuruluş süreci tamamlanana kadar bu belgede “CDX Software” ifadesi, Whispr projesini yürüten proje sahibini ve ileride kurulması planlanan ticari yapıyı ifade eder. Şirket kuruluşu tamamlandığında bu belge resmi şirket unvanı, adresi ve diğer yasal bilgilerle güncellenecektir.
+
+Whispr’i kullanarak bu şartları kabul etmiş sayılırsınız. Bu şartları kabul etmiyorsanız Whispr’i kullanmamalısınız.
+
+2. Tanımlar
+
+Whispr: CDX Software ticari unvanı altında yürütülmesi planlanan iletişim platformunu ifade eder.
+
+Şirket / Proje Sahibi: CDX Software ticari unvanı altında yürütülmesi planlanan Whispr projesini, şirket kuruluşu tamamlanana kadar proje sahibini, kuruluş tamamlandıktan sonra ise CDX Software’i ifade eder.
+
+Kullanıcı: Whispr’i kullanan gerçek veya tüzel kişidir.
+
+Hesap: Kullanıcının Whispr hizmetlerine erişmek için oluşturduğu kullanıcı hesabıdır.
+
+İçerik: Mesaj, dosya, görsel, video, ses, profil bilgisi, kanal içeriği ve diğer paylaşımlardır.
+
+Topluluk: Kullanıcıların oluşturduğu sunucu, grup, ekip veya kanal yapılarıdır.
+
+3. Hizmetin Kapsamı
+
+Whispr aşağıdaki özellikleri sunabilir:
+
+- Kullanıcı hesabı oluşturma
+- Giriş ve kimlik doğrulama
+- Direkt mesajlaşma
+- Grup mesajlaşması
+- Kanal ve topluluk sistemi
+- Sesli görüşme
+- Görüntülü görüşme
+- Ekran paylaşımı
+- Dosya paylaşımı
+- Arkadaşlık sistemi
+- Bildirimler
+- Profil yönetimi
+- Rol ve yetki yönetimi
+- Kurumsal veya ekip bazlı kullanım özellikleri
+
+CDX Software, hizmetin kapsamını zaman içinde değiştirebilir, yeni özellikler ekleyebilir veya bazı özellikleri kaldırabilir.
+
+4. Hesap Oluşturma
+
+Whispr’i kullanmak için hesap oluşturmanız gerekebilir.
+
+Hesap oluştururken:
+
+- Doğru ve güncel bilgi vermelisiniz.
+- Başkasına ait kimlik bilgilerini kullanmamalısınız.
+- Hesabınızı başkasına devretmemelisiniz.
+- Şifrenizi gizli tutmalısınız.
+- Hesabınızda gerçekleşen işlemlerden siz sorumlusunuz.
+
+Şüpheli bir erişim fark ederseniz support@whispr.team adresi üzerinden iletişime geçebilirsiniz.
+
+5. Yaş Sınırı
+
+Whispr’i kullanmak için en az 15 yaşında olmanız gerekir. Bulunduğunuz ülkede daha yüksek bir yaş sınırı uygulanıyorsa, o yaş sınırı geçerlidir.
+
+18 yaşından küçük kullanıcılar Whispr’i yalnızca ebeveyn veya yasal temsilci onayıyla kullanmalıdır.
+
+Whispr, yaş sınırına uymayan hesapları askıya alma veya silme hakkını saklı tutar.
+
+6. Kabul Edilebilir Kullanım Kuralları
+
+Whispr’i kullanırken aşağıdaki kurallara uymanız gerekir.
+
+Aşağıdakiler yasaktır:
+
+- Hukuka aykırı içerik paylaşmak
+- Tehdit, taciz, nefret söylemi veya şiddet çağrısı yapmak
+- Çocukların güvenliğini riske atacak içerik paylaşmak
+- Başka kullanıcıları dolandırmak veya yanıltmak
+- Zararlı yazılım, virüs veya kötü amaçlı bağlantı paylaşmak
+- Spam göndermek
+- Platformu otomatik botlarla kötüye kullanmak
+- Yetkisiz veri toplamaya çalışmak
+- Başka kullanıcıların hesaplarına erişmeye çalışmak
+- Platformun güvenliğini test etmek veya aşmaya çalışmak
+- Telif hakkı ihlali yapmak
+- Kişisel verileri izinsiz paylaşmak
+- Sahte kimlik kullanmak
+- Toplulukları manipüle etmek
+- Hizmeti ticari olarak izinsiz yeniden satmak
+
+7. Kullanıcı İçerikleri
+
+Whispr üzerinde paylaştığınız içeriklerden siz sorumlusunuz.
+
+İçerik paylaşarak:
+
+- İçeriği paylaşma hakkına sahip olduğunuzu,
+- İçeriğin hukuka aykırı olmadığını,
+- Üçüncü taraf haklarını ihlal etmediğinizi,
+- CDX Software’in içeriği hizmetin sunulması için teknik olarak işlemesine izin verdiğinizi,
+
+kabul etmiş olursunuz.
+
+CDX Software, kullanıcı içeriklerinin sahibi olmaz. Ancak hizmetin çalışması için içerikleri barındırabilir, iletebilir, gösterebilir, yedekleyebilir ve teknik olarak işleyebilir.
+
+8. Topluluklar ve Moderasyon
+
+Kullanıcılar Whispr üzerinde topluluk, ekip, kanal veya grup oluşturabilir.
+
+Topluluk sahipleri ve yöneticileri:
+
+- Kendi topluluk kurallarını belirleyebilir.
+- Üyeleri yönetebilir.
+- İçerikleri kaldırabilir.
+- Kullanıcıları topluluktan çıkarabilir.
+- Rol ve izinleri düzenleyebilir.
+
+Ancak topluluk kuralları Whispr Kullanım Şartları’nı ve yürürlükteki hukuku ihlal edemez.
+
+CDX Software, ciddi ihlal durumlarında topluluklara müdahale edebilir.
+
+9. Yasaklı İçerikler
+
+Aşağıdaki içeriklerin paylaşılması yasaktır:
+
+- Çocuk istismarı veya çocuk güvenliğini tehdit eden içerikler
+- Terör, şiddet veya suç teşviki
+- Nefret söylemi
+- Taciz, tehdit veya hedef gösterme
+- Kişisel verilerin izinsiz paylaşımı
+- Dolandırıcılık içerikleri
+- Zararlı yazılım veya phishing bağlantıları
+- Telif hakkı ihlali içeren içerikler
+- Cinsel istismar veya rıza dışı mahrem görüntüler
+- Kendine zarar vermeyi teşvik eden içerikler
+- Yasalara aykırı ürün veya hizmetlerin satışı
+
+10. Güvenlik
+
+Kullanıcılar Whispr’in güvenliğini tehlikeye atacak eylemlerde bulunamaz.
+
+Aşağıdakiler yasaktır:
+
+- Yetkisiz erişim denemeleri
+- Sistem açıklarını kötüye kullanmak
+- DDoS veya hizmet engelleme saldırıları
+- API limitlerini aşmaya çalışmak
+- Tersine mühendislik yapmak
+- Güvenlik önlemlerini atlatmak
+- Başka kullanıcıların verilerine izinsiz erişmek
+
+CDX Software, güvenlik ihlali şüphesinde hesapları kısıtlayabilir veya askıya alabilir.
+
+11. Fikri Mülkiyet Hakları
+
+Whispr adı, logosu, tasarımı, arayüzü, yazılımı, kaynak kodu, marka unsurları ve diğer fikri mülkiyet hakları CDX Software’e veya ilgili hak sahiplerine aittir.
+
+Kullanıcılar:
+
+- Whispr markasını izinsiz kullanamaz.
+- Uygulamanın kaynak kodunu kopyalayamaz.
+- Tasarımı, logoyu veya marka unsurlarını izinsiz çoğaltamaz.
+- Hizmeti taklit eden yanıltıcı ürünler oluşturamaz.
+
+12. Ücretli Hizmetler
+
+Whispr ileride ücretsiz ve ücretli planlar sunabilir.
+
+Ücretli hizmetlerde:
+
+- Fiyatlar, plan sayfasında belirtilir.
+- Vergiler ayrıca uygulanabilir.
+- Abonelikler dönemsel olarak yenilenebilir.
+- İptal koşulları ilgili ödeme ekranında açıklanır.
+- İade koşulları ayrı bir iade politikasıyla düzenlenebilir.
+
+Şu anda ödeme sistemi aktif değilse bu bölüm, ileride sunulabilecek ücretli hizmetlere ilişkin genel bilgilendirme niteliğindedir.
+
+13. Üçüncü Taraf Entegrasyonlar
+
+Whispr; Google, Microsoft, Apple, Discord veya diğer üçüncü taraf servislerle entegrasyon sunabilir.
+
+Bu servislerin kullanımı ilgili üçüncü tarafların kendi şartlarına ve gizlilik politikalarına tabi olabilir.
+
+CDX Software, üçüncü taraf servislerdeki kesinti, veri kaybı veya politika değişikliklerinden doğrudan sorumlu değildir.
+
+14. Hizmetin Kullanılabilirliği
+
+CDX Software, Whispr’in kesintisiz, hatasız veya her zaman erişilebilir olacağını garanti etmez.
+
+Hizmette aşağıdaki nedenlerle kesintiler olabilir:
+
+- Bakım çalışmaları
+- Teknik arızalar
+- Güvenlik güncellemeleri
+- Altyapı kesintileri
+- Üçüncü taraf servis sorunları
+- Mücbir sebepler
+
+15. Hesap Askıya Alma ve Sonlandırma
+
+CDX Software aşağıdaki durumlarda hesabınızı askıya alabilir, kısıtlayabilir veya sonlandırabilir:
+
+- Kullanım Şartları’nın ihlali
+- Hukuka aykırı kullanım
+- Güvenlik riski
+- Spam veya kötüye kullanım
+- Başkalarına zarar verme
+- Sahte veya yanıltıcı hesap kullanımı
+- Platform güvenliğini tehdit eden davranışlar
+
+Ağır ihlallerde önceden bildirim yapılmadan işlem uygulanabilir.
+
+16. Sorumluluğun Sınırlandırılması
+
+Whispr, makul özen gösterilerek sunulur. Ancak CDX Software aşağıdaki durumlardan sorumlu tutulamaz:
+
+- Kullanıcıların kendi içerikleri
+- Kullanıcılar arasındaki anlaşmazlıklar
+- Üçüncü taraf servis kesintileri
+- Kullanıcı hatasından kaynaklanan veri kayıpları
+- Yetkisiz hesap paylaşımı
+- İnternet bağlantısı veya cihaz sorunları
+- Mücbir sebepler
+- Hukuka aykırı kullanıcı davranışları
+
+Bu sınırlamalar, yürürlükteki hukukun izin verdiği ölçüde geçerlidir.
+
+17. Tazminat
+
+Kullanıcı, Kullanım Şartları’nı ihlal etmesi, hukuka aykırı içerik paylaşması veya üçüncü taraf haklarını ihlal etmesi nedeniyle CDX Software’in uğrayabileceği zararları karşılamakla sorumlu olabilir.
+
+18. Şartlarda Değişiklik
+
+CDX Software, Kullanım Şartları’nı zaman zaman güncelleyebilir.
+
+Önemli değişikliklerde kullanıcılar uygulama içi bildirim, e-posta veya web sitesi üzerinden bilgilendirilebilir.
+
+Güncellenmiş şartları kabul etmeyen kullanıcılar Whispr’i kullanmayı bırakmalıdır.
+
+19. Uygulanacak Hukuk ve Yetki
+
+Bu Kullanım Şartları, aksi belirtilmedikçe Türkiye Cumhuriyeti hukukuna tabidir.
+
+Uyuşmazlıklarda İstanbul mahkemeleri ve icra daireleri yetkilidir.
+
+20. İletişim
+
+Kullanım Şartları hakkında sorularınız için:
+
+CDX Software
+E-posta: support@whispr.team

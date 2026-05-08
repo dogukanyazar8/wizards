@@ -28,8 +28,24 @@ const webUrl =
     : parseRequiredProductionUrl(process.env.TAURI_WEB_URL);
 const capabilityUrls =
   command === "dev"
-    ? Array.from(new Set([originPattern(devUrl), "http://localhost:3000", "http://127.0.0.1:3000"]))
-    : [originPattern(webUrl)];
+    ? Array.from(
+        new Set([
+          ...capabilityUrlPatterns(devUrl),
+          ...capabilityUrlPatterns(new URL("http://localhost:3000")),
+          ...capabilityUrlPatterns(new URL("http://127.0.0.1:3000")),
+        ]),
+      )
+    : capabilityUrlPatterns(webUrl);
+const nativeUxPermissions = [
+  "notification:allow-is-permission-granted",
+  "notification:allow-notify",
+  "notification:allow-request-permission",
+  "core:window:allow-close",
+  "core:window:allow-internal-toggle-maximize",
+  "core:window:allow-minimize",
+  "core:window:allow-start-dragging",
+  "core:window:allow-toggle-maximize",
+];
 const desktopCsp = buildDesktopCsp(webUrl, command);
 const tauriEnv = {
   ...process.env,
@@ -63,13 +79,16 @@ await writeFile(
               remote: {
                 urls: capabilityUrls,
               },
-              permissions: [
-                "notification:allow-is-permission-granted",
-                "notification:allow-notify",
-                "notification:allow-request-permission",
-              ],
+              permissions: nativeUxPermissions,
             },
           ],
+        },
+      },
+      plugins: {
+        "deep-link": {
+          desktop: {
+            schemes: ["whispr"],
+          },
         },
       },
     },
@@ -78,6 +97,12 @@ await writeFile(
   )}\n`,
   "utf8",
 );
+
+console.log(`[Whispr Desktop] mode: ${command}`);
+console.log(`[Whispr Desktop] web target: ${webUrl.href}`);
+console.log(`[Whispr Desktop] generated config: ${generatedConfigPath}`);
+console.log(`[Whispr Desktop] allowed web origins: ${capabilityUrls.join(", ")}`);
+console.log(`[Whispr Desktop] native permissions: ${nativeUxPermissions.join(", ")}`);
 
 const child = spawn(
   process.execPath,
@@ -143,6 +168,11 @@ function parseUrl(value, name) {
 
 function originPattern(url) {
   return `${url.protocol}//${url.host}`;
+}
+
+function capabilityUrlPatterns(url) {
+  const origin = originPattern(url);
+  return [origin, `${origin}/*`];
 }
 
 function buildDesktopCsp(webUrl, mode) {
