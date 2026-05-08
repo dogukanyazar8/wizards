@@ -1,5 +1,5 @@
 import { ChannelType, prisma } from "@wizards/db";
-import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
+import { AccessToken, RoomServiceClient, TrackSource } from "livekit-server-sdk";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +9,12 @@ import type { CreateLiveKitTokenBody, LiveKitTokenResponse } from "./types";
 
 const LIVEKIT_TOKEN_TTL = "1h";
 const MAX_VOICE_PARTICIPANTS = 10;
+const ALLOWED_PUBLISH_SOURCES = [
+  TrackSource.MICROPHONE,
+  TrackSource.CAMERA,
+  TrackSource.SCREEN_SHARE,
+  TrackSource.SCREEN_SHARE_AUDIO,
+] as const;
 const WORKSPACE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../..");
 
 let liveKitEnvLoaded = false;
@@ -35,7 +41,7 @@ function loadEnvFallback(filePath: string) {
 
     const rawValue = line.slice(separatorIndex + 1).trim();
     const value =
-      (rawValue.startsWith("\"") && rawValue.endsWith("\"")) ||
+      (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
       (rawValue.startsWith("'") && rawValue.endsWith("'"))
         ? rawValue.slice(1, -1)
         : rawValue;
@@ -88,8 +94,7 @@ function ensureLiveKitEnv() {
 
 function getLiveKitUrl() {
   ensureLiveKitEnv();
-  const url =
-    process.env.NEXT_PUBLIC_LIVEKIT_URL?.trim() || process.env.LIVEKIT_URL?.trim();
+  const url = process.env.NEXT_PUBLIC_LIVEKIT_URL?.trim() || process.env.LIVEKIT_URL?.trim();
 
   if (!url) {
     throw new ApiError("LiveKit URL is not configured", 500);
@@ -225,10 +230,7 @@ async function resolveDMRoomName(userId: string, conversationId: string) {
   return `dm:${conversation.id}`;
 }
 
-export async function resolveLiveKitRoomName(
-  userId: string,
-  input: CreateLiveKitTokenBody,
-) {
+export async function resolveLiveKitRoomName(userId: string, input: CreateLiveKitTokenBody) {
   if (input.channelId) {
     return resolveVoiceRoomName(userId, input.channelId);
   }
@@ -284,7 +286,7 @@ export async function createLiveKitToken(
   token.addGrant({
     room: roomName,
     roomJoin: true,
-    canPublish: true,
+    canPublishSources: [...ALLOWED_PUBLISH_SOURCES],
     canPublishData: true,
     canSubscribe: true,
     canUpdateOwnMetadata: true,

@@ -111,7 +111,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "validation.username.max": "Username must be 32 characters or fewer.",
     "validation.username.min": "Username must be at least 2 characters.",
     "validation.username.pattern": "Username can only include letters, numbers, and underscores.",
-    "validation.server.shortNamePattern": "Server short names can use up to 4 letters, numbers, hyphens, or underscores.",
+    "validation.server.shortNamePattern":
+      "Server short names can use up to 4 letters, numbers, hyphens, or underscores.",
 
     "friends.notification.request.title": "New friend request",
     "friends.notification.request.body": "{name} sent you a friend request.",
@@ -216,6 +217,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.controls.screenSharePhase8": "Screen sharing in voice channels arrives in Phase 8",
     "voice.controls.settings": "Voice settings",
     "voice.controls.camera": "Camera",
+    "voice.controls.stopCamera": "Turn camera off",
+    "voice.controls.cameraStarting": "Starting camera...",
+    "voice.controls.cameraStopping": "Stopping camera...",
     "voice.controls.cameraSoon": "Coming soon",
     "voice.controls.cameraPhase8": "Video calls coming in Phase 8",
     "voice.controls.disconnect": "Disconnect",
@@ -226,6 +230,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.controls.shareShort": "Share",
     "voice.controls.stopShareShort": "Stop",
     "voice.controls.cameraShort": "Camera",
+    "voice.controls.stopCameraShort": "Off",
     "voice.controls.settingsShort": "Settings",
     "voice.controls.leaveShort": "Leave",
     "voice.errors.microphoneDenied":
@@ -234,6 +239,13 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Microphone access was blocked. Allow Whispr microphone access in your system privacy settings, then try again.",
     "voice.errors.microphoneEnableFailed": "Microphone could not be enabled right now.",
     "voice.errors.microphoneSettingsFailed": "Microphone settings could not be updated.",
+    "voice.errors.cameraDenied":
+      "Camera access was blocked. Allow camera access in your browser to turn video on.",
+    "voice.errors.cameraDeniedDesktop":
+      "Camera access was blocked. Allow Whispr camera access in your system privacy settings, then try again.",
+    "voice.errors.cameraUnavailable": "No available camera was found on this device.",
+    "voice.errors.cameraStartFailed": "Camera could not be started right now.",
+    "voice.errors.cameraNotSupported": "Camera capture is not supported in this browser.",
     "voice.errors.connectionFailed":
       "Voice connection could not be established. Check your network and try again.",
     "voice.errors.connectionUnstable":
@@ -259,14 +271,16 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.room.microphoneOn": "Microphone on",
     "voice.room.microphoneActive": "Microphone active",
     "voice.room.microphoneClosed": "Microphone off",
+    "voice.room.cameraOn": "Camera on",
+    "voice.room.cameraActive": "Camera active",
+    "voice.room.cameraClosed": "Camera off",
     "voice.room.outputActive": "Audio output active",
     "voice.room.outputClosed": "Audio output off",
     "voice.room.screenSharing": "Sharing screen",
     "voice.room.localMuted": "You are muted locally",
     "voice.room.localLive": "Your microphone is live",
     "voice.room.emptyTitle": "No one is in this room yet",
-    "voice.room.emptyDescription":
-      "Join voice or invite teammates to start a live conversation.",
+    "voice.room.emptyDescription": "Join voice or invite teammates to start a live conversation.",
     "voice.room.participantsTitle": "Participants ({count})",
     "voice.screenShare.share": "Share screen",
     "voice.screenShare.stop": "Stop sharing",
@@ -282,11 +296,14 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.screenShare.quality.72030.label": "Balanced 720p / 30 FPS",
     "voice.screenShare.quality.72030.description": "Stable motion with moderate bandwidth.",
     "voice.screenShare.quality.108030.label": "Sharp 1080p / 30 FPS",
-    "voice.screenShare.quality.108030.description": "Recommended clarity for demos and code reviews.",
+    "voice.screenShare.quality.108030.description":
+      "Recommended clarity for demos and code reviews.",
     "voice.screenShare.quality.72060.label": "Fast 720p / 60 FPS",
-    "voice.screenShare.quality.72060.description": "Smoother motion while keeping bandwidth controlled.",
+    "voice.screenShare.quality.72060.description":
+      "Smoother motion while keeping bandwidth controlled.",
     "voice.screenShare.quality.108060.label": "Smooth 1080p / 60 FPS",
-    "voice.screenShare.quality.108060.description": "High-motion sharing for animation, video, and live navigation.",
+    "voice.screenShare.quality.108060.description":
+      "High-motion sharing for animation, video, and live navigation.",
     "voice.screenShare.quality.144030.label": "Ultra 1440p / 30 FPS",
     "voice.screenShare.quality.144030.description": "High-detail sharing for large displays.",
     "voice.grid.you": "You",
@@ -297,8 +314,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.grid.browserProcessing": "Browser audio cleanup",
     "voice.grid.krispActive": "Krisp active",
     "voice.grid.remoteVolume": "Participant volume",
-    "voice.grid.remoteVolumeDescription":
-      "Adjust this person's voice level only for your device.",
+    "voice.grid.remoteVolumeDescription": "Adjust this person's voice level only for your device.",
     "voice.grid.resetVolume": "Reset participant volume",
     "voice.grid.noiseSuppression": "Noise suppression",
     "voice.grid.echoCancellation": "Echo cancellation",
@@ -464,7 +480,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.idealForInvites": "Ideal for invite flows",
 
     "auth.register.alertUnavailable": "Unable to create account.",
-    "auth.register.autoLoginFailed": "Account created, but automatic sign-in failed. Please log in.",
+    "auth.register.autoLoginFailed":
+      "Account created, but automatic sign-in failed. Please log in.",
     "auth.register.badge": "Join Whispr",
     "auth.register.checkEmailBadge": "Verify email",
     "auth.register.checkEmailDescription":
@@ -477,9 +494,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.register.creating": "Creating account...",
     "auth.register.description":
       "Create a verified Whispr account for secure messaging, servers, DMs, voice rooms, screen sharing, media uploads, GIFs, reactions, and video-ready collaboration.",
-  "auth.register.emailTaken": "Email already taken.",
-  "auth.register.rateLimited": "Too many registration attempts. Please try again later.",
-  "auth.register.haveAccount": "Already have an account?",
+    "auth.register.emailTaken": "Email already taken.",
+    "auth.register.rateLimited": "Too many registration attempts. Please try again later.",
+    "auth.register.haveAccount": "Already have an account?",
     "auth.register.passwordPlaceholder": "Create a strong password",
     "auth.register.signIn": "Sign in",
     "auth.register.title": "Create an account",
@@ -532,21 +549,20 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Your email has been verified successfully. You can now sign in and continue to Whispr.",
     "auth.verifyEmail.successTitle": "Email verified",
 
-    "auth.turnstile.help":
-      "This quick check helps protect Whispr from automated signups.",
+    "auth.turnstile.help": "This quick check helps protect Whispr from automated signups.",
     "auth.turnstile.invalid": "Security check failed. Please try again.",
     "auth.turnstile.label": "Security check",
     "auth.turnstile.loading": "Loading security check...",
     "auth.turnstile.notConfigured":
       "Security check is not configured. Add the Turnstile site and secret keys, then restart the app.",
-    "auth.turnstile.unavailable":
-      "Security check is unavailable right now. Please try again.",
+    "auth.turnstile.unavailable": "Security check is unavailable right now. Please try again.",
 
     "auth.forgot.badge": "Password Reset",
     "auth.forgot.backToLogin": "Back to login",
     "auth.forgot.checkEmail": "Check your email",
     "auth.forgot.description": "Enter your email and we'll send a reset link.",
-    "auth.forgot.instructions": "If an account exists for {email}, you'll receive reset instructions.",
+    "auth.forgot.instructions":
+      "If an account exists for {email}, you'll receive reset instructions.",
     "auth.forgot.resetTitle": "Reset your password",
     "auth.forgot.sending": "Sending...",
     "auth.forgot.submit": "Send Reset Link",
@@ -580,8 +596,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.account.avatar.choose": "Change photo",
     "settings.account.avatar.remove": "Remove photo",
     "settings.account.avatar.cropTitle": "Frame your profile photo",
-    "settings.account.avatar.cropDescription":
-      "Drag the image and adjust zoom before saving.",
+    "settings.account.avatar.cropDescription": "Drag the image and adjust zoom before saving.",
     "settings.account.avatar.dragHint": "Drag to position",
     "settings.account.avatar.zoom": "Zoom",
     "settings.account.avatar.resetCrop": "Reset crop",
@@ -594,17 +609,12 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.account.avatar.errors.size": "Profile photos can be up to 4 MB.",
     "settings.account.avatar.errors.load":
       "We couldn't read that image. Please choose another one.",
-    "settings.account.avatar.errors.uploadsDisabled":
-      "Profile photo uploads are not configured.",
-    "settings.account.avatar.errors.upload":
-      "Profile photo upload failed. Please try again.",
-    "settings.account.avatar.errors.save":
-      "We couldn't save your profile photo right now.",
-    "settings.account.avatar.errors.invalid":
-      "That profile photo URL is not allowed.",
+    "settings.account.avatar.errors.uploadsDisabled": "Profile photo uploads are not configured.",
+    "settings.account.avatar.errors.upload": "Profile photo upload failed. Please try again.",
+    "settings.account.avatar.errors.save": "We couldn't save your profile photo right now.",
+    "settings.account.avatar.errors.invalid": "That profile photo URL is not allowed.",
     "settings.account.errors.save": "We couldn't save your account settings right now.",
-    "settings.account.errors.displayNameTooLong":
-      "Display name must be 60 characters or fewer.",
+    "settings.account.errors.displayNameTooLong": "Display name must be 60 characters or fewer.",
     "settings.account.errors.emailTaken": "That email address is already in use.",
     "settings.account.errors.usernameTaken": "That username is already taken.",
     "settings.nav.appearance": "Appearance",
@@ -940,11 +950,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.main.cleanerHierarchy": "Cleaner hierarchy",
     "shell.main.multiUserReady": "Multi-user ready",
     "shell.main.browseServersTitle": "Browse servers",
-    "shell.main.browseServersDescription":
-      "Jump between workspaces without losing your place.",
+    "shell.main.browseServersDescription": "Jump between workspaces without losing your place.",
     "shell.main.tuneLayoutTitle": "Tune the layout",
-    "shell.main.tuneLayoutDescription":
-      "Open settings to resize rails, sidebars, and theme.",
+    "shell.main.tuneLayoutDescription": "Open settings to resize rails, sidebars, and theme.",
     "shell.main.startTalkingTitle": "Start talking",
     "shell.main.startTalkingDescription":
       "Open a text channel and your live thread is ready immediately.",
@@ -974,19 +982,19 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
 
     "chat.message.deleteConfirm": "Delete this message?",
     "chat.message.deleteDialogTitle": "Delete message?",
-      "chat.message.deleteDialogDescription":
-        "This removes the message from the conversation for everyone.",
-      "chat.message.deleteDialogBody":
-        "This action cannot be undone, but the conversation will stay intact.",
-      "chat.message.deleted": "This message was deleted.",
-      "chat.message.removeDeletedPlaceholder": "Remove notice",
-      "chat.message.removeDeletedPlaceholderAria": "Remove deleted message notice",
-      "chat.message.removeDeletedDialogTitle": "Remove deleted message notice?",
-      "chat.message.removeDeletedDialogDescription":
-        "This hides the deleted-message notice without changing the rest of the conversation.",
-      "chat.message.removeDeletedDialogBody":
-        "Only the user who deleted it or a server admin can remove this notice.",
-      "chat.message.edited": "(edited)",
+    "chat.message.deleteDialogDescription":
+      "This removes the message from the conversation for everyone.",
+    "chat.message.deleteDialogBody":
+      "This action cannot be undone, but the conversation will stay intact.",
+    "chat.message.deleted": "This message was deleted.",
+    "chat.message.removeDeletedPlaceholder": "Remove notice",
+    "chat.message.removeDeletedPlaceholderAria": "Remove deleted message notice",
+    "chat.message.removeDeletedDialogTitle": "Remove deleted message notice?",
+    "chat.message.removeDeletedDialogDescription":
+      "This hides the deleted-message notice without changing the rest of the conversation.",
+    "chat.message.removeDeletedDialogBody":
+      "Only the user who deleted it or a server admin can remove this notice.",
+    "chat.message.edited": "(edited)",
     "chat.message.systemJoin": "{name} joined the server.",
     "chat.message.systemLeave": "{name} left the server.",
     "chat.message.react": "React",
@@ -1016,7 +1024,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.message.replyAria": "Reply to message",
     "chat.message.sendFailed": "Message failed to send.",
     "chat.message.sending": "Sending...",
-    "chat.thread.emptyDescription": "Start a focused side conversation without moving the main chat.",
+    "chat.thread.emptyDescription":
+      "Start a focused side conversation without moving the main chat.",
     "chat.thread.emptyTitle": "No thread replies yet.",
     "chat.thread.label": "Thread",
     "chat.thread.loadFailed": "We couldn't load this thread.",
@@ -1140,7 +1149,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.attachments.attachFile": "Attach",
     "chat.attachments.disabled": "File uploads are disabled for this server.",
     "chat.attachments.dropToUpload": "Drop files to upload",
-    "chat.attachments.dropToUploadHint": "Images, videos, docs, and GIFs stay attached to this message.",
+    "chat.attachments.dropToUploadHint":
+      "Images, videos, docs, and GIFs stay attached to this message.",
     "chat.attachments.closeImageViewer": "Close image viewer",
     "chat.attachments.file": "File",
     "chat.attachments.gif": "GIF",
@@ -1192,9 +1202,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.mentions.notifyTitle": "You were mentioned",
     "chat.mentions.notifyBody": "{name} mentioned you in #{channel}.",
 
-  "notifications.bell.title": "Notifications",
-  "notifications.actor.system": "System",
-  "notifications.bell.markAllRead": "Mark all as read",
+    "notifications.bell.title": "Notifications",
+    "notifications.actor.system": "System",
+    "notifications.bell.markAllRead": "Mark all as read",
     "notifications.bell.seeAll": "See all",
     "notifications.bell.clearAll": "Clear All",
     "notifications.bell.empty": "No notifications",
@@ -1229,8 +1239,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.serverIcon": "Server icon",
     "workspace.modal.serverIconDescription":
       "Upload a square image for the rail. The preview keeps the server identity clear.",
-    "workspace.modal.serverIconUploadsDisabled":
-      "Add `UPLOADTHING_TOKEN` to enable cloud uploads.",
+    "workspace.modal.serverIconUploadsDisabled": "Add `UPLOADTHING_TOKEN` to enable cloud uploads.",
     "workspace.modal.serverIconUploading": "Uploading icon... {progress}%",
     "workspace.modal.serverIconChoose": "Choose image",
     "workspace.modal.serverIconClear": "Clear",
@@ -1261,8 +1270,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.messages.deletedNoticeDescription":
       "Choose how long the “message deleted” placeholder stays visible before Whispr hides it automatically.",
     "workspace.members.title": "Member access",
-    "workspace.members.description":
-      "Control whether regular members can add people by username.",
+    "workspace.members.description": "Control whether regular members can add people by username.",
     "workspace.members.allowAdds.title": "Members can add users",
     "workspace.members.allowAdds.description":
       "Admins and owners can always add users. Turn this on to let members do it too.",
@@ -1340,7 +1348,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.deleteChannelDeleting": "Deleting...",
     "workspace.modal.deleteChannelAction": "Delete Channel",
     "workspace.modal.deleteServerTitle": "Delete {name}?",
-    "workspace.modal.deleteServerDescription": "Type the server name to confirm permanent deletion.",
+    "workspace.modal.deleteServerDescription":
+      "Type the server name to confirm permanent deletion.",
     "workspace.modal.deleteServerPlaceholder": "Server name",
     "workspace.modal.deleteServerAction": "Delete Server",
 
@@ -1491,7 +1500,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "validation.username.max": "Kullanıcı adı en fazla 32 karakter olabilir.",
     "validation.username.min": "Kullanıcı adı en az 2 karakter olmalıdır.",
     "validation.username.pattern": "Kullanıcı adı sadece harf, sayı ve alt çizgi içerebilir.",
-    "validation.server.shortNamePattern": "Sunucu kısaltması en fazla 4 harf, sayı, tire veya alt çizgi içerebilir.",
+    "validation.server.shortNamePattern":
+      "Sunucu kısaltması en fazla 4 harf, sayı, tire veya alt çizgi içerebilir.",
 
     "friends.notification.request.title": "Yeni arkadaşlık isteği",
     "friends.notification.request.body": "{name} sana arkadaşlık isteği gönderdi.",
@@ -1596,6 +1606,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.controls.screenSharePhase8": "Ses kanallarında ekran paylaşımı 8. aşamada geliyor",
     "voice.controls.settings": "Ses ayarları",
     "voice.controls.camera": "Kamera",
+    "voice.controls.stopCamera": "Kamerayı kapat",
+    "voice.controls.cameraStarting": "Kamera açılıyor...",
+    "voice.controls.cameraStopping": "Kamera kapatılıyor...",
     "voice.controls.cameraSoon": "Yakında",
     "voice.controls.cameraPhase8": "Görüntülü görüşmeler 8. aşamada geliyor",
     "voice.controls.disconnect": "Bağlantıyı kes",
@@ -1606,6 +1619,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.controls.shareShort": "Paylaş",
     "voice.controls.stopShareShort": "Durdur",
     "voice.controls.cameraShort": "Kamera",
+    "voice.controls.stopCameraShort": "Kapat",
     "voice.controls.settingsShort": "Ayarlar",
     "voice.controls.leaveShort": "Ayrıl",
     "voice.errors.microphoneDenied":
@@ -1614,6 +1628,13 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Mikrofon erişimi engellendi. Whispr için mikrofon iznini sistem gizlilik ayarlarından verip tekrar dene.",
     "voice.errors.microphoneEnableFailed": "Mikrofon şu anda etkinleştirilemedi.",
     "voice.errors.microphoneSettingsFailed": "Mikrofon ayarları güncellenemedi.",
+    "voice.errors.cameraDenied":
+      "Kamera erişimi engellendi. Videoyu açmak için tarayıcıda kamera izni ver.",
+    "voice.errors.cameraDeniedDesktop":
+      "Kamera erişimi engellendi. Whispr için kamera iznini sistem gizlilik ayarlarından verip tekrar dene.",
+    "voice.errors.cameraUnavailable": "Bu cihazda kullanılabilir kamera bulunamadı.",
+    "voice.errors.cameraStartFailed": "Kamera şu anda başlatılamadı.",
+    "voice.errors.cameraNotSupported": "Bu tarayıcı kamera yakalamayı desteklemiyor.",
     "voice.errors.connectionFailed":
       "Ses bağlantısı kurulamadı. Ağ bağlantını kontrol edip tekrar dene.",
     "voice.errors.connectionUnstable":
@@ -1639,6 +1660,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.room.microphoneOn": "Mikrofon açık",
     "voice.room.microphoneActive": "Mikrofon aktif",
     "voice.room.microphoneClosed": "Mikrofon kapalı",
+    "voice.room.cameraOn": "Kamera açık",
+    "voice.room.cameraActive": "Kamera aktif",
+    "voice.room.cameraClosed": "Kamera kapalı",
     "voice.room.outputActive": "Ses çıkışı açık",
     "voice.room.outputClosed": "Ses çıkışı kapalı",
     "voice.room.screenSharing": "Ekran paylaşıyor",
@@ -1662,11 +1686,14 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.screenShare.quality.72030.label": "Dengeli 720p / 30 FPS",
     "voice.screenShare.quality.72030.description": "Orta bant genişliğiyle stabil hareket.",
     "voice.screenShare.quality.108030.label": "Net 1080p / 30 FPS",
-    "voice.screenShare.quality.108030.description": "Demo ve kod incelemeleri için önerilen netlik.",
+    "voice.screenShare.quality.108030.description":
+      "Demo ve kod incelemeleri için önerilen netlik.",
     "voice.screenShare.quality.72060.label": "Hızlı 720p / 60 FPS",
-    "voice.screenShare.quality.72060.description": "Bant genişliğini kontrollü tutarken daha akıcı hareket.",
+    "voice.screenShare.quality.72060.description":
+      "Bant genişliğini kontrollü tutarken daha akıcı hareket.",
     "voice.screenShare.quality.108060.label": "Akıcı 1080p / 60 FPS",
-    "voice.screenShare.quality.108060.description": "Animasyon, video ve canlı gezinme için yüksek akıcılık.",
+    "voice.screenShare.quality.108060.description":
+      "Animasyon, video ve canlı gezinme için yüksek akıcılık.",
     "voice.screenShare.quality.144030.label": "Ultra 1440p / 30 FPS",
     "voice.screenShare.quality.144030.description": "Büyük ekranlar için yüksek detaylı paylaşım.",
     "voice.grid.you": "Sen",
@@ -1741,7 +1768,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.devices.inputFallback": "Mikrofon {count}",
     "voice.devices.inputLabel": "Giriş aygıtı",
     "voice.devices.inputTitle": "Giriş aygıtı",
-    "voice.devices.liveUpdateHint": "Aygıt takıldığında veya çıkarıldığında liste canlı güncellenir.",
+    "voice.devices.liveUpdateHint":
+      "Aygıt takıldığında veya çıkarıldığında liste canlı güncellenir.",
     "voice.devices.loading": "Aygıtlar kontrol ediliyor...",
     "voice.devices.outputDescription":
       "Ses oynatmayı kullanmak istediğin hoparlör veya kulaklığa yönlendir.",
@@ -1858,9 +1886,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.register.creating": "Hesap oluşturuluyor...",
     "auth.register.description":
       "Güvenli mesajlaşma, sunucular, DM'ler, ses odaları, ekran paylaşımı, medya yükleme, GIF'ler, tepkiler ve video görüşmeye hazır iş birliği için doğrulanmış Whispr hesabını oluştur.",
-  "auth.register.emailTaken": "Bu e-posta zaten kullanımda.",
-  "auth.register.rateLimited": "Çok fazla kayıt denemesi yapıldı. Lütfen daha sonra tekrar dene.",
-  "auth.register.haveAccount": "Zaten hesabın var mı?",
+    "auth.register.emailTaken": "Bu e-posta zaten kullanımda.",
+    "auth.register.rateLimited": "Çok fazla kayıt denemesi yapıldı. Lütfen daha sonra tekrar dene.",
+    "auth.register.haveAccount": "Zaten hesabın var mı?",
     "auth.register.passwordPlaceholder": "Güçlü bir şifre oluştur",
     "auth.register.signIn": "Giriş yap",
     "auth.register.title": "Hesap oluştur",
@@ -1873,8 +1901,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Whispr hesabını kurmayı tamamlamak için bu e-posta adresini doğrula.",
     "auth.emailVerification.cta": "E-postayı doğrula",
     "auth.emailVerification.expires": "Bu bağlantı {hours} saat içinde sona erer.",
-    "auth.emailVerification.fallback":
-      "Buton çalışmazsa bu bağlantıyı tarayıcına yapıştır:",
+    "auth.emailVerification.fallback": "Buton çalışmazsa bu bağlantıyı tarayıcına yapıştır:",
     "auth.emailVerification.footer":
       "Whispr, yeni hesapları doğrulayarak konuşmalarını daha güvenli tutar.",
     "auth.emailVerification.greeting": "Merhaba {name},",
@@ -1913,8 +1940,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "E-postan başarıyla doğrulandı. Artık giriş yapıp Whispr'a devam edebilirsin.",
     "auth.verifyEmail.successTitle": "E-posta doğrulandı",
 
-    "auth.turnstile.help":
-      "Bu kısa kontrol, Whispr'ı otomatik kayıt denemelerine karşı korur.",
+    "auth.turnstile.help": "Bu kısa kontrol, Whispr'ı otomatik kayıt denemelerine karşı korur.",
     "auth.turnstile.invalid": "Güvenlik doğrulaması başarısız oldu. Lütfen tekrar dene.",
     "auth.turnstile.label": "Güvenlik doğrulaması",
     "auth.turnstile.loading": "Güvenlik doğrulaması yükleniyor...",
@@ -1927,8 +1953,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.forgot.backToLogin": "Girişe dön",
     "auth.forgot.checkEmail": "E-postanı kontrol et",
     "auth.forgot.description": "E-postanı gir, sana bir sıfırlama bağlantısı gönderelim.",
-    "auth.forgot.instructions":
-      "{email} için bir hesap varsa, sıfırlama talimatlarını alacaksın.",
+    "auth.forgot.instructions": "{email} için bir hesap varsa, sıfırlama talimatlarını alacaksın.",
     "auth.forgot.resetTitle": "Şifreni sıfırla",
     "auth.forgot.sending": "Gönderiliyor...",
     "auth.forgot.submit": "Sıfırlama Bağlantısı Gönder",
@@ -1974,19 +1999,13 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.account.avatar.saved": "Profil fotoğrafı güncellendi.",
     "settings.account.avatar.errors.type": "JPEG, PNG veya WebP görsel kullan.",
     "settings.account.avatar.errors.size": "Profil fotoğrafları en fazla 4 MB olabilir.",
-    "settings.account.avatar.errors.load":
-      "Bu görsel okunamadı. Lütfen başka bir görsel seç.",
-    "settings.account.avatar.errors.uploadsDisabled":
-      "Profil fotoğrafı yükleme yapılandırılmamış.",
-    "settings.account.avatar.errors.upload":
-      "Profil fotoğrafı yüklenemedi. Lütfen tekrar dene.",
-    "settings.account.avatar.errors.save":
-      "Profil fotoğrafı şu anda kaydedilemedi.",
-    "settings.account.avatar.errors.invalid":
-      "Bu profil fotoğrafı URL'ine izin verilmiyor.",
+    "settings.account.avatar.errors.load": "Bu görsel okunamadı. Lütfen başka bir görsel seç.",
+    "settings.account.avatar.errors.uploadsDisabled": "Profil fotoğrafı yükleme yapılandırılmamış.",
+    "settings.account.avatar.errors.upload": "Profil fotoğrafı yüklenemedi. Lütfen tekrar dene.",
+    "settings.account.avatar.errors.save": "Profil fotoğrafı şu anda kaydedilemedi.",
+    "settings.account.avatar.errors.invalid": "Bu profil fotoğrafı URL'ine izin verilmiyor.",
     "settings.account.errors.save": "Hesap ayarları şu anda kaydedilemedi.",
-    "settings.account.errors.displayNameTooLong":
-      "Görünen ad 60 karakterden uzun olamaz.",
+    "settings.account.errors.displayNameTooLong": "Görünen ad 60 karakterden uzun olamaz.",
     "settings.account.errors.emailTaken": "Bu e-posta adresi zaten kullanımda.",
     "settings.account.errors.usernameTaken": "Bu kullanıcı adı zaten alınmış.",
     "settings.nav.appearance": "Görünüm",
@@ -2328,8 +2347,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.main.tuneLayoutDescription":
       "Rayları, kenar çubuklarını ve temayı yeniden boyutlandırmak için ayarları aç.",
     "shell.main.startTalkingTitle": "Konuşmaya başla",
-    "shell.main.startTalkingDescription":
-      "Bir yazı kanalı aç ve canlı akışın hemen hazır olsun.",
+    "shell.main.startTalkingDescription": "Bir yazı kanalı aç ve canlı akışın hemen hazır olsun.",
     "shell.context.settings": "Ayarlar",
     "shell.context.invite": "Davet Et",
     "shell.context.addUser": "Kullanıcı Ekle",
@@ -2356,19 +2374,18 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
 
     "chat.message.deleteConfirm": "Bu mesaj silinsin mi?",
     "chat.message.deleteDialogTitle": "Mesaj silinsin mi?",
-      "chat.message.deleteDialogDescription":
-        "Bu işlem mesajı konuşmadan herkes için kaldırır.",
-      "chat.message.deleteDialogBody":
-        "Bu işlem geri alınamaz, ancak konuşmanın geri kalanı korunur.",
-      "chat.message.deleted": "Bu mesaj silindi.",
-      "chat.message.removeDeletedPlaceholder": "Bilgiyi kaldır",
-      "chat.message.removeDeletedPlaceholderAria": "Silinen mesaj bilgisini kaldır",
-      "chat.message.removeDeletedDialogTitle": "Silinen mesaj bilgisi kaldırılsın mı?",
-      "chat.message.removeDeletedDialogDescription":
-        "Bu işlem konuşmanın geri kalanını değiştirmeden silinen mesaj bilgisini gizler.",
-      "chat.message.removeDeletedDialogBody":
-        "Bu bilgiyi yalnızca mesajı silen kullanıcı veya sunucu admini kaldırabilir.",
-      "chat.message.edited": "(düzenlendi)",
+    "chat.message.deleteDialogDescription": "Bu işlem mesajı konuşmadan herkes için kaldırır.",
+    "chat.message.deleteDialogBody":
+      "Bu işlem geri alınamaz, ancak konuşmanın geri kalanı korunur.",
+    "chat.message.deleted": "Bu mesaj silindi.",
+    "chat.message.removeDeletedPlaceholder": "Bilgiyi kaldır",
+    "chat.message.removeDeletedPlaceholderAria": "Silinen mesaj bilgisini kaldır",
+    "chat.message.removeDeletedDialogTitle": "Silinen mesaj bilgisi kaldırılsın mı?",
+    "chat.message.removeDeletedDialogDescription":
+      "Bu işlem konuşmanın geri kalanını değiştirmeden silinen mesaj bilgisini gizler.",
+    "chat.message.removeDeletedDialogBody":
+      "Bu bilgiyi yalnızca mesajı silen kullanıcı veya sunucu admini kaldırabilir.",
+    "chat.message.edited": "(düzenlendi)",
     "chat.message.systemJoin": "{name} sunucuya katıldı.",
     "chat.message.systemLeave": "{name} sunucudan ayrıldı.",
     "chat.message.react": "Tepki Ver",
@@ -2522,7 +2539,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.attachments.attachFile": "Ekle",
     "chat.attachments.disabled": "Bu sunucuda dosya yükleme kapalı.",
     "chat.attachments.dropToUpload": "Yüklemek için dosyaları bırak",
-    "chat.attachments.dropToUploadHint": "Görseller, videolar, dokümanlar ve GIF'ler bu mesaja eklenir.",
+    "chat.attachments.dropToUploadHint":
+      "Görseller, videolar, dokümanlar ve GIF'ler bu mesaja eklenir.",
     "chat.attachments.closeImageViewer": "Görsel görüntüleyiciyi kapat",
     "chat.attachments.file": "Dosya",
     "chat.attachments.gif": "GIF",
@@ -2574,9 +2592,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.mentions.notifyTitle": "Etiketlendin",
     "chat.mentions.notifyBody": "{name} seni #{channel} kanalında etiketledi.",
 
-  "notifications.bell.title": "Bildirimler",
-  "notifications.actor.system": "Sistem",
-  "notifications.bell.markAllRead": "Tümünü okundu olarak işaretle",
+    "notifications.bell.title": "Bildirimler",
+    "notifications.actor.system": "Sistem",
+    "notifications.bell.markAllRead": "Tümünü okundu olarak işaretle",
     "notifications.bell.seeAll": "Tümünü gör",
     "notifications.bell.clearAll": "Hepsini Sil",
     "notifications.bell.empty": "Bildirim yok",
@@ -2668,14 +2686,15 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.addMemberErrorValidation": "Geçerli bir kullanıcı adı gir.",
     "workspace.modal.addMemberMissingServer": "Önce bir sunucu seç.",
     "workspace.modal.categoryTitle": "Kategori Oluştur",
-    "workspace.modal.categoryDescription": "Kanalları düzenlemek için yeni bir kategori bloğu ekle.",
+    "workspace.modal.categoryDescription":
+      "Kanalları düzenlemek için yeni bir kategori bloğu ekle.",
     "workspace.modal.categoryName": "Kategori Adı",
-    "workspace.modal.categoryHint":
-      "Türkçe karakter, boşluk, tire ve alt çizgi desteklenir.",
+    "workspace.modal.categoryHint": "Türkçe karakter, boşluk, tire ve alt çizgi desteklenir.",
     "workspace.modal.categoryPlaceholder": "Başlangıç Alanı",
     "workspace.modal.categoryCreating": "Oluşturuluyor...",
     "workspace.modal.categoryEditTitle": "Kategoriyi Düzenle",
-    "workspace.modal.categoryEditDescription": "Kanallarını taşımadan bu kategoriyi yeniden adlandır.",
+    "workspace.modal.categoryEditDescription":
+      "Kanallarını taşımadan bu kategoriyi yeniden adlandır.",
     "workspace.modal.categoryUpdated": "#{name} güncellendi.",
     "workspace.modal.categorySave": "Kategoriyi Kaydet",
     "workspace.modal.categorySaving": "Kaydediliyor...",
@@ -2722,8 +2741,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.deleteChannelDeleting": "Siliniyor...",
     "workspace.modal.deleteChannelAction": "Kanalı Sil",
     "workspace.modal.deleteServerTitle": "{name} silinsin mi?",
-    "workspace.modal.deleteServerDescription":
-      "Kalıcı silmeyi onaylamak için sunucu adını yaz.",
+    "workspace.modal.deleteServerDescription": "Kalıcı silmeyi onaylamak için sunucu adını yaz.",
     "workspace.modal.deleteServerPlaceholder": "Sunucu adı",
     "workspace.modal.deleteServerAction": "Sunucuyu Sil",
 
@@ -2798,11 +2816,7 @@ export function detectBrowserLocale(): AppLocale {
   return normalizeAppLocale(browserLocale);
 }
 
-export function translate(
-  locale: AppLocale,
-  key: string,
-  values?: TranslationValues,
-): string {
+export function translate(locale: AppLocale, key: string, values?: TranslationValues): string {
   const template = APP_MESSAGES[locale][key] ?? APP_MESSAGES.en[key] ?? key;
 
   if (!values) {
@@ -2818,4 +2832,3 @@ export function translate(
 export function getMessage(locale: AppLocale, key: string): string | undefined {
   return APP_MESSAGES[locale][key] ?? APP_MESSAGES.en[key];
 }
-

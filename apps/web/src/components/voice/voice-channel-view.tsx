@@ -1,19 +1,7 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
-import {
-  ConnectionState,
-  LocalVideoTrack,
-  type RemoteVideoTrack,
-  type Room,
-} from "livekit-client";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { ConnectionState, LocalVideoTrack, type RemoteVideoTrack, type Room } from "livekit-client";
 import {
   ChevronDown,
   Loader2,
@@ -27,6 +15,7 @@ import {
   Sparkles,
   Users,
   Video,
+  VideoOff,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -34,14 +23,12 @@ import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
   useVoiceConnection,
+  type VoiceCameraStatus,
   type VoiceParticipantViewModel,
   type VoiceScreenShareViewModel,
 } from "@/components/providers/voice-provider";
 import { VoiceSettingsModal } from "@/components/voice/voice-settings-modal";
-import {
-  SCREEN_SHARE_QUALITY_OPTIONS,
-  type ScreenShareQualityId,
-} from "@/lib/voice/screen-share";
+import { SCREEN_SHARE_QUALITY_OPTIONS, type ScreenShareQualityId } from "@/lib/voice/screen-share";
 import { cn } from "@/lib/utils";
 
 type VoiceChannelViewProps = {
@@ -73,10 +60,7 @@ type RoomControlButtonProps = {
 };
 
 function isReconnectState(state: ConnectionState) {
-  return (
-    state === ConnectionState.Reconnecting ||
-    state === ConnectionState.SignalReconnecting
-  );
+  return state === ConnectionState.Reconnecting || state === ConnectionState.SignalReconnecting;
 }
 
 function getSpeakingClass(isSpeaking: boolean) {
@@ -105,8 +89,8 @@ function getParticipantGridStyle(count: number): CSSProperties {
 }
 
 const VOICE_WAVEFORM_PATTERN = [
-  0.14, 0.18, 0.2, 0.28, 0.5, 0.86, 0.44, 0.22, 0.18, 0.24, 0.36, 0.66, 0.94,
-  0.46, 0.24, 0.18, 0.22, 0.36, 0.7, 0.98, 0.58, 0.28, 0.2, 0.16,
+  0.14, 0.18, 0.2, 0.28, 0.5, 0.86, 0.44, 0.22, 0.18, 0.24, 0.36, 0.66, 0.94, 0.46, 0.24, 0.18,
+  0.22, 0.36, 0.7, 0.98, 0.58, 0.28, 0.2, 0.16,
 ];
 
 function normalizeWaveformLevel(level: number) {
@@ -186,11 +170,7 @@ function MicrophoneStatusPill({ muted }: { muted: boolean }) {
           : "border-[hsl(var(--success)/0.20)] bg-[hsl(var(--success)/0.10)] text-[hsl(var(--success))]",
       )}
     >
-      {muted ? (
-        <MicOff className="h-[18px] w-[18px]" />
-      ) : (
-        <Mic className="h-[18px] w-[18px]" />
-      )}
+      {muted ? <MicOff className="h-[18px] w-[18px]" /> : <Mic className="h-[18px] w-[18px]" />}
       {muted ? t("voice.room.microphoneClosed") : t("voice.room.microphoneActive")}
     </span>
   );
@@ -214,6 +194,28 @@ function OutputStatusPill({ muted }: { muted: boolean }) {
         <Volume2 className="h-[18px] w-[18px]" />
       )}
       {muted ? t("voice.room.outputClosed") : t("voice.room.outputActive")}
+    </span>
+  );
+}
+
+function CameraStatusPill({ enabled }: { enabled: boolean }) {
+  const { t } = useI18n();
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-bold shadow-[0_14px_38px_hsl(var(--shadow-color)/0.08)] transition",
+        enabled
+          ? "border-[hsl(var(--success)/0.20)] bg-[hsl(var(--success)/0.10)] text-[hsl(var(--success))]"
+          : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.52)] text-app-muted",
+      )}
+    >
+      {enabled ? (
+        <Video className="h-[18px] w-[18px]" />
+      ) : (
+        <VideoOff className="h-[18px] w-[18px]" />
+      )}
+      {enabled ? t("voice.room.cameraActive") : t("voice.room.cameraClosed")}
     </span>
   );
 }
@@ -243,11 +245,7 @@ async function toggleElementFullscreen(element: HTMLElement | null) {
   await element.requestFullscreen().catch(() => undefined);
 }
 
-function ScreenShareVideo({
-  track,
-}: {
-  track: LocalVideoTrack | RemoteVideoTrack | null;
-}) {
+function ScreenShareVideo({ track }: { track: LocalVideoTrack | RemoteVideoTrack | null }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -275,6 +273,41 @@ function ScreenShareVideo({
   );
 }
 
+function ParticipantCameraVideo({
+  isLocal,
+  track,
+}: {
+  isLocal: boolean;
+  track: LocalVideoTrack | RemoteVideoTrack;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    track.attach(video);
+    video.play().catch(() => undefined);
+
+    return () => {
+      track.detach(video);
+    };
+  }, [track]);
+
+  return (
+    <video
+      autoPlay
+      className={cn("h-full w-full bg-black object-cover", isLocal && "-scale-x-100")}
+      data-testid="voice-participant-camera-video"
+      muted={isLocal}
+      playsInline
+      ref={videoRef}
+    />
+  );
+}
+
 function VoiceParticipantTile({
   isScreenSharing,
   isLocalOutputMuted,
@@ -286,6 +319,8 @@ function VoiceParticipantTile({
   const { t } = useI18n();
   const displayName = participant.displayName ?? participant.username;
   const avatarGlowStyle = getAvatarGlowStyle(participant);
+  const cameraTrack =
+    participant.isCameraEnabled && participant.cameraTrack ? participant.cameraTrack : null;
 
   return (
     <article
@@ -301,16 +336,20 @@ function VoiceParticipantTile({
       <div className="flex shrink-0 items-start justify-between gap-3">
         <div className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 py-1 text-[11px] font-semibold text-app-muted">
           <span className="h-2.5 w-2.5 rounded-full bg-[hsl(var(--success))] shadow-[0_0_0_4px_hsl(var(--success)/0.12)]" />
-          {participant.isSpeaking
-            ? t("voice.room.speaking")
-            : t("voice.room.connected")}
+          {participant.isSpeaking ? t("voice.room.speaking") : t("voice.room.connected")}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {isScreenSharing ? (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 text-[11px] font-semibold text-[hsl(var(--primary))]">
               <MonitorUp className="h-3.5 w-3.5" />
               {t("voice.room.screenSharing")}
+            </span>
+          ) : null}
+          {participant.isCameraEnabled ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--success)/0.22)] bg-[hsl(var(--success)/0.10)] px-2.5 py-1 text-[11px] font-semibold text-[hsl(var(--success))]">
+              <Video className="h-3.5 w-3.5" />
+              {t("voice.room.cameraOn")}
             </span>
           ) : null}
           <span
@@ -327,42 +366,62 @@ function VoiceParticipantTile({
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-3 text-center">
-        <div
-          className={cn(
-            "rounded-full p-1 transition",
-            participant.isSpeaking
-              ? "bg-[hsl(var(--primary)/0.16)] ring-4 ring-[hsl(var(--primary)/0.12)]"
-              : "bg-[hsl(var(--surface-card)/0.58)] ring-1 ring-[hsl(var(--border)/0.58)]",
-          )}
-          style={avatarGlowStyle}
-        >
-          <Avatar
-            alt={displayName}
-            className="h-[clamp(3.75rem,8vh,6rem)] w-[clamp(3.75rem,8vh,6rem)] border-none text-lg"
-            fallback={displayName}
-            src={participant.avatarUrl}
+      {cameraTrack ? (
+        <div className="relative my-3 min-h-0 flex-1 overflow-hidden rounded-[24px] border border-[hsl(var(--border)/0.58)] bg-black">
+          <ParticipantCameraVideo isLocal={participant.isLocal} track={cameraTrack} />
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/72 via-black/34 to-transparent p-3 text-left text-white">
+            <p className="truncate text-base font-semibold sm:text-lg">{displayName}</p>
+            <p className="mt-1 truncate text-sm font-medium text-white/72">
+              @{participant.username}
+              {participant.isLocal ? ` / ${t("voice.grid.you")}` : ""}
+            </p>
+            <VoiceLevelWaveform
+              active={participant.isSpeaking}
+              compact
+              level={participant.audioLevel}
+              muted={participant.isMuted}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-3 text-center">
+          <div
+            className={cn(
+              "rounded-full p-1 transition",
+              participant.isSpeaking
+                ? "bg-[hsl(var(--primary)/0.16)] ring-4 ring-[hsl(var(--primary)/0.12)]"
+                : "bg-[hsl(var(--surface-card)/0.58)] ring-1 ring-[hsl(var(--border)/0.58)]",
+            )}
+            style={avatarGlowStyle}
+          >
+            <Avatar
+              alt={displayName}
+              className="h-[clamp(3.75rem,8vh,6rem)] w-[clamp(3.75rem,8vh,6rem)] border-none text-lg"
+              fallback={displayName}
+              src={participant.avatarUrl}
+            />
+          </div>
+          <div className="mt-3 min-w-0">
+            <p className="truncate text-base font-semibold text-app-foreground sm:text-lg">
+              {displayName}
+            </p>
+            <p className="mt-1 truncate text-sm font-medium text-app-muted">
+              @{participant.username}
+              {participant.isLocal ? ` / ${t("voice.grid.you")}` : ""}
+            </p>
+          </div>
+          <VoiceLevelWaveform
+            active={participant.isSpeaking}
+            level={participant.audioLevel}
+            muted={participant.isMuted}
           />
         </div>
-        <div className="mt-3 min-w-0">
-          <p className="truncate text-base font-semibold text-app-foreground sm:text-lg">
-            {displayName}
-          </p>
-          <p className="mt-1 truncate text-sm font-medium text-app-muted">
-            @{participant.username}
-            {participant.isLocal ? ` / ${t("voice.grid.you")}` : ""}
-          </p>
-        </div>
-        <VoiceLevelWaveform
-          active={participant.isSpeaking}
-          level={participant.audioLevel}
-          muted={participant.isMuted}
-        />
-      </div>
+      )}
 
       {participant.isLocal ? (
         <div className="flex shrink-0 flex-wrap justify-center gap-2 pb-1">
           <MicrophoneStatusPill muted={participant.isMuted} />
+          <CameraStatusPill enabled={participant.isCameraEnabled} />
           <OutputStatusPill muted={isLocalOutputMuted} />
         </div>
       ) : (
@@ -419,9 +478,7 @@ function VoiceEmptyState() {
         <p className="mt-4 text-base font-semibold text-app-foreground">
           {t("voice.room.emptyTitle")}
         </p>
-        <p className="mt-2 text-sm text-app-muted">
-          {t("voice.room.emptyDescription")}
-        </p>
+        <p className="mt-2 text-sm text-app-muted">{t("voice.room.emptyDescription")}</p>
       </div>
     </div>
   );
@@ -488,6 +545,12 @@ function VoiceParticipantsSidebar({
                     <MonitorUp
                       aria-label={t("voice.room.screenSharing")}
                       className="h-3.5 w-3.5 text-[hsl(var(--primary))]"
+                    />
+                  ) : null}
+                  {participant.isCameraEnabled ? (
+                    <Video
+                      aria-label={t("voice.room.cameraOn")}
+                      className="h-3.5 w-3.5 text-[hsl(var(--success))]"
                     />
                   ) : null}
                   {participant.isMuted ? (
@@ -566,24 +629,38 @@ function RoomControlButton({
 }
 
 function VoiceControlBar({
+  cameraStatus,
+  isCameraEnabled,
   isDeafened,
   isMuted,
   isScreenSharing,
   leaveChannel,
+  toggleCamera,
   toggleDeafen,
   toggleMute,
   toggleScreenShare,
 }: {
+  cameraStatus: VoiceCameraStatus;
+  isCameraEnabled: boolean;
   isDeafened: boolean;
   isMuted: boolean;
   isScreenSharing: boolean;
   leaveChannel: () => Promise<void>;
+  toggleCamera: () => Promise<void>;
   toggleDeafen: () => Promise<void>;
   toggleMute: () => Promise<void>;
   toggleScreenShare: () => Promise<void>;
 }) {
   const { t } = useI18n();
   const [showVoiceSettingsModal, setShowVoiceSettingsModal] = useState(false);
+  const isCameraBusy = cameraStatus === "starting" || cameraStatus === "stopping";
+  const cameraTitle = isCameraEnabled
+    ? t("voice.controls.stopCamera")
+    : cameraStatus === "starting"
+      ? t("voice.controls.cameraStarting")
+      : cameraStatus === "stopping"
+        ? t("voice.controls.cameraStopping")
+        : t("voice.controls.camera");
 
   return (
     <>
@@ -603,9 +680,7 @@ function VoiceControlBar({
           <RoomControlButton
             active={isDeafened}
             ariaLabel={isDeafened ? t("voice.controls.undeafen") : t("voice.controls.deafen")}
-            icon={
-              isDeafened ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />
-            }
+            icon={isDeafened ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
             label={isDeafened ? t("voice.controls.undeafenShort") : t("voice.controls.deafenShort")}
             onClick={() => {
               void toggleDeafen();
@@ -615,34 +690,42 @@ function VoiceControlBar({
           />
           <RoomControlButton
             active={isScreenSharing}
-            ariaLabel={
-              isScreenSharing
-                ? t("voice.screenShare.stop")
-                : t("voice.screenShare.share")
-            }
+            ariaLabel={isScreenSharing ? t("voice.screenShare.stop") : t("voice.screenShare.share")}
             icon={<MonitorUp className="h-5 w-5" />}
             label={
-              isScreenSharing
-                ? t("voice.controls.stopShareShort")
-                : t("voice.controls.shareShort")
+              isScreenSharing ? t("voice.controls.stopShareShort") : t("voice.controls.shareShort")
             }
             onClick={() => {
               void toggleScreenShare();
             }}
             testId="voice-room-control-screen-share"
-            title={
-              isScreenSharing
-                ? t("voice.screenShare.stop")
-                : t("voice.screenShare.share")
-            }
+            title={isScreenSharing ? t("voice.screenShare.stop") : t("voice.screenShare.share")}
           />
           <RoomControlButton
-            ariaLabel={t("voice.controls.camera")}
-            disabled
-            icon={<Video className="h-5 w-5" />}
-            label={t("voice.controls.cameraShort")}
+            active={isCameraEnabled}
+            ariaLabel={
+              isCameraEnabled ? t("voice.controls.stopCamera") : t("voice.controls.camera")
+            }
+            disabled={isCameraBusy}
+            icon={
+              isCameraBusy ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : isCameraEnabled ? (
+                <VideoOff className="h-5 w-5" />
+              ) : (
+                <Video className="h-5 w-5" />
+              )
+            }
+            label={
+              isCameraEnabled
+                ? t("voice.controls.stopCameraShort")
+                : t("voice.controls.cameraShort")
+            }
+            onClick={() => {
+              void toggleCamera();
+            }}
             testId="voice-room-control-camera"
-            title={t("voice.controls.cameraSoon")}
+            title={cameraTitle}
           />
           <RoomControlButton
             ariaLabel={t("voice.controls.settings")}
@@ -781,9 +864,7 @@ function ScreenShareStage({
                     {displayName}
                   </p>
                   <p className="truncate text-xs text-app-muted">
-                    {share.isLocal
-                      ? t("voice.grid.you")
-                      : t("voice.screenShare.viewerLabel")}
+                    {share.isLocal ? t("voice.grid.you") : t("voice.screenShare.viewerLabel")}
                   </p>
                 </div>
               </button>
@@ -877,19 +958,16 @@ function ScreenShareStage({
   );
 }
 
-function renderGridParticipants(
-  room: Room | null,
-  participants: VoiceParticipantViewModel[],
-) {
+function renderGridParticipants(room: Room | null, participants: VoiceParticipantViewModel[]) {
   if (!room) {
     return participants;
   }
 
   const currentParticipantOrder = new Map(
-    [
-      room.localParticipant,
-      ...room.remoteParticipants.values(),
-    ].map((participant, index) => [participant.identity, index]),
+    [room.localParticipant, ...room.remoteParticipants.values()].map((participant, index) => [
+      participant.identity,
+      index,
+    ]),
   );
 
   return [...participants].sort((left, right) => {
@@ -905,9 +983,12 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
   const {
     activeChannelId,
     activeScreenShareId,
+    cameraError,
+    cameraStatus,
     connectionState,
     errorMessage,
     getParticipantVolume,
+    isCameraEnabled,
     isApplyingScreenShareQuality,
     isDeafened,
     isJoining,
@@ -924,6 +1005,7 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
     setScreenShareQuality,
     stopScreenShare,
     screenShareQuality,
+    toggleCamera,
     toggleDeafen,
     toggleMute,
     toggleScreenShare,
@@ -941,9 +1023,7 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
   const showReconnectOverlay = isReconnectState(connectionState);
   const participantCount = orderedParticipants.length;
   const activeScreenShare =
-    screenShares.find((share) => share.id === activeScreenShareId) ??
-    screenShares[0] ??
-    null;
+    screenShares.find((share) => share.id === activeScreenShareId) ?? screenShares[0] ?? null;
   const screenShareParticipantIds = useMemo(
     () => new Set(screenShares.map((share) => share.participantId)),
     [screenShares],
@@ -975,9 +1055,7 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
           <p className="text-base font-semibold text-app-foreground">
             {t("voice.view.disconnectedTitle")}
           </p>
-          <p className="mt-2 text-sm text-app-muted">
-            {t("voice.view.disconnectedDescription")}
-          </p>
+          <p className="mt-2 text-sm text-app-muted">{t("voice.view.disconnectedDescription")}</p>
           <button
             className="mt-5 rounded-2xl border border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.14)] px-4 py-2 text-sm font-semibold text-app-foreground transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             onClick={() => {
@@ -1056,6 +1134,15 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
             </div>
           ) : null}
 
+          {cameraError ? (
+            <div
+              className="mb-4 rounded-[24px] border border-[hsl(var(--warning)/0.24)] bg-[hsl(var(--warning)/0.08)] px-4 py-3"
+              data-testid="voice-camera-error"
+            >
+              <p className="text-sm font-medium text-app-foreground">{cameraError}</p>
+            </div>
+          ) : null}
+
           <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
             <div className="min-h-0 min-w-0">
               {screenShares.length > 0 ? (
@@ -1102,10 +1189,13 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
           </div>
 
           <VoiceControlBar
+            cameraStatus={cameraStatus}
+            isCameraEnabled={isCameraEnabled}
             isDeafened={isDeafened}
             isMuted={isMuted}
             isScreenSharing={isScreenSharing}
             leaveChannel={leaveChannel}
+            toggleCamera={toggleCamera}
             toggleDeafen={toggleDeafen}
             toggleMute={toggleMute}
             toggleScreenShare={toggleScreenShare}

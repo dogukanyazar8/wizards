@@ -9,6 +9,7 @@ import {
 import { e2eUsers, type E2EUserKey } from "../../helpers/test-data";
 
 const E2E_MICROPHONE_DENIED_KEY = "whispr:e2e:deny-microphone";
+const E2E_CAMERA_DENIED_KEY = "whispr:e2e:deny-camera";
 const E2E_SCREEN_SHARE_DENIED_KEY = "whispr:e2e:deny-screen-share";
 
 type LoggedInPage = {
@@ -40,6 +41,9 @@ async function openVoiceChannel(page: Page): Promise<{
   await expect(page.getByTestId("voice-room-control-disconnect")).toBeVisible({
     timeout: 10_000,
   });
+  await expect(page.getByTestId("voice-room-control-camera")).toBeVisible({
+    timeout: 10_000,
+  });
   return route;
 }
 
@@ -49,24 +53,33 @@ async function sendMessage(page: Page, content: string): Promise<void> {
 }
 
 async function setRangeValue(page: Page, testId: string, value: number): Promise<void> {
-  await page.getByTestId(testId).evaluate(
-    (element, nextValue) => {
-      const input = element as HTMLInputElement;
-      const valueSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype,
-        "value",
-      )?.set;
+  await page.getByTestId(testId).evaluate((element, nextValue) => {
+    const input = element as HTMLInputElement;
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value",
+    )?.set;
 
-      valueSetter?.call(input, String(nextValue));
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    },
-    value,
-  );
+    valueSetter?.call(input, String(nextValue));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, value);
 }
 
 function voiceSidebarParticipant(page: Page, username: string) {
   return page.getByTestId(`voice-sidebar-participant-${username}`);
+}
+
+async function expectNoHorizontalOverflow(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        ),
+      { timeout: 10_000 },
+    )
+    .toBeLessThanOrEqual(2);
 }
 
 test.describe("voice and screen share", () => {
@@ -80,9 +93,7 @@ test.describe("voice and screen share", () => {
     await loginAs(page, "alice");
     await openVoiceChannel(page);
 
-    await expect(page.getByTestId("voice-participant-card")).toContainText(
-      e2eUsers.alice.username,
-    );
+    await expect(page.getByTestId("voice-participant-card")).toContainText(e2eUsers.alice.username);
     await expect(voiceSidebarParticipant(page, e2eUsers.alice.username)).toBeVisible({
       timeout: 10_000,
     });
@@ -106,6 +117,20 @@ test.describe("voice and screen share", () => {
       "true",
     );
 
+    await page.getByTestId("voice-room-control-camera").click();
+    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
+
+    await page.getByTestId("voice-room-control-camera").click();
+    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
+      "data-active",
+      "false",
+    );
+    await expect(page.getByTestId("voice-participant-camera-video")).toBeHidden();
+
     await page.getByTestId("voice-room-control-disconnect").click();
     await expect(page.getByTestId("voice-participant-card")).toBeHidden({
       timeout: 10_000,
@@ -113,9 +138,36 @@ test.describe("voice and screen share", () => {
     await expectVoiceParticipantCount(voiceChannelId, 0);
   });
 
-  test("another server member sees voice join and leave without reload", async ({
-    browser,
-  }) => {
+  test("camera state is cleared after leaving and rejoining voice", async ({ page }) => {
+    const { voiceChannelId } = await getE2EServerRoute();
+
+    await loginAs(page, "alice");
+    await openVoiceChannel(page);
+
+    await page.getByTestId("voice-room-control-camera").click();
+    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
+
+    await page.getByTestId("voice-room-control-disconnect").click();
+    await expect(page.getByTestId("voice-participant-card")).toBeHidden({
+      timeout: 10_000,
+    });
+    await expect(page.getByTestId("voice-participant-camera-video")).toBeHidden();
+    await expectVoiceParticipantCount(voiceChannelId, 0);
+
+    await openVoiceChannel(page);
+    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
+      "data-active",
+      "false",
+    );
+    await expect(page.getByTestId("voice-participant-camera-video")).toBeHidden();
+    await expectVoiceParticipantCount(voiceChannelId, 1);
+  });
+
+  test("another server member sees voice join and leave without reload", async ({ browser }) => {
     const { serverId, textChannelId, voiceChannelId } = await getE2EServerRoute();
     const alice = await openLoggedInPage(browser, "alice");
     const bob = await openLoggedInPage(browser, "bob");
@@ -229,6 +281,12 @@ test.describe("voice and screen share", () => {
       "data-active",
       "true",
     );
+    await page.getByTestId("voice-room-control-camera").click();
+    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
     await page.getByTestId("voice-room-control-mute").click();
     await expect(page.getByTestId("voice-room-control-mute")).toHaveAttribute(
       "data-active",
@@ -243,12 +301,97 @@ test.describe("voice and screen share", () => {
       "data-active",
       "true",
     );
+    await page.getByTestId("voice-room-control-camera").click();
+    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
+      "data-active",
+      "false",
+    );
+    await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
     await expectVoiceParticipantCount(voiceChannelId, 1);
   });
 
-  test("screen share state appears in the sidebar for other members", async ({
-    browser,
-  }) => {
+  test("voice video layout stays contained on desktop and mobile", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await loginAs(page, "alice");
+    await openVoiceChannel(page);
+
+    await expect(page.getByTestId("voice-participant-card")).toBeVisible();
+    await expect(page.getByTestId("voice-room-control-camera")).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    await page.getByTestId("voice-room-control-camera").click();
+    await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByTestId("voice-room-control-camera")).toBeVisible();
+    await expect(page.getByTestId("voice-room-control-screen-share")).toBeVisible();
+    await expect(page.getByTestId("voice-room-control-disconnect")).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    await page
+      .getByTestId("voice-participant-card")
+      .locator("p")
+      .first()
+      .evaluate((node) => {
+        node.textContent = "Alexandria Cassandra Montgomery Whispr Quality Assurance";
+      });
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("mixed camera states stay contained with multiple participants", async ({ browser }) => {
+    const alice = await openLoggedInPage(browser, "alice");
+    const bob = await openLoggedInPage(browser, "bob");
+    const charlie = await openLoggedInPage(browser, "charlie");
+
+    try {
+      await alice.page.setViewportSize({ width: 1280, height: 820 });
+      await bob.page.setViewportSize({ width: 1280, height: 820 });
+      await charlie.page.setViewportSize({ width: 1280, height: 820 });
+
+      await openVoiceChannel(alice.page);
+      await openVoiceChannel(bob.page);
+      await openVoiceChannel(charlie.page);
+
+      await alice.page.getByTestId("voice-room-control-camera").click();
+      await expect(alice.page.getByTestId("voice-participant-card")).toHaveCount(3, {
+        timeout: 10_000,
+      });
+      await expect(alice.page.getByTestId("voice-participant-camera-video")).toHaveCount(1);
+      await expectNoHorizontalOverflow(alice.page);
+
+      await alice.page.setViewportSize({ width: 390, height: 844 });
+      await expect(alice.page.getByTestId("voice-participant-card")).toHaveCount(3);
+      await expectNoHorizontalOverflow(alice.page);
+    } finally {
+      await closeLoggedInPages([alice, bob, charlie]);
+    }
+  });
+
+  test("camera permission denied state is graceful", async ({ page }) => {
+    await loginAs(page, "alice");
+    await page.evaluate((cameraKey) => {
+      window.localStorage.setItem(cameraKey, "true");
+    }, E2E_CAMERA_DENIED_KEY);
+
+    await openVoiceChannel(page);
+    await page.getByTestId("voice-room-control-camera").click();
+
+    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
+      "data-active",
+      "false",
+    );
+    await expect(page.getByTestId("voice-camera-error")).toBeVisible();
+    await expect(page.getByTestId("voice-camera-error")).toContainText(
+      /camera|kamera|blocked|engellendi/i,
+    );
+  });
+
+  test("screen share state appears in the sidebar for other members", async ({ browser }) => {
     const { serverId, textChannelId, voiceChannelId } = await getE2EServerRoute();
     const alice = await openLoggedInPage(browser, "alice");
     const bob = await openLoggedInPage(browser, "bob");
