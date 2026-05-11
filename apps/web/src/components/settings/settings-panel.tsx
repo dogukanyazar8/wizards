@@ -13,6 +13,7 @@ import {
   Mail,
   MonitorUp,
   Sparkles,
+  Type,
   UserRound,
   Volume2,
 } from "lucide-react";
@@ -56,6 +57,11 @@ import {
 } from "@/lib/appearance";
 import { APP_ICON_OPTIONS, type AppIconId } from "@/lib/app-icons";
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
+import {
+  MESSAGE_FONT_OPTIONS,
+  normalizeMessageFontId,
+  type MessageFontId,
+} from "@/lib/message-fonts";
 import {
   type AccountSettingsState,
   type UpdateAccountSettingsResult,
@@ -461,6 +467,7 @@ export function SettingsPanel({
     channelSidebarWidth,
     desktopNotificationPreviews,
     mainPanelWidth,
+    messageFont,
     notificationAutoClose,
     notificationLimit,
     notificationPopupTimeoutSeconds,
@@ -474,6 +481,7 @@ export function SettingsPanel({
     setChannelSidebarWidth,
     setDesktopNotificationPreviews,
     setMainPanelWidth,
+    setMessageFont,
     setNotificationAutoClose,
     setNotificationLimit,
     setNotificationPopupTimeoutSeconds,
@@ -487,6 +495,7 @@ export function SettingsPanel({
       channelSidebarWidth: state.channelSidebarWidth,
       desktopNotificationPreviews: state.desktopNotificationPreviews,
       mainPanelWidth: state.mainPanelWidth,
+      messageFont: state.messageFont,
       notificationAutoClose: state.notificationAutoClose,
       notificationLimit: state.notificationLimit,
       notificationPopupTimeoutSeconds: state.notificationPopupTimeoutSeconds,
@@ -500,6 +509,7 @@ export function SettingsPanel({
       setChannelSidebarWidth: state.setChannelSidebarWidth,
       setDesktopNotificationPreviews: state.setDesktopNotificationPreviews,
       setMainPanelWidth: state.setMainPanelWidth,
+      setMessageFont: state.setMessageFont,
       setNotificationAutoClose: state.setNotificationAutoClose,
       setNotificationLimit: state.setNotificationLimit,
       setNotificationPopupTimeoutSeconds: state.setNotificationPopupTimeoutSeconds,
@@ -624,6 +634,22 @@ export function SettingsPanel({
       patchSettingsMutation.mutate(patch);
     },
     [patchSettingsMutation],
+  );
+
+  const selectedMessageFont = normalizeMessageFontId(
+    serverSettings?.messageFont ?? messageFont,
+  );
+
+  const handleMessageFontChange = useCallback(
+    (nextFont: MessageFontId) => {
+      const normalizedFont = normalizeMessageFontId(nextFont);
+      setMessageFont(normalizedFont);
+      queryClient.setQueryData<UserLayoutSettings | undefined>(
+        settingsQueryKeys.layout,
+        (current) => (current ? { ...current, messageFont: normalizedFont } : current),
+      );
+    },
+    [queryClient, setMessageFont],
   );
 
   const previewSound = useCallback(
@@ -1382,6 +1408,58 @@ export function SettingsPanel({
     );
   };
 
+  const renderMessageFontPicker = () => (
+    <SettingCard
+      badge={t("settings.appearance.messageFont.badge")}
+      description={t("settings.appearance.messageFont.description")}
+      icon={Type}
+      title={t("settings.appearance.messageFont.title")}
+    >
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {MESSAGE_FONT_OPTIONS.map((option) => {
+          const isSelected = option.id === selectedMessageFont;
+
+          return (
+            <button
+              aria-pressed={isSelected}
+              className={cn(
+                "group min-h-36 rounded-[24px] border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                isSelected
+                  ? "border-[hsl(var(--primary)/0.48)] bg-[hsl(var(--primary)/0.12)] shadow-[0_18px_42px_hsl(var(--primary)/0.12)]"
+                  : "border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.28)] hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--surface-card)/0.72)]",
+              )}
+              data-testid={`settings-message-font-${option.id}`}
+              key={option.id}
+              onClick={() => handleMessageFontChange(option.id)}
+              style={{ fontFamily: option.family }}
+              type="button"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-[11px] font-black uppercase tracking-[0.18em] text-app-soft">
+                  {option.label}
+                </span>
+                {isSelected ? (
+                  <span className="rounded-full border border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.14)] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[hsl(var(--primary))]">
+                    {t("settings.appearance.messageFont.selected")}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-5 text-2xl font-semibold tracking-tight text-app-foreground">
+                {t("settings.appearance.messageFont.preview")}
+              </p>
+              <p className="mt-3 text-sm leading-6 text-app-muted">
+                {t("settings.appearance.messageFont.sample")}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-4 rounded-[20px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.28)] px-4 py-3 text-xs leading-5 text-app-muted">
+        {t("settings.appearance.messageFont.note")}
+      </p>
+    </SettingCard>
+  );
+
   const renderAppearanceSection = () => {
     return (
       <div className="space-y-6">
@@ -1410,6 +1488,8 @@ export function SettingsPanel({
             <ThemePicker persistSelection />
           </SettingCard>
         ) : null}
+
+        {panel === null || panel === "messageFont" ? renderMessageFontPicker() : null}
 
         {panel === null ? (
           <SettingCard

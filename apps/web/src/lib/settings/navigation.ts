@@ -11,6 +11,7 @@ export type SettingsPanelKey =
   | "screenShare"
   | "language"
   | "theme"
+  | "messageFont"
   | "advanced"
   | "appIcon"
   | "serverRail"
@@ -35,6 +36,7 @@ const PANELS_BY_SECTION: Record<SettingsSection, readonly SettingsPanelKey[]> = 
   appearance: [
     "language",
     "theme",
+    "messageFont",
     "advanced",
     "appIcon",
     "serverRail",

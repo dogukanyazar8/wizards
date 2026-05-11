@@ -851,10 +851,15 @@ body {
 
 body {
   @apply bg-background text-foreground antialiased;
+  --whispr-message-font: var(--font-message-outfit), var(--font-sans), sans-serif;
   background-image:
     radial-gradient(circle at top, hsl(var(--ambient-1) / 0.18), transparent 28%),
     radial-gradient(circle at bottom right, hsl(var(--ambient-2) / 0.12), transparent 26%);
   font-family: var(--font-sans), sans-serif;
+}
+
+.message-font-scope {
+  font-family: var(--whispr-message-font, var(--font-sans), sans-serif);
 }
 
 h1,

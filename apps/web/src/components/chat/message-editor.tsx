@@ -66,7 +66,7 @@ export function MessageEditor({ initialContent, onSave, onCancel }: MessageEdito
       <div className="p-2.5">
         <textarea
           aria-label={t("chat.editor.title")}
-          className="min-h-[92px] w-full resize-none rounded-[20px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.38)] px-3 py-3 text-sm leading-6 text-app-foreground outline-none transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.48)] focus:bg-[hsl(var(--surface-card)/0.82)] focus:ring-2 focus:ring-[hsl(var(--primary)/0.16)]"
+          className="message-font-scope min-h-[92px] w-full resize-none rounded-[20px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.38)] px-3 py-3 text-sm leading-6 text-app-foreground outline-none transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.48)] focus:bg-[hsl(var(--surface-card)/0.82)] focus:ring-2 focus:ring-[hsl(var(--primary)/0.16)]"
           data-testid="message-editor-input"
           maxLength={MAX_MESSAGE_LENGTH}
           onChange={(event) => setContent(event.target.value)}

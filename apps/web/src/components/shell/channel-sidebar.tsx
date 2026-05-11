@@ -130,6 +130,19 @@ type ChannelDropZoneProps = {
   emptyLabel: string;
 };
 
+const OPEN_CHANNEL_GROUP_KEY = "open-channels-group";
+
+type SidebarDisplayGroup =
+  | {
+      category: WorkspaceServerDetail["categories"][number];
+      key: string;
+      type: "category";
+    }
+  | {
+      key: typeof OPEN_CHANNEL_GROUP_KEY;
+      type: "open";
+    };
+
 const SortableChannelRow = React.memo(function SortableChannelRow({
   active,
   canManage,
@@ -177,6 +190,7 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
         <div className="min-w-0 flex-1 overflow-hidden">
           <ChannelItem
             active={active}
+            canAccess={channel.canAccess}
             canManage={canManage}
             currentUserId={currentUserId}
             mentionCount={channel.mentionCount}
@@ -184,6 +198,7 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
             onDelete={onDelete}
             onEdit={onEdit}
             onSelect={onSelect}
+            readOnly={channel.readOnly}
             type={channel.type}
             unreadCount={channel.unreadCount}
             voiceState={voiceState}
@@ -720,10 +735,14 @@ export function ChannelSidebar({
     openCategoryModal,
     openChannelModal,
     openDeleteChannelDialog,
+    openChannelGroupPositions,
     openInviteModal,
     openServerSettings,
     resetChannelSidebarWidth,
     setChannelSidebarWidth,
+    setOpenChannelGroupPosition,
+    setShowCategoryMoveControls,
+    showCategoryMoveControls,
     toggleCategoryCollapse,
   } = useAppStore(
     useShallow((state) => ({
@@ -732,10 +751,14 @@ export function ChannelSidebar({
       openCategoryModal: state.openCategoryModal,
       openChannelModal: state.openChannelModal,
       openDeleteChannelDialog: state.openDeleteChannelDialog,
+      openChannelGroupPositions: state.openChannelGroupPositions,
       openInviteModal: state.openInviteModal,
       openServerSettings: state.openServerSettings,
       resetChannelSidebarWidth: state.resetChannelSidebarWidth,
       setChannelSidebarWidth: state.setChannelSidebarWidth,
+      setOpenChannelGroupPosition: state.setOpenChannelGroupPosition,
+      setShowCategoryMoveControls: state.setShowCategoryMoveControls,
+      showCategoryMoveControls: state.showCategoryMoveControls,
       toggleCategoryCollapse: state.toggleCategoryCollapse,
     })),
   );
@@ -940,33 +963,6 @@ export function ChannelSidebar({
     [serverId, onPrefetch],
   );
 
-  const moveCategory = useCallback(
-    (categoryId: string, direction: "down" | "up") => {
-      if (!detail) {
-        return;
-      }
-
-      const oldIndex = detail.categories.findIndex((category) => category.id === categoryId);
-      if (oldIndex < 0) {
-        return;
-      }
-
-      const newIndex = direction === "up" ? oldIndex - 1 : oldIndex + 1;
-      if (newIndex < 0 || newIndex >= detail.categories.length) {
-        return;
-      }
-
-      const reordered = arrayMove(detail.categories, oldIndex, newIndex);
-      categoryReorderMutation.mutate(
-        reordered.map((category, index) => ({
-          id: category.id,
-          position: index,
-        })),
-      );
-    },
-    [categoryReorderMutation, detail],
-  );
-
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
@@ -1039,7 +1035,7 @@ export function ChannelSidebar({
   );
 
   const renderSidebarControls = () => (
-    <div className="space-y-2 px-2 py-2">
+    <div className="w-64 max-w-[calc(100vw-2.5rem)] space-y-2 px-2 py-2">
       <div className="flex items-start gap-2 px-1">
         <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted">
           <SlidersHorizontal className="h-4 w-4" />
@@ -1061,6 +1057,47 @@ export function ChannelSidebar({
         step={CHANNEL_SIDEBAR_WIDTH_STEP}
         value={channelSidebarWidth}
       />
+      <button
+        aria-pressed={showCategoryMoveControls}
+        className="flex w-full items-center gap-2.5 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.32)] p-2.5 text-left transition hover:bg-[hsl(var(--surface-soft)/0.56)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+        onClick={() => setShowCategoryMoveControls(!showCategoryMoveControls)}
+        type="button"
+      >
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.68)] text-app-muted">
+          <span className="flex flex-col">
+            <ArrowUp className="h-3.5 w-3.5" />
+            <ArrowDown className="-mt-1 h-3.5 w-3.5" />
+          </span>
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-xs font-bold text-app-foreground">
+            {t("shell.channelSidebar.categoryMoveArrows")}
+          </span>
+          <span className="mt-0.5 block text-[11px] leading-4 text-app-soft">
+            {t("shell.channelSidebar.categoryMoveArrowsHint")}
+          </span>
+        </span>
+        <span
+          className={cn(
+            "relative h-6 w-11 shrink-0 rounded-full border transition",
+            showCategoryMoveControls
+              ? "border-[hsl(var(--primary)/0.35)] bg-[hsl(var(--primary)/0.22)]"
+              : "border-[hsl(var(--border)/0.6)] bg-[hsl(var(--muted)/0.34)]",
+          )}
+          title={t(
+            showCategoryMoveControls
+              ? "shell.channelSidebar.categoryMoveArrowsVisible"
+              : "shell.channelSidebar.categoryMoveArrowsHidden",
+          )}
+        >
+          <span
+            className={cn(
+              "absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-[hsl(var(--surface-card))] shadow-[0_4px_12px_hsl(var(--shadow-color)/0.16)] transition",
+              showCategoryMoveControls ? "left-5" : "left-1",
+            )}
+          />
+        </span>
+      </button>
       <button
         className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-xs font-bold text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.55)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
         onClick={() => {
@@ -1139,27 +1176,102 @@ export function ChannelSidebar({
   }
 
   const canManage = detail.server.isAdmin;
+  const hasOpenChannelGroup = detail.ungroupedChannels.length > 0;
+  const openChannelGroupPosition = hasOpenChannelGroup
+    ? Math.min(
+        detail.categories.length,
+        Math.max(
+          0,
+          openChannelGroupPositions[detail.server.id] ?? detail.categories.length,
+        ),
+      )
+    : detail.categories.length;
+  const displayGroups: SidebarDisplayGroup[] = detail.categories.map((category) => ({
+    category,
+    key: `category:${category.id}`,
+    type: "category",
+  }));
+
+  if (hasOpenChannelGroup) {
+    displayGroups.splice(openChannelGroupPosition, 0, {
+      key: OPEN_CHANNEL_GROUP_KEY,
+      type: "open",
+    });
+  }
+
   const getCategoryCollapsed = (categoryId: string) =>
     collapsedCategories[`${detail.server.id}:${categoryId}`] ?? false;
+  const moveDisplayGroup = (groupKey: string, direction: "down" | "up") => {
+    const oldIndex = displayGroups.findIndex((group) => group.key === groupKey);
+    if (oldIndex < 0) {
+      return;
+    }
+
+    const newIndex = direction === "up" ? oldIndex - 1 : oldIndex + 1;
+    if (newIndex < 0 || newIndex >= displayGroups.length) {
+      return;
+    }
+
+    const movingGroup = displayGroups[oldIndex];
+    const targetGroup = displayGroups[newIndex];
+
+    if (!movingGroup || !targetGroup) {
+      return;
+    }
+
+    if (movingGroup.type === "open") {
+      setOpenChannelGroupPosition(detail.server.id, newIndex);
+      return;
+    }
+
+    if (targetGroup.type === "open") {
+      setOpenChannelGroupPosition(detail.server.id, oldIndex);
+      return;
+    }
+
+    const oldCategoryIndex = detail.categories.findIndex(
+      (category) => category.id === movingGroup.category.id,
+    );
+    const newCategoryIndex = detail.categories.findIndex(
+      (category) => category.id === targetGroup.category.id,
+    );
+
+    if (oldCategoryIndex < 0 || newCategoryIndex < 0) {
+      return;
+    }
+
+    const reordered = arrayMove(detail.categories, oldCategoryIndex, newCategoryIndex);
+    categoryReorderMutation.mutate(
+      reordered.map((category, index) => ({
+        id: category.id,
+        position: index,
+      })),
+    );
+  };
 
   const renderChannelGroup = (
     label: string,
     categoryId: string | null,
     channels: WorkspaceChannel[],
+    groupKey: string,
     categorySortable?: CategorySortableHandle,
   ) => {
     const collapsed = categoryId ? getCategoryCollapsed(categoryId) : false;
-    const categoryIndex = categoryId
-      ? detail.categories.findIndex((category) => category.id === categoryId)
-      : -1;
-    const canMoveCategoryUp = categoryIndex > 0;
-    const canMoveCategoryDown = categoryIndex >= 0 && categoryIndex < detail.categories.length - 1;
+    const groupIndex = displayGroups.findIndex((group) => group.key === groupKey);
+    const canShowMoveControls =
+      canManage &&
+      showCategoryMoveControls &&
+      displayGroups.length > 1 &&
+      (categoryId !== null || groupKey === OPEN_CHANNEL_GROUP_KEY);
+    const canMoveGroupUp = canShowMoveControls && groupIndex > 0;
+    const canMoveGroupDown =
+      canShowMoveControls && groupIndex >= 0 && groupIndex < displayGroups.length - 1;
 
     return (
       <div
         className="group/category space-y-1 rounded-[22px] border border-[hsl(var(--border)/0.32)] bg-[hsl(var(--surface-card)/0.18)] px-1.5 py-1.5"
         data-sidebar-interactive="true"
-        key={categoryId ?? "uncategorized"}
+        key={groupKey}
       >
         <div className="flex items-center gap-1">
           {canManage && categoryId && categorySortable ? (
@@ -1176,33 +1288,33 @@ export function ChannelSidebar({
               <GripVertical className="h-3.5 w-3.5" />
             </button>
           ) : null}
-          {canManage && categoryId ? (
+          {canShowMoveControls ? (
             <div
-              aria-label={t("shell.channelSidebar.categoryMoveControls", { name: label })}
+              aria-label={t("shell.channelSidebar.sectionMoveControls", { name: label })}
               className="hidden shrink-0 items-center rounded-2xl border border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-card)/0.64)] p-0.5 shadow-[0_10px_22px_hsl(var(--shadow-color)/0.08)] group-hover/category:flex group-focus-within/category:flex"
             >
               <button
-                aria-label={t("shell.channelSidebar.moveCategoryUp", { name: label })}
+                aria-label={t("shell.channelSidebar.moveSectionUp", { name: label })}
                 className="inline-flex h-7 w-7 items-center justify-center rounded-xl text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-35"
-                disabled={!canMoveCategoryUp || categoryReorderMutation.isPending}
+                disabled={!canMoveGroupUp || categoryReorderMutation.isPending}
                 onClick={(event) => {
                   event.stopPropagation();
-                  moveCategory(categoryId, "up");
+                  moveDisplayGroup(groupKey, "up");
                 }}
-                title={t("shell.channelSidebar.moveCategoryUp", { name: label })}
+                title={t("shell.channelSidebar.moveSectionUp", { name: label })}
                 type="button"
               >
                 <ArrowUp className="h-3.5 w-3.5" />
               </button>
               <button
-                aria-label={t("shell.channelSidebar.moveCategoryDown", { name: label })}
+                aria-label={t("shell.channelSidebar.moveSectionDown", { name: label })}
                 className="inline-flex h-7 w-7 items-center justify-center rounded-xl text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-35"
-                disabled={!canMoveCategoryDown || categoryReorderMutation.isPending}
+                disabled={!canMoveGroupDown || categoryReorderMutation.isPending}
                 onClick={(event) => {
                   event.stopPropagation();
-                  moveCategory(categoryId, "down");
+                  moveDisplayGroup(groupKey, "down");
                 }}
-                title={t("shell.channelSidebar.moveCategoryDown", { name: label })}
+                title={t("shell.channelSidebar.moveSectionDown", { name: label })}
                 type="button"
               >
                 <ArrowDown className="h-3.5 w-3.5" />
@@ -1246,9 +1358,13 @@ export function ChannelSidebar({
             </button>
           ) : null}
         </div>
-        {canManage && categoryId ? (
+        {canShowMoveControls ? (
           <p className="hidden px-2.5 text-[10px] font-medium leading-4 text-app-soft transition group-hover/category:block group-focus-within/category:block">
-            {t("shell.channelSidebar.categoryMoveHint")}
+            {t(
+              categoryId
+                ? "shell.channelSidebar.categoryMoveHint"
+                : "shell.channelSidebar.openChannelsMoveHint",
+            )}
           </p>
         ) : null}
 
@@ -1288,12 +1404,17 @@ export function ChannelSidebar({
                           type: channel.type,
                         })
                       }
-                      onPrefetch={() => prefetchChannel(channel.id)}
                       onSelect={() => {
+                        if (!channel.canAccess) {
+                          return;
+                        }
                         void navigateToChannel(channel.id, channel.type);
                       }}
                       testId={`channel-item-${channel.id}`}
                       voiceState={voiceState}
+                      {...(channel.canAccess
+                        ? { onPrefetch: () => prefetchChannel(channel.id) }
+                        : {})}
                     />
                   );
                 })}
@@ -1406,25 +1527,33 @@ export function ChannelSidebar({
             items={detail.categories.map((category) => `category-sort:${category.id}`)}
             strategy={verticalListSortingStrategy}
           >
-            {detail.categories.map((category) => (
-              <SortableCategoryGroup
-                canManage={canManage}
-                categoryId={category.id}
-                key={category.id}
-              >
-                {(sortable) =>
-                  renderChannelGroup(category.name, category.id, category.channels, sortable)
-                }
-              </SortableCategoryGroup>
-            ))}
+            {displayGroups.map((group) =>
+              group.type === "category" ? (
+                <SortableCategoryGroup
+                  canManage={canManage}
+                  categoryId={group.category.id}
+                  key={group.key}
+                >
+                  {(sortable) =>
+                    renderChannelGroup(
+                      group.category.name,
+                      group.category.id,
+                      group.category.channels,
+                      group.key,
+                      sortable,
+                    )
+                  }
+                </SortableCategoryGroup>
+              ) : (
+                renderChannelGroup(
+                  t("shell.channelSidebar.openChannels"),
+                  null,
+                  detail.ungroupedChannels,
+                  group.key,
+                )
+              ),
+            )}
           </SortableContext>
-          {detail.ungroupedChannels.length > 0
-            ? renderChannelGroup(
-                t("shell.channelSidebar.openChannels"),
-                null,
-                detail.ungroupedChannels,
-              )
-            : null}
         </div>
       </DndContext>
 

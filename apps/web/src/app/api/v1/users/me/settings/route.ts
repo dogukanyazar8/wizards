@@ -9,10 +9,15 @@ import {
   clampChannelSidebarWidth,
   clampServerRailWidth,
 } from "@/lib/appearance";
+import {
+  normalizeMessageFontId,
+  type MessageFontId,
+} from "@/lib/message-fonts";
 
 const PatchSettingsSchema = z.object({
   serverRailWidth: z.number().int().optional(),
   channelSidebarWidth: z.number().int().optional(),
+  messageFont: z.string().trim().min(1).max(48).optional(),
   notificationLimit: z
     .number()
     .int()
@@ -30,6 +35,7 @@ const PatchSettingsSchema = z.object({
 export type UserLayoutSettings = {
   serverRailWidth: number;
   channelSidebarWidth: number;
+  messageFont: MessageFontId;
   notificationLimit: number;
   notificationAutoClose: boolean;
   desktopNotifications: boolean;
@@ -51,6 +57,7 @@ function mapSettingsResponse(input: {
   settings: {
     serverRailWidth: number;
     channelSidebarWidth: number;
+    messageFont: string;
     notificationLimit: number;
     notificationAutoClose: boolean;
   };
@@ -64,6 +71,7 @@ function mapSettingsResponse(input: {
 }): UserLayoutSettings {
   return {
     ...input.settings,
+    messageFont: normalizeMessageFontId(input.settings.messageFont),
     desktopNotifications:
       input.notificationSettings?.desktopNotifications ??
       DEFAULT_NOTIFICATION_SETTINGS.desktopNotifications,
@@ -92,6 +100,7 @@ export async function GET() {
           select: {
             serverRailWidth: true,
             channelSidebarWidth: true,
+            messageFont: true,
             notificationLimit: true,
             notificationAutoClose: true,
           },
@@ -132,6 +141,7 @@ export async function PATCH(request: Request) {
     const layoutData: Partial<{
       serverRailWidth: number;
       channelSidebarWidth: number;
+      messageFont: MessageFontId;
       notificationLimit: number;
       notificationAutoClose: boolean;
     }> = {};
@@ -141,6 +151,9 @@ export async function PATCH(request: Request) {
     }
     if (body.channelSidebarWidth !== undefined) {
       layoutData.channelSidebarWidth = clampChannelSidebarWidth(body.channelSidebarWidth);
+    }
+    if (body.messageFont !== undefined) {
+      layoutData.messageFont = normalizeMessageFontId(body.messageFont);
     }
     if (body.notificationLimit !== undefined) {
       layoutData.notificationLimit = body.notificationLimit;
@@ -180,6 +193,7 @@ export async function PATCH(request: Request) {
         select: {
           serverRailWidth: true,
           channelSidebarWidth: true,
+          messageFont: true,
           notificationLimit: true,
           notificationAutoClose: true,
         },

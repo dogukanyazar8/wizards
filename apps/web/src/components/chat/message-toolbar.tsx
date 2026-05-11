@@ -1,12 +1,14 @@
 "use client";
 
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type Ref, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Copy,
+  CornerUpLeft,
   Link2,
   MessageCircle,
   MessagesSquare,
+  MoreHorizontal,
   Pencil,
   Pin,
   PinOff,
@@ -14,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useI18n } from "@/components/providers/locale-provider";
+import { cn } from "@/lib/utils";
 
 const QUICK_REACTIONS = [
   "\u{1F44D}",
@@ -28,6 +31,7 @@ interface MessageToolbarProps {
   allowReact?: boolean;
   allowThread?: boolean;
   className?: string;
+  variant?: "full" | "hover";
   messageId: string;
   isOwner: boolean;
   canModerate: boolean;
@@ -39,13 +43,17 @@ interface MessageToolbarProps {
   onCopyRawText?: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onMore?: () => void;
   onPin?: (() => void | Promise<void>) | undefined;
+  isMoreOpen?: boolean;
+  moreButtonRef?: Ref<HTMLButtonElement>;
 }
 
 export function MessageToolbar({
   allowReact = true,
   allowThread = true,
   className,
+  variant = "full",
   messageId,
   isOwner,
   canModerate,
@@ -57,7 +65,10 @@ export function MessageToolbar({
   onCopyRawText,
   onEdit,
   onDelete,
+  onMore,
   onPin,
+  isMoreOpen = false,
+  moreButtonRef,
 }: MessageToolbarProps) {
   const { t } = useI18n();
   const [showReactionMenu, setShowReactionMenu] = useState(false);
@@ -165,9 +176,86 @@ export function MessageToolbar({
         )
       : null;
 
+  if (variant === "hover") {
+    const hoverButtonClassName =
+      "flex h-7 w-7 items-center justify-center rounded-md text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]";
+
+    return (
+      <div
+        className={cn(
+          "flex items-center gap-0.5 rounded-lg border border-[hsl(var(--border)/0.78)] bg-[hsl(var(--surface-card)/0.96)] p-1 shadow-none backdrop-blur-xl",
+          className,
+        )}
+        data-message-id={messageId}
+        data-testid="message-toolbar"
+      >
+        {allowReact ? (
+          <div className="relative" ref={reactionRootRef}>
+            <button
+              aria-expanded={showReactionMenu}
+              aria-haspopup="menu"
+              aria-label={t("chat.message.addReaction")}
+              className={hoverButtonClassName}
+              data-testid="message-action-react"
+              onClick={() => setShowReactionMenu((current) => !current)}
+              ref={reactionButtonRef}
+              title={t("chat.message.react")}
+              type="button"
+            >
+              <SmilePlus className="h-4 w-4" />
+            </button>
+            {reactionMenu}
+          </div>
+        ) : null}
+
+        <button
+          aria-label={t("chat.message.replyAria")}
+          className={hoverButtonClassName}
+          data-testid="message-action-reply"
+          onClick={onReply}
+          title={t("chat.message.reply")}
+          type="button"
+        >
+          <CornerUpLeft className="h-4 w-4" />
+        </button>
+
+        {isOwner ? (
+          <button
+            aria-label={t("chat.message.editAria")}
+            className={hoverButtonClassName}
+            data-testid="message-action-edit"
+            onClick={onEdit}
+            title={t("chat.message.edit")}
+            type="button"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+        ) : null}
+
+        {onMore ? (
+          <button
+            aria-label={t("chat.message.moreActions")}
+            aria-expanded={isMoreOpen}
+            className={hoverButtonClassName}
+            data-testid="message-action-more"
+            onClick={onMore}
+            ref={moreButtonRef}
+            title={t("chat.message.moreActions")}
+            type="button"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div
-      className={`bg-app-panel border-app-border flex items-center gap-1 rounded-full border px-1.5 py-1 shadow-[0_14px_32px_hsl(var(--shadow-color)/0.14)] sm:px-2 ${className ?? ""}`}
+      className={cn(
+        "bg-app-panel border-app-border flex items-center gap-1 rounded-full border px-1.5 py-1 shadow-[0_14px_32px_hsl(var(--shadow-color)/0.14)] sm:px-2",
+        className,
+      )}
       data-message-id={messageId}
       data-testid="message-toolbar"
     >

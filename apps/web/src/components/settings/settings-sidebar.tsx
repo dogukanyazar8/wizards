@@ -94,6 +94,11 @@ export function SettingsSidebar() {
   const appearanceItems: NavItem[] = [
     { label: t("settings.appearance.language.title"), panel: "language", section: "appearance" },
     { label: t("settings.appearance.theme.title"), panel: "theme", section: "appearance" },
+    {
+      label: t("settings.appearance.messageFont.title"),
+      panel: "messageFont",
+      section: "appearance",
+    },
   ];
 
   const notificationItems: NavItem[] = [

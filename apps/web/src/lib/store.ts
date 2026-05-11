@@ -21,30 +21,44 @@ import {
   isAppIconId,
   type AppIconId,
 } from "@/lib/app-icons";
+import {
+  DEFAULT_MESSAGE_FONT_ID,
+  applyMessageFontToDocument,
+  isMessageFontId,
+  normalizeMessageFontId,
+  type MessageFontId,
+} from "@/lib/message-fonts";
 import { patchLayoutSettings } from "@/lib/settings/client";
 
 export const APP_UI_STORAGE_KEY = "wizards-ui";
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingSyncPatch: UserSettingsSyncPatch = {};
+
+type UserSettingsSyncPatch = Partial<{
+  serverRailWidth: number;
+  channelSidebarWidth: number;
+  messageFont: MessageFontId;
+  notificationLimit: number;
+  notificationAutoClose: boolean;
+}>;
 
 function clampNotificationLimit(value: number) {
   return Math.min(MAX_NOTIFICATION_LIMIT, Math.max(MIN_NOTIFICATION_LIMIT, value));
 }
 
-function scheduleSyncToDb(
-  patch: Partial<{
-    serverRailWidth: number;
-    channelSidebarWidth: number;
-    notificationLimit: number;
-    notificationAutoClose: boolean;
-  }>,
-) {
+function scheduleSyncToDb(patch: UserSettingsSyncPatch) {
+  pendingSyncPatch = { ...pendingSyncPatch, ...patch };
+
   if (syncTimer) {
     clearTimeout(syncTimer);
   }
 
   syncTimer = setTimeout(() => {
-    patchLayoutSettings(patch).catch(() => {
+    const patchToSync = pendingSyncPatch;
+    pendingSyncPatch = {};
+
+    patchLayoutSettings(patchToSync).catch(() => {
       // Silent: in-memory and persisted client state already hold the value.
     });
   }, 500);
@@ -123,10 +137,12 @@ interface AppState extends PersistedRouteState {
   inviteModal: InviteModalState;
   mainPanelWidth: number;
   desktopNotificationPreviews: boolean;
+  messageFont: MessageFontId;
   mobileSidebarOpen: boolean;
   notificationAutoClose: boolean;
   notificationLimit: number;
   notificationPopupTimeoutSeconds: number;
+  openChannelGroupPositions: Record<string, number>;
   ready: boolean;
   serverRailCollapsed: boolean;
   serverRailIconSize: number;
@@ -134,9 +150,11 @@ interface AppState extends PersistedRouteState {
   serverContextMenu: ServerContextMenuState;
   serverModal: ServerModalState;
   serverSettingsServerId: string | null;
+  showCategoryMoveControls: boolean;
   applyPersistedSettings: (settings: {
     serverRailWidth: number;
     channelSidebarWidth: number;
+    messageFont: MessageFontId;
     notificationLimit: number;
     notificationAutoClose: boolean;
   }) => void;
@@ -176,14 +194,17 @@ interface AppState extends PersistedRouteState {
   setChannelSidebarWidth: (width: number) => void;
   setDesktopNotificationPreviews: (enabled: boolean) => void;
   setMainPanelWidth: (width: number) => void;
+  setMessageFont: (fontId: MessageFontId) => void;
   setMobileSidebarOpen: (open: boolean) => void;
   setNotificationAutoClose: (autoClose: boolean) => void;
   setNotificationLimit: (limit: number) => void;
   setNotificationPopupTimeoutSeconds: (seconds: number) => void;
+  setOpenChannelGroupPosition: (serverId: string, position: number) => void;
   setReady: (ready: boolean) => void;
   setServerRailCollapsed: (collapsed: boolean) => void;
   setServerRailIconSize: (size: number) => void;
   setServerRailWidth: (width: number) => void;
+  setShowCategoryMoveControls: (visible: boolean) => void;
   toggleCategoryCollapse: (serverId: string, categoryId: string) => void;
 }
 
@@ -198,12 +219,15 @@ type PersistedAppState = Pick<
   | "desktopNotificationPreviews"
   | "lastChannelByServerId"
   | "mainPanelWidth"
+  | "messageFont"
   | "notificationAutoClose"
   | "notificationLimit"
   | "notificationPopupTimeoutSeconds"
+  | "openChannelGroupPositions"
   | "serverRailCollapsed"
   | "serverRailIconSize"
   | "serverRailWidth"
+  | "showCategoryMoveControls"
 >;
 
 const initialChannelModalState: ChannelModalState = {
@@ -245,14 +269,17 @@ function createInitialState(): Omit<
   | "setChannelSidebarWidth"
   | "setDesktopNotificationPreviews"
   | "setMainPanelWidth"
+  | "setMessageFont"
   | "setMobileSidebarOpen"
   | "setNotificationAutoClose"
   | "setNotificationLimit"
   | "setNotificationPopupTimeoutSeconds"
+  | "setOpenChannelGroupPosition"
   | "setReady"
   | "setServerRailCollapsed"
   | "setServerRailIconSize"
   | "setServerRailWidth"
+  | "setShowCategoryMoveControls"
   | "toggleCategoryCollapse"
 > {
   return {
@@ -287,10 +314,12 @@ function createInitialState(): Omit<
     lastChannelByServerId: {},
     mainPanelWidth: DEFAULT_MAIN_PANEL_WIDTH,
     desktopNotificationPreviews: false,
+    messageFont: DEFAULT_MESSAGE_FONT_ID,
     mobileSidebarOpen: false,
     notificationAutoClose: true,
     notificationLimit: DEFAULT_NOTIFICATION_LIMIT,
     notificationPopupTimeoutSeconds: DEFAULT_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
+    openChannelGroupPositions: {},
     ready: false,
     serverRailCollapsed: false,
     serverRailIconSize: DEFAULT_SERVER_RAIL_ICON_SIZE,
@@ -307,6 +336,7 @@ function createInitialState(): Omit<
     },
     serverRailWidth: DEFAULT_SERVER_RAIL_WIDTH,
     serverSettingsServerId: null,
+    showCategoryMoveControls: true,
   };
 }
 
@@ -332,6 +362,22 @@ function sanitizeStringRecord(value: unknown): Record<string, string> {
   return Object.fromEntries(
     Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
   );
+}
+
+function sanitizeNumberRecord(value: unknown): Record<string, number> {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const result: Record<string, number> = {};
+
+  for (const [key, recordValue] of Object.entries(value)) {
+    if (typeof recordValue === "number" && Number.isFinite(recordValue)) {
+      result[key] = Math.max(0, Math.floor(recordValue));
+    }
+  }
+
+  return result;
 }
 
 function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
@@ -363,6 +409,9 @@ function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
         ? value.mainPanelWidth
         : DEFAULT_MAIN_PANEL_WIDTH,
     ),
+    messageFont: isMessageFontId(value.messageFont)
+      ? value.messageFont
+      : DEFAULT_MESSAGE_FONT_ID,
     notificationAutoClose:
       typeof value.notificationAutoClose === "boolean" ? value.notificationAutoClose : true,
     notificationLimit: clampNotificationLimit(
@@ -375,6 +424,7 @@ function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
         ? value.notificationPopupTimeoutSeconds
         : DEFAULT_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
     ),
+    openChannelGroupPositions: sanitizeNumberRecord(value.openChannelGroupPositions),
     serverRailCollapsed:
       typeof value.serverRailCollapsed === "boolean"
         ? value.serverRailCollapsed
@@ -389,6 +439,10 @@ function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
         ? value.serverRailWidth
         : DEFAULT_SERVER_RAIL_WIDTH,
     ),
+    showCategoryMoveControls:
+      typeof value.showCategoryMoveControls === "boolean"
+        ? value.showCategoryMoveControls
+        : true,
   };
 }
 
@@ -400,6 +454,7 @@ export const useAppStore = create<AppState>()(
         set({
           appearanceHydrated: true,
           channelSidebarWidth: clampChannelSidebarWidth(settings.channelSidebarWidth),
+          messageFont: normalizeMessageFontId(settings.messageFont),
           notificationAutoClose: settings.notificationAutoClose,
           notificationLimit: clampNotificationLimit(settings.notificationLimit),
           serverRailWidth: clampExpandedServerRailWidth(settings.serverRailWidth),
@@ -661,6 +716,21 @@ export const useAppStore = create<AppState>()(
             mainPanelWidth: nextWidth,
           };
         }),
+      setMessageFont: (fontId) =>
+        set((state) => {
+          const nextFont = normalizeMessageFontId(fontId);
+
+          if (state.messageFont === nextFont) {
+            return state;
+          }
+
+          applyMessageFontToDocument(nextFont);
+          scheduleSyncToDb({ messageFont: nextFont });
+
+          return {
+            messageFont: nextFont,
+          };
+        }),
       setMobileSidebarOpen: (open) =>
         set({
           mobileSidebarOpen: open,
@@ -688,6 +758,21 @@ export const useAppStore = create<AppState>()(
 
           return {
             notificationPopupTimeoutSeconds: nextSeconds,
+          };
+        }),
+      setOpenChannelGroupPosition: (serverId, position) =>
+        set((state) => {
+          const nextPosition = Math.max(0, Math.floor(position));
+
+          if (state.openChannelGroupPositions[serverId] === nextPosition) {
+            return state;
+          }
+
+          return {
+            openChannelGroupPositions: {
+              ...state.openChannelGroupPositions,
+              [serverId]: nextPosition,
+            },
           };
         }),
       setReady: (ready) =>
@@ -729,6 +814,16 @@ export const useAppStore = create<AppState>()(
           return {
             serverRailCollapsed: false,
             serverRailWidth: nextWidth,
+          };
+        }),
+      setShowCategoryMoveControls: (visible) =>
+        set((state) => {
+          if (state.showCategoryMoveControls === visible) {
+            return state;
+          }
+
+          return {
+            showCategoryMoveControls: visible,
           };
         }),
       toggleCategoryCollapse: (serverId, categoryId) =>
@@ -807,6 +902,15 @@ export const useAppStore = create<AppState>()(
           };
         }
 
+        if (version < 6) {
+          nextPersistedState = {
+            ...nextPersistedState,
+            messageFont: isMessageFontId(nextPersistedState.messageFont)
+              ? nextPersistedState.messageFont
+              : DEFAULT_MESSAGE_FONT_ID,
+          };
+        }
+
         return nextPersistedState;
       },
       merge: (persistedState, currentState) => ({
@@ -824,15 +928,18 @@ export const useAppStore = create<AppState>()(
         desktopNotificationPreviews: state.desktopNotificationPreviews,
         lastChannelByServerId: state.lastChannelByServerId,
         mainPanelWidth: state.mainPanelWidth,
+        messageFont: state.messageFont,
         notificationAutoClose: state.notificationAutoClose,
         notificationLimit: state.notificationLimit,
         notificationPopupTimeoutSeconds: state.notificationPopupTimeoutSeconds,
+        openChannelGroupPositions: state.openChannelGroupPositions,
         serverRailCollapsed: state.serverRailCollapsed,
         serverRailIconSize: state.serverRailIconSize,
         serverRailWidth: state.serverRailWidth,
+        showCategoryMoveControls: state.showCategoryMoveControls,
       }),
       storage: createJSONStorage(() => localStorage),
-      version: 5,
+      version: 6,
     },
   ),
 );

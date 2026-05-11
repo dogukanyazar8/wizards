@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Maximize2, Minus, X } from "lucide-react";
 import type { Window as TauriWindow } from "@tauri-apps/api/window";
@@ -77,10 +78,20 @@ export function DesktopWindowChrome() {
       <div className="flex h-full min-w-0 flex-1 items-center gap-2 px-3" data-tauri-drag-region>
         <span
           aria-hidden="true"
-          className="grid h-5 w-5 shrink-0 place-items-center rounded-lg border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.12)] text-[11px] font-extrabold text-[hsl(var(--primary))]"
+          className="relative grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded-lg border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--surface-card)/0.72)] shadow-[0_8px_18px_hsl(var(--primary)/0.12)]"
           data-tauri-drag-region
         >
-          W
+          <Image
+            alt=""
+            className="h-full w-full object-cover"
+            data-tauri-drag-region
+            draggable={false}
+            height={24}
+            priority
+            src="/app-icons/whispr.png"
+            unoptimized
+            width={24}
+          />
         </span>
         <span
           className="truncate text-xs font-bold uppercase tracking-[0.18em] text-app-muted"

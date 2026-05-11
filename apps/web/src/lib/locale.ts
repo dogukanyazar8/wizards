@@ -865,6 +865,16 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.appearance.theme.title": "Theme",
     "settings.appearance.theme.description":
       "Pick a calmer default or a more expressive palette without changing the workspace structure.",
+    "settings.appearance.messageFont.badge": "Live preview",
+    "settings.appearance.messageFont.title": "Message font",
+    "settings.appearance.messageFont.description":
+      "Choose the typeface used inside chat messages, replies, and the composer without changing the rest of Whispr.",
+    "settings.appearance.messageFont.preview": "Whispr feels clearer here.",
+    "settings.appearance.messageFont.sample":
+      "The selected font applies instantly to message text, thread replies, and the message box.",
+    "settings.appearance.messageFont.selected": "Active",
+    "settings.appearance.messageFont.note":
+      "These message fonts are bundled by Whispr, so switching them does not require a runtime third-party font request.",
     "settings.appearance.advanced.title": "Advanced",
     "settings.appearance.advanced.description":
       "Adjust the shell proportions that shape navigation, readability, and focus.",
@@ -1165,6 +1175,11 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.channelSidebar.dragCategory": "Drag category {name}",
     "shell.channelSidebar.categoryMoveControls": "Move category {name}",
     "shell.channelSidebar.categoryMoveHint": "Drag, or use the arrows to move this category.",
+    "shell.channelSidebar.openChannelsMoveHint":
+      "Use the arrows to move Open Channels between categories.",
+    "shell.channelSidebar.sectionMoveControls": "Move section {name}",
+    "shell.channelSidebar.moveSectionUp": "Move {name} up",
+    "shell.channelSidebar.moveSectionDown": "Move {name} down",
     "shell.channelSidebar.moveCategoryUp": "Move {name} up",
     "shell.channelSidebar.moveCategoryDown": "Move {name} down",
     "shell.channelSidebar.editCategory": "Edit Category",
@@ -1175,6 +1190,11 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.channelSidebar.customize": "Sidebar controls",
     "shell.channelSidebar.customizeHint": "Live channel-list width",
     "shell.channelSidebar.width": "Sidebar width",
+    "shell.channelSidebar.categoryMoveArrows": "Move arrows",
+    "shell.channelSidebar.categoryMoveArrowsHint":
+      "Show or hide up/down arrows.",
+    "shell.channelSidebar.categoryMoveArrowsVisible": "Move arrows visible",
+    "shell.channelSidebar.categoryMoveArrowsHidden": "Move arrows hidden",
     "shell.channelSidebar.expandAllCategories": "Expand all categories",
     "shell.channelSidebar.collapseAllCategories": "Collapse all categories",
     "shell.memberPanel.subtitle": "{count} members",
@@ -1242,6 +1262,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.footer.codex": "Codex Software",
     "shell.channelItem.openTextChannel": "Open text channel {name}",
     "shell.channelItem.openVoiceChannel": "Open voice channel {name}",
+    "shell.channelItem.locked": "{name} is locked",
+    "shell.channelItem.lockedBadge": "Locked",
+    "shell.channelItem.readOnly": "{name} is read-only",
+    "shell.channelItem.readOnlyBadge": "Read-only",
     "shell.channelItem.mentionCount": "{count} mentions",
     "shell.channelItem.unreadCount": "{count} unread messages",
     "shell.channelItem.edit": "Edit channel {name}",
@@ -1671,9 +1695,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "serverSettings.roles.groupGeneral": "General",
     "serverSettings.roles.groupModeration": "Moderation",
     "serverSettings.roles.groupVoice": "Voice and media",
-    "serverSettings.roles.mentionable": "Mentionable",
+    "serverSettings.roles.mentionable": "Taggable as @role in messages",
     "serverSettings.roles.mentionableDescription":
-      "Allow members to mention this role in messages.",
+      "When enabled, members can mention this role with @role in chat.",
+    "serverSettings.roles.mentionableBadge": "@ mention",
     "serverSettings.roles.noPermissions": "No direct permissions",
     "serverSettings.roles.overviewDescription":
       "Review access groups, create custom roles, and keep owner-only permissions protected.",
@@ -1692,6 +1717,15 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Message and member moderation without server configuration access.",
     "serverSettings.roles.presets": "Permission presets",
     "serverSettings.roles.protected": "Protected",
+    "serverSettings.roles.everyoneRole": "Everyone (@everyone)",
+    "serverSettings.roles.everyoneRoleHint":
+      "This default role applies to every member in the server.",
+    "serverSettings.roles.safeRole": "Safe role",
+    "serverSettings.roles.safeRoleHint":
+      "This role has elevated permissions, so only the owner can change or remove it.",
+    "serverSettings.roles.systemRole": "System role",
+    "serverSettings.roles.systemRoleHint":
+      "This role is part of the server permission foundation and cannot be removed.",
     "serverSettings.roles.roleLibrary": "Role library",
     "serverSettings.roles.roleLibraryDescription":
       "Protected roles stay visible for context; custom roles can be edited or removed.",
@@ -1701,6 +1735,15 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "serverSettings.roles.saveRole": "Save Role",
     "serverSettings.roles.selectedPermissions": "Selected",
     "serverSettings.roles.totalRoles": "Total roles",
+    "serverSettings.members.assignable": "Assignable",
+    "serverSettings.members.description":
+      "Review members, adjust safe assignable roles, and keep owner protection clear.",
+    "serverSettings.members.noAssignableRoles": "No assignable custom roles yet.",
+    "serverSettings.members.ownerProtected": "The server owner is protected from role changes.",
+    "serverSettings.members.roleAssignment": "Role assignment",
+    "serverSettings.members.roleOn": "On ",
+    "serverSettings.members.title": "Member access",
+    "serverSettings.members.total": "Members",
     "serverSettings.kick": "Kick",
     "serverSettings.noInvites":
       "No active invites yet. Generate one from the server menu or the quick invite modal.",
@@ -1713,6 +1756,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "serverSettings.deleteDescription":
       "This removes the entire server, its channels, invites, and membership data.",
     "serverSettings.deleteOpen": "Open Delete Confirmation",
+    "serverSettings.deleteOwnerOnly":
+      "Only the server owner can delete this server. Admins and moderators cannot.",
+    "serverSettings.deleteOwnerOnlyDenied":
+      "Only the server owner can delete this server. Your account can manage other allowed settings.",
     "serverSettings.ownerRequired": "Owner Access Required",
 
     "invite.error.badge": "Invite Error",
@@ -2585,6 +2632,16 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.appearance.theme.title": "Tema",
     "settings.appearance.theme.description":
       "Çalışma alanı yapısını bozmadan daha sakin bir varsayılan ya da daha ifade gücü yüksek bir palet seç.",
+    "settings.appearance.messageFont.badge": "Canlı önizleme",
+    "settings.appearance.messageFont.title": "Mesaj fontu",
+    "settings.appearance.messageFont.description":
+      "Whispr'ın geri kalanını değiştirmeden sohbet mesajları, yanıtlar ve mesaj kutusunda kullanılacak yazı karakterini seç.",
+    "settings.appearance.messageFont.preview": "Whispr burada daha okunaklı.",
+    "settings.appearance.messageFont.sample":
+      "Seçilen font mesaj metnine, thread yanıtlarına ve mesaj yazma alanına anında uygulanır.",
+    "settings.appearance.messageFont.selected": "Aktif",
+    "settings.appearance.messageFont.note":
+      "Bu mesaj fontları Whispr tarafından paketlenir; geçiş yapmak çalışma anında üçüncü taraf font isteği gerektirmez.",
     "settings.appearance.advanced.title": "Gelişmiş",
     "settings.appearance.advanced.description":
       "Gezinme, okunabilirlik ve odağı şekillendiren kabuk oranlarını ayarla.",
@@ -2885,6 +2942,11 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.channelSidebar.dragCategory": "{name} kategorisini sürükle",
     "shell.channelSidebar.categoryMoveControls": "{name} kategorisini taşı",
     "shell.channelSidebar.categoryMoveHint": "Kategoriyi sürükle veya oklarla yukarı/aşağı taşı.",
+    "shell.channelSidebar.openChannelsMoveHint":
+      "Açık Kanallar bölümünü kategorilerin arasında taşımak için okları kullan.",
+    "shell.channelSidebar.sectionMoveControls": "{name} bölümünü taşı",
+    "shell.channelSidebar.moveSectionUp": "{name} bölümünü yukarı taşı",
+    "shell.channelSidebar.moveSectionDown": "{name} bölümünü aşağı taşı",
     "shell.channelSidebar.moveCategoryUp": "{name} kategorisini yukarı taşı",
     "shell.channelSidebar.moveCategoryDown": "{name} kategorisini aşağı taşı",
     "shell.channelSidebar.editCategory": "Kategoriyi Düzenle",
@@ -2895,6 +2957,11 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.channelSidebar.customize": "Sidebar kontrolleri",
     "shell.channelSidebar.customizeHint": "Canlı kanal listesi genişliği",
     "shell.channelSidebar.width": "Sidebar genişliği",
+    "shell.channelSidebar.categoryMoveArrows": "Taşıma okları",
+    "shell.channelSidebar.categoryMoveArrowsHint":
+      "Yukarı/aşağı oklarını göster veya gizle.",
+    "shell.channelSidebar.categoryMoveArrowsVisible": "Taşıma okları görünür",
+    "shell.channelSidebar.categoryMoveArrowsHidden": "Taşıma okları gizli",
     "shell.channelSidebar.expandAllCategories": "Tüm kategorileri aç",
     "shell.channelSidebar.collapseAllCategories": "Tüm kategorileri daralt",
     "shell.memberPanel.subtitle": "{count} üye",
@@ -2963,6 +3030,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.footer.codex": "Codex Software",
     "shell.channelItem.openTextChannel": "{name} yazı kanalını aç",
     "shell.channelItem.openVoiceChannel": "{name} ses kanalını aç",
+    "shell.channelItem.locked": "{name} kilitli",
+    "shell.channelItem.lockedBadge": "Kilitli",
+    "shell.channelItem.readOnly": "{name} salt okunur",
+    "shell.channelItem.readOnlyBadge": "Salt Okunur",
     "shell.channelItem.mentionCount": "{count} etiketleme",
     "shell.channelItem.unreadCount": "{count} okunmamış mesaj",
     "shell.channelItem.edit": "{name} kanalını düzenle",
@@ -3392,9 +3463,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "serverSettings.roles.groupGeneral": "Genel",
     "serverSettings.roles.groupModeration": "Moderasyon",
     "serverSettings.roles.groupVoice": "Ses ve medya",
-    "serverSettings.roles.mentionable": "Bahsedilebilir",
+    "serverSettings.roles.mentionable": "Mesajlarda @rol olarak etiketlenebilir",
     "serverSettings.roles.mentionableDescription":
-      "Üyelerin mesajlarda bu rolden bahsedebilmesine izin ver.",
+      "Açık olduğunda üyeler sohbette bu rolü @rol olarak etiketleyebilir.",
+    "serverSettings.roles.mentionableBadge": "@ etiket",
     "serverSettings.roles.noPermissions": "Doğrudan yetki yok",
     "serverSettings.roles.overviewDescription":
       "Erişim gruplarını gözden geçir, özel roller oluştur ve sahip-only yetkileri korumada tut.",
@@ -3413,6 +3485,15 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Sunucu yapılandırmasına erişmeden mesaj ve üye moderasyonu.",
     "serverSettings.roles.presets": "Yetki hazır ayarları",
     "serverSettings.roles.protected": "Korunuyor",
+    "serverSettings.roles.everyoneRole": "Herkes (@everyone)",
+    "serverSettings.roles.everyoneRoleHint":
+      "Bu varsayılan rol sunucudaki tüm üyeler için geçerlidir.",
+    "serverSettings.roles.safeRole": "Güvenli rol",
+    "serverSettings.roles.safeRoleHint":
+      "Bu rol yüksek yetkiler içerdiği için yalnızca sunucu sahibi tarafından değiştirilebilir veya kaldırılabilir.",
+    "serverSettings.roles.systemRole": "Sistem rolü",
+    "serverSettings.roles.systemRoleHint":
+      "Bu rol sunucu izin temelinin parçasıdır ve kaldırılamaz.",
     "serverSettings.roles.roleLibrary": "Rol kütüphanesi",
     "serverSettings.roles.roleLibraryDescription":
       "Korunan roller bağlam için görünür kalır; özel roller düzenlenebilir veya kaldırılabilir.",
@@ -3422,6 +3503,15 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "serverSettings.roles.saveRole": "Rolü Kaydet",
     "serverSettings.roles.selectedPermissions": "Seçili",
     "serverSettings.roles.totalRoles": "Toplam rol",
+    "serverSettings.members.assignable": "Atanabilir",
+    "serverSettings.members.description":
+      "Üyeleri incele, güvenli şekilde atanabilir rolleri düzenle ve sahip korumasını net tut.",
+    "serverSettings.members.noAssignableRoles": "Henüz atanabilir özel rol yok.",
+    "serverSettings.members.ownerProtected": "Sunucu sahibi rol değişikliklerine karşı korunur.",
+    "serverSettings.members.roleAssignment": "Rol atama",
+    "serverSettings.members.roleOn": "Açık ",
+    "serverSettings.members.title": "Üye erişimi",
+    "serverSettings.members.total": "Üyeler",
     "serverSettings.kick": "At",
     "serverSettings.noInvites":
       "Henüz etkin davet yok. Sunucu menüsünden veya hızlı davet penceresinden bir tane oluştur.",
@@ -3434,6 +3524,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "serverSettings.deleteDescription":
       "Bu işlem tüm sunucuyu, kanallarını, davetlerini ve üyelik verilerini kaldırır.",
     "serverSettings.deleteOpen": "Silme Onayını Aç",
+    "serverSettings.deleteOwnerOnly":
+      "Bu sunucuyu yalnızca sunucu sahibi silebilir. Adminler ve moderatörler silemez.",
+    "serverSettings.deleteOwnerOnlyDenied":
+      "Bu sunucuyu yalnızca sunucu sahibi silebilir. Hesabın yalnızca izin verilen diğer ayarları yönetebilir.",
     "serverSettings.ownerRequired": "Sahip Yetkisi Gerekli",
 
     "invite.error.badge": "Davet Hatası",

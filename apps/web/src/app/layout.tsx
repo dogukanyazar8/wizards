@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
-import { DM_Sans, Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
+import {
+  DM_Sans,
+  Inter,
+  Open_Sans,
+  Outfit,
+  Plus_Jakarta_Sans,
+  Raleway,
+  Space_Grotesk,
+} from "next/font/google";
 import "./globals.css";
 import { auth } from "@/auth";
 import { AppUpdateNotifier } from "@/components/app/app-update-notifier";
@@ -11,6 +19,7 @@ import { SoundEffectsProvider } from "@/components/providers/sound-effects-provi
 import { VoiceProvider } from "@/components/providers/voice-provider";
 import { ActiveVoiceReminder } from "@/components/voice/active-voice-reminder";
 import { LocaleProvider } from "@/components/providers/locale-provider";
+import { MessageFontSync } from "@/components/providers/message-font-sync";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
@@ -36,6 +45,26 @@ const authBodyFont = DM_Sans({
   subsets: ["latin"],
   variable: "--font-auth-body",
   weight: ["300", "400", "500", "600", "700"],
+});
+
+const messageOpenSansFont = Open_Sans({
+  subsets: ["latin"],
+  variable: "--font-message-open-sans",
+});
+
+const messageInterFont = Inter({
+  subsets: ["latin"],
+  variable: "--font-message-inter",
+});
+
+const messageRalewayFont = Raleway({
+  subsets: ["latin"],
+  variable: "--font-message-raleway",
+});
+
+const messageOutfitFont = Outfit({
+  subsets: ["latin"],
+  variable: "--font-message-outfit",
 });
 
 export const metadata: Metadata = {
@@ -69,7 +98,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning>
       <body
-        className={`${bodyFont.variable} ${displayFont.variable} ${authDisplayFont.variable} ${authBodyFont.variable}`}
+        className={`${bodyFont.variable} ${displayFont.variable} ${authDisplayFont.variable} ${authBodyFont.variable} ${messageOpenSansFont.variable} ${messageInterFont.variable} ${messageRalewayFont.variable} ${messageOutfitFont.variable}`}
       >
         <ThemeProvider
           storageKey="wizards-theme"
@@ -79,6 +108,7 @@ export default async function RootLayout({
           <LocaleProvider initialLocale={locale}>
             <AppIconProvider>
               <QueryProvider>
+                <MessageFontSync />
                 <DesktopWindowChrome />
                 {currentUser ? (
                   <SocketProvider>

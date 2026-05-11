@@ -184,6 +184,34 @@ function isProtectedRole(role: WorkspaceRole) {
   return role.isDefault || role.managed || isElevatedRole(role);
 }
 
+function getRoleGuardCopy(role: WorkspaceRole) {
+  if (role.isDefault || role.managed) {
+    return {
+      descriptionKey: "serverSettings.roles.systemRoleHint",
+      labelKey: "serverSettings.roles.systemRole",
+    };
+  }
+
+  if (isElevatedRole(role)) {
+    return {
+      descriptionKey: "serverSettings.roles.safeRoleHint",
+      labelKey: "serverSettings.roles.safeRole",
+    };
+  }
+
+  return null;
+}
+
+function getAccessLevelLabel(member: WorkspaceMember, locale: string) {
+  const labels = {
+    ADMIN: { en: "Admin", tr: "Admin" },
+    MEMBER: { en: "Member", tr: "Üye" },
+    OWNER: { en: "Owner", tr: "Sahip" },
+  } satisfies Record<WorkspaceMember["accessLevel"], { en: string; tr: string }>;
+
+  return labels[member.accessLevel][locale === "tr" ? "tr" : "en"];
+}
+
 function getPermissionLabel(key: WorkspacePermissionKey, locale: string) {
   const labels: Record<WorkspacePermissionKey, { en: string; tr: string }> = {
     ADMINISTRATOR: { en: "Administrator", tr: "Yonetici" },
@@ -1119,13 +1147,25 @@ export function ServerSettingsOverlay({
                                       {role.name}
                                     </h3>
                                     {role.isDefault ? (
-                                      <Badge tone="muted">@everyone</Badge>
+                                      <span title={t("serverSettings.roles.everyoneRoleHint")}>
+                                        <Badge tone="muted">
+                                          {t("serverSettings.roles.everyoneRole")}
+                                        </Badge>
+                                      </span>
                                     ) : isElevatedRole(role) ? (
                                       <Badge>Admin</Badge>
                                     ) : null}
-                                    {!canMutateRole ? (
-                                      <Badge tone="muted">
-                                        {t("serverSettings.roles.protected")}
+                                    {(() => {
+                                      const guardCopy = getRoleGuardCopy(role);
+                                      return guardCopy ? (
+                                        <span title={t(guardCopy.descriptionKey)}>
+                                          <Badge tone="muted">{t(guardCopy.labelKey)}</Badge>
+                                        </span>
+                                      ) : null;
+                                    })()}
+                                    {role.mentionable ? (
+                                      <Badge className="normal-case tracking-normal" tone="muted">
+                                        {t("serverSettings.roles.mentionableBadge")}
                                       </Badge>
                                     ) : null}
                                   </div>
@@ -1180,80 +1220,135 @@ export function ServerSettingsOverlay({
                 ) : null}
 
                 {tab === "members" ? (
-                  <div className="space-y-3">
-                    {detail.members.map((member) => (
-                      <div
-                        className="app-panel flex flex-col gap-4 rounded-[28px] border p-4 sm:flex-row sm:items-center"
-                        key={member.id}
-                      >
-                        <Avatar
-                          alt={member.displayName}
-                          className="h-12 w-12"
-                          fallback={member.displayName}
-                          src={member.avatarUrl}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-app-foreground truncate text-sm font-semibold">
-                            {member.displayName}
+                  <div className="space-y-5">
+                    <section className="app-panel overflow-hidden rounded-[32px] border p-5 sm:p-6">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                          <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.24em]">
+                            {t("serverSettings.tab.members")}
                           </p>
-                          <p className="text-app-soft truncate text-xs">@{member.username}</p>
+                          <h3 className="text-app-foreground mt-2 text-2xl font-semibold tracking-tight">
+                            {t("serverSettings.members.title")}
+                          </h3>
+                          <p className="text-app-muted mt-2 max-w-2xl text-sm leading-6">
+                            {t("serverSettings.members.description")}
+                          </p>
                         </div>
-                        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-                          <Badge>{member.accessLevel}</Badge>
-                          {member.roles.slice(0, 2).map((role) => (
-                            <Badge key={role.id} tone="muted">
-                              {role.name}
-                            </Badge>
-                          ))}
+                        <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[18rem]">
+                          <div className="app-panel-soft rounded-[22px] border px-4 py-3">
+                            <p className="text-app-soft text-[10px] font-semibold uppercase tracking-[0.2em]">
+                              {t("serverSettings.members.total")}
+                            </p>
+                            <p className="text-app-foreground mt-1 text-2xl font-semibold">
+                              {detail.members.length}
+                            </p>
+                          </div>
+                          <div className="app-panel-soft rounded-[22px] border px-4 py-3">
+                            <p className="text-app-soft text-[10px] font-semibold uppercase tracking-[0.2em]">
+                              {t("serverSettings.members.assignable")}
+                            </p>
+                            <p className="text-app-foreground mt-1 text-2xl font-semibold">
+                              {assignableRoles.length}
+                            </p>
+                          </div>
                         </div>
-                        {assignableRoles.length > 0 && member.accessLevel !== "OWNER" ? (
-                          <div className="flex w-full flex-wrap gap-2 sm:max-w-[18rem]">
-                            {assignableRoles.map((role) => {
-                              const selectedRoleIds = getMemberAssignableRoleIds(
-                                member,
-                                assignableRoles,
-                              );
-                              const selected = selectedRoleIds.includes(role.id);
+                      </div>
+                    </section>
 
-                              return (
+                    <div className="grid gap-3">
+                      {detail.members.map((member) => {
+                        const selectedRoleIds = getMemberAssignableRoleIds(member, assignableRoles);
+
+                        return (
+                          <div
+                            className="app-panel rounded-[30px] border p-4 shadow-[0_18px_44px_hsl(var(--shadow-color)/0.06)]"
+                            key={member.id}
+                          >
+                            <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
+                              <div className="flex min-w-0 flex-1 items-center gap-3">
+                                <Avatar
+                                  alt={member.displayName}
+                                  className="h-12 w-12 border border-[hsl(var(--border)/0.72)]"
+                                  fallback={member.displayName}
+                                  src={member.avatarUrl}
+                                />
+                                <div className="min-w-0">
+                                  <p className="text-app-foreground truncate text-sm font-semibold">
+                                    {member.displayName}
+                                  </p>
+                                  <p className="text-app-soft truncate text-xs">
+                                    @{member.username}
+                                  </p>
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    <Badge>{getAccessLevelLabel(member, locale)}</Badge>
+                                    {member.roles.slice(0, 3).map((role) => (
+                                      <Badge key={role.id} tone="muted">
+                                        {role.name}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="min-w-0 xl:w-[28rem]">
+                                <p className="text-app-soft mb-2 text-[10px] font-semibold uppercase tracking-[0.2em]">
+                                  {t("serverSettings.members.roleAssignment")}
+                                </p>
+                                {assignableRoles.length > 0 && member.accessLevel !== "OWNER" ? (
+                                  <div className="flex flex-wrap gap-2">
+                                    {assignableRoles.map((role) => {
+                                      const selected = selectedRoleIds.includes(role.id);
+
+                                      return (
+                                        <button
+                                          className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-45 ${
+                                            selected
+                                              ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.13)] text-app-foreground"
+                                              : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground"
+                                          }`}
+                                          disabled={memberRolesMutation.isPending}
+                                          key={role.id}
+                                          onClick={() =>
+                                            memberRolesMutation.mutate({
+                                              memberId: member.id,
+                                              roleIds: selected
+                                                ? selectedRoleIds.filter((roleId) => roleId !== role.id)
+                                                : [...selectedRoleIds, role.id],
+                                            })
+                                          }
+                                          type="button"
+                                        >
+                                          {selected ? t("serverSettings.members.roleOn") : ""}
+                                          {role.name}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <p className="text-app-muted rounded-2xl border border-dashed border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.22)] px-3 py-2 text-xs">
+                                    {member.accessLevel === "OWNER"
+                                      ? t("serverSettings.members.ownerProtected")
+                                      : t("serverSettings.members.noAssignableRoles")}
+                                  </p>
+                                )}
+                              </div>
+
+                              {detail.server.isOwner && member.accessLevel !== "OWNER" ? (
                                 <button
-                                  className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-45 ${
-                                    selected
-                                      ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.13)] text-app-foreground"
-                                      : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground"
-                                  }`}
-                                  disabled={memberRolesMutation.isPending}
-                                  key={role.id}
-                                  onClick={() =>
-                                    memberRolesMutation.mutate({
-                                      memberId: member.id,
-                                      roleIds: selected
-                                        ? selectedRoleIds.filter((roleId) => roleId !== role.id)
-                                        : [...selectedRoleIds, role.id],
-                                    })
-                                  }
+                                  className="app-danger inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] xl:w-auto"
+                                  disabled={kickMemberMutation.isPending}
+                                  onClick={() => kickMemberMutation.mutate(member.id)}
                                   type="button"
                                 >
-                                  {selected ? "On " : ""}
-                                  {role.name}
+                                  <UserRoundX className="h-4 w-4" />
+                                  {t("serverSettings.kick")}
                                 </button>
-                              );
-                            })}
+                              ) : null}
+                            </div>
                           </div>
-                        ) : null}
-                        {detail.server.isOwner && member.accessLevel !== "OWNER" ? (
-                          <button
-                            className="app-danger inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] sm:w-auto"
-                            disabled={kickMemberMutation.isPending}
-                            onClick={() => kickMemberMutation.mutate(member.id)}
-                            type="button"
-                          >
-                            <UserRoundX className="h-4 w-4" />
-                            {t("serverSettings.kick")}
-                          </button>
-                        ) : null}
-                      </div>
-                    ))}
+                        );
+                      })}
+                    </div>
                   </div>
                 ) : null}
 
@@ -1341,6 +1436,11 @@ export function ServerSettingsOverlay({
                         </h3>
                         <p className="text-app-muted mt-1 text-sm">
                           {t("serverSettings.deleteDescription")}
+                        </p>
+                        <p className="text-app-muted mt-2 text-xs leading-5">
+                          {detail.server.isOwner
+                            ? t("serverSettings.deleteOwnerOnly")
+                            : t("serverSettings.deleteOwnerOnlyDenied")}
                         </p>
                       </div>
                     </div>

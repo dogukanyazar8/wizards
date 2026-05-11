@@ -66,7 +66,7 @@ function findActiveChannel(
     [
       ...detail.ungroupedChannels,
       ...detail.categories.flatMap((category) => category.channels),
-    ].find((channel) => channel.id === channelId) ?? null
+    ].find((channel) => channel.id === channelId && channel.canAccess !== false) ?? null
   );
 }
 
@@ -79,7 +79,7 @@ function getFirstTextChannelId(detail?: Awaited<ReturnType<typeof fetchWorkspace
     [
       ...detail.ungroupedChannels,
       ...detail.categories.flatMap((category) => category.channels),
-    ].find((channel) => channel.type === "TEXT")?.id ?? null
+    ].find((channel) => channel.type === "TEXT" && channel.canAccess !== false)?.id ?? null
   );
 }
 

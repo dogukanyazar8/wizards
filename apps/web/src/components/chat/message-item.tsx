@@ -4,9 +4,12 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   BarChart3,
+  Check,
   ChevronRight,
   CheckCircle2,
+  CornerDownRight,
   Clock3,
+  Copy,
   MessageCircleMore,
   MoreHorizontal,
   Pin,
@@ -133,6 +136,7 @@ function CodeBlock({
   const rawCode = String(children).replace(/\n$/, "");
   const language = /language-([\w-]+)/.exec(className ?? "")?.[1] ?? "text";
   const isBlock = Boolean(className) || rawCode.includes("\n");
+  const [copied, setCopied] = useState(false);
 
   if (!isBlock) {
     return (
@@ -143,15 +147,31 @@ function CodeBlock({
   }
 
   return (
-    <div className="my-1 overflow-hidden rounded-[16px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.92)] shadow-[0_12px_28px_hsl(var(--shadow-color)/0.06)]">
-      <div className="flex items-center justify-between border-b border-[hsl(var(--border)/0.55)] px-3 py-1.5">
-        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-app-soft">
+    <div className="my-1.5 overflow-hidden rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.58)] shadow-[0_10px_24px_hsl(var(--shadow-color)/0.05)]">
+      <div className="flex items-center justify-between gap-3 border-b border-[hsl(var(--border)/0.55)] px-3 py-2">
+        <span className="min-w-0 truncate text-xs font-semibold text-app-muted">
           {language}
         </span>
-        <span className="h-2 w-2 rounded-full bg-[hsl(var(--success))] shadow-[0_0_0_4px_hsl(var(--success)/0.1)]" />
+        <button
+          aria-label={copied ? "Kopyalandı" : "Kodu kopyala"}
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-card)/0.72)] text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(rawCode);
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 1200);
+            } catch {
+              setCopied(false);
+            }
+          }}
+          title={copied ? "Kopyalandı" : "Kodu kopyala"}
+          type="button"
+        >
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+        </button>
       </div>
-      <pre className="max-w-full overflow-x-auto px-3 py-2 text-[12.5px] leading-5 text-app-foreground">
-        <code className="font-mono">
+      <pre className="max-w-full overflow-x-auto p-3 font-mono text-[13px] leading-relaxed text-app-foreground">
+        <code>
           {rawCode.split("\n").map((line, index) => (
             <span className="block min-h-5" key={`${index}-${line}`}>
               {renderHighlightedCodeLine(line, index)}
@@ -371,7 +391,7 @@ function createMarkdownComponents(
     },
     blockquote({ children }) {
       return (
-        <blockquote className="my-1 rounded-r-xl border-l-4 border-[hsl(var(--primary)/0.48)] bg-[hsl(var(--primary)/0.07)] px-2.5 py-1.5 text-app-muted">
+        <blockquote className="my-1 rounded-l-none rounded-r-md border-l-2 border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--surface-soft)/0.6)] px-2.5 py-1.5 text-app-muted">
           {children}
         </blockquote>
       );
@@ -625,6 +645,7 @@ export const MessageItem = React.memo(
     const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const actionsRef = useRef<HTMLDivElement>(null);
+    const hoverActionsRef = useRef<HTMLDivElement>(null);
     const moreButtonRef = useRef<HTMLButtonElement>(null);
     const isOwner = message.author.id === currentUserId;
     const isDeleted = message.deletedAt !== null;
@@ -783,6 +804,10 @@ export const MessageItem = React.memo(
           return;
         }
 
+        if (hoverActionsRef.current?.contains(target)) {
+          return;
+        }
+
         if (moreButtonRef.current?.contains(target)) {
           return;
         }
@@ -816,7 +841,7 @@ export const MessageItem = React.memo(
         <div className="px-2 py-1.5 sm:px-3" role="status" aria-live="polite">
           <div className="app-system-message mx-auto flex max-w-xl items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium">
             <Icon className="app-system-message-icon h-3.5 w-3.5" />
-            <span>{systemContent}</span>
+            <span className="message-font-scope">{systemContent}</span>
           </div>
         </div>
       );
@@ -830,7 +855,7 @@ export const MessageItem = React.memo(
             className="group flex items-center gap-2 px-4 py-0.5 text-xs italic text-app-muted"
             role="note"
           >
-            <span>{t("chat.message.deleted")}</span>
+            <span className="message-font-scope">{t("chat.message.deleted")}</span>
             {canRemoveDeletedPlaceholder ? (
               <button
                 aria-label={t("chat.message.removeDeletedPlaceholderAria")}
@@ -903,17 +928,46 @@ export const MessageItem = React.memo(
           role="article"
           tabIndex={-1}
         >
+          {!isEditing && !isOptimistic ? (
+            <div
+              className={cn(
+                "absolute right-3 -top-3 z-20 hidden opacity-0 transition md:flex md:group-hover:opacity-100 md:focus-within:opacity-100",
+                actionsOpen && "md:opacity-100",
+              )}
+              ref={hoverActionsRef}
+            >
+              <MessageToolbar
+                allowReact
+                allowThread={false}
+                variant="hover"
+                messageId={message.id}
+                isOwner={isOwner}
+                canModerate={canModerate}
+                isPinned={Boolean(message.isPinned)}
+                isMoreOpen={actionsOpen}
+                onReact={(emoji) => onReact(message.id, emoji)}
+                onReply={() => onReply(message.id, message.author.displayName, message.content)}
+                onThread={() => onThread(message)}
+                onEdit={() => setIsEditing(true)}
+                onDelete={handleDelete}
+                onMore={() => setActionsOpen((current) => !current)}
+              />
+            </div>
+          ) : null}
+
           <div
             className={cn(
-              "grid grid-cols-[1.8rem_minmax(0,1fr)] items-start gap-2 rounded-[12px] transition hover:bg-[hsl(var(--surface-soft)/0.22)] sm:grid-cols-[2.25rem_minmax(0,1fr)]",
-              isGrouped ? "py-0" : "py-0.5",
+              "grid grid-cols-[2.25rem_minmax(0,1fr)] items-start gap-3 rounded-[14px] transition hover:bg-[hsl(var(--surface-soft)/0.32)]",
+              isGrouped ? "py-0" : "pb-1 pt-1.5",
             )}
           >
-            <div className="flex justify-center pt-0.5">
+            <div className="flex justify-center">
               {isGrouped ? (
-                <span className="w-8 text-right text-[10px] text-app-soft opacity-0 transition group-hover:opacity-100">
-                  {formattedTime}
-                </span>
+                <div aria-hidden="true" className="av-ph relative min-h-0 w-9 shrink-0">
+                  <span className="absolute right-0 top-0.5 text-right text-[10px] font-medium text-app-soft opacity-0 transition group-hover:opacity-100">
+                    {formattedTime}
+                  </span>
+                </div>
               ) : (
                 <UserProfilePopover
                   userId={message.author.id}
@@ -924,7 +978,7 @@ export const MessageItem = React.memo(
                     <Avatar
                       src={message.author.avatarUrl}
                       alt={message.author.displayName}
-                      className="h-7 w-7 flex-shrink-0 sm:h-8 sm:w-8"
+                      className="h-9 w-9 flex-shrink-0 rounded-full"
                       fallback={message.author.displayName[0] || "?"}
                     />
                   </span>
@@ -935,10 +989,10 @@ export const MessageItem = React.memo(
             <div className="relative min-w-0 pr-9 md:pr-0">
               {!isGrouped && (
                 <div className="flex items-center gap-1.5 pr-2 leading-5">
-                  <span className="text-[13px] font-bold text-app-foreground">
+                  <span className="truncate text-[15px] font-bold text-app-foreground">
                     {message.author.displayName}
                   </span>
-                  <span className="shrink-0 text-[11px] font-medium text-app-muted">{formattedTime}</span>
+                  <span className="shrink-0 text-xs text-app-muted">{formattedTime}</span>
                   {message.isPinned ? (
                     <span
                       className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[hsl(var(--primary))]"
@@ -956,7 +1010,7 @@ export const MessageItem = React.memo(
                     aria-label={t("chat.message.replyPreviewAria", {
                       author: message.replyTo.authorName,
                     })}
-                    className="mb-0.5 flex max-w-full items-start gap-1.5 rounded border-l-2 border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--surface-soft)/0.4)] px-2 py-0.5 text-left transition hover:bg-[hsl(var(--primary)/0.1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                    className="mb-1 flex max-w-full items-center gap-1.5 rounded-l-none rounded-r-md border-l-2 border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--surface-soft)/0.6)] px-2 py-1 text-left transition hover:bg-[hsl(var(--primary)/0.09)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
                     onClick={() => {
                       const target = document.querySelector(`[data-message-id="${message.replyTo?.id}"]`);
                       if (target instanceof HTMLElement) {
@@ -969,10 +1023,10 @@ export const MessageItem = React.memo(
                     }}
                     type="button"
                   >
-                  <span className="shrink-0 text-[11px] font-medium text-[hsl(var(--primary))]">
+                  <span className="max-w-[9rem] shrink-0 truncate text-xs font-semibold text-[hsl(var(--primary))]">
                     {message.replyTo.authorName}
                   </span>
-                  <p className="min-w-0 truncate text-[11px] text-app-muted">
+                  <p className="message-font-scope min-w-0 flex-1 truncate text-xs text-app-muted">
                     {message.replyTo.content}
                   </p>
                   </button>
@@ -985,7 +1039,7 @@ export const MessageItem = React.memo(
                   onCancel={() => setIsEditing(false)}
                 />
               ) : (
-                <div className="max-w-full break-words text-[14px] leading-[1.28] text-app-foreground sm:text-[14.5px]">
+                <div className="message-font-scope max-w-full break-words text-sm leading-relaxed text-app-foreground">
                   <div className="relative inline-block max-w-full align-top md:max-w-[calc(100%-10rem)] 2xl:max-w-[76rem] [&_a]:text-[hsl(var(--primary))] [&_code]:break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto">
                     {markdownContent.trim().length > 0 ? (
                       <ReactMarkdown
@@ -1010,27 +1064,6 @@ export const MessageItem = React.memo(
                       </span>
                     ) : null}
 
-                    {!isOptimistic ? (
-                      <span className="absolute left-[calc(100%+0.35rem)] top-1/2 z-20 hidden -translate-y-1/2 opacity-0 transition md:inline-flex md:group-hover:opacity-100 md:focus-within:opacity-100">
-                        <MessageToolbar
-                          allowReact
-                          allowThread={!message.threadParentId}
-                          className="inline-flex scale-90"
-                          messageId={message.id}
-                          isOwner={isOwner}
-                          canModerate={canModerate}
-                          isPinned={Boolean(message.isPinned)}
-                          onReact={(emoji) => onReact(message.id, emoji)}
-                          onReply={() => onReply(message.id, message.author.displayName, message.content)}
-                          onThread={() => onThread(message)}
-                          onCopyLink={copyMessageLink}
-                          onCopyRawText={copyRawText}
-                          onEdit={() => setIsEditing(true)}
-                          onDelete={handleDelete}
-                          onPin={mode === "channel" ? handlePinToggle : undefined}
-                        />
-                      </span>
-                    ) : null}
                   </div>
                 </div>
               )}
@@ -1045,42 +1078,52 @@ export const MessageItem = React.memo(
               ) : null}
 
               {threadReplyCount > 0 && !isEditing ? (
-                <button
-                    className="mt-0.5 inline-flex max-w-full items-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--primary)/0.08)] px-2.5 py-1 text-xs font-semibold text-[hsl(var(--primary))] shadow-[0_10px_24px_hsl(var(--shadow-color)/0.06)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--primary)/0.13)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
-                  data-testid="message-thread-preview"
-                  onClick={() => onThread(message)}
-                  type="button"
-                >
-                  {recentThreadRepliers.length > 0 ? (
-                    <span className="flex shrink-0 items-center -space-x-1">
-                      {recentThreadRepliers.slice(0, 3).map((user) => (
-                        <Avatar
-                          alt={user.displayName ?? user.username}
-                          className="h-5 w-5 border border-[hsl(var(--surface-card))] bg-[hsl(var(--surface-card))] text-[9px]"
-                          fallback={user.displayName ?? user.username}
-                          key={user.userId}
-                          src={user.avatarUrl}
-                        />
-                      ))}
-                    </span>
-                  ) : (
-                    <MessageCircleMore className="h-3.5 w-3.5 shrink-0" />
-                  )}
-                  <span className="shrink-0">
-                    {t("chat.thread.replyCount", { count: threadReplyCount })}
+                <div className="mt-1 flex max-w-full items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[hsl(var(--primary)/0.72)]"
+                  >
+                    <CornerDownRight className="h-4 w-4" />
                   </span>
-                  {threadLastReplyLabel ? (
-                    <span className="min-w-0 truncate text-app-muted">
-                      / {threadLastReplyLabel}
+                  <button
+                    className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--surface-soft)/0.54)] px-2.5 py-1.5 text-xs font-semibold text-[hsl(var(--primary))] shadow-[0_10px_24px_hsl(var(--shadow-color)/0.05)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--primary)/0.1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
+                    data-testid="message-thread-preview"
+                    onClick={() => onThread(message)}
+                    type="button"
+                  >
+                    {recentThreadRepliers.length > 0 ? (
+                      <span className="flex shrink-0 items-center -space-x-1">
+                        {recentThreadRepliers.slice(0, 3).map((user) => (
+                          <Avatar
+                            alt={user.displayName ?? user.username}
+                            className="h-5 w-5 border border-[hsl(var(--surface-card))] bg-[hsl(var(--surface-card))] text-[9px]"
+                            fallback={user.displayName ?? user.username}
+                            key={user.userId}
+                            src={user.avatarUrl}
+                          />
+                        ))}
+                      </span>
+                    ) : (
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.1)]">
+                        <MessageCircleMore className="h-3.5 w-3.5" />
+                      </span>
+                    )}
+                    <span className="shrink-0">
+                      {t("chat.thread.replyCount", { count: threadReplyCount })}
                     </span>
-                  ) : null}
-                  {lastThreadReplier ? (
-                    <span className="hidden min-w-0 max-w-[9rem] truncate text-app-muted sm:inline">
-                      / {lastThreadReplier.displayName ?? lastThreadReplier.username}
-                    </span>
-                  ) : null}
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-app-soft" />
-                </button>
+                    {threadLastReplyLabel ? (
+                      <span className="min-w-0 truncate text-app-muted">
+                        / {threadLastReplyLabel}
+                      </span>
+                    ) : null}
+                    {lastThreadReplier ? (
+                      <span className="hidden min-w-0 max-w-[9rem] truncate text-app-muted sm:inline">
+                        / {lastThreadReplier.displayName ?? lastThreadReplier.username}
+                      </span>
+                    ) : null}
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-app-soft" />
+                  </button>
+                </div>
               ) : null}
 
               {message.deliveryStatus ? (
@@ -1140,10 +1183,10 @@ export const MessageItem = React.memo(
                       })}
                       title={reactionSummary}
                       className={cn(
-                        "min-h-5 rounded-full px-1.5 py-0 text-[11px] leading-5 transition",
+                        "inline-flex min-h-6 items-center gap-1 rounded-full border px-2 py-0.5 text-xs leading-5 transition",
                         reaction.userIds.includes(currentUserId)
-                          ? "border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
-                          : "bg-app-surface-soft hover:bg-app-surface",
+                          ? "border-[hsl(var(--primary)/0.6)] bg-[hsl(var(--primary)/0.1)] text-app-foreground"
+                          : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.62)] text-app-muted hover:bg-[hsl(var(--surface-soft)/0.82)] hover:text-app-foreground",
                       )}
                       data-emoji={reaction.emoji}
                       data-testid="message-reaction"
@@ -1180,7 +1223,7 @@ export const MessageItem = React.memo(
 
               {!isEditing && !isOptimistic && actionsOpen ? (
                 <div
-                  className="absolute right-0 top-9 z-30 flex justify-end md:hidden"
+                  className="absolute right-0 top-9 z-30 flex justify-end md:right-3 md:top-7"
                   onClick={(event) => event.stopPropagation()}
                   ref={actionsRef}
                 >

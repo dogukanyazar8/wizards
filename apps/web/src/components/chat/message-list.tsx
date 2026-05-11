@@ -8,6 +8,8 @@ import { useI18n } from "@/components/providers/locale-provider";
 import { useMessages, type MessageMode } from "@/hooks/use-messages";
 import { useSocket } from "@/hooks/use-socket";
 
+const MESSAGE_GROUP_WINDOW_MS = 5 * 60 * 1000;
+
 interface MessageListProps {
   conversationId: string;
   mode: MessageMode;
@@ -318,7 +320,7 @@ export function MessageList({
           Math.abs(
             new Date(message.createdAt).getTime() -
               new Date(previousMessage.createdAt).getTime(),
-          ) < 20 * 60 * 1000;
+          ) < MESSAGE_GROUP_WINDOW_MS;
         return { isGrouped, message, showDateSeparator };
       }),
     [allMessages],

@@ -14,6 +14,8 @@ import type { MessageMode } from "@/hooks/use-messages";
 import { useThreadMessages } from "@/hooks/use-thread-messages";
 import { useSocket } from "@/hooks/use-socket";
 
+const MESSAGE_GROUP_WINDOW_MS = 5 * 60 * 1000;
+
 interface ThreadPanelProps {
   allowFileUploads: boolean;
   allowGifs: boolean;
@@ -242,8 +244,7 @@ export function ThreadPanel({
                 Math.abs(
                   new Date(message.createdAt).getTime() -
                     new Date(previous.createdAt).getTime(),
-                ) <
-                  20 * 60 * 1000;
+                ) < MESSAGE_GROUP_WINDOW_MS;
 
               return (
                 <MessageItem

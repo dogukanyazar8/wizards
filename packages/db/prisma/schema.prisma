@@ -294,6 +294,7 @@ model UserSettings {
   inlineEmbedMedia      Boolean                   @default(true)
   renderEmbeds          Boolean                   @default(true)
   renderReactions       Boolean                   @default(true)
+  messageFont           String                    @default("outfit")
   animateEmoji          Boolean                   @default(true)
   animateStickers       AnimateStickers           @default(INTERACTION)
   enableTTS             Boolean                   @default(true)

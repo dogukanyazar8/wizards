@@ -51,6 +51,7 @@ import {
   MODERATOR_PERMISSIONS,
   PermissionBits,
   SERVER_ADMIN_PERMISSIONS,
+  canUseLockedChannelPermission,
   deriveWorkspaceAccessLevel,
   hasPermission,
   permissionKeysToMask,
@@ -86,6 +87,7 @@ type AccessContext = {
 
 type ChannelRecord = {
   categoryId: string | null;
+  canAccess?: boolean;
   id: string;
   locked: boolean;
   name: string;
@@ -96,6 +98,7 @@ type ChannelRecord = {
     targetType: "ROLE" | "USER";
   }>;
   position: number;
+  readOnly?: boolean;
   topic: string | null;
   type: ChannelType;
 };
@@ -407,16 +410,19 @@ function toWorkspaceChannel(
   channel: ChannelRecord,
   unreadCounts?: Map<string, { mentionCount: number; unreadCount: number }>,
 ): WorkspaceChannel {
-  const counts = unreadCounts?.get(channel.id);
+  const canAccess = channel.canAccess ?? true;
+  const counts = canAccess ? unreadCounts?.get(channel.id) : undefined;
 
   return {
+    canAccess,
     categoryId: channel.categoryId,
     id: channel.id,
     locked: channel.locked,
     mentionCount: counts?.mentionCount ?? 0,
     name: channel.name,
     position: channel.position,
-    topic: channel.topic,
+    readOnly: channel.readOnly ?? false,
+    topic: canAccess ? channel.topic : null,
     type: channel.type === ChannelType.VOICE ? "VOICE" : "TEXT",
     unreadCount: counts?.unreadCount ?? 0,
   };
@@ -764,25 +770,42 @@ function mapCategories(
   }));
 }
 
-function canViewChannel(access: AccessContext, channel: ChannelRecord) {
-  return hasPermission(
-    resolveChannelPermissions({
-      memberId: access.memberId,
-      ownerId: access.ownerId,
-      roles: access.roles,
-      userId: access.userId,
-      overrides: channel.permissionOverrides ?? [],
-    }),
-    PermissionBits.VIEW_CHANNEL,
-  );
+function withVisibleChannelAccess(access: AccessContext, channel: ChannelRecord): ChannelRecord | null {
+  const context = {
+    memberId: access.memberId,
+    ownerId: access.ownerId,
+    roles: access.roles,
+    userId: access.userId,
+    overrides: channel.permissionOverrides ?? [],
+  };
+  const permissions = resolveChannelPermissions(context);
+  const canView = hasPermission(permissions, PermissionBits.VIEW_CHANNEL);
+
+  if (!canView) {
+    return null;
+  }
+
+  const canConnectVoice =
+    hasPermission(permissions, PermissionBits.CONNECT_VOICE) &&
+    (!channel.locked || canUseLockedChannelPermission(context, PermissionBits.CONNECT_VOICE));
+  const canSendMessages = hasPermission(permissions, PermissionBits.SEND_MESSAGES);
+
+  return {
+    ...channel,
+    canAccess: channel.type === ChannelType.VOICE ? canConnectVoice : true,
+    readOnly: channel.type === ChannelType.TEXT ? !canSendMessages : false,
+  };
 }
 
 function pickDefaultChannelId(args: {
   categories: WorkspaceCategory[];
   ungroupedChannels: WorkspaceChannel[];
 }) {
-  const firstGroupedChannel = args.categories.flatMap((category) => category.channels)[0];
-  return firstGroupedChannel?.id ?? args.ungroupedChannels[0]?.id ?? null;
+  const canOpenChannel = (channel: WorkspaceChannel) => channel.canAccess !== false;
+  const firstGroupedChannel = args.categories
+    .flatMap((category) => category.channels)
+    .find(canOpenChannel);
+  return firstGroupedChannel?.id ?? args.ungroupedChannels.find(canOpenChannel)?.id ?? null;
 }
 
 export async function listWorkspaceServers(userId: string) {
@@ -1106,11 +1129,13 @@ export async function getWorkspaceServerDetail(
 
   const visibleCategories = server.categories.map((category) => ({
     ...category,
-    channels: category.channels.filter((channel) => canViewChannel(access, channel)),
+    channels: category.channels
+      .map((channel) => withVisibleChannelAccess(access, channel))
+      .filter((channel): channel is ChannelRecord => channel !== null),
   }));
-  const visibleUngroupedChannelRows = server.channels.filter((channel) =>
-    canViewChannel(access, channel),
-  );
+  const visibleUngroupedChannelRows = server.channels
+    .map((channel) => withVisibleChannelAccess(access, channel))
+    .filter((channel): channel is ChannelRecord => channel !== null);
   const categories = mapCategories(visibleCategories, channelUnreadCounts);
   const ungroupedChannels = visibleUngroupedChannelRows.map((channel) =>
     toWorkspaceChannel(channel, channelUnreadCounts),
@@ -2080,6 +2105,10 @@ export async function createWorkspaceChannel(
     return createdChannel;
   });
 
+  getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
+    serverId,
+  });
+
   return channel;
 }
 
@@ -2186,6 +2215,10 @@ export async function updateWorkspaceChannel(
   ) {
     await disconnectUnauthorizedVoiceParticipants(channelId);
   }
+
+  getSocketServer()?.to(`server:${existingChannel.serverId}`).emit("server:settings:updated", {
+    serverId: existingChannel.serverId,
+  });
 }
 
 export async function getWorkspaceChannelPermissionSettings(
@@ -2390,6 +2423,10 @@ export async function reorderWorkspaceChannels(
       }),
     ),
   );
+
+  getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
+    serverId,
+  });
 }
 
 export async function reorderWorkspaceCategories(
@@ -2458,6 +2495,10 @@ export async function deleteWorkspaceChannel(userId: string, channelId: string) 
     where: {
       id: channelId,
     },
+  });
+
+  getSocketServer()?.to(`server:${channel.serverId}`).emit("server:settings:updated", {
+    serverId: channel.serverId,
   });
 }
 

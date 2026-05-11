@@ -4,7 +4,12 @@ import { requireAuth } from "@/lib/auth/utils";
 import { ChannelConversationPage } from "@/components/chat/channel-conversation-page";
 import { DMConversationPage } from "@/components/dm/dm-conversation-page";
 import { VoiceChannelView } from "@/components/voice/voice-channel-view";
-import { PermissionBits, hasPermission, resolveChannelPermissions } from "@/lib/workspace/permissions";
+import {
+  PermissionBits,
+  canUseLockedChannelPermission,
+  hasPermission,
+  resolveChannelPermissions,
+} from "@/lib/workspace/permissions";
 import { getServerMediaSettings } from "@/lib/workspace/server-features";
 
 type PageParams = {
@@ -118,7 +123,7 @@ export default async function ChannelPage({ params }: PageParams) {
     redirect(`/channels/${normalizedServerId}`);
   }
 
-  const channelPermissions = resolveChannelPermissions({
+  const permissionContext = {
     memberId: membership.id,
     ownerId: membership.server.ownerId,
     roles: [
@@ -127,13 +132,23 @@ export default async function ChannelPage({ params }: PageParams) {
     ],
     userId: session.user.id,
     overrides: channel.permissionOverrides,
-  });
+  };
+  const channelPermissions = resolveChannelPermissions(permissionContext);
 
   if (!hasPermission(channelPermissions, PermissionBits.VIEW_CHANNEL)) {
     redirect(`/channels/${normalizedServerId}`);
   }
 
   if (channel.type === ChannelType.VOICE) {
+    const canConnectVoice =
+      hasPermission(channelPermissions, PermissionBits.CONNECT_VOICE) &&
+      (!channel.locked ||
+        canUseLockedChannelPermission(permissionContext, PermissionBits.CONNECT_VOICE));
+
+    if (!canConnectVoice) {
+      redirect(`/channels/${normalizedServerId}`);
+    }
+
     return <VoiceChannelView channelId={channelId} serverId={normalizedServerId} />;
   }
 

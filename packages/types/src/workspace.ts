@@ -103,6 +103,7 @@ export const WorkspaceRoleSchema = z.object({
 });
 
 export const WorkspaceChannelSchema = z.object({
+  canAccess: z.boolean().default(true),
   id: z.string(),
   categoryId: z.string().nullable(),
   permissionPreset: WorkspaceChannelPermissionPresetSchema.optional(),
@@ -112,6 +113,7 @@ export const WorkspaceChannelSchema = z.object({
   topic: z.string().nullable(),
   type: WorkspaceChannelTypeSchema,
   position: z.number().int().nonnegative(),
+  readOnly: z.boolean().default(false),
   unreadCount: z.number().int().nonnegative().default(0),
 });
 
