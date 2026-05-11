@@ -4,34 +4,8 @@ import { requireAuth } from "@/lib/auth/utils";
 import { ChannelConversationPage } from "@/components/chat/channel-conversation-page";
 import { DMConversationPage } from "@/components/dm/dm-conversation-page";
 import { VoiceChannelView } from "@/components/voice/voice-channel-view";
+import { PermissionBits, hasPermission, resolveChannelPermissions } from "@/lib/workspace/permissions";
 import { getServerMediaSettings } from "@/lib/workspace/server-features";
-
-const SERVER_ADMIN_PERMISSION =
-  (1n << 0n) |
-  (1n << 1n) |
-  (1n << 2n) |
-  (1n << 3n);
-
-function hasAdminAccess(
-  ownerId: string,
-  userId: string,
-  roles: Array<{
-    role: {
-      name: string;
-      permissions: bigint;
-    };
-  }>,
-) {
-  if (ownerId === userId) {
-    return true;
-  }
-
-  return roles.some(
-    ({ role }) =>
-      (role.permissions & SERVER_ADMIN_PERMISSION) !== 0n ||
-      /admin|moderator/i.test(role.name),
-  );
-}
 
 type PageParams = {
   params: Promise<{
@@ -74,6 +48,14 @@ export default async function ChannelPage({ params }: PageParams) {
         id: true,
         locked: true,
         name: true,
+        permissionOverrides: {
+          select: {
+            allow: true,
+            deny: true,
+            targetId: true,
+            targetType: true,
+          },
+        },
         server: {
           select: {
             features: true,
@@ -97,15 +79,27 @@ export default async function ChannelPage({ params }: PageParams) {
         userId: session.user.id,
       },
       select: {
+        id: true,
         server: {
           select: {
             ownerId: true,
+            roles: {
+              where: { isDefault: true },
+              select: {
+                id: true,
+                isDefault: true,
+                name: true,
+                permissions: true,
+              },
+            },
           },
         },
         roles: {
           select: {
             role: {
               select: {
+                id: true,
+                isDefault: true,
                 name: true,
                 permissions: true,
               },
@@ -121,6 +115,21 @@ export default async function ChannelPage({ params }: PageParams) {
   }
 
   if (!channel) {
+    redirect(`/channels/${normalizedServerId}`);
+  }
+
+  const channelPermissions = resolveChannelPermissions({
+    memberId: membership.id,
+    ownerId: membership.server.ownerId,
+    roles: [
+      ...membership.server.roles,
+      ...membership.roles.map((entry) => entry.role),
+    ],
+    userId: session.user.id,
+    overrides: channel.permissionOverrides,
+  });
+
+  if (!hasPermission(channelPermissions, PermissionBits.VIEW_CHANNEL)) {
     redirect(`/channels/${normalizedServerId}`);
   }
 
@@ -144,11 +153,7 @@ export default async function ChannelPage({ params }: PageParams) {
       currentUserDisplayName={currentUserDisplayName}
       currentUserUsername={currentUserUsername}
       uploadthingEnabled={uploadthingEnabled}
-      canModerate={hasAdminAccess(
-        membership.server.ownerId,
-        session.user.id,
-        membership.roles,
-      )}
+      canModerate={hasPermission(channelPermissions, PermissionBits.MANAGE_MESSAGES)}
     />
   );
 }

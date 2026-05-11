@@ -2,7 +2,7 @@ import type { IncomingMessage, Server as HTTPServer } from "http";
 import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { getToken } from "next-auth/jwt";
-import { Prisma, prisma } from "@wizards/db";
+import { ChannelType, Prisma, prisma } from "@wizards/db";
 import type { UploadedAttachmentInput } from "@wizards/types";
 import { ApiError } from "@/lib/api";
 import { isActiveAuthUser } from "@/lib/auth/access";
@@ -35,6 +35,7 @@ import { getRedis, getRedisSub } from "@/lib/redis";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { checkDMMessageRateLimits } from "@/lib/socket/rate-limits";
 import { setSocketServer } from "@/lib/socket/runtime";
+import { emitVoiceScreenShareUpdate } from "@/lib/voice/service";
 import {
   getVoiceScreenShareStateKey,
   VOICE_SCREEN_SHARE_STATE_TTL_SECONDS,
@@ -53,6 +54,11 @@ import {
   editMessage,
   setReaction,
 } from "@/lib/workspace/message-service";
+import {
+  filterUserIdsByChannelPermission,
+  requireChannelPermissionForUser,
+} from "@/lib/workspace/permission-service";
+import { PermissionBits, hasPermission } from "@/lib/workspace/permissions";
 import {
   parseSocketPayload,
   SocketConversationPayloadSchema,
@@ -76,7 +82,6 @@ import type {
 
 const CHANNEL_TYPING_EXPIRY = 3000;
 const DM_TYPING_EXPIRY = 3000;
-const MANAGE_MESSAGES_PERMISSION = 1n << 0n;
 const SOCKET_MAX_HTTP_BUFFER_SIZE = 1_048_576;
 const TYPING_KEY_TTL_SECONDS = 10;
 const TYPING_RATE_LIMIT = 24;
@@ -350,7 +355,22 @@ async function createChannelMentionNotifications(args: {
     return;
   }
 
-  const mentionedUserIds = mentionedMembers.map((member) => member.userId);
+  const visibleMentionedUserIds = new Set(
+    await filterUserIdsByChannelPermission(
+      args.channelId,
+      mentionedMembers.map((member) => member.userId),
+      PermissionBits.VIEW_CHANNEL,
+    ),
+  );
+  const permittedMentionedMembers = mentionedMembers.filter((member) =>
+    visibleMentionedUserIds.has(member.userId),
+  );
+
+  if (permittedMentionedMembers.length === 0) {
+    return;
+  }
+
+  const mentionedUserIds = permittedMentionedMembers.map((member) => member.userId);
   const [channelSettings, serverSettings] = await Promise.all([
     prisma.userChannelSettings.findMany({
       where: {
@@ -399,7 +419,7 @@ async function createChannelMentionNotifications(args: {
 
     return true;
   };
-  const mentionRecipients = mentionedMembers.filter((member) => shouldReceiveMention(member.userId));
+  const mentionRecipients = permittedMentionedMembers.filter((member) => shouldReceiveMention(member.userId));
 
   if (mentionRecipients.length === 0) {
     return;
@@ -500,6 +520,15 @@ async function createChannelThreadReplyNotification(args: {
   });
 
   if (!parent) {
+    return;
+  }
+
+  const [visibleParentUserId] = await filterUserIdsByChannelPermission(
+    args.channelId,
+    [parent.userId],
+    PermissionBits.VIEW_CHANNEL,
+  );
+  if (!visibleParentUserId) {
     return;
   }
 
@@ -765,47 +794,37 @@ export function initSocketServer(httpServer: HTTPServer) {
       return participants;
     }
 
-    async function ensureNotServerBanned(serverId: string) {
-      const ban = await prisma.serverBan.findUnique({
-        where: {
-          serverId_userId: {
-            serverId,
-            userId,
-          },
-        },
-        select: { id: true },
-      });
-
-      if (ban) {
-        throw new ApiError("You are banned from this server", 403, "SERVER_BANNED");
-      }
-    }
-
     async function ensureChannelMembership(channelId: string) {
-      const channel = await prisma.channel.findUnique({
-        where: { id: channelId },
-        select: { serverId: true },
-      });
-
-      if (!channel?.serverId) {
-        throw new ApiError("Channel not found", 404, "CHANNEL_NOT_FOUND");
-      }
-
-      await ensureNotServerBanned(channel.serverId);
-
-      const member = await prisma.serverMember.findFirst({
-        where: { serverId: channel.serverId, userId },
-        select: { id: true, serverId: true },
-      });
-
-      if (!member) {
-        throw new ApiError("Not a member of this server", 403, "NOT_A_MEMBER");
-      }
+      const { channel } = await requireChannelPermissionForUser(
+        userId,
+        channelId,
+        PermissionBits.VIEW_CHANNEL,
+        {
+          forbiddenCode: "FORBIDDEN",
+          forbiddenMessage: "You do not have access to this channel.",
+        },
+      );
 
       return {
         channelId,
         serverId: channel.serverId,
       };
+    }
+
+    async function emitToChannelViewers<EventName extends keyof ServerToClientEvents>(
+      channelId: string,
+      event: EventName,
+      ...args: Parameters<ServerToClientEvents[EventName]>
+    ) {
+      const viewerUserIds = await filterUserIdsByChannelPermission(
+        channelId,
+        getActiveChannelViewerUserIds(channelId),
+        PermissionBits.VIEW_CHANNEL,
+      );
+
+      for (const viewerUserId of viewerUserIds) {
+        io.to(`user:${viewerUserId}`).emit(event, ...args);
+      }
     }
 
     async function getChannelTypingUsers(channelId: string) {
@@ -962,30 +981,15 @@ export function initSocketServer(httpServer: HTTPServer) {
     socket.on("channel:join", async (rawChannelId: string) => {
       try {
         const channelId = parseSocketPayload(SocketIdSchema, rawChannelId);
-        const channel = await prisma.channel.findUnique({
-          where: { id: channelId },
-          select: { serverId: true },
-        });
-
-        if (!channel?.serverId) {
-          socket.emit("error", { code: "CHANNEL_NOT_FOUND", message: "Channel not found" });
-          return;
-        }
-
-        await ensureNotServerBanned(channel.serverId);
-
-        const member = await prisma.serverMember.findFirst({
-          where: { serverId: channel.serverId, userId },
-          select: { id: true },
-        });
-
-        if (!member) {
-          socket.emit("error", {
-            code: "NOT_A_MEMBER",
-            message: "Not a member of this server",
-          });
-          return;
-        }
+        const { channel } = await requireChannelPermissionForUser(
+          userId,
+          channelId,
+          PermissionBits.VIEW_CHANNEL,
+          {
+            forbiddenCode: "FORBIDDEN",
+            forbiddenMessage: "You do not have access to this channel.",
+          },
+        );
 
         socket.join(channelId);
         socket.join(`server:${channel.serverId}`);
@@ -1006,14 +1010,31 @@ export function initSocketServer(httpServer: HTTPServer) {
     socket.on("voice:screenshare:update", async (rawData) => {
       try {
         const data = parseSocketPayload(SocketVoiceScreenSharePayloadSchema, rawData);
-        const membership = await ensureChannelMembership(data.channelId);
-        if (membership.serverId !== data.serverId) {
-          socket.emit("error", {
-            code: "INVALID_SERVER",
-            message: "Voice channel does not belong to this server.",
-          });
-          return;
-        }
+        await requireChannelPermissionForUser(
+          userId,
+          data.channelId,
+          PermissionBits.CONNECT_VOICE,
+          {
+            forbiddenCode: "FORBIDDEN",
+            forbiddenMessage: "You are not allowed to join this voice channel.",
+            lockedCode: "VOICE_CHANNEL_LOCKED",
+            lockedMessage: "You are not allowed to use this locked voice channel.",
+            requiredServerId: data.serverId,
+            requiredType: ChannelType.VOICE,
+            respectLocked: true,
+          },
+        );
+        await requireChannelPermissionForUser(
+          userId,
+          data.channelId,
+          PermissionBits.STREAM,
+          {
+            forbiddenCode: "FORBIDDEN",
+            forbiddenMessage: "You are not allowed to stream in this voice channel.",
+            requiredServerId: data.serverId,
+            requiredType: ChannelType.VOICE,
+          },
+        );
 
         const screenShareStateKey = getVoiceScreenShareStateKey(data.channelId, userId);
         if (data.isScreenSharing) {
@@ -1027,7 +1048,7 @@ export function initSocketServer(httpServer: HTTPServer) {
           await redis.del(screenShareStateKey);
         }
 
-        io.to(`server:${membership.serverId}`).emit("voice:screenshare:update", {
+        await emitVoiceScreenShareUpdate({
           channelId: data.channelId,
           isScreenSharing: data.isScreenSharing,
           userId,
@@ -1062,70 +1083,39 @@ export function initSocketServer(httpServer: HTTPServer) {
           return;
         }
 
+        const { channel: permissionChannel, permissions } = await requireChannelPermissionForUser(
+          userId,
+          data.channelId,
+          PermissionBits.SEND_MESSAGES,
+          {
+            forbiddenCode: "FORBIDDEN",
+            forbiddenMessage: "You cannot send messages in this channel.",
+            lockedCode: "CHANNEL_LOCKED",
+            lockedMessage: "This channel is read-only.",
+            requiredType: ChannelType.TEXT,
+            respectLocked: true,
+          },
+        );
         const channel = await prisma.channel.findUnique({
           where: { id: data.channelId },
           select: {
-            locked: true,
             name: true,
             server: {
               select: {
                 features: true,
                 messageCharacterLimit: true,
-                ownerId: true,
               },
             },
-            serverId: true,
           },
         });
 
-        if (!channel?.serverId) {
+        if (!channel?.server) {
           socket.emit("error", { code: "CHANNEL_NOT_FOUND", message: "Channel not found" });
           return;
         }
 
-        await ensureNotServerBanned(channel.serverId);
-
-        const member = await prisma.serverMember.findFirst({
-          where: { serverId: channel.serverId, userId },
-          select: {
-            id: true,
-            roles: {
-              select: {
-                role: {
-                  select: {
-                    permissions: true,
-                  },
-                },
-              },
-            },
-          },
-        });
-
-        if (!member) {
-          socket.emit("error", {
-            code: "NOT_A_MEMBER",
-            message: "Not a member of this server",
-          });
-          return;
-        }
-
-        const canPostInLockedChannel =
-          !channel.locked ||
-          channel.server?.ownerId === userId ||
-          member.roles.some(
-            (roleAssignment) =>
-              (roleAssignment.role.permissions & MANAGE_MESSAGES_PERMISSION) !== 0n,
-          );
         const canBypassMessageLimit =
-          channel.server?.ownerId === userId ||
-          member.roles.some(
-            (roleAssignment) =>
-              (roleAssignment.role.permissions & MANAGE_MESSAGES_PERMISSION) !== 0n,
-          );
-
-        if (!canPostInLockedChannel) {
-          throw new ApiError("This channel is read-only.", 403, "CHANNEL_LOCKED");
-        }
+          hasPermission(permissions, PermissionBits.MANAGE_MESSAGES);
 
         const attachmentInputs = parseUploadedAttachmentInputs(data.attachments);
         const mediaSettings = getServerMediaSettings(channel.server?.features ?? []);
@@ -1145,8 +1135,22 @@ export function initSocketServer(httpServer: HTTPServer) {
             throw new ApiError("GIFs are disabled for this server.", 403, "GIFS_DISABLED");
           }
 
+          if (
+            !hasPermission(permissions, PermissionBits.USE_GIFS) &&
+            attachments.some((attachment) => isMessageGifContentType(attachment.contentType))
+          ) {
+            throw new ApiError("You cannot send GIFs in this channel.", 403, "GIFS_FORBIDDEN");
+          }
+
           if (!mediaSettings.allowFileUploads && attachments.some((attachment) => !isMessageGifContentType(attachment.contentType))) {
             throw new ApiError("File uploads are disabled for this server.", 403, "FILE_UPLOADS_DISABLED");
+          }
+
+          if (
+            !hasPermission(permissions, PermissionBits.ATTACH_FILES) &&
+            attachments.some((attachment) => !isMessageGifContentType(attachment.contentType))
+          ) {
+            throw new ApiError("You cannot attach files in this channel.", 403, "ATTACHMENTS_FORBIDDEN");
           }
         }
 
@@ -1164,7 +1168,11 @@ export function initSocketServer(httpServer: HTTPServer) {
           data.threadParentId,
         );
         const messageCreatedAt = new Date(message.createdAt);
-        const activeChannelViewerUserIds = getActiveChannelViewerUserIds(data.channelId);
+        const activeChannelViewerUserIds = await filterUserIdsByChannelPermission(
+          data.channelId,
+          getActiveChannelViewerUserIds(data.channelId),
+          PermissionBits.VIEW_CHANNEL,
+        );
         const readUserIds = [userId, ...activeChannelViewerUserIds];
 
         await markChannelReadStates({
@@ -1175,11 +1183,17 @@ export function initSocketServer(httpServer: HTTPServer) {
         });
 
         const readUserIdSet = new Set(readUserIds);
-        const unreadUpdateUserIds = (await getActiveServerMemberUserIds(channel.serverId)).filter(
+        const activeServerMemberUserIds = await getActiveServerMemberUserIds(permissionChannel.serverId);
+        const permittedUnreadUserIds = await filterUserIdsByChannelPermission(
+          data.channelId,
+          activeServerMemberUserIds,
+          PermissionBits.VIEW_CHANNEL,
+        );
+        const unreadUpdateUserIds = permittedUnreadUserIds.filter(
           (memberUserId) => !readUserIdSet.has(memberUserId),
         );
 
-        await emitServerUnreadUpdatesForServer(channel.serverId, unreadUpdateUserIds);
+        await emitServerUnreadUpdatesForServer(permissionChannel.serverId, unreadUpdateUserIds);
         void createChannelMentionNotifications({
           channelId: data.channelId,
           channelName: channel.name,
@@ -1188,7 +1202,7 @@ export function initSocketServer(httpServer: HTTPServer) {
           messageId: message.id,
           senderId: userId,
           senderName: message.author.displayName ?? message.author.username,
-          serverId: channel.serverId,
+          serverId: permissionChannel.serverId,
           skipUserIds: readUserIds,
         }).catch(() => undefined);
         if (data.threadParentId) {
@@ -1200,10 +1214,10 @@ export function initSocketServer(httpServer: HTTPServer) {
             parentMessageId: data.threadParentId,
             senderId: userId,
             senderName: message.author.displayName ?? message.author.username,
-            serverId: channel.serverId,
+            serverId: permissionChannel.serverId,
           }).catch(() => undefined);
         }
-        io.to(data.channelId).emit("message:new", message);
+        await emitToChannelViewers(data.channelId, "message:new", message);
       } catch (error) {
         if (error instanceof ApiError) {
           socket.emit("error", {
@@ -1223,6 +1237,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         const existing = await prisma.message.findUnique({
           where: { id: data.messageId },
           select: {
+            channelId: true,
             channel: {
               select: {
                 server: {
@@ -1242,20 +1257,21 @@ export function initSocketServer(httpServer: HTTPServer) {
           return;
         }
 
-        const member = await prisma.serverMember.findFirst({
-          where: { serverId: existing.channel.serverId, userId },
-          select: {
-            roles: {
-              select: { role: { select: { permissions: true } } },
-            },
+        const { permissions } = await requireChannelPermissionForUser(
+          userId,
+          existing.channelId,
+          PermissionBits.SEND_MESSAGES,
+          {
+            forbiddenCode: "FORBIDDEN",
+            forbiddenMessage: "Cannot edit this message",
+            lockedCode: "CHANNEL_LOCKED",
+            lockedMessage: "This channel is read-only.",
+            requiredType: ChannelType.TEXT,
+            respectLocked: true,
           },
-        });
+        );
         const canBypassMessageLimit =
-          existing.channel.server.ownerId === userId ||
-          (member?.roles.some(
-            (roleAssignment) =>
-              (roleAssignment.role.permissions & MANAGE_MESSAGES_PERMISSION) !== 0n,
-          ) ?? false);
+          hasPermission(permissions, PermissionBits.MANAGE_MESSAGES);
 
         const message = await editMessage(
           data.messageId,
@@ -1263,7 +1279,7 @@ export function initSocketServer(httpServer: HTTPServer) {
           data.content,
           canBypassMessageLimit ? null : existing.channel.server.messageCharacterLimit,
         );
-        io.to(message.channelId).emit("message:updated", message);
+        await emitToChannelViewers(message.channelId, "message:updated", message);
       } catch (error) {
         emitSocketError("MESSAGE_EDIT_ERROR", "Unable to edit message.", error);
       }
@@ -1292,32 +1308,27 @@ export function initSocketServer(httpServer: HTTPServer) {
           return;
         }
 
-        await ensureNotServerBanned(dbMessage.channel.serverId);
-
-        const member = await prisma.serverMember.findFirst({
-          where: { serverId: dbMessage.channel.serverId, userId },
-          select: {
-            roles: {
-              select: { role: { select: { permissions: true } } },
-            },
+        const { permissions } = await requireChannelPermissionForUser(
+          userId,
+          dbMessage.channelId,
+          PermissionBits.VIEW_CHANNEL,
+          {
+            forbiddenCode: "FORBIDDEN",
+            forbiddenMessage: "You do not have access to this channel.",
+            requiredType: ChannelType.TEXT,
           },
-        });
-
-        const hasManageMessages =
-          member?.roles.some(
-            (roleAssignment) => (roleAssignment.role.permissions & MANAGE_MESSAGES_PERMISSION) !== 0n,
-          ) ?? false;
-        const isAdmin = dbMessage.channel.server?.ownerId === userId || hasManageMessages;
+        );
+        const isAdmin = hasPermission(permissions, PermissionBits.MANAGE_MESSAGES);
 
         const deleteResult = await deleteMessage(messageId, userId, isAdmin);
 
         if (deleteResult.status === "removed") {
-          io.to(dbMessage.channelId).emit("message:removed", {
+          await emitToChannelViewers(dbMessage.channelId, "message:removed", {
             messageId,
             channelId: dbMessage.channelId,
           });
         } else {
-          io.to(dbMessage.channelId).emit("message:deleted", {
+          await emitToChannelViewers(dbMessage.channelId, "message:deleted", {
             messageId,
             channelId: dbMessage.channelId,
             deletedById: userId,
@@ -1326,7 +1337,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         }
 
         if (dbMessage.isPinned) {
-          io.to(dbMessage.channelId).emit("message:pins_updated", {
+          await emitToChannelViewers(dbMessage.channelId, "message:pins_updated", {
             channelId: dbMessage.channelId,
           });
         }
@@ -1350,7 +1361,7 @@ export function initSocketServer(httpServer: HTTPServer) {
 
         await ensureChannelMembership(message.channelId);
         const reactions = await setReaction(data.messageId, userId, data.emoji, true);
-        io.to(message.channelId).emit("message:reaction_updated", {
+        await emitToChannelViewers(message.channelId, "message:reaction_updated", {
           messageId: data.messageId,
           reactions,
         });
@@ -1374,7 +1385,7 @@ export function initSocketServer(httpServer: HTTPServer) {
 
         await ensureChannelMembership(message.channelId);
         const reactions = await setReaction(data.messageId, userId, data.emoji, false);
-        io.to(message.channelId).emit("message:reaction_updated", {
+        await emitToChannelViewers(message.channelId, "message:reaction_updated", {
           messageId: data.messageId,
           reactions,
         });
@@ -1389,7 +1400,19 @@ export function initSocketServer(httpServer: HTTPServer) {
         if (!(await isTypingEventAllowed(`channel:${channelId}`))) {
           return;
         }
-        await ensureChannelMembership(channelId);
+        await requireChannelPermissionForUser(
+          userId,
+          channelId,
+          PermissionBits.SEND_MESSAGES,
+          {
+            forbiddenCode: "FORBIDDEN",
+            forbiddenMessage: "You cannot type in this channel.",
+            lockedCode: "CHANNEL_LOCKED",
+            lockedMessage: "This channel is read-only.",
+            requiredType: ChannelType.TEXT,
+            respectLocked: true,
+          },
+        );
         const key = `typing:${channelId}`;
         socket.data.typingChannels.add(channelId);
 
@@ -1397,7 +1420,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         await redis.expire(key, TYPING_KEY_TTL_SECONDS);
         const typingUsers = await getChannelTypingUsers(channelId);
 
-        io.to(channelId).emit("typing:update", {
+        await emitToChannelViewers(channelId, "typing:update", {
           channelId,
           users: typingUsers,
         });
@@ -1416,7 +1439,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         await redis.hdel(key, userId);
         const typingUsers = await getChannelTypingUsers(channelId);
 
-        io.to(channelId).emit("typing:update", {
+        await emitToChannelViewers(channelId, "typing:update", {
           channelId,
           users: typingUsers,
         });

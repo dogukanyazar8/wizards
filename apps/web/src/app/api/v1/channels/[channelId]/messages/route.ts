@@ -1,11 +1,13 @@
 import { requireApiUserId } from "@/lib/auth/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
-import { ApiError, jsonError } from "@/lib/api";
+import { jsonError } from "@/lib/api";
 import { getChannelMessages } from "@/lib/workspace/message-service";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { emitServerUnreadUpdatesForServer } from "@/lib/workspace/unread-service";
 import { clearWorkspaceChannelHistory } from "@/lib/workspace/service";
-import { prisma } from "@wizards/db";
+import { ChannelType } from "@wizards/db";
+import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
+import { PermissionBits } from "@/lib/workspace/permissions";
 
 type RouteContext = {
   params: Promise<{ channelId: string }>;
@@ -24,41 +26,9 @@ export async function GET(request: Request, context: RouteContext) {
       ? Math.min(Math.max(requestedLimit, 1), 100)
       : 50;
 
-    // Verify channel exists and user is member of its server
-    const channel = await prisma.channel.findUnique({
-      where: { id: channelId },
-      select: { serverId: true },
+    await requireChannelPermissionForUser(userId, channelId, PermissionBits.VIEW_CHANNEL, {
+      requiredType: ChannelType.TEXT,
     });
-
-    if (!channel?.serverId) {
-      throw new ApiError("Channel not found", 404);
-    }
-
-    const [member, serverBan] = await Promise.all([
-      prisma.serverMember.findFirst({
-        where: { serverId: channel.serverId, userId },
-        select: { id: true },
-      }),
-      prisma.serverBan.findUnique({
-        where: {
-          serverId_userId: {
-            serverId: channel.serverId,
-            userId,
-          },
-        },
-        select: { id: true },
-      }),
-    ]);
-
-    if (serverBan) {
-      throw new ApiError("You are banned from this server", 403, "SERVER_BANNED");
-    }
-
-    if (!member) {
-      throw new ApiError("Not a member of this server", 403);
-    }
-
-    // Fetch messages
     const result = await getChannelMessages(channelId, cursor, limit);
 
     return Response.json(result);

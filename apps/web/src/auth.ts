@@ -557,6 +557,8 @@ const authConfig = {
       },
     }),
     Google({
+      // Google supplies email_verified; callbacks.signIn rejects unverified profiles before linking.
+      allowDangerousEmailAccountLinking: true,
       clientId: getEnvValue("GOOGLE_CLIENT_ID", "AUTH_GOOGLE_ID"),
       clientSecret: getEnvValue("GOOGLE_CLIENT_SECRET", "AUTH_GOOGLE_SECRET"),
       profile(profile) {

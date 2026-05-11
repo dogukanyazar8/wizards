@@ -12,6 +12,8 @@ export const API_RATE_LIMITS = {
   "channel:create": { limit: 30, windowSeconds: 60 },
   "channel:delete": { limit: 30, windowSeconds: 60 },
   "channel:mark-read": { limit: 180, windowSeconds: 60 },
+  "channel:permissions:read": { limit: 120, windowSeconds: 60 },
+  "channel:permissions:update": { limit: 30, windowSeconds: 60 },
   "channel:reorder": { limit: 20, windowSeconds: 60 },
   "channel:update": { limit: 30, windowSeconds: 60 },
   "dm:create": { limit: 30, windowSeconds: 60 },
@@ -28,6 +30,7 @@ export const API_RATE_LIMITS = {
   "member:add": { limit: 30, windowSeconds: 10 * 60 },
   "member:kick": { limit: 30, windowSeconds: 10 * 60 },
   "member:leave": { limit: 20, windowSeconds: 10 * 60 },
+  "member:roles:update": { limit: 40, windowSeconds: 10 * 60 },
   "message:search": { limit: 80, windowSeconds: 60 },
   "notification:clear": { limit: 30, windowSeconds: 60 },
   "notification:mark-read": { limit: 120, windowSeconds: 60 },
@@ -36,6 +39,10 @@ export const API_RATE_LIMITS = {
   "server:list": { limit: 240, windowSeconds: 60 },
   "server:update": { limit: 30, windowSeconds: 60 },
   "settings:update": { limit: 60, windowSeconds: 60 },
+  "roles:create": { limit: 30, windowSeconds: 60 },
+  "roles:delete": { limit: 20, windowSeconds: 60 },
+  "roles:list": { limit: 120, windowSeconds: 60 },
+  "roles:update": { limit: 40, windowSeconds: 60 },
   "message:pin": { limit: 60, windowSeconds: 60 },
   "voice:heartbeat": { limit: 240, windowSeconds: 60 },
   "voice:state": { limit: 60, windowSeconds: 60 },
@@ -47,10 +54,7 @@ export function getApiRateLimitConfig(action: ApiRateLimitAction) {
   return API_RATE_LIMITS[action];
 }
 
-export async function enforceApiRateLimit(
-  userId: string,
-  action: ApiRateLimitAction,
-) {
+export async function enforceApiRateLimit(userId: string, action: ApiRateLimitAction) {
   const config = getApiRateLimitConfig(action);
 
   try {

@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   APP_LOCALE_COOKIE_NAME,
   APP_LOCALE_STORAGE_KEY,
@@ -45,25 +38,13 @@ export function LocaleProvider({
   const [locale, setLocaleState] = useState<AppLocale>(() => normalizeAppLocale(initialLocale));
 
   useEffect(() => {
-    if (initialLocale) {
-      const nextLocale = normalizeAppLocale(initialLocale);
-
-      setLocaleState((currentLocale) => {
-        const resolvedLocale = currentLocale === nextLocale ? currentLocale : nextLocale;
-        writeLocalePersistence(resolvedLocale);
-        return resolvedLocale;
-      });
-
-      return;
-    }
-
     const storedLocale =
-      typeof window === "undefined"
-        ? null
-        : window.localStorage.getItem(APP_LOCALE_STORAGE_KEY);
+      typeof window === "undefined" ? null : window.localStorage.getItem(APP_LOCALE_STORAGE_KEY);
     const nextLocale = storedLocale
       ? normalizeAppLocale(storedLocale)
-      : detectBrowserLocale();
+      : initialLocale
+        ? normalizeAppLocale(initialLocale)
+        : detectBrowserLocale();
 
     setLocaleState((currentLocale) => {
       if (currentLocale === nextLocale) {
@@ -83,7 +64,11 @@ export function LocaleProvider({
   const value = useMemo<LocaleContextValue>(
     () => ({
       locale,
-      setLocale: (nextLocale) => setLocaleState(normalizeAppLocale(nextLocale)),
+      setLocale: (nextLocale) => {
+        const normalizedLocale = normalizeAppLocale(nextLocale);
+        writeLocalePersistence(normalizedLocale);
+        setLocaleState(normalizedLocale);
+      },
       t: (key, values) => translate(locale, key, values),
     }),
     [locale],

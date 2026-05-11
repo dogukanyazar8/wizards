@@ -10,6 +10,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const callbackParam = Array.isArray(params?.callbackUrl)
     ? params.callbackUrl[0]
     : params?.callbackUrl;
+  const errorParam = Array.isArray(params?.error) ? params.error[0] : params?.error;
 
-  return <LoginClient callbackUrl={getSafeAuthRedirectPath(callbackParam)} />;
+  return (
+    <LoginClient
+      authError={typeof errorParam === "string" ? errorParam : null}
+      callbackUrl={getSafeAuthRedirectPath(callbackParam)}
+    />
+  );
 }

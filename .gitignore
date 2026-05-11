@@ -12,6 +12,17 @@ blob-report
 .DS_Store
 *.log
 .claude/
+
+# Local assistant and QA artifacts
+.codex/
+**/.codex/
+
+# Graphify local cache; keep the main graphify-out reports tracked separately.
+graphify-out/cache/
+
+# TypeScript incremental build output
+*.tsbuildinfo
+
 target
 apps/desktop/.tauri
 apps/desktop/src-tauri/gen

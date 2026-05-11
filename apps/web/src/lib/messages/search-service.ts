@@ -1,7 +1,9 @@
 import { Buffer } from "node:buffer";
-import { Prisma, prisma } from "@wizards/db";
+import { ChannelType, Prisma, prisma } from "@wizards/db";
 import type { MessageSearchResponse, MessageSearchResult } from "@wizards/types";
 import { ApiError } from "@/lib/api";
+import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
+import { PermissionBits } from "@/lib/workspace/permissions";
 
 const DEFAULT_SEARCH_LIMIT = 20;
 const MAX_SEARCH_LIMIT = 50;
@@ -165,34 +167,9 @@ async function assertChannelSearchAccess(userId: string, channelId: string) {
     throw new ApiError("Channel not found", 404, "CHANNEL_NOT_FOUND");
   }
 
-  const [membership, ban] = await Promise.all([
-    prisma.serverMember.findUnique({
-      where: {
-        userId_serverId: {
-          serverId: channel.serverId,
-          userId,
-        },
-      },
-      select: { id: true },
-    }),
-    prisma.serverBan.findUnique({
-      where: {
-        serverId_userId: {
-          serverId: channel.serverId,
-          userId,
-        },
-      },
-      select: { id: true },
-    }),
-  ]);
-
-  if (ban) {
-    throw new ApiError("You are banned from this server", 403, "SERVER_BANNED");
-  }
-
-  if (!membership) {
-    throw new ApiError("You are not a member of this server", 403, "FORBIDDEN");
-  }
+  await requireChannelPermissionForUser(userId, channelId, PermissionBits.VIEW_CHANNEL, {
+    requiredType: ChannelType.TEXT,
+  });
 
   return channel;
 }

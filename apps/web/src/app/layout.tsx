@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
+import { DM_Sans, Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { auth } from "@/auth";
 import { AppUpdateNotifier } from "@/components/app/app-update-notifier";
@@ -24,6 +24,18 @@ const bodyFont = Plus_Jakarta_Sans({
 const displayFont = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-display",
+});
+
+const authDisplayFont = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-auth-display",
+  weight: ["700", "800"],
+});
+
+const authBodyFont = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-auth-body",
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -56,7 +68,9 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
-      <body className={`${bodyFont.variable} ${displayFont.variable}`}>
+      <body
+        className={`${bodyFont.variable} ${displayFont.variable} ${authDisplayFont.variable} ${authBodyFont.variable}`}
+      >
         <ThemeProvider
           storageKey="wizards-theme"
           defaultTheme={theme ?? DEFAULT_WIZARDS_THEME}
@@ -66,12 +80,12 @@ export default async function RootLayout({
             <AppIconProvider>
               <QueryProvider>
                 <DesktopWindowChrome />
-                <AppUpdateNotifier />
                 {currentUser ? (
                   <SocketProvider>
                     <SoundEffectsProvider currentUserId={currentUser.id}>
                       <VoiceProvider currentUser={currentUser}>
                         <DesktopExperience />
+                        <AppUpdateNotifier />
                         {children}
                         <ActiveVoiceReminder />
                       </VoiceProvider>

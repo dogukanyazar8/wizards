@@ -2,13 +2,48 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { RegisterSchema, type RegisterInput } from "@wizards/types";
-import { Eye, EyeOff, KeyRound, Mail, MailCheck, ShieldCheck, UserRound } from "lucide-react";
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Mail,
+  MailCheck,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
-import { PrimaryButton, SocialAuthButtons, TextInput } from "@/components/auth/auth-screen";
+import { LoginCard } from "@/components/auth/login-card";
+import { LoginPage } from "@/components/auth/login-page";
+import { RoleTabs, type LoginRole } from "@/components/auth/role-tabs";
+import { TurnstileWidget } from "@/components/auth/turnstile-widget";
 import { useI18n } from "@/components/providers/locale-provider";
 import { registerAction, resendVerificationEmailAction } from "@/lib/auth/actions";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
+
+const REGISTER_COPY = {
+  en: {
+    eyebrow: "Secure start",
+    label: "Whispr registration form",
+    subtitle: "Choose your profile, create your account, and continue where you left off.",
+    termsAccept: "I have read and accept the",
+    termsAnd: "and",
+    title: "Join Whispr",
+    verifyLabel: "Whispr email verification",
+  },
+  tr: {
+    eyebrow: "Güvenli başlangıç",
+    label: "Whispr kayıt formu",
+    subtitle: "Profilinizi seçin, hesabınızı oluşturun ve kaldığınız yerden başlayın.",
+    termsAccept: "okudum, kabul ediyorum.",
+    termsAnd: "ve",
+    title: "Whispr'e katılın",
+    verifyLabel: "Whispr e-posta doğrulama",
+  },
+} as const;
 
 function normalizeNameAsUsername(value: unknown) {
   if (typeof value !== "string") {
@@ -38,6 +73,7 @@ function normalizeNameAsUsername(value: unknown) {
 
 export default function RegisterPage() {
   const { locale, t } = useI18n();
+  const copy = REGISTER_COPY[locale];
   const [serverError, setServerError] = useState<string | null>(null);
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
@@ -46,10 +82,13 @@ export default function RegisterPage() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<LoginRole>("business");
 
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<RegisterInput>({
     resolver: zodResolver(RegisterSchema),
@@ -58,9 +97,29 @@ export default function RegisterPage() {
       username: "",
       password: "",
       confirmPassword: "",
-      turnstileToken: "auth-ui-placeholder",
+      turnstileToken: "",
     },
   });
+  const turnstileToken = watch("turnstileToken");
+
+  const handleTurnstileTokenChange = useCallback(
+    (token: string) => {
+      setValue("turnstileToken", token, {
+        shouldDirty: true,
+        shouldValidate: Boolean(token),
+      });
+
+      if (token) {
+        setServerError((currentError) =>
+          currentError?.startsWith("auth.turnstile") ||
+          currentError?.startsWith("validation.turnstile")
+            ? null
+            : currentError,
+        );
+      }
+    },
+    [setValue],
+  );
 
   const onSubmit = async (values: RegisterInput) => {
     setServerError(null);
@@ -112,162 +171,222 @@ export default function RegisterPage() {
 
   if (verificationEmail) {
     return (
-      <div className="auth-reference-form-stack">
-        <div className="auth-reference-status-card" role="status">
-          <div>
-            <MailCheck className="h-6 w-6" />
+      <LoginPage>
+        <LoginCard className="is-register-card" label={copy.verifyLabel}>
+          <div className="modern-login-status-card" role="status">
+            <span aria-hidden="true">
+              <MailCheck className="h-6 w-6" />
+            </span>
+            <div>
+              <h1>{t("auth.register.checkEmailTitle")}</h1>
+              <p>{t("auth.register.checkEmailDescription", { email: verificationEmail })}</p>
+            </div>
           </div>
-          <div>
-            <h1>{t("auth.register.checkEmailTitle")}</h1>
-            <p>{t("auth.register.checkEmailDescription", { email: verificationEmail })}</p>
-          </div>
-        </div>
 
-        <div className="auth-reference-status-card is-compact">
-          <p>{t("auth.emailVerification.resendHelp")}</p>
-          <button
-            className="auth-reference-mini-button"
-            disabled={isResendingVerification}
-            onClick={handleResendVerification}
-            type="button"
-          >
-            {isResendingVerification
-              ? t("auth.emailVerification.resendingCta")
-              : t("auth.emailVerification.resendCta")}
-          </button>
-          <div aria-live="polite">
-            {resendMessage ? (
-              <p className="text-[hsl(var(--success))]">{t(resendMessage)}</p>
-            ) : null}
-            {resendError ? <p className="text-[hsl(var(--danger))]">{t(resendError)}</p> : null}
+          <div className="modern-login-status-card is-compact">
+            <p>{t("auth.emailVerification.resendHelp")}</p>
+            <button
+              className="modern-login-mini-button"
+              disabled={isResendingVerification}
+              onClick={handleResendVerification}
+              type="button"
+            >
+              {isResendingVerification
+                ? t("auth.emailVerification.resendingCta")
+                : t("auth.emailVerification.resendCta")}
+            </button>
+            <div aria-live="polite">
+              {resendMessage ? (
+                <p className="text-[hsl(var(--success))]">{t(resendMessage)}</p>
+              ) : null}
+              {resendError ? <p className="text-[hsl(var(--danger))]">{t(resendError)}</p> : null}
+            </div>
           </div>
-        </div>
 
-        <p className="auth-reference-bottom-text">
-          {t("auth.register.verifiedPrompt")} <Link href="/login">{t("auth.register.signIn")}</Link>
-        </p>
-      </div>
+          <p className="modern-login-footer-link">
+            {t("auth.register.verifiedPrompt")}{" "}
+            <Link href="/login">{t("auth.register.signIn")}</Link>
+          </p>
+        </LoginCard>
+      </LoginPage>
     );
   }
 
   return (
-    <div className="auth-reference-form-stack auth-reference-register-stack">
-      <form
-        className="auth-reference-form"
-        data-testid="register-form"
-        onSubmit={handleSubmit(onSubmit)}
-        noValidate
-      >
-        <TextInput
-          id="username"
-          type="text"
-          autoComplete="name"
-          error={errors.username ? t(errors.username.message ?? "") : null}
-          icon={UserRound}
-          label={t("auth.register.fullNameLabel")}
-          placeholder={t("auth.register.fullNamePlaceholder")}
-          {...register("username", { setValueAs: normalizeNameAsUsername })}
-        />
-
-        <TextInput
-          id="email"
-          type="email"
-          autoComplete="email"
-          error={errors.email ? t(errors.email.message ?? "") : null}
-          icon={Mail}
-          label={t("auth.login.emailLabel")}
-          placeholder={t("auth.login.emailPlaceholder")}
-          {...register("email")}
-        />
-
-        <div className="auth-reference-password-grid">
-          <TextInput
-            id="password"
-            type={passwordVisible ? "text" : "password"}
-            autoComplete="new-password"
-            error={errors.password ? t(errors.password.message ?? "") : null}
-            icon={KeyRound}
-            label={t("auth.register.passwordLabel")}
-            placeholder={t("auth.register.passwordPlaceholder")}
-            rightElement={
-              <button
-                aria-label={passwordVisible ? t("common.hide") : t("common.show")}
-                onClick={() => setPasswordVisible((current) => !current)}
-                type="button"
-              >
-                {passwordVisible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </button>
-            }
-            {...register("password")}
-          />
-
-          <TextInput
-            id="confirmPassword"
-            type={confirmPasswordVisible ? "text" : "password"}
-            autoComplete="new-password"
-            error={errors.confirmPassword ? t(errors.confirmPassword.message ?? "") : null}
-            icon={KeyRound}
-            label={t("auth.register.confirmPasswordLabel")}
-            placeholder={t("auth.register.confirmPasswordPlaceholder")}
-            rightElement={
-              <button
-                aria-label={confirmPasswordVisible ? t("common.hide") : t("common.show")}
-                onClick={() => setConfirmPasswordVisible((current) => !current)}
-                type="button"
-              >
-                {confirmPasswordVisible ? (
-                  <EyeOff className="h-5 w-5" />
-                ) : (
-                  <Eye className="h-5 w-5" />
-                )}
-              </button>
-            }
-            {...register("confirmPassword")}
-          />
+    <LoginPage>
+      <LoginCard className="is-register-card" label={copy.label}>
+        <div className="modern-login-card-header">
+          <p>{copy.eyebrow}</p>
+          <h1>{copy.title}</h1>
+          <span>{copy.subtitle}</span>
         </div>
 
-        <input type="hidden" {...register("turnstileToken")} />
+        <RoleTabs value={selectedRole} onChange={setSelectedRole} />
 
-        <p className="auth-reference-password-help">
-          <ShieldCheck className="h-4 w-4" />
-          <span>{t("auth.register.passwordHelp")}</span>
-        </p>
+        <form
+          className="modern-login-form modern-register-form"
+          data-testid="register-form"
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+        >
+          <div className="modern-register-grid">
+            <div className="modern-login-field">
+              <label htmlFor="username">{t("auth.register.fullNameLabel")}</label>
+              <div className="modern-login-input-wrap">
+                <UserRound className="modern-login-input-icon" />
+                <input
+                  id="username"
+                  type="text"
+                  autoComplete="name"
+                  placeholder={t("auth.register.fullNamePlaceholder")}
+                  {...register("username", { setValueAs: normalizeNameAsUsername })}
+                />
+              </div>
+              {errors.username ? (
+                <p className="modern-login-field-error">{t(errors.username.message ?? "")}</p>
+              ) : null}
+            </div>
 
-        <label className="auth-reference-checkbox auth-reference-terms">
-          <input
-            checked={termsAccepted}
-            onChange={(event) => setTermsAccepted(event.target.checked)}
-            type="checkbox"
-          />
-          <span>
-            <Link href="/terms">{t("auth.register.termsLink")}</Link>
-            {"'"}nı ve <Link href="/privacy">{t("auth.register.privacyLink")}</Link>
-            {"'"}nı okudum, kabul ediyorum.
-          </span>
-        </label>
+            <div className="modern-login-field">
+              <label htmlFor="email">{t("auth.login.emailLabel")}</label>
+              <div className="modern-login-input-wrap">
+                <Mail className="modern-login-input-icon" />
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder={t("auth.login.emailPlaceholder")}
+                  {...register("email")}
+                />
+              </div>
+              {errors.email ? (
+                <p className="modern-login-field-error">{t(errors.email.message ?? "")}</p>
+              ) : null}
+            </div>
+          </div>
 
-        {serverError ? (
-          <p className="auth-reference-alert" role="alert">
-            {t(serverError)}
+          <div className="modern-register-grid">
+            <div className="modern-login-field">
+              <label htmlFor="password">{t("auth.register.passwordLabel")}</label>
+              <div className="modern-login-input-wrap">
+                <KeyRound className="modern-login-input-icon" />
+                <input
+                  id="password"
+                  type={passwordVisible ? "text" : "password"}
+                  autoComplete="new-password"
+                  placeholder={t("auth.register.passwordPlaceholder")}
+                  {...register("password")}
+                />
+                <button
+                  aria-label={passwordVisible ? t("common.hide") : t("common.show")}
+                  className="modern-password-toggle"
+                  onClick={() => setPasswordVisible((current) => !current)}
+                  type="button"
+                >
+                  {passwordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {errors.password ? (
+                <p className="modern-login-field-error">{t(errors.password.message ?? "")}</p>
+              ) : null}
+            </div>
+
+            <div className="modern-login-field">
+              <label htmlFor="confirmPassword">{t("auth.register.confirmPasswordLabel")}</label>
+              <div className="modern-login-input-wrap">
+                <KeyRound className="modern-login-input-icon" />
+                <input
+                  id="confirmPassword"
+                  type={confirmPasswordVisible ? "text" : "password"}
+                  autoComplete="new-password"
+                  placeholder={t("auth.register.confirmPasswordPlaceholder")}
+                  {...register("confirmPassword")}
+                />
+                <button
+                  aria-label={confirmPasswordVisible ? t("common.hide") : t("common.show")}
+                  className="modern-password-toggle"
+                  onClick={() => setConfirmPasswordVisible((current) => !current)}
+                  type="button"
+                >
+                  {confirmPasswordVisible ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+              {errors.confirmPassword ? (
+                <p className="modern-login-field-error">
+                  {t(errors.confirmPassword.message ?? "")}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <input type="hidden" {...register("turnstileToken")} />
+
+          <p className="modern-register-helper">
+            <ShieldCheck className="h-4 w-4" />
+            <span>{t("auth.register.passwordHelp")}</span>
           </p>
-        ) : null}
 
-        <PrimaryButton disabled={isSubmitting} type="submit">
-          {isSubmitting ? t("auth.register.creating") : t("auth.login.createAccount")}
-        </PrimaryButton>
-      </form>
+          <div className="modern-login-turnstile">
+            <TurnstileWidget
+              onTokenChange={handleTurnstileTokenChange}
+              siteKey={TURNSTILE_SITE_KEY}
+            />
+            {errors.turnstileToken ? (
+              <p className="modern-login-field-error">
+                {t(errors.turnstileToken.message ?? "validation.turnstile.required")}
+              </p>
+            ) : null}
+          </div>
 
-      <p className="auth-reference-bottom-text auth-reference-have-account">
-        {t("auth.register.haveAccount")} <Link href="/login">{t("auth.register.signIn")}</Link>
-      </p>
+          <label className="modern-login-checkbox modern-register-terms">
+            <input
+              checked={termsAccepted}
+              onChange={(event) => setTermsAccepted(event.target.checked)}
+              type="checkbox"
+            />
+            <span>
+              {locale === "en" ? (
+                <>
+                  {copy.termsAccept} <Link href="/terms">{t("auth.register.termsLink")}</Link>{" "}
+                  {copy.termsAnd} <Link href="/privacy">{t("auth.register.privacyLink")}</Link>.
+                </>
+              ) : (
+                <>
+                  <Link href="/terms">{t("auth.register.termsLink")}</Link>
+                  &apos;nı {copy.termsAnd}{" "}
+                  <Link href="/privacy">{t("auth.register.privacyLink")}</Link>
+                  &apos;nı {copy.termsAccept}
+                </>
+              )}
+            </span>
+          </label>
 
-      <div className="auth-reference-divider">
-        <span />
-        <p>{t("auth.register.orSignUpWith")}</p>
-        <span />
-      </div>
+          {serverError ? (
+            <p className="modern-login-alert" role="alert">
+              {t(serverError)}
+            </p>
+          ) : null}
 
-      <SocialAuthButtons />
-    </div>
+          <button
+            className="modern-login-primary"
+            disabled={isSubmitting || !termsAccepted || !turnstileToken}
+            type="submit"
+          >
+            <span>
+              {isSubmitting ? t("auth.register.creating") : t("auth.login.createAccount")}
+            </span>
+            <ArrowRight className="h-5 w-5" />
+          </button>
+        </form>
+
+        <p className="modern-login-footer-link">
+          {t("auth.register.haveAccount")} <Link href="/login">{t("auth.register.signIn")}</Link>
+        </p>
+      </LoginCard>
+    </LoginPage>
   );
 }

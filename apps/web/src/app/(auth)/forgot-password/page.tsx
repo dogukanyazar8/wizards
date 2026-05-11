@@ -2,14 +2,18 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ForgotPasswordSchema, type ForgotPasswordInput } from "@wizards/types";
-import { MailCheck, Send } from "lucide-react";
+import { ArrowRight, Mail, MailCheck, Send } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { LoginCard } from "@/components/auth/login-card";
+import { LoginPage } from "@/components/auth/login-page";
 import { useI18n } from "@/components/providers/locale-provider";
+import { forgotPasswordAction } from "@/lib/auth/actions";
 
 export default function ForgotPasswordPage() {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const [serverError, setServerError] = useState<string | null>(null);
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
 
   const {
@@ -22,99 +26,93 @@ export default function ForgotPasswordPage() {
   });
 
   const onSubmit = async (values: ForgotPasswordInput) => {
-    setSubmittedEmail(values.email);
+    setServerError(null);
+    setSubmittedEmail(null);
+
+    const formData = new FormData();
+    formData.set("email", values.email);
+    formData.set("locale", locale);
+
+    const result = await forgotPasswordAction(formData);
+
+    if (!result.success) {
+      setServerError(result.error ?? "auth.passwordReset.sendFailed");
+      return;
+    }
+
+    setSubmittedEmail(result.email ?? values.email);
   };
 
-  if (submittedEmail) {
-    return (
-      <div className="space-y-6 text-center">
-        <div className="app-badge-success mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border">
-          <MailCheck className="h-6 w-6" />
-        </div>
-        <div className="space-y-2">
-          <h1 className="text-app-foreground text-2xl font-semibold">
-            {t("auth.forgot.checkEmail")}
-          </h1>
-          <p className="text-app-muted text-sm leading-7">
-            {t("auth.forgot.instructions", { email: submittedEmail })}
-          </p>
-        </div>
-        <Link
-          href="/login"
-          className="text-app-accent inline-block text-sm font-semibold hover:opacity-80"
-        >
-          {t("auth.forgot.backToLogin")}
-        </Link>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-8">
-      <div className="space-y-4">
-        <div className="app-badge-accent inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em]">
-          <Send className="h-3.5 w-3.5" />
-          {t("auth.forgot.badge")}
+    <LoginPage>
+      <LoginCard label={t("auth.forgot.resetTitle")}>
+        <div className="modern-login-card-header">
+          <p>{t("auth.forgot.badge")}</p>
+          <h1>{t("auth.forgot.resetTitle")}</h1>
+          <span>{t("auth.forgot.description")}</span>
         </div>
-        <div>
-          <h1 className="text-app-foreground text-4xl font-semibold tracking-tight">
-            {t("auth.forgot.resetTitle")}
-          </h1>
-          <p className="text-app-muted mt-3 text-sm leading-7">
-            {t("auth.forgot.description")}
-          </p>
-        </div>
-      </div>
 
-      <form
-        className="space-y-5 rounded-[30px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.42)] p-5 shadow-[0_24px_60px_hsl(var(--shadow-color)/0.08)]"
-        onSubmit={handleSubmit(onSubmit)}
-        noValidate
-      >
-        <div className="space-y-2">
-          <label
-            htmlFor="email"
-            className="text-app-soft text-xs font-semibold uppercase tracking-[0.22em]"
+        {submittedEmail ? (
+          <>
+            <div className="modern-login-status-card" role="status">
+              <span aria-hidden="true">
+                <MailCheck className="h-6 w-6" />
+              </span>
+              <div>
+                <h1>{t("auth.forgot.checkEmail")}</h1>
+                <p>{t("auth.forgot.instructions", { email: submittedEmail })}</p>
+              </div>
+            </div>
+
+            <Link className="modern-login-secondary" href="/login">
+              <ArrowRight className="h-5 w-5 rotate-180" />
+              <span>{t("auth.forgot.backToLogin")}</span>
+            </Link>
+          </>
+        ) : (
+          <form
+            className="modern-login-form"
+            onSubmit={handleSubmit(onSubmit)}
+            noValidate
           >
-            {t("common.email")}
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            className="app-input h-12 w-full rounded-2xl border px-4 text-sm transition"
-            placeholder="you@whispr.team"
-            {...register("email")}
-          />
-          {errors.email ? (
-            <p className="text-app-danger text-xs">{t(errors.email.message ?? "")}</p>
-          ) : null}
-        </div>
+            <div className="modern-login-field">
+              <label htmlFor="email">{t("auth.login.emailLabel")}</label>
+              <div className="modern-login-input-wrap">
+                <Mail className="modern-login-input-icon" />
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder={t("auth.login.emailPlaceholder")}
+                  {...register("email")}
+                />
+              </div>
+              {errors.email ? (
+                <p className="modern-login-field-error">{t(errors.email.message ?? "")}</p>
+              ) : null}
+            </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="app-button-primary inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {isSubmitting ? (
-            <span className="inline-flex items-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-[hsl(var(--primary-foreground)/0.28)] border-t-current" />
-              {t("auth.forgot.sending")}
-            </span>
-          ) : (
-            t("auth.forgot.submit")
-          )}
-        </button>
-      </form>
+            {serverError ? (
+              <p className="modern-login-alert" role="alert">
+                {t(serverError)}
+              </p>
+            ) : null}
 
-      <p className="text-app-muted text-center text-sm">
-        <Link
-          href="/login"
-          className="text-app-accent font-semibold hover:opacity-80"
-        >
-          {t("auth.forgot.backToLogin")}
-        </Link>
-      </p>
-    </div>
+            <button className="modern-login-primary" disabled={isSubmitting} type="submit">
+              <span>{isSubmitting ? t("auth.forgot.sending") : t("auth.forgot.submit")}</span>
+              <Send className="h-5 w-5" />
+            </button>
+          </form>
+        )}
+
+        {!submittedEmail ? (
+          <p className="modern-login-footer-link">
+            <Link href="/login">
+              {t("auth.forgot.backToLogin")} <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </p>
+        ) : null}
+      </LoginCard>
+    </LoginPage>
   );
 }

@@ -4569,7 +4569,7 @@ dependencies = [
 
 [[package]]
 name = "whispr-desktop"
-version = "0.8.3"
+version = "0.8.5"
 dependencies = [
  "open",
  "serde_json",

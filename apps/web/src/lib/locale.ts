@@ -34,6 +34,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "common.name": "Name",
     "common.overview": "Overview",
     "common.password": "Password",
+    "common.preview": "Preview",
     "common.reset": "Reset",
     "common.save": "Save",
     "common.saving": "Saving...",
@@ -101,6 +102,18 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.quality.title": "Polished voice feedback",
     "app.update.notes.quality.description":
       "Participant cards now use a taller responsive waveform, avatar glow, and compact status badges without changing the call connection.",
+    "app.update.notes.authRefresh.title": "Modern login and recovery",
+    "app.update.notes.authRefresh.description":
+      "Login, registration, language switching, beta messaging, and password reset now share the new responsive Whispr welcome experience.",
+    "app.update.notes.mediaExperience.title": "Video and sharing polish",
+    "app.update.notes.mediaExperience.description":
+      "Voice rooms now handle camera, screen sharing, quality changes, reminders, and responsive controls with cleaner state separation.",
+    "app.update.notes.rolesPreview.title": "Roles preview groundwork",
+    "app.update.notes.rolesPreview.description":
+      "Server role management is now clearly marked as Preview while the permissions foundation is prepared behind the scenes.",
+    "app.update.notes.iconRefresh.title": "Refreshed Whispr icon",
+    "app.update.notes.iconRefresh.description":
+      "Browser, notification, and desktop app surfaces now use the updated Whispr waveform icon consistently.",
 
     "validation.category.pattern":
       "Category names can use letters, numbers, spaces, hyphens, or underscores.",
@@ -111,6 +124,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "validation.password.confirmMismatch": "Passwords do not match.",
     "validation.password.max": "Password must be 100 characters or fewer.",
     "validation.password.min": "Password must be at least 8 characters.",
+    "validation.role.pattern":
+      "Role names can use letters, numbers, spaces, hyphens, or underscores.",
     "validation.turnstile.invalid": "Please complete the security check again.",
     "validation.turnstile.required": "Please complete the security check.",
     "validation.username.max": "Username must be 32 characters or fewer.",
@@ -515,6 +530,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.layout.audience.heading": "Who is Whispr for?",
     "auth.layout.audience.note":
       "Your choice personalizes the experience; sign-in and account flows are similar.",
+    "auth.layout.audience.selector.business": "Business",
+    "auth.layout.audience.selector.gamer": "Gamer",
+    "auth.layout.audience.selector.individual": "Individual",
+    "auth.layout.audience.selectorLabel": "Choose audience profile",
     "auth.layout.audience.personal.description":
       "Talk with friends, share files,\nand stay connected anytime.",
     "auth.layout.audience.personal.title": "Individual User",
@@ -549,6 +568,14 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.layout.footerTerms": "Terms of Use",
     "auth.layout.securityLine": "End-to-end encrypted, secure, privacy-minded experience.",
     "auth.layout.systemStatus": "All systems active",
+    "auth.layout.beta.ariaLabel": "Whispr beta notice",
+    "auth.layout.beta.badge": "Beta",
+    "auth.layout.beta.heroTitle": "Whispr is currently in beta",
+    "auth.layout.beta.heroDescription":
+      "We are actively improving the product. Some features may change or unexpected issues may appear. Your feedback is valuable to us.",
+    "auth.layout.beta.compactTitle": "We are in beta",
+    "auth.layout.beta.compactDescription":
+      "Whispr is evolving continuously. You may notice bugs or missing details.",
     "auth.layout.title": "Secure communication, for every community.",
     "auth.layout.titleLineOne": "Secure communication,",
     "auth.layout.titleLineTwo": "for every community.",
@@ -559,12 +586,12 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.continue": "Sign In",
     "auth.login.demoAccount": "Demo Account",
     "auth.login.demoDescription": "Prefills demo credentials instantly.",
-    "auth.login.description":
-      "Return to your servers, DMs, voice rooms, screen shares, uploads, GIFs, reactions, and live notifications with secure verified access.",
+    "auth.login.description": "Choose your profile and continue securely from where you left off.",
     "auth.login.fastStart": "Fast start",
     "auth.login.forgotPassword": "Forgot password?",
     "auth.login.github": "GitHub",
     "auth.login.google": "Google",
+    "auth.login.freeCreate": "Create free",
     "auth.login.emailNotVerified": "Please verify your email before signing in.",
     "auth.login.emailNotVerifiedHelp":
       "Your password is correct, but this account still needs email verification.",
@@ -578,9 +605,18 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.needAccountLabel": "Need an account?",
     "auth.login.createAccount": "Create Account",
     "auth.login.createAccountInline": "Create account",
+    "auth.login.modernEyebrow": "Secure access",
+    "auth.login.modernSubtitle": "Sign in to your account and continue where you left off",
+    "auth.login.modernTitle": "Welcome back",
     "auth.login.noAccount": "Don't have an account?",
     "auth.login.oauthError": "OAuth sign-in failed. Please try again.",
+    "auth.login.oauthAccessDenied":
+      "We couldn't sign you in with this provider. Please try another sign-in method.",
+    "auth.login.oauthAccountNotLinked":
+      "This email already belongs to an account. For your security, sign in with your existing method first.",
     "auth.login.oauthLoading": "Loading...",
+    "auth.login.socialUnavailable":
+      "{provider} sign-in is not ready yet. You can continue with email or Google for now.",
     "auth.login.orContinueWith": "or continue with",
     "auth.login.passwordLabel": "Password",
     "auth.login.passwordPlaceholder": "Enter your password",
@@ -591,7 +627,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.signInUnavailable": "Unable to log in right now.",
     "auth.login.testAccount": "Test Account",
     "auth.login.testDescription": "Use this for second-session chat testing.",
-    "auth.login.title": "Welcome back",
+    "auth.login.title": "Sign in to Whispr",
     "auth.login.multiUser": "Multi-user",
     "auth.login.idealForInvites": "Ideal for invite flows",
 
@@ -688,9 +724,53 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.forgot.description": "Enter your email and we'll send a reset link.",
     "auth.forgot.instructions":
       "If an account exists for {email}, you'll receive reset instructions.",
+    "auth.forgot.genericSuccess":
+      "If an account exists for this email, we sent reset instructions.",
+    "auth.forgot.rateLimited":
+      "Too many reset emails were requested. Please try again later.",
     "auth.forgot.resetTitle": "Reset your password",
     "auth.forgot.sending": "Sending...",
     "auth.forgot.submit": "Send Reset Link",
+
+    "auth.passwordReset.accountHint": "You're resetting the password for {email}.",
+    "auth.passwordReset.badge": "New password",
+    "auth.passwordReset.description": "Choose a strong new password for your Whispr account.",
+    "auth.passwordReset.emailBody":
+      "We received a request to reset your Whispr password. Use the secure link below to choose a new password.",
+    "auth.passwordReset.emailCta": "Reset password",
+    "auth.passwordReset.emailExpires": "This link expires in {minutes} minutes.",
+    "auth.passwordReset.emailFallback":
+      "If the button does not work, paste this link into your browser:",
+    "auth.passwordReset.emailFooter":
+      "Whispr protects reset links with a short expiry and signed tokens.",
+    "auth.passwordReset.emailGreeting": "Hi {name},",
+    "auth.passwordReset.emailIgnore":
+      "If you did not request a password reset, you can safely ignore this email.",
+    "auth.passwordReset.emailSubject": "Reset your Whispr password",
+    "auth.passwordReset.emailTitle": "Reset your password",
+    "auth.passwordReset.expiredToken": "This reset link has expired.",
+    "auth.passwordReset.expiredTokenHelp":
+      "For your security, password reset links are time limited. Request a fresh link to continue.",
+    "auth.passwordReset.invalidToken": "This reset link is not valid.",
+    "auth.passwordReset.invalidTokenHelp":
+      "The link may have already been used or copied incorrectly. Request a new reset link.",
+    "auth.passwordReset.loginCta": "Go to login",
+    "auth.passwordReset.notConfigured":
+      "Password reset email is not configured. Add Resend settings, then restart the app.",
+    "auth.passwordReset.requestNewLink": "Request a new link",
+    "auth.passwordReset.saving": "Saving password...",
+    "auth.passwordReset.senderRestricted":
+      "Resend test sender can only email your Resend account address. Test with that address, or verify a domain in Resend and update RESEND_FROM_EMAIL.",
+    "auth.passwordReset.sendFailed":
+      "We could not send the reset email right now. Please try again.",
+    "auth.passwordReset.submit": "Save new password",
+    "auth.passwordReset.success": "Your password has been updated.",
+    "auth.passwordReset.successBody":
+      "Your password was changed successfully. You can now sign in with your new password.",
+    "auth.passwordReset.successTitle": "Password updated",
+    "auth.passwordReset.title": "Create a new password",
+    "auth.passwordReset.unavailable":
+      "We could not reset your password right now. Please try again.",
 
     "settings.backToChannels": "Back to Channels",
     "settings.description":
@@ -1512,6 +1592,26 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.channelReadOnly": "Read-only channel",
     "workspace.modal.channelReadOnlyDescription":
       "Let members read the channel while only moderators can post.",
+    "workspace.permissions.allowedRoles": "Allowed roles",
+    "workspace.permissions.loadError": "We couldn't load channel permissions.",
+    "workspace.permissions.noRoles": "Create a role first to gate this channel.",
+    "workspace.permissions.preset.LOCKED_VISIBLE": "Locked but visible",
+    "workspace.permissions.preset.LOCKED_VISIBLE.description":
+      "Members can see the channel, but need an allowed role to use it.",
+    "workspace.permissions.preset.PRIVATE": "Private / hidden",
+    "workspace.permissions.preset.PRIVATE.description":
+      "Hide this channel from regular members.",
+    "workspace.permissions.preset.PUBLIC": "Public",
+    "workspace.permissions.preset.PUBLIC.description":
+      "Everyone can see and use this channel.",
+    "workspace.permissions.preset.ROLE_GATED": "Role-gated",
+    "workspace.permissions.preset.ROLE_GATED.description":
+      "Only selected roles can see and use this channel.",
+    "workspace.permissions.textDescription":
+      "Choose who can see or post in this text channel. The server still validates every message.",
+    "workspace.permissions.title": "Channel permissions",
+    "workspace.permissions.voiceDescription":
+      "Choose who can see or join this voice channel. LiveKit tokens stay server-authorized.",
     "workspace.modal.channelCategory": "Category",
     "workspace.modal.noCategory": "No category",
     "workspace.modal.channelSave": "Save Channel",
@@ -1545,6 +1645,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "serverSettings.manageDescription":
       "Manage the look, structure, and membership experience for this server.",
     "serverSettings.tab.overview": "Overview",
+    "serverSettings.tab.roles": "Roles",
     "serverSettings.tab.members": "Members",
     "serverSettings.tab.invites": "Invites",
     "serverSettings.tab.danger": "Danger Zone",
@@ -1559,6 +1660,47 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "serverSettings.overviewSavedTitle": "Settings Saved",
     "serverSettings.overviewSavedDescription":
       "Your server overview, media, and member access preferences are up to date.",
+    "serverSettings.roles.color": "Color",
+    "serverSettings.roles.assignableRoles": "Assignable",
+    "serverSettings.roles.createDescription":
+      "Create focused roles and keep elevated permissions owner-controlled.",
+    "serverSettings.roles.createRole": "Create Role",
+    "serverSettings.roles.createTitle": "Create role",
+    "serverSettings.roles.editTitle": "Edit role",
+    "serverSettings.roles.groupAdmin": "Administration",
+    "serverSettings.roles.groupGeneral": "General",
+    "serverSettings.roles.groupModeration": "Moderation",
+    "serverSettings.roles.groupVoice": "Voice and media",
+    "serverSettings.roles.mentionable": "Mentionable",
+    "serverSettings.roles.mentionableDescription":
+      "Allow members to mention this role in messages.",
+    "serverSettings.roles.noPermissions": "No direct permissions",
+    "serverSettings.roles.overviewDescription":
+      "Review access groups, create custom roles, and keep owner-only permissions protected.",
+    "serverSettings.roles.overviewTitle": "Role control room",
+    "serverSettings.roles.permissionDescription":
+      "Toggle permissions by product area. Server APIs still validate every action.",
+    "serverSettings.roles.permissions": "Permissions",
+    "serverSettings.roles.presetAdmin": "Admin",
+    "serverSettings.roles.presetAdminDescription":
+      "Owner-only full access for trusted server operators.",
+    "serverSettings.roles.presetMember": "Member",
+    "serverSettings.roles.presetMemberDescription":
+      "Default product access without management powers.",
+    "serverSettings.roles.presetModerator": "Moderator",
+    "serverSettings.roles.presetModeratorDescription":
+      "Message and member moderation without server configuration access.",
+    "serverSettings.roles.presets": "Permission presets",
+    "serverSettings.roles.protected": "Protected",
+    "serverSettings.roles.roleLibrary": "Role library",
+    "serverSettings.roles.roleLibraryDescription":
+      "Protected roles stay visible for context; custom roles can be edited or removed.",
+    "serverSettings.roles.roleName": "Role name",
+    "serverSettings.roles.roleNamePlaceholder": "Event Crew",
+    "serverSettings.roles.saveError": "We couldn't save this role.",
+    "serverSettings.roles.saveRole": "Save Role",
+    "serverSettings.roles.selectedPermissions": "Selected",
+    "serverSettings.roles.totalRoles": "Total roles",
     "serverSettings.kick": "Kick",
     "serverSettings.noInvites":
       "No active invites yet. Generate one from the server menu or the quick invite modal.",
@@ -1610,6 +1752,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "common.name": "Ad",
     "common.overview": "Genel Bakış",
     "common.password": "Şifre",
+    "common.preview": "Preview",
     "common.reset": "Sıfırla",
     "common.save": "Kaydet",
     "common.saving": "Kaydediliyor...",
@@ -1677,6 +1820,18 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.quality.title": "Ses geri bildirimi cilalandı",
     "app.update.notes.quality.description":
       "Katılımcı kartları artık bağlantıyı değiştirmeden daha yüksek responsive waveform, avatar parlaması ve kompakt durum rozetleri kullanıyor.",
+    "app.update.notes.authRefresh.title": "Modern giriş ve kurtarma",
+    "app.update.notes.authRefresh.description":
+      "Login, kayıt, dil değişimi, beta bilgilendirmesi ve şifre sıfırlama artık yeni responsive Whispr karşılama deneyimini kullanıyor.",
+    "app.update.notes.mediaExperience.title": "Video ve paylaşım iyileştirmeleri",
+    "app.update.notes.mediaExperience.description":
+      "Ses odaları artık kamera, ekran paylaşımı, kalite değişimi, hatırlatıcılar ve responsive kontrolleri daha temiz ayrılmış state yapısıyla yönetiyor.",
+    "app.update.notes.rolesPreview.title": "Roller preview hazırlığı",
+    "app.update.notes.rolesPreview.description":
+      "Sunucu rol yönetimi, izin temeli arka planda hazırlanırken artık net şekilde Preview olarak işaretleniyor.",
+    "app.update.notes.iconRefresh.title": "Yenilenen Whispr ikonu",
+    "app.update.notes.iconRefresh.description":
+      "Tarayıcı, bildirim ve masaüstü uygulama yüzeyleri artık güncellenen Whispr waveform ikonunu tutarlı şekilde kullanıyor.",
 
     "validation.category.pattern":
       "Kategori adları harf, sayı, boşluk, tire veya alt çizgi içerebilir.",
@@ -1687,6 +1842,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "validation.password.confirmMismatch": "Şifreler eşleşmiyor.",
     "validation.password.max": "Şifre en fazla 100 karakter olabilir.",
     "validation.password.min": "Şifre en az 8 karakter olmalıdır.",
+    "validation.role.pattern":
+      "Rol adları harf, rakam, boşluk, kısa çizgi veya alt çizgi içerebilir.",
     "validation.turnstile.invalid": "Lütfen güvenlik doğrulamasını tekrar tamamla.",
     "validation.turnstile.required": "Lütfen güvenlik doğrulamasını tamamla.",
     "validation.username.max": "Kullanıcı adı en fazla 32 karakter olabilir.",
@@ -2095,6 +2252,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.layout.audience.heading": "Whispr kimler için?",
     "auth.layout.audience.note":
       "Seçiminiz deneyiminizi kişiselleştirir, giriş ve hesap işlemleri benzerdir.",
+    "auth.layout.audience.selector.business": "Kurumsal",
+    "auth.layout.audience.selector.gamer": "Oyuncu",
+    "auth.layout.audience.selector.individual": "Bireysel",
+    "auth.layout.audience.selectorLabel": "Profil türünü seç",
     "auth.layout.audience.personal.description":
       "Arkadaşlarınızla konuşun, dosya\npaylaşın ve her an bağlantıda kalın.",
     "auth.layout.audience.personal.title": "Bireysel Kullanıcı",
@@ -2130,6 +2291,14 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.layout.securityLine":
       "Uçtan uca şifreleme ile güvenli, gizliliğe önem veren bir deneyim.",
     "auth.layout.systemStatus": "Tüm sistemler aktif",
+    "auth.layout.beta.ariaLabel": "Whispr beta bilgilendirmesi",
+    "auth.layout.beta.badge": "Beta",
+    "auth.layout.beta.heroTitle": "Whispr şu anda beta sürecinde",
+    "auth.layout.beta.heroDescription":
+      "Ürünü aktif olarak geliştiriyoruz. Bazı özellikler değişebilir veya beklenmedik hatalarla karşılaşabilirsiniz. Geri bildirimleriniz bizim için değerlidir.",
+    "auth.layout.beta.compactTitle": "Beta sürümündeyiz",
+    "auth.layout.beta.compactDescription":
+      "Whispr sürekli gelişiyor. Hata veya eksikliklerle karşılaşabilirsiniz.",
     "auth.layout.title": "Güvenli iletişim, her topluluk için.",
     "auth.layout.titleLineOne": "Güvenli iletişim,",
     "auth.layout.titleLineTwo": "her topluluk için.",
@@ -2140,12 +2309,12 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.continue": "Giriş Yap",
     "auth.login.demoAccount": "Demo Hesap",
     "auth.login.demoDescription": "Demo bilgilerini anında doldurur.",
-    "auth.login.description":
-      "Sunucularına, DM'lerine, ses odalarına, ekran paylaşımlarına, yüklemelerine, GIF'lerine, tepkilerine ve canlı bildirimlerine güvenli doğrulanmış erişimle geri dön.",
+    "auth.login.description": "Profilini seç, güvenli sohbetlerine kaldığın yerden devam et.",
     "auth.login.fastStart": "Hızlı başlangıç",
     "auth.login.forgotPassword": "Şifremi unuttum?",
     "auth.login.github": "GitHub",
     "auth.login.google": "Google",
+    "auth.login.freeCreate": "Ücretsiz oluşturun",
     "auth.login.emailNotVerified": "Giriş yapmadan önce e-postanı doğrula.",
     "auth.login.emailNotVerifiedHelp":
       "Şifren doğru, ancak bu hesabın hâlâ e-posta doğrulamasına ihtiyacı var.",
@@ -2159,9 +2328,18 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.needAccountLabel": "Hesabın yok mu?",
     "auth.login.createAccount": "Hesap Oluştur",
     "auth.login.createAccountInline": "Hesap oluşturun",
+    "auth.login.modernEyebrow": "Güvenli erişim",
+    "auth.login.modernSubtitle": "Hesabına giriş yap, kaldığın yerden devam et",
+    "auth.login.modernTitle": "Tekrar hoş geldin",
     "auth.login.noAccount": "Hesabınız yok mu?",
     "auth.login.oauthError": "OAuth girişi başarısız oldu. Lütfen tekrar dene.",
+    "auth.login.oauthAccessDenied":
+      "Bu sağlayıcıyla giriş yapılamadı. Lütfen farklı bir giriş yöntemi dene.",
+    "auth.login.oauthAccountNotLinked":
+      "Bu e-posta zaten bir hesaba ait. Güvenliğin için önce mevcut giriş yönteminle oturum aç.",
     "auth.login.oauthLoading": "Yükleniyor...",
+    "auth.login.socialUnavailable":
+      "{provider} ile oturum açma henüz hazır değil. Şimdilik e-posta veya Google ile devam edebilirsiniz.",
     "auth.login.orContinueWith": "veya şununla devam et",
     "auth.login.passwordLabel": "Şifreniz",
     "auth.login.passwordPlaceholder": "Şifrenizi girin",
@@ -2172,7 +2350,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.signInUnavailable": "Şu anda giriş yapılamıyor.",
     "auth.login.testAccount": "Test Hesap",
     "auth.login.testDescription": "İkinci oturumlu sohbet testleri için kullan.",
-    "auth.login.title": "Tekrar hoş geldin",
+    "auth.login.title": "Whispr'a giriş yapın",
     "auth.login.multiUser": "Çok kullanıcılı",
     "auth.login.idealForInvites": "Davet akışları için ideal",
 
@@ -2267,9 +2445,52 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.forgot.checkEmail": "E-postanı kontrol et",
     "auth.forgot.description": "E-postanı gir, sana bir sıfırlama bağlantısı gönderelim.",
     "auth.forgot.instructions": "{email} için bir hesap varsa, sıfırlama talimatlarını alacaksın.",
+    "auth.forgot.genericSuccess":
+      "Bu e-posta için bir hesap varsa sıfırlama talimatlarını gönderdik.",
+    "auth.forgot.rateLimited":
+      "Çok fazla sıfırlama e-postası istendi. Lütfen daha sonra tekrar dene.",
     "auth.forgot.resetTitle": "Şifreni sıfırla",
     "auth.forgot.sending": "Gönderiliyor...",
     "auth.forgot.submit": "Sıfırlama Bağlantısı Gönder",
+
+    "auth.passwordReset.accountHint": "{email} hesabı için şifre sıfırlıyorsun.",
+    "auth.passwordReset.badge": "Yeni şifre",
+    "auth.passwordReset.description": "Whispr hesabın için güçlü bir yeni şifre belirle.",
+    "auth.passwordReset.emailBody":
+      "Whispr şifreni sıfırlamak için bir istek aldık. Yeni şifre belirlemek için aşağıdaki güvenli bağlantıyı kullan.",
+    "auth.passwordReset.emailCta": "Şifreyi sıfırla",
+    "auth.passwordReset.emailExpires": "Bu bağlantı {minutes} dakika içinde sona erer.",
+    "auth.passwordReset.emailFallback": "Buton çalışmazsa bu bağlantıyı tarayıcına yapıştır:",
+    "auth.passwordReset.emailFooter":
+      "Whispr, sıfırlama bağlantılarını kısa süreli ve imzalı tokenlarla korur.",
+    "auth.passwordReset.emailGreeting": "Merhaba {name},",
+    "auth.passwordReset.emailIgnore":
+      "Şifre sıfırlama isteğinde bulunmadıysan bu e-postayı güvenle yok sayabilirsin.",
+    "auth.passwordReset.emailSubject": "Whispr şifreni sıfırla",
+    "auth.passwordReset.emailTitle": "Şifreni sıfırla",
+    "auth.passwordReset.expiredToken": "Bu sıfırlama bağlantısının süresi doldu.",
+    "auth.passwordReset.expiredTokenHelp":
+      "Güvenliğin için şifre sıfırlama bağlantıları süreyle sınırlıdır. Devam etmek için yeni bir bağlantı iste.",
+    "auth.passwordReset.invalidToken": "Bu sıfırlama bağlantısı geçerli değil.",
+    "auth.passwordReset.invalidTokenHelp":
+      "Bağlantı daha önce kullanılmış veya hatalı kopyalanmış olabilir. Yeni bir sıfırlama bağlantısı iste.",
+    "auth.passwordReset.loginCta": "Girişe git",
+    "auth.passwordReset.notConfigured":
+      "Şifre sıfırlama e-postası yapılandırılmamış. Resend ayarlarını ekleyip uygulamayı yeniden başlat.",
+    "auth.passwordReset.requestNewLink": "Yeni bağlantı iste",
+    "auth.passwordReset.saving": "Şifre kaydediliyor...",
+    "auth.passwordReset.senderRestricted":
+      "Resend test göndericisi yalnızca Resend hesabına bağlı e-posta adresine gönderim yapabilir. Bu adresle test et veya Resend'de bir domain doğrulayıp RESEND_FROM_EMAIL değerini güncelle.",
+    "auth.passwordReset.sendFailed":
+      "Sıfırlama e-postasını şu anda gönderemedik. Lütfen tekrar dene.",
+    "auth.passwordReset.submit": "Yeni şifreyi kaydet",
+    "auth.passwordReset.success": "Şifren güncellendi.",
+    "auth.passwordReset.successBody":
+      "Şifren başarıyla değiştirildi. Artık yeni şifrenle giriş yapabilirsin.",
+    "auth.passwordReset.successTitle": "Şifre güncellendi",
+    "auth.passwordReset.title": "Yeni şifre oluştur",
+    "auth.passwordReset.unavailable":
+      "Şifreni şu anda sıfırlayamadık. Lütfen tekrar dene.",
 
     "settings.backToChannels": "Kanallara Dön",
     "settings.description":
@@ -3093,6 +3314,26 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.modal.channelReadOnly": "Salt okunur kanal",
     "workspace.modal.channelReadOnlyDescription":
       "Üyeler kanalı okuyabilir, mesajları yalnızca moderatörler gönderebilir.",
+    "workspace.permissions.allowedRoles": "İzin verilen roller",
+    "workspace.permissions.loadError": "Kanal izinleri yüklenemedi.",
+    "workspace.permissions.noRoles": "Bu kanalı role bağlamak için önce bir rol oluştur.",
+    "workspace.permissions.preset.LOCKED_VISIBLE": "Kilitli ama görünür",
+    "workspace.permissions.preset.LOCKED_VISIBLE.description":
+      "Üyeler kanalı görür, kullanmak için izinli role ihtiyaç duyar.",
+    "workspace.permissions.preset.PRIVATE": "Gizli / özel",
+    "workspace.permissions.preset.PRIVATE.description":
+      "Bu kanalı normal üyelerden gizle.",
+    "workspace.permissions.preset.PUBLIC": "Herkese açık",
+    "workspace.permissions.preset.PUBLIC.description":
+      "Herkes bu kanalı görebilir ve kullanabilir.",
+    "workspace.permissions.preset.ROLE_GATED": "Role bağlı",
+    "workspace.permissions.preset.ROLE_GATED.description":
+      "Yalnızca seçilen roller bu kanalı görebilir ve kullanabilir.",
+    "workspace.permissions.textDescription":
+      "Bu metin kanalını kimin görebileceğini veya kullanabileceğini seç. Her mesaj sunucuda doğrulanır.",
+    "workspace.permissions.title": "Kanal izinleri",
+    "workspace.permissions.voiceDescription":
+      "Bu ses kanalını kimin görebileceğini veya katılabileceğini seç. LiveKit tokenları sunucuda yetkilendirilir.",
     "workspace.modal.channelCategory": "Kategori",
     "workspace.modal.noCategory": "Kategori yok",
     "workspace.modal.channelSave": "Kanalı Kaydet",
@@ -3125,6 +3366,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "serverSettings.manageDescription":
       "Bu sunucu için görünümü, yapıyı ve üyelik deneyimini yönet.",
     "serverSettings.tab.overview": "Genel Bakış",
+    "serverSettings.tab.roles": "Roller",
     "serverSettings.tab.members": "Üyeler",
     "serverSettings.tab.invites": "Davetler",
     "serverSettings.tab.danger": "Tehlike Bölgesi",
@@ -3139,6 +3381,47 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "serverSettings.overviewSavedTitle": "Ayarlar Kaydedildi",
     "serverSettings.overviewSavedDescription":
       "Sunucu genel bakışı, medya ve üye erişimi tercihleri güncellendi.",
+    "serverSettings.roles.color": "Renk",
+    "serverSettings.roles.assignableRoles": "Atanabilir",
+    "serverSettings.roles.createDescription":
+      "Odaklı roller oluştur; yüksek yetkileri yalnızca sunucu sahibinin kontrolünde tut.",
+    "serverSettings.roles.createRole": "Rol Oluştur",
+    "serverSettings.roles.createTitle": "Rol oluştur",
+    "serverSettings.roles.editTitle": "Rolü düzenle",
+    "serverSettings.roles.groupAdmin": "Yönetim",
+    "serverSettings.roles.groupGeneral": "Genel",
+    "serverSettings.roles.groupModeration": "Moderasyon",
+    "serverSettings.roles.groupVoice": "Ses ve medya",
+    "serverSettings.roles.mentionable": "Bahsedilebilir",
+    "serverSettings.roles.mentionableDescription":
+      "Üyelerin mesajlarda bu rolden bahsedebilmesine izin ver.",
+    "serverSettings.roles.noPermissions": "Doğrudan yetki yok",
+    "serverSettings.roles.overviewDescription":
+      "Erişim gruplarını gözden geçir, özel roller oluştur ve sahip-only yetkileri korumada tut.",
+    "serverSettings.roles.overviewTitle": "Rol kontrol merkezi",
+    "serverSettings.roles.permissionDescription":
+      "Yetkileri ürün alanına göre açıp kapat. Her işlem sunucu API'larında doğrulanmaya devam eder.",
+    "serverSettings.roles.permissions": "Yetkiler",
+    "serverSettings.roles.presetAdmin": "Admin",
+    "serverSettings.roles.presetAdminDescription":
+      "Güvenilir sunucu yöneticileri için yalnızca sahip tarafından verilebilen tam erişim.",
+    "serverSettings.roles.presetMember": "Üye",
+    "serverSettings.roles.presetMemberDescription":
+      "Yönetim yetkisi olmadan varsayılan ürün erişimi.",
+    "serverSettings.roles.presetModerator": "Moderatör",
+    "serverSettings.roles.presetModeratorDescription":
+      "Sunucu yapılandırmasına erişmeden mesaj ve üye moderasyonu.",
+    "serverSettings.roles.presets": "Yetki hazır ayarları",
+    "serverSettings.roles.protected": "Korunuyor",
+    "serverSettings.roles.roleLibrary": "Rol kütüphanesi",
+    "serverSettings.roles.roleLibraryDescription":
+      "Korunan roller bağlam için görünür kalır; özel roller düzenlenebilir veya kaldırılabilir.",
+    "serverSettings.roles.roleName": "Rol adı",
+    "serverSettings.roles.roleNamePlaceholder": "Etkinlik Ekibi",
+    "serverSettings.roles.saveError": "Bu rol kaydedilemedi.",
+    "serverSettings.roles.saveRole": "Rolü Kaydet",
+    "serverSettings.roles.selectedPermissions": "Seçili",
+    "serverSettings.roles.totalRoles": "Toplam rol",
     "serverSettings.kick": "At",
     "serverSettings.noInvites":
       "Henüz etkin davet yok. Sunucu menüsünden veya hızlı davet penceresinden bir tane oluştur.",

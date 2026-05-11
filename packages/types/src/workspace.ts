@@ -47,15 +47,65 @@ export const WorkspaceAccessLevelSchema = z.enum(["OWNER", "ADMIN", "MEMBER"]);
 
 export const WorkspaceChannelTypeSchema = z.enum(["TEXT", "VOICE"]);
 
+export const WorkspacePermissionKeySchema = z.enum([
+  "ADMINISTRATOR",
+  "VIEW_CHANNEL",
+  "SEND_MESSAGES",
+  "MANAGE_MESSAGES",
+  "CLEAR_CHANNEL_HISTORY",
+  "ATTACH_FILES",
+  "USE_GIFS",
+  "ADD_REACTIONS",
+  "CONNECT_VOICE",
+  "SPEAK",
+  "STREAM",
+  "USE_VIDEO",
+  "MUTE_MEMBERS",
+  "DEAFEN_MEMBERS",
+  "MOVE_MEMBERS",
+  "MANAGE_CHANNELS",
+  "MANAGE_ROLES",
+  "MANAGE_SERVER",
+  "MANAGE_INVITES",
+  "KICK_MEMBERS",
+  "BAN_MEMBERS",
+  "TIMEOUT_MEMBERS",
+  "VIEW_AUDIT_LOG",
+]);
+
+export const WorkspaceChannelPermissionPresetSchema = z.enum([
+  "PUBLIC",
+  "LOCKED_VISIBLE",
+  "PRIVATE",
+  "ROLE_GATED",
+]);
+
+export const WorkspaceChannelPermissionSettingsSchema = z.object({
+  allowedRoleIds: z.array(z.string()),
+  preset: WorkspaceChannelPermissionPresetSchema,
+});
+
 export const RoleBadgeSchema = z.object({
   id: z.string(),
   name: z.string(),
   color: z.number().int().nonnegative(),
 });
 
+export const WorkspaceRoleSchema = z.object({
+  color: z.number().int().nonnegative(),
+  id: z.string(),
+  isDefault: z.boolean(),
+  managed: z.boolean(),
+  mentionable: z.boolean(),
+  name: z.string(),
+  permissions: z.array(WorkspacePermissionKeySchema),
+  position: z.number().int(),
+});
+
 export const WorkspaceChannelSchema = z.object({
   id: z.string(),
   categoryId: z.string().nullable(),
+  permissionPreset: WorkspaceChannelPermissionPresetSchema.optional(),
   locked: z.boolean().default(false),
   mentionCount: z.number().int().nonnegative().default(0),
   name: z.string(),
@@ -128,6 +178,7 @@ export const WorkspaceServerDetailSchema = z.object({
   invites: z.array(WorkspaceInviteSchema),
   memberPage: WorkspaceMemberPageSchema,
   members: z.array(WorkspaceMemberSchema),
+  roles: z.array(WorkspaceRoleSchema),
   ungroupedChannels: z.array(WorkspaceChannelSchema),
 });
 
@@ -210,6 +261,7 @@ export const UpdateCategorySchema = z.object({
 export const CreateChannelSchema = z.object({
   categoryId: z.string().nullable().optional(),
   name: workspaceNameSchema(48, "validation.channel.pattern"),
+  permissions: WorkspaceChannelPermissionSettingsSchema.optional(),
   topic: optionalTrimmedString(120),
   type: WorkspaceChannelTypeSchema,
 });
@@ -261,14 +313,52 @@ export const CreateInviteSchema = z.object({
   maxUses: z.number().int().min(1).max(1000).nullable().optional(),
 });
 
+export const WorkspaceRoleMutationSchema = z.object({
+  color: z.number().int().min(0).max(0xffffff).optional(),
+  mentionable: z.boolean().optional(),
+  name: workspaceNameSchema(48, "validation.role.pattern").optional(),
+  permissions: z.array(WorkspacePermissionKeySchema).optional(),
+});
+
+export const CreateWorkspaceRoleSchema = WorkspaceRoleMutationSchema.extend({
+  name: workspaceNameSchema(48, "validation.role.pattern"),
+  permissions: z.array(WorkspacePermissionKeySchema).default([]),
+});
+
+export const UpdateWorkspaceRoleSchema = WorkspaceRoleMutationSchema.refine(
+  (value) =>
+    value.name !== undefined ||
+    value.color !== undefined ||
+    value.mentionable !== undefined ||
+    value.permissions !== undefined,
+  {
+    message: "validation.form.atLeastOne",
+  },
+);
+
+export const UpdateWorkspaceMemberRolesSchema = z.object({
+  roleIds: z.array(z.string()).max(25),
+});
+
+export const UpdateWorkspaceChannelPermissionsSchema =
+  WorkspaceChannelPermissionSettingsSchema;
+
 export type WorkspaceAccessLevel = z.infer<typeof WorkspaceAccessLevelSchema>;
 export type WorkspaceCategory = z.infer<typeof WorkspaceCategorySchema>;
 export type WorkspaceChannel = z.infer<typeof WorkspaceChannelSchema>;
+export type WorkspaceChannelPermissionPreset = z.infer<
+  typeof WorkspaceChannelPermissionPresetSchema
+>;
+export type WorkspaceChannelPermissionSettings = z.infer<
+  typeof WorkspaceChannelPermissionSettingsSchema
+>;
 export type WorkspaceChannelType = z.infer<typeof WorkspaceChannelTypeSchema>;
 export type WorkspaceInvite = z.infer<typeof WorkspaceInviteSchema>;
 export type WorkspaceMember = z.infer<typeof WorkspaceMemberSchema>;
 export type WorkspaceMemberPage = z.infer<typeof WorkspaceMemberPageSchema>;
 export type WorkspaceMembersResponse = z.infer<typeof WorkspaceMembersResponseSchema>;
+export type WorkspacePermissionKey = z.infer<typeof WorkspacePermissionKeySchema>;
+export type WorkspaceRole = z.infer<typeof WorkspaceRoleSchema>;
 export type WorkspaceServerDetail = z.infer<typeof WorkspaceServerDetailSchema>;
 export type WorkspaceServerSummary = z.infer<typeof WorkspaceServerSummarySchema>;
 export type CreateServerInput = z.infer<typeof CreateServerSchema>;
@@ -282,3 +372,11 @@ export type ReorderChannelsInput = z.infer<typeof ReorderChannelsSchema>;
 export type ReorderCategoriesInput = z.infer<typeof ReorderCategoriesSchema>;
 export type CreateInviteInput = z.infer<typeof CreateInviteSchema>;
 export type AddServerMemberInput = z.infer<typeof AddServerMemberSchema>;
+export type CreateWorkspaceRoleInput = z.infer<typeof CreateWorkspaceRoleSchema>;
+export type UpdateWorkspaceRoleInput = z.infer<typeof UpdateWorkspaceRoleSchema>;
+export type UpdateWorkspaceMemberRolesInput = z.infer<
+  typeof UpdateWorkspaceMemberRolesSchema
+>;
+export type UpdateWorkspaceChannelPermissionsInput = z.infer<
+  typeof UpdateWorkspaceChannelPermissionsSchema
+>;

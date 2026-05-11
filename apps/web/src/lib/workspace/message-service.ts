@@ -1,4 +1,4 @@
-import { Prisma, prisma } from "@wizards/db";
+import { ChannelType, Prisma, prisma } from "@wizards/db";
 import {
   MESSAGE_CONTENT_DEFAULT_LIMIT,
   MESSAGE_CONTENT_HARD_LIMIT,
@@ -15,6 +15,8 @@ import {
   claimUploadedMessageAttachments,
   normalizeMessageContentForSend,
 } from "@/lib/messages/attachments";
+import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
+import { PermissionBits, hasPermission } from "@/lib/workspace/permissions";
 
 function normalizeMessageType(type: string): ChatMessageType {
   if (type === "SYSTEM_JOIN" || type === "SYSTEM_LEAVE") {
@@ -179,68 +181,26 @@ function normalizeThreadSummary(summary?: MessageThreadSummary): MessageThreadSu
   return summary ?? createEmptyThreadSummary();
 }
 
-const MANAGE_MESSAGES_PERMISSION = 1n << 0n;
-
 async function requireChannelAccess(
   userId: string,
   channelId: string,
   options: { requireManageMessages?: boolean } = {},
 ) {
-  const channel = await prisma.channel.findUnique({
-    where: { id: channelId },
-    select: { id: true, serverId: true },
-  });
-
-  if (!channel?.serverId) {
-    throw new ApiError("Channel not found", 404, "NOT_FOUND");
-  }
-
-  const [member, serverBan] = await Promise.all([
-    prisma.serverMember.findFirst({
-      where: { serverId: channel.serverId, userId },
-      select: {
-        id: true,
-        roles: {
-          select: {
-            role: {
-              select: {
-                permissions: true,
-              },
-            },
-          },
-        },
-      },
-    }),
-    prisma.serverBan.findUnique({
-      where: {
-        serverId_userId: {
-          serverId: channel.serverId,
-          userId,
-        },
-      },
-      select: { id: true },
-    }),
-  ]);
-
-  if (serverBan) {
-    throw new ApiError("You are banned from this server", 403, "SERVER_BANNED");
-  }
-
-  if (!member) {
-    throw new ApiError("Not a member of this server", 403, "FORBIDDEN");
-  }
-
-  const canManageMessages = member.roles.some(
-    ({ role }) => (role.permissions & MANAGE_MESSAGES_PERMISSION) !== 0n,
+  const { channel, permissions } = await requireChannelPermissionForUser(
+    userId,
+    channelId,
+    options.requireManageMessages ? PermissionBits.MANAGE_MESSAGES : PermissionBits.VIEW_CHANNEL,
+    {
+      forbiddenMessage: options.requireManageMessages
+        ? "You cannot manage pinned messages in this channel."
+        : "You do not have permission to access this channel.",
+      requiredType: ChannelType.TEXT,
+    },
   );
-
-  if (options.requireManageMessages && !canManageMessages) {
-    throw new ApiError("You cannot manage pinned messages in this channel.", 403, "FORBIDDEN");
-  }
 
   return {
     channel,
-    canManageMessages,
+    canManageMessages: hasPermission(permissions, PermissionBits.MANAGE_MESSAGES),
     serverId: channel.serverId,
   };
 }
@@ -722,6 +682,7 @@ export async function editMessage(
   const existing = await prisma.message.findUnique({
     where: { id: messageId },
     select: {
+      channelId: true,
       channel: {
         select: { serverId: true },
       },
@@ -760,6 +721,19 @@ export async function editMessage(
   if (!member || serverBan) {
     throw new ApiError("Cannot edit this message", 403);
   }
+
+  await requireChannelPermissionForUser(
+    userId,
+    existing.channelId,
+    PermissionBits.SEND_MESSAGES,
+    {
+      forbiddenMessage: "Cannot edit this message",
+      lockedCode: "CHANNEL_LOCKED",
+      lockedMessage: "This channel is read-only.",
+      requiredType: ChannelType.TEXT,
+      respectLocked: true,
+    },
+  );
 
   const nextContent = validateEditableMessageContent(content, maxLength);
   const updateResult = await prisma.message.updateMany({
@@ -877,12 +851,22 @@ export async function setReaction(
   const normalizedEmoji = validateReactionEmoji(emoji);
   const message = await prisma.message.findUnique({
     where: { id: messageId },
-    select: { deletedAt: true, placeholderRemovedAt: true },
+    select: { channelId: true, deletedAt: true, placeholderRemovedAt: true },
   });
 
   if (!message || message.deletedAt || message.placeholderRemovedAt) {
     throw new ApiError("Message not found", 404, "NOT_FOUND");
   }
+
+  await requireChannelPermissionForUser(
+    userId,
+    message.channelId,
+    PermissionBits.ADD_REACTIONS,
+    {
+      forbiddenMessage: "You cannot react in this channel.",
+      requiredType: ChannelType.TEXT,
+    },
+  );
 
   const existing = await prisma.reaction.findFirst({
     where: { messageId, userId, emoji: normalizedEmoji },

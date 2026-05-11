@@ -1,26 +1,29 @@
 import { randomBytes } from "node:crypto";
-import {
-  ChannelType,
-  MessageType,
-  Prisma,
-  prisma,
-} from "@wizards/db";
+import { ChannelType, MessageType, PermissionTargetType, Prisma, prisma } from "@wizards/db";
 import type {
   AddServerMemberInput,
   CreateCategoryInput,
   CreateChannelInput,
   CreateInviteInput,
   CreateServerInput,
+  CreateWorkspaceRoleInput,
   DeleteServerInput,
   ReorderCategoriesInput,
+  UpdateWorkspaceChannelPermissionsInput,
   UpdateCategoryInput,
   UpdateChannelInput,
+  UpdateWorkspaceMemberRolesInput,
+  UpdateWorkspaceRoleInput,
   UpdateServerInput,
   WorkspaceAccessLevel,
   WorkspaceCategory,
   WorkspaceChannel,
+  WorkspaceChannelPermissionPreset,
+  WorkspaceChannelPermissionSettings,
   WorkspaceInvite,
   WorkspaceMember,
+  WorkspacePermissionKey,
+  WorkspaceRole,
   WorkspaceServerDetail,
   WorkspaceServerSummary,
 } from "@wizards/types";
@@ -30,6 +33,7 @@ import { readPresenceMap } from "@/lib/presence";
 import { getRedis } from "@/lib/redis";
 import type { NotificationSocketPayload } from "@/lib/socket/events";
 import { getSocketServer } from "@/lib/socket/runtime";
+import { disconnectUnauthorizedVoiceParticipants } from "@/lib/voice/service";
 import { getMessageById } from "@/lib/workspace/message-service";
 import {
   emitServerUnreadUpdatesForServer,
@@ -41,30 +45,40 @@ import {
   getServerUnreadCounts,
   markChannelReadStates,
 } from "@/lib/workspace/unread-service";
+import { applyServerMediaSettings, getServerMediaSettings } from "@/lib/workspace/server-features";
 import {
-  applyServerMediaSettings,
-  getServerMediaSettings,
-} from "@/lib/workspace/server-features";
-
-const SERVER_ADMIN_PERMISSION =
-  (1n << 0n) |
-  (1n << 1n) |
-  (1n << 2n) |
-  (1n << 3n);
+  MEMBER_BASE_PERMISSIONS,
+  MODERATOR_PERMISSIONS,
+  PermissionBits,
+  SERVER_ADMIN_PERMISSIONS,
+  deriveWorkspaceAccessLevel,
+  hasPermission,
+  permissionKeysToMask,
+  permissionMaskToKeys,
+  requireServerPermission,
+  resolveChannelPermissions,
+  resolveServerPermissions,
+  type PermissionKey,
+} from "@/lib/workspace/permissions";
 
 const INVITE_CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 type RoleRecord = {
   color: number;
   id: string;
+  isDefault?: boolean | null;
+  managed?: boolean | null;
+  mentionable?: boolean | null;
   name: string;
   permissions: bigint;
+  position?: number | null;
 };
 
 type AccessContext = {
   accessLevel: WorkspaceAccessLevel;
   memberId: string;
   ownerId: string;
+  roles: RoleRecord[];
   serverId: string;
   serverName: string;
   userId: string;
@@ -75,6 +89,12 @@ type ChannelRecord = {
   id: string;
   locked: boolean;
   name: string;
+  permissionOverrides?: Array<{
+    allow: bigint;
+    deny: bigint;
+    targetId: string;
+    targetType: "ROLE" | "USER";
+  }>;
   position: number;
   topic: string | null;
   type: ChannelType;
@@ -82,6 +102,306 @@ type ChannelRecord = {
 
 const SERVER_DETAIL_MEMBER_LIMIT = 100;
 const SERVER_MEMBERS_PAGE_LIMIT = 100;
+const ELEVATED_ROLE_PERMISSIONS =
+  PermissionBits.ADMINISTRATOR | PermissionBits.MANAGE_ROLES | PermissionBits.MANAGE_SERVER;
+const DEFAULT_ROLE_COLOR = 7_958_864;
+const MODERATOR_ROLE_COLOR = 16_093_248;
+
+function isOwnerAccess(access: Pick<AccessContext, "ownerId" | "userId">) {
+  return access.ownerId === access.userId;
+}
+
+function isElevatedPermissions(permissions: bigint) {
+  return (permissions & ELEVATED_ROLE_PERMISSIONS) !== 0n;
+}
+
+function isProtectedRole(role: Pick<RoleRecord, "isDefault" | "managed" | "permissions">) {
+  return Boolean(role.isDefault || role.managed || isElevatedPermissions(role.permissions));
+}
+
+function toPermissionKeys(permissions: bigint): WorkspacePermissionKey[] {
+  return permissionMaskToKeys(permissions) as WorkspacePermissionKey[];
+}
+
+function toPermissionMask(keys: readonly WorkspacePermissionKey[]) {
+  return permissionKeysToMask(keys as readonly PermissionKey[]);
+}
+
+function toWorkspaceRole(role: {
+  color: number;
+  id: string;
+  isDefault: boolean;
+  managed: boolean;
+  mentionable: boolean;
+  name: string;
+  permissions: bigint;
+  position: number;
+}): WorkspaceRole {
+  return {
+    color: role.color,
+    id: role.id,
+    isDefault: role.isDefault,
+    managed: role.managed,
+    mentionable: role.mentionable,
+    name: role.name,
+    permissions: toPermissionKeys(role.permissions),
+    position: role.position,
+  };
+}
+
+function ensureCanWriteRolePermissions(access: AccessContext, permissions: bigint) {
+  if (!isOwnerAccess(access) && isElevatedPermissions(permissions)) {
+    throw new ApiError(
+      "Only the server owner can grant elevated role permissions.",
+      403,
+      "OWNER_REQUIRED",
+    );
+  }
+}
+
+function getRolePresetPermissions(name: string) {
+  const normalized = name.trim().toLowerCase();
+
+  if (normalized === "moderator") {
+    return MODERATOR_PERMISSIONS;
+  }
+
+  if (normalized === "admin" || normalized === "administrator") {
+    return SERVER_ADMIN_PERMISSIONS;
+  }
+
+  return MEMBER_BASE_PERMISSIONS;
+}
+
+function getChannelInteractionPermissions(type: ChannelType) {
+  if (type === ChannelType.VOICE) {
+    return (
+      PermissionBits.CONNECT_VOICE |
+      PermissionBits.SPEAK |
+      PermissionBits.STREAM |
+      PermissionBits.USE_VIDEO
+    );
+  }
+
+  return (
+    PermissionBits.SEND_MESSAGES |
+    PermissionBits.ATTACH_FILES |
+    PermissionBits.USE_GIFS |
+    PermissionBits.ADD_REACTIONS
+  );
+}
+
+function getChannelPresetPermissions(type: ChannelType, preset: WorkspaceChannelPermissionPreset) {
+  const interactionPermissions = getChannelInteractionPermissions(type);
+  const visiblePermissions = PermissionBits.VIEW_CHANNEL;
+  const controlledPermissions = visiblePermissions | interactionPermissions;
+
+  if (preset === "PUBLIC") {
+    return {
+      controlledPermissions,
+      everyoneAllow: 0n,
+      everyoneDeny: 0n,
+      roleAllow: 0n,
+    };
+  }
+
+  if (preset === "LOCKED_VISIBLE") {
+    return {
+      controlledPermissions,
+      everyoneAllow: visiblePermissions,
+      everyoneDeny: interactionPermissions,
+      roleAllow: 0n,
+    };
+  }
+
+  const roleAllow = controlledPermissions;
+  return {
+    controlledPermissions,
+    everyoneAllow: 0n,
+    everyoneDeny: controlledPermissions,
+    roleAllow: preset === "ROLE_GATED" ? roleAllow : 0n,
+  };
+}
+
+function mergeControlledPermissionOverride(args: {
+  allow: bigint;
+  controlledPermissions: bigint;
+  deny: bigint;
+  nextAllow: bigint;
+  nextDeny: bigint;
+}) {
+  return {
+    allow: (args.allow & ~args.controlledPermissions) | args.nextAllow,
+    deny: (args.deny & ~args.controlledPermissions) | args.nextDeny,
+  };
+}
+
+function inferChannelPermissionSettings(args: {
+  defaultRoleId: string | null;
+  locked: boolean;
+  overrides: Array<{
+    allow: bigint;
+    deny: bigint;
+    targetId: string;
+    targetType: "ROLE" | "USER";
+  }>;
+  type: ChannelType;
+}): WorkspaceChannelPermissionSettings {
+  const interactionPermissions = getChannelInteractionPermissions(args.type);
+  const controlledPermissions = PermissionBits.VIEW_CHANNEL | interactionPermissions;
+  const defaultOverride = args.defaultRoleId
+    ? args.overrides.find(
+        (override) => override.targetType === "ROLE" && override.targetId === args.defaultRoleId,
+      )
+    : null;
+  const allowedRoleIds = args.overrides
+    .filter(
+      (override) =>
+        override.targetType === "ROLE" &&
+        override.targetId !== args.defaultRoleId &&
+        (override.allow & controlledPermissions) !== 0n,
+    )
+    .map((override) => override.targetId);
+
+  if (defaultOverride && (defaultOverride.deny & PermissionBits.VIEW_CHANNEL) !== 0n) {
+    return {
+      allowedRoleIds,
+      preset: allowedRoleIds.length > 0 ? "ROLE_GATED" : "PRIVATE",
+    };
+  }
+
+  if (defaultOverride && (defaultOverride.deny & interactionPermissions) !== 0n) {
+    return {
+      allowedRoleIds,
+      preset: "LOCKED_VISIBLE",
+    };
+  }
+
+  if (args.locked && allowedRoleIds.length > 0) {
+    return {
+      allowedRoleIds,
+      preset: "ROLE_GATED",
+    };
+  }
+
+  if (args.locked) {
+    return {
+      allowedRoleIds,
+      preset: "LOCKED_VISIBLE",
+    };
+  }
+
+  return {
+    allowedRoleIds,
+    preset: "PUBLIC",
+  };
+}
+
+type ChannelPermissionRoleRecord = Pick<RoleRecord, "id" | "isDefault" | "managed" | "permissions">;
+
+type ChannelPermissionOverrideRecord = {
+  allow: bigint;
+  deny: bigint;
+  targetId: string;
+  targetType: "ROLE" | "USER";
+};
+
+function prepareChannelPermissionMutation(args: {
+  input: WorkspaceChannelPermissionSettings;
+  roles: ChannelPermissionRoleRecord[];
+  type: ChannelType;
+}) {
+  const defaultRole = args.roles.find((role) => role.isDefault) ?? null;
+  if (!defaultRole) {
+    throw new ApiError("Default role is missing for this server.", 500, "DEFAULT_ROLE_MISSING");
+  }
+
+  const allowedRoleIds = Array.from(new Set(args.input.allowedRoleIds));
+  const allowedRoles = args.roles.filter((role) => allowedRoleIds.includes(role.id));
+
+  if (allowedRoles.length !== allowedRoleIds.length) {
+    throw new ApiError("One or more roles could not be found.", 404, "ROLE_NOT_FOUND");
+  }
+
+  if (allowedRoles.some((role) => role.isDefault || role.managed)) {
+    throw new ApiError("Protected roles cannot be used for channel gates.", 403, "PROTECTED_ROLE");
+  }
+
+  if (args.input.preset === "ROLE_GATED" && allowedRoleIds.length === 0) {
+    throw new ApiError("Choose at least one role for role-gated access.", 400, "ROLE_REQUIRED");
+  }
+
+  return {
+    allowedRoleIds,
+    defaultRole,
+    nextLocked: args.input.preset !== "PUBLIC",
+    presetPermissions: getChannelPresetPermissions(args.type, args.input.preset),
+  };
+}
+
+async function applyChannelPermissionMutation(
+  tx: Prisma.TransactionClient,
+  args: {
+    allowedRoleIds: string[];
+    channelId: string;
+    defaultRoleId: string;
+    existingRoleOverrides: ChannelPermissionOverrideRecord[];
+    presetPermissions: ReturnType<typeof getChannelPresetPermissions>;
+  },
+) {
+  const targetRoleIds = new Set([
+    args.defaultRoleId,
+    ...args.allowedRoleIds,
+    ...args.existingRoleOverrides.map((override) => override.targetId),
+  ]);
+
+  for (const targetId of targetRoleIds) {
+    const existing = args.existingRoleOverrides.find((override) => override.targetId === targetId);
+    const isDefaultTarget = targetId === args.defaultRoleId;
+    const isAllowedTarget = args.allowedRoleIds.includes(targetId);
+    const next = mergeControlledPermissionOverride({
+      allow: existing?.allow ?? 0n,
+      controlledPermissions: args.presetPermissions.controlledPermissions,
+      deny: existing?.deny ?? 0n,
+      nextAllow: isDefaultTarget
+        ? args.presetPermissions.everyoneAllow
+        : isAllowedTarget
+          ? args.presetPermissions.roleAllow
+          : 0n,
+      nextDeny: isDefaultTarget ? args.presetPermissions.everyoneDeny : 0n,
+    });
+
+    const where = {
+      channelId_targetId_targetType: {
+        channelId: args.channelId,
+        targetId,
+        targetType: PermissionTargetType.ROLE,
+      },
+    };
+
+    if (next.allow === 0n && next.deny === 0n) {
+      if (existing) {
+        await tx.channelPermissionOverride.delete({ where });
+      }
+      continue;
+    }
+
+    await tx.channelPermissionOverride.upsert({
+      create: {
+        allow: next.allow,
+        channelId: args.channelId,
+        deny: next.deny,
+        targetId,
+        targetType: PermissionTargetType.ROLE,
+      },
+      update: {
+        allow: next.allow,
+        deny: next.deny,
+      },
+      where,
+    });
+  }
+}
 
 function toWorkspaceChannel(
   channel: ChannelRecord,
@@ -131,20 +451,22 @@ function normalizeWorkspaceLabel(value: string, maxLength = 48) {
   return Array.from(normalized).slice(0, maxLength).join("").trim();
 }
 
-function looksLikeAdmin(role: RoleRecord) {
-  return (role.permissions & SERVER_ADMIN_PERMISSION) !== 0n;
+function mergeRoleRecords(...roleGroups: RoleRecord[][]) {
+  const roles = new Map<string, RoleRecord>();
+
+  for (const role of roleGroups.flat()) {
+    roles.set(role.id, role);
+  }
+
+  return [...roles.values()];
 }
 
-function deriveAccessLevel(ownerId: string, userId: string, roles: RoleRecord[]): WorkspaceAccessLevel {
-  if (ownerId === userId) {
-    return "OWNER";
-  }
-
-  if (roles.some(looksLikeAdmin)) {
-    return "ADMIN";
-  }
-
-  return "MEMBER";
+function deriveAccessLevel(
+  ownerId: string,
+  userId: string,
+  roles: RoleRecord[],
+): WorkspaceAccessLevel {
+  return deriveWorkspaceAccessLevel({ ownerId, roles, userId });
 }
 
 async function generateInviteCode(tx: Prisma.TransactionClient = prisma) {
@@ -193,6 +515,7 @@ async function getAccessContext(userId: string, serverId: string): Promise<Acces
               select: {
                 color: true,
                 id: true,
+                isDefault: true,
                 name: true,
                 permissions: true,
               },
@@ -204,6 +527,16 @@ async function getAccessContext(userId: string, serverId: string): Promise<Acces
             id: true,
             name: true,
             ownerId: true,
+            roles: {
+              where: { isDefault: true },
+              select: {
+                color: true,
+                id: true,
+                isDefault: true,
+                name: true,
+                permissions: true,
+              },
+            },
           },
         },
       },
@@ -227,24 +560,27 @@ async function getAccessContext(userId: string, serverId: string): Promise<Acces
     throw new ApiError("Server not found", 404);
   }
 
+  const roles = mergeRoleRecords(
+    membership.server.roles,
+    membership.roles.map((entry) => entry.role),
+  );
+
   return {
-    accessLevel: deriveAccessLevel(
-      membership.server.ownerId,
-      userId,
-      membership.roles.map((entry) => entry.role),
-    ),
+    accessLevel: deriveAccessLevel(membership.server.ownerId, userId, roles),
     memberId: membership.id,
     ownerId: membership.server.ownerId,
+    roles,
     serverId: membership.server.id,
     serverName: membership.server.name,
     userId,
   };
 }
 
-function ensureAdmin(context: AccessContext) {
-  if (context.accessLevel === "MEMBER") {
-    throw new ApiError("You do not have access to manage this server", 403);
-  }
+function ensureServerPermission(
+  context: AccessContext,
+  permission: Parameters<typeof requireServerPermission>[1],
+) {
+  requireServerPermission(context, permission);
 }
 
 function ensureOwner(context: AccessContext) {
@@ -428,6 +764,19 @@ function mapCategories(
   }));
 }
 
+function canViewChannel(access: AccessContext, channel: ChannelRecord) {
+  return hasPermission(
+    resolveChannelPermissions({
+      memberId: access.memberId,
+      ownerId: access.ownerId,
+      roles: access.roles,
+      userId: access.userId,
+      overrides: channel.permissionOverrides ?? [],
+    }),
+    PermissionBits.VIEW_CHANNEL,
+  );
+}
+
 function pickDefaultChannelId(args: {
   categories: WorkspaceCategory[];
   ungroupedChannels: WorkspaceChannel[];
@@ -452,12 +801,14 @@ export async function listWorkspaceServers(userId: string) {
       userId,
     },
     select: {
+      id: true,
       roles: {
         select: {
           role: {
             select: {
               color: true,
               id: true,
+              isDefault: true,
               name: true,
               permissions: true,
             },
@@ -477,8 +828,15 @@ export async function listWorkspaceServers(userId: string) {
             },
             select: {
               id: true,
+              permissionOverrides: {
+                select: {
+                  allow: true,
+                  deny: true,
+                  targetId: true,
+                  targetType: true,
+                },
+              },
             },
-            take: 1,
             where: {
               parentId: null,
               type: ChannelType.TEXT,
@@ -492,6 +850,16 @@ export async function listWorkspaceServers(userId: string) {
           deletedMessageNoticeMinutes: true,
           name: true,
           ownerId: true,
+          roles: {
+            where: { isDefault: true },
+            select: {
+              color: true,
+              id: true,
+              isDefault: true,
+              name: true,
+              permissions: true,
+            },
+          },
           shortName: true,
         },
       },
@@ -506,17 +874,30 @@ export async function listWorkspaceServers(userId: string) {
 
   return memberships.map((membership) => {
     const mediaSettings = getServerMediaSettings(membership.server.features);
+    const roles = mergeRoleRecords(
+      membership.server.roles,
+      membership.roles.map((entry) => entry.role),
+    );
+    const defaultChannelId =
+      membership.server.channels.find((channel) =>
+        hasPermission(
+          resolveChannelPermissions({
+            memberId: membership.id,
+            ownerId: membership.server.ownerId,
+            roles,
+            userId,
+            overrides: channel.permissionOverrides,
+          }),
+          PermissionBits.VIEW_CHANNEL,
+        ),
+      )?.id ?? null;
 
     return mapServerSummary({
-      accessLevel: deriveAccessLevel(
-        membership.server.ownerId,
-        userId,
-        membership.roles.map((entry) => entry.role),
-      ),
+      accessLevel: deriveAccessLevel(membership.server.ownerId, userId, roles),
       allowFileUploads: mediaSettings.allowFileUploads,
       allowGifs: mediaSettings.allowGifs,
       allowMemberAdds: mediaSettings.allowMemberAdds,
-      defaultChannelId: membership.server.channels[0]?.id ?? null,
+      defaultChannelId,
       iconUrl: membership.server.iconUrl,
       id: membership.server.id,
       inviteCode: membership.server.inviteCode,
@@ -531,9 +912,16 @@ export async function listWorkspaceServers(userId: string) {
   });
 }
 
-export async function getWorkspaceServerDetail(userId: string, serverId: string): Promise<WorkspaceServerDetail> {
+export async function getWorkspaceServerDetail(
+  userId: string,
+  serverId: string,
+): Promise<WorkspaceServerDetail> {
   const access = await getAccessContext(userId, serverId);
   const isAdmin = access.accessLevel !== "MEMBER";
+  const canManageInvites = hasPermission(
+    resolveServerPermissions(access),
+    PermissionBits.MANAGE_INVITES,
+  );
 
   const [server, invites, unreadCount, mentionCount, channelUnreadCounts] = await Promise.all([
     prisma.server.findUnique({
@@ -560,6 +948,14 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
                 id: true,
                 locked: true,
                 name: true,
+                permissionOverrides: {
+                  select: {
+                    allow: true,
+                    deny: true,
+                    targetId: true,
+                    targetType: true,
+                  },
+                },
                 position: true,
                 topic: true,
                 type: true,
@@ -585,6 +981,14 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
             id: true,
             locked: true,
             name: true,
+            permissionOverrides: {
+              select: {
+                allow: true,
+                deny: true,
+                targetId: true,
+                targetType: true,
+              },
+            },
             position: true,
             topic: true,
             type: true,
@@ -643,10 +1047,30 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
         },
         name: true,
         ownerId: true,
+        roles: {
+          orderBy: [
+            {
+              position: "desc",
+            },
+            {
+              createdAt: "asc",
+            },
+          ],
+          select: {
+            color: true,
+            id: true,
+            isDefault: true,
+            managed: true,
+            mentionable: true,
+            name: true,
+            permissions: true,
+            position: true,
+          },
+        },
         shortName: true,
       },
     }),
-    isAdmin
+    canManageInvites
       ? prisma.serverInvite.findMany({
           orderBy: {
             createdAt: "desc",
@@ -680,8 +1104,15 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
     throw new ApiError("Server not found", 404);
   }
 
-  const categories = mapCategories(server.categories, channelUnreadCounts);
-  const ungroupedChannels = server.channels.map((channel) =>
+  const visibleCategories = server.categories.map((category) => ({
+    ...category,
+    channels: category.channels.filter((channel) => canViewChannel(access, channel)),
+  }));
+  const visibleUngroupedChannelRows = server.channels.filter((channel) =>
+    canViewChannel(access, channel),
+  );
+  const categories = mapCategories(visibleCategories, channelUnreadCounts);
+  const ungroupedChannels = visibleUngroupedChannelRows.map((channel) =>
     toWorkspaceChannel(channel, channelUnreadCounts),
   );
   const mediaSettings = getServerMediaSettings(server.features);
@@ -692,6 +1123,7 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
 
   const memberRows = server.members.slice(0, SERVER_DETAIL_MEMBER_LIMIT);
   const members = await mapMembers(server.ownerId, memberRows);
+  const roles = server.roles.map(toWorkspaceRole);
 
   return {
     categories,
@@ -699,11 +1131,10 @@ export async function getWorkspaceServerDetail(userId: string, serverId: string)
     memberPage: {
       limit: SERVER_DETAIL_MEMBER_LIMIT,
       nextCursor:
-        server.members.length > SERVER_DETAIL_MEMBER_LIMIT
-          ? memberRows.at(-1)?.id ?? null
-          : null,
+        server.members.length > SERVER_DETAIL_MEMBER_LIMIT ? (memberRows.at(-1)?.id ?? null) : null,
     },
     members,
+    roles,
     server: {
       accessLevel: access.accessLevel,
       allowFileUploads: mediaSettings.allowFileUploads,
@@ -822,12 +1253,9 @@ export async function listWorkspaceServerMembers(
   return {
     memberPage: {
       limit,
-      nextCursor: rows.length > limit ? pageRows.at(-1)?.id ?? null : null,
+      nextCursor: rows.length > limit ? (pageRows.at(-1)?.id ?? null) : null,
     },
-    members: await mapMembers(
-      access.ownerId,
-      pageRows,
-    ),
+    members: await mapMembers(access.ownerId, pageRows),
   };
 }
 
@@ -860,8 +1288,8 @@ export async function createWorkspaceServer(userId: string, input: CreateServerI
           color: 3_428_765,
           isDefault: false,
           name: "Admin",
-          permissions: SERVER_ADMIN_PERMISSION,
-          position: 1,
+          permissions: SERVER_ADMIN_PERMISSIONS,
+          position: 2,
           serverId: server.id,
         },
         select: {
@@ -879,15 +1307,25 @@ export async function createWorkspaceServer(userId: string, input: CreateServerI
       }),
     ]);
 
-    await tx.role.create({
-      data: {
-        color: 0,
-        isDefault: true,
-        name: "@everyone",
-        permissions: 0n,
-        position: 0,
-        serverId: server.id,
-      },
+    await tx.role.createMany({
+      data: [
+        {
+          color: MODERATOR_ROLE_COLOR,
+          isDefault: false,
+          name: "Moderator",
+          permissions: MODERATOR_PERMISSIONS,
+          position: 1,
+          serverId: server.id,
+        },
+        {
+          color: 0,
+          isDefault: true,
+          name: "@everyone",
+          permissions: MEMBER_BASE_PERMISSIONS,
+          position: 0,
+          serverId: server.id,
+        },
+      ],
     });
 
     await tx.memberRole.create({
@@ -959,9 +1397,13 @@ export async function createWorkspaceServer(userId: string, input: CreateServerI
   return createdServer;
 }
 
-export async function updateWorkspaceServer(userId: string, serverId: string, input: UpdateServerInput) {
+export async function updateWorkspaceServer(
+  userId: string,
+  serverId: string,
+  input: UpdateServerInput,
+) {
   const access = await getAccessContext(userId, serverId);
-  ensureAdmin(access);
+  ensureServerPermission(access, PermissionBits.MANAGE_SERVER);
 
   const data: Prisma.ServerUpdateInput = {};
 
@@ -1034,6 +1476,327 @@ export async function updateWorkspaceServer(userId: string, serverId: string, in
   return detail;
 }
 
+export async function listWorkspaceRoles(userId: string, serverId: string) {
+  const access = await getAccessContext(userId, serverId);
+  ensureServerPermission(access, PermissionBits.MANAGE_ROLES);
+
+  const roles = await prisma.role.findMany({
+    orderBy: [
+      {
+        position: "desc",
+      },
+      {
+        createdAt: "asc",
+      },
+    ],
+    select: {
+      color: true,
+      id: true,
+      isDefault: true,
+      managed: true,
+      mentionable: true,
+      name: true,
+      permissions: true,
+      position: true,
+    },
+    where: {
+      serverId,
+    },
+  });
+
+  return roles.map(toWorkspaceRole);
+}
+
+export async function createWorkspaceRole(
+  userId: string,
+  serverId: string,
+  input: CreateWorkspaceRoleInput,
+) {
+  const access = await getAccessContext(userId, serverId);
+  ensureServerPermission(access, PermissionBits.MANAGE_ROLES);
+
+  const normalizedName = normalizeWorkspaceLabel(input.name);
+  if (!normalizedName) {
+    throw new ApiError("Role name must include at least one letter or number", 400);
+  }
+
+  const permissions =
+    input.permissions.length > 0
+      ? toPermissionMask(input.permissions)
+      : getRolePresetPermissions(normalizedName);
+  ensureCanWriteRolePermissions(access, permissions);
+
+  const lastRole = await prisma.role.findFirst({
+    orderBy: {
+      position: "desc",
+    },
+    select: {
+      position: true,
+    },
+    where: {
+      serverId,
+    },
+  });
+
+  const role = await prisma.role.create({
+    data: {
+      color: input.color ?? DEFAULT_ROLE_COLOR,
+      isDefault: false,
+      managed: false,
+      mentionable: input.mentionable ?? false,
+      name: normalizedName,
+      permissions,
+      position: (lastRole?.position ?? 0) + 1,
+      serverId,
+    },
+    select: {
+      color: true,
+      id: true,
+      isDefault: true,
+      managed: true,
+      mentionable: true,
+      name: true,
+      permissions: true,
+      position: true,
+    },
+  });
+
+  getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
+    serverId,
+  });
+
+  return toWorkspaceRole(role);
+}
+
+export async function updateWorkspaceRole(
+  userId: string,
+  serverId: string,
+  roleId: string,
+  input: UpdateWorkspaceRoleInput,
+) {
+  const access = await getAccessContext(userId, serverId);
+  ensureServerPermission(access, PermissionBits.MANAGE_ROLES);
+
+  const role = await prisma.role.findFirst({
+    select: {
+      color: true,
+      id: true,
+      isDefault: true,
+      managed: true,
+      mentionable: true,
+      name: true,
+      permissions: true,
+      position: true,
+    },
+    where: {
+      id: roleId,
+      serverId,
+    },
+  });
+
+  if (!role) {
+    throw new ApiError("Role not found", 404);
+  }
+
+  if (isProtectedRole(role)) {
+    throw new ApiError("Protected roles cannot be edited from this panel.", 403, "PROTECTED_ROLE");
+  }
+
+  const data: Prisma.RoleUpdateInput = {};
+
+  if (input.name !== undefined) {
+    const normalizedName = normalizeWorkspaceLabel(input.name);
+    if (!normalizedName) {
+      throw new ApiError("Role name must include at least one letter or number", 400);
+    }
+    data.name = normalizedName;
+  }
+
+  if (input.color !== undefined) {
+    data.color = input.color;
+  }
+
+  if (input.mentionable !== undefined) {
+    data.mentionable = input.mentionable;
+  }
+
+  if (input.permissions !== undefined) {
+    const permissions = toPermissionMask(input.permissions);
+    ensureCanWriteRolePermissions(access, permissions);
+    data.permissions = permissions;
+  }
+
+  const updatedRole = await prisma.role.update({
+    data,
+    select: {
+      color: true,
+      id: true,
+      isDefault: true,
+      managed: true,
+      mentionable: true,
+      name: true,
+      permissions: true,
+      position: true,
+    },
+    where: {
+      id: roleId,
+    },
+  });
+
+  getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
+    serverId,
+  });
+
+  return toWorkspaceRole(updatedRole);
+}
+
+export async function deleteWorkspaceRole(userId: string, serverId: string, roleId: string) {
+  const access = await getAccessContext(userId, serverId);
+  ensureServerPermission(access, PermissionBits.MANAGE_ROLES);
+
+  const role = await prisma.role.findFirst({
+    select: {
+      id: true,
+      isDefault: true,
+      managed: true,
+      permissions: true,
+    },
+    where: {
+      id: roleId,
+      serverId,
+    },
+  });
+
+  if (!role) {
+    throw new ApiError("Role not found", 404);
+  }
+
+  if (isProtectedRole(role)) {
+    throw new ApiError("Protected roles cannot be deleted.", 403, "PROTECTED_ROLE");
+  }
+
+  await prisma.role.delete({
+    where: {
+      id: roleId,
+    },
+  });
+
+  getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
+    serverId,
+  });
+
+  return { success: true as const };
+}
+
+export async function updateWorkspaceMemberRoles(
+  userId: string,
+  serverId: string,
+  memberId: string,
+  input: UpdateWorkspaceMemberRolesInput,
+) {
+  const access = await getAccessContext(userId, serverId);
+  ensureServerPermission(access, PermissionBits.MANAGE_ROLES);
+
+  const member = await prisma.serverMember.findFirst({
+    select: {
+      id: true,
+      roles: {
+        select: {
+          role: {
+            select: {
+              id: true,
+              isDefault: true,
+              managed: true,
+              permissions: true,
+            },
+          },
+        },
+      },
+      userId: true,
+    },
+    where: {
+      id: memberId,
+      serverId,
+    },
+  });
+
+  if (!member) {
+    throw new ApiError("Member not found", 404);
+  }
+
+  if (member.userId === access.ownerId) {
+    throw new ApiError("The server owner cannot be role-modified.", 403, "OWNER_PROTECTED");
+  }
+
+  if (!isOwnerAccess(access) && member.roles.some((entry) => isProtectedRole(entry.role))) {
+    throw new ApiError("You cannot modify a member with an elevated role.", 403, "ROLE_HIERARCHY");
+  }
+
+  const requestedRoleIds = Array.from(new Set(input.roleIds));
+  const roles = await prisma.role.findMany({
+    select: {
+      id: true,
+      isDefault: true,
+      managed: true,
+      permissions: true,
+    },
+    where: {
+      id: {
+        in: requestedRoleIds,
+      },
+      serverId,
+    },
+  });
+
+  if (roles.length !== requestedRoleIds.length) {
+    throw new ApiError("One or more roles could not be found.", 404, "ROLE_NOT_FOUND");
+  }
+
+  if (roles.some((role) => role.isDefault || role.managed)) {
+    throw new ApiError("Protected roles cannot be assigned manually.", 403, "PROTECTED_ROLE");
+  }
+
+  for (const role of roles) {
+    ensureCanWriteRolePermissions(access, role.permissions);
+  }
+
+  const existingNonDefaultRoleIds = member.roles
+    .map((entry) => entry.role)
+    .filter((role) => !role.isDefault)
+    .map((role) => role.id);
+
+  const mutations: Prisma.PrismaPromise<unknown>[] = [
+    prisma.memberRole.deleteMany({
+      where: {
+        memberId,
+        roleId: {
+          in: existingNonDefaultRoleIds,
+        },
+      },
+    }),
+  ];
+
+  if (requestedRoleIds.length > 0) {
+    mutations.push(
+      prisma.memberRole.createMany({
+        data: requestedRoleIds.map((roleId) => ({
+          memberId,
+          roleId,
+        })),
+        skipDuplicates: true,
+      }),
+    );
+  }
+
+  await prisma.$transaction(mutations);
+
+  getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
+    serverId,
+  });
+
+  return { success: true as const };
+}
+
 export async function deleteWorkspaceServer(
   userId: string,
   serverId: string,
@@ -1102,9 +1865,13 @@ export async function leaveWorkspaceServer(userId: string, serverId: string) {
   await emitServerUnreadUpdatesForServer(serverId);
 }
 
-export async function createWorkspaceCategory(userId: string, serverId: string, input: CreateCategoryInput) {
+export async function createWorkspaceCategory(
+  userId: string,
+  serverId: string,
+  input: CreateCategoryInput,
+) {
   const access = await getAccessContext(userId, serverId);
-  ensureAdmin(access);
+  ensureServerPermission(access, PermissionBits.MANAGE_CHANNELS);
 
   const lastCategory = await prisma.channelCategory.findFirst({
     orderBy: {
@@ -1143,7 +1910,7 @@ export async function updateWorkspaceCategory(
   input: UpdateCategoryInput,
 ) {
   const access = await getAccessContext(userId, serverId);
-  ensureAdmin(access);
+  ensureServerPermission(access, PermissionBits.MANAGE_CHANNELS);
 
   const category = await prisma.channelCategory.findFirst({
     where: {
@@ -1181,7 +1948,7 @@ export async function deleteWorkspaceCategory(
   categoryId: string,
 ) {
   const access = await getAccessContext(userId, serverId);
-  ensureAdmin(access);
+  ensureServerPermission(access, PermissionBits.MANAGE_CHANNELS);
 
   const category = await prisma.channelCategory.findFirst({
     where: {
@@ -1221,9 +1988,13 @@ export async function deleteWorkspaceCategory(
   return { success: true as const };
 }
 
-export async function createWorkspaceChannel(userId: string, serverId: string, input: CreateChannelInput) {
+export async function createWorkspaceChannel(
+  userId: string,
+  serverId: string,
+  input: CreateChannelInput,
+) {
   const access = await getAccessContext(userId, serverId);
-  ensureAdmin(access);
+  ensureServerPermission(access, PermissionBits.MANAGE_CHANNELS);
 
   const normalizedName = normalizeWorkspaceLabel(input.name);
 
@@ -1261,24 +2032,62 @@ export async function createWorkspaceChannel(userId: string, serverId: string, i
     },
   });
 
-  const channel = await prisma.channel.create({
-    data: {
-      categoryId: input.categoryId ?? null,
-      name: normalizedName,
-      position: (lastChannel?.position ?? -1) + 1,
-      serverId,
-      topic: input.topic ?? null,
-      type: input.type === "VOICE" ? ChannelType.VOICE : ChannelType.TEXT,
-    },
-    select: {
-      id: true,
-    },
+  const channelType = input.type === "VOICE" ? ChannelType.VOICE : ChannelType.TEXT;
+  const channelPermissionMutation = input.permissions
+    ? prepareChannelPermissionMutation({
+        input: input.permissions,
+        roles: await prisma.role.findMany({
+          select: {
+            id: true,
+            isDefault: true,
+            managed: true,
+            permissions: true,
+          },
+          where: {
+            serverId,
+          },
+        }),
+        type: channelType,
+      })
+    : null;
+
+  const channel = await prisma.$transaction(async (tx) => {
+    const createdChannel = await tx.channel.create({
+      data: {
+        categoryId: input.categoryId ?? null,
+        locked: channelPermissionMutation?.nextLocked ?? false,
+        name: normalizedName,
+        position: (lastChannel?.position ?? -1) + 1,
+        serverId,
+        topic: input.topic ?? null,
+        type: channelType,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (channelPermissionMutation) {
+      await applyChannelPermissionMutation(tx, {
+        allowedRoleIds: channelPermissionMutation.allowedRoleIds,
+        channelId: createdChannel.id,
+        defaultRoleId: channelPermissionMutation.defaultRole.id,
+        existingRoleOverrides: [],
+        presetPermissions: channelPermissionMutation.presetPermissions,
+      });
+    }
+
+    return createdChannel;
   });
 
   return channel;
 }
 
-export async function updateWorkspaceChannel(userId: string, channelId: string, input: UpdateChannelInput) {
+export async function updateWorkspaceChannel(
+  userId: string,
+  channelId: string,
+  input: UpdateChannelInput,
+) {
   const existingChannel = await prisma.channel.findUnique({
     where: {
       id: channelId,
@@ -1286,6 +2095,7 @@ export async function updateWorkspaceChannel(userId: string, channelId: string, 
     select: {
       categoryId: true,
       id: true,
+      locked: true,
       serverId: true,
       type: true,
     },
@@ -1296,7 +2106,7 @@ export async function updateWorkspaceChannel(userId: string, channelId: string, 
   }
 
   const access = await getAccessContext(userId, existingChannel.serverId);
-  ensureAdmin(access);
+  ensureServerPermission(access, PermissionBits.MANAGE_CHANNELS);
 
   let nextPosition: number | undefined;
 
@@ -1368,6 +2178,153 @@ export async function updateWorkspaceChannel(userId: string, channelId: string, 
     },
     data,
   });
+
+  if (
+    existingChannel.type === ChannelType.VOICE &&
+    input.locked === true &&
+    existingChannel.locked !== true
+  ) {
+    await disconnectUnauthorizedVoiceParticipants(channelId);
+  }
+}
+
+export async function getWorkspaceChannelPermissionSettings(
+  userId: string,
+  channelId: string,
+): Promise<WorkspaceChannelPermissionSettings> {
+  const channel = await prisma.channel.findUnique({
+    select: {
+      id: true,
+      locked: true,
+      permissionOverrides: {
+        select: {
+          allow: true,
+          deny: true,
+          targetId: true,
+          targetType: true,
+        },
+      },
+      server: {
+        select: {
+          roles: {
+            select: {
+              id: true,
+              isDefault: true,
+            },
+            where: {
+              isDefault: true,
+            },
+          },
+        },
+      },
+      serverId: true,
+      type: true,
+    },
+    where: {
+      id: channelId,
+    },
+  });
+
+  if (!channel?.serverId) {
+    throw new ApiError("Channel not found", 404);
+  }
+
+  const access = await getAccessContext(userId, channel.serverId);
+  ensureServerPermission(access, PermissionBits.MANAGE_CHANNELS);
+
+  const defaultRoleId = channel.server?.roles[0]?.id ?? null;
+  return inferChannelPermissionSettings({
+    defaultRoleId,
+    locked: channel.locked,
+    overrides: channel.permissionOverrides,
+    type: channel.type,
+  });
+}
+
+export async function updateWorkspaceChannelPermissions(
+  userId: string,
+  channelId: string,
+  input: UpdateWorkspaceChannelPermissionsInput,
+) {
+  const channel = await prisma.channel.findUnique({
+    select: {
+      id: true,
+      locked: true,
+      permissionOverrides: {
+        select: {
+          allow: true,
+          deny: true,
+          targetId: true,
+          targetType: true,
+        },
+      },
+      server: {
+        select: {
+          roles: {
+            select: {
+              id: true,
+              isDefault: true,
+              managed: true,
+              permissions: true,
+            },
+          },
+        },
+      },
+      serverId: true,
+      type: true,
+    },
+    where: {
+      id: channelId,
+    },
+  });
+
+  if (!channel?.serverId || !channel.server) {
+    throw new ApiError("Channel not found", 404);
+  }
+
+  const access = await getAccessContext(userId, channel.serverId);
+  ensureServerPermission(access, PermissionBits.MANAGE_CHANNELS);
+
+  const permissionMutation = prepareChannelPermissionMutation({
+    input,
+    roles: channel.server.roles,
+    type: channel.type,
+  });
+  const existingRoleOverrides = channel.permissionOverrides.filter(
+    (override) => override.targetType === "ROLE",
+  );
+
+  await prisma.$transaction(async (tx) => {
+    await tx.channel.update({
+      data: {
+        locked: permissionMutation.nextLocked,
+      },
+      where: {
+        id: channelId,
+      },
+    });
+
+    await applyChannelPermissionMutation(tx, {
+      allowedRoleIds: permissionMutation.allowedRoleIds,
+      channelId,
+      defaultRoleId: permissionMutation.defaultRole.id,
+      existingRoleOverrides,
+      presetPermissions: permissionMutation.presetPermissions,
+    });
+  });
+
+  if (channel.type === ChannelType.VOICE) {
+    await disconnectUnauthorizedVoiceParticipants(channelId);
+  }
+
+  getSocketServer()?.to(`server:${channel.serverId}`).emit("server:settings:updated", {
+    serverId: channel.serverId,
+  });
+
+  return {
+    allowedRoleIds: permissionMutation.allowedRoleIds,
+    preset: input.preset,
+  };
 }
 
 export async function reorderWorkspaceChannels(
@@ -1380,7 +2337,7 @@ export async function reorderWorkspaceChannels(
   }>,
 ) {
   const access = await getAccessContext(userId, serverId);
-  ensureAdmin(access);
+  ensureServerPermission(access, PermissionBits.MANAGE_CHANNELS);
 
   const existingChannels = await prisma.channel.findMany({
     where: {
@@ -1441,7 +2398,7 @@ export async function reorderWorkspaceCategories(
   items: ReorderCategoriesInput["items"],
 ) {
   const access = await getAccessContext(userId, serverId);
-  ensureAdmin(access);
+  ensureServerPermission(access, PermissionBits.MANAGE_CHANNELS);
 
   const existingCategories = await prisma.channelCategory.findMany({
     where: {
@@ -1495,7 +2452,7 @@ export async function deleteWorkspaceChannel(userId: string, channelId: string) 
   }
 
   const access = await getAccessContext(userId, channel.serverId);
-  ensureAdmin(access);
+  ensureServerPermission(access, PermissionBits.MANAGE_CHANNELS);
 
   await prisma.channel.delete({
     where: {
@@ -1525,7 +2482,7 @@ export async function clearWorkspaceChannelHistory(userId: string, channelId: st
   }
 
   const access = await getAccessContext(userId, channel.serverId);
-  ensureAdmin(access);
+  ensureServerPermission(access, PermissionBits.CLEAR_CHANNEL_HISTORY);
 
   const clearedAt = new Date();
 
@@ -1585,9 +2542,13 @@ export async function clearWorkspaceChannelHistory(userId: string, channelId: st
   };
 }
 
-export async function createWorkspaceInvite(userId: string, serverId: string, input: CreateInviteInput) {
+export async function createWorkspaceInvite(
+  userId: string,
+  serverId: string,
+  input: CreateInviteInput,
+) {
   const access = await getAccessContext(userId, serverId);
-  ensureAdmin(access);
+  ensureServerPermission(access, PermissionBits.MANAGE_INVITES);
 
   let channelId = input.channelId ?? null;
 
@@ -1792,13 +2753,11 @@ export async function addWorkspaceServerMemberByUsername(
       });
     }
 
-    let systemMessage:
-      | {
-          channelId: string;
-          createdAt: Date;
-          id: string;
-        }
-      | null = null;
+    let systemMessage: {
+      channelId: string;
+      createdAt: Date;
+      id: string;
+    } | null = null;
 
     if (targetChannelId) {
       const displayName = targetUser.displayName ?? targetUser.username;
@@ -1822,7 +2781,9 @@ export async function addWorkspaceServerMemberByUsername(
     const actorName = actor?.displayName ?? actor?.username ?? "A teammate";
     const notification = await tx.notification.create({
       data: {
-        actionUrl: targetChannelId ? `/channels/${serverId}/${targetChannelId}` : `/channels/${serverId}`,
+        actionUrl: targetChannelId
+          ? `/channels/${serverId}/${targetChannelId}`
+          : `/channels/${serverId}`,
         body: translate(locale, "workspace.notification.memberAdded.body", {
           actor: actorName,
           server: server.name,
@@ -1923,7 +2884,7 @@ export async function addWorkspaceServerMemberByUsername(
 
 export async function revokeWorkspaceInvite(userId: string, serverId: string, inviteId: string) {
   const access = await getAccessContext(userId, serverId);
-  ensureAdmin(access);
+  ensureServerPermission(access, PermissionBits.MANAGE_INVITES);
 
   await prisma.serverInvite.deleteMany({
     where: {
@@ -1935,7 +2896,7 @@ export async function revokeWorkspaceInvite(userId: string, serverId: string, in
 
 export async function kickWorkspaceMember(userId: string, serverId: string, memberId: string) {
   const access = await getAccessContext(userId, serverId);
-  ensureOwner(access);
+  ensureServerPermission(access, PermissionBits.KICK_MEMBERS);
 
   const member = await prisma.serverMember.findFirst({
     where: {
@@ -1954,6 +2915,10 @@ export async function kickWorkspaceMember(userId: string, serverId: string, memb
 
   if (member.userId === userId) {
     throw new ApiError("Use leave server instead of kicking yourself", 400);
+  }
+
+  if (member.userId === access.ownerId) {
+    throw new ApiError("The server owner cannot be kicked", 403, "OWNER_PROTECTED");
   }
 
   await prisma.serverMember.delete({
@@ -2117,13 +3082,11 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
         });
       }
 
-      let systemMessage:
-        | {
-            channelId: string;
-            createdAt: Date;
-            id: string;
-          }
-        | null = null;
+      let systemMessage: {
+        channelId: string;
+        createdAt: Date;
+        id: string;
+      } | null = null;
 
       if (targetChannelId) {
         const message = await tx.message.create({
@@ -2146,7 +3109,9 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
     });
 
     if (transactionResult.message) {
-      const activeViewerUserIds = getActiveChannelViewerUserIds(transactionResult.message.channelId);
+      const activeViewerUserIds = getActiveChannelViewerUserIds(
+        transactionResult.message.channelId,
+      );
       await markChannelReadStates({
         channelId: transactionResult.message.channelId,
         lastReadAt: transactionResult.message.createdAt,

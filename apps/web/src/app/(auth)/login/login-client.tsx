@@ -2,35 +2,62 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoginSchema, type LoginInput } from "@wizards/types";
-import { Eye, EyeOff, KeyRound, Mail } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import {
-  PrimaryButton,
-  SecondaryButton,
-  SocialAuthButtons,
-  TextInput,
-} from "@/components/auth/auth-screen";
+import { LoginCard } from "@/components/auth/login-card";
+import { LoginPage } from "@/components/auth/login-page";
+import { getLoginRoleHint, RoleTabs, type LoginRole } from "@/components/auth/role-tabs";
+import { SocialLogin } from "@/components/auth/social-login";
 import { useI18n } from "@/components/providers/locale-provider";
 import { loginAction, resendVerificationEmailAction } from "@/lib/auth/actions";
 
 type OAuthProvider = "google";
 
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  AccessDenied: "auth.login.oauthAccessDenied",
+  AccountNotLinked: "auth.login.oauthAccountNotLinked",
+  OAuthAccountNotLinked: "auth.login.oauthAccountNotLinked",
+  OAuthCallbackError: "auth.login.oauthError",
+  OAuthSignInError: "auth.login.oauthError",
+  OAuthSignin: "auth.login.oauthError",
+};
+
+function getAuthErrorMessage(error: string | null | undefined) {
+  if (!error) {
+    return null;
+  }
+
+  return AUTH_ERROR_MESSAGES[error] ?? "auth.login.oauthError";
+}
+
 interface LoginClientProps {
+  authError?: string | null;
   callbackUrl: string;
 }
 
-export function LoginClient({ callbackUrl }: LoginClientProps) {
+export function LoginClient({ authError = null, callbackUrl }: LoginClientProps) {
   const { locale, t } = useI18n();
-  const [serverError, setServerError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(() =>
+    getAuthErrorMessage(authError),
+  );
   const [oauthLoading, setOauthLoading] = useState<OAuthProvider | null>(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<LoginRole>("business");
+  const [socialNotice, setSocialNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    setServerError(getAuthErrorMessage(authError));
+    setUnverifiedEmail(null);
+    setResendError(null);
+    setResendMessage(null);
+  }, [authError]);
 
   const {
     register,
@@ -46,6 +73,7 @@ export function LoginClient({ callbackUrl }: LoginClientProps) {
 
   const onSubmit = async (values: LoginInput) => {
     setServerError(null);
+    setSocialNotice(null);
     setUnverifiedEmail(null);
     setResendError(null);
     setResendMessage(null);
@@ -91,6 +119,7 @@ export function LoginClient({ callbackUrl }: LoginClientProps) {
 
   const handleOAuthSignIn = async (provider: OAuthProvider) => {
     setServerError(null);
+    setSocialNotice(null);
     setUnverifiedEmail(null);
     setResendError(null);
     setResendMessage(null);
@@ -104,106 +133,144 @@ export function LoginClient({ callbackUrl }: LoginClientProps) {
     }
   };
 
+  const handleUnavailableProvider = (provider: string) => {
+    setServerError(null);
+    setSocialNotice(t("auth.login.socialUnavailable", { provider }));
+  };
+
   return (
-    <div className="auth-reference-form-stack">
-      <form
-        className="auth-reference-form"
-        data-testid="login-form"
-        onSubmit={handleSubmit(onSubmit)}
-        noValidate
-      >
-        <TextInput
-          id="email"
-          type="email"
-          autoComplete="email"
-          error={errors.email ? t(errors.email.message ?? "") : null}
-          icon={Mail}
-          label={t("auth.login.emailLabel")}
-          placeholder={t("auth.login.emailPlaceholder")}
-          {...register("email")}
-        />
+    <LoginPage>
+      <LoginCard>
+        <div className="modern-login-card-header">
+          <p>{t("auth.login.modernEyebrow")}</p>
+          <h1>{t("auth.login.modernTitle")}</h1>
+          <span>{t("auth.login.modernSubtitle")}</span>
+        </div>
 
-        <TextInput
-          id="password"
-          type={passwordVisible ? "text" : "password"}
-          autoComplete="current-password"
-          error={errors.password ? t(errors.password.message ?? "") : null}
-          icon={KeyRound}
-          label={t("auth.login.passwordLabel")}
-          labelAction={
-            <Link className="auth-reference-label-link" href="/forgot-password">
-              {t("auth.login.forgotPassword")}
-            </Link>
-          }
-          placeholder={t("auth.login.passwordPlaceholder")}
-          rightElement={
-            <button
-              aria-label={passwordVisible ? t("common.hide") : t("common.show")}
-              onClick={() => setPasswordVisible((current) => !current)}
-              type="button"
-            >
-              {passwordVisible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-            </button>
-          }
-          {...register("password")}
-        />
+        <RoleTabs value={selectedRole} onChange={setSelectedRole} />
+        <p className="modern-role-hint">{getLoginRoleHint(selectedRole, locale)}</p>
 
-        <label className="auth-reference-checkbox">
-          <input type="checkbox" />
-          <span>{t("auth.login.rememberMe")}</span>
-        </label>
-
-        {serverError ? (
-          <div className="auth-reference-alert" role="alert">
-            <p>{t(serverError)}</p>
-            {unverifiedEmail ? (
-              <div className="mt-3 space-y-3">
-                <p>{t("auth.login.emailNotVerifiedHelp")}</p>
-                <button
-                  className="auth-reference-mini-button"
-                  disabled={isResendingVerification}
-                  onClick={handleResendVerification}
-                  type="button"
-                >
-                  {isResendingVerification
-                    ? t("auth.login.resendingVerification")
-                    : t("auth.login.resendVerification")}
-                </button>
-                <div aria-live="polite">
-                  {resendMessage ? (
-                    <p className="text-[hsl(var(--success))]">{t(resendMessage)}</p>
-                  ) : null}
-                  {resendError ? (
-                    <p className="text-[hsl(var(--danger))]">{t(resendError)}</p>
-                  ) : null}
-                </div>
-              </div>
+        <form
+          className="modern-login-form"
+          data-testid="login-form"
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+        >
+          <div className="modern-login-field">
+            <label htmlFor="email">{t("auth.login.emailLabel")}</label>
+            <div className="modern-login-input-wrap">
+              <Mail className="modern-login-input-icon" />
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder={t("auth.login.emailPlaceholder")}
+                {...register("email")}
+              />
+            </div>
+            {errors.email ? (
+              <p className="modern-login-field-error">{t(errors.email.message ?? "")}</p>
             ) : null}
+          </div>
+
+          <div className="modern-login-field">
+            <div className="modern-login-label-row">
+              <label htmlFor="password">{t("auth.login.passwordLabel")}</label>
+              <Link href="/forgot-password">{t("auth.login.forgotPassword")}</Link>
+            </div>
+            <div className="modern-login-input-wrap">
+              <LockKeyhole className="modern-login-input-icon" />
+              <input
+                id="password"
+                type={passwordVisible ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder={t("auth.login.passwordPlaceholder")}
+                {...register("password")}
+              />
+              <button
+                aria-label={passwordVisible ? t("common.hide") : t("common.show")}
+                className="modern-password-toggle"
+                onClick={() => setPasswordVisible((current) => !current)}
+                type="button"
+              >
+                {passwordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {errors.password ? (
+              <p className="modern-login-field-error">{t(errors.password.message ?? "")}</p>
+            ) : null}
+          </div>
+
+          <label className="modern-login-checkbox">
+            <input type="checkbox" />
+            <span>{t("auth.login.rememberMe")}</span>
+          </label>
+
+          {serverError ? (
+            <div className="modern-login-alert" role="alert">
+              <p>{t(serverError)}</p>
+              {unverifiedEmail ? (
+                <div className="mt-3 space-y-3">
+                  <p>{t("auth.login.emailNotVerifiedHelp")}</p>
+                  <button
+                    className="modern-login-mini-button"
+                    disabled={isResendingVerification}
+                    onClick={handleResendVerification}
+                    type="button"
+                  >
+                    {isResendingVerification
+                      ? t("auth.login.resendingVerification")
+                      : t("auth.login.resendVerification")}
+                  </button>
+                  <div aria-live="polite">
+                    {resendMessage ? (
+                      <p className="text-[hsl(var(--success))]">{t(resendMessage)}</p>
+                    ) : null}
+                    {resendError ? (
+                      <p className="text-[hsl(var(--danger))]">{t(resendError)}</p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <button className="modern-login-primary" disabled={isSubmitting} type="submit">
+            <span>{isSubmitting ? t("auth.login.loggingIn") : t("auth.login.continue")}</span>
+            <ArrowRight className="h-5 w-5" />
+          </button>
+        </form>
+
+        <Link className="modern-login-secondary" href="/register">
+          <UserPlus className="h-5 w-5" />
+          <span>{t("auth.login.createAccount")}</span>
+        </Link>
+
+        <div className="modern-login-divider">
+          <span />
+          <p>{t("auth.login.orContinueWith")}</p>
+          <span />
+        </div>
+
+        <SocialLogin
+          disabled={oauthLoading !== null}
+          onGoogle={() => handleOAuthSignIn("google")}
+          onUnavailable={handleUnavailableProvider}
+        />
+
+        {socialNotice ? (
+          <div className="modern-login-alert is-info" role="status">
+            <p>{socialNotice}</p>
           </div>
         ) : null}
 
-        <PrimaryButton disabled={isSubmitting} type="submit">
-          {isSubmitting ? t("auth.login.loggingIn") : t("auth.login.continue")}
-        </PrimaryButton>
-      </form>
-
-      <SecondaryButton href="/register">{t("auth.login.createAccount")}</SecondaryButton>
-
-      <div className="auth-reference-divider">
-        <span />
-        <p>{t("auth.login.orContinueWith")}</p>
-        <span />
-      </div>
-
-      <SocialAuthButtons
-        disabled={oauthLoading !== null}
-        onGoogle={() => handleOAuthSignIn("google")}
-      />
-
-      <p className="auth-reference-bottom-text">
-        {t("auth.login.noAccount")}{" "}
-        <Link href="/register">{t("auth.login.createAccountInline")}</Link>
-      </p>
-    </div>
+        <p className="modern-login-footer-link">
+          {t("auth.login.noAccount")}{" "}
+          <Link href="/register">
+            {t("auth.login.freeCreate")} <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </p>
+      </LoginCard>
+    </LoginPage>
   );
 }

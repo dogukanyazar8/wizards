@@ -32,6 +32,21 @@ export const ForgotPasswordSchema = z.object({
   email: z.string().email("validation.email.invalid"),
 });
 
+export const ResetPasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, "validation.password.min")
+      .max(100, "validation.password.max"),
+    confirmPassword: z.string(),
+    token: z.string().min(1, "auth.passwordReset.invalidToken"),
+  })
+  .refine((data) => data.confirmPassword === data.password, {
+    message: "validation.password.confirmMismatch",
+    path: ["confirmPassword"],
+  });
+
 export type LoginInput = z.infer<typeof LoginSchema>;
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;

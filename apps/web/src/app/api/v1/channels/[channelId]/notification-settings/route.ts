@@ -1,8 +1,10 @@
 import { z } from "zod";
-import { prisma } from "@wizards/db";
+import { ChannelType, prisma } from "@wizards/db";
 import { requireApiUserId } from "@/lib/auth/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
-import { ApiError, jsonError } from "@/lib/api";
+import { jsonError } from "@/lib/api";
+import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
+import { PermissionBits } from "@/lib/workspace/permissions";
 
 const UpdateNotificationSettingsSchema = z.object({
   level: z.enum(["all", "mentions", "muted"]),
@@ -13,46 +15,9 @@ type RouteContext = {
 };
 
 async function assertChannelAccess(userId: string, channelId: string) {
-  const channel = await prisma.channel.findUnique({
-    where: { id: channelId },
-    select: {
-      serverId: true,
-      type: true,
-    },
+  await requireChannelPermissionForUser(userId, channelId, PermissionBits.VIEW_CHANNEL, {
+    requiredType: ChannelType.TEXT,
   });
-
-  if (!channel?.serverId || channel.type !== "TEXT") {
-    throw new ApiError("Channel not found", 404, "CHANNEL_NOT_FOUND");
-  }
-
-  const [membership, ban] = await Promise.all([
-    prisma.serverMember.findUnique({
-      where: {
-        userId_serverId: {
-          serverId: channel.serverId,
-          userId,
-        },
-      },
-      select: { id: true },
-    }),
-    prisma.serverBan.findUnique({
-      where: {
-        serverId_userId: {
-          serverId: channel.serverId,
-          userId,
-        },
-      },
-      select: { id: true },
-    }),
-  ]);
-
-  if (ban) {
-    throw new ApiError("You are banned from this server", 403, "SERVER_BANNED");
-  }
-
-  if (!membership) {
-    throw new ApiError("You are not a member of this server", 403, "FORBIDDEN");
-  }
 }
 
 function mapSettingsToLevel(settings: {

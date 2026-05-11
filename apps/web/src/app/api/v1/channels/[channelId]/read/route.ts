@@ -2,6 +2,8 @@ import { prisma } from "@wizards/db";
 import { requireApiUserId } from "@/lib/auth/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { ApiError, jsonError } from "@/lib/api";
+import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
+import { PermissionBits } from "@/lib/workspace/permissions";
 import {
   emitServerUnreadUpdateToUser,
   markChannelReadState,
@@ -63,6 +65,8 @@ export async function PATCH(_: Request, context: RouteContext) {
     if (!membership) {
       throw new ApiError("You are not a member of this server", 403);
     }
+
+    await requireChannelPermissionForUser(userId, channelId, PermissionBits.VIEW_CHANNEL);
 
     const readState = await prisma.channelReadState.findUnique({
       where: {

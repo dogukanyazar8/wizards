@@ -1,8 +1,8 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import type { WorkspaceServerDetail } from "@wizards/types";
+import type { WorkspaceChannelPermissionPreset, WorkspaceServerDetail } from "@wizards/types";
 import { Button } from "@wizards/ui";
 import { useShallow } from "zustand/react/shallow";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -22,7 +22,9 @@ import {
   createServerRequest,
   deleteChannelRequest,
   deleteServerRequest,
+  fetchChannelPermissionSettings,
   updateChannelRequest,
+  updateChannelPermissionSettings,
   updateCategoryRequest,
   updateServerRequest,
   workspaceQueryKeys,
@@ -93,6 +95,9 @@ export function WorkspaceModals({
   const [channelTopic, setChannelTopic] = useState("");
   const [channelCategoryId, setChannelCategoryId] = useState<string | null>(null);
   const [channelLocked, setChannelLocked] = useState(false);
+  const [channelPermissionPreset, setChannelPermissionPreset] =
+    useState<WorkspaceChannelPermissionPreset>("PUBLIC");
+  const [channelAllowedRoleIds, setChannelAllowedRoleIds] = useState<string[]>([]);
   const [categoryName, setCategoryName] = useState("");
   const [createdCategoryName, setCreatedCategoryName] = useState<string | null>(null);
   const [inviteHours, setInviteHours] = useState("24");
@@ -102,6 +107,22 @@ export function WorkspaceModals({
   const [inviteCopied, setInviteCopied] = useState(false);
   const [serverDeleteConfirmation, setServerDeleteConfirmation] = useState("");
   const categoryCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const channelPermissionControlsEnabled = Boolean(
+    channelModal.open && activeServerDetail?.server.isAdmin,
+  );
+  const channelPermissionsEnabled = Boolean(
+    channelPermissionControlsEnabled &&
+    channelModal.open &&
+      channelModal.mode === "edit" &&
+      channelModal.channelId,
+  );
+  const channelPermissionQuery = useQuery({
+    enabled: channelPermissionsEnabled,
+    queryFn: () => fetchChannelPermissionSettings(channelModal.channelId!),
+    queryKey: channelModal.channelId
+      ? workspaceQueryKeys.channelPermissions(channelModal.channelId)
+      : ["workspace", "channel", "idle", "permissions"],
+  });
 
   useEffect(() => {
     if (!serverModal.open) {
@@ -148,6 +169,8 @@ export function WorkspaceModals({
     setChannelTopic(editingChannel?.topic ?? "");
     setChannelCategoryId(editingChannel?.categoryId ?? channelModal.categoryId ?? null);
     setChannelLocked(editingChannel?.locked ?? false);
+    setChannelPermissionPreset(editingChannel?.locked ? "LOCKED_VISIBLE" : "PUBLIC");
+    setChannelAllowedRoleIds([]);
   }, [
     channelModal.categoryId,
     channelModal.open,
@@ -156,6 +179,15 @@ export function WorkspaceModals({
     editingChannel?.name,
     editingChannel?.topic,
   ]);
+
+  useEffect(() => {
+    if (!channelPermissionQuery.data) {
+      return;
+    }
+
+    setChannelPermissionPreset(channelPermissionQuery.data.preset);
+    setChannelAllowedRoleIds(channelPermissionQuery.data.allowedRoleIds);
+  }, [channelPermissionQuery.data]);
 
   useEffect(() => {
     if (!inviteModal.open) {
@@ -295,17 +327,36 @@ export function WorkspaceModals({
       }
 
       if (channelModal.mode === "edit" && channelModal.channelId) {
-        return updateChannelRequest(channelModal.channelId, {
+        const nextLocked = channelPermissionControlsEnabled
+          ? channelPermissionPreset !== "PUBLIC"
+          : channelLocked;
+
+        await updateChannelRequest(channelModal.channelId, {
           categoryId: channelCategoryId,
-          locked: channelLocked,
+          locked: nextLocked,
           name: channelName,
           topic: channelTopic,
         });
+
+        if (channelPermissionControlsEnabled) {
+          await updateChannelPermissionSettings(channelModal.channelId, {
+            allowedRoleIds: channelAllowedRoleIds,
+            preset: channelPermissionPreset,
+          });
+        }
+
+        return { success: true as const };
       }
 
       return createChannelRequest(channelModal.serverId, {
         categoryId: channelCategoryId,
         name: channelName,
+        permissions: channelPermissionControlsEnabled
+          ? {
+              allowedRoleIds: channelAllowedRoleIds,
+              preset: channelPermissionPreset,
+            }
+          : undefined,
         topic: channelTopic,
         type: channelModal.type,
       });
@@ -333,7 +384,9 @@ export function WorkspaceModals({
           workspaceQueryKeys.server(activeServerDetail.server.id),
           applyChannelPatch(previousDetail, channelModal.channelId, {
             categoryId: channelCategoryId,
-            locked: channelLocked,
+            locked: channelPermissionControlsEnabled
+              ? channelPermissionPreset !== "PUBLIC"
+              : channelLocked,
             name: channelName,
             topic: channelTopic,
           }),
@@ -356,10 +409,17 @@ export function WorkspaceModals({
       }
 
       await invalidateServer(channelModal.serverId);
+      if (channelModal.channelId) {
+        await queryClient.invalidateQueries({
+          queryKey: workspaceQueryKeys.channelPermissions(channelModal.channelId),
+        });
+      }
       closeChannelModal();
       setChannelName("");
       setChannelTopic("");
       setChannelLocked(false);
+      setChannelPermissionPreset("PUBLIC");
+      setChannelAllowedRoleIds([]);
     },
   });
 
@@ -725,7 +785,91 @@ export function WorkspaceModals({
               value={channelTopic}
             />
           </div>
-          {channelModal.mode === "edit" && channelModal.type === "TEXT" ? (
+          {channelPermissionControlsEnabled && activeServerDetail ? (
+            <div className="app-panel-soft rounded-[24px] border p-4">
+              <div className="mb-4">
+                <p className="text-app-foreground text-sm font-semibold">
+                  {t("workspace.permissions.title")}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-app-muted">
+                  {channelModal.type === "VOICE"
+                    ? t("workspace.permissions.voiceDescription")
+                    : t("workspace.permissions.textDescription")}
+                </p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(["PUBLIC", "LOCKED_VISIBLE", "PRIVATE", "ROLE_GATED"] as const).map(
+                  (preset) => (
+                    <button
+                      className={cn(
+                        "rounded-[20px] border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                        channelPermissionPreset === preset
+                          ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.12)] text-app-foreground"
+                          : "border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.54)] text-app-muted hover:text-app-foreground",
+                      )}
+                      key={preset}
+                      onClick={() => setChannelPermissionPreset(preset)}
+                      type="button"
+                    >
+                      <span className="block text-sm font-semibold">
+                        {t(`workspace.permissions.preset.${preset}`)}
+                      </span>
+                      <span className="mt-1 block text-xs leading-5">
+                        {t(`workspace.permissions.preset.${preset}.description`)}
+                      </span>
+                    </button>
+                  ),
+                )}
+              </div>
+              {channelPermissionPreset === "ROLE_GATED" ? (
+                <div className="mt-4 rounded-[20px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.48)] p-3">
+                  <p className="text-app-soft text-[11px] font-semibold uppercase tracking-[0.2em]">
+                    {t("workspace.permissions.allowedRoles")}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {activeServerDetail.roles
+                      .filter((role) => !role.isDefault && !role.managed)
+                      .map((role) => {
+                        const selected = channelAllowedRoleIds.includes(role.id);
+
+                        return (
+                          <button
+                            className={cn(
+                              "rounded-2xl border px-3 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                              selected
+                                ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.13)] text-app-foreground"
+                                : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground",
+                            )}
+                            key={role.id}
+                            onClick={() =>
+                              setChannelAllowedRoleIds((current) =>
+                                selected
+                                  ? current.filter((roleId) => roleId !== role.id)
+                                  : [...current, role.id],
+                              )
+                            }
+                            type="button"
+                          >
+                            {role.name}
+                          </button>
+                        );
+                      })}
+                  </div>
+                  {activeServerDetail.roles.filter((role) => !role.isDefault && !role.managed)
+                    .length === 0 ? (
+                    <p className="mt-3 text-xs leading-5 text-app-muted">
+                      {t("workspace.permissions.noRoles")}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              {channelPermissionQuery.error ? (
+                <div className="app-danger mt-3 rounded-[20px] border p-3 text-xs font-semibold">
+                  {t("workspace.permissions.loadError")}
+                </div>
+              ) : null}
+            </div>
+          ) : channelModal.mode === "edit" && channelModal.type === "TEXT" ? (
             <ServerFeatureToggle
               checked={channelLocked}
               description={t("workspace.modal.channelReadOnlyDescription")}
@@ -756,7 +900,17 @@ export function WorkspaceModals({
             <Button className="w-full sm:w-auto" onClick={closeChannelModal} type="button" variant="outline">
               {t("common.cancel")}
             </Button>
-            <Button className="w-full sm:w-auto" disabled={channelMutation.isPending || channelName.trim().length < 1} type="submit">
+            <Button
+              className="w-full sm:w-auto"
+              disabled={
+                channelMutation.isPending ||
+                channelName.trim().length < 1 ||
+                (channelPermissionControlsEnabled &&
+                  channelPermissionPreset === "ROLE_GATED" &&
+                  channelAllowedRoleIds.length === 0)
+              }
+              type="submit"
+            >
               {channelMutation.isPending
                 ? t("common.saving")
                 : channelModal.mode === "edit"

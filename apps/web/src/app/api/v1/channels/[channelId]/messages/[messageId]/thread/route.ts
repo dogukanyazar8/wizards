@@ -1,7 +1,9 @@
 import { requireApiUserId } from "@/lib/auth/api";
-import { ApiError, jsonError } from "@/lib/api";
+import { jsonError } from "@/lib/api";
 import { getChannelThreadMessages } from "@/lib/workspace/message-service";
-import { prisma } from "@wizards/db";
+import { ChannelType } from "@wizards/db";
+import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
+import { PermissionBits } from "@/lib/workspace/permissions";
 
 type RouteContext = {
   params: Promise<{ channelId: string; messageId: string }>;
@@ -18,38 +20,9 @@ export async function GET(request: Request, context: RouteContext) {
       ? Math.min(Math.max(requestedLimit, 1), 100)
       : 50;
 
-    const channel = await prisma.channel.findUnique({
-      where: { id: channelId },
-      select: { serverId: true },
+    await requireChannelPermissionForUser(userId, channelId, PermissionBits.VIEW_CHANNEL, {
+      requiredType: ChannelType.TEXT,
     });
-
-    if (!channel?.serverId) {
-      throw new ApiError("Channel not found", 404, "NOT_FOUND");
-    }
-
-    const [member, serverBan] = await Promise.all([
-      prisma.serverMember.findFirst({
-        where: { serverId: channel.serverId, userId },
-        select: { id: true },
-      }),
-      prisma.serverBan.findUnique({
-        where: {
-          serverId_userId: {
-            serverId: channel.serverId,
-            userId,
-          },
-        },
-        select: { id: true },
-      }),
-    ]);
-
-    if (serverBan) {
-      throw new ApiError("You are banned from this server", 403, "SERVER_BANNED");
-    }
-
-    if (!member) {
-      throw new ApiError("Not a member of this server", 403, "FORBIDDEN");
-    }
 
     return Response.json(
       await getChannelThreadMessages(channelId, messageId, cursor, limit),

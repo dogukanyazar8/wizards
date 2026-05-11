@@ -4,6 +4,13 @@ import { ApiError } from "@/lib/api";
 import { getLiveKitRoomServiceClient } from "@/lib/livekit/server";
 import { getRedis } from "@/lib/redis";
 import { getSocketServer } from "@/lib/socket/runtime";
+import {
+  filterUserIdsByChannelPermission,
+  listChannelIdsForUserWithPermission,
+  listUserIdsWithChannelPermission,
+  requireChannelPermissionForUser,
+} from "@/lib/workspace/permission-service";
+import { PermissionBits } from "@/lib/workspace/permissions";
 import { getVoiceScreenShareStateKey } from "@/lib/voice/screen-share-state";
 import {
   MAX_VOICE_PARTICIPANTS,
@@ -27,22 +34,6 @@ const VOICE_CLEANUP_BATCH_SIZE = 100;
 
 function isE2ETestMode() {
   return process.env.E2E_TEST_MODE === "true" && process.env.NODE_ENV !== "production";
-}
-
-async function ensureNotServerBanned(userId: string, serverId: string) {
-  const ban = await prisma.serverBan.findUnique({
-    where: {
-      serverId_userId: {
-        serverId,
-        userId,
-      },
-    },
-    select: { id: true },
-  });
-
-  if (ban) {
-    throw new ApiError("You are banned from this server", 403, "SERVER_BANNED");
-  }
 }
 
 export async function cleanupStaleVoiceStates() {
@@ -128,55 +119,19 @@ async function requireVoiceMembership(userId: string, input: {
   channelId: string;
   serverId: string;
 }) {
-  const channel = await prisma.channel.findUnique({
-    where: { id: input.channelId },
-    select: {
-      id: true,
-      serverId: true,
-      type: true,
+  const { channel } = await requireChannelPermissionForUser(
+    userId,
+    input.channelId,
+    PermissionBits.CONNECT_VOICE,
+    {
+      forbiddenMessage: "You are not allowed to join this voice channel",
+      lockedCode: "VOICE_CHANNEL_LOCKED",
+      lockedMessage: "You are not allowed to join this locked voice channel",
+      requiredServerId: input.serverId,
+      requiredType: ChannelType.VOICE,
+      respectLocked: true,
     },
-  });
-
-  if (!channel?.serverId) {
-    throw new ApiError("Voice channel not found", 404, "NOT_FOUND");
-  }
-
-  if (channel.serverId !== input.serverId) {
-    throw new ApiError("Voice channel does not belong to this server", 400, "INVALID_SERVER");
-  }
-
-  if (channel.type !== ChannelType.VOICE) {
-    throw new ApiError("Channel is not a voice channel", 400, "INVALID_CHANNEL_TYPE");
-  }
-
-  const [membership, serverBan] = await Promise.all([
-    prisma.serverMember.findUnique({
-      where: {
-        userId_serverId: {
-          userId,
-          serverId: input.serverId,
-        },
-      },
-      select: { id: true },
-    }),
-    prisma.serverBan.findUnique({
-      where: {
-        serverId_userId: {
-          serverId: input.serverId,
-          userId,
-        },
-      },
-      select: { id: true },
-    }),
-  ]);
-
-  if (serverBan) {
-    throw new ApiError("You are banned from this server", 403, "SERVER_BANNED");
-  }
-
-  if (!membership) {
-    throw new ApiError("You are not a member of this server", 403, "FORBIDDEN");
-  }
+  );
 
   return channel;
 }
@@ -244,12 +199,106 @@ export async function emitVoiceStateUpdate(args: {
   }
 
   const participants = await buildVoiceStateParticipantsForChannel(args.channelId);
-  io.to(`server:${args.serverId}`).emit("voice:state:update", {
+  const viewerUserIds = await listUserIdsWithChannelPermission(
+    args.channelId,
+    PermissionBits.VIEW_CHANNEL,
+  );
+  const payload = {
     action: args.action,
     channelId: args.channelId,
     participants: mapSocketParticipants(participants),
     userId: args.userId,
+  };
+
+  for (const viewerUserId of viewerUserIds) {
+    io.to(`user:${viewerUserId}`).emit("voice:state:update", payload);
+  }
+}
+
+export async function emitVoiceScreenShareUpdate(args: {
+  channelId: string;
+  isScreenSharing: boolean;
+  userId: string;
+}) {
+  const io = getSocketServer();
+  if (!io) {
+    return;
+  }
+
+  const viewerUserIds = await listUserIdsWithChannelPermission(
+    args.channelId,
+    PermissionBits.VIEW_CHANNEL,
+  );
+  const payload = {
+    channelId: args.channelId,
+    isScreenSharing: args.isScreenSharing,
+    userId: args.userId,
+  };
+
+  for (const viewerUserId of viewerUserIds) {
+    io.to(`user:${viewerUserId}`).emit("voice:screenshare:update", payload);
+  }
+}
+
+export async function disconnectUnauthorizedVoiceParticipants(channelId: string) {
+  const states = await prisma.voiceState.findMany({
+    where: { channelId },
+    select: {
+      channelId: true,
+      serverId: true,
+      userId: true,
+    },
   });
+
+  if (states.length === 0) {
+    return;
+  }
+
+  const allowedUserIds = new Set(
+    await filterUserIdsByChannelPermission(
+      channelId,
+      states.map((state) => state.userId),
+      PermissionBits.CONNECT_VOICE,
+      { respectLocked: true },
+    ),
+  );
+  const unauthorizedStates = states.filter((state) => !allowedUserIds.has(state.userId));
+
+  if (unauthorizedStates.length === 0) {
+    return;
+  }
+
+  await prisma.voiceState.deleteMany({
+    where: {
+      channelId,
+      userId: {
+        in: unauthorizedStates.map((state) => state.userId),
+      },
+    },
+  });
+
+  const redis = getRedis();
+  const roomService = getLiveKitRoomServiceClient();
+  await Promise.all(
+    unauthorizedStates.flatMap((state) => [
+      redis
+        .del(getVoiceScreenShareStateKey(state.channelId, state.userId))
+        .catch(() => undefined),
+      roomService.removeParticipant(getVoiceRoomName(state.channelId), state.userId)
+        .catch(() => undefined),
+    ]),
+  );
+
+  await Promise.all(
+    unauthorizedStates.map((state) =>
+      emitVoiceStateUpdate({
+        action: "leave",
+        channelId: state.channelId,
+        serverId: state.serverId,
+        userId: state.userId,
+      }),
+    ),
+  );
 }
 
 export async function listVoiceStatesForServer(
@@ -257,25 +306,22 @@ export async function listVoiceStatesForServer(
   serverId: string,
 ): Promise<VoiceChannelStateDTO[]> {
   await maybeCleanupStaleVoiceStates();
+  const visibleVoiceChannelIds = await listChannelIdsForUserWithPermission(
+    userId,
+    serverId,
+    PermissionBits.VIEW_CHANNEL,
+    ChannelType.VOICE,
+  );
 
-  const membership = await prisma.serverMember.findUnique({
-    where: {
-      userId_serverId: {
-        userId,
-        serverId,
-      },
-    },
-    select: { id: true },
-  });
-
-  if (!membership) {
-    throw new ApiError("You are not a member of this server", 403, "FORBIDDEN");
+  if (visibleVoiceChannelIds.length === 0) {
+    return [];
   }
 
-  await ensureNotServerBanned(userId, serverId);
-
   const states = await prisma.voiceState.findMany({
-    where: { serverId },
+    where: {
+      channelId: { in: visibleVoiceChannelIds },
+      serverId,
+    },
     orderBy: [
       { channelId: "asc" },
       { joinedAt: "asc" },

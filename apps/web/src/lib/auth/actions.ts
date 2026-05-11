@@ -14,12 +14,23 @@ import {
   type EmailVerificationUser,
 } from "@/lib/auth/email-verification";
 import {
+  PasswordResetError,
+  resetPasswordWithToken,
+  sendPasswordResetEmail,
+  type PasswordResetUser,
+} from "@/lib/auth/password-reset";
+import {
   getTurnstileErrorMessageKey,
   verifyTurnstileToken,
 } from "@/lib/auth/turnstile";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
 import { Prisma, prisma } from "@wizards/db";
-import { ForgotPasswordSchema, LoginSchema, RegisterSchema } from "@wizards/types";
+import {
+  ForgotPasswordSchema,
+  LoginSchema,
+  RegisterSchema,
+  ResetPasswordSchema,
+} from "@wizards/types";
 import bcrypt from "bcryptjs";
 import { AuthError } from "next-auth";
 
@@ -143,6 +154,62 @@ async function checkVerificationResendRateLimit(input: {
     logError("[auth] Verification resend rate limit unavailable", error);
     return false;
   }
+}
+
+async function checkPasswordResetRateLimit(input: {
+  email: string;
+  ipAddress: string;
+}) {
+  const redis = getRedis();
+
+  try {
+    const cooldownAllowed = await checkRateLimit(
+      redis,
+      `rate:password-reset:cooldown:${input.email}:${input.ipAddress}`,
+      1,
+      60,
+    );
+
+    if (!cooldownAllowed) {
+      return false;
+    }
+
+    const [emailAllowed, ipAllowed] = await Promise.all([
+      checkRateLimit(
+        redis,
+        `rate:password-reset:email:${input.email}`,
+        5,
+        60 * 60,
+      ),
+      checkRateLimit(
+        redis,
+        `rate:password-reset:ip:${input.ipAddress}`,
+        10,
+        60 * 60,
+      ),
+    ]);
+
+    return emailAllowed && ipAllowed;
+  } catch (error) {
+    logError("[auth] Password reset rate limit unavailable", error);
+    return false;
+  }
+}
+
+function mapPasswordResetError(error: unknown) {
+  if (error instanceof PasswordResetError) {
+    if (error.code === "CONFIGURATION_ERROR") {
+      return "auth.passwordReset.notConfigured";
+    }
+
+    if (error.code === "SENDER_RESTRICTED") {
+      return "auth.passwordReset.senderRestricted";
+    }
+
+    return "auth.passwordReset.sendFailed";
+  }
+
+  return "auth.passwordReset.sendFailed";
 }
 
 export async function registerAction(formData: FormData): Promise<AuthActionResult> {
@@ -387,6 +454,119 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     }
 
     throw error;
+  }
+}
+
+export async function forgotPasswordAction(formData: FormData): Promise<AuthActionResult> {
+  const validation = ForgotPasswordSchema.safeParse({
+    email: normalizeAuthEmail(getFormValue(formData, "email")),
+  });
+
+  if (!validation.success) {
+    return {
+      success: false,
+      error: validation.error.issues[0]?.message ?? "validation.email.invalid",
+    };
+  }
+
+  const email = normalizeAuthEmail(validation.data.email);
+  const locale = normalizeAppLocale(getFormValue(formData, "locale"));
+  const ipAddress = await getRequestIpAddress();
+  const genericSuccess = {
+    email,
+    success: true,
+    message: "auth.forgot.genericSuccess",
+  } satisfies AuthActionResult;
+
+  const isAllowed = await checkPasswordResetRateLimit({ email, ipAddress });
+  if (!isAllowed) {
+    return {
+      success: false,
+      error: "auth.forgot.rateLimited",
+    };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: {
+      displayName: true,
+      email: true,
+      id: true,
+      isBanned: true,
+      locale: true,
+      passwordHash: true,
+      username: true,
+    },
+  });
+
+  if (!user || user.isBanned || !user.passwordHash) {
+    return genericSuccess;
+  }
+
+  try {
+    await sendPasswordResetEmail(
+      {
+        displayName: user.displayName,
+        email: user.email,
+        id: user.id,
+        locale: user.locale,
+        passwordHash: user.passwordHash,
+        username: user.username,
+      } satisfies PasswordResetUser,
+      normalizeAppLocale(user.locale ?? locale),
+    );
+
+    return genericSuccess;
+  } catch (error) {
+    logError("[auth] Password reset email failed", error);
+    return {
+      email,
+      success: false,
+      error: mapPasswordResetError(error),
+    };
+  }
+}
+
+export async function resetPasswordAction(formData: FormData): Promise<AuthActionResult> {
+  const validation = ResetPasswordSchema.safeParse({
+    confirmPassword: getFormValue(formData, "confirmPassword"),
+    password: getFormValue(formData, "password"),
+    token: getFormValue(formData, "token"),
+  });
+
+  if (!validation.success) {
+    return {
+      success: false,
+      error: validation.error.issues[0]?.message ?? "auth.passwordReset.unavailable",
+    };
+  }
+
+  try {
+    const result = await resetPasswordWithToken({
+      password: validation.data.password,
+      token: validation.data.token,
+    });
+
+    if (result.status === "reset") {
+      return {
+        success: true,
+        message: "auth.passwordReset.success",
+      };
+    }
+
+    return {
+      success: false,
+      error:
+        result.status === "expired"
+          ? "auth.passwordReset.expiredToken"
+          : "auth.passwordReset.invalidToken",
+    };
+  } catch (error) {
+    logError("[auth] Password reset failed", error);
+    return {
+      success: false,
+      error: "auth.passwordReset.unavailable",
+    };
   }
 }
 

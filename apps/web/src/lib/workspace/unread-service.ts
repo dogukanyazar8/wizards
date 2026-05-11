@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { Prisma, prisma } from "@wizards/db";
+import { ChannelType, Prisma, prisma } from "@wizards/db";
 import { getSocketServer } from "@/lib/socket/runtime";
+import { listChannelIdsForUserWithPermission } from "@/lib/workspace/permission-service";
+import { PermissionBits } from "@/lib/workspace/permissions";
 
 type ServerUnreadCountRow = {
   mentionCount?: bigint | number;
@@ -19,6 +21,17 @@ function toUnreadCount(value: bigint | number) {
 }
 
 export async function getServerChannelUnreadCounts(userId: string, serverId: string) {
+  const visibleChannelIds = await listChannelIdsForUserWithPermission(
+    userId,
+    serverId,
+    PermissionBits.VIEW_CHANNEL,
+    ChannelType.TEXT,
+  );
+
+  if (visibleChannelIds.length === 0) {
+    return new Map<string, { mentionCount: number; unreadCount: number }>();
+  }
+
   const rows = await prisma.$queryRaw<ChannelUnreadCountRow[]>(Prisma.sql`
     SELECT
       c."id" AS "channelId",
@@ -39,6 +52,7 @@ export async function getServerChannelUnreadCounts(userId: string, serverId: str
     WHERE c."serverId" = ${serverId}
       AND c."type" = 'TEXT'
       AND c."parentId" IS NULL
+      AND c."id" IN (${Prisma.join(visibleChannelIds)})
     GROUP BY c."id", crs."mentionCount"
   `);
 
@@ -58,7 +72,21 @@ export async function getServerUnreadCounts(userId: string, serverIds: string[])
     return new Map<string, number>();
   }
 
-  const rows = await prisma.$queryRaw<ServerUnreadCountRow[]>(Prisma.sql`
+  const visibleChannelIds = (
+    await Promise.all(
+      serverIds.map((serverId) =>
+        listChannelIdsForUserWithPermission(
+          userId,
+          serverId,
+          PermissionBits.VIEW_CHANNEL,
+          ChannelType.TEXT,
+        ).catch(() => []),
+      ),
+    )
+  ).flat();
+
+  const rows = visibleChannelIds.length > 0
+    ? await prisma.$queryRaw<ServerUnreadCountRow[]>(Prisma.sql`
     SELECT
       sm."serverId" AS "serverId",
       COUNT(m."id")::bigint AS "unreadCount"
@@ -76,8 +104,10 @@ export async function getServerUnreadCounts(userId: string, serverIds: string[])
       AND m."createdAt" > COALESCE(crs."lastReadAt", sm."joinedAt")
     WHERE sm."userId" = ${userId}
       AND sm."serverId" IN (${Prisma.join(serverIds)})
+      AND c."id" IN (${Prisma.join(visibleChannelIds)})
     GROUP BY sm."serverId"
-  `);
+  `)
+    : [];
 
   const unreadCounts = new Map<string, number>();
   for (const serverId of serverIds) {
@@ -96,7 +126,21 @@ export async function getServerMentionCounts(userId: string, serverIds: string[]
     return new Map<string, number>();
   }
 
-  const rows = await prisma.$queryRaw<Array<{ serverId: string; mentionCount: bigint | number }>>(Prisma.sql`
+  const visibleChannelIds = (
+    await Promise.all(
+      serverIds.map((serverId) =>
+        listChannelIdsForUserWithPermission(
+          userId,
+          serverId,
+          PermissionBits.VIEW_CHANNEL,
+          ChannelType.TEXT,
+        ).catch(() => []),
+      ),
+    )
+  ).flat();
+
+  const rows = visibleChannelIds.length > 0
+    ? await prisma.$queryRaw<Array<{ serverId: string; mentionCount: bigint | number }>>(Prisma.sql`
     SELECT
       c."serverId" AS "serverId",
       COALESCE(SUM(crs."mentionCount"), 0)::bigint AS "mentionCount"
@@ -106,8 +150,10 @@ export async function getServerMentionCounts(userId: string, serverIds: string[]
       AND c."type" = 'TEXT'
     WHERE crs."userId" = ${userId}
       AND c."serverId" IN (${Prisma.join(serverIds)})
+      AND c."id" IN (${Prisma.join(visibleChannelIds)})
     GROUP BY c."serverId"
-  `);
+  `)
+    : [];
 
   const mentionCounts = new Map<string, number>();
   for (const serverId of serverIds) {
@@ -335,18 +381,9 @@ export async function emitServerUnreadUpdatesForServer(
     return;
   }
 
-  const [unreadCounts, mentionCountByUserId] = await Promise.all([
-    getServerUnreadCountsBatch(userIds, serverId),
-    getServerMentionCountsBatch(userIds, serverId),
-  ]);
-
   await Promise.all(
     userIds.map(async (userId) => {
-      io.to(`user:${userId}`).emit("server:unread:update", {
-        mentionCount: mentionCountByUserId.get(userId) ?? 0,
-        serverId,
-        unreadCount: unreadCounts.get(userId) ?? 0,
-      });
+      await emitServerUnreadUpdateToUser(userId, serverId);
     }),
   );
 }

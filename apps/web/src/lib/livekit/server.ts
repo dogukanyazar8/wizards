@@ -5,6 +5,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ApiError } from "@/lib/api";
 import { getBlockStatus } from "@/lib/friends/helpers";
+import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
+import { PermissionBits } from "@/lib/workspace/permissions";
 import type { CreateLiveKitTokenBody, LiveKitTokenResponse } from "./types";
 
 const LIVEKIT_TOKEN_TTL = "1h";
@@ -140,51 +142,18 @@ export function getLiveKitRoomServiceClient() {
 }
 
 async function resolveVoiceRoomName(userId: string, channelId: string) {
-  const channel = await prisma.channel.findUnique({
-    where: { id: channelId },
-    select: {
-      id: true,
-      serverId: true,
-      type: true,
+  const { channel } = await requireChannelPermissionForUser(
+    userId,
+    channelId,
+    PermissionBits.CONNECT_VOICE,
+    {
+      forbiddenMessage: "You do not have access to this voice channel",
+      lockedCode: "VOICE_CHANNEL_LOCKED",
+      lockedMessage: "You do not have access to this locked voice channel",
+      requiredType: ChannelType.VOICE,
+      respectLocked: true,
     },
-  });
-
-  if (!channel?.serverId) {
-    throw new ApiError("Channel not found", 404, "NOT_FOUND");
-  }
-
-  if (channel.type !== ChannelType.VOICE) {
-    throw new ApiError("Channel is not a voice channel", 400, "INVALID_CHANNEL_TYPE");
-  }
-
-  const [membership, serverBan] = await Promise.all([
-    prisma.serverMember.findUnique({
-      where: {
-        userId_serverId: {
-          userId,
-          serverId: channel.serverId,
-        },
-      },
-      select: { id: true },
-    }),
-    prisma.serverBan.findUnique({
-      where: {
-        serverId_userId: {
-          serverId: channel.serverId,
-          userId,
-        },
-      },
-      select: { id: true },
-    }),
-  ]);
-
-  if (serverBan) {
-    throw new ApiError("You are banned from this server", 403, "SERVER_BANNED");
-  }
-
-  if (!membership) {
-    throw new ApiError("You do not have access to this channel", 403, "FORBIDDEN");
-  }
+  );
 
   const roomName = `voice:${channel.id}`;
   const roomService = getLiveKitRoomServiceClient();

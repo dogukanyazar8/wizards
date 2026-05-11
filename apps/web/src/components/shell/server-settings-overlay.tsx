@@ -1,11 +1,17 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Copy, Shield, Trash2, UserRoundX, X } from "lucide-react";
+import { Copy, Shield, ShieldCheck, Trash2, UserRoundX, X } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { WorkspaceServerDetail, WorkspaceServerSummary } from "@wizards/types";
+import type {
+  WorkspaceMember,
+  WorkspacePermissionKey,
+  WorkspaceRole,
+  WorkspaceServerDetail,
+  WorkspaceServerSummary,
+} from "@wizards/types";
 import { Button } from "@wizards/ui";
 import { useI18n } from "@/components/providers/locale-provider";
 import { Avatar } from "@/components/ui/avatar";
@@ -16,13 +22,17 @@ import { ServerIconField } from "@/components/shell/server-icon-field";
 import { ServerFeatureToggle } from "@/components/shell/server-feature-toggle";
 import { useAppStore } from "@/lib/store";
 import {
+  createWorkspaceRoleRequest,
+  deleteWorkspaceRoleRequest,
   kickMemberRequest,
   revokeInviteRequest,
+  updateWorkspaceMemberRolesRequest,
+  updateWorkspaceRoleRequest,
   updateServerRequest,
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
 
-type SettingsTab = "overview" | "members" | "invites" | "danger";
+type SettingsTab = "overview" | "roles" | "members" | "invites" | "danger";
 
 type ServerSettingsOverlayProps = {
   detail: WorkspaceServerDetail | null;
@@ -32,6 +42,117 @@ type ServerSettingsOverlayProps = {
 };
 
 const DELETED_NOTICE_OPTIONS = [5, 15, 30, 60, 180, 360, 1440] as const;
+const ROLE_COLOR_OPTIONS = [
+  7_958_864, 3_428_765, 16_093_248, 13_925_560, 14_326_805, 5_217_528,
+] as const;
+const DEFAULT_ROLE_COLOR = ROLE_COLOR_OPTIONS[0];
+const MODERATOR_ROLE_COLOR = ROLE_COLOR_OPTIONS[1] ?? DEFAULT_ROLE_COLOR;
+const ELEVATED_ROLE_KEYS: WorkspacePermissionKey[] = [
+  "ADMINISTRATOR",
+  "MANAGE_ROLES",
+  "MANAGE_SERVER",
+];
+const ROLE_PERMISSION_PRESETS: Array<{
+  descriptionKey: string;
+  id: "admin" | "member" | "moderator";
+  labelKey: string;
+  ownerOnly?: boolean;
+  permissions: WorkspacePermissionKey[];
+}> = [
+  {
+    descriptionKey: "serverSettings.roles.presetMemberDescription",
+    id: "member",
+    labelKey: "serverSettings.roles.presetMember",
+    permissions: [
+      "VIEW_CHANNEL",
+      "SEND_MESSAGES",
+      "ATTACH_FILES",
+      "USE_GIFS",
+      "ADD_REACTIONS",
+      "CONNECT_VOICE",
+      "SPEAK",
+      "STREAM",
+      "USE_VIDEO",
+    ],
+  },
+  {
+    descriptionKey: "serverSettings.roles.presetModeratorDescription",
+    id: "moderator",
+    labelKey: "serverSettings.roles.presetModerator",
+    permissions: [
+      "VIEW_CHANNEL",
+      "SEND_MESSAGES",
+      "ATTACH_FILES",
+      "USE_GIFS",
+      "ADD_REACTIONS",
+      "CONNECT_VOICE",
+      "SPEAK",
+      "STREAM",
+      "USE_VIDEO",
+      "MANAGE_MESSAGES",
+      "CLEAR_CHANNEL_HISTORY",
+      "MANAGE_INVITES",
+      "KICK_MEMBERS",
+      "BAN_MEMBERS",
+      "TIMEOUT_MEMBERS",
+      "VIEW_AUDIT_LOG",
+      "MUTE_MEMBERS",
+      "DEAFEN_MEMBERS",
+      "MOVE_MEMBERS",
+    ],
+  },
+  {
+    descriptionKey: "serverSettings.roles.presetAdminDescription",
+    id: "admin",
+    labelKey: "serverSettings.roles.presetAdmin",
+    ownerOnly: true,
+    permissions: ["ADMINISTRATOR"],
+  },
+];
+const DEFAULT_ROLE_PERMISSIONS = ROLE_PERMISSION_PRESETS[0]?.permissions ?? [];
+
+const ROLE_PERMISSION_GROUPS: Array<{
+  id: string;
+  keys: WorkspacePermissionKey[];
+  labelKey: string;
+}> = [
+  {
+    id: "general",
+    keys: ["VIEW_CHANNEL", "SEND_MESSAGES", "ATTACH_FILES", "USE_GIFS", "ADD_REACTIONS"],
+    labelKey: "serverSettings.roles.groupGeneral",
+  },
+  {
+    id: "voice",
+    keys: [
+      "CONNECT_VOICE",
+      "SPEAK",
+      "STREAM",
+      "USE_VIDEO",
+      "MUTE_MEMBERS",
+      "DEAFEN_MEMBERS",
+      "MOVE_MEMBERS",
+    ],
+    labelKey: "serverSettings.roles.groupVoice",
+  },
+  {
+    id: "moderation",
+    keys: [
+      "MANAGE_MESSAGES",
+      "CLEAR_CHANNEL_HISTORY",
+      "KICK_MEMBERS",
+      "BAN_MEMBERS",
+      "TIMEOUT_MEMBERS",
+      "MANAGE_INVITES",
+      "VIEW_AUDIT_LOG",
+    ],
+    labelKey: "serverSettings.roles.groupModeration",
+  },
+  {
+    id: "admin",
+    keys: ["MANAGE_CHANNELS", "MANAGE_ROLES", "MANAGE_SERVER", "ADMINISTRATOR"],
+    labelKey: "serverSettings.roles.groupAdmin",
+  },
+];
 
 function formatDeletedNoticeDuration(minutes: number, locale: string) {
   if (minutes < 60) {
@@ -51,6 +172,59 @@ function formatDeletedNoticeDuration(minutes: number, locale: string) {
   return locale === "tr" ? `${days} gün` : `${days} days`;
 }
 
+function hasPermissionKey(role: WorkspaceRole, key: WorkspacePermissionKey) {
+  return role.permissions.includes("ADMINISTRATOR") || role.permissions.includes(key);
+}
+
+function isElevatedRole(role: WorkspaceRole) {
+  return role.permissions.some((permission) => ELEVATED_ROLE_KEYS.includes(permission));
+}
+
+function isProtectedRole(role: WorkspaceRole) {
+  return role.isDefault || role.managed || isElevatedRole(role);
+}
+
+function getPermissionLabel(key: WorkspacePermissionKey, locale: string) {
+  const labels: Record<WorkspacePermissionKey, { en: string; tr: string }> = {
+    ADMINISTRATOR: { en: "Administrator", tr: "Yonetici" },
+    ADD_REACTIONS: { en: "Add reactions", tr: "Tepki ekle" },
+    ATTACH_FILES: { en: "Attach files", tr: "Dosya ekle" },
+    BAN_MEMBERS: { en: "Ban members", tr: "Uyeleri yasakla" },
+    CLEAR_CHANNEL_HISTORY: { en: "Clear history", tr: "Gecmisi temizle" },
+    CONNECT_VOICE: { en: "Join voice", tr: "Sese katil" },
+    DEAFEN_MEMBERS: { en: "Deafen members", tr: "Uyeleri sagirlastir" },
+    KICK_MEMBERS: { en: "Kick members", tr: "Uyeleri at" },
+    MANAGE_CHANNELS: { en: "Manage channels", tr: "Kanallari yonet" },
+    MANAGE_INVITES: { en: "Manage invites", tr: "Davetleri yonet" },
+    MANAGE_MESSAGES: { en: "Manage messages", tr: "Mesajlari yonet" },
+    MANAGE_ROLES: { en: "Manage roles", tr: "Rolleri yonet" },
+    MANAGE_SERVER: { en: "Manage server", tr: "Sunucuyu yonet" },
+    MOVE_MEMBERS: { en: "Move members", tr: "Uyeleri tasi" },
+    MUTE_MEMBERS: { en: "Mute members", tr: "Uyeleri sustur" },
+    SEND_MESSAGES: { en: "Send messages", tr: "Mesaj gonder" },
+    SPEAK: { en: "Speak", tr: "Konus" },
+    STREAM: { en: "Screen share", tr: "Ekran paylas" },
+    TIMEOUT_MEMBERS: { en: "Timeout members", tr: "Uyeleri mola moduna al" },
+    USE_GIFS: { en: "Use GIFs", tr: "GIF kullan" },
+    USE_VIDEO: { en: "Use camera", tr: "Kamera kullan" },
+    VIEW_AUDIT_LOG: { en: "View audit log", tr: "Denetim kaydini gor" },
+    VIEW_CHANNEL: { en: "View channels", tr: "Kanallari gor" },
+  };
+
+  return labels[key][locale === "tr" ? "tr" : "en"];
+}
+
+function getAssignableRoles(roles: WorkspaceRole[], isOwner: boolean) {
+  return roles.filter(
+    (role) => !role.isDefault && !role.managed && (isOwner || !isElevatedRole(role)),
+  );
+}
+
+function getMemberAssignableRoleIds(member: WorkspaceMember, roles: WorkspaceRole[]) {
+  const roleIds = new Set(roles.map((role) => role.id));
+  return member.roles.map((role) => role.id).filter((roleId) => roleIds.has(roleId));
+}
+
 export function ServerSettingsOverlay({
   detail,
   onOpenDeleteServer,
@@ -66,19 +240,11 @@ export function ServerSettingsOverlay({
   const [tab, setTab] = useState<SettingsTab>("overview");
   const [name, setName] = useState(detail?.server.name ?? "");
   const [shortName, setShortName] = useState(detail?.server.shortName ?? "");
-  const [description, setDescription] = useState(
-    detail?.server.description ?? "",
-  );
-  const [iconUrl, setIconUrl] = useState<string | null>(
-    detail?.server.iconUrl ?? null,
-  );
+  const [description, setDescription] = useState(detail?.server.description ?? "");
+  const [iconUrl, setIconUrl] = useState<string | null>(detail?.server.iconUrl ?? null);
   const [allowGifs, setAllowGifs] = useState(detail?.server.allowGifs ?? true);
-  const [allowFileUploads, setAllowFileUploads] = useState(
-    detail?.server.allowFileUploads ?? true,
-  );
-  const [allowMemberAdds, setAllowMemberAdds] = useState(
-    detail?.server.allowMemberAdds ?? true,
-  );
+  const [allowFileUploads, setAllowFileUploads] = useState(detail?.server.allowFileUploads ?? true);
+  const [allowMemberAdds, setAllowMemberAdds] = useState(detail?.server.allowMemberAdds ?? true);
   const [messageCharacterLimit, setMessageCharacterLimit] = useState(
     detail?.server.messageCharacterLimit ?? 2000,
   );
@@ -86,11 +252,22 @@ export function ServerSettingsOverlay({
     detail?.server.deletedMessageNoticeMinutes ?? 60,
   );
   const [overviewSaved, setOverviewSaved] = useState(false);
+  const [roleEditorId, setRoleEditorId] = useState<string | null>(null);
+  const [roleName, setRoleName] = useState("");
+  const [roleColor, setRoleColor] = useState<number>(DEFAULT_ROLE_COLOR);
+  const [roleMentionable, setRoleMentionable] = useState(false);
+  const [rolePermissions, setRolePermissions] =
+    useState<WorkspacePermissionKey[]>(DEFAULT_ROLE_PERMISSIONS);
 
   useEffect(() => {
     if (!open) {
       setTab("overview");
       setOverviewSaved(false);
+      setRoleEditorId(null);
+      setRoleName("");
+      setRoleColor(DEFAULT_ROLE_COLOR);
+      setRoleMentionable(false);
+      setRolePermissions(DEFAULT_ROLE_PERMISSIONS);
       return;
     }
 
@@ -180,8 +357,7 @@ export function ServerSettingsOverlay({
                   allowGifs: updatedDetail.server.allowGifs,
                   allowMemberAdds: updatedDetail.server.allowMemberAdds,
                   messageCharacterLimit: updatedDetail.server.messageCharacterLimit,
-                  deletedMessageNoticeMinutes:
-                    updatedDetail.server.deletedMessageNoticeMinutes,
+                  deletedMessageNoticeMinutes: updatedDetail.server.deletedMessageNoticeMinutes,
                   iconUrl: updatedDetail.server.iconUrl,
                   name: updatedDetail.server.name,
                   shortName: updatedDetail.server.shortName,
@@ -202,6 +378,74 @@ export function ServerSettingsOverlay({
       }
       savedTimerRef.current = setTimeout(() => setOverviewSaved(false), 2400);
     },
+  });
+
+  const resetRoleEditor = () => {
+    setRoleEditorId(null);
+    setRoleName("");
+    setRoleColor(DEFAULT_ROLE_COLOR);
+    setRoleMentionable(false);
+    setRolePermissions(DEFAULT_ROLE_PERMISSIONS);
+  };
+
+  const invalidateServerDetail = async () => {
+    if (!detail) {
+      return;
+    }
+
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.server(detail.server.id),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.servers,
+      }),
+    ]);
+  };
+
+  const saveRoleMutation = useMutation({
+    mutationFn: async () => {
+      if (!detail) {
+        return null;
+      }
+
+      const input = {
+        color: roleColor,
+        mentionable: roleMentionable,
+        name: roleName,
+        permissions: rolePermissions,
+      };
+
+      return roleEditorId
+        ? updateWorkspaceRoleRequest(detail.server.id, roleEditorId, input)
+        : createWorkspaceRoleRequest(detail.server.id, input);
+    },
+    onSuccess: async () => {
+      resetRoleEditor();
+      await invalidateServerDetail();
+    },
+  });
+
+  const deleteRoleMutation = useMutation({
+    mutationFn: async (roleId: string) => {
+      if (!detail) {
+        return;
+      }
+
+      return deleteWorkspaceRoleRequest(detail.server.id, roleId);
+    },
+    onSuccess: invalidateServerDetail,
+  });
+
+  const memberRolesMutation = useMutation({
+    mutationFn: async ({ memberId, roleIds }: { memberId: string; roleIds: string[] }) => {
+      if (!detail) {
+        return;
+      }
+
+      return updateWorkspaceMemberRolesRequest(detail.server.id, memberId, { roleIds });
+    },
+    onSuccess: invalidateServerDetail,
   });
 
   const revokeInviteMutation = useMutation({
@@ -246,8 +490,14 @@ export function ServerSettingsOverlay({
     return null;
   }
 
-  const tabs: Array<{ id: SettingsTab; label: string }> = [
+  const roles = detail.roles;
+  const assignableRoles = getAssignableRoles(roles, detail.server.isOwner);
+  const isEditingRole = Boolean(roleEditorId);
+  const selectedPermissionCount = rolePermissions.length;
+
+  const tabs: Array<{ id: SettingsTab; label: string; preview?: boolean }> = [
     { id: "overview", label: t("serverSettings.tab.overview") },
+    { id: "roles", label: t("serverSettings.tab.roles"), preview: true },
     { id: "members", label: t("serverSettings.tab.members") },
     { id: "invites", label: t("serverSettings.tab.invites") },
     { id: "danger", label: t("serverSettings.tab.danger") },
@@ -300,7 +550,14 @@ export function ServerSettingsOverlay({
                     onClick={() => setTab(item.id)}
                     type="button"
                   >
-                    <span>{item.label}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate">{item.label}</span>
+                      {item.preview ? (
+                        <span className="rounded-full border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.12)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[hsl(var(--primary))]">
+                          {t("common.preview")}
+                        </span>
+                      ) : null}
+                    </span>
                     {item.id === "danger" ? <Trash2 className="h-4 w-4" /> : null}
                   </button>
                 ))}
@@ -317,9 +574,16 @@ export function ServerSettingsOverlay({
               <div className="mx-auto max-w-4xl">
                 <div className="mb-5 flex items-start justify-between gap-4 md:mb-8 md:items-center">
                   <div>
-                    <h2 className="text-app-foreground text-2xl font-semibold tracking-tight md:text-3xl">
-                      {tabs.find((item) => item.id === tab)?.label}
-                    </h2>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-app-foreground text-2xl font-semibold tracking-tight md:text-3xl">
+                        {tabs.find((item) => item.id === tab)?.label}
+                      </h2>
+                      {tab === "roles" ? (
+                        <span className="rounded-full border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[hsl(var(--primary))]">
+                          {t("common.preview")}
+                        </span>
+                      ) : null}
+                    </div>
                     <p className="text-app-muted mt-2 text-sm">
                       {t("serverSettings.manageDescription")}
                     </p>
@@ -363,7 +627,9 @@ export function ServerSettingsOverlay({
                           maxLength={4}
                           onChange={(event) =>
                             setShortName(
-                              Array.from(event.target.value.trim().toUpperCase()).slice(0, 4).join(""),
+                              Array.from(event.target.value.trim().toUpperCase())
+                                .slice(0, 4)
+                                .join(""),
                             )
                           }
                           placeholder={t("serverSettings.serverShortNamePlaceholder")}
@@ -481,10 +747,7 @@ export function ServerSettingsOverlay({
                           </p>
                         </div>
                         <div className="w-full md:w-[13rem]">
-                          <label
-                            className="sr-only"
-                            htmlFor="server-deleted-message-notice"
-                          >
+                          <label className="sr-only" htmlFor="server-deleted-message-notice">
                             {t("workspace.messages.deletedNoticeTitle")}
                           </label>
                           <select
@@ -529,7 +792,9 @@ export function ServerSettingsOverlay({
                         onClick={() => updateMutation.mutate()}
                         type="button"
                       >
-                        {updateMutation.isPending ? t("common.saving") : t("serverSettings.saveOverview")}
+                        {updateMutation.isPending
+                          ? t("common.saving")
+                          : t("serverSettings.saveOverview")}
                       </Button>
                     </div>
                     {overviewSaved ? (
@@ -546,6 +811,371 @@ export function ServerSettingsOverlay({
                         </p>
                       </div>
                     ) : null}
+                  </div>
+                ) : null}
+
+                {tab === "roles" ? (
+                  <div className="space-y-5">
+                    <section className="app-panel overflow-hidden rounded-[32px] border p-5 sm:p-6">
+                      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="flex items-start gap-4">
+                          <div className="app-panel-soft flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border text-[hsl(var(--primary))] shadow-[0_18px_40px_hsl(var(--primary)/0.12)]">
+                            <ShieldCheck className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.24em]">
+                              {t("serverSettings.tab.roles")}
+                            </p>
+                            <h3 className="text-app-foreground mt-2 text-2xl font-semibold tracking-tight">
+                              {t("serverSettings.roles.overviewTitle")}
+                            </h3>
+                            <p className="text-app-muted mt-2 max-w-2xl text-sm leading-6">
+                              {t("serverSettings.roles.overviewDescription")}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[24rem]">
+                          {[
+                            {
+                              label: t("serverSettings.roles.totalRoles"),
+                              value: roles.length,
+                            },
+                            {
+                              label: t("serverSettings.roles.assignableRoles"),
+                              value: assignableRoles.length,
+                            },
+                            {
+                              label: t("serverSettings.roles.selectedPermissions"),
+                              value: selectedPermissionCount,
+                            },
+                          ].map((item) => (
+                            <div
+                              className="app-panel-soft rounded-[22px] border px-4 py-3"
+                              key={item.label}
+                            >
+                              <p className="text-app-soft text-[10px] font-semibold uppercase tracking-[0.2em]">
+                                {item.label}
+                              </p>
+                              <p className="text-app-foreground mt-1 text-2xl font-semibold">
+                                {item.value}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="app-panel rounded-[32px] border p-4 sm:p-6">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0">
+                          <h3 className="text-app-foreground text-xl font-semibold">
+                            {isEditingRole
+                              ? t("serverSettings.roles.editTitle")
+                              : t("serverSettings.roles.createTitle")}
+                          </h3>
+                          <p className="text-app-muted mt-2 max-w-3xl text-sm leading-6">
+                            {t("serverSettings.roles.createDescription")}
+                          </p>
+                        </div>
+                        <div className="app-panel-soft flex shrink-0 items-center gap-3 rounded-[22px] border px-4 py-3">
+                          <span
+                            className="h-9 w-9 rounded-2xl border border-white/40 shadow-sm"
+                            style={{
+                              backgroundColor: `#${roleColor.toString(16).padStart(6, "0")}`,
+                            }}
+                          />
+                          <div>
+                            <p className="text-app-soft text-[10px] font-semibold uppercase tracking-[0.2em]">
+                              {t("serverSettings.roles.selectedPermissions")}
+                            </p>
+                            <p className="text-app-foreground text-sm font-semibold">
+                              {selectedPermissionCount}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(280px,0.8fr),minmax(0,1.2fr)]">
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+                              {t("serverSettings.roles.roleName")}
+                            </label>
+                            <Input
+                              className="mt-2"
+                              maxLength={48}
+                              onChange={(event) => setRoleName(event.target.value)}
+                              placeholder={t("serverSettings.roles.roleNamePlaceholder")}
+                              value={roleName}
+                            />
+                          </div>
+
+                          <div className="app-panel-soft rounded-[24px] border p-4">
+                            <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+                              {t("serverSettings.roles.color")}
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {ROLE_COLOR_OPTIONS.map((color) => (
+                                <button
+                                  aria-label={`#${color.toString(16).padStart(6, "0")}`}
+                                  className={`h-10 w-10 rounded-2xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] ${
+                                    roleColor === color
+                                      ? "border-[hsl(var(--foreground)/0.72)] ring-4 ring-[hsl(var(--ring)/0.16)]"
+                                      : "border-[hsl(var(--border)/0.68)]"
+                                  }`}
+                                  key={color}
+                                  onClick={() => setRoleColor(color)}
+                                  style={{
+                                    backgroundColor: `#${color.toString(16).padStart(6, "0")}`,
+                                  }}
+                                  type="button"
+                                />
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+                              {t("serverSettings.roles.presets")}
+                            </p>
+                            <div className="mt-3 grid gap-3">
+                              {ROLE_PERMISSION_PRESETS.map((preset) => (
+                                <button
+                                  className="app-panel-soft rounded-[24px] border p-4 text-left transition hover:border-[hsl(var(--primary)/0.36)] hover:bg-[hsl(var(--primary)/0.08)] disabled:cursor-not-allowed disabled:opacity-45"
+                                  disabled={preset.ownerOnly && !detail.server.isOwner}
+                                  key={preset.id}
+                                  onClick={() => {
+                                    setRolePermissions(preset.permissions);
+                                    if (!roleName.trim()) {
+                                      setRoleName(t(preset.labelKey));
+                                    }
+                                    if (preset.id === "moderator") {
+                                      setRoleColor(MODERATOR_ROLE_COLOR);
+                                    }
+                                  }}
+                                  type="button"
+                                >
+                                  <span className="text-app-foreground block text-sm font-semibold">
+                                    {t(preset.labelKey)}
+                                  </span>
+                                  <span className="text-app-muted mt-1 block text-xs leading-5">
+                                    {t(preset.descriptionKey)}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <button
+                            aria-checked={roleMentionable}
+                            className="app-panel-soft flex w-full items-center justify-between gap-4 rounded-[24px] border p-4 text-left transition hover:border-[hsl(var(--primary)/0.28)]"
+                            onClick={() => setRoleMentionable((value) => !value)}
+                            role="switch"
+                            type="button"
+                          >
+                            <span className="min-w-0">
+                              <span className="text-app-foreground block text-sm font-semibold">
+                                {t("serverSettings.roles.mentionable")}
+                              </span>
+                              <span className="text-app-muted mt-1 block text-xs leading-5">
+                                {t("serverSettings.roles.mentionableDescription")}
+                              </span>
+                            </span>
+                            <span
+                              className={`relative h-7 w-12 shrink-0 rounded-full border transition ${
+                                roleMentionable
+                                  ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.18)]"
+                                  : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]"
+                              }`}
+                            >
+                              <span
+                                className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition ${
+                                  roleMentionable ? "translate-x-5 bg-[hsl(var(--primary))]" : ""
+                                }`}
+                              />
+                            </span>
+                          </button>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                              <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+                                {t("serverSettings.roles.permissions")}
+                              </p>
+                              <p className="text-app-muted mt-1 text-xs leading-5">
+                                {t("serverSettings.roles.permissionDescription")}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-3 lg:grid-cols-2">
+                            {ROLE_PERMISSION_GROUPS.map((group) => (
+                              <div
+                                className="app-panel-soft rounded-[26px] border p-4"
+                                key={group.id}
+                              >
+                                <p className="text-app-soft text-[11px] font-semibold uppercase tracking-[0.2em]">
+                                  {t(group.labelKey)}
+                                </p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {group.keys.map((key) => {
+                                    const selected = rolePermissions.includes(key);
+                                    const elevated = ELEVATED_ROLE_KEYS.includes(key);
+                                    const disabled = elevated && !detail.server.isOwner;
+
+                                    return (
+                                      <button
+                                        className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-45 ${
+                                          selected
+                                            ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.13)] text-app-foreground"
+                                            : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground"
+                                        }`}
+                                        disabled={disabled}
+                                        key={key}
+                                        onClick={() =>
+                                          setRolePermissions((current) =>
+                                            current.includes(key)
+                                              ? current.filter((permission) => permission !== key)
+                                              : [...current, key],
+                                          )
+                                        }
+                                        type="button"
+                                      >
+                                        {getPermissionLabel(key, locale)}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {saveRoleMutation.error ? (
+                        <div className="app-danger mt-5 rounded-[22px] border p-3 text-sm font-medium">
+                          {t("serverSettings.roles.saveError")}
+                        </div>
+                      ) : null}
+
+                      <div className="mt-5 flex flex-col-reverse gap-2 border-t border-[hsl(var(--border)/0.54)] pt-5 sm:flex-row sm:justify-end">
+                        {isEditingRole ? (
+                          <Button
+                            className="w-full sm:w-auto"
+                            onClick={resetRoleEditor}
+                            type="button"
+                            variant="outline"
+                          >
+                            {t("common.cancel")}
+                          </Button>
+                        ) : null}
+                        <Button
+                          className="w-full sm:w-auto"
+                          disabled={saveRoleMutation.isPending || roleName.trim().length < 1}
+                          onClick={() => saveRoleMutation.mutate()}
+                          type="button"
+                        >
+                          {saveRoleMutation.isPending
+                            ? t("common.saving")
+                            : isEditingRole
+                              ? t("serverSettings.roles.saveRole")
+                              : t("serverSettings.roles.createRole")}
+                        </Button>
+                      </div>
+                    </section>
+
+                    <section className="space-y-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                          <h3 className="text-app-foreground text-xl font-semibold">
+                            {t("serverSettings.roles.roleLibrary")}
+                          </h3>
+                          <p className="text-app-muted mt-1 max-w-3xl text-sm leading-6">
+                            {t("serverSettings.roles.roleLibraryDescription")}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3 xl:grid-cols-2">
+                        {roles.map((role) => {
+                          const canMutateRole = !isProtectedRole(role);
+                          const visiblePermissions = ROLE_PERMISSION_GROUPS.flatMap(
+                            (group) => group.keys,
+                          ).filter((key) => hasPermissionKey(role, key));
+
+                          return (
+                            <div className="app-panel rounded-[28px] border p-4" key={role.id}>
+                              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span
+                                      className="h-3 w-3 rounded-full"
+                                      style={{
+                                        backgroundColor: `#${role.color.toString(16).padStart(6, "0")}`,
+                                      }}
+                                    />
+                                    <h3 className="text-app-foreground min-w-0 truncate text-base font-semibold">
+                                      {role.name}
+                                    </h3>
+                                    {role.isDefault ? (
+                                      <Badge tone="muted">@everyone</Badge>
+                                    ) : isElevatedRole(role) ? (
+                                      <Badge>Admin</Badge>
+                                    ) : null}
+                                    {!canMutateRole ? (
+                                      <Badge tone="muted">
+                                        {t("serverSettings.roles.protected")}
+                                      </Badge>
+                                    ) : null}
+                                  </div>
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    {visiblePermissions.length > 0 ? (
+                                      visiblePermissions.slice(0, 10).map((key) => (
+                                        <Badge key={key} tone="muted">
+                                          {getPermissionLabel(key, locale)}
+                                        </Badge>
+                                      ))
+                                    ) : (
+                                      <Badge tone="muted">
+                                        {t("serverSettings.roles.noPermissions")}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex shrink-0 gap-2">
+                                  {canMutateRole ? (
+                                    <button
+                                      className="app-panel-soft text-app-foreground inline-flex min-h-10 items-center justify-center rounded-2xl border px-3 text-sm font-semibold transition hover:opacity-90"
+                                      onClick={() => {
+                                        setRoleEditorId(role.id);
+                                        setRoleName(role.name);
+                                        setRoleColor(role.color);
+                                        setRoleMentionable(role.mentionable);
+                                        setRolePermissions(role.permissions);
+                                      }}
+                                      type="button"
+                                    >
+                                      {t("common.edit")}
+                                    </button>
+                                  ) : null}
+                                  {canMutateRole ? (
+                                    <button
+                                      className="app-danger inline-flex min-h-10 items-center justify-center rounded-2xl border px-3 text-sm font-semibold transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                                      disabled={deleteRoleMutation.isPending}
+                                      onClick={() => deleteRoleMutation.mutate(role.id)}
+                                      type="button"
+                                    >
+                                      {t("common.delete")}
+                                    </button>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
                   </div>
                 ) : null}
 
@@ -566,9 +1196,7 @@ export function ServerSettingsOverlay({
                           <p className="text-app-foreground truncate text-sm font-semibold">
                             {member.displayName}
                           </p>
-                          <p className="text-app-soft truncate text-xs">
-                            @{member.username}
-                          </p>
+                          <p className="text-app-soft truncate text-xs">@{member.username}</p>
                         </div>
                         <div className="flex w-full flex-wrap gap-2 sm:w-auto">
                           <Badge>{member.accessLevel}</Badge>
@@ -578,6 +1206,41 @@ export function ServerSettingsOverlay({
                             </Badge>
                           ))}
                         </div>
+                        {assignableRoles.length > 0 && member.accessLevel !== "OWNER" ? (
+                          <div className="flex w-full flex-wrap gap-2 sm:max-w-[18rem]">
+                            {assignableRoles.map((role) => {
+                              const selectedRoleIds = getMemberAssignableRoleIds(
+                                member,
+                                assignableRoles,
+                              );
+                              const selected = selectedRoleIds.includes(role.id);
+
+                              return (
+                                <button
+                                  className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-45 ${
+                                    selected
+                                      ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.13)] text-app-foreground"
+                                      : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground"
+                                  }`}
+                                  disabled={memberRolesMutation.isPending}
+                                  key={role.id}
+                                  onClick={() =>
+                                    memberRolesMutation.mutate({
+                                      memberId: member.id,
+                                      roleIds: selected
+                                        ? selectedRoleIds.filter((roleId) => roleId !== role.id)
+                                        : [...selectedRoleIds, role.id],
+                                    })
+                                  }
+                                  type="button"
+                                >
+                                  {selected ? "On " : ""}
+                                  {role.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : null}
                         {detail.server.isOwner && member.accessLevel !== "OWNER" ? (
                           <button
                             className="app-danger inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] sm:w-auto"

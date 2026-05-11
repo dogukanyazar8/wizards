@@ -96,7 +96,7 @@ export function TurnstileWidget({ onTokenChange, siteKey }: TurnstileWidgetProps
   if (!siteKey) {
     return (
       <div
-        className="rounded-2xl border border-[hsl(var(--danger)/0.35)] bg-[hsl(var(--danger)/0.08)] px-4 py-3 text-sm text-[hsl(var(--danger))]"
+        className="auth-reference-turnstile-state is-error"
         role="alert"
       >
         {t("auth.turnstile.notConfigured")}
@@ -105,7 +105,7 @@ export function TurnstileWidget({ onTokenChange, siteKey }: TurnstileWidgetProps
   }
 
   return (
-    <div className="space-y-2">
+    <div className="auth-reference-turnstile-shell">
       <Script
         id="cloudflare-turnstile"
         onError={() => {
@@ -119,21 +119,21 @@ export function TurnstileWidget({ onTokenChange, siteKey }: TurnstileWidgetProps
       <div
         aria-busy={!scriptReady && !scriptFailed}
         aria-label={t("auth.turnstile.label")}
-        className="overflow-hidden rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.32)] p-3"
+        className="auth-reference-turnstile-box"
       >
-        <div className="min-h-[65px]" ref={containerRef} />
+        <div className="auth-reference-turnstile-mount" ref={containerRef} />
         {!scriptReady && !scriptFailed ? (
-          <p className="text-app-soft text-xs" role="status">
+          <p className="auth-reference-turnstile-state" role="status">
             {t("auth.turnstile.loading")}
           </p>
         ) : null}
         {scriptFailed ? (
-          <p className="text-app-danger text-xs" role="alert">
+          <p className="auth-reference-turnstile-state is-error" role="alert">
             {t("auth.turnstile.unavailable")}
           </p>
         ) : null}
       </div>
-      <p className="text-app-soft text-xs">{t("auth.turnstile.help")}</p>
+      <p className="auth-reference-turnstile-help">{t("auth.turnstile.help")}</p>
     </div>
   );
 }

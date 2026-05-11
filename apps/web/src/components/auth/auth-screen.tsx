@@ -3,9 +3,9 @@
 import {
   ArrowRight,
   BriefcaseBusiness,
-  Check,
   CheckCircle2,
   ChevronDown,
+  FlaskConical,
   Gamepad2,
   Globe2,
   Moon,
@@ -26,6 +26,10 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
 } from "react";
+import {
+  AudienceSelector,
+  type AudienceSelectorValue,
+} from "@/components/auth/audience-selector";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
   DEFAULT_WIZARDS_THEME,
@@ -38,6 +42,7 @@ import { cn } from "@/lib/utils";
 
 type AuthVariant = "login" | "register";
 type AudienceTone = "team" | "personal" | "gamer";
+type BetaNoticeVariant = "compact" | "hero";
 
 const LANGUAGE_OPTIONS: AppLocale[] = ["tr", "en"];
 const LOGO_BAR_HEIGHTS = [17, 25, 34, 24, 18];
@@ -237,6 +242,37 @@ export function ProfileCards() {
   );
 }
 
+function BetaNotice({ variant }: { variant: BetaNoticeVariant }) {
+  const { t } = useI18n();
+  const isCompact = variant === "compact";
+  const titleKey = isCompact
+    ? "auth.layout.beta.compactTitle"
+    : "auth.layout.beta.heroTitle";
+  const descriptionKey = isCompact
+    ? "auth.layout.beta.compactDescription"
+    : "auth.layout.beta.heroDescription";
+
+  return (
+    <aside
+      className={cn("auth-reference-beta-notice", `is-${variant}`)}
+      aria-label={t("auth.layout.beta.ariaLabel")}
+    >
+      <div className="auth-reference-beta-topline">
+        <span className="auth-reference-beta-icon" aria-hidden="true">
+          <FlaskConical className="h-4 w-4" />
+        </span>
+        <div className="auth-reference-beta-copy">
+          <div className="auth-reference-beta-title-row">
+            <span className="auth-reference-beta-badge">{t("auth.layout.beta.badge")}</span>
+            <strong>{t(titleKey)}</strong>
+          </div>
+          <p>{t(descriptionKey)}</p>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 export function FooterSecurity() {
   const { t } = useI18n();
 
@@ -287,14 +323,19 @@ export function HeroSection({ variant }: { variant: AuthVariant }) {
 
   return (
     <section className="auth-reference-hero" aria-label="Whispr">
-      <div className="auth-reference-copy" aria-live="polite">
-        <div className="auth-reference-copy-frame" key={`${variant}-${copyIndex}`}>
+      <div className="auth-reference-copy">
+        <div
+          className="auth-reference-copy-frame"
+          key={`${variant}-${copyIndex}`}
+          aria-live="polite"
+        >
           <h1>
             <span>{t(`${copyKey}.titleLineOne`)}</span>
             <span className="auth-reference-title-gradient">{t(`${copyKey}.titleLineTwo`)}</span>
           </h1>
           <p>{t(`${copyKey}.description`)}</p>
         </div>
+        <BetaNotice variant="hero" />
       </div>
 
       <div className="auth-reference-hero-art" aria-hidden="true" />
@@ -303,57 +344,26 @@ export function HeroSection({ variant }: { variant: AuthVariant }) {
   );
 }
 
-export function UserTypeSelector() {
-  const { t } = useI18n();
-  const [selectedAudience, setSelectedAudience] = useState<AudienceTone>("personal");
-
-  return (
-    <div className="auth-reference-user-types">
-      {AUDIENCES.map(({ icon: Icon, key, titleKey }) => {
-        const selected = selectedAudience === key;
-
-        return (
-          <button
-            aria-pressed={selected}
-            className={cn("auth-reference-user-type-card", selected && "is-selected")}
-            key={key}
-            onClick={() => setSelectedAudience(key)}
-            type="button"
-          >
-            {selected ? (
-              <span className="auth-reference-check-badge" aria-hidden="true">
-                <Check className="h-3.5 w-3.5" />
-              </span>
-            ) : null}
-            <span className={cn("auth-reference-icon-bubble", AUDIENCE_ICON_CLASS[key])}>
-              <Icon className="h-8 w-8" />
-            </span>
-            <span>{t(titleKey)}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 export function AuthCard({ children, variant }: { children: ReactNode; variant: AuthVariant }) {
   const { t } = useI18n();
   const isRegister = variant === "register";
+  const [selectedAudience, setSelectedAudience] = useState<AudienceSelectorValue>("individual");
 
   return (
     <section className="auth-reference-card" data-auth-card-variant={variant}>
       <div className="auth-reference-card-header">
-        <h2>{t(isRegister ? "auth.register.title" : "auth.layout.audience.heading")}</h2>
-        {isRegister ? <p>{t("auth.register.description")}</p> : null}
+        <h2>{t(isRegister ? "auth.register.title" : "auth.login.title")}</h2>
+        <p>{t(isRegister ? "auth.register.description" : "auth.login.description")}</p>
       </div>
 
-      <UserTypeSelector />
+      <AudienceSelector value={selectedAudience} onChange={setSelectedAudience} />
 
       {!isRegister ? (
         <p className="auth-reference-user-type-note">{t("auth.layout.audience.note")}</p>
       ) : null}
 
       {children}
+      <BetaNotice variant="compact" />
     </section>
   );
 }

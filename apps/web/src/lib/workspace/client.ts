@@ -5,10 +5,19 @@ import {
   WorkspaceServerResponseSchema,
   WorkspaceServersResponseSchema,
   WorkspaceMembersResponseSchema,
+  WorkspaceChannelPermissionSettingsSchema,
+  WorkspaceRoleSchema,
   ChatMessageSchema,
+  type CreateChannelInput,
+  type CreateWorkspaceRoleInput,
   type UpdateChannelInput,
+  type UpdateWorkspaceChannelPermissionsInput,
+  type UpdateWorkspaceMemberRolesInput,
+  type UpdateWorkspaceRoleInput,
   type WorkspaceCategory,
   type WorkspaceChannel,
+  type WorkspaceChannelPermissionSettings,
+  type WorkspaceRole,
   type WorkspaceServerDetail,
   type WorkspaceServerSummary,
 } from "@wizards/types";
@@ -32,6 +41,9 @@ export const workspaceQueryKeys = {
   root: ["workspace"] as const,
   pinnedMessages: (channelId: string) =>
     ["workspace", "channel", channelId, "pinned-messages"] as const,
+  channelPermissions: (channelId: string) =>
+    ["workspace", "channel", channelId, "permissions"] as const,
+  roles: (serverId: string) => ["workspace", "server", serverId, "roles"] as const,
   server: (serverId: string) => ["workspace", "server", serverId] as const,
   servers: ["workspace", "servers"] as const,
 };
@@ -42,6 +54,18 @@ const WorkspaceChannelPinnedMessagesResponseSchema = z.object({
 
 const WorkspaceChannelPinResponseSchema = z.object({
   message: ChatMessageSchema,
+});
+
+const WorkspaceRolesResponseSchema = z.object({
+  roles: z.array(WorkspaceRoleSchema),
+});
+
+const WorkspaceRoleResponseSchema = z.object({
+  role: WorkspaceRoleSchema,
+});
+
+const WorkspaceChannelPermissionsResponseSchema = z.object({
+  permissions: WorkspaceChannelPermissionSettingsSchema,
 });
 
 const ChannelNotificationSettingsResponseSchema = z.object({
@@ -203,6 +227,57 @@ export async function addServerMemberRequest(serverId: string, username: string)
   });
 }
 
+export async function fetchWorkspaceRoles(serverId: string): Promise<WorkspaceRole[]> {
+  const payload = await requestJson<unknown>(`/api/v1/servers/${serverId}/roles`);
+  return WorkspaceRolesResponseSchema.parse(payload).roles;
+}
+
+export async function createWorkspaceRoleRequest(
+  serverId: string,
+  input: CreateWorkspaceRoleInput,
+) {
+  const payload = await requestJson<unknown>(`/api/v1/servers/${serverId}/roles`, {
+    body: input,
+    method: "POST",
+  });
+  return WorkspaceRoleResponseSchema.parse(payload).role;
+}
+
+export async function updateWorkspaceRoleRequest(
+  serverId: string,
+  roleId: string,
+  input: UpdateWorkspaceRoleInput,
+) {
+  const payload = await requestJson<unknown>(
+    `/api/v1/servers/${serverId}/roles/${roleId}`,
+    {
+      body: input,
+      method: "PATCH",
+    },
+  );
+  return WorkspaceRoleResponseSchema.parse(payload).role;
+}
+
+export async function deleteWorkspaceRoleRequest(serverId: string, roleId: string) {
+  return requestJson<{ success: true }>(`/api/v1/servers/${serverId}/roles/${roleId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function updateWorkspaceMemberRolesRequest(
+  serverId: string,
+  memberId: string,
+  input: UpdateWorkspaceMemberRolesInput,
+) {
+  return requestJson<{ success: true }>(
+    `/api/v1/servers/${serverId}/members/${memberId}/roles`,
+    {
+      body: input,
+      method: "PATCH",
+    },
+  );
+}
+
 export async function createCategoryRequest(serverId: string, name: string) {
   return requestJson<{ id: string }>(`/api/v1/servers/${serverId}/categories`, {
     body: { name },
@@ -235,12 +310,7 @@ export async function deleteCategoryRequest(serverId: string, categoryId: string
 
 export async function createChannelRequest(
   serverId: string,
-  input: {
-    categoryId?: string | null;
-    name: string;
-    topic?: string | null;
-    type: "TEXT" | "VOICE";
-  },
+  input: CreateChannelInput,
 ) {
   return requestJson<{ id: string }>(`/api/v1/servers/${serverId}/channels`, {
     body: input,
@@ -253,6 +323,24 @@ export async function updateChannelRequest(channelId: string, input: UpdateChann
     body: input,
     method: "PATCH",
   });
+}
+
+export async function fetchChannelPermissionSettings(
+  channelId: string,
+): Promise<WorkspaceChannelPermissionSettings> {
+  const payload = await requestJson<unknown>(`/api/v1/channels/${channelId}/permissions`);
+  return WorkspaceChannelPermissionsResponseSchema.parse(payload).permissions;
+}
+
+export async function updateChannelPermissionSettings(
+  channelId: string,
+  input: UpdateWorkspaceChannelPermissionsInput,
+) {
+  const payload = await requestJson<unknown>(`/api/v1/channels/${channelId}/permissions`, {
+    body: input,
+    method: "PATCH",
+  });
+  return WorkspaceChannelPermissionsResponseSchema.parse(payload).permissions;
 }
 
 export async function deleteChannelRequest(channelId: string) {
