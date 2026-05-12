@@ -164,6 +164,26 @@ function flushWorkspacePerformanceMetrics(now = Date.now()) {
   nextFlushAt = now + getFlushIntervalMs();
 }
 
+export function resetWorkspacePerformanceMetricsForTest(now = Date.now()) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("resetWorkspacePerformanceMetricsForTest is not available in production.");
+  }
+
+  permissionCacheMetrics = createPermissionCacheMetrics();
+  unreadFanoutMetrics = createUnreadFanoutMetrics();
+  messageSendFanoutMetrics = createMessageSendFanoutMetrics();
+  windowStartedAt = now;
+  nextFlushAt = now + getFlushIntervalMs();
+}
+
+export function flushWorkspacePerformanceMetricsForTest(now = Date.now()) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("flushWorkspacePerformanceMetricsForTest is not available in production.");
+  }
+
+  flushWorkspacePerformanceMetrics(now);
+}
+
 function maybeFlushWorkspacePerformanceMetrics() {
   if (!isWorkspacePerformanceMetricsEnabled()) {
     return;

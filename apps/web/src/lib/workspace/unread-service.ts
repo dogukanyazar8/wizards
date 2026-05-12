@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 import { ChannelType, Prisma, prisma } from "@wizards/db";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { recordUnreadFanoutMetric } from "@/lib/workspace/performance-metrics";
-import { listChannelIdsForUserWithPermission } from "@/lib/workspace/permission-service";
+import {
+  listChannelIdsForUserWithPermission,
+  listChannelIdsForUsersWithPermission,
+} from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
 
 type ServerUnreadCountRow = {
@@ -40,26 +43,25 @@ function createUserCountMap(userIds: string[]) {
 
 async function getVisibleTextChannelIdsByUser(userIds: string[], serverId: string) {
   const uniqueUserIds = normalizeUserIds(userIds);
-  const entries = await Promise.all(
-    uniqueUserIds.map(async (userId) => {
-      const channelIds = await listChannelIdsForUserWithPermission(
-        userId,
-        serverId,
-        PermissionBits.VIEW_CHANNEL,
-        ChannelType.TEXT,
-      ).catch(() => []);
+  const visibleChannelIdsByUser = await listChannelIdsForUsersWithPermission(
+    uniqueUserIds,
+    serverId,
+    PermissionBits.VIEW_CHANNEL,
+    ChannelType.TEXT,
+  ).catch(() => new Map<string, string[]>());
+  const entries = uniqueUserIds.map((userId) => {
+    const channelIds = visibleChannelIdsByUser.get(userId) ?? [];
 
-      return [
-        userId,
-        Array.from(new Set(channelIds.filter(Boolean))).sort(),
-      ] as const;
-    }),
-  );
+    return [
+      userId,
+      Array.from(new Set(channelIds.filter(Boolean))).sort(),
+    ] as const;
+  });
 
   return new Map(entries);
 }
 
-function groupUsersByVisibleChannelIds(
+export function groupUsersByVisibleChannelIds(
   visibleChannelIdsByUser: Map<string, string[]>,
 ): VisibleChannelUserGroup[] {
   const groups = new Map<string, VisibleChannelUserGroup>();
@@ -423,21 +425,16 @@ export async function markChannelReadStates(args: {
   `);
 }
 
-export function getActiveChannelViewerUserIds(channelId: string) {
+export async function getActiveChannelViewerUserIds(channelId: string) {
   const io = getSocketServer();
   if (!io) {
     return [];
   }
 
-  const room = io.sockets.adapter.rooms.get(channelId);
-  if (!room) {
-    return [];
-  }
-
+  const sockets = await io.in(channelId).fetchSockets();
   const userIds = new Set<string>();
-  for (const socketId of room) {
-    const socket = io.sockets.sockets.get(socketId);
-    if (socket?.data.userId) {
+  for (const socket of sockets) {
+    if (socket.data.userId) {
       userIds.add(socket.data.userId);
     }
   }

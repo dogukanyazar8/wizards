@@ -2997,7 +2997,7 @@ export async function addWorkspaceServerMemberByUsername(
   }
 
   if (result.message) {
-    const activeViewerUserIds = getActiveChannelViewerUserIds(result.message.channelId);
+    const activeViewerUserIds = await getActiveChannelViewerUserIds(result.message.channelId);
     await markChannelReadStates({
       channelId: result.message.channelId,
       lastReadAt: result.message.createdAt,
@@ -3279,7 +3279,7 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
     await invalidateMemberPermissionCache(invite.server.id, userId);
 
     if (transactionResult.message) {
-      const activeViewerUserIds = getActiveChannelViewerUserIds(
+      const activeViewerUserIds = await getActiveChannelViewerUserIds(
         transactionResult.message.channelId,
       );
       await markChannelReadStates({

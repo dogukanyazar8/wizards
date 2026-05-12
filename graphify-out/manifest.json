@@ -916,12 +916,12 @@
     "hash": "43486b69e26ad8e6798c2f2329fdceac"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\env.test.ts": {
-    "mtime": 1777980040.341093,
-    "hash": "b49792178c59c8853ce0056ff445ad8f"
+    "mtime": 1778599242.0786748,
+    "hash": "dc55573e1fe6a752bb3d93fbb96f41cd"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\env.ts": {
-    "mtime": 1777980040.3416226,
-    "hash": "4475a3b6cca5241046eb12b3168deb7a"
+    "mtime": 1778599218.9353404,
+    "hash": "97b81cf73eaf287ef0032aef7dca8916"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale.test.ts": {
     "mtime": 1777980040.3431418,
@@ -1204,8 +1204,8 @@
     "hash": "3ea94ca9266214f64da09a23348c6d86"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\server.ts": {
-    "mtime": 1778592026.014897,
-    "hash": "2abc75d382b2265fe0b2d14b800591d9"
+    "mtime": 1778595515.1891994,
+    "hash": "d073275de5e7a6bdb2a706af9934a388"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\client.ts": {
     "mtime": 1778586749.887674,
@@ -1239,17 +1239,29 @@
     "mtime": 1777980040.3541453,
     "hash": "8396821826c564480da5c717284f4831"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\performance-metrics.test.ts": {
+    "mtime": 1778599406.27426,
+    "hash": "814a8bc8dff073de9e2888ccfc175c42"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\performance-metrics.ts": {
-    "mtime": 1778587444.7217088,
-    "hash": "0a3c52f883daae66dab1ee36f89f16fb"
+    "mtime": 1778599273.9605007,
+    "hash": "79f7595b14b9d629296a10395ce6d82c"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\permission-cache.test.ts": {
+    "mtime": 1778598851.2877784,
+    "hash": "aa6d32fa294193edbbe8c2afd7aa54bd"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\permission-cache.ts": {
-    "mtime": 1778587601.9100451,
-    "hash": "99981688a17e1d02063103eba66c4851"
+    "mtime": 1778598840.2248688,
+    "hash": "565c53f0e1ec4f51c36faa40ad5513d5"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\permission-service.test.ts": {
+    "mtime": 1778597851.8413122,
+    "hash": "155e80118ae5f7a0511328c9d9e11abf"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\permission-service.ts": {
-    "mtime": 1778586870.130643,
-    "hash": "078ce4d734342c02d0d77052ff615e0f"
+    "mtime": 1778596955.007262,
+    "hash": "d2eb8c478a9b6f1b41434b885534e62c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\permissions.test.ts": {
     "mtime": 1778571008.1392589,
@@ -1264,12 +1276,16 @@
     "hash": "c515c550b07a2033af934e9cc88858a7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\service.ts": {
-    "mtime": 1778586741.582369,
-    "hash": "557159ba53c3e3b5e8c2b9c618ee8035"
+    "mtime": 1778595515.191199,
+    "hash": "e8dd64a015a086e6f8dea74a13bf82d9"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\unread-service.test.ts": {
+    "mtime": 1778597013.1912045,
+    "hash": "a63a44528c594885f0256f0c55589bbe"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\unread-service.ts": {
-    "mtime": 1778587484.2186277,
-    "hash": "f97c2c89eaaa88663d63a5df3ee71f40"
+    "mtime": 1778596974.298224,
+    "hash": "0680d852b62750be75f10a35ded273c6"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\store\\sound-store.ts": {
     "mtime": 1777995552.0682127,
@@ -1486,6 +1502,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\legal\\terms.txt": {
     "mtime": 1778571008.0972586,
     "hash": "42498f6fac417d448feb0fc1702b2846"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\docs\\operations\\workspace-performance-monitoring.md": {
+    "mtime": 1778599357.0385497,
+    "hash": "c32e59fae274f14ce9103a39a21a9513"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\docs\\prompts\\audit.md": {
     "mtime": 1777905283.8843613,

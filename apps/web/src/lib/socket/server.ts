@@ -939,9 +939,10 @@ export function initSocketServer(httpServer: HTTPServer) {
       event: EventName,
       ...args: Parameters<ServerToClientEvents[EventName]>
     ) {
+      const activeViewerUserIds = await getActiveChannelViewerUserIds(channelId);
       const viewerUserIds = await filterUserIdsByChannelPermission(
         channelId,
-        getActiveChannelViewerUserIds(channelId),
+        activeViewerUserIds,
         PermissionBits.VIEW_CHANNEL,
       );
 
@@ -1653,7 +1654,9 @@ export function initSocketServer(httpServer: HTTPServer) {
           data.threadParentId,
         );
         const messageCreatedAt = new Date(message.createdAt);
-        const activeChannelViewerCandidateUserIds = getActiveChannelViewerUserIds(data.channelId);
+        const activeChannelViewerCandidateUserIds = await getActiveChannelViewerUserIds(
+          data.channelId,
+        );
         const activeChannelViewerUserIds = await filterUserIdsByChannelPermission(
           data.channelId,
           activeChannelViewerCandidateUserIds,

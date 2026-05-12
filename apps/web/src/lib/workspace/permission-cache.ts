@@ -15,6 +15,19 @@ import {
 const PERMISSION_CACHE_TTL_SECONDS = 45;
 const PERMISSION_CACHE_VERSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
+type PermissionCachePipeline = {
+  exec(): Promise<unknown>;
+  expire(key: string, seconds: number): PermissionCachePipeline;
+  incr(key: string): PermissionCachePipeline;
+  set(key: string, value: string, mode: "EX", seconds: number): PermissionCachePipeline;
+};
+
+type PermissionCacheRedis = {
+  mget(...keys: string[]): Promise<Array<string | null>>;
+  pipeline(): PermissionCachePipeline;
+  status?: string;
+};
+
 type PermissionCacheRole = {
   id?: string;
   isDefault?: boolean | null;
@@ -69,17 +82,35 @@ export type CachedChannelPermissionSnapshot = {
   permissions: bigint;
 };
 
+let permissionCacheRedisForTest: PermissionCacheRedis | null = null;
+
 function isPermissionCacheEnabled() {
-  return process.env.NODE_ENV !== "test" && process.env.PERMISSION_CACHE_DISABLED !== "true";
+  if (process.env.PERMISSION_CACHE_DISABLED === "true") {
+    return false;
+  }
+  if (process.env.PERMISSION_CACHE_ENABLED === "true") {
+    return true;
+  }
+  return process.env.NODE_ENV !== "test";
 }
 
 function getReadyRedis() {
   if (!isPermissionCacheEnabled()) {
     return null;
   }
+  if (permissionCacheRedisForTest) {
+    return permissionCacheRedisForTest;
+  }
 
   const redis = getRedis();
-  return redis.status === "ready" ? redis : null;
+  return redis.status === "ready" ? (redis as PermissionCacheRedis) : null;
+}
+
+export function setPermissionCacheRedisForTest(redis: PermissionCacheRedis | null) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("setPermissionCacheRedisForTest is not available in production.");
+  }
+  permissionCacheRedisForTest = redis;
 }
 
 function permissionValueToString(permission: PermissionKey | PermissionValue) {
@@ -301,18 +332,6 @@ async function readRevisionMap(keys: string[]) {
   return new Map(keys.map((key, index) => [key, parseVersion(values[index] ?? null)]));
 }
 
-async function getRevisions(serverId: string, userId: string) {
-  const revisions = await readRevisionMap([
-    serverVersionKey(serverId),
-    memberVersionKey(serverId, userId),
-  ]);
-
-  return {
-    memberVersion: revisions.get(memberVersionKey(serverId, userId)) ?? "0",
-    serverVersion: revisions.get(serverVersionKey(serverId)) ?? "0",
-  };
-}
-
 export async function readCachedChannelPermissionSnapshot(
   userId: string,
   channelId: string,
@@ -497,41 +516,133 @@ export async function readCachedVisibleChannelIds(args: {
   type?: ChannelType;
   userId: string;
 }) {
+  const cached = await readCachedVisibleChannelIdsBatch({
+    permission: args.permission,
+    serverId: args.serverId,
+    userIds: [args.userId],
+    ...(args.type !== undefined ? { type: args.type } : {}),
+  });
+
+  return cached.get(args.userId) ?? null;
+}
+
+export async function readCachedVisibleChannelIdsBatch(args: {
+  permission: PermissionKey | PermissionValue;
+  serverId: string;
+  type?: ChannelType;
+  userIds: string[];
+}) {
+  const channelIdsByUser = new Map<string, string[]>();
+  const uniqueUserIds = Array.from(new Set(args.userIds.filter(Boolean)));
   const redis = getReadyRedis();
-  if (!redis) {
-    recordPermissionCacheMetric({ area: "visibleChannelList", event: "bypass" });
-    return null;
+  if (!redis || uniqueUserIds.length === 0) {
+    if (uniqueUserIds.length > 0) {
+      recordPermissionCacheMetric({
+        area: "visibleChannelList",
+        count: uniqueUserIds.length,
+        event: "bypass",
+      });
+    }
+    return channelIdsByUser;
   }
 
   try {
-    const cached = await redis.get(visibleChannelListKey(args));
-    if (!cached) {
-      recordPermissionCacheMetric({ area: "visibleChannelList", event: "miss" });
-      return null;
+    const keys = uniqueUserIds.map((userId) =>
+      visibleChannelListKey({
+        permission: args.permission,
+        serverId: args.serverId,
+        userId,
+        ...(args.type !== undefined ? { type: args.type } : {}),
+      }),
+    );
+    const values = await redis.mget(...keys);
+    let hitCount = 0;
+    let missCount = 0;
+    let staleCount = 0;
+    const parsedEntries: Array<{
+      channelIds: string[];
+      memberVersion: string;
+      serverVersion: string;
+      userId: string;
+    }> = [];
+    const revisionKeys = new Set<string>([serverVersionKey(args.serverId)]);
+
+    values.forEach((value, index) => {
+      if (!value) {
+        missCount += 1;
+        return;
+      }
+
+      const parsed = parseChannelList(value);
+      if (!parsed) {
+        missCount += 1;
+        return;
+      }
+
+      const userId = uniqueUserIds[index];
+      if (!userId) {
+        return;
+      }
+
+      parsedEntries.push({
+        channelIds: parsed.channelIds,
+        memberVersion: parsed.memberVersion,
+        serverVersion: parsed.serverVersion,
+        userId,
+      });
+      revisionKeys.add(memberVersionKey(args.serverId, userId));
+    });
+
+    const revisions = await readRevisionMap([...revisionKeys]);
+    const currentServerVersion = revisions.get(serverVersionKey(args.serverId)) ?? "0";
+
+    for (const entry of parsedEntries) {
+      const currentMemberVersion =
+        revisions.get(memberVersionKey(args.serverId, entry.userId)) ?? "0";
+
+      if (
+        entry.serverVersion !== currentServerVersion ||
+        entry.memberVersion !== currentMemberVersion
+      ) {
+        staleCount += 1;
+        continue;
+      }
+
+      channelIdsByUser.set(entry.userId, entry.channelIds);
+      hitCount += 1;
     }
 
-    const parsed = parseChannelList(cached);
-    if (!parsed) {
-      recordPermissionCacheMetric({ area: "visibleChannelList", event: "miss" });
-      return null;
+    if (hitCount > 0) {
+      recordPermissionCacheMetric({
+        area: "visibleChannelList",
+        count: hitCount,
+        event: "hit",
+      });
     }
-
-    const revisions = await getRevisions(args.serverId, args.userId);
-    if (
-      parsed.serverVersion !== revisions.serverVersion ||
-      parsed.memberVersion !== revisions.memberVersion
-    ) {
-      recordPermissionCacheMetric({ area: "visibleChannelList", event: "stale" });
-      return null;
+    if (missCount > 0) {
+      recordPermissionCacheMetric({
+        area: "visibleChannelList",
+        count: missCount,
+        event: "miss",
+      });
     }
-
-    recordPermissionCacheMetric({ area: "visibleChannelList", event: "hit" });
-    return parsed.channelIds;
+    if (staleCount > 0) {
+      recordPermissionCacheMetric({
+        area: "visibleChannelList",
+        count: staleCount,
+        event: "stale",
+      });
+    }
   } catch (error) {
-    recordPermissionCacheMetric({ area: "visibleChannelList", event: "error" });
+    recordPermissionCacheMetric({
+      area: "visibleChannelList",
+      count: uniqueUserIds.length,
+      event: "error",
+    });
     logError("[permission-cache] Visible channel cache read failed", error);
-    return null;
   }
+
+  return channelIdsByUser;
 }
 
 export async function writeCachedVisibleChannelIds(args: {
@@ -541,26 +652,57 @@ export async function writeCachedVisibleChannelIds(args: {
   type?: ChannelType;
   userId: string;
 }) {
+  await writeCachedVisibleChannelIdsBatch([args]);
+}
+
+export async function writeCachedVisibleChannelIdsBatch(
+  entries: Array<{
+    channelIds: string[];
+    permission: PermissionKey | PermissionValue;
+    serverId: string;
+    type?: ChannelType;
+    userId: string;
+  }>,
+) {
   const redis = getReadyRedis();
-  if (!redis) {
+  if (!redis || entries.length === 0) {
     return;
   }
 
   try {
-    const revisions = await getRevisions(args.serverId, args.userId);
-    await redis.set(
-      visibleChannelListKey(args),
-      JSON.stringify({
-        channelIds: args.channelIds,
-        memberVersion: revisions.memberVersion,
-        serverVersion: revisions.serverVersion,
-      }),
-      "EX",
-      PERMISSION_CACHE_TTL_SECONDS,
-    );
-    recordPermissionCacheMetric({ area: "visibleChannelList", event: "write" });
+    const revisionKeys = new Set<string>();
+    for (const entry of entries) {
+      revisionKeys.add(serverVersionKey(entry.serverId));
+      revisionKeys.add(memberVersionKey(entry.serverId, entry.userId));
+    }
+    const revisions = await readRevisionMap([...revisionKeys]);
+    const pipeline = redis.pipeline();
+
+    for (const entry of entries) {
+      pipeline.set(
+        visibleChannelListKey(entry),
+        JSON.stringify({
+          channelIds: entry.channelIds,
+          memberVersion: revisions.get(memberVersionKey(entry.serverId, entry.userId)) ?? "0",
+          serverVersion: revisions.get(serverVersionKey(entry.serverId)) ?? "0",
+        }),
+        "EX",
+        PERMISSION_CACHE_TTL_SECONDS,
+      );
+    }
+
+    await pipeline.exec();
+    recordPermissionCacheMetric({
+      area: "visibleChannelList",
+      count: entries.length,
+      event: "write",
+    });
   } catch (error) {
-    recordPermissionCacheMetric({ area: "visibleChannelList", event: "error" });
+    recordPermissionCacheMetric({
+      area: "visibleChannelList",
+      count: entries.length,
+      event: "error",
+    });
     logError("[permission-cache] Visible channel cache write failed", error);
   }
 }

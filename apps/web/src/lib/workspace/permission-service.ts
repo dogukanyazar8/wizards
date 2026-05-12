@@ -5,9 +5,11 @@ import {
   readCachedChannelPermissionSnapshot,
   readCachedChannelPermissionSnapshots,
   readCachedVisibleChannelIds,
+  readCachedVisibleChannelIdsBatch,
   writeCachedChannelPermissionSnapshot,
   writeCachedChannelPermissionSnapshots,
   writeCachedVisibleChannelIds,
+  writeCachedVisibleChannelIdsBatch,
   type CachedChannelPermissionSnapshot,
 } from "@/lib/workspace/permission-cache";
 import {
@@ -516,6 +518,139 @@ export async function listUserIdsWithChannelPermission(
     memberships.map((membership) => membership.userId),
     permission,
   );
+}
+
+export async function listChannelIdsForUsersWithPermission(
+  userIds: string[],
+  serverId: string,
+  permission: PermissionKey | PermissionValue = PermissionBits.VIEW_CHANNEL,
+  type?: ChannelType,
+) {
+  const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
+  const channelIdsByUser = new Map<string, string[]>(
+    uniqueUserIds.map((userId) => [userId, []]),
+  );
+  if (uniqueUserIds.length === 0) {
+    return channelIdsByUser;
+  }
+
+  const cachedChannelIdsByUser = await readCachedVisibleChannelIdsBatch({
+    permission,
+    serverId,
+    userIds: uniqueUserIds,
+    ...(type !== undefined ? { type } : {}),
+  });
+  for (const [userId, channelIds] of cachedChannelIdsByUser) {
+    channelIdsByUser.set(userId, channelIds);
+  }
+
+  const uncachedUserIds = uniqueUserIds.filter((userId) => !cachedChannelIdsByUser.has(userId));
+  if (uncachedUserIds.length === 0) {
+    return channelIdsByUser;
+  }
+
+  const [server, channels, memberships, bans] = await Promise.all([
+    prisma.server.findUnique({
+      where: { id: serverId },
+      select: {
+        ownerId: true,
+        roles: {
+          where: { isDefault: true },
+          select: permissionRoleSelect,
+        },
+      },
+    }),
+    prisma.channel.findMany({
+      where: {
+        parentId: null,
+        serverId,
+        ...(type !== undefined ? { type } : {}),
+      },
+      select: {
+        id: true,
+        permissionOverrides: {
+          select: channelOverrideSelect,
+        },
+      },
+    }),
+    prisma.serverMember.findMany({
+      where: {
+        serverId,
+        userId: { in: uncachedUserIds },
+      },
+      select: {
+        id: true,
+        roles: {
+          select: {
+            role: {
+              select: permissionRoleSelect,
+            },
+          },
+        },
+        userId: true,
+      },
+    }),
+    prisma.serverBan.findMany({
+      where: {
+        serverId,
+        userId: { in: uncachedUserIds },
+      },
+      select: { userId: true },
+    }),
+  ]);
+
+  if (!server) {
+    return channelIdsByUser;
+  }
+
+  const bannedUserIds = new Set(bans.map((ban) => ban.userId));
+  const cacheEntries: Array<{
+    channelIds: string[];
+    permission: PermissionKey | PermissionValue;
+    serverId: string;
+    type?: ChannelType;
+    userId: string;
+  }> = [];
+
+  for (const membership of memberships) {
+    if (bannedUserIds.has(membership.userId)) {
+      continue;
+    }
+
+    const serverContext: PermissionResolutionContext = {
+      memberId: membership.id,
+      ownerId: server.ownerId,
+      roles: mergePermissionRoles(
+        server.roles,
+        membership.roles.map((entry) => entry.role),
+      ),
+      userId: membership.userId,
+    };
+    const channelIds = channels
+      .filter((channel) =>
+        hasPermission(
+          resolveChannelPermissions({
+            ...serverContext,
+            overrides: channel.permissionOverrides,
+          }),
+          permission,
+        ),
+      )
+      .map((channel) => channel.id);
+
+    channelIdsByUser.set(membership.userId, channelIds);
+    cacheEntries.push({
+      channelIds,
+      permission,
+      serverId,
+      userId: membership.userId,
+      ...(type !== undefined ? { type } : {}),
+    });
+  }
+
+  await writeCachedVisibleChannelIdsBatch(cacheEntries);
+
+  return channelIdsByUser;
 }
 
 export async function listChannelIdsForUserWithPermission(
