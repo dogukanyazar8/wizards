@@ -82,6 +82,176 @@ export function buildVoiceStateDeleteWhere(args: {
   };
 }
 
+export type VoiceJoinRedisClient = {
+  del(key: string): Promise<unknown>;
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string, ttlMode: "PX", ttlMs: number, condition: "NX"): Promise<unknown>;
+};
+
+type VoiceStateUpsertRecord = {
+  channelId: string;
+  serverId: string;
+  sessionId: string;
+};
+
+type VoiceStateUpsertTx = {
+  voiceState: {
+    findUnique(args: {
+      select: { channelId: true; serverId: true; sessionId: true };
+      where: { userId: string };
+    }): Promise<VoiceStateUpsertRecord | null>;
+    upsert(args: {
+      create: {
+        channelId: string;
+        lastHeartbeat: Date;
+        serverId: string;
+        sessionId: string;
+        userId: string;
+      };
+      update: {
+        channelId: string;
+        deaf: boolean;
+        joinedAt?: Date;
+        lastHeartbeat: Date;
+        mute: boolean;
+        requestToSpeakAt: null;
+        selfDeaf: boolean;
+        selfMute: boolean;
+        selfStream: boolean;
+        selfVideo: boolean;
+        serverId: string;
+        sessionId: string;
+        suppress: boolean;
+      };
+      where: { userId: string };
+    }): Promise<unknown>;
+  };
+};
+
+type VoiceStateClearRecord = {
+  channelId: string;
+  id: string;
+  serverId: string;
+  sessionId: string;
+  userId: string;
+};
+
+type VoiceStateClearDelegate = {
+  deleteMany(args: { where: ReturnType<typeof buildVoiceStateDeleteWhere> }): Promise<{
+    count: number;
+  }>;
+  findUnique(args: {
+    select: {
+      channelId: true;
+      id: true;
+      serverId: true;
+      sessionId: true;
+      userId: true;
+    };
+    where: { userId: string };
+  }): Promise<VoiceStateClearRecord | null>;
+};
+
+export async function runVoiceStateUpsertMutation(args: {
+  channel: {
+    id: string;
+    serverId: string;
+  };
+  input: UpsertVoiceStateBody;
+  now: Date;
+  tx: VoiceStateUpsertTx;
+  userId: string;
+}) {
+  const existingState = await args.tx.voiceState.findUnique({
+    where: { userId: args.userId },
+    select: {
+      channelId: true,
+      serverId: true,
+      sessionId: true,
+    },
+  });
+  const replacesExistingSession =
+    existingState !== null &&
+    (existingState.channelId !== args.channel.id ||
+      existingState.serverId !== args.channel.serverId ||
+      existingState.sessionId !== args.input.sessionId);
+  const updateData = {
+    channelId: args.channel.id,
+    deaf: false,
+    ...(replacesExistingSession ? { joinedAt: args.now } : {}),
+    lastHeartbeat: args.now,
+    mute: false,
+    requestToSpeakAt: null,
+    selfDeaf: false,
+    selfMute: false,
+    selfStream: false,
+    selfVideo: false,
+    serverId: args.channel.serverId,
+    sessionId: args.input.sessionId,
+    suppress: false,
+  };
+
+  await args.tx.voiceState.upsert({
+    create: {
+      channelId: args.channel.id,
+      lastHeartbeat: args.now,
+      serverId: args.channel.serverId,
+      sessionId: args.input.sessionId,
+      userId: args.userId,
+    },
+    update: updateData,
+    where: { userId: args.userId },
+  });
+
+  return {
+    replacedState: replacesExistingSession ? existingState : null,
+    shouldStartVoiceUsageSession: existingState === null || replacesExistingSession,
+  };
+}
+
+export async function runVoiceStateClearMutation(args: {
+  expectedSessionId?: string;
+  userId: string;
+  voiceState: VoiceStateClearDelegate;
+}) {
+  const existingState = await args.voiceState.findUnique({
+    where: { userId: args.userId },
+    select: {
+      channelId: true,
+      id: true,
+      serverId: true,
+      sessionId: true,
+      userId: true,
+    },
+  });
+
+  if (!existingState) {
+    return null;
+  }
+
+  if (
+    !canClearVoiceStateForSession({
+      ...(args.expectedSessionId ? { expectedSessionId: args.expectedSessionId } : {}),
+      sessionId: existingState.sessionId,
+    })
+  ) {
+    return null;
+  }
+
+  const deleted = await args.voiceState.deleteMany({
+    where: buildVoiceStateDeleteWhere({
+      ...(args.expectedSessionId ? { expectedSessionId: args.expectedSessionId } : {}),
+      id: existingState.id,
+    }),
+  });
+
+  if (deleted.count === 0) {
+    return null;
+  }
+
+  return existingState;
+}
+
 export async function cleanupStaleVoiceStates() {
   const cutoff = getStaleVoiceHeartbeatCutoff();
 
@@ -453,8 +623,8 @@ async function enforceVoiceRoomCapacity(channelId: string, userId: string) {
   }
 }
 
-async function releaseVoiceJoinLocks(
-  redis: ReturnType<typeof getRedis>,
+export async function releaseVoiceJoinLocks(
+  redis: VoiceJoinRedisClient,
   lockKeys: string[],
   lockToken: string,
 ) {
@@ -470,8 +640,8 @@ async function releaseVoiceJoinLocks(
   }
 }
 
-async function acquireVoiceJoinLocks(
-  redis: ReturnType<typeof getRedis>,
+export async function acquireVoiceJoinLocks(
+  redis: VoiceJoinRedisClient,
   lockSpecs: VoiceJoinLockSpec[],
   lockToken: string,
 ) {
@@ -527,53 +697,18 @@ export async function upsertVoiceState(
       await enforceVoiceRoomCapacity(channel.id, userId);
     }
 
-    const mutation = await prisma.$transaction(async (tx) => {
-      const existingState = await tx.voiceState.findUnique({
-        where: { userId },
-        select: {
-          channelId: true,
-          serverId: true,
-          sessionId: true,
-        },
-      });
-      const replacesExistingSession =
-        existingState !== null &&
-        (existingState.channelId !== channel.id ||
-          existingState.serverId !== channel.serverId ||
-          existingState.sessionId !== input.sessionId);
-      const updateData = {
-        channelId: channel.id,
-        deaf: false,
-        ...(replacesExistingSession ? { joinedAt: now } : {}),
-        lastHeartbeat: now,
-        mute: false,
-        requestToSpeakAt: null,
-        selfDeaf: false,
-        selfMute: false,
-        selfStream: false,
-        selfVideo: false,
-        serverId: channel.serverId!,
-        sessionId: input.sessionId,
-        suppress: false,
-      };
-
-      await tx.voiceState.upsert({
-        create: {
-          channelId: channel.id,
-          lastHeartbeat: now,
+    const mutation = await prisma.$transaction((tx) =>
+      runVoiceStateUpsertMutation({
+        channel: {
+          id: channel.id,
           serverId: channel.serverId!,
-          sessionId: input.sessionId,
-          userId,
         },
-        update: updateData,
-        where: { userId },
-      });
-
-      return {
-        replacedState: replacesExistingSession ? existingState : null,
-        shouldStartVoiceUsageSession: existingState === null || replacesExistingSession,
-      };
-    });
+        input,
+        now,
+        tx,
+        userId,
+      }),
+    );
     replacedState = mutation.replacedState;
     shouldStartVoiceUsageSession = mutation.shouldStartVoiceUsageSession;
   } finally {
@@ -637,38 +772,13 @@ export async function clearVoiceState(
 ) {
   await maybeCleanupStaleVoiceStates();
 
-  const existingState = await prisma.voiceState.findUnique({
-    where: { userId },
-    select: {
-      channelId: true,
-      id: true,
-      serverId: true,
-      sessionId: true,
-      userId: true,
-    },
+  const existingState = await runVoiceStateClearMutation({
+    ...(options.expectedSessionId ? { expectedSessionId: options.expectedSessionId } : {}),
+    userId,
+    voiceState: prisma.voiceState,
   });
 
   if (!existingState) {
-    return null;
-  }
-
-  if (
-    !canClearVoiceStateForSession({
-      ...(options.expectedSessionId ? { expectedSessionId: options.expectedSessionId } : {}),
-      sessionId: existingState.sessionId,
-    })
-  ) {
-    return null;
-  }
-
-  const deleted = await prisma.voiceState.deleteMany({
-    where: buildVoiceStateDeleteWhere({
-      ...(options.expectedSessionId ? { expectedSessionId: options.expectedSessionId } : {}),
-      id: existingState.id,
-    }),
-  });
-
-  if (deleted.count === 0) {
     return null;
   }
 
