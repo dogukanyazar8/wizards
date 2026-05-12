@@ -88,9 +88,10 @@ export async function upsertVoiceState(input: {
   return VoiceStateMutationResponseSchema.parse(payload);
 }
 
-export async function deleteVoiceState() {
+export async function deleteVoiceState(input: { sessionId?: string } = {}) {
   return requestJson<{ success: true }>("/api/v1/voice/state", {
     method: "DELETE",
+    body: input,
   });
 }
 

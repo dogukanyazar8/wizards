@@ -857,8 +857,12 @@ function applyRemoteAudioState(
   }
 }
 
-function notifyVoiceExit() {
+function notifyVoiceExit(sessionId: string) {
   return fetch("/api/v1/voice/state", {
+    body: JSON.stringify({ sessionId }),
+    headers: {
+      "Content-Type": "application/json",
+    },
     method: "DELETE",
     keepalive: true,
   }).catch(() => undefined);
@@ -1065,7 +1069,7 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     setErrorMessage(null);
 
     if (store.sessionId) {
-      await deleteVoiceState().catch(() => undefined);
+      await deleteVoiceState({ sessionId: store.sessionId }).catch(() => undefined);
     }
 
     if (targetServerId && targetChannelId) {
@@ -1355,7 +1359,7 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       }
 
       if (store.sessionId) {
-        void notifyVoiceExit();
+        void notifyVoiceExit(store.sessionId);
       }
 
       store.leave();
@@ -2809,7 +2813,7 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     }
 
     if (activeSession) {
-      await deleteVoiceState().catch(() => undefined);
+      await deleteVoiceState({ sessionId: activeSession }).catch(() => undefined);
     }
 
     await resetKrispProcessor();
@@ -3387,8 +3391,9 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
         void activeRoom.disconnect(true).catch(() => undefined);
       }
 
-      if (useVoiceStore.getState().sessionId) {
-        void notifyVoiceExit();
+      const activeSession = useVoiceStore.getState().sessionId;
+      if (activeSession) {
+        void notifyVoiceExit(activeSession);
       }
     };
 

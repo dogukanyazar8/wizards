@@ -38,9 +38,48 @@ function getVoiceRoomName(channelId: string) {
 
 const VOICE_CLEANUP_DEBOUNCE_KEY = "voice:cleanup:last";
 const VOICE_CLEANUP_BATCH_SIZE = 100;
+const VOICE_JOIN_LOCK_TTL_MS = 2000;
+
+type VoiceJoinLockSpec = {
+  key: string;
+  message: string;
+};
 
 function isE2ETestMode() {
   return process.env.E2E_TEST_MODE === "true" && process.env.NODE_ENV !== "production";
+}
+
+export function getVoiceJoinLockSpecs(args: {
+  channelId: string;
+  userId: string;
+}): VoiceJoinLockSpec[] {
+  return [
+    {
+      key: `voice:join:lock:user:${args.userId}`,
+      message: "Voice session is busy. Please try again.",
+    },
+    {
+      key: `voice:join:lock:${args.channelId}`,
+      message: "Voice channel is busy. Please try again.",
+    },
+  ];
+}
+
+export function canClearVoiceStateForSession(args: {
+  expectedSessionId?: string;
+  sessionId: string;
+}) {
+  return !args.expectedSessionId || args.sessionId === args.expectedSessionId;
+}
+
+export function buildVoiceStateDeleteWhere(args: {
+  expectedSessionId?: string;
+  id: string;
+}) {
+  return {
+    id: args.id,
+    ...(args.expectedSessionId ? { sessionId: args.expectedSessionId } : {}),
+  };
 }
 
 export async function cleanupStaleVoiceStates() {
@@ -414,6 +453,54 @@ async function enforceVoiceRoomCapacity(channelId: string, userId: string) {
   }
 }
 
+async function releaseVoiceJoinLocks(
+  redis: ReturnType<typeof getRedis>,
+  lockKeys: string[],
+  lockToken: string,
+) {
+  for (const lockKey of [...lockKeys].reverse()) {
+    try {
+      const currentToken = await redis.get(lockKey);
+      if (currentToken === lockToken) {
+        await redis.del(lockKey);
+      }
+    } catch {
+      // Best-effort lock cleanup.
+    }
+  }
+}
+
+async function acquireVoiceJoinLocks(
+  redis: ReturnType<typeof getRedis>,
+  lockSpecs: VoiceJoinLockSpec[],
+  lockToken: string,
+) {
+  const acquiredLockKeys: string[] = [];
+
+  try {
+    for (const lockSpec of lockSpecs) {
+      const lockAcquired = await redis.set(
+        lockSpec.key,
+        lockToken,
+        "PX",
+        VOICE_JOIN_LOCK_TTL_MS,
+        "NX",
+      );
+
+      if (!lockAcquired) {
+        throw new ApiError(lockSpec.message, 409, "CHANNEL_BUSY");
+      }
+
+      acquiredLockKeys.push(lockSpec.key);
+    }
+  } catch (error) {
+    await releaseVoiceJoinLocks(redis, acquiredLockKeys, lockToken);
+    throw error;
+  }
+
+  return acquiredLockKeys;
+}
+
 export async function upsertVoiceState(
   userId: string,
   input: UpsertVoiceStateBody,
@@ -422,9 +509,9 @@ export async function upsertVoiceState(
   const channel = await requireVoiceMembership(userId, input);
   const now = new Date();
   const redis = getRedis();
-  const lockKey = `voice:join:lock:${channel.id}`;
+  const lockSpecs = getVoiceJoinLockSpecs({ channelId: channel.id, userId });
   const lockToken = randomUUID();
-  const lockAcquired = await redis.set(lockKey, lockToken, "PX", 2000, "NX");
+  let acquiredLockKeys: string[] = [];
   type ReplacedVoiceState = {
     channelId: string;
     serverId: string;
@@ -433,11 +520,9 @@ export async function upsertVoiceState(
   let replacedState: ReplacedVoiceState | null = null;
   let shouldStartVoiceUsageSession = true;
 
-  if (!lockAcquired) {
-    throw new ApiError("Voice channel is busy. Please try again.", 409, "CHANNEL_BUSY");
-  }
-
   try {
+    acquiredLockKeys = await acquireVoiceJoinLocks(redis, lockSpecs, lockToken);
+
     if (!isE2ETestMode()) {
       await enforceVoiceRoomCapacity(channel.id, userId);
     }
@@ -492,14 +577,7 @@ export async function upsertVoiceState(
     replacedState = mutation.replacedState;
     shouldStartVoiceUsageSession = mutation.shouldStartVoiceUsageSession;
   } finally {
-    try {
-      const currentToken = await redis.get(lockKey);
-      if (currentToken === lockToken) {
-        await redis.del(lockKey);
-      }
-    } catch {
-      // Best-effort lock cleanup.
-    }
+    await releaseVoiceJoinLocks(redis, acquiredLockKeys, lockToken);
   }
 
   if (replacedState) {
@@ -555,7 +633,7 @@ export async function removeLiveKitVoiceParticipant(channelId: string, userId: s
 
 export async function clearVoiceState(
   userId: string,
-  options: { removeLiveKitParticipant?: boolean } = {},
+  options: { expectedSessionId?: string; removeLiveKitParticipant?: boolean } = {},
 ) {
   await maybeCleanupStaleVoiceStates();
 
@@ -574,8 +652,20 @@ export async function clearVoiceState(
     return null;
   }
 
+  if (
+    !canClearVoiceStateForSession({
+      ...(options.expectedSessionId ? { expectedSessionId: options.expectedSessionId } : {}),
+      sessionId: existingState.sessionId,
+    })
+  ) {
+    return null;
+  }
+
   const deleted = await prisma.voiceState.deleteMany({
-    where: { id: existingState.id },
+    where: buildVoiceStateDeleteWhere({
+      ...(options.expectedSessionId ? { expectedSessionId: options.expectedSessionId } : {}),
+      id: existingState.id,
+    }),
   });
 
   if (deleted.count === 0) {

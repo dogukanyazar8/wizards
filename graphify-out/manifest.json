@@ -460,8 +460,8 @@
     "hash": "314efec2b8ebc17dedc5f03160eb4186"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\voice\\state\\route.ts": {
-    "mtime": 1778582979.6588335,
-    "hash": "b5afda17835b421bd06d86ae06d9f6c3"
+    "mtime": 1778604934.436102,
+    "hash": "7decc3377d3dec652f16bff1825b4f79"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\voice\\state\\heartbeat\\route.ts": {
     "mtime": 1778586757.6551368,
@@ -680,8 +680,8 @@
     "hash": "044c778940af9c89b467555e2523c997"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\voice-provider.tsx": {
-    "mtime": 1778586893.980236,
-    "hash": "f0b4b2bfd15d2aacd7d8923abd10dc5a"
+    "mtime": 1778604885.5005286,
+    "hash": "192178a5d47b537282844594c9294b6e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\scene\\aurora-background.tsx": {
     "mtime": 1778571008.1192586,
@@ -1208,8 +1208,8 @@
     "hash": "d073275de5e7a6bdb2a706af9934a388"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\client.ts": {
-    "mtime": 1778586749.887674,
-    "hash": "3bafa086f3a578c9010d3fc57207ca79"
+    "mtime": 1778604871.754737,
+    "hash": "22f003afcc5b4a39dd89fc09fa2274b6"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\screen-share-state.ts": {
     "mtime": 1777440654.800357,
@@ -1219,13 +1219,17 @@
     "mtime": 1778233740.6093545,
     "hash": "94c3dfca9db280144f5866bd927a617e"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\service.test.ts": {
+    "mtime": 1778605218.473091,
+    "hash": "3253e53a7964c4731bf692f9632f69e3"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\service.ts": {
-    "mtime": 1778603245.2762482,
-    "hash": "8d22ac527e5f59b0d7327c407fe561b2"
+    "mtime": 1778605195.3193197,
+    "hash": "0a5f8bd11de02de5cf49145e511f82f3"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\types.ts": {
-    "mtime": 1778586727.3720891,
-    "hash": "8f77852e1bb88fc53946457c779462b2"
+    "mtime": 1778604841.3267071,
+    "hash": "69320a7006a0ad978caf6731a2e3df34"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\client.ts": {
     "mtime": 1778571008.138258,
