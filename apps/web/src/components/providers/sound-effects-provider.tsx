@@ -200,9 +200,11 @@ export function SoundEffectsProvider({
     };
 
     socket.on("notification:new", handleIncomingNotification);
+    socket.on("voice:invite:received", handleIncomingNotification);
 
     return () => {
       socket.off("notification:new", handleIncomingNotification);
+      socket.off("voice:invite:received", handleIncomingNotification);
     };
   }, [
     notificationVolume,

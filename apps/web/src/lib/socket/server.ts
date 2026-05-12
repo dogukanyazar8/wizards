@@ -1,4 +1,5 @@
 import type { IncomingMessage, Server as HTTPServer } from "http";
+import { randomUUID } from "crypto";
 import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { getToken } from "next-auth/jwt";
@@ -24,6 +25,7 @@ import {
 } from "@/lib/friends/service";
 import { logError } from "@/lib/logger";
 import { normalizeAppLocale, translate } from "@/lib/locale";
+import { readPresenceMap, type VisiblePresenceStatus } from "@/lib/presence";
 import {
   claimUploadedMessageAttachments,
   isMessageGifContentType,
@@ -70,6 +72,11 @@ import {
   SocketMessageReactionPayloadSchema,
   SocketMessageSendPayloadSchema,
   SocketPresenceActivityPayloadSchema,
+  SocketVoiceAudioLevelPayloadSchema,
+  SocketVoiceChannelPayloadSchema,
+  SocketVoiceInviteAcceptPayloadSchema,
+  SocketVoiceInviteDeclinePayloadSchema,
+  SocketVoiceInvitePayloadSchema,
   SocketVoiceScreenSharePayloadSchema,
 } from "@/lib/socket/schemas";
 import type {
@@ -78,6 +85,7 @@ import type {
   NotificationSocketPayload,
   ServerToClientEvents,
   SocketData,
+  VoiceInviteErrorPayload,
 } from "./events";
 
 const CHANNEL_TYPING_EXPIRY = 3000;
@@ -86,6 +94,11 @@ const SOCKET_MAX_HTTP_BUFFER_SIZE = 1_048_576;
 const TYPING_KEY_TTL_SECONDS = 10;
 const TYPING_RATE_LIMIT = 24;
 const TYPING_RATE_WINDOW_SECONDS = 10;
+const VOICE_INVITE_RATE_LIMIT = 12;
+const VOICE_INVITE_RATE_WINDOW_SECONDS = 60;
+const VOICE_INVITE_TTL_MS = 60_000;
+const VOICE_INVITE_KEY_PREFIX = "voice:invite:";
+const VOICE_AUDIO_LEVEL_MIN_INTERVAL_MS = 40;
 const PRESENCE_SOCKET_PREFIX = "presence:socket-set:";
 const PRESENCE_SOCKET_TTL_SECONDS = 120;
 const PRESENCE_SOCKET_TTL_MS = PRESENCE_SOCKET_TTL_SECONDS * 1000;
@@ -121,6 +134,43 @@ type DMTypingEntry = {
   expiresAt: number;
   username: string;
 };
+
+type StoredVoiceInvite = {
+  channelId: string;
+  expiresAt: string;
+  fromUserId: string;
+  serverId: string;
+  targetUserId: string;
+};
+
+function getVoiceInviteKey(inviteId: string) {
+  return `${VOICE_INVITE_KEY_PREFIX}${inviteId}`;
+}
+
+function parseStoredVoiceInvite(value: string | null): StoredVoiceInvite | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      typeof parsed.channelId === "string" &&
+      typeof parsed.expiresAt === "string" &&
+      typeof parsed.fromUserId === "string" &&
+      typeof parsed.serverId === "string" &&
+      typeof parsed.targetUserId === "string"
+    ) {
+      return parsed;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
 
 function getPresenceSocketsKey(userId: string) {
   return `${PRESENCE_SOCKET_PREFIX}${userId}`;
@@ -184,6 +234,10 @@ function getOrigin(value: string | undefined) {
   } catch {
     return null;
   }
+}
+
+function toVisiblePresenceStatus(status: string): VisiblePresenceStatus {
+  return status === "ONLINE" || status === "IDLE" || status === "DND" ? status : "OFFLINE";
 }
 
 function getSocketAllowedOrigins() {
@@ -670,6 +724,7 @@ export function initSocketServer(httpServer: HTTPServer) {
       });
     }, 60_000);
     socket.data.typingChannels = new Set<string>();
+    socket.data.voiceRooms = new Set<string>();
     socket.data.presenceCustomStatus = socket.data.presenceCustomStatus ?? null;
     socket.data.presenceStatus = socket.data.presenceStatus ?? "OFFLINE";
     socket.join(`user:${userId}`);
@@ -711,6 +766,52 @@ export function initSocketServer(httpServer: HTTPServer) {
         code,
         message: fallbackMessage,
       });
+    };
+
+    const emitVoiceInviteError = (input: {
+      channelId?: string | undefined;
+      code: string;
+      error?: unknown;
+      fallbackMessage: string;
+      inviteId?: string | undefined;
+      targetUserId?: string | undefined;
+    }) => {
+      if (input.error instanceof ApiError) {
+        const payload: VoiceInviteErrorPayload = {
+          code: input.error.code ?? input.code,
+          message: input.error.message,
+        };
+        if (input.channelId) {
+          payload.channelId = input.channelId;
+        }
+        if (input.inviteId) {
+          payload.inviteId = input.inviteId;
+        }
+        if (input.targetUserId) {
+          payload.targetUserId = input.targetUserId;
+        }
+        socket.emit("voice:invite:error", payload);
+        return;
+      }
+
+      if (input.error) {
+        logError(`[socket] ${input.code}`, input.error);
+      }
+
+      const payload: VoiceInviteErrorPayload = {
+        code: input.code,
+        message: input.fallbackMessage,
+      };
+      if (input.channelId) {
+        payload.channelId = input.channelId;
+      }
+      if (input.inviteId) {
+        payload.inviteId = input.inviteId;
+      }
+      if (input.targetUserId) {
+        payload.targetUserId = input.targetUserId;
+      }
+      socket.emit("voice:invite:error", payload);
     };
 
     const emitSafeDMError = (
@@ -1004,6 +1105,359 @@ export function initSocketServer(httpServer: HTTPServer) {
         socket.leave(channelId);
       } catch (error) {
         emitSocketError("VALIDATION_ERROR", "Invalid channel payload.", error);
+      }
+    });
+
+    socket.on("voice:join", async (rawData) => {
+      try {
+        const data = parseSocketPayload(SocketVoiceChannelPayloadSchema, rawData);
+        await requireChannelPermissionForUser(
+          userId,
+          data.channelId,
+          PermissionBits.CONNECT_VOICE,
+          {
+            forbiddenCode: "FORBIDDEN",
+            forbiddenMessage: "You are not allowed to join this voice channel.",
+            lockedCode: "VOICE_CHANNEL_LOCKED",
+            lockedMessage: "You are not allowed to use this locked voice channel.",
+            requiredServerId: data.serverId,
+            requiredType: ChannelType.VOICE,
+            respectLocked: true,
+          },
+        );
+
+        socket.join(`voice:${data.channelId}`);
+        socket.data.voiceRooms.add(data.channelId);
+      } catch (error) {
+        emitSocketError("VOICE_JOIN_ERROR", "Unable to join voice room.", error);
+      }
+    });
+
+    socket.on("voice:leave", (rawData) => {
+      try {
+        const data = parseSocketPayload(SocketVoiceChannelPayloadSchema, rawData);
+        socket.leave(`voice:${data.channelId}`);
+        socket.data.voiceRooms.delete(data.channelId);
+      } catch (error) {
+        emitSocketError("VALIDATION_ERROR", "Invalid voice room payload.", error);
+      }
+    });
+
+    socket.on("voice:audio-level:update", (rawData) => {
+      try {
+        const data = parseSocketPayload(SocketVoiceAudioLevelPayloadSchema, rawData);
+        if (!socket.data.voiceRooms.has(data.channelId)) {
+          return;
+        }
+
+        const now = Date.now();
+        if (
+          socket.data.lastVoiceAudioLevelAt &&
+          now - socket.data.lastVoiceAudioLevelAt < VOICE_AUDIO_LEVEL_MIN_INTERVAL_MS
+        ) {
+          return;
+        }
+
+        socket.data.lastVoiceAudioLevelAt = now;
+        socket.to(`voice:${data.channelId}`).emit("voice:audio-level:update", {
+          audioLevel: data.audioLevel,
+          channelId: data.channelId,
+          isMuted: data.isMuted,
+          isSpeaking: data.isSpeaking,
+          userId,
+        });
+      } catch (error) {
+        emitSocketError("VALIDATION_ERROR", "Invalid voice audio level payload.", error);
+      }
+    });
+
+    socket.on("voice:invite:accept", async (rawData) => {
+      let data: ReturnType<typeof SocketVoiceInviteAcceptPayloadSchema.parse> | null = null;
+      try {
+        data = parseSocketPayload(SocketVoiceInviteAcceptPayloadSchema, rawData);
+        const inviteKey = getVoiceInviteKey(data.inviteId);
+        const storedInvite = parseStoredVoiceInvite(await redis.get(inviteKey));
+        if (
+          !storedInvite ||
+          storedInvite.channelId !== data.channelId ||
+          storedInvite.serverId !== data.serverId ||
+          storedInvite.targetUserId !== userId ||
+          Date.parse(storedInvite.expiresAt) <= Date.now()
+        ) {
+          await redis.del(inviteKey).catch(() => undefined);
+          throw new ApiError("This voice invite expired.", 410, "VOICE_INVITE_EXPIRED");
+        }
+
+        await requireChannelPermissionForUser(
+          userId,
+          data.channelId,
+          PermissionBits.CONNECT_VOICE,
+          {
+            forbiddenCode: "VOICE_INVITE_FORBIDDEN",
+            forbiddenMessage: "You are not allowed to join this voice channel.",
+            lockedCode: "VOICE_INVITE_FORBIDDEN",
+            lockedMessage: "You are not allowed to join this locked voice channel.",
+            requiredServerId: data.serverId,
+            requiredType: ChannelType.VOICE,
+            respectLocked: true,
+          },
+        );
+
+        await redis.del(inviteKey).catch(() => undefined);
+        socket.emit("voice:invite:accepted", {
+          channelId: data.channelId,
+          inviteId: data.inviteId,
+          serverId: data.serverId,
+        });
+        io.to(`user:${storedInvite.fromUserId}`).emit("voice:invite:status", {
+          channelId: data.channelId,
+          inviteId: data.inviteId,
+          serverId: data.serverId,
+          status: "accepted",
+          targetUserId: userId,
+        });
+      } catch (error) {
+        emitVoiceInviteError({
+          channelId: data?.channelId,
+          code: "VOICE_INVITE_ACCEPT_ERROR",
+          error,
+          fallbackMessage: "Unable to accept this voice invite.",
+          inviteId: data?.inviteId,
+        });
+      }
+    });
+
+    socket.on("voice:invite:decline", async (rawData) => {
+      let data: ReturnType<typeof SocketVoiceInviteDeclinePayloadSchema.parse> | null = null;
+      try {
+        data = parseSocketPayload(SocketVoiceInviteDeclinePayloadSchema, rawData);
+        const inviteKey = getVoiceInviteKey(data.inviteId);
+        const storedInvite = parseStoredVoiceInvite(await redis.get(inviteKey));
+        if (
+          !storedInvite ||
+          storedInvite.channelId !== data.channelId ||
+          storedInvite.serverId !== data.serverId ||
+          storedInvite.targetUserId !== userId
+        ) {
+          return;
+        }
+
+        await redis.del(inviteKey).catch(() => undefined);
+        io.to(`user:${storedInvite.fromUserId}`).emit("voice:invite:status", {
+          channelId: data.channelId,
+          inviteId: data.inviteId,
+          serverId: data.serverId,
+          status: "declined",
+          targetUserId: userId,
+        });
+      } catch (error) {
+        emitVoiceInviteError({
+          channelId: data?.channelId,
+          code: "VOICE_INVITE_DECLINE_ERROR",
+          error,
+          fallbackMessage: "Unable to decline this voice invite.",
+          inviteId: data?.inviteId,
+        });
+      }
+    });
+
+    socket.on("voice:invite:send", async (rawData) => {
+      let data: ReturnType<typeof SocketVoiceInvitePayloadSchema.parse> | null = null;
+      try {
+        data = parseSocketPayload(SocketVoiceInvitePayloadSchema, rawData);
+        if (data.targetUserId === userId) {
+          throw new ApiError("You cannot invite yourself to voice.", 400, "VOICE_INVITE_SELF");
+        }
+
+        const isAllowed = await checkRateLimit(
+          redis,
+          `rate:voice:invite:${userId}`,
+          VOICE_INVITE_RATE_LIMIT,
+          VOICE_INVITE_RATE_WINDOW_SECONDS,
+        );
+        if (!isAllowed) {
+          throw new ApiError(
+            "Too many voice invites. Please wait a moment before inviting again.",
+            429,
+            "VOICE_INVITE_RATE_LIMITED",
+          );
+        }
+
+        await requireChannelPermissionForUser(
+          userId,
+          data.channelId,
+          PermissionBits.CONNECT_VOICE,
+          {
+            forbiddenCode: "VOICE_INVITE_FORBIDDEN",
+            forbiddenMessage: "You are not allowed to invite members to this voice channel.",
+            lockedCode: "VOICE_INVITE_FORBIDDEN",
+            lockedMessage: "You are not allowed to invite members to this locked voice channel.",
+            requiredServerId: data.serverId,
+            requiredType: ChannelType.VOICE,
+            respectLocked: true,
+          },
+        );
+
+        const senderVoiceState = await prisma.voiceState.findUnique({
+          where: { userId },
+          select: { channelId: true, serverId: true },
+        });
+        if (
+          !senderVoiceState ||
+          senderVoiceState.channelId !== data.channelId ||
+          senderVoiceState.serverId !== data.serverId
+        ) {
+          throw new ApiError(
+            "Join this voice channel before inviting members.",
+            403,
+            "VOICE_INVITE_SENDER_NOT_IN_CHANNEL",
+          );
+        }
+
+        const [channel, sender, targetMember, targetVoiceState] = await Promise.all([
+          prisma.channel.findFirst({
+            where: {
+              id: data.channelId,
+              serverId: data.serverId,
+              type: ChannelType.VOICE,
+            },
+            select: {
+              id: true,
+              name: true,
+              server: { select: { name: true } },
+              serverId: true,
+            },
+          }),
+          prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+              avatarUrl: true,
+              displayName: true,
+              username: true,
+            },
+          }),
+          prisma.serverMember.findUnique({
+            where: {
+              userId_serverId: {
+                serverId: data.serverId,
+                userId: data.targetUserId,
+              },
+            },
+            select: {
+              user: {
+                select: {
+                  customStatus: true,
+                  emailVerified: true,
+                  id: true,
+                  isBanned: true,
+                  status: true,
+                },
+              },
+              userId: true,
+            },
+          }),
+          prisma.voiceState.findUnique({
+            where: { userId: data.targetUserId },
+            select: { channelId: true },
+          }),
+        ]);
+
+        if (!channel?.serverId || !channel.server) {
+          throw new ApiError("Voice channel not found.", 404, "VOICE_CHANNEL_NOT_FOUND");
+        }
+        if (!sender) {
+          throw new ApiError("Unable to load sender profile.", 404, "VOICE_INVITE_SENDER_NOT_FOUND");
+        }
+        if (!targetMember || !isActiveAuthUser(targetMember.user)) {
+          throw new ApiError(
+            "This member cannot receive voice invites.",
+            404,
+            "VOICE_INVITE_TARGET_NOT_FOUND",
+          );
+        }
+        if (targetVoiceState?.channelId === data.channelId) {
+          throw new ApiError(
+            "This member is already in the voice channel.",
+            409,
+            "VOICE_INVITE_TARGET_ALREADY_JOINED",
+          );
+        }
+
+        const [targetAllowedUserId] = await filterUserIdsByChannelPermission(
+          data.channelId,
+          [data.targetUserId],
+          PermissionBits.CONNECT_VOICE,
+          { respectLocked: true },
+        );
+        if (!targetAllowedUserId) {
+          throw new ApiError(
+            "This member does not have access to this voice channel.",
+            403,
+            "VOICE_INVITE_TARGET_FORBIDDEN",
+          );
+        }
+
+        const targetPresence = await readPresenceMap(redis, [
+          {
+            customStatus: targetMember.user.customStatus,
+            status: toVisiblePresenceStatus(targetMember.user.status),
+            userId: data.targetUserId,
+          },
+        ]);
+        if (targetPresence.get(data.targetUserId)?.status === "OFFLINE") {
+          throw new ApiError(
+            "This member is currently offline.",
+            409,
+            "VOICE_INVITE_TARGET_OFFLINE",
+          );
+        }
+
+        const expiresAt = new Date(Date.now() + VOICE_INVITE_TTL_MS).toISOString();
+        const inviteId = randomUUID();
+        const invite = {
+          channelId: channel.id,
+          channelName: channel.name,
+          createdAt: new Date().toISOString(),
+          expiresAt,
+          fromUser: {
+            avatarUrl: sender.avatarUrl,
+            displayName: sender.displayName ?? sender.username,
+            id: userId,
+            username: sender.username,
+          },
+          id: inviteId,
+          serverId: channel.serverId,
+          serverName: channel.server.name,
+        };
+
+        await redis.set(
+          getVoiceInviteKey(inviteId),
+          JSON.stringify({
+            channelId: channel.id,
+            expiresAt,
+            fromUserId: userId,
+            serverId: channel.serverId,
+            targetUserId: data.targetUserId,
+          } satisfies StoredVoiceInvite),
+          "PX",
+          VOICE_INVITE_TTL_MS,
+        );
+
+        io.to(`user:${data.targetUserId}`).emit("voice:invite:received", invite);
+        socket.emit("voice:invite:sent", {
+          channelId: data.channelId,
+          expiresAt,
+          inviteId,
+          targetUserId: data.targetUserId,
+        });
+      } catch (error) {
+        emitVoiceInviteError({
+          channelId: data?.channelId,
+          code: "VOICE_INVITE_SEND_ERROR",
+          error,
+          fallbackMessage: "Unable to send this voice invite.",
+          targetUserId: data?.targetUserId,
+        });
       }
     });
 

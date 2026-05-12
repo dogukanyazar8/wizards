@@ -440,7 +440,20 @@ export async function upsertVoiceState(
   };
 }
 
-export async function clearVoiceState(userId: string) {
+export async function removeLiveKitVoiceParticipant(channelId: string, userId: string) {
+  if (isE2ETestMode()) {
+    return;
+  }
+
+  await getLiveKitRoomServiceClient()
+    .removeParticipant(getVoiceRoomName(channelId), userId)
+    .catch(() => undefined);
+}
+
+export async function clearVoiceState(
+  userId: string,
+  options: { removeLiveKitParticipant?: boolean } = {},
+) {
   await maybeCleanupStaleVoiceStates();
 
   const existingState = await prisma.voiceState.findUnique({
@@ -464,6 +477,10 @@ export async function clearVoiceState(userId: string) {
   await getRedis()
     .del(getVoiceScreenShareStateKey(existingState.channelId, userId))
     .catch(() => undefined);
+
+  if (options.removeLiveKitParticipant !== false) {
+    await removeLiveKitVoiceParticipant(existingState.channelId, userId);
+  }
 
   return existingState;
 }
