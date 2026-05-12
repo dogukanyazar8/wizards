@@ -685,6 +685,8 @@ export const MessageItem = React.memo(
     const markdownComponents = React.useMemo(() => createMarkdownComponents(t), [t]);
     const parsedPoll = React.useMemo(() => parsePollBlock(message.content), [message.content]);
     const markdownContent = parsedPoll?.contentWithoutPoll ?? message.content;
+    const hasRenderableMessageBody =
+      markdownContent.trim().length > 0 || Boolean(parsedPoll) || Boolean(message.editedAt);
     const pollReactionEmojis = React.useMemo(
       () =>
         new Set(
@@ -1038,7 +1040,7 @@ export const MessageItem = React.memo(
                   onSave={handleEdit}
                   onCancel={() => setIsEditing(false)}
                 />
-              ) : (
+              ) : hasRenderableMessageBody ? (
                 <div className="message-font-scope max-w-full break-words text-sm leading-relaxed text-app-foreground">
                   <div className="relative inline-block max-w-full align-top md:max-w-[calc(100%-10rem)] 2xl:max-w-[76rem] [&_a]:text-[hsl(var(--primary))] [&_code]:break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto">
                     {markdownContent.trim().length > 0 ? (
@@ -1066,7 +1068,7 @@ export const MessageItem = React.memo(
 
                   </div>
                 </div>
-              )}
+              ) : null}
 
               {!isEditing ? <MessageAttachments attachments={message.attachments} /> : null}
               {!isEditing ? <LinkPreviewCard content={markdownContent} /> : null}

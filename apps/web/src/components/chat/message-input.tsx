@@ -1104,7 +1104,7 @@ export function MessageInput({
               disabled={disabled}
               data-testid="message-input"
               className={cn(
-                "message-font-scope w-full resize-none border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-overlay)/0.52)] px-4 py-3 pr-4 text-[15px] leading-7 text-app-foreground shadow-[inset_0_1px_0_hsl(var(--background)/0.55)] placeholder-app-muted focus-visible:border-[hsl(var(--primary)/0.34)] focus-visible:bg-[hsl(var(--surface-card)/0.96)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.16)]",
+                "message-font-scope w-full resize-none border-0 bg-transparent px-4 py-3 pr-4 text-[15px] leading-7 text-app-foreground shadow-none placeholder-app-muted focus-visible:bg-[hsl(var(--surface-soft)/0.24)] focus-visible:outline-none focus-visible:ring-0",
                 showFormattingToolbar
                   ? "rounded-b-[22px] rounded-t-none"
                   : "rounded-[22px]",

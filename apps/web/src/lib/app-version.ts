@@ -42,6 +42,12 @@ export const WHISPR_RELEASE_CHANNEL =
 
 export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
   {
+    categoryKey: "app.update.category.messaging",
+    descriptionKey: "app.update.notes.mediaPreview.description",
+    id: "media-preview-downloads",
+    titleKey: "app.update.notes.mediaPreview.title",
+  },
+  {
     categoryKey: "app.update.category.settings",
     descriptionKey: "app.update.notes.authRefresh.description",
     id: "modern-auth-refresh",
