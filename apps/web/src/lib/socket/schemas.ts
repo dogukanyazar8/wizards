@@ -77,6 +77,41 @@ export const SocketVoiceScreenSharePayloadSchema = z
   })
   .strict();
 
+export const SocketVoiceChannelPayloadSchema = z
+  .object({
+    channelId: SocketIdSchema,
+    serverId: SocketIdSchema,
+  })
+  .strict();
+
+export const SocketVoiceAudioLevelPayloadSchema = z
+  .object({
+    audioLevel: z.number().finite().min(0).max(1),
+    channelId: SocketIdSchema,
+    isMuted: z.boolean(),
+    isSpeaking: z.boolean(),
+    serverId: SocketIdSchema,
+  })
+  .strict();
+
+export const SocketVoiceInvitePayloadSchema = z
+  .object({
+    channelId: SocketIdSchema,
+    serverId: SocketIdSchema,
+    targetUserId: SocketIdSchema,
+  })
+  .strict();
+
+export const SocketVoiceInviteAcceptPayloadSchema = z
+  .object({
+    channelId: SocketIdSchema,
+    inviteId: SocketIdSchema,
+    serverId: SocketIdSchema,
+  })
+  .strict();
+
+export const SocketVoiceInviteDeclinePayloadSchema = SocketVoiceInviteAcceptPayloadSchema;
+
 export const SocketPresenceActivityPayloadSchema = z
   .object({
     status: z.enum(["ONLINE", "IDLE"]),

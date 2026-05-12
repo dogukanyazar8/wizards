@@ -26,7 +26,7 @@ function formatWhisprVersion(version: string, codename: string) {
 }
 
 const WHISPR_VERSION_NUMBER =
-  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.5";
+  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.6";
 export const WHISPR_RELEASE_CODENAME =
   process.env.NEXT_PUBLIC_WHISPR_RELEASE_CODENAME ?? "Echo";
 export const WHISPR_APP_VERSION = formatWhisprVersion(
@@ -42,34 +42,34 @@ export const WHISPR_RELEASE_CHANNEL =
 
 export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
   {
-    categoryKey: "app.update.category.messaging",
-    descriptionKey: "app.update.notes.mediaPreview.description",
-    id: "media-preview-downloads",
-    titleKey: "app.update.notes.mediaPreview.title",
+    categoryKey: "app.update.category.voice",
+    descriptionKey: "app.update.notes.voiceInvites.description",
+    id: "voice-room-invites",
+    titleKey: "app.update.notes.voiceInvites.title",
   },
   {
-    categoryKey: "app.update.category.settings",
-    descriptionKey: "app.update.notes.authRefresh.description",
-    id: "modern-auth-refresh",
-    titleKey: "app.update.notes.authRefresh.title",
+    categoryKey: "app.update.category.quality",
+    descriptionKey: "app.update.notes.voiceRecovery.description",
+    id: "voice-room-recovery",
+    titleKey: "app.update.notes.voiceRecovery.title",
   },
   {
     categoryKey: "app.update.category.voice",
-    descriptionKey: "app.update.notes.mediaExperience.description",
-    id: "voice-video-screen-share-polish",
-    titleKey: "app.update.notes.mediaExperience.title",
+    descriptionKey: "app.update.notes.voiceActivitySync.description",
+    id: "voice-activity-sync",
+    titleKey: "app.update.notes.voiceActivitySync.title",
   },
   {
     categoryKey: "app.update.category.servers",
-    descriptionKey: "app.update.notes.rolesPreview.description",
-    id: "roles-preview-groundwork",
-    titleKey: "app.update.notes.rolesPreview.title",
+    descriptionKey: "app.update.notes.memberPanelRoles.description",
+    id: "role-aware-member-panel",
+    titleKey: "app.update.notes.memberPanelRoles.title",
   },
   {
-    categoryKey: "app.update.category.desktop",
-    descriptionKey: "app.update.notes.iconRefresh.description",
-    id: "whispr-icon-refresh",
-    titleKey: "app.update.notes.iconRefresh.title",
+    categoryKey: "app.update.category.notifications",
+    descriptionKey: "app.update.notes.roleNotifications.description",
+    id: "role-and-invite-notifications",
+    titleKey: "app.update.notes.roleNotifications.title",
   },
 ];
 

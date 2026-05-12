@@ -136,6 +136,7 @@ interface AppState extends PersistedRouteState {
   deleteServerDialog: DeleteServerDialogState;
   inviteModal: InviteModalState;
   mainPanelWidth: number;
+  memberPanelCollapsed: boolean;
   desktopNotificationPreviews: boolean;
   messageFont: MessageFontId;
   mobileSidebarOpen: boolean;
@@ -194,6 +195,7 @@ interface AppState extends PersistedRouteState {
   setChannelSidebarWidth: (width: number) => void;
   setDesktopNotificationPreviews: (enabled: boolean) => void;
   setMainPanelWidth: (width: number) => void;
+  setMemberPanelCollapsed: (collapsed: boolean) => void;
   setMessageFont: (fontId: MessageFontId) => void;
   setMobileSidebarOpen: (open: boolean) => void;
   setNotificationAutoClose: (autoClose: boolean) => void;
@@ -219,6 +221,7 @@ type PersistedAppState = Pick<
   | "desktopNotificationPreviews"
   | "lastChannelByServerId"
   | "mainPanelWidth"
+  | "memberPanelCollapsed"
   | "messageFont"
   | "notificationAutoClose"
   | "notificationLimit"
@@ -269,6 +272,7 @@ function createInitialState(): Omit<
   | "setChannelSidebarWidth"
   | "setDesktopNotificationPreviews"
   | "setMainPanelWidth"
+  | "setMemberPanelCollapsed"
   | "setMessageFont"
   | "setMobileSidebarOpen"
   | "setNotificationAutoClose"
@@ -313,6 +317,7 @@ function createInitialState(): Omit<
     },
     lastChannelByServerId: {},
     mainPanelWidth: DEFAULT_MAIN_PANEL_WIDTH,
+    memberPanelCollapsed: false,
     desktopNotificationPreviews: false,
     messageFont: DEFAULT_MESSAGE_FONT_ID,
     mobileSidebarOpen: false,
@@ -409,6 +414,10 @@ function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
         ? value.mainPanelWidth
         : DEFAULT_MAIN_PANEL_WIDTH,
     ),
+    memberPanelCollapsed:
+      typeof value.memberPanelCollapsed === "boolean"
+        ? value.memberPanelCollapsed
+        : false,
     messageFont: isMessageFontId(value.messageFont)
       ? value.messageFont
       : DEFAULT_MESSAGE_FONT_ID,
@@ -716,6 +725,16 @@ export const useAppStore = create<AppState>()(
             mainPanelWidth: nextWidth,
           };
         }),
+      setMemberPanelCollapsed: (collapsed) =>
+        set((state) => {
+          if (state.memberPanelCollapsed === collapsed) {
+            return state;
+          }
+
+          return {
+            memberPanelCollapsed: collapsed,
+          };
+        }),
       setMessageFont: (fontId) =>
         set((state) => {
           const nextFont = normalizeMessageFontId(fontId);
@@ -911,6 +930,16 @@ export const useAppStore = create<AppState>()(
           };
         }
 
+        if (version < 7) {
+          nextPersistedState = {
+            ...nextPersistedState,
+            memberPanelCollapsed:
+              typeof nextPersistedState.memberPanelCollapsed === "boolean"
+                ? nextPersistedState.memberPanelCollapsed
+                : false,
+          };
+        }
+
         return nextPersistedState;
       },
       merge: (persistedState, currentState) => ({
@@ -928,6 +957,7 @@ export const useAppStore = create<AppState>()(
         desktopNotificationPreviews: state.desktopNotificationPreviews,
         lastChannelByServerId: state.lastChannelByServerId,
         mainPanelWidth: state.mainPanelWidth,
+        memberPanelCollapsed: state.memberPanelCollapsed,
         messageFont: state.messageFont,
         notificationAutoClose: state.notificationAutoClose,
         notificationLimit: state.notificationLimit,
@@ -939,7 +969,7 @@ export const useAppStore = create<AppState>()(
         showCategoryMoveControls: state.showCategoryMoveControls,
       }),
       storage: createJSONStorage(() => localStorage),
-      version: 6,
+      version: 7,
     },
   ),
 );

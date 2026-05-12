@@ -37,6 +37,46 @@ export interface UserProfileUpdatedPayload {
   username: string;
 }
 
+export interface VoiceInvitePayload {
+  channelId: string;
+  channelName: string;
+  createdAt: string;
+  expiresAt: string;
+  fromUser: {
+    avatarUrl: string | null;
+    displayName: string;
+    id: string;
+    username: string;
+  };
+  id: string;
+  serverId: string;
+  serverName: string;
+}
+
+export interface VoiceInviteErrorPayload {
+  channelId?: string;
+  code: string;
+  inviteId?: string;
+  message: string;
+  targetUserId?: string;
+}
+
+export interface VoiceInviteStatusPayload {
+  channelId: string;
+  inviteId: string;
+  serverId: string;
+  status: "accepted" | "declined";
+  targetUserId: string;
+}
+
+export interface VoiceAudioLevelPayload {
+  audioLevel: number;
+  channelId: string;
+  isMuted: boolean;
+  isSpeaking: boolean;
+  userId: string;
+}
+
 export interface ClientToServerEvents {
   "channel:join": (channelId: string) => void;
   "channel:leave": (channelId: string) => void;
@@ -81,6 +121,28 @@ export interface ClientToServerEvents {
   "presence:activity": (data: { status: "ONLINE" | "IDLE" }) => void;
   "voice:join": (data: { channelId: string; serverId: string }) => void;
   "voice:leave": (data: { channelId: string; serverId: string }) => void;
+  "voice:invite:accept": (data: {
+    channelId: string;
+    inviteId: string;
+    serverId: string;
+  }) => void;
+  "voice:invite:decline": (data: {
+    channelId: string;
+    inviteId: string;
+    serverId: string;
+  }) => void;
+  "voice:invite:send": (data: {
+    channelId: string;
+    serverId: string;
+    targetUserId: string;
+  }) => void;
+  "voice:audio-level:update": (data: {
+    audioLevel: number;
+    channelId: string;
+    isMuted: boolean;
+    isSpeaking: boolean;
+    serverId: string;
+  }) => void;
   "voice:screenshare:update": (data: {
     channelId: string;
     isScreenSharing: boolean;
@@ -201,6 +263,21 @@ export interface ServerToClientEvents {
     isScreenSharing: boolean;
     userId: string;
   }) => void;
+  "voice:invite:accepted": (data: {
+    channelId: string;
+    inviteId: string;
+    serverId: string;
+  }) => void;
+  "voice:invite:error": (data: VoiceInviteErrorPayload) => void;
+  "voice:invite:received": (data: VoiceInvitePayload) => void;
+  "voice:invite:sent": (data: {
+    channelId: string;
+    expiresAt: string;
+    inviteId: string;
+    targetUserId: string;
+  }) => void;
+  "voice:invite:status": (data: VoiceInviteStatusPayload) => void;
+  "voice:audio-level:update": (data: VoiceAudioLevelPayload) => void;
   error: (data: { code: string; message: string }) => void;
 }
 
@@ -231,4 +308,6 @@ export interface SocketData {
   presenceCustomStatus: string | null;
   presenceStatus: FriendPresenceUpdateDto["status"];
   typingChannels: Set<string>;
+  lastVoiceAudioLevelAt?: number;
+  voiceRooms: Set<string>;
 }

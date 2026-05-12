@@ -85,6 +85,20 @@ type AccessContext = {
   userId: string;
 };
 
+type WorkspaceNotificationRecord = {
+  actionUrl: string | null;
+  body: string;
+  createdAt: Date;
+  id: string;
+  imageUrl: string | null;
+  metadata: Prisma.JsonValue | null;
+  read: boolean;
+  readAt: Date | null;
+  title: string;
+  type: "MENTION" | "FRIEND_REQUEST" | "FRIEND_ACCEPTED" | "DM" | "SERVER_INVITE" | "SYSTEM" | "MODERATION";
+  userId: string;
+};
+
 type ChannelRecord = {
   categoryId: string | null;
   canAccess?: boolean;
@@ -102,6 +116,33 @@ type ChannelRecord = {
   topic: string | null;
   type: ChannelType;
 };
+
+function serializeWorkspaceNotification(
+  notification: WorkspaceNotificationRecord,
+): NotificationSocketPayload {
+  return {
+    actionUrl: notification.actionUrl,
+    body: notification.body,
+    createdAt: notification.createdAt.toISOString(),
+    id: notification.id,
+    imageUrl: notification.imageUrl,
+    metadata:
+      notification.metadata &&
+      typeof notification.metadata === "object" &&
+      !Array.isArray(notification.metadata)
+        ? (notification.metadata as Record<string, unknown>)
+        : null,
+    read: notification.read,
+    readAt: notification.readAt?.toISOString() ?? null,
+    title: notification.title,
+    type: notification.type,
+    userId: notification.userId,
+  };
+}
+
+function formatRoleNameList(roleNames: string[]) {
+  return roleNames.map((roleName) => `@${roleName}`).join(", ");
+}
 
 const SERVER_DETAIL_MEMBER_LIMIT = 100;
 const SERVER_MEMBERS_PAGE_LIMIT = 100;
@@ -1732,9 +1773,15 @@ export async function updateWorkspaceMemberRoles(
               id: true,
               isDefault: true,
               managed: true,
+              name: true,
               permissions: true,
             },
           },
+        },
+      },
+      user: {
+        select: {
+          locale: true,
         },
       },
       userId: true,
@@ -1763,6 +1810,7 @@ export async function updateWorkspaceMemberRoles(
       id: true,
       isDefault: true,
       managed: true,
+      name: true,
       permissions: true,
     },
     where: {
@@ -1789,6 +1837,10 @@ export async function updateWorkspaceMemberRoles(
     .map((entry) => entry.role)
     .filter((role) => !role.isDefault)
     .map((role) => role.id);
+  const addedRoleIds = requestedRoleIds.filter(
+    (roleId) => !existingNonDefaultRoleIds.includes(roleId),
+  );
+  const addedRoles = roles.filter((role) => addedRoleIds.includes(role.id));
 
   const mutations: Prisma.PrismaPromise<unknown>[] = [
     prisma.memberRole.deleteMany({
@@ -1815,9 +1867,54 @@ export async function updateWorkspaceMemberRoles(
 
   await prisma.$transaction(mutations);
 
-  getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
+  const io = getSocketServer();
+  io?.to(`server:${serverId}`).emit("server:settings:updated", {
     serverId,
   });
+
+  if (member.userId !== userId && addedRoles.length > 0) {
+    const locale = normalizeAppLocale(member.user.locale);
+    const roleList = formatRoleNameList(addedRoles.map((role) => role.name));
+    const notification = await prisma.notification.create({
+      data: {
+        actionUrl: `/channels/${serverId}`,
+        body: translate(locale, "workspace.notification.rolesAssigned.body", {
+          roles: roleList,
+          server: access.serverName,
+        }),
+        metadata: {
+          roleIds: addedRoleIds,
+          roles: addedRoles.map((role) => role.name),
+          senderId: userId,
+          serverId,
+          serverName: access.serverName,
+        },
+        title: translate(locale, "workspace.notification.rolesAssigned.title", {
+          server: access.serverName,
+        }),
+        type: "MODERATION",
+        userId: member.userId,
+      },
+      select: {
+        actionUrl: true,
+        body: true,
+        createdAt: true,
+        id: true,
+        imageUrl: true,
+        metadata: true,
+        read: true,
+        readAt: true,
+        title: true,
+        type: true,
+        userId: true,
+      },
+    });
+
+    io?.to(`user:${member.userId}`).emit(
+      "notification:new",
+      serializeWorkspaceNotification(notification),
+    );
+  }
 
   return { success: true as const };
 }

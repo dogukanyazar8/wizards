@@ -30,9 +30,16 @@ const VISIBLE_NOTIFICATION_TYPES: NotificationType[] = [
   "DM",
   "MENTION",
   "SERVER_INVITE",
+  "MODERATION",
 ];
 
-type VisibleNotificationType = "FRIEND_REQUEST" | "FRIEND_ACCEPTED" | "DM" | "MENTION" | "SERVER_INVITE";
+type VisibleNotificationType =
+  | "FRIEND_REQUEST"
+  | "FRIEND_ACCEPTED"
+  | "DM"
+  | "MENTION"
+  | "MODERATION"
+  | "SERVER_INVITE";
 
 export async function listNotifications(
   userId: string,
