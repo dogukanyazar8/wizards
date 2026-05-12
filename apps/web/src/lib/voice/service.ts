@@ -420,10 +420,18 @@ export async function upsertVoiceState(
 ): Promise<VoiceStateMutationResponse> {
   await maybeCleanupStaleVoiceStates();
   const channel = await requireVoiceMembership(userId, input);
+  const now = new Date();
   const redis = getRedis();
   const lockKey = `voice:join:lock:${channel.id}`;
   const lockToken = randomUUID();
   const lockAcquired = await redis.set(lockKey, lockToken, "PX", 2000, "NX");
+  type ReplacedVoiceState = {
+    channelId: string;
+    serverId: string;
+    sessionId: string;
+  };
+  let replacedState: ReplacedVoiceState | null = null;
+  let shouldStartVoiceUsageSession = true;
 
   if (!lockAcquired) {
     throw new ApiError("Voice channel is busy. Please try again.", 409, "CHANNEL_BUSY");
@@ -434,17 +442,55 @@ export async function upsertVoiceState(
       await enforceVoiceRoomCapacity(channel.id, userId);
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.voiceState.create({
-        data: {
+    const mutation = await prisma.$transaction(async (tx) => {
+      const existingState = await tx.voiceState.findUnique({
+        where: { userId },
+        select: {
+          channelId: true,
+          serverId: true,
+          sessionId: true,
+        },
+      });
+      const replacesExistingSession =
+        existingState !== null &&
+        (existingState.channelId !== channel.id ||
+          existingState.serverId !== channel.serverId ||
+          existingState.sessionId !== input.sessionId);
+      const updateData = {
+        channelId: channel.id,
+        deaf: false,
+        ...(replacesExistingSession ? { joinedAt: now } : {}),
+        lastHeartbeat: now,
+        mute: false,
+        requestToSpeakAt: null,
+        selfDeaf: false,
+        selfMute: false,
+        selfStream: false,
+        selfVideo: false,
+        serverId: channel.serverId!,
+        sessionId: input.sessionId,
+        suppress: false,
+      };
+
+      await tx.voiceState.upsert({
+        create: {
           channelId: channel.id,
-          lastHeartbeat: new Date(),
+          lastHeartbeat: now,
           serverId: channel.serverId!,
           sessionId: input.sessionId,
           userId,
         },
+        update: updateData,
+        where: { userId },
       });
+
+      return {
+        replacedState: replacesExistingSession ? existingState : null,
+        shouldStartVoiceUsageSession: existingState === null || replacesExistingSession,
+      };
     });
+    replacedState = mutation.replacedState;
+    shouldStartVoiceUsageSession = mutation.shouldStartVoiceUsageSession;
   } finally {
     try {
       const currentToken = await redis.get(lockKey);
@@ -456,15 +502,37 @@ export async function upsertVoiceState(
     }
   }
 
-  void startMediaUsageSession({
-    channelId: channel.id,
-    kind: "VOICE",
-    serverId: channel.serverId!,
-    sessionId: input.sessionId,
-    userId,
-  }).catch((error) => {
-    logAnalyticsError("voice session start", error);
-  });
+  if (replacedState) {
+    await endAllMediaUsageSessionsForVoiceSession(userId, replacedState.sessionId).catch(
+      (error) => {
+        logAnalyticsError("voice session replace", error);
+      },
+    );
+    await redis
+      .del(getVoiceScreenShareStateKey(replacedState.channelId, userId))
+      .catch(() => undefined);
+    if (replacedState.channelId !== channel.id) {
+      await removeLiveKitVoiceParticipant(replacedState.channelId, userId);
+      await emitVoiceStateUpdate({
+        action: "leave",
+        channelId: replacedState.channelId,
+        serverId: replacedState.serverId,
+        userId,
+      });
+    }
+  }
+
+  if (shouldStartVoiceUsageSession) {
+    void startMediaUsageSession({
+      channelId: channel.id,
+      kind: "VOICE",
+      serverId: channel.serverId!,
+      sessionId: input.sessionId,
+      userId,
+    }).catch((error) => {
+      logAnalyticsError("voice session start", error);
+    });
+  }
 
   const participants = await buildVoiceStateParticipantsForChannel(channel.id);
   return {
@@ -495,6 +563,7 @@ export async function clearVoiceState(
     where: { userId },
     select: {
       channelId: true,
+      id: true,
       serverId: true,
       sessionId: true,
       userId: true,
@@ -505,9 +574,13 @@ export async function clearVoiceState(
     return null;
   }
 
-  await prisma.voiceState.delete({
-    where: { userId },
+  const deleted = await prisma.voiceState.deleteMany({
+    where: { id: existingState.id },
   });
+
+  if (deleted.count === 0) {
+    return null;
+  }
 
   await endAllMediaUsageSessionsForVoiceSession(userId, existingState.sessionId).catch((error) => {
     logAnalyticsError("voice session end", error);
