@@ -36,6 +36,10 @@ import { getSocketServer } from "@/lib/socket/runtime";
 import { disconnectUnauthorizedVoiceParticipants } from "@/lib/voice/service";
 import { getMessageById } from "@/lib/workspace/message-service";
 import {
+  invalidateMemberPermissionCache,
+  invalidateServerPermissionCache,
+} from "@/lib/workspace/permission-cache";
+import {
   emitServerUnreadUpdatesForServer,
   getActiveChannelViewerUserIds,
   getServerChannelUnreadCounts,
@@ -1627,6 +1631,8 @@ export async function createWorkspaceRole(
     },
   });
 
+  await invalidateServerPermissionCache(serverId);
+
   getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
     serverId,
   });
@@ -1709,6 +1715,8 @@ export async function updateWorkspaceRole(
     },
   });
 
+  await invalidateServerPermissionCache(serverId);
+
   getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
     serverId,
   });
@@ -1746,6 +1754,8 @@ export async function deleteWorkspaceRole(userId: string, serverId: string, role
       id: roleId,
     },
   });
+
+  await invalidateServerPermissionCache(serverId);
 
   getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
     serverId,
@@ -1867,6 +1877,8 @@ export async function updateWorkspaceMemberRoles(
 
   await prisma.$transaction(mutations);
 
+  await invalidateMemberPermissionCache(serverId, member.userId);
+
   const io = getSocketServer();
   io?.to(`server:${serverId}`).emit("server:settings:updated", {
     serverId,
@@ -1946,6 +1958,8 @@ export async function deleteWorkspaceServer(
     },
   });
 
+  await invalidateServerPermissionCache(serverId);
+
   const io = getSocketServer();
   if (io) {
     for (const member of members) {
@@ -1976,6 +1990,8 @@ export async function leaveWorkspaceServer(userId: string, serverId: string) {
       },
     },
   });
+
+  await invalidateMemberPermissionCache(serverId, userId);
 
   const io = await detachUserFromServerSocketRoom(userId, serverId);
   io?.to(`server:${serverId}`).emit("server:settings:updated", { serverId });
@@ -2202,6 +2218,8 @@ export async function createWorkspaceChannel(
     return createdChannel;
   });
 
+  await invalidateServerPermissionCache(serverId);
+
   getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
     serverId,
   });
@@ -2304,6 +2322,10 @@ export async function updateWorkspaceChannel(
     },
     data,
   });
+
+  if (input.locked !== undefined) {
+    await invalidateServerPermissionCache(existingChannel.serverId);
+  }
 
   if (
     existingChannel.type === ChannelType.VOICE &&
@@ -2442,6 +2464,8 @@ export async function updateWorkspaceChannelPermissions(
       presetPermissions: permissionMutation.presetPermissions,
     });
   });
+
+  await invalidateServerPermissionCache(channel.serverId);
 
   if (channel.type === ChannelType.VOICE) {
     await disconnectUnauthorizedVoiceParticipants(channelId);
@@ -2593,6 +2617,8 @@ export async function deleteWorkspaceChannel(userId: string, channelId: string) 
       id: channelId,
     },
   });
+
+  await invalidateServerPermissionCache(channel.serverId);
 
   getSocketServer()?.to(`server:${channel.serverId}`).emit("server:settings:updated", {
     serverId: channel.serverId,
@@ -2959,6 +2985,8 @@ export async function addWorkspaceServerMemberByUsername(
     };
   });
 
+  await invalidateMemberPermissionCache(serverId, targetUser.id);
+
   const io = getSocketServer();
 
   if (io) {
@@ -3064,6 +3092,8 @@ export async function kickWorkspaceMember(userId: string, serverId: string, memb
       id: member.id,
     },
   });
+
+  await invalidateMemberPermissionCache(serverId, member.userId);
 
   const io = await detachUserFromServerSocketRoom(member.userId, serverId);
   io?.to(`server:${serverId}`).emit("server:settings:updated", { serverId });
@@ -3245,6 +3275,8 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
 
       return { message: systemMessage };
     });
+
+    await invalidateMemberPermissionCache(invite.server.id, userId);
 
     if (transactionResult.message) {
       const activeViewerUserIds = getActiveChannelViewerUserIds(

@@ -162,6 +162,11 @@ export interface ServerToClientEvents {
       | "unblocked";
   }) => void;
   "message:new": (message: ChatMessage) => void;
+  "channel:messages:stale": (data: {
+    channelId: string;
+    latestMessageId: string;
+    serverId: string;
+  }) => void;
   "message:updated": (message: ChatMessage) => void;
   "message:deleted": (data: {
     messageId: string;
@@ -305,6 +310,7 @@ export interface SocketData {
   userId: string;
   username: string;
   displayName: string;
+  appSessionKey?: string;
   presenceCustomStatus: string | null;
   presenceStatus: FriendPresenceUpdateDto["status"];
   typingChannels: Set<string>;

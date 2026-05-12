@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { ChannelType, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
+import {
+  endAllMediaUsageSessionsForVoiceSession,
+  endMediaUsageSession,
+  logAnalyticsError,
+  startMediaUsageSession,
+} from "@/lib/analytics/service";
 import { getLiveKitRoomServiceClient } from "@/lib/livekit/server";
 import { getRedis } from "@/lib/redis";
 import { getSocketServer } from "@/lib/socket/runtime";
@@ -15,6 +21,7 @@ import { getVoiceScreenShareStateKey } from "@/lib/voice/screen-share-state";
 import {
   MAX_VOICE_PARTICIPANTS,
   VOICE_HEARTBEAT_TIMEOUT_MS,
+  type HeartbeatVoiceStateBody,
   type UpsertVoiceStateBody,
   type VoiceChannelStateDTO,
   type VoiceStateMutationResponse,
@@ -47,6 +54,7 @@ export async function cleanupStaleVoiceStates() {
       select: {
         channelId: true,
         serverId: true,
+        sessionId: true,
         userId: true,
       },
       take: VOICE_CLEANUP_BATCH_SIZE,
@@ -68,6 +76,14 @@ export async function cleanupStaleVoiceStates() {
         },
       },
     });
+
+    await Promise.all(
+      staleStates.map((state) =>
+        endAllMediaUsageSessionsForVoiceSession(state.userId, state.sessionId).catch((error) => {
+          logAnalyticsError("voice stale cleanup", error);
+        }),
+      ),
+    );
 
     const redis = getRedis();
     await Promise.all(
@@ -246,6 +262,7 @@ export async function disconnectUnauthorizedVoiceParticipants(channelId: string)
     select: {
       channelId: true,
       serverId: true,
+      sessionId: true,
       userId: true,
     },
   });
@@ -276,6 +293,14 @@ export async function disconnectUnauthorizedVoiceParticipants(channelId: string)
       },
     },
   });
+
+  await Promise.all(
+    unauthorizedStates.map((state) =>
+      endAllMediaUsageSessionsForVoiceSession(state.userId, state.sessionId).catch((error) => {
+        logAnalyticsError("voice unauthorized cleanup", error);
+      }),
+    ),
+  );
 
   const redis = getRedis();
   const roomService = getLiveKitRoomServiceClient();
@@ -431,6 +456,16 @@ export async function upsertVoiceState(
     }
   }
 
+  void startMediaUsageSession({
+    channelId: channel.id,
+    kind: "VOICE",
+    serverId: channel.serverId!,
+    sessionId: input.sessionId,
+    userId,
+  }).catch((error) => {
+    logAnalyticsError("voice session start", error);
+  });
+
   const participants = await buildVoiceStateParticipantsForChannel(channel.id);
   return {
     channelId: channel.id,
@@ -474,6 +509,10 @@ export async function clearVoiceState(
     where: { userId },
   });
 
+  await endAllMediaUsageSessionsForVoiceSession(userId, existingState.sessionId).catch((error) => {
+    logAnalyticsError("voice session end", error);
+  });
+
   await getRedis()
     .del(getVoiceScreenShareStateKey(existingState.channelId, userId))
     .catch(() => undefined);
@@ -485,8 +524,12 @@ export async function clearVoiceState(
   return existingState;
 }
 
-export async function heartbeatVoiceState(userId: string, sessionId: string) {
+export async function heartbeatVoiceState(
+  userId: string,
+  input: HeartbeatVoiceStateBody | string,
+) {
   await maybeCleanupStaleVoiceStates();
+  const sessionId = typeof input === "string" ? input : input.sessionId;
 
   const existingState = await prisma.voiceState.findUnique({
     where: { userId },
@@ -507,6 +550,32 @@ export async function heartbeatVoiceState(userId: string, sessionId: string) {
       lastHeartbeat: new Date(),
     },
   });
+
+  if (typeof input !== "string" && input.selfVideo !== undefined) {
+    const action = input.selfVideo ? startMediaUsageSession : endMediaUsageSession;
+    await action({
+      channelId: existingState.channelId,
+      kind: "CAMERA",
+      serverId: existingState.serverId,
+      sessionId,
+      userId,
+    }).catch((error) => {
+      logAnalyticsError("voice camera heartbeat", error);
+    });
+  }
+
+  if (typeof input !== "string" && input.selfStream !== undefined) {
+    const action = input.selfStream ? startMediaUsageSession : endMediaUsageSession;
+    await action({
+      channelId: existingState.channelId,
+      kind: "SCREEN_SHARE",
+      serverId: existingState.serverId,
+      sessionId,
+      userId,
+    }).catch((error) => {
+      logAnalyticsError("voice screen-share heartbeat", error);
+    });
+  }
 
   return existingState;
 }

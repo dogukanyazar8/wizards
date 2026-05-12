@@ -12,6 +12,10 @@ import {
 } from "@wizards/types";
 import { ApiError } from "@/lib/api";
 import {
+  logAnalyticsError,
+  recordMessageCreated,
+} from "@/lib/analytics/service";
+import {
   claimUploadedMessageAttachments,
   normalizeMessageContentForSend,
 } from "@/lib/messages/attachments";
@@ -630,7 +634,7 @@ async function createTypedMessage(args: {
   const attachments = args.attachments ?? [];
   const content = normalizeMessageContentForSend(args.content, attachments);
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     if (args.threadParentId) {
       const parent = await tx.message.findFirst({
         where: {
@@ -669,8 +673,27 @@ async function createTypedMessage(args: {
       include: messageInclude,
     }) as RawMessage;
 
-    return mapRawMessage(message);
+    return {
+      attachmentCount: message.attachments.length,
+      payload: mapRawMessage(message),
+      uploadedBytes: message.attachments.reduce(
+        (total, attachment) => total + BigInt(attachment.size),
+        0n,
+      ),
+    };
   });
+
+  if (args.type === "DEFAULT") {
+    void recordMessageCreated({
+      attachmentCount: result.attachmentCount,
+      uploadedBytes: result.uploadedBytes,
+      userId: args.userId,
+    }).catch((error) => {
+      logAnalyticsError("channel message created", error);
+    });
+  }
+
+  return result.payload;
 }
 
 export async function editMessage(

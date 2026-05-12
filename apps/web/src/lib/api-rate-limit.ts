@@ -4,6 +4,14 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getRedis } from "@/lib/redis";
 
 export const API_RATE_LIMITS = {
+  "admin:campaign:create": { limit: 12, windowSeconds: 60 },
+  "admin:campaign:preview": { limit: 60, windowSeconds: 60 },
+  "admin:campaign:send": { limit: 6, windowSeconds: 60 },
+  "admin:dashboard": { limit: 120, windowSeconds: 60 },
+  "admin:report:export": { limit: 20, windowSeconds: 60 },
+  "admin:server:list": { limit: 120, windowSeconds: 60 },
+  "admin:user:list": { limit: 120, windowSeconds: 60 },
+  "admin:user:update": { limit: 20, windowSeconds: 60 },
   "category:create": { limit: 30, windowSeconds: 60 },
   "category:delete": { limit: 30, windowSeconds: 60 },
   "category:reorder": { limit: 20, windowSeconds: 60 },

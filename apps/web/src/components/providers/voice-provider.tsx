@@ -962,10 +962,13 @@ function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     (sessionId: string) => {
       stopHeartbeat();
       heartbeatRef.current = setInterval(() => {
-        void sendVoiceHeartbeat(sessionId).catch(() => undefined);
+        void sendVoiceHeartbeat(sessionId, {
+          selfVideo: cameraStatus === "enabled",
+          selfStream: useVoiceStore.getState().isScreenSharing,
+        }).catch(() => undefined);
       }, E2E_VOICE_HEARTBEAT_INTERVAL_MS);
     },
-    [stopHeartbeat],
+    [cameraStatus, stopHeartbeat],
   );
 
   const getParticipantVolume = useCallback(
@@ -2021,11 +2024,16 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     (sessionId: string) => {
       stopHeartbeat();
       heartbeatRef.current = setInterval(() => {
-        void sendVoiceHeartbeat(sessionId).catch(() => {
+        const activeRoom = roomRef.current;
+        const store = useVoiceStore.getState();
+
+        void sendVoiceHeartbeat(sessionId, {
+          selfVideo: isLocalCameraTrackLive(getLocalCameraTrack(activeRoom)),
+          selfStream: store.isScreenSharing && store.screenShareMode === "voice",
+        }).catch(() => {
           // If the session vanished on the server, a reconnect or explicit leave
           // will reconcile the local state.
         });
-        const store = useVoiceStore.getState();
         if (store.isScreenSharing && store.screenShareMode === "voice") {
           emitVoiceScreenShareState(store.activeChannelId, store.serverId, true, {
             force: true,
@@ -2624,7 +2632,11 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
     }
 
     if (isLocalCameraTrackLive(getLocalCameraTrack(activeRoom))) {
+      const sessionId = useVoiceStore.getState().sessionId;
       await stopCamera(activeRoom);
+      if (sessionId) {
+        void sendVoiceHeartbeat(sessionId, { selfVideo: false }).catch(() => undefined);
+      }
       return;
     }
 
@@ -2662,6 +2674,10 @@ function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
       setCameraStatus("enabled");
       setCameraError(null);
       syncParticipants(activeRoom);
+      const sessionId = useVoiceStore.getState().sessionId;
+      if (sessionId) {
+        void sendVoiceHeartbeat(sessionId, { selfVideo: true }).catch(() => undefined);
+      }
     } catch (error) {
       await stopCamera(activeRoom, { clearError: false }).catch(() => undefined);
 

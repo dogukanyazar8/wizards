@@ -94,12 +94,18 @@ export async function deleteVoiceState() {
   });
 }
 
-export async function sendVoiceHeartbeat(sessionId: string) {
+export async function sendVoiceHeartbeat(
+  sessionId: string,
+  state: {
+    selfStream?: boolean;
+    selfVideo?: boolean;
+  } = {},
+) {
   return requestJson<{ channelId: string; serverId: string; success: true }>(
     "/api/v1/voice/state/heartbeat",
     {
       method: "PATCH",
-      body: { sessionId },
+      body: { sessionId, ...state },
     },
   );
 }

@@ -119,14 +119,16 @@ export async function resetE2ERedisState(): Promise<void> {
   try {
     await redis.connect();
 
-    let cursor = "0";
-    do {
-      const [nextCursor, keys] = await redis.scan(cursor, "MATCH", "rate:*", "COUNT", "100");
-      if (keys.length > 0) {
-        await redis.del(...keys);
-      }
-      cursor = nextCursor;
-    } while (cursor !== "0");
+    for (const pattern of ["rate:*", "permission:*"]) {
+      let cursor = "0";
+      do {
+        const [nextCursor, keys] = await redis.scan(cursor, "MATCH", pattern, "COUNT", "100");
+        if (keys.length > 0) {
+          await redis.del(...keys);
+        }
+        cursor = nextCursor;
+      } while (cursor !== "0");
+    }
   } finally {
     await redis.quit();
   }

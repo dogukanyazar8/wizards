@@ -9,7 +9,7 @@ export async function PATCH(request: Request) {
     const userId = await requireApiUserId();
     await enforceApiRateLimit(userId, "voice:heartbeat");
     const input = await parseJsonBody(request, HeartbeatVoiceStateBodySchema);
-    const state = await heartbeatVoiceState(userId, input.sessionId);
+    const state = await heartbeatVoiceState(userId, input);
 
     return Response.json({
       channelId: state.channelId,

@@ -6,6 +6,14 @@ import { getToken } from "next-auth/jwt";
 import { ChannelType, Prisma, prisma } from "@wizards/db";
 import type { UploadedAttachmentInput } from "@wizards/types";
 import { ApiError } from "@/lib/api";
+import {
+  endAppSession,
+  heartbeatAppSession,
+  logAnalyticsError,
+  recordMessageCreated,
+  setVoiceScreenShareUsage,
+  startAppSession,
+} from "@/lib/analytics/service";
 import { isActiveAuthUser } from "@/lib/auth/access";
 import {
   dmMessageInclude,
@@ -60,6 +68,7 @@ import {
   filterUserIdsByChannelPermission,
   requireChannelPermissionForUser,
 } from "@/lib/workspace/permission-service";
+import { recordMessageSendFanoutMetric } from "@/lib/workspace/performance-metrics";
 import { PermissionBits, hasPermission } from "@/lib/workspace/permissions";
 import {
   parseSocketPayload,
@@ -716,11 +725,24 @@ export function initSocketServer(httpServer: HTTPServer) {
 
   io.on("connection", (socket) => {
     const userId = socket.data.userId;
+    const appSessionKey = `socket:${socket.id}`;
+    socket.data.appSessionKey = appSessionKey;
+    void startAppSession({
+      headers: socket.handshake.headers,
+      sessionKey: appSessionKey,
+      socketId: socket.id,
+      userId,
+    }).catch((error) => {
+      logAnalyticsError("app session start", error);
+    });
     const dmTypingConversations = new Set<string>();
     const dmTypingTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
     const presenceHeartbeat = setInterval(() => {
       void markPresenceSocketActive(redis, userId, socket.id).catch((error) => {
         logError("[socket] Presence heartbeat error", error);
+      });
+      void heartbeatAppSession(appSessionKey).catch((error) => {
+        logAnalyticsError("app session heartbeat", error);
       });
     }, 60_000);
     socket.data.typingChannels = new Set<string>();
@@ -1502,6 +1524,15 @@ export function initSocketServer(httpServer: HTTPServer) {
           await redis.del(screenShareStateKey);
         }
 
+        void setVoiceScreenShareUsage({
+          channelId: data.channelId,
+          isScreenSharing: data.isScreenSharing,
+          serverId: data.serverId,
+          userId,
+        }).catch((error) => {
+          logAnalyticsError("voice screen-share socket update", error);
+        });
+
         await emitVoiceScreenShareUpdate({
           channelId: data.channelId,
           isScreenSharing: data.isScreenSharing,
@@ -1622,9 +1653,10 @@ export function initSocketServer(httpServer: HTTPServer) {
           data.threadParentId,
         );
         const messageCreatedAt = new Date(message.createdAt);
+        const activeChannelViewerCandidateUserIds = getActiveChannelViewerUserIds(data.channelId);
         const activeChannelViewerUserIds = await filterUserIdsByChannelPermission(
           data.channelId,
-          getActiveChannelViewerUserIds(data.channelId),
+          activeChannelViewerCandidateUserIds,
           PermissionBits.VIEW_CHANNEL,
         );
         const readUserIds = [userId, ...activeChannelViewerUserIds];
@@ -1647,7 +1679,26 @@ export function initSocketServer(httpServer: HTTPServer) {
           (memberUserId) => !readUserIdSet.has(memberUserId),
         );
 
+        if (unreadUpdateUserIds.length > 0) {
+          io.to(unreadUpdateUserIds.map((memberUserId) => `user:${memberUserId}`)).emit(
+            "channel:messages:stale",
+            {
+              channelId: data.channelId,
+              latestMessageId: message.id,
+              serverId: permissionChannel.serverId,
+            },
+          );
+        }
+
         await emitServerUnreadUpdatesForServer(permissionChannel.serverId, unreadUpdateUserIds);
+        recordMessageSendFanoutMetric({
+          activeChannelViewerCount: activeChannelViewerCandidateUserIds.length,
+          activeServerMemberCount: activeServerMemberUserIds.length,
+          permittedChannelViewerCount: activeChannelViewerUserIds.length,
+          permittedUnreadUserCount: permittedUnreadUserIds.length,
+          readUserCount: readUserIds.length,
+          unreadUpdateUserCount: unreadUpdateUserIds.length,
+        });
         void createChannelMentionNotifications({
           channelId: data.channelId,
           channelName: channel.name,
@@ -2194,6 +2245,17 @@ export function initSocketServer(httpServer: HTTPServer) {
         });
 
         const messagePayload = mapDMMessagePayload(createdMessage);
+        void recordMessageCreated({
+          attachmentCount: createdMessage.attachments.length,
+          isDm: true,
+          uploadedBytes: createdMessage.attachments.reduce(
+            (total, attachment) => total + BigInt(attachment.size),
+            0n,
+          ),
+          userId,
+        }).catch((error) => {
+          logAnalyticsError("dm message created", error);
+        });
         io.to(`dm:${data.conversationId}`).emit("dm:message:new", messagePayload);
 
         const firstAttachment = createdMessage.attachments[0];
@@ -2600,6 +2662,9 @@ export function initSocketServer(httpServer: HTTPServer) {
         await Promise.all(
           Array.from(dmTypingConversations).map((conversationId) => stopDMTyping(conversationId)),
         );
+        await endAppSession(socket.data.appSessionKey ?? appSessionKey).catch((error) => {
+          logAnalyticsError("app session end", error);
+        });
 
         const nextSocketCount = await removePresenceSocket(redis, userId, socket.id);
 

@@ -60,6 +60,8 @@ export const UpsertVoiceStateBodySchema = z.object({
 
 export const HeartbeatVoiceStateBodySchema = z.object({
   sessionId: z.string().uuid(),
+  selfStream: z.boolean().optional(),
+  selfVideo: z.boolean().optional(),
 });
 
 export const VoiceStatesQuerySchema = z.object({
