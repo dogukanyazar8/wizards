@@ -223,6 +223,10 @@
     "mtime": 1777980040.2932804,
     "hash": "4ae310db6e204213a0aefc0103a9a192"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\attachments\\[attachmentId]\\download\\route.ts": {
+    "mtime": 1778569488.7676308,
+    "hash": "ee691a1c7da1d054bd4065d353b56554"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\channels\\[channelId]\\route.ts": {
     "mtime": 1777980040.2952807,
     "hash": "3cb57ea315606922fc05c42f0dde6a57"
@@ -504,28 +508,28 @@
     "hash": "424d412c152ef59bfe73610b2323eb7f"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\image-lightbox.tsx": {
-    "mtime": 1778010688.052367,
-    "hash": "6f42918381ae1a4dfb47ba307fa709c8"
+    "mtime": 1778569287.7517042,
+    "hash": "3d24bc0c62164175afd0e5e74a4d43d1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\link-preview-card.tsx": {
     "mtime": 1778146536.1123276,
     "hash": "e622e7a698adb89cca0ee5c18cda5457"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\message-attachments.tsx": {
-    "mtime": 1778146510.9391973,
-    "hash": "6e090fd3c66e2b1b6532cc147a4c4c70"
+    "mtime": 1778570292.230909,
+    "hash": "279a124eefeeb559551b3c55292e0630"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\message-editor.tsx": {
     "mtime": 1778500628.9868002,
     "hash": "ef4e908d726d799b68b7e30d883f2951"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\message-input.tsx": {
-    "mtime": 1778500617.4738913,
-    "hash": "b4a94b46d290081e67972220d5c43665"
+    "mtime": 1778567677.018382,
+    "hash": "b94828f7ae1830d633345bd97fc4026f"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\message-item.tsx": {
-    "mtime": 1778508475.2952135,
-    "hash": "0037f7f84f2575a9a5558ed281a7a1b7"
+    "mtime": 1778570271.5324802,
+    "hash": "cb4d7a6fcb19b32730740183845d68c4"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\message-list.tsx": {
     "mtime": 1778502251.5021966,
@@ -848,8 +852,8 @@
     "hash": "3b76e9183e3dc50fa3645aba8a382d87"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\app-version.ts": {
-    "mtime": 1778498392.2932894,
-    "hash": "02d33b08204f4f12aa9dedf34dde63e5"
+    "mtime": 1778570661.3822637,
+    "hash": "a514f7a2c15f3302d14c39204ad29acb"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\appearance.ts": {
     "mtime": 1778144353.2742922,
@@ -868,8 +872,8 @@
     "hash": "9dafc40721a587bf5c24b7887c140d25"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale.ts": {
-    "mtime": 1778513954.9530928,
-    "hash": "0c3ba4e04c8a0e89ba84e786288c091d"
+    "mtime": 1778570661.3832657,
+    "hash": "35923ec6f7612ebb7d8ab92c0f5a2296"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\logger.ts": {
     "mtime": 1777980040.3451438,

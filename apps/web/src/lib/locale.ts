@@ -72,6 +72,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.messaging.title": "Lighter chat controls",
     "app.update.notes.messaging.description":
       "Pinned, notification, and search controls now sit on a lighter transparent layer so the chat area stays open.",
+    "app.update.notes.mediaPreview.title": "Sharper media previews",
+    "app.update.notes.mediaPreview.description":
+      "Images and GIFs now open in a cleaner viewer with zoom, pan, protected downloads, tighter message spacing, and readable attachment labels.",
     "app.update.notes.settings.title": "Focused voice controls",
     "app.update.notes.settings.description":
       "The old sidebar voice card is gone; call controls now live in the voice room while quick mute and deafen remain in the user bar.",
@@ -1439,6 +1442,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.attachments.attachImage": "Attach image",
     "chat.attachments.attachFile": "Attach",
     "chat.attachments.disabled": "File uploads are disabled for this server.",
+    "chat.attachments.download": "Download",
+    "chat.attachments.downloadImage": "Download {filename}",
     "chat.attachments.dropToUpload": "Drop files to upload",
     "chat.attachments.dropToUploadHint":
       "Images, videos, docs, and GIFs stay attached to this message.",
@@ -1469,6 +1474,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.attachments.uploadingImage": "Uploading",
     "chat.attachments.video": "Video",
     "chat.attachments.zoomIn": "Zoom in",
+    "chat.attachments.zoomLevel": "Zoom {zoom}",
     "chat.attachments.zoomOut": "Zoom out",
     "chat.linkPreview.link": "Link",
     "chat.linkPreview.loading": "Loading preview",
@@ -1837,6 +1843,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.messaging.title": "Daha hafif sohbet kontrolleri",
     "app.update.notes.messaging.description":
       "Sabitler, bildirimler ve arama kontrolleri artık daha hafif transparan bir katmanda durur; sohbet alanı daha ferah kalır.",
+    "app.update.notes.mediaPreview.title": "Daha net medya önizlemeleri",
+    "app.update.notes.mediaPreview.description":
+      "Görsel ve GIF'ler artık yakınlaştırma, taşıma, güvenli indirme, daha sıkı mesaj aralığı ve her görselde okunabilir ek etiketleriyle daha temiz bir görüntüleyicide açılıyor.",
     "app.update.notes.settings.title": "Odaklı ses kontrolleri",
     "app.update.notes.settings.description":
       "Eski sidebar ses kartı kaldırıldı; çağrı kontrolleri ses odasında, hızlı sustur ve sağırlaştır seçenekleri user bar'da kalıyor.",
@@ -3205,6 +3214,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.attachments.attachImage": "Görsel ekle",
     "chat.attachments.attachFile": "Ekle",
     "chat.attachments.disabled": "Bu sunucuda dosya yükleme kapalı.",
+    "chat.attachments.download": "İndir",
+    "chat.attachments.downloadImage": "{filename} görselini indir",
     "chat.attachments.dropToUpload": "Yüklemek için dosyaları bırak",
     "chat.attachments.dropToUploadHint":
       "Görseller, videolar, dokümanlar ve GIF'ler bu mesaja eklenir.",
@@ -3235,6 +3246,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.attachments.uploadingImage": "Yükleniyor",
     "chat.attachments.video": "Video",
     "chat.attachments.zoomIn": "Yakınlaştır",
+    "chat.attachments.zoomLevel": "Yakınlaştırma {zoom}",
     "chat.attachments.zoomOut": "Uzaklaştır",
     "chat.linkPreview.link": "Bağlantı",
     "chat.linkPreview.loading": "Önizleme yükleniyor",

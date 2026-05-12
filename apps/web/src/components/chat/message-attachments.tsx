@@ -75,7 +75,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
   return (
     <>
       {imageAttachments.length > 0 ? (
-        <div className={cn("mt-1 grid gap-1.5", gridClassName(imageAttachments.length))}>
+        <div className={cn("mt-0 grid gap-1.5", gridClassName(imageAttachments.length))}>
           {imageAttachments.map((attachment, index) => (
             <button
               aria-label={t("chat.attachments.openImage", {
@@ -103,12 +103,16 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
                 loading="lazy"
                 src={attachment.url}
               />
-              <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/82 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700 shadow-sm backdrop-blur">
-                <ImageIcon className="h-3 w-3" />
-                {isMessageGifContentType(attachment.contentType)
-                  ? t("chat.attachments.gif")
-                  : `${index + 1}/${imageAttachments.length}`}
-              </span>
+              {!isMessageGifContentType(attachment.contentType) ? (
+                <span className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full border border-white/90 bg-[linear-gradient(135deg,rgba(15,23,42,0.94),rgba(30,41,59,0.82))] px-1.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_0_1px_rgba(15,23,42,0.7),inset_0_1px_0_rgba(255,255,255,0.28)] backdrop-blur-md">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-slate-950 shadow-[0_1px_6px_rgba(0,0,0,0.35)]">
+                    <ImageIcon className="h-3 w-3" />
+                  </span>
+                  <span className="pr-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.75)]">
+                    {`${index + 1}/${imageAttachments.length}`}
+                  </span>
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
