@@ -6,7 +6,7 @@ Minimal Tauri shell for the existing Whispr web app.
 
 - The desktop app loads the existing Whispr web app instead of duplicating UI or backend logic.
 - Development loads `TAURI_DEV_WEB_URL`, defaulting to `http://localhost:3000`.
-- Production builds require `TAURI_WEB_URL` and load that configured HTTPS origin.
+- Production builds load `https://whispr.team` by default. Set `TAURI_WEB_URL` only when an explicit HTTPS override is needed.
 - The desktop shell does not include Prisma, database URLs, auth secrets, LiveKit secrets, upload secrets, or server-side credentials.
 - Tauri IPC is limited to native notification permission/dispatch and minimal window controls required for the custom desktop titlebar.
 - Off-origin navigation opens in the system browser by default. During an active Auth.js OAuth redirect only, the WebView allows the known provider origins needed to return the session cookie to Whispr.
@@ -52,10 +52,16 @@ pnpm --filter @wizards/desktop dev
 
 ## Production Build
 
-Set a deployed Whispr HTTPS origin before building:
+Production builds target the canonical Whispr origin by default:
 
 ```powershell
-$env:TAURI_WEB_URL="https://app.your-whispr-domain.com"
+pnpm --filter @wizards/desktop build:desktop
+```
+
+To target a different deployed HTTPS origin, set `TAURI_WEB_URL` before building:
+
+```powershell
+$env:TAURI_WEB_URL="https://uat.whispr.team"
 pnpm --filter @wizards/desktop build:desktop
 ```
 
