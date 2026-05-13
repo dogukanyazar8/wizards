@@ -24,6 +24,7 @@ import type {
 } from "./events";
 
 const SOCKET_MAX_HTTP_BUFFER_SIZE = 1_048_576;
+export const SOCKET_SERVER_ROOM_JOIN_BATCH_SIZE = 500;
 const DEFAULT_DEV_SOCKET_ORIGINS = [
   "http://localhost:3000",
   "http://localhost:8080",
@@ -109,8 +110,56 @@ function isSocketRequestAllowed(request: IncomingMessage, allowedOrigins: Set<st
   return process.env.NODE_ENV !== "production" || process.env.SOCKET_ALLOW_EMPTY_ORIGIN === "true";
 }
 
-async function listServerIds(userId: string) {
-  const memberships = await prisma.serverMember.findMany({
+type ServerRoomMembership = {
+  serverId: string;
+};
+
+type ServerRoomMembershipFindManyArgs = {
+  cursor?: {
+    userId_serverId: {
+      serverId: string;
+      userId: string;
+    };
+  };
+  orderBy: { serverId: "asc" };
+  select: { serverId: true };
+  skip?: number;
+  take: number;
+  where: {
+    server: {
+      bans: {
+        none: { userId: string };
+      };
+    };
+    userId: string;
+  };
+};
+
+type ServerRoomMembershipDelegate = {
+  findMany(args: ServerRoomMembershipFindManyArgs): Promise<ServerRoomMembership[]>;
+};
+
+type ServerRoomJoinSocket = {
+  join(room: string): void;
+};
+
+function normalizeServerRoomJoinBatchSize(value: number | undefined) {
+  if (!Number.isInteger(value) || !value || value <= 0) {
+    return SOCKET_SERVER_ROOM_JOIN_BATCH_SIZE;
+  }
+
+  return Math.min(value, SOCKET_SERVER_ROOM_JOIN_BATCH_SIZE);
+}
+
+export async function listServerRoomIdsPage(
+  userId: string,
+  options: {
+    batchSize?: number;
+    cursorServerId?: string;
+    serverMemberDelegate?: ServerRoomMembershipDelegate;
+  } = {},
+) {
+  const memberships = await (options.serverMemberDelegate ?? prisma.serverMember).findMany({
     where: {
       userId,
       server: {
@@ -119,10 +168,58 @@ async function listServerIds(userId: string) {
         },
       },
     },
+    ...(options.cursorServerId
+      ? {
+          cursor: {
+            userId_serverId: {
+              serverId: options.cursorServerId,
+              userId,
+            },
+          },
+          skip: 1,
+        }
+      : {}),
+    orderBy: { serverId: "asc" },
+    take: normalizeServerRoomJoinBatchSize(options.batchSize),
     select: { serverId: true },
   });
 
   return memberships.map((membership) => membership.serverId);
+}
+
+export async function joinServerRoomsForUser(
+  socket: ServerRoomJoinSocket,
+  userId: string,
+  options: {
+    batchSize?: number;
+    serverMemberDelegate?: ServerRoomMembershipDelegate;
+  } = {},
+) {
+  const batchSize = normalizeServerRoomJoinBatchSize(options.batchSize);
+  let cursorServerId: string | undefined;
+
+  for (;;) {
+    const serverIds = await listServerRoomIdsPage(userId, {
+      batchSize,
+      ...(cursorServerId ? { cursorServerId } : {}),
+      ...(options.serverMemberDelegate
+        ? { serverMemberDelegate: options.serverMemberDelegate }
+        : {}),
+    });
+
+    for (const serverId of serverIds) {
+      socket.join(`server:${serverId}`);
+    }
+
+    if (serverIds.length < batchSize) {
+      return;
+    }
+
+    cursorServerId = serverIds.at(-1);
+    if (!cursorServerId) {
+      return;
+    }
+  }
 }
 
 export function initSocketServer(httpServer: HTTPServer) {
@@ -237,10 +334,7 @@ export function initSocketServer(httpServer: HTTPServer) {
     socket.join(`user:${userId}`);
     void (async () => {
       try {
-        const serverIds = await listServerIds(userId);
-        for (const serverId of serverIds) {
-          socket.join(`server:${serverId}`);
-        }
+        await joinServerRoomsForUser(socket, userId);
       } catch (error) {
         logError("[socket] Server room join error", error);
       }
