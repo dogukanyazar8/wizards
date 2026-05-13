@@ -44,9 +44,8 @@ import {
   getActiveChannelViewerUserIds,
   getServerChannelUnreadCounts,
   getServerMentionCount,
-  getServerMentionCounts,
+  getServerUnreadAndMentionCounts,
   getServerUnreadCount,
-  getServerUnreadCounts,
   markChannelReadStates,
 } from "@/lib/workspace/unread-service";
 import { applyServerMediaSettings, getServerMediaSettings } from "@/lib/workspace/server-features";
@@ -935,10 +934,7 @@ export async function listWorkspaceServers(userId: string) {
   });
 
   const serverIds = memberships.map((membership) => membership.server.id);
-  const [unreadCounts, mentionCounts] = await Promise.all([
-    getServerUnreadCounts(userId, serverIds),
-    getServerMentionCounts(userId, serverIds),
-  ]);
+  const { mentionCounts, unreadCounts } = await getServerUnreadAndMentionCounts(userId, serverIds);
 
   return memberships.map((membership) => {
     const mediaSettings = getServerMediaSettings(membership.server.features);
@@ -1518,6 +1514,16 @@ export async function updateWorkspaceServer(
     });
   }
 
+  const shouldInvalidateChannelPermissionMetadata =
+    input.messageCharacterLimit !== undefined ||
+    input.allowGifs !== undefined ||
+    input.allowFileUploads !== undefined ||
+    input.allowMemberAdds !== undefined;
+
+  if (shouldInvalidateChannelPermissionMetadata) {
+    await invalidateServerPermissionCache(serverId);
+  }
+
   await prisma.server.update({
     where: {
       id: serverId,
@@ -1536,6 +1542,10 @@ export async function updateWorkspaceServer(
           SELECT "id" FROM "Channel" WHERE "serverId" = ${serverId}
         )
     `;
+  }
+
+  if (shouldInvalidateChannelPermissionMetadata) {
+    await invalidateServerPermissionCache(serverId);
   }
 
   const detail = await getWorkspaceServerDetail(userId, serverId);
@@ -2316,6 +2326,13 @@ export async function updateWorkspaceChannel(
     data.position = nextPosition;
   }
 
+  const shouldInvalidateChannelPermissionMetadata =
+    input.locked !== undefined || input.name !== undefined;
+
+  if (shouldInvalidateChannelPermissionMetadata) {
+    await invalidateServerPermissionCache(existingChannel.serverId);
+  }
+
   await prisma.channel.update({
     where: {
       id: channelId,
@@ -2323,7 +2340,7 @@ export async function updateWorkspaceChannel(
     data,
   });
 
-  if (input.locked !== undefined) {
+  if (shouldInvalidateChannelPermissionMetadata) {
     await invalidateServerPermissionCache(existingChannel.serverId);
   }
 

@@ -1117,6 +1117,7 @@ model VoiceState {
 
   @@index([channelId])
   @@index([serverId])
+  @@index([lastHeartbeat])
   @@index([serverId, lastHeartbeat])
 }
 

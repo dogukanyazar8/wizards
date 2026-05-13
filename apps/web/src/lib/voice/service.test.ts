@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  acquireVoiceCleanupLock,
   acquireVoiceJoinLocks,
   buildVoiceStateDeleteWhere,
   canClearVoiceStateForSession,
   getVoiceJoinLockSpecs,
+  releaseVoiceCleanupLock,
+  runBoundedVoiceStateCleanup,
   runVoiceStateClearMutation,
   runVoiceStateUpsertMutation,
+  VOICE_CLEANUP_LOCK_KEY,
 } from "./service";
 
 type UpsertMutationInput = Parameters<typeof runVoiceStateUpsertMutation>[0];
@@ -296,5 +300,78 @@ describe("voice service concurrency helpers", () => {
         },
       },
     ]);
+  });
+
+  it("bounds stale cleanup work per run and reports remaining work", async () => {
+    const staleBatches = [
+      [
+        {
+          channelId: "channel-1",
+          serverId: "server-1",
+          sessionId: "session-1",
+          userId: "user-1",
+        },
+        {
+          channelId: "channel-1",
+          serverId: "server-1",
+          sessionId: "session-2",
+          userId: "user-2",
+        },
+      ],
+      [
+        {
+          channelId: "channel-2",
+          serverId: "server-1",
+          sessionId: "session-3",
+          userId: "user-3",
+        },
+        {
+          channelId: "channel-2",
+          serverId: "server-1",
+          sessionId: "session-4",
+          userId: "user-4",
+        },
+      ],
+      [
+        {
+          channelId: "channel-3",
+          serverId: "server-1",
+          sessionId: "session-5",
+          userId: "user-5",
+        },
+      ],
+    ];
+    const handledUserIds: string[] = [];
+
+    const result = await runBoundedVoiceStateCleanup({
+      batchSize: 2,
+      deleteBatch: async () => staleBatches.shift() ?? [],
+      handleDeletedBatch: async (states) => {
+        handledUserIds.push(...states.map((state) => state.userId));
+      },
+      maxBatches: 2,
+    });
+
+    assert.deepEqual(result, {
+      batches: 2,
+      deletedStates: 4,
+      hasMore: true,
+    });
+    assert.deepEqual(handledUserIds, ["user-1", "user-2", "user-3", "user-4"]);
+    assert.equal(staleBatches.length, 1);
+  });
+
+  it("releases only the matching stale cleanup lock token", async () => {
+    const redis = new MemoryVoiceJoinRedis();
+
+    assert.equal(await acquireVoiceCleanupLock(redis, "token-1"), true);
+    assert.equal(await acquireVoiceCleanupLock(redis, "token-2"), false);
+    assert.equal(await redis.get(VOICE_CLEANUP_LOCK_KEY), "token-1");
+
+    await releaseVoiceCleanupLock(redis, "token-2");
+    assert.equal(await redis.get(VOICE_CLEANUP_LOCK_KEY), "token-1");
+
+    await releaseVoiceCleanupLock(redis, "token-1");
+    assert.equal(await redis.get(VOICE_CLEANUP_LOCK_KEY), null);
   });
 });

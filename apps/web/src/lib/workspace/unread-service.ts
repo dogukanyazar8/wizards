@@ -3,6 +3,7 @@ import { ChannelType, Prisma, prisma } from "@wizards/db";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { recordUnreadFanoutMetric } from "@/lib/workspace/performance-metrics";
 import {
+  listChannelIdsByServerForUserWithPermission,
   listChannelIdsForUserWithPermission,
   listChannelIdsForUsersWithPermission,
 } from "@/lib/workspace/permission-service";
@@ -33,6 +34,10 @@ function normalizeUserIds(userIds: string[]) {
   return Array.from(new Set(userIds.filter(Boolean)));
 }
 
+function normalizeIds(ids: string[]) {
+  return Array.from(new Set(ids.filter(Boolean)));
+}
+
 function createUserCountMap(userIds: string[]) {
   const counts = new Map<string, number>();
   for (const userId of userIds) {
@@ -59,6 +64,48 @@ async function getVisibleTextChannelIdsByUser(userIds: string[], serverId: strin
   });
 
   return new Map(entries);
+}
+
+async function getVisibleTextChannelIdsByServer(userId: string, serverIds: string[]) {
+  const uniqueServerIds = normalizeIds(serverIds);
+  let visibleChannelIdsByServer: Map<string, string[]>;
+
+  try {
+    visibleChannelIdsByServer = await listChannelIdsByServerForUserWithPermission(
+      userId,
+      uniqueServerIds,
+      PermissionBits.VIEW_CHANNEL,
+      ChannelType.TEXT,
+    );
+  } catch {
+    const fallbackEntries = await Promise.all(
+      uniqueServerIds.map(async (serverId) => [
+        serverId,
+        await listChannelIdsForUserWithPermission(
+          userId,
+          serverId,
+          PermissionBits.VIEW_CHANNEL,
+          ChannelType.TEXT,
+        ).catch(() => []),
+      ] as const),
+    );
+    visibleChannelIdsByServer = new Map(fallbackEntries);
+  }
+
+  const entries = uniqueServerIds.map((serverId) => {
+    const channelIds = visibleChannelIdsByServer.get(serverId) ?? [];
+
+    return [
+      serverId,
+      Array.from(new Set(channelIds.filter(Boolean))).sort(),
+    ] as const;
+  });
+
+  return new Map(entries);
+}
+
+function getVisibleChannelIds(visibleChannelIdsByServer: Map<string, string[]>) {
+  return Array.from(new Set([...visibleChannelIdsByServer.values()].flat()));
 }
 
 export function groupUsersByVisibleChannelIds(
@@ -134,26 +181,27 @@ export async function getServerChannelUnreadCounts(userId: string, serverId: str
   return counts;
 }
 
-export async function getServerUnreadCounts(userId: string, serverIds: string[]) {
-  if (serverIds.length === 0) {
-    return new Map<string, number>();
+function createServerCountMap(serverIds: string[]) {
+  const counts = new Map<string, number>();
+  for (const serverId of serverIds) {
+    counts.set(serverId, 0);
   }
 
-  const visibleChannelIds = (
-    await Promise.all(
-      serverIds.map((serverId) =>
-        listChannelIdsForUserWithPermission(
-          userId,
-          serverId,
-          PermissionBits.VIEW_CHANNEL,
-          ChannelType.TEXT,
-        ).catch(() => []),
-      ),
-    )
-  ).flat();
+  return counts;
+}
 
-  const rows = visibleChannelIds.length > 0
-    ? await prisma.$queryRaw<ServerUnreadCountRow[]>(Prisma.sql`
+async function getServerUnreadCountsForVisibleChannelIds(
+  userId: string,
+  serverIds: string[],
+  visibleChannelIds: string[],
+) {
+  const uniqueServerIds = normalizeIds(serverIds);
+  const unreadCounts = createServerCountMap(uniqueServerIds);
+  if (uniqueServerIds.length === 0 || visibleChannelIds.length === 0) {
+    return unreadCounts;
+  }
+
+  const rows = await prisma.$queryRaw<ServerUnreadCountRow[]>(Prisma.sql`
     SELECT
       sm."serverId" AS "serverId",
       COUNT(m."id")::bigint AS "unreadCount"
@@ -170,16 +218,10 @@ export async function getServerUnreadCounts(userId: string, serverIds: string[])
       AND m."threadParentId" IS NULL
       AND m."createdAt" > COALESCE(crs."lastReadAt", sm."joinedAt")
     WHERE sm."userId" = ${userId}
-      AND sm."serverId" IN (${Prisma.join(serverIds)})
+      AND sm."serverId" IN (${Prisma.join(uniqueServerIds)})
       AND c."id" IN (${Prisma.join(visibleChannelIds)})
     GROUP BY sm."serverId"
-  `)
-    : [];
-
-  const unreadCounts = new Map<string, number>();
-  for (const serverId of serverIds) {
-    unreadCounts.set(serverId, 0);
-  }
+  `);
 
   for (const row of rows) {
     unreadCounts.set(row.serverId, toUnreadCount(row.unreadCount));
@@ -188,26 +230,18 @@ export async function getServerUnreadCounts(userId: string, serverIds: string[])
   return unreadCounts;
 }
 
-export async function getServerMentionCounts(userId: string, serverIds: string[]) {
-  if (serverIds.length === 0) {
-    return new Map<string, number>();
+async function getServerMentionCountsForVisibleChannelIds(
+  userId: string,
+  serverIds: string[],
+  visibleChannelIds: string[],
+) {
+  const uniqueServerIds = normalizeIds(serverIds);
+  const mentionCounts = createServerCountMap(uniqueServerIds);
+  if (uniqueServerIds.length === 0 || visibleChannelIds.length === 0) {
+    return mentionCounts;
   }
 
-  const visibleChannelIds = (
-    await Promise.all(
-      serverIds.map((serverId) =>
-        listChannelIdsForUserWithPermission(
-          userId,
-          serverId,
-          PermissionBits.VIEW_CHANNEL,
-          ChannelType.TEXT,
-        ).catch(() => []),
-      ),
-    )
-  ).flat();
-
-  const rows = visibleChannelIds.length > 0
-    ? await prisma.$queryRaw<Array<{ serverId: string; mentionCount: bigint | number }>>(Prisma.sql`
+  const rows = await prisma.$queryRaw<Array<{ serverId: string; mentionCount: bigint | number }>>(Prisma.sql`
     SELECT
       c."serverId" AS "serverId",
       COALESCE(SUM(crs."mentionCount"), 0)::bigint AS "mentionCount"
@@ -216,22 +250,50 @@ export async function getServerMentionCounts(userId: string, serverIds: string[]
       ON c."id" = crs."channelId"
       AND c."type" = 'TEXT'
     WHERE crs."userId" = ${userId}
-      AND c."serverId" IN (${Prisma.join(serverIds)})
+      AND c."serverId" IN (${Prisma.join(uniqueServerIds)})
       AND c."id" IN (${Prisma.join(visibleChannelIds)})
     GROUP BY c."serverId"
-  `)
-    : [];
-
-  const mentionCounts = new Map<string, number>();
-  for (const serverId of serverIds) {
-    mentionCounts.set(serverId, 0);
-  }
+  `);
 
   for (const row of rows) {
     mentionCounts.set(row.serverId, toUnreadCount(row.mentionCount));
   }
 
   return mentionCounts;
+}
+
+export async function getServerUnreadCounts(userId: string, serverIds: string[]) {
+  const uniqueServerIds = normalizeIds(serverIds);
+  const visibleChannelIdsByServer = await getVisibleTextChannelIdsByServer(userId, uniqueServerIds);
+
+  return getServerUnreadCountsForVisibleChannelIds(
+    userId,
+    uniqueServerIds,
+    getVisibleChannelIds(visibleChannelIdsByServer),
+  );
+}
+
+export async function getServerMentionCounts(userId: string, serverIds: string[]) {
+  const uniqueServerIds = normalizeIds(serverIds);
+  const visibleChannelIdsByServer = await getVisibleTextChannelIdsByServer(userId, uniqueServerIds);
+
+  return getServerMentionCountsForVisibleChannelIds(
+    userId,
+    uniqueServerIds,
+    getVisibleChannelIds(visibleChannelIdsByServer),
+  );
+}
+
+export async function getServerUnreadAndMentionCounts(userId: string, serverIds: string[]) {
+  const uniqueServerIds = normalizeIds(serverIds);
+  const visibleChannelIdsByServer = await getVisibleTextChannelIdsByServer(userId, uniqueServerIds);
+  const visibleChannelIds = getVisibleChannelIds(visibleChannelIdsByServer);
+  const [unreadCounts, mentionCounts] = await Promise.all([
+    getServerUnreadCountsForVisibleChannelIds(userId, uniqueServerIds, visibleChannelIds),
+    getServerMentionCountsForVisibleChannelIds(userId, uniqueServerIds, visibleChannelIds),
+  ]);
+
+  return { mentionCounts, unreadCounts };
 }
 
 export async function getServerMentionCount(userId: string, serverId: string) {

@@ -33,7 +33,10 @@ import {
   createDMErrorEmitter,
   createSafeDMErrorEmitter,
 } from "@/lib/socket/errors";
-import { checkDMMessageRateLimits } from "@/lib/socket/rate-limits";
+import {
+  checkDMMessageRateLimits,
+  shouldLogRateLimitUnavailable,
+} from "@/lib/socket/rate-limits";
 import {
   parseSocketPayload,
   SocketConversationPayloadSchema,
@@ -239,29 +242,30 @@ export function registerDMHandlers(
         return;
       }
 
-      try {
-        const rateLimitResult = await checkDMMessageRateLimits({
-          conversationId: data.conversationId,
-          redis,
-          userId,
-        });
+      const rateLimitResult = await checkDMMessageRateLimits({
+        conversationId: data.conversationId,
+        redis,
+        userId,
+      });
 
-        if (rateLimitResult === "global") {
-          emitDMError("RATE_LIMITED", "Too many DM messages. Please slow down.");
-          return;
-        }
-
-        if (rateLimitResult === "conversation") {
-          emitDMError("RATE_LIMITED", "Too many DM messages. Maximum 30 per minute.");
-          return;
-        }
-      } catch (rateLimitError) {
-        logError("[socket] DM message rate limit unavailable", rateLimitError);
-        emitDMError(
-          "RATE_LIMITED",
-          "Message checks are temporarily unavailable. Please try again shortly.",
-        );
+      if (rateLimitResult.status === "global") {
+        emitDMError("RATE_LIMITED", "Too many DM messages. Please slow down.");
         return;
+      }
+
+      if (rateLimitResult.status === "conversation") {
+        emitDMError("RATE_LIMITED", "Too many DM messages. Maximum 30 per minute.");
+        return;
+      }
+
+      if (
+        rateLimitResult.status === "unavailable" &&
+        shouldLogRateLimitUnavailable("dm-message")
+      ) {
+        logError(
+          "[socket] DM message rate limit unavailable; allowing message send",
+          rateLimitResult.error,
+        );
       }
 
       let attachmentInputs: UploadedAttachmentInput[];

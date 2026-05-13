@@ -44,6 +44,7 @@ const channelOverrideSelect = {
 } as const;
 
 type PermissionRole = RolePermissionRecord;
+type ChannelPermissionSnapshotChannel = CachedChannelPermissionSnapshot["channel"];
 
 function mergePermissionRoles(...roleGroups: PermissionRole[][]) {
   const rolesById = new Map<string, PermissionRole>();
@@ -93,12 +94,7 @@ function hasCachedChannelPermission(
 }
 
 function createChannelPermissionSnapshot(args: {
-  channel: {
-    id: string;
-    locked: boolean;
-    serverId: string;
-    type: ChannelType;
-  };
+  channel: ChannelPermissionSnapshotChannel;
   context: ChannelPermissionResolutionContext;
   permissions: bigint;
 }): CachedChannelPermissionSnapshot {
@@ -244,15 +240,22 @@ export async function getChannelPermissionContext(
     select: {
       id: true,
       locked: true,
+      name: true,
       permissionOverrides: {
         select: channelOverrideSelect,
+      },
+      server: {
+        select: {
+          features: true,
+          messageCharacterLimit: true,
+        },
       },
       serverId: true,
       type: true,
     },
   });
 
-  if (!channel?.serverId) {
+  if (!channel?.serverId || !channel.server) {
     throw new ApiError("Channel not found", 404, "CHANNEL_NOT_FOUND");
   }
 
@@ -274,6 +277,11 @@ export async function getChannelPermissionContext(
     channel: {
       id: channel.id,
       locked: channel.locked,
+      name: channel.name,
+      server: {
+        features: channel.server.features,
+        messageCharacterLimit: channel.server.messageCharacterLimit,
+      },
       serverId: channel.serverId,
       type: channel.type,
     },
@@ -360,11 +368,14 @@ async function getChannelPermissionTarget(channelId: string) {
     select: {
       id: true,
       locked: true,
+      name: true,
       permissionOverrides: {
         select: channelOverrideSelect,
       },
       server: {
         select: {
+          features: true,
+          messageCharacterLimit: true,
           ownerId: true,
           roles: {
             where: { isDefault: true },
@@ -385,8 +396,13 @@ async function getChannelPermissionTarget(channelId: string) {
     id: channel.id,
     defaultRoles: channel.server.roles,
     locked: channel.locked,
+    name: channel.name,
     ownerId: channel.server.ownerId,
     permissionOverrides: channel.permissionOverrides,
+    server: {
+      features: channel.server.features,
+      messageCharacterLimit: channel.server.messageCharacterLimit,
+    },
     serverId: channel.serverId,
     type: channel.type,
   };
@@ -477,6 +493,8 @@ export async function filterUserIdsByChannelPermission(
       channel: {
         id: channel.id,
         locked: channel.locked,
+        name: channel.name,
+        server: channel.server,
         serverId: channel.serverId,
         type: channel.type,
       },
@@ -706,4 +724,166 @@ export async function listChannelIdsForUserWithPermission(
   });
 
   return channelIds;
+}
+
+export async function listChannelIdsByServerForUserWithPermission(
+  userId: string,
+  serverIds: string[],
+  permission: PermissionKey | PermissionValue = PermissionBits.VIEW_CHANNEL,
+  type?: ChannelType,
+) {
+  const uniqueServerIds = Array.from(new Set(serverIds.filter(Boolean)));
+  const channelIdsByServer = new Map<string, string[]>(
+    uniqueServerIds.map((serverId) => [serverId, []]),
+  );
+  if (!userId || uniqueServerIds.length === 0) {
+    return channelIdsByServer;
+  }
+
+  const cachedEntries = await Promise.all(
+    uniqueServerIds.map(async (serverId) => [
+      serverId,
+      await readCachedVisibleChannelIds({
+        permission,
+        serverId,
+        userId,
+        ...(type !== undefined ? { type } : {}),
+      }),
+    ] as const),
+  );
+  const uncachedServerIds: string[] = [];
+  for (const [serverId, cachedChannelIds] of cachedEntries) {
+    if (cachedChannelIds) {
+      channelIdsByServer.set(serverId, cachedChannelIds);
+    } else {
+      uncachedServerIds.push(serverId);
+    }
+  }
+
+  if (uncachedServerIds.length === 0) {
+    return channelIdsByServer;
+  }
+
+  const [memberships, defaultRoles, bans, channels] = await Promise.all([
+    prisma.serverMember.findMany({
+      where: {
+        serverId: { in: uncachedServerIds },
+        userId,
+      },
+      select: {
+        id: true,
+        roles: {
+          select: {
+            role: {
+              select: permissionRoleSelect,
+            },
+          },
+        },
+        server: {
+          select: {
+            ownerId: true,
+          },
+        },
+        serverId: true,
+      },
+    }),
+    prisma.role.findMany({
+      where: {
+        isDefault: true,
+        serverId: { in: uncachedServerIds },
+      },
+      select: {
+        ...permissionRoleSelect,
+        serverId: true,
+      },
+    }),
+    prisma.serverBan.findMany({
+      where: {
+        serverId: { in: uncachedServerIds },
+        userId,
+      },
+      select: { serverId: true },
+    }),
+    prisma.channel.findMany({
+      where: {
+        parentId: null,
+        serverId: { in: uncachedServerIds },
+        ...(type ? { type } : {}),
+      },
+      select: {
+        id: true,
+        permissionOverrides: {
+          select: channelOverrideSelect,
+        },
+        serverId: true,
+      },
+    }),
+  ]);
+  const bannedServerIds = new Set(bans.map((ban) => ban.serverId));
+  const membershipsByServerId = new Map(memberships.map((membership) => [membership.serverId, membership]));
+  const defaultRolesByServerId = new Map<string, PermissionRole[]>();
+  for (const role of defaultRoles) {
+    const { serverId, ...permissionRole } = role;
+    const roles = defaultRolesByServerId.get(serverId) ?? [];
+    roles.push(permissionRole);
+    defaultRolesByServerId.set(serverId, roles);
+  }
+  const channelsByServerId = new Map<string, Array<(typeof channels)[number]>>();
+  for (const channel of channels) {
+    if (!channel.serverId) {
+      continue;
+    }
+    const serverChannels = channelsByServerId.get(channel.serverId) ?? [];
+    serverChannels.push(channel);
+    channelsByServerId.set(channel.serverId, serverChannels);
+  }
+
+  const cacheEntries: Array<{
+    channelIds: string[];
+    permission: PermissionKey | PermissionValue;
+    serverId: string;
+    type?: ChannelType;
+    userId: string;
+  }> = [];
+
+  for (const serverId of uncachedServerIds) {
+    const membership = membershipsByServerId.get(serverId);
+    if (!membership || bannedServerIds.has(serverId)) {
+      continue;
+    }
+
+    const serverContext: PermissionResolutionContext = {
+      memberId: membership.id,
+      ownerId: membership.server.ownerId,
+      roles: mergePermissionRoles(
+        defaultRolesByServerId.get(serverId) ?? [],
+        membership.roles.map((entry) => entry.role),
+      ),
+      userId,
+    };
+    const channelIds = (channelsByServerId.get(serverId) ?? [])
+      .filter((channel) =>
+        hasPermission(
+          resolveChannelPermissions({
+            ...serverContext,
+            overrides: channel.permissionOverrides,
+          }),
+          permission,
+        ),
+      )
+      .map((channel) => channel.id);
+
+    channelIdsByServer.set(serverId, channelIds);
+    cacheEntries.push({
+      channelIds,
+      permission,
+      serverId,
+      userId,
+      ...(type !== undefined ? { type } : {}),
+    });
+  }
+
+  await writeCachedVisibleChannelIdsBatch(cacheEntries);
+
+  return channelIdsByServer;
 }

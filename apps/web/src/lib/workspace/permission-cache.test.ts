@@ -80,6 +80,11 @@ function createSnapshot(): CachedChannelPermissionSnapshot {
     channel: {
       id: "channel-1",
       locked: false,
+      name: "general",
+      server: {
+        features: ["GIFS_ENABLED"],
+        messageCharacterLimit: 2000,
+      },
       serverId: "server-1",
       type: ChannelType.TEXT,
     },
@@ -115,6 +120,11 @@ describe("workspace permission cache", () => {
         "channel-1",
       );
       assert.equal(cachedBeforeInvalidation?.permissions, PermissionBits.VIEW_CHANNEL);
+      assert.equal(cachedBeforeInvalidation?.channel.name, "general");
+      assert.deepEqual(cachedBeforeInvalidation?.channel.server, {
+        features: ["GIFS_ENABLED"],
+        messageCharacterLimit: 2000,
+      });
 
       await invalidateServerPermissionCache("server-1");
       assert.equal(await readCachedChannelPermissionSnapshot("user-1", "channel-1"), null);

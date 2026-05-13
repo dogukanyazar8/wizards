@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { ChannelType, prisma } from "@wizards/db";
+import { ChannelType, Prisma, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import {
   endAllMediaUsageSessionsForVoiceSession,
@@ -8,6 +8,7 @@ import {
   startMediaUsageSession,
 } from "@/lib/analytics/service";
 import { getLiveKitRoomServiceClient } from "@/lib/livekit/server";
+import { logError } from "@/lib/logger";
 import { getRedis } from "@/lib/redis";
 import { getSocketServer } from "@/lib/socket/runtime";
 import {
@@ -37,7 +38,11 @@ function getVoiceRoomName(channelId: string) {
 }
 
 const VOICE_CLEANUP_DEBOUNCE_KEY = "voice:cleanup:last";
+export const VOICE_CLEANUP_LOCK_KEY = "voice:cleanup:lock";
 const VOICE_CLEANUP_BATCH_SIZE = 100;
+const VOICE_CLEANUP_MAX_BATCHES_PER_RUN = 5;
+const VOICE_CLEANUP_DEBOUNCE_SECONDS = 60;
+const VOICE_CLEANUP_LOCK_TTL_MS = 30_000;
 const VOICE_JOIN_LOCK_TTL_MS = 2000;
 
 type VoiceJoinLockSpec = {
@@ -86,6 +91,27 @@ export type VoiceJoinRedisClient = {
   del(key: string): Promise<unknown>;
   get(key: string): Promise<string | null>;
   set(key: string, value: string, ttlMode: "PX", ttlMs: number, condition: "NX"): Promise<unknown>;
+};
+
+export type VoiceCleanupRedisClient = {
+  del(key: string): Promise<unknown>;
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string, ttlMode: "EX", ttlSeconds: number, condition: "NX"): Promise<unknown>;
+  set(key: string, value: string, ttlMode: "PX", ttlMs: number, condition: "NX"): Promise<unknown>;
+  status?: string;
+};
+
+type StaleVoiceStateRecord = {
+  channelId: string;
+  serverId: string;
+  sessionId: string;
+  userId: string;
+};
+
+export type VoiceCleanupResult = {
+  batches: number;
+  deletedStates: number;
+  hasMore: boolean;
 };
 
 type VoiceStateUpsertRecord = {
@@ -252,49 +278,86 @@ export async function runVoiceStateClearMutation(args: {
   return existingState;
 }
 
-export async function cleanupStaleVoiceStates() {
-  const cutoff = getStaleVoiceHeartbeatCutoff();
+function normalizeVoiceCleanupLimit(value: number | undefined, fallback: number) {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : fallback;
+}
 
-  while (true) {
-    const staleStates = await prisma.voiceState.findMany({
-      orderBy: {
-        lastHeartbeat: "asc",
-      },
-      select: {
-        channelId: true,
-        serverId: true,
-        sessionId: true,
-        userId: true,
-      },
-      take: VOICE_CLEANUP_BATCH_SIZE,
-      where: {
-        lastHeartbeat: {
-          lt: cutoff,
-        },
-      },
-    });
+export async function runBoundedVoiceStateCleanup(args: {
+  batchSize?: number;
+  deleteBatch: () => Promise<StaleVoiceStateRecord[]>;
+  handleDeletedBatch: (states: StaleVoiceStateRecord[]) => Promise<void>;
+  maxBatches?: number;
+}): Promise<VoiceCleanupResult> {
+  const batchSize = normalizeVoiceCleanupLimit(args.batchSize, VOICE_CLEANUP_BATCH_SIZE);
+  const maxBatches = normalizeVoiceCleanupLimit(
+    args.maxBatches,
+    VOICE_CLEANUP_MAX_BATCHES_PER_RUN,
+  );
+  let batches = 0;
+  let deletedStates = 0;
 
+  for (let batchIndex = 0; batchIndex < maxBatches; batchIndex += 1) {
+    const staleStates = await args.deleteBatch();
     if (staleStates.length === 0) {
-      return;
+      return {
+        batches,
+        deletedStates,
+        hasMore: false,
+      };
     }
 
-    await prisma.voiceState.deleteMany({
-      where: {
-        userId: {
-          in: staleStates.map((state) => state.userId),
-        },
-      },
-    });
+    batches += 1;
+    deletedStates += staleStates.length;
+    await args.handleDeletedBatch(staleStates);
 
-    await Promise.all(
-      staleStates.map((state) =>
-        endAllMediaUsageSessionsForVoiceSession(state.userId, state.sessionId).catch((error) => {
-          logAnalyticsError("voice stale cleanup", error);
-        }),
-      ),
-    );
+    if (staleStates.length < batchSize) {
+      return {
+        batches,
+        deletedStates,
+        hasMore: false,
+      };
+    }
+  }
 
-    const redis = getRedis();
+  return {
+    batches,
+    deletedStates,
+    hasMore: true,
+  };
+}
+
+async function deleteStaleVoiceStateBatch(cutoff: Date, batchSize: number) {
+  return prisma.$queryRaw<StaleVoiceStateRecord[]>(Prisma.sql`
+    WITH stale_voice_states AS (
+      SELECT "id"
+      FROM "VoiceState"
+      WHERE "lastHeartbeat" < ${cutoff}
+      ORDER BY "lastHeartbeat" ASC
+      LIMIT ${batchSize}
+      FOR UPDATE SKIP LOCKED
+    )
+    DELETE FROM "VoiceState" vs
+    USING stale_voice_states stale
+    WHERE vs."id" = stale."id"
+    RETURNING
+      vs."channelId" AS "channelId",
+      vs."serverId" AS "serverId",
+      vs."sessionId" AS "sessionId",
+      vs."userId" AS "userId"
+  `);
+}
+
+async function handleDeletedStaleVoiceStates(staleStates: StaleVoiceStateRecord[]) {
+  await Promise.all(
+    staleStates.map((state) =>
+      endAllMediaUsageSessionsForVoiceSession(state.userId, state.sessionId).catch((error) => {
+        logAnalyticsError("voice stale cleanup", error);
+      }),
+    ),
+  );
+
+  const redis = getRedis();
+  if (redis.status === "ready") {
     await Promise.all(
       staleStates.map((state) =>
         redis
@@ -302,42 +365,109 @@ export async function cleanupStaleVoiceStates() {
           .catch(() => undefined),
       ),
     );
+  }
 
-    const channelsToRefresh = new Map<string, (typeof staleStates)[number]>();
+  const channelsToRefresh = new Map<string, StaleVoiceStateRecord>();
 
-    for (const state of staleStates) {
-      const key = `${state.serverId}:${state.channelId}`;
-      if (!channelsToRefresh.has(key)) {
-        channelsToRefresh.set(key, state);
-      }
+  for (const state of staleStates) {
+    const key = `${state.serverId}:${state.channelId}`;
+    if (!channelsToRefresh.has(key)) {
+      channelsToRefresh.set(key, state);
     }
+  }
 
-    await Promise.all(
-      [...channelsToRefresh.values()].map((state) =>
-        emitVoiceStateUpdate({
-          action: "leave",
-          channelId: state.channelId,
-          serverId: state.serverId,
-          userId: state.userId,
-        }),
-      ),
-    );
+  await Promise.all(
+    [...channelsToRefresh.values()].map((state) =>
+      emitVoiceStateUpdate({
+        action: "leave",
+        channelId: state.channelId,
+        serverId: state.serverId,
+        userId: state.userId,
+      }).catch((error) => {
+        logError("[voice] Stale voice cleanup emit failed", error);
+      }),
+    ),
+  );
+}
+
+export async function cleanupStaleVoiceStates() {
+  const cutoff = getStaleVoiceHeartbeatCutoff();
+
+  return runBoundedVoiceStateCleanup({
+    batchSize: VOICE_CLEANUP_BATCH_SIZE,
+    deleteBatch: () => deleteStaleVoiceStateBatch(cutoff, VOICE_CLEANUP_BATCH_SIZE),
+    handleDeletedBatch: handleDeletedStaleVoiceStates,
+    maxBatches: VOICE_CLEANUP_MAX_BATCHES_PER_RUN,
+  });
+}
+
+export async function acquireVoiceCleanupLock(
+  redis: VoiceCleanupRedisClient,
+  lockToken: string,
+) {
+  return Boolean(
+    await redis.set(
+      VOICE_CLEANUP_LOCK_KEY,
+      lockToken,
+      "PX",
+      VOICE_CLEANUP_LOCK_TTL_MS,
+      "NX",
+    ),
+  );
+}
+
+export async function releaseVoiceCleanupLock(
+  redis: Pick<VoiceCleanupRedisClient, "del" | "get">,
+  lockToken: string,
+) {
+  try {
+    const currentToken = await redis.get(VOICE_CLEANUP_LOCK_KEY);
+    if (currentToken === lockToken) {
+      await redis.del(VOICE_CLEANUP_LOCK_KEY);
+    }
+  } catch {
+    // Best-effort lock cleanup; the lock also has a short TTL.
   }
 }
 
 async function maybeCleanupStaleVoiceStates() {
   const redis = getRedis();
+  if (redis.status !== "ready") {
+    return;
+  }
+
+  const cleanupRedis = redis as VoiceCleanupRedisClient;
+  const lockToken = randomUUID();
+  let lockAcquired = false;
 
   try {
-    const shouldRun = await redis.set(VOICE_CLEANUP_DEBOUNCE_KEY, "1", "EX", 60, "NX");
+    lockAcquired = await acquireVoiceCleanupLock(cleanupRedis, lockToken);
+    if (!lockAcquired) {
+      return;
+    }
+
+    const shouldRun = await cleanupRedis.set(
+      VOICE_CLEANUP_DEBOUNCE_KEY,
+      "1",
+      "EX",
+      VOICE_CLEANUP_DEBOUNCE_SECONDS,
+      "NX",
+    );
     if (!shouldRun) {
       return;
     }
-  } catch {
-    // Fall back to attempting cleanup if Redis is temporarily unavailable.
-  }
 
-  await cleanupStaleVoiceStates();
+    const result = await cleanupStaleVoiceStates();
+    if (result.hasMore) {
+      logError("[voice] Stale voice cleanup reached per-run limit", result);
+    }
+  } catch (error) {
+    logError("[voice] Stale voice cleanup failed", error);
+  } finally {
+    if (lockAcquired) {
+      await releaseVoiceCleanupLock(cleanupRedis, lockToken);
+    }
+  }
 }
 
 async function requireVoiceMembership(userId: string, input: {

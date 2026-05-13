@@ -54,6 +54,11 @@ type PermissionCacheChannelSnapshot = {
   channel: {
     id: string;
     locked: boolean;
+    name: string;
+    server: {
+      features: string[];
+      messageCharacterLimit: number;
+    };
     serverId: string;
     type: ChannelType;
   };
@@ -74,6 +79,11 @@ export type CachedChannelPermissionSnapshot = {
   channel: {
     id: string;
     locked: boolean;
+    name: string;
+    server: {
+      features: string[];
+      messageCharacterLimit: number;
+    };
     serverId: string;
     type: ChannelType;
   };
@@ -270,6 +280,11 @@ function parseSnapshot(raw: string): PermissionCacheChannelSnapshot | null {
       !parsed.channel ||
       typeof parsed.channel.id !== "string" ||
       typeof parsed.channel.locked !== "boolean" ||
+      typeof parsed.channel.name !== "string" ||
+      !parsed.channel.server ||
+      !Array.isArray(parsed.channel.server.features) ||
+      parsed.channel.server.features.some((feature) => typeof feature !== "string") ||
+      typeof parsed.channel.server.messageCharacterLimit !== "number" ||
       typeof parsed.channel.serverId !== "string" ||
       typeof parsed.channel.type !== "string" ||
       !parsed.context ||

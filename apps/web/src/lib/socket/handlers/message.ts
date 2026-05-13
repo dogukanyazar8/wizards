@@ -7,11 +7,14 @@ import {
   normalizeMessageContentForSend,
   parseUploadedAttachmentInputs,
 } from "@/lib/messages/attachments";
-import { checkRateLimit } from "@/lib/rate-limit";
 import { ensureChannelMembership } from "@/lib/socket/channel-membership";
 import type { HandlerContext } from "@/lib/socket/context";
 import { emitToChannelViewers } from "@/lib/socket/emitters";
 import { createSocketErrorEmitter } from "@/lib/socket/errors";
+import {
+  checkChannelMessageRateLimit,
+  shouldLogRateLimitUnavailable,
+} from "@/lib/socket/rate-limits";
 import {
   parseSocketPayload,
   SocketIdSchema,
@@ -52,25 +55,27 @@ export function registerMessageHandlers(ctx: HandlerContext): SocketHandlerRegis
   socket.on("message:send", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketMessageSendPayloadSchema, rawData);
-      try {
-        const isAllowed = await checkRateLimit(redis, `rate:msg:${userId}`, 30, 60);
-        if (!isAllowed) {
-          socket.emit("error", {
-            code: "RATE_LIMIT",
-            message: "Too many messages. Maximum 30 per minute.",
-          });
-          return;
-        }
-      } catch (rateLimitError) {
-        logError("[socket] Message rate limit unavailable", rateLimitError);
+
+      const rateLimitResult = await checkChannelMessageRateLimit({ redis, userId });
+      if (rateLimitResult.status === "limited") {
         socket.emit("error", {
-          code: "RATE_LIMIT_UNAVAILABLE",
-          message: "Message checks are temporarily unavailable. Please try again shortly.",
+          code: "RATE_LIMIT",
+          message: "Too many messages. Maximum 30 per minute.",
         });
         return;
       }
 
-      const { channel: permissionChannel, permissions } = await requireChannelPermissionForUser(
+      if (
+        rateLimitResult.status === "unavailable" &&
+        shouldLogRateLimitUnavailable("channel-message")
+      ) {
+        logError(
+          "[socket] Message rate limit unavailable; allowing message send",
+          rateLimitResult.error,
+        );
+      }
+
+      const { channel, permissions } = await requireChannelPermissionForUser(
         userId,
         data.channelId,
         PermissionBits.SEND_MESSAGES,
@@ -83,28 +88,11 @@ export function registerMessageHandlers(ctx: HandlerContext): SocketHandlerRegis
           respectLocked: true,
         },
       );
-      const channel = await prisma.channel.findUnique({
-        where: { id: data.channelId },
-        select: {
-          name: true,
-          server: {
-            select: {
-              features: true,
-              messageCharacterLimit: true,
-            },
-          },
-        },
-      });
-
-      if (!channel?.server) {
-        socket.emit("error", { code: "CHANNEL_NOT_FOUND", message: "Channel not found" });
-        return;
-      }
 
       const canBypassMessageLimit = hasPermission(permissions, PermissionBits.MANAGE_MESSAGES);
 
       const attachmentInputs = parseUploadedAttachmentInputs(data.attachments);
-      const mediaSettings = getServerMediaSettings(channel.server?.features ?? []);
+      const mediaSettings = getServerMediaSettings(channel.server.features);
 
       if (attachmentInputs.length > 0) {
         const attachments = await prisma.attachment.findMany({
@@ -157,7 +145,7 @@ export function registerMessageHandlers(ctx: HandlerContext): SocketHandlerRegis
       const content = normalizeMessageContentForSend(
         data.content,
         attachmentInputs,
-        canBypassMessageLimit ? null : (channel.server?.messageCharacterLimit ?? 2000),
+        canBypassMessageLimit ? null : channel.server.messageCharacterLimit,
       );
       const message = await createMessage(
         data.channelId,
@@ -187,7 +175,7 @@ export function registerMessageHandlers(ctx: HandlerContext): SocketHandlerRegis
 
       const readUserIdSet = new Set(readUserIds);
       const activeServerMemberUserIds = await getActiveServerMemberUserIds(
-        permissionChannel.serverId,
+        channel.serverId,
       );
       const permittedUnreadUserIds = await filterUserIdsByChannelPermission(
         data.channelId,
@@ -204,12 +192,12 @@ export function registerMessageHandlers(ctx: HandlerContext): SocketHandlerRegis
           {
             channelId: data.channelId,
             latestMessageId: message.id,
-            serverId: permissionChannel.serverId,
+            serverId: channel.serverId,
           },
         );
       }
 
-      await emitServerUnreadUpdatesForServer(permissionChannel.serverId, unreadUpdateUserIds);
+      await emitServerUnreadUpdatesForServer(channel.serverId, unreadUpdateUserIds);
       recordMessageSendFanoutMetric({
         activeChannelViewerCount: activeChannelViewerCandidateUserIds.length,
         activeServerMemberCount: activeServerMemberUserIds.length,
@@ -226,7 +214,7 @@ export function registerMessageHandlers(ctx: HandlerContext): SocketHandlerRegis
         messageId: message.id,
         senderId: userId,
         senderName: message.author.displayName ?? message.author.username,
-        serverId: permissionChannel.serverId,
+        serverId: channel.serverId,
         skipUserIds: readUserIds,
       }).catch(() => undefined);
       if (data.threadParentId) {
@@ -238,7 +226,7 @@ export function registerMessageHandlers(ctx: HandlerContext): SocketHandlerRegis
           parentMessageId: data.threadParentId,
           senderId: userId,
           senderName: message.author.displayName ?? message.author.username,
-          serverId: permissionChannel.serverId,
+          serverId: channel.serverId,
         }).catch(() => undefined);
       }
       await emitToChannelViewers(io, data.channelId, "message:new", message);
