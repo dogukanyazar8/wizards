@@ -12,6 +12,7 @@ import type { HandlerContext } from "@/lib/socket/context";
 import { emitToChannelViewers } from "@/lib/socket/emitters";
 import { createSocketErrorEmitter } from "@/lib/socket/errors";
 import {
+  checkChannelMessageEditRateLimit,
   checkChannelMessageRateLimit,
   shouldLogRateLimitUnavailable,
 } from "@/lib/socket/rate-limits";
@@ -48,6 +49,9 @@ import { hasPermission, PermissionBits } from "@/lib/workspace/permissions";
 
 import type { SocketHandlerRegistration } from ".";
 
+type CheckChannelMessageRateLimit = typeof checkChannelMessageRateLimit;
+type CheckChannelMessageEditRateLimit = typeof checkChannelMessageEditRateLimit;
+
 export function deriveMessageSendFanoutTargets(args: {
   activeChannelViewerCandidateUserIds: string[];
   activeServerMemberUserIds: string[];
@@ -55,8 +59,8 @@ export function deriveMessageSendFanoutTargets(args: {
   senderId: string;
 }) {
   const permittedActiveUserIdSet = new Set(args.permittedActiveUserIds);
-  const activeChannelViewerUserIds = args.activeChannelViewerCandidateUserIds.filter((viewerUserId) =>
-    permittedActiveUserIdSet.has(viewerUserId),
+  const activeChannelViewerUserIds = args.activeChannelViewerCandidateUserIds.filter(
+    (viewerUserId) => permittedActiveUserIdSet.has(viewerUserId),
   );
   const readUserIds = Array.from(new Set([args.senderId, ...activeChannelViewerUserIds]));
   const readUserIdSet = new Set(readUserIds);
@@ -75,15 +79,25 @@ export function deriveMessageSendFanoutTargets(args: {
   };
 }
 
-export function registerMessageHandlers(ctx: HandlerContext): SocketHandlerRegistration {
+export function registerMessageHandlers(
+  ctx: HandlerContext,
+  options: {
+    checkChannelMessageEditRateLimit?: CheckChannelMessageEditRateLimit;
+    checkChannelMessageRateLimit?: CheckChannelMessageRateLimit;
+  } = {},
+): SocketHandlerRegistration {
   const { io, redis, socket, userId } = ctx;
   const emitSocketError = createSocketErrorEmitter(socket);
+  const checkMessageSendRateLimit =
+    options.checkChannelMessageRateLimit ?? checkChannelMessageRateLimit;
+  const checkMessageEditRateLimit =
+    options.checkChannelMessageEditRateLimit ?? checkChannelMessageEditRateLimit;
 
   socket.on("message:send", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketMessageSendPayloadSchema, rawData);
 
-      const rateLimitResult = await checkChannelMessageRateLimit({ redis, userId });
+      const rateLimitResult = await checkMessageSendRateLimit({ redis, userId });
       if (rateLimitResult.status === "limited") {
         socket.emit("error", {
           code: "RATE_LIMIT",
@@ -285,6 +299,25 @@ export function registerMessageHandlers(ctx: HandlerContext): SocketHandlerRegis
   socket.on("message:edit", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketMessageEditPayloadSchema, rawData);
+      const rateLimitResult = await checkMessageEditRateLimit({ redis, userId });
+      if (rateLimitResult.status === "limited") {
+        socket.emit("error", {
+          code: "RATE_LIMIT",
+          message: "Too many message edits. Maximum 30 per minute.",
+        });
+        return;
+      }
+
+      if (
+        rateLimitResult.status === "unavailable" &&
+        shouldLogRateLimitUnavailable("channel-message-edit")
+      ) {
+        logError(
+          "[socket] Message edit rate limit unavailable; allowing message edit",
+          rateLimitResult.error,
+        );
+      }
+
       const existing = await prisma.message.findUnique({
         where: { id: data.messageId },
         select: {

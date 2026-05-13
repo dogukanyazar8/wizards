@@ -6,14 +6,22 @@ import { deriveMessageSendFanoutTargets, registerMessageHandlers } from "./messa
 
 function createHandlerContextRecorder() {
   const events: string[] = [];
+  const emittedEvents: Array<{ event: string; payload: unknown }> = [];
+  const handlers = new Map<string, (payload: unknown) => Promise<void>>();
   const socket = {
     data: {
       displayName: "Ada",
       userId: "user-1",
       username: "ada",
     },
-    on(event: string) {
+    emit(event: string, payload: unknown) {
+      emittedEvents.push({ event, payload });
+    },
+    on(event: string, handler?: (payload: unknown) => Promise<void>) {
       events.push(event);
+      if (handler) {
+        handlers.set(event, handler);
+      }
       return socket;
     },
   };
@@ -25,7 +33,7 @@ function createHandlerContextRecorder() {
     userId: "user-1",
   } as unknown as HandlerContext;
 
-  return { ctx, events };
+  return { ctx, emittedEvents, events, handlers };
 }
 
 describe("socket message handlers", () => {
@@ -58,5 +66,32 @@ describe("socket message handlers", () => {
         unreadUpdateUserIds: ["member-1"],
       },
     );
+  });
+
+  it("rate limits message edits before DB work and socket fanout", async () => {
+    const { ctx, emittedEvents, handlers } = createHandlerContextRecorder();
+    const checkedUserIds: string[] = [];
+
+    registerMessageHandlers(ctx, {
+      checkChannelMessageEditRateLimit: async ({ userId }) => {
+        checkedUserIds.push(userId);
+        return { status: "limited" };
+      },
+    });
+
+    const handler = handlers.get("message:edit");
+    assert.ok(handler);
+    await handler({ content: "Updated", messageId: "message-1" });
+
+    assert.deepEqual(checkedUserIds, ["user-1"]);
+    assert.deepEqual(emittedEvents, [
+      {
+        event: "error",
+        payload: {
+          code: "RATE_LIMIT",
+          message: "Too many message edits. Maximum 30 per minute.",
+        },
+      },
+    ]);
   });
 });

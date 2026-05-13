@@ -9,10 +9,11 @@ type RateLimitAvailabilityResult =
   | { status: "limited" }
   | { status: "unavailable"; error: unknown };
 
-type RateLimitUnavailableLogScope = "channel-message" | "dm-message";
+type RateLimitUnavailableLogScope = "channel-message" | "channel-message-edit" | "dm-message";
 
 const rateLimitUnavailableLogState: Record<RateLimitUnavailableLogScope, number> = {
   "channel-message": Number.NEGATIVE_INFINITY,
+  "channel-message-edit": Number.NEGATIVE_INFINITY,
   "dm-message": Number.NEGATIVE_INFINITY,
 };
 
@@ -25,6 +26,11 @@ export type DMMessageRateLimitResult =
   | { status: "unavailable"; error: unknown };
 
 export const CHANNEL_MESSAGE_RATE_LIMIT = {
+  limit: 30,
+  windowSeconds: 60,
+} as const;
+
+export const CHANNEL_MESSAGE_EDIT_RATE_LIMIT = {
   limit: 30,
   windowSeconds: 60,
 } as const;
@@ -87,6 +93,20 @@ export async function checkChannelMessageRateLimit(args: {
     rateLimitCheck: args.rateLimitCheck,
     redis: args.redis,
     windowSeconds: CHANNEL_MESSAGE_RATE_LIMIT.windowSeconds,
+  });
+}
+
+export async function checkChannelMessageEditRateLimit(args: {
+  rateLimitCheck?: RateLimitCheck;
+  redis: Redis;
+  userId: string;
+}): Promise<ChannelMessageRateLimitResult> {
+  return runRateLimitCheck({
+    key: `rate:msg:edit:${args.userId}`,
+    limit: CHANNEL_MESSAGE_EDIT_RATE_LIMIT.limit,
+    rateLimitCheck: args.rateLimitCheck,
+    redis: args.redis,
+    windowSeconds: CHANNEL_MESSAGE_EDIT_RATE_LIMIT.windowSeconds,
   });
 }
 

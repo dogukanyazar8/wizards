@@ -3,7 +3,9 @@ import { describe, it } from "node:test";
 import type Redis from "ioredis";
 
 import {
+  CHANNEL_MESSAGE_EDIT_RATE_LIMIT,
   CHANNEL_MESSAGE_RATE_LIMIT,
+  checkChannelMessageEditRateLimit,
   checkChannelMessageRateLimit,
   checkDMMessageRateLimits,
   DM_MESSAGE_CONVERSATION_RATE_LIMIT,
@@ -21,6 +23,21 @@ describe("socket DM rate limit configuration", () => {
         assert.equal(key, "rate:msg:user-1");
         assert.equal(limit, CHANNEL_MESSAGE_RATE_LIMIT.limit);
         assert.equal(windowSeconds, CHANNEL_MESSAGE_RATE_LIMIT.windowSeconds);
+        return false;
+      },
+      redis,
+      userId: "user-1",
+    });
+
+    assert.equal(result.status, "limited");
+  });
+
+  it("uses a separate configured channel message edit cap", async () => {
+    const result = await checkChannelMessageEditRateLimit({
+      rateLimitCheck: async (_redis, key, limit, windowSeconds) => {
+        assert.equal(key, "rate:msg:edit:user-1");
+        assert.equal(limit, CHANNEL_MESSAGE_EDIT_RATE_LIMIT.limit);
+        assert.equal(windowSeconds, CHANNEL_MESSAGE_EDIT_RATE_LIMIT.windowSeconds);
         return false;
       },
       redis,
@@ -48,9 +65,7 @@ describe("socket DM rate limit configuration", () => {
 
   it("has a global cap above the per-conversation cap", () => {
     assert.equal(DM_MESSAGE_CONVERSATION_RATE_LIMIT.limit, 30);
-    assert.ok(
-      DM_MESSAGE_GLOBAL_RATE_LIMIT.limit > DM_MESSAGE_CONVERSATION_RATE_LIMIT.limit,
-    );
+    assert.ok(DM_MESSAGE_GLOBAL_RATE_LIMIT.limit > DM_MESSAGE_CONVERSATION_RATE_LIMIT.limit);
     assert.equal(
       DM_MESSAGE_GLOBAL_RATE_LIMIT.windowSeconds,
       DM_MESSAGE_CONVERSATION_RATE_LIMIT.windowSeconds,
@@ -117,5 +132,6 @@ describe("socket DM rate limit configuration", () => {
       true,
     );
     assert.equal(shouldLogRateLimitUnavailable("dm-message", now + 1), true);
+    assert.equal(shouldLogRateLimitUnavailable("channel-message-edit", now + 2), true);
   });
 });
