@@ -48,6 +48,33 @@ import { hasPermission, PermissionBits } from "@/lib/workspace/permissions";
 
 import type { SocketHandlerRegistration } from ".";
 
+export function deriveMessageSendFanoutTargets(args: {
+  activeChannelViewerCandidateUserIds: string[];
+  activeServerMemberUserIds: string[];
+  permittedActiveUserIds: string[];
+  senderId: string;
+}) {
+  const permittedActiveUserIdSet = new Set(args.permittedActiveUserIds);
+  const activeChannelViewerUserIds = args.activeChannelViewerCandidateUserIds.filter((viewerUserId) =>
+    permittedActiveUserIdSet.has(viewerUserId),
+  );
+  const readUserIds = Array.from(new Set([args.senderId, ...activeChannelViewerUserIds]));
+  const readUserIdSet = new Set(readUserIds);
+  const permittedUnreadUserIds = args.activeServerMemberUserIds.filter((memberUserId) =>
+    permittedActiveUserIdSet.has(memberUserId),
+  );
+  const unreadUpdateUserIds = permittedUnreadUserIds.filter(
+    (memberUserId) => !readUserIdSet.has(memberUserId),
+  );
+
+  return {
+    activeChannelViewerUserIds,
+    permittedUnreadUserIds,
+    readUserIds,
+    unreadUpdateUserIds,
+  };
+}
+
 export function registerMessageHandlers(ctx: HandlerContext): SocketHandlerRegistration {
   const { io, redis, socket, userId } = ctx;
   const emitSocketError = createSocketErrorEmitter(socket);
@@ -156,35 +183,26 @@ export function registerMessageHandlers(ctx: HandlerContext): SocketHandlerRegis
         data.threadParentId,
       );
       const messageCreatedAt = new Date(message.createdAt);
-      const activeChannelViewerCandidateUserIds = await getActiveChannelViewerUserIds(
+      const [activeChannelViewerCandidateUserIds, activeServerMemberUserIds] = await Promise.all([
+        getActiveChannelViewerUserIds(data.channelId),
+        getActiveServerMemberUserIds(channel.serverId),
+      ]);
+      const permittedActiveUserIds = await filterUserIdsByChannelPermission(
         data.channelId,
+        [...activeChannelViewerCandidateUserIds, ...activeServerMemberUserIds],
+        PermissionBits.VIEW_CHANNEL,
       );
-      const activeChannelViewerUserIds = await filterUserIdsByChannelPermission(
-        data.channelId,
+      const {
+        activeChannelViewerUserIds,
+        permittedUnreadUserIds,
+        readUserIds,
+        unreadUpdateUserIds,
+      } = deriveMessageSendFanoutTargets({
         activeChannelViewerCandidateUserIds,
-        PermissionBits.VIEW_CHANNEL,
-      );
-      const readUserIds = [userId, ...activeChannelViewerUserIds];
-
-      await markChannelReadStates({
-        channelId: data.channelId,
-        lastReadAt: messageCreatedAt,
-        lastReadMessageId: message.id,
-        userIds: readUserIds,
-      });
-
-      const readUserIdSet = new Set(readUserIds);
-      const activeServerMemberUserIds = await getActiveServerMemberUserIds(
-        channel.serverId,
-      );
-      const permittedUnreadUserIds = await filterUserIdsByChannelPermission(
-        data.channelId,
         activeServerMemberUserIds,
-        PermissionBits.VIEW_CHANNEL,
-      );
-      const unreadUpdateUserIds = permittedUnreadUserIds.filter(
-        (memberUserId) => !readUserIdSet.has(memberUserId),
-      );
+        permittedActiveUserIds,
+        senderId: userId,
+      });
 
       if (unreadUpdateUserIds.length > 0) {
         io.to(unreadUpdateUserIds.map((memberUserId) => `user:${memberUserId}`)).emit(
@@ -197,7 +215,25 @@ export function registerMessageHandlers(ctx: HandlerContext): SocketHandlerRegis
         );
       }
 
-      await emitServerUnreadUpdatesForServer(channel.serverId, unreadUpdateUserIds);
+      if (activeChannelViewerUserIds.length > 0) {
+        io.to(activeChannelViewerUserIds.map((viewerUserId) => `user:${viewerUserId}`)).emit(
+          "message:new",
+          message,
+        );
+      }
+
+      void (async () => {
+        await markChannelReadStates({
+          channelId: data.channelId,
+          lastReadAt: messageCreatedAt,
+          lastReadMessageId: message.id,
+          userIds: readUserIds,
+        });
+        await emitServerUnreadUpdatesForServer(channel.serverId, unreadUpdateUserIds);
+      })().catch((error) => {
+        logError("[socket] Message unread state update failed", error);
+      });
+
       recordMessageSendFanoutMetric({
         activeChannelViewerCount: activeChannelViewerCandidateUserIds.length,
         activeServerMemberCount: activeServerMemberUserIds.length,
@@ -216,7 +252,9 @@ export function registerMessageHandlers(ctx: HandlerContext): SocketHandlerRegis
         senderName: message.author.displayName ?? message.author.username,
         serverId: channel.serverId,
         skipUserIds: readUserIds,
-      }).catch(() => undefined);
+      }).catch((error) => {
+        logError("[socket] Message mention notification failed", error);
+      });
       if (data.threadParentId) {
         void createChannelThreadReplyNotification({
           channelId: data.channelId,
@@ -227,9 +265,10 @@ export function registerMessageHandlers(ctx: HandlerContext): SocketHandlerRegis
           senderId: userId,
           senderName: message.author.displayName ?? message.author.username,
           serverId: channel.serverId,
-        }).catch(() => undefined);
+        }).catch((error) => {
+          logError("[socket] Message thread reply notification failed", error);
+        });
       }
-      await emitToChannelViewers(io, data.channelId, "message:new", message);
     } catch (error) {
       if (error instanceof ApiError) {
         socket.emit("error", {
