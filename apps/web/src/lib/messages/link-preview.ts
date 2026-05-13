@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import * as http from "node:http";
+import * as https from "node:https";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { z } from "zod";
@@ -9,6 +11,31 @@ import { getRedis } from "@/lib/redis";
 const LINK_PREVIEW_TIMEOUT_MS = 2500;
 const LINK_PREVIEW_MAX_BYTES = 512 * 1024;
 const LINK_PREVIEW_CACHE_SECONDS = 12 * 60 * 60;
+const LINK_PREVIEW_USER_AGENT = "WhisprLinkPreview/1.0";
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+type ResolvedAddress = {
+  address: string;
+  family: number;
+};
+
+type ResolveHost = (hostname: string) => Promise<ResolvedAddress[]>;
+
+type PublicHttpUrl = {
+  addresses: ResolvedAddress[];
+  url: URL;
+};
+
+type LinkPreviewHttpResponse = {
+  body: string;
+  headers: http.IncomingHttpHeaders;
+  ok: boolean;
+  status: number;
+};
+
+export type LinkPreviewFetchOptions = {
+  resolveHost?: ResolveHost;
+};
 
 export const LinkPreviewSchema = z.object({
   url: z.string().url(),
@@ -89,7 +116,36 @@ function isBlockedIP(address: string) {
   return true;
 }
 
-async function assertPublicHttpUrl(rawUrl: string) {
+function normalizeIpLiteral(hostname: string) {
+  return hostname.replace(/^\[(.*)\]$/, "$1");
+}
+
+function isBlockedIpLiteral(hostname: string) {
+  const normalizedHostname = normalizeIpLiteral(hostname);
+
+  return isIP(normalizedHostname) !== 0 && isBlockedIP(normalizedHostname);
+}
+
+async function resolvePublicHostAddresses(hostname: string): Promise<ResolvedAddress[]> {
+  return lookup(hostname, { all: true, verbatim: true });
+}
+
+async function assertPublicResolvedAddresses(
+  hostname: string,
+  resolveHost: ResolveHost,
+): Promise<ResolvedAddress[]> {
+  const addresses = await resolveHost(hostname);
+  if (addresses.length === 0 || addresses.some((address) => isBlockedIP(address.address))) {
+    throw new ApiError("This link cannot be previewed.", 400, "BLOCKED_URL");
+  }
+
+  return addresses;
+}
+
+export async function assertPublicHttpUrl(
+  rawUrl: string,
+  resolveHost: ResolveHost = resolvePublicHostAddresses,
+): Promise<PublicHttpUrl> {
   let parsed: URL;
 
   try {
@@ -106,17 +162,14 @@ async function assertPublicHttpUrl(rawUrl: string) {
     throw new ApiError("This link cannot be previewed.", 400, "INVALID_URL");
   }
 
-  if (isBlockedHostname(parsed.hostname) || isBlockedIP(parsed.hostname)) {
+  if (isBlockedHostname(parsed.hostname) || isBlockedIpLiteral(parsed.hostname)) {
     throw new ApiError("This link cannot be previewed.", 400, "BLOCKED_URL");
   }
 
-  const addresses = await lookup(parsed.hostname, { all: true, verbatim: true });
-  if (addresses.length === 0 || addresses.some((address) => isBlockedIP(address.address))) {
-    throw new ApiError("This link cannot be previewed.", 400, "BLOCKED_URL");
-  }
+  const addresses = await assertPublicResolvedAddresses(parsed.hostname, resolveHost);
 
   parsed.hash = "";
-  return parsed;
+  return { addresses, url: parsed };
 }
 
 function normalizeText(value: string | null | undefined, maxLength: number) {
@@ -177,40 +230,6 @@ function resolvePreviewImage(rawImageUrl: string | null, sourceUrl: URL) {
   }
 }
 
-async function readLimitedBody(response: Response) {
-  const reader = response.body?.getReader();
-
-  if (!reader) {
-    return "";
-  }
-
-  const chunks: Uint8Array[] = [];
-  let totalBytes = 0;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
-
-    totalBytes += value.byteLength;
-    if (totalBytes > LINK_PREVIEW_MAX_BYTES) {
-      throw new ApiError("Link preview response is too large.", 413, "LINK_TOO_LARGE");
-    }
-
-    chunks.push(value);
-  }
-
-  const body = new Uint8Array(totalBytes);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-
-  return new TextDecoder().decode(body);
-}
-
 function cacheKey(url: string) {
   return `link-preview:${createHash("sha256").update(url).digest("hex")}`;
 }
@@ -243,9 +262,153 @@ async function writeCachedPreview(url: string, preview: LinkPreview) {
   }
 }
 
-export async function fetchLinkPreview(rawUrl: string): Promise<LinkPreview> {
-  const url = await assertPublicHttpUrl(rawUrl);
-  const normalizedUrl = url.toString();
+function getHeader(headers: http.IncomingHttpHeaders, name: string) {
+  const value = headers[name.toLowerCase()];
+
+  return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
+}
+
+function isRedirectStatus(status: number) {
+  return REDIRECT_STATUSES.has(status);
+}
+
+export function createPublicLookup(resolveHost: ResolveHost) {
+  return (
+    hostname: string,
+    _options: unknown,
+    callback: (error: NodeJS.ErrnoException | null, address: string, family: number) => void,
+  ) => {
+    void assertPublicResolvedAddresses(hostname, resolveHost)
+      .then((addresses) => {
+        const selectedAddress = addresses[0];
+        if (!selectedAddress) {
+          callback(new ApiError("This link cannot be previewed.", 400, "BLOCKED_URL"), "", 0);
+          return;
+        }
+
+        callback(null, selectedAddress.address, selectedAddress.family);
+      })
+      .catch((error: unknown) => {
+        callback(error as NodeJS.ErrnoException, "", 0);
+      });
+  };
+}
+
+function requestPublicHttpUrl(
+  target: PublicHttpUrl,
+  signal: AbortSignal,
+  resolveHost: ResolveHost,
+): Promise<LinkPreviewHttpResponse> {
+  return new Promise((resolve, reject) => {
+    const requestUrl = target.url;
+    const client = requestUrl.protocol === "https:" ? https : http;
+    let settled = false;
+
+    const finish = (error: unknown, response?: LinkPreviewHttpResponse) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      signal.removeEventListener("abort", abort);
+      if (error) {
+        reject(error);
+        return;
+      }
+      if (response) {
+        resolve(response);
+        return;
+      }
+      reject(new ApiError("Link preview is unavailable.", 502, "PREVIEW_UNAVAILABLE"));
+    };
+
+    const request = client.request(
+      {
+        headers: {
+          accept: "text/html,application/xhtml+xml",
+          "user-agent": LINK_PREVIEW_USER_AGENT,
+        },
+        hostname: requestUrl.hostname,
+        lookup: createPublicLookup(resolveHost),
+        method: "GET",
+        path: `${requestUrl.pathname}${requestUrl.search}`,
+        port: requestUrl.port ? Number.parseInt(requestUrl.port, 10) : undefined,
+        protocol: requestUrl.protocol,
+        timeout: LINK_PREVIEW_TIMEOUT_MS,
+      },
+      (incoming) => {
+        const status = incoming.statusCode ?? 0;
+
+        if (isRedirectStatus(status)) {
+          incoming.resume();
+          incoming.on("end", () => {
+            finish(null, {
+              body: "",
+              headers: incoming.headers,
+              ok: status >= 200 && status < 300,
+              status,
+            });
+          });
+          incoming.on("error", finish);
+          return;
+        }
+
+        const contentLength = Number.parseInt(getHeader(incoming.headers, "content-length") ?? "0", 10);
+        if (Number.isFinite(contentLength) && contentLength > LINK_PREVIEW_MAX_BYTES) {
+          incoming.resume();
+          request.destroy();
+          finish(new ApiError("Link preview response is too large.", 413, "LINK_TOO_LARGE"));
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        let totalBytes = 0;
+
+        incoming.on("data", (chunk: Buffer) => {
+          totalBytes += chunk.byteLength;
+          if (totalBytes > LINK_PREVIEW_MAX_BYTES) {
+            request.destroy();
+            finish(new ApiError("Link preview response is too large.", 413, "LINK_TOO_LARGE"));
+            return;
+          }
+
+          chunks.push(chunk);
+        });
+        incoming.on("end", () => {
+          finish(null, {
+            body: Buffer.concat(chunks).toString("utf8"),
+            headers: incoming.headers,
+            ok: status >= 200 && status < 300,
+            status,
+          });
+        });
+        incoming.on("error", finish);
+      },
+    );
+
+    function abort() {
+      request.destroy(new ApiError("Link preview is unavailable.", 502, "PREVIEW_UNAVAILABLE"));
+    }
+
+    request.on("timeout", abort);
+    request.on("error", finish);
+    signal.addEventListener("abort", abort, { once: true });
+
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+
+    request.end();
+  });
+}
+
+export async function fetchLinkPreview(
+  rawUrl: string,
+  options: LinkPreviewFetchOptions = {},
+): Promise<LinkPreview> {
+  const resolveHost = options.resolveHost ?? resolvePublicHostAddresses;
+  const initialTarget = await assertPublicHttpUrl(rawUrl, resolveHost);
+  const normalizedUrl = initialTarget.url.toString();
   const cached = await readCachedPreview(normalizedUrl);
 
   if (cached) {
@@ -256,46 +419,37 @@ export async function fetchLinkPreview(rawUrl: string): Promise<LinkPreview> {
   const timeoutId = setTimeout(() => controller.abort(), LINK_PREVIEW_TIMEOUT_MS);
 
   try {
-    let currentUrl = url;
-    let response: Response | null = null;
+    let currentTarget = initialTarget;
+    let response: LinkPreviewHttpResponse | null = null;
 
     for (let redirectCount = 0; redirectCount < 4; redirectCount += 1) {
-      response = await fetch(currentUrl, {
-        headers: {
-          accept: "text/html,application/xhtml+xml",
-          "user-agent": "WhisprLinkPreview/1.0",
-        },
-        redirect: "manual",
-        signal: controller.signal,
-      });
+      response = await requestPublicHttpUrl(currentTarget, controller.signal, resolveHost);
 
-      if (![301, 302, 303, 307, 308].includes(response.status)) {
+      if (!isRedirectStatus(response.status)) {
         break;
       }
 
-      const location = response.headers.get("location");
+      const location = getHeader(response.headers, "location");
       if (!location) {
         break;
       }
 
-      currentUrl = await assertPublicHttpUrl(new URL(location, currentUrl).toString());
+      currentTarget = await assertPublicHttpUrl(
+        new URL(location, currentTarget.url).toString(),
+        resolveHost,
+      );
     }
 
     if (!response?.ok) {
       throw new ApiError("Link preview is unavailable.", 502, "PREVIEW_UNAVAILABLE");
     }
 
-    const contentLength = Number.parseInt(response.headers.get("content-length") ?? "0", 10);
-    if (Number.isFinite(contentLength) && contentLength > LINK_PREVIEW_MAX_BYTES) {
-      throw new ApiError("Link preview response is too large.", 413, "LINK_TOO_LARGE");
-    }
-
-    const contentType = response.headers.get("content-type") ?? "";
+    const contentType = getHeader(response.headers, "content-type") ?? "";
     if (!contentType.toLowerCase().includes("text/html")) {
       throw new ApiError("Link preview is unavailable.", 415, "PREVIEW_UNAVAILABLE");
     }
 
-    const html = await readLimitedBody(response);
+    const html = response.body;
     const preview = LinkPreviewSchema.parse({
       url: normalizedUrl,
       title: normalizeText(readMeta(html, "og:title") ?? readTitle(html), 160),
@@ -303,8 +457,8 @@ export async function fetchLinkPreview(rawUrl: string): Promise<LinkPreview> {
         readMeta(html, "og:description") ?? readMeta(html, "description"),
         280,
       ),
-      siteName: normalizeText(readMeta(html, "og:site_name") ?? url.hostname, 80),
-      imageUrl: resolvePreviewImage(readMeta(html, "og:image"), currentUrl),
+      siteName: normalizeText(readMeta(html, "og:site_name") ?? initialTarget.url.hostname, 80),
+      imageUrl: resolvePreviewImage(readMeta(html, "og:image"), currentTarget.url),
     });
 
     await writeCachedPreview(normalizedUrl, preview);
