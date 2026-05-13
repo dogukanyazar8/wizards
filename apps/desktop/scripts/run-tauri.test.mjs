@@ -37,9 +37,27 @@ describe("desktop Tauri config generation", () => {
     assert.equal(generatedConfig.build.frontendDist, `${productionUrl}/`);
     assert.deepEqual(capability.remote.urls, [productionUrl, `${productionUrl}/*`]);
     assert.match(generatedConfig.app.security.csp, /connect-src[^;]*https:\/\/whispr\.team/);
+    assert.deepEqual(getCspDirective(generatedConfig.app.security.csp, "script-src"), [
+      "'self'",
+      "'wasm-unsafe-eval'",
+      "blob:",
+      "https://challenges.cloudflare.com",
+    ]);
     assert.doesNotMatch(serializedConfig, /whispr\.invalid/);
     assert.doesNotMatch(JSON.stringify(capability.remote.urls), /http:\/\/localhost:3000/);
     assert.doesNotMatch(generatedConfig.app.security.csp, /http:\/\/localhost:\*/);
+  });
+
+  it("keeps the checked-in static CSP aligned with Krisp desktop requirements", async () => {
+    const staticConfigPath = path.join(desktopRoot, "src-tauri", "tauri.conf.json");
+    const staticConfig = JSON.parse(await readFile(staticConfigPath, "utf8"));
+
+    assert.deepEqual(getCspDirective(staticConfig.app.security.csp, "script-src"), [
+      "'self'",
+      "'wasm-unsafe-eval'",
+      "blob:",
+      "https://challenges.cloudflare.com",
+    ]);
   });
 
   it("allows an explicit HTTPS production web origin override", async () => {
@@ -75,3 +93,14 @@ describe("desktop Tauri config generation", () => {
     );
   });
 });
+
+function getCspDirective(csp, directiveName) {
+  const directive = csp
+    .split(";")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${directiveName} `));
+
+  assert.ok(directive, `Expected ${directiveName} in CSP`);
+
+  return directive.split(/\s+/).slice(1);
+}

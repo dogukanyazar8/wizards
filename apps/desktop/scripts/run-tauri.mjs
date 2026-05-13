@@ -222,7 +222,7 @@ function buildDesktopCsp(webUrl, mode) {
     ],
     "media-src": ["'self'", "blob:", "data:", "https://*.ufs.sh", "https://*.uploadthing.com"],
     "object-src": ["'none'"],
-    "script-src": ["'self'", "https://challenges.cloudflare.com"],
+    "script-src": ["'self'", "'wasm-unsafe-eval'", "blob:", "https://challenges.cloudflare.com"],
     "style-src": ["'self'", "'unsafe-inline'"],
     "worker-src": ["'self'", "blob:"],
   };
