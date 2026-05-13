@@ -11,13 +11,41 @@ export type SocketHandlerRegistration = {
   stopDMTyping?: (conversationId: string) => Promise<void>;
 };
 
+export function composeSocketHandlerRegistration(
+  registrations: readonly SocketHandlerRegistration[],
+  options: {
+    stopDMTyping?: (conversationId: string) => Promise<void>;
+  } = {},
+): SocketHandlerRegistration {
+  let cleanupPromise: Promise<void> | null = null;
+
+  const registration: SocketHandlerRegistration = {
+    cleanup() {
+      cleanupPromise ??= (async () => {
+        for (const childRegistration of registrations) {
+          await childRegistration.cleanup?.();
+        }
+      })().catch((error: unknown) => {
+        cleanupPromise = null;
+        throw error;
+      });
+
+      return cleanupPromise;
+    },
+  };
+
+  if (options.stopDMTyping) {
+    registration.stopDMTyping = options.stopDMTyping;
+  }
+
+  return registration;
+}
+
 export function registerSocketHandlers(ctx: HandlerContext): SocketHandlerRegistration {
   const typingRegistration = registerTypingHandlers(ctx);
   const dmRegistration = registerDMHandlers(
     ctx,
-    typingRegistration.stopDMTyping
-      ? { stopDMTyping: typingRegistration.stopDMTyping }
-      : {},
+    typingRegistration.stopDMTyping ? { stopDMTyping: typingRegistration.stopDMTyping } : {},
   );
   const registrations = [
     registerChannelHandlers(ctx),
@@ -28,17 +56,8 @@ export function registerSocketHandlers(ctx: HandlerContext): SocketHandlerRegist
     dmRegistration,
   ];
 
-  const registration: SocketHandlerRegistration = {
-    async cleanup() {
-      for (const registration of registrations) {
-        await registration.cleanup?.();
-      }
-    },
-  };
-
-  if (typingRegistration.stopDMTyping) {
-    registration.stopDMTyping = typingRegistration.stopDMTyping;
-  }
-
-  return registration;
+  return composeSocketHandlerRegistration(
+    registrations,
+    typingRegistration.stopDMTyping ? { stopDMTyping: typingRegistration.stopDMTyping } : {},
+  );
 }

@@ -63,16 +63,27 @@ describe("socket DM handlers", () => {
           checkedCandidateUserIds.push([...candidateUserIds]);
           return new Set(["user-3"]);
         },
-        participants: [
-          { userId: "user-1" },
-          { userId: "user-2" },
-          { userId: "user-3" },
-        ],
+        participants: [{ userId: "user-1" }, { userId: "user-2" }, { userId: "user-3" }],
       }),
-      (error) =>
-        error instanceof ApiError &&
-        error.code === "BLOCKED" &&
-        error.status === 403,
+      (error) => error instanceof ApiError && error.code === "BLOCKED" && error.status === 403,
+    );
+
+    assert.deepEqual(checkedCandidateUserIds, [["user-2", "user-3"]]);
+  });
+
+  it("rejects group DM messages when the blocked participant is at index 1", async () => {
+    const checkedCandidateUserIds: string[][] = [];
+
+    await assert.rejects(
+      assertUnblockedDMParticipants({
+        currentUserId: "user-1",
+        findBlockedUserIdsForUser: async (_currentUserId, candidateUserIds) => {
+          checkedCandidateUserIds.push([...candidateUserIds]);
+          return new Set(["user-3"]);
+        },
+        participants: [{ userId: "user-2" }, { userId: "user-3" }, { userId: "user-1" }],
+      }),
+      (error) => error instanceof ApiError && error.code === "BLOCKED" && error.status === 403,
     );
 
     assert.deepEqual(checkedCandidateUserIds, [["user-2", "user-3"]]);
