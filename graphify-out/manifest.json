@@ -204,12 +204,12 @@
     "hash": "c1cf280752702b4e4a109c1c0acfcfd5"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\e2e\\auth\\session\\route.ts": {
-    "mtime": 1777980040.291281,
-    "hash": "143d3e080f14ecde747bea9a5bb127f0"
+    "mtime": 1778670810.8418698,
+    "hash": "7e3b58fb3392c5fb4849984336f99d4b"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\e2e\\uploads\\route.ts": {
-    "mtime": 1778053351.2269473,
-    "hash": "876adbfa6bd49877deeb60a375940453"
+    "mtime": 1778670822.0670946,
+    "hash": "39ed4bced848cd1e3205ff1d82704dc0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\health\\route.ts": {
     "mtime": 1777980040.29228,
@@ -1107,6 +1107,14 @@
     "mtime": 1778001516.9530997,
     "hash": "a75639d8b2a5c81c8ac874259dab20a9"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\e2e\\route-guard.test.ts": {
+    "mtime": 1778670989.773947,
+    "hash": "02d8748191757d944b9853d3b440a323"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\e2e\\route-guard.ts": {
+    "mtime": 1778670967.8825288,
+    "hash": "0a639f97531776485137bb8258aa7e29"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\e2e\\test-fixtures.ts": {
     "mtime": 1777980040.340577,
     "hash": "1598db3e810b15d7c164b6b79b842050"
@@ -1596,8 +1604,8 @@
     "hash": "417422a0219ffb14d3b6a976aa1ba7d6"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\README.md": {
-    "mtime": 1777980040.2762806,
-    "hash": "b457029b7b51d55d8469ef221ce5e255"
+    "mtime": 1778671008.9188364,
+    "hash": "5d1e31fbfe28c0ba64a53ce88b8f1dc4"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright-report\\index.html": {
     "mtime": 1778237282.1590698,
