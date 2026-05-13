@@ -20,13 +20,17 @@ export const API_RATE_LIMITS = {
   "channel:create": { limit: 30, windowSeconds: 60 },
   "channel:delete": { limit: 30, windowSeconds: 60 },
   "channel:mark-read": { limit: 180, windowSeconds: 60 },
+  "channel:messages:list": { limit: 120, windowSeconds: 60 },
   "channel:permissions:read": { limit: 120, windowSeconds: 60 },
   "channel:permissions:update": { limit: 30, windowSeconds: 60 },
   "channel:reorder": { limit: 20, windowSeconds: 60 },
   "channel:update": { limit: 30, windowSeconds: 60 },
+  "dm:conversation:read": { limit: 120, windowSeconds: 60 },
+  "dm:conversations:list": { limit: 120, windowSeconds: 60 },
   "dm:create": { limit: 30, windowSeconds: 60 },
   "dm:hide": { limit: 60, windowSeconds: 60 },
   "dm:mark-read": { limit: 180, windowSeconds: 60 },
+  "dm:messages:list": { limit: 30, windowSeconds: 60 },
   "friend:block": { limit: 30, windowSeconds: 10 * 60 },
   "friend:remove": { limit: 30, windowSeconds: 10 * 60 },
   "friend:request": { limit: 20, windowSeconds: 10 * 60 },
@@ -47,6 +51,7 @@ export const API_RATE_LIMITS = {
   "server:list": { limit: 240, windowSeconds: 60 },
   "server:update": { limit: 30, windowSeconds: 60 },
   "settings:update": { limit: 60, windowSeconds: 60 },
+  "user:profile": { limit: 60, windowSeconds: 60 },
   "roles:create": { limit: 30, windowSeconds: 60 },
   "roles:delete": { limit: 20, windowSeconds: 60 },
   "roles:list": { limit: 120, windowSeconds: 60 },
@@ -54,6 +59,7 @@ export const API_RATE_LIMITS = {
   "message:pin": { limit: 60, windowSeconds: 60 },
   "voice:heartbeat": { limit: 240, windowSeconds: 60 },
   "voice:state": { limit: 60, windowSeconds: 60 },
+  "voice:states:list": { limit: 30, windowSeconds: 60 },
 } as const;
 
 export type ApiRateLimitAction = keyof typeof API_RATE_LIMITS;

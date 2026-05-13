@@ -148,11 +148,6 @@ export function useVoiceStates(serverId: string | null) {
         voiceQueryKeys.serverStates(serverId),
         (current) => applyVoiceStateUpdate(current, data),
       );
-
-      void queryClient.refetchQueries({
-        queryKey: voiceQueryKeys.serverStates(serverId),
-        type: "active",
-      });
     };
 
     const handleVoiceScreenShareUpdate = (data: {

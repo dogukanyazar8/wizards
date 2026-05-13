@@ -1,5 +1,6 @@
 import { prisma } from "@wizards/db";
 import { requireApiUserId } from "@/lib/auth/api";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { ApiError, jsonError } from "@/lib/api";
 import type { NextRequest } from "next/server";
 
@@ -12,6 +13,7 @@ type RouteContext = {
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const requesterId = await requireApiUserId();
+    await enforceApiRateLimit(requesterId, "user:profile");
     const { userId } = await context.params;
 
     const user = await prisma.user.findUnique({

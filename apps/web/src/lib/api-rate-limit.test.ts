@@ -20,11 +20,37 @@ describe("API rate limit configuration", () => {
       "friend:request",
       "invite:create",
       "voice:state",
+      "voice:states:list",
+      "dm:conversations:list",
+      "dm:conversation:read",
+      "dm:messages:list",
+      "dm:mark-read",
+      "channel:messages:list",
+      "user:profile",
       "notification:mark-read",
     ];
 
     for (const action of requiredActions) {
       assert.ok(getApiRateLimitConfig(action));
+    }
+  });
+
+  it("keeps read-heavy endpoint limits aligned with expected request patterns", () => {
+    const expectedConfigs = {
+      "dm:messages:list": { limit: 30, windowSeconds: 60 },
+      "user:profile": { limit: 60, windowSeconds: 60 },
+      "voice:states:list": { limit: 30, windowSeconds: 60 },
+      "dm:mark-read": { limit: 180, windowSeconds: 60 },
+      "channel:messages:list": { limit: 120, windowSeconds: 60 },
+    } satisfies Partial<
+      Record<ApiRateLimitAction, { limit: number; windowSeconds: number }>
+    >;
+
+    for (const [action, expectedConfig] of Object.entries(expectedConfigs)) {
+      assert.deepEqual(
+        getApiRateLimitConfig(action as ApiRateLimitAction),
+        expectedConfig,
+      );
     }
   });
 });

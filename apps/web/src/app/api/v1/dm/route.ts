@@ -7,6 +7,7 @@ import { CreateDMBodySchema, DMConversationsQuerySchema } from "@/lib/dm/types";
 export async function GET(request: Request) {
   try {
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "dm:conversations:list");
     const url = new URL(request.url);
     const wantsPaginatedResponse =
       url.searchParams.has("cursor") ||
