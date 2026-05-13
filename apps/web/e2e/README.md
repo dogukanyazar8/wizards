@@ -308,10 +308,14 @@ Use `loginAs(page, "alice")` for most specs. It calls the test-only
 
 - `E2E_TEST_MODE=true`
 - `NODE_ENV` is not `production`
+- the request host is local loopback (`localhost`, `127.0.0.0/8`, or `::1`)
+- configured app URLs such as `APP_URL`, `AUTH_URL`, `NEXTAUTH_URL`, and
+  `E2E_BASE_URL` are also local loopback URLs when present
 
 The helper creates the same Auth.js JWT cookie shape expected by middleware and marks the seeded E2E user online. `logout(page)` clears that session and marks the user offline.
 
-Production auth is not weakened for tests.
+Production and remote staging auth are not weakened for tests. Do not point
+`E2E_BASE_URL` at a remote deployment when using the session helper.
 
 ## CI Integration
 

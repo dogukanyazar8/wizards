@@ -3,6 +3,7 @@ import { encode, getToken } from "next-auth/jwt";
 import { z } from "zod";
 import { prisma, UserStatus } from "@wizards/db";
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
+import { assertE2EApiRouteEnabled } from "@/lib/e2e/route-guard";
 import {
   e2eUsers,
   getE2EUserByKey,
@@ -14,16 +15,6 @@ const E2ESessionSchema = z.object({
 });
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
-
-function assertE2ETestMode(): void {
-  if (process.env.E2E_TEST_MODE !== "true") {
-    throw new ApiError("E2E session helper is disabled", 404);
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    throw new ApiError("E2E session helper is unavailable in production", 404);
-  }
-}
 
 function getAuthSecret(): string {
   const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
@@ -76,7 +67,7 @@ async function findE2EUser(userKey: E2EUserKey) {
 
 export async function POST(request: NextRequest) {
   try {
-    assertE2ETestMode();
+    assertE2EApiRouteEnabled(request.nextUrl);
 
     const { userKey } = await parseJsonBody(request, E2ESessionSchema);
     const user = await findE2EUser(userKey);
@@ -137,7 +128,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    assertE2ETestMode();
+    assertE2EApiRouteEnabled(request.nextUrl);
 
     const secret = getAuthSecret();
     const cookieName = getSessionCookieName();

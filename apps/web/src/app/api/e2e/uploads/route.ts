@@ -2,6 +2,7 @@ import { z } from "zod";
 import { prisma } from "@wizards/db";
 import { requireApiUserId } from "@/lib/auth/api";
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
+import { assertE2EApiRouteEnabled } from "@/lib/e2e/route-guard";
 import {
   getMessageAttachmentMaxBytes,
   isMessageAttachmentFilenameAllowed,
@@ -17,16 +18,6 @@ const E2EUploadSchema = z.object({
   size: z.number().int().min(1).max(16 * 1024 * 1024),
 });
 
-function assertE2ETestMode(): void {
-  if (process.env.E2E_TEST_MODE !== "true") {
-    throw new ApiError("E2E upload helper is disabled", 404);
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    throw new ApiError("E2E upload helper is unavailable in production", 404);
-  }
-}
-
 function assertDataUrlMatchesContentType(dataUrl: string, contentType: string) {
   if (!dataUrl.startsWith(`data:${contentType};`)) {
     throw new ApiError("Invalid E2E upload payload.", 400, "INVALID_E2E_UPLOAD");
@@ -35,7 +26,7 @@ function assertDataUrlMatchesContentType(dataUrl: string, contentType: string) {
 
 export async function POST(request: Request) {
   try {
-    assertE2ETestMode();
+    assertE2EApiRouteEnabled(request.url);
     const userId = await requireApiUserId();
     const input = await parseJsonBody(request, E2EUploadSchema);
 
