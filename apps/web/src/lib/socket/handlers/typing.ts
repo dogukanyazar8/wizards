@@ -30,6 +30,9 @@ type DMTypingEntry = {
   username: string;
 };
 
+type CheckTypingEventAllowed = (scope: string) => Promise<boolean>;
+type IsDMParticipant = (userId: string, conversationId: string) => Promise<boolean>;
+
 export function parseDMTypingEntry(value: string): DMTypingEntry | null {
   try {
     const parsed = JSON.parse(value) as {
@@ -55,12 +58,19 @@ export function parseDMTypingEntry(value: string): DMTypingEntry | null {
   return null;
 }
 
-export function registerTypingHandlers(ctx: HandlerContext): SocketHandlerRegistration {
+export function registerTypingHandlers(
+  ctx: HandlerContext,
+  options: {
+    checkTypingEventAllowed?: CheckTypingEventAllowed;
+    isDMParticipant?: IsDMParticipant;
+  } = {},
+): SocketHandlerRegistration {
   const emitDMError = createDMErrorEmitter(ctx.socket);
   const emitSafeDMError = createSafeDMErrorEmitter(ctx.socket);
   const emitSocketError = createSocketErrorEmitter(ctx.socket);
   const dmTypingConversations = new Set<string>();
   const dmTypingTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+  const isDMParticipantForUser = options.isDMParticipant ?? isDMParticipant;
 
   async function getChannelTypingUsers(channelId: string) {
     const key = `typing:${channelId}`;
@@ -175,16 +185,20 @@ export function registerTypingHandlers(ctx: HandlerContext): SocketHandlerRegist
 
   async function isTypingEventAllowed(scope: string) {
     try {
-      return await checkRateLimit(
-        ctx.redis,
-        `rate:typing:${ctx.userId}:${scope}`,
-        TYPING_RATE_LIMIT,
-        TYPING_RATE_WINDOW_SECONDS,
-      );
+      return await (options.checkTypingEventAllowed ?? checkTypingRateLimit)(scope);
     } catch (error) {
       logError("[socket] Typing rate limit unavailable", error);
       return false;
     }
+  }
+
+  async function checkTypingRateLimit(scope: string) {
+    return checkRateLimit(
+      ctx.redis,
+      `rate:typing:${ctx.userId}:${scope}`,
+      TYPING_RATE_LIMIT,
+      TYPING_RATE_WINDOW_SECONDS,
+    );
   }
 
   ctx.socket.on("typing:start", async (rawChannelId: string) => {
@@ -239,8 +253,12 @@ export function registerTypingHandlers(ctx: HandlerContext): SocketHandlerRegist
   ctx.socket.on("dm:typing:start", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketConversationPayloadSchema, rawData);
-      if (!(await isDMParticipant(ctx.userId, data.conversationId))) {
+      if (!(await isDMParticipantForUser(ctx.userId, data.conversationId))) {
         emitDMError("FORBIDDEN", "You are not a participant in this DM");
+        return;
+      }
+
+      if (!(await isTypingEventAllowed(`dm:${data.conversationId}`))) {
         return;
       }
 
@@ -253,8 +271,12 @@ export function registerTypingHandlers(ctx: HandlerContext): SocketHandlerRegist
   ctx.socket.on("dm:typing:stop", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketConversationPayloadSchema, rawData);
-      if (!(await isDMParticipant(ctx.userId, data.conversationId))) {
+      if (!(await isDMParticipantForUser(ctx.userId, data.conversationId))) {
         emitDMError("FORBIDDEN", "You are not a participant in this DM");
+        return;
+      }
+
+      if (!(await isTypingEventAllowed(`dm:${data.conversationId}`))) {
         return;
       }
 
