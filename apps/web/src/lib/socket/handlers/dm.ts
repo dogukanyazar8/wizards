@@ -4,6 +4,7 @@ import { Prisma, prisma } from "@wizards/db";
 
 import { ApiError } from "@/lib/api";
 import { logAnalyticsError, recordMessageCreated } from "@/lib/analytics/service";
+import { assertUnblockedDMParticipants } from "@/lib/dm/blocking";
 import { isDMParticipant } from "@/lib/dm/participant-service";
 import {
   dmMessageInclude,
@@ -22,7 +23,6 @@ import {
   getDMAttachmentLabelKey,
   getDMConversationPreview,
 } from "@/lib/dm/notification-service";
-import { getBlockedUserIdsForUser } from "@/lib/friends/helpers";
 import { logError } from "@/lib/logger";
 import {
   normalizeMessageContentForSend,
@@ -49,42 +49,6 @@ import {
 } from "@/lib/socket/schemas";
 
 import type { SocketHandlerRegistration } from ".";
-
-type DMParticipantIdentity = {
-  userId: string;
-};
-
-type FindBlockedUserIdsForUser = (
-  userId: string,
-  candidateUserIds: readonly string[],
-) => Promise<Set<string>>;
-
-export async function assertUnblockedDMParticipants(args: {
-  currentUserId: string;
-  findBlockedUserIdsForUser?: FindBlockedUserIdsForUser;
-  participants: readonly DMParticipantIdentity[];
-}) {
-  const otherParticipantIds = Array.from(
-    new Set(
-      args.participants
-        .map((participant) => participant.userId)
-        .filter((participantUserId) => participantUserId !== args.currentUserId),
-    ),
-  );
-
-  if (otherParticipantIds.length === 0) {
-    return;
-  }
-
-  const blockedUserIds = await (args.findBlockedUserIdsForUser ?? getBlockedUserIdsForUser)(
-    args.currentUserId,
-    otherParticipantIds,
-  );
-
-  if (blockedUserIds.size > 0) {
-    throw new ApiError("You cannot use this DM while a block is active", 403, "BLOCKED");
-  }
-}
 
 export function registerDMHandlers(
   ctx: HandlerContext,

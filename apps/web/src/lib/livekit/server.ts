@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ApiError } from "@/lib/api";
-import { getBlockStatus } from "@/lib/friends/helpers";
+import { assertUnblockedDMParticipants } from "@/lib/dm/blocking";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
 import type { CreateLiveKitTokenBody, LiveKitTokenResponse } from "./types";
@@ -188,13 +188,11 @@ async function resolveDMRoomName(userId: string, conversationId: string) {
     throw new ApiError("You do not have access to this conversation", 403, "FORBIDDEN");
   }
 
-  const otherParticipants = participants.filter((participant) => participant.userId !== userId);
-  for (const participant of otherParticipants) {
-    const blockStatus = await getBlockStatus(userId, participant.userId);
-    if (blockStatus.blocked) {
-      throw new ApiError("You cannot join this DM call while a block is active", 403, "BLOCKED");
-    }
-  }
+  await assertUnblockedDMParticipants({
+    blockedMessage: "You cannot join this DM call while a block is active",
+    currentUserId: userId,
+    participants,
+  });
 
   return `dm:${conversation.id}`;
 }

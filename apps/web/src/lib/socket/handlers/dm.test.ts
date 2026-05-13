@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { ApiError } from "@/lib/api";
+import { assertUnblockedDMParticipants } from "@/lib/dm/blocking";
 
 import type { HandlerContext } from "../context";
-import { assertUnblockedDMParticipants, registerDMHandlers } from "./dm";
+import { registerDMHandlers } from "./dm";
 
 function createHandlerContextRecorder() {
   const events: string[] = [];
