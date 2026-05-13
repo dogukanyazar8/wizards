@@ -50,7 +50,10 @@ export type LinkPreview = z.infer<typeof LinkPreviewSchema>;
 function isPrivateIPv4(ip: string) {
   const parts = ip.split(".").map((part) => Number.parseInt(part, 10));
 
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+  if (
+    parts.length !== 4 ||
+    parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
+  ) {
     return true;
   }
 
@@ -74,21 +77,92 @@ function isPrivateIPv4(ip: string) {
   );
 }
 
+function isZeroIPv6Group(group: string) {
+  return /^0{1,4}$/.test(group);
+}
+
+function isIPv4MappedPrefix(prefix: string) {
+  const groups = prefix.split(":");
+  let explicitZeroGroupCount = 0;
+  let compressedMarkerCount = 0;
+
+  for (const group of groups) {
+    if (group === "") {
+      compressedMarkerCount += 1;
+      continue;
+    }
+
+    if (!isZeroIPv6Group(group)) {
+      return false;
+    }
+
+    explicitZeroGroupCount += 1;
+  }
+
+  if (compressedMarkerCount === 0) {
+    return explicitZeroGroupCount === 5;
+  }
+
+  return compressedMarkerCount <= 2 && explicitZeroGroupCount < 5;
+}
+
+function parseHexIPv4MappedSuffix(suffix: string) {
+  const groups = suffix.split(":");
+  if (groups.length !== 2) {
+    return null;
+  }
+
+  const words = groups.map((group) => {
+    if (!/^[0-9a-f]{1,4}$/i.test(group)) {
+      return null;
+    }
+
+    const value = Number.parseInt(group, 16);
+    return Number.isInteger(value) && value >= 0 && value <= 0xffff ? value : null;
+  });
+
+  const [high, low] = words;
+  if (high === null || high === undefined || low === null || low === undefined) {
+    return null;
+  }
+
+  return `${high >> 8}.${high & 0xff}.${low >> 8}.${low & 0xff}`;
+}
+
+function parseIPv4MappedIPv6(ip: string) {
+  const marker = ":ffff:";
+  const markerIndex = ip.lastIndexOf(marker);
+  if (markerIndex === -1) {
+    return null;
+  }
+
+  const prefix = ip.slice(0, markerIndex);
+  if (!isIPv4MappedPrefix(prefix)) {
+    return null;
+  }
+
+  const suffix = ip.slice(markerIndex + marker.length);
+  if (isIP(suffix) === 4) {
+    return suffix;
+  }
+
+  return parseHexIPv4MappedSuffix(suffix);
+}
+
 function isPrivateIPv6(ip: string) {
   const normalized = ip.toLowerCase();
+  const mappedIPv4 = parseIPv4MappedIPv6(normalized);
+
+  if (mappedIPv4) {
+    return isPrivateIPv4(mappedIPv4);
+  }
 
   return (
     normalized === "::1" ||
     normalized === "::" ||
     normalized.startsWith("fc") ||
     normalized.startsWith("fd") ||
-    normalized.startsWith("fe80:") ||
-    normalized.startsWith("::ffff:127.") ||
-    normalized.startsWith("::ffff:10.") ||
-    normalized.startsWith("::ffff:192.168.") ||
-    normalized.includes(":ffff:127.") ||
-    normalized.includes(":ffff:10.") ||
-    normalized.includes(":ffff:192.168.")
+    normalized.startsWith("fe80:")
   );
 }
 
@@ -251,12 +325,7 @@ async function readCachedPreview(url: string) {
 
 async function writeCachedPreview(url: string, preview: LinkPreview) {
   try {
-    await getRedis().set(
-      cacheKey(url),
-      JSON.stringify(preview),
-      "EX",
-      LINK_PREVIEW_CACHE_SECONDS,
-    );
+    await getRedis().set(cacheKey(url), JSON.stringify(preview), "EX", LINK_PREVIEW_CACHE_SECONDS);
   } catch (error) {
     logError("[link-preview] Cache write failed", error);
   }
@@ -352,7 +421,10 @@ function requestPublicHttpUrl(
           return;
         }
 
-        const contentLength = Number.parseInt(getHeader(incoming.headers, "content-length") ?? "0", 10);
+        const contentLength = Number.parseInt(
+          getHeader(incoming.headers, "content-length") ?? "0",
+          10,
+        );
         if (Number.isFinite(contentLength) && contentLength > LINK_PREVIEW_MAX_BYTES) {
           incoming.resume();
           request.destroy();
