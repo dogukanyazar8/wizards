@@ -22,7 +22,7 @@ import {
   getDMAttachmentLabelKey,
   getDMConversationPreview,
 } from "@/lib/dm/notification-service";
-import { getBlockStatus } from "@/lib/friends/helpers";
+import { getBlockedUserIdsForUser } from "@/lib/friends/helpers";
 import { logError } from "@/lib/logger";
 import {
   normalizeMessageContentForSend,
@@ -49,6 +49,42 @@ import {
 } from "@/lib/socket/schemas";
 
 import type { SocketHandlerRegistration } from ".";
+
+type DMParticipantIdentity = {
+  userId: string;
+};
+
+type FindBlockedUserIdsForUser = (
+  userId: string,
+  candidateUserIds: readonly string[],
+) => Promise<Set<string>>;
+
+export async function assertUnblockedDMParticipants(args: {
+  currentUserId: string;
+  findBlockedUserIdsForUser?: FindBlockedUserIdsForUser;
+  participants: readonly DMParticipantIdentity[];
+}) {
+  const otherParticipantIds = Array.from(
+    new Set(
+      args.participants
+        .map((participant) => participant.userId)
+        .filter((participantUserId) => participantUserId !== args.currentUserId),
+    ),
+  );
+
+  if (otherParticipantIds.length === 0) {
+    return;
+  }
+
+  const blockedUserIds = await (args.findBlockedUserIdsForUser ?? getBlockedUserIdsForUser)(
+    args.currentUserId,
+    otherParticipantIds,
+  );
+
+  if (blockedUserIds.size > 0) {
+    throw new ApiError("You cannot use this DM while a block is active", 403, "BLOCKED");
+  }
+}
 
 export function registerDMHandlers(
   ctx: HandlerContext,
@@ -87,13 +123,7 @@ export function registerDMHandlers(
       return null;
     }
 
-    const otherParticipants = participants.filter((participant) => participant.userId !== userId);
-    for (const participant of otherParticipants) {
-      const blockStatus = await getBlockStatus(userId, participant.userId);
-      if (blockStatus.blocked) {
-        throw new ApiError("You cannot use this DM while a block is active", 403, "BLOCKED");
-      }
-    }
+    await assertUnblockedDMParticipants({ currentUserId: userId, participants });
 
     return participants;
   }
@@ -326,14 +356,12 @@ export function registerDMHandlers(
         },
       });
 
-      const otherParticipant = participants.find((participant) => participant.userId !== userId);
-      if (otherParticipant) {
-        const blockStatus = await getBlockStatus(userId, otherParticipant.userId);
-        if (blockStatus.blocked) {
-          emitDMError("BLOCKED", "You cannot send messages in this DM.");
-          return;
-        }
+      if (!participants.some((participant) => participant.userId === userId)) {
+        emitDMError("FORBIDDEN", "You are not a participant in this DM");
+        return;
       }
+
+      await assertUnblockedDMParticipants({ currentUserId: userId, participants });
 
       const createdMessage = await createRealtimeDMMessage({
         attachmentInputs,
@@ -396,11 +424,6 @@ export function registerDMHandlers(
 
       await options.stopDMTyping?.(data.conversationId);
     } catch (error) {
-      if (error instanceof ApiError) {
-        emitDMError("VALIDATION_ERROR", error.message);
-        return;
-      }
-
       emitSafeDMError("NOT_FOUND", "Unable to send DM message.", error);
     }
   });

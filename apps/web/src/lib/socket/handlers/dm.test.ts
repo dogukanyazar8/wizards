@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { ApiError } from "@/lib/api";
+
 import type { HandlerContext } from "../context";
-import { registerDMHandlers } from "./dm";
+import { assertUnblockedDMParticipants, registerDMHandlers } from "./dm";
 
 function createHandlerContextRecorder() {
   const events: string[] = [];
@@ -47,5 +49,31 @@ describe("socket DM handlers", () => {
       "dm:message:react",
       "dm:message:unreact",
     ]);
+  });
+
+  it("checks every other participant before allowing group DM messages", async () => {
+    const checkedCandidateUserIds: string[][] = [];
+
+    await assert.rejects(
+      assertUnblockedDMParticipants({
+        currentUserId: "user-1",
+        findBlockedUserIdsForUser: async (currentUserId, candidateUserIds) => {
+          assert.equal(currentUserId, "user-1");
+          checkedCandidateUserIds.push([...candidateUserIds]);
+          return new Set(["user-3"]);
+        },
+        participants: [
+          { userId: "user-1" },
+          { userId: "user-2" },
+          { userId: "user-3" },
+        ],
+      }),
+      (error) =>
+        error instanceof ApiError &&
+        error.code === "BLOCKED" &&
+        error.status === 403,
+    );
+
+    assert.deepEqual(checkedCandidateUserIds, [["user-2", "user-3"]]);
   });
 });

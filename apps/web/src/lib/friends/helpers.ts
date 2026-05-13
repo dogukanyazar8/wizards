@@ -2,6 +2,37 @@ import { prisma } from "@wizards/db";
 import type { FriendRequest } from "@wizards/db";
 import type { BlockStatus } from "@/lib/friends/types";
 
+export async function getBlockedUserIdsForUser(
+  userId: string,
+  candidateUserIds: readonly string[],
+): Promise<Set<string>> {
+  const uniqueCandidateUserIds = Array.from(
+    new Set(candidateUserIds.filter((candidateUserId) => candidateUserId !== userId)),
+  );
+
+  if (uniqueCandidateUserIds.length === 0) {
+    return new Set();
+  }
+
+  const blockedRows = await prisma.friendRequest.findMany({
+    where: {
+      status: "BLOCKED",
+      OR: [
+        { senderId: userId, receiverId: { in: uniqueCandidateUserIds } },
+        { senderId: { in: uniqueCandidateUserIds }, receiverId: userId },
+      ],
+    },
+    select: {
+      senderId: true,
+      receiverId: true,
+    },
+  });
+
+  return new Set(
+    blockedRows.map((row) => (row.senderId === userId ? row.receiverId : row.senderId)),
+  );
+}
+
 export async function getBlockStatus(userA: string, userB: string): Promise<BlockStatus> {
   const blockedRows = await prisma.friendRequest.findMany({
     where: {
