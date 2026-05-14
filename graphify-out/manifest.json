@@ -120,8 +120,8 @@
     "hash": "dcaa3057ae14727744819179e0fc5607"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\auth.ts": {
-    "mtime": 1778571008.1082585,
-    "hash": "1e6913ef216b2d6c7d0940524c73e8d2"
+    "mtime": 1778745084.8524175,
+    "hash": "fecc85f26dd7c0f2e9d79da368e84b25"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\middleware.ts": {
     "mtime": 1778062351.6388,
@@ -144,8 +144,8 @@
     "hash": "9307e9ebe83df01482b7b7cd8c776d5c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\(auth)\\login\\login-client.tsx": {
-    "mtime": 1778571008.0982578,
-    "hash": "27657bd166ff6d984fa0bff5c0a10b81"
+    "mtime": 1778744912.8148482,
+    "hash": "ff690717259958b5d38ba21face65e75"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\(auth)\\login\\page.tsx": {
     "mtime": 1778571008.0992582,
@@ -536,8 +536,8 @@
     "hash": "c45f5383b3a6c1d421d3fda1a03c9458"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\auth\\turnstile-widget.tsx": {
-    "mtime": 1778571008.1122582,
-    "hash": "d46eba899bd7b50e28c3c6a93d79862b"
+    "mtime": 1778744867.8869178,
+    "hash": "726d9f08aef556bdbf6f009810d0635c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\channel-conversation-page.tsx": {
     "mtime": 1778592055.4239116,
@@ -940,8 +940,8 @@
     "hash": "9dafc40721a587bf5c24b7887c140d25"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale.ts": {
-    "mtime": 1778582979.661834,
-    "hash": "095225570a903c48abed4c1ebe1586ee"
+    "mtime": 1778744919.522992,
+    "hash": "878de8eb01b689673db0bc94f0f66db1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\logger.ts": {
     "mtime": 1777980040.3451438,
@@ -1052,28 +1052,40 @@
     "hash": "30a637edcdc409c7f188a3d111a86d0f"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\actions.ts": {
-    "mtime": 1778571008.1312575,
-    "hash": "e00148ff62bf53597b9510ff5243b5c6"
+    "mtime": 1778744896.2348695,
+    "hash": "85581851766368b6b81a7c428856def5"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\api.ts": {
     "mtime": 1777980040.3363543,
     "hash": "d4e740815914459eef65fecb401be6cf"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\auth-schema.test.ts": {
+    "mtime": 1778744941.2284584,
+    "hash": "c539d87bb9e457d7e8b4bb27513ea707"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\email-verification.ts": {
     "mtime": 1777905283.8796182,
     "hash": "ec3b3cecead13273084b3d9d1ba86915"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\login-proof.test.ts": {
+    "mtime": 1778744932.3653176,
+    "hash": "c6bf7aa62eeeabe4b1cac72efd93cb9b"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\login-proof.ts": {
+    "mtime": 1778744860.0890532,
+    "hash": "a75d929ef5693780e1b4d7a7bbd08c9a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\redirect.ts": {
     "mtime": 1777980040.3369606,
     "hash": "428f756dc188b1a4c36b78387b8afaf7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\turnstile.test.ts": {
-    "mtime": 1777980040.3369606,
-    "hash": "72d7cafba5d3cbd342852937c327bd50"
+    "mtime": 1778744947.5308678,
+    "hash": "50216e1fcf725932587d95333153b382"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\turnstile.ts": {
-    "mtime": 1777980040.3374798,
-    "hash": "c18d61ee13c642f636a7be54b580554f"
+    "mtime": 1778744842.3518333,
+    "hash": "2045b7b77bc6a9f498005ca3ee5dbabc"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\username.test.ts": {
     "mtime": 1777980040.3379962,
@@ -1588,8 +1600,8 @@
     "hash": "4f49463539754e00f01735258c151fc9"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\types\\src\\auth.ts": {
-    "mtime": 1778571008.1582594,
-    "hash": "5de414598fc43ce365b3d47509800747"
+    "mtime": 1778744832.5649476,
+    "hash": "863dd4046aef7e7cb09f7662eac09c18"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\types\\src\\index.ts": {
     "mtime": 1777233161.942007,
