@@ -36,6 +36,26 @@ const permissionRoleSelect = {
   permissions: true,
 } as const;
 
+export const PRIVILEGED_PERMISSION_CACHE_MAX_AGE_SECONDS = 15;
+
+const PRIVILEGED_PERMISSION_CACHE_PERMISSIONS: PermissionValue[] = [
+  PermissionBits.ADMINISTRATOR,
+  PermissionBits.MANAGE_SERVER,
+  PermissionBits.MANAGE_CHANNELS,
+  PermissionBits.MANAGE_ROLES,
+  PermissionBits.MANAGE_MESSAGES,
+  PermissionBits.CLEAR_CHANNEL_HISTORY,
+  PermissionBits.MANAGE_INVITES,
+  PermissionBits.KICK_MEMBERS,
+  PermissionBits.BAN_MEMBERS,
+  PermissionBits.TIMEOUT_MEMBERS,
+  PermissionBits.VIEW_AUDIT_LOG,
+  PermissionBits.MENTION_EVERYONE,
+  PermissionBits.MUTE_MEMBERS,
+  PermissionBits.DEAFEN_MEMBERS,
+  PermissionBits.MOVE_MEMBERS,
+];
+
 const channelOverrideSelect = {
   allow: true,
   deny: true,
@@ -301,11 +321,28 @@ export async function getChannelPermissionContext(
   };
 }
 
+function getPermissionCacheReadOptions(
+  permission: PermissionKey | PermissionValue,
+  maxAgeSeconds?: number,
+) {
+  if (maxAgeSeconds !== undefined) {
+    return { maxAgeSeconds };
+  }
+
+  const permissionValue = typeof permission === "string" ? PermissionBits[permission] : permission;
+  if (hasAnyPermission(permissionValue, PRIVILEGED_PERMISSION_CACHE_PERMISSIONS)) {
+    return { maxAgeSeconds: PRIVILEGED_PERMISSION_CACHE_MAX_AGE_SECONDS };
+  }
+
+  return {};
+}
+
 export async function requireChannelPermissionForUser(
   userId: string,
   channelId: string,
   permission: PermissionKey | PermissionValue,
   options: {
+    cacheMaxAgeSeconds?: number;
     forbiddenCode?: string;
     forbiddenMessage?: string;
     lockedCode?: string;
@@ -315,7 +352,15 @@ export async function requireChannelPermissionForUser(
     respectLocked?: boolean;
   } = {},
 ) {
-  const cachedSnapshot = await readCachedChannelPermissionSnapshot(userId, channelId);
+  const cacheReadOptions = getPermissionCacheReadOptions(
+    permission,
+    options.cacheMaxAgeSeconds,
+  );
+  const cachedSnapshot = await readCachedChannelPermissionSnapshot(
+    userId,
+    channelId,
+    cacheReadOptions,
+  );
   if (cachedSnapshot) {
     assertCachedChannelPermission(cachedSnapshot, permission, options);
 
@@ -424,7 +469,7 @@ export async function filterUserIdsByChannelPermission(
   channelId: string,
   userIds: string[],
   permission: PermissionKey | PermissionValue,
-  options: { respectLocked?: boolean } = {},
+  options: { cacheMaxAgeSeconds?: number; respectLocked?: boolean } = {},
 ) {
   const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
   if (uniqueUserIds.length === 0) {
@@ -432,10 +477,18 @@ export async function filterUserIdsByChannelPermission(
   }
 
   const allowedUserIds = new Set<string>();
+  const cacheReadOptions = getPermissionCacheReadOptions(
+    permission,
+    options.cacheMaxAgeSeconds,
+  );
   let channel: Awaited<ReturnType<typeof getChannelPermissionTarget>> | null = null;
 
   for (const batchUserIds of chunkChannelPermissionUserIds(uniqueUserIds)) {
-    const cachedSnapshots = await readCachedChannelPermissionSnapshots(channelId, batchUserIds);
+    const cachedSnapshots = await readCachedChannelPermissionSnapshots(
+      channelId,
+      batchUserIds,
+      cacheReadOptions,
+    );
     const uncachedUserIds: string[] = [];
 
     for (const userId of batchUserIds) {
@@ -569,6 +622,7 @@ export async function listChannelIdsForUsersWithPermission(
   }
 
   const cachedChannelIdsByUser = await readCachedVisibleChannelIdsBatch({
+    ...getPermissionCacheReadOptions(permission),
     permission,
     serverId,
     userIds: uniqueUserIds,
@@ -694,6 +748,7 @@ export async function listChannelIdsForUserWithPermission(
   type?: ChannelType,
 ) {
   const cacheKeyArgs = {
+    ...getPermissionCacheReadOptions(permission),
     permission,
     serverId,
     userId,
@@ -760,6 +815,7 @@ export async function listChannelIdsByServerForUserWithPermission(
     uniqueServerIds.map(async (serverId) => [
       serverId,
       await readCachedVisibleChannelIds({
+        ...getPermissionCacheReadOptions(permission),
         permission,
         serverId,
         userId,

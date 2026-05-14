@@ -15,6 +15,10 @@ import {
 const PERMISSION_CACHE_TTL_SECONDS = 45;
 const PERMISSION_CACHE_VERSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
+type PermissionCacheReadOptions = {
+  maxAgeSeconds?: number;
+};
+
 type PermissionCachePipeline = {
   exec(): Promise<unknown>;
   expire(key: string, seconds: number): PermissionCachePipeline;
@@ -51,6 +55,7 @@ type PermissionCacheContext = {
 };
 
 type PermissionCacheChannelSnapshot = {
+  cachedAt: number;
   channel: {
     id: string;
     locked: boolean;
@@ -70,6 +75,7 @@ type PermissionCacheChannelSnapshot = {
 };
 
 type PermissionCacheChannelList = {
+  cachedAt: number;
   channelIds: string[];
   memberVersion: string;
   serverVersion: string;
@@ -164,6 +170,14 @@ function parseBigInt(value: unknown) {
   } catch {
     return null;
   }
+}
+
+function isFreshEnough(cachedAt: number, options: PermissionCacheReadOptions) {
+  if (options.maxAgeSeconds === undefined) {
+    return true;
+  }
+
+  return Date.now() - cachedAt <= options.maxAgeSeconds * 1000;
 }
 
 function serializeContext(context: ChannelPermissionResolutionContext): PermissionCacheContext {
@@ -264,6 +278,7 @@ function serializeSnapshot(
   revisions: { memberVersion: string; serverVersion: string },
 ): PermissionCacheChannelSnapshot {
   return {
+    cachedAt: Date.now(),
     channel: snapshot.channel,
     context: serializeContext(snapshot.context),
     explicitAllowPermissions: snapshot.explicitAllowPermissions.toString(),
@@ -296,6 +311,10 @@ function parseSnapshot(raw: string): PermissionCacheChannelSnapshot | null {
       return null;
     }
 
+    if (typeof parsed.cachedAt !== "number" || !Number.isFinite(parsed.cachedAt)) {
+      return null;
+    }
+
     return parsed as PermissionCacheChannelSnapshot;
   } catch {
     return null;
@@ -311,6 +330,10 @@ function parseChannelList(raw: string): PermissionCacheChannelList | null {
       typeof parsed.serverVersion !== "string" ||
       parsed.channelIds.some((channelId) => typeof channelId !== "string")
     ) {
+      return null;
+    }
+
+    if (typeof parsed.cachedAt !== "number" || !Number.isFinite(parsed.cachedAt)) {
       return null;
     }
 
@@ -350,14 +373,16 @@ async function readRevisionMap(keys: string[]) {
 export async function readCachedChannelPermissionSnapshot(
   userId: string,
   channelId: string,
+  options: PermissionCacheReadOptions = {},
 ) {
-  const snapshots = await readCachedChannelPermissionSnapshots(channelId, [userId]);
+  const snapshots = await readCachedChannelPermissionSnapshots(channelId, [userId], options);
   return snapshots.get(userId) ?? null;
 }
 
 export async function readCachedChannelPermissionSnapshots(
   channelId: string,
   userIds: string[],
+  options: PermissionCacheReadOptions = {},
 ) {
   const snapshots = new Map<string, CachedChannelPermissionSnapshot>();
   const redis = getReadyRedis();
@@ -417,7 +442,8 @@ export async function readCachedChannelPermissionSnapshots(
 
       if (
         snapshot.serverVersion !== currentServerVersion ||
-        snapshot.memberVersion !== currentMemberVersion
+        snapshot.memberVersion !== currentMemberVersion ||
+        !isFreshEnough(snapshot.cachedAt, options)
       ) {
         staleCount += 1;
         continue;
@@ -527,11 +553,13 @@ export async function writeCachedChannelPermissionSnapshots(
 
 export async function readCachedVisibleChannelIds(args: {
   permission: PermissionKey | PermissionValue;
+  maxAgeSeconds?: number;
   serverId: string;
   type?: ChannelType;
   userId: string;
 }) {
   const cached = await readCachedVisibleChannelIdsBatch({
+    ...(args.maxAgeSeconds !== undefined ? { maxAgeSeconds: args.maxAgeSeconds } : {}),
     permission: args.permission,
     serverId: args.serverId,
     userIds: [args.userId],
@@ -542,6 +570,7 @@ export async function readCachedVisibleChannelIds(args: {
 }
 
 export async function readCachedVisibleChannelIdsBatch(args: {
+  maxAgeSeconds?: number;
   permission: PermissionKey | PermissionValue;
   serverId: string;
   type?: ChannelType;
@@ -575,6 +604,7 @@ export async function readCachedVisibleChannelIdsBatch(args: {
     let missCount = 0;
     let staleCount = 0;
     const parsedEntries: Array<{
+      cachedAt: number;
       channelIds: string[];
       memberVersion: string;
       serverVersion: string;
@@ -600,6 +630,7 @@ export async function readCachedVisibleChannelIdsBatch(args: {
       }
 
       parsedEntries.push({
+        cachedAt: parsed.cachedAt,
         channelIds: parsed.channelIds,
         memberVersion: parsed.memberVersion,
         serverVersion: parsed.serverVersion,
@@ -617,7 +648,8 @@ export async function readCachedVisibleChannelIdsBatch(args: {
 
       if (
         entry.serverVersion !== currentServerVersion ||
-        entry.memberVersion !== currentMemberVersion
+        entry.memberVersion !== currentMemberVersion ||
+        !isFreshEnough(entry.cachedAt, args)
       ) {
         staleCount += 1;
         continue;
@@ -698,6 +730,7 @@ export async function writeCachedVisibleChannelIdsBatch(
         visibleChannelListKey(entry),
         JSON.stringify({
           channelIds: entry.channelIds,
+          cachedAt: Date.now(),
           memberVersion: revisions.get(memberVersionKey(entry.serverId, entry.userId)) ?? "0",
           serverVersion: revisions.get(serverVersionKey(entry.serverId)) ?? "0",
         }),

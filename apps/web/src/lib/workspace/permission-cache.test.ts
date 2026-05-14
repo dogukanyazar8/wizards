@@ -16,6 +16,10 @@ import { PermissionBits } from "./permissions";
 class MemoryRedis {
   private readonly values = new Map<string, string>();
 
+  setRaw(key: string, value: string) {
+    this.values.set(key, value);
+  }
+
   async mget(...keys: string[]) {
     return keys.map((key) => this.values.get(key) ?? null);
   }
@@ -185,6 +189,83 @@ describe("workspace permission cache", () => {
         userIds: ["user-1", "user-2"],
       });
       assert.equal(cachedAfterServerInvalidation.size, 0);
+    });
+  });
+
+  it("treats over-age channel permission snapshots as stale when a max age is requested", async () => {
+    await withPermissionCacheEnabled(async () => {
+      const redis = new MemoryRedis();
+      setPermissionCacheRedisForTest(redis);
+      redis.setRaw(
+        "permission:channel:channel-1:user-1",
+        JSON.stringify({
+          cachedAt: Date.now() - 20_000,
+          channel: createSnapshot().channel,
+          context: {
+            ownerId: "owner-1",
+            roles: [
+              {
+                id: "everyone",
+                isDefault: true,
+                name: "@everyone",
+                permissions: PermissionBits.VIEW_CHANNEL.toString(),
+              },
+            ],
+            userId: "user-1",
+          },
+          explicitAllowPermissions: "0",
+          memberVersion: "0",
+          permissions: PermissionBits.VIEW_CHANNEL.toString(),
+          serverVersion: "0",
+        }),
+      );
+
+      const cachedWithoutMaxAge = await readCachedChannelPermissionSnapshot(
+        "user-1",
+        "channel-1",
+      );
+      assert.equal(cachedWithoutMaxAge?.permissions, PermissionBits.VIEW_CHANNEL);
+
+      assert.equal(
+        await readCachedChannelPermissionSnapshot("user-1", "channel-1", {
+          maxAgeSeconds: 15,
+        }),
+        null,
+      );
+    });
+  });
+
+  it("treats over-age visible channel lists as stale when a max age is requested", async () => {
+    await withPermissionCacheEnabled(async () => {
+      const redis = new MemoryRedis();
+      setPermissionCacheRedisForTest(redis);
+      redis.setRaw(
+        `permission:channels:server-1:user-1:${PermissionBits.VIEW_CHANNEL}:TEXT`,
+        JSON.stringify({
+          cachedAt: Date.now() - 20_000,
+          channelIds: ["channel-1"],
+          memberVersion: "0",
+          serverVersion: "0",
+        }),
+      );
+
+      const cachedWithoutMaxAge = await readCachedVisibleChannelIdsBatch({
+        permission: PermissionBits.VIEW_CHANNEL,
+        serverId: "server-1",
+        type: ChannelType.TEXT,
+        userIds: ["user-1"],
+      });
+      assert.deepEqual(cachedWithoutMaxAge.get("user-1"), ["channel-1"]);
+
+      const cached = await readCachedVisibleChannelIdsBatch({
+        maxAgeSeconds: 15,
+        permission: PermissionBits.VIEW_CHANNEL,
+        serverId: "server-1",
+        type: ChannelType.TEXT,
+        userIds: ["user-1"],
+      });
+
+      assert.equal(cached.has("user-1"), false);
     });
   });
 });

@@ -34,6 +34,7 @@ import {
   setReaction,
 } from "@/lib/workspace/message-service";
 import {
+  PRIVILEGED_PERMISSION_CACHE_MAX_AGE_SECONDS,
   filterUserIdsByChannelPermission,
   requireChannelPermissionForUser,
 } from "@/lib/workspace/permission-service";
@@ -134,6 +135,7 @@ export function registerMessageHandlers(
           forbiddenMessage: "You cannot send messages in this channel.",
           lockedCode: "CHANNEL_LOCKED",
           lockedMessage: "This channel is read-only.",
+          cacheMaxAgeSeconds: PRIVILEGED_PERMISSION_CACHE_MAX_AGE_SECONDS,
           requiredType: ChannelType.TEXT,
           respectLocked: true,
         },
@@ -370,6 +372,7 @@ export function registerMessageHandlers(
           forbiddenMessage: "Cannot edit this message",
           lockedCode: "CHANNEL_LOCKED",
           lockedMessage: "This channel is read-only.",
+          cacheMaxAgeSeconds: PRIVILEGED_PERMISSION_CACHE_MAX_AGE_SECONDS,
           requiredType: ChannelType.TEXT,
           respectLocked: true,
         },
@@ -416,6 +419,7 @@ export function registerMessageHandlers(
         dbMessage.channelId,
         PermissionBits.VIEW_CHANNEL,
         {
+          cacheMaxAgeSeconds: PRIVILEGED_PERMISSION_CACHE_MAX_AGE_SECONDS,
           forbiddenCode: "FORBIDDEN",
           forbiddenMessage: "You do not have access to this channel.",
           requiredType: ChannelType.TEXT,
