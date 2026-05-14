@@ -9,11 +9,15 @@ import { emitServerUnreadUpdateToUser } from "@/lib/workspace/unread-service";
 
 export function extractMentionUsernames(content: string) {
   const mentions = new Set<string>();
+  const reservedMentions = new Set(["everyone", "here"]);
   const mentionPattern = /(^|[\s([{])@([a-zA-Z0-9_.-]{2,32})/g;
   let match: RegExpExecArray | null;
 
   while ((match = mentionPattern.exec(content)) !== null) {
-    mentions.add((match[2] ?? "").toLocaleLowerCase("en-US"));
+    const username = (match[2] ?? "").toLocaleLowerCase("en-US");
+    if (!reservedMentions.has(username)) {
+      mentions.add(username);
+    }
   }
 
   return Array.from(mentions);

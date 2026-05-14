@@ -25,6 +25,7 @@ export const PermissionBits = {
   BAN_MEMBERS: 1n << 20n,
   TIMEOUT_MEMBERS: 1n << 21n,
   VIEW_AUDIT_LOG: 1n << 22n,
+  MENTION_EVERYONE: 1n << 23n,
 } as const;
 
 export type PermissionKey = keyof typeof PermissionBits;
@@ -97,6 +98,7 @@ export const MODERATOR_PERMISSIONS =
   PermissionBits.BAN_MEMBERS |
   PermissionBits.TIMEOUT_MEMBERS |
   PermissionBits.VIEW_AUDIT_LOG |
+  PermissionBits.MENTION_EVERYONE |
   PermissionBits.MUTE_MEMBERS |
   PermissionBits.DEAFEN_MEMBERS |
   PermissionBits.MOVE_MEMBERS;
@@ -119,7 +121,10 @@ function toPermissionValue(permission: PermissionKey | PermissionValue) {
   return typeof permission === "string" ? PermissionBits[permission] : permission;
 }
 
-function applyOverride(permissions: bigint, override: Pick<ChannelPermissionOverrideRecord, "allow" | "deny">) {
+function applyOverride(
+  permissions: bigint,
+  override: Pick<ChannelPermissionOverrideRecord, "allow" | "deny">,
+) {
   return (permissions & ~override.deny) | override.allow;
 }
 
@@ -131,14 +136,10 @@ export function hasAdministratorPermission(permissions: bigint) {
   return (permissions & PermissionBits.ADMINISTRATOR) !== 0n;
 }
 
-export function hasPermission(
-  permissions: bigint,
-  permission: PermissionKey | PermissionValue,
-) {
+export function hasPermission(permissions: bigint, permission: PermissionKey | PermissionValue) {
   const permissionValue = toPermissionValue(permission);
   return (
-    hasAdministratorPermission(permissions) ||
-    (permissions & permissionValue) === permissionValue
+    hasAdministratorPermission(permissions) || (permissions & permissionValue) === permissionValue
   );
 }
 
@@ -220,7 +221,8 @@ export function resolveChannelPermissions(context: ChannelPermissionResolutionCo
   permissions = applyOverride(permissions, { allow: roleAllow, deny: roleDeny });
 
   for (const override of overrides) {
-    const targetsUser = override.targetId === context.userId || override.targetId === context.memberId;
+    const targetsUser =
+      override.targetId === context.userId || override.targetId === context.memberId;
     if (override.targetType === "USER" && targetsUser) {
       permissions = applyOverride(permissions, override);
     }

@@ -11,10 +11,7 @@ import {
   type UploadedAttachmentInput,
 } from "@wizards/types";
 import { ApiError } from "@/lib/api";
-import {
-  logAnalyticsError,
-  recordMessageCreated,
-} from "@/lib/analytics/service";
+import { logAnalyticsError, recordMessageCreated } from "@/lib/analytics/service";
 import {
   claimUploadedMessageAttachments,
   normalizeMessageContentForSend,
@@ -45,7 +42,9 @@ function validateEditableMessageContent(
 ) {
   const trimmed = content.trim();
   const effectiveMaxLength =
-    maxLength === null ? MESSAGE_CONTENT_HARD_LIMIT : Math.min(maxLength, MESSAGE_CONTENT_HARD_LIMIT);
+    maxLength === null
+      ? MESSAGE_CONTENT_HARD_LIMIT
+      : Math.min(maxLength, MESSAGE_CONTENT_HARD_LIMIT);
 
   if (!trimmed || trimmed.length > effectiveMaxLength) {
     throw new ApiError(
@@ -116,18 +115,33 @@ type MessageThreadSummaryRow = {
 };
 
 const DEFAULT_DELETED_MESSAGE_NOTICE_MINUTES = 60;
+const MASS_MENTION_PATTERN = /(^|[^\p{L}\p{N}_])@(everyone|here)(?=$|[^\p{L}\p{N}_-])/iu;
 
 function addMinutes(date: Date, minutes: number) {
   return new Date(date.getTime() + minutes * 60_000);
 }
 
+export function containsMassMention(content: string) {
+  return MASS_MENTION_PATTERN.test(content);
+}
+
+export function assertCanMentionEveryone(content: string, permissions: bigint) {
+  if (
+    containsMassMention(content) &&
+    !hasPermission(permissions, PermissionBits.MENTION_EVERYONE)
+  ) {
+    throw new ApiError(
+      "You cannot mention everyone in this channel.",
+      403,
+      "MENTION_EVERYONE_FORBIDDEN",
+    );
+  }
+}
+
 function visibleMessageWhere(now: Date = new Date()): Prisma.MessageWhereInput {
   return {
     placeholderRemovedAt: null,
-    OR: [
-      { deletedAt: null },
-      { placeholderExpiresAt: { gt: now } },
-    ],
+    OR: [{ deletedAt: null }, { placeholderExpiresAt: { gt: now } }],
   };
 }
 
@@ -147,12 +161,15 @@ function groupReactions(
     string,
     {
       userIds: Set<string>;
-      users: Map<string, {
-        id: string;
-        username: string;
-        displayName: string | null;
-        avatarUrl: string | null;
-      }>;
+      users: Map<
+        string,
+        {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        }
+      >;
     }
   >();
   for (const reaction of reactions) {
@@ -283,10 +300,7 @@ async function getThreadSummaryMap(parentMessageIds: string[]) {
   return summaries;
 }
 
-function mapRawMessage(
-  message: RawMessage,
-  threadSummary?: MessageThreadSummary,
-): ChatMessage {
+function mapRawMessage(message: RawMessage, threadSummary?: MessageThreadSummary): ChatMessage {
   const attachments: MessageAttachment[] = message.attachments.map((a) => ({
     id: a.id,
     url: a.url,
@@ -325,6 +339,7 @@ function mapRawMessage(
     },
     content: message.deletedAt ? "[deleted]" : message.content,
     type: normalizeMessageType(message.type),
+    mentionEveryone: message.mentionEveryone,
     threadParentId: message.threadParentId,
     threadSummary: normalizeThreadSummary(threadSummary),
     isPinned: message.isPinned,
@@ -341,11 +356,7 @@ function mapRawMessage(
   };
 }
 
-export async function getChannelMessages(
-  channelId: string,
-  cursor?: string,
-  limit: number = 50,
-) {
+export async function getChannelMessages(channelId: string, cursor?: string, limit: number = 50) {
   const queryArgs: Prisma.MessageFindManyArgs = {
     where: {
       channelId,
@@ -363,7 +374,7 @@ export async function getChannelMessages(
     queryArgs.skip = 1;
   }
 
-  const messages = await prisma.message.findMany(queryArgs) as RawMessage[];
+  const messages = (await prisma.message.findMany(queryArgs)) as RawMessage[];
 
   const hasMore = messages.length > limit;
   const pageMessages = hasMore ? messages.slice(0, limit) : messages;
@@ -386,7 +397,7 @@ export async function getChannelThreadMessages(
   cursor?: string,
   limit: number = 50,
 ) {
-  const parent = await prisma.message.findFirst({
+  const parent = (await prisma.message.findFirst({
     where: {
       id: parentMessageId,
       channelId,
@@ -394,7 +405,7 @@ export async function getChannelThreadMessages(
       ...visibleMessageWhere(),
     },
     include: messageInclude,
-  }) as RawMessage | null;
+  })) as RawMessage | null;
 
   if (!parent) {
     throw new ApiError("Thread parent message not found", 404, "THREAD_PARENT_NOT_FOUND");
@@ -416,7 +427,7 @@ export async function getChannelThreadMessages(
     queryArgs.skip = 1;
   }
 
-  const messages = await prisma.message.findMany(queryArgs) as RawMessage[];
+  const messages = (await prisma.message.findMany(queryArgs)) as RawMessage[];
   const hasMore = messages.length > limit;
   const pageMessages = hasMore ? messages.slice(0, limit) : messages;
   const parentSummary = await getThreadSummaryMap([parent.id]);
@@ -431,10 +442,10 @@ export async function getChannelThreadMessages(
 }
 
 export async function getMessageById(messageId: string): Promise<ChatMessage | null> {
-  const message = await prisma.message.findFirst({
+  const message = (await prisma.message.findFirst({
     where: { id: messageId, ...visibleMessageWhere() },
     include: messageInclude,
-  }) as RawMessage | null;
+  })) as RawMessage | null;
 
   if (!message) {
     return null;
@@ -478,11 +489,7 @@ export async function listChannelPinnedMessages(
   };
 }
 
-export async function pinChannelMessage(
-  userId: string,
-  channelId: string,
-  messageId: string,
-) {
+export async function pinChannelMessage(userId: string, channelId: string, messageId: string) {
   await requireChannelAccess(userId, channelId, { requireManageMessages: true });
 
   const message = await prisma.message.findFirst({
@@ -545,11 +552,7 @@ export async function pinChannelMessage(
   return mapRawMessage(updated as RawMessage, summaries.get(updated.id));
 }
 
-export async function unpinChannelMessage(
-  userId: string,
-  channelId: string,
-  messageId: string,
-) {
+export async function unpinChannelMessage(userId: string, channelId: string, messageId: string) {
   await requireChannelAccess(userId, channelId, { requireManageMessages: true });
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -601,11 +604,13 @@ export async function createMessage(
   replyToId?: string,
   attachments: UploadedAttachmentInput[] = [],
   threadParentId?: string,
+  options: { permissions?: bigint } = {},
 ): Promise<ChatMessage> {
   return createTypedMessage({
     channelId,
     attachments,
     content,
+    ...(options.permissions !== undefined ? { permissions: options.permissions } : {}),
     ...(threadParentId ? { threadParentId } : {}),
     type: "DEFAULT",
     userId,
@@ -626,6 +631,7 @@ async function createTypedMessage(args: {
   attachments?: UploadedAttachmentInput[];
   channelId: string;
   content: string;
+  permissions?: bigint;
   replyToId?: string;
   threadParentId?: string;
   type: ChatMessageType;
@@ -633,6 +639,27 @@ async function createTypedMessage(args: {
 }): Promise<ChatMessage> {
   const attachments = args.attachments ?? [];
   const content = normalizeMessageContentForSend(args.content, attachments);
+  const mentionEveryone = args.type === "DEFAULT" && containsMassMention(content);
+
+  if (mentionEveryone) {
+    if (args.permissions === undefined) {
+      await requireChannelPermissionForUser(
+        args.userId,
+        args.channelId,
+        PermissionBits.MENTION_EVERYONE,
+        {
+          forbiddenCode: "MENTION_EVERYONE_FORBIDDEN",
+          forbiddenMessage: "You cannot mention everyone in this channel.",
+          lockedCode: "CHANNEL_LOCKED",
+          lockedMessage: "This channel is read-only.",
+          requiredType: ChannelType.TEXT,
+          respectLocked: true,
+        },
+      );
+    } else {
+      assertCanMentionEveryone(content, args.permissions);
+    }
+  }
 
   const result = await prisma.$transaction(async (tx) => {
     if (args.threadParentId) {
@@ -660,6 +687,7 @@ async function createTypedMessage(args: {
         replyToId: args.replyToId ?? null,
         threadParentId: args.threadParentId ?? null,
         type: args.type,
+        mentionEveryone,
       },
       select: { id: true },
     });
@@ -668,10 +696,10 @@ async function createTypedMessage(args: {
       messageId: createdMessage.id,
     });
 
-    const message = await tx.message.findUniqueOrThrow({
+    const message = (await tx.message.findUniqueOrThrow({
       where: { id: createdMessage.id },
       include: messageInclude,
-    }) as RawMessage;
+    })) as RawMessage;
 
     return {
       attachmentCount: message.attachments.length,
@@ -745,7 +773,7 @@ export async function editMessage(
     throw new ApiError("Cannot edit this message", 403);
   }
 
-  await requireChannelPermissionForUser(
+  const { permissions } = await requireChannelPermissionForUser(
     userId,
     existing.channelId,
     PermissionBits.SEND_MESSAGES,
@@ -759,19 +787,24 @@ export async function editMessage(
   );
 
   const nextContent = validateEditableMessageContent(content, maxLength);
+  const mentionEveryone = containsMassMention(nextContent);
+  if (mentionEveryone) {
+    assertCanMentionEveryone(nextContent, permissions);
+  }
+
   const updateResult = await prisma.message.updateMany({
     where: { id: messageId, userId, deletedAt: null, placeholderRemovedAt: null },
-    data: { content: nextContent, editedAt: new Date() },
+    data: { content: nextContent, editedAt: new Date(), mentionEveryone },
   });
 
   if (updateResult.count !== 1) {
     throw new ApiError("Cannot edit this message", 403);
   }
 
-  const message = await prisma.message.findUniqueOrThrow({
+  const message = (await prisma.message.findUniqueOrThrow({
     where: { id: messageId },
     include: messageInclude,
-  }) as RawMessage;
+  })) as RawMessage;
 
   return mapRawMessage(message);
 }
@@ -881,15 +914,10 @@ export async function setReaction(
     throw new ApiError("Message not found", 404, "NOT_FOUND");
   }
 
-  await requireChannelPermissionForUser(
-    userId,
-    message.channelId,
-    PermissionBits.ADD_REACTIONS,
-    {
-      forbiddenMessage: "You cannot react in this channel.",
-      requiredType: ChannelType.TEXT,
-    },
-  );
+  await requireChannelPermissionForUser(userId, message.channelId, PermissionBits.ADD_REACTIONS, {
+    forbiddenMessage: "You cannot react in this channel.",
+    requiredType: ChannelType.TEXT,
+  });
 
   const existing = await prisma.reaction.findFirst({
     where: { messageId, userId, emoji: normalizedEmoji },

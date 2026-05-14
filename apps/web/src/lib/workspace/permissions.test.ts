@@ -29,47 +29,65 @@ describe("workspace permissions", () => {
   it("grants administrator roles every permission without setting every bit", () => {
     assert.equal(hasPermission(SERVER_ADMIN_PERMISSIONS, PermissionBits.MANAGE_MESSAGES), true);
     assert.equal(hasPermission(SERVER_ADMIN_PERMISSIONS, PermissionBits.CONNECT_VOICE), true);
-    assert.equal(resolveServerPermissions({
-      ownerId: "owner",
-      roles: [{ id: "admin", name: "Admin", permissions: SERVER_ADMIN_PERMISSIONS }],
-      userId: "admin-user",
-    }), ALL_PERMISSIONS);
+    assert.equal(hasPermission(SERVER_ADMIN_PERMISSIONS, PermissionBits.MENTION_EVERYONE), true);
+    assert.equal(
+      resolveServerPermissions({
+        ownerId: "owner",
+        roles: [{ id: "admin", name: "Admin", permissions: SERVER_ADMIN_PERMISSIONS }],
+        userId: "admin-user",
+      }),
+      ALL_PERMISSIONS,
+    );
   });
 
   it("keeps moderator permissions out of server administration", () => {
     assert.equal(hasPermission(MODERATOR_PERMISSIONS, PermissionBits.MANAGE_MESSAGES), true);
     assert.equal(hasPermission(MODERATOR_PERMISSIONS, PermissionBits.KICK_MEMBERS), true);
+    assert.equal(hasPermission(MODERATOR_PERMISSIONS, PermissionBits.MENTION_EVERYONE), true);
     assert.equal(hasPermission(MODERATOR_PERMISSIONS, PermissionBits.MANAGE_SERVER), false);
     assert.equal(hasPermission(MODERATOR_PERMISSIONS, PermissionBits.MANAGE_ROLES), false);
-    assert.equal(deriveWorkspaceAccessLevel({
-      ownerId: "owner",
-      roles: [{ id: "moderator", name: "Moderator", permissions: MODERATOR_PERMISSIONS }],
-      userId: "moderator-user",
-    }), "MEMBER");
+    assert.equal(
+      deriveWorkspaceAccessLevel({
+        ownerId: "owner",
+        roles: [{ id: "moderator", name: "Moderator", permissions: MODERATOR_PERMISSIONS }],
+        userId: "moderator-user",
+      }),
+      "MEMBER",
+    );
   });
 
   it("derives owner access from ownership instead of assigned roles", () => {
-    assert.equal(deriveWorkspaceAccessLevel({
-      ownerId: "owner",
-      roles: [],
-      userId: "owner",
-    }), "OWNER");
-    assert.equal(resolveServerPermissions({
-      ownerId: "owner",
-      roles: [],
-      userId: "owner",
-    }), ALL_PERMISSIONS);
+    assert.equal(
+      deriveWorkspaceAccessLevel({
+        ownerId: "owner",
+        roles: [],
+        userId: "owner",
+      }),
+      "OWNER",
+    );
+    assert.equal(
+      resolveServerPermissions({
+        ownerId: "owner",
+        roles: [],
+        userId: "owner",
+      }),
+      ALL_PERMISSIONS,
+    );
   });
 
   it("defines the member baseline without management permissions", () => {
-    assert.equal(hasAllPermissions(MEMBER_BASE_PERMISSIONS, [
-      PermissionBits.VIEW_CHANNEL,
-      PermissionBits.SEND_MESSAGES,
-      PermissionBits.CONNECT_VOICE,
-      PermissionBits.SPEAK,
-    ]), true);
+    assert.equal(
+      hasAllPermissions(MEMBER_BASE_PERMISSIONS, [
+        PermissionBits.VIEW_CHANNEL,
+        PermissionBits.SEND_MESSAGES,
+        PermissionBits.CONNECT_VOICE,
+        PermissionBits.SPEAK,
+      ]),
+      true,
+    );
     assert.equal(hasPermission(MEMBER_BASE_PERMISSIONS, PermissionBits.MANAGE_MESSAGES), false);
     assert.equal(hasPermission(MEMBER_BASE_PERMISSIONS, PermissionBits.MANAGE_CHANNELS), false);
+    assert.equal(hasPermission(MEMBER_BASE_PERMISSIONS, PermissionBits.MENTION_EVERYONE), false);
   });
 
   it("round-trips permission keys for role and channel permission UI", () => {
@@ -143,29 +161,35 @@ describe("workspace permissions", () => {
   it("throws consistent API errors from require helpers", () => {
     assert.throws(
       () =>
-        requireServerPermission({
-          ownerId: "owner",
-          roles: [],
-          userId: "member",
-        }, PermissionBits.MANAGE_SERVER),
+        requireServerPermission(
+          {
+            ownerId: "owner",
+            roles: [],
+            userId: "member",
+          },
+          PermissionBits.MANAGE_SERVER,
+        ),
       /permission/,
     );
 
     assert.throws(
       () =>
-        requireChannelPermission({
-          ownerId: "owner",
-          roles: [{ id: "everyone", isDefault: true, permissions: MEMBER_BASE_PERMISSIONS }],
-          userId: "member",
-          overrides: [
-            {
-              allow: 0n,
-              deny: PermissionBits.CONNECT_VOICE,
-              targetId: "everyone",
-              targetType: "ROLE",
-            },
-          ],
-        }, PermissionBits.CONNECT_VOICE),
+        requireChannelPermission(
+          {
+            ownerId: "owner",
+            roles: [{ id: "everyone", isDefault: true, permissions: MEMBER_BASE_PERMISSIONS }],
+            userId: "member",
+            overrides: [
+              {
+                allow: 0n,
+                deny: PermissionBits.CONNECT_VOICE,
+                targetId: "everyone",
+                targetType: "ROLE",
+              },
+            ],
+          },
+          PermissionBits.CONNECT_VOICE,
+        ),
       /permission/,
     );
   });
@@ -202,10 +226,7 @@ describe("workspace permissions", () => {
       ],
     };
 
-    assert.equal(
-      canUseLockedChannelPermission(deniedContext, PermissionBits.CONNECT_VOICE),
-      false,
-    );
+    assert.equal(canUseLockedChannelPermission(deniedContext, PermissionBits.CONNECT_VOICE), false);
 
     const allowedContext = {
       ...deniedContext,
@@ -220,13 +241,7 @@ describe("workspace permissions", () => {
       ],
     };
 
-    assert.equal(
-      hasExplicitChannelAllow(allowedContext, PermissionBits.CONNECT_VOICE),
-      true,
-    );
-    assert.equal(
-      canUseLockedChannelPermission(allowedContext, PermissionBits.CONNECT_VOICE),
-      true,
-    );
+    assert.equal(hasExplicitChannelAllow(allowedContext, PermissionBits.CONNECT_VOICE), true);
+    assert.equal(canUseLockedChannelPermission(allowedContext, PermissionBits.CONNECT_VOICE), true);
   });
 });

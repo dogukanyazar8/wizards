@@ -9,9 +9,12 @@ describe("workspace message notification service", () => {
   });
 
   it("ignores emails, short names, and invalid mention characters", () => {
-    assert.deepEqual(
-      extractMentionUsernames("mail ada@example.com @a @valid_user @"),
-      ["valid_user"],
-    );
+    assert.deepEqual(extractMentionUsernames("mail ada@example.com @a @valid_user @"), [
+      "valid_user",
+    ]);
+  });
+
+  it("keeps reserved mass mention names out of username notifications", () => {
+    assert.deepEqual(extractMentionUsernames("@everyone please ask @Ada or @here"), ["ada"]);
   });
 });

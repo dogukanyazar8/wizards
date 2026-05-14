@@ -195,6 +195,7 @@ export function registerMessageHandlers(
         data.replyToId,
         attachmentInputs,
         data.threadParentId,
+        { permissions },
       );
       const messageCreatedAt = new Date(message.createdAt);
       const [activeChannelViewerCandidateUserIds, activeServerMemberUserIds] = await Promise.all([

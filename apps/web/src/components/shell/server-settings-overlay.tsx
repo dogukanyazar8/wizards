@@ -96,6 +96,7 @@ const ROLE_PERMISSION_PRESETS: Array<{
       "BAN_MEMBERS",
       "TIMEOUT_MEMBERS",
       "VIEW_AUDIT_LOG",
+      "MENTION_EVERYONE",
       "MUTE_MEMBERS",
       "DEAFEN_MEMBERS",
       "MOVE_MEMBERS",
@@ -144,6 +145,7 @@ const ROLE_PERMISSION_GROUPS: Array<{
       "TIMEOUT_MEMBERS",
       "MANAGE_INVITES",
       "VIEW_AUDIT_LOG",
+      "MENTION_EVERYONE",
     ],
     labelKey: "serverSettings.roles.groupModeration",
   },
@@ -227,6 +229,7 @@ function getPermissionLabel(key: WorkspacePermissionKey, locale: string) {
     MANAGE_MESSAGES: { en: "Manage messages", tr: "Mesajlari yonet" },
     MANAGE_ROLES: { en: "Manage roles", tr: "Rolleri yonet" },
     MANAGE_SERVER: { en: "Manage server", tr: "Sunucuyu yonet" },
+    MENTION_EVERYONE: { en: "Mention everyone", tr: "Herkesi etiketle" },
     MOVE_MEMBERS: { en: "Move members", tr: "Uyeleri tasi" },
     MUTE_MEMBERS: { en: "Mute members", tr: "Uyeleri sustur" },
     SEND_MESSAGES: { en: "Send messages", tr: "Mesaj gonder" },
@@ -1312,7 +1315,9 @@ export function ServerSettingsOverlay({
                                             memberRolesMutation.mutate({
                                               memberId: member.id,
                                               roleIds: selected
-                                                ? selectedRoleIds.filter((roleId) => roleId !== role.id)
+                                                ? selectedRoleIds.filter(
+                                                    (roleId) => roleId !== role.id,
+                                                  )
                                                 : [...selectedRoleIds, role.id],
                                             })
                                           }
