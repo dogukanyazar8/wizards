@@ -120,8 +120,8 @@
     "hash": "dcaa3057ae14727744819179e0fc5607"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\auth.ts": {
-    "mtime": 1778747445.582582,
-    "hash": "0441a8faa1f079200ec4a177a51730bf"
+    "mtime": 1778748704.2221859,
+    "hash": "a491a72e6fdaf638106bb8a51f60cdde"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\middleware.ts": {
     "mtime": 1778062351.6388,
@@ -951,9 +951,13 @@
     "mtime": 1778746040.1690116,
     "hash": "2b97b74f7cd09e5526e5548bf3d78c1a"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\logger.test.ts": {
+    "mtime": 1778748556.5608492,
+    "hash": "027b71dec4e1deb338c2560e158dd9e0"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\logger.ts": {
-    "mtime": 1777980040.3451438,
-    "hash": "5d84eeff5ebb5d749bf0589bb6e1cdec"
+    "mtime": 1778748545.328243,
+    "hash": "c18fe38fec0ff1a65ec0d32061059853"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\message-fonts.ts": {
     "mtime": 1778571008.1342595,
@@ -1004,8 +1008,8 @@
     "hash": "b3f0bec0b293ef531d3d243ef2453a38"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\account\\privacy-service.ts": {
-    "mtime": 1778747984.8283696,
-    "hash": "8c741c33d9a10ad7b172d553ab878786"
+    "mtime": 1778748674.737257,
+    "hash": "3991d4583c8d8656a6a623331452c7d0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\access.ts": {
     "mtime": 1778590419.942745,
@@ -1024,8 +1028,8 @@
     "hash": "b2c2929db1e98bc329c7163d479a904a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\management.ts": {
-    "mtime": 1778590370.740397,
-    "hash": "f811386968bbea66a679b292a1330a90"
+    "mtime": 1778748669.8080986,
+    "hash": "50b497725bbdee09bb2a1c8b2199e7c7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\notification-campaign-input.ts": {
     "mtime": 1778589290.1704857,
@@ -1103,6 +1107,14 @@
     "mtime": 1777980040.3369606,
     "hash": "428f756dc188b1a4c36b78387b8afaf7"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\session-revocation.test.ts": {
+    "mtime": 1778748629.9441593,
+    "hash": "eb340de0aaa70ed1e5872d4037aa03dd"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\session-revocation.ts": {
+    "mtime": 1778748642.1797664,
+    "hash": "80f1ba2ea582e17361dfb3836d6eec63"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\turnstile.test.ts": {
     "mtime": 1778744947.5308678,
     "hash": "50216e1fcf725932587d95333153b382"
@@ -1112,12 +1124,12 @@
     "hash": "2045b7b77bc6a9f498005ca3ee5dbabc"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\username.test.ts": {
-    "mtime": 1777980040.3379962,
-    "hash": "3e515a15addcce0dbc17663e9595a840"
+    "mtime": 1778748589.1333823,
+    "hash": "d3acddec1c1470b20033c6d370a83d48"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\username.ts": {
-    "mtime": 1777980040.3385155,
-    "hash": "60a293b435d896cea1e1e4a675d45020"
+    "mtime": 1778748581.4103155,
+    "hash": "47145998b3385c508d4d925bb5b40177"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\utils.ts": {
     "mtime": 1776867538.6659408,
@@ -1488,8 +1500,8 @@
     "hash": "2346ac12a042433feee12b9cac41a07d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\types\\next-auth.d.ts": {
-    "mtime": 1777555395.1134377,
-    "hash": "42d9f1bd94325d9c57b6e32a9292082d"
+    "mtime": 1778748646.0718505,
+    "hash": "d921e09169a453972ef999e8c5e8a715"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\prisma-config.d.ts": {
     "mtime": 1776866606.6930864,
