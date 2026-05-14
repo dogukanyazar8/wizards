@@ -44,10 +44,20 @@ const VOICE_CLEANUP_MAX_BATCHES_PER_RUN = 5;
 const VOICE_CLEANUP_DEBOUNCE_SECONDS = 60;
 const VOICE_CLEANUP_LOCK_TTL_MS = 30_000;
 const VOICE_JOIN_LOCK_TTL_MS = 2000;
+const RELEASE_REDIS_LOCK_SCRIPT = `
+if redis.call("GET", KEYS[1]) == ARGV[1] then
+  return redis.call("DEL", KEYS[1])
+end
+return 0
+`;
 
 type VoiceJoinLockSpec = {
   key: string;
   message: string;
+};
+
+type RedisLockReleaseClient = {
+  eval(script: string, keyCount: number, key: string, token: string): Promise<unknown>;
 };
 
 function isE2ETestMode() {
@@ -87,15 +97,11 @@ export function buildVoiceStateDeleteWhere(args: {
   };
 }
 
-export type VoiceJoinRedisClient = {
-  del(key: string): Promise<unknown>;
-  get(key: string): Promise<string | null>;
+export type VoiceJoinRedisClient = RedisLockReleaseClient & {
   set(key: string, value: string, ttlMode: "PX", ttlMs: number, condition: "NX"): Promise<unknown>;
 };
 
-export type VoiceCleanupRedisClient = {
-  del(key: string): Promise<unknown>;
-  get(key: string): Promise<string | null>;
+export type VoiceCleanupRedisClient = RedisLockReleaseClient & {
   set(key: string, value: string, ttlMode: "EX", ttlSeconds: number, condition: "NX"): Promise<unknown>;
   set(key: string, value: string, ttlMode: "PX", ttlMs: number, condition: "NX"): Promise<unknown>;
   status?: string;
@@ -417,14 +423,11 @@ export async function acquireVoiceCleanupLock(
 }
 
 export async function releaseVoiceCleanupLock(
-  redis: Pick<VoiceCleanupRedisClient, "del" | "get">,
+  redis: RedisLockReleaseClient,
   lockToken: string,
 ) {
   try {
-    const currentToken = await redis.get(VOICE_CLEANUP_LOCK_KEY);
-    if (currentToken === lockToken) {
-      await redis.del(VOICE_CLEANUP_LOCK_KEY);
-    }
+    await releaseRedisLock(redis, VOICE_CLEANUP_LOCK_KEY, lockToken);
   } catch {
     // Best-effort lock cleanup; the lock also has a short TTL.
   }
@@ -760,14 +763,15 @@ export async function releaseVoiceJoinLocks(
 ) {
   for (const lockKey of [...lockKeys].reverse()) {
     try {
-      const currentToken = await redis.get(lockKey);
-      if (currentToken === lockToken) {
-        await redis.del(lockKey);
-      }
+      await releaseRedisLock(redis, lockKey, lockToken);
     } catch {
       // Best-effort lock cleanup.
     }
   }
+}
+
+function releaseRedisLock(redis: RedisLockReleaseClient, lockKey: string, lockToken: string) {
+  return redis.eval(RELEASE_REDIS_LOCK_SCRIPT, 1, lockKey, lockToken);
 }
 
 export async function acquireVoiceJoinLocks(

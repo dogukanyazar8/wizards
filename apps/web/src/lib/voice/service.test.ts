@@ -6,6 +6,7 @@ import {
   buildVoiceStateDeleteWhere,
   canClearVoiceStateForSession,
   getVoiceJoinLockSpecs,
+  releaseVoiceJoinLocks,
   releaseVoiceCleanupLock,
   runBoundedVoiceStateCleanup,
   runVoiceStateClearMutation,
@@ -24,7 +25,12 @@ type VoiceStateClearRecord = Awaited<ReturnType<ClearMutationInput["voiceState"]
 type VoiceStateDeleteManyCall = Parameters<ClearMutationInput["voiceState"]["deleteMany"]>[0];
 
 class MemoryVoiceJoinRedis {
-  readonly delCalls: string[] = [];
+  readonly evalCalls: Array<{
+    key: string;
+    keyCount: number;
+    token: string;
+  }> = [];
+  readonly getCalls: string[] = [];
   readonly values = new Map<string, string>();
 
   constructor(entries: Array<[string, string]> = []) {
@@ -34,11 +40,20 @@ class MemoryVoiceJoinRedis {
   }
 
   async del(key: string) {
-    this.delCalls.push(key);
     return this.values.delete(key) ? 1 : 0;
   }
 
+  async eval(_script: string, keyCount: number, key: string, token: string) {
+    this.evalCalls.push({ key, keyCount, token });
+    if (this.values.get(key) !== token) {
+      return 0;
+    }
+
+    return this.del(key);
+  }
+
   async get(key: string) {
+    this.getCalls.push(key);
     return this.values.get(key) ?? null;
   }
 
@@ -165,7 +180,13 @@ describe("voice service concurrency helpers", () => {
     );
 
     assert.equal(await redis.get("voice:join:lock:user:user-1"), null);
-    assert.deepEqual(redis.delCalls, ["voice:join:lock:user:user-1"]);
+    assert.deepEqual(redis.evalCalls, [
+      {
+        key: "voice:join:lock:user:user-1",
+        keyCount: 1,
+        token: "request-token",
+      },
+    ]);
   });
 
   it("rejects rapid double-join before taking the channel lock", async () => {
@@ -185,7 +206,35 @@ describe("voice service concurrency helpers", () => {
     );
 
     assert.equal(await redis.get("voice:join:lock:channel-1"), null);
-    assert.deepEqual(redis.delCalls, []);
+    assert.deepEqual(redis.evalCalls, []);
+  });
+
+  it("releases join locks with atomic compare-and-delete", async () => {
+    const redis = new MemoryVoiceJoinRedis([
+      ["voice:join:lock:user:user-1", "request-token"],
+      ["voice:join:lock:channel-1", "new-owner-token"],
+    ]);
+
+    await releaseVoiceJoinLocks(
+      redis,
+      ["voice:join:lock:user:user-1", "voice:join:lock:channel-1"],
+      "request-token",
+    );
+
+    assert.equal(await redis.get("voice:join:lock:user:user-1"), null);
+    assert.equal(await redis.get("voice:join:lock:channel-1"), "new-owner-token");
+    assert.deepEqual(redis.evalCalls, [
+      {
+        key: "voice:join:lock:channel-1",
+        keyCount: 1,
+        token: "request-token",
+      },
+      {
+        key: "voice:join:lock:user:user-1",
+        keyCount: 1,
+        token: "request-token",
+      },
+    ]);
   });
 
   it("upserts over an existing voice state and resets re-join session fields", async () => {
@@ -373,5 +422,17 @@ describe("voice service concurrency helpers", () => {
 
     await releaseVoiceCleanupLock(redis, "token-1");
     assert.equal(await redis.get(VOICE_CLEANUP_LOCK_KEY), null);
+    assert.deepEqual(redis.evalCalls.slice(-2), [
+      {
+        key: VOICE_CLEANUP_LOCK_KEY,
+        keyCount: 1,
+        token: "token-2",
+      },
+      {
+        key: VOICE_CLEANUP_LOCK_KEY,
+        keyCount: 1,
+        token: "token-1",
+      },
+    ]);
   });
 });
