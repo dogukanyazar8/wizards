@@ -111,6 +111,36 @@ describe("workspace permissions", () => {
     assert.equal(hasPermission(permissions, PermissionBits.MANAGE_SERVER), false);
   });
 
+  it("respects an explicitly cleared @everyone role", () => {
+    const permissions = resolveServerPermissions({
+      ownerId: "owner",
+      roles: [{ id: "everyone", isDefault: true, name: "@everyone", permissions: 0n }],
+      userId: "member",
+    });
+
+    assert.equal(hasPermission(permissions, PermissionBits.VIEW_CHANNEL), false);
+    assert.equal(hasPermission(permissions, PermissionBits.SEND_MESSAGES), false);
+    assert.equal(hasPermission(permissions, PermissionBits.CONNECT_VOICE), false);
+    assert.equal(hasPermission(permissions, PermissionBits.SPEAK), false);
+    assert.equal(hasPermission(permissions, PermissionBits.STREAM), false);
+    assert.equal(hasPermission(permissions, PermissionBits.USE_VIDEO), false);
+  });
+
+  it("does not re-grant voice permissions through channel resolution when @everyone is cleared", () => {
+    const permissions = resolveChannelPermissions({
+      memberId: "member",
+      ownerId: "owner",
+      roles: [{ id: "everyone", isDefault: true, name: "@everyone", permissions: 0n }],
+      userId: "member",
+      overrides: [],
+    });
+
+    assert.equal(hasPermission(permissions, PermissionBits.CONNECT_VOICE), false);
+    assert.equal(hasPermission(permissions, PermissionBits.SPEAK), false);
+    assert.equal(hasPermission(permissions, PermissionBits.STREAM), false);
+    assert.equal(hasPermission(permissions, PermissionBits.USE_VIDEO), false);
+  });
+
   it("applies channel overrides in default role, role, then member order", () => {
     const roles = [
       {

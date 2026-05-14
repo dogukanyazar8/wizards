@@ -197,7 +197,7 @@ describe("workspace permission cache", () => {
       const redis = new MemoryRedis();
       setPermissionCacheRedisForTest(redis);
       redis.setRaw(
-        "permission:channel:channel-1:user-1",
+        "permission:v2:channel:channel-1:user-1",
         JSON.stringify({
           cachedAt: Date.now() - 20_000,
           channel: createSnapshot().channel,
@@ -240,7 +240,7 @@ describe("workspace permission cache", () => {
       const redis = new MemoryRedis();
       setPermissionCacheRedisForTest(redis);
       redis.setRaw(
-        `permission:channels:server-1:user-1:${PermissionBits.VIEW_CHANNEL}:TEXT`,
+        `permission:v2:channels:server-1:user-1:${PermissionBits.VIEW_CHANNEL}:TEXT`,
         JSON.stringify({
           cachedAt: Date.now() - 20_000,
           channelIds: ["channel-1"],

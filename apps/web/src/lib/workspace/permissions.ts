@@ -132,6 +132,10 @@ export function combinePermissions(roles: RolePermissionRecord[]) {
   return roles.reduce((permissions, role) => permissions | role.permissions, 0n);
 }
 
+function getLegacyMemberFallbackPermissions(roles: RolePermissionRecord[]) {
+  return roles.length === 0 ? MEMBER_BASE_PERMISSIONS : 0n;
+}
+
 export function hasAdministratorPermission(permissions: bigint) {
   return (permissions & PermissionBits.ADMINISTRATOR) !== 0n;
 }
@@ -178,9 +182,11 @@ export function resolveServerPermissions(context: PermissionResolutionContext) {
     return ALL_PERMISSIONS;
   }
 
-  // Existing production servers may have an empty @everyone role. Keep product
-  // behavior stable by treating normal server membership as the base grant.
-  const rolePermissions = combinePermissions(context.roles) | MEMBER_BASE_PERMISSIONS;
+  // Existing production servers may have no role rows for a member. Keep those
+  // legacy memberships usable, but respect an explicitly configured @everyone
+  // role even when its mask is 0n.
+  const rolePermissions =
+    combinePermissions(context.roles) | getLegacyMemberFallbackPermissions(context.roles);
   return hasAdministratorPermission(rolePermissions) ? ALL_PERMISSIONS : rolePermissions;
 }
 

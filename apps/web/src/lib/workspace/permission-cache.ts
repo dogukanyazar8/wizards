@@ -14,6 +14,7 @@ import {
 
 const PERMISSION_CACHE_TTL_SECONDS = 45;
 const PERMISSION_CACHE_VERSION_TTL_SECONDS = 7 * 24 * 60 * 60;
+const PERMISSION_CACHE_SCHEMA_VERSION = "v2";
 
 type PermissionCacheReadOptions = {
   maxAgeSeconds?: number;
@@ -135,7 +136,7 @@ function permissionValueToString(permission: PermissionKey | PermissionValue) {
 }
 
 function channelPermissionSnapshotKey(channelId: string, userId: string) {
-  return `permission:channel:${channelId}:${userId}`;
+  return `permission:${PERMISSION_CACHE_SCHEMA_VERSION}:channel:${channelId}:${userId}`;
 }
 
 function visibleChannelListKey(args: {
@@ -145,7 +146,7 @@ function visibleChannelListKey(args: {
   userId: string;
 }) {
   const typeKey = args.type ?? "ALL";
-  return `permission:channels:${args.serverId}:${args.userId}:${permissionValueToString(args.permission)}:${typeKey}`;
+  return `permission:${PERMISSION_CACHE_SCHEMA_VERSION}:channels:${args.serverId}:${args.userId}:${permissionValueToString(args.permission)}:${typeKey}`;
 }
 
 function serverVersionKey(serverId: string) {
