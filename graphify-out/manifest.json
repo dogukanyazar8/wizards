@@ -544,8 +544,8 @@
     "hash": "7e9fd919a98a302c4542252ce716dea0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\chat-area.tsx": {
-    "mtime": 1778158907.6360056,
-    "hash": "260619ada10066ad385b34897d20c768"
+    "mtime": 1778745558.4494686,
+    "hash": "880fd447078814a8c9dc9bf4a9958f7e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\clear-channel-history-action.tsx": {
     "mtime": 1777382828.3728209,
@@ -1260,12 +1260,12 @@
     "hash": "274e5dab07c29ed5823d78c8d9be4076"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\errors.ts": {
-    "mtime": 1778645827.199191,
-    "hash": "46fd073d1e32c0e47b2efe9e16c59b64"
+    "mtime": 1778745546.2931905,
+    "hash": "1313acc726628f230fd98faf7b6d7f91"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\events.ts": {
-    "mtime": 1778592011.7461662,
-    "hash": "5e5f02b5d6a67079edfcb342f897920f"
+    "mtime": 1778745552.481127,
+    "hash": "914c3a6cb59460d516ccf93acd787d3c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\notification-payload.test.ts": {
     "mtime": 1778645985.4289365,
@@ -1280,12 +1280,12 @@
     "hash": "90acda97c71bfc0147fb3b41b0c5d016"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\rate-limit.test.ts": {
-    "mtime": 1778702936.5397518,
-    "hash": "d7b471dff8974984984af2cb8b073413"
+    "mtime": 1778745582.8336701,
+    "hash": "5644e2413510965bf028940884c82c83"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\rate-limits.ts": {
-    "mtime": 1778702936.5327516,
-    "hash": "5e0e1b86eb0c7c0c8a673d13cef5be92"
+    "mtime": 1778745622.2093148,
+    "hash": "ee8bc552c0f03fade62c080cf00e3ee6"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\runtime.ts": {
     "mtime": 1777376722.1002865,
@@ -1316,8 +1316,8 @@
     "hash": "cb2118d5fbf4c465ec6507a55746775e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\dm.ts": {
-    "mtime": 1778675169.5700343,
-    "hash": "294078b05a313c9645b87de4a2b4769f"
+    "mtime": 1778745537.8603208,
+    "hash": "66595e7b1dc334da2ff65023a76489c8"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\index.test.ts": {
     "mtime": 1778680949.81064,
@@ -1328,12 +1328,12 @@
     "hash": "12bf411860dda5e6e8ed60aab9eb0597"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\message.test.ts": {
-    "mtime": 1778702925.4031105,
-    "hash": "fd6effc4d2d3982ab49560067f681c14"
+    "mtime": 1778745596.3488145,
+    "hash": "9e43543533b8210c7685855db48f9d88"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\message.ts": {
-    "mtime": 1778742660.6945558,
-    "hash": "6e7dd0003022e396484f51c76b9f3801"
+    "mtime": 1778745524.3573854,
+    "hash": "a371d321db5c1061bf561b46bd64c5ab"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\presence.ts": {
     "mtime": 1778646274.5013897,
