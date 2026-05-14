@@ -32,4 +32,16 @@ describe("UploadThing active-user guard", () => {
       false,
     );
   });
+
+  it("rejects deleted users", () => {
+    assert.equal(
+      isUploadUserAllowed({
+        deletedAt: new Date("2026-05-14T00:00:00.000Z"),
+        emailVerified: true,
+        id: "user-1",
+        isBanned: false,
+      }),
+      false,
+    );
+  });
 });

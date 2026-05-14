@@ -52,6 +52,8 @@ export const API_RATE_LIMITS = {
   "server:update": { limit: 30, windowSeconds: 60 },
   "settings:update": { limit: 60, windowSeconds: 60 },
   "user:profile": { limit: 60, windowSeconds: 60 },
+  "user:data-export": { limit: 3, windowSeconds: 60 * 60 },
+  "user:delete": { limit: 3, windowSeconds: 60 * 60 },
   "roles:create": { limit: 30, windowSeconds: 60 },
   "roles:delete": { limit: 20, windowSeconds: 60 },
   "roles:list": { limit: 120, windowSeconds: 60 },

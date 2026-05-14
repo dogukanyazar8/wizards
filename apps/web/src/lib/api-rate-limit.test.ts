@@ -27,6 +27,8 @@ describe("API rate limit configuration", () => {
       "dm:mark-read",
       "channel:messages:list",
       "user:profile",
+      "user:data-export",
+      "user:delete",
       "notification:mark-read",
     ];
 

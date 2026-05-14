@@ -51,6 +51,7 @@ async function findE2EUser(userKey: E2EUserKey) {
       username: true,
       displayName: true,
       avatarUrl: true,
+      deletedAt: true,
       locale: true,
       theme: true,
       emailVerified: true,
@@ -58,7 +59,7 @@ async function findE2EUser(userKey: E2EUserKey) {
     },
   });
 
-  if (!user || !user.emailVerified || user.isBanned) {
+  if (!user || !user.emailVerified || user.isBanned || user.deletedAt) {
     throw new ApiError("E2E user is not available. Run the E2E seed first.", 409);
   }
 

@@ -28,6 +28,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         bio: true,
         customStatus: true,
         createdAt: true,
+        deletedAt: true,
       },
     });
 
@@ -68,15 +69,15 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     return Response.json({
       id: user.id,
-      username: user.username,
-      displayName: user.displayName,
-      avatarUrl: user.avatarUrl,
-      bannerUrl: user.bannerUrl,
-      bannerColor: user.bannerColor,
-      bio: user.bio,
-      customStatus: user.customStatus,
+      username: user.deletedAt ? "deleted-user" : user.username,
+      displayName: user.deletedAt ? "Deleted User" : user.displayName,
+      avatarUrl: user.deletedAt ? null : user.avatarUrl,
+      bannerUrl: user.deletedAt ? null : user.bannerUrl,
+      bannerColor: user.deletedAt ? null : user.bannerColor,
+      bio: user.deletedAt ? null : user.bio,
+      customStatus: user.deletedAt ? null : user.customStatus,
       createdAt: user.createdAt.toISOString(),
-      serverNickname,
+      serverNickname: user.deletedAt ? null : serverNickname,
     });
   } catch (error) {
     return jsonError(error);

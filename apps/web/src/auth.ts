@@ -237,9 +237,10 @@ async function canOAuthUserSignIn(args: {
     return true;
   }
 
-  const existingUser = await prisma.user.findFirst({
+    const existingUser = await prisma.user.findFirst({
     where,
     select: {
+      deletedAt: true,
       emailVerified: true,
       id: true,
       isBanned: true,
@@ -311,6 +312,7 @@ const adapter: Adapter = {
     const user = await prisma.user.findUnique({
       where: { id },
       select: {
+        deletedAt: true,
         id: true,
         email: true,
         emailVerifiedAt: true,
@@ -320,7 +322,7 @@ const adapter: Adapter = {
       },
     });
 
-    if (!user) {
+    if (!user || user.deletedAt) {
       return null;
     }
 
@@ -331,6 +333,7 @@ const adapter: Adapter = {
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
       select: {
+        deletedAt: true,
         id: true,
         email: true,
         emailVerifiedAt: true,
@@ -340,7 +343,7 @@ const adapter: Adapter = {
       },
     });
 
-    if (!user) {
+    if (!user || user.deletedAt) {
       return null;
     }
 
@@ -380,6 +383,7 @@ const adapter: Adapter = {
       where: { id: data.id },
       data: updateData,
       select: {
+        deletedAt: true,
         id: true,
         email: true,
         emailVerifiedAt: true,
@@ -388,6 +392,10 @@ const adapter: Adapter = {
         avatarUrl: true,
       },
     });
+
+    if (updatedUser.deletedAt) {
+      throw new Error("Deleted users cannot be updated.");
+    }
 
     return mapUserToAdapterUser(updatedUser);
   },
@@ -408,7 +416,7 @@ const adapter: Adapter = {
       },
     });
 
-    return account?.user ? mapUserToAdapterUser(account.user) : null;
+    return account?.user && !account.user.deletedAt ? mapUserToAdapterUser(account.user) : null;
   },
   async getAccount(providerAccountId, provider): Promise<AdapterAccount | null> {
     const account = await prisma.account.findFirst({
@@ -510,6 +518,7 @@ const authConfig = {
             displayName: true,
             avatarUrl: true,
             emailVerified: true,
+            deletedAt: true,
             locale: true,
             isBanned: true,
             passwordHash: true,
@@ -530,7 +539,7 @@ const authConfig = {
           return null;
         }
 
-        if (user.isBanned) {
+        if (user.isBanned || user.deletedAt) {
           return null;
         }
 
@@ -660,12 +669,13 @@ const authConfig = {
             username: true,
             displayName: true,
             avatarUrl: true,
+            deletedAt: true,
             locale: true,
             theme: true,
           },
         });
 
-        if (dbUser) {
+        if (dbUser && !dbUser.deletedAt) {
           token.username = dbUser.username;
           token.displayName = dbUser.displayName;
           token.avatarUrl = dbUser.avatarUrl;

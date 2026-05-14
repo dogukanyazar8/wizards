@@ -218,6 +218,7 @@ export async function createLiveKitToken(
     where: { id: userId },
     select: {
       avatarUrl: true,
+      deletedAt: true,
       displayName: true,
       emailVerified: true,
       isBanned: true,
@@ -230,7 +231,7 @@ export async function createLiveKitToken(
     throw new ApiError("User not found", 404, "NOT_FOUND");
   }
 
-  if (user.isBanned) {
+  if (user.isBanned || user.deletedAt) {
     throw new ApiError("Your account has been suspended", 403, "ACCOUNT_SUSPENDED");
   }
 

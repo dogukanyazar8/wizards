@@ -14,6 +14,7 @@ export async function requireApiUserId() {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
+      deletedAt: true,
       emailVerified: true,
       id: true,
       isBanned: true,

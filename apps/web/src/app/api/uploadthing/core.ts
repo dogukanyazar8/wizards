@@ -15,15 +15,17 @@ import { logError } from "@/lib/logger";
 const f = createUploadthing();
 
 export function isUploadUserAllowed(user: {
+  deletedAt?: Date | null;
   emailVerified: boolean;
   id: string;
   isBanned: boolean;
 } | null): user is {
+  deletedAt?: null;
   emailVerified: true;
   id: string;
   isBanned: false;
 } {
-  return Boolean(user && user.emailVerified && !user.isBanned);
+  return Boolean(user && user.emailVerified && !user.isBanned && !user.deletedAt);
 }
 
 async function requireUploadUser() {
@@ -37,6 +39,7 @@ async function requireUploadUser() {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
+      deletedAt: true,
       emailVerified: true,
       id: true,
       isBanned: true,

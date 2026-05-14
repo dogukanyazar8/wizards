@@ -251,6 +251,8 @@ model User {
   isBanned              Boolean     @default(false)
   bannedAt              DateTime?
   bannedReason          String?
+  deletedAt             DateTime?
+  anonymizedAt          DateTime?
   premiumType           PremiumType @default(NONE)
   premiumSince          DateTime?
   lastLoginAt           DateTime?
@@ -301,6 +303,7 @@ model User {
   @@index([username])
   @@index([status])
   @@index([premiumType])
+  @@index([deletedAt])
 }
 
 model AdminMembership {

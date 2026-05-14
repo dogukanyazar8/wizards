@@ -279,6 +279,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         where: { id: token.id },
         select: {
           customStatus: true,
+          deletedAt: true,
           displayName: true,
           emailVerified: true,
           id: true,
