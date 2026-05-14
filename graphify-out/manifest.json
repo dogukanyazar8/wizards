@@ -40,8 +40,8 @@
     "hash": "95d63a38f4a16b2e6a8384a209e09b1e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\server.ts": {
-    "mtime": 1777980040.2872803,
-    "hash": "8534516abe6a96b709898e30ae7c244d"
+    "mtime": 1778741002.08457,
+    "hash": "39e75c1e829da8f3f986d170a7fcd1b2"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\tailwind.config.ts": {
     "mtime": 1776813184.901632,
@@ -216,8 +216,8 @@
     "hash": "39ed4bced848cd1e3205ff1d82704dc0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\health\\route.ts": {
-    "mtime": 1777980040.29228,
-    "hash": "812cb9844012a242c772f4f2a751df0e"
+    "mtime": 1778740963.7036378,
+    "hash": "7a6a70dbf8c752bde9a838accd4c73fa"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\uploadthing\\core.test.ts": {
     "mtime": 1777980040.29228,
@@ -926,6 +926,14 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\env.ts": {
     "mtime": 1778599218.9353404,
     "hash": "97b81cf73eaf287ef0032aef7dca8916"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\health.test.ts": {
+    "mtime": 1778740970.658279,
+    "hash": "7bee83f75c9c57932559d236e416faeb"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\health.ts": {
+    "mtime": 1778740970.6461802,
+    "hash": "7727fbefa0202d0c59e3b309cfcccf17"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale.test.ts": {
     "mtime": 1777980040.3431418,
