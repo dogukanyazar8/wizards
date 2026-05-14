@@ -144,8 +144,8 @@
     "hash": "9307e9ebe83df01482b7b7cd8c776d5c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\(auth)\\login\\login-client.tsx": {
-    "mtime": 1778744912.8148482,
-    "hash": "ff690717259958b5d38ba21face65e75"
+    "mtime": 1778745954.2945702,
+    "hash": "df4934e37f15373ba65d231de08f5357"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\(auth)\\login\\page.tsx": {
     "mtime": 1778571008.0992582,
@@ -940,8 +940,8 @@
     "hash": "9dafc40721a587bf5c24b7887c140d25"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale.ts": {
-    "mtime": 1778744919.522992,
-    "hash": "878de8eb01b689673db0bc94f0f66db1"
+    "mtime": 1778746040.1690116,
+    "hash": "2b97b74f7cd09e5526e5548bf3d78c1a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\logger.ts": {
     "mtime": 1777980040.3451438,
@@ -1052,8 +1052,8 @@
     "hash": "30a637edcdc409c7f188a3d111a86d0f"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\actions.ts": {
-    "mtime": 1778744896.2348695,
-    "hash": "85581851766368b6b81a7c428856def5"
+    "mtime": 1778745930.361957,
+    "hash": "f36840d1e859677befd228f80aa00a06"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\api.ts": {
     "mtime": 1777980040.3363543,
@@ -1066,6 +1066,14 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\email-verification.ts": {
     "mtime": 1777905283.8796182,
     "hash": "ec3b3cecead13273084b3d9d1ba86915"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\login-errors.test.ts": {
+    "mtime": 1778746044.4908504,
+    "hash": "60ae2830c92dfb659834cd37b0cadb8d"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\login-errors.ts": {
+    "mtime": 1778745919.4732287,
+    "hash": "7969ff173d78f8c9b3a731abca5c9a7d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\login-proof.test.ts": {
     "mtime": 1778744932.3653176,
