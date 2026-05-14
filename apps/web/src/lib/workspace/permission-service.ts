@@ -43,8 +43,20 @@ const channelOverrideSelect = {
   targetType: true,
 } as const;
 
+export const CHANNEL_PERMISSION_FILTER_BATCH_SIZE = 500;
+
 type PermissionRole = RolePermissionRecord;
 type ChannelPermissionSnapshotChannel = CachedChannelPermissionSnapshot["channel"];
+
+function chunkChannelPermissionUserIds(userIds: string[]) {
+  const chunks: string[][] = [];
+
+  for (let index = 0; index < userIds.length; index += CHANNEL_PERMISSION_FILTER_BATCH_SIZE) {
+    chunks.push(userIds.slice(index, index + CHANNEL_PERMISSION_FILTER_BATCH_SIZE));
+  }
+
+  return chunks;
+}
 
 function mergePermissionRoles(...roleGroups: PermissionRole[][]) {
   const rolesById = new Map<string, PermissionRole>();
@@ -419,100 +431,104 @@ export async function filterUserIdsByChannelPermission(
     return [];
   }
 
-  const cachedSnapshots = await readCachedChannelPermissionSnapshots(channelId, uniqueUserIds);
   const allowedUserIds = new Set<string>();
-  const uncachedUserIds: string[] = [];
+  let channel: Awaited<ReturnType<typeof getChannelPermissionTarget>> | null = null;
 
-  for (const userId of uniqueUserIds) {
-    const snapshot = cachedSnapshots.get(userId);
-    if (!snapshot) {
-      uncachedUserIds.push(userId);
+  for (const batchUserIds of chunkChannelPermissionUserIds(uniqueUserIds)) {
+    const cachedSnapshots = await readCachedChannelPermissionSnapshots(channelId, batchUserIds);
+    const uncachedUserIds: string[] = [];
+
+    for (const userId of batchUserIds) {
+      const snapshot = cachedSnapshots.get(userId);
+      if (!snapshot) {
+        uncachedUserIds.push(userId);
+        continue;
+      }
+
+      if (hasCachedChannelPermission(snapshot, permission, options)) {
+        allowedUserIds.add(userId);
+      }
+    }
+
+    if (uncachedUserIds.length === 0) {
       continue;
     }
 
-    if (hasCachedChannelPermission(snapshot, permission, options)) {
-      allowedUserIds.add(userId);
-    }
-  }
-
-  if (uncachedUserIds.length === 0) {
-    return uniqueUserIds.filter((userId) => allowedUserIds.has(userId));
-  }
-
-  const channel = await getChannelPermissionTarget(channelId);
-  const [memberships, bans] = await Promise.all([
-    prisma.serverMember.findMany({
-      where: {
-        serverId: channel.serverId,
-        userId: { in: uncachedUserIds },
-      },
-      select: {
-        id: true,
-        roles: {
-          select: {
-            role: {
-              select: permissionRoleSelect,
+    channel ??= await getChannelPermissionTarget(channelId);
+    const [memberships, bans] = await Promise.all([
+      prisma.serverMember.findMany({
+        where: {
+          serverId: channel.serverId,
+          userId: { in: uncachedUserIds },
+        },
+        select: {
+          id: true,
+          roles: {
+            select: {
+              role: {
+                select: permissionRoleSelect,
+              },
             },
           },
+          userId: true,
         },
-        userId: true,
-      },
-    }),
-    prisma.serverBan.findMany({
-      where: {
-        serverId: channel.serverId,
-        userId: { in: uncachedUserIds },
-      },
-      select: { userId: true },
-    }),
-  ]);
-  const bannedUserIds = new Set(bans.map((ban) => ban.userId));
-  const snapshotsToCache: Array<{
-    channelId: string;
-    snapshot: CachedChannelPermissionSnapshot;
-    userId: string;
-  }> = [];
+      }),
+      prisma.serverBan.findMany({
+        where: {
+          serverId: channel.serverId,
+          userId: { in: uncachedUserIds },
+        },
+        select: { userId: true },
+      }),
+    ]);
+    const bannedUserIds = new Set(bans.map((ban) => ban.userId));
+    const snapshotsToCache: Array<{
+      channelId: string;
+      snapshot: CachedChannelPermissionSnapshot;
+      userId: string;
+    }> = [];
 
-  for (const membership of memberships) {
-    if (bannedUserIds.has(membership.userId)) {
-      continue;
+    for (const membership of memberships) {
+      if (bannedUserIds.has(membership.userId)) {
+        continue;
+      }
+
+      const context: ChannelPermissionResolutionContext = {
+        memberId: membership.id,
+        ownerId: channel.ownerId,
+        roles: mergePermissionRoles(
+          channel.defaultRoles,
+          membership.roles.map((entry) => entry.role),
+        ),
+        userId: membership.userId,
+        overrides: channel.permissionOverrides,
+      };
+      const permissions = resolveChannelPermissions(context);
+      const snapshot = createChannelPermissionSnapshot({
+        channel: {
+          id: channel.id,
+          locked: channel.locked,
+          name: channel.name,
+          server: channel.server,
+          serverId: channel.serverId,
+          type: channel.type,
+        },
+        context,
+        permissions,
+      });
+      snapshotsToCache.push({
+        channelId,
+        snapshot,
+        userId: membership.userId,
+      });
+
+      if (hasCachedChannelPermission(snapshot, permission, options)) {
+        allowedUserIds.add(membership.userId);
+      }
     }
 
-    const context: ChannelPermissionResolutionContext = {
-      memberId: membership.id,
-      ownerId: channel.ownerId,
-      roles: mergePermissionRoles(
-        channel.defaultRoles,
-        membership.roles.map((entry) => entry.role),
-      ),
-      userId: membership.userId,
-      overrides: channel.permissionOverrides,
-    };
-    const permissions = resolveChannelPermissions(context);
-    const snapshot = createChannelPermissionSnapshot({
-      channel: {
-        id: channel.id,
-        locked: channel.locked,
-        name: channel.name,
-        server: channel.server,
-        serverId: channel.serverId,
-        type: channel.type,
-      },
-      context,
-      permissions,
-    });
-    snapshotsToCache.push({
-      channelId,
-      snapshot,
-      userId: membership.userId,
-    });
-
-    if (hasCachedChannelPermission(snapshot, permission, options)) {
-      allowedUserIds.add(membership.userId);
-    }
+    await writeCachedChannelPermissionSnapshots(snapshotsToCache);
   }
-
-  await writeCachedChannelPermissionSnapshots(snapshotsToCache);
 
   return uniqueUserIds.filter((userId) => allowedUserIds.has(userId));
 }

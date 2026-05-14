@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { ChannelType, prisma } from "@wizards/db";
 import {
+  CHANNEL_PERMISSION_FILTER_BATCH_SIZE,
+  filterUserIdsByChannelPermission,
   listChannelIdsByServerForUserWithPermission,
   listChannelIdsForUsersWithPermission,
 } from "./permission-service";
@@ -9,7 +11,111 @@ import { PermissionBits } from "./permissions";
 
 type AsyncMethod = (args?: unknown) => Promise<unknown>;
 
+function getUserIdInClause(args: unknown) {
+  const userIds = (args as { where?: { userId?: { in?: unknown } } }).where?.userId?.in;
+  assert.ok(Array.isArray(userIds));
+  return userIds as string[];
+}
+
 describe("workspace permission service", () => {
+  it("filters channel permission fanout with bounded DB IN clauses", async () => {
+    const calls = {
+      channelFindUnique: 0,
+      serverBanFindMany: 0,
+      serverMemberFindMany: 0,
+    };
+    const memberBatchSizes: number[] = [];
+    const banBatchSizes: number[] = [];
+    const userIds = Array.from(
+      { length: CHANNEL_PERMISSION_FILTER_BATCH_SIZE * 2 + 1 },
+      (_, index) => `user-${index + 1}`,
+    );
+    const channelDelegate = prisma.channel as unknown as { findUnique: AsyncMethod };
+    const memberDelegate = prisma.serverMember as unknown as { findMany: AsyncMethod };
+    const banDelegate = prisma.serverBan as unknown as { findMany: AsyncMethod };
+    const originalChannelFindUnique = channelDelegate.findUnique;
+    const originalMemberFindMany = memberDelegate.findMany;
+    const originalBanFindMany = banDelegate.findMany;
+    const originalPermissionCacheDisabled = process.env.PERMISSION_CACHE_DISABLED;
+    process.env.PERMISSION_CACHE_DISABLED = "true";
+
+    channelDelegate.findUnique = async () => {
+      calls.channelFindUnique += 1;
+
+      return {
+        id: "channel-1",
+        locked: false,
+        name: "general",
+        permissionOverrides: [],
+        server: {
+          features: [],
+          messageCharacterLimit: 2000,
+          ownerId: "owner",
+          roles: [
+            {
+              id: "everyone",
+              isDefault: true,
+              name: "@everyone",
+              permissions: PermissionBits.VIEW_CHANNEL,
+            },
+          ],
+        },
+        serverId: "server-1",
+        type: ChannelType.TEXT,
+      };
+    };
+    memberDelegate.findMany = async (args?: unknown) => {
+      calls.serverMemberFindMany += 1;
+      const batchUserIds = getUserIdInClause(args);
+      memberBatchSizes.push(batchUserIds.length);
+
+      return batchUserIds.map((userId) => ({
+        id: `member-${userId}`,
+        roles: [],
+        userId,
+      }));
+    };
+    banDelegate.findMany = async (args?: unknown) => {
+      calls.serverBanFindMany += 1;
+      const batchUserIds = getUserIdInClause(args);
+      banBatchSizes.push(batchUserIds.length);
+
+      return [];
+    };
+
+    try {
+      const allowedUserIds = await filterUserIdsByChannelPermission(
+        "channel-1",
+        [...userIds, userIds[0] ?? ""],
+        PermissionBits.VIEW_CHANNEL,
+      );
+
+      assert.deepEqual(allowedUserIds, userIds);
+      assert.equal(calls.channelFindUnique, 1);
+      assert.equal(calls.serverMemberFindMany, 3);
+      assert.equal(calls.serverBanFindMany, 3);
+      assert.deepEqual(memberBatchSizes, [
+        CHANNEL_PERMISSION_FILTER_BATCH_SIZE,
+        CHANNEL_PERMISSION_FILTER_BATCH_SIZE,
+        1,
+      ]);
+      assert.deepEqual(banBatchSizes, [
+        CHANNEL_PERMISSION_FILTER_BATCH_SIZE,
+        CHANNEL_PERMISSION_FILTER_BATCH_SIZE,
+        1,
+      ]);
+    } finally {
+      channelDelegate.findUnique = originalChannelFindUnique;
+      memberDelegate.findMany = originalMemberFindMany;
+      banDelegate.findMany = originalBanFindMany;
+      if (originalPermissionCacheDisabled === undefined) {
+        delete process.env.PERMISSION_CACHE_DISABLED;
+      } else {
+        process.env.PERMISSION_CACHE_DISABLED = originalPermissionCacheDisabled;
+      }
+    }
+  });
+
   it("resolves visible channels for uncached users in one DB batch", async () => {
     const calls = {
       channelFindMany: 0,
