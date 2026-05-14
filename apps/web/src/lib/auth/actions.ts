@@ -25,6 +25,7 @@ import {
 } from "@/lib/auth/turnstile";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
 import { createLoginProof } from "@/lib/auth/login-proof";
+import { LOGIN_FAILED_MESSAGE_KEY } from "@/lib/auth/login-errors";
 import { Prisma, prisma } from "@wizards/db";
 import {
   ForgotPasswordSchema,
@@ -421,28 +422,6 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     };
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: {
-      email: true,
-      emailVerified: true,
-      isBanned: true,
-      passwordHash: true,
-    },
-  });
-
-  if (user?.passwordHash && !user.isBanned) {
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-
-    if (isPasswordValid && !user.emailVerified) {
-      return {
-        email: user.email,
-        success: false,
-        error: "auth.login.emailNotVerified",
-      };
-    }
-  }
-
   try {
     let loginProof: string;
     try {
@@ -468,7 +447,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
       if (error.type === "CredentialsSignin") {
         return {
           success: false,
-          error: "auth.login.invalidCredentials",
+          error: LOGIN_FAILED_MESSAGE_KEY,
         };
       }
 
