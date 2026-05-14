@@ -10,6 +10,7 @@
   },
   "scripts": {
     "db:generate": "prisma generate",
+    "db:migrate:deploy": "prisma migrate deploy",
     "prisma:ensure-runtime": "node ./scripts/ensure-prisma-client-runtime.mjs",
     "db:seed": "node --loader ts-node/esm src/seed.ts",
     "contributors:sync": "node --loader ts-node/esm src/sync-contributors.ts",

@@ -8,7 +8,7 @@ import {
 
 import {
   dmMessageInclude,
-  getDirectMessageConversationForUser,
+  getDirectMessageConversationRealtimeViews,
 } from "./service";
 
 export type DMRealtimeParticipant = {
@@ -81,22 +81,15 @@ export async function createRealtimeDMMessage(args: {
 export async function getDMConversationRealtimeUpdates(
   conversationId: string,
   participants: DMRealtimeParticipant[],
+  options: {
+    loadConversationViews?: typeof getDirectMessageConversationRealtimeViews;
+  } = {},
 ) {
-  return Promise.all(
-    participants.map(async (participant) => {
-      const conversation = await getDirectMessageConversationForUser(
-        conversationId,
-        participant.userId,
-      );
-      const currentParticipant = conversation.participants.find(
-        (candidate) => candidate.userId === participant.userId,
-      );
+  const loadConversationViews =
+    options.loadConversationViews ?? getDirectMessageConversationRealtimeViews;
 
-      return {
-        participantId: participant.userId,
-        unreadCount: currentParticipant?.unreadCount ?? 0,
-        conversation,
-      };
-    }),
+  return loadConversationViews(
+    conversationId,
+    participants.map((participant) => participant.userId),
   );
 }

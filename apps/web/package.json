@@ -9,7 +9,9 @@
   "scripts": {
     "dev": "node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && tsx watch server.ts",
     "build": "pnpm --filter @wizards/db db:generate && node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && next build",
+    "db:migrate:deploy": "pnpm --filter @wizards/db db:migrate:deploy",
     "start": "node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && tsx server.ts",
+    "start:with-migrations": "pnpm run db:migrate:deploy && pnpm run start",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "e2e:report": "playwright show-report",

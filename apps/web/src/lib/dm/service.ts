@@ -154,9 +154,23 @@ type DMThreadSummaryRow = {
   threadParentId: string;
 };
 
-async function readPresence(userId: string, fallback: PresenceFields): Promise<PresenceFields> {
-  const presence = await readPresenceMap(getRedis(), [{ ...fallback, userId }]);
-  return presence.get(userId) ?? fallback;
+function getPresenceFallback(
+  participant: RawDMConversation["participants"][number],
+): PresenceFields {
+  return {
+    status: "OFFLINE",
+    customStatus: participant.user.customStatus,
+  };
+}
+
+async function readDMConversationPresenceMap(conversation: RawDMConversation) {
+  return readPresenceMap(
+    getRedis(),
+    conversation.participants.map((participant) => ({
+      ...getPresenceFallback(participant),
+      userId: participant.userId,
+    })),
+  );
 }
 
 function normalizeConversationType(type: string): DMConversationDTO["type"] {
@@ -334,14 +348,10 @@ export function getDMDisplayName(user: {
   return user.displayName ?? user.username;
 }
 
-async function mapDMParticipant(
+function mapDMParticipantWithPresence(
   participant: RawDMConversation["participants"][number],
-): Promise<DMParticipantDTO> {
-  const presence = await readPresence(participant.userId, {
-    status: "OFFLINE",
-    customStatus: participant.user.customStatus,
-  });
-
+  presence: PresenceFields,
+): DMParticipantDTO {
   return {
     userId: participant.userId,
     username: participant.user.username,
@@ -440,13 +450,17 @@ export async function mapDMMessagePayloadWithReactions(
   return mapDMMessagePayload(message, reactionsByMessageId, threadSummaryByMessageId);
 }
 
+function getDeletedMessageLabelForLocale(locale: string | null | undefined) {
+  return translate(normalizeAppLocale(locale), "dm.message.deleted");
+}
+
 async function getDeletedMessageLabel(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { locale: true },
   });
 
-  return translate(normalizeAppLocale(user?.locale), "dm.message.deleted");
+  return getDeletedMessageLabelForLocale(user?.locale);
 }
 
 function resolveConversationName(conversation: RawDMConversation, viewerId: string) {
@@ -492,12 +506,32 @@ export async function mapDMConversationDTO(
   viewerId: string,
   deletedMessageLabel: string,
 ): Promise<DMConversationDTO> {
+  const presenceByUserId = await readDMConversationPresenceMap(conversation);
+  return mapDMConversationDTOWithPresence(
+    conversation,
+    viewerId,
+    deletedMessageLabel,
+    presenceByUserId,
+  );
+}
+
+function mapDMConversationDTOWithPresence(
+  conversation: RawDMConversation,
+  viewerId: string,
+  deletedMessageLabel: string,
+  presenceByUserId: Map<string, PresenceFields>,
+): DMConversationDTO {
   return {
     id: conversation.id,
     type: normalizeConversationType(conversation.type),
     name: resolveConversationName(conversation, viewerId),
     lastMessageAt: conversation.lastMessageAt.toISOString(),
-    participants: await Promise.all(conversation.participants.map(mapDMParticipant)),
+    participants: conversation.participants.map((participant) =>
+      mapDMParticipantWithPresence(
+        participant,
+        presenceByUserId.get(participant.userId) ?? getPresenceFallback(participant),
+      ),
+    ),
     lastMessage: mapConversationLastMessage(conversation, deletedMessageLabel),
   };
 }
@@ -742,6 +776,69 @@ export async function getDirectMessageConversationForUser(
   }
 
   return mapDMConversationDTO(conversation, userId, deletedMessageLabel);
+}
+
+export async function getDirectMessageConversationRealtimeViews(
+  conversationId: string,
+  userIds: string[],
+): Promise<
+  Array<{
+    conversation: DMConversationDTO;
+    participantId: string;
+    unreadCount: number;
+  }>
+> {
+  const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (uniqueUserIds.length === 0) {
+    return [];
+  }
+
+  const conversation = await prisma.dMConversation.findUnique({
+    where: { id: conversationId },
+    include: dmConversationInclude,
+  });
+
+  if (!conversation) {
+    throw new ApiError("Conversation not found", 404, "NOT_FOUND");
+  }
+
+  const participantIds = new Set(
+    conversation.participants.map((participant) => participant.userId),
+  );
+  const latestMessageDeleted = Boolean(conversation.messages[0]?.deletedAt);
+  const [localeByUserId, presenceByUserId] = await Promise.all([
+    latestMessageDeleted
+      ? prisma.user
+          .findMany({
+            where: { id: { in: uniqueUserIds } },
+            select: { id: true, locale: true },
+          })
+          .then((users) => new Map(users.map((user) => [user.id, user.locale])))
+      : Promise.resolve(new Map<string, string | null>()),
+    readDMConversationPresenceMap(conversation),
+  ]);
+  const defaultDeletedMessageLabel = getDeletedMessageLabelForLocale(null);
+
+  return uniqueUserIds
+    .filter((userId) => participantIds.has(userId))
+    .map((participantId) => {
+      const currentParticipant = conversation.participants.find(
+        (candidate) => candidate.userId === participantId,
+      );
+
+      return {
+        participantId,
+        unreadCount: currentParticipant?.unreadCount ?? 0,
+        conversation: mapDMConversationDTOWithPresence(
+          conversation,
+          participantId,
+          latestMessageDeleted
+            ? getDeletedMessageLabelForLocale(localeByUserId.get(participantId))
+            : defaultDeletedMessageLabel,
+          presenceByUserId,
+        ),
+      };
+    });
 }
 
 export async function listDMMessages(
