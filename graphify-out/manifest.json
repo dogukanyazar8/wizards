@@ -1131,9 +1131,13 @@
     "mtime": 1778670967.8825288,
     "hash": "0a639f97531776485137bb8258aa7e29"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\e2e\\test-fixtures.test.ts": {
+    "mtime": 1778743151.3864534,
+    "hash": "40b82a3504b5a5cd4ee65276b8827806"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\e2e\\test-fixtures.ts": {
-    "mtime": 1777980040.340577,
-    "hash": "1598db3e810b15d7c164b6b79b842050"
+    "mtime": 1778743265.5494854,
+    "hash": "59af644d8f45a7f4c5857899bf76a6a2"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\friends\\client.ts": {
     "mtime": 1777191467.9513693,
@@ -1640,8 +1644,8 @@
     "hash": "c515aea89704316bd06348d5fe4380c1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\README.md": {
-    "mtime": 1778671008.9188364,
-    "hash": "5d1e31fbfe28c0ba64a53ce88b8f1dc4"
+    "mtime": 1778743234.8739288,
+    "hash": "d4ba54a7c4af26b20068489fab70ffc1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright-report\\index.html": {
     "mtime": 1778237282.1590698,
