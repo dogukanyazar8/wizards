@@ -27,7 +27,7 @@ import type { SocketHandlerRegistration } from ".";
 const VOICE_AUDIO_LEVEL_MIN_INTERVAL_MS = 40;
 
 export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistration {
-  const { io, redis, socket, userId } = ctx;
+  const { io, rateRedis, redis, socket, userId } = ctx;
   const emitSocketError = createSocketErrorEmitter(socket);
   const emitVoiceInviteError = createVoiceInviteErrorEmitter(socket);
 
@@ -180,6 +180,7 @@ export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistr
       data = parseSocketPayload(SocketVoiceInvitePayloadSchema, rawData);
       const result = await createVoiceInvite({
         input: data,
+        rateRedis,
         redis,
         userId,
       });

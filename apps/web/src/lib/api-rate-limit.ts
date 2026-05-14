@@ -1,7 +1,7 @@
 import { ApiError } from "@/lib/api";
 import { logError } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getRedis } from "@/lib/redis";
+import { getRedisRate } from "@/lib/redis";
 
 export const API_RATE_LIMITS = {
   "admin:campaign:create": { limit: 12, windowSeconds: 60 },
@@ -75,7 +75,7 @@ export async function enforceApiRateLimit(userId: string, action: ApiRateLimitAc
 
   try {
     const isAllowed = await checkRateLimit(
-      getRedis(),
+      getRedisRate(),
       `rate:api:${action}:${userId}`,
       config.limit,
       config.windowSeconds,

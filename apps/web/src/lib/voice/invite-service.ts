@@ -95,11 +95,13 @@ export function toVisiblePresenceStatus(status: string): VisiblePresenceStatus {
 export async function createVoiceInvite({
   input,
   now = new Date(),
+  rateRedis,
   redis,
   userId,
 }: {
   input: VoiceInviteInput;
   now?: Date;
+  rateRedis?: Redis;
   redis: Redis;
   userId: string;
 }): Promise<VoiceInviteSendResult> {
@@ -108,7 +110,7 @@ export async function createVoiceInvite({
   }
 
   const isAllowed = await checkRateLimit(
-    redis,
+    rateRedis ?? redis,
     `rate:voice:invite:${userId}`,
     VOICE_INVITE_RATE_LIMIT,
     VOICE_INVITE_RATE_WINDOW_SECONDS,

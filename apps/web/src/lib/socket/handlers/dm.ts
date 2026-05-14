@@ -56,7 +56,7 @@ export function registerDMHandlers(
     stopDMTyping?: (conversationId: string) => Promise<void>;
   } = {},
 ): SocketHandlerRegistration {
-  const { io, redis, socket, userId } = ctx;
+  const { io, rateRedis, socket, userId } = ctx;
   const emitDMError = createDMErrorEmitter(socket);
   const emitSafeDMError = createSafeDMErrorEmitter(socket);
 
@@ -238,7 +238,7 @@ export function registerDMHandlers(
 
       const rateLimitResult = await checkDMMessageRateLimits({
         conversationId: data.conversationId,
-        redis,
+        redis: rateRedis,
         userId,
       });
 

@@ -36,6 +36,7 @@ function createTypingHandlerContext() {
         };
       },
     },
+    rateRedis: {},
     redis: {
       async expire(...args: unknown[]) {
         redisCalls.push({ args, command: "expire" });

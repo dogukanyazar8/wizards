@@ -1,6 +1,6 @@
 import { Prisma, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
-import { getRedis } from "@/lib/redis";
+import { getRedis, getRedisRate } from "@/lib/redis";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import {
   getBlockStatus,
@@ -442,7 +442,7 @@ export async function sendFriendRequest(
 ): Promise<FriendRequestDto> {
   try {
     const isAllowed = await checkRateLimit(
-      getRedis(),
+      getRedisRate(),
       `rate:friend-request:${senderId}`,
       20,
       10 * 60,

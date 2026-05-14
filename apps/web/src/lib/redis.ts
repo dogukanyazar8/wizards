@@ -1,7 +1,9 @@
 import Redis, { type RedisOptions } from "ioredis";
 
-let redis: Redis | null = null;
+let redisOp: Redis | null = null;
+let redisPub: Redis | null = null;
 let redisSub: Redis | null = null;
+let redisRate: Redis | null = null;
 
 const DEFAULT_REDIS_URL = "redis://localhost:6379";
 const REDIS_PROTOCOLS = new Set(["redis:", "rediss:"]);
@@ -60,24 +62,48 @@ function getRedisOptions(): RedisOptions {
   };
 }
 
-function createRedisClient() {
+type RedisClientRole = "op" | "pub" | "sub" | "rate";
+
+function createRedisClient(
+  role: RedisClientRole,
+  options: { maxRetriesPerRequest: RedisOptions["maxRetriesPerRequest"] },
+) {
   return new Redis({
     ...getRedisOptions(),
+    connectionName: `whispr:${role}`,
     retryStrategy: (times) => Math.min(times * 50, 2000),
-    maxRetriesPerRequest: null,
+    maxRetriesPerRequest: options.maxRetriesPerRequest,
   });
 }
 
-export function getRedis(): Redis {
-  if (!redis) {
-    redis = createRedisClient();
+export function getRedisOp(): Redis {
+  if (!redisOp) {
+    redisOp = createRedisClient("op", { maxRetriesPerRequest: 3 });
   }
-  return redis;
+  return redisOp;
+}
+
+export function getRedis(): Redis {
+  return getRedisOp();
+}
+
+export function getRedisPub(): Redis {
+  if (!redisPub) {
+    redisPub = createRedisClient("pub", { maxRetriesPerRequest: null });
+  }
+  return redisPub;
 }
 
 export function getRedisSub(): Redis {
   if (!redisSub) {
-    redisSub = createRedisClient();
+    redisSub = createRedisClient("sub", { maxRetriesPerRequest: null });
   }
   return redisSub;
+}
+
+export function getRedisRate(): Redis {
+  if (!redisRate) {
+    redisRate = createRedisClient("rate", { maxRetriesPerRequest: 3 });
+  }
+  return redisRate;
 }

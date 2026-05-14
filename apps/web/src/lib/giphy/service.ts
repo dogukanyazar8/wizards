@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
-import { getRedis } from "@/lib/redis";
+import { getRedisRate } from "@/lib/redis";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logError } from "@/lib/logger";
 import { MESSAGE_GIF_MAX_BYTES } from "@/lib/messages/attachment-rules";
@@ -177,7 +177,7 @@ function normalizeLocaleLanguage(locale: string | null | undefined) {
 
 async function enforceGiphyRateLimit(userId: string) {
   try {
-    const allowed = await checkRateLimit(getRedis(), `rate:giphy:${userId}`, 60, 60);
+    const allowed = await checkRateLimit(getRedisRate(), `rate:giphy:${userId}`, 60, 60);
     if (!allowed) {
       throw new ApiError("Too many GIF requests. Please try again shortly.", 429, "RATE_LIMITED");
     }

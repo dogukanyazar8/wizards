@@ -9,7 +9,7 @@ import {
   normalizeMessageAttachmentFilename,
 } from "@/lib/messages/attachments";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getRedis } from "@/lib/redis";
+import { getRedisRate } from "@/lib/redis";
 import { logError } from "@/lib/logger";
 
 const f = createUploadthing();
@@ -58,7 +58,7 @@ async function requireMessageUploadUser() {
 
   try {
     const allowed = await checkRateLimit(
-      getRedis(),
+      getRedisRate(),
       `rate:upload:message-attachment:${userId}`,
       30,
       300,
@@ -83,7 +83,7 @@ async function requireProfileAvatarUploadUser() {
 
   try {
     const allowed = await checkRateLimit(
-      getRedis(),
+      getRedisRate(),
       `rate:upload:profile-avatar:${userId}`,
       10,
       300,
@@ -180,7 +180,7 @@ export const uploadRouter: FileRouter = {
 
       try {
         const allowed = await checkRateLimit(
-          getRedis(),
+          getRedisRate(),
           `rate:upload:server-icon:${userId}`,
           10,
           300,

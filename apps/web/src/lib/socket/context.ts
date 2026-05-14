@@ -17,6 +17,7 @@ export type AppSocket = Socket<
 
 export type HandlerContext = {
   io: AppSocketServer;
+  rateRedis: Redis;
   redis: Redis;
   socket: AppSocket;
   userId: string;
@@ -24,11 +25,13 @@ export type HandlerContext = {
 
 export function createHandlerContext(args: {
   io: AppSocketServer;
+  rateRedis: Redis;
   redis: Redis;
   socket: AppSocket;
 }): HandlerContext {
   return {
     io: args.io,
+    rateRedis: args.rateRedis,
     redis: args.redis,
     socket: args.socket,
     userId: args.socket.data.userId,

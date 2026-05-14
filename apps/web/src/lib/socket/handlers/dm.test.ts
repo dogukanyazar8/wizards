@@ -23,6 +23,7 @@ function createHandlerContextRecorder() {
 
   const ctx = {
     io: {},
+    rateRedis: {},
     redis: {},
     socket,
     userId: "user-1",

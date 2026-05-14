@@ -87,7 +87,7 @@ export function registerMessageHandlers(
     checkChannelMessageRateLimit?: CheckChannelMessageRateLimit;
   } = {},
 ): SocketHandlerRegistration {
-  const { io, redis, socket, userId } = ctx;
+  const { io, rateRedis, socket, userId } = ctx;
   const emitSocketError = createSocketErrorEmitter(socket);
   const checkMessageSendRateLimit =
     options.checkChannelMessageRateLimit ?? checkChannelMessageRateLimit;
@@ -98,7 +98,7 @@ export function registerMessageHandlers(
     try {
       const data = parseSocketPayload(SocketMessageSendPayloadSchema, rawData);
 
-      const rateLimitResult = await checkMessageSendRateLimit({ redis, userId });
+      const rateLimitResult = await checkMessageSendRateLimit({ redis: rateRedis, userId });
       if (rateLimitResult.status === "limited") {
         socket.emit("error", {
           code: "RATE_LIMIT",
@@ -311,7 +311,7 @@ export function registerMessageHandlers(
   socket.on("message:edit", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketMessageEditPayloadSchema, rawData);
-      const rateLimitResult = await checkMessageEditRateLimit({ redis, userId });
+      const rateLimitResult = await checkMessageEditRateLimit({ redis: rateRedis, userId });
       if (rateLimitResult.status === "limited") {
         socket.emit("error", {
           code: "RATE_LIMIT",

@@ -11,7 +11,7 @@ import {
 } from "@/lib/analytics/service";
 import { isActiveAuthUser } from "@/lib/auth/access";
 import { logError } from "@/lib/logger";
-import { getRedis, getRedisSub } from "@/lib/redis";
+import { getRedisOp, getRedisPub, getRedisRate, getRedisSub } from "@/lib/redis";
 import { createHandlerContext } from "@/lib/socket/context";
 import { registerSocketHandlers } from "@/lib/socket/handlers";
 import { markPresenceSocketActive } from "@/lib/socket/presence-helpers";
@@ -303,12 +303,14 @@ export function initSocketServer(httpServer: HTTPServer) {
     }
   });
 
-  const redis = getRedis();
+  const redis = getRedisOp();
+  const rateRedis = getRedisRate();
+  const redisPub = getRedisPub();
   const redisSub = getRedisSub();
-  io.adapter(createAdapter(redis, redisSub));
+  io.adapter(createAdapter(redisPub, redisSub));
 
   io.on("connection", (socket) => {
-    const ctx = createHandlerContext({ io, redis, socket });
+    const ctx = createHandlerContext({ io, rateRedis, redis, socket });
     const userId = ctx.userId;
     const appSessionKey = `socket:${socket.id}`;
     socket.data.appSessionKey = appSessionKey;

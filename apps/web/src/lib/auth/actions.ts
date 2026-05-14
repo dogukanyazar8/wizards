@@ -5,7 +5,7 @@ import { normalizeAuthEmail, signIn, signOut } from "@/auth";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
 import { normalizeAppLocale } from "@/lib/locale";
 import { persistUserLocale } from "@/lib/locale/persistence";
-import { getRedis } from "@/lib/redis";
+import { getRedisRate } from "@/lib/redis";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logError } from "@/lib/logger";
 import {
@@ -63,7 +63,7 @@ async function sendVerificationEmailWithRateLimit(input: {
   locale: string;
   user: EmailVerificationUser;
 }) {
-  const redis = getRedis();
+  const redis = getRedisRate();
 
   try {
     const [emailAllowed, ipAllowed] = await Promise.all([
@@ -122,7 +122,7 @@ async function checkVerificationResendRateLimit(input: {
   email: string;
   ipAddress: string;
 }) {
-  const redis = getRedis();
+  const redis = getRedisRate();
 
   try {
     const cooldownAllowed = await checkRateLimit(
@@ -162,7 +162,7 @@ async function checkPasswordResetRateLimit(input: {
   email: string;
   ipAddress: string;
 }) {
-  const redis = getRedis();
+  const redis = getRedisRate();
 
   try {
     const cooldownAllowed = await checkRateLimit(
@@ -237,7 +237,7 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
 
   try {
     const isAllowed = await checkRateLimit(
-      getRedis(),
+      getRedisRate(),
       `rate:register:${ipAddress}`,
       10,
       60 * 60,
@@ -391,7 +391,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
 
   try {
     const isAllowed = await checkRateLimit(
-      getRedis(),
+      getRedisRate(),
       `rate:login:${email}:${ipAddress}`,
       5,
       15 * 60,

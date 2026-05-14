@@ -194,7 +194,7 @@ export function registerTypingHandlers(
 
   async function checkTypingRateLimit(scope: string) {
     return checkRateLimit(
-      ctx.redis,
+      ctx.rateRedis,
       `rate:typing:${ctx.userId}:${scope}`,
       TYPING_RATE_LIMIT,
       TYPING_RATE_WINDOW_SECONDS,
