@@ -35,7 +35,7 @@ function getSessionCookieName(): string {
 function getSessionCookieOptions() {
   return {
     httpOnly: true,
-    sameSite: "lax" as const,
+    sameSite: "strict" as const,
     path: "/",
     secure: process.env.NODE_ENV === "production",
   };

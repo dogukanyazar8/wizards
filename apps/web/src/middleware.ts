@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 const REDIRECT_IF_AUTHENTICATED = new Set(["/login", "/register"]);
+const CSRF_PROTECTED_API_PREFIXES = ["/api/v1", "/api/e2e"] as const;
+const UNSAFE_METHODS = new Set(["DELETE", "PATCH", "POST", "PUT"]);
 
 function createNonce() {
   const bytes = new Uint8Array(16);
@@ -23,6 +25,63 @@ function getOrigin(value: string | undefined) {
 
 function unique(values: Array<string | null | undefined>) {
   return Array.from(new Set(values.filter(Boolean))) as string[];
+}
+
+function getAllowedRequestOrigins(requestOrigin: string) {
+  return unique([
+    requestOrigin,
+    getOrigin(process.env.APP_URL),
+    getOrigin(process.env.AUTH_URL),
+    getOrigin(process.env.NEXTAUTH_URL),
+  ]);
+}
+
+function isCsrfProtectedApiPath(pathname: string) {
+  return CSRF_PROTECTED_API_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
+function isSameAllowedOrigin(value: string | null, allowedOrigins: string[]) {
+  const origin = getOrigin(value ?? undefined);
+  return Boolean(origin && allowedOrigins.includes(origin));
+}
+
+export function isMutatingApiRequestAllowed({
+  allowedOrigins,
+  method,
+  originHeader,
+  pathname,
+  refererHeader,
+  requestOrigin,
+  secFetchSite,
+}: {
+  allowedOrigins?: string[];
+  method: string;
+  originHeader?: string | null;
+  pathname: string;
+  refererHeader?: string | null;
+  requestOrigin: string;
+  secFetchSite?: string | null;
+}) {
+  if (!isCsrfProtectedApiPath(pathname) || !UNSAFE_METHODS.has(method.toUpperCase())) {
+    return true;
+  }
+
+  if (secFetchSite?.toLowerCase() === "cross-site") {
+    return false;
+  }
+
+  const origins = allowedOrigins ?? [requestOrigin];
+  if (originHeader) {
+    return isSameAllowedOrigin(originHeader, origins);
+  }
+
+  if (refererHeader) {
+    return isSameAllowedOrigin(refererHeader, origins);
+  }
+
+  return true;
 }
 
 function buildContentSecurityPolicy(nonce: string) {
@@ -140,6 +199,39 @@ export async function middleware(request: NextRequest) {
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", cspHeader);
 
+  if (isCsrfProtectedApiPath(pathname)) {
+    if (
+      !isMutatingApiRequestAllowed({
+        allowedOrigins: getAllowedRequestOrigins(request.nextUrl.origin),
+        method: request.method,
+        originHeader: request.headers.get("origin"),
+        pathname,
+        refererHeader: request.headers.get("referer"),
+        requestOrigin: request.nextUrl.origin,
+        secFetchSite: request.headers.get("sec-fetch-site"),
+      })
+    ) {
+      return attachSecurityHeaders(
+        NextResponse.json(
+          { error: "Cross-site API request blocked", code: "CSRF_BLOCKED" },
+          { status: 403 },
+        ),
+        cspHeader,
+        nonce,
+      );
+    }
+
+    return attachSecurityHeaders(
+      NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      }),
+      cspHeader,
+      nonce,
+    );
+  }
+
   let isAuthenticated = false;
   try {
     if (secret) {
@@ -186,6 +278,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/api/v1/:path*",
+    "/api/e2e/:path*",
     "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
   ],
 };
