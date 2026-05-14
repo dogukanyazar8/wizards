@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma, type User as PrismaUser } from "@wizards/db";
-import { LoginSchema } from "@wizards/types";
+import { LoginCredentialsSchema } from "@wizards/types";
 import bcrypt from "bcryptjs";
 import NextAuth, { type NextAuthConfig, type NextAuthResult } from "next-auth";
 import type { Adapter, AdapterAccount, AdapterUser } from "next-auth/adapters";
@@ -21,6 +21,7 @@ import {
   normalizeUsername as normalizeStableUsername,
 } from "@/lib/auth/username";
 import { isActiveAuthUser } from "@/lib/auth/access";
+import { verifyLoginProof } from "@/lib/auth/login-proof";
 
 function getAuthEnvCandidates() {
   return [
@@ -466,6 +467,7 @@ const authConfig = {
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
+        loginProof: { label: "Login proof", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
@@ -474,7 +476,7 @@ const authConfig = {
             ? (credentials as Record<string, unknown>)
             : null;
 
-        const parsedCredentials = LoginSchema.safeParse({
+        const parsedCredentials = LoginCredentialsSchema.safeParse({
           email: normalizeAuthEmail(credentialRecord?.email),
           password:
             typeof credentialRecord?.password === "string" ? credentialRecord.password : "",
@@ -485,6 +487,19 @@ const authConfig = {
         }
 
         const { email: normalizedEmail, password } = parsedCredentials.data;
+        const loginProof =
+          typeof credentialRecord?.loginProof === "string" ? credentialRecord.loginProof : "";
+
+        let hasValidLoginProof = false;
+        try {
+          hasValidLoginProof = verifyLoginProof(normalizedEmail, loginProof);
+        } catch {
+          hasValidLoginProof = false;
+        }
+
+        if (!hasValidLoginProof) {
+          return null;
+        }
 
         const user = await prisma.user.findUnique({
           where: { email: normalizedEmail },

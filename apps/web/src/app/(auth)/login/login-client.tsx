@@ -5,16 +5,19 @@ import { LoginSchema, type LoginInput } from "@wizards/types";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { LoginCard } from "@/components/auth/login-card";
 import { LoginPage } from "@/components/auth/login-page";
 import { getLoginRoleHint, RoleTabs, type LoginRole } from "@/components/auth/role-tabs";
 import { SocialLogin } from "@/components/auth/social-login";
+import { TurnstileWidget } from "@/components/auth/turnstile-widget";
 import { useI18n } from "@/components/providers/locale-provider";
 import { loginAction, resendVerificationEmailAction } from "@/lib/auth/actions";
 
 type OAuthProvider = "google";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   AccessDenied: "auth.login.oauthAccessDenied",
@@ -62,14 +65,37 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<LoginInput>({
     resolver: zodResolver(LoginSchema),
     defaultValues: {
       email: "",
       password: "",
+      turnstileToken: "",
     },
   });
+  const turnstileToken = watch("turnstileToken");
+
+  const handleTurnstileTokenChange = useCallback(
+    (token: string) => {
+      setValue("turnstileToken", token, {
+        shouldDirty: true,
+        shouldValidate: Boolean(token),
+      });
+
+      if (token) {
+        setServerError((currentError) =>
+          currentError?.startsWith("auth.turnstile") ||
+          currentError?.startsWith("validation.turnstile")
+            ? null
+            : currentError,
+        );
+      }
+    },
+    [setValue],
+  );
 
   const onSubmit = async (values: LoginInput) => {
     setServerError(null);
@@ -81,6 +107,7 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
     const formData = new FormData();
     formData.set("email", values.email);
     formData.set("password", values.password);
+    formData.set("turnstileToken", values.turnstileToken);
     formData.set("callbackUrl", callbackUrl);
 
     const result = await loginAction(formData);
@@ -201,10 +228,25 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
             ) : null}
           </div>
 
+          <input type="hidden" {...register("turnstileToken")} />
+
           <label className="modern-login-checkbox">
             <input type="checkbox" />
             <span>{t("auth.login.rememberMe")}</span>
           </label>
+
+          <div className="modern-login-turnstile">
+            <TurnstileWidget
+              action="login"
+              onTokenChange={handleTurnstileTokenChange}
+              siteKey={TURNSTILE_SITE_KEY}
+            />
+            {errors.turnstileToken ? (
+              <p className="modern-login-field-error">
+                {t(errors.turnstileToken.message ?? "validation.turnstile.required")}
+              </p>
+            ) : null}
+          </div>
 
           {serverError ? (
             <div className="modern-login-alert" role="alert">
@@ -235,7 +277,11 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
             </div>
           ) : null}
 
-          <button className="modern-login-primary" disabled={isSubmitting} type="submit">
+          <button
+            className="modern-login-primary"
+            disabled={isSubmitting || !turnstileToken}
+            type="submit"
+          >
             <span>{isSubmitting ? t("auth.login.loggingIn") : t("auth.login.continue")}</span>
             <ArrowRight className="h-5 w-5" />
           </button>

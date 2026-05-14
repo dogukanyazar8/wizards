@@ -750,7 +750,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Your email has been verified successfully. You can now sign in and continue to Whispr.",
     "auth.verifyEmail.successTitle": "Email verified",
 
-    "auth.turnstile.help": "This quick check helps protect Whispr from automated signups.",
+    "auth.turnstile.help": "This quick check helps protect Whispr from automated abuse.",
     "auth.turnstile.invalid": "Security check failed. Please try again.",
     "auth.turnstile.label": "Security check",
     "auth.turnstile.loading": "Loading security check...",
@@ -2568,7 +2568,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "E-postan başarıyla doğrulandı. Artık giriş yapıp Whispr'a devam edebilirsin.",
     "auth.verifyEmail.successTitle": "E-posta doğrulandı",
 
-    "auth.turnstile.help": "Bu kısa kontrol, Whispr'ı otomatik kayıt denemelerine karşı korur.",
+    "auth.turnstile.help": "Bu kısa kontrol, Whispr'ı otomatik kötüye kullanıma karşı korur.",
     "auth.turnstile.invalid": "Güvenlik doğrulaması başarısız oldu. Lütfen tekrar dene.",
     "auth.turnstile.label": "Güvenlik doğrulaması",
     "auth.turnstile.loading": "Güvenlik doğrulaması yükleniyor...",

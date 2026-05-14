@@ -24,6 +24,7 @@ import {
   verifyTurnstileToken,
 } from "@/lib/auth/turnstile";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
+import { createLoginProof } from "@/lib/auth/login-proof";
 import { Prisma, prisma } from "@wizards/db";
 import {
   ForgotPasswordSchema,
@@ -373,6 +374,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
   const validation = LoginSchema.safeParse({
     email: normalizeAuthEmail(getFormValue(formData, "email")),
     password: getFormValue(formData, "password"),
+    turnstileToken: getFormValue(formData, "turnstileToken"),
   });
 
   if (!validation.success) {
@@ -408,6 +410,17 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     };
   }
 
+  try {
+    await verifyTurnstileToken(validation.data.turnstileToken, ipAddress, {
+      expectedAction: "login",
+    });
+  } catch (error) {
+    return {
+      success: false,
+      error: getTurnstileErrorMessageKey(error),
+    };
+  }
+
   const user = await prisma.user.findUnique({
     where: { email },
     select: {
@@ -431,8 +444,20 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
   }
 
   try {
+    let loginProof: string;
+    try {
+      loginProof = createLoginProof(email);
+    } catch (error) {
+      logError("[auth] Login proof unavailable", error);
+      return {
+        success: false,
+        error: "auth.login.alertUnavailable",
+      };
+    }
+
     await signIn("credentials", {
       email,
+      loginProof,
       password,
       redirectTo,
     });
