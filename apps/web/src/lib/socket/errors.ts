@@ -8,6 +8,7 @@ export type DMErrorCode =
   | "FORBIDDEN"
   | "BLOCKED"
   | "RATE_LIMITED"
+  | "RATE_LIMIT_UNAVAILABLE"
   | "VALIDATION_ERROR"
   | "NOT_FOUND";
 
@@ -16,6 +17,7 @@ const DM_ERROR_CODES = new Set<DMErrorCode>([
   "FORBIDDEN",
   "BLOCKED",
   "RATE_LIMITED",
+  "RATE_LIMIT_UNAVAILABLE",
   "VALIDATION_ERROR",
   "NOT_FOUND",
 ]);

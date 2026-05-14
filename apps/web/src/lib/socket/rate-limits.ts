@@ -7,7 +7,7 @@ type RateLimitCheck = typeof checkRateLimit;
 type RateLimitAvailabilityResult =
   | { status: "allowed" }
   | { status: "limited" }
-  | { status: "unavailable"; error: unknown };
+  | { status: "unavailable"; allowDuringGrace: boolean; error: unknown };
 
 type RateLimitUnavailableLogScope = "channel-message" | "channel-message-edit" | "dm-message";
 
@@ -23,7 +23,7 @@ export type DMMessageRateLimitResult =
   | { status: "allowed" }
   | { status: "global" }
   | { status: "conversation" }
-  | { status: "unavailable"; error: unknown };
+  | { status: "unavailable"; allowDuringGrace: boolean; error: unknown };
 
 export const CHANNEL_MESSAGE_RATE_LIMIT = {
   limit: 30,
@@ -36,6 +36,17 @@ export const CHANNEL_MESSAGE_EDIT_RATE_LIMIT = {
 } as const;
 
 export const RATE_LIMIT_UNAVAILABLE_LOG_INTERVAL_MS = 30_000;
+export const RATE_LIMIT_UNAVAILABLE_GRACE_MS = 5_000;
+export const RATE_LIMIT_UNAVAILABLE_GRACE_LIMIT = 5;
+export const RATE_LIMIT_UNAVAILABLE_GRACE_MAX_KEYS = 5_000;
+
+type RateLimitUnavailableGraceState = {
+  attempts: number[];
+  firstUnavailableAt: number;
+  lastSeenAt: number;
+};
+
+const rateLimitUnavailableGraceState = new Map<string, RateLimitUnavailableGraceState>();
 
 export const DM_MESSAGE_GLOBAL_RATE_LIMIT = {
   limit: 120,
@@ -61,9 +72,61 @@ export function shouldLogRateLimitUnavailable(
   return true;
 }
 
+export function resetRateLimitUnavailableGraceForTest() {
+  rateLimitUnavailableGraceState.clear();
+}
+
+function pruneRateLimitUnavailableGraceState(now: number) {
+  const staleAfterMs = RATE_LIMIT_UNAVAILABLE_GRACE_MS * 2;
+
+  for (const [key, state] of rateLimitUnavailableGraceState) {
+    if (now - state.lastSeenAt > staleAfterMs) {
+      rateLimitUnavailableGraceState.delete(key);
+    }
+  }
+}
+
+function clearRateLimitUnavailableGrace(key: string) {
+  rateLimitUnavailableGraceState.delete(key);
+}
+
+function consumeRateLimitUnavailableGrace(key: string, now: number) {
+  pruneRateLimitUnavailableGraceState(now);
+
+  let state = rateLimitUnavailableGraceState.get(key);
+  if (!state) {
+    if (rateLimitUnavailableGraceState.size >= RATE_LIMIT_UNAVAILABLE_GRACE_MAX_KEYS) {
+      return false;
+    }
+
+    state = {
+      attempts: [],
+      firstUnavailableAt: now,
+      lastSeenAt: now,
+    };
+    rateLimitUnavailableGraceState.set(key, state);
+  }
+
+  state.lastSeenAt = now;
+  if (now - state.firstUnavailableAt > RATE_LIMIT_UNAVAILABLE_GRACE_MS) {
+    return false;
+  }
+
+  state.attempts = state.attempts.filter(
+    (attemptedAt) => now - attemptedAt <= RATE_LIMIT_UNAVAILABLE_GRACE_MS,
+  );
+  if (state.attempts.length >= RATE_LIMIT_UNAVAILABLE_GRACE_LIMIT) {
+    return false;
+  }
+
+  state.attempts.push(now);
+  return true;
+}
+
 async function runRateLimitCheck(args: {
   key: string;
   limit: number;
+  now?: () => number;
   rateLimitCheck: RateLimitCheck | undefined;
   redis: Redis;
   windowSeconds: number;
@@ -76,13 +139,22 @@ async function runRateLimitCheck(args: {
       args.windowSeconds,
     );
 
+    clearRateLimitUnavailableGrace(args.key);
     return isAllowed ? { status: "allowed" } : { status: "limited" };
   } catch (error) {
-    return { status: "unavailable", error };
+    return {
+      status: "unavailable",
+      allowDuringGrace: consumeRateLimitUnavailableGrace(
+        args.key,
+        args.now?.() ?? Date.now(),
+      ),
+      error,
+    };
   }
 }
 
 export async function checkChannelMessageRateLimit(args: {
+  now?: () => number;
   rateLimitCheck?: RateLimitCheck;
   redis: Redis;
   userId: string;
@@ -90,6 +162,7 @@ export async function checkChannelMessageRateLimit(args: {
   return runRateLimitCheck({
     key: `rate:msg:${args.userId}`,
     limit: CHANNEL_MESSAGE_RATE_LIMIT.limit,
+    ...(args.now ? { now: args.now } : {}),
     rateLimitCheck: args.rateLimitCheck,
     redis: args.redis,
     windowSeconds: CHANNEL_MESSAGE_RATE_LIMIT.windowSeconds,
@@ -97,6 +170,7 @@ export async function checkChannelMessageRateLimit(args: {
 }
 
 export async function checkChannelMessageEditRateLimit(args: {
+  now?: () => number;
   rateLimitCheck?: RateLimitCheck;
   redis: Redis;
   userId: string;
@@ -104,6 +178,7 @@ export async function checkChannelMessageEditRateLimit(args: {
   return runRateLimitCheck({
     key: `rate:msg:edit:${args.userId}`,
     limit: CHANNEL_MESSAGE_EDIT_RATE_LIMIT.limit,
+    ...(args.now ? { now: args.now } : {}),
     rateLimitCheck: args.rateLimitCheck,
     redis: args.redis,
     windowSeconds: CHANNEL_MESSAGE_EDIT_RATE_LIMIT.windowSeconds,
@@ -112,6 +187,7 @@ export async function checkChannelMessageEditRateLimit(args: {
 
 export async function checkDMMessageRateLimits(args: {
   conversationId: string;
+  now?: () => number;
   rateLimitCheck?: RateLimitCheck;
   redis: Redis;
   userId: string;
@@ -119,6 +195,7 @@ export async function checkDMMessageRateLimits(args: {
   const globalResult = await runRateLimitCheck({
     key: `rate:dm:global:${args.userId}`,
     limit: DM_MESSAGE_GLOBAL_RATE_LIMIT.limit,
+    ...(args.now ? { now: args.now } : {}),
     rateLimitCheck: args.rateLimitCheck,
     redis: args.redis,
     windowSeconds: DM_MESSAGE_GLOBAL_RATE_LIMIT.windowSeconds,
@@ -135,6 +212,7 @@ export async function checkDMMessageRateLimits(args: {
   const conversationResult = await runRateLimitCheck({
     key: `rate:dm:${args.userId}:${args.conversationId}`,
     limit: DM_MESSAGE_CONVERSATION_RATE_LIMIT.limit,
+    ...(args.now ? { now: args.now } : {}),
     rateLimitCheck: args.rateLimitCheck,
     redis: args.redis,
     windowSeconds: DM_MESSAGE_CONVERSATION_RATE_LIMIT.windowSeconds,

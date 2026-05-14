@@ -243,6 +243,7 @@ export interface ServerToClientEvents {
       | "FORBIDDEN"
       | "BLOCKED"
       | "RATE_LIMITED"
+      | "RATE_LIMIT_UNAVAILABLE"
       | "VALIDATION_ERROR"
       | "NOT_FOUND";
     message: string;

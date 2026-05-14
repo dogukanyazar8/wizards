@@ -252,14 +252,23 @@ export function registerDMHandlers(
         return;
       }
 
-      if (
-        rateLimitResult.status === "unavailable" &&
-        shouldLogRateLimitUnavailable("dm-message")
-      ) {
-        logError(
-          "[socket] DM message rate limit unavailable; allowing message send",
-          rateLimitResult.error,
-        );
+      if (rateLimitResult.status === "unavailable") {
+        if (shouldLogRateLimitUnavailable("dm-message")) {
+          logError(
+            rateLimitResult.allowDuringGrace
+              ? "[socket] DM message rate limit unavailable; allowing message send during grace window"
+              : "[socket] DM message rate limit unavailable; blocking message send",
+            rateLimitResult.error,
+          );
+        }
+
+        if (!rateLimitResult.allowDuringGrace) {
+          emitDMError(
+            "RATE_LIMIT_UNAVAILABLE",
+            "DM message controls are temporarily unavailable. Please try again shortly.",
+          );
+          return;
+        }
       }
 
       let attachmentInputs: UploadedAttachmentInput[];

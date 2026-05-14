@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { beforeEach, describe, it } from "node:test";
 import type Redis from "ioredis";
 
 import {
@@ -10,12 +10,19 @@ import {
   checkDMMessageRateLimits,
   DM_MESSAGE_CONVERSATION_RATE_LIMIT,
   DM_MESSAGE_GLOBAL_RATE_LIMIT,
+  RATE_LIMIT_UNAVAILABLE_GRACE_LIMIT,
+  RATE_LIMIT_UNAVAILABLE_GRACE_MS,
   RATE_LIMIT_UNAVAILABLE_LOG_INTERVAL_MS,
+  resetRateLimitUnavailableGraceForTest,
   shouldLogRateLimitUnavailable,
 } from "./rate-limits";
 
 describe("socket DM rate limit configuration", () => {
   const redis = {} as Redis;
+
+  beforeEach(() => {
+    resetRateLimitUnavailableGraceForTest();
+  });
 
   it("uses the configured channel message cap", async () => {
     const result = await checkChannelMessageRateLimit({
@@ -59,7 +66,87 @@ describe("socket DM rate limit configuration", () => {
 
     assert.equal(result.status, "unavailable");
     if (result.status === "unavailable") {
+      assert.equal(result.allowDuringGrace, true);
       assert.equal(result.error, error);
+    }
+  });
+
+  it("bounds channel sends during a brief Redis outage grace window", async () => {
+    const error = new Error("redis unavailable");
+    let now = 1_000_000;
+    const checkUnavailable = () =>
+      checkChannelMessageRateLimit({
+        now: () => now,
+        rateLimitCheck: async () => {
+          throw error;
+        },
+        redis,
+        userId: "user-1",
+      });
+
+    for (let index = 0; index < RATE_LIMIT_UNAVAILABLE_GRACE_LIMIT; index += 1) {
+      const result = await checkUnavailable();
+      assert.equal(result.status, "unavailable");
+      if (result.status === "unavailable") {
+        assert.equal(result.allowDuringGrace, true);
+      }
+      now += 100;
+    }
+
+    const exhausted = await checkUnavailable();
+    assert.equal(exhausted.status, "unavailable");
+    if (exhausted.status === "unavailable") {
+      assert.equal(exhausted.allowDuringGrace, false);
+    }
+
+    now = 1_000_000 + RATE_LIMIT_UNAVAILABLE_GRACE_MS + 1;
+    const expired = await checkUnavailable();
+    assert.equal(expired.status, "unavailable");
+    if (expired.status === "unavailable") {
+      assert.equal(expired.allowDuringGrace, false);
+    }
+  });
+
+  it("resets Redis outage grace after a successful rate-limit check", async () => {
+    const error = new Error("redis unavailable");
+    let shouldThrow = true;
+    const result = await checkChannelMessageEditRateLimit({
+      rateLimitCheck: async () => {
+        if (shouldThrow) {
+          throw error;
+        }
+        return true;
+      },
+      redis,
+      userId: "user-1",
+    });
+
+    assert.equal(result.status, "unavailable");
+    if (result.status === "unavailable") {
+      assert.equal(result.allowDuringGrace, true);
+    }
+
+    shouldThrow = false;
+    assert.deepEqual(
+      await checkChannelMessageEditRateLimit({
+        rateLimitCheck: async () => true,
+        redis,
+        userId: "user-1",
+      }),
+      { status: "allowed" },
+    );
+
+    shouldThrow = true;
+    const recoveredThenUnavailable = await checkChannelMessageEditRateLimit({
+      rateLimitCheck: async () => {
+        throw error;
+      },
+      redis,
+      userId: "user-1",
+    });
+    assert.equal(recoveredThenUnavailable.status, "unavailable");
+    if (recoveredThenUnavailable.status === "unavailable") {
+      assert.equal(recoveredThenUnavailable.allowDuringGrace, true);
     }
   });
 
@@ -114,6 +201,7 @@ describe("socket DM rate limit configuration", () => {
 
     assert.equal(result.status, "unavailable");
     if (result.status === "unavailable") {
+      assert.equal(result.allowDuringGrace, true);
       assert.equal(result.error, error);
     }
     assert.deepEqual(checkedKeys, ["rate:dm:global:user-1"]);

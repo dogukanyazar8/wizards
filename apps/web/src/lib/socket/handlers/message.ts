@@ -106,14 +106,23 @@ export function registerMessageHandlers(
         return;
       }
 
-      if (
-        rateLimitResult.status === "unavailable" &&
-        shouldLogRateLimitUnavailable("channel-message")
-      ) {
-        logError(
-          "[socket] Message rate limit unavailable; allowing message send",
-          rateLimitResult.error,
-        );
+      if (rateLimitResult.status === "unavailable") {
+        if (shouldLogRateLimitUnavailable("channel-message")) {
+          logError(
+            rateLimitResult.allowDuringGrace
+              ? "[socket] Message rate limit unavailable; allowing message send during grace window"
+              : "[socket] Message rate limit unavailable; blocking message send",
+            rateLimitResult.error,
+          );
+        }
+
+        if (!rateLimitResult.allowDuringGrace) {
+          socket.emit("error", {
+            code: "RATE_LIMIT_UNAVAILABLE",
+            message: "Message controls are temporarily unavailable. Please try again shortly.",
+          });
+          return;
+        }
       }
 
       const { channel, permissions } = await requireChannelPermissionForUser(
@@ -309,14 +318,24 @@ export function registerMessageHandlers(
         return;
       }
 
-      if (
-        rateLimitResult.status === "unavailable" &&
-        shouldLogRateLimitUnavailable("channel-message-edit")
-      ) {
-        logError(
-          "[socket] Message edit rate limit unavailable; allowing message edit",
-          rateLimitResult.error,
-        );
+      if (rateLimitResult.status === "unavailable") {
+        if (shouldLogRateLimitUnavailable("channel-message-edit")) {
+          logError(
+            rateLimitResult.allowDuringGrace
+              ? "[socket] Message edit rate limit unavailable; allowing message edit during grace window"
+              : "[socket] Message edit rate limit unavailable; blocking message edit",
+            rateLimitResult.error,
+          );
+        }
+
+        if (!rateLimitResult.allowDuringGrace) {
+          socket.emit("error", {
+            code: "RATE_LIMIT_UNAVAILABLE",
+            message:
+              "Message edit controls are temporarily unavailable. Please try again shortly.",
+          });
+          return;
+        }
       }
 
       const existing = await prisma.message.findUnique({

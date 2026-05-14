@@ -94,4 +94,35 @@ describe("socket message handlers", () => {
       },
     ]);
   });
+
+  it("fails closed when message send rate limiting is unavailable beyond grace", async () => {
+    const { ctx, emittedEvents, handlers } = createHandlerContextRecorder();
+    const checkedUserIds: string[] = [];
+
+    registerMessageHandlers(ctx, {
+      checkChannelMessageRateLimit: async ({ userId }) => {
+        checkedUserIds.push(userId);
+        return {
+          allowDuringGrace: false,
+          error: new Error("redis unavailable"),
+          status: "unavailable",
+        };
+      },
+    });
+
+    const handler = handlers.get("message:send");
+    assert.ok(handler);
+    await handler({ channelId: "channel-1", content: "Hello" });
+
+    assert.deepEqual(checkedUserIds, ["user-1"]);
+    assert.deepEqual(emittedEvents, [
+      {
+        event: "error",
+        payload: {
+          code: "RATE_LIMIT_UNAVAILABLE",
+          message: "Message controls are temporarily unavailable. Please try again shortly.",
+        },
+      },
+    ]);
+  });
 });
