@@ -3,7 +3,11 @@ import { describe, it } from "node:test";
 
 import { ApiError } from "@/lib/api";
 
-import { assertPublicHttpUrl, createPublicLookup } from "./link-preview";
+import {
+  assertPublicHttpUrl,
+  createPublicLookup,
+  extractLinkPreviewMetadata,
+} from "./link-preview";
 
 describe("link preview SSRF guard", () => {
   it("allows public hostnames after DNS validation", async () => {
@@ -99,5 +103,64 @@ describe("link preview SSRF guard", () => {
         }
       });
     });
+  });
+});
+
+describe("link preview metadata extraction", () => {
+  it("extracts Open Graph metadata through an HTML parser", () => {
+    const metadata = extractLinkPreviewMetadata(
+      `
+        <html>
+          <head>
+            <meta content="Parser Safe &amp; Sound" property="og:title">
+            <meta name='description' content='A &lt;strong&gt;plain&lt;/strong&gt; preview'>
+            <meta property="og:site_name" content="Example Site">
+            <meta property="og:image" content="/card.png">
+          </head>
+        </html>
+      `,
+      new URL("https://example.test/posts/1"),
+    );
+
+    assert.deepEqual(metadata, {
+      description: "A plain preview",
+      imageUrl: "https://example.test/card.png",
+      siteName: "Example Site",
+      title: "Parser Safe & Sound",
+    });
+  });
+
+  it("does not cache entity-encoded HTML payloads as executable markup", () => {
+    const metadata = extractLinkPreviewMetadata(
+      `
+        <html>
+          <head>
+            <meta property="og:title" content="&lt;svg/onload=alert(1)&gt;Clean title">
+            <meta name="description" content="&quot;&gt;&lt;img src=x onerror=alert(1)&gt;Plain text">
+          </head>
+        </html>
+      `,
+      new URL("https://example.test/posts/2"),
+    );
+
+    assert.equal(metadata.title, "Clean title");
+    assert.ok(metadata.description?.includes("Plain text"));
+    assert.ok(!metadata.description?.includes("<img"));
+    assert.ok(!metadata.description?.includes("onerror"));
+  });
+
+  it("sanitizes fallback title text before caching", () => {
+    const metadata = extractLinkPreviewMetadata(
+      `
+        <html>
+          <head>
+            <title>News &lt;img src=x onerror=alert(1)&gt; Today</title>
+          </head>
+        </html>
+      `,
+      new URL("https://example.test/news"),
+    );
+
+    assert.equal(metadata.title, "News Today");
   });
 });

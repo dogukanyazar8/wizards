@@ -3,6 +3,7 @@ import * as http from "node:http";
 import * as https from "node:https";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { parse, parseFragment } from "parse5";
 import { z } from "zod";
 import { ApiError } from "@/lib/api";
 import { logError } from "@/lib/logger";
@@ -31,6 +32,17 @@ type LinkPreviewHttpResponse = {
   headers: http.IncomingHttpHeaders;
   ok: boolean;
   status: number;
+};
+
+type HtmlNode = {
+  attrs?: Array<{
+    name: string;
+    value: string;
+  }>;
+  childNodes?: HtmlNode[];
+  nodeName: string;
+  tagName?: string;
+  value?: string;
 };
 
 export type LinkPreviewFetchOptions = {
@@ -246,45 +258,78 @@ export async function assertPublicHttpUrl(
   return { addresses, url: parsed };
 }
 
-function normalizeText(value: string | null | undefined, maxLength: number) {
-  if (!value) {
-    return null;
+function visitHtmlNode<T>(node: HtmlNode, visitor: (node: HtmlNode) => T | null): T | null {
+  const result = visitor(node);
+  if (result !== null) {
+    return result;
   }
 
-  const normalized = value
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  return normalized ? normalized.slice(0, maxLength) : null;
-}
-
-function readMeta(content: string, name: string) {
-  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const patterns = [
-    new RegExp(
-      `<meta\\s+[^>]*(?:property|name)=["']${escapedName}["'][^>]*content=["']([^"']*)["'][^>]*>`,
-      "i",
-    ),
-    new RegExp(
-      `<meta\\s+[^>]*content=["']([^"']*)["'][^>]*(?:property|name)=["']${escapedName}["'][^>]*>`,
-      "i",
-    ),
-  ];
-
-  for (const pattern of patterns) {
-    const match = pattern.exec(content);
-    if (match?.[1]) {
-      return match[1];
+  for (const child of node.childNodes ?? []) {
+    const childResult = visitHtmlNode(child, visitor);
+    if (childResult !== null) {
+      return childResult;
     }
   }
 
   return null;
 }
 
-function readTitle(content: string) {
-  const match = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(content);
-  return match?.[1] ?? null;
+function readHtmlAttribute(node: HtmlNode, name: string) {
+  const normalizedName = name.toLowerCase();
+  return (
+    node.attrs?.find((attribute) => attribute.name.toLowerCase() === normalizedName)?.value ??
+    null
+  );
+}
+
+function collectTextNodes(node: HtmlNode): string {
+  let text = node.nodeName === "#text" && typeof node.value === "string" ? node.value : "";
+
+  for (const child of node.childNodes ?? []) {
+    text += collectTextNodes(child);
+  }
+
+  return text;
+}
+
+function extractPlainText(value: string) {
+  return collectTextNodes(parseFragment(value) as HtmlNode);
+}
+
+function normalizeText(value: string | null | undefined, maxLength: number) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = extractPlainText(value).replace(/\s+/g, " ").trim();
+
+  return normalized ? normalized.slice(0, maxLength) : null;
+}
+
+function readMeta(root: HtmlNode, name: string) {
+  const normalizedName = name.toLowerCase();
+
+  return visitHtmlNode(root, (node) => {
+    if (node.tagName?.toLowerCase() !== "meta") {
+      return null;
+    }
+
+    const metaName =
+      readHtmlAttribute(node, "property") ??
+      readHtmlAttribute(node, "name") ??
+      readHtmlAttribute(node, "itemprop");
+    if (metaName?.toLowerCase() !== normalizedName) {
+      return null;
+    }
+
+    return readHtmlAttribute(node, "content");
+  });
+}
+
+function readTitle(root: HtmlNode) {
+  return visitHtmlNode(root, (node) =>
+    node.tagName?.toLowerCase() === "title" ? collectTextNodes(node) : null,
+  );
 }
 
 function resolvePreviewImage(rawImageUrl: string | null, sourceUrl: URL) {
@@ -339,6 +384,24 @@ function getHeader(headers: http.IncomingHttpHeaders, name: string) {
 
 function isRedirectStatus(status: number) {
   return REDIRECT_STATUSES.has(status);
+}
+
+export function extractLinkPreviewMetadata(
+  html: string,
+  sourceUrl: URL,
+  fallbackSiteName: string = sourceUrl.hostname,
+) {
+  const document = parse(html) as HtmlNode;
+
+  return {
+    title: normalizeText(readMeta(document, "og:title") ?? readTitle(document), 160),
+    description: normalizeText(
+      readMeta(document, "og:description") ?? readMeta(document, "description"),
+      280,
+    ),
+    siteName: normalizeText(readMeta(document, "og:site_name") ?? fallbackSiteName, 80),
+    imageUrl: resolvePreviewImage(readMeta(document, "og:image"), sourceUrl),
+  };
 }
 
 export function createPublicLookup(resolveHost: ResolveHost) {
@@ -521,16 +584,14 @@ export async function fetchLinkPreview(
       throw new ApiError("Link preview is unavailable.", 415, "PREVIEW_UNAVAILABLE");
     }
 
-    const html = response.body;
+    const metadata = extractLinkPreviewMetadata(
+      response.body,
+      currentTarget.url,
+      initialTarget.url.hostname,
+    );
     const preview = LinkPreviewSchema.parse({
       url: normalizedUrl,
-      title: normalizeText(readMeta(html, "og:title") ?? readTitle(html), 160),
-      description: normalizeText(
-        readMeta(html, "og:description") ?? readMeta(html, "description"),
-        280,
-      ),
-      siteName: normalizeText(readMeta(html, "og:site_name") ?? initialTarget.url.hostname, 80),
-      imageUrl: resolvePreviewImage(readMeta(html, "og:image"), currentTarget.url),
+      ...metadata,
     });
 
     await writeCachedPreview(normalizedUrl, preview);
