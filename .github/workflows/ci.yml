@@ -44,6 +44,13 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm db:generate
 
+      - name: Check E2E password guard
+        run: |
+          if grep -RE 'E2E_TEST_PASSWORD[[:space:]]*(\?\?|\|\|)|WhisprE2E!2026' apps/web/src apps/web/e2e; then
+            echo "::error::Hardcoded E2E password fallback found"
+            exit 1
+          fi
+
       - name: Lint
         run: pnpm lint
 
@@ -119,6 +126,13 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+
+      - name: Generate E2E test password
+        shell: bash
+        run: |
+          password="$(node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('base64url'))")"
+          echo "::add-mask::$password"
+          echo "E2E_TEST_PASSWORD=$password" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

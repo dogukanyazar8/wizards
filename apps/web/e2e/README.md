@@ -176,7 +176,7 @@ Required local environment:
 E2E_TEST_MODE=true
 E2E_DATABASE_URL=postgresql://wizards:wizards@localhost:5432/whispr_e2e
 E2E_BASE_URL=http://127.0.0.1:3000
-E2E_TEST_PASSWORD=WhisprE2E!2026
+E2E_TEST_PASSWORD=<generate-a-local-e2e-password>
 REDIS_URL=redis://localhost:6379
 AUTH_SECRET=whispr-e2e-auth-secret-change-me-local-only
 NEXTAUTH_SECRET=whispr-e2e-auth-secret-change-me-local-only
@@ -197,6 +197,8 @@ NEXT_PUBLIC_LIVEKIT_URL=ws://127.0.0.1:7880
 ```
 
 Do not point `E2E_DATABASE_URL` at staging or production.
+Generate a local E2E password with a password manager or a random-value command,
+then keep it in your local environment only.
 
 ## Database Safety Guard
 
@@ -218,7 +220,7 @@ The seed helper creates disposable, deterministic fixtures:
 - `alice@whispr.test`
 - `bob@whispr.test`
 - `charlie@whispr.test`
-- password from `E2E_TEST_PASSWORD`, defaulting to the test password in helpers
+- password from required `E2E_TEST_PASSWORD`
 - `Whispr E2E Server`
 - `e2e-text`
 - `e2e-voice`
