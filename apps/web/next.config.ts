@@ -14,6 +14,10 @@ function shortId(value: string | undefined, length = 8) {
   return normalized ? normalized.slice(0, length) : undefined;
 }
 
+function isProductionValue(value: string | undefined) {
+  return value?.trim().toLowerCase() === "production";
+}
+
 const whisprVersion =
   firstNonEmpty(process.env.WHISPR_VERSION, packageJson.version) ?? "0.0.0";
 const whisprBuildTime =
@@ -47,6 +51,9 @@ const whisprReleaseChannel =
     process.env.VERCEL_ENV,
     process.env.NODE_ENV,
   ) ?? "development";
+const isProductionDeployment =
+  isProductionValue(whisprReleaseChannel) ||
+  isProductionValue(process.env.RAILWAY_ENVIRONMENT_NAME);
 
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
@@ -72,7 +79,7 @@ const nextConfig: NextConfig = {
       {
         source: "/(.*)",
         headers:
-          process.env.NODE_ENV === "production"
+          isProductionDeployment
             ? [
                 ...securityHeaders,
                 {

@@ -174,6 +174,44 @@ function stringOrEmpty(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+function jwtDateStringOrNull(value: unknown): string | null {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function clearJwtUserState(token: {
+  authStatusHydrated?: boolean;
+  avatarUrl?: string | null;
+  deletedAt?: string | null;
+  displayName?: string | null;
+  emailVerified?: boolean;
+  id?: string;
+  isBanned?: boolean;
+  locale?: string | null;
+  profileHydrated?: boolean;
+  revoked?: boolean;
+  sub?: string;
+  theme?: string | null;
+  username?: string | null;
+}) {
+  token.revoked = true;
+  token.id = "";
+  token.sub = "";
+  token.username = null;
+  token.displayName = null;
+  token.avatarUrl = null;
+  token.locale = null;
+  token.theme = null;
+  token.deletedAt = null;
+  token.emailVerified = false;
+  token.isBanned = true;
+  token.authStatusHydrated = true;
+  token.profileHydrated = true;
+}
+
 function getEnvValue(...keys: string[]): string {
   for (const key of keys) {
     const value = process.env[key]?.trim() || readLocalEnvValue(key);
@@ -576,9 +614,12 @@ const authConfig = {
           email: user.email,
           name: user.displayName ?? user.username,
           image: user.avatarUrl ?? null,
+          authEmailVerified: user.emailVerified,
+          deletedAt: user.deletedAt,
           username: user.username,
           displayName: user.displayName,
           avatarUrl: user.avatarUrl,
+          isBanned: user.isBanned,
           locale: normalizeAppLocale(user.locale),
           theme: normalizeWizardsThemeId(user.theme),
         };
@@ -642,6 +683,11 @@ const authConfig = {
     },
     async jwt({ token, user, trigger, session }) {
       if (user) {
+        const userRecord = user as typeof user & {
+          authEmailVerified?: unknown;
+          deletedAt?: unknown;
+          isBanned?: unknown;
+        };
         const userId = stringOrEmpty(user.id);
         if (userId) {
           token.id = userId;
@@ -669,6 +715,15 @@ const authConfig = {
           "theme" in user && typeof user.theme === "string"
             ? normalizeWizardsThemeId(user.theme)
             : stringOrNull(token.theme);
+
+        token.deletedAt = jwtDateStringOrNull(userRecord.deletedAt);
+        token.emailVerified =
+          typeof userRecord.authEmailVerified === "boolean"
+            ? userRecord.authEmailVerified
+            : Boolean(user.emailVerified);
+        token.isBanned = typeof userRecord.isBanned === "boolean" ? userRecord.isBanned : false;
+        token.authStatusHydrated = true;
+        token.profileHydrated = true;
       }
 
       if (trigger === "update" && session?.user?.locale) {
@@ -695,44 +750,48 @@ const authConfig = {
             typeof token.iat === "number" ? token.iat : nowSeconds,
           )
         ) {
-          token.revoked = true;
-          token.id = "";
-          token.sub = "";
-          token.username = null;
-          token.displayName = null;
-          token.avatarUrl = null;
-          token.locale = null;
-          token.theme = null;
+          clearJwtUserState(token);
           return token;
         }
       }
 
-      if (
-        token.sub &&
-        (!token.username ||
-          !token.displayName ||
-          !token.avatarUrl ||
-          !token.locale ||
-          !token.theme)
-      ) {
+      const tokenUserId = stringOrEmpty(token.id) || stringOrEmpty(token.sub);
+      const needsTokenHydration =
+        Boolean(tokenUserId) &&
+        (!token.profileHydrated ||
+          !token.authStatusHydrated ||
+          typeof token.emailVerified !== "boolean" ||
+          typeof token.isBanned !== "boolean" ||
+          !("deletedAt" in token));
+
+      if (needsTokenHydration) {
         const dbUser = await prisma.user.findUnique({
-          where: { id: token.sub },
+          where: { id: tokenUserId },
           select: {
             username: true,
             displayName: true,
             avatarUrl: true,
             deletedAt: true,
+            emailVerified: true,
+            isBanned: true,
             locale: true,
             theme: true,
           },
         });
 
-        if (dbUser && !dbUser.deletedAt) {
+        if (dbUser) {
           token.username = dbUser.username;
           token.displayName = dbUser.displayName;
           token.avatarUrl = dbUser.avatarUrl;
+          token.deletedAt = jwtDateStringOrNull(dbUser.deletedAt);
+          token.emailVerified = dbUser.emailVerified;
+          token.isBanned = dbUser.isBanned;
           token.locale = normalizeAppLocale(dbUser.locale);
           token.theme = normalizeWizardsThemeId(dbUser.theme);
+          token.authStatusHydrated = true;
+          token.profileHydrated = true;
+        } else {
+          clearJwtUserState(token);
         }
       }
 
@@ -746,6 +805,9 @@ const authConfig = {
         session.user.username = stringOrNull(token.username);
         session.user.displayName = stringOrNull(token.displayName);
         session.user.avatarUrl = stringOrNull(token.avatarUrl);
+        session.user.deletedAt = stringOrNull(token.deletedAt);
+        session.user.authEmailVerified = token.emailVerified === true;
+        session.user.isBanned = token.isBanned === true;
         session.user.locale = stringOrNull(token.locale);
         session.user.theme = stringOrNull(token.theme);
       }

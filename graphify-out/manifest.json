@@ -28,8 +28,8 @@
     "hash": "90426577ad8f38459f3e566411c85589"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\next.config.ts": {
-    "mtime": 1777981749.2209425,
-    "hash": "daca83def5f819c2849456a4d761f9bf"
+    "mtime": 1778786222.3641896,
+    "hash": "8c3723a172f6a8ea6bdd63a45f8bebdb"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright.config.ts": {
     "mtime": 1777980040.2862802,
@@ -120,8 +120,8 @@
     "hash": "dcaa3057ae14727744819179e0fc5607"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\auth.ts": {
-    "mtime": 1778764359.8229742,
-    "hash": "3e936c940050b087604d8815fff8dd51"
+    "mtime": 1778786385.146827,
+    "hash": "8823c10e3515dfa440d2067f924ad935"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\middleware.test.ts": {
     "mtime": 1778764359.824975,
@@ -212,8 +212,8 @@
     "hash": "c1cf280752702b4e4a109c1c0acfcfd5"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\e2e\\auth\\session\\route.ts": {
-    "mtime": 1778764359.8239765,
-    "hash": "00ca3f4cb37f5d176f327df8099dd095"
+    "mtime": 1778786295.7705996,
+    "hash": "287625ba11fcd058fa3dc9ce1a8a92d3"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\e2e\\uploads\\route.ts": {
     "mtime": 1778670822.0670946,
@@ -1072,20 +1072,20 @@
     "hash": "93303bddb0e26a9a3743510a362d4635"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\access.test.ts": {
-    "mtime": 1778747458.1142027,
-    "hash": "a26e7d15e9013aab70355539376acbe1"
+    "mtime": 1778786304.438462,
+    "hash": "581bbcfdec638870de37e093bdd47ed1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\access.ts": {
-    "mtime": 1778747278.9081478,
-    "hash": "21ce887d6b4f0a4eb3ab3525b769b84c"
+    "mtime": 1778786226.5572042,
+    "hash": "e7f332019a6386f35c136d5336682260"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\actions.ts": {
     "mtime": 1778768100.3964174,
     "hash": "9e362985c6cc2dd1bf0b342300b30340"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\api.ts": {
-    "mtime": 1778747278.9081478,
-    "hash": "66f5bae23b963a7c62508a78d0537dff"
+    "mtime": 1778786389.8054647,
+    "hash": "27e49a176165bd2c4664965c402054e3"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\auth-schema.test.ts": {
     "mtime": 1778744941.2284584,
@@ -1524,8 +1524,8 @@
     "hash": "2346ac12a042433feee12b9cac41a07d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\types\\next-auth.d.ts": {
-    "mtime": 1778748646.0718505,
-    "hash": "d921e09169a453972ef999e8c5e8a715"
+    "mtime": 1778786380.6410427,
+    "hash": "dd16f3c77e942bb07e2b2a471c1bdd82"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\prisma-config.d.ts": {
     "mtime": 1776866606.6930864,

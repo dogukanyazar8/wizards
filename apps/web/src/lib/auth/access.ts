@@ -1,7 +1,7 @@
 import { ApiError } from "@/lib/api";
 
 export type AuthAccessUser = {
-  deletedAt?: Date | null;
+  deletedAt?: Date | string | null;
   emailVerified: boolean;
   id: string;
   isBanned: boolean;
