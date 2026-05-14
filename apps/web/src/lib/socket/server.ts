@@ -15,6 +15,10 @@ import { getRedisOp, getRedisPub, getRedisRate, getRedisSub } from "@/lib/redis"
 import { createHandlerContext } from "@/lib/socket/context";
 import { registerSocketHandlers } from "@/lib/socket/handlers";
 import { markPresenceSocketActive } from "@/lib/socket/presence-helpers";
+import {
+  readCachedServerRoomIds,
+  writeCachedServerRoomIds,
+} from "@/lib/socket/server-room-cache";
 import { setSocketServer } from "@/lib/socket/runtime";
 import type {
   ClientToServerEvents,
@@ -115,16 +119,8 @@ type ServerRoomMembership = {
 };
 
 type ServerRoomMembershipFindManyArgs = {
-  cursor?: {
-    userId_serverId: {
-      serverId: string;
-      userId: string;
-    };
-  };
   orderBy: { serverId: "asc" };
   select: { serverId: true };
-  skip?: number;
-  take: number;
   where: {
     server: {
       bans: {
@@ -140,7 +136,7 @@ type ServerRoomMembershipDelegate = {
 };
 
 type ServerRoomJoinSocket = {
-  join(room: string): void;
+  join(room: string | string[]): Promise<void> | void;
 };
 
 function normalizeServerRoomJoinBatchSize(value: number | undefined) {
@@ -182,9 +178,49 @@ export async function listServerRoomIdsPage(
     orderBy: { serverId: "asc" },
     take: normalizeServerRoomJoinBatchSize(options.batchSize),
     select: { serverId: true },
+  } as ServerRoomMembershipFindManyArgs & {
+    cursor?: {
+      userId_serverId: {
+        serverId: string;
+        userId: string;
+      };
+    };
+    skip?: number;
+    take: number;
   });
 
   return memberships.map((membership) => membership.serverId);
+}
+
+export async function listServerRoomIdsForUser(
+  userId: string,
+  options: {
+    redis?: ReturnType<typeof getRedisOp>;
+    serverMemberDelegate?: ServerRoomMembershipDelegate;
+  } = {},
+) {
+  const redis = options.redis ?? getRedisOp();
+  const cachedServerIds = await readCachedServerRoomIds(redis, userId);
+  if (cachedServerIds) {
+    return cachedServerIds;
+  }
+
+  const memberships = await (options.serverMemberDelegate ?? prisma.serverMember).findMany({
+    where: {
+      userId,
+      server: {
+        bans: {
+          none: { userId },
+        },
+      },
+    },
+    orderBy: { serverId: "asc" },
+    select: { serverId: true },
+  });
+  const serverIds = memberships.map((membership) => membership.serverId);
+
+  await writeCachedServerRoomIds(redis, userId, serverIds);
+  return serverIds;
 }
 
 export async function joinServerRoomsForUser(
@@ -192,34 +228,19 @@ export async function joinServerRoomsForUser(
   userId: string,
   options: {
     batchSize?: number;
+    redis?: ReturnType<typeof getRedisOp>;
     serverMemberDelegate?: ServerRoomMembershipDelegate;
   } = {},
 ) {
-  const batchSize = normalizeServerRoomJoinBatchSize(options.batchSize);
-  let cursorServerId: string | undefined;
-
-  for (;;) {
-    const serverIds = await listServerRoomIdsPage(userId, {
-      batchSize,
-      ...(cursorServerId ? { cursorServerId } : {}),
-      ...(options.serverMemberDelegate
-        ? { serverMemberDelegate: options.serverMemberDelegate }
-        : {}),
-    });
-
-    for (const serverId of serverIds) {
-      socket.join(`server:${serverId}`);
-    }
-
-    if (serverIds.length < batchSize) {
-      return;
-    }
-
-    cursorServerId = serverIds.at(-1);
-    if (!cursorServerId) {
-      return;
-    }
+  const serverIds = await listServerRoomIdsForUser(userId, {
+    ...(options.redis ? { redis: options.redis } : {}),
+    ...(options.serverMemberDelegate ? { serverMemberDelegate: options.serverMemberDelegate } : {}),
+  });
+  if (serverIds.length === 0) {
+    return;
   }
+
+  await socket.join(serverIds.map((serverId) => `server:${serverId}`));
 }
 
 export function initSocketServer(httpServer: HTTPServer) {
@@ -332,6 +353,7 @@ export function initSocketServer(httpServer: HTTPServer) {
     }, 60_000);
     socket.data.typingChannels = new Set<string>();
     socket.data.voiceRooms = new Set<string>();
+    socket.data.voiceStateViewerChannelsByServer = new Map<string, Set<string>>();
     socket.data.presenceCustomStatus = socket.data.presenceCustomStatus ?? null;
     socket.data.presenceStatus = socket.data.presenceStatus ?? "OFFLINE";
     socket.join(`user:${userId}`);

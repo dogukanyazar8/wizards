@@ -6,6 +6,7 @@ import { revokeUserSessions } from "@/lib/auth/session-revocation";
 import { logError } from "@/lib/logger";
 import { getRedis } from "@/lib/redis";
 import { getSocketServer } from "@/lib/socket/runtime";
+import { invalidateServerRoomIdsCache } from "@/lib/socket/server-room-cache";
 import { invalidateMemberPermissionCache } from "@/lib/workspace/permission-cache";
 
 export const ACCOUNT_DELETION_CONFIRMATION = "DELETE MY ACCOUNT";
@@ -331,7 +332,10 @@ async function clearAccountRuntimeState(userId: string, serverIds: string[]) {
   }
 
   await Promise.all(
-    serverIds.map((serverId) => invalidateMemberPermissionCache(serverId, userId)),
+    [
+      invalidateServerRoomIdsCache(userId),
+      ...serverIds.map((serverId) => invalidateMemberPermissionCache(serverId, userId)),
+    ],
   );
 }
 

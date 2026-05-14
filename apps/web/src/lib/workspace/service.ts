@@ -32,7 +32,9 @@ import { normalizeAppLocale, translate } from "@/lib/locale";
 import { readPresenceMap } from "@/lib/presence";
 import { getRedis } from "@/lib/redis";
 import type { NotificationSocketPayload } from "@/lib/socket/events";
+import { leaveVoiceStateViewerRoomsForServer } from "@/lib/socket/rooms";
 import { getSocketServer } from "@/lib/socket/runtime";
+import { invalidateServerRoomIdsCache } from "@/lib/socket/server-room-cache";
 import { disconnectUnauthorizedVoiceParticipants } from "@/lib/voice/service";
 import { getMessageById } from "@/lib/workspace/message-service";
 import {
@@ -649,9 +651,15 @@ async function detachUserFromServerSocketRoom(userId: string, serverId: string) 
     return null;
   }
 
+  const voiceChannels = await prisma.channel.findMany({
+    where: { serverId, type: ChannelType.VOICE },
+    select: { id: true },
+  });
+  const voiceChannelIds = voiceChannels.map((channel) => channel.id);
   const sockets = await io.in(`user:${userId}`).fetchSockets();
   for (const socket of sockets) {
-    socket.leave(`server:${serverId}`);
+    await socket.leave(`server:${serverId}`);
+    await leaveVoiceStateViewerRoomsForServer(socket, serverId, voiceChannelIds);
   }
 
   return io;
@@ -1460,6 +1468,8 @@ export async function createWorkspaceServer(userId: string, input: CreateServerI
     };
   });
 
+  await invalidateServerRoomIdsCache(userId);
+
   return createdServer;
 }
 
@@ -1969,6 +1979,7 @@ export async function deleteWorkspaceServer(
   });
 
   await invalidateServerPermissionCache(serverId);
+  await Promise.all(members.map((member) => invalidateServerRoomIdsCache(member.userId)));
 
   const io = getSocketServer();
   if (io) {
@@ -2001,7 +2012,10 @@ export async function leaveWorkspaceServer(userId: string, serverId: string) {
     },
   });
 
-  await invalidateMemberPermissionCache(serverId, userId);
+  await Promise.all([
+    invalidateMemberPermissionCache(serverId, userId),
+    invalidateServerRoomIdsCache(userId),
+  ]);
 
   const io = await detachUserFromServerSocketRoom(userId, serverId);
   io?.to(`server:${serverId}`).emit("server:settings:updated", { serverId });
@@ -3002,7 +3016,10 @@ export async function addWorkspaceServerMemberByUsername(
     };
   });
 
-  await invalidateMemberPermissionCache(serverId, targetUser.id);
+  await Promise.all([
+    invalidateMemberPermissionCache(serverId, targetUser.id),
+    invalidateServerRoomIdsCache(targetUser.id),
+  ]);
 
   const io = getSocketServer();
 
@@ -3110,7 +3127,10 @@ export async function kickWorkspaceMember(userId: string, serverId: string, memb
     },
   });
 
-  await invalidateMemberPermissionCache(serverId, member.userId);
+  await Promise.all([
+    invalidateMemberPermissionCache(serverId, member.userId),
+    invalidateServerRoomIdsCache(member.userId),
+  ]);
 
   const io = await detachUserFromServerSocketRoom(member.userId, serverId);
   io?.to(`server:${serverId}`).emit("server:settings:updated", { serverId });
@@ -3293,7 +3313,10 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
       return { message: systemMessage };
     });
 
-    await invalidateMemberPermissionCache(invite.server.id, userId);
+    await Promise.all([
+      invalidateMemberPermissionCache(invite.server.id, userId),
+      invalidateServerRoomIdsCache(userId),
+    ]);
 
     if (transactionResult.message) {
       const activeViewerUserIds = await getActiveChannelViewerUserIds(

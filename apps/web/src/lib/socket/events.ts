@@ -121,6 +121,8 @@ export interface ClientToServerEvents {
   "presence:activity": (data: { status: "ONLINE" | "IDLE" }) => void;
   "voice:join": (data: { channelId: string; serverId: string }) => void;
   "voice:leave": (data: { channelId: string; serverId: string }) => void;
+  "voice:states:watch": (data: { serverId: string }) => void;
+  "voice:states:unwatch": (data: { serverId: string }) => void;
   "voice:invite:accept": (data: {
     channelId: string;
     inviteId: string;
@@ -316,5 +318,6 @@ export interface SocketData {
   presenceStatus: FriendPresenceUpdateDto["status"];
   typingChannels: Set<string>;
   lastVoiceAudioLevelAt?: number;
+  voiceStateViewerChannelsByServer: Map<string, Set<string>>;
   voiceRooms: Set<string>;
 }

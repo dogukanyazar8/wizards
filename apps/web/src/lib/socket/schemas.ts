@@ -84,6 +84,12 @@ export const SocketVoiceChannelPayloadSchema = z
   })
   .strict();
 
+export const SocketVoiceStatesWatchPayloadSchema = z
+  .object({
+    serverId: SocketIdSchema,
+  })
+  .strict();
+
 export const SocketVoiceAudioLevelPayloadSchema = z
   .object({
     audioLevel: z.number().finite().min(0).max(1),

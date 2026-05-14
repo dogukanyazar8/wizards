@@ -10,11 +10,11 @@ import {
 import { getLiveKitRoomServiceClient } from "@/lib/livekit/server";
 import { logError } from "@/lib/logger";
 import { getRedis } from "@/lib/redis";
+import { getVoiceStateViewerRoomName } from "@/lib/socket/rooms";
 import { getSocketServer } from "@/lib/socket/runtime";
 import {
   filterUserIdsByChannelPermission,
   listChannelIdsForUserWithPermission,
-  listUserIdsWithChannelPermission,
   requireChannelPermissionForUser,
 } from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
@@ -557,10 +557,6 @@ export async function emitVoiceStateUpdate(args: {
   }
 
   const participants = await buildVoiceStateParticipantsForChannel(args.channelId);
-  const viewerUserIds = await listUserIdsWithChannelPermission(
-    args.channelId,
-    PermissionBits.VIEW_CHANNEL,
-  );
   const payload = {
     action: args.action,
     channelId: args.channelId,
@@ -568,9 +564,7 @@ export async function emitVoiceStateUpdate(args: {
     userId: args.userId,
   };
 
-  for (const viewerUserId of viewerUserIds) {
-    io.to(`user:${viewerUserId}`).emit("voice:state:update", payload);
-  }
+  io.to(getVoiceStateViewerRoomName(args.channelId)).emit("voice:state:update", payload);
 }
 
 export async function emitVoiceScreenShareUpdate(args: {
@@ -583,22 +577,49 @@ export async function emitVoiceScreenShareUpdate(args: {
     return;
   }
 
-  const viewerUserIds = await listUserIdsWithChannelPermission(
-    args.channelId,
-    PermissionBits.VIEW_CHANNEL,
-  );
   const payload = {
     channelId: args.channelId,
     isScreenSharing: args.isScreenSharing,
     userId: args.userId,
   };
 
-  for (const viewerUserId of viewerUserIds) {
-    io.to(`user:${viewerUserId}`).emit("voice:screenshare:update", payload);
+  io.to(getVoiceStateViewerRoomName(args.channelId)).emit("voice:screenshare:update", payload);
+}
+
+export async function pruneUnauthorizedVoiceStateViewers(channelId: string) {
+  const io = getSocketServer();
+  if (!io) {
+    return;
+  }
+
+  const room = getVoiceStateViewerRoomName(channelId);
+  const sockets = await io.in(room).fetchSockets();
+  const userIds = Array.from(
+    new Set(
+      sockets
+        .map((socket) => socket.data.userId)
+        .filter((userId): userId is string => typeof userId === "string"),
+    ),
+  );
+  if (userIds.length === 0) {
+    return;
+  }
+
+  const allowedUserIds = new Set(
+    await filterUserIdsByChannelPermission(channelId, userIds, PermissionBits.VIEW_CHANNEL),
+  );
+
+  for (const socket of sockets) {
+    const socketUserId = socket.data.userId;
+    if (socketUserId && !allowedUserIds.has(socketUserId)) {
+      await socket.leave(room);
+    }
   }
 }
 
 export async function disconnectUnauthorizedVoiceParticipants(channelId: string) {
+  await pruneUnauthorizedVoiceStateViewers(channelId);
+
   const states = await prisma.voiceState.findMany({
     where: { channelId },
     select: {

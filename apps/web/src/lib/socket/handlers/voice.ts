@@ -5,6 +5,10 @@ import { logAnalyticsError, setVoiceScreenShareUsage } from "@/lib/analytics/ser
 import type { HandlerContext } from "@/lib/socket/context";
 import { createSocketErrorEmitter, createVoiceInviteErrorEmitter } from "@/lib/socket/errors";
 import {
+  joinVoiceStateViewerRoomsForServer,
+  leaveVoiceStateViewerRoomsForServer,
+} from "@/lib/socket/rooms";
+import {
   parseSocketPayload,
   SocketVoiceAudioLevelPayloadSchema,
   SocketVoiceChannelPayloadSchema,
@@ -12,6 +16,7 @@ import {
   SocketVoiceInviteDeclinePayloadSchema,
   SocketVoiceInvitePayloadSchema,
   SocketVoiceScreenSharePayloadSchema,
+  SocketVoiceStatesWatchPayloadSchema,
 } from "@/lib/socket/schemas";
 import { createVoiceInvite, getVoiceInviteKey, parseStoredVoiceInvite } from "@/lib/voice/invite-service";
 import { emitVoiceScreenShareUpdate } from "@/lib/voice/service";
@@ -19,7 +24,10 @@ import {
   getVoiceScreenShareStateKey,
   VOICE_SCREEN_SHARE_STATE_TTL_SECONDS,
 } from "@/lib/voice/screen-share-state";
-import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
+import {
+  listChannelIdsForUserWithPermission,
+  requireChannelPermissionForUser,
+} from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
 
 import type { SocketHandlerRegistration } from ".";
@@ -58,6 +66,35 @@ export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistr
       socket.data.voiceRooms.delete(data.channelId);
     } catch (error) {
       emitSocketError("VALIDATION_ERROR", "Invalid voice room payload.", error);
+    }
+  });
+
+  socket.on("voice:states:watch", async (rawData) => {
+    try {
+      const data = parseSocketPayload(SocketVoiceStatesWatchPayloadSchema, rawData);
+      const visibleVoiceChannelIds = await listChannelIdsForUserWithPermission(
+        userId,
+        data.serverId,
+        PermissionBits.VIEW_CHANNEL,
+        ChannelType.VOICE,
+      );
+
+      await joinVoiceStateViewerRoomsForServer(socket, data.serverId, visibleVoiceChannelIds);
+    } catch (error) {
+      emitSocketError(
+        "VOICE_STATE_WATCH_ERROR",
+        "Unable to watch voice state updates.",
+        error,
+      );
+    }
+  });
+
+  socket.on("voice:states:unwatch", async (rawData) => {
+    try {
+      const data = parseSocketPayload(SocketVoiceStatesWatchPayloadSchema, rawData);
+      await leaveVoiceStateViewerRoomsForServer(socket, data.serverId);
+    } catch (error) {
+      emitSocketError("VALIDATION_ERROR", "Invalid voice state watch payload.", error);
     }
   });
 

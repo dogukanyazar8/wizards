@@ -2,9 +2,27 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   joinServerRoomsForUser,
+  listServerRoomIdsForUser,
   listServerRoomIdsPage,
   SOCKET_SERVER_ROOM_JOIN_BATCH_SIZE,
 } from "./server";
+
+class MemoryServerRoomRedis {
+  status = "ready";
+  store = new Map<string, string>();
+  setCalls: Array<{ key: string; ttlSeconds: number; value: string }> = [];
+
+  async get(key: string) {
+    return this.store.get(key) ?? null;
+  }
+
+  async set(key: string, value: string, mode: "EX", ttlSeconds: number) {
+    assert.equal(mode, "EX");
+    this.store.set(key, value);
+    this.setCalls.push({ key, ttlSeconds, value });
+    return "OK";
+  }
+}
 
 describe("socket server room joins", () => {
   it("lists server room ids with a bounded cursor page", async () => {
@@ -46,42 +64,62 @@ describe("socket server room joins", () => {
     ]);
   });
 
-  it("joins all server rooms in bounded pages without materializing every membership", async () => {
+  it("caches server room ids for reconnect reuse", async () => {
     const memberships = ["server-1", "server-2", "server-3", "server-4", "server-5"];
-    const pageSizes: number[] = [];
-    const cursors: Array<string | undefined> = [];
-    const joinedRooms: string[] = [];
+    const redis = new MemoryServerRoomRedis();
+    let findManyCalls = 0;
     const serverMemberDelegate = {
-      async findMany(args: {
-        cursor?: { userId_serverId: { serverId: string; userId: string } };
-        take: number;
-      }) {
-        pageSizes.push(args.take);
-        cursors.push(args.cursor?.userId_serverId.serverId);
-        const start = args.cursor
-          ? memberships.indexOf(args.cursor.userId_serverId.serverId) + 1
-          : 0;
-        return memberships
-          .slice(start, start + args.take)
-          .map((serverId) => ({ serverId }));
+      async findMany() {
+        findManyCalls += 1;
+        return memberships.map((serverId) => ({ serverId }));
+      },
+    };
+
+    assert.deepEqual(
+      await listServerRoomIdsForUser("user-1", {
+        redis: redis as never,
+        serverMemberDelegate,
+      }),
+      memberships,
+    );
+    assert.deepEqual(
+      await listServerRoomIdsForUser("user-1", {
+        redis: redis as never,
+        serverMemberDelegate,
+      }),
+      memberships,
+    );
+
+    assert.equal(findManyCalls, 1);
+    assert.equal(redis.setCalls.length, 1);
+  });
+
+  it("joins all server rooms from one room-id lookup", async () => {
+    const memberships = ["server-1", "server-2", "server-3", "server-4", "server-5"];
+    const joinedRooms: Array<string | string[]> = [];
+    const redis = new MemoryServerRoomRedis();
+    let findManyCalls = 0;
+    const serverMemberDelegate = {
+      async findMany() {
+        findManyCalls += 1;
+        return memberships.map((serverId) => ({ serverId }));
       },
     };
 
     await joinServerRoomsForUser(
       {
-        join(room: string) {
+        join(room: string | string[]) {
           joinedRooms.push(room);
         },
       },
       "user-1",
       {
-        batchSize: 2,
+        redis: redis as never,
         serverMemberDelegate,
       },
     );
 
-    assert.deepEqual(joinedRooms, memberships.map((serverId) => `server:${serverId}`));
-    assert.deepEqual(pageSizes, [2, 2, 2]);
-    assert.deepEqual(cursors, [undefined, "server-2", "server-4"]);
+    assert.equal(findManyCalls, 1);
+    assert.deepEqual(joinedRooms, [memberships.map((serverId) => `server:${serverId}`)]);
   });
 });
