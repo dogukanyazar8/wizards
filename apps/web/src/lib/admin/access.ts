@@ -15,16 +15,53 @@ type RequireAdminOptions = {
   roles?: AdminRole[];
 };
 
+type AdminBootstrapEnv = Partial<
+  Record<"ADMIN_EMAILS" | "NODE_ENV" | "RAILWAY_ENVIRONMENT_NAME" | "WHISPR_ADMIN_EMAILS", string>
+>;
+
 function isAllowedRole(role: AdminRole, roles: AdminRole[] | undefined) {
   return !roles || roles.includes(role);
 }
 
-function getBootstrapAdminEmails() {
+function normalizeEnvValue(value: string | undefined) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function getBootstrapAdminEmailConfig(env: AdminBootstrapEnv = process.env) {
+  const whisprAdminEmails = env.WHISPR_ADMIN_EMAILS?.trim();
+
+  if (whisprAdminEmails) {
+    return { source: "WHISPR_ADMIN_EMAILS", value: whisprAdminEmails };
+  }
+
+  return { source: "ADMIN_EMAILS", value: env.ADMIN_EMAILS ?? "" };
+}
+
+export function isProductionAdminBootstrapEnvironment(env: AdminBootstrapEnv = process.env) {
+  return (
+    normalizeEnvValue(env.NODE_ENV) === "production" ||
+    normalizeEnvValue(env.RAILWAY_ENVIRONMENT_NAME) === "production"
+  );
+}
+
+function getBootstrapAdminEmails(env: AdminBootstrapEnv = process.env) {
+  const config = getBootstrapAdminEmailConfig(env);
+
   return new Set(
-    (process.env.WHISPR_ADMIN_EMAILS ?? process.env.ADMIN_EMAILS ?? "")
+    config.value
       .split(",")
       .map((email) => email.trim().toLowerCase())
       .filter(Boolean),
+  );
+}
+
+export function canBootstrapAdminFromEnvironment(
+  email: string,
+  env: AdminBootstrapEnv = process.env,
+) {
+  return (
+    !isProductionAdminBootstrapEnvironment(env) &&
+    getBootstrapAdminEmails(env).has(email.trim().toLowerCase())
   );
 }
 
@@ -37,22 +74,54 @@ async function getOrCreateBootstrapRole(user: {
     return user.adminMembership.role;
   }
 
-  if (!getBootstrapAdminEmails().has(user.email.toLowerCase())) {
+  if (!canBootstrapAdminFromEnvironment(user.email)) {
     return null;
   }
 
-  const membership = await prisma.adminMembership.upsert({
-    where: { userId: user.id },
-    create: {
-      reason: "Environment bootstrap admin",
-      role: "OWNER",
-      userId: user.id,
-    },
-    update: {},
-    select: { role: true },
-  });
+  const bootstrapConfig = getBootstrapAdminEmailConfig();
 
-  return membership.role;
+  try {
+    const membership = await prisma.$transaction(async (tx) => {
+      const createdMembership = await tx.adminMembership.create({
+        data: {
+          reason: "Environment bootstrap admin",
+          role: "OWNER",
+          userId: user.id,
+        },
+        select: { role: true },
+      });
+
+      await tx.adminAuditLog.create({
+        data: {
+          action: "admin.bootstrap.grant",
+          adminUserId: user.id,
+          metadata: {
+            email: user.email,
+            source: bootstrapConfig.source,
+          },
+          reason: "Environment bootstrap admin",
+          targetId: user.id,
+          targetType: "User",
+          userAgentHash: null,
+        },
+      });
+
+      return createdMembership;
+    });
+
+    return membership.role;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const membership = await prisma.adminMembership.findUnique({
+        where: { userId: user.id },
+        select: { role: true },
+      });
+
+      return membership?.role ?? null;
+    }
+
+    throw error;
+  }
 }
 
 export async function requireAdminUser(

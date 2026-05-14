@@ -25,6 +25,12 @@ import {
 import { isActiveAuthUser } from "@/lib/auth/access";
 import { verifyLoginProof } from "@/lib/auth/login-proof";
 import {
+  canOAuthUserSignIn,
+  getOAuthProfileEmail,
+  isGoogleEmailVerified,
+  type OAuthEmailAccount,
+} from "@/lib/auth/oauth-email";
+import {
   isUserSessionRevoked,
   shouldCheckSessionRevocation,
 } from "@/lib/auth/session-revocation";
@@ -240,47 +246,12 @@ function numberField(value: unknown): number | null {
   return typeof value === "number" ? value : null;
 }
 
-function isGoogleEmailVerified(profile: unknown): boolean {
-  return (
-    typeof profile === "object" &&
-    profile !== null &&
-    "email_verified" in profile &&
-    (profile as { email_verified?: unknown }).email_verified === true
-  );
-}
-
-function hasExplicitlyUnverifiedOAuthEmail(profile: unknown): boolean {
-  return (
-    typeof profile === "object" &&
-    profile !== null &&
-    "email_verified" in profile &&
-    (profile as { email_verified?: unknown }).email_verified === false
-  );
-}
-
-function getOAuthProfileEmail(profile: unknown): string {
-  if (
-    typeof profile !== "object" ||
-    profile === null ||
-    !("email" in profile) ||
-    typeof (profile as { email?: unknown }).email !== "string"
-  ) {
-    return "";
-  }
-
-  return normalizeAuthEmail((profile as { email: string }).email);
-}
-
-async function canOAuthUserSignIn(args: {
-  provider: string | undefined;
+async function canOAuthUserAccessWhispr(args: {
+  account: OAuthEmailAccount | null | undefined;
   profile: unknown;
   user: { email?: unknown; id?: unknown };
 }) {
-  if (args.provider === "google" && !isGoogleEmailVerified(args.profile)) {
-    return false;
-  }
-
-  if (args.provider !== "google" && hasExplicitlyUnverifiedOAuthEmail(args.profile)) {
+  if (!(await canOAuthUserSignIn(args))) {
     return false;
   }
 
@@ -299,7 +270,7 @@ async function canOAuthUserSignIn(args: {
     return true;
   }
 
-    const existingUser = await prisma.user.findFirst({
+  const existingUser = await prisma.user.findFirst({
     where,
     select: {
       deletedAt: true,
@@ -626,6 +597,8 @@ const authConfig = {
       },
     }),
     GitHub({
+      allowDangerousEmailAccountLinking: false,
+      authorization: { params: { scope: "read:user user:email" } },
       clientId: getEnvValue("GITHUB_CLIENT_ID", "AUTH_GITHUB_ID"),
       clientSecret: getEnvValue("GITHUB_CLIENT_SECRET", "AUTH_GITHUB_SECRET"),
       profile(profile) {
@@ -672,8 +645,8 @@ const authConfig = {
   callbacks: {
     async signIn({ account, profile, user }) {
       if (account?.type === "oauth") {
-        return canOAuthUserSignIn({
-          provider: account.provider,
+        return canOAuthUserAccessWhispr({
+          account,
           profile,
           user,
         });
