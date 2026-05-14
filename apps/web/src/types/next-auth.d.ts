@@ -19,6 +19,8 @@ declare module "next-auth" {
     emailVerified?: Date | null;
     locale?: string | null;
     theme?: string | null;
+    revoked?: boolean;
+    revocationCheckedAt?: number;
   }
 }
 

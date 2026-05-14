@@ -3,6 +3,7 @@ import { prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { writeAdminAuditLog } from "@/lib/admin/access";
 import { getAdminDashboardSnapshot, getDashboardDateRange } from "@/lib/admin/dashboard";
+import { revokeUserSessions } from "@/lib/auth/session-revocation";
 
 const DEFAULT_MANAGEMENT_LIMIT = 20;
 const MAX_MANAGEMENT_LIMIT = 100;
@@ -445,6 +446,10 @@ export async function setAdminUserBanState(args: {
       },
     }),
   ]);
+
+  if (args.banned) {
+    await revokeUserSessions(target.id);
+  }
 
   await writeAdminAuditLog({
     action: args.banned ? "user.ban" : "user.unban",

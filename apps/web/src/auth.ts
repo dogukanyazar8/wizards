@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { randomBytes } from "node:crypto";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma, type User as PrismaUser } from "@wizards/db";
 import { LoginCredentialsSchema } from "@wizards/types";
@@ -17,11 +18,16 @@ import { normalizeAppLocale } from "@/lib/locale";
 import { persistUserLocale } from "@/lib/locale/persistence";
 import { getRequestLocale } from "@/lib/locale/server";
 import {
+  buildUsernameCandidate,
   MAX_USERNAME_LENGTH,
   normalizeUsername as normalizeStableUsername,
 } from "@/lib/auth/username";
 import { isActiveAuthUser } from "@/lib/auth/access";
 import { verifyLoginProof } from "@/lib/auth/login-proof";
+import {
+  isUserSessionRevoked,
+  shouldCheckSessionRevocation,
+} from "@/lib/auth/session-revocation";
 
 function getAuthEnvCandidates() {
   return [
@@ -110,24 +116,42 @@ function deriveBaseUsername(data: { email?: string | null; name?: string | null 
 
 async function getUniqueUsername(seed: string): Promise<string> {
   const safeSeed = normalizeStableUsername(seed);
+  const firstCandidate = buildUsernameCandidate(safeSeed);
 
-  for (let attempt = 0; attempt < 1000; attempt += 1) {
-    const suffix = attempt === 0 ? "" : `_${attempt}`;
-    const sliceLength = MAX_USERNAME_LENGTH - suffix.length;
-    const base = safeSeed.slice(0, Math.max(sliceLength, 2));
-    const candidate = `${base}${suffix}`;
+  const existingFirstCandidate = await prisma.user.findUnique({
+    where: { username: firstCandidate },
+    select: { id: true },
+  });
 
-    const existingUser = await prisma.user.findUnique({
-      where: { username: candidate },
-      select: { id: true },
+  if (!existingFirstCandidate) {
+    return firstCandidate;
+  }
+
+  for (let batch = 0; batch < 3; batch += 1) {
+    const candidates = Array.from(
+      new Set(
+        Array.from({ length: 16 }, () =>
+          buildUsernameCandidate(safeSeed, `_${randomBytes(4).toString("hex").slice(0, 6)}`),
+        ),
+      ),
+    );
+
+    const existingUsers = await prisma.user.findMany({
+      where: { username: { in: candidates } },
+      select: { username: true },
     });
+    const existingUsernames = new Set(existingUsers.map((user) => user.username));
+    const availableCandidate = candidates.find((candidate) => !existingUsernames.has(candidate));
 
-    if (!existingUser) {
-      return candidate;
+    if (availableCandidate) {
+      return availableCandidate;
     }
   }
 
-  return normalizeStableUsername(`whispr_${Date.now().toString(36)}`);
+  return buildUsernameCandidate(
+    "whispr",
+    `_${Date.now().toString(36)}${randomBytes(4).toString("hex").slice(0, 6)}`,
+  ).slice(0, MAX_USERNAME_LENGTH);
 }
 
 function mapUserToAdapterUser(
@@ -653,6 +677,34 @@ const authConfig = {
 
       if (trigger === "update" && session?.user?.theme) {
         token.theme = normalizeWizardsThemeId(session.user.theme);
+      }
+
+      const revocationUserId = stringOrEmpty(token.id) || stringOrEmpty(token.sub);
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      const revocationCheckedAt =
+        typeof token.revocationCheckedAt === "number" ? token.revocationCheckedAt : undefined;
+      if (
+        revocationUserId &&
+        shouldCheckSessionRevocation(revocationCheckedAt, nowSeconds)
+      ) {
+        token.revocationCheckedAt = nowSeconds;
+
+        if (
+          await isUserSessionRevoked(
+            revocationUserId,
+            typeof token.iat === "number" ? token.iat : nowSeconds,
+          )
+        ) {
+          token.revoked = true;
+          token.id = "";
+          token.sub = "";
+          token.username = null;
+          token.displayName = null;
+          token.avatarUrl = null;
+          token.locale = null;
+          token.theme = null;
+          return token;
+        }
       }
 
       if (

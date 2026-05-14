@@ -2,6 +2,7 @@ import { UserStatus, prisma, type Prisma } from "@wizards/db";
 import { UTApi } from "uploadthing/server";
 import { ApiError } from "@/lib/api";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
+import { revokeUserSessions } from "@/lib/auth/session-revocation";
 import { logError } from "@/lib/logger";
 import { getRedis } from "@/lib/redis";
 import { getSocketServer } from "@/lib/socket/runtime";
@@ -556,6 +557,7 @@ export async function anonymizeAccount(userId: string) {
     });
   });
 
+  await revokeUserSessions(userId);
   await clearAccountRuntimeState(userId, serverIds);
 
   return { deletedAt: now };

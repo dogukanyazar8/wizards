@@ -115,6 +115,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: "1"
       NEXTAUTH_SECRET: whispr-e2e-auth-secret-change-me-local-only
       NEXTAUTH_URL: http://127.0.0.1:3000
+      NODE_ENV: test
       REDIS_URL: redis://localhost:6379
       SOCKET_ALLOWED_ORIGINS: http://127.0.0.1:3000
       TURBO_TELEMETRY_DISABLED: "1"

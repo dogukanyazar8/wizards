@@ -8,6 +8,7 @@ import {
   normalizeAppLocale,
   translate,
 } from "@/lib/locale";
+import { revokeUserSessions } from "@/lib/auth/session-revocation";
 
 const PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = 60;
 const PASSWORD_RESET_TOKEN_EXPIRY_MS =
@@ -387,6 +388,7 @@ export async function resetPasswordWithToken(input: {
     where: { id: verification.userId },
     data: { passwordHash },
   });
+  await revokeUserSessions(verification.userId);
 
   return { status: "reset" as const };
 }
