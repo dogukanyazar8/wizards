@@ -1340,8 +1340,8 @@
     "hash": "9e43543533b8210c7685855db48f9d88"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\message.ts": {
-    "mtime": 1778745524.3573854,
-    "hash": "a371d321db5c1061bf561b46bd64c5ab"
+    "mtime": 1778746759.5724578,
+    "hash": "c40eb59901f5fe96a9e6ebf0db5b3f2d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\presence.ts": {
     "mtime": 1778646274.5013897,
@@ -1424,20 +1424,20 @@
     "hash": "79f7595b14b9d629296a10395ce6d82c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\permission-cache.test.ts": {
-    "mtime": 1778655536.6977525,
-    "hash": "903fea53523a8cd4d24736bcf888de24"
+    "mtime": 1778746813.4492009,
+    "hash": "afb186d3f682a0cdfb3d0e84050b8173"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\permission-cache.ts": {
-    "mtime": 1778655428.052024,
-    "hash": "53a038a89ce85a896b60981cddecc179"
+    "mtime": 1778746719.4640481,
+    "hash": "200eea918671df5ef0e3875d74ea6734"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\permission-service.test.ts": {
     "mtime": 1778743831.8588977,
     "hash": "25d10f8fae4aaca0357bfb6fee82eac0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\permission-service.ts": {
-    "mtime": 1778743790.5960276,
-    "hash": "33b6f13609c3c419ef2306812b372298"
+    "mtime": 1778746748.548191,
+    "hash": "e70c1fb194e776eb0f80413919862f29"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\permissions.test.ts": {
     "mtime": 1778742688.6057813,
