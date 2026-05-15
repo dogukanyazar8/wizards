@@ -1,11 +1,13 @@
 import { expect, test } from "../../fixtures/test";
 import { apiLoginAs } from "../../helpers/api-auth";
 import {
+  addE2EServerMember,
   createIsolatedServerForMembershipTest,
   getE2EDMConversationId,
   getE2EServerRoute,
   getE2EUserId,
   getServerMemberId,
+  setE2EServerMemberNickname,
 } from "../../helpers/db";
 
 test.describe("API v1 route smoke", () => {
@@ -131,6 +133,29 @@ test.describe("API v1 permission boundaries", () => {
     expect(response.status()).toBe(404);
     await expect(response.json()).resolves.toMatchObject({
       error: "Server profile not found",
+    });
+  });
+
+  test("returns server-scoped nicknames when both users are server members", async ({
+    request,
+  }) => {
+    const nickname = `Captain Alice ${Date.now()}`;
+    const [{ serverId }, aliceId] = await Promise.all([
+      createIsolatedServerForMembershipTest("alice"),
+      getE2EUserId("alice"),
+    ]);
+    await Promise.all([
+      addE2EServerMember(serverId, "bob"),
+      setE2EServerMemberNickname(serverId, "alice", nickname),
+    ]);
+    await apiLoginAs(request, "bob");
+
+    const response = await request.get(`/api/v1/users/${aliceId}/profile?serverId=${serverId}`);
+
+    expect(response.status()).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      id: aliceId,
+      serverNickname: nickname,
     });
   });
 

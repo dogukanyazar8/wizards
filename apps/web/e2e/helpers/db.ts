@@ -460,6 +460,60 @@ export async function createIsolatedServerForMembershipTest(
   });
 }
 
+export async function addE2EServerMember(
+  serverId: string,
+  userKey: E2EUserKey,
+): Promise<string> {
+  return withE2EDatabase(async (prisma) => {
+    const userId = await findE2EUserId(prisma, userKey);
+    const existingMember = await prisma.serverMember.findUnique({
+      where: {
+        userId_serverId: {
+          serverId,
+          userId,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (existingMember) {
+      return existingMember.id;
+    }
+
+    const member = await prisma.serverMember.create({
+      data: {
+        serverId,
+        userId,
+      },
+      select: { id: true },
+    });
+
+    return member.id;
+  });
+}
+
+export async function setE2EServerMemberNickname(
+  serverId: string,
+  userKey: E2EUserKey,
+  nickname: string | null,
+): Promise<void> {
+  await withE2EDatabase(async (prisma) => {
+    const userId = await findE2EUserId(prisma, userKey);
+
+    await prisma.serverMember.update({
+      where: {
+        userId_serverId: {
+          serverId,
+          userId,
+        },
+      },
+      data: {
+        nickname,
+      },
+    });
+  });
+}
+
 export async function getServerMemberId(
   serverId: string,
   userKey: E2EUserKey,

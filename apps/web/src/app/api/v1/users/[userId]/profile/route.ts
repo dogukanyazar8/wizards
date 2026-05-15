@@ -40,31 +40,26 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const serverId = request.nextUrl.searchParams.get("serverId");
 
     if (serverId) {
-      const requesterMember = await prisma.serverMember.findFirst({
+      const memberships = await prisma.serverMember.findMany({
         where: {
           serverId,
-          userId: requesterId,
+          userId: {
+            in: requesterId === userId ? [requesterId] : [requesterId, userId],
+          },
         },
         select: {
-          id: true,
+          nickname: true,
+          userId: true,
         },
+        take: 2,
       });
+      const requesterMember = memberships.find((member) => member.userId === requesterId);
 
       if (!requesterMember) {
         throw new ApiError("Server profile not found", 404);
       }
 
-      const member = await prisma.serverMember.findFirst({
-        where: {
-          userId,
-          serverId,
-        },
-        select: {
-          nickname: true,
-        },
-      });
-
-      serverNickname = member?.nickname ?? null;
+      serverNickname = memberships.find((member) => member.userId === userId)?.nickname ?? null;
     }
 
     return Response.json({
