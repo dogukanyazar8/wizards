@@ -231,11 +231,6 @@ export function registerDMHandlers(
   socket.on("dm:message:send", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketDMMessageSendPayloadSchema, rawData);
-      if (!(await isDMParticipant(userId, data.conversationId))) {
-        emitDMError("FORBIDDEN", "You are not a participant in this DM");
-        return;
-      }
-
       const rateLimitResult = await checkDMMessageRateLimits({
         conversationId: data.conversationId,
         redis: rateRedis,
@@ -284,6 +279,23 @@ export function registerDMHandlers(
         return;
       }
 
+      const participants = await prisma.dMParticipant.findMany({
+        where: { conversationId: data.conversationId },
+        select: {
+          userId: true,
+          user: {
+            select: dmNotificationUserSelect,
+          },
+        },
+      });
+
+      if (!participants.some((participant) => participant.userId === userId)) {
+        emitDMError("FORBIDDEN", "You are not a participant in this DM");
+        return;
+      }
+
+      await assertUnblockedDMParticipants({ currentUserId: userId, participants });
+
       if (data.replyToId) {
         const replyToMessage = await prisma.dMMessage.findFirst({
           where: {
@@ -318,23 +330,6 @@ export function registerDMHandlers(
           return;
         }
       }
-
-      const participants = await prisma.dMParticipant.findMany({
-        where: { conversationId: data.conversationId },
-        select: {
-          userId: true,
-          user: {
-            select: dmNotificationUserSelect,
-          },
-        },
-      });
-
-      if (!participants.some((participant) => participant.userId === userId)) {
-        emitDMError("FORBIDDEN", "You are not a participant in this DM");
-        return;
-      }
-
-      await assertUnblockedDMParticipants({ currentUserId: userId, participants });
 
       const createdMessage = await createRealtimeDMMessage({
         attachmentInputs,

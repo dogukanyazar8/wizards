@@ -9,7 +9,11 @@ import {
 } from "@/lib/messages/attachments";
 import { ensureChannelMembership } from "@/lib/socket/channel-membership";
 import type { HandlerContext } from "@/lib/socket/context";
-import { emitToChannelViewers } from "@/lib/socket/emitters";
+import {
+  emitToChannelViewers,
+  emitToUserRooms,
+  getPermittedChannelViewerUserIds,
+} from "@/lib/socket/emitters";
 import { createSocketErrorEmitter } from "@/lib/socket/errors";
 import {
   checkChannelMessageEditRateLimit,
@@ -384,6 +388,7 @@ export function registerMessageHandlers(
         userId,
         data.content,
         canBypassMessageLimit ? null : existing.channel.server.messageCharacterLimit,
+        { permissions },
       );
       await emitToChannelViewers(io, message.channelId, "message:updated", message);
     } catch (error) {
@@ -428,14 +433,15 @@ export function registerMessageHandlers(
       const isAdmin = hasPermission(permissions, PermissionBits.MANAGE_MESSAGES);
 
       const deleteResult = await deleteMessage(messageId, userId, isAdmin);
+      const viewerUserIds = await getPermittedChannelViewerUserIds(dbMessage.channelId);
 
       if (deleteResult.status === "removed") {
-        await emitToChannelViewers(io, dbMessage.channelId, "message:removed", {
+        emitToUserRooms(io, viewerUserIds, "message:removed", {
           messageId,
           channelId: dbMessage.channelId,
         });
       } else {
-        await emitToChannelViewers(io, dbMessage.channelId, "message:deleted", {
+        emitToUserRooms(io, viewerUserIds, "message:deleted", {
           messageId,
           channelId: dbMessage.channelId,
           deletedById: userId,
@@ -444,7 +450,7 @@ export function registerMessageHandlers(
       }
 
       if (dbMessage.isPinned) {
-        await emitToChannelViewers(io, dbMessage.channelId, "message:pins_updated", {
+        emitToUserRooms(io, viewerUserIds, "message:pins_updated", {
           channelId: dbMessage.channelId,
         });
       }

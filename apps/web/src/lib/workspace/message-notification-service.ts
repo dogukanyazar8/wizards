@@ -176,37 +176,33 @@ export async function createChannelMentionNotifications(args: {
     ),
   );
 
-  const notifications = await Promise.all(
-    mentionRecipients.map(async (member) => {
+  const notifications = await prisma.notification.createManyAndReturn({
+    data: mentionRecipients.map((member) => {
       const locale = normalizeAppLocale(member.user.locale);
-      const notification = await prisma.notification.create({
-        data: {
-          actionUrl: `/channels/${args.serverId}/${args.channelId}`,
-          body: translate(locale, "chat.mentions.notifyBody", {
-            channel: args.channelName,
-            name: args.senderName,
-          }),
-          metadata: {
-            channelId: args.channelId,
-            messageId: args.messageId,
-            senderId: args.senderId,
-            serverId: args.serverId,
-          },
-          title: translate(locale, "chat.mentions.notifyTitle"),
-          type: "MENTION",
-          userId: member.userId,
-        },
-      });
 
       return {
-        payload: serializeNotification(notification as NotificationRecord),
+        actionUrl: `/channels/${args.serverId}/${args.channelId}`,
+        body: translate(locale, "chat.mentions.notifyBody", {
+          channel: args.channelName,
+          name: args.senderName,
+        }),
+        metadata: {
+          channelId: args.channelId,
+          messageId: args.messageId,
+          senderId: args.senderId,
+          serverId: args.serverId,
+        },
+        title: translate(locale, "chat.mentions.notifyTitle"),
+        type: "MENTION" as const,
         userId: member.userId,
       };
     }),
-  );
+  });
 
   for (const notification of notifications) {
-    args.io.to(`user:${notification.userId}`).emit("notification:new", notification.payload);
+    args.io
+      .to(`user:${notification.userId}`)
+      .emit("notification:new", serializeNotification(notification as NotificationRecord));
     void emitServerUnreadUpdateToUser(notification.userId, args.serverId).catch(() => undefined);
   }
 }

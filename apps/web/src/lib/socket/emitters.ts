@@ -4,20 +4,36 @@ import { PermissionBits } from "@/lib/workspace/permissions";
 import type { ServerToClientEvents } from "./events";
 import type { AppSocketServer } from "./runtime";
 
+export async function getPermittedChannelViewerUserIds(channelId: string) {
+  const activeViewerUserIds = await getActiveChannelViewerUserIds(channelId);
+  return filterUserIdsByChannelPermission(
+    channelId,
+    activeViewerUserIds,
+    PermissionBits.VIEW_CHANNEL,
+  );
+}
+
+export function emitToUserRooms<EventName extends keyof ServerToClientEvents>(
+  io: AppSocketServer,
+  userIds: string[],
+  event: EventName,
+  ...args: Parameters<ServerToClientEvents[EventName]>
+) {
+  if (userIds.length === 0) {
+    return;
+  }
+
+  io.to(userIds.map((userId) => `user:${userId}`)).emit(event, ...args);
+}
+
 export async function emitToChannelViewers<EventName extends keyof ServerToClientEvents>(
   io: AppSocketServer,
   channelId: string,
   event: EventName,
   ...args: Parameters<ServerToClientEvents[EventName]>
 ) {
-  const activeViewerUserIds = await getActiveChannelViewerUserIds(channelId);
-  const viewerUserIds = await filterUserIdsByChannelPermission(
-    channelId,
-    activeViewerUserIds,
-    PermissionBits.VIEW_CHANNEL,
-  );
+  const viewerUserIds = await getPermittedChannelViewerUserIds(channelId);
+  emitToUserRooms(io, viewerUserIds, event, ...args);
 
-  for (const viewerUserId of viewerUserIds) {
-    io.to(`user:${viewerUserId}`).emit(event, ...args);
-  }
+  return viewerUserIds;
 }

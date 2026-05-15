@@ -42,6 +42,7 @@ export const VOICE_CLEANUP_LOCK_KEY = "voice:cleanup:lock";
 const VOICE_CLEANUP_BATCH_SIZE = 100;
 const VOICE_CLEANUP_MAX_BATCHES_PER_RUN = 5;
 const VOICE_CLEANUP_DEBOUNCE_SECONDS = 60;
+const VOICE_CLEANUP_LOCAL_ATTEMPT_INTERVAL_MS = 5_000;
 const VOICE_CLEANUP_LOCK_TTL_MS = 30_000;
 const VOICE_JOIN_LOCK_TTL_MS = 2000;
 const RELEASE_REDIS_LOCK_SCRIPT = `
@@ -433,7 +434,26 @@ export async function releaseVoiceCleanupLock(
   }
 }
 
+let nextVoiceCleanupAttemptAtMs = 0;
+
+export function shouldAttemptVoiceCleanup(nowMs: number = Date.now()) {
+  if (nowMs < nextVoiceCleanupAttemptAtMs) {
+    return false;
+  }
+
+  nextVoiceCleanupAttemptAtMs = nowMs + VOICE_CLEANUP_LOCAL_ATTEMPT_INTERVAL_MS;
+  return true;
+}
+
+export function resetVoiceCleanupLocalDebounceForTests() {
+  nextVoiceCleanupAttemptAtMs = 0;
+}
+
 async function maybeCleanupStaleVoiceStates() {
+  if (!shouldAttemptVoiceCleanup()) {
+    return;
+  }
+
   const redis = getRedis();
   if (redis.status !== "ready") {
     return;

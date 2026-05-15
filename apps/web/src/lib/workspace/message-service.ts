@@ -729,6 +729,7 @@ export async function editMessage(
   userId: string,
   content: string,
   maxLength: number | null = MESSAGE_CONTENT_DEFAULT_LIMIT,
+  options: { permissions?: bigint } = {},
 ): Promise<ChatMessage> {
   const existing = await prisma.message.findUnique({
     where: { id: messageId },
@@ -753,38 +754,22 @@ export async function editMessage(
     throw new ApiError("Cannot edit this message", 403);
   }
 
-  const [member, serverBan] = await Promise.all([
-    prisma.serverMember.findFirst({
-      where: { serverId: existing.channel.serverId, userId },
-      select: { id: true },
-    }),
-    prisma.serverBan.findUnique({
-      where: {
-        serverId_userId: {
-          serverId: existing.channel.serverId,
-          userId,
+  const permissions =
+    options.permissions ??
+    (
+      await requireChannelPermissionForUser(
+        userId,
+        existing.channelId,
+        PermissionBits.SEND_MESSAGES,
+        {
+          forbiddenMessage: "Cannot edit this message",
+          lockedCode: "CHANNEL_LOCKED",
+          lockedMessage: "This channel is read-only.",
+          requiredType: ChannelType.TEXT,
+          respectLocked: true,
         },
-      },
-      select: { id: true },
-    }),
-  ]);
-
-  if (!member || serverBan) {
-    throw new ApiError("Cannot edit this message", 403);
-  }
-
-  const { permissions } = await requireChannelPermissionForUser(
-    userId,
-    existing.channelId,
-    PermissionBits.SEND_MESSAGES,
-    {
-      forbiddenMessage: "Cannot edit this message",
-      lockedCode: "CHANNEL_LOCKED",
-      lockedMessage: "This channel is read-only.",
-      requiredType: ChannelType.TEXT,
-      respectLocked: true,
-    },
-  );
+      )
+    ).permissions;
 
   const nextContent = validateEditableMessageContent(content, maxLength);
   const mentionEveryone = containsMassMention(nextContent);
@@ -792,19 +777,20 @@ export async function editMessage(
     assertCanMentionEveryone(nextContent, permissions);
   }
 
-  const updateResult = await prisma.message.updateMany({
-    where: { id: messageId, userId, deletedAt: null, placeholderRemovedAt: null },
-    data: { content: nextContent, editedAt: new Date(), mentionEveryone },
-  });
+  let message: RawMessage;
+  try {
+    message = (await prisma.message.update({
+      where: { id: messageId, userId, deletedAt: null, placeholderRemovedAt: null },
+      data: { content: nextContent, editedAt: new Date(), mentionEveryone },
+      include: messageInclude,
+    })) as RawMessage;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      throw new ApiError("Cannot edit this message", 403);
+    }
 
-  if (updateResult.count !== 1) {
-    throw new ApiError("Cannot edit this message", 403);
+    throw error;
   }
-
-  const message = (await prisma.message.findUniqueOrThrow({
-    where: { id: messageId },
-    include: messageInclude,
-  })) as RawMessage;
 
   return mapRawMessage(message);
 }

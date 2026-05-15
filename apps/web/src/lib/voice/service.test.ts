@@ -6,11 +6,13 @@ import {
   buildVoiceStateDeleteWhere,
   canClearVoiceStateForSession,
   getVoiceJoinLockSpecs,
+  resetVoiceCleanupLocalDebounceForTests,
   releaseVoiceJoinLocks,
   releaseVoiceCleanupLock,
   runBoundedVoiceStateCleanup,
   runVoiceStateClearMutation,
   runVoiceStateUpsertMutation,
+  shouldAttemptVoiceCleanup,
   VOICE_CLEANUP_LOCK_KEY,
 } from "./service";
 
@@ -434,5 +436,16 @@ describe("voice service concurrency helpers", () => {
         token: "token-1",
       },
     ]);
+  });
+
+  it("locally debounces stale cleanup attempts before touching Redis", () => {
+    resetVoiceCleanupLocalDebounceForTests();
+
+    assert.equal(shouldAttemptVoiceCleanup(10_000), true);
+    assert.equal(shouldAttemptVoiceCleanup(10_001), false);
+    assert.equal(shouldAttemptVoiceCleanup(14_999), false);
+    assert.equal(shouldAttemptVoiceCleanup(15_000), true);
+
+    resetVoiceCleanupLocalDebounceForTests();
   });
 });
