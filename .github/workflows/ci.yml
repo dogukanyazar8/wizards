@@ -9,6 +9,7 @@ on:
         options:
           - api
           - smoke
+          - realtime
           - full
         required: true
         type: choice
@@ -18,6 +19,8 @@ on:
       - main
       - staging
       - uat
+    tags:
+      - "v*"
 
 jobs:
   verify:
@@ -60,6 +63,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Dependency audit
+        run: pnpm audit --audit-level moderate
+
       - name: Lint
         run: pnpm lint
 
@@ -71,9 +77,6 @@ jobs:
 
       - name: Build
         run: pnpm build
-
-      - name: Dependency audit
-        run: pnpm audit --audit-level moderate
 
   e2e-smoke:
     name: Playwright E2E
@@ -157,12 +160,16 @@ jobs:
         run: pnpm --filter @wizards/web exec playwright install --with-deps chromium
 
       - name: Run Playwright API tests
-        if: github.event_name != 'workflow_dispatch' || inputs.e2e_scope == 'api' || inputs.e2e_scope == 'smoke'
+        if: github.event_name != 'workflow_dispatch' || inputs.e2e_scope == 'api' || inputs.e2e_scope == 'smoke' || inputs.e2e_scope == 'realtime'
         run: pnpm --filter @wizards/web e2e:api
 
       - name: Run Playwright smoke tests
         if: github.event_name != 'workflow_dispatch' || inputs.e2e_scope == 'smoke'
         run: pnpm --filter @wizards/web e2e:smoke
+
+      - name: Run Playwright realtime and voice tests
+        if: github.event_name != 'workflow_dispatch' || inputs.e2e_scope == 'realtime'
+        run: pnpm --filter @wizards/web e2e:realtime
 
       - name: Run Playwright full suite
         if: github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'full'
@@ -178,3 +185,101 @@ jobs:
             apps/web/playwright-report
             apps/web/test-results
           retention-days: 7
+
+  desktop-build:
+    name: Tauri Desktop Build
+    runs-on: windows-latest
+    needs: verify
+    timeout-minutes: 45
+
+    env:
+      TAURI_WEB_URL: https://whispr.team
+      TURBO_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Require code signing secrets for release tags
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX_BASE64) -or [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) {
+            Write-Error "Release desktop builds require WINDOWS_CERTIFICATE_PFX_BASE64 and WINDOWS_CERTIFICATE_PASSWORD secrets before publishing."
+            exit 1
+          }
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate desktop production config
+        run: pnpm --filter @wizards/desktop build:desktop:config
+
+      - name: Build desktop app
+        run: pnpm --filter @wizards/desktop build:desktop
+
+      - name: Sign desktop release artifacts
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+        run: |
+          $certificatePath = Join-Path $env:RUNNER_TEMP "whispr-codesign.pfx"
+          [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_PFX_BASE64))
+
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+            Where-Object { $_.FullName -match "\\x64\\signtool.exe$" } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+
+          if (-not $signtool) {
+            Write-Error "signtool.exe was not found on the Windows runner."
+            exit 1
+          }
+
+          $artifacts = @(
+            Get-ChildItem "apps\desktop\src-tauri\target\release" -Filter "*.exe" -File -ErrorAction SilentlyContinue
+            Get-ChildItem "apps\desktop\src-tauri\target\release\bundle" -Include "*.exe", "*.msi" -Recurse -File -ErrorAction SilentlyContinue
+          )
+
+          if ($artifacts.Count -eq 0) {
+            Write-Error "No desktop artifacts were found to sign."
+            exit 1
+          }
+
+          foreach ($artifact in $artifacts) {
+            & $signtool.FullName sign /f $certificatePath /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $artifact.FullName
+            if ($LASTEXITCODE -ne 0) {
+              exit $LASTEXITCODE
+            }
+          }
+
+      - name: Upload desktop artifacts
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: error
+          name: whispr-desktop-windows
+          path: |
+            apps/desktop/src-tauri/target/release/*.exe
+            apps/desktop/src-tauri/target/release/bundle/**/*.exe
+            apps/desktop/src-tauri/target/release/bundle/**/*.msi
+          retention-days: 14

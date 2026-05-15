@@ -1,15 +1,58 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": ["NODE_ENV", "NEXT_TELEMETRY_DISABLED", "TURBO_TELEMETRY_DISABLED"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": [
+        "APP_URL",
+        "AUTH_URL",
+        "GITHUB_SHA",
+        "LIVEKIT_URL",
+        "NEXT_PUBLIC_E2E_TEST_MODE",
+        "NEXT_PUBLIC_LIVEKIT_URL",
+        "NEXT_PUBLIC_SOCKET_URL",
+        "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
+        "NEXT_PUBLIC_WHISPR_BUILD_ID",
+        "NEXT_PUBLIC_WHISPR_BUILD_TIME",
+        "NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL",
+        "NEXT_PUBLIC_WHISPR_RELEASE_CODENAME",
+        "NEXT_PUBLIC_WHISPR_VERSION",
+        "NEXTAUTH_URL",
+        "RAILWAY_DEPLOYMENT_ID",
+        "RAILWAY_ENVIRONMENT_NAME",
+        "RAILWAY_GIT_COMMIT_SHA",
+        "TAURI_APP_NAME",
+        "TAURI_WEB_URL",
+        "UPLOADTHING_TOKEN",
+        "VERCEL_DEPLOYMENT_ID",
+        "VERCEL_ENV",
+        "VERCEL_GIT_COMMIT_SHA",
+        "WHISPR_BUILD_ID",
+        "WHISPR_BUILD_TIME",
+        "WHISPR_RELEASE_CHANNEL",
+        "WHISPR_VERSION"
+      ],
       "outputs": [".next/**", "dist/**"]
+    },
+    "build:desktop": {
+      "cache": false,
+      "dependsOn": ["^build"],
+      "outputs": [".tauri/generated/**", "src-tauri/target/release/bundle/**"]
     },
     "dev": {
       "cache": false,
       "persistent": true
     },
     "e2e": {
+      "cache": false,
+      "outputs": ["apps/web/playwright-report/**", "apps/web/test-results/**"]
+    },
+    "e2e:api": {
+      "cache": false,
+      "outputs": ["apps/web/playwright-report/**", "apps/web/test-results/**"]
+    },
+    "e2e:realtime": {
       "cache": false,
       "outputs": ["apps/web/playwright-report/**", "apps/web/test-results/**"]
     },

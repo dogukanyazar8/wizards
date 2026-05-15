@@ -16,6 +16,7 @@
     "e2e:api": "playwright test e2e/specs/api",
     "e2e:headed": "playwright test --headed",
     "e2e:report": "playwright show-report",
+    "e2e:realtime": "playwright test e2e/specs/realtime e2e/specs/voice",
     "e2e:seed": "node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && tsx e2e/setup/reset-and-seed.ts",
     "e2e:smoke": "playwright test e2e/specs/smoke",
     "e2e:ui": "playwright test --ui",
