@@ -4,6 +4,7 @@ import {
   createIsolatedServerForMembershipTest,
   getE2EDMConversationId,
   getE2EServerRoute,
+  getE2EUserId,
   getServerMemberId,
 } from "../../helpers/db";
 
@@ -115,6 +116,21 @@ test.describe("API v1 permission boundaries", () => {
     expect(response.status()).toBe(404);
     await expect(response.json()).resolves.toMatchObject({
       error: "Server not found",
+    });
+  });
+
+  test("does not expose server-scoped user profiles to non-members", async ({ request }) => {
+    const [{ serverId }, aliceId] = await Promise.all([
+      createIsolatedServerForMembershipTest("alice"),
+      getE2EUserId("alice"),
+    ]);
+    await apiLoginAs(request, "bob");
+
+    const response = await request.get(`/api/v1/users/${aliceId}/profile?serverId=${serverId}`);
+
+    expect(response.status()).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Server profile not found",
     });
   });
 
