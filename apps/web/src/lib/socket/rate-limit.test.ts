@@ -17,6 +17,47 @@ import {
   shouldLogRateLimitUnavailable,
 } from "./rate-limits";
 
+class MemoryRateLimitGraceRedis {
+  private readonly values = new Map<string, { attempts: number; expiresAt: number; firstAt: number }>();
+
+  async eval(
+    _script: string,
+    keyCount: number,
+    key: string,
+    nowInput: number,
+    graceMsInput: number,
+    staleMsInput: number,
+    limitInput: number,
+  ) {
+    assert.equal(keyCount, 1);
+
+    const now = Number(nowInput);
+    const graceMs = Number(graceMsInput);
+    const staleMs = Number(staleMsInput);
+    const limit = Number(limitInput);
+    const existing = this.values.get(key);
+
+    if (existing && now > existing.expiresAt) {
+      this.values.delete(key);
+    }
+
+    const state = this.values.get(key) ?? {
+      attempts: 0,
+      expiresAt: now + staleMs,
+      firstAt: now,
+    };
+    state.expiresAt = now + staleMs;
+    this.values.set(key, state);
+
+    if (now - state.firstAt > graceMs || state.attempts >= limit) {
+      return 0;
+    }
+
+    state.attempts += 1;
+    return 1;
+  }
+}
+
 describe("socket DM rate limit configuration", () => {
   const redis = {} as Redis;
 
@@ -56,11 +97,12 @@ describe("socket DM rate limit configuration", () => {
 
   it("returns unavailable instead of throwing when channel rate limiting fails", async () => {
     const error = new Error("redis unavailable");
+    const graceRedis = new MemoryRateLimitGraceRedis() as unknown as Redis;
     const result = await checkChannelMessageRateLimit({
       rateLimitCheck: async () => {
         throw error;
       },
-      redis,
+      redis: graceRedis,
       userId: "user-1",
     });
 
@@ -73,6 +115,7 @@ describe("socket DM rate limit configuration", () => {
 
   it("bounds channel sends during a brief Redis outage grace window", async () => {
     const error = new Error("redis unavailable");
+    const graceRedis = new MemoryRateLimitGraceRedis() as unknown as Redis;
     let now = 1_000_000;
     const checkUnavailable = () =>
       checkChannelMessageRateLimit({
@@ -80,7 +123,7 @@ describe("socket DM rate limit configuration", () => {
         rateLimitCheck: async () => {
           throw error;
         },
-        redis,
+        redis: graceRedis,
         userId: "user-1",
       });
 
@@ -107,8 +150,9 @@ describe("socket DM rate limit configuration", () => {
     }
   });
 
-  it("resets Redis outage grace after a successful rate-limit check", async () => {
+  it("allows recovery immediately after a successful rate-limit check", async () => {
     const error = new Error("redis unavailable");
+    const graceRedis = new MemoryRateLimitGraceRedis() as unknown as Redis;
     let shouldThrow = true;
     const result = await checkChannelMessageEditRateLimit({
       rateLimitCheck: async () => {
@@ -117,7 +161,7 @@ describe("socket DM rate limit configuration", () => {
         }
         return true;
       },
-      redis,
+      redis: graceRedis,
       userId: "user-1",
     });
 
@@ -141,12 +185,29 @@ describe("socket DM rate limit configuration", () => {
       rateLimitCheck: async () => {
         throw error;
       },
-      redis,
+      redis: graceRedis,
       userId: "user-1",
     });
     assert.equal(recoveredThenUnavailable.status, "unavailable");
     if (recoveredThenUnavailable.status === "unavailable") {
       assert.equal(recoveredThenUnavailable.allowDuringGrace, true);
+    }
+  });
+
+  it("fails closed when the distributed outage grace check also cannot reach Redis", async () => {
+    const error = new Error("redis unavailable");
+    const result = await checkChannelMessageRateLimit({
+      rateLimitCheck: async () => {
+        throw error;
+      },
+      redis,
+      userId: "user-1",
+    });
+
+    assert.equal(result.status, "unavailable");
+    if (result.status === "unavailable") {
+      assert.equal(result.allowDuringGrace, false);
+      assert.equal(result.error, error);
     }
   });
 
@@ -188,6 +249,7 @@ describe("socket DM rate limit configuration", () => {
 
   it("returns unavailable instead of throwing when DM rate limiting fails", async () => {
     const error = new Error("redis unavailable");
+    const graceRedis = new MemoryRateLimitGraceRedis() as unknown as Redis;
     const checkedKeys: string[] = [];
     const result = await checkDMMessageRateLimits({
       conversationId: "conversation-1",
@@ -195,7 +257,7 @@ describe("socket DM rate limit configuration", () => {
         checkedKeys.push(key);
         throw error;
       },
-      redis,
+      redis: graceRedis,
       userId: "user-1",
     });
 

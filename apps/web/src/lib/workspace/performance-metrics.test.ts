@@ -10,7 +10,10 @@ import {
 } from "./performance-metrics";
 
 function restoreEnv(
-  name: "WORKSPACE_PERFORMANCE_METRICS" | "WORKSPACE_PERFORMANCE_METRICS_INTERVAL_MS",
+  name:
+    | "WHISPR_INSTANCE_ID"
+    | "WORKSPACE_PERFORMANCE_METRICS"
+    | "WORKSPACE_PERFORMANCE_METRICS_INTERVAL_MS",
   value?: string,
 ) {
   if (value === undefined) {
@@ -23,10 +26,12 @@ function restoreEnv(
 describe("workspace performance metrics", () => {
   it("emits a structured CR-1 monitoring payload when enabled", () => {
     const originalEnabled = process.env.WORKSPACE_PERFORMANCE_METRICS;
+    const originalInstanceId = process.env.WHISPR_INSTANCE_ID;
     const originalInterval = process.env.WORKSPACE_PERFORMANCE_METRICS_INTERVAL_MS;
     const originalConsoleInfo = console.info;
     const startedAt = Date.now();
     const logs: unknown[][] = [];
+    process.env.WHISPR_INSTANCE_ID = "test-instance";
     process.env.WORKSPACE_PERFORMANCE_METRICS = "true";
     process.env.WORKSPACE_PERFORMANCE_METRICS_INTERVAL_MS = "30000";
     console.info = (...args: unknown[]) => {
@@ -68,6 +73,7 @@ describe("workspace performance metrics", () => {
       assert.equal(logs[0]?.[0], "[workspace-performance]");
 
       const payload = JSON.parse(String(logs[0]?.[1])) as {
+        instanceId: string;
         messageSendFanout: {
           calls: number;
           maxActiveServerMemberCount: number;
@@ -78,6 +84,7 @@ describe("workspace performance metrics", () => {
           invalidations: { server: number };
           visibleChannelList: { miss: number };
         };
+        scope: string;
         type: string;
         unreadFanout: {
           calls: number;
@@ -88,6 +95,8 @@ describe("workspace performance metrics", () => {
       };
 
       assert.equal(payload.type, "workspace_performance");
+      assert.equal(payload.scope, "process");
+      assert.equal(payload.instanceId, "test-instance");
       assert.equal(payload.windowMs, 30_000);
       assert.equal(payload.permissionCache.channelSnapshot.hit, 2);
       assert.equal(payload.permissionCache.visibleChannelList.miss, 1);
@@ -100,6 +109,7 @@ describe("workspace performance metrics", () => {
       assert.equal(payload.unreadFanout.maxVisibilityGroupCount, 1);
     } finally {
       resetWorkspacePerformanceMetricsForTest(0);
+      restoreEnv("WHISPR_INSTANCE_ID", originalInstanceId);
       restoreEnv("WORKSPACE_PERFORMANCE_METRICS", originalEnabled);
       restoreEnv("WORKSPACE_PERFORMANCE_METRICS_INTERVAL_MS", originalInterval);
       console.info = originalConsoleInfo;

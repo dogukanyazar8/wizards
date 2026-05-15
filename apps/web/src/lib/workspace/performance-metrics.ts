@@ -118,6 +118,16 @@ function getFlushIntervalMs() {
   return Math.max(configured, MIN_FLUSH_INTERVAL_MS);
 }
 
+function getWorkspacePerformanceInstanceId() {
+  return (
+    process.env.WHISPR_INSTANCE_ID ??
+    process.env.RAILWAY_REPLICA_ID ??
+    process.env.RAILWAY_DEPLOYMENT_ID ??
+    process.env.HOSTNAME ??
+    "local"
+  );
+}
+
 function hasMetricsToFlush() {
   return (
     permissionCacheMetrics.channelSnapshot.bypass > 0 ||
@@ -150,7 +160,9 @@ function flushWorkspacePerformanceMetrics(now = Date.now()) {
     "[workspace-performance]",
     JSON.stringify({
       permissionCache: permissionCacheMetrics,
+      instanceId: getWorkspacePerformanceInstanceId(),
       messageSendFanout: messageSendFanoutMetrics,
+      scope: "process",
       type: "workspace_performance",
       unreadFanout: unreadFanoutMetrics,
       windowMs: now - windowStartedAt,

@@ -37,16 +37,8 @@ export const CHANNEL_MESSAGE_EDIT_RATE_LIMIT = {
 
 export const RATE_LIMIT_UNAVAILABLE_LOG_INTERVAL_MS = 30_000;
 export const RATE_LIMIT_UNAVAILABLE_GRACE_MS = 5_000;
+const RATE_LIMIT_UNAVAILABLE_GRACE_STALE_MS = RATE_LIMIT_UNAVAILABLE_GRACE_MS * 2;
 export const RATE_LIMIT_UNAVAILABLE_GRACE_LIMIT = 5;
-export const RATE_LIMIT_UNAVAILABLE_GRACE_MAX_KEYS = 5_000;
-
-type RateLimitUnavailableGraceState = {
-  attempts: number[];
-  firstUnavailableAt: number;
-  lastSeenAt: number;
-};
-
-const rateLimitUnavailableGraceState = new Map<string, RateLimitUnavailableGraceState>();
 
 export const DM_MESSAGE_GLOBAL_RATE_LIMIT = {
   limit: 120,
@@ -73,54 +65,60 @@ export function shouldLogRateLimitUnavailable(
 }
 
 export function resetRateLimitUnavailableGraceForTest() {
-  rateLimitUnavailableGraceState.clear();
+  // Grace state lives in Redis so every production worker shares one outage budget.
+  // Tests inject isolated Redis doubles; there is no module-local state to clear.
 }
 
-function pruneRateLimitUnavailableGraceState(now: number) {
-  const staleAfterMs = RATE_LIMIT_UNAVAILABLE_GRACE_MS * 2;
+const RATE_LIMIT_UNAVAILABLE_GRACE_SCRIPT = `
+local key = KEYS[1]
+local now = tonumber(ARGV[1])
+local graceMs = tonumber(ARGV[2])
+local staleMs = tonumber(ARGV[3])
+local limit = tonumber(ARGV[4])
 
-  for (const [key, state] of rateLimitUnavailableGraceState) {
-    if (now - state.lastSeenAt > staleAfterMs) {
-      rateLimitUnavailableGraceState.delete(key);
-    }
-  }
+local firstUnavailableAt = redis.call("HGET", key, "firstUnavailableAt")
+local attempts = redis.call("HGET", key, "attempts")
+
+if not firstUnavailableAt then
+  firstUnavailableAt = now
+  attempts = 0
+  redis.call("HSET", key, "firstUnavailableAt", firstUnavailableAt, "attempts", attempts)
+end
+
+redis.call("PEXPIRE", key, staleMs)
+
+if now - tonumber(firstUnavailableAt) > graceMs then
+  return 0
+end
+
+if tonumber(attempts) >= limit then
+  return 0
+end
+
+redis.call("HINCRBY", key, "attempts", 1)
+return 1
+`;
+
+function getRateLimitUnavailableGraceKey(key: string) {
+  return `rate:unavailable-grace:${key}`;
 }
 
-function clearRateLimitUnavailableGrace(key: string) {
-  rateLimitUnavailableGraceState.delete(key);
-}
+async function consumeRateLimitUnavailableGrace(redis: Redis, key: string, now: number) {
+  try {
+    const result = await redis.eval(
+      RATE_LIMIT_UNAVAILABLE_GRACE_SCRIPT,
+      1,
+      getRateLimitUnavailableGraceKey(key),
+      now,
+      RATE_LIMIT_UNAVAILABLE_GRACE_MS,
+      RATE_LIMIT_UNAVAILABLE_GRACE_STALE_MS,
+      RATE_LIMIT_UNAVAILABLE_GRACE_LIMIT,
+    );
 
-function consumeRateLimitUnavailableGrace(key: string, now: number) {
-  pruneRateLimitUnavailableGraceState(now);
-
-  let state = rateLimitUnavailableGraceState.get(key);
-  if (!state) {
-    if (rateLimitUnavailableGraceState.size >= RATE_LIMIT_UNAVAILABLE_GRACE_MAX_KEYS) {
-      return false;
-    }
-
-    state = {
-      attempts: [],
-      firstUnavailableAt: now,
-      lastSeenAt: now,
-    };
-    rateLimitUnavailableGraceState.set(key, state);
-  }
-
-  state.lastSeenAt = now;
-  if (now - state.firstUnavailableAt > RATE_LIMIT_UNAVAILABLE_GRACE_MS) {
+    return String(result) === "1";
+  } catch {
     return false;
   }
-
-  state.attempts = state.attempts.filter(
-    (attemptedAt) => now - attemptedAt <= RATE_LIMIT_UNAVAILABLE_GRACE_MS,
-  );
-  if (state.attempts.length >= RATE_LIMIT_UNAVAILABLE_GRACE_LIMIT) {
-    return false;
-  }
-
-  state.attempts.push(now);
-  return true;
 }
 
 async function runRateLimitCheck(args: {
@@ -139,12 +137,12 @@ async function runRateLimitCheck(args: {
       args.windowSeconds,
     );
 
-    clearRateLimitUnavailableGrace(args.key);
     return isAllowed ? { status: "allowed" } : { status: "limited" };
   } catch (error) {
     return {
       status: "unavailable",
-      allowDuringGrace: consumeRateLimitUnavailableGrace(
+      allowDuringGrace: await consumeRateLimitUnavailableGrace(
+        args.redis,
         args.key,
         args.now?.() ?? Date.now(),
       ),
