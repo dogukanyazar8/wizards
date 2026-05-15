@@ -16,7 +16,7 @@ import {
   leaveWorkspaceServer,
   updateWorkspaceMemberRoles,
 } from "./member-service";
-import { createWorkspaceServer, deleteWorkspaceServer } from "./server-service";
+import { createWorkspaceServer, deleteWorkspaceServer, updateWorkspaceServer } from "./server-service";
 
 type Restore = () => void;
 type UnknownRecord = Record<string, unknown>;
@@ -66,11 +66,13 @@ function createPermissionRedis(operations: string[]) {
       const keys: string[] = [];
       return {
         exec: async () => {
-          operations.push(
-            keys.some((key) => key.includes("permission:member:"))
-              ? "permission-cache.member"
-              : "permission-cache.server",
-          );
+          if (keys.some((key) => key.includes("permission:member:"))) {
+            operations.push("permission-cache.member");
+          } else if (keys.some((key) => key.includes("permission:server:"))) {
+            operations.push("permission-cache.server");
+          } else {
+            operations.push("permission-cache.write");
+          }
           return [];
         },
         expire() {
@@ -379,6 +381,75 @@ describe("workspace service characterization", { concurrency: false }, () => {
     });
   });
 
+  it("updates server metadata before permission cache invalidation and socket fanout", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      const operations: string[] = [];
+      setPermissionCacheRedisForTest(createPermissionRedis(operations));
+      setSocketServer(createFakeSocketServer(operations));
+
+      patchMethod(prisma.serverBan, "findUnique", async () => null, restores);
+      patchMethod(prisma.serverMember, "findFirst", async () =>
+        accessMembership({
+          permissions: PermissionBits.MANAGE_SERVER,
+          userId: "owner",
+        }), restores);
+      patchMethod(prisma.serverMember, "findUnique", async () => ({
+        id: "member-owner",
+        roles: [],
+        server: { ownerId: "owner" },
+      }), restores);
+      patchMethod(prisma.role, "findMany", async () => [defaultRole(PermissionBits.VIEW_CHANNEL)], restores);
+      patchMethod(prisma.channel, "findMany", async () => [], restores);
+      patchMethod(prisma.server, "update", async () => {
+        operations.push("server.update");
+        return {};
+      }, restores);
+      patchMethod(prisma.server, "findUnique", async () => ({
+        _count: { members: 0 },
+        categories: [],
+        channels: [],
+        deletedMessageNoticeMinutes: 5,
+        description: "Updated server",
+        features: [],
+        iconUrl: null,
+        id: "server-1",
+        inviteCode: "invite-code",
+        members: [],
+        messageCharacterLimit: 4096,
+        name: "Renamed",
+        ownerId: "owner",
+        roles: [
+          {
+            ...defaultRole(PermissionBits.VIEW_CHANNEL),
+            managed: false,
+            mentionable: false,
+            position: 0,
+          },
+        ],
+        shortName: null,
+      }), restores);
+
+      await updateWorkspaceServer("owner", "server-1", {
+        description: "Updated server",
+        iconUrl: null,
+        messageCharacterLimit: 4096,
+      });
+
+      assert.ok(
+        indexOfOperation(operations, "server.update") <
+          indexOfOperation(operations, "permission-cache.server"),
+      );
+      assert.ok(
+        indexOfOperation(operations, "permission-cache.server") <
+          indexOfOperation(operations, "socket.emit:server:server-1:server:settings:updated"),
+      );
+      assert.equal(
+        operations.filter((operation) => operation === "permission-cache.server").length,
+        1,
+      );
+    });
+  });
+
   it("updates channel permission overrides atomically before cache invalidation and fanout", async () => {
     await withPatchedEnvironment(async (restores) => {
       const operations: string[] = [];
@@ -645,7 +716,6 @@ describe("workspace service characterization", { concurrency: false }, () => {
             operation === "socket.emit:server:server-1:server:settings:updated",
         ),
         [
-          "permission-cache.server",
           "channel.update",
           "permission-cache.server",
           "voiceState.findMany",

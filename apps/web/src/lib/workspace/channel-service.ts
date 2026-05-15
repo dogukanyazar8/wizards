@@ -209,10 +209,6 @@ export async function updateWorkspaceChannel(
   const shouldInvalidateChannelPermissionMetadata =
     input.locked !== undefined || input.name !== undefined;
 
-  if (shouldInvalidateChannelPermissionMetadata) {
-    await invalidateServerPermissionCache(existingChannel.serverId);
-  }
-
   await prisma.channel.update({
     where: {
       id: channelId,

@@ -724,10 +724,6 @@ export async function updateWorkspaceServer(
     input.allowFileUploads !== undefined ||
     input.allowMemberAdds !== undefined;
 
-  if (shouldInvalidateChannelPermissionMetadata) {
-    await invalidateServerPermissionCache(serverId);
-  }
-
   await prisma.server.update({
     where: {
       id: serverId,
