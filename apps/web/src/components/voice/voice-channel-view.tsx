@@ -36,7 +36,8 @@ import {
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
-  useVoiceConnection,
+  useVoiceParticipants,
+  useVoiceState,
   type VoiceCameraStatus,
   type VoiceParticipantViewModel,
   type VoiceScreenShareViewModel,
@@ -1358,10 +1359,8 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
     isScreenSharing,
     joinChannel,
     leaveChannel,
-    participants,
     resetParticipantVolume,
     room,
-    screenShares,
     setActiveScreenShareId,
     setParticipantVolume,
     setScreenShareQuality,
@@ -1371,7 +1370,8 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
     toggleDeafen,
     toggleMute,
     toggleScreenShare,
-  } = useVoiceConnection();
+  } = useVoiceState();
+  const { participants, screenShares } = useVoiceParticipants();
   const [hasRequestedJoin, setHasRequestedJoin] = useState(false);
   const [activeCameraParticipantId, setActiveCameraParticipantId] = useState<string | null>(null);
   const [stageFocus, setStageFocus] = useState<VoiceStageFocus>("screen");

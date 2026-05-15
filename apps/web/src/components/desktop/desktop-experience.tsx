@@ -17,7 +17,7 @@ import {
   type WhisprDesktopCommandDetail,
 } from "@/lib/desktop/runtime";
 import { useAppStore } from "@/lib/store";
-import { useVoiceConnection } from "@/components/providers/voice-provider";
+import { useVoiceState } from "@/components/providers/voice-provider";
 import { useI18n } from "@/components/providers/locale-provider";
 
 type BadgeNavigator = Navigator & {
@@ -230,7 +230,7 @@ export function DesktopExperience() {
   const router = useRouter();
   const socket = useSocket();
   const queryClient = useQueryClient();
-  const voice = useVoiceConnection();
+  const { toggleDeafen, toggleMute } = useVoiceState();
   const { t } = useI18n();
   const desktopNotificationPreviews = useAppStore(
     (state) => state.desktopNotificationPreviews,
@@ -312,10 +312,10 @@ export function DesktopExperience() {
           router.push("/settings");
           break;
         case "toggle-deafen":
-          void voice.toggleDeafen();
+          void toggleDeafen();
           break;
         case "toggle-mute":
-          void voice.toggleMute();
+          void toggleMute();
           break;
       }
     };
@@ -325,7 +325,7 @@ export function DesktopExperience() {
     return () => {
       window.removeEventListener(WHISPR_DESKTOP_COMMAND_EVENT, handleDesktopCommand);
     };
-  }, [isDesktop, router, voice]);
+  }, [isDesktop, router, toggleDeafen, toggleMute]);
 
   useEffect(() => {
     if (!isDesktop) {
@@ -411,13 +411,13 @@ export function DesktopExperience() {
 
       if (commandOrControl && event.shiftKey && !event.altKey && key === "m") {
         event.preventDefault();
-        void voice.toggleMute();
+        void toggleMute();
         return;
       }
 
       if (commandOrControl && event.shiftKey && !event.altKey && key === "d") {
         event.preventDefault();
-        void voice.toggleDeafen();
+        void toggleDeafen();
         return;
       }
 
@@ -432,7 +432,7 @@ export function DesktopExperience() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isDesktop, router, voice]);
+  }, [isDesktop, router, toggleDeafen, toggleMute]);
 
   if (!isDesktop) {
     return null;
