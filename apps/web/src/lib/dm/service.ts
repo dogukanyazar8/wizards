@@ -765,8 +765,13 @@ export async function getDirectMessageConversationForUser(
 ): Promise<DMConversationDTO> {
   const [deletedMessageLabel, conversation] = await Promise.all([
     getDeletedMessageLabel(userId),
-    prisma.dMConversation.findUnique({
-      where: { id: conversationId },
+    prisma.dMConversation.findFirst({
+      where: {
+        id: conversationId,
+        participants: {
+          some: { userId },
+        },
+      },
       include: dmConversationInclude,
     }),
   ]);

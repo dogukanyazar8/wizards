@@ -51,6 +51,10 @@
     "mtime": 1777980040.2762806,
     "hash": "31c02cb79aa176f5dcaa18c597ee84df"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\helpers\\api-auth.ts": {
+    "mtime": 1778849728.815222,
+    "hash": "b00e1d21faf36db9b6f79e7f55a190c5"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\helpers\\auth.ts": {
     "mtime": 1777980040.2762806,
     "hash": "3f7807cfe5cc61e704bc348e3934dae3"
@@ -74,6 +78,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\setup\\reset-and-seed.ts": {
     "mtime": 1777980040.279281,
     "hash": "de70e23c3e7588b04951430c4a5232ef"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\api\\api-routes.spec.ts": {
+    "mtime": 1778850048.5658634,
+    "hash": "5cea18c9ff42597362788d46247c1368"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\attachments\\attachments.spec.ts": {
     "mtime": 1777980040.279281,
@@ -235,6 +243,10 @@
     "mtime": 1776872602.4812915,
     "hash": "2fb98a7414f57b1abe823676a73841cb"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\route-contract.test.ts": {
+    "mtime": 1778849309.890597,
+    "hash": "d905c762e1130a23ed698755218d72cb"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\admin\\dashboard\\route.ts": {
     "mtime": 1778588555.9119568,
     "hash": "8d51762c7323c84e371fe40752e8f915"
@@ -296,8 +308,8 @@
     "hash": "21090db903a245cb8a9a44cc8a570e8c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\channels\\[channelId]\\notification-settings\\route.ts": {
-    "mtime": 1778571008.1032603,
-    "hash": "3bd42e541a6ae1384d6d75dd6c056408"
+    "mtime": 1778849144.933383,
+    "hash": "20a072e62d559b5b8f7cb3d06c70678b"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\channels\\[channelId]\\permissions\\route.ts": {
     "mtime": 1778826470.6908736,
@@ -1212,8 +1224,8 @@
     "hash": "0f526183d8338dbeb4481e448c85c4a2"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\dm\\service.ts": {
-    "mtime": 1778771552.4059978,
-    "hash": "eabeed3f32dae8452fc493fab18b5f62"
+    "mtime": 1778850048.5648634,
+    "hash": "14217e11ddcad479444c59a2a24670eb"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\dm\\types.ts": {
     "mtime": 1778001516.9530997,
@@ -1896,8 +1908,8 @@
     "hash": "d4ba54a7c4af26b20068489fab70ffc1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright-report\\index.html": {
-    "mtime": 1778237282.1590698,
-    "hash": "4c70e22e99d13ad388546447c1150ece"
+    "mtime": 1778850174.0161257,
+    "hash": "89a8d8b5eff9e99415263f1de32972c2"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\legal\\cookies.txt": {
     "mtime": 1778571008.0962586,
@@ -1938,18 +1950,6 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\src-tauri\\icons\\icon.png": {
     "mtime": 1778571008.089259,
     "hash": "1a25f1fdee07cf2e50a7ea83df0b21f6"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright-report\\auth-desktop.png": {
-    "mtime": 1778246635.18669,
-    "hash": "cd5d727936dc8235bdcd3e168179b921"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright-report\\auth-mobile.png": {
-    "mtime": 1778246636.2771568,
-    "hash": "108b003c8a3bffeedd1400c8b536b9a0"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright-report\\auth-register-desktop.png": {
-    "mtime": 1778246705.4062731,
-    "hash": "bcf044b09d9706e87425d6420fb43b3b"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\app-icons\\wave-0.png": {
     "mtime": 1777530216.519421,

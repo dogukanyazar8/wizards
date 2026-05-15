@@ -7,6 +7,7 @@ on:
         default: smoke
         description: Playwright E2E scope to run manually
         options:
+          - api
           - smoke
           - full
         required: true
@@ -16,6 +17,7 @@ on:
     branches:
       - main
       - staging
+      - uat
 
 jobs:
   verify:
@@ -153,6 +155,10 @@ jobs:
 
       - name: Install Playwright Chromium
         run: pnpm --filter @wizards/web exec playwright install --with-deps chromium
+
+      - name: Run Playwright API tests
+        if: github.event_name != 'workflow_dispatch' || inputs.e2e_scope == 'api' || inputs.e2e_scope == 'smoke'
+        run: pnpm --filter @wizards/web e2e:api
 
       - name: Run Playwright smoke tests
         if: github.event_name != 'workflow_dispatch' || inputs.e2e_scope == 'smoke'

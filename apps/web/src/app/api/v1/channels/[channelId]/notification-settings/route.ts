@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ChannelType, prisma } from "@wizards/db";
 import { requireApiUserId } from "@/lib/auth/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
-import { jsonError } from "@/lib/api";
+import { jsonError, parseJsonBody } from "@/lib/api";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
 
@@ -71,7 +71,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const userId = await requireApiUserId();
     await enforceApiRateLimit(userId, "settings:update");
     const { channelId } = await context.params;
-    const input = UpdateNotificationSettingsSchema.parse(await request.json());
+    const input = await parseJsonBody(request, UpdateNotificationSettingsSchema);
     await assertChannelAccess(userId, channelId);
 
     const settings =
