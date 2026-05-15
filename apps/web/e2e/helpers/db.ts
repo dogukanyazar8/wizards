@@ -1,12 +1,11 @@
 import { expect } from "../fixtures/test";
 import { ChannelType } from "@wizards/db";
 import { createE2EPrismaClient } from "../setup/e2e-database";
+import { SERVER_ADMIN_PERMISSIONS } from "../../src/lib/workspace/permissions";
 import { applyServerMediaSettings } from "../../src/lib/workspace/server-features";
 import { e2eServer, e2eUsers, type E2EUserKey } from "./test-data";
 
 type E2EPrismaClient = ReturnType<typeof createE2EPrismaClient>;
-
-const SERVER_ADMIN_PERMISSION = (1n << 0n) | (1n << 1n) | (1n << 2n) | (1n << 3n);
 
 async function findE2EUserId(prisma: E2EPrismaClient, userKey: E2EUserKey): Promise<string> {
   const user = await prisma.user.findUnique({
@@ -381,7 +380,7 @@ export async function createIsolatedServerForMembershipTest(
       prisma.role.create({
         data: {
           name: "Admin",
-          permissions: SERVER_ADMIN_PERMISSION,
+          permissions: SERVER_ADMIN_PERMISSIONS,
           position: 1,
           serverId: server.id,
         },
