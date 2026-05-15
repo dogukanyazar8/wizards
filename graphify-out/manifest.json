@@ -40,8 +40,8 @@
     "hash": "95d63a38f4a16b2e6a8384a209e09b1e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\server.ts": {
-    "mtime": 1778741002.08457,
-    "hash": "39e75c1e829da8f3f986d170a7fcd1b2"
+    "mtime": 1778819753.0757728,
+    "hash": "1fb8fe1b3703892cfafe745cd2574ed3"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\tailwind.config.ts": {
     "mtime": 1776813184.901632,
@@ -1068,8 +1068,8 @@
     "hash": "07f6480eb4f16a607a3113fc1d326ff7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\analytics\\service.ts": {
-    "mtime": 1778586507.2488632,
-    "hash": "d093b3b47b410aa34f05dd186399c837"
+    "mtime": 1778819817.6818,
+    "hash": "98b9f4fd919943580254282dd7255b1f"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\appearance\\actions.ts": {
     "mtime": 1777165496.994203,
@@ -1180,8 +1180,8 @@
     "hash": "8662bfeb7b44d69990888ce007db4bf6"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\dm\\notification-service.ts": {
-    "mtime": 1778647705.4543874,
-    "hash": "8640760767eda22e226ff2dfa8f89370"
+    "mtime": 1778819817.6933117,
+    "hash": "9758032fa1b4629c086a42b718d401db"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\dm\\participant-service.ts": {
     "mtime": 1778648674.1268663,
@@ -1192,8 +1192,8 @@
     "hash": "65683238ca47b0e0701bed769b3ecd42"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\dm\\realtime-service.ts": {
-    "mtime": 1778771493.0925746,
-    "hash": "f18861309baf8dfd83c1b71b3481ff70"
+    "mtime": 1778819817.6998177,
+    "hash": "0f526183d8338dbeb4481e448c85c4a2"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\dm\\service.ts": {
     "mtime": 1778771552.4059978,
@@ -1299,6 +1299,18 @@
     "mtime": 1778589290.281813,
     "hash": "a44f623f73f0c0d2f9ae645dd51f47dc"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\outbox\\service.test.ts": {
+    "mtime": 1778819481.157353,
+    "hash": "e21642d2f986f40d63c63ef80956d756"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\outbox\\service.ts": {
+    "mtime": 1778820098.737983,
+    "hash": "a2fd07a4f5baa02b738254599fbf9cf6"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\outbox\\worker.ts": {
+    "mtime": 1778819944.6321857,
+    "hash": "ff050754e6c0dcabd1a71a06dde8b61e"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\settings\\client.ts": {
     "mtime": 1777363590.0951931,
     "hash": "da6fb2425b51f8a0259538d86bf511eb"
@@ -1396,8 +1408,8 @@
     "hash": "5ac3730d38d92108dc94d3ac794f0e54"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\dm.ts": {
-    "mtime": 1778818247.0855212,
-    "hash": "ffeb69e6a76aeab514b847a828af3652"
+    "mtime": 1778819817.7464519,
+    "hash": "009f4220caa42a0e61d2aaa7a9b19173"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\index.test.ts": {
     "mtime": 1778680949.81064,
@@ -1412,8 +1424,8 @@
     "hash": "787a4991a5add271602e087791fe9165"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\message.ts": {
-    "mtime": 1778818247.0845218,
-    "hash": "bc22763cef9a5ccb72f1a3c56b9fcc41"
+    "mtime": 1778819817.76198,
+    "hash": "1f53038fbd2716fa713563b18495a76d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\presence.ts": {
     "mtime": 1778646274.5013897,
@@ -1472,16 +1484,16 @@
     "hash": "8915d6964069c9a8da21f4eb28c50ae8"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\message-notification-service.ts": {
-    "mtime": 1778818247.0865223,
-    "hash": "985b305aee77956cf479dfabe1b32445"
+    "mtime": 1778819817.7744935,
+    "hash": "1feab9ae867ee0f0dd6ab67a9f85b9f8"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\message-service.test.ts": {
-    "mtime": 1778744287.718786,
-    "hash": "bf72158bfffe204cf2cd1c5f87ff9ade"
+    "mtime": 1778819817.8150945,
+    "hash": "1440f655e2890c30168551daa443f01e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\message-service.ts": {
-    "mtime": 1778818247.0865223,
-    "hash": "b177a5e81a0ad74355e6a0e0cf129686"
+    "mtime": 1778819721.6132152,
+    "hash": "44c53319231ff7bb32ed5e2d994bf254"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\migration-sql.test.ts": {
     "mtime": 1777980040.3541453,
@@ -1650,6 +1662,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations\\20260515120000_add_user_sessions_revoked_after\\migration.sql": {
     "mtime": 1778817730.9971452,
     "hash": "9941e703d1daa649daa35116256ab6a8"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations\\20260515143000_add_outbox_jobs\\migration.sql": {
+    "mtime": 1778819908.09971,
+    "hash": "d40c7c3f06e3a79feeb44bc243da43ca"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations_backup_20260427_151913\\20260422000000_add_fulltext_search_indexes\\migration.sql": {
     "mtime": 1777291947.18171,

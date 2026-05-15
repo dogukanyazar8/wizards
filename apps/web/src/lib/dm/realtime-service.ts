@@ -2,14 +2,10 @@ import type { UploadedAttachmentInput } from "@wizards/types";
 
 import { prisma } from "@wizards/db";
 
-import {
-  claimUploadedMessageAttachments,
-} from "@/lib/messages/attachments";
+import { claimUploadedMessageAttachments } from "@/lib/messages/attachments";
+import { enqueueMessageCreatedAnalyticsJob } from "@/lib/outbox/service";
 
-import {
-  dmMessageInclude,
-  getDirectMessageConversationRealtimeViews,
-} from "./service";
+import { dmMessageInclude, getDirectMessageConversationRealtimeViews } from "./service";
 
 export type DMRealtimeParticipant = {
   userId: string;
@@ -48,6 +44,18 @@ export async function createRealtimeDMMessage(args: {
     await tx.dMConversation.update({
       where: { id: args.conversationId },
       data: { lastMessageAt: createdMessage.createdAt },
+    });
+    const uploadedBytes = message.attachments.reduce(
+      (total, attachment) => total + BigInt(attachment.size),
+      0n,
+    );
+
+    await enqueueMessageCreatedAnalyticsJob(tx, {
+      attachmentCount: message.attachments.length,
+      idempotencyKey: `analytics:dm-message:${createdMessage.id}`,
+      isDm: true,
+      uploadedBytes,
+      userId: args.userId,
     });
 
     await Promise.all(

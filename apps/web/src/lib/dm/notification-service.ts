@@ -1,17 +1,16 @@
 import { prisma } from "@wizards/db";
 
-import { logError } from "@/lib/logger";
 import { normalizeAppLocale, translate } from "@/lib/locale";
-import {
-  isMessageGifContentType,
-  isMessageImageContentType,
-} from "@/lib/messages/attachments";
+import { isMessageGifContentType, isMessageImageContentType } from "@/lib/messages/attachments";
 import { serializeNotification, type NotificationRecord } from "@/lib/socket/notification-payload";
 import type { AppSocketServer } from "@/lib/socket/runtime";
 
-export type DMNotificationAttachment = {
-  contentType: string;
-} | null | undefined;
+export type DMNotificationAttachment =
+  | {
+      contentType: string;
+    }
+  | null
+  | undefined;
 
 export type DMNotificationParticipant = {
   userId: string;
@@ -28,7 +27,10 @@ export function getDMAttachmentLabelKey(firstAttachment: DMNotificationAttachmen
       : "chat.attachments.file";
 }
 
-export function getDMConversationPreview(content: string, firstAttachment: DMNotificationAttachment) {
+export function getDMConversationPreview(
+  content: string,
+  firstAttachment: DMNotificationAttachment,
+) {
   return content.length > 0
     ? content.slice(0, 50)
     : firstAttachment && isMessageGifContentType(firstAttachment.contentType)
@@ -44,49 +46,45 @@ export async function createDMMessageNotifications(args: {
   attachmentLabelKey: string;
   content: string;
   conversationId: string;
-  io: AppSocketServer;
+  io?: AppSocketServer;
+  messageId: string;
   participants: DMNotificationParticipant[];
   senderId: string;
   senderName: string;
 }) {
-  try {
-    const notificationPromises = args.participants
-      .filter((participant) => participant.userId !== args.senderId)
-      .map(async (participant) => {
-        const locale = normalizeAppLocale(participant.user.locale);
-        const notification = await prisma.notification.create({
-          data: {
-            userId: participant.userId,
-            type: "DM",
-            title: translate(locale, "dm.notification.title", {
-              name: args.senderName,
-            }),
-            body:
-              args.content.length > 0
-                ? args.content
-                : translate(locale, args.attachmentLabelKey),
-            actionUrl: `/channels/@me/${args.conversationId}`,
-            metadata: {
-              conversationId: args.conversationId,
-              senderId: args.senderId,
-            },
-          },
-        });
+  const recipients = args.participants.filter(
+    (participant) => participant.userId !== args.senderId,
+  );
+  if (recipients.length === 0) {
+    return;
+  }
 
-        return {
-          participantId: participant.userId,
-          payload: serializeNotification(notification as NotificationRecord),
-        };
-      });
+  const notifications = await prisma.notification.createManyAndReturn({
+    data: recipients.map((participant) => {
+      const locale = normalizeAppLocale(participant.user.locale);
 
-    const createdNotifications = await Promise.all(notificationPromises);
-    for (const notification of createdNotifications) {
-      args.io.to(`user:${notification.participantId}`).emit(
-        "notification:new",
-        notification.payload,
-      );
-    }
-  } catch (notificationError) {
-    logError("[socket] DM notification error", notificationError);
+      return {
+        actionUrl: `/channels/@me/${args.conversationId}`,
+        body: args.content.length > 0 ? args.content : translate(locale, args.attachmentLabelKey),
+        dedupeKey: `dm-message:${args.messageId}:${participant.userId}`,
+        metadata: {
+          conversationId: args.conversationId,
+          messageId: args.messageId,
+          senderId: args.senderId,
+        },
+        title: translate(locale, "dm.notification.title", {
+          name: args.senderName,
+        }),
+        type: "DM",
+        userId: participant.userId,
+      };
+    }),
+    skipDuplicates: true,
+  });
+
+  for (const notification of notifications) {
+    args.io
+      ?.to(`user:${notification.userId}`)
+      .emit("notification:new", serializeNotification(notification as NotificationRecord));
   }
 }

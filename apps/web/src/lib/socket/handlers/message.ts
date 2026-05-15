@@ -28,9 +28,9 @@ import {
   SocketMessageSendPayloadSchema,
 } from "@/lib/socket/schemas";
 import {
-  createChannelMentionNotifications,
-  createChannelThreadReplyNotification,
-} from "@/lib/workspace/message-notification-service";
+  enqueueChannelMentionNotificationJob,
+  enqueueChannelThreadReplyNotificationJob,
+} from "@/lib/outbox/service";
 import {
   createMessage,
   deleteMessage,
@@ -272,31 +272,30 @@ export function registerMessageHandlers(
         readUserCount: readUserIds.length,
         unreadUpdateUserCount: unreadUpdateUserIds.length,
       });
-      void createChannelMentionNotifications({
+      void enqueueChannelMentionNotificationJob({
         channelId: data.channelId,
         channelName: channel.name,
         content,
-        io,
         messageId: message.id,
         senderId: userId,
         senderName: message.author.displayName ?? message.author.username,
         serverId: channel.serverId,
         skipUserIds: readUserIds,
       }).catch((error) => {
-        logError("[socket] Message mention notification failed", error);
+        logError("[socket] Message mention notification enqueue failed", error);
       });
       if (data.threadParentId) {
-        void createChannelThreadReplyNotification({
+        void enqueueChannelThreadReplyNotificationJob({
           channelId: data.channelId,
           channelName: channel.name,
           content,
-          io,
+          messageId: message.id,
           parentMessageId: data.threadParentId,
           senderId: userId,
           senderName: message.author.displayName ?? message.author.username,
           serverId: channel.serverId,
         }).catch((error) => {
-          logError("[socket] Message thread reply notification failed", error);
+          logError("[socket] Message thread reply notification enqueue failed", error);
         });
       }
     } catch (error) {
@@ -337,8 +336,7 @@ export function registerMessageHandlers(
         if (!rateLimitResult.allowDuringGrace) {
           socket.emit("error", {
             code: "RATE_LIMIT_UNAVAILABLE",
-            message:
-              "Message edit controls are temporarily unavailable. Please try again shortly.",
+            message: "Message edit controls are temporarily unavailable. Please try again shortly.",
           });
           return;
         }

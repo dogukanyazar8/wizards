@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "http";
 import next from "next";
 import { assertWebEnvironment } from "./src/lib/env.js";
 import { getOperationalProbeResponse, HEALTH_RESPONSE_HEADERS } from "./src/lib/health.js";
+import { startOutboxWorker } from "./src/lib/outbox/worker.js";
 import { initSocketServer } from "./src/lib/socket/server.js";
 
 try {
@@ -86,6 +87,7 @@ app.prepare().then(() => {
     await handler(request, response);
   });
   initSocketServer(httpServer);
+  startOutboxWorker();
   httpServer.listen(PORT, () => {
     console.info(`Server running on http://localhost:${PORT}`);
   });

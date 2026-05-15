@@ -3,7 +3,6 @@ import type { UploadedAttachmentInput } from "@wizards/types";
 import { Prisma, prisma } from "@wizards/db";
 
 import { ApiError } from "@/lib/api";
-import { logAnalyticsError, recordMessageCreated } from "@/lib/analytics/service";
 import { assertUnblockedDMParticipants } from "@/lib/dm/blocking";
 import { isDMParticipant } from "@/lib/dm/participant-service";
 import {
@@ -18,25 +17,16 @@ import {
   createRealtimeDMMessage,
   getDMConversationRealtimeUpdates,
 } from "@/lib/dm/realtime-service";
-import {
-  createDMMessageNotifications,
-  getDMAttachmentLabelKey,
-  getDMConversationPreview,
-} from "@/lib/dm/notification-service";
+import { getDMAttachmentLabelKey, getDMConversationPreview } from "@/lib/dm/notification-service";
 import { logError } from "@/lib/logger";
 import {
   normalizeMessageContentForSend,
   parseUploadedAttachmentInputs,
 } from "@/lib/messages/attachments";
 import type { HandlerContext } from "@/lib/socket/context";
-import {
-  createDMErrorEmitter,
-  createSafeDMErrorEmitter,
-} from "@/lib/socket/errors";
-import {
-  checkDMMessageRateLimits,
-  shouldLogRateLimitUnavailable,
-} from "@/lib/socket/rate-limits";
+import { createDMErrorEmitter, createSafeDMErrorEmitter } from "@/lib/socket/errors";
+import { checkDMMessageRateLimits, shouldLogRateLimitUnavailable } from "@/lib/socket/rate-limits";
+import { enqueueDMMessageNotificationJob } from "@/lib/outbox/service";
 import {
   parseSocketPayload,
   SocketConversationPayloadSchema,
@@ -342,17 +332,6 @@ export function registerDMHandlers(
       });
 
       const messagePayload = mapDMMessagePayload(createdMessage);
-      void recordMessageCreated({
-        attachmentCount: createdMessage.attachments.length,
-        isDm: true,
-        uploadedBytes: createdMessage.attachments.reduce(
-          (total, attachment) => total + BigInt(attachment.size),
-          0n,
-        ),
-        userId,
-      }).catch((error) => {
-        logAnalyticsError("dm message created", error);
-      });
       io.to(`dm:${data.conversationId}`).emit("dm:message:new", messagePayload);
 
       const firstAttachment = createdMessage.attachments[0];
@@ -380,14 +359,16 @@ export function registerDMHandlers(
         username: socket.data.username,
         displayName: socket.data.displayName,
       });
-      await createDMMessageNotifications({
+      void enqueueDMMessageNotificationJob({
         attachmentLabelKey,
         content,
         conversationId: data.conversationId,
-        io,
+        messageId: createdMessage.id,
         participants,
         senderId: userId,
         senderName,
+      }).catch((error) => {
+        logError("[socket] DM notification enqueue failed", error);
       });
 
       await options.stopDMTyping?.(data.conversationId);

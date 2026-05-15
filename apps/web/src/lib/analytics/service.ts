@@ -1,10 +1,7 @@
-import type { AnalyticsMediaKind } from "@wizards/db";
+import type { AnalyticsMediaKind, Prisma } from "@wizards/db";
 import { prisma } from "@wizards/db";
 import { logError } from "@/lib/logger";
-import {
-  getAnalyticsClientInfo,
-  type AnalyticsClientInfo,
-} from "@/lib/analytics/client-info";
+import { getAnalyticsClientInfo, type AnalyticsClientInfo } from "@/lib/analytics/client-info";
 
 type MetricIncrements = {
   appSeconds?: number;
@@ -19,6 +16,12 @@ type MetricIncrements = {
 };
 
 type HeaderSource = Parameters<typeof getAnalyticsClientInfo>[0];
+
+type AnalyticsMetricClient = {
+  userDailyMetric: {
+    upsert(args: Prisma.UserDailyMetricUpsertArgs): Promise<unknown>;
+  };
+};
 
 const MEDIA_METRIC_FIELD: Record<AnalyticsMediaKind, keyof MetricIncrements> = {
   CAMERA: "cameraSeconds",
@@ -78,11 +81,12 @@ export async function incrementUserDailyMetric(
   userId: string,
   increments: MetricIncrements,
   date = new Date(),
+  client: AnalyticsMetricClient = prisma,
 ) {
   const metricDate = getUtcDayStart(date);
   const uploadedBytes = positiveBigInt(increments.uploadedBytes);
 
-  await prisma.userDailyMetric.upsert({
+  await client.userDailyMetric.upsert({
     where: {
       date_userId: {
         date: metricDate,
@@ -121,9 +125,10 @@ async function incrementMetricAcrossInterval(
   startedAt: Date,
   endedAt: Date,
   field: keyof MetricIncrements,
+  client: AnalyticsMetricClient = prisma,
 ) {
   for (const segment of splitIntervalByUtcDay(startedAt, endedAt)) {
-    await incrementUserDailyMetric(userId, { [field]: segment.seconds }, segment.date);
+    await incrementUserDailyMetric(userId, { [field]: segment.seconds }, segment.date, client);
   }
 }
 
@@ -229,18 +234,26 @@ export async function endAppSession(
   await incrementMetricAcrossInterval(session.userId, session.startedAt, endedAt, "appSeconds");
 }
 
-export async function recordMessageCreated(args: {
-  attachmentCount?: number;
-  isDm?: boolean;
-  uploadedBytes?: bigint | number;
-  userId: string;
-}) {
-  await incrementUserDailyMetric(args.userId, {
-    dmMessageCount: args.isDm ? 1 : 0,
-    fileUploadCount: args.attachmentCount ?? 0,
-    messageCount: args.isDm ? 0 : 1,
-    uploadedBytes: args.uploadedBytes ?? 0,
-  });
+export async function recordMessageCreated(
+  args: {
+    attachmentCount?: number;
+    isDm?: boolean;
+    uploadedBytes?: bigint | number;
+    userId: string;
+  },
+  client: AnalyticsMetricClient = prisma,
+) {
+  await incrementUserDailyMetric(
+    args.userId,
+    {
+      dmMessageCount: args.isDm ? 1 : 0,
+      fileUploadCount: args.attachmentCount ?? 0,
+      messageCount: args.isDm ? 0 : 1,
+      uploadedBytes: args.uploadedBytes ?? 0,
+    },
+    new Date(),
+    client,
+  );
 }
 
 export async function startMediaUsageSession(args: {

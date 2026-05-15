@@ -11,11 +11,11 @@ import {
   type UploadedAttachmentInput,
 } from "@wizards/types";
 import { ApiError } from "@/lib/api";
-import { logAnalyticsError, recordMessageCreated } from "@/lib/analytics/service";
 import {
   claimUploadedMessageAttachments,
   normalizeMessageContentForSend,
 } from "@/lib/messages/attachments";
+import { enqueueMessageCreatedAnalyticsJob } from "@/lib/outbox/service";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
 import { PermissionBits, hasPermission } from "@/lib/workspace/permissions";
 
@@ -700,26 +700,25 @@ async function createTypedMessage(args: {
       where: { id: createdMessage.id },
       include: messageInclude,
     })) as RawMessage;
+    const attachmentCount = message.attachments.length;
+    const uploadedBytes = message.attachments.reduce(
+      (total, attachment) => total + BigInt(attachment.size),
+      0n,
+    );
+
+    if (args.type === "DEFAULT") {
+      await enqueueMessageCreatedAnalyticsJob(tx, {
+        attachmentCount,
+        idempotencyKey: `analytics:channel-message:${createdMessage.id}`,
+        uploadedBytes,
+        userId: args.userId,
+      });
+    }
 
     return {
-      attachmentCount: message.attachments.length,
       payload: mapRawMessage(message),
-      uploadedBytes: message.attachments.reduce(
-        (total, attachment) => total + BigInt(attachment.size),
-        0n,
-      ),
     };
   });
-
-  if (args.type === "DEFAULT") {
-    void recordMessageCreated({
-      attachmentCount: result.attachmentCount,
-      uploadedBytes: result.uploadedBytes,
-      userId: args.userId,
-    }).catch((error) => {
-      logAnalyticsError("channel message created", error);
-    });
-  }
 
   return result.payload;
 }

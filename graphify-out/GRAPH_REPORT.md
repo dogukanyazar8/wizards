@@ -1,16 +1,16 @@
 # Graph Report - Wizards  (2026-05-15)
 
 ## Corpus Check
-- 437 files · ~390,811 words
+- 441 files · ~392,258 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3221 nodes · 9635 edges · 117 communities (109 shown, 8 thin omitted)
+- 3256 nodes · 9724 edges · 113 communities (106 shown, 7 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 40 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `4197739a`
+- Built from commit: `893d9956`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -126,10 +126,6 @@
 - [[_COMMUNITY_Community 108|Community 108]]
 - [[_COMMUNITY_Community 109|Community 109]]
 - [[_COMMUNITY_Community 110|Community 110]]
-- [[_COMMUNITY_Community 111|Community 111]]
-- [[_COMMUNITY_Community 112|Community 112]]
-- [[_COMMUNITY_Community 113|Community 113]]
-- [[_COMMUNITY_Community 114|Community 114]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `useI18n()` - 174 edges
@@ -138,9 +134,9 @@
 4. `enforceApiRateLimit()` - 116 edges
 5. `VoiceProvider()` - 88 edges
 6. `cn()` - 66 edges
-7. `parseJsonBody()` - 61 edges
-8. `LocaleProvider()` - 60 edges
-9. `logError()` - 60 edges
+7. `logError()` - 63 edges
+8. `parseJsonBody()` - 61 edges
+9. `LocaleProvider()` - 60 edges
 10. `getRedis()` - 60 edges
 
 ## Surprising Connections (you probably didn't know these)
@@ -155,263 +151,263 @@
 - `main()` --calls--> `ensureServerMember()`  [EXTRACTED]
   apps/desktop/src-tauri/src/main.rs → packages/db/src/seed.ts
 
-## Communities (117 total, 8 thin omitted)
+## Communities (113 total, 7 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.08
-Nodes (61): POST(), requireApiUserId(), POST(), RouteContext, DELETE(), PATCH(), RouteContext, DELETE() (+53 more)
+Cohesion: 0.05
+Nodes (80): AdminManagedServer, AdminManagedUser, AdminManagementPanel(), AdminManagementPanelProps, formatDuration(), formatNumber(), PaginatedResponse, UserAction (+72 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.05
-Nodes (52): ChannelConversationPage(), ChannelConversationPageProps, ChatArea(), ChatAreaProps, FloatingPanelPosition, PendingMessagePayload, ClearChannelHistoryAction(), ClearChannelHistoryActionProps (+44 more)
+Cohesion: 0.07
+Nodes (62): POST(), requireApiUserId(), GET(), POST(), RouteContext, DELETE(), PATCH(), RouteContext (+54 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.05
-Nodes (62): logAnalyticsError(), isDMParticipant(), registerChannelHandlers(), assertUnblockedDMParticipants(), DMParticipantIdentity, FindBlockedUserIdsForUser, registerDMHandlers(), checkedCandidateUserIds (+54 more)
+Cohesion: 0.04
+Nodes (62): AuthFooter(), LANGUAGE_OPTIONS, ThemeToggle(), ChannelError(), EmojiPicker(), EmojiPickerProps, EmojiSelection, Picker (+54 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.06
-Nodes (60): NotificationComposer(), NotificationComposerProps, RequestState, SegmentType, requestJson(), ServerFeatureToggle(), ServerFeatureToggleProps, DELETED_NOTICE_OPTIONS (+52 more)
+Cohesion: 0.05
+Nodes (65): logAnalyticsError(), DMParticipantIdentity, FindBlockedUserIdsForUser, isDMParticipant(), getBlockedUserIdsForUser(), registerChannelHandlers(), assertUnblockedDMParticipants(), DMParticipantIdentity (+57 more)
 
 ### Community 4 - "Community 4"
 Cohesion: 0.04
-Nodes (50): logoutAction(), normalizeIdleTimeoutMinutes(), PRESENCE_IDLE_TIMEOUT_OPTIONS, PresenceSocket, PresenceStatus, readStoredIdleTimeoutMinutes(), usePresenceActivity(), usePresenceIdleTimeoutPreference() (+42 more)
+Nodes (64): logoutAction(), DMConversationPage(), FriendCard(), FriendCardProps, getStatusDotClass(), getStatusKey(), useDMConversations(), normalizeIdleTimeoutMinutes() (+56 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.03
-Nodes (62): AddServerMemberInput, AddServerMemberSchema, CreateCategoryInput, CreateCategorySchema, CreateChannelInput, CreateChannelSchema, CreateInviteInput, CreateInviteSchema (+54 more)
+Cohesion: 0.05
+Nodes (79): ChannelPage(), hasAdminAccess(), ensureChannelMembership(), emitToChannelViewers(), emitToUserRooms(), getPermittedChannelViewerUserIds(), emitVoiceScreenShareUpdate(), readCachedChannelPermissionSnapshot() (+71 more)
 
 ### Community 6 - "Community 6"
 Cohesion: 0.06
-Nodes (54): applyRemoteAudioState(), buildAudioCaptureOptions(), collectScreenShares(), connectLiveKitRoomWithRetry(), countActiveScreenShares(), createLocalVoiceAudioLevelMonitor(), E2E_CAMERA_TRACK, getAudioCaptureRestartSignature() (+46 more)
+Nodes (67): applyDMConversationPresenceUpdateToPageData(), applyDMConversationUpdate(), applyDMConversationUpdateToPageData(), createDMConversationRequest(), createDMConversationsInfiniteData(), DMClientError, DMConversationsInfiniteData, dmQueryKeys (+59 more)
 
 ### Community 7 - "Community 7"
-Cohesion: 0.09
-Nodes (62): DELETE(), emitPinUpdate(), getSocketServer(), disconnectUnauthorizedVoiceParticipants(), emitVoiceStateUpdate(), pruneUnauthorizedVoiceStateViewers(), invalidateServerPermissionCache(), deriveWorkspaceAccessLevel() (+54 more)
+Cohesion: 0.05
+Nodes (59): AdminAccessUser, AdminDashboard(), AdminDashboardProps, formatBytes(), formatDateTime(), formatDuration(), formatNumber(), MetricCard() (+51 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.08
-Nodes (56): ChannelPage(), hasAdminAccess(), PageParams, assertCachedChannelPermission(), canUseCachedLockedChannelPermission(), channelOverrideSelect, ChannelPermissionSnapshotChannel, createChannelPermissionSnapshot() (+48 more)
+Nodes (75): getSocketServer(), invalidateServerRoomIdsCache(), disconnectUnauthorizedVoiceParticipants(), pruneUnauthorizedVoiceStateViewers(), getMessageById(), invalidateMemberPermissionCache(), invalidateServerPermissionCache(), deriveWorkspaceAccessLevel() (+67 more)
 
 ### Community 9 - "Community 9"
-Cohesion: 0.07
-Nodes (46): cacheUserPresence(), getPresenceRedisKey(), getUserPresenceBroadcast(), cleanupPresence(), initializePresence(), createRedisClient(), getRedisOp(), getRedisOptions() (+38 more)
+Cohesion: 0.06
+Nodes (70): createOrOpenDirectMessage(), dmAttachmentSelect, dmAuthorSelect, dmConversationInclude, DMMessageNode, dmParticipantUserSelect, DMReactionRow, dmReplyInclude (+62 more)
 
 ### Community 10 - "Community 10"
 Cohesion: 0.06
-Nodes (43): formatAttachmentSize(), getLightboxCursor(), getZoomLabel(), ImageLightbox(), ImageLightboxProps, PanOffset, PanStart, extensionFromFilename() (+35 more)
+Nodes (46): ChatArea(), ChatAreaProps, FloatingPanelPosition, getStatusKey(), PendingMessagePayload, DMScreenSharePanel(), IncomingDMScreenShareModal(), MessageInput() (+38 more)
 
 ### Community 11 - "Community 11"
-Cohesion: 0.07
-Nodes (50): dmAttachmentSelect, dmAuthorSelect, dmConversationInclude, DMMessageNode, dmParticipantUserSelect, DMReactionRow, dmReplyInclude, DMThreadSummaryRow (+42 more)
+Cohesion: 0.06
+Nodes (62): assertUnblockedDMParticipants(), createRealtimeDMMessage(), DMRealtimeParticipant, getDMConversationRealtimeUpdates(), calls, loadConversationViews(), dmMessageInclude, dmNotificationUserSelect (+54 more)
 
 ### Community 12 - "Community 12"
-Cohesion: 0.08
-Nodes (47): ATTACHMENT_REDIRECT_STATUSES, AttachmentHttpResponse, getHeader(), isRedirectStatus(), openPublicAttachmentDownload(), requestPublicAttachmentUrl(), assertPublicHttpUrl(), assertPublicResolvedAddresses() (+39 more)
+Cohesion: 0.05
+Nodes (66): clearAccountRuntimeState(), endAllMediaUsageSessionsForVoiceSession(), getDirectMessageConversationRealtimeViews(), readDMConversationPresenceMap(), getRedis(), getLiveKitRoomServiceClient(), upsertVoiceState(), getVoiceScreenShareStateKey() (+58 more)
 
 ### Community 13 - "Community 13"
-Cohesion: 0.09
-Nodes (47): UpdateAccountSettingsResult, APP_ICON_OPTIONS, AppIconId, WhisprReleaseNote, NOTIFICATION_LIMIT_OPTIONS, SoundEffectsProvider(), SoundEffectsProviderProps, toAudioVolume() (+39 more)
+Cohesion: 0.06
+Nodes (59): createMessageSendFanoutMetrics(), createPermissionCacheMetrics(), createUnreadFanoutMetrics(), flushWorkspacePerformanceMetrics(), flushWorkspacePerformanceMetricsForTest(), getFlushIntervalMs(), hasMetricsToFlush(), isWorkspacePerformanceMetricsEnabled() (+51 more)
 
 ### Community 14 - "Community 14"
-Cohesion: 0.09
-Nodes (44): getStatusDotClass(), getStatusKey(), Button, ButtonProps, buttonVariants, FriendCard(), FriendCardProps, getStatusDotClass() (+36 more)
+Cohesion: 0.03
+Nodes (62): AddServerMemberInput, AddServerMemberSchema, CreateCategoryInput, CreateCategorySchema, CreateChannelInput, CreateChannelSchema, CreateInviteInput, CreateInviteSchema (+54 more)
 
 ### Community 15 - "Community 15"
 Cohesion: 0.06
-Nodes (44): user, isGoogleEmailVerified(), buildUsernameCandidate(), normalizeUsername(), candidate, TURKISH_USERNAME_TRANSLITERATION, adapter, baseAdapter (+36 more)
+Nodes (51): applyRemoteAudioState(), buildAudioCaptureOptions(), collectScreenShares(), connectLiveKitRoomWithRetry(), countActiveScreenShares(), createLocalVoiceAudioLevelMonitor(), E2E_CAMERA_TRACK, getAudioCaptureRestartSignature() (+43 more)
 
 ### Community 16 - "Community 16"
-Cohesion: 0.08
-Nodes (47): createDMConversationRequest(), DMConversationsInfiniteData, dmQueryKeys, upsertDMConversation(), DMConversationPageRow, applyFriendPresenceUpdate(), blockFriendRequest(), cancelFriendRequestRequest() (+39 more)
-
-### Community 17 - "Community 17"
-Cohesion: 0.07
-Nodes (44): getAppIconById(), isAppIconId(), clampExpandedServerRailWidth(), clampMainPanelWidth(), clampNotificationPopupTimeoutSeconds(), clampServerRailIconSize(), applyMessageFontToDocument(), getMessageFontFamily() (+36 more)
-
-### Community 18 - "Community 18"
-Cohesion: 0.06
-Nodes (45): createRealtimeDMMessage(), DMRealtimeParticipant, getDMConversationRealtimeUpdates(), calls, loadConversationViews(), createEmptyThreadSummary(), dmMessageInclude, groupDMReactions() (+37 more)
-
-### Community 19 - "Community 19"
-Cohesion: 0.07
-Nodes (38): applyDMConversationPresenceUpdateToPageData(), applyDMConversationUpdate(), applyDMConversationUpdateToPageData(), createDMConversationsInfiniteData(), DMClientError, fetchDMConversation(), fetchDMConversationsPage(), findOtherParticipant() (+30 more)
-
-### Community 20 - "Community 20"
 Cohesion: 0.09
 Nodes (38): AdminBootstrapEnv, canBootstrapAdminFromEnvironment(), getBootstrapAdminEmailConfig(), getBootstrapAdminEmails(), getOrCreateBootstrapRole(), isAllowedRole(), isProductionAdminBootstrapEnvironment(), normalizeEnvValue() (+30 more)
 
-### Community 21 - "Community 21"
-Cohesion: 0.08
-Nodes (40): isMissingUserSettingsThemeColumn(), ThemeActionResult, updateThemePreferenceAction(), AuthLayout(), useAppearanceHydration(), ADVANCED_WIZARDS_THEMES, clampChannelSidebarWidth(), clampNotificationLimit() (+32 more)
+### Community 17 - "Community 17"
+Cohesion: 0.06
+Nodes (45): CreateDMBody, CreateDMBodySchema, DMConversationsPageResponseSchema, DMConversationsQuery, DMConversationsQuerySchema, DMConversationsResponseSchema, DMErrorCode, DMMessagesQuery (+37 more)
 
-### Community 22 - "Community 22"
-Cohesion: 0.09
-Nodes (39): recordPermissionCacheMetric(), CachedChannelPermissionSnapshot, channelPermissionSnapshotKey(), getReadyRedis(), getRevisions(), hydrateSnapshot(), isFreshEnough(), isPermissionCacheEnabled() (+31 more)
-
-### Community 23 - "Community 23"
-Cohesion: 0.08
-Nodes (44): assertUnblockedDMParticipants(), DMParticipantIdentity, FindBlockedUserIdsForUser, dmNotificationUserSelect, mapDMMessagePayload(), mapDMMessagePayloadWithReactions(), getBlockedUserIdsForUser(), getBlockStatus() (+36 more)
-
-### Community 24 - "Community 24"
+### Community 18 - "Community 18"
 Cohesion: 0.05
 Nodes (45): DMMessagesResponse, ChatMessage, ChatMessageSchema, ChatMessageType, ChatMessageTypeSchema, EditMessageInput, EditMessageInputSchema, MessageAttachmentSchema (+37 more)
 
-### Community 25 - "Community 25"
+### Community 19 - "Community 19"
+Cohesion: 0.07
+Nodes (39): isGoogleEmailVerified(), buildUsernameCandidate(), normalizeUsername(), candidate, TURKISH_USERNAME_TRANSLITERATION, adapter, baseAdapter, canOAuthUserSignIn() (+31 more)
+
+### Community 20 - "Community 20"
+Cohesion: 0.11
+Nodes (41): UpdateAccountSettingsResult, APP_ICON_OPTIONS, AppIconId, WhisprReleaseNote, NOTIFICATION_LIMIT_OPTIONS, SoundEffectsProvider(), SoundEffectsProviderProps, toAudioVolume() (+33 more)
+
+### Community 21 - "Community 21"
+Cohesion: 0.07
+Nodes (38): isAppIconId(), clampExpandedServerRailWidth(), clampMainPanelWidth(), clampNotificationPopupTimeoutSeconds(), clampServerRailIconSize(), applyMessageFontToDocument(), getMessageFontFamily(), isMessageFontId() (+30 more)
+
+### Community 22 - "Community 22"
+Cohesion: 0.1
+Nodes (39): GET(), POST(), getDMReactionMap(), getDMThreadSummaryMap(), hideDirectMessage(), listDirectMessages(), listDMMessages(), listDMThreadMessages() (+31 more)
+
+### Community 23 - "Community 23"
 Cohesion: 0.08
-Nodes (34): ChannelError(), EmojiPicker(), EmojiPickerProps, EmojiSelection, Picker, GifPicker(), GifPickerProps, GiphyAttachmentResponse (+26 more)
+Nodes (36): createDMMessageNotifications(), formatErrorLog(), redactText(), redactValue(), stringifyStructuredLog(), payload, ChannelMentionNotificationsPayloadSchema, ChannelThreadReplyNotificationPayloadSchema (+28 more)
+
+### Community 24 - "Community 24"
+Cohesion: 0.11
+Nodes (29): Button, ButtonProps, buttonVariants, cn(), deleteAllNotifications(), fetchNotifications(), fetchUnreadCount(), markAllNotificationsRead() (+21 more)
+
+### Community 25 - "Community 25"
+Cohesion: 0.11
+Nodes (38): extractFirstUrl(), fetchPreview(), assertPublicHttpUrl(), assertPublicResolvedAddresses(), cacheKey(), collectTextNodes(), extractLinkPreviewMetadata(), extractPlainText() (+30 more)
 
 ### Community 26 - "Community 26"
-Cohesion: 0.08
-Nodes (27): AdminAccessUser, AdminDashboard(), AdminDashboardProps, formatBytes(), formatDateTime(), formatDuration(), formatNumber(), MetricCard() (+19 more)
-
-### Community 27 - "Community 27"
-Cohesion: 0.1
-Nodes (23): assertActiveApiUser(), AuthAccessUser, assertAttachmentAccess(), assertDownloadableUrl(), contentDispositionFor(), GET(), RouteContext, CONFIGURED_E2E_URL_KEYS (+15 more)
-
-### Community 28 - "Community 28"
-Cohesion: 0.09
-Nodes (37): CreateDMBody, CreateDMBodySchema, DMConversationsQuery, DMConversationsQuerySchema, DMErrorCode, DMMessagesQuery, RequestOptions, BlockedFriendsResponseSchema (+29 more)
-
-### Community 29 - "Community 29"
 Cohesion: 0.05
 Nodes (39): Auth Helpers, CI Integration, code:bash (E2E_TEST_MODE=true), code:bash (PLAYWRIGHT_SKIP_WEB_SERVER=1 pnpm --filter @wizards/web e2e:), code:bash (pnpm --filter @wizards/db exec prisma db push --schema prism), code:bash (pnpm --filter @wizards/web exec playwright install chromium), code:bash (pnpm --filter @wizards/web e2e:smoke), code:bash (pnpm --filter @wizards/web e2e:headed) (+31 more)
 
-### Community 30 - "Community 30"
+### Community 27 - "Community 27"
 Cohesion: 0.09
-Nodes (34): createOrOpenDirectMessage(), findDirectConversation(), areFriends(), buildMutualFriendsWhere(), getFriendship(), haveMutualFriends(), haveMutualServers(), userHasAcceptedFriendshipWith() (+26 more)
+Nodes (33): ScreenShareVideo(), toggleElementFullscreen(), VoiceCameraStatus, VoiceParticipantViewModel, VoiceScreenShareViewModel, VoiceInviteStatusPayload, SCREEN_SHARE_QUALITY_OPTIONS, CameraStatusPill() (+25 more)
 
-### Community 31 - "Community 31"
+### Community 28 - "Community 28"
 Cohesion: 0.11
 Nodes (29): CONTRIBUTOR_NAMES, CORRUPTED_CONTRIBUTOR_NAMES, configured_app_url(), dispatch_desktop_command(), handle_desktop_deep_links(), is_allowed_oauth_navigation(), is_oauth_navigation_active(), is_safe_internal_desktop_path() (+21 more)
 
+### Community 29 - "Community 29"
+Cohesion: 0.09
+Nodes (35): recordMessageCreated(), createEmptyThreadSummary(), groupDMReactions(), mapDMReply(), setDMReaction(), toggleDMReaction(), validateDMReactionEmoji(), normalizeMessageContentForSend() (+27 more)
+
+### Community 30 - "Community 30"
+Cohesion: 0.1
+Nodes (27): DesktopDiagnosticsPanel(), DiagnosticTone, AudioDeviceKind, AudioDeviceOption, AudioDevicesState, canEnumerateDevices(), canSelectAudioOutput(), useAudioDevices() (+19 more)
+
+### Community 31 - "Community 31"
+Cohesion: 0.11
+Nodes (19): assertActiveApiUser(), AuthAccessUser, assertE2EApiRouteEnabled(), CONFIGURED_E2E_URL_KEYS, E2ERouteEnv, isLocalE2EHost(), LOCAL_E2E_HOSTS, normalizeHostname() (+11 more)
+
 ### Community 32 - "Community 32"
 Cohesion: 0.09
-Nodes (30): GET(), GET(), getDMReactionMap(), getDMThreadSummaryMap(), listDMMessages(), listDMThreadMessages(), DMConversationParamsSchema, DMMessagesQuerySchema (+22 more)
+Nodes (22): PrimaryButton(), SecondaryButton(), SocialAuthButtons(), TextInput, LoginCard(), LoginPage(), getLoginRoleHint(), LoginRole (+14 more)
 
 ### Community 33 - "Community 33"
 Cohesion: 0.11
-Nodes (27): CheckChannelMessageEditRateLimit, CheckChannelMessageRateLimit, deriveMessageSendFanoutTargets(), checkedUserIds, { ctx, emittedEvents, handlers }, { ctx, events }, handler, ensureChannelMembership() (+19 more)
+Nodes (23): clearE2EVoiceStates(), createIsolatedServerForMembershipTest(), E2EPrismaClient, expectVoiceParticipantCount(), getDMUnreadCount(), getE2EDMConversationId(), getE2EServerRoute(), getE2EUserId() (+15 more)
 
 ### Community 34 - "Community 34"
-Cohesion: 0.17
-Nodes (33): listChannelIdsByServerForUserWithPermission(), listWorkspaceServers(), ChannelUnreadCountRow, createServerCountMap(), createUserCountMap(), emitServerUnreadUpdatesForServer(), emitServerUnreadUpdateToUser(), getActiveServerMemberUserIds() (+25 more)
+Cohesion: 0.11
+Nodes (25): authBodyFont, authDisplayFont, bodyFont, displayFont, messageInterFont, messageJetBrainsMonoFont, messageOpenSansFont, messageOutfitFont (+17 more)
 
 ### Community 35 - "Community 35"
 Cohesion: 0.11
-Nodes (25): authBodyFont, authDisplayFont, bodyFont, displayFont, messageInterFont, messageJetBrainsMonoFont, messageOpenSansFont, messageOutfitFont (+17 more)
+Nodes (23): DMNotificationAttachment, DMNotificationParticipant, getDeletedMessageLabel(), getDeletedMessageLabelForLocale(), APP_LOCALES, APP_MESSAGES, normalizeAppLocale(), translate() (+15 more)
 
 ### Community 36 - "Community 36"
 Cohesion: 0.08
 Nodes (29): DIRECT_DATABASE_PROTOCOLS, ensurePrismaClientRuntime(), findGeneratedClientIndexPath(), hasNativeEngineArtifact(), isDirectDatabaseUrl(), isPrismaProxyUrl(), loadEnvFile(), loadWorkspaceEnv() (+21 more)
 
 ### Community 37 - "Community 37"
-Cohesion: 0.11
-Nodes (27): VoiceParticipantViewModel, VoiceScreenShareViewModel, ScreenShareQualityId, getAvatarGlowStyle(), getParticipantGridClass(), getParticipantGridStyle(), getSpeakingClass(), isReconnectState() (+19 more)
+Cohesion: 0.08
+Nodes (24): AUDIENCE_SELECTOR_OPTIONS, AudienceSelector(), AudienceSelectorOption, AudienceSelectorProps, AudienceSelectorValue, AUDIENCE_ICON_CLASS, AUDIENCES, AudienceTone (+16 more)
 
 ### Community 38 - "Community 38"
-Cohesion: 0.08
-Nodes (26): DMScreenSharePanel(), IncomingDMScreenShareModal(), ScreenShareVideo(), toggleElementFullscreen(), ActiveDMScreenShare, findScreenShareTrack(), IncomingDMScreenShare, parseParticipantMetadata() (+18 more)
-
-### Community 39 - "Community 39"
-Cohesion: 0.13
-Nodes (28): getResultPreview(), getSearchPanelPosition(), MessageSearchPanel(), MessageSearchPanelProps, SearchMode, SearchPanelPosition, toIsoDateTime(), messageSearchQueryKeys (+20 more)
-
-### Community 40 - "Community 40"
-Cohesion: 0.11
-Nodes (22): RootLayout(), LegacyAppearanceSettingsPage(), EmailVerificationResult, verifyEmailToken(), getSafeAuthRedirectPath(), isSafeAuthRedirectPath(), SAFE_AUTH_REDIRECT_PREFIXES, ChannelsPage() (+14 more)
-
-### Community 41 - "Community 41"
-Cohesion: 0.1
-Nodes (28): applyVoiceProfileUpdate(), applyVoiceScreenShareUpdate(), applyVoiceStateUpdate(), useVoiceStates(), CreateLiveKitTokenBody, CreateLiveKitTokenBodySchema, LiveKitTokenResponse, LiveKitTokenResponseSchema (+20 more)
-
-### Community 42 - "Community 42"
 Cohesion: 0.12
 Nodes (23): GET(), AdminManagementPagination, AdminServerListFilters, AdminUserListFilters, csvEscape(), CsvValue, emptyMetrics(), exportAdminActivityCsv() (+15 more)
 
-### Community 43 - "Community 43"
-Cohesion: 0.14
-Nodes (26): POST(), assertE2EApiRouteEnabled(), e2eServer, E2ETestFixtureEnv, E2EUserKey, e2eUserPassword, e2eUsers, getE2EUserByKey() (+18 more)
+### Community 39 - "Community 39"
+Cohesion: 0.19
+Nodes (26): AuthActionResult, checkPasswordResetRateLimit(), checkVerificationResendRateLimit(), forgotPasswordAction(), getFormValue(), getRequestIpAddress(), loginAction(), mapPasswordResetError() (+18 more)
 
-### Community 44 - "Community 44"
+### Community 40 - "Community 40"
 Cohesion: 0.12
-Nodes (20): PrimaryButton(), SecondaryButton(), SocialAuthButtons(), TextInput, LoginCard(), LoginPage(), getLoginRoleHint(), LoginRole (+12 more)
+Nodes (21): formatAttachmentSize(), getLightboxCursor(), getZoomLabel(), ImageLightbox(), ImageLightboxProps, PanOffset, PanStart, extensionFromFilename() (+13 more)
 
-### Community 45 - "Community 45"
-Cohesion: 0.08
-Nodes (23): AUDIENCE_SELECTOR_OPTIONS, AudienceSelector(), AudienceSelectorOption, AudienceSelectorProps, AudienceSelectorValue, AUDIENCE_ICON_CLASS, AUDIENCES, AudienceTone (+15 more)
+### Community 41 - "Community 41"
+Cohesion: 0.23
+Nodes (28): listWorkspaceServers(), ChannelUnreadCountRow, createServerCountMap(), createUserCountMap(), emitServerUnreadUpdatesForServer(), getServerChannelUnreadCounts(), getServerMentionCount(), getServerMentionCounts() (+20 more)
 
-### Community 46 - "Community 46"
-Cohesion: 0.12
-Nodes (15): test, loginAs(), expectVoiceParticipantCount(), getE2EServerRoute(), openLoggedInPage(), bobMessage, LoggedInPage, openLoggedInPage() (+7 more)
-
-### Community 47 - "Community 47"
-Cohesion: 0.13
-Nodes (22): applyAppBadge(), BadgeNavigator, clampNotificationText(), DESKTOP_NOTIFICATION_TYPES, DesktopExperience(), getGenericNotificationBody(), getNotificationApi(), getNotificationBody() (+14 more)
-
-### Community 48 - "Community 48"
+### Community 42 - "Community 42"
 Cohesion: 0.12
 Nodes (23): checkedKeys, error, redis, CHANNEL_MESSAGE_EDIT_RATE_LIMIT, CHANNEL_MESSAGE_RATE_LIMIT, ChannelMessageRateLimitResult, checkChannelMessageEditRateLimit(), checkChannelMessageRateLimit() (+15 more)
 
-### Community 49 - "Community 49"
+### Community 43 - "Community 43"
+Cohesion: 0.14
+Nodes (21): applyAppBadge(), BadgeNavigator, clampNotificationText(), DESKTOP_NOTIFICATION_TYPES, DesktopExperience(), getGenericNotificationBody(), getNotificationApi(), getNotificationBody() (+13 more)
+
+### Community 44 - "Community 44"
+Cohesion: 0.13
+Nodes (19): headers, RootLayout(), LegacyAppearanceSettingsPage(), EmailVerificationResult, verifyEmailToken(), PageParams, ChannelsPage(), InvitePage() (+11 more)
+
+### Community 45 - "Community 45"
 Cohesion: 0.11
-Nodes (25): acquireVoiceCleanupLock(), acquireVoiceJoinLocks(), cleanupStaleVoiceStates(), ensureNotServerBanned(), getStaleVoiceHeartbeatCutoff(), handleDeletedStaleVoiceStates(), listVoiceStatesForServer(), mapSocketParticipants() (+17 more)
+Nodes (21): DMConversationParamsSchema, DMMessagesQuerySchema, fetchChannelMessages(), DELETE(), GET(), RouteContext, DELETE(), POST() (+13 more)
+
+### Community 46 - "Community 46"
+Cohesion: 0.13
+Nodes (19): anonymizeAccount(), buildDeletedAccountIdentity(), deleteAccountUploadThingFiles(), extractUploadThingFileKey(), serializeAccountDataExport(), identity, payload, cacheRevocationValue() (+11 more)
+
+### Community 47 - "Community 47"
+Cohesion: 0.11
+Nodes (20): ActiveDMScreenShare, findScreenShareTrack(), IncomingDMScreenShare, parseParticipantMetadata(), UseDMScreenShareInput, applyScreenShareQualityToTrack(), isScreenSharePermissionDenied(), isScreenShareSupported() (+12 more)
+
+### Community 48 - "Community 48"
+Cohesion: 0.14
+Nodes (21): AccountSettingsState, UpdateAccountAvatarResult, E2EUploadOptions, E2EUploadResponse, readFileAsDataUrl(), uploadE2EFile(), useE2EUploadThing, AVATAR_CONTENT_TYPES (+13 more)
+
+### Community 49 - "Community 49"
+Cohesion: 0.17
+Nodes (14): test, assertSuccessfulE2EResponse(), expectLoggedIn(), expectLoggedOut(), loginAs(), loginViaUi(), logout(), logoutViaUi() (+6 more)
 
 ### Community 50 - "Community 50"
-Cohesion: 0.21
-Nodes (23): checkPasswordResetRateLimit(), checkVerificationResendRateLimit(), forgotPasswordAction(), getFormValue(), getRequestIpAddress(), loginAction(), registerAction(), resendVerificationEmailAction() (+15 more)
-
-### Community 51 - "Community 51"
-Cohesion: 0.13
-Nodes (19): anonymizeAccount(), buildDeletedAccountIdentity(), clearAccountRuntimeState(), deleteAccountUploadThingFiles(), extractUploadThingFileKey(), identity, payload, cacheRevocationValue() (+11 more)
-
-### Community 52 - "Community 52"
-Cohesion: 0.16
-Nodes (22): createMessageSendFanoutMetrics(), createPermissionCacheMetrics(), createUnreadFanoutMetrics(), flushWorkspacePerformanceMetrics(), flushWorkspacePerformanceMetricsForTest(), getFlushIntervalMs(), hasMetricsToFlush(), isWorkspacePerformanceMetricsEnabled() (+14 more)
-
-### Community 53 - "Community 53"
-Cohesion: 0.16
-Nodes (19): AudioDeviceKind, AudioDeviceOption, AudioDevicesState, canEnumerateDevices(), canSelectAudioOutput(), useAudioDevices(), KrispAvailability, AudioDeviceSelect() (+11 more)
-
-### Community 54 - "Community 54"
 Cohesion: 0.11
 Nodes (13): CameraDeviceOption, CameraDevicesState, canEnumerateDevices(), canPreviewCamera(), useCameraDevices(), E2EVoiceProvider(), useVoiceStore, VoiceCameraRotation (+5 more)
 
-### Community 55 - "Community 55"
+### Community 51 - "Community 51"
+Cohesion: 0.13
+Nodes (18): useAppearanceHydration(), clampChannelSidebarWidth(), clampNotificationLimit(), LEGACY_THEME_ALIASES, NOTIFICATION_POPUP_TIMEOUT_OPTIONS, readStoredChannelSidebarWidth(), readStoredNotificationAutoClose(), readStoredNotificationLimit() (+10 more)
+
+### Community 52 - "Community 52"
 Cohesion: 0.14
-Nodes (18): DELETE(), GET(), RouteContext, getDirectMessageConversationForUser(), hideDirectMessage(), markDirectMessageRead(), requireDMParticipant(), PATCH() (+10 more)
+Nodes (22): cleanTitle(), createGiphyAttachment(), CreateGiphyAttachmentSchema, E2E_GIFS, enforceGiphyRateLimit(), fetchGiphyJson(), getGiphyApiKey(), GiphyApiGif (+14 more)
 
-### Community 56 - "Community 56"
+### Community 53 - "Community 53"
 Cohesion: 0.17
-Nodes (15): clearE2EVoiceStates(), createIsolatedServerForMembershipTest(), E2EPrismaClient, getDMUnreadCount(), getE2EDMConversationId(), getE2EUserId(), getE2EUserPreferences(), getServerMemberId() (+7 more)
+Nodes (21): getStatusDotClass(), buildMemberGroups(), getGroupPreview(), getMemberRole(), getRoleColorStyle(), getRoleDisplay(), getRoleKind(), getRoleRank() (+13 more)
 
-### Community 57 - "Community 57"
-Cohesion: 0.25
-Nodes (19): AccountSettingsField, broadcastUserProfileUpdate(), isTrustedAvatarUrl(), mapUserToAccountState(), mapVisiblePresenceStatus(), updateAccountAvatarAction(), UpdateAccountAvatarSchema, updateAccountSettingsAction() (+11 more)
+### Community 54 - "Community 54"
+Cohesion: 0.22
+Nodes (19): searchMessages(), assertChannelSearchAccess(), assertDMSearchAccess(), buildAdvancedFilterSql(), buildSearchFragments(), ChannelSearchRow, decodeCursor(), DMSearchRow (+11 more)
 
-### Community 58 - "Community 58"
+### Community 55 - "Community 55"
 Cohesion: 0.1
 Nodes (20): 1. PROJECT STRUCTURE AUDIT, 2. DATABASE SCHEMA AUDIT, 3. AUTHENTICATION AUDIT, 4. LAYOUT & UI AUDIT, 5. API ROUTES AUDIT, 6. DATA FETCHING & STATE AUDIT, 7. TYPESCRIPT & CODE QUALITY AUDIT, 8. PERFORMANCE & BEST PRACTICES AUDIT (+12 more)
 
-### Community 59 - "Community 59"
+### Community 56 - "Community 56"
 Cohesion: 0.2
 Nodes (17): attachSecurityHeaders(), buildContentSecurityPolicy(), config, createNonce(), CSRF_PROTECTED_API_PREFIXES, getAllowedRequestOrigins(), getOrigin(), getSessionCookieConfig() (+9 more)
 
+### Community 57 - "Community 57"
+Cohesion: 0.17
+Nodes (17): applyVoiceProfileUpdate(), applyVoiceScreenShareUpdate(), applyVoiceStateUpdate(), useVoiceStates(), CreateLiveKitTokenBody, CreateLiveKitTokenBodySchema, LiveKitTokenResponse, LiveKitTokenResponseSchema (+9 more)
+
+### Community 58 - "Community 58"
+Cohesion: 0.17
+Nodes (14): markDirectMessageRead(), PATCH(), assertChannelAccess(), GET(), mapSettingsToLevel(), PATCH(), RouteContext, UpdateNotificationSettingsSchema (+6 more)
+
+### Community 59 - "Community 59"
+Cohesion: 0.15
+Nodes (19): getMessageAttachmentMaxBytes(), isMessageAttachmentFilenameAllowed(), isMessageFileContentType(), isMessageVideoContentType(), isSupportedMessageAttachmentContentType(), MESSAGE_ATTACHMENT_ACCEPT, MESSAGE_ATTACHMENT_CONTENT_TYPE_SET, MESSAGE_ATTACHMENT_CONTENT_TYPES (+11 more)
+
 ### Community 60 - "Community 60"
-Cohesion: 0.21
-Nodes (18): endAllMediaUsageSessionsForVoiceSession(), endAppSession(), endMediaUsageSession(), getUtcDayStart(), HeaderSource, heartbeatAppSession(), incrementMetricAcrossInterval(), incrementUserDailyMetric() (+10 more)
-
-### Community 61 - "Community 61"
-Cohesion: 0.1
-Nodes (17): resetVoiceCleanupLocalDebounceForTests(), runVoiceStateUpsertMutation(), [, channelLock], ClearMutationInput, { deleteManyCalls, voiceState }, existingState, ExistingVoiceState, handledUserIds (+9 more)
-
-### Community 62 - "Community 62"
 Cohesion: 0.12
 Nodes (15): messageByText(), addQuickReaction(), browserDialogs, composer, LoggedInPage, message, messageByText(), messageList (+7 more)
 
-### Community 63 - "Community 63"
+### Community 61 - "Community 61"
+Cohesion: 0.15
+Nodes (15): DEFAULT_VOICE_AUDIO_PREFERENCES, DEFAULT_VOICE_CAMERA_PREFERENCES, PersistedVoiceStoreState, sanitizeCameraPreferences(), sanitizeCameraRotation(), sanitizeScreenShareQuality(), VoiceAudioPreferences, VoiceCameraPreferences (+7 more)
+
+### Community 62 - "Community 62"
 Cohesion: 0.11
 Nodes (4): FloatCardProps, FloatCopy, FloatTone, TrustCopy
+
+### Community 63 - "Community 63"
+Cohesion: 0.17
+Nodes (15): assertTurnstileActionAllowed(), assertTurnstileHostnameAllowed(), getExpectedTurnstileHostnames(), getTurnstileSecret(), TurnstileAction, TurnstileErrorCode, TurnstileSiteVerifyResponse, TurnstileVerificationError (+7 more)
 
 ### Community 64 - "Community 64"
 Cohesion: 0.19
@@ -419,191 +415,179 @@ Nodes (15): GET(), withTimeout(), defaultRedisCheck(), DependencyStatus, getHeal
 
 ### Community 65 - "Community 65"
 Cohesion: 0.22
-Nodes (13): APP_LOCALES, APP_MESSAGES, AppLocale, normalizeAppLocale(), TranslationDictionary, TranslationValues, LocaleActionResult, updateLocalePreferenceAction() (+5 more)
+Nodes (13): SocketProvider(), getSocket(), getSocketUrl(), ClientToServerEvents, InterServerEvents, ServerToClientEvents, SocketData, VoiceInviteErrorPayload (+5 more)
 
 ### Community 66 - "Community 66"
-Cohesion: 0.16
-Nodes (14): DEFAULT_VOICE_AUDIO_PREFERENCES, DEFAULT_VOICE_CAMERA_PREFERENCES, PersistedVoiceStoreState, sanitizeCameraPreferences(), sanitizeCameraRotation(), sanitizeScreenShareQuality(), VoiceAudioPreferences, VoiceCameraPreferences (+6 more)
+Cohesion: 0.18
+Nodes (16): buildVerificationUrl(), EmailVerificationError, EmailVerificationErrorCode, EmailVerificationUser, escapeHtml(), GeneratedEmailVerificationToken, generateEmailVerificationToken(), getAppUrl() (+8 more)
 
 ### Community 67 - "Community 67"
 Cohesion: 0.15
 Nodes (16): assertWebEnvironment(), EnvSource, EnvValidationResult, isBooleanFlag(), isPositiveInteger(), isPresent(), isValidUrl(), OPTIONAL_BOOLEAN_ENV_VARS (+8 more)
 
 ### Community 68 - "Community 68"
-Cohesion: 0.18
-Nodes (16): buildVerificationUrl(), EmailVerificationError, EmailVerificationErrorCode, EmailVerificationUser, escapeHtml(), GeneratedEmailVerificationToken, generateEmailVerificationToken(), getAppUrl() (+8 more)
-
-### Community 69 - "Community 69"
 Cohesion: 0.21
 Nodes (13): DotGrid(), cloneDotGridTheme(), DARK_DOT_GRID_THEME, DotGridThemeValues, LIGHT_DOT_GRID_THEME, buildDots(), DotGridPoint, getGridSpacing() (+5 more)
 
+### Community 69 - "Community 69"
+Cohesion: 0.18
+Nodes (11): getAccountDataExport(), GET(), FriendUserIdParamsSchema, API_RATE_LIMITS, ApiRateLimitAction, getApiRateLimitConfig(), requiredActions, GET() (+3 more)
+
 ### Community 70 - "Community 70"
-Cohesion: 0.24
-Nodes (12): SocketContext, SocketProvider(), getSocket(), getSocketUrl(), ClientToServerEvents, ServerToClientEvents, VoiceAudioLevelPayload, VoiceInviteErrorPayload (+4 more)
+Cohesion: 0.28
+Nodes (15): AccountSettingsField, broadcastUserProfileUpdate(), isTrustedAvatarUrl(), mapUserToAccountState(), mapVisiblePresenceStatus(), updateAccountAvatarAction(), UpdateAccountAvatarSchema, updateAccountSettingsAction() (+7 more)
 
 ### Community 71 - "Community 71"
-Cohesion: 0.21
-Nodes (16): mapDMParticipant(), readPresence(), listFriends(), isRecord(), normalizeNullableString(), normalizePresenceStatus(), parsePresencePayload(), parsePresenceRecord() (+8 more)
+Cohesion: 0.23
+Nodes (14): createRedisClient(), getRedisOp(), getRedisOptions(), getRedisPub(), getRedisSub(), getRedisUrl(), REDIS_PROTOCOLS, RedisClientRole (+6 more)
 
 ### Community 72 - "Community 72"
-Cohesion: 0.21
-Nodes (15): AnalyticsClientInfo, detectBrowser(), detectClientType(), detectDeviceType(), detectOs(), getAnalyticsClientInfo(), getFirstForwardedIp(), getIpAddress() (+7 more)
-
-### Community 73 - "Community 73"
-Cohesion: 0.27
-Nodes (15): AccountSettingsState, UpdateAccountAvatarResult, AVATAR_CONTENT_TYPES, buildAvatarFallback(), clamp(), clampDraftOffset(), createCroppedAvatarFile(), CropDraft (+7 more)
-
-### Community 74 - "Community 74"
-Cohesion: 0.28
-Nodes (14): actOnFriendRequestRequest(), deleteAllNotifications(), fetchNotifications(), fetchUnreadCount(), markAllNotificationsRead(), markNotificationRead(), notificationsQueryKeys, requestJson() (+6 more)
-
-### Community 75 - "Community 75"
 Cohesion: 0.24
 Nodes (12): assertSafeE2EDatabase(), assertSafeE2ERedis(), createE2EPrismaClient(), E2E_CONTRIBUTOR_NAMES, FORBIDDEN_HOST_PARTS, getE2EDatabaseUrl(), resetAndSeedE2EData(), resetE2EData() (+4 more)
 
+### Community 73 - "Community 73"
+Cohesion: 0.28
+Nodes (13): isMissingUserSettingsThemeColumn(), ThemeActionResult, updateThemePreferenceAction(), getThemePreviewBackground(), normalizeWizardsThemeId(), SIMPLE_WIZARDS_THEMES, WizardsThemeCategory, WizardsThemeDefinition (+5 more)
+
+### Community 74 - "Community 74"
+Cohesion: 0.15
+Nodes (11): joinServerRoomsForUser(), listServerRoomIdsPage(), normalizeServerRoomJoinBatchSize(), calls, cursors, joinedRooms, memberships, MemoryServerRoomRedis (+3 more)
+
+### Community 75 - "Community 75"
+Cohesion: 0.26
+Nodes (14): mapDMParticipant(), readPresence(), listFriends(), isRecord(), normalizeNullableString(), normalizePresenceStatus(), parsePresencePayload(), parsePresenceRecord() (+6 more)
+
 ### Community 76 - "Community 76"
-Cohesion: 0.17
-Nodes (10): BrandLogo(), AuthFooter(), useRotatingText(), FloatZone(), FEATURE_CHIPS, HERO_COPY, HERO_SLIDES, HeroHeading() (+2 more)
-
-### Community 77 - "Community 77"
-Cohesion: 0.22
-Nodes (10): getAccountDataExport(), serializeAccountDataExport(), GET(), API_RATE_LIMITS, ApiRateLimitAction, getApiRateLimitConfig(), requiredActions, GET() (+2 more)
-
-### Community 78 - "Community 78"
-Cohesion: 0.23
-Nodes (14): upsertVoiceState(), getVoiceScreenShareStateKey(), buildVoiceStateDeleteWhere(), buildVoiceStateParticipantsForChannel(), canClearVoiceStateForSession(), clearVoiceState(), enforceVoiceRoomCapacity(), getVoiceJoinLockSpecs() (+6 more)
-
-### Community 79 - "Community 79"
 Cohesion: 0.26
 Nodes (12): canOAuthUserSignIn(), fetchVerifiedPrimaryGitHubEmail(), findVerifiedPrimaryGitHubEmail(), getOAuthAccessToken(), getOAuthProfileEmail(), GitHubEmailFetch, GitHubEmailRow, hasExplicitlyUnverifiedOAuthEmail() (+4 more)
 
-### Community 80 - "Community 80"
-Cohesion: 0.2
-Nodes (9): DesktopDiagnosticsPanel(), DiagnosticTone, useVoiceConnection(), ActiveVoiceReminder(), findVoiceChannel(), getRouteContext(), RouteContext, safeDecodePathSegment() (+1 more)
-
-### Community 81 - "Community 81"
-Cohesion: 0.23
-Nodes (14): invalidateServerRoomIdsCache(), getMessageById(), invalidateMemberPermissionCache(), addWorkspaceServerMemberByUsername(), canAddMembers(), createWorkspaceServer(), detachUserFromServerSocketRoom(), ensureOwner() (+6 more)
-
-### Community 82 - "Community 82"
+### Community 77 - "Community 77"
 Cohesion: 0.15
 Nodes (11): capability, desktopRoot, env, execFileAsync, generatedConfig, generatedConfigPath, runTauriScript, scriptPath (+3 more)
 
-### Community 83 - "Community 83"
-Cohesion: 0.15
-Nodes (11): AsyncMethod, banBatchSizes, banDelegate, batchUserIds, calls, channelDelegate, memberBatchSizes, memberDelegate (+3 more)
-
-### Community 84 - "Community 84"
-Cohesion: 0.18
-Nodes (8): AdminManagedServer, AdminManagedUser, AdminManagementPanel(), AdminManagementPanelProps, formatDuration(), formatNumber(), PaginatedResponse, UserAction
-
-### Community 85 - "Community 85"
+### Community 78 - "Community 78"
 Cohesion: 0.15
 Nodes (12): Build Commands, CI Plan, code:powershell (pnpm --filter @wizards/web typecheck), code:powershell (pnpm --filter @wizards/desktop build:desktop), code:text (apps/desktop/src-tauri/target/release/bundle/nsis/), macOS And Linux Readiness, Release Checklist, Scope (+4 more)
 
-### Community 86 - "Community 86"
+### Community 79 - "Community 79"
+Cohesion: 0.26
+Nodes (10): isActiveAuthUser(), VisiblePresenceStatus, createVoiceInvite(), getVoiceInviteKey(), parseStoredVoiceInvite(), StoredVoiceInvite, toVisiblePresenceStatus(), VoiceInviteInput (+2 more)
+
+### Community 80 - "Community 80"
+Cohesion: 0.41
+Nodes (10): cacheUserPresence(), getUserPresenceBroadcast(), cleanupPresence(), initializePresence(), addPresenceSocket(), getPresenceSocketsKey(), markPresenceSocketActive(), prunePresenceSockets() (+2 more)
+
+### Community 81 - "Community 81"
 Cohesion: 0.17
 Nodes (6): drawer, message, mobileViewports, popup, reactionPicker, toolbar
 
-### Community 87 - "Community 87"
-Cohesion: 0.29
-Nodes (10): createLoginProof(), getLoginProofSecret(), isSafeEqual(), LoginProofOptions, normalizeLoginProofEmail(), signLoginProof(), env, proof (+2 more)
-
-### Community 88 - "Community 88"
-Cohesion: 0.26
-Nodes (7): GET(), getUnreadCount(), listNotifications(), markAllRead(), VISIBLE_NOTIFICATION_TYPES, PATCH(), GET()
-
-### Community 89 - "Community 89"
+### Community 82 - "Community 82"
 Cohesion: 0.29
 Nodes (8): AppUpdateNotifier(), fetchLatestVersion(), formatBuildId(), getWhisprVersionPayload(), WHISPR_APP_VERSION, WHISPR_RELEASE_NOTES, WhisprVersionPayload, GET()
 
-### Community 90 - "Community 90"
+### Community 83 - "Community 83"
+Cohesion: 0.29
+Nodes (10): createLoginProof(), getLoginProofSecret(), isSafeEqual(), LoginProofOptions, normalizeLoginProofEmail(), signLoginProof(), env, proof (+2 more)
+
+### Community 84 - "Community 84"
 Cohesion: 0.17
 Nodes (11): Auth And Session, Desktop Diagnostics, Install And Launch, Navigation, Notifications And Native UX, Realtime Messaging, Regression Pass, Settings And Shortcuts (+3 more)
 
-### Community 91 - "Community 91"
+### Community 85 - "Community 85"
 Cohesion: 0.25
 Nodes (9): generateMetadata(), getLineKind(), isLegalDocumentId(), LEGAL_DOCUMENTS, LegalDocumentId, LegalDocumentPage(), LegalDocumentPageProps, readLegalDocument() (+1 more)
 
-### Community 92 - "Community 92"
-Cohesion: 0.33
-Nodes (8): assertTurnstileActionAllowed(), assertTurnstileHostnameAllowed(), getExpectedTurnstileHostnames(), getTurnstileSecret(), TurnstileErrorCode, TurnstileSiteVerifyResponse, TurnstileVerificationError, verifyTurnstileToken()
+### Community 86 - "Community 86"
+Cohesion: 0.36
+Nodes (8): AppLocale, LocaleActionResult, updateLocalePreferenceAction(), LANGUAGE_OPTIONS, LanguageSwitcher(), LanguageSwitcherProps, persistUserLocale(), upsertUserSettingsLocale()
 
-### Community 93 - "Community 93"
-Cohesion: 0.29
-Nodes (9): isActiveAuthUser(), createVoiceInvite(), getVoiceInviteKey(), parseStoredVoiceInvite(), StoredVoiceInvite, toVisiblePresenceStatus(), VoiceInviteInput, VoiceInvitePayload (+1 more)
-
-### Community 94 - "Community 94"
+### Community 87 - "Community 87"
 Cohesion: 0.18
 Nodes (10): Architecture, code:powershell (pnpm install), code:powershell (pnpm --filter @wizards/desktop dev), code:powershell ($env:TAURI_DEV_WEB_URL="http://localhost:3001"), code:powershell (pnpm --filter @wizards/desktop build:desktop), code:powershell ($env:TAURI_WEB_URL="https://uat.whispr.team"), Desktop Shortcuts, Local Development (+2 more)
 
-### Community 95 - "Community 95"
+### Community 88 - "Community 88"
 Cohesion: 0.18
 Nodes (10): code:env (WORKSPACE_PERFORMANCE_METRICS=true), code:text ([workspace-performance]), code:env (WORKSPACE_PERFORMANCE_METRICS=false), code:env (PERMISSION_CACHE_DISABLED=true), Healthy UAT Shape, Log Signal, Rollback, UAT Env (+2 more)
 
-### Community 96 - "Community 96"
+### Community 89 - "Community 89"
 Cohesion: 0.2
 Nodes (6): nextConfig, packageJson, securityHeaders, whisprCommitId, whisprDeployId, whisprGeneratedBuildId
 
-### Community 97 - "Community 97"
-Cohesion: 0.42
-Nodes (7): assertSuccessfulE2EResponse(), expectLoggedIn(), expectLoggedOut(), loginViaUi(), logout(), logoutViaUi(), expectUserStatus()
-
-### Community 98 - "Community 98"
-Cohesion: 0.28
-Nodes (5): attachmentDraftByFilename(), lightbox, message, waitForReadyAttachmentDraft(), AttachmentDraft
-
-### Community 99 - "Community 99"
-Cohesion: 0.31
-Nodes (6): LANGUAGE_OPTIONS, ThemeToggle(), getSystemTheme(), LoginTheme, readStoredTheme(), useLoginTheme()
-
-### Community 100 - "Community 100"
-Cohesion: 0.25
-Nodes (6): E2EUploadOptions, E2EUploadResponse, readFileAsDataUrl(), uploadE2EFile(), useE2EUploadThing, WizardsUploadRouter
-
-### Community 101 - "Community 101"
+### Community 90 - "Community 90"
 Cohesion: 0.22
 Nodes (6): cleanup, cleanupCalls, cleanupStarted, firstCleanup, registration, secondCleanup
 
+### Community 91 - "Community 91"
+Cohesion: 0.28
+Nodes (5): attachmentDraftByFilename(), lightbox, message, waitForReadyAttachmentDraft(), AttachmentDraft
+
+### Community 92 - "Community 92"
+Cohesion: 0.31
+Nodes (6): isAdvancedAppearancePanel(), PANELS_BY_SECTION, SettingsSection, SettingsSelection, NavItem, SettingsSidebar()
+
+### Community 93 - "Community 93"
+Cohesion: 0.33
+Nodes (7): AuthLayout(), ADVANCED_WIZARDS_THEMES, WIZARDS_THEMES, AUTH_THEME_ROUTES, AuthThemePickerCorner(), getThemeMode(), LANGUAGE_OPTIONS
+
+### Community 94 - "Community 94"
+Cohesion: 0.33
+Nodes (7): ATTACHMENT_REDIRECT_STATUSES, AttachmentHttpResponse, getHeader(), isRedirectStatus(), openPublicAttachmentDownload(), requestPublicAttachmentUrl(), LinkPreviewFetchOptions
+
+### Community 95 - "Community 95"
+Cohesion: 0.39
+Nodes (7): getVoiceStateViewerRoomName(), joinVoiceStateViewerRoomsForServer(), leaveVoiceStateViewerRoomsForServer(), joinedRooms, leftRooms, socket, VoiceStateViewerSocket
+
+### Community 96 - "Community 96"
+Cohesion: 0.67
+Nodes (6): getAppIconById(), AppIconProvider(), applyAppIcon(), applyAttributes(), ensureOwnedIconLink(), updateIconLink()
+
+### Community 97 - "Community 97"
+Cohesion: 0.43
+Nodes (5): getSafeAuthRedirectPath(), isSafeAuthRedirectPath(), SAFE_AUTH_REDIRECT_PREFIXES, LoginPage(), LoginPageProps
+
+### Community 98 - "Community 98"
+Cohesion: 0.33
+Nodes (5): user, JWT, Session, User, WhisprDefaultSessionUser
+
+### Community 99 - "Community 99"
+Cohesion: 0.53
+Nodes (5): assertAttachmentAccess(), assertDownloadableUrl(), contentDispositionFor(), GET(), RouteContext
+
+### Community 100 - "Community 100"
+Cohesion: 0.33
+Nodes (4): createPublicLookup(), blockedMappedAddresses, metadata, publicLookup
+
 ### Community 102 - "Community 102"
-Cohesion: 0.32
-Nodes (7): TurnstileAction, removeTurnstileWidget(), TurnstileApi, TurnstileWidget(), TurnstileWidgetProps, Window, Window
-
-### Community 103 - "Community 103"
-Cohesion: 0.25
-Nodes (7): applyServerMediaSettings(), getServerMediaSettings(), ServerMediaSettings, getWorkspaceServerDetail(), mapCategories(), mapInvites(), pickDefaultChannelId()
-
-### Community 105 - "Community 105"
-Cohesion: 0.52
-Nodes (5): formatErrorLog(), redactText(), redactValue(), stringifyStructuredLog(), payload
-
-### Community 107 - "Community 107"
 Cohesion: 0.4
 Nodes (4): compat, __dirname, eslintConfig, __filename
 
-### Community 108 - "Community 108"
+### Community 103 - "Community 103"
+Cohesion: 0.5
+Nodes (3): getSystemTheme(), LoginTheme, readStoredTheme()
+
+### Community 104 - "Community 104"
 Cohesion: 0.67
 Nodes (3): getToken(), ResetPasswordPage(), ResetPasswordPageProps
 
 ## Knowledge Gaps
-- **784 isolated node(s):** `scriptPath`, `desktopRoot`, `generatedDir`, `generatedConfigPath`, `extraArgs` (+779 more)
+- **795 isolated node(s):** `scriptPath`, `desktopRoot`, `generatedDir`, `generatedConfigPath`, `extraArgs` (+790 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `WorkspaceChannel` connect `Community 5` to `Community 11`?**
-  _High betweenness centrality (0.064) - this node is a cross-community bridge._
-- **Why does `useI18n()` connect `Community 25` to `Community 1`, `Community 3`, `Community 4`, `Community 6`, `Community 10`, `Community 12`, `Community 13`, `Community 14`, `Community 16`, `Community 19`, `Community 21`, `Community 28`, `Community 30`, `Community 35`, `Community 37`, `Community 38`, `Community 39`, `Community 40`, `Community 44`, `Community 45`, `Community 47`, `Community 53`, `Community 54`, `Community 63`, `Community 65`, `Community 70`, `Community 73`, `Community 74`, `Community 76`, `Community 80`, `Community 89`, `Community 99`, `Community 102`?**
-  _High betweenness centrality (0.053) - this node is a cross-community bridge._
-- **Why does `logError()` connect `Community 50` to `Community 0`, `Community 2`, `Community 6`, `Community 7`, `Community 9`, `Community 10`, `Community 11`, `Community 12`, `Community 22`, `Community 23`, `Community 25`, `Community 27`, `Community 30`, `Community 33`, `Community 49`, `Community 51`, `Community 57`, `Community 60`, `Community 77`, `Community 81`, `Community 105`?**
-  _High betweenness centrality (0.043) - this node is a cross-community bridge._
+- **Why does `useI18n()` connect `Community 2` to `Community 0`, `Community 4`, `Community 6`, `Community 9`, `Community 10`, `Community 15`, `Community 17`, `Community 20`, `Community 24`, `Community 25`, `Community 27`, `Community 30`, `Community 32`, `Community 34`, `Community 35`, `Community 37`, `Community 40`, `Community 43`, `Community 44`, `Community 47`, `Community 48`, `Community 50`, `Community 53`, `Community 62`, `Community 63`, `Community 73`, `Community 82`, `Community 86`, `Community 92`, `Community 93`?**
+  _High betweenness centrality (0.054) - this node is a cross-community bridge._
+- **Why does `WorkspaceChannel` connect `Community 14` to `Community 9`?**
+  _High betweenness centrality (0.046) - this node is a cross-community bridge._
+- **Why does `VoiceProvider()` connect `Community 15` to `Community 65`, `Community 2`, `Community 34`, `Community 4`, `Community 6`, `Community 39`, `Community 43`, `Community 12`, `Community 47`, `Community 17`, `Community 50`, `Community 23`, `Community 57`, `Community 27`, `Community 61`, `Community 30`?**
+  _High betweenness centrality (0.037) - this node is a cross-community bridge._
 - **What connects `scriptPath`, `desktopRoot`, `generatedDir` to the rest of the system?**
-  _784 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _795 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.08 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
-  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
-  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.04 - nodes in this community are weakly interconnected._

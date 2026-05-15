@@ -4,11 +4,7 @@ import { prisma } from "@wizards/db";
 
 import { ApiError } from "@/lib/api";
 import { PermissionBits } from "./permissions";
-import {
-  assertCanMentionEveryone,
-  containsMassMention,
-  createMessage,
-} from "./message-service";
+import { assertCanMentionEveryone, containsMassMention, createMessage } from "./message-service";
 
 type AsyncMethod = (args?: unknown) => Promise<unknown>;
 
@@ -112,6 +108,20 @@ describe("workspace message service", () => {
           };
         },
       },
+      outboxJob: {
+        upsert: async (args?: unknown) => {
+          operations.push("tx.outboxJob.upsert");
+          const upsertArgs = args as {
+            create?: { idempotencyKey?: string; type?: string };
+            where?: { idempotencyKey?: string };
+          };
+          assert.equal(upsertArgs.where?.idempotencyKey, "analytics:channel-message:message-1");
+          assert.equal(upsertArgs.create?.idempotencyKey, "analytics:channel-message:message-1");
+          assert.equal(upsertArgs.create?.type, "MESSAGE_CREATED_ANALYTICS");
+
+          return {};
+        },
+      },
     };
     const prismaDelegate = prisma as unknown as {
       $transaction: AsyncMethod;
@@ -163,6 +173,7 @@ describe("workspace message service", () => {
         "tx.attachment.findMany",
         "tx.attachment.update",
         "tx.message.findUniqueOrThrow",
+        "tx.outboxJob.upsert",
         "transaction.commit",
       ]);
     } finally {

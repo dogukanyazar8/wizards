@@ -27,7 +27,7 @@ export async function createChannelMentionNotifications(args: {
   channelId: string;
   channelName: string;
   content: string;
-  io: AppSocketServer;
+  io?: AppSocketServer;
   messageId: string;
   senderId: string;
   senderName: string;
@@ -144,64 +144,74 @@ export async function createChannelMentionNotifications(args: {
     return;
   }
 
-  await prisma.messageMention.createMany({
-    data: mentionRecipients.map((member) => ({
-      messageId: args.messageId,
+  const notificationData = mentionRecipients.map((member) => {
+    const locale = normalizeAppLocale(member.user.locale);
+
+    return {
+      actionUrl: `/channels/${args.serverId}/${args.channelId}`,
+      body: translate(locale, "chat.mentions.notifyBody", {
+        channel: args.channelName,
+        name: args.senderName,
+      }),
+      dedupeKey: `channel-mention:${args.messageId}:${member.userId}`,
+      metadata: {
+        channelId: args.channelId,
+        messageId: args.messageId,
+        senderId: args.senderId,
+        serverId: args.serverId,
+      },
+      title: translate(locale, "chat.mentions.notifyTitle"),
+      type: "MENTION" as const,
       userId: member.userId,
-    })),
-    skipDuplicates: true,
+    };
   });
 
-  await Promise.all(
-    mentionRecipients.map((member) =>
-      prisma.channelReadState.upsert({
-        where: {
-          channelId_userId: {
+  const notifications = await prisma.$transaction(async (tx) => {
+    const createdMentions = await tx.messageMention.createManyAndReturn({
+      data: mentionRecipients.map((member) => ({
+        messageId: args.messageId,
+        userId: member.userId,
+      })),
+      skipDuplicates: true,
+    });
+    const createdMentionUserIds = new Set(createdMentions.map((mention) => mention.userId));
+    const newMentionRecipients = mentionRecipients.filter((member) =>
+      createdMentionUserIds.has(member.userId),
+    );
+
+    await Promise.all(
+      newMentionRecipients.map((member) =>
+        tx.channelReadState.upsert({
+          where: {
+            channelId_userId: {
+              channelId: args.channelId,
+              userId: member.userId,
+            },
+          },
+          create: {
             channelId: args.channelId,
+            lastReadAt: member.joinedAt,
+            mentionCount: 1,
             userId: member.userId,
           },
-        },
-        create: {
-          channelId: args.channelId,
-          lastReadAt: member.joinedAt,
-          mentionCount: 1,
-          userId: member.userId,
-        },
-        update: {
-          mentionCount: {
-            increment: 1,
+          update: {
+            mentionCount: {
+              increment: 1,
+            },
           },
-        },
-      }),
-    ),
-  );
-
-  const notifications = await prisma.notification.createManyAndReturn({
-    data: mentionRecipients.map((member) => {
-      const locale = normalizeAppLocale(member.user.locale);
-
-      return {
-        actionUrl: `/channels/${args.serverId}/${args.channelId}`,
-        body: translate(locale, "chat.mentions.notifyBody", {
-          channel: args.channelName,
-          name: args.senderName,
         }),
-        metadata: {
-          channelId: args.channelId,
-          messageId: args.messageId,
-          senderId: args.senderId,
-          serverId: args.serverId,
-        },
-        title: translate(locale, "chat.mentions.notifyTitle"),
-        type: "MENTION" as const,
-        userId: member.userId,
-      };
-    }),
+      ),
+    );
+
+    return tx.notification.createManyAndReturn({
+      data: notificationData,
+      skipDuplicates: true,
+    });
   });
 
   for (const notification of notifications) {
     args.io
-      .to(`user:${notification.userId}`)
+      ?.to(`user:${notification.userId}`)
       .emit("notification:new", serializeNotification(notification as NotificationRecord));
     void emitServerUnreadUpdateToUser(notification.userId, args.serverId).catch(() => undefined);
   }
@@ -211,7 +221,8 @@ export async function createChannelThreadReplyNotification(args: {
   channelId: string;
   channelName: string;
   content: string;
-  io: AppSocketServer;
+  io?: AppSocketServer;
+  messageId: string;
   parentMessageId: string;
   senderId: string;
   senderName: string;
@@ -248,26 +259,33 @@ export async function createChannelThreadReplyNotification(args: {
   }
 
   const locale = normalizeAppLocale(parent.author.locale);
-  const notification = await prisma.notification.create({
-    data: {
-      actionUrl: `/channels/${args.serverId}/${args.channelId}?thread=${args.parentMessageId}`,
-      body: translate(locale, "chat.thread.notifyBody", {
-        channel: args.channelName,
-        name: args.senderName,
-      }),
-      metadata: {
-        channelId: args.channelId,
-        parentMessageId: args.parentMessageId,
-        serverId: args.serverId,
-        threadReplyPreview: args.content.slice(0, 180),
+  const notifications = await prisma.notification.createManyAndReturn({
+    data: [
+      {
+        actionUrl: `/channels/${args.serverId}/${args.channelId}?thread=${args.parentMessageId}`,
+        body: translate(locale, "chat.thread.notifyBody", {
+          channel: args.channelName,
+          name: args.senderName,
+        }),
+        dedupeKey: `channel-thread-reply:${args.messageId}:${parent.userId}`,
+        metadata: {
+          channelId: args.channelId,
+          messageId: args.messageId,
+          parentMessageId: args.parentMessageId,
+          serverId: args.serverId,
+          threadReplyPreview: args.content.slice(0, 180),
+        },
+        title: translate(locale, "chat.thread.notifyTitle"),
+        type: "SYSTEM",
+        userId: parent.userId,
       },
-      title: translate(locale, "chat.thread.notifyTitle"),
-      type: "SYSTEM",
-      userId: parent.userId,
-    },
+    ],
+    skipDuplicates: true,
   });
 
-  args.io
-    .to(`user:${parent.userId}`)
-    .emit("notification:new", serializeNotification(notification as NotificationRecord));
+  for (const notification of notifications) {
+    args.io
+      ?.to(`user:${parent.userId}`)
+      .emit("notification:new", serializeNotification(notification as NotificationRecord));
+  }
 }
