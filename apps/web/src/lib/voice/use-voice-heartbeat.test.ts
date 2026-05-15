@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { createVoiceHeartbeatController, type VoiceHeartbeatOptions } from "./use-voice-heartbeat";
+import {
+  createVoiceHeartbeatController,
+  createVoiceHeartbeatTimerApi,
+  type VoiceHeartbeatOptions,
+} from "./use-voice-heartbeat";
 
 function createFakeIntervalApi() {
   const callbacks = new Map<number, () => void>();
@@ -116,5 +120,36 @@ describe("voice heartbeat controller", () => {
 
     assert.equal(controller.isRunning(), false);
     assert.deepEqual(fake.cleared, [1]);
+  });
+
+  it("calls browser timer APIs with the global object as receiver", () => {
+    const originalSetInterval = globalThis.setInterval;
+    const originalClearInterval = globalThis.clearInterval;
+    const calls: string[] = [];
+
+    try {
+      globalThis.setInterval = function setIntervalWithReceiverCheck(
+        this: typeof globalThis,
+      ) {
+        assert.equal(this, globalThis);
+        calls.push("set");
+        return 1 as unknown as ReturnType<typeof setInterval>;
+      } as unknown as typeof setInterval;
+      globalThis.clearInterval = function clearIntervalWithReceiverCheck(
+        this: typeof globalThis,
+      ) {
+        assert.equal(this, globalThis);
+        calls.push("clear");
+      } as unknown as typeof clearInterval;
+
+      const timers = createVoiceHeartbeatTimerApi();
+      const handle = timers.setInterval(() => undefined, 10);
+      timers.clearInterval(handle);
+
+      assert.deepEqual(calls, ["set", "clear"]);
+    } finally {
+      globalThis.setInterval = originalSetInterval;
+      globalThis.clearInterval = originalClearInterval;
+    }
   });
 });

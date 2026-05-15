@@ -132,6 +132,21 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.roleNotifications.title": "Role change notifications",
     "app.update.notes.roleNotifications.description":
       "Members now receive realtime notifications when their server roles change, keeping permission updates visible without a refresh.",
+    "app.update.notes.voiceReliability.title": "Voice connection stability",
+    "app.update.notes.voiceReliability.description":
+      "Voice joins are now idempotent, heartbeat timers bind safely in browsers, failed joins roll back their server state, and non-critical sync steps no longer tear down an active call.",
+    "app.update.notes.voiceParticipantSync.title": "Live voice roster sync",
+    "app.update.notes.voiceParticipantSync.description":
+      "Leaving a voice room now removes only the departing user from local cache and broadcasts state to both authorized viewers and active participants, so remaining names stay visible without a refresh.",
+    "app.update.notes.architectureSplit.title": "Leaner voice and workspace architecture",
+    "app.update.notes.architectureSplit.description":
+      "The voice provider and workspace service are now split into tested helpers and domain services, keeping lifecycle, cache, and transaction rules easier to reason about.",
+    "app.update.notes.securityHardening.title": "Security hardening sweep",
+    "app.update.notes.securityHardening.description":
+      "JSON-only mutating APIs, stricter link and attachment fetch validation, OAuth, admin, session, permission, and rate-limit safeguards reduce cross-site and SSRF risk.",
+    "app.update.notes.releaseReadiness.title": "Desktop and deploy readiness",
+    "app.update.notes.releaseReadiness.description":
+      "The desktop build now targets whispr.team capabilities, LiveKit/Krisp CSP support, health and readiness checks, Railway config, and migration-aware startup paths.",
 
     "validation.category.pattern":
       "Category names can use letters, numbers, spaces, hyphens, or underscores.",
@@ -1944,6 +1959,21 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.roleNotifications.title": "Rol değişimi bildirimleri",
     "app.update.notes.roleNotifications.description":
       "Sunucu rolleri değişen üyeler artık anlık bildirim alır; yetki güncellemeleri sayfa yenilemeden görünür olur.",
+    "app.update.notes.voiceReliability.title": "Ses bağlantısı stabilitesi",
+    "app.update.notes.voiceReliability.description":
+      "Ses odasına katılım artık idempotent çalışır, heartbeat zamanlayıcıları tarayıcıda güvenli bağlanır, başarısız katılımlar sunucu durumunu geri alır ve kritik olmayan senkron adımları aktif çağrıyı düşürmez.",
+    "app.update.notes.voiceParticipantSync.title": "Canlı ses katılımcı senkronu",
+    "app.update.notes.voiceParticipantSync.description":
+      "Ses odasından ayrılmak artık local cache'ten yalnızca ayrılan kullanıcıyı çıkarır ve durumu hem yetkili izleyicilere hem aktif katılımcılara yayınlar; kalan isimler yenileme olmadan görünür kalır.",
+    "app.update.notes.architectureSplit.title": "Daha sade ses ve workspace mimarisi",
+    "app.update.notes.architectureSplit.description":
+      "Voice provider ve workspace service artık testli helper'lara ve domain servislerine ayrıldı; lifecycle, cache ve transaction kuralları daha okunabilir hale geldi.",
+    "app.update.notes.securityHardening.title": "Güvenlik güçlendirme taraması",
+    "app.update.notes.securityHardening.description":
+      "Yalnızca JSON kabul eden mutating API'ler, daha sıkı link ve ek dosya fetch doğrulamaları, OAuth, admin, oturum, izin ve rate-limit korumaları CSRF ve SSRF riskini azaltır.",
+    "app.update.notes.releaseReadiness.title": "Masaüstü ve deploy hazırlığı",
+    "app.update.notes.releaseReadiness.description":
+      "Masaüstü build'i artık whispr.team capability'leri, LiveKit/Krisp CSP desteği, health/readiness kontrolleri, Railway konfigürasyonu ve migration-aware başlangıç yollarıyla uyumlu.",
 
     "validation.category.pattern":
       "Kategori adları harf, sayı, boşluk, tire veya alt çizgi içerebilir.",

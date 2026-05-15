@@ -73,7 +73,11 @@ import {
   registerRoomParticipantSyncListeners,
   type ReconnectTimeoutController,
 } from "@/lib/voice/provider-lifecycle";
-import { mapVoiceScreenShareStateCache, mapVoiceStateCache } from "@/lib/voice/state-cache";
+import {
+  mapVoiceScreenShareStateCache,
+  mapVoiceStateCache,
+  removeVoiceStateParticipantFromCache,
+} from "@/lib/voice/state-cache";
 import { VOICE_HEARTBEAT_INTERVAL_MS, type VoiceChannelStateDTO } from "@/lib/voice/types";
 import { useVoiceAudioLevels, type RemoteVoiceAudioLevel } from "@/lib/voice/use-voice-audio-levels";
 import { useVoiceHeartbeat } from "@/lib/voice/use-voice-heartbeat";
@@ -187,10 +191,22 @@ function applyRemoteAudioState(
   participantVolumes: Record<string, number>,
 ) {
   for (const participant of room.remoteParticipants.values()) {
-    participant.setVolume(
-      resolveParticipantVolume(participant.identity, isDeafened, participantVolumes),
-      Track.Source.Microphone,
-    );
+    try {
+      participant.setVolume(
+        resolveParticipantVolume(participant.identity, isDeafened, participantVolumes),
+        Track.Source.Microphone,
+      );
+    } catch (error) {
+      logError("[voice] Remote participant volume sync failed", error);
+    }
+  }
+}
+
+function runNonFatalVoiceJoinStep(step: string, action: () => void) {
+  try {
+    action();
+  } catch (error) {
+    logError(`[voice] Non-fatal join step failed: ${step}`, error);
   }
 }
 
@@ -545,6 +561,16 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       queryClient.setQueryData<VoiceChannelStateDTO[] | undefined>(
         voiceQueryKeys.serverStates(targetServerId),
         (current) => mapVoiceStateCache(current, targetChannelId, nextParticipants),
+      );
+    },
+    [queryClient],
+  );
+
+  const removeVoiceStateParticipant = useCallback(
+    (targetServerId: string, targetChannelId: string, userId: string) => {
+      queryClient.setQueryData<VoiceChannelStateDTO[] | undefined>(
+        voiceQueryKeys.serverStates(targetServerId),
+        (current) => removeVoiceStateParticipantFromCache(current, targetChannelId, userId),
       );
     },
     [queryClient],
@@ -1345,17 +1371,18 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     await resetKrispProcessor();
 
     if (activeServer && activeChannel) {
-      updateVoiceStatesCache(activeServer, activeChannel, []);
+      removeVoiceStateParticipant(activeServer, activeChannel, currentUser.id);
     }
 
     useVoiceStore.getState().leave();
   }, [
     clearReconnectTimeout,
+    currentUser.id,
+    removeVoiceStateParticipant,
     resetKrispProcessor,
     stopHeartbeat,
     stopCamera,
     stopScreenShare,
-    updateVoiceStatesCache,
   ]);
 
   const joinChannel = useCallback(
@@ -1369,18 +1396,27 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       const shouldStartMuted = currentState.isMuted;
       const shouldStartDeafened = currentState.isDeafened;
 
-      if (
+      const activeRoom = roomRef.current;
+      const isAlreadyJoiningTarget = joinRequestRef.current === nextJoinKey;
+      const isAlreadyInTarget =
         currentState.activeChannelId === channelId &&
         currentState.serverId === nextServerId &&
-        roomRef.current &&
-        roomRef.current.state !== ConnectionState.Disconnected
-      ) {
+        activeRoom &&
+        activeRoom.state !== ConnectionState.Disconnected;
+      if (isAlreadyJoiningTarget || isAlreadyInTarget) {
         return;
       }
 
-      if (joinRequestRef.current === nextJoinKey) {
-        return;
+      const hasExistingVoiceSession =
+        Boolean(joinRequestRef.current) ||
+        Boolean(activeRoom) ||
+        Boolean(currentState.activeChannelId) ||
+        Boolean(currentState.sessionId);
+      if (hasExistingVoiceSession) {
+        await leaveChannel();
       }
+
+      joinRequestRef.current = nextJoinKey;
 
       let hasMicrophoneAccess = shouldStartMuted;
       const preparedMicrophoneAccess = preparedMicrophoneAccessRef.current;
@@ -1397,27 +1433,25 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
           if (isMicrophonePermissionDenied(error)) {
             hasMicrophoneAccess = false;
           } else {
+            if (joinRequestRef.current === nextJoinKey) {
+              joinRequestRef.current = null;
+            }
             throw error;
           }
         }
       }
 
-      if (
-        joinRequestRef.current ||
-        roomRef.current ||
-        currentState.activeChannelId ||
-        currentState.sessionId
-      ) {
-        await leaveChannel();
+      if (joinRequestRef.current !== nextJoinKey) {
+        return;
       }
 
-      joinRequestRef.current = nextJoinKey;
       setIsJoining(true);
       setErrorMessage(null);
       setCameraError(null);
       setCameraStatus("disabled");
 
       const sessionId = crypto.randomUUID();
+      let voiceStateCreated = false;
       const nextRoom = new Room({
         audioCaptureDefaults: buildAudioCaptureOptions(currentState.audioPreferences),
       });
@@ -1425,13 +1459,17 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       setRoom(nextRoom);
 
       const syncRoomParticipants = () => {
-        applyRemoteAudioState(
-          nextRoom,
-          useVoiceStore.getState().isDeafened,
-          useVoiceStore.getState().participantVolumes,
-        );
-        syncParticipants(nextRoom);
-        syncScreenShares(nextRoom);
+        try {
+          applyRemoteAudioState(
+            nextRoom,
+            useVoiceStore.getState().isDeafened,
+            useVoiceStore.getState().participantVolumes,
+          );
+          syncParticipants(nextRoom);
+          syncScreenShares(nextRoom);
+        } catch (error) {
+          logError("[voice] Room participant sync failed", error);
+        }
       };
 
       registerRoomParticipantSyncListeners(nextRoom, syncRoomParticipants);
@@ -1512,6 +1550,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
           serverId: nextServerId,
           sessionId,
         });
+        voiceStateCreated = true;
 
         useVoiceStore.getState().join({
           channelId,
@@ -1519,34 +1558,35 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
           sessionId,
         });
         remoteAudioLevelsRef.current.clear();
-        getSocket().emit("voice:join", {
-          channelId,
-          serverId: nextServerId,
+        runNonFatalVoiceJoinStep("socket voice join emit", () => {
+          getSocket().emit("voice:join", {
+            channelId,
+            serverId: nextServerId,
+          });
         });
         useVoiceStore.getState().setMuted(shouldStartMuted || !hasMicrophoneAccess);
         useVoiceStore.getState().setDeafened(shouldStartDeafened);
 
-        updateVoiceStatesCache(nextServerId, channelId, state.participants);
-        startHeartbeat(sessionId);
+        runNonFatalVoiceJoinStep("voice state cache update", () => {
+          updateVoiceStatesCache(nextServerId, channelId, state.participants);
+        });
+        runNonFatalVoiceJoinStep("heartbeat start", () => {
+          startHeartbeat(sessionId);
+        });
         void nextRoom.startAudio().catch(() => undefined);
-        applyRemoteAudioState(
-          nextRoom,
-          shouldStartDeafened,
-          useVoiceStore.getState().participantVolumes,
-        );
         syncRoomParticipants();
 
         if (!hasMicrophoneAccess) {
           setIsKrispNoiseCancellationActive(false);
           setErrorMessage(microphoneDeniedMessage);
-          syncParticipants(nextRoom);
+          syncRoomParticipants();
           return;
         }
 
         if (shouldStartMuted) {
           setIsKrispNoiseCancellationActive(false);
           setErrorMessage(null);
-          syncParticipants(nextRoom);
+          syncRoomParticipants();
           return;
         }
 
@@ -1567,7 +1607,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
               getAudioCaptureRestartSignature(preferences);
             setErrorMessage(null);
             useVoiceStore.getState().setMuted(false);
-            syncParticipants(nextRoom);
+            syncRoomParticipants();
           })
           .catch((error) => {
             if (roomRef.current !== nextRoom) {
@@ -1580,7 +1620,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
                 error,
               );
               setErrorMessage(null);
-              syncParticipants(nextRoom);
+              syncRoomParticipants();
               return;
             }
 
@@ -1591,29 +1631,45 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
                 ? microphoneDeniedMessage
                 : microphoneEnableFailedMessage,
             );
-            syncParticipants(nextRoom);
+            syncRoomParticipants();
           });
       } catch (error) {
-        roomRef.current = null;
-        setRoom(null);
-        setParticipants([]);
-        setCameraError(null);
-        setCameraStatus("disabled");
-        setConnectionState(ConnectionState.Disconnected);
+        const isCurrentJoinAttempt =
+          joinRequestRef.current === nextJoinKey || roomRef.current === nextRoom;
+        logError("[voice] Channel join failed", error);
+        stopHeartbeat();
+        clearReconnectTimeout();
+        if (roomRef.current === nextRoom) {
+          roomRef.current = null;
+          setRoom((currentRoom) => (currentRoom === nextRoom ? null : currentRoom));
+          setParticipants([]);
+          setCameraError(null);
+          setCameraStatus("disabled");
+          setConnectionState(ConnectionState.Disconnected);
+        }
         appliedAudioPreferencesSignatureRef.current = null;
         nextRoom.removeAllListeners();
         await stopLocalTracks(nextRoom).catch(() => undefined);
         await nextRoom.disconnect(true).catch(() => undefined);
         await resetKrispProcessor();
-        useVoiceStore.getState().leave();
-        setErrorMessage(
-          isMicrophonePermissionDenied(error)
-            ? microphoneDeniedMessage
-            : isMicrophoneDeviceUnavailable(error)
-              ? microphoneEnableFailedMessage
-              : t("voice.errors.connectionFailed"),
-        );
-        throw error;
+        if (voiceStateCreated) {
+          await deleteVoiceState({ sessionId }).catch((deleteError) => {
+            logError("[voice] Failed to roll back voice state after join failure", deleteError);
+          });
+        }
+        if (useVoiceStore.getState().sessionId === sessionId) {
+          useVoiceStore.getState().leave();
+        }
+        if (isCurrentJoinAttempt) {
+          setErrorMessage(
+            isMicrophonePermissionDenied(error)
+              ? microphoneDeniedMessage
+              : isMicrophoneDeviceUnavailable(error)
+                ? microphoneEnableFailedMessage
+                : t("voice.errors.connectionFailed"),
+          );
+          throw error;
+        }
       } finally {
         if (joinRequestRef.current === nextJoinKey) {
           joinRequestRef.current = null;
@@ -1633,6 +1689,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       resetKrispProcessor,
       requestMicrophonePermission,
       startHeartbeat,
+      stopHeartbeat,
       setConnectionWarning,
       syncKrispNoiseCancellation,
       syncParticipants,

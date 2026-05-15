@@ -5,6 +5,7 @@ import { logAnalyticsError, setVoiceScreenShareUsage } from "@/lib/analytics/ser
 import type { HandlerContext } from "@/lib/socket/context";
 import { createSocketErrorEmitter, createVoiceInviteErrorEmitter } from "@/lib/socket/errors";
 import {
+  getVoiceParticipantRoomName,
   joinVoiceStateViewerRoomsForServer,
   leaveVoiceStateViewerRoomsForServer,
 } from "@/lib/socket/rooms";
@@ -52,7 +53,7 @@ export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistr
         respectLocked: true,
       });
 
-      socket.join(`voice:${data.channelId}`);
+      socket.join(getVoiceParticipantRoomName(data.channelId));
       socket.data.voiceRooms.add(data.channelId);
     } catch (error) {
       emitSocketError("VOICE_JOIN_ERROR", "Unable to join voice room.", error);
@@ -62,7 +63,7 @@ export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistr
   socket.on("voice:leave", (rawData) => {
     try {
       const data = parseSocketPayload(SocketVoiceChannelPayloadSchema, rawData);
-      socket.leave(`voice:${data.channelId}`);
+      socket.leave(getVoiceParticipantRoomName(data.channelId));
       socket.data.voiceRooms.delete(data.channelId);
     } catch (error) {
       emitSocketError("VALIDATION_ERROR", "Invalid voice room payload.", error);
@@ -114,7 +115,7 @@ export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistr
       }
 
       socket.data.lastVoiceAudioLevelAt = now;
-      socket.to(`voice:${data.channelId}`).emit("voice:audio-level:update", {
+      socket.to(getVoiceParticipantRoomName(data.channelId)).emit("voice:audio-level:update", {
         audioLevel: data.audioLevel,
         channelId: data.channelId,
         isMuted: data.isMuted,

@@ -672,12 +672,12 @@
     "hash": "adfc89da37fd86a785e6e0a49c0ab54d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\e2e-voice-provider.tsx": {
-    "mtime": 1778823243.5276601,
-    "hash": "770a18e514c0520a19d417ea82143642"
+    "mtime": 1778843675.467668,
+    "hash": "b7b67b7d30ad926a2a5dbd2ad5d23009"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\live-voice-provider.tsx": {
-    "mtime": 1778823164.626442,
-    "hash": "a60d5988c823c184535bbf571a761279"
+    "mtime": 1778843658.7793822,
+    "hash": "2a58b78faf779ae3f526aa7d9775679c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\locale-provider.tsx": {
     "mtime": 1778571008.1182587,
@@ -944,8 +944,8 @@
     "hash": "3b76e9183e3dc50fa3645aba8a382d87"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\app-version.ts": {
-    "mtime": 1778582979.661834,
-    "hash": "75970ad074147f1fefd795ec548e6547"
+    "mtime": 1778844492.831166,
+    "hash": "17fcdccb8ad256f0563534b567de46f9"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\appearance.ts": {
     "mtime": 1778144353.2742922,
@@ -972,8 +972,8 @@
     "hash": "9dafc40721a587bf5c24b7887c140d25"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale.ts": {
-    "mtime": 1778746040.1690116,
-    "hash": "2b97b74f7cd09e5526e5548bf3d78c1a"
+    "mtime": 1778844509.7663147,
+    "hash": "39a4651aff5b80273865d434c23f7e00"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\logger.test.ts": {
     "mtime": 1778748556.5608492,
@@ -1384,12 +1384,12 @@
     "hash": "ee8bc552c0f03fade62c080cf00e3ee6"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\rooms.test.ts": {
-    "mtime": 1778769463.9599018,
-    "hash": "80050bf09020792e15f1a1840dbcdde1"
+    "mtime": 1778843757.538838,
+    "hash": "9cffcdd8ef39d5d9d713018c349875d6"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\rooms.ts": {
-    "mtime": 1778769429.8528166,
-    "hash": "53ab06f6b57e5ad67de53a4efd0f4d19"
+    "mtime": 1778843708.3267286,
+    "hash": "0c3619804c3bf92477428e7d82fef14f"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\runtime.ts": {
     "mtime": 1777376722.1002865,
@@ -1456,8 +1456,8 @@
     "hash": "1788d498ad988751b76063107b89424b"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\voice.ts": {
-    "mtime": 1778769439.1624722,
-    "hash": "bc2251fdca6ff1537aae961b6011cc19"
+    "mtime": 1778843742.9510577,
+    "hash": "e902ed9a7292cfed0c37e51a9c8011b1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\client.ts": {
     "mtime": 1778604871.754737,
@@ -1516,16 +1516,16 @@
     "hash": "5419b34cf19558fa12322681939f9144"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\service.ts": {
-    "mtime": 1778818257.8859553,
-    "hash": "69a2f2a33ec2e311537b1900b9a9720f"
+    "mtime": 1778843750.1161048,
+    "hash": "efc96d92bc5b08b73c191258e8c2b90f"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\state-cache.test.ts": {
-    "mtime": 1778821884.3306081,
-    "hash": "82bc9935ca04f8cf4dc0aa202258d01b"
+    "mtime": 1778843646.8126945,
+    "hash": "b7a1c2e9cad375f1c8b2a7067b1aeb33"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\state-cache.ts": {
-    "mtime": 1778821734.8760252,
-    "hash": "faf38df43999ce4c6b6267ca1fdea34f"
+    "mtime": 1778843639.07879,
+    "hash": "ae948ede3746dbe1ea484fd5160c2985"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\types.ts": {
     "mtime": 1778604841.3267071,
@@ -1536,12 +1536,12 @@
     "hash": "46902fc19df54a9c5a075b0fee814002"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\use-voice-heartbeat.test.ts": {
-    "mtime": 1778822119.3436062,
-    "hash": "efdbc64764851e7414fdd9e513edc2cc"
+    "mtime": 1778843096.6426623,
+    "hash": "4466b61ee2f95aa0980aa49687e42018"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\use-voice-heartbeat.ts": {
-    "mtime": 1778822119.3426046,
-    "hash": "e5262cf5e903a6ed10890a7b130b7207"
+    "mtime": 1778843058.9722536,
+    "hash": "3e4434eadce5ca9105da21bdcf38f277"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\access-context.ts": {
     "mtime": 1778825666.786274,
@@ -1888,8 +1888,8 @@
     "hash": "c857dca33e61036da207e56b5313723a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\RELEASE.md": {
-    "mtime": 1778680150.554646,
-    "hash": "c515aea89704316bd06348d5fe4380c1"
+    "mtime": 1778844492.831166,
+    "hash": "f9fd667ac2bd1132bb2d5fb7cce308d0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\README.md": {
     "mtime": 1778743234.8739288,

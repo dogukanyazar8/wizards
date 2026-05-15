@@ -2,12 +2,18 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  getVoiceParticipantRoomName,
   getVoiceStateViewerRoomName,
   joinVoiceStateViewerRoomsForServer,
   leaveVoiceStateViewerRoomsForServer,
 } from "./rooms";
 
 describe("socket room helpers", () => {
+  it("builds stable voice participant and viewer room names", () => {
+    assert.equal(getVoiceParticipantRoomName("voice-1"), "voice:voice-1");
+    assert.equal(getVoiceStateViewerRoomName("voice-1"), "voice-viewers:voice-1");
+  });
+
   it("tracks and replaces voice state viewer rooms per server", async () => {
     const joinedRooms: string[] = [];
     const leftRooms: string[] = [];

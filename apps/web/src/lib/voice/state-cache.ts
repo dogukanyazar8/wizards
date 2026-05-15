@@ -35,6 +35,38 @@ export function mapVoiceStateCache(
   return nextStates;
 }
 
+export function removeVoiceStateParticipantFromCache(
+  states: VoiceChannelStateDTO[] | undefined,
+  channelId: string,
+  userId: string,
+) {
+  if (!states) {
+    return states;
+  }
+
+  const existingIndex = states.findIndex((state) => state.channelId === channelId);
+  if (existingIndex < 0) {
+    return states;
+  }
+
+  const existingState = states[existingIndex]!;
+  const nextParticipants = existingState.participants.filter(
+    (participant) => participant.userId !== userId,
+  );
+  const nextStates = [...states];
+
+  if (nextParticipants.length === 0) {
+    nextStates.splice(existingIndex, 1);
+    return nextStates;
+  }
+
+  nextStates[existingIndex] = {
+    ...existingState,
+    participants: nextParticipants,
+  };
+  return nextStates;
+}
+
 export function mapVoiceScreenShareStateCache(
   states: VoiceChannelStateDTO[] | undefined,
   channelId: string,

@@ -29,7 +29,11 @@ import {
   voiceQueryKeys,
 } from "@/lib/voice/client";
 import { type ScreenShareQualityId } from "@/lib/voice/screen-share";
-import { mapVoiceScreenShareStateCache, mapVoiceStateCache } from "@/lib/voice/state-cache";
+import {
+  mapVoiceScreenShareStateCache,
+  mapVoiceStateCache,
+  removeVoiceStateParticipantFromCache,
+} from "@/lib/voice/state-cache";
 import { type VoiceChannelStateDTO } from "@/lib/voice/types";
 import { useVoiceHeartbeat } from "@/lib/voice/use-voice-heartbeat";
 import { DEFAULT_PARTICIPANT_VOLUME, useVoiceStore } from "@/store/voice-store";
@@ -182,6 +186,16 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
     [queryClient],
   );
 
+  const removeVoiceStateParticipant = useCallback(
+    (targetServerId: string, targetChannelId: string, userId: string) => {
+      queryClient.setQueryData<VoiceChannelStateDTO[] | undefined>(
+        voiceQueryKeys.serverStates(targetServerId),
+        (current) => removeVoiceStateParticipantFromCache(current, targetChannelId, userId),
+      );
+    },
+    [queryClient],
+  );
+
   const emitScreenShareState = useCallback(
     (targetChannelId: string | null, targetServerId: string | null, isSharing: boolean) => {
       if (!targetChannelId || !targetServerId) {
@@ -247,11 +261,17 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
     }
 
     if (targetServerId && targetChannelId) {
-      setVoiceStateCache(targetServerId, targetChannelId, []);
+      removeVoiceStateParticipant(targetServerId, targetChannelId, currentUser.id);
     }
 
     store.leave();
-  }, [setVoiceStateCache, stopCamera, stopHeartbeat, stopScreenShare]);
+  }, [
+    currentUser.id,
+    removeVoiceStateParticipant,
+    stopCamera,
+    stopHeartbeat,
+    stopScreenShare,
+  ]);
 
   const joinChannel = useCallback(
     async ({ channelId, serverId: nextServerId }: { channelId: string; serverId: string }) => {

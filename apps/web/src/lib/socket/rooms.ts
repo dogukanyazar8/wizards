@@ -10,6 +10,10 @@ export function getVoiceStateViewerRoomName(channelId: string) {
   return `voice-viewers:${channelId}`;
 }
 
+export function getVoiceParticipantRoomName(channelId: string) {
+  return `voice:${channelId}`;
+}
+
 export async function joinVoiceStateViewerRoomsForServer(
   socket: VoiceStateViewerSocket,
   serverId: string,

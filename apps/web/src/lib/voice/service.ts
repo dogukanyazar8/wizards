@@ -10,7 +10,10 @@ import {
 import { getLiveKitRoomServiceClient } from "@/lib/livekit/server";
 import { logError } from "@/lib/logger";
 import { getRedis } from "@/lib/redis";
-import { getVoiceStateViewerRoomName } from "@/lib/socket/rooms";
+import {
+  getVoiceParticipantRoomName,
+  getVoiceStateViewerRoomName,
+} from "@/lib/socket/rooms";
 import { getSocketServer } from "@/lib/socket/runtime";
 import {
   filterUserIdsByChannelPermission,
@@ -584,7 +587,9 @@ export async function emitVoiceStateUpdate(args: {
     userId: args.userId,
   };
 
-  io.to(getVoiceStateViewerRoomName(args.channelId)).emit("voice:state:update", payload);
+  io.to(getVoiceStateViewerRoomName(args.channelId))
+    .to(getVoiceParticipantRoomName(args.channelId))
+    .emit("voice:state:update", payload);
 }
 
 export async function emitVoiceScreenShareUpdate(args: {

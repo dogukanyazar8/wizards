@@ -26,7 +26,7 @@ function formatWhisprVersion(version: string, codename: string) {
 }
 
 const WHISPR_VERSION_NUMBER =
-  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.6";
+  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.7";
 export const WHISPR_RELEASE_CODENAME =
   process.env.NEXT_PUBLIC_WHISPR_RELEASE_CODENAME ?? "Echo";
 export const WHISPR_APP_VERSION = formatWhisprVersion(
@@ -43,33 +43,33 @@ export const WHISPR_RELEASE_CHANNEL =
 export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
   {
     categoryKey: "app.update.category.voice",
-    descriptionKey: "app.update.notes.voiceInvites.description",
-    id: "voice-room-invites",
-    titleKey: "app.update.notes.voiceInvites.title",
-  },
-  {
-    categoryKey: "app.update.category.quality",
-    descriptionKey: "app.update.notes.voiceRecovery.description",
-    id: "voice-room-recovery",
-    titleKey: "app.update.notes.voiceRecovery.title",
+    descriptionKey: "app.update.notes.voiceReliability.description",
+    id: "voice-reliability",
+    titleKey: "app.update.notes.voiceReliability.title",
   },
   {
     categoryKey: "app.update.category.voice",
-    descriptionKey: "app.update.notes.voiceActivitySync.description",
-    id: "voice-activity-sync",
-    titleKey: "app.update.notes.voiceActivitySync.title",
+    descriptionKey: "app.update.notes.voiceParticipantSync.description",
+    id: "voice-participant-sync",
+    titleKey: "app.update.notes.voiceParticipantSync.title",
   },
   {
-    categoryKey: "app.update.category.servers",
-    descriptionKey: "app.update.notes.memberPanelRoles.description",
-    id: "role-aware-member-panel",
-    titleKey: "app.update.notes.memberPanelRoles.title",
+    categoryKey: "app.update.category.quality",
+    descriptionKey: "app.update.notes.architectureSplit.description",
+    id: "architecture-split",
+    titleKey: "app.update.notes.architectureSplit.title",
   },
   {
-    categoryKey: "app.update.category.notifications",
-    descriptionKey: "app.update.notes.roleNotifications.description",
-    id: "role-and-invite-notifications",
-    titleKey: "app.update.notes.roleNotifications.title",
+    categoryKey: "app.update.category.security",
+    descriptionKey: "app.update.notes.securityHardening.description",
+    id: "security-hardening",
+    titleKey: "app.update.notes.securityHardening.title",
+  },
+  {
+    categoryKey: "app.update.category.desktop",
+    descriptionKey: "app.update.notes.releaseReadiness.description",
+    id: "release-readiness",
+    titleKey: "app.update.notes.releaseReadiness.title",
   },
 ];
 

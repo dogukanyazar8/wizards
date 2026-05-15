@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { mapVoiceScreenShareStateCache, mapVoiceStateCache } from "./state-cache";
+import {
+  mapVoiceScreenShareStateCache,
+  mapVoiceStateCache,
+  removeVoiceStateParticipantFromCache,
+} from "./state-cache";
 import type { VoiceChannelStateDTO } from "./types";
 
 const participant = {
@@ -85,5 +89,44 @@ describe("voice state cache helpers", () => {
       existing[1],
     ]);
     assert.equal(mapVoiceScreenShareStateCache(undefined, "channel-1", "user-2", true), undefined);
+  });
+
+  it("removes only the leaving participant from a voice channel cache entry", () => {
+    const bob = {
+      ...participant,
+      displayName: "Bob",
+      userId: "user-2",
+      username: "bob",
+    };
+    const existing: VoiceChannelStateDTO[] = [
+      {
+        channelId: "channel-1",
+        participants: [participant, bob],
+      },
+    ];
+
+    assert.deepEqual(removeVoiceStateParticipantFromCache(existing, "channel-1", "user-1"), [
+      {
+        channelId: "channel-1",
+        participants: [bob],
+      },
+    ]);
+    assert.deepEqual(removeVoiceStateParticipantFromCache(existing, "channel-1", "user-2"), [
+      {
+        channelId: "channel-1",
+        participants: [participant],
+      },
+    ]);
+  });
+
+  it("removes the voice channel cache entry when the last participant leaves", () => {
+    const existing: VoiceChannelStateDTO[] = [
+      {
+        channelId: "channel-1",
+        participants: [participant],
+      },
+    ];
+
+    assert.deepEqual(removeVoiceStateParticipantFromCache(existing, "channel-1", "user-1"), []);
   });
 });
