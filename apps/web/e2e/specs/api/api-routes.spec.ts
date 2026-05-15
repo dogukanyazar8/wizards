@@ -171,15 +171,26 @@ test.describe("API v1 permission boundaries", () => {
     });
   });
 
-  test("does not expose voice states for servers outside membership", async ({ request }) => {
-    const { serverId } = await createIsolatedServerForMembershipTest("alice");
+  test("allows members to list voice states for their server", async ({ request }) => {
+    const { serverId } = await getE2EServerRoute();
     await apiLoginAs(request, "bob");
 
     const response = await request.get(`/api/v1/voice/states?serverId=${serverId}`);
 
     expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(Array.isArray(body.states)).toBe(true);
+  });
+
+  test("rejects voice state access for servers outside membership", async ({ request }) => {
+    const { serverId } = await createIsolatedServerForMembershipTest("alice");
+    await apiLoginAs(request, "bob");
+
+    const response = await request.get(`/api/v1/voice/states?serverId=${serverId}`);
+
+    expect(response.status()).toBe(403);
     await expect(response.json()).resolves.toMatchObject({
-      states: [],
+      code: "FORBIDDEN",
     });
   });
 
@@ -188,9 +199,7 @@ test.describe("API v1 permission boundaries", () => {
     const bobMemberId = await getServerMemberId(serverId, "bob");
     await apiLoginAs(request, "charlie");
 
-    const response = await request.delete(
-      `/api/v1/servers/${serverId}/members/${bobMemberId}`,
-    );
+    const response = await request.delete(`/api/v1/servers/${serverId}/members/${bobMemberId}`);
 
     expect(response.status()).toBe(403);
     await expect(response.json()).resolves.toMatchObject({
