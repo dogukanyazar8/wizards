@@ -5,7 +5,7 @@ import { jsonError, parseJsonBody } from "@/lib/api";
 import {
   createWorkspaceRole,
   listWorkspaceRoles,
-} from "@/lib/workspace/service";
+} from "@/lib/workspace/role-service";
 
 type RouteContext = {
   params: Promise<{

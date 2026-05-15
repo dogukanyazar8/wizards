@@ -5,7 +5,7 @@ import { jsonError, parseJsonBody } from "@/lib/api";
 import {
   getWorkspaceChannelPermissionSettings,
   updateWorkspaceChannelPermissions,
-} from "@/lib/workspace/service";
+} from "@/lib/workspace/channel-permission-service";
 
 type RouteContext = {
   params: Promise<{

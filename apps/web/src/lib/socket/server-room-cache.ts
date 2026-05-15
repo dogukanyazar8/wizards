@@ -4,6 +4,15 @@ import { getRedisOp } from "@/lib/redis";
 
 export const SERVER_ROOM_IDS_CACHE_TTL_SECONDS = 300;
 
+type ServerRoomIdsCacheRedis = {
+  del(key: string): Promise<unknown>;
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string, mode: "EX", seconds: number): Promise<unknown>;
+  status: Redis["status"];
+};
+
+let serverRoomIdsCacheRedisForTest: ServerRoomIdsCacheRedis | null = null;
+
 function getServerRoomIdsCacheKey(userId: string) {
   return `socket:v1:user-servers:${userId}`;
 }
@@ -29,7 +38,14 @@ function isRedisReady(redis: Pick<Redis, "status">) {
   return redis.status === "ready";
 }
 
-export async function readCachedServerRoomIds(redis: Redis, userId: string) {
+export function setServerRoomIdsCacheRedisForTest(redis: ServerRoomIdsCacheRedis | null) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("setServerRoomIdsCacheRedisForTest is not available in production.");
+  }
+  serverRoomIdsCacheRedisForTest = redis;
+}
+
+export async function readCachedServerRoomIds(redis: ServerRoomIdsCacheRedis, userId: string) {
   if (!isRedisReady(redis)) {
     return null;
   }
@@ -41,7 +57,11 @@ export async function readCachedServerRoomIds(redis: Redis, userId: string) {
   }
 }
 
-export async function writeCachedServerRoomIds(redis: Redis, userId: string, serverIds: string[]) {
+export async function writeCachedServerRoomIds(
+  redis: ServerRoomIdsCacheRedis,
+  userId: string,
+  serverIds: string[],
+) {
   if (!isRedisReady(redis)) {
     return;
   }
@@ -58,7 +78,7 @@ export async function writeCachedServerRoomIds(redis: Redis, userId: string, ser
 
 export async function invalidateServerRoomIdsCache(
   userId: string,
-  redis: Redis = getRedisOp(),
+  redis: ServerRoomIdsCacheRedis = serverRoomIdsCacheRedisForTest ?? getRedisOp(),
 ) {
   await redis.del(getServerRoomIdsCacheKey(userId)).catch(() => undefined);
 }

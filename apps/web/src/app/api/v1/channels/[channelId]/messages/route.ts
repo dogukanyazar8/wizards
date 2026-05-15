@@ -4,7 +4,7 @@ import { jsonError } from "@/lib/api";
 import { getChannelMessages } from "@/lib/workspace/message-service";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { emitServerUnreadUpdatesForServer } from "@/lib/workspace/unread-service";
-import { clearWorkspaceChannelHistory } from "@/lib/workspace/service";
+import { clearWorkspaceChannelHistory } from "@/lib/workspace/channel-service";
 import { ChannelType } from "@wizards/db";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { ApiError } from "@/lib/api";
 import { getServerTranslator } from "@/lib/locale/server";
-import { joinWorkspaceServerByInvite } from "@/lib/workspace/service";
+import { joinWorkspaceServerByInvite } from "@/lib/workspace/invite-service";
 
 type InvitePageProps = {
   params: Promise<{

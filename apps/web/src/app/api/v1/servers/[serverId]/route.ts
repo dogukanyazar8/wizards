@@ -9,7 +9,7 @@ import {
   deleteWorkspaceServer,
   getWorkspaceServerDetail,
   updateWorkspaceServer,
-} from "@/lib/workspace/service";
+} from "@/lib/workspace/server-service";
 
 type RouteContext = {
   params: Promise<{

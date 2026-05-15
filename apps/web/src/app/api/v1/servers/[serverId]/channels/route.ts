@@ -2,7 +2,7 @@ import { CreateChannelSchema } from "@wizards/types";
 import { requireApiUserId } from "@/lib/auth/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
-import { createWorkspaceChannel } from "@/lib/workspace/service";
+import { createWorkspaceChannel } from "@/lib/workspace/channel-service";
 
 type RouteContext = {
   params: Promise<{
