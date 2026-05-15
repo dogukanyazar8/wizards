@@ -120,8 +120,8 @@
     "hash": "dcaa3057ae14727744819179e0fc5607"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\auth.ts": {
-    "mtime": 1778788666.5755508,
-    "hash": "54006a9563a43a3c7e9796df8bc2844c"
+    "mtime": 1778817749.0957608,
+    "hash": "1d1d299356a7b6eaafc7fc639029407c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\middleware.test.ts": {
     "mtime": 1778764359.824975,
@@ -1016,16 +1016,16 @@
     "hash": "b3f0bec0b293ef531d3d243ef2453a38"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\account\\privacy-service.ts": {
-    "mtime": 1778769330.0802317,
-    "hash": "ff8677a1c667f4d772aa2a2464407ad0"
+    "mtime": 1778817749.0977652,
+    "hash": "b8aa2d4b6b4f4244b6c676da7edcca0f"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\access.test.ts": {
     "mtime": 1778788604.2817712,
     "hash": "12b5b8bb0de8b0f901d3cc6d2e9c17f4"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\access.ts": {
-    "mtime": 1778788666.5765524,
-    "hash": "ee63643583f7e4e3ce58b2580937816b"
+    "mtime": 1778788819.2760718,
+    "hash": "7ebf56f2080cda1168841d4af5013c1d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\dashboard.test.ts": {
     "mtime": 1778589093.942244,
@@ -1040,8 +1040,8 @@
     "hash": "b2c2929db1e98bc329c7163d479a904a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\management.ts": {
-    "mtime": 1778748669.8080986,
-    "hash": "50b497725bbdee09bb2a1c8b2199e7c7"
+    "mtime": 1778817749.0967643,
+    "hash": "9f5328a0118a77286baddf9986a69fc3"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\notification-campaign-input.ts": {
     "mtime": 1778589290.1704857,
@@ -1136,12 +1136,12 @@
     "hash": "428f756dc188b1a4c36b78387b8afaf7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\session-revocation.test.ts": {
-    "mtime": 1778748629.9441593,
-    "hash": "eb340de0aaa70ed1e5872d4037aa03dd"
+    "mtime": 1778817772.2506647,
+    "hash": "2c889a8a4c87a9f2eb577fd9e4c6b481"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\session-revocation.ts": {
-    "mtime": 1778748642.1797664,
-    "hash": "80f1ba2ea582e17361dfb3836d6eec63"
+    "mtime": 1778817772.2496645,
+    "hash": "a5f71136010abddfccab08fa45fc8fe5"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\turnstile.test.ts": {
     "mtime": 1778744947.5308678,
@@ -1646,6 +1646,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations\\20260514120000_add_user_account_deletion_fields\\migration.sql": {
     "mtime": 1778747278.9071481,
     "hash": "62a1c1ad32687575c58556fe0daf01ac"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations\\20260515120000_add_user_sessions_revoked_after\\migration.sql": {
+    "mtime": 1778817730.9971452,
+    "hash": "9941e703d1daa649daa35116256ab6a8"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations_backup_20260427_151913\\20260422000000_add_fulltext_search_indexes\\migration.sql": {
     "mtime": 1777291947.18171,

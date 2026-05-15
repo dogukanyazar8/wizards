@@ -384,11 +384,15 @@ export async function resetPasswordWithToken(input: {
   }
 
   const passwordHash = await bcrypt.hash(input.password, 12);
+  const now = new Date();
   await prisma.user.update({
     where: { id: verification.userId },
-    data: { passwordHash },
+    data: {
+      passwordHash,
+      sessionsRevokedAfter: now,
+    },
   });
-  await revokeUserSessions(verification.userId);
+  await revokeUserSessions(verification.userId, { now });
 
   return { status: "reset" as const };
 }

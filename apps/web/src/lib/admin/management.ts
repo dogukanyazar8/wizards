@@ -415,15 +415,18 @@ export async function setAdminUserBanState(args: {
   }
 
   const reason = args.reason?.trim() ? args.reason.trim().slice(0, 500) : null;
+  const now = new Date();
+  let sessionRevocationRedisOk: boolean | null = null;
 
   await prisma.$transaction([
     prisma.user.update({
       where: { id: target.id },
       data: args.banned
         ? {
-            bannedAt: new Date(),
+            bannedAt: now,
             bannedReason: reason,
             isBanned: true,
+            sessionsRevokedAfter: now,
             status: "OFFLINE",
           }
         : {
@@ -441,14 +444,15 @@ export async function setAdminUserBanState(args: {
         userId: target.id,
       },
       data: {
-        endedAt: new Date(),
+        endedAt: now,
         endReason: args.banned ? "ADMIN_BAN" : "ADMIN_UNBAN",
       },
     }),
   ]);
 
   if (args.banned) {
-    await revokeUserSessions(target.id);
+    const revocation = await revokeUserSessions(target.id, { now });
+    sessionRevocationRedisOk = revocation.ok;
   }
 
   await writeAdminAuditLog({
@@ -458,6 +462,12 @@ export async function setAdminUserBanState(args: {
     metadata: {
       email: target.email,
       previousBanned: target.isBanned,
+      ...(sessionRevocationRedisOk !== null
+        ? {
+            sessionRevocationRedisOk,
+            sessionsRevokedAfter: now.toISOString(),
+          }
+        : {}),
       username: target.username,
     },
     reason,
@@ -466,7 +476,7 @@ export async function setAdminUserBanState(args: {
   });
 
   return {
-    bannedAt: args.banned ? new Date().toISOString() : null,
+    bannedAt: args.banned ? now.toISOString() : null,
     id: target.id,
     isBanned: args.banned,
     username: target.username,

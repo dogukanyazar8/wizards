@@ -721,6 +721,16 @@ const authConfig = {
           await isUserSessionRevoked(
             revocationUserId,
             typeof token.iat === "number" ? token.iat : nowSeconds,
+            {
+              loadDurableRevokedAfter: async (userId) => {
+                const user = await prisma.user.findUnique({
+                  where: { id: userId },
+                  select: { sessionsRevokedAfter: true },
+                });
+
+                return user?.sessionsRevokedAfter ?? null;
+              },
+            },
           )
         ) {
           clearJwtUserState(token);

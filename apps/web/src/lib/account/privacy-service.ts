@@ -552,6 +552,7 @@ export async function anonymizeAccount(userId: string) {
         premiumSince: null,
         premiumType: "NONE",
         pronouns: null,
+        sessionsRevokedAfter: now,
         status: UserStatus.OFFLINE,
         theme: DEFAULT_WIZARDS_THEME,
         twoFactorEnabled: false,
@@ -561,7 +562,7 @@ export async function anonymizeAccount(userId: string) {
     });
   });
 
-  await revokeUserSessions(userId);
+  await revokeUserSessions(userId, { now });
   await clearAccountRuntimeState(userId, serverIds);
 
   return { deletedAt: now };

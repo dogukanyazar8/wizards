@@ -251,6 +251,7 @@ model User {
   isBanned              Boolean     @default(false)
   bannedAt              DateTime?
   bannedReason          String?
+  sessionsRevokedAfter  DateTime?
   deletedAt             DateTime?
   anonymizedAt          DateTime?
   premiumType           PremiumType @default(NONE)
