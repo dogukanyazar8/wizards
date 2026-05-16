@@ -21,6 +21,7 @@
     "e2e:smoke": "playwright test e2e/specs/smoke",
     "e2e:ui": "playwright test --ui",
     "lint": "eslint .",
+    "maintenance:cleanup-reauth": "node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && tsx scripts/cleanup-account-reauth-challenges.ts",
     "test": "node --import tsx --test --test-force-exit src/**/*.test.ts",
     "test:coverage": "c8 --all --reporter=text --reporter=json-summary --include=\"src/**/*.ts\" --include=\"src/**/*.tsx\" --exclude=\"src/**/*.test.ts\" --exclude=\"src/**/*.test.tsx\" --check-coverage --lines=20 --branches=61 --functions=44 node --import tsx --test --test-force-exit src/**/*.test.ts",
     "typecheck": "tsc --noEmit",

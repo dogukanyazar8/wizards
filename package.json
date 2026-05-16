@@ -23,6 +23,7 @@
     "e2e:seed": "pnpm --filter @wizards/web e2e:seed",
     "e2e:smoke": "turbo e2e:smoke --filter @wizards/web",
     "lint": "turbo lint",
+    "maintenance:cleanup-reauth": "pnpm --filter @wizards/web maintenance:cleanup-reauth",
     "test": "turbo test",
     "test:coverage": "turbo test:coverage --filter @wizards/web",
     "typecheck": "turbo typecheck",

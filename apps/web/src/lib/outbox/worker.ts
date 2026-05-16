@@ -1,4 +1,5 @@
 import { logError } from "@/lib/logger";
+import { cleanupAccountReauthChallenges } from "@/lib/auth/reauth-cleanup";
 import { cleanupOutboxJobs, drainOutboxJobs } from "@/lib/outbox/service";
 
 const DEFAULT_OUTBOX_WORKER_BATCH_SIZE = 25;
@@ -42,7 +43,9 @@ export function startOutboxWorker() {
         }
 
         lastCleanupAt = now;
-        await cleanupOutboxJobs(new Date(now));
+        const cleanupNow = new Date(now);
+        await cleanupOutboxJobs(cleanupNow);
+        await cleanupAccountReauthChallenges({ now: cleanupNow });
       })
       .catch((error) => {
         logError("[outbox] Worker drain failed", error);

@@ -20,7 +20,6 @@ import {
   VoiceStateContext,
   type KrispAvailability,
   type VoiceCameraStatus,
-  type VoiceParticipantViewModel,
   type VoiceParticipantsContextValue,
   type VoiceProviderProps,
   type VoiceStateContextValue,
@@ -68,10 +67,12 @@ import { createVoicePageExitHandler } from "@/lib/voice/page-exit";
 import {
   collectScreenShares,
   countActiveScreenShares,
-  getParticipantCameraState,
-  getParticipantProfile,
   type VoiceScreenShareViewModel,
 } from "@/lib/voice/participant-mapping";
+import {
+  collectVoiceParticipants,
+  type VoiceParticipantViewModel,
+} from "@/lib/voice/participant-view-model";
 import {
   deleteVoiceState,
   fetchLiveKitToken,
@@ -82,7 +83,6 @@ import {
 import {
   connectLiveKitRoomWithRetry,
   createReconnectTimeoutController,
-  getParticipantAudioActivity,
   registerRoomParticipantSyncListeners,
   type ReconnectTimeoutController,
 } from "@/lib/voice/provider-lifecycle";
@@ -296,21 +296,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         return;
       }
 
-      const nextParticipants = [
-        targetRoom.localParticipant,
-        ...targetRoom.remoteParticipants.values(),
-      ].map((participant) => {
-        const profile = getParticipantProfile(participant, currentUser);
-        const audioActivity = getParticipantAudioActivity(participant);
-        const cameraState = getParticipantCameraState(participant);
-
-        return {
-          ...profile,
-          ...audioActivity,
-          ...cameraState,
-          isLocal: participant.identity === currentUser.id,
-        } satisfies VoiceParticipantViewModel;
-      });
+      const nextParticipants = collectVoiceParticipants(targetRoom, currentUser);
 
       setParticipants(nextParticipants);
       setCameraStatus((current) => {

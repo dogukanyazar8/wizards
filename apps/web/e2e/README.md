@@ -19,7 +19,7 @@ Last verified test discovery:
 - `10` smoke tests used by default CI
 - Browser project: Chromium
 
-This is E2E scenario coverage, not line/branch coverage. The repo still needs a separate code coverage strategy for unit/integration tests if we want percentage-based coverage thresholds.
+This is E2E scenario coverage, not line/branch coverage. Unit/integration percentage coverage is enforced separately by the `test:coverage` script and governed by `docs/operations/coverage-ratchet.md`.
 
 ## What Is Automated
 

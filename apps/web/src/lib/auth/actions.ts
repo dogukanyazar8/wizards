@@ -24,6 +24,7 @@ import {
   verifyTurnstileToken,
 } from "@/lib/auth/turnstile";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
+import { rollbackUnverifiedUser } from "@/lib/auth/registration-compensation";
 import { createLoginProof } from "@/lib/auth/login-proof";
 import { LOGIN_FAILED_MESSAGE_KEY } from "@/lib/auth/login-errors";
 import { Prisma, prisma } from "@wizards/db";
@@ -346,7 +347,10 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
     });
 
     if (!verificationEmail.success) {
-      await prisma.user.delete({ where: { id: createdUser.id } }).catch(() => undefined);
+      await rollbackUnverifiedUser({
+        email,
+        userId: createdUser.id,
+      });
 
       return {
         success: false,

@@ -127,6 +127,10 @@
     "mtime": 1778233740.601353,
     "hash": "dcaa3057ae14727744819179e0fc5607"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\scripts\\cleanup-account-reauth-challenges.ts": {
+    "mtime": 1778939146.4670758,
+    "hash": "5a7693c0ff34fb77cdb2dec929b99405"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\auth.ts": {
     "mtime": 1778817749.0957608,
     "hash": "1d1d299356a7b6eaafc7fc639029407c"
@@ -700,8 +704,8 @@
     "hash": "b7b67b7d30ad926a2a5dbd2ad5d23009"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\live-voice-provider.tsx": {
-    "mtime": 1778936750.5427535,
-    "hash": "0e9329c39a4cdd9bf92fb47da06c7574"
+    "mtime": 1778939532.8513663,
+    "hash": "5cc5eff86c8c3adc99a9ac4279230803"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\locale-provider.tsx": {
     "mtime": 1778571008.1182587,
@@ -728,8 +732,8 @@
     "hash": "044c778940af9c89b467555e2523c997"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\voice-context.tsx": {
-    "mtime": 1778822852.4953532,
-    "hash": "c9bf3e60b30af53ae5f4a9c6032a8568"
+    "mtime": 1778939505.5714462,
+    "hash": "145842f7fd4fd6bf5e6b24ce4cf4d709"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\voice-provider-bundle.test.ts": {
     "mtime": 1778934321.545226,
@@ -1136,8 +1140,8 @@
     "hash": "e7f332019a6386f35c136d5336682260"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\actions.ts": {
-    "mtime": 1778768100.3964174,
-    "hash": "9e362985c6cc2dd1bf0b342300b30340"
+    "mtime": 1778938891.025547,
+    "hash": "d3793c44446c0dda20a6b9d8375bb556"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\api.ts": {
     "mtime": 1778786389.8054647,
@@ -1175,6 +1179,14 @@
     "mtime": 1778788666.5765524,
     "hash": "7b593bf6c87272dd415c6a3ecf59a0e9"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\reauth-cleanup.test.ts": {
+    "mtime": 1778939146.4660747,
+    "hash": "d94963074f3a135be3a8b010310780b1"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\reauth-cleanup.ts": {
+    "mtime": 1778939146.4660747,
+    "hash": "6ff0e5e0fa475341110e97a6439d6845"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\reauth-email.test.ts": {
     "mtime": 1778936854.3060324,
     "hash": "00975a56d7ec9884961c01ead9687e12"
@@ -1194,6 +1206,14 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\redirect.ts": {
     "mtime": 1777980040.3369606,
     "hash": "428f756dc188b1a4c36b78387b8afaf7"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\registration-compensation.test.ts": {
+    "mtime": 1778938891.025547,
+    "hash": "06c746fb80ed498458ce644c58377130"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\registration-compensation.ts": {
+    "mtime": 1778938891.0245469,
+    "hash": "ecfa0b4627f0e8ccb24f68ec5a0d5b18"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\session-revocation.test.ts": {
     "mtime": 1778817772.2506647,
@@ -1368,8 +1388,8 @@
     "hash": "a2fd07a4f5baa02b738254599fbf9cf6"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\outbox\\worker.ts": {
-    "mtime": 1778819944.6321857,
-    "hash": "ff050754e6c0dcabd1a71a06dde8b61e"
+    "mtime": 1778939146.4670758,
+    "hash": "050f49cd5121325be21363cad4498574"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\settings\\client.ts": {
     "mtime": 1777363590.0951931,
@@ -1554,6 +1574,14 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\participant-mapping.ts": {
     "mtime": 1778821924.343832,
     "hash": "774a0d1b2d6c56ce9ee1da1fa86ff6f5"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\participant-view-model.test.ts": {
+    "mtime": 1778939493.8900857,
+    "hash": "8341d0c1b1f428625fc9634a89f30928"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\participant-view-model.ts": {
+    "mtime": 1778939474.8356614,
+    "hash": "135133208ede2848339752d303dd18e5"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\provider-lifecycle.test.ts": {
     "mtime": 1778821431.8642404,
@@ -1956,8 +1984,8 @@
     "hash": "f9fd667ac2bd1132bb2d5fb7cce308d0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\README.md": {
-    "mtime": 1778743234.8739288,
-    "hash": "d4ba54a7c4af26b20068489fab70ffc1"
+    "mtime": 1778939146.4690745,
+    "hash": "1e8d7b412c26cde3635b971987c40681"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright-report\\index.html": {
     "mtime": 1778857495.3529985,
@@ -1974,6 +2002,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\legal\\terms.txt": {
     "mtime": 1778571008.0972586,
     "hash": "42498f6fac417d448feb0fc1702b2846"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\docs\\operations\\coverage-ratchet.md": {
+    "mtime": 1778939146.4690745,
+    "hash": "13984c1dd78b8e7f070893b4eda29314"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\docs\\operations\\workspace-performance-monitoring.md": {
     "mtime": 1778599357.0385497,

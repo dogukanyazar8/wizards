@@ -1,9 +1,10 @@
 "use client";
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { type ConnectionState, type LocalVideoTrack, type RemoteVideoTrack, type Room } from "livekit-client";
+import { type ConnectionState, type Room } from "livekit-client";
 import type { ScreenShareQualityId } from "@/lib/voice/screen-share";
 import type { VoiceScreenShareViewModel } from "@/lib/voice/participant-mapping";
+import type { VoiceParticipantViewModel } from "@/lib/voice/participant-view-model";
 import type { VoiceAudioPreferences } from "@/store/voice-store";
 
 export type VoiceProviderProps = {
@@ -16,20 +17,7 @@ export type VoiceProviderProps = {
   };
 };
 
-export interface VoiceParticipantViewModel {
-  audioLevel: number;
-  avatarUrl: string | null;
-  cameraTrack: LocalVideoTrack | RemoteVideoTrack | null;
-  displayName: string | null;
-  isCameraEnabled: boolean;
-  isLocal: boolean;
-  isMuted: boolean;
-  isSpeaking: boolean;
-  userId: string;
-  username: string;
-}
-
-export type { VoiceScreenShareViewModel };
+export type { VoiceParticipantViewModel, VoiceScreenShareViewModel };
 
 export type KrispAvailability =
   | "available"
