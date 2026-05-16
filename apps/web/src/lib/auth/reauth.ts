@@ -17,7 +17,13 @@ type ReauthTokenOptions = {
 };
 
 function getReauthSecret(env: Record<string, string | undefined> = process.env) {
-  const secret = env.AUTH_SECRET?.trim() || env.NEXTAUTH_SECRET?.trim();
+  const authSecret = env.AUTH_SECRET?.trim();
+  const nextAuthSecret = env.NEXTAUTH_SECRET?.trim();
+  if (authSecret && nextAuthSecret && authSecret !== nextAuthSecret) {
+    throw new Error("AUTH_SECRET and NEXTAUTH_SECRET must match for re-auth signing.");
+  }
+
+  const secret = authSecret || nextAuthSecret;
   if (!secret) {
     throw new Error("AUTH_SECRET or NEXTAUTH_SECRET is required for re-auth signing.");
   }
@@ -32,11 +38,19 @@ function isSafeEqual(left: string, right: string) {
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }
 
+function getPasswordCredentialBinding(passwordHash: string) {
+  return `password:${passwordHash}`;
+}
+
+function getEmailCredentialBinding(email: string, emailVerifiedAt: Date | null | undefined) {
+  return `email:${email}:${emailVerifiedAt?.getTime() ?? 0}`;
+}
+
 function signReauthToken(args: {
   expiresAt: string;
   issuedAt: string;
   nonce: string;
-  passwordHash: string;
+  credentialBinding: string;
   purpose: ReauthPurpose;
   secret: string;
   userId: string;
@@ -54,7 +68,7 @@ function signReauthToken(args: {
     .update("\n")
     .update(args.nonce)
     .update("\n")
-    .update(args.passwordHash)
+    .update(args.credentialBinding)
     .digest("base64url");
 }
 
@@ -62,6 +76,31 @@ export function createAccountDeletionReauthToken(
   userId: string,
   passwordHash: string,
   options: ReauthTokenOptions = {},
+) {
+  return createAccountDeletionReauthTokenForCredential(
+    userId,
+    getPasswordCredentialBinding(passwordHash),
+    options,
+  );
+}
+
+export function createAccountDeletionReauthTokenForVerifiedEmail(
+  userId: string,
+  email: string,
+  emailVerifiedAt: Date | null | undefined,
+  options: ReauthTokenOptions = {},
+) {
+  return createAccountDeletionReauthTokenForCredential(
+    userId,
+    getEmailCredentialBinding(email, emailVerifiedAt),
+    options,
+  );
+}
+
+function createAccountDeletionReauthTokenForCredential(
+  userId: string,
+  credentialBinding: string,
+  options: ReauthTokenOptions,
 ) {
   const nowMs = Math.trunc(options.nowMs ?? Date.now());
   const issuedAt = nowMs.toString(36);
@@ -72,7 +111,7 @@ export function createAccountDeletionReauthToken(
     expiresAt,
     issuedAt,
     nonce,
-    passwordHash,
+    credentialBinding,
     purpose: ACCOUNT_DELETION_REAUTH_PURPOSE,
     secret,
     userId,
@@ -89,6 +128,35 @@ export function verifyAccountDeletionReauthToken(
   passwordHash: string,
   token: string | null | undefined,
   options: ReauthTokenOptions = {},
+) {
+  return verifyAccountDeletionReauthTokenForCredential(
+    userId,
+    getPasswordCredentialBinding(passwordHash),
+    token,
+    options,
+  );
+}
+
+export function verifyAccountDeletionEmailReauthToken(
+  userId: string,
+  email: string,
+  emailVerifiedAt: Date | null | undefined,
+  token: string | null | undefined,
+  options: ReauthTokenOptions = {},
+) {
+  return verifyAccountDeletionReauthTokenForCredential(
+    userId,
+    getEmailCredentialBinding(email, emailVerifiedAt),
+    token,
+    options,
+  );
+}
+
+function verifyAccountDeletionReauthTokenForCredential(
+  userId: string,
+  credentialBinding: string,
+  token: string | null | undefined,
+  options: ReauthTokenOptions,
 ) {
   if (!token) {
     return false;
@@ -124,7 +192,7 @@ export function verifyAccountDeletionReauthToken(
     expiresAt,
     issuedAt,
     nonce,
-    passwordHash,
+    credentialBinding,
     purpose: ACCOUNT_DELETION_REAUTH_PURPOSE,
     secret: getReauthSecret(options.env),
     userId,
@@ -173,13 +241,26 @@ export async function requireAccountDeletionReauthToken(
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
+      email: true,
+      emailVerified: true,
+      emailVerifiedAt: true,
       passwordHash: true,
     },
   });
 
   if (
-    !user?.passwordHash ||
-    !verifyAccountDeletionReauthToken(userId, user.passwordHash, token)
+    !user ||
+    !(
+      (user.passwordHash && verifyAccountDeletionReauthToken(userId, user.passwordHash, token)) ||
+      (!user.passwordHash &&
+        user.emailVerified &&
+        verifyAccountDeletionEmailReauthToken(
+          userId,
+          user.email,
+          user.emailVerifiedAt,
+          token,
+        ))
+    )
   ) {
     throw new ApiError(
       "Recent authentication is required to delete this account.",

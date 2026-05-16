@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   createAccountDeletionReauthToken,
+  createAccountDeletionReauthTokenForVerifiedEmail,
+  verifyAccountDeletionEmailReauthToken,
   verifyAccountDeletionReauthToken,
 } from "./reauth";
 
@@ -68,6 +70,62 @@ describe("account deletion re-auth tokens", () => {
         nowMs: NOW_MS + 5 * 60_000 + 1,
       }),
       false,
+    );
+  });
+
+  it("accepts verified-email tokens for OAuth-only accounts", () => {
+    const verifiedAt = new Date("2026-05-16T12:00:00.000Z");
+    const { token } = createAccountDeletionReauthTokenForVerifiedEmail(
+      "user-1",
+      "ada@example.com",
+      verifiedAt,
+      {
+        env: TEST_ENV,
+        nowMs: NOW_MS,
+      },
+    );
+
+    assert.equal(
+      verifyAccountDeletionEmailReauthToken("user-1", "ada@example.com", verifiedAt, token, {
+        env: TEST_ENV,
+        nowMs: NOW_MS + 60_000,
+      }),
+      true,
+    );
+  });
+
+  it("rejects verified-email tokens after the bound email changes", () => {
+    const verifiedAt = new Date("2026-05-16T12:00:00.000Z");
+    const { token } = createAccountDeletionReauthTokenForVerifiedEmail(
+      "user-1",
+      "ada@example.com",
+      verifiedAt,
+      {
+        env: TEST_ENV,
+        nowMs: NOW_MS,
+      },
+    );
+
+    assert.equal(
+      verifyAccountDeletionEmailReauthToken("user-1", "grace@example.com", verifiedAt, token, {
+        env: TEST_ENV,
+        nowMs: NOW_MS + 60_000,
+      }),
+      false,
+    );
+  });
+
+  it("fails closed when auth signing secrets conflict", () => {
+    assert.throws(
+      () =>
+        createAccountDeletionReauthToken("user-1", "hash-1", {
+          env: {
+            AUTH_SECRET: "canonical-secret",
+            NEXTAUTH_SECRET: "legacy-secret",
+          },
+          nowMs: NOW_MS,
+        }),
+      /AUTH_SECRET and NEXTAUTH_SECRET must match/,
     );
   });
 });

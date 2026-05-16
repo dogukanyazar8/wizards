@@ -64,6 +64,7 @@ import {
   runNonFatalVoiceJoinStep,
   stopLocalTracks,
 } from "@/lib/voice/livekit-track-helpers";
+import { createVoicePageExitHandler } from "@/lib/voice/page-exit";
 import {
   collectScreenShares,
   countActiveScreenShares,
@@ -1851,31 +1852,17 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   }, []);
 
   useEffect(() => {
-    const handlePageExit = () => {
-      stopHeartbeat();
-      clearReconnectTimeout();
-
-      const activeRoom = roomRef.current;
-      const store = useVoiceStore.getState();
-
-      if (store.isScreenSharing && store.screenShareMode === "voice") {
-        emitVoiceScreenShareState(store.activeChannelId, store.serverId, false, {
-          force: true,
-        });
-      }
-
-      if (activeRoom) {
-        void stopScreenShare(activeRoom).catch(() => undefined);
-        void stopCamera(activeRoom).catch(() => undefined);
-        void stopLocalTracks(activeRoom).catch(() => undefined);
-        void activeRoom.disconnect(true).catch(() => undefined);
-      }
-
-      const activeSession = useVoiceStore.getState().sessionId;
-      if (activeSession) {
-        void notifyVoiceExit(activeSession);
-      }
-    };
+    const handlePageExit = createVoicePageExitHandler({
+      clearReconnectTimeout,
+      emitVoiceScreenShareState,
+      getRoom: () => roomRef.current,
+      getState: () => useVoiceStore.getState(),
+      notifyVoiceExit,
+      stopCamera,
+      stopHeartbeat,
+      stopLocalTracks,
+      stopScreenShare,
+    });
 
     window.addEventListener("beforeunload", handlePageExit);
     window.addEventListener("pagehide", handlePageExit);

@@ -291,6 +291,14 @@
     "mtime": 1778932537.2928836,
     "hash": "82a959d0cd0859f80f338ea96e6367c3"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\auth\\reauth\\email-challenge\\route.ts": {
+    "mtime": 1778936398.4684353,
+    "hash": "08aee9e2c309a29fe708a390d4e64def"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\auth\\reauth\\email-confirm\\route.ts": {
+    "mtime": 1778936408.5065808,
+    "hash": "e716e1df4a1d552230251335f482e1f0"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\channels\\[channelId]\\route.ts": {
     "mtime": 1778826470.686874,
     "hash": "a278c06168a6658cdf85b34fc1b0719d"
@@ -692,8 +700,8 @@
     "hash": "b7b67b7d30ad926a2a5dbd2ad5d23009"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\live-voice-provider.tsx": {
-    "mtime": 1778934662.411732,
-    "hash": "5b85e8fdf746474d8fc126b23bb7ed5c"
+    "mtime": 1778936750.5427535,
+    "hash": "0e9329c39a4cdd9bf92fb47da06c7574"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\locale-provider.tsx": {
     "mtime": 1778571008.1182587,
@@ -944,12 +952,12 @@
     "hash": "6afa88c5c76a233e944191a74e925fb9"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\api-rate-limit.test.ts": {
-    "mtime": 1778932551.3342607,
-    "hash": "95f7ddb605122ad19b205c0a03793f58"
+    "mtime": 1778936418.4172833,
+    "hash": "7ae9a185b47bdce0c3e83f379a9a1dc7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\api-rate-limit.ts": {
-    "mtime": 1778932547.367982,
-    "hash": "3760ab38a97d437b6cc4cded224e7efd"
+    "mtime": 1778936414.3394785,
+    "hash": "ef6bd5dc8f0a3fd3cd06853e00931a94"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\api.test.ts": {
     "mtime": 1778764359.8239765,
@@ -972,12 +980,12 @@
     "hash": "43486b69e26ad8e6798c2f2329fdceac"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\env.test.ts": {
-    "mtime": 1778599242.0786748,
-    "hash": "dc55573e1fe6a752bb3d93fbb96f41cd"
+    "mtime": 1778936518.5386567,
+    "hash": "2808d2e3a0cc2eaa18c24cb8d9d299a4"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\env.ts": {
-    "mtime": 1778599218.9353404,
-    "hash": "97b81cf73eaf287ef0032aef7dca8916"
+    "mtime": 1778936511.2536545,
+    "hash": "dea0953e1402f72a48f9226a157de413"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\health.test.ts": {
     "mtime": 1778740970.658279,
@@ -992,8 +1000,8 @@
     "hash": "9dafc40721a587bf5c24b7887c140d25"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale.ts": {
-    "mtime": 1778844509.7663147,
-    "hash": "39a4651aff5b80273865d434c23f7e00"
+    "mtime": 1778936435.1112542,
+    "hash": "820375fb2ffe227dd1d19051808eb89a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\logger.test.ts": {
     "mtime": 1778748556.5608492,
@@ -1167,13 +1175,21 @@
     "mtime": 1778788666.5765524,
     "hash": "7b593bf6c87272dd415c6a3ecf59a0e9"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\reauth-email.test.ts": {
+    "mtime": 1778936854.3060324,
+    "hash": "00975a56d7ec9884961c01ead9687e12"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\reauth-email.ts": {
+    "mtime": 1778936846.3525639,
+    "hash": "259a503d4bc8d143d94156d45252bfd6"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\reauth.test.ts": {
-    "mtime": 1778932582.8263514,
-    "hash": "7527187439d2134abfa5858720200510"
+    "mtime": 1778936533.4760358,
+    "hash": "4f7adbae7ff6740e0d0e452ef54d1cfe"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\reauth.ts": {
-    "mtime": 1778932525.5781386,
-    "hash": "91dd7f18acdaa083f12935d245d65aed"
+    "mtime": 1778936841.005494,
+    "hash": "dbbf60c816c38ce37c29c34ec1fb4307"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\redirect.ts": {
     "mtime": 1777980040.3369606,
@@ -1523,6 +1539,14 @@
     "mtime": 1778821734.8750236,
     "hash": "edcc6830f91ae5ae49c0cfc4332c2743"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\page-exit.test.ts": {
+    "mtime": 1778936714.6748803,
+    "hash": "6d076a83378b1d3f5c4719d76618a3f8"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\page-exit.ts": {
+    "mtime": 1778936672.4071002,
+    "hash": "3b1f0be4371f040460183e69727ac379"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\participant-mapping.test.ts": {
     "mtime": 1778821884.329609,
     "hash": "0d3131847753a755ce1dea6d93d76118"
@@ -1834,6 +1858,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations\\20260515143000_add_outbox_jobs\\migration.sql": {
     "mtime": 1778819908.09971,
     "hash": "d40c7c3f06e3a79feeb44bc243da43ca"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations\\20260516120000_add_account_reauth_challenges\\migration.sql": {
+    "mtime": 1778936260.4088094,
+    "hash": "4391ed713b54511eb3d290eef313fadd"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations_backup_20260427_151913\\20260422000000_add_fulltext_search_indexes\\migration.sql": {
     "mtime": 1777291947.18171,

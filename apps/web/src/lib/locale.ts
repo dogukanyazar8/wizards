@@ -824,6 +824,20 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.passwordReset.unavailable":
       "We could not reset your password right now. Please try again.",
 
+    "auth.reauthEmail.body":
+      "We received a request to confirm this account before deleting it. Use the secure link below to continue.",
+    "auth.reauthEmail.cta": "Confirm account deletion",
+    "auth.reauthEmail.expires": "This link expires in {minutes} minutes.",
+    "auth.reauthEmail.fallback":
+      "If the button does not work, paste this link into your browser:",
+    "auth.reauthEmail.footer":
+      "Whispr requires a fresh email confirmation before deleting OAuth-only accounts.",
+    "auth.reauthEmail.greeting": "Hi {name},",
+    "auth.reauthEmail.ignore":
+      "If you did not request account deletion, you can safely ignore this email.",
+    "auth.reauthEmail.subject": "Confirm Whispr account deletion",
+    "auth.reauthEmail.title": "Confirm account deletion",
+
     "settings.backToChannels": "Back to Channels",
     "settings.description":
       "Tune voice, appearance, and notifications without dropping out of the conversation.",
@@ -2652,6 +2666,19 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.passwordReset.title": "Yeni şifre oluştur",
     "auth.passwordReset.unavailable":
       "Şifreni şu anda sıfırlayamadık. Lütfen tekrar dene.",
+
+    "auth.reauthEmail.body":
+      "Bu hesabı silmeden önce doğrulamak için bir istek aldık. Devam etmek için aşağıdaki güvenli bağlantıyı kullan.",
+    "auth.reauthEmail.cta": "Hesap silmeyi doğrula",
+    "auth.reauthEmail.expires": "Bu bağlantı {minutes} dakika içinde sona erer.",
+    "auth.reauthEmail.fallback": "Buton çalışmazsa bu bağlantıyı tarayıcına yapıştır:",
+    "auth.reauthEmail.footer":
+      "Whispr, yalnızca OAuth ile açılmış hesapları silmeden önce taze e-posta doğrulaması ister.",
+    "auth.reauthEmail.greeting": "Merhaba {name},",
+    "auth.reauthEmail.ignore":
+      "Hesap silme isteğinde bulunmadıysan bu e-postayı güvenle yok sayabilirsin.",
+    "auth.reauthEmail.subject": "Whispr hesap silme işlemini doğrula",
+    "auth.reauthEmail.title": "Hesap silmeyi doğrula",
 
     "settings.backToChannels": "Kanallara Dön",
     "settings.description":

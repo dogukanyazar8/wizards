@@ -75,6 +75,14 @@ export function validateWebEnvironment(
     if (!isPresent(env.AUTH_SECRET) && !isPresent(env.NEXTAUTH_SECRET)) {
       missing.push("AUTH_SECRET");
     }
+
+    if (
+      isPresent(env.AUTH_SECRET) &&
+      isPresent(env.NEXTAUTH_SECRET) &&
+      env.AUTH_SECRET.trim() !== env.NEXTAUTH_SECRET.trim()
+    ) {
+      invalid.push("AUTH_SECRET/NEXTAUTH_SECRET");
+    }
   }
 
   for (const key of REQUIRED_URL_ENV_VARS) {

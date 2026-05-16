@@ -18,6 +18,8 @@ describe("API rate limit configuration", () => {
     const requiredActions: ApiRateLimitAction[] = [
       "server:create",
       "auth:reauth",
+      "auth:reauth-email-challenge",
+      "auth:reauth-email-confirm",
       "friend:request",
       "invite:create",
       "voice:state",

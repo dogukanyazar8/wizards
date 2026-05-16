@@ -30,6 +30,23 @@ describe("web environment validation", () => {
     });
   });
 
+  it("rejects conflicting auth signing secrets in production", () => {
+    const result = validateWebEnvironment(
+      {
+        APP_URL: "https://app.example.test",
+        AUTH_SECRET: "canonical-secret",
+        DATABASE_URL: "postgresql://user:pass@localhost:5432/whispr",
+        NEXTAUTH_SECRET: "legacy-secret",
+        NEXTAUTH_URL: "https://app.example.test",
+        REDIS_URL: "rediss://default:pass@redis.example.test:6379/0",
+        SOCKET_ALLOWED_ORIGINS: "https://app.example.test",
+      },
+      "production",
+    );
+
+    assert.deepEqual(result.invalid, ["AUTH_SECRET/NEXTAUTH_SECRET"]);
+  });
+
   it("rejects empty-origin sockets in production", () => {
     const result = validateWebEnvironment(
       {
