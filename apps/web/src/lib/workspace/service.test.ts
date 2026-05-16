@@ -388,16 +388,19 @@ describe("workspace service characterization", { concurrency: false }, () => {
       setSocketServer(createFakeSocketServer(operations));
 
       patchMethod(prisma.serverBan, "findUnique", async () => null, restores);
+      patchMethod(prisma.serverBan, "findMany", async () => [], restores);
       patchMethod(prisma.serverMember, "findFirst", async () =>
         accessMembership({
           permissions: PermissionBits.MANAGE_SERVER,
           userId: "owner",
         }), restores);
+      patchMethod(prisma.serverMember, "findMany", async () => [], restores);
       patchMethod(prisma.serverMember, "findUnique", async () => ({
         id: "member-owner",
         roles: [],
         server: { ownerId: "owner" },
       }), restores);
+      patchMethod(prisma.serverInvite, "findMany", async () => [], restores);
       patchMethod(prisma.role, "findMany", async () => [defaultRole(PermissionBits.VIEW_CHANNEL)], restores);
       patchMethod(prisma.channel, "findMany", async () => [], restores);
       patchMethod(prisma.server, "update", async () => {
