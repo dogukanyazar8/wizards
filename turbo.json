@@ -6,6 +6,7 @@
       "dependsOn": ["^build"],
       "env": [
         "APP_URL",
+        "ANALYZE",
         "AUTH_URL",
         "GITHUB_SHA",
         "LIVEKIT_URL",
@@ -66,6 +67,10 @@
     },
     "test": {
       "dependsOn": ["^test"],
+      "outputs": []
+    },
+    "test:coverage": {
+      "cache": false,
       "outputs": []
     },
     "typecheck": {

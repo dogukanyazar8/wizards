@@ -28,8 +28,8 @@
     "hash": "90426577ad8f38459f3e566411c85589"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\next.config.ts": {
-    "mtime": 1778786222.3641896,
-    "hash": "8c3723a172f6a8ea6bdd63a45f8bebdb"
+    "mtime": 1778934185.1632595,
+    "hash": "6545dd3017cd2dac8425cc050a5885f1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright.config.ts": {
     "mtime": 1777980040.2862802,
@@ -80,8 +80,8 @@
     "hash": "de70e23c3e7588b04951430c4a5232ef"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\api\\api-routes.spec.ts": {
-    "mtime": 1778857043.2416852,
-    "hash": "0d81fe833993486330abcf6d508a39d3"
+    "mtime": 1778932600.68258,
+    "hash": "16ece22cf6503d83a9da5f90657731bd"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\attachments\\attachments.spec.ts": {
     "mtime": 1777980040.279281,
@@ -287,6 +287,10 @@
     "mtime": 1778788604.2807732,
     "hash": "7b90aaba17c5386edc8a333add4e8777"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\auth\\reauth\\route.ts": {
+    "mtime": 1778932537.2928836,
+    "hash": "82a959d0cd0859f80f338ea96e6367c3"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\channels\\[channelId]\\route.ts": {
     "mtime": 1778826470.686874,
     "hash": "a278c06168a6658cdf85b34fc1b0719d"
@@ -472,8 +476,8 @@
     "hash": "a4933f8778569fa0cbd4823cf17a16c1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\users\\me\\route.ts": {
-    "mtime": 1778747394.7852437,
-    "hash": "684e8871bd1234c11ac8e2f0e37be73d"
+    "mtime": 1778932558.7813294,
+    "hash": "8164eb2cc8c4ec5aa6149f6277b051ae"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\users\\me\\data-export\\route.ts": {
     "mtime": 1778747394.7852437,
@@ -688,8 +692,8 @@
     "hash": "b7b67b7d30ad926a2a5dbd2ad5d23009"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\live-voice-provider.tsx": {
-    "mtime": 1778843658.7793822,
-    "hash": "2a58b78faf779ae3f526aa7d9775679c"
+    "mtime": 1778934662.411732,
+    "hash": "5b85e8fdf746474d8fc126b23bb7ed5c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\locale-provider.tsx": {
     "mtime": 1778571008.1182587,
@@ -718,6 +722,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\voice-context.tsx": {
     "mtime": 1778822852.4953532,
     "hash": "c9bf3e60b30af53ae5f4a9c6032a8568"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\voice-provider-bundle.test.ts": {
+    "mtime": 1778934321.545226,
+    "hash": "dff30301b93055784a80e58ecfd19cf1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\voice-provider-shared.ts": {
     "mtime": 1778823059.3867433,
@@ -936,12 +944,12 @@
     "hash": "6afa88c5c76a233e944191a74e925fb9"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\api-rate-limit.test.ts": {
-    "mtime": 1778747278.910149,
-    "hash": "75e8bc17e52bcbd43ba61f4b6dee8519"
+    "mtime": 1778932551.3342607,
+    "hash": "95f7ddb605122ad19b205c0a03793f58"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\api-rate-limit.ts": {
-    "mtime": 1778768092.3107958,
-    "hash": "41fc3df3523d1ac91b8cdebc18e44548"
+    "mtime": 1778932547.367982,
+    "hash": "3760ab38a97d437b6cc4cded224e7efd"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\api.test.ts": {
     "mtime": 1778764359.8239765,
@@ -1158,6 +1166,14 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\oauth-email.ts": {
     "mtime": 1778788666.5765524,
     "hash": "7b593bf6c87272dd415c6a3ecf59a0e9"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\reauth.test.ts": {
+    "mtime": 1778932582.8263514,
+    "hash": "7527187439d2134abfa5858720200510"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\reauth.ts": {
+    "mtime": 1778932525.5781386,
+    "hash": "91dd7f18acdaa083f12935d245d65aed"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\redirect.ts": {
     "mtime": 1777980040.3369606,
@@ -1490,6 +1506,14 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\invite-service.ts": {
     "mtime": 1778768214.0617664,
     "hash": "bdc2453dd0576acca5e75c64a7e801af"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\livekit-track-helpers.test.ts": {
+    "mtime": 1778934662.4137316,
+    "hash": "e3349efa31031fb3391cf37395cd2a03"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\livekit-track-helpers.ts": {
+    "mtime": 1778934662.4127307,
+    "hash": "a8e94b3272315494f71fd5298140bd70"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\media-capabilities.test.ts": {
     "mtime": 1778821924.345832,
@@ -1908,8 +1932,8 @@
     "hash": "d4ba54a7c4af26b20068489fab70ffc1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright-report\\index.html": {
-    "mtime": 1778857057.4359393,
-    "hash": "b6327fd50703be33ef51c67e71638320"
+    "mtime": 1778857495.3529985,
+    "hash": "dded540bee3cbd97ecf285dfa567fe5c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\legal\\cookies.txt": {
     "mtime": 1778571008.0962586,

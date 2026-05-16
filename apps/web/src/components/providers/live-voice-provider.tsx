@@ -3,7 +3,7 @@
 import {
   ConnectionState,
   type AudioProcessorOptions,
-  LocalAudioTrack,
+  type LocalAudioTrack,
   LocalTrack,
   LocalVideoTrack,
   Room,
@@ -53,6 +53,18 @@ import {
   isScreenShareSupported,
 } from "@/lib/voice/media-capabilities";
 import {
+  applyRemoteAudioState,
+  applyScreenShareQualityToTrack,
+  getLocalCameraTrack,
+  getLocalMicrophoneTrack,
+  getLocalScreenShareTrack,
+  isLocalCameraTrackLive,
+  isLocalMicrophoneTrackLive,
+  isLocalScreenShareTrackLive,
+  runNonFatalVoiceJoinStep,
+  stopLocalTracks,
+} from "@/lib/voice/livekit-track-helpers";
+import {
   collectScreenShares,
   countActiveScreenShares,
   getParticipantCameraState,
@@ -82,10 +94,8 @@ import { VOICE_HEARTBEAT_INTERVAL_MS, type VoiceChannelStateDTO } from "@/lib/vo
 import { useVoiceAudioLevels, type RemoteVoiceAudioLevel } from "@/lib/voice/use-voice-audio-levels";
 import { useVoiceHeartbeat } from "@/lib/voice/use-voice-heartbeat";
 import {
-  applyScreenShareEncodingToSender,
   getScreenShareCaptureOptions,
   getScreenSharePublishOptions,
-  getScreenShareQualityPreset,
   type ScreenShareQualityId,
 } from "@/lib/voice/screen-share";
 import {
@@ -102,113 +112,6 @@ const PREFERRED_KRISP_QUALITY = "high";
 const FALLBACK_KRISP_QUALITY = "medium";
 const KRISP_BUFFER_DROP_MS = 300;
 const KRISP_BUFFER_OVERFLOW_MS = 200;
-
-function resolveParticipantVolume(
-  userId: string,
-  isDeafened: boolean,
-  participantVolumes: Record<string, number>,
-) {
-  if (isDeafened) {
-    return 0;
-  }
-
-  return (participantVolumes[userId] ?? DEFAULT_PARTICIPANT_VOLUME) / 100;
-}
-
-function getLocalMicrophoneTrack(targetRoom: Room | null) {
-  const microphonePublication =
-    targetRoom?.localParticipant.getTrackPublication(Track.Source.Microphone)?.track ?? null;
-
-  return microphonePublication instanceof LocalAudioTrack ? microphonePublication : null;
-}
-
-function isLocalMicrophoneTrackLive(track: LocalAudioTrack | null): track is LocalAudioTrack {
-  return track?.mediaStreamTrack.readyState === "live";
-}
-
-function getLocalCameraTrack(targetRoom: Room | null) {
-  const cameraPublication =
-    targetRoom?.localParticipant.getTrackPublication(Track.Source.Camera)?.track ?? null;
-
-  return cameraPublication instanceof LocalVideoTrack ? cameraPublication : null;
-}
-
-function isLocalCameraTrackLive(track: LocalVideoTrack | null) {
-  return track?.mediaStreamTrack.readyState === "live";
-}
-
-function getLocalScreenShareTrack(targetRoom: Room | null) {
-  const screenShareTrack =
-    targetRoom?.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track ?? null;
-
-  return screenShareTrack instanceof LocalVideoTrack ? screenShareTrack : null;
-}
-
-function isLocalScreenShareTrackLive(track: LocalVideoTrack | null) {
-  return track?.mediaStreamTrack.readyState === "live";
-}
-
-async function applyScreenShareQualityToTrack(
-  track: LocalVideoTrack,
-  qualityId: ScreenShareQualityId,
-) {
-  const preset = getScreenShareQualityPreset(qualityId);
-
-  if (track.sender) {
-    await applyScreenShareEncodingToSender(track.sender, preset.encoding);
-  }
-}
-
-async function stopLocalTracks(room: Room) {
-  const publications = room.localParticipant.getTrackPublications();
-  const localTracks = publications
-    .map((publication) => publication.track)
-    .filter((track): track is LocalTrack => track instanceof LocalTrack);
-
-  await Promise.all(
-    localTracks.map((track) =>
-      track instanceof LocalAudioTrack && track.getProcessor()
-        ? track.stopProcessor().catch(() => undefined)
-        : Promise.resolve(),
-    ),
-  );
-
-  await Promise.all(
-    localTracks.map((track) =>
-      room.localParticipant.unpublishTrack(track, false).catch(() => undefined),
-    ),
-  );
-
-  for (const track of localTracks) {
-    track.stop();
-    track.detach();
-  }
-}
-
-function applyRemoteAudioState(
-  room: Room,
-  isDeafened: boolean,
-  participantVolumes: Record<string, number>,
-) {
-  for (const participant of room.remoteParticipants.values()) {
-    try {
-      participant.setVolume(
-        resolveParticipantVolume(participant.identity, isDeafened, participantVolumes),
-        Track.Source.Microphone,
-      );
-    } catch (error) {
-      logError("[voice] Remote participant volume sync failed", error);
-    }
-  }
-}
-
-function runNonFatalVoiceJoinStep(step: string, action: () => void) {
-  try {
-    action();
-  } catch (error) {
-    logError(`[voice] Non-fatal join step failed: ${step}`, error);
-  }
-}
 
 export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const { t } = useI18n();
@@ -1464,6 +1367,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
             nextRoom,
             useVoiceStore.getState().isDeafened,
             useVoiceStore.getState().participantVolumes,
+            DEFAULT_PARTICIPANT_VOLUME,
           );
           syncParticipants(nextRoom);
           syncScreenShares(nextRoom);
@@ -1797,7 +1701,12 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
 
     const nextDeafened = !useVoiceStore.getState().isDeafened;
     useVoiceStore.getState().setDeafened(nextDeafened);
-    applyRemoteAudioState(activeRoom, nextDeafened, useVoiceStore.getState().participantVolumes);
+    applyRemoteAudioState(
+      activeRoom,
+      nextDeafened,
+      useVoiceStore.getState().participantVolumes,
+      DEFAULT_PARTICIPANT_VOLUME,
+    );
     syncParticipants(activeRoom);
   }, [syncParticipants]);
 
@@ -1830,7 +1739,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       return;
     }
 
-    applyRemoteAudioState(activeRoom, isDeafened, participantVolumes);
+    applyRemoteAudioState(activeRoom, isDeafened, participantVolumes, DEFAULT_PARTICIPANT_VOLUME);
   }, [isDeafened, participantVolumes]);
 
   useEffect(() => {

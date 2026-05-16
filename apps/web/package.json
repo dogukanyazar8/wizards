@@ -21,7 +21,8 @@
     "e2e:smoke": "playwright test e2e/specs/smoke",
     "e2e:ui": "playwright test --ui",
     "lint": "eslint .",
-    "test": "node --import tsx --test src/**/*.test.ts",
+    "test": "node --import tsx --test --test-force-exit src/**/*.test.ts",
+    "test:coverage": "node --import tsx --test --test-force-exit --experimental-test-coverage --test-coverage-include=\"src/**/*.ts\" --test-coverage-include=\"src/**/*.tsx\" --test-coverage-exclude=\"src/**/*.test.ts\" --test-coverage-exclude=\"src/**/*.test.tsx\" src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "format": "prettier --check ."
   },
@@ -73,6 +74,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
+    "@next/bundle-analyzer": "15.5.18",
     "@playwright/test": "^1.59.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/ioredis": "^5.0.0",

@@ -17,6 +17,7 @@ describe("API rate limit configuration", () => {
   it("keeps high-risk actions configured", () => {
     const requiredActions: ApiRateLimitAction[] = [
       "server:create",
+      "auth:reauth",
       "friend:request",
       "invite:create",
       "voice:state",

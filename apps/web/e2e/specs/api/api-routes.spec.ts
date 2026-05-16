@@ -9,6 +9,7 @@ import {
   getServerMemberId,
   setE2EServerMemberNickname,
 } from "../../helpers/db";
+import { e2eUserPassword } from "../../helpers/test-data";
 
 test.describe("API v1 route smoke", () => {
   test("serves the public app version route without caching", async ({ request }) => {
@@ -104,6 +105,56 @@ test.describe("API v1 route smoke", () => {
     expect(response.status()).toBe(413);
     await expect(response.json()).resolves.toMatchObject({
       error: "Request body too large",
+    });
+  });
+
+  test("issues account deletion re-auth tokens for valid passwords", async ({ request }) => {
+    await apiLoginAs(request, "alice");
+
+    const response = await request.post("/api/v1/auth/reauth", {
+      data: {
+        password: e2eUserPassword,
+        purpose: "account-delete",
+      },
+    });
+
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      success: true,
+    });
+    expect(typeof body.reauthToken).toBe("string");
+    expect(typeof body.expiresAt).toBe("string");
+  });
+
+  test("rejects account deletion re-auth for wrong passwords", async ({ request }) => {
+    await apiLoginAs(request, "alice");
+
+    const response = await request.post("/api/v1/auth/reauth", {
+      data: {
+        password: `${e2eUserPassword}-wrong`,
+        purpose: "account-delete",
+      },
+    });
+
+    expect(response.status()).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "REAUTH_FAILED",
+    });
+  });
+
+  test("requires recent re-auth before account deletion", async ({ request }) => {
+    await apiLoginAs(request, "alice");
+
+    const response = await request.delete("/api/v1/users/me", {
+      data: {
+        confirmation: "DELETE MY ACCOUNT",
+      },
+    });
+
+    expect(response.status()).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "REAUTH_REQUIRED",
     });
   });
 });

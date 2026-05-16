@@ -16,7 +16,7 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
-    "ci": "pnpm audit --audit-level moderate && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "ci": "pnpm audit --audit-level moderate && pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build",
     "e2e": "turbo e2e --filter @wizards/web",
     "e2e:api": "turbo e2e:api --filter @wizards/web",
     "e2e:realtime": "turbo e2e:realtime --filter @wizards/web",
@@ -24,6 +24,7 @@
     "e2e:smoke": "turbo e2e:smoke --filter @wizards/web",
     "lint": "turbo lint",
     "test": "turbo test",
+    "test:coverage": "turbo test:coverage --filter @wizards/web",
     "typecheck": "turbo typecheck",
     "format": "turbo format",
     "db:generate": "turbo db:generate",

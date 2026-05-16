@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import bundleAnalyzer from "@next/bundle-analyzer";
 import { readFileSync } from "node:fs";
 
 const packageJson = JSON.parse(
@@ -54,6 +55,9 @@ const whisprReleaseChannel =
 const isProductionDeployment =
   isProductionValue(whisprReleaseChannel) ||
   isProductionValue(process.env.RAILWAY_ENVIRONMENT_NAME);
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
 
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
@@ -93,4 +97,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);

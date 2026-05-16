@@ -12,6 +12,7 @@ export const API_RATE_LIMITS = {
   "admin:server:list": { limit: 120, windowSeconds: 60 },
   "admin:user:list": { limit: 120, windowSeconds: 60 },
   "admin:user:update": { limit: 20, windowSeconds: 60 },
+  "auth:reauth": { limit: 10, windowSeconds: 10 * 60 },
   "category:create": { limit: 30, windowSeconds: 60 },
   "category:delete": { limit: 30, windowSeconds: 60 },
   "category:reorder": { limit: 20, windowSeconds: 60 },
