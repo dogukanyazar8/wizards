@@ -9,7 +9,15 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { ConnectionState, LocalVideoTrack, type RemoteVideoTrack, type Room } from "livekit-client";
+import {
+  ConnectionQuality,
+  ConnectionState,
+  LocalVideoTrack,
+  RoomEvent,
+  type Participant,
+  type RemoteVideoTrack,
+  type Room,
+} from "livekit-client";
 import { useQuery } from "@tanstack/react-query";
 import type { WorkspaceMember } from "@wizards/types";
 import { useShallow } from "zustand/react/shallow";
@@ -26,7 +34,8 @@ import {
   RotateCcw,
   Send,
   Settings2,
-  Sparkles,
+  ShieldCheck,
+  ShieldOff,
   Users,
   Video,
   VideoOff,
@@ -82,6 +91,104 @@ type RoomControlButtonProps = {
 
 function isReconnectState(state: ConnectionState) {
   return state === ConnectionState.Reconnecting || state === ConnectionState.SignalReconnecting;
+}
+
+type VoiceSignalTone = "danger" | "muted" | "primary" | "success" | "warning";
+
+type VoiceSignalStatus = {
+  isLoading?: boolean;
+  labelKey: string;
+  strength: 0 | 1 | 2 | 3;
+  tone: VoiceSignalTone;
+};
+
+const VOICE_SIGNAL_BAR_CLASSES = ["h-1.5", "h-2.5", "h-3.5"] as const;
+
+function getVoiceSignalStatus({
+  connectionQuality,
+  connectionState,
+  hasRoom,
+}: {
+  connectionQuality: ConnectionQuality;
+  connectionState: ConnectionState;
+  hasRoom: boolean;
+}): VoiceSignalStatus {
+  if (!hasRoom || connectionState === ConnectionState.Disconnected) {
+    return {
+      labelKey: "voice.room.signalOffline",
+      strength: 0,
+      tone: "muted",
+    };
+  }
+
+  if (connectionState === ConnectionState.Connecting) {
+    return {
+      isLoading: true,
+      labelKey: "voice.room.signalChecking",
+      strength: 1,
+      tone: "primary",
+    };
+  }
+
+  if (isReconnectState(connectionState)) {
+    return {
+      isLoading: true,
+      labelKey: "voice.room.signalReconnecting",
+      strength: 1,
+      tone: "warning",
+    };
+  }
+
+  switch (connectionQuality) {
+    case ConnectionQuality.Excellent:
+      return {
+        labelKey: "voice.room.signalExcellent",
+        strength: 3,
+        tone: "success",
+      };
+    case ConnectionQuality.Good:
+      return {
+        labelKey: "voice.room.signalGood",
+        strength: 2,
+        tone: "primary",
+      };
+    case ConnectionQuality.Poor:
+      return {
+        labelKey: "voice.room.signalPoor",
+        strength: 1,
+        tone: "warning",
+      };
+    case ConnectionQuality.Lost:
+      return {
+        labelKey: "voice.room.signalLost",
+        strength: 0,
+        tone: "danger",
+      };
+    case ConnectionQuality.Unknown:
+    default:
+      return {
+        isLoading: true,
+        labelKey: "voice.room.signalChecking",
+        strength: 1,
+        tone: "primary",
+      };
+  }
+}
+
+function getVoiceSignalToneClass(tone: VoiceSignalTone) {
+  switch (tone) {
+    case "danger":
+      return "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.08)] text-[hsl(var(--danger))]";
+    case "muted":
+      return "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.58)] text-app-muted";
+    case "success":
+      return "border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.12)] text-[hsl(var(--success))]";
+    case "warning":
+      return "border-[hsl(var(--warning)/0.26)] bg-[hsl(var(--warning)/0.10)] text-[hsl(var(--warning))]";
+    case "primary":
+    default:
+      return "border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.10)] text-[hsl(var(--primary))]";
+  }
 }
 
 function getSpeakingClass(isSpeaking: boolean) {
@@ -1355,9 +1462,11 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
     isApplyingScreenShareQuality,
     isDeafened,
     isJoining,
+    isKrispNoiseCancellationActive,
     isMuted,
     isScreenSharing,
     joinChannel,
+    krispAvailability,
     leaveChannel,
     resetParticipantVolume,
     room,
@@ -1380,6 +1489,9 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
     {},
   );
   const [pendingInviteUserIds, setPendingInviteUserIds] = useState<Set<string>>(() => new Set());
+  const [localConnectionQuality, setLocalConnectionQuality] = useState(
+    ConnectionQuality.Unknown,
+  );
   const inviteStateResetTimersRef = useRef(new Map<string, number>());
   const joinChannelRef = useRef(joinChannel);
   const previousScreenShareCountRef = useRef(0);
@@ -1393,6 +1505,33 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
   useEffect(() => {
     joinChannelRef.current = joinChannel;
   }, [joinChannel]);
+
+  useEffect(() => {
+    if (!room) {
+      setLocalConnectionQuality(ConnectionQuality.Unknown);
+      return;
+    }
+
+    setLocalConnectionQuality(room.localParticipant.connectionQuality ?? ConnectionQuality.Unknown);
+
+    const handleConnectionQualityChanged = (
+      quality: ConnectionQuality,
+      participant: Participant,
+    ) => {
+      if (
+        participant === room.localParticipant ||
+        participant.identity === room.localParticipant.identity
+      ) {
+        setLocalConnectionQuality(quality);
+      }
+    };
+
+    room.on(RoomEvent.ConnectionQualityChanged, handleConnectionQualityChanged);
+
+    return () => {
+      room.off(RoomEvent.ConnectionQualityChanged, handleConnectionQualityChanged);
+    };
+  }, [room]);
 
   useEffect(() => {
     setHasRequestedJoin(true);
@@ -1672,6 +1811,19 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
     );
   }
 
+  const isKrispChecking = krispAvailability === "checking" && !isKrispNoiseCancellationActive;
+  const krispStatusLabel = isKrispNoiseCancellationActive
+    ? t("voice.room.krispActive")
+    : isKrispChecking
+      ? t("voice.room.krispChecking")
+      : t("voice.room.krispInactive");
+  const voiceSignalStatus = getVoiceSignalStatus({
+    connectionQuality: localConnectionQuality,
+    connectionState,
+    hasRoom: Boolean(room),
+  });
+  const voiceSignalLabel = t(voiceSignalStatus.labelKey);
+
   return (
     <div
       className="relative h-full overflow-hidden bg-transparent p-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3 md:p-4"
@@ -1702,9 +1854,56 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
                 {t("voice.view.participants", { count: participantCount })}
               </p>
             </div>
-            <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.10)] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--primary))]">
-              <Sparkles className="h-3.5 w-3.5" />
-              <span className="truncate">{t("voice.room.premiumSignal")}</span>
+            <div className="flex max-w-full flex-wrap items-center justify-start gap-2 sm:justify-end">
+              <div
+                className={cn(
+                  "inline-flex min-w-0 max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold",
+                  isKrispNoiseCancellationActive
+                    ? "border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.12)] text-[hsl(var(--success))]"
+                    : isKrispChecking
+                      ? "border-[hsl(var(--warning)/0.26)] bg-[hsl(var(--warning)/0.10)] text-[hsl(var(--warning))]"
+                      : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.58)] text-app-muted",
+                )}
+                data-testid="voice-krisp-status"
+                title={krispStatusLabel}
+              >
+                {isKrispChecking ? (
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
+                ) : isKrispNoiseCancellationActive ? (
+                  <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                ) : (
+                  <ShieldOff className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                )}
+                <span className="truncate">{krispStatusLabel}</span>
+              </div>
+              <div
+                className={cn(
+                  "inline-flex min-w-0 max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                  getVoiceSignalToneClass(voiceSignalStatus.tone),
+                )}
+                data-testid="voice-signal-status"
+                title={voiceSignalLabel}
+              >
+                {voiceSignalStatus.isLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
+                ) : voiceSignalStatus.tone === "danger" ? (
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                ) : (
+                  <span className="flex h-3.5 shrink-0 items-end gap-0.5" aria-hidden="true">
+                    {VOICE_SIGNAL_BAR_CLASSES.map((heightClass, index) => (
+                      <span
+                        className={cn(
+                          "w-1 rounded-full bg-current transition-opacity",
+                          heightClass,
+                          index < voiceSignalStatus.strength ? "opacity-100" : "opacity-25",
+                        )}
+                        key={heightClass}
+                      />
+                    ))}
+                  </span>
+                )}
+                <span className="truncate">{voiceSignalLabel}</span>
+              </div>
             </div>
           </div>
 

@@ -74,6 +74,12 @@ import {
   type VoiceParticipantViewModel,
 } from "@/lib/voice/participant-view-model";
 import {
+  getVoicePerformanceDurationMs,
+  getVoicePerformanceNow,
+  measureVoicePerformance,
+  recordVoicePerformanceMetric,
+} from "@/lib/voice/performance";
+import {
   deleteVoiceState,
   fetchLiveKitToken,
   sendVoiceHeartbeat,
@@ -142,6 +148,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const lastEmittedScreenShareStateRef = useRef<boolean | null>(null);
   const connectionWarningMessageRef = useRef<string | null>(null);
   const cleanupVoiceResourcesRef = useRef<() => void>(() => undefined);
+  const leaveCleanupPromiseRef = useRef<Promise<void> | null>(null);
   const microphoneSettingsFailedMessageRef = useRef(t("voice.errors.microphoneSettingsFailed"));
   const supportsLiveKitCloudNoiseCancellationRef = useRef(
     isLiveKitCloudUrl(NEXT_PUBLIC_LIVEKIT_URL),
@@ -1219,6 +1226,11 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     const activeServer = useVoiceStore.getState().serverId;
     const activeChannel = useVoiceStore.getState().activeChannelId;
     const activeRoom = roomRef.current;
+
+    if (!activeSession && !activeRoom && leaveCleanupPromiseRef.current) {
+      return leaveCleanupPromiseRef.current;
+    }
+
     if (activeServer && activeChannel) {
       getSocket().emit("voice:leave", {
         channelId: activeChannel,
@@ -1241,30 +1253,71 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     setConnectionState(ConnectionState.Disconnected);
     setErrorMessage(null);
 
-    if (activeRoom) {
-      activeRoom.removeAllListeners();
-      await stopScreenShare(activeRoom).catch(() => undefined);
-      await stopCamera(activeRoom).catch(() => undefined);
-      await stopLocalTracks(activeRoom).catch(() => undefined);
-      await activeRoom.disconnect(true).catch(() => undefined);
-      setParticipants([]);
-      setScreenShares([]);
-      setActiveScreenShareIdState(null);
-      setCameraStatus("disabled");
-      useVoiceStore.getState().clearScreenShareState();
-    }
-
-    if (activeSession) {
-      await deleteVoiceState({ sessionId: activeSession }).catch(() => undefined);
-    }
-
-    await resetKrispProcessor();
+    useVoiceStore.getState().leave();
 
     if (activeServer && activeChannel) {
       removeVoiceStateParticipant(activeServer, activeChannel, currentUser.id);
     }
 
-    useVoiceStore.getState().leave();
+    if (activeRoom) {
+      activeRoom.removeAllListeners();
+    }
+
+    const leaveCleanupStartedAt = getVoicePerformanceNow();
+    const cleanupPromise = (async () => {
+      if (activeRoom) {
+        await stopScreenShare(activeRoom).catch((error) => {
+          logError("[voice] Screen share cleanup failed after leave", error);
+        });
+        await stopCamera(activeRoom).catch((error) => {
+          logError("[voice] Camera cleanup failed after leave", error);
+        });
+        await stopLocalTracks(activeRoom).catch((error) => {
+          logError("[voice] Local track cleanup failed after leave", error);
+        });
+        await activeRoom.disconnect(true).catch((error) => {
+          logError("[voice] Room disconnect failed after leave", error);
+        });
+      }
+
+      if (activeSession) {
+        await measureVoicePerformance(
+          {
+            operation: "voice_state_delete",
+            runtime: "client",
+          },
+          () => deleteVoiceState({ sessionId: activeSession }),
+        ).catch((error) => {
+          logError("[voice] Voice state cleanup failed after leave", error);
+        });
+      }
+
+      await resetKrispProcessor().catch((error) => {
+        logError("[voice] Krisp cleanup failed after leave", error);
+      });
+      recordVoicePerformanceMetric({
+        durationMs: getVoicePerformanceDurationMs(leaveCleanupStartedAt),
+        operation: "voice_leave_cleanup_total",
+        result: "success",
+        runtime: "client",
+      });
+    })().catch((error) => {
+      recordVoicePerformanceMetric({
+        durationMs: getVoicePerformanceDurationMs(leaveCleanupStartedAt),
+        operation: "voice_leave_cleanup_total",
+        result: "error",
+        runtime: "client",
+      });
+      logError("[voice] Leave cleanup failed after leave", error);
+    });
+    leaveCleanupPromiseRef.current = cleanupPromise;
+    void cleanupPromise.finally(() => {
+      if (leaveCleanupPromiseRef.current === cleanupPromise) {
+        leaveCleanupPromiseRef.current = null;
+      }
+    });
+
+    return cleanupPromise;
   }, [
     clearReconnectTimeout,
     currentUser.id,
@@ -1277,6 +1330,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
 
   const joinChannel = useCallback(
     async ({ channelId, serverId: nextServerId }: { channelId: string; serverId: string }) => {
+      if (leaveCleanupPromiseRef.current) {
+        await leaveCleanupPromiseRef.current;
+      }
+
       const currentState = useVoiceStore.getState();
       const nextJoinKey = `${nextServerId}:${channelId}`;
       const microphoneDeniedMessage = isDesktopRuntime
@@ -1335,6 +1392,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         return;
       }
 
+      const joinStartedAt = getVoicePerformanceNow();
+      let joinResult: "error" | "success" = "error";
       setIsJoining(true);
       setErrorMessage(null);
       setCameraError(null);
@@ -1424,7 +1483,13 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       });
 
       try {
-        const tokenResponse = await fetchLiveKitToken({ channelId });
+        const tokenResponse = await measureVoicePerformance(
+          {
+            operation: "livekit_token_fetch",
+            runtime: "client",
+          },
+          () => fetchLiveKitToken({ channelId }),
+        );
         supportsLiveKitCloudNoiseCancellationRef.current = isLiveKitCloudUrl(tokenResponse.url);
 
         if (!supportsLiveKitCloudNoiseCancellationRef.current) {
@@ -1433,14 +1498,27 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
           setKrispAvailability("checking");
         }
 
-        await connectLiveKitRoomWithRetry(nextRoom, tokenResponse.url, tokenResponse.token);
+        await measureVoicePerformance(
+          {
+            operation: "livekit_room_connect",
+            runtime: "client",
+          },
+          () => connectLiveKitRoomWithRetry(nextRoom, tokenResponse.url, tokenResponse.token),
+        );
         setConnectionState(nextRoom.state);
 
-        const state = await upsertVoiceState({
-          channelId,
-          serverId: nextServerId,
-          sessionId,
-        });
+        const state = await measureVoicePerformance(
+          {
+            operation: "voice_state_post",
+            runtime: "client",
+          },
+          () =>
+            upsertVoiceState({
+              channelId,
+              serverId: nextServerId,
+              sessionId,
+            }),
+        );
         voiceStateCreated = true;
 
         useVoiceStore.getState().join({
@@ -1466,6 +1544,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         });
         void nextRoom.startAudio().catch(() => undefined);
         syncRoomParticipants();
+        joinResult = "success";
 
         if (!hasMicrophoneAccess) {
           setIsKrispNoiseCancellationActive(false);
@@ -1562,6 +1641,12 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
           throw error;
         }
       } finally {
+        recordVoicePerformanceMetric({
+          durationMs: getVoicePerformanceDurationMs(joinStartedAt),
+          operation: "voice_join_total",
+          result: joinResult,
+          runtime: "client",
+        });
         if (joinRequestRef.current === nextJoinKey) {
           joinRequestRef.current = null;
         }
@@ -1961,4 +2046,3 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     </VoiceStateContext.Provider>
   );
 }
-

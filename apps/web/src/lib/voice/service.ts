@@ -21,9 +21,9 @@ import {
   requireChannelPermissionForUser,
 } from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
+import { assertVoiceChannelCapacity } from "@/lib/voice/capacity";
 import { getVoiceScreenShareStateKey } from "@/lib/voice/screen-share-state";
 import {
-  MAX_VOICE_PARTICIPANTS,
   VOICE_HEARTBEAT_TIMEOUT_MS,
   type HeartbeatVoiceStateBody,
   type UpsertVoiceStateBody,
@@ -571,6 +571,7 @@ function mapSocketParticipants(participants: VoiceStateParticipantDTO[]) {
 export async function emitVoiceStateUpdate(args: {
   action: "join" | "leave";
   channelId: string;
+  participants?: VoiceStateParticipantDTO[];
   serverId: string;
   userId: string;
 }) {
@@ -579,7 +580,8 @@ export async function emitVoiceStateUpdate(args: {
     return;
   }
 
-  const participants = await buildVoiceStateParticipantsForChannel(args.channelId);
+  const participants =
+    args.participants ?? (await buildVoiceStateParticipantsForChannel(args.channelId));
   const payload = {
     action: args.action,
     channelId: args.channelId,
@@ -784,22 +786,7 @@ export async function listVoiceStatesForServer(
 }
 
 async function enforceVoiceRoomCapacity(channelId: string, userId: string) {
-  const roomService = getLiveKitRoomServiceClient();
-  const participants = await roomService.listParticipants(getVoiceRoomName(channelId)).catch(() => []);
-  const hasCurrentUser = participants.some((participant) => participant.identity === userId);
-
-  if (participants.length > MAX_VOICE_PARTICIPANTS) {
-    if (hasCurrentUser) {
-      await roomService.removeParticipant(getVoiceRoomName(channelId), userId).catch(() => {
-        // Ignore LiveKit cleanup failures; the route will still reject the join.
-      });
-    }
-    throw new ApiError("Voice channel is full", 403, "ROOM_FULL");
-  }
-
-  if (participants.length === MAX_VOICE_PARTICIPANTS && !hasCurrentUser) {
-    throw new ApiError("Voice channel is full", 403, "ROOM_FULL");
-  }
+  await assertVoiceChannelCapacity({ channelId, userId });
 }
 
 export async function releaseVoiceJoinLocks(
@@ -971,7 +958,9 @@ export async function clearVoiceState(
     .catch(() => undefined);
 
   if (options.removeLiveKitParticipant !== false) {
-    await removeLiveKitVoiceParticipant(existingState.channelId, userId);
+    void removeLiveKitVoiceParticipant(existingState.channelId, userId).catch((error) => {
+      logError("[voice] LiveKit participant cleanup failed after leave", error);
+    });
   }
 
   return existingState;

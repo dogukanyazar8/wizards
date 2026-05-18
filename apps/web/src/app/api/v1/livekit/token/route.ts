@@ -4,11 +4,19 @@ import { createLiveKitToken } from "@/lib/livekit/server";
 import { CreateLiveKitTokenBodySchema } from "@/lib/livekit/types";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRedisRate } from "@/lib/redis";
+import {
+  getVoicePerformanceDurationMs,
+  getVoicePerformanceErrorMetadata,
+  getVoicePerformanceNow,
+  recordVoicePerformanceMetric,
+} from "@/lib/voice/performance";
 
 const LIVEKIT_TOKEN_LIMIT = 20;
 const LIVEKIT_TOKEN_WINDOW_SECONDS = 60;
 
 export async function POST(request: Request) {
+  const startedAt = getVoicePerformanceNow();
+
   try {
     const userId = await requireApiUserId();
     const isAllowed = await checkRateLimit(
@@ -25,8 +33,23 @@ export async function POST(request: Request) {
     const input = await parseJsonBody(request, CreateLiveKitTokenBodySchema);
     const response = await createLiveKitToken(userId, input);
 
+    recordVoicePerformanceMetric({
+      durationMs: getVoicePerformanceDurationMs(startedAt),
+      operation: "livekit_token",
+      result: "success",
+      runtime: "server",
+    });
+
     return Response.json(response);
   } catch (error) {
+    recordVoicePerformanceMetric({
+      ...getVoicePerformanceErrorMetadata(error),
+      durationMs: getVoicePerformanceDurationMs(startedAt),
+      operation: "livekit_token",
+      result: "error",
+      runtime: "server",
+    });
+
     return jsonError(error);
   }
 }
