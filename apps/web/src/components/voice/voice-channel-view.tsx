@@ -47,6 +47,7 @@ import { useI18n } from "@/components/providers/locale-provider";
 import {
   useVoiceParticipants,
   useVoiceState,
+  type NoiseFilterTier,
   type VoiceCameraStatus,
   type VoiceParticipantViewModel,
   type VoiceScreenShareViewModel,
@@ -188,6 +189,21 @@ function getVoiceSignalToneClass(tone: VoiceSignalTone) {
     case "primary":
     default:
       return "border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.10)] text-[hsl(var(--primary))]";
+  }
+}
+
+function getKrispQualityLabelKey(tier: NoiseFilterTier) {
+  switch (tier) {
+    case "krisp_high":
+      return "voice.room.krispQualityHigh";
+    case "krisp_medium":
+      return "voice.room.krispQualityMedium";
+    case "krisp_low":
+      return "voice.room.krispQualityLow";
+    case "browser_native":
+    case "off":
+    default:
+      return null;
   }
 }
 
@@ -1452,6 +1468,7 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
   const { t } = useI18n();
   const {
     activeChannelId,
+    activeNoiseFilterTier,
     activeScreenShareId,
     cameraError,
     cameraStatus,
@@ -1817,6 +1834,13 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
     : isKrispChecking
       ? t("voice.room.krispChecking")
       : t("voice.room.krispInactive");
+  const krispQualityLabelKey = isKrispNoiseCancellationActive
+    ? getKrispQualityLabelKey(activeNoiseFilterTier)
+    : null;
+  const krispQualityLabel = krispQualityLabelKey ? t(krispQualityLabelKey) : null;
+  const krispStatusTitle = krispQualityLabel
+    ? `${krispStatusLabel} - ${krispQualityLabel}`
+    : krispStatusLabel;
   const voiceSignalStatus = getVoiceSignalStatus({
     connectionQuality: localConnectionQuality,
     connectionState,
@@ -1865,7 +1889,7 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
                       : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.58)] text-app-muted",
                 )}
                 data-testid="voice-krisp-status"
-                title={krispStatusLabel}
+                title={krispStatusTitle}
               >
                 {isKrispChecking ? (
                   <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
@@ -1875,6 +1899,14 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
                   <ShieldOff className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 )}
                 <span className="truncate">{krispStatusLabel}</span>
+                {krispQualityLabel ? (
+                  <span
+                    className="shrink-0 rounded-full border border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.14)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[hsl(var(--success))]"
+                    data-testid="voice-krisp-quality-badge"
+                  >
+                    {krispQualityLabel}
+                  </span>
+                ) : null}
               </div>
               <div
                 className={cn(
