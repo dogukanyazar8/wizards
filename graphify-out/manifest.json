@@ -1,7 +1,11 @@
 {
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\run-tauri.mjs": {
-    "mtime": 1778571008.082259,
-    "hash": "a67708aff5df50e2770e525c2a61f8c3"
+    "mtime": 1778680429.801497,
+    "hash": "1ed3a96f00564255d2e13ce417d534c4"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\run-tauri.test.mjs": {
+    "mtime": 1778680429.8024974,
+    "hash": "58347829852f6eb8e155df49bd21c0a0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\src-tauri\\build.rs": {
     "mtime": 1777980040.2722814,
@@ -24,8 +28,8 @@
     "hash": "90426577ad8f38459f3e566411c85589"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\next.config.ts": {
-    "mtime": 1777981749.2209425,
-    "hash": "daca83def5f819c2849456a4d761f9bf"
+    "mtime": 1778934185.1632595,
+    "hash": "6545dd3017cd2dac8425cc050a5885f1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright.config.ts": {
     "mtime": 1777980040.2862802,
@@ -36,8 +40,8 @@
     "hash": "95d63a38f4a16b2e6a8384a209e09b1e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\server.ts": {
-    "mtime": 1777980040.2872803,
-    "hash": "8534516abe6a96b709898e30ae7c244d"
+    "mtime": 1778819753.0757728,
+    "hash": "1fb8fe1b3703892cfafe745cd2574ed3"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\tailwind.config.ts": {
     "mtime": 1776813184.901632,
@@ -47,21 +51,25 @@
     "mtime": 1777980040.2762806,
     "hash": "31c02cb79aa176f5dcaa18c597ee84df"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\helpers\\api-auth.ts": {
+    "mtime": 1778849728.815222,
+    "hash": "b00e1d21faf36db9b6f79e7f55a190c5"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\helpers\\auth.ts": {
     "mtime": 1777980040.2762806,
     "hash": "3f7807cfe5cc61e704bc348e3934dae3"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\helpers\\db.ts": {
-    "mtime": 1777980040.2772803,
-    "hash": "fb717375c9e1794d173352bdbbafdd55"
+    "mtime": 1778852223.43402,
+    "hash": "1f3a5a9f6d7ba854b8a5e7a23d13d4df"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\helpers\\test-data.ts": {
     "mtime": 1777980040.2772803,
     "hash": "ef2e1964347ec3a1e55752a32077186a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\setup\\e2e-database.ts": {
-    "mtime": 1777980040.2782815,
-    "hash": "709f09c617967d0ea9f2e9de639a97b8"
+    "mtime": 1778586756.7727778,
+    "hash": "8310c102d00cafe95d7b1514857f9990"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\setup\\global-setup.ts": {
     "mtime": 1777980040.2782815,
@@ -70,6 +78,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\setup\\reset-and-seed.ts": {
     "mtime": 1777980040.279281,
     "hash": "de70e23c3e7588b04951430c4a5232ef"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\api\\api-routes.spec.ts": {
+    "mtime": 1778932600.68258,
+    "hash": "16ece22cf6503d83a9da5f90657731bd"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\attachments\\attachments.spec.ts": {
     "mtime": 1777980040.279281,
@@ -115,13 +127,25 @@
     "mtime": 1778233740.601353,
     "hash": "dcaa3057ae14727744819179e0fc5607"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\scripts\\cleanup-account-reauth-challenges.ts": {
+    "mtime": 1778939146.4670758,
+    "hash": "5a7693c0ff34fb77cdb2dec929b99405"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\scripts\\run-node-tests.mjs": {
+    "mtime": 1778944207.2815084,
+    "hash": "3db59f3e4a7e29624e52554f79bbf306"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\auth.ts": {
-    "mtime": 1778571008.1082585,
-    "hash": "1e6913ef216b2d6c7d0940524c73e8d2"
+    "mtime": 1778817749.0957608,
+    "hash": "1d1d299356a7b6eaafc7fc639029407c"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\middleware.test.ts": {
+    "mtime": 1778764359.824975,
+    "hash": "128750b2415a12f8b5186563615185b6"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\middleware.ts": {
-    "mtime": 1778062351.6388,
-    "hash": "9d63ca58ed333ac744888cb86c8d5e22"
+    "mtime": 1778764359.8239765,
+    "hash": "ca3e5b1a2c2646be1d33cd7768f3fe4e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\layout.tsx": {
     "mtime": 1778571008.1082585,
@@ -140,8 +164,8 @@
     "hash": "9307e9ebe83df01482b7b7cd8c776d5c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\(auth)\\login\\login-client.tsx": {
-    "mtime": 1778571008.0982578,
-    "hash": "27657bd166ff6d984fa0bff5c0a10b81"
+    "mtime": 1778745954.2945702,
+    "hash": "df4934e37f15373ba65d231de08f5357"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\(auth)\\login\\page.tsx": {
     "mtime": 1778571008.0992582,
@@ -191,49 +215,105 @@
     "mtime": 1778571008.1012588,
     "hash": "eebfb6b15b3c4f739daba3e3e3a61bc9"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\admin\\layout.tsx": {
+    "mtime": 1778589047.635581,
+    "hash": "a2de1d156475af2f942dbf2303eb45ea"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\admin\\page.tsx": {
+    "mtime": 1778589063.743623,
+    "hash": "644ee4907c5b33dad90c0f8102fd2300"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\auth\\[...nextauth]\\route.ts": {
     "mtime": 1776867538.6659408,
     "hash": "c1cf280752702b4e4a109c1c0acfcfd5"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\e2e\\auth\\session\\route.ts": {
-    "mtime": 1777980040.291281,
-    "hash": "143d3e080f14ecde747bea9a5bb127f0"
+    "mtime": 1778786295.7705996,
+    "hash": "287625ba11fcd058fa3dc9ce1a8a92d3"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\e2e\\uploads\\route.ts": {
-    "mtime": 1778053351.2269473,
-    "hash": "876adbfa6bd49877deeb60a375940453"
+    "mtime": 1778670822.0670946,
+    "hash": "39ed4bced848cd1e3205ff1d82704dc0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\health\\route.ts": {
-    "mtime": 1777980040.29228,
-    "hash": "812cb9844012a242c772f4f2a751df0e"
+    "mtime": 1778740963.7036378,
+    "hash": "7a6a70dbf8c752bde9a838accd4c73fa"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\uploadthing\\core.test.ts": {
-    "mtime": 1777980040.29228,
-    "hash": "5bb5e47b0f82c42078e2f32e82e1b223"
+    "mtime": 1778747458.1142027,
+    "hash": "303b059e3fc794036449dc4e24e9aa8c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\uploadthing\\core.ts": {
-    "mtime": 1778053351.2269473,
-    "hash": "2cb2ada8684f479433d40cf602153aa1"
+    "mtime": 1778768204.8550267,
+    "hash": "92fe5c160d38117e3c791d9c3e97ebed"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\uploadthing\\route.ts": {
     "mtime": 1776872602.4812915,
     "hash": "2fb98a7414f57b1abe823676a73841cb"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\route-contract.test.ts": {
+    "mtime": 1778849309.890597,
+    "hash": "d905c762e1130a23ed698755218d72cb"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\admin\\dashboard\\route.ts": {
+    "mtime": 1778588555.9119568,
+    "hash": "8d51762c7323c84e371fe40752e8f915"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\admin\\notification-campaigns\\route.ts": {
+    "mtime": 1778588573.6366484,
+    "hash": "dead115ffbece47a4f872e6d68b626e2"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\admin\\notification-campaigns\\preview\\route.ts": {
+    "mtime": 1778588592.0338216,
+    "hash": "ef36e4cdc3a93b647eed64223b9c6866"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\admin\\notification-campaigns\\[campaignId]\\send\\route.ts": {
+    "mtime": 1778588607.5098543,
+    "hash": "bf5036a88d846d4fd0b89bd8fd5fa0b0"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\admin\\reports\\activity.csv\\route.ts": {
+    "mtime": 1778589952.2092443,
+    "hash": "b273109a6346d3e0fd5c6946464ec734"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\admin\\servers\\route.ts": {
+    "mtime": 1778589937.1141586,
+    "hash": "0bb3d04ef708af0cd466a61bc9df89a8"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\admin\\users\\route.ts": {
+    "mtime": 1778589902.8668523,
+    "hash": "b71b09ea1a5d8aa91b950731419464b7"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\admin\\users\\[userId]\\route.ts": {
+    "mtime": 1778590288.5471263,
+    "hash": "ce16ff7cd7f7de2cdfbb790a6076c36f"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\app\\version\\route.ts": {
     "mtime": 1777980040.2932804,
     "hash": "4ae310db6e204213a0aefc0103a9a192"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\attachments\\[attachmentId]\\download\\route.ts": {
-    "mtime": 1778571009.037649,
-    "hash": "004cb3fe809a70d7b01247ae14a38077"
+    "mtime": 1778788604.2807732,
+    "hash": "7b90aaba17c5386edc8a333add4e8777"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\auth\\reauth\\route.ts": {
+    "mtime": 1778932537.2928836,
+    "hash": "82a959d0cd0859f80f338ea96e6367c3"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\auth\\reauth\\email-challenge\\route.ts": {
+    "mtime": 1778936398.4684353,
+    "hash": "08aee9e2c309a29fe708a390d4e64def"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\auth\\reauth\\email-confirm\\route.ts": {
+    "mtime": 1778936408.5065808,
+    "hash": "e716e1df4a1d552230251335f482e1f0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\channels\\[channelId]\\route.ts": {
-    "mtime": 1777980040.2952807,
-    "hash": "3cb57ea315606922fc05c42f0dde6a57"
+    "mtime": 1778826470.686874,
+    "hash": "a278c06168a6658cdf85b34fc1b0719d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\channels\\[channelId]\\messages\\route.ts": {
-    "mtime": 1778571008.1032603,
-    "hash": "c6a27a01660fb5bf2946cf683c0cd882"
+    "mtime": 1778826470.6888738,
+    "hash": "b45482b7946f4a529b5b86cb30a09482"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\channels\\[channelId]\\messages\\search\\route.ts": {
     "mtime": 1778053221.3152475,
@@ -244,16 +324,16 @@
     "hash": "cb71037a8014ce11f77601a1cdd09920"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\channels\\[channelId]\\messages\\[messageId]\\thread\\route.ts": {
-    "mtime": 1778571008.1022575,
-    "hash": "e5ae36566937c670e17a1040733a6331"
+    "mtime": 1778674228.3692977,
+    "hash": "21090db903a245cb8a9a44cc8a570e8c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\channels\\[channelId]\\notification-settings\\route.ts": {
-    "mtime": 1778571008.1032603,
-    "hash": "3bd42e541a6ae1384d6d75dd6c056408"
+    "mtime": 1778849144.933383,
+    "hash": "20a072e62d559b5b8f7cb3d06c70678b"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\channels\\[channelId]\\permissions\\route.ts": {
-    "mtime": 1778571008.1042597,
-    "hash": "d9d208ba1e97d12c9a3ff40bf9831c25"
+    "mtime": 1778826470.6908736,
+    "hash": "a85ae281b0c9867f1212da77bab27461"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\channels\\[channelId]\\pins\\route.ts": {
     "mtime": 1778004825.98376,
@@ -264,24 +344,24 @@
     "hash": "52790430527a304e14d62fe5d77290fb"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\dm\\route.ts": {
-    "mtime": 1777980040.2962804,
-    "hash": "de70df9803fb0fc7fd70df5a2f9810fb"
+    "mtime": 1778674228.3652961,
+    "hash": "7349893a24406aee101f757e8cab4d7a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\dm\\[conversationId]\\route.ts": {
-    "mtime": 1777980040.2962804,
-    "hash": "f32ac0be6a0f39e780ebcc182b2a57e7"
+    "mtime": 1778674228.3662972,
+    "hash": "1c65ce61a99d235a8c526df7b019b285"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\dm\\[conversationId]\\messages\\route.ts": {
-    "mtime": 1777233256.4648943,
-    "hash": "31a42eb608bae1d6a2df4a8360139b4d"
+    "mtime": 1778674228.3662972,
+    "hash": "afd3bd5086e1c72a0741c233be9289d3"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\dm\\[conversationId]\\messages\\search\\route.ts": {
     "mtime": 1778053242.9309013,
     "hash": "14162b7bfa1819995f24b50cb33186a0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\dm\\[conversationId]\\messages\\[messageId]\\thread\\route.ts": {
-    "mtime": 1778001605.2324922,
-    "hash": "9fa28454a258da39f8213dc91d7469ae"
+    "mtime": 1778674228.3672974,
+    "hash": "ab6d8f002ead642dce07da13d7861aa9"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\dm\\[conversationId]\\read\\route.ts": {
     "mtime": 1777980040.2952807,
@@ -328,8 +408,8 @@
     "hash": "11d7ab25009883488334c3383cc70ff1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\livekit\\token\\route.ts": {
-    "mtime": 1777980040.299281,
-    "hash": "f41a3147b50269d90d595eadf5bbeae0"
+    "mtime": 1778768208.8861024,
+    "hash": "61c3439a3567a5b6224c56acc25a49da"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\notifications\\route.ts": {
     "mtime": 1777312181.4310608,
@@ -352,88 +432,96 @@
     "hash": "d7bc7b79218b17a6c73ea96f2142b813"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\servers\\route.ts": {
-    "mtime": 1777980040.306284,
-    "hash": "e7e5b6694170b124a5c6416125d0abff"
+    "mtime": 1778826470.686874,
+    "hash": "bca815f0708fa15a58aba3afd89df805"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\servers\\[serverId]\\route.ts": {
-    "mtime": 1777980040.306284,
-    "hash": "10ea41ed1f460c51e159ab4710125e7f"
+    "mtime": 1778826470.6878774,
+    "hash": "0642cc251d1979bacf3da8b254dd6516"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\servers\\[serverId]\\categories\\route.ts": {
-    "mtime": 1777980040.3022802,
-    "hash": "b0943d2e04ab64094caa9cc8a39ade83"
+    "mtime": 1778826470.6888738,
+    "hash": "76d79f7a00f81d6baac4a40afec55c8e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\servers\\[serverId]\\categories\\reorder\\route.ts": {
-    "mtime": 1778064927.7315693,
-    "hash": "81a0d30c17976229ef20c9f87241327a"
+    "mtime": 1778826470.6908736,
+    "hash": "25c335047e26bc5eed5f574ddadc2e48"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\servers\\[serverId]\\categories\\[categoryId]\\route.ts": {
-    "mtime": 1777980040.3012807,
-    "hash": "6e6fb26bc8baa759d5db87fec646c592"
+    "mtime": 1778826470.6888738,
+    "hash": "598d05fba6c17a0a56b9a43f6be97b4a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\servers\\[serverId]\\channels\\route.ts": {
-    "mtime": 1777980040.3032806,
-    "hash": "d9078ea354f288d283c0194e54746f5c"
+    "mtime": 1778826470.6878774,
+    "hash": "46117c66a0b7a97335d2740a04a57596"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\servers\\[serverId]\\channels\\reorder\\route.ts": {
-    "mtime": 1777980040.3022802,
-    "hash": "5989deeff537afe2cc768940a2f61ed5"
+    "mtime": 1778826470.6878774,
+    "hash": "955a3c3f27a7cad219547e55319fabfc"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\servers\\[serverId]\\invites\\route.ts": {
-    "mtime": 1777980040.3042848,
-    "hash": "027a0d0507e54df699f4a8c77a5c64ac"
+    "mtime": 1778826470.6898744,
+    "hash": "67405827550872093c0201e764fa07f3"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\servers\\[serverId]\\invites\\[inviteId]\\route.ts": {
-    "mtime": 1777980040.3032806,
-    "hash": "ddfcc7c1cdd2a376ce1da2fbfd9b000e"
+    "mtime": 1778826470.6888738,
+    "hash": "96061c1215dea694d641c983d6741f6c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\servers\\[serverId]\\members\\route.ts": {
-    "mtime": 1777980040.3052857,
-    "hash": "272a0d1fe616c402383086247b2f2621"
+    "mtime": 1778826470.6898744,
+    "hash": "d65643863dc8fb0bc5629bfdae723e03"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\servers\\[serverId]\\members\\me\\route.ts": {
-    "mtime": 1777980040.3052857,
-    "hash": "f87e2b5f6d2f0fa0053ba23b22e0e565"
+    "mtime": 1778826470.6908736,
+    "hash": "a0705791b6de08059d517a47bacb3cac"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\servers\\[serverId]\\members\\[memberId]\\route.ts": {
-    "mtime": 1777980040.3042848,
-    "hash": "def556c689c88f0e68247e4977842ced"
+    "mtime": 1778826470.6898744,
+    "hash": "b5d0b4adaeb45c045f9967b50f5df224"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\servers\\[serverId]\\members\\[memberId]\\roles\\route.ts": {
-    "mtime": 1778571008.1052585,
-    "hash": "696207b537d1af000a6c600b82577b19"
+    "mtime": 1778826470.6908736,
+    "hash": "74905b91285e29ff95d5b047d2efe02a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\servers\\[serverId]\\roles\\route.ts": {
-    "mtime": 1778571008.1062586,
-    "hash": "4e30df9d8c0b1f5bec26c926f7d18320"
+    "mtime": 1778826470.6898744,
+    "hash": "709877996e5fa952bed91b549358d34b"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\servers\\[serverId]\\roles\\[roleId]\\route.ts": {
-    "mtime": 1778571008.1052585,
-    "hash": "192bcd2a648f23a8b5a42dfd6bcf21c6"
+    "mtime": 1778826470.6908736,
+    "hash": "a4933f8778569fa0cbd4823cf17a16c1"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\users\\me\\route.ts": {
+    "mtime": 1778932558.7813294,
+    "hash": "8164eb2cc8c4ec5aa6149f6277b051ae"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\users\\me\\data-export\\route.ts": {
+    "mtime": 1778747394.7852437,
+    "hash": "3cdc83a8225774f9478b6f0d30d108aa"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\users\\me\\settings\\route.ts": {
     "mtime": 1778571008.1062586,
     "hash": "f40929eef1c5dd0c0c557c1e4d1a13da"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\users\\[userId]\\profile\\route.ts": {
-    "mtime": 1777980040.306284,
-    "hash": "314efec2b8ebc17dedc5f03160eb4186"
+    "mtime": 1778852208.6577196,
+    "hash": "6d7622fe4821cae789c34f2f8571b607"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\voice\\state\\route.ts": {
-    "mtime": 1778577798.9843352,
-    "hash": "a6187545883fab4dea51ccc65ab3d168"
+    "mtime": 1778604934.436102,
+    "hash": "7decc3377d3dec652f16bff1825b4f79"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\voice\\state\\heartbeat\\route.ts": {
-    "mtime": 1777980040.3072846,
-    "hash": "484398752d06bc1fc92dc234fe9050c1"
+    "mtime": 1778586757.6551368,
+    "hash": "93cb9da2ce7bd998356910a092d5e54b"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\voice\\states\\route.ts": {
-    "mtime": 1777282126.9218032,
-    "hash": "a519c993f8353b59ee82fe1879b0bf99"
+    "mtime": 1778674228.3682995,
+    "hash": "27ed003aaabcad64a37cffe185a7043d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\invite\\[code]\\page.tsx": {
-    "mtime": 1777165475.0004292,
-    "hash": "75b0e8343c3993582d74f8bbc8a25fa6"
+    "mtime": 1778826470.6858733,
+    "hash": "740191a12ccd196fefa5a4850c6528d1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\settings\\layout.tsx": {
     "mtime": 1778571008.1082585,
@@ -446,6 +534,18 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\settings\\appearance\\page.tsx": {
     "mtime": 1777371508.0412138,
     "hash": "93a7d0be5a3dd3eb9a6c5d77c0776633"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\admin\\admin-dashboard.tsx": {
+    "mtime": 1778590218.3540697,
+    "hash": "0e3039713822e02c69e828d0bb8002c7"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\admin\\admin-management-panel.tsx": {
+    "mtime": 1778590370.8365996,
+    "hash": "ae91d23f869db569e9175c097a9b4b66"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\admin\\notification-composer.tsx": {
+    "mtime": 1778589290.2657983,
+    "hash": "7cc4a4714844e7ae88fb8240c821a44b"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\app\\app-update-notifier.tsx": {
     "mtime": 1777980040.310285,
@@ -480,16 +580,16 @@
     "hash": "c45f5383b3a6c1d421d3fda1a03c9458"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\auth\\turnstile-widget.tsx": {
-    "mtime": 1778571008.1122582,
-    "hash": "d46eba899bd7b50e28c3c6a93d79862b"
+    "mtime": 1778744867.8869178,
+    "hash": "726d9f08aef556bdbf6f009810d0635c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\channel-conversation-page.tsx": {
-    "mtime": 1778068545.9233387,
-    "hash": "b877ef8652041aaad76d0770ce8ed0f5"
+    "mtime": 1778592055.4239116,
+    "hash": "7e9fd919a98a302c4542252ce716dea0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\chat-area.tsx": {
-    "mtime": 1778158907.6360056,
-    "hash": "260619ada10066ad385b34897d20c768"
+    "mtime": 1778745558.4494686,
+    "hash": "880fd447078814a8c9dc9bf4a9958f7e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\clear-channel-history-action.tsx": {
     "mtime": 1777382828.3728209,
@@ -556,12 +656,12 @@
     "hash": "8005fef45605da0cf56ba3f3ba62eff7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\desktop\\desktop-diagnostics-panel.tsx": {
-    "mtime": 1778571008.1162593,
-    "hash": "f8b580983ef4250a0c604c98eae42260"
+    "mtime": 1778822636.5113025,
+    "hash": "be312944ff9dcc0e6bd7a30454c5cbb9"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\desktop\\desktop-experience.tsx": {
-    "mtime": 1778571008.1162593,
-    "hash": "8a62b76f5101924072b3a4881ceb9c11"
+    "mtime": 1778822646.7510784,
+    "hash": "207a34913f28d65e5f4eee438bd37b8c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\desktop\\desktop-window-chrome.tsx": {
     "mtime": 1778571008.117258,
@@ -603,6 +703,14 @@
     "mtime": 1777530216.5259306,
     "hash": "adfc89da37fd86a785e6e0a49c0ab54d"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\e2e-voice-provider.tsx": {
+    "mtime": 1778843675.467668,
+    "hash": "b7b67b7d30ad926a2a5dbd2ad5d23009"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\live-voice-provider.tsx": {
+    "mtime": 1778939532.8513663,
+    "hash": "5cc5eff86c8c3adc99a9ac4279230803"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\locale-provider.tsx": {
     "mtime": 1778571008.1182587,
     "hash": "ae8003fcbac97cd9b8cc3205cc6e3516"
@@ -620,16 +728,28 @@
     "hash": "3304b7c3df74a36f773faa18ca7902df"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\sound-effects-provider.tsx": {
-    "mtime": 1778580711.5651867,
-    "hash": "5fa526c8b9ee8997b714f55bbff9d164"
+    "mtime": 1778582979.6588335,
+    "hash": "8c7e3c0140500e8c075ed4fe549aefb7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\theme-provider.tsx": {
     "mtime": 1777159149.0245433,
     "hash": "044c778940af9c89b467555e2523c997"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\voice-context.tsx": {
+    "mtime": 1778939505.5714462,
+    "hash": "145842f7fd4fd6bf5e6b24ce4cf4d709"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\voice-provider-bundle.test.ts": {
+    "mtime": 1778934321.545226,
+    "hash": "dff30301b93055784a80e58ecfd19cf1"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\voice-provider-shared.ts": {
+    "mtime": 1778823059.3867433,
+    "hash": "d1a82cb68ecdea876edb5041d22f6f4a"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\providers\\voice-provider.tsx": {
-    "mtime": 1778579975.2377794,
-    "hash": "c7665f55f4b333e068f82e509186ef2b"
+    "mtime": 1778823204.8101137,
+    "hash": "41203ff5df7d9386ea129a4b4c9d1e84"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\scene\\aurora-background.tsx": {
     "mtime": 1778571008.1192586,
@@ -672,8 +792,8 @@
     "hash": "161dd1c98836902d4588d296345de4cf"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\channel-sidebar.tsx": {
-    "mtime": 1778571008.1232574,
-    "hash": "a5a831011aee539998dc234151b77e4f"
+    "mtime": 1778822652.4537482,
+    "hash": "f110ee1b6064e5f9a2d1b09bc68166f8"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\main-channel-panel.tsx": {
     "mtime": 1778571008.1232574,
@@ -692,24 +812,24 @@
     "hash": "040a5b786ea7f70d2f63740c839df538"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\server-member-panel.tsx": {
-    "mtime": 1778582157.6973534,
-    "hash": "242e7587387fb6ca9b1a1ee4999f0fdf"
+    "mtime": 1778582979.6598341,
+    "hash": "31d9e9581c6da0861b2c42372a57c7b9"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\server-rail.tsx": {
     "mtime": 1778233740.6043544,
     "hash": "00c894a60379e14765ed5f96e7298275"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\server-settings-overlay.tsx": {
-    "mtime": 1778571008.124259,
-    "hash": "21219617f3e0e631227f170351608f21"
+    "mtime": 1778742688.738621,
+    "hash": "70dbf0d3a50214348d9cad4fe966a029"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\shell-skeletons.tsx": {
     "mtime": 1777980040.3260226,
     "hash": "f34de525f75314aba949d6e1a06277a8"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\wizards-shell.tsx": {
-    "mtime": 1778571008.1252582,
-    "hash": "8a2c3deaf8863781bfad78ffc59f6f2f"
+    "mtime": 1778592042.50006,
+    "hash": "1a8add373f224819f539830f791c4e96"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\workspace-modals.tsx": {
     "mtime": 1778571008.1252582,
@@ -756,12 +876,12 @@
     "hash": "90d98b1f55b29b07f969a4ac0c070546"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\voice\\active-voice-reminder.tsx": {
-    "mtime": 1778571008.1262596,
-    "hash": "60c3f0e6a31c6750eff7fbf71ce6f941"
+    "mtime": 1778822631.7858608,
+    "hash": "9d7d326407bdeae8cc2dff1e83b848be"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\voice\\audio-device-select.tsx": {
-    "mtime": 1778077759.866349,
-    "hash": "4c8c325cebd6475c5ed668097b3cb64d"
+    "mtime": 1778822622.647288,
+    "hash": "3403d7f45f5a1d294fddb43f47872e34"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\voice\\camera-preferences-panel.tsx": {
     "mtime": 1778571008.1272588,
@@ -772,16 +892,16 @@
     "hash": "0d987e2649791097a6810f40cae658cd"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\voice\\voice-channel-view.tsx": {
-    "mtime": 1778577599.1717343,
-    "hash": "98460e1944e5d72bb6b22be2831c9152"
+    "mtime": 1778822658.6617966,
+    "hash": "4e1dd9a6c06de0bc240593b6b26c3a45"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\voice\\voice-invite-toasts.tsx": {
-    "mtime": 1778577474.956532,
-    "hash": "7aac73d83ec4cb1da23decbaab555d9c"
+    "mtime": 1778582979.6608338,
+    "hash": "f0718abed5fe869feb5d181d15a03d3c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\voice\\voice-preferences-panel.tsx": {
-    "mtime": 1778062485.7362616,
-    "hash": "396fdbf866aea1711f629542d22617dc"
+    "mtime": 1778822626.6860902,
+    "hash": "2f06a5993ad7c934f6e9685afa5c75c5"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\voice\\voice-settings-modal.tsx": {
     "mtime": 1777994034.8518622,
@@ -836,52 +956,68 @@
     "hash": "096d95d4c42159ce2dd74b6f3b3bdf66"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\hooks\\use-voice-states.ts": {
-    "mtime": 1778053868.9481943,
-    "hash": "a491b282eed4a9a9cb42d1de34a08966"
+    "mtime": 1778769012.9410145,
+    "hash": "6afa88c5c76a233e944191a74e925fb9"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\api-rate-limit.test.ts": {
-    "mtime": 1777980040.3326056,
-    "hash": "837ceec971bc160173cb76fd6bdc257c"
+    "mtime": 1778936418.4172833,
+    "hash": "7ae9a185b47bdce0c3e83f379a9a1dc7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\api-rate-limit.ts": {
-    "mtime": 1778571008.1292586,
-    "hash": "54c084b64d113174abc93ac6fe13b53d"
+    "mtime": 1778936414.3394785,
+    "hash": "ef6bd5dc8f0a3fd3cd06853e00931a94"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\api.test.ts": {
+    "mtime": 1778764359.8239765,
+    "hash": "6367b9cd73978bf99925bea8836c9d89"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\api.ts": {
-    "mtime": 1777980040.3336596,
-    "hash": "0dd8bedc34b6cdc1294813e6b76a8c82"
+    "mtime": 1778764359.8229742,
+    "hash": "d4a816904707ac2c9c95a053a6051434"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\app-icons.ts": {
     "mtime": 1778065070.6896322,
     "hash": "3b76e9183e3dc50fa3645aba8a382d87"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\app-version.ts": {
-    "mtime": 1778582708.8303447,
-    "hash": "76ed3515463fe9f8722fc0229c851fb0"
+    "mtime": 1778844492.831166,
+    "hash": "17fcdccb8ad256f0563534b567de46f9"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\appearance.ts": {
     "mtime": 1778144353.2742922,
     "hash": "43486b69e26ad8e6798c2f2329fdceac"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\env.test.ts": {
-    "mtime": 1777980040.341093,
-    "hash": "b49792178c59c8853ce0056ff445ad8f"
+    "mtime": 1778936518.5386567,
+    "hash": "2808d2e3a0cc2eaa18c24cb8d9d299a4"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\env.ts": {
-    "mtime": 1777980040.3416226,
-    "hash": "4475a3b6cca5241046eb12b3168deb7a"
+    "mtime": 1778936511.2536545,
+    "hash": "dea0953e1402f72a48f9226a157de413"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\health.test.ts": {
+    "mtime": 1778740970.658279,
+    "hash": "7bee83f75c9c57932559d236e416faeb"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\health.ts": {
+    "mtime": 1778740970.6461802,
+    "hash": "7727fbefa0202d0c59e3b309cfcccf17"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale.test.ts": {
     "mtime": 1777980040.3431418,
     "hash": "9dafc40721a587bf5c24b7887c140d25"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale.ts": {
-    "mtime": 1778582746.0174468,
-    "hash": "6b9e41b52839e803ad419ab294740e21"
+    "mtime": 1778936435.1112542,
+    "hash": "820375fb2ffe227dd1d19051808eb89a"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\logger.test.ts": {
+    "mtime": 1778748556.5608492,
+    "hash": "027b71dec4e1deb338c2560e158dd9e0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\logger.ts": {
-    "mtime": 1777980040.3451438,
-    "hash": "5d84eeff5ebb5d749bf0589bb6e1cdec"
+    "mtime": 1778748545.328243,
+    "hash": "c18fe38fec0ff1a65ec0d32061059853"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\message-fonts.ts": {
     "mtime": 1778571008.1342595,
@@ -908,12 +1044,12 @@
     "hash": "41ff51c5117b6377d9d3a060efb0f283"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\redis.ts": {
-    "mtime": 1777980040.3481426,
-    "hash": "a70c3c1985bba13f7f85f78a641c3ed0"
+    "mtime": 1778768053.2354896,
+    "hash": "80ffe767816ed79e52b90899e3d96a48"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\store.ts": {
-    "mtime": 1778581786.272821,
-    "hash": "fd4b5c294a9e6fcdfa6e76e30373b5d3"
+    "mtime": 1778582979.6658485,
+    "hash": "deff5f6e8caf0b80331c7b5a36b84e7d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\uploadthing.ts": {
     "mtime": 1777980040.352142,
@@ -927,49 +1063,185 @@
     "mtime": 1778053587.774899,
     "hash": "f05f7e6ff24ba8afa0ce0fa6e81cb2be"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\account\\privacy-service.test.ts": {
+    "mtime": 1778747994.7073388,
+    "hash": "b3f0bec0b293ef531d3d243ef2453a38"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\account\\privacy-service.ts": {
+    "mtime": 1778817749.0977652,
+    "hash": "b8aa2d4b6b4f4244b6c676da7edcca0f"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\access.test.ts": {
+    "mtime": 1778788604.2817712,
+    "hash": "12b5b8bb0de8b0f901d3cc6d2e9c17f4"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\access.ts": {
+    "mtime": 1778788819.2760718,
+    "hash": "7ebf56f2080cda1168841d4af5013c1d"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\dashboard.test.ts": {
+    "mtime": 1778589093.942244,
+    "hash": "7b2c8836d4388e909e434169248fabcd"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\dashboard.ts": {
+    "mtime": 1778589290.1549742,
+    "hash": "5dfe4c5059cb0c99ef6d2d4c11b33aae"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\management.test.ts": {
+    "mtime": 1778590370.7529109,
+    "hash": "b2c2929db1e98bc329c7163d479a904a"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\management.ts": {
+    "mtime": 1778817749.0967643,
+    "hash": "9f5328a0118a77286baddf9986a69fc3"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\notification-campaign-input.ts": {
+    "mtime": 1778589290.1704857,
+    "hash": "05563b762dc65642943bdada49d55002"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\notification-campaigns.test.ts": {
+    "mtime": 1778587107.5103028,
+    "hash": "07c7dd942ec7656fd91cf18e79798e4a"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\admin\\notification-campaigns.ts": {
+    "mtime": 1778589290.1845038,
+    "hash": "28ec46dbf79ab07c5b71684bdaeb7ee4"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\analytics\\client-info.test.ts": {
+    "mtime": 1778587052.9456685,
+    "hash": "07c602aae1d547fc0fc9c5bff97d451f"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\analytics\\client-info.ts": {
+    "mtime": 1778586396.2764196,
+    "hash": "6d75a92f9491189976c348ad83c31a22"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\analytics\\service.test.ts": {
+    "mtime": 1778587067.8223205,
+    "hash": "07f6480eb4f16a607a3113fc1d326ff7"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\analytics\\service.ts": {
+    "mtime": 1778819817.6818,
+    "hash": "98b9f4fd919943580254282dd7255b1f"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\appearance\\actions.ts": {
     "mtime": 1777165496.994203,
     "hash": "93303bddb0e26a9a3743510a362d4635"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\attachments\\download-proxy.test.ts": {
+    "mtime": 1778788633.6572452,
+    "hash": "50c8d2bed214ee4699c4c036997cb789"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\attachments\\download-proxy.ts": {
+    "mtime": 1778788444.7613285,
+    "hash": "05690f13e67f400433132c1cfa33b6e3"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\access.test.ts": {
-    "mtime": 1777980040.3347046,
-    "hash": "00bf27ea9137d2fce5ff746f980160c8"
+    "mtime": 1778786304.438462,
+    "hash": "581bbcfdec638870de37e093bdd47ed1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\access.ts": {
-    "mtime": 1777980040.3352265,
-    "hash": "30a637edcdc409c7f188a3d111a86d0f"
+    "mtime": 1778786226.5572042,
+    "hash": "e7f332019a6386f35c136d5336682260"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\actions.ts": {
-    "mtime": 1778571008.1312575,
-    "hash": "e00148ff62bf53597b9510ff5243b5c6"
+    "mtime": 1778938891.025547,
+    "hash": "d3793c44446c0dda20a6b9d8375bb556"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\api.ts": {
-    "mtime": 1777980040.3363543,
-    "hash": "d4e740815914459eef65fecb401be6cf"
+    "mtime": 1778786389.8054647,
+    "hash": "27e49a176165bd2c4664965c402054e3"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\auth-schema.test.ts": {
+    "mtime": 1778744941.2284584,
+    "hash": "c539d87bb9e457d7e8b4bb27513ea707"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\email-verification.ts": {
     "mtime": 1777905283.8796182,
     "hash": "ec3b3cecead13273084b3d9d1ba86915"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\login-errors.test.ts": {
+    "mtime": 1778746044.4908504,
+    "hash": "60ae2830c92dfb659834cd37b0cadb8d"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\login-errors.ts": {
+    "mtime": 1778745919.4732287,
+    "hash": "7969ff173d78f8c9b3a731abca5c9a7d"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\login-proof.test.ts": {
+    "mtime": 1778744932.3653176,
+    "hash": "c6bf7aa62eeeabe4b1cac72efd93cb9b"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\login-proof.ts": {
+    "mtime": 1778744860.0890532,
+    "hash": "a75d929ef5693780e1b4d7a7bbd08c9a"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\oauth-email.test.ts": {
+    "mtime": 1778788351.3041165,
+    "hash": "8ce0ccdac36bd2a5ac6c18c52faf247f"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\oauth-email.ts": {
+    "mtime": 1778788666.5765524,
+    "hash": "7b593bf6c87272dd415c6a3ecf59a0e9"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\reauth-cleanup.test.ts": {
+    "mtime": 1778939146.4660747,
+    "hash": "d94963074f3a135be3a8b010310780b1"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\reauth-cleanup.ts": {
+    "mtime": 1778939146.4660747,
+    "hash": "6ff0e5e0fa475341110e97a6439d6845"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\reauth-email.test.ts": {
+    "mtime": 1778936854.3060324,
+    "hash": "00975a56d7ec9884961c01ead9687e12"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\reauth-email.ts": {
+    "mtime": 1778936846.3525639,
+    "hash": "259a503d4bc8d143d94156d45252bfd6"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\reauth.test.ts": {
+    "mtime": 1778936533.4760358,
+    "hash": "4f7adbae7ff6740e0d0e452ef54d1cfe"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\reauth.ts": {
+    "mtime": 1778936841.005494,
+    "hash": "dbbf60c816c38ce37c29c34ec1fb4307"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\redirect.ts": {
     "mtime": 1777980040.3369606,
     "hash": "428f756dc188b1a4c36b78387b8afaf7"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\registration-compensation.test.ts": {
+    "mtime": 1778938891.025547,
+    "hash": "06c746fb80ed498458ce644c58377130"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\registration-compensation.ts": {
+    "mtime": 1778938891.0245469,
+    "hash": "ecfa0b4627f0e8ccb24f68ec5a0d5b18"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\session-revocation.test.ts": {
+    "mtime": 1778817772.2506647,
+    "hash": "2c889a8a4c87a9f2eb577fd9e4c6b481"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\session-revocation.ts": {
+    "mtime": 1778817772.2496645,
+    "hash": "a5f71136010abddfccab08fa45fc8fe5"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\turnstile.test.ts": {
-    "mtime": 1777980040.3369606,
-    "hash": "72d7cafba5d3cbd342852937c327bd50"
+    "mtime": 1778744947.5308678,
+    "hash": "50216e1fcf725932587d95333153b382"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\turnstile.ts": {
-    "mtime": 1777980040.3374798,
-    "hash": "c18d61ee13c642f636a7be54b580554f"
+    "mtime": 1778744842.3518333,
+    "hash": "2045b7b77bc6a9f498005ca3ee5dbabc"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\username.test.ts": {
-    "mtime": 1777980040.3379962,
-    "hash": "3e515a15addcce0dbc17663e9595a840"
+    "mtime": 1778748589.1333823,
+    "hash": "d3acddec1c1470b20033c6d370a83d48"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\username.ts": {
-    "mtime": 1777980040.3385155,
-    "hash": "60a293b435d896cea1e1e4a675d45020"
+    "mtime": 1778748581.4103155,
+    "hash": "47145998b3385c508d4d925bb5b40177"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\utils.ts": {
     "mtime": 1776867538.6659408,
@@ -979,45 +1251,85 @@
     "mtime": 1778571008.1312575,
     "hash": "1c0cbbb6b50de1f2c4675dc8791230b0"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\dm\\blocking.ts": {
+    "mtime": 1778675169.569034,
+    "hash": "9a3dcb5560b71d8ef68e80b042c08009"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\dm\\client.ts": {
     "mtime": 1778001534.548815,
     "hash": "a32c93feb4515958855292646c68d47e"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\dm\\notification-service.test.ts": {
+    "mtime": 1778647714.5310745,
+    "hash": "8662bfeb7b44d69990888ce007db4bf6"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\dm\\notification-service.ts": {
+    "mtime": 1778819817.6933117,
+    "hash": "9758032fa1b4629c086a42b718d401db"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\dm\\participant-service.ts": {
+    "mtime": 1778648674.1268663,
+    "hash": "1318e8ee70f8d970e8d927a8dcfea2e2"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\dm\\realtime-service.test.ts": {
+    "mtime": 1778771509.0831203,
+    "hash": "65683238ca47b0e0701bed769b3ecd42"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\dm\\realtime-service.ts": {
+    "mtime": 1778819817.6998177,
+    "hash": "0f526183d8338dbeb4481e448c85c4a2"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\dm\\service.ts": {
-    "mtime": 1778146033.7113667,
-    "hash": "fe9a56d7577ee539039b32e9b1efb00a"
+    "mtime": 1778850048.5648634,
+    "hash": "14217e11ddcad479444c59a2a24670eb"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\dm\\types.ts": {
     "mtime": 1778001516.9530997,
     "hash": "a75639d8b2a5c81c8ac874259dab20a9"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\e2e\\route-guard.test.ts": {
+    "mtime": 1778670989.773947,
+    "hash": "02d8748191757d944b9853d3b440a323"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\e2e\\route-guard.ts": {
+    "mtime": 1778670967.8825288,
+    "hash": "0a639f97531776485137bb8258aa7e29"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\e2e\\test-fixtures.test.ts": {
+    "mtime": 1778743151.3864534,
+    "hash": "40b82a3504b5a5cd4ee65276b8827806"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\e2e\\test-fixtures.ts": {
-    "mtime": 1777980040.340577,
-    "hash": "1598db3e810b15d7c164b6b79b842050"
+    "mtime": 1778743265.5494854,
+    "hash": "59af644d8f45a7f4c5857899bf76a6a2"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\friends\\client.ts": {
     "mtime": 1777191467.9513693,
     "hash": "c0c468cbb09dd653171659b4bc2c4a32"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\friends\\helpers.test.ts": {
+    "mtime": 1778675794.4868963,
+    "hash": "1d55d25aa1c9ecbda96243b3ab96a55a"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\friends\\helpers.ts": {
-    "mtime": 1777980040.3421373,
-    "hash": "3ea0789e907c96beffbc8dbd2e9ffc5a"
+    "mtime": 1778675783.910618,
+    "hash": "bb902cd3e5a17fda80df94f6ee0c756a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\friends\\service.ts": {
-    "mtime": 1777994534.2874002,
-    "hash": "b2b92963d0e424ce5fe64d82f73de813"
+    "mtime": 1778768168.709021,
+    "hash": "864c7945c48efbc9f187e39cb64a1658"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\friends\\types.ts": {
     "mtime": 1777191062.479395,
     "hash": "1050e9af6efcfff191fd5e95e5be52c0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\giphy\\service.ts": {
-    "mtime": 1777980040.3431418,
-    "hash": "139c35b9527966d951408de167b20959"
+    "mtime": 1778768119.5064418,
+    "hash": "b8ca9fe04745f94fd008d2a69e0871cc"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\livekit\\server.ts": {
-    "mtime": 1778571008.1322584,
-    "hash": "dae37294c2cd36785457c768bc815a9f"
+    "mtime": 1778747278.9111724,
+    "hash": "7f0cf89c1618a96da2024ef96de22031"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\livekit\\types.ts": {
     "mtime": 1777282150.327246,
@@ -1043,9 +1355,13 @@
     "mtime": 1778068165.302423,
     "hash": "a3801fcc297df77950cc7b41818b1a4e"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\messages\\link-preview.test.ts": {
+    "mtime": 1778765381.7636762,
+    "hash": "fcb3177a9819a71a5ba7854f7cb2ffec"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\messages\\link-preview.ts": {
-    "mtime": 1778006440.1865132,
-    "hash": "ab3055c5021f098b3cf3a5d981c04cf7"
+    "mtime": 1778765348.822303,
+    "hash": "c3aaa0fdfebddff45d0ab479a872e10c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\messages\\search-client.ts": {
     "mtime": 1778053295.9967253,
@@ -1060,12 +1376,24 @@
     "hash": "7d69edd272dc0449f5f1e04ca68d3c42"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\notifications\\service.ts": {
-    "mtime": 1778580698.0877397,
-    "hash": "207ceabe5880e483ccf25d7c3aeb832d"
+    "mtime": 1778589290.2783065,
+    "hash": "b40080f633ec9e0017023f6dccd087df"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\notifications\\types.ts": {
-    "mtime": 1778580685.960961,
-    "hash": "14d010f550380571dfb543133bf5e19e"
+    "mtime": 1778589290.281813,
+    "hash": "a44f623f73f0c0d2f9ae645dd51f47dc"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\outbox\\service.test.ts": {
+    "mtime": 1778819481.157353,
+    "hash": "e21642d2f986f40d63c63ef80956d756"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\outbox\\service.ts": {
+    "mtime": 1778820098.737983,
+    "hash": "a2fd07a4f5baa02b738254599fbf9cf6"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\outbox\\worker.ts": {
+    "mtime": 1778939146.4670758,
+    "hash": "050f49cd5121325be21363cad4498574"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\settings\\client.ts": {
     "mtime": 1777363590.0951931,
@@ -1075,21 +1403,61 @@
     "mtime": 1778571008.135259,
     "hash": "06126e27572011fb7fa25122c2d6df9b"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\channel-membership.ts": {
+    "mtime": 1778648669.7694502,
+    "hash": "b2193104a7250844a8c496a57ac5e821"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\client.ts": {
     "mtime": 1777993874.5788116,
     "hash": "be905af390241c8ccca200e5fda9ed4f"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\context.ts": {
+    "mtime": 1778768060.4409628,
+    "hash": "1dab6514b966004760d5d379f8b64859"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\emitters.ts": {
+    "mtime": 1778818247.0845218,
+    "hash": "b28426cf41498e060c1c48ab687a36a6"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\errors.test.ts": {
+    "mtime": 1778646013.9479263,
+    "hash": "274e5dab07c29ed5823d78c8d9be4076"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\errors.ts": {
+    "mtime": 1778745546.2931905,
+    "hash": "1313acc726628f230fd98faf7b6d7f91"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\events.ts": {
-    "mtime": 1778579170.9394746,
-    "hash": "d62b699c8fe86f867cdf29ce005368f9"
+    "mtime": 1778768927.8829887,
+    "hash": "c7526826f36c63160047393cc9679db0"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\notification-payload.test.ts": {
+    "mtime": 1778645985.4289365,
+    "hash": "fbf5b546b9008b478aedb86d3e360014"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\notification-payload.ts": {
+    "mtime": 1778646039.6849058,
+    "hash": "d8b85fb6d202a3b5d6bf361ffdf9ab39"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\presence-helpers.ts": {
+    "mtime": 1778646013.9709282,
+    "hash": "90acda97c71bfc0147fb3b41b0c5d016"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\rate-limit.test.ts": {
-    "mtime": 1777980040.3491418,
-    "hash": "66a16bcbf0f5e8d951c275900240e0d5"
+    "mtime": 1778845997.7164319,
+    "hash": "3dd754595dc1bebc731bd949744d6496"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\rate-limits.ts": {
-    "mtime": 1777980040.350142,
-    "hash": "b3d52a9629ba0fa1207eb882e81d19ba"
+    "mtime": 1778846089.5226147,
+    "hash": "6df2d239ef58d2a2f5965c5ce349715a"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\rooms.test.ts": {
+    "mtime": 1778843757.538838,
+    "hash": "9cffcdd8ef39d5d9d713018c349875d6"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\rooms.ts": {
+    "mtime": 1778843708.3267286,
+    "hash": "0c3619804c3bf92477428e7d82fef14f"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\runtime.ts": {
     "mtime": 1777376722.1002865,
@@ -1100,16 +1468,132 @@
     "hash": "a28ef7e22760c512b7f7c5c197c3e6fd"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\schemas.ts": {
-    "mtime": 1778579190.6190722,
-    "hash": "3006b642fd0e7cb655d71bdf1b3eecb6"
+    "mtime": 1778768932.8884869,
+    "hash": "66aaaa695fc1e599355c54c378aeb1a0"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\server-room-cache.ts": {
+    "mtime": 1778825451.7556374,
+    "hash": "c4a31d4291706673fa32a9e22b987833"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\server.test.ts": {
+    "mtime": 1778769044.5665634,
+    "hash": "e25710d1c06fc3cf2b117031a494e35c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\server.ts": {
-    "mtime": 1778579260.760354,
-    "hash": "78c6434177c3735db40841ae4628edff"
+    "mtime": 1778768954.2783382,
+    "hash": "c34011f7f246c02cef0651e7ac1e38ca"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\channel.ts": {
+    "mtime": 1778648680.3649943,
+    "hash": "836ca80b15c156df4da24183bb3da505"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\dm.test.ts": {
+    "mtime": 1778768226.5316515,
+    "hash": "5ac3730d38d92108dc94d3ac794f0e54"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\dm.ts": {
+    "mtime": 1778819817.7464519,
+    "hash": "009f4220caa42a0e61d2aaa7a9b19173"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\index.test.ts": {
+    "mtime": 1778680949.81064,
+    "hash": "e565b1e23538d7fce2d28e91865a88fe"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\index.ts": {
+    "mtime": 1778680893.6375935,
+    "hash": "12bf411860dda5e6e8ed60aab9eb0597"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\message.test.ts": {
+    "mtime": 1778768222.868542,
+    "hash": "787a4991a5add271602e087791fe9165"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\message.ts": {
+    "mtime": 1778819817.76198,
+    "hash": "1f53038fbd2716fa713563b18495a76d"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\presence.ts": {
+    "mtime": 1778646274.5013897,
+    "hash": "f9cf0d2be413e7df94e8738663fa0db8"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\typing.test.ts": {
+    "mtime": 1778768232.0260246,
+    "hash": "85936904a5a5b7c3978edd0909cae493"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\typing.ts": {
+    "mtime": 1778768080.1509058,
+    "hash": "1788d498ad988751b76063107b89424b"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\socket\\handlers\\voice.ts": {
+    "mtime": 1778843742.9510577,
+    "hash": "e902ed9a7292cfed0c37e51a9c8011b1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\client.ts": {
-    "mtime": 1777282167.0400934,
-    "hash": "34f50a463194557855c1b47d24bf11a7"
+    "mtime": 1778604871.754737,
+    "hash": "22f003afcc5b4a39dd89fc09fa2274b6"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\error-classification.test.ts": {
+    "mtime": 1778821884.3286035,
+    "hash": "5d0a8d32620f18bd23e0fa264c13f816"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\error-classification.ts": {
+    "mtime": 1778821734.8750236,
+    "hash": "c4c0e6ad598a8c3b4f731c66b28a5a72"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\invite-service.test.ts": {
+    "mtime": 1778646990.2458727,
+    "hash": "46699d5cd78ad759500489d79b9aef51"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\invite-service.ts": {
+    "mtime": 1778768214.0617664,
+    "hash": "bdc2453dd0576acca5e75c64a7e801af"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\livekit-track-helpers.test.ts": {
+    "mtime": 1778934662.4137316,
+    "hash": "e3349efa31031fb3391cf37395cd2a03"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\livekit-track-helpers.ts": {
+    "mtime": 1778934662.4127307,
+    "hash": "a8e94b3272315494f71fd5298140bd70"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\media-capabilities.test.ts": {
+    "mtime": 1778821924.345832,
+    "hash": "0abdf9fac749f8add50971c42d9cf244"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\media-capabilities.ts": {
+    "mtime": 1778821734.8750236,
+    "hash": "edcc6830f91ae5ae49c0cfc4332c2743"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\page-exit.test.ts": {
+    "mtime": 1778936714.6748803,
+    "hash": "6d076a83378b1d3f5c4719d76618a3f8"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\page-exit.ts": {
+    "mtime": 1778936672.4071002,
+    "hash": "3b1f0be4371f040460183e69727ac379"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\participant-mapping.test.ts": {
+    "mtime": 1778821884.329609,
+    "hash": "0d3131847753a755ce1dea6d93d76118"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\participant-mapping.ts": {
+    "mtime": 1778821924.343832,
+    "hash": "774a0d1b2d6c56ce9ee1da1fa86ff6f5"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\participant-view-model.test.ts": {
+    "mtime": 1778939493.8900857,
+    "hash": "8341d0c1b1f428625fc9634a89f30928"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\participant-view-model.ts": {
+    "mtime": 1778939474.8356614,
+    "hash": "135133208ede2848339752d303dd18e5"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\provider-lifecycle.test.ts": {
+    "mtime": 1778821431.8642404,
+    "hash": "742f6518cf704caab5d2b506cc8adcee"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\provider-lifecycle.ts": {
+    "mtime": 1778821509.894175,
+    "hash": "75398f3337b49d5a49e0128839a1b322"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\screen-share-state.ts": {
     "mtime": 1777440654.800357,
@@ -1119,49 +1603,173 @@
     "mtime": 1778233740.6093545,
     "hash": "94c3dfca9db280144f5866bd927a617e"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\service.test.ts": {
+    "mtime": 1778818265.3864818,
+    "hash": "5419b34cf19558fa12322681939f9144"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\service.ts": {
-    "mtime": 1778577770.1484935,
-    "hash": "eb8d58c9d03bebcd50c7119793165bde"
+    "mtime": 1778843750.1161048,
+    "hash": "efc96d92bc5b08b73c191258e8c2b90f"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\state-cache.test.ts": {
+    "mtime": 1778843646.8126945,
+    "hash": "b7a1c2e9cad375f1c8b2a7067b1aeb33"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\state-cache.ts": {
+    "mtime": 1778843639.07879,
+    "hash": "ae948ede3746dbe1ea484fd5160c2985"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\types.ts": {
-    "mtime": 1777440654.8013577,
-    "hash": "62c73257c0b9e4a23abb6a798af583fb"
+    "mtime": 1778604841.3267071,
+    "hash": "69320a7006a0ad978caf6731a2e3df34"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\use-voice-audio-levels.ts": {
+    "mtime": 1778822294.152182,
+    "hash": "46902fc19df54a9c5a075b0fee814002"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\use-voice-heartbeat.test.ts": {
+    "mtime": 1778843096.6426623,
+    "hash": "4466b61ee2f95aa0980aa49687e42018"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\voice\\use-voice-heartbeat.ts": {
+    "mtime": 1778843058.9722536,
+    "hash": "3e4434eadce5ca9105da21bdcf38f277"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\access-context.ts": {
+    "mtime": 1778825666.786274,
+    "hash": "fc558b812d6b16fb76d1fc6c08d812fc"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\category-service.ts": {
+    "mtime": 1778826242.638307,
+    "hash": "a3e31a728701aef934912c7931f9c1b1"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\channel-permission-logic.ts": {
+    "mtime": 1778825987.1457448,
+    "hash": "3d7611dfc0ea5d93ed743b4b3365c882"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\channel-permission-service.ts": {
+    "mtime": 1778826242.6403084,
+    "hash": "8a5a0776f371cff02b624df403d916f2"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\channel-service.ts": {
+    "mtime": 1778838518.764717,
+    "hash": "cb361dcd8ce886b429f206867c8a3832"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\client.ts": {
     "mtime": 1778571008.138258,
     "hash": "cb06ca57e9f862d6a86b4efdc4570e7b"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\invite-code.ts": {
+    "mtime": 1778825990.9541197,
+    "hash": "338f7c5dd65096df177b72082fe3e940"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\invite-service.ts": {
+    "mtime": 1778826242.6413102,
+    "hash": "6762e5da2e325d2f5af28c6243bff545"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\member-service.ts": {
+    "mtime": 1778826282.2430315,
+    "hash": "15d9f9da2a21cd6946dd91632b526312"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\message-notification-service.test.ts": {
+    "mtime": 1778742688.6598537,
+    "hash": "8915d6964069c9a8da21f4eb28c50ae8"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\message-notification-service.ts": {
+    "mtime": 1778819817.7744935,
+    "hash": "1feab9ae867ee0f0dd6ab67a9f85b9f8"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\message-service.test.ts": {
+    "mtime": 1778819817.8150945,
+    "hash": "1440f655e2890c30168551daa443f01e"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\message-service.ts": {
-    "mtime": 1778571008.138258,
-    "hash": "b6a00b8eee1978b59d5e1eeddd5a0276"
+    "mtime": 1778819721.6132152,
+    "hash": "44c53319231ff7bb32ed5e2d994bf254"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\migration-sql.test.ts": {
     "mtime": 1777980040.3541453,
     "hash": "8396821826c564480da5c717284f4831"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\performance-metrics.test.ts": {
+    "mtime": 1778846262.7993257,
+    "hash": "68bbec3f6654c51c5e9552c3ff2f22ea"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\performance-metrics.ts": {
+    "mtime": 1778845973.5832884,
+    "hash": "cc2bef514b7869e26bdc964c1797dfc0"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\permission-cache.test.ts": {
+    "mtime": 1778766820.851956,
+    "hash": "3027904bd40b59dcd19c6a5e8dffe6ca"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\permission-cache.ts": {
+    "mtime": 1778766812.6371133,
+    "hash": "2c16f360fc33cadef18efa80444f086f"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\permission-service.test.ts": {
+    "mtime": 1778743831.8588977,
+    "hash": "25d10f8fae4aaca0357bfb6fee82eac0"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\permission-service.ts": {
-    "mtime": 1778571008.138258,
-    "hash": "c973a8fb113f7cd9c4e876fdfaf39767"
+    "mtime": 1778746748.548191,
+    "hash": "e70c1fb194e776eb0f80413919862f29"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\permissions.test.ts": {
-    "mtime": 1778571008.1392589,
-    "hash": "f6380b0c1891cfc9b9fd58b765ef2049"
+    "mtime": 1778766703.9882343,
+    "hash": "12fd78ebcc33e303a9d4a167583ad54d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\permissions.ts": {
-    "mtime": 1778571008.1392589,
-    "hash": "8e5ecaa23173dc919f753a6680eb9c3e"
+    "mtime": 1778766674.526644,
+    "hash": "ce44a89b6d347f7e40e5db1b0601a1d5"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\role-helpers.ts": {
+    "mtime": 1778825647.3428261,
+    "hash": "11ccd6a34c48400655f2f8396ffbd9ad"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\role-service.ts": {
+    "mtime": 1778826286.040665,
+    "hash": "ec926f4451edcc3851a174bd2d3f634c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\server-features.ts": {
     "mtime": 1777538084.4881132,
     "hash": "c515c550b07a2033af934e9cc88858a7"
   },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\service.ts": {
-    "mtime": 1778580670.0791202,
-    "hash": "6b0fd3bb99d5b3afec9bc2eea88063ca"
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\server-query-helpers.ts": {
+    "mtime": 1778825750.535696,
+    "hash": "b89d56764dd30f7484cd2ab857479516"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\server-service.ts": {
+    "mtime": 1778838518.7637188,
+    "hash": "ec639525cae97167cc330c55fb33d0d1"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\service.test.ts": {
+    "mtime": 1778944302.6764953,
+    "hash": "55469e82fd32a5263d669334d050d569"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\unread-service.test.ts": {
+    "mtime": 1778597013.1912045,
+    "hash": "a63a44528c594885f0256f0c55589bbe"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\unread-service.ts": {
-    "mtime": 1778571008.1402586,
-    "hash": "8248e9c5ea9c7c663ff703d70b6a27e3"
+    "mtime": 1778658069.4898252,
+    "hash": "1159a86291a780e978a72fe2be9369e6"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\workspace-constants.ts": {
+    "mtime": 1778826173.0636814,
+    "hash": "0730bcd2d4fc21a073377c3571cf549c"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\workspace-events.ts": {
+    "mtime": 1778825994.5483685,
+    "hash": "03a95b3d992cd7d3f7d628b2850fb596"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\workspace-label.ts": {
+    "mtime": 1778826169.4533706,
+    "hash": "149f369d2ea6791cfd9a2e3ffb6761c7"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\workspace-types.ts": {
+    "mtime": 1778825628.945621,
+    "hash": "8612d34d91c8fdff7654050c28c95c33"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\store\\sound-store.ts": {
     "mtime": 1777995552.0682127,
@@ -1172,8 +1780,8 @@
     "hash": "2346ac12a042433feee12b9cac41a07d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\types\\next-auth.d.ts": {
-    "mtime": 1777555395.1134377,
-    "hash": "42d9f1bd94325d9c57b6e32a9292082d"
+    "mtime": 1778786380.6410427,
+    "hash": "dd16f3c77e942bb07e2b2a471c1bdd82"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\prisma-config.d.ts": {
     "mtime": 1776866606.6930864,
@@ -1263,6 +1871,30 @@
     "mtime": 1778571008.157258,
     "hash": "981211f5d600c5804c3d7082714f96ee"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations\\20260512100000_add_admin_analytics_foundation\\migration.sql": {
+    "mtime": 1778586097.610754,
+    "hash": "c9cacb5637d965d29b91f1a8098ed72c"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations\\20260513120000_add_voice_state_last_heartbeat_index\\migration.sql": {
+    "mtime": 1778659094.085046,
+    "hash": "8fe282cb2adbb2a55157c7c0efbad85b"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations\\20260514120000_add_user_account_deletion_fields\\migration.sql": {
+    "mtime": 1778747278.9071481,
+    "hash": "62a1c1ad32687575c58556fe0daf01ac"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations\\20260515120000_add_user_sessions_revoked_after\\migration.sql": {
+    "mtime": 1778817730.9971452,
+    "hash": "9941e703d1daa649daa35116256ab6a8"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations\\20260515143000_add_outbox_jobs\\migration.sql": {
+    "mtime": 1778819908.09971,
+    "hash": "d40c7c3f06e3a79feeb44bc243da43ca"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations\\20260516120000_add_account_reauth_challenges\\migration.sql": {
+    "mtime": 1778936260.4088094,
+    "hash": "4391ed713b54511eb3d290eef313fadd"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations_backup_20260427_151913\\20260422000000_add_fulltext_search_indexes\\migration.sql": {
     "mtime": 1777291947.18171,
     "hash": "38d1aa203db4512ac66be56391d11b7a"
@@ -1300,24 +1932,24 @@
     "hash": "4f49463539754e00f01735258c151fc9"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\types\\src\\auth.ts": {
-    "mtime": 1778571008.1582594,
-    "hash": "5de414598fc43ce365b3d47509800747"
+    "mtime": 1778744832.5649476,
+    "hash": "863dd4046aef7e7cb09f7662eac09c18"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\types\\src\\index.ts": {
     "mtime": 1777233161.942007,
     "hash": "379b33988929080ef93515a56928a3f5"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\types\\src\\messages.ts": {
-    "mtime": 1778146033.7097123,
-    "hash": "35ee8718eee9cbde81ce4fd42f0b822d"
+    "mtime": 1778742688.7691505,
+    "hash": "8477928c2c18777d70825319c0823e91"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\types\\src\\socket.ts": {
     "mtime": 1778081431.0154326,
     "hash": "7ffa6d5130460bdcfb3bb2989838908b"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\types\\src\\workspace.ts": {
-    "mtime": 1778571008.1582594,
-    "hash": "6c03e3c702132fcb2a9a11ecda262513"
+    "mtime": 1778742688.7606418,
+    "hash": "9189d707d46fdea8f6801d443f85f31e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\ui\\src\\index.ts": {
     "mtime": 1776813228.0734544,
@@ -1348,20 +1980,20 @@
     "hash": "75396e16ca4d7f81ca5d9e9efc368fd9"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\README.md": {
-    "mtime": 1778571008.0812576,
-    "hash": "936ea0b988f43fb855a10a3b4d386369"
+    "mtime": 1778680150.5420122,
+    "hash": "c857dca33e61036da207e56b5313723a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\RELEASE.md": {
-    "mtime": 1778571008.0812576,
-    "hash": "417422a0219ffb14d3b6a976aa1ba7d6"
+    "mtime": 1778844492.831166,
+    "hash": "f9fd667ac2bd1132bb2d5fb7cce308d0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\README.md": {
-    "mtime": 1777980040.2762806,
-    "hash": "b457029b7b51d55d8469ef221ce5e255"
+    "mtime": 1778939146.4690745,
+    "hash": "1e8d7b412c26cde3635b971987c40681"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright-report\\index.html": {
-    "mtime": 1778237282.1590698,
-    "hash": "4c70e22e99d13ad388546447c1150ece"
+    "mtime": 1778857495.3529985,
+    "hash": "dded540bee3cbd97ecf285dfa567fe5c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\legal\\cookies.txt": {
     "mtime": 1778571008.0962586,
@@ -1374,6 +2006,14 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\legal\\terms.txt": {
     "mtime": 1778571008.0972586,
     "hash": "42498f6fac417d448feb0fc1702b2846"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\docs\\operations\\coverage-ratchet.md": {
+    "mtime": 1778939146.4690745,
+    "hash": "13984c1dd78b8e7f070893b4eda29314"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\docs\\operations\\workspace-performance-monitoring.md": {
+    "mtime": 1778599357.0385497,
+    "hash": "c32e59fae274f14ce9103a39a21a9513"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\docs\\prompts\\audit.md": {
     "mtime": 1777905283.8843613,
@@ -1398,18 +2038,6 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\src-tauri\\icons\\icon.png": {
     "mtime": 1778571008.089259,
     "hash": "1a25f1fdee07cf2e50a7ea83df0b21f6"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright-report\\auth-desktop.png": {
-    "mtime": 1778246635.18669,
-    "hash": "cd5d727936dc8235bdcd3e168179b921"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright-report\\auth-mobile.png": {
-    "mtime": 1778246636.2771568,
-    "hash": "108b003c8a3bffeedd1400c8b536b9a0"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright-report\\auth-register-desktop.png": {
-    "mtime": 1778246705.4062731,
-    "hash": "bcf044b09d9706e87425d6420fb43b3b"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\app-icons\\wave-0.png": {
     "mtime": 1777530216.519421,

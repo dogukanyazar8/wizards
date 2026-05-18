@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
+import * as http from "node:http";
+import * as https from "node:https";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { parse, parseFragment } from "parse5";
 import { z } from "zod";
 import { ApiError } from "@/lib/api";
 import { logError } from "@/lib/logger";
@@ -9,6 +12,42 @@ import { getRedis } from "@/lib/redis";
 const LINK_PREVIEW_TIMEOUT_MS = 2500;
 const LINK_PREVIEW_MAX_BYTES = 512 * 1024;
 const LINK_PREVIEW_CACHE_SECONDS = 12 * 60 * 60;
+const LINK_PREVIEW_USER_AGENT = "WhisprLinkPreview/1.0";
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+type ResolvedAddress = {
+  address: string;
+  family: number;
+};
+
+type ResolveHost = (hostname: string) => Promise<ResolvedAddress[]>;
+
+type PublicHttpUrl = {
+  addresses: ResolvedAddress[];
+  url: URL;
+};
+
+type LinkPreviewHttpResponse = {
+  body: string;
+  headers: http.IncomingHttpHeaders;
+  ok: boolean;
+  status: number;
+};
+
+type HtmlNode = {
+  attrs?: Array<{
+    name: string;
+    value: string;
+  }>;
+  childNodes?: HtmlNode[];
+  nodeName: string;
+  tagName?: string;
+  value?: string;
+};
+
+export type LinkPreviewFetchOptions = {
+  resolveHost?: ResolveHost;
+};
 
 export const LinkPreviewSchema = z.object({
   url: z.string().url(),
@@ -23,7 +62,10 @@ export type LinkPreview = z.infer<typeof LinkPreviewSchema>;
 function isPrivateIPv4(ip: string) {
   const parts = ip.split(".").map((part) => Number.parseInt(part, 10));
 
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+  if (
+    parts.length !== 4 ||
+    parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
+  ) {
     return true;
   }
 
@@ -47,21 +89,92 @@ function isPrivateIPv4(ip: string) {
   );
 }
 
+function isZeroIPv6Group(group: string) {
+  return /^0{1,4}$/.test(group);
+}
+
+function isIPv4MappedPrefix(prefix: string) {
+  const groups = prefix.split(":");
+  let explicitZeroGroupCount = 0;
+  let compressedMarkerCount = 0;
+
+  for (const group of groups) {
+    if (group === "") {
+      compressedMarkerCount += 1;
+      continue;
+    }
+
+    if (!isZeroIPv6Group(group)) {
+      return false;
+    }
+
+    explicitZeroGroupCount += 1;
+  }
+
+  if (compressedMarkerCount === 0) {
+    return explicitZeroGroupCount === 5;
+  }
+
+  return compressedMarkerCount <= 2 && explicitZeroGroupCount < 5;
+}
+
+function parseHexIPv4MappedSuffix(suffix: string) {
+  const groups = suffix.split(":");
+  if (groups.length !== 2) {
+    return null;
+  }
+
+  const words = groups.map((group) => {
+    if (!/^[0-9a-f]{1,4}$/i.test(group)) {
+      return null;
+    }
+
+    const value = Number.parseInt(group, 16);
+    return Number.isInteger(value) && value >= 0 && value <= 0xffff ? value : null;
+  });
+
+  const [high, low] = words;
+  if (high === null || high === undefined || low === null || low === undefined) {
+    return null;
+  }
+
+  return `${high >> 8}.${high & 0xff}.${low >> 8}.${low & 0xff}`;
+}
+
+function parseIPv4MappedIPv6(ip: string) {
+  const marker = ":ffff:";
+  const markerIndex = ip.lastIndexOf(marker);
+  if (markerIndex === -1) {
+    return null;
+  }
+
+  const prefix = ip.slice(0, markerIndex);
+  if (!isIPv4MappedPrefix(prefix)) {
+    return null;
+  }
+
+  const suffix = ip.slice(markerIndex + marker.length);
+  if (isIP(suffix) === 4) {
+    return suffix;
+  }
+
+  return parseHexIPv4MappedSuffix(suffix);
+}
+
 function isPrivateIPv6(ip: string) {
   const normalized = ip.toLowerCase();
+  const mappedIPv4 = parseIPv4MappedIPv6(normalized);
+
+  if (mappedIPv4) {
+    return isPrivateIPv4(mappedIPv4);
+  }
 
   return (
     normalized === "::1" ||
     normalized === "::" ||
     normalized.startsWith("fc") ||
     normalized.startsWith("fd") ||
-    normalized.startsWith("fe80:") ||
-    normalized.startsWith("::ffff:127.") ||
-    normalized.startsWith("::ffff:10.") ||
-    normalized.startsWith("::ffff:192.168.") ||
-    normalized.includes(":ffff:127.") ||
-    normalized.includes(":ffff:10.") ||
-    normalized.includes(":ffff:192.168.")
+    normalized.startsWith("fe80:")
   );
 }
 
@@ -89,7 +202,36 @@ function isBlockedIP(address: string) {
   return true;
 }
 
-async function assertPublicHttpUrl(rawUrl: string) {
+function normalizeIpLiteral(hostname: string) {
+  return hostname.replace(/^\[(.*)\]$/, "$1");
+}
+
+function isBlockedIpLiteral(hostname: string) {
+  const normalizedHostname = normalizeIpLiteral(hostname);
+
+  return isIP(normalizedHostname) !== 0 && isBlockedIP(normalizedHostname);
+}
+
+async function resolvePublicHostAddresses(hostname: string): Promise<ResolvedAddress[]> {
+  return lookup(hostname, { all: true, verbatim: true });
+}
+
+async function assertPublicResolvedAddresses(
+  hostname: string,
+  resolveHost: ResolveHost,
+): Promise<ResolvedAddress[]> {
+  const addresses = await resolveHost(hostname);
+  if (addresses.length === 0 || addresses.some((address) => isBlockedIP(address.address))) {
+    throw new ApiError("This link cannot be previewed.", 400, "BLOCKED_URL");
+  }
+
+  return addresses;
+}
+
+export async function assertPublicHttpUrl(
+  rawUrl: string,
+  resolveHost: ResolveHost = resolvePublicHostAddresses,
+): Promise<PublicHttpUrl> {
   let parsed: URL;
 
   try {
@@ -106,17 +248,52 @@ async function assertPublicHttpUrl(rawUrl: string) {
     throw new ApiError("This link cannot be previewed.", 400, "INVALID_URL");
   }
 
-  if (isBlockedHostname(parsed.hostname) || isBlockedIP(parsed.hostname)) {
+  if (isBlockedHostname(parsed.hostname) || isBlockedIpLiteral(parsed.hostname)) {
     throw new ApiError("This link cannot be previewed.", 400, "BLOCKED_URL");
   }
 
-  const addresses = await lookup(parsed.hostname, { all: true, verbatim: true });
-  if (addresses.length === 0 || addresses.some((address) => isBlockedIP(address.address))) {
-    throw new ApiError("This link cannot be previewed.", 400, "BLOCKED_URL");
-  }
+  const addresses = await assertPublicResolvedAddresses(parsed.hostname, resolveHost);
 
   parsed.hash = "";
-  return parsed;
+  return { addresses, url: parsed };
+}
+
+function visitHtmlNode<T>(node: HtmlNode, visitor: (node: HtmlNode) => T | null): T | null {
+  const result = visitor(node);
+  if (result !== null) {
+    return result;
+  }
+
+  for (const child of node.childNodes ?? []) {
+    const childResult = visitHtmlNode(child, visitor);
+    if (childResult !== null) {
+      return childResult;
+    }
+  }
+
+  return null;
+}
+
+function readHtmlAttribute(node: HtmlNode, name: string) {
+  const normalizedName = name.toLowerCase();
+  return (
+    node.attrs?.find((attribute) => attribute.name.toLowerCase() === normalizedName)?.value ??
+    null
+  );
+}
+
+function collectTextNodes(node: HtmlNode): string {
+  let text = node.nodeName === "#text" && typeof node.value === "string" ? node.value : "";
+
+  for (const child of node.childNodes ?? []) {
+    text += collectTextNodes(child);
+  }
+
+  return text;
+}
+
+function extractPlainText(value: string) {
+  return collectTextNodes(parseFragment(value) as HtmlNode);
 }
 
 function normalizeText(value: string | null | undefined, maxLength: number) {
@@ -124,40 +301,35 @@ function normalizeText(value: string | null | undefined, maxLength: number) {
     return null;
   }
 
-  const normalized = value
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const normalized = extractPlainText(value).replace(/\s+/g, " ").trim();
 
   return normalized ? normalized.slice(0, maxLength) : null;
 }
 
-function readMeta(content: string, name: string) {
-  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const patterns = [
-    new RegExp(
-      `<meta\\s+[^>]*(?:property|name)=["']${escapedName}["'][^>]*content=["']([^"']*)["'][^>]*>`,
-      "i",
-    ),
-    new RegExp(
-      `<meta\\s+[^>]*content=["']([^"']*)["'][^>]*(?:property|name)=["']${escapedName}["'][^>]*>`,
-      "i",
-    ),
-  ];
+function readMeta(root: HtmlNode, name: string) {
+  const normalizedName = name.toLowerCase();
 
-  for (const pattern of patterns) {
-    const match = pattern.exec(content);
-    if (match?.[1]) {
-      return match[1];
+  return visitHtmlNode(root, (node) => {
+    if (node.tagName?.toLowerCase() !== "meta") {
+      return null;
     }
-  }
 
-  return null;
+    const metaName =
+      readHtmlAttribute(node, "property") ??
+      readHtmlAttribute(node, "name") ??
+      readHtmlAttribute(node, "itemprop");
+    if (metaName?.toLowerCase() !== normalizedName) {
+      return null;
+    }
+
+    return readHtmlAttribute(node, "content");
+  });
 }
 
-function readTitle(content: string) {
-  const match = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(content);
-  return match?.[1] ?? null;
+function readTitle(root: HtmlNode) {
+  return visitHtmlNode(root, (node) =>
+    node.tagName?.toLowerCase() === "title" ? collectTextNodes(node) : null,
+  );
 }
 
 function resolvePreviewImage(rawImageUrl: string | null, sourceUrl: URL) {
@@ -175,40 +347,6 @@ function resolvePreviewImage(rawImageUrl: string | null, sourceUrl: URL) {
   } catch {
     return null;
   }
-}
-
-async function readLimitedBody(response: Response) {
-  const reader = response.body?.getReader();
-
-  if (!reader) {
-    return "";
-  }
-
-  const chunks: Uint8Array[] = [];
-  let totalBytes = 0;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
-
-    totalBytes += value.byteLength;
-    if (totalBytes > LINK_PREVIEW_MAX_BYTES) {
-      throw new ApiError("Link preview response is too large.", 413, "LINK_TOO_LARGE");
-    }
-
-    chunks.push(value);
-  }
-
-  const body = new Uint8Array(totalBytes);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-
-  return new TextDecoder().decode(body);
 }
 
 function cacheKey(url: string) {
@@ -232,20 +370,180 @@ async function readCachedPreview(url: string) {
 
 async function writeCachedPreview(url: string, preview: LinkPreview) {
   try {
-    await getRedis().set(
-      cacheKey(url),
-      JSON.stringify(preview),
-      "EX",
-      LINK_PREVIEW_CACHE_SECONDS,
-    );
+    await getRedis().set(cacheKey(url), JSON.stringify(preview), "EX", LINK_PREVIEW_CACHE_SECONDS);
   } catch (error) {
     logError("[link-preview] Cache write failed", error);
   }
 }
 
-export async function fetchLinkPreview(rawUrl: string): Promise<LinkPreview> {
-  const url = await assertPublicHttpUrl(rawUrl);
-  const normalizedUrl = url.toString();
+function getHeader(headers: http.IncomingHttpHeaders, name: string) {
+  const value = headers[name.toLowerCase()];
+
+  return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
+}
+
+function isRedirectStatus(status: number) {
+  return REDIRECT_STATUSES.has(status);
+}
+
+export function extractLinkPreviewMetadata(
+  html: string,
+  sourceUrl: URL,
+  fallbackSiteName: string = sourceUrl.hostname,
+) {
+  const document = parse(html) as HtmlNode;
+
+  return {
+    title: normalizeText(readMeta(document, "og:title") ?? readTitle(document), 160),
+    description: normalizeText(
+      readMeta(document, "og:description") ?? readMeta(document, "description"),
+      280,
+    ),
+    siteName: normalizeText(readMeta(document, "og:site_name") ?? fallbackSiteName, 80),
+    imageUrl: resolvePreviewImage(readMeta(document, "og:image"), sourceUrl),
+  };
+}
+
+export function createPublicLookup(resolveHost: ResolveHost) {
+  return (
+    hostname: string,
+    _options: unknown,
+    callback: (error: NodeJS.ErrnoException | null, address: string, family: number) => void,
+  ) => {
+    void assertPublicResolvedAddresses(hostname, resolveHost)
+      .then((addresses) => {
+        const selectedAddress = addresses[0];
+        if (!selectedAddress) {
+          callback(new ApiError("This link cannot be previewed.", 400, "BLOCKED_URL"), "", 0);
+          return;
+        }
+
+        callback(null, selectedAddress.address, selectedAddress.family);
+      })
+      .catch((error: unknown) => {
+        callback(error as NodeJS.ErrnoException, "", 0);
+      });
+  };
+}
+
+function requestPublicHttpUrl(
+  target: PublicHttpUrl,
+  signal: AbortSignal,
+  resolveHost: ResolveHost,
+): Promise<LinkPreviewHttpResponse> {
+  return new Promise((resolve, reject) => {
+    const requestUrl = target.url;
+    const client = requestUrl.protocol === "https:" ? https : http;
+    let settled = false;
+
+    const finish = (error: unknown, response?: LinkPreviewHttpResponse) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      signal.removeEventListener("abort", abort);
+      if (error) {
+        reject(error);
+        return;
+      }
+      if (response) {
+        resolve(response);
+        return;
+      }
+      reject(new ApiError("Link preview is unavailable.", 502, "PREVIEW_UNAVAILABLE"));
+    };
+
+    const request = client.request(
+      {
+        headers: {
+          accept: "text/html,application/xhtml+xml",
+          "user-agent": LINK_PREVIEW_USER_AGENT,
+        },
+        hostname: requestUrl.hostname,
+        lookup: createPublicLookup(resolveHost),
+        method: "GET",
+        path: `${requestUrl.pathname}${requestUrl.search}`,
+        port: requestUrl.port ? Number.parseInt(requestUrl.port, 10) : undefined,
+        protocol: requestUrl.protocol,
+        timeout: LINK_PREVIEW_TIMEOUT_MS,
+      },
+      (incoming) => {
+        const status = incoming.statusCode ?? 0;
+
+        if (isRedirectStatus(status)) {
+          incoming.resume();
+          incoming.on("end", () => {
+            finish(null, {
+              body: "",
+              headers: incoming.headers,
+              ok: status >= 200 && status < 300,
+              status,
+            });
+          });
+          incoming.on("error", finish);
+          return;
+        }
+
+        const contentLength = Number.parseInt(
+          getHeader(incoming.headers, "content-length") ?? "0",
+          10,
+        );
+        if (Number.isFinite(contentLength) && contentLength > LINK_PREVIEW_MAX_BYTES) {
+          incoming.resume();
+          request.destroy();
+          finish(new ApiError("Link preview response is too large.", 413, "LINK_TOO_LARGE"));
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        let totalBytes = 0;
+
+        incoming.on("data", (chunk: Buffer) => {
+          totalBytes += chunk.byteLength;
+          if (totalBytes > LINK_PREVIEW_MAX_BYTES) {
+            request.destroy();
+            finish(new ApiError("Link preview response is too large.", 413, "LINK_TOO_LARGE"));
+            return;
+          }
+
+          chunks.push(chunk);
+        });
+        incoming.on("end", () => {
+          finish(null, {
+            body: Buffer.concat(chunks).toString("utf8"),
+            headers: incoming.headers,
+            ok: status >= 200 && status < 300,
+            status,
+          });
+        });
+        incoming.on("error", finish);
+      },
+    );
+
+    function abort() {
+      request.destroy(new ApiError("Link preview is unavailable.", 502, "PREVIEW_UNAVAILABLE"));
+    }
+
+    request.on("timeout", abort);
+    request.on("error", finish);
+    signal.addEventListener("abort", abort, { once: true });
+
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+
+    request.end();
+  });
+}
+
+export async function fetchLinkPreview(
+  rawUrl: string,
+  options: LinkPreviewFetchOptions = {},
+): Promise<LinkPreview> {
+  const resolveHost = options.resolveHost ?? resolvePublicHostAddresses;
+  const initialTarget = await assertPublicHttpUrl(rawUrl, resolveHost);
+  const normalizedUrl = initialTarget.url.toString();
   const cached = await readCachedPreview(normalizedUrl);
 
   if (cached) {
@@ -256,55 +554,44 @@ export async function fetchLinkPreview(rawUrl: string): Promise<LinkPreview> {
   const timeoutId = setTimeout(() => controller.abort(), LINK_PREVIEW_TIMEOUT_MS);
 
   try {
-    let currentUrl = url;
-    let response: Response | null = null;
+    let currentTarget = initialTarget;
+    let response: LinkPreviewHttpResponse | null = null;
 
     for (let redirectCount = 0; redirectCount < 4; redirectCount += 1) {
-      response = await fetch(currentUrl, {
-        headers: {
-          accept: "text/html,application/xhtml+xml",
-          "user-agent": "WhisprLinkPreview/1.0",
-        },
-        redirect: "manual",
-        signal: controller.signal,
-      });
+      response = await requestPublicHttpUrl(currentTarget, controller.signal, resolveHost);
 
-      if (![301, 302, 303, 307, 308].includes(response.status)) {
+      if (!isRedirectStatus(response.status)) {
         break;
       }
 
-      const location = response.headers.get("location");
+      const location = getHeader(response.headers, "location");
       if (!location) {
         break;
       }
 
-      currentUrl = await assertPublicHttpUrl(new URL(location, currentUrl).toString());
+      currentTarget = await assertPublicHttpUrl(
+        new URL(location, currentTarget.url).toString(),
+        resolveHost,
+      );
     }
 
     if (!response?.ok) {
       throw new ApiError("Link preview is unavailable.", 502, "PREVIEW_UNAVAILABLE");
     }
 
-    const contentLength = Number.parseInt(response.headers.get("content-length") ?? "0", 10);
-    if (Number.isFinite(contentLength) && contentLength > LINK_PREVIEW_MAX_BYTES) {
-      throw new ApiError("Link preview response is too large.", 413, "LINK_TOO_LARGE");
-    }
-
-    const contentType = response.headers.get("content-type") ?? "";
+    const contentType = getHeader(response.headers, "content-type") ?? "";
     if (!contentType.toLowerCase().includes("text/html")) {
       throw new ApiError("Link preview is unavailable.", 415, "PREVIEW_UNAVAILABLE");
     }
 
-    const html = await readLimitedBody(response);
+    const metadata = extractLinkPreviewMetadata(
+      response.body,
+      currentTarget.url,
+      initialTarget.url.hostname,
+    );
     const preview = LinkPreviewSchema.parse({
       url: normalizedUrl,
-      title: normalizeText(readMeta(html, "og:title") ?? readTitle(html), 160),
-      description: normalizeText(
-        readMeta(html, "og:description") ?? readMeta(html, "description"),
-        280,
-      ),
-      siteName: normalizeText(readMeta(html, "og:site_name") ?? url.hostname, 80),
-      imageUrl: resolvePreviewImage(readMeta(html, "og:image"), currentUrl),
+      ...metadata,
     });
 
     await writeCachedPreview(normalizedUrl, preview);

@@ -1,6 +1,37 @@
 import { prisma } from "@wizards/db";
-import type { FriendRequest } from "@wizards/db";
+import type { FriendRequest, Prisma } from "@wizards/db";
 import type { BlockStatus } from "@/lib/friends/types";
+
+export async function getBlockedUserIdsForUser(
+  userId: string,
+  candidateUserIds: readonly string[],
+): Promise<Set<string>> {
+  const uniqueCandidateUserIds = Array.from(
+    new Set(candidateUserIds.filter((candidateUserId) => candidateUserId !== userId)),
+  );
+
+  if (uniqueCandidateUserIds.length === 0) {
+    return new Set();
+  }
+
+  const blockedRows = await prisma.friendRequest.findMany({
+    where: {
+      status: "BLOCKED",
+      OR: [
+        { senderId: userId, receiverId: { in: uniqueCandidateUserIds } },
+        { senderId: { in: uniqueCandidateUserIds }, receiverId: userId },
+      ],
+    },
+    select: {
+      senderId: true,
+      receiverId: true,
+    },
+  });
+
+  return new Set(
+    blockedRows.map((row) => (row.senderId === userId ? row.receiverId : row.senderId)),
+  );
+}
 
 export async function getBlockStatus(userA: string, userB: string): Promise<BlockStatus> {
   const blockedRows = await prisma.friendRequest.findMany({
@@ -76,39 +107,51 @@ export async function haveMutualServers(userA: string, userB: string): Promise<b
   return sharedMembership !== null;
 }
 
+function userHasAcceptedFriendshipWith(userId: string): Prisma.UserWhereInput {
+  return {
+    OR: [
+      {
+        friendRequestsSent: {
+          some: {
+            receiverId: userId,
+            status: "ACCEPTED",
+          },
+        },
+      },
+      {
+        friendRequestsReceived: {
+          some: {
+            senderId: userId,
+            status: "ACCEPTED",
+          },
+        },
+      },
+    ],
+  };
+}
+
+export function buildMutualFriendsWhere(
+  userA: string,
+  userB: string,
+): Prisma.FriendRequestWhereInput {
+  return {
+    status: "ACCEPTED",
+    OR: [
+      {
+        senderId: userA,
+        receiver: userHasAcceptedFriendshipWith(userB),
+      },
+      {
+        receiverId: userA,
+        sender: userHasAcceptedFriendshipWith(userB),
+      },
+    ],
+  };
+}
+
 export async function haveMutualFriends(userA: string, userB: string): Promise<boolean> {
-  const userAFriendships = await prisma.friendRequest.findMany({
-    where: {
-      status: "ACCEPTED",
-      OR: [{ senderId: userA }, { receiverId: userA }],
-    },
-    select: {
-      receiverId: true,
-      senderId: true,
-    },
-  });
-  const userAFriendIds = userAFriendships.map((friendship) =>
-    friendship.senderId === userA ? friendship.receiverId : friendship.senderId,
-  );
-
-  if (userAFriendIds.length === 0) {
-    return false;
-  }
-
   const mutualFriendship = await prisma.friendRequest.findFirst({
-    where: {
-      status: "ACCEPTED",
-      OR: [
-        {
-          receiverId: userB,
-          senderId: { in: userAFriendIds },
-        },
-        {
-          receiverId: { in: userAFriendIds },
-          senderId: userB,
-        },
-      ],
-    },
+    where: buildMutualFriendsWhere(userA, userB),
     select: { id: true },
   });
 

@@ -3,8 +3,10 @@
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/components/providers/locale-provider";
+import type { TurnstileAction } from "@/lib/auth/turnstile";
 
 type TurnstileWidgetProps = {
+  action?: TurnstileAction;
   onTokenChange: (token: string) => void;
   siteKey: string;
 };
@@ -46,7 +48,11 @@ function removeTurnstileWidget(widgetId: string | null) {
   }
 }
 
-export function TurnstileWidget({ onTokenChange, siteKey }: TurnstileWidgetProps) {
+export function TurnstileWidget({
+  action = "register",
+  onTokenChange,
+  siteKey,
+}: TurnstileWidgetProps) {
   const { locale, t } = useI18n();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
@@ -77,7 +83,7 @@ export function TurnstileWidget({ onTokenChange, siteKey }: TurnstileWidgetProps
       "expired-callback": () => {
         onTokenChange("");
       },
-      action: "register",
+      action,
       callback: (token) => {
         onTokenChange(token);
       },
@@ -91,7 +97,7 @@ export function TurnstileWidget({ onTokenChange, siteKey }: TurnstileWidgetProps
       widgetIdRef.current = null;
       onTokenChange("");
     };
-  }, [locale, onTokenChange, scriptReady, siteKey]);
+  }, [action, locale, onTokenChange, scriptReady, siteKey]);
 
   if (!siteKey) {
     return (

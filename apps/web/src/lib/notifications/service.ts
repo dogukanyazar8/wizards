@@ -30,6 +30,7 @@ const VISIBLE_NOTIFICATION_TYPES: NotificationType[] = [
   "DM",
   "MENTION",
   "SERVER_INVITE",
+  "SYSTEM",
   "MODERATION",
 ];
 
@@ -39,12 +40,10 @@ type VisibleNotificationType =
   | "DM"
   | "MENTION"
   | "MODERATION"
-  | "SERVER_INVITE";
+  | "SERVER_INVITE"
+  | "SYSTEM";
 
-export async function listNotifications(
-  userId: string,
-  limit: number,
-): Promise<NotificationDTO[]> {
+export async function listNotifications(userId: string, limit: number): Promise<NotificationDTO[]> {
   const notifications = await prisma.notification.findMany({
     where: {
       userId,
@@ -119,10 +118,7 @@ export async function getUnreadCount(userId: string): Promise<number> {
   return count;
 }
 
-export async function markRead(
-  userId: string,
-  notificationId: string,
-): Promise<void> {
+export async function markRead(userId: string, notificationId: string): Promise<void> {
   const result = await prisma.notification.updateMany({
     where: {
       id: notificationId,

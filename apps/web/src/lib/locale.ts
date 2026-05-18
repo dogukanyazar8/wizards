@@ -132,6 +132,21 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.roleNotifications.title": "Role change notifications",
     "app.update.notes.roleNotifications.description":
       "Members now receive realtime notifications when their server roles change, keeping permission updates visible without a refresh.",
+    "app.update.notes.voiceReliability.title": "Voice connection stability",
+    "app.update.notes.voiceReliability.description":
+      "Voice joins are now idempotent, heartbeat timers bind safely in browsers, failed joins roll back their server state, and non-critical sync steps no longer tear down an active call.",
+    "app.update.notes.voiceParticipantSync.title": "Live voice roster sync",
+    "app.update.notes.voiceParticipantSync.description":
+      "Leaving a voice room now removes only the departing user from local cache and broadcasts state to both authorized viewers and active participants, so remaining names stay visible without a refresh.",
+    "app.update.notes.architectureSplit.title": "Leaner voice and workspace architecture",
+    "app.update.notes.architectureSplit.description":
+      "The voice provider and workspace service are now split into tested helpers and domain services, keeping lifecycle, cache, and transaction rules easier to reason about.",
+    "app.update.notes.securityHardening.title": "Security hardening sweep",
+    "app.update.notes.securityHardening.description":
+      "JSON-only mutating APIs, stricter link and attachment fetch validation, OAuth, admin, session, permission, and rate-limit safeguards reduce cross-site and SSRF risk.",
+    "app.update.notes.releaseReadiness.title": "Desktop and deploy readiness",
+    "app.update.notes.releaseReadiness.description":
+      "The desktop build now targets whispr.team capabilities, LiveKit/Krisp CSP support, health and readiness checks, Railway config, and migration-aware startup paths.",
 
     "validation.category.pattern":
       "Category names can use letters, numbers, spaces, hyphens, or underscores.",
@@ -632,11 +647,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.github": "GitHub",
     "auth.login.google": "Google",
     "auth.login.freeCreate": "Create free",
-    "auth.login.emailNotVerified": "Please verify your email before signing in.",
-    "auth.login.emailNotVerifiedHelp":
-      "Your password is correct, but this account still needs email verification.",
     "auth.login.emailLabel": "Email address",
     "auth.login.emailPlaceholder": "example@email.com",
+    "auth.login.failed":
+      "We couldn't sign you in. Check your email and password, or verify your email if you just registered.",
     "auth.login.invalidCredentials": "Invalid email or password.",
     "auth.login.rateLimited": "Too many sign-in attempts. Please try again later.",
     "auth.login.loggingIn": "Logging in...",
@@ -661,8 +675,6 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.passwordLabel": "Password",
     "auth.login.passwordPlaceholder": "Enter your password",
     "auth.login.rememberMe": "Remember me",
-    "auth.login.resendVerification": "Resend verification email",
-    "auth.login.resendingVerification": "Sending verification email...",
     "auth.login.sharedDemoWorkspace": "Shared demo workspace",
     "auth.login.signInUnavailable": "Unable to log in right now.",
     "auth.login.testAccount": "Test Account",
@@ -750,7 +762,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Your email has been verified successfully. You can now sign in and continue to Whispr.",
     "auth.verifyEmail.successTitle": "Email verified",
 
-    "auth.turnstile.help": "This quick check helps protect Whispr from automated signups.",
+    "auth.turnstile.help": "This quick check helps protect Whispr from automated abuse.",
     "auth.turnstile.invalid": "Security check failed. Please try again.",
     "auth.turnstile.label": "Security check",
     "auth.turnstile.loading": "Loading security check...",
@@ -811,6 +823,20 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.passwordReset.title": "Create a new password",
     "auth.passwordReset.unavailable":
       "We could not reset your password right now. Please try again.",
+
+    "auth.reauthEmail.body":
+      "We received a request to confirm this account before deleting it. Use the secure link below to continue.",
+    "auth.reauthEmail.cta": "Confirm account deletion",
+    "auth.reauthEmail.expires": "This link expires in {minutes} minutes.",
+    "auth.reauthEmail.fallback":
+      "If the button does not work, paste this link into your browser:",
+    "auth.reauthEmail.footer":
+      "Whispr requires a fresh email confirmation before deleting OAuth-only accounts.",
+    "auth.reauthEmail.greeting": "Hi {name},",
+    "auth.reauthEmail.ignore":
+      "If you did not request account deletion, you can safely ignore this email.",
+    "auth.reauthEmail.subject": "Confirm Whispr account deletion",
+    "auth.reauthEmail.title": "Confirm account deletion",
 
     "settings.backToChannels": "Back to Channels",
     "settings.description":
@@ -1947,6 +1973,21 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.roleNotifications.title": "Rol değişimi bildirimleri",
     "app.update.notes.roleNotifications.description":
       "Sunucu rolleri değişen üyeler artık anlık bildirim alır; yetki güncellemeleri sayfa yenilemeden görünür olur.",
+    "app.update.notes.voiceReliability.title": "Ses bağlantısı stabilitesi",
+    "app.update.notes.voiceReliability.description":
+      "Ses odasına katılım artık idempotent çalışır, heartbeat zamanlayıcıları tarayıcıda güvenli bağlanır, başarısız katılımlar sunucu durumunu geri alır ve kritik olmayan senkron adımları aktif çağrıyı düşürmez.",
+    "app.update.notes.voiceParticipantSync.title": "Canlı ses katılımcı senkronu",
+    "app.update.notes.voiceParticipantSync.description":
+      "Ses odasından ayrılmak artık local cache'ten yalnızca ayrılan kullanıcıyı çıkarır ve durumu hem yetkili izleyicilere hem aktif katılımcılara yayınlar; kalan isimler yenileme olmadan görünür kalır.",
+    "app.update.notes.architectureSplit.title": "Daha sade ses ve workspace mimarisi",
+    "app.update.notes.architectureSplit.description":
+      "Voice provider ve workspace service artık testli helper'lara ve domain servislerine ayrıldı; lifecycle, cache ve transaction kuralları daha okunabilir hale geldi.",
+    "app.update.notes.securityHardening.title": "Güvenlik güçlendirme taraması",
+    "app.update.notes.securityHardening.description":
+      "Yalnızca JSON kabul eden mutating API'ler, daha sıkı link ve ek dosya fetch doğrulamaları, OAuth, admin, oturum, izin ve rate-limit korumaları CSRF ve SSRF riskini azaltır.",
+    "app.update.notes.releaseReadiness.title": "Masaüstü ve deploy hazırlığı",
+    "app.update.notes.releaseReadiness.description":
+      "Masaüstü build'i artık whispr.team capability'leri, LiveKit/Krisp CSP desteği, health/readiness kontrolleri, Railway konfigürasyonu ve migration-aware başlangıç yollarıyla uyumlu.",
 
     "validation.category.pattern":
       "Kategori adları harf, sayı, boşluk, tire veya alt çizgi içerebilir.",
@@ -2452,11 +2493,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.github": "GitHub",
     "auth.login.google": "Google",
     "auth.login.freeCreate": "Ücretsiz oluşturun",
-    "auth.login.emailNotVerified": "Giriş yapmadan önce e-postanı doğrula.",
-    "auth.login.emailNotVerifiedHelp":
-      "Şifren doğru, ancak bu hesabın hâlâ e-posta doğrulamasına ihtiyacı var.",
     "auth.login.emailLabel": "E-posta adresiniz",
     "auth.login.emailPlaceholder": "ornek@eposta.com",
+    "auth.login.failed":
+      "Giriş yapılamadı. E-posta ve şifreni kontrol et veya yeni kayıt olduysan e-postanı doğrula.",
     "auth.login.invalidCredentials": "E-posta veya şifre hatalı.",
     "auth.login.rateLimited": "Çok fazla giriş denemesi yapıldı. Lütfen daha sonra tekrar dene.",
     "auth.login.loggingIn": "Giriş yapılıyor...",
@@ -2481,8 +2521,6 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.login.passwordLabel": "Şifreniz",
     "auth.login.passwordPlaceholder": "Şifrenizi girin",
     "auth.login.rememberMe": "Beni hatırla",
-    "auth.login.resendVerification": "Doğrulama e-postasını yeniden gönder",
-    "auth.login.resendingVerification": "Doğrulama e-postası gönderiliyor...",
     "auth.login.sharedDemoWorkspace": "Paylaşılan demo alanı",
     "auth.login.signInUnavailable": "Şu anda giriş yapılamıyor.",
     "auth.login.testAccount": "Test Hesap",
@@ -2568,7 +2606,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "E-postan başarıyla doğrulandı. Artık giriş yapıp Whispr'a devam edebilirsin.",
     "auth.verifyEmail.successTitle": "E-posta doğrulandı",
 
-    "auth.turnstile.help": "Bu kısa kontrol, Whispr'ı otomatik kayıt denemelerine karşı korur.",
+    "auth.turnstile.help": "Bu kısa kontrol, Whispr'ı otomatik kötüye kullanıma karşı korur.",
     "auth.turnstile.invalid": "Güvenlik doğrulaması başarısız oldu. Lütfen tekrar dene.",
     "auth.turnstile.label": "Güvenlik doğrulaması",
     "auth.turnstile.loading": "Güvenlik doğrulaması yükleniyor...",
@@ -2628,6 +2666,19 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.passwordReset.title": "Yeni şifre oluştur",
     "auth.passwordReset.unavailable":
       "Şifreni şu anda sıfırlayamadık. Lütfen tekrar dene.",
+
+    "auth.reauthEmail.body":
+      "Bu hesabı silmeden önce doğrulamak için bir istek aldık. Devam etmek için aşağıdaki güvenli bağlantıyı kullan.",
+    "auth.reauthEmail.cta": "Hesap silmeyi doğrula",
+    "auth.reauthEmail.expires": "Bu bağlantı {minutes} dakika içinde sona erer.",
+    "auth.reauthEmail.fallback": "Buton çalışmazsa bu bağlantıyı tarayıcına yapıştır:",
+    "auth.reauthEmail.footer":
+      "Whispr, yalnızca OAuth ile açılmış hesapları silmeden önce taze e-posta doğrulaması ister.",
+    "auth.reauthEmail.greeting": "Merhaba {name},",
+    "auth.reauthEmail.ignore":
+      "Hesap silme isteğinde bulunmadıysan bu e-postayı güvenle yok sayabilirsin.",
+    "auth.reauthEmail.subject": "Whispr hesap silme işlemini doğrula",
+    "auth.reauthEmail.title": "Hesap silmeyi doğrula",
 
     "settings.backToChannels": "Kanallara Dön",
     "settings.description":

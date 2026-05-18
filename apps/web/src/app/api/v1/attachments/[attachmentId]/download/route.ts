@@ -1,5 +1,6 @@
 import { prisma } from "@wizards/db";
 import { ApiError, jsonError } from "@/lib/api";
+import { openPublicAttachmentDownload } from "@/lib/attachments/download-proxy";
 import { requireApiUserId } from "@/lib/auth/api";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
@@ -13,24 +14,6 @@ function contentDispositionFor(filename: string) {
   const fallback = normalized.replace(/[^\x20-\x7E]|["\\]/g, "_").slice(0, 160);
 
   return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(normalized)}`;
-}
-
-function assertDownloadableUrl(url: string) {
-  try {
-    const parsed = new URL(url);
-
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      throw new ApiError("Attachment URL is not downloadable.", 400, "INVALID_ATTACHMENT_URL");
-    }
-
-    return parsed.toString();
-  } catch (error) {
-    if (error instanceof ApiError) {
-      throw error;
-    }
-
-    throw new ApiError("Attachment URL is not downloadable.", 400, "INVALID_ATTACHMENT_URL");
-  }
 }
 
 async function assertAttachmentAccess(userId: string, attachment: {
@@ -101,14 +84,7 @@ export async function GET(_: Request, context: RouteContext) {
 
     await assertAttachmentAccess(userId, attachment);
 
-    const upstream = await fetch(assertDownloadableUrl(attachment.url), {
-      cache: "no-store",
-      redirect: "follow",
-    });
-
-    if (!upstream.ok || !upstream.body) {
-      throw new ApiError("Attachment could not be downloaded.", 502, "ATTACHMENT_DOWNLOAD_FAILED");
-    }
+    const upstream = await openPublicAttachmentDownload(attachment.url);
 
     const headers = new Headers({
       "Cache-Control": "private, no-store",

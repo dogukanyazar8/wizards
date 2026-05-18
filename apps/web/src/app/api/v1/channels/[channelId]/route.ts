@@ -5,7 +5,7 @@ import { jsonError, parseJsonBody } from "@/lib/api";
 import {
   deleteWorkspaceChannel,
   updateWorkspaceChannel,
-} from "@/lib/workspace/service";
+} from "@/lib/workspace/channel-service";
 
 type RouteContext = {
   params: Promise<{

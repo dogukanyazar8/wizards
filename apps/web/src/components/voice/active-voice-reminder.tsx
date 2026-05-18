@@ -15,7 +15,10 @@ import {
 import type { WorkspaceServerDetail } from "@wizards/types";
 import { usePathname, useRouter } from "next/navigation";
 import { useI18n } from "@/components/providers/locale-provider";
-import { useVoiceConnection } from "@/components/providers/voice-provider";
+import {
+  useVoiceParticipants,
+  useVoiceState,
+} from "@/components/providers/voice-provider";
 import { cn } from "@/lib/utils";
 import { fetchWorkspaceServer, workspaceQueryKeys } from "@/lib/workspace/client";
 
@@ -110,9 +113,9 @@ export function ActiveVoiceReminder() {
     isMuted,
     isScreenSharing,
     leaveChannel,
-    participants,
     serverId,
-  } = useVoiceConnection();
+  } = useVoiceState();
+  const { participants } = useVoiceParticipants();
   const [isLeaving, setIsLeaving] = useState(false);
   const route = useMemo(() => getRouteContext(pathname ?? ""), [pathname]);
   const shouldShow = shouldShowVoiceReminder(route, {

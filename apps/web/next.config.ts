@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import bundleAnalyzer from "@next/bundle-analyzer";
 import { readFileSync } from "node:fs";
 
 const packageJson = JSON.parse(
@@ -12,6 +13,10 @@ function firstNonEmpty(...values: Array<string | undefined>) {
 function shortId(value: string | undefined, length = 8) {
   const normalized = value?.trim();
   return normalized ? normalized.slice(0, length) : undefined;
+}
+
+function isProductionValue(value: string | undefined) {
+  return value?.trim().toLowerCase() === "production";
 }
 
 const whisprVersion =
@@ -47,6 +52,12 @@ const whisprReleaseChannel =
     process.env.VERCEL_ENV,
     process.env.NODE_ENV,
   ) ?? "development";
+const isProductionDeployment =
+  isProductionValue(whisprReleaseChannel) ||
+  isProductionValue(process.env.RAILWAY_ENVIRONMENT_NAME);
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
 
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
@@ -72,7 +83,7 @@ const nextConfig: NextConfig = {
       {
         source: "/(.*)",
         headers:
-          process.env.NODE_ENV === "production"
+          isProductionDeployment
             ? [
                 ...securityHeaders,
                 {
@@ -86,4 +97,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);

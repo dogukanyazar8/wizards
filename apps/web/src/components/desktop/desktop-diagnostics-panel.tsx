@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSocket } from "@/hooks/use-socket";
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
-import { useVoiceConnection } from "@/components/providers/voice-provider";
+import { useVoiceState } from "@/components/providers/voice-provider";
 import { useI18n } from "@/components/providers/locale-provider";
 
 type DiagnosticTone = "good" | "muted" | "warn";
@@ -73,7 +73,7 @@ async function readNotificationPermission() {
 export function DesktopDiagnosticsPanel() {
   const { t } = useI18n();
   const socket = useSocket();
-  const voice = useVoiceConnection();
+  const voice = useVoiceState();
   const [isDesktop, setIsDesktop] = useState(false);
   const [origin, setOrigin] = useState("unknown");
   const [isOnline, setIsOnline] = useState(true);

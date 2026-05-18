@@ -2,10 +2,8 @@ import { AddServerMemberSchema } from "@wizards/types";
 import { requireApiUserId } from "@/lib/auth/api";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
-import {
-  addWorkspaceServerMemberByUsername,
-  listWorkspaceServerMembers,
-} from "@/lib/workspace/service";
+import { addWorkspaceServerMemberByUsername } from "@/lib/workspace/member-service";
+import { listWorkspaceServerMembers } from "@/lib/workspace/server-service";
 
 type RouteContext = {
   params: Promise<{

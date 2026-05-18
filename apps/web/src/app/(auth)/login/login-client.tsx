@@ -5,20 +5,25 @@ import { LoginSchema, type LoginInput } from "@wizards/types";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { LoginCard } from "@/components/auth/login-card";
 import { LoginPage } from "@/components/auth/login-page";
 import { getLoginRoleHint, RoleTabs, type LoginRole } from "@/components/auth/role-tabs";
 import { SocialLogin } from "@/components/auth/social-login";
+import { TurnstileWidget } from "@/components/auth/turnstile-widget";
 import { useI18n } from "@/components/providers/locale-provider";
-import { loginAction, resendVerificationEmailAction } from "@/lib/auth/actions";
+import { loginAction } from "@/lib/auth/actions";
+import { LOGIN_FAILED_MESSAGE_KEY } from "@/lib/auth/login-errors";
 
 type OAuthProvider = "google";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   AccessDenied: "auth.login.oauthAccessDenied",
   AccountNotLinked: "auth.login.oauthAccountNotLinked",
+  CredentialsSignin: LOGIN_FAILED_MESSAGE_KEY,
   OAuthAccountNotLinked: "auth.login.oauthAccountNotLinked",
   OAuthCallbackError: "auth.login.oauthError",
   OAuthSignInError: "auth.login.oauthError",
@@ -45,84 +50,68 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
   );
   const [oauthLoading, setOauthLoading] = useState<OAuthProvider | null>(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
-  const [resendError, setResendError] = useState<string | null>(null);
-  const [resendMessage, setResendMessage] = useState<string | null>(null);
-  const [isResendingVerification, setIsResendingVerification] = useState(false);
   const [selectedRole, setSelectedRole] = useState<LoginRole>("business");
   const [socialNotice, setSocialNotice] = useState<string | null>(null);
 
   useEffect(() => {
     setServerError(getAuthErrorMessage(authError));
-    setUnverifiedEmail(null);
-    setResendError(null);
-    setResendMessage(null);
   }, [authError]);
 
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<LoginInput>({
     resolver: zodResolver(LoginSchema),
     defaultValues: {
       email: "",
       password: "",
+      turnstileToken: "",
     },
   });
+  const turnstileToken = watch("turnstileToken");
+
+  const handleTurnstileTokenChange = useCallback(
+    (token: string) => {
+      setValue("turnstileToken", token, {
+        shouldDirty: true,
+        shouldValidate: Boolean(token),
+      });
+
+      if (token) {
+        setServerError((currentError) =>
+          currentError?.startsWith("auth.turnstile") ||
+          currentError?.startsWith("validation.turnstile")
+            ? null
+            : currentError,
+        );
+      }
+    },
+    [setValue],
+  );
 
   const onSubmit = async (values: LoginInput) => {
     setServerError(null);
     setSocialNotice(null);
-    setUnverifiedEmail(null);
-    setResendError(null);
-    setResendMessage(null);
 
     const formData = new FormData();
     formData.set("email", values.email);
     formData.set("password", values.password);
+    formData.set("turnstileToken", values.turnstileToken);
     formData.set("callbackUrl", callbackUrl);
 
     const result = await loginAction(formData);
 
     if (!result.success) {
       setServerError(result.error ?? "auth.login.alertUnavailable");
-      setUnverifiedEmail(
-        result.error === "auth.login.emailNotVerified" ? (result.email ?? values.email) : null,
-      );
     }
-  };
-
-  const handleResendVerification = async () => {
-    if (!unverifiedEmail || isResendingVerification) {
-      return;
-    }
-
-    setIsResendingVerification(true);
-    setResendError(null);
-    setResendMessage(null);
-
-    const formData = new FormData();
-    formData.set("email", unverifiedEmail);
-    formData.set("locale", locale);
-
-    const result = await resendVerificationEmailAction(formData);
-
-    if (result.success) {
-      setResendMessage(result.message ?? "auth.emailVerification.resendGenericSuccess");
-    } else {
-      setResendError(result.error ?? "auth.emailVerification.sendFailed");
-    }
-
-    setIsResendingVerification(false);
   };
 
   const handleOAuthSignIn = async (provider: OAuthProvider) => {
     setServerError(null);
     setSocialNotice(null);
-    setUnverifiedEmail(null);
-    setResendError(null);
-    setResendMessage(null);
     setOauthLoading(provider);
 
     try {
@@ -201,41 +190,37 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
             ) : null}
           </div>
 
+          <input type="hidden" {...register("turnstileToken")} />
+
           <label className="modern-login-checkbox">
             <input type="checkbox" />
             <span>{t("auth.login.rememberMe")}</span>
           </label>
 
+          <div className="modern-login-turnstile">
+            <TurnstileWidget
+              action="login"
+              onTokenChange={handleTurnstileTokenChange}
+              siteKey={TURNSTILE_SITE_KEY}
+            />
+            {errors.turnstileToken ? (
+              <p className="modern-login-field-error">
+                {t(errors.turnstileToken.message ?? "validation.turnstile.required")}
+              </p>
+            ) : null}
+          </div>
+
           {serverError ? (
             <div className="modern-login-alert" role="alert">
               <p>{t(serverError)}</p>
-              {unverifiedEmail ? (
-                <div className="mt-3 space-y-3">
-                  <p>{t("auth.login.emailNotVerifiedHelp")}</p>
-                  <button
-                    className="modern-login-mini-button"
-                    disabled={isResendingVerification}
-                    onClick={handleResendVerification}
-                    type="button"
-                  >
-                    {isResendingVerification
-                      ? t("auth.login.resendingVerification")
-                      : t("auth.login.resendVerification")}
-                  </button>
-                  <div aria-live="polite">
-                    {resendMessage ? (
-                      <p className="text-[hsl(var(--success))]">{t(resendMessage)}</p>
-                    ) : null}
-                    {resendError ? (
-                      <p className="text-[hsl(var(--danger))]">{t(resendError)}</p>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
             </div>
           ) : null}
 
-          <button className="modern-login-primary" disabled={isSubmitting} type="submit">
+          <button
+            className="modern-login-primary"
+            disabled={isSubmitting || !turnstileToken}
+            type="submit"
+          >
             <span>{isSubmitting ? t("auth.login.loggingIn") : t("auth.login.continue")}</span>
             <ArrowRight className="h-5 w-5" />
           </button>

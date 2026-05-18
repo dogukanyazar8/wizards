@@ -9,21 +9,23 @@ import {
   normalizeMessageAttachmentFilename,
 } from "@/lib/messages/attachments";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getRedis } from "@/lib/redis";
+import { getRedisRate } from "@/lib/redis";
 import { logError } from "@/lib/logger";
 
 const f = createUploadthing();
 
 export function isUploadUserAllowed(user: {
+  deletedAt?: Date | null;
   emailVerified: boolean;
   id: string;
   isBanned: boolean;
 } | null): user is {
+  deletedAt?: null;
   emailVerified: true;
   id: string;
   isBanned: false;
 } {
-  return Boolean(user && user.emailVerified && !user.isBanned);
+  return Boolean(user && user.emailVerified && !user.isBanned && !user.deletedAt);
 }
 
 async function requireUploadUser() {
@@ -37,6 +39,7 @@ async function requireUploadUser() {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
+      deletedAt: true,
       emailVerified: true,
       id: true,
       isBanned: true,
@@ -55,7 +58,7 @@ async function requireMessageUploadUser() {
 
   try {
     const allowed = await checkRateLimit(
-      getRedis(),
+      getRedisRate(),
       `rate:upload:message-attachment:${userId}`,
       30,
       300,
@@ -80,7 +83,7 @@ async function requireProfileAvatarUploadUser() {
 
   try {
     const allowed = await checkRateLimit(
-      getRedis(),
+      getRedisRate(),
       `rate:upload:profile-avatar:${userId}`,
       10,
       300,
@@ -177,7 +180,7 @@ export const uploadRouter: FileRouter = {
 
       try {
         const allowed = await checkRateLimit(
-          getRedis(),
+          getRedisRate(),
           `rate:upload:server-icon:${userId}`,
           10,
           300,

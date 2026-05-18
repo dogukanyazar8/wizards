@@ -132,6 +132,31 @@ export function useVoiceStates(serverId: string | null) {
       return;
     }
 
+    const watchVoiceStates = () => {
+      socket.emit("voice:states:watch", { serverId });
+    };
+    const handleServerSettingsUpdated = (data: { serverId: string }) => {
+      if (data.serverId === serverId) {
+        watchVoiceStates();
+      }
+    };
+
+    watchVoiceStates();
+    socket.on("connect", watchVoiceStates);
+    socket.on("server:settings:updated", handleServerSettingsUpdated);
+
+    return () => {
+      socket.off("connect", watchVoiceStates);
+      socket.off("server:settings:updated", handleServerSettingsUpdated);
+      socket.emit("voice:states:unwatch", { serverId });
+    };
+  }, [serverId, socket]);
+
+  useEffect(() => {
+    if (!serverId) {
+      return;
+    }
+
     const handleVoiceStateUpdate = (data: {
       action: "join" | "leave";
       channelId: string;
@@ -148,11 +173,6 @@ export function useVoiceStates(serverId: string | null) {
         voiceQueryKeys.serverStates(serverId),
         (current) => applyVoiceStateUpdate(current, data),
       );
-
-      void queryClient.refetchQueries({
-        queryKey: voiceQueryKeys.serverStates(serverId),
-        type: "active",
-      });
     };
 
     const handleVoiceScreenShareUpdate = (data: {

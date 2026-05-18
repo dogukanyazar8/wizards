@@ -16,12 +16,16 @@ export const MessageReactionSchema = z.object({
   emoji: z.string(),
   count: z.number().int().positive(),
   userIds: z.array(z.string()),
-  users: z.array(z.object({
-    id: z.string(),
-    username: z.string(),
-    displayName: z.string().nullable(),
-    avatarUrl: z.string().nullable(),
-  })).optional(),
+  users: z
+    .array(
+      z.object({
+        id: z.string(),
+        username: z.string(),
+        displayName: z.string().nullable(),
+        avatarUrl: z.string().nullable(),
+      }),
+    )
+    .optional(),
 });
 
 export const MessageAttachmentSchema = z.object({
@@ -61,11 +65,7 @@ export const ReplyToSchema = z.object({
   content: z.string(),
 });
 
-export const ChatMessageTypeSchema = z.enum([
-  "DEFAULT",
-  "SYSTEM_JOIN",
-  "SYSTEM_LEAVE",
-]);
+export const ChatMessageTypeSchema = z.enum(["DEFAULT", "SYSTEM_JOIN", "SYSTEM_LEAVE"]);
 
 export const ChatMessageSchema = z.object({
   id: z.string(),
@@ -73,6 +73,7 @@ export const ChatMessageSchema = z.object({
   author: MessageAuthorSchema,
   content: z.string(),
   type: ChatMessageTypeSchema,
+  mentionEveryone: z.boolean().optional(),
   threadParentId: z.string().nullable().optional(),
   threadSummary: MessageThreadSummarySchema.optional(),
   isPinned: z.boolean().optional(),
@@ -116,19 +117,18 @@ export const MessageSearchResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 
-export const SendMessageInputSchema = z.object({
-  channelId: z.string(),
-  content: z.string().max(MESSAGE_CONTENT_HARD_LIMIT),
-  replyToId: z.string().optional(),
-  threadParentId: z.string().optional(),
-  attachments: z.array(UploadedAttachmentInputSchema).max(5).default([]),
-}).refine(
-  (value) => value.content.trim().length > 0 || value.attachments.length > 0,
-  {
+export const SendMessageInputSchema = z
+  .object({
+    channelId: z.string(),
+    content: z.string().max(MESSAGE_CONTENT_HARD_LIMIT),
+    replyToId: z.string().optional(),
+    threadParentId: z.string().optional(),
+    attachments: z.array(UploadedAttachmentInputSchema).max(5).default([]),
+  })
+  .refine((value) => value.content.trim().length > 0 || value.attachments.length > 0, {
     message: "Message content or attachment is required",
     path: ["content"],
-  },
-);
+  });
 
 export const EditMessageInputSchema = z.object({
   messageId: z.string(),

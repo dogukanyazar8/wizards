@@ -46,6 +46,32 @@ function redactValue(value: unknown, seen = new WeakSet<object>()): unknown {
   );
 }
 
+function stringifyStructuredLog(entry: Record<string, unknown>) {
+  try {
+    return JSON.stringify(entry, (_key, value) =>
+      typeof value === "bigint" ? value.toString() : value,
+    );
+  } catch {
+    return JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: "error",
+      scope: "logger",
+      error: {
+        message: "Failed to serialize structured log entry",
+      },
+    });
+  }
+}
+
+export function formatErrorLog(scope: string, error: unknown, now = new Date()) {
+  return stringifyStructuredLog({
+    timestamp: now.toISOString(),
+    level: "error",
+    scope: redactText(scope),
+    error: redactValue(error),
+  });
+}
+
 export function logError(scope: string, error: unknown) {
-  console.error(scope, redactValue(error));
+  console.error(formatErrorLog(scope, error));
 }

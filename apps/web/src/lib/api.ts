@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { logError } from "@/lib/logger";
 
 const MAX_JSON_BODY_BYTES = 1_048_576;
+const JSON_CONTENT_TYPE = "application/json";
 
 export class ApiError extends Error {
   constructor(
@@ -34,6 +35,16 @@ export function jsonError(error: unknown) {
   return Response.json({ error: "Internal server error" }, { status: 500 });
 }
 
+function hasJsonContentType(request: Request) {
+  const mediaType = request.headers
+    .get("content-type")
+    ?.split(";")[0]
+    ?.trim()
+    .toLowerCase();
+
+  return mediaType === JSON_CONTENT_TYPE;
+}
+
 async function readJsonBodyWithLimit(request: Request) {
   const contentLengthHeader = request.headers.get("content-length");
   const contentLength = contentLengthHeader ? Number(contentLengthHeader) : 0;
@@ -44,6 +55,10 @@ async function readJsonBodyWithLimit(request: Request) {
 
   if (!request.body) {
     return {};
+  }
+
+  if (!hasJsonContentType(request)) {
+    throw new ApiError("Unsupported Media Type", 415, "UNSUPPORTED_MEDIA_TYPE");
   }
 
   const reader = request.body.getReader();

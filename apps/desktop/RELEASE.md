@@ -13,7 +13,7 @@ Keep these versions aligned for each release:
 - Tauri package version: `apps/desktop/src-tauri/Cargo.toml`
 - Tauri app version: `apps/desktop/src-tauri/tauri.conf.json`
 
-The current desktop version is `0.8.5`.
+The current desktop version is `0.8.7`.
 
 ## Build Commands
 
@@ -29,11 +29,10 @@ npx turbo run typecheck
 Build the Windows desktop installer:
 
 ```powershell
-$env:TAURI_WEB_URL="https://app.your-whispr-domain.com"
 pnpm --filter @wizards/desktop build:desktop
 ```
 
-`TAURI_WEB_URL` is public build configuration. It must be HTTPS for production builds.
+Desktop production builds default to `https://whispr.team`. `TAURI_WEB_URL` is public build configuration for explicit HTTPS overrides only.
 
 ## Windows Target
 
@@ -75,13 +74,13 @@ Recommended desktop job shape:
 - Install Rust stable with the MSVC target.
 - Run `pnpm install --frozen-lockfile`.
 - Run the web validation commands.
-- Run `pnpm --filter @wizards/desktop build:desktop` with a non-secret production `TAURI_WEB_URL`.
+- Run `pnpm --filter @wizards/desktop build:desktop`; set non-secret `TAURI_WEB_URL` only for explicit HTTPS override builds.
 - Upload NSIS artifacts from `apps/desktop/src-tauri/target/release/bundle/nsis/`.
 - Add code signing only after certificate storage and access controls are approved.
 
 ## Release Checklist
 
-- Confirm `TAURI_WEB_URL` points to the intended HTTPS Whispr production origin.
+- Confirm the generated Tauri config points to `https://whispr.team` unless an explicit HTTPS `TAURI_WEB_URL` override is intended.
 - Confirm no database, Auth.js, LiveKit, UploadThing, email, Turnstile, Redis, or Prisma secrets are present in desktop source/config.
 - Confirm Tauri capabilities remain limited to notification permissions.
 - Confirm Tauri window permissions remain limited to close, minimize, maximize, and drag for the custom desktop titlebar.

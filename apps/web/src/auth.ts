@@ -1,8 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { randomBytes } from "node:crypto";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma, type User as PrismaUser } from "@wizards/db";
-import { LoginSchema } from "@wizards/types";
+import { LoginCredentialsSchema } from "@wizards/types";
 import bcrypt from "bcryptjs";
 import NextAuth, { type NextAuthConfig, type NextAuthResult } from "next-auth";
 import type { Adapter, AdapterAccount, AdapterUser } from "next-auth/adapters";
@@ -17,10 +18,22 @@ import { normalizeAppLocale } from "@/lib/locale";
 import { persistUserLocale } from "@/lib/locale/persistence";
 import { getRequestLocale } from "@/lib/locale/server";
 import {
+  buildUsernameCandidate,
   MAX_USERNAME_LENGTH,
   normalizeUsername as normalizeStableUsername,
 } from "@/lib/auth/username";
 import { isActiveAuthUser } from "@/lib/auth/access";
+import { verifyLoginProof } from "@/lib/auth/login-proof";
+import {
+  canOAuthUserSignIn,
+  getOAuthProfileEmail,
+  isGoogleEmailVerified,
+  type OAuthEmailAccount,
+} from "@/lib/auth/oauth-email";
+import {
+  isUserSessionRevoked,
+  shouldCheckSessionRevocation,
+} from "@/lib/auth/session-revocation";
 
 function getAuthEnvCandidates() {
   return [
@@ -109,24 +122,42 @@ function deriveBaseUsername(data: { email?: string | null; name?: string | null 
 
 async function getUniqueUsername(seed: string): Promise<string> {
   const safeSeed = normalizeStableUsername(seed);
+  const firstCandidate = buildUsernameCandidate(safeSeed);
 
-  for (let attempt = 0; attempt < 1000; attempt += 1) {
-    const suffix = attempt === 0 ? "" : `_${attempt}`;
-    const sliceLength = MAX_USERNAME_LENGTH - suffix.length;
-    const base = safeSeed.slice(0, Math.max(sliceLength, 2));
-    const candidate = `${base}${suffix}`;
+  const existingFirstCandidate = await prisma.user.findUnique({
+    where: { username: firstCandidate },
+    select: { id: true },
+  });
 
-    const existingUser = await prisma.user.findUnique({
-      where: { username: candidate },
-      select: { id: true },
+  if (!existingFirstCandidate) {
+    return firstCandidate;
+  }
+
+  for (let batch = 0; batch < 3; batch += 1) {
+    const candidates = Array.from(
+      new Set(
+        Array.from({ length: 16 }, () =>
+          buildUsernameCandidate(safeSeed, `_${randomBytes(4).toString("hex").slice(0, 6)}`),
+        ),
+      ),
+    );
+
+    const existingUsers = await prisma.user.findMany({
+      where: { username: { in: candidates } },
+      select: { username: true },
     });
+    const existingUsernames = new Set(existingUsers.map((user) => user.username));
+    const availableCandidate = candidates.find((candidate) => !existingUsernames.has(candidate));
 
-    if (!existingUser) {
-      return candidate;
+    if (availableCandidate) {
+      return availableCandidate;
     }
   }
 
-  return normalizeStableUsername(`whispr_${Date.now().toString(36)}`);
+  return buildUsernameCandidate(
+    "whispr",
+    `_${Date.now().toString(36)}${randomBytes(4).toString("hex").slice(0, 6)}`,
+  ).slice(0, MAX_USERNAME_LENGTH);
 }
 
 function mapUserToAdapterUser(
@@ -147,6 +178,44 @@ function stringOrNull(value: unknown): string | null {
 
 function stringOrEmpty(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function jwtDateStringOrNull(value: unknown): string | null {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function clearJwtUserState(token: {
+  authStatusHydrated?: boolean;
+  avatarUrl?: string | null;
+  deletedAt?: string | null;
+  displayName?: string | null;
+  emailVerified?: boolean;
+  id?: string;
+  isBanned?: boolean;
+  locale?: string | null;
+  profileHydrated?: boolean;
+  revoked?: boolean;
+  sub?: string;
+  theme?: string | null;
+  username?: string | null;
+}) {
+  token.revoked = true;
+  token.id = "";
+  token.sub = "";
+  token.username = null;
+  token.displayName = null;
+  token.avatarUrl = null;
+  token.locale = null;
+  token.theme = null;
+  token.deletedAt = null;
+  token.emailVerified = false;
+  token.isBanned = true;
+  token.authStatusHydrated = true;
+  token.profileHydrated = true;
 }
 
 function getEnvValue(...keys: string[]): string {
@@ -177,47 +246,12 @@ function numberField(value: unknown): number | null {
   return typeof value === "number" ? value : null;
 }
 
-function isGoogleEmailVerified(profile: unknown): boolean {
-  return (
-    typeof profile === "object" &&
-    profile !== null &&
-    "email_verified" in profile &&
-    (profile as { email_verified?: unknown }).email_verified === true
-  );
-}
-
-function hasExplicitlyUnverifiedOAuthEmail(profile: unknown): boolean {
-  return (
-    typeof profile === "object" &&
-    profile !== null &&
-    "email_verified" in profile &&
-    (profile as { email_verified?: unknown }).email_verified === false
-  );
-}
-
-function getOAuthProfileEmail(profile: unknown): string {
-  if (
-    typeof profile !== "object" ||
-    profile === null ||
-    !("email" in profile) ||
-    typeof (profile as { email?: unknown }).email !== "string"
-  ) {
-    return "";
-  }
-
-  return normalizeAuthEmail((profile as { email: string }).email);
-}
-
-async function canOAuthUserSignIn(args: {
-  provider: string | undefined;
+async function canOAuthUserAccessWhispr(args: {
+  account: OAuthEmailAccount | null | undefined;
   profile: unknown;
   user: { email?: unknown; id?: unknown };
 }) {
-  if (args.provider === "google" && !isGoogleEmailVerified(args.profile)) {
-    return false;
-  }
-
-  if (args.provider !== "google" && hasExplicitlyUnverifiedOAuthEmail(args.profile)) {
+  if (!(await canOAuthUserSignIn(args))) {
     return false;
   }
 
@@ -239,6 +273,7 @@ async function canOAuthUserSignIn(args: {
   const existingUser = await prisma.user.findFirst({
     where,
     select: {
+      deletedAt: true,
       emailVerified: true,
       id: true,
       isBanned: true,
@@ -310,6 +345,7 @@ const adapter: Adapter = {
     const user = await prisma.user.findUnique({
       where: { id },
       select: {
+        deletedAt: true,
         id: true,
         email: true,
         emailVerifiedAt: true,
@@ -319,7 +355,7 @@ const adapter: Adapter = {
       },
     });
 
-    if (!user) {
+    if (!user || user.deletedAt) {
       return null;
     }
 
@@ -330,6 +366,7 @@ const adapter: Adapter = {
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
       select: {
+        deletedAt: true,
         id: true,
         email: true,
         emailVerifiedAt: true,
@@ -339,7 +376,7 @@ const adapter: Adapter = {
       },
     });
 
-    if (!user) {
+    if (!user || user.deletedAt) {
       return null;
     }
 
@@ -379,6 +416,7 @@ const adapter: Adapter = {
       where: { id: data.id },
       data: updateData,
       select: {
+        deletedAt: true,
         id: true,
         email: true,
         emailVerifiedAt: true,
@@ -387,6 +425,10 @@ const adapter: Adapter = {
         avatarUrl: true,
       },
     });
+
+    if (updatedUser.deletedAt) {
+      throw new Error("Deleted users cannot be updated.");
+    }
 
     return mapUserToAdapterUser(updatedUser);
   },
@@ -407,7 +449,7 @@ const adapter: Adapter = {
       },
     });
 
-    return account?.user ? mapUserToAdapterUser(account.user) : null;
+    return account?.user && !account.user.deletedAt ? mapUserToAdapterUser(account.user) : null;
   },
   async getAccount(providerAccountId, provider): Promise<AdapterAccount | null> {
     const account = await prisma.account.findFirst({
@@ -451,7 +493,7 @@ const authConfig = {
       name: process.env.NODE_ENV === "production" ? "__Secure-authjs.session-token" : "authjs.session-token",
       options: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: "strict",
         path: "/",
         secure: process.env.NODE_ENV === "production",
       },
@@ -466,6 +508,7 @@ const authConfig = {
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
+        loginProof: { label: "Login proof", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
@@ -474,7 +517,7 @@ const authConfig = {
             ? (credentials as Record<string, unknown>)
             : null;
 
-        const parsedCredentials = LoginSchema.safeParse({
+        const parsedCredentials = LoginCredentialsSchema.safeParse({
           email: normalizeAuthEmail(credentialRecord?.email),
           password:
             typeof credentialRecord?.password === "string" ? credentialRecord.password : "",
@@ -485,6 +528,19 @@ const authConfig = {
         }
 
         const { email: normalizedEmail, password } = parsedCredentials.data;
+        const loginProof =
+          typeof credentialRecord?.loginProof === "string" ? credentialRecord.loginProof : "";
+
+        let hasValidLoginProof = false;
+        try {
+          hasValidLoginProof = verifyLoginProof(normalizedEmail, loginProof);
+        } catch {
+          hasValidLoginProof = false;
+        }
+
+        if (!hasValidLoginProof) {
+          return null;
+        }
 
         const user = await prisma.user.findUnique({
           where: { email: normalizedEmail },
@@ -495,6 +551,7 @@ const authConfig = {
             displayName: true,
             avatarUrl: true,
             emailVerified: true,
+            deletedAt: true,
             locale: true,
             isBanned: true,
             passwordHash: true,
@@ -515,7 +572,7 @@ const authConfig = {
           return null;
         }
 
-        if (user.isBanned) {
+        if (user.isBanned || user.deletedAt) {
           return null;
         }
 
@@ -528,15 +585,20 @@ const authConfig = {
           email: user.email,
           name: user.displayName ?? user.username,
           image: user.avatarUrl ?? null,
+          authEmailVerified: user.emailVerified,
+          deletedAt: user.deletedAt,
           username: user.username,
           displayName: user.displayName,
           avatarUrl: user.avatarUrl,
+          isBanned: user.isBanned,
           locale: normalizeAppLocale(user.locale),
           theme: normalizeWizardsThemeId(user.theme),
         };
       },
     }),
     GitHub({
+      allowDangerousEmailAccountLinking: false,
+      authorization: { params: { scope: "read:user user:email" } },
       clientId: getEnvValue("GITHUB_CLIENT_ID", "AUTH_GITHUB_ID"),
       clientSecret: getEnvValue("GITHUB_CLIENT_SECRET", "AUTH_GITHUB_SECRET"),
       profile(profile) {
@@ -583,8 +645,8 @@ const authConfig = {
   callbacks: {
     async signIn({ account, profile, user }) {
       if (account?.type === "oauth") {
-        return canOAuthUserSignIn({
-          provider: account.provider,
+        return canOAuthUserAccessWhispr({
+          account,
           profile,
           user,
         });
@@ -594,6 +656,11 @@ const authConfig = {
     },
     async jwt({ token, user, trigger, session }) {
       if (user) {
+        const userRecord = user as typeof user & {
+          authEmailVerified?: unknown;
+          deletedAt?: unknown;
+          isBanned?: unknown;
+        };
         const userId = stringOrEmpty(user.id);
         if (userId) {
           token.id = userId;
@@ -621,6 +688,15 @@ const authConfig = {
           "theme" in user && typeof user.theme === "string"
             ? normalizeWizardsThemeId(user.theme)
             : stringOrNull(token.theme);
+
+        token.deletedAt = jwtDateStringOrNull(userRecord.deletedAt);
+        token.emailVerified =
+          typeof userRecord.authEmailVerified === "boolean"
+            ? userRecord.authEmailVerified
+            : Boolean(user.emailVerified);
+        token.isBanned = typeof userRecord.isBanned === "boolean" ? userRecord.isBanned : false;
+        token.authStatusHydrated = true;
+        token.profileHydrated = true;
       }
 
       if (trigger === "update" && session?.user?.locale) {
@@ -631,20 +707,56 @@ const authConfig = {
         token.theme = normalizeWizardsThemeId(session.user.theme);
       }
 
+      const revocationUserId = stringOrEmpty(token.id) || stringOrEmpty(token.sub);
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      const revocationCheckedAt =
+        typeof token.revocationCheckedAt === "number" ? token.revocationCheckedAt : undefined;
       if (
-        token.sub &&
-        (!token.username ||
-          !token.displayName ||
-          !token.avatarUrl ||
-          !token.locale ||
-          !token.theme)
+        revocationUserId &&
+        shouldCheckSessionRevocation(revocationCheckedAt, nowSeconds)
       ) {
+        token.revocationCheckedAt = nowSeconds;
+
+        if (
+          await isUserSessionRevoked(
+            revocationUserId,
+            typeof token.iat === "number" ? token.iat : nowSeconds,
+            {
+              loadDurableRevokedAfter: async (userId) => {
+                const user = await prisma.user.findUnique({
+                  where: { id: userId },
+                  select: { sessionsRevokedAfter: true },
+                });
+
+                return user?.sessionsRevokedAfter ?? null;
+              },
+            },
+          )
+        ) {
+          clearJwtUserState(token);
+          return token;
+        }
+      }
+
+      const tokenUserId = stringOrEmpty(token.id) || stringOrEmpty(token.sub);
+      const needsTokenHydration =
+        Boolean(tokenUserId) &&
+        (!token.profileHydrated ||
+          !token.authStatusHydrated ||
+          typeof token.emailVerified !== "boolean" ||
+          typeof token.isBanned !== "boolean" ||
+          !("deletedAt" in token));
+
+      if (needsTokenHydration) {
         const dbUser = await prisma.user.findUnique({
-          where: { id: token.sub },
+          where: { id: tokenUserId },
           select: {
             username: true,
             displayName: true,
             avatarUrl: true,
+            deletedAt: true,
+            emailVerified: true,
+            isBanned: true,
             locale: true,
             theme: true,
           },
@@ -654,8 +766,15 @@ const authConfig = {
           token.username = dbUser.username;
           token.displayName = dbUser.displayName;
           token.avatarUrl = dbUser.avatarUrl;
+          token.deletedAt = jwtDateStringOrNull(dbUser.deletedAt);
+          token.emailVerified = dbUser.emailVerified;
+          token.isBanned = dbUser.isBanned;
           token.locale = normalizeAppLocale(dbUser.locale);
           token.theme = normalizeWizardsThemeId(dbUser.theme);
+          token.authStatusHydrated = true;
+          token.profileHydrated = true;
+        } else {
+          clearJwtUserState(token);
         }
       }
 
@@ -669,6 +788,9 @@ const authConfig = {
         session.user.username = stringOrNull(token.username);
         session.user.displayName = stringOrNull(token.displayName);
         session.user.avatarUrl = stringOrNull(token.avatarUrl);
+        session.user.deletedAt = stringOrNull(token.deletedAt);
+        session.user.authEmailVerified = token.emailVerified === true;
+        session.user.isBanned = token.isBanned === true;
         session.user.locale = stringOrNull(token.locale);
         session.user.theme = stringOrNull(token.theme);
       }

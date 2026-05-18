@@ -25,6 +25,7 @@ export const PermissionBits = {
   BAN_MEMBERS: 1n << 20n,
   TIMEOUT_MEMBERS: 1n << 21n,
   VIEW_AUDIT_LOG: 1n << 22n,
+  MENTION_EVERYONE: 1n << 23n,
 } as const;
 
 export type PermissionKey = keyof typeof PermissionBits;
@@ -97,6 +98,7 @@ export const MODERATOR_PERMISSIONS =
   PermissionBits.BAN_MEMBERS |
   PermissionBits.TIMEOUT_MEMBERS |
   PermissionBits.VIEW_AUDIT_LOG |
+  PermissionBits.MENTION_EVERYONE |
   PermissionBits.MUTE_MEMBERS |
   PermissionBits.DEAFEN_MEMBERS |
   PermissionBits.MOVE_MEMBERS;
@@ -119,7 +121,10 @@ function toPermissionValue(permission: PermissionKey | PermissionValue) {
   return typeof permission === "string" ? PermissionBits[permission] : permission;
 }
 
-function applyOverride(permissions: bigint, override: Pick<ChannelPermissionOverrideRecord, "allow" | "deny">) {
+function applyOverride(
+  permissions: bigint,
+  override: Pick<ChannelPermissionOverrideRecord, "allow" | "deny">,
+) {
   return (permissions & ~override.deny) | override.allow;
 }
 
@@ -127,18 +132,18 @@ export function combinePermissions(roles: RolePermissionRecord[]) {
   return roles.reduce((permissions, role) => permissions | role.permissions, 0n);
 }
 
+function getLegacyMemberFallbackPermissions(roles: RolePermissionRecord[]) {
+  return roles.length === 0 ? MEMBER_BASE_PERMISSIONS : 0n;
+}
+
 export function hasAdministratorPermission(permissions: bigint) {
   return (permissions & PermissionBits.ADMINISTRATOR) !== 0n;
 }
 
-export function hasPermission(
-  permissions: bigint,
-  permission: PermissionKey | PermissionValue,
-) {
+export function hasPermission(permissions: bigint, permission: PermissionKey | PermissionValue) {
   const permissionValue = toPermissionValue(permission);
   return (
-    hasAdministratorPermission(permissions) ||
-    (permissions & permissionValue) === permissionValue
+    hasAdministratorPermission(permissions) || (permissions & permissionValue) === permissionValue
   );
 }
 
@@ -177,9 +182,11 @@ export function resolveServerPermissions(context: PermissionResolutionContext) {
     return ALL_PERMISSIONS;
   }
 
-  // Existing production servers may have an empty @everyone role. Keep product
-  // behavior stable by treating normal server membership as the base grant.
-  const rolePermissions = combinePermissions(context.roles) | MEMBER_BASE_PERMISSIONS;
+  // Existing production servers may have no role rows for a member. Keep those
+  // legacy memberships usable, but respect an explicitly configured @everyone
+  // role even when its mask is 0n.
+  const rolePermissions =
+    combinePermissions(context.roles) | getLegacyMemberFallbackPermissions(context.roles);
   return hasAdministratorPermission(rolePermissions) ? ALL_PERMISSIONS : rolePermissions;
 }
 
@@ -220,7 +227,8 @@ export function resolveChannelPermissions(context: ChannelPermissionResolutionCo
   permissions = applyOverride(permissions, { allow: roleAllow, deny: roleDeny });
 
   for (const override of overrides) {
-    const targetsUser = override.targetId === context.userId || override.targetId === context.memberId;
+    const targetsUser =
+      override.targetId === context.userId || override.targetId === context.memberId;
     if (override.targetType === "USER" && targetsUser) {
       permissions = applyOverride(permissions, override);
     }

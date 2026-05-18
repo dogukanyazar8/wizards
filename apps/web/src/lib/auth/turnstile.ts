@@ -1,7 +1,9 @@
 const TURNSTILE_SITEVERIFY_URL =
   "https://challenges.cloudflare.com/turnstile/v0/siteverify";
-const EXPECTED_TURNSTILE_ACTION = "register";
+const DEFAULT_TURNSTILE_ACTION = "register";
 const TURNSTILE_VERIFY_TIMEOUT_MS = 8000;
+
+export type TurnstileAction = "login" | "register";
 
 type TurnstileSiteVerifyResponse = {
   action?: string;
@@ -80,7 +82,23 @@ export function assertTurnstileHostnameAllowed(
   }
 }
 
-export async function verifyTurnstileToken(token: string, remoteIp?: string) {
+export function assertTurnstileActionAllowed(
+  action: string | undefined,
+  expectedAction: TurnstileAction = DEFAULT_TURNSTILE_ACTION,
+) {
+  if (action && action !== expectedAction) {
+    throw new TurnstileVerificationError(
+      "ACTION_MISMATCH",
+      "Turnstile action mismatch.",
+    );
+  }
+}
+
+export async function verifyTurnstileToken(
+  token: string,
+  remoteIp?: string,
+  options: { expectedAction?: TurnstileAction } = {},
+) {
   const normalizedToken = token.trim();
   if (!normalizedToken) {
     throw new TurnstileVerificationError(
@@ -139,12 +157,7 @@ export async function verifyTurnstileToken(token: string, remoteIp?: string) {
     );
   }
 
-  if (result.action && result.action !== EXPECTED_TURNSTILE_ACTION) {
-    throw new TurnstileVerificationError(
-      "ACTION_MISMATCH",
-      "Turnstile action mismatch.",
-    );
-  }
+  assertTurnstileActionAllowed(result.action, options.expectedAction);
 
   assertTurnstileHostnameAllowed(
     result.hostname,

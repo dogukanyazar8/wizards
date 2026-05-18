@@ -71,6 +71,7 @@ export const WorkspacePermissionKeySchema = z.enum([
   "BAN_MEMBERS",
   "TIMEOUT_MEMBERS",
   "VIEW_AUDIT_LOG",
+  "MENTION_EVERYONE",
 ]);
 
 export const WorkspaceChannelPermissionPresetSchema = z.enum([
@@ -231,18 +232,21 @@ export const UpdateServerSchema = z
     deletedMessageNoticeMinutes: z.number().int().min(5).max(10080).optional(),
     shortName: optionalServerShortName,
   })
-  .refine((value) =>
-    value.name !== undefined ||
-    value.shortName !== undefined ||
-    value.description !== undefined ||
-    value.iconUrl !== undefined ||
-    value.messageCharacterLimit !== undefined ||
-    value.deletedMessageNoticeMinutes !== undefined ||
-    value.allowGifs !== undefined ||
-    value.allowFileUploads !== undefined ||
-    value.allowMemberAdds !== undefined, {
-    message: "validation.form.atLeastOne",
-  });
+  .refine(
+    (value) =>
+      value.name !== undefined ||
+      value.shortName !== undefined ||
+      value.description !== undefined ||
+      value.iconUrl !== undefined ||
+      value.messageCharacterLimit !== undefined ||
+      value.deletedMessageNoticeMinutes !== undefined ||
+      value.allowGifs !== undefined ||
+      value.allowFileUploads !== undefined ||
+      value.allowMemberAdds !== undefined,
+    {
+      message: "validation.form.atLeastOne",
+    },
+  );
 
 export const AddServerMemberSchema = z.object({
   username: z.string().trim().min(2).max(32),
@@ -342,8 +346,7 @@ export const UpdateWorkspaceMemberRolesSchema = z.object({
   roleIds: z.array(z.string()).max(25),
 });
 
-export const UpdateWorkspaceChannelPermissionsSchema =
-  WorkspaceChannelPermissionSettingsSchema;
+export const UpdateWorkspaceChannelPermissionsSchema = WorkspaceChannelPermissionSettingsSchema;
 
 export type WorkspaceAccessLevel = z.infer<typeof WorkspaceAccessLevelSchema>;
 export type WorkspaceCategory = z.infer<typeof WorkspaceCategorySchema>;
@@ -376,9 +379,7 @@ export type CreateInviteInput = z.infer<typeof CreateInviteSchema>;
 export type AddServerMemberInput = z.infer<typeof AddServerMemberSchema>;
 export type CreateWorkspaceRoleInput = z.infer<typeof CreateWorkspaceRoleSchema>;
 export type UpdateWorkspaceRoleInput = z.infer<typeof UpdateWorkspaceRoleSchema>;
-export type UpdateWorkspaceMemberRolesInput = z.infer<
-  typeof UpdateWorkspaceMemberRolesSchema
->;
+export type UpdateWorkspaceMemberRolesInput = z.infer<typeof UpdateWorkspaceMemberRolesSchema>;
 export type UpdateWorkspaceChannelPermissionsInput = z.infer<
   typeof UpdateWorkspaceChannelPermissionsSchema
 >;

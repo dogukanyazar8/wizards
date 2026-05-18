@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { normalizeUsername } from "./username";
+import { buildUsernameCandidate, normalizeUsername } from "./username";
 
 describe("normalizeUsername", () => {
   it("transliterates Turkish characters into stable ASCII usernames", () => {
@@ -18,5 +18,17 @@ describe("normalizeUsername", () => {
 
   it("falls back to a generated whispr username when nothing usable remains", () => {
     assert.match(normalizeUsername("\u2728"), /^whispr_[a-f0-9]{10}$/);
+  });
+});
+
+describe("buildUsernameCandidate", () => {
+  it("preserves suffixes while keeping usernames within the max length", () => {
+    const candidate = buildUsernameCandidate(
+      "averyveryveryveryverylongusername",
+      "_abc123",
+    );
+
+    assert.equal(candidate.length, 32);
+    assert.ok(candidate.endsWith("_abc123"));
   });
 });

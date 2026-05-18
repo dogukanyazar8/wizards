@@ -10,7 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import {
-  useVoiceConnection,
+  useVoiceState,
   type KrispAvailability,
 } from "@/components/providers/voice-provider";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -135,7 +135,7 @@ export function VoicePreferencesPanel() {
     krispAvailability,
     retryKrispNoiseCancellation,
     setAudioPreference,
-  } = useVoiceConnection();
+  } = useVoiceState();
 
   const krispEnabled = audioPreferences.krispNoiseCancellation;
   const krispAvailable = krispAvailability === "available";

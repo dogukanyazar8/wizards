@@ -1,0 +1,139 @@
+import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
+
+const API_V1_DIR = fileURLToPath(new URL(".", import.meta.url));
+
+const PUBLIC_ROUTE_PATHS = new Set(["app/version"]);
+
+const BODYLESS_MUTATING_ROUTE_PATHS = new Set([
+  "admin/notification-campaigns/[campaignId]/send",
+  "channels/[channelId]/messages",
+  "channels/[channelId]/messages/[messageId]/pin",
+  "channels/[channelId]/read",
+  "dm/[conversationId]",
+  "dm/[conversationId]/read",
+  "friends/[userId]",
+  "friends/block/[userId]",
+  "notifications/[id]/read",
+  "notifications/clear",
+  "notifications/read-all",
+  "servers/[serverId]/invites/[inviteId]",
+  "servers/[serverId]/members/[memberId]",
+  "servers/[serverId]/members/me",
+]);
+
+const AUTH_GUARD_CALL_PATTERN = /\b(?:requireApiUserId|requireAdminUser)\s*\(/;
+const EXPORTED_METHOD_PATTERN =
+  /export\s+(?:async\s+)?function\s+(GET|POST|PATCH|PUT|DELETE)\b|export\s+const\s+(GET|POST|PATCH|PUT|DELETE)\b/g;
+const MUTATING_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
+const PARSE_JSON_BODY_CALL_PATTERN = /\bparseJsonBody\s*\(/;
+const RAW_REQUEST_BODY_CALL_PATTERN = /\b(?:request|req)\.(?:json|text|formData)\s*\(/;
+
+type RouteFile = {
+  content: string;
+  methods: string[];
+  path: string;
+  routePath: string;
+};
+
+function collectRouteFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      return collectRouteFiles(entryPath);
+    }
+
+    return entry.isFile() && entry.name === "route.ts" ? [entryPath] : [];
+  });
+}
+
+function routePathFor(filePath: string) {
+  const routeDir = path.dirname(filePath);
+  return path.relative(API_V1_DIR, routeDir).split(path.sep).join("/") || ".";
+}
+
+function exportedMethods(content: string) {
+  return [...content.matchAll(EXPORTED_METHOD_PATTERN)]
+    .map((match) => match[1] || match[2])
+    .filter((method): method is string => Boolean(method));
+}
+
+function readRoutes(): RouteFile[] {
+  return collectRouteFiles(API_V1_DIR)
+    .map((filePath) => {
+      const content = readFileSync(filePath, "utf8");
+
+      return {
+        content,
+        methods: exportedMethods(content),
+        path: path.relative(process.cwd(), filePath).split(path.sep).join("/"),
+        routePath: routePathFor(filePath),
+      };
+    })
+    .sort((a, b) => a.routePath.localeCompare(b.routePath));
+}
+
+function hasMutatingMethod(route: RouteFile) {
+  return route.methods.some((method) => MUTATING_METHODS.has(method));
+}
+
+describe("API v1 route contract", () => {
+  const routes = readRoutes();
+  const routePaths = new Set(routes.map((route) => route.routePath));
+
+  it("keeps the public route allowlist explicit and minimal", () => {
+    const unguardedRoutes = routes
+      .filter((route) => !AUTH_GUARD_CALL_PATTERN.test(route.content))
+      .map((route) => route.routePath);
+
+    assert.deepEqual(unguardedRoutes, [...PUBLIC_ROUTE_PATHS]);
+
+    for (const routePath of PUBLIC_ROUTE_PATHS) {
+      assert.equal(
+        routePaths.has(routePath),
+        true,
+        `Public API route allowlist entry does not exist: ${routePath}`,
+      );
+    }
+  });
+
+  it("requires every non-public route to call an auth guard", () => {
+    const missingGuards = routes
+      .filter((route) => !PUBLIC_ROUTE_PATHS.has(route.routePath))
+      .filter((route) => !AUTH_GUARD_CALL_PATTERN.test(route.content))
+      .map((route) => route.path);
+
+    assert.deepEqual(missingGuards, []);
+  });
+
+  it("requires mutating routes to either parse JSON centrally or be documented as bodyless", () => {
+    const mutatingWithoutJsonParser = routes
+      .filter(hasMutatingMethod)
+      .filter((route) => !PARSE_JSON_BODY_CALL_PATTERN.test(route.content))
+      .map((route) => route.routePath);
+
+    assert.deepEqual(mutatingWithoutJsonParser, [
+      ...BODYLESS_MUTATING_ROUTE_PATHS,
+    ]);
+
+    for (const routePath of BODYLESS_MUTATING_ROUTE_PATHS) {
+      assert.equal(
+        routePaths.has(routePath),
+        true,
+        `Bodyless mutating API route allowlist entry does not exist: ${routePath}`,
+      );
+    }
+  });
+
+  it("does not bypass parseJsonBody with direct request body readers", () => {
+    const rawBodyReaders = routes
+      .filter((route) => RAW_REQUEST_BODY_CALL_PATTERN.test(route.content))
+      .map((route) => route.path);
+
+    assert.deepEqual(rawBodyReaders, []);
+  });
+});

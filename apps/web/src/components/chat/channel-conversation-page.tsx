@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { WorkspaceServerDetail, WorkspaceServerSummary } from "@wizards/types";
 import { ChatArea } from "@/components/chat/chat-area";
+import { getMessagesQueryKey } from "@/hooks/use-messages";
 import {
   applyServerUnreadCount,
   markChannelReadRequest,
@@ -91,6 +92,12 @@ export function ChannelConversationPage({
         void queryClient.invalidateQueries({
           queryKey: workspaceQueryKeys.server(serverId),
         });
+        if (response.firstUnreadMessageId) {
+          void queryClient.invalidateQueries({
+            exact: true,
+            queryKey: getMessagesQueryKey("channel", channelId),
+          });
+        }
         setInitialUnreadMessageId(response.firstUnreadMessageId);
       })
       .catch(() => {

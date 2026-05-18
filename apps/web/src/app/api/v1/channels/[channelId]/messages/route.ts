@@ -4,7 +4,7 @@ import { jsonError } from "@/lib/api";
 import { getChannelMessages } from "@/lib/workspace/message-service";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { emitServerUnreadUpdatesForServer } from "@/lib/workspace/unread-service";
-import { clearWorkspaceChannelHistory } from "@/lib/workspace/service";
+import { clearWorkspaceChannelHistory } from "@/lib/workspace/channel-service";
 import { ChannelType } from "@wizards/db";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
@@ -16,7 +16,7 @@ type RouteContext = {
 export async function GET(request: Request, context: RouteContext) {
   try {
     const userId = await requireApiUserId();
-    await enforceApiRateLimit(userId, "channel:clear-history");
+    await enforceApiRateLimit(userId, "channel:messages:list");
     const { channelId } = await context.params;
     const { searchParams } = new URL(request.url);
 
@@ -40,6 +40,7 @@ export async function GET(request: Request, context: RouteContext) {
 export async function DELETE(_: Request, context: RouteContext) {
   try {
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "channel:clear-history");
     const { channelId } = await context.params;
     const result = await clearWorkspaceChannelHistory(userId, channelId);
 

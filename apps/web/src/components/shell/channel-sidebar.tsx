@@ -51,7 +51,7 @@ import { ChannelItem } from "@/components/shell/channel-item";
 import { ChannelSidebarSkeleton } from "@/components/shell/shell-skeletons";
 import { NotificationBell } from "@/components/shared/notification-bell";
 import { AudioDeviceSelect } from "@/components/voice/audio-device-select";
-import { useVoiceConnection } from "@/components/providers/voice-provider";
+import { useVoiceState } from "@/components/providers/voice-provider";
 import { cn } from "@/lib/utils";
 import {
   applyCategoryReorder,
@@ -358,7 +358,7 @@ export function UserProfileFooter({
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const userBarRef = useRef<HTMLDivElement | null>(null);
   const { idleTimeoutMinutes, setIdleTimeoutMinutes } = usePresenceIdleTimeoutPreference();
-  const { isDeafened, isMuted, leaveChannel, toggleDeafen, toggleMute } = useVoiceConnection();
+  const { isDeafened, isMuted, leaveChannel, toggleDeafen, toggleMute } = useVoiceState();
 
   useEffect(() => {
     setStatus(user.status);
@@ -728,7 +728,7 @@ export function ChannelSidebar({
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const voiceStatesQuery = useVoiceStates(detail?.server.id ?? null);
-  const { prepareForVoiceJoin } = useVoiceConnection();
+  const { prepareForVoiceJoin } = useVoiceState();
   const {
     channelSidebarWidth,
     collapsedCategories,

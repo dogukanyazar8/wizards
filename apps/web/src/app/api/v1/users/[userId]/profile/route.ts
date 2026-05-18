@@ -1,5 +1,6 @@
 import { prisma } from "@wizards/db";
 import { requireApiUserId } from "@/lib/auth/api";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { ApiError, jsonError } from "@/lib/api";
 import type { NextRequest } from "next/server";
 
@@ -12,6 +13,7 @@ type RouteContext = {
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const requesterId = await requireApiUserId();
+    await enforceApiRateLimit(requesterId, "user:profile");
     const { userId } = await context.params;
 
     const user = await prisma.user.findUnique({
@@ -26,6 +28,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         bio: true,
         customStatus: true,
         createdAt: true,
+        deletedAt: true,
       },
     });
 
@@ -37,44 +40,39 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const serverId = request.nextUrl.searchParams.get("serverId");
 
     if (serverId) {
-      const requesterMember = await prisma.serverMember.findFirst({
+      const memberships = await prisma.serverMember.findMany({
         where: {
           serverId,
-          userId: requesterId,
+          userId: {
+            in: requesterId === userId ? [requesterId] : [requesterId, userId],
+          },
         },
         select: {
-          id: true,
+          nickname: true,
+          userId: true,
         },
+        take: 2,
       });
+      const requesterMember = memberships.find((member) => member.userId === requesterId);
 
       if (!requesterMember) {
         throw new ApiError("Server profile not found", 404);
       }
 
-      const member = await prisma.serverMember.findFirst({
-        where: {
-          userId,
-          serverId,
-        },
-        select: {
-          nickname: true,
-        },
-      });
-
-      serverNickname = member?.nickname ?? null;
+      serverNickname = memberships.find((member) => member.userId === userId)?.nickname ?? null;
     }
 
     return Response.json({
       id: user.id,
-      username: user.username,
-      displayName: user.displayName,
-      avatarUrl: user.avatarUrl,
-      bannerUrl: user.bannerUrl,
-      bannerColor: user.bannerColor,
-      bio: user.bio,
-      customStatus: user.customStatus,
+      username: user.deletedAt ? "deleted-user" : user.username,
+      displayName: user.deletedAt ? "Deleted User" : user.displayName,
+      avatarUrl: user.deletedAt ? null : user.avatarUrl,
+      bannerUrl: user.deletedAt ? null : user.bannerUrl,
+      bannerColor: user.deletedAt ? null : user.bannerColor,
+      bio: user.deletedAt ? null : user.bio,
+      customStatus: user.deletedAt ? null : user.customStatus,
       createdAt: user.createdAt.toISOString(),
-      serverNickname,
+      serverNickname: user.deletedAt ? null : serverNickname,
     });
   } catch (error) {
     return jsonError(error);

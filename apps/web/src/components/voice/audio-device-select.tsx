@@ -10,7 +10,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { useI18n } from "@/components/providers/locale-provider";
-import { useVoiceConnection } from "@/components/providers/voice-provider";
+import { useVoiceState } from "@/components/providers/voice-provider";
 import {
   useAudioDevices,
   type AudioDeviceOption,
@@ -93,7 +93,7 @@ export function AudioDeviceSelect({
   const [activeIndex, setActiveIndex] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const { audioPreferences, setAudioPreference } = useVoiceConnection();
+  const { audioPreferences, setAudioPreference } = useVoiceState();
   const {
     inputDevices,
     isLoading,

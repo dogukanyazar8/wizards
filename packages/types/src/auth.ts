@@ -1,8 +1,17 @@
 import { z } from "zod";
 
-export const LoginSchema = z.object({
+const TurnstileTokenSchema = z
+  .string()
+  .min(1, "validation.turnstile.required")
+  .max(4096, "validation.turnstile.invalid");
+
+export const LoginCredentialsSchema = z.object({
   email: z.string().email("validation.email.invalid"),
   password: z.string().min(8, "validation.password.min"),
+});
+
+export const LoginSchema = LoginCredentialsSchema.extend({
+  turnstileToken: TurnstileTokenSchema,
 });
 
 export const RegisterSchema = z
@@ -18,10 +27,7 @@ export const RegisterSchema = z
       .min(8, "validation.password.min")
       .max(100, "validation.password.max"),
     confirmPassword: z.string(),
-    turnstileToken: z
-      .string()
-      .min(1, "validation.turnstile.required")
-      .max(4096, "validation.turnstile.invalid"),
+    turnstileToken: TurnstileTokenSchema,
   })
   .refine((data) => data.confirmPassword === data.password, {
     message: "validation.password.confirmMismatch",
@@ -47,6 +53,7 @@ export const ResetPasswordSchema = z
   });
 
 export type LoginInput = z.infer<typeof LoginSchema>;
+export type LoginCredentialsInput = z.infer<typeof LoginCredentialsSchema>;
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;

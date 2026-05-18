@@ -1,4 +1,5 @@
 import { requireApiUserId } from "@/lib/auth/api";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError } from "@/lib/api";
 import { getChannelThreadMessages } from "@/lib/workspace/message-service";
 import { ChannelType } from "@wizards/db";
@@ -12,6 +13,7 @@ type RouteContext = {
 export async function GET(request: Request, context: RouteContext) {
   try {
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "channel:messages:list");
     const { channelId, messageId } = await context.params;
     const { searchParams } = new URL(request.url);
     const cursor = searchParams.get("before") || undefined;

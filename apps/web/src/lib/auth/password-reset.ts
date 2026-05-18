@@ -8,6 +8,7 @@ import {
   normalizeAppLocale,
   translate,
 } from "@/lib/locale";
+import { revokeUserSessions } from "@/lib/auth/session-revocation";
 
 const PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = 60;
 const PASSWORD_RESET_TOKEN_EXPIRY_MS =
@@ -383,10 +384,15 @@ export async function resetPasswordWithToken(input: {
   }
 
   const passwordHash = await bcrypt.hash(input.password, 12);
+  const now = new Date();
   await prisma.user.update({
     where: { id: verification.userId },
-    data: { passwordHash },
+    data: {
+      passwordHash,
+      sessionsRevokedAfter: now,
+    },
   });
+  await revokeUserSessions(verification.userId, { now });
 
   return { status: "reset" as const };
 }

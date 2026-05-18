@@ -48,4 +48,40 @@ describe("auth access checks", () => {
         error.status === 403,
     );
   });
+
+  it("rejects deleted users", () => {
+    const user = {
+      deletedAt: new Date("2026-05-14T00:00:00.000Z"),
+      emailVerified: true,
+      id: "user-1",
+      isBanned: false,
+    };
+
+    assert.equal(isActiveAuthUser(user), false);
+    assert.throws(
+      () => assertActiveApiUser(user),
+      (error) =>
+        error instanceof ApiError &&
+        error.code === "ACCOUNT_DELETED" &&
+        error.status === 403,
+    );
+  });
+
+  it("rejects deleted users represented by JWT date strings", () => {
+    const user = {
+      deletedAt: "2026-05-14T00:00:00.000Z",
+      emailVerified: true,
+      id: "user-1",
+      isBanned: false,
+    };
+
+    assert.equal(isActiveAuthUser(user), false);
+    assert.throws(
+      () => assertActiveApiUser(user),
+      (error) =>
+        error instanceof ApiError &&
+        error.code === "ACCOUNT_DELETED" &&
+        error.status === 403,
+    );
+  });
 });

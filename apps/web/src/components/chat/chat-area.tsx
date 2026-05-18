@@ -441,6 +441,7 @@ export function ChatArea({
           data.code === "VALIDATION_ERROR" ||
           data.code === "INVALID_ATTACHMENT" ||
           data.code === "RATE_LIMIT" ||
+          data.code === "RATE_LIMIT_UNAVAILABLE" ||
           data.code === "CHANNEL_LOCKED" ||
           data.code === "FILE_UPLOADS_DISABLED" ||
           data.code === "GIFS_DISABLED" ||

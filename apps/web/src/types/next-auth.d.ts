@@ -1,24 +1,34 @@
 import type { DefaultSession } from "next-auth";
 
+type WhisprDefaultSessionUser = NonNullable<DefaultSession["user"]>;
+
 declare module "next-auth" {
   interface Session {
-    user: DefaultSession["user"] & {
+    user: Omit<WhisprDefaultSessionUser, "emailVerified"> & {
       id: string;
       username: string | null;
+      authEmailVerified: boolean;
       displayName: string | null;
       avatarUrl: string | null;
+      deletedAt: string | null;
+      isBanned: boolean;
       locale: string | null;
       theme: string | null;
     };
   }
 
   interface User {
+    authEmailVerified?: boolean;
     username?: string | null;
     displayName?: string | null;
     avatarUrl?: string | null;
+    deletedAt?: Date | string | null;
     emailVerified?: Date | null;
+    isBanned?: boolean;
     locale?: string | null;
     theme?: string | null;
+    revoked?: boolean;
+    revocationCheckedAt?: number;
   }
 }
 
@@ -28,7 +38,14 @@ declare module "next-auth/jwt" {
     username?: string | null;
     displayName?: string | null;
     avatarUrl?: string | null;
+    authStatusHydrated?: boolean;
+    deletedAt?: string | null;
+    emailVerified?: boolean;
+    isBanned?: boolean;
     locale?: string | null;
+    profileHydrated?: boolean;
+    revoked?: boolean;
+    revocationCheckedAt?: number;
     theme?: string | null;
   }
 }

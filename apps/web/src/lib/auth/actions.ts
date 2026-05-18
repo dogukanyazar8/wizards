@@ -5,7 +5,7 @@ import { normalizeAuthEmail, signIn, signOut } from "@/auth";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
 import { normalizeAppLocale } from "@/lib/locale";
 import { persistUserLocale } from "@/lib/locale/persistence";
-import { getRedis } from "@/lib/redis";
+import { getRedisRate } from "@/lib/redis";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logError } from "@/lib/logger";
 import {
@@ -24,6 +24,9 @@ import {
   verifyTurnstileToken,
 } from "@/lib/auth/turnstile";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
+import { rollbackUnverifiedUser } from "@/lib/auth/registration-compensation";
+import { createLoginProof } from "@/lib/auth/login-proof";
+import { LOGIN_FAILED_MESSAGE_KEY } from "@/lib/auth/login-errors";
 import { Prisma, prisma } from "@wizards/db";
 import {
   ForgotPasswordSchema,
@@ -61,7 +64,7 @@ async function sendVerificationEmailWithRateLimit(input: {
   locale: string;
   user: EmailVerificationUser;
 }) {
-  const redis = getRedis();
+  const redis = getRedisRate();
 
   try {
     const [emailAllowed, ipAllowed] = await Promise.all([
@@ -120,7 +123,7 @@ async function checkVerificationResendRateLimit(input: {
   email: string;
   ipAddress: string;
 }) {
-  const redis = getRedis();
+  const redis = getRedisRate();
 
   try {
     const cooldownAllowed = await checkRateLimit(
@@ -160,7 +163,7 @@ async function checkPasswordResetRateLimit(input: {
   email: string;
   ipAddress: string;
 }) {
-  const redis = getRedis();
+  const redis = getRedisRate();
 
   try {
     const cooldownAllowed = await checkRateLimit(
@@ -235,7 +238,7 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
 
   try {
     const isAllowed = await checkRateLimit(
-      getRedis(),
+      getRedisRate(),
       `rate:register:${ipAddress}`,
       10,
       60 * 60,
@@ -344,7 +347,10 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
     });
 
     if (!verificationEmail.success) {
-      await prisma.user.delete({ where: { id: createdUser.id } }).catch(() => undefined);
+      await rollbackUnverifiedUser({
+        email,
+        userId: createdUser.id,
+      });
 
       return {
         success: false,
@@ -373,6 +379,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
   const validation = LoginSchema.safeParse({
     email: normalizeAuthEmail(getFormValue(formData, "email")),
     password: getFormValue(formData, "password"),
+    turnstileToken: getFormValue(formData, "turnstileToken"),
   });
 
   if (!validation.success) {
@@ -388,7 +395,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
 
   try {
     const isAllowed = await checkRateLimit(
-      getRedis(),
+      getRedisRate(),
       `rate:login:${email}:${ipAddress}`,
       5,
       15 * 60,
@@ -408,31 +415,32 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     };
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: {
-      email: true,
-      emailVerified: true,
-      isBanned: true,
-      passwordHash: true,
-    },
-  });
-
-  if (user?.passwordHash && !user.isBanned) {
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-
-    if (isPasswordValid && !user.emailVerified) {
-      return {
-        email: user.email,
-        success: false,
-        error: "auth.login.emailNotVerified",
-      };
-    }
+  try {
+    await verifyTurnstileToken(validation.data.turnstileToken, ipAddress, {
+      expectedAction: "login",
+    });
+  } catch (error) {
+    return {
+      success: false,
+      error: getTurnstileErrorMessageKey(error),
+    };
   }
 
   try {
+    let loginProof: string;
+    try {
+      loginProof = createLoginProof(email);
+    } catch (error) {
+      logError("[auth] Login proof unavailable", error);
+      return {
+        success: false,
+        error: "auth.login.alertUnavailable",
+      };
+    }
+
     await signIn("credentials", {
       email,
+      loginProof,
       password,
       redirectTo,
     });
@@ -443,7 +451,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
       if (error.type === "CredentialsSignin") {
         return {
           success: false,
-          error: "auth.login.invalidCredentials",
+          error: LOGIN_FAILED_MESSAGE_KEY,
         };
       }
 

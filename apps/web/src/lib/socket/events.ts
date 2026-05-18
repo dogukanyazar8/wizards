@@ -121,6 +121,8 @@ export interface ClientToServerEvents {
   "presence:activity": (data: { status: "ONLINE" | "IDLE" }) => void;
   "voice:join": (data: { channelId: string; serverId: string }) => void;
   "voice:leave": (data: { channelId: string; serverId: string }) => void;
+  "voice:states:watch": (data: { serverId: string }) => void;
+  "voice:states:unwatch": (data: { serverId: string }) => void;
   "voice:invite:accept": (data: {
     channelId: string;
     inviteId: string;
@@ -162,6 +164,11 @@ export interface ServerToClientEvents {
       | "unblocked";
   }) => void;
   "message:new": (message: ChatMessage) => void;
+  "channel:messages:stale": (data: {
+    channelId: string;
+    latestMessageId: string;
+    serverId: string;
+  }) => void;
   "message:updated": (message: ChatMessage) => void;
   "message:deleted": (data: {
     messageId: string;
@@ -238,6 +245,7 @@ export interface ServerToClientEvents {
       | "FORBIDDEN"
       | "BLOCKED"
       | "RATE_LIMITED"
+      | "RATE_LIMIT_UNAVAILABLE"
       | "VALIDATION_ERROR"
       | "NOT_FOUND";
     message: string;
@@ -305,9 +313,11 @@ export interface SocketData {
   userId: string;
   username: string;
   displayName: string;
+  appSessionKey?: string;
   presenceCustomStatus: string | null;
   presenceStatus: FriendPresenceUpdateDto["status"];
   typingChannels: Set<string>;
   lastVoiceAudioLevelAt?: number;
+  voiceStateViewerChannelsByServer: Map<string, Set<string>>;
   voiceRooms: Set<string>;
 }

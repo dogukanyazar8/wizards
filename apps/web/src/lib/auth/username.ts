@@ -19,6 +19,14 @@ const TURKISH_USERNAME_TRANSLITERATION: Record<string, string> = {
 
 export { MAX_USERNAME_LENGTH };
 
+export function buildUsernameCandidate(baseUsername: string, suffix = "") {
+  const safeBase = normalizeUsername(baseUsername);
+  const safeSuffix = suffix.replace(USERNAME_SANITIZE_REGEX, "_").slice(0, MAX_USERNAME_LENGTH - 2);
+  const sliceLength = MAX_USERNAME_LENGTH - safeSuffix.length;
+
+  return `${safeBase.slice(0, Math.max(sliceLength, 2))}${safeSuffix}`;
+}
+
 export function normalizeUsername(rawValue: string): string {
   const asciiValue = rawValue
     .replace(

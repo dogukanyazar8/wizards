@@ -1,7 +1,7 @@
 import { requireApiUserId } from "@/lib/auth/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError } from "@/lib/api";
-import { kickWorkspaceMember } from "@/lib/workspace/service";
+import { kickWorkspaceMember } from "@/lib/workspace/member-service";
 
 type RouteContext = {
   params: Promise<{

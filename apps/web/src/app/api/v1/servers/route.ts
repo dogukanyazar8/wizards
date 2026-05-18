@@ -5,7 +5,7 @@ import { jsonError, parseJsonBody } from "@/lib/api";
 import {
   createWorkspaceServer,
   listWorkspaceServers,
-} from "@/lib/workspace/service";
+} from "@/lib/workspace/server-service";
 
 export async function GET() {
   try {

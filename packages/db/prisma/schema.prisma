@@ -93,6 +93,42 @@ enum DeviceType {
   MOBILE
 }
 
+enum AdminRole {
+  OWNER
+  ADMIN
+  SUPPORT
+  ANALYST
+  MODERATOR
+}
+
+enum AnalyticsClientType {
+  WEB
+  DESKTOP
+  MOBILE
+  UNKNOWN
+}
+
+enum AnalyticsDeviceType {
+  DESKTOP
+  MOBILE
+  TABLET
+  UNKNOWN
+}
+
+enum AnalyticsMediaKind {
+  VOICE
+  CAMERA
+  SCREEN_SHARE
+}
+
+enum NotificationCampaignStatus {
+  DRAFT
+  SENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
 // Sticker animation preferences
 enum AnimateStickers {
   ALWAYS
@@ -215,6 +251,9 @@ model User {
   isBanned              Boolean     @default(false)
   bannedAt              DateTime?
   bannedReason          String?
+  sessionsRevokedAfter  DateTime?
+  deletedAt             DateTime?
+  anonymizedAt          DateTime?
   premiumType           PremiumType @default(NONE)
   premiumSince          DateTime?
   lastLoginAt           DateTime?
@@ -227,6 +266,7 @@ model User {
   accounts                Account[]
   sessions                Session[]
   emailVerificationTokens EmailVerificationToken[]
+  accountReauthChallenges AccountReauthChallenge[]
   settings                UserSettings?
   notificationSettings    UserNotificationSettings?
   friendRequestsSent      FriendRequest[]           @relation("FriendRequestSender")
@@ -253,11 +293,128 @@ model User {
   auditLogs               AuditLog[]
   voiceState              VoiceState?
   scheduledEvents         ScheduledEvent[]
+  adminMembership         AdminMembership?          @relation("AdminMembershipUser")
+  adminGrants             AdminMembership[]         @relation("AdminMembershipGrantedBy")
+  adminAuditLogs          AdminAuditLog[]           @relation("AdminAuditActor")
+  appSessions             AppSession[]
+  dailyMetrics            UserDailyMetric[]
+  mediaUsageSessions      MediaUsageSession[]
+  notificationCampaigns   NotificationCampaign[]    @relation("NotificationCampaignCreator")
 
   @@index([email])
   @@index([username])
   @@index([status])
   @@index([premiumType])
+  @@index([deletedAt])
+}
+
+model AdminMembership {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  role        AdminRole @default(ANALYST)
+  grantedById String?
+  reason      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user      User  @relation("AdminMembershipUser", fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy User? @relation("AdminMembershipGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@index([role])
+  @@index([grantedById])
+}
+
+model AdminAuditLog {
+  id            String   @id @default(uuid())
+  adminUserId   String?
+  action        String
+  targetType    String?
+  targetId      String?
+  reason        String?
+  metadata      Json?
+  ipHash        String?
+  userAgentHash String?
+  createdAt     DateTime @default(now())
+
+  adminUser User? @relation("AdminAuditActor", fields: [adminUserId], references: [id], onDelete: SetNull)
+
+  @@index([adminUserId, createdAt])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
+model AppSession {
+  id              String              @id @default(uuid())
+  userId          String
+  sessionKey      String              @unique
+  startedAt       DateTime            @default(now())
+  lastSeenAt      DateTime            @default(now())
+  endedAt         DateTime?
+  durationSeconds Int                 @default(0)
+  clientType      AnalyticsClientType @default(WEB)
+  deviceType      AnalyticsDeviceType @default(UNKNOWN)
+  os              String?
+  browser         String?
+  countryCode     String?             @db.VarChar(2)
+  userAgentHash   String?
+  ipHash          String?
+  socketId        String?
+  endReason       String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt])
+  @@index([lastSeenAt])
+  @@index([clientType])
+  @@index([countryCode])
+}
+
+model UserDailyMetric {
+  id                 String   @id @default(uuid())
+  userId             String
+  date               DateTime
+  appSeconds         Int      @default(0)
+  messageCount       Int      @default(0)
+  dmMessageCount     Int      @default(0)
+  fileUploadCount    Int      @default(0)
+  uploadedBytes      BigInt   @default(0)
+  voiceSeconds       Int      @default(0)
+  cameraSeconds      Int      @default(0)
+  screenShareSeconds Int      @default(0)
+  sessionCount       Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([date, userId])
+  @@index([date])
+  @@index([userId, date])
+}
+
+model MediaUsageSession {
+  id              String             @id @default(uuid())
+  userId          String
+  serverId        String?
+  channelId       String?
+  sessionId       String
+  kind            AnalyticsMediaKind
+  startedAt       DateTime           @default(now())
+  endedAt         DateTime?
+  durationSeconds Int                @default(0)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  server  Server?  @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  channel Channel? @relation(fields: [channelId], references: [id], onDelete: SetNull)
+
+  @@index([userId, startedAt])
+  @@index([serverId, channelId, startedAt])
+  @@index([sessionId, kind, endedAt])
+  @@index([kind, startedAt])
 }
 
 model Account {
@@ -359,6 +516,21 @@ model EmailVerificationToken {
   @@index([expiresAt])
 }
 
+model AccountReauthChallenge {
+  id        String    @id @default(cuid())
+  userId    String
+  purpose   String    @db.VarChar(64)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, usedAt])
+  @@index([expiresAt])
+}
+
 model FriendRequest {
   id         String       @id @default(uuid())
   senderId   String
@@ -418,6 +590,7 @@ model Server {
   auditLogs          AuditLog[]
   scheduledEvents    ScheduledEvent[]
   voiceStates        VoiceState[]         @relation("VoiceStateServer")
+  mediaUsageSessions MediaUsageSession[]
   userServerSettings UserServerSettings[] @relation("ServerUserSettings")
 
   @@index([name])
@@ -566,6 +739,7 @@ model Channel {
   invites             ServerInvite[]
   threads             Channel[]                   @relation("ChannelParent")
   voiceStates         VoiceState[]                @relation("ChannelVoiceStates")
+  mediaUsageSessions  MediaUsageSession[]
   webhooks            Webhook[]                   @relation("ChannelWebhooks")
   scheduledEvents     ScheduledEvent[]
   threadMessages      Message[]                   @relation("MessageThread")
@@ -833,22 +1007,73 @@ model DMReaction {
 }
 
 model Notification {
-  id        String           @id @default(uuid())
-  userId    String
-  type      NotificationType
-  title     String
-  body      String
-  imageUrl  String?
-  read      Boolean          @default(false)
-  readAt    DateTime?
-  actionUrl String?
-  metadata  Json?
-  createdAt DateTime         @default(now())
+  id         String           @id @default(uuid())
+  userId     String
+  campaignId String?
+  dedupeKey  String?
+  type       NotificationType
+  title      String
+  body       String
+  imageUrl   String?
+  read       Boolean          @default(false)
+  readAt     DateTime?
+  actionUrl  String?
+  metadata   Json?
+  createdAt  DateTime         @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign NotificationCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
+  @@unique([dedupeKey])
   @@index([userId, read])
   @@index([userId, createdAt])
+  @@index([campaignId])
+}
+
+model OutboxJob {
+  id             String    @id @default(uuid())
+  idempotencyKey String    @unique
+  type           String    @db.VarChar(80)
+  status         String    @default("PENDING") @db.VarChar(20)
+  payload        Json
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(8)
+  availableAt    DateTime  @default(now())
+  lockedAt       DateTime?
+  lockedBy       String?
+  lastError      String?   @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status, availableAt, createdAt])
+  @@index([status, updatedAt])
+  @@index([type, status])
+  @@index([lockedAt])
+}
+
+model NotificationCampaign {
+  id          String                     @id @default(uuid())
+  type        NotificationType           @default(SYSTEM)
+  title       String
+  body        String
+  imageUrl    String?
+  actionUrl   String?
+  segment     Json?
+  status      NotificationCampaignStatus @default(DRAFT)
+  createdById String?
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  sentCount   Int                        @default(0)
+  failedCount Int                        @default(0)
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+
+  creator       User?          @relation("NotificationCampaignCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  notifications Notification[]
+
+  @@index([status, createdAt])
+  @@index([createdById])
 }
 
 model Contributor {
@@ -935,6 +1160,7 @@ model VoiceState {
 
   @@index([channelId])
   @@index([serverId])
+  @@index([lastHeartbeat])
   @@index([serverId, lastHeartbeat])
 }
 

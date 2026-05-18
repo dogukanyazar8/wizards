@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { useSocket } from "@/hooks/use-socket";
 import { useDMConversations } from "@/hooks/use-dm-conversations";
-import type { MessagePages } from "@/hooks/use-messages";
+import { getMessagesQueryKey, type MessagePages } from "@/hooks/use-messages";
 import { useAppearanceHydration } from "@/hooks/use-appearance-hydration";
 import { usePresenceActivity } from "@/hooks/use-presence-activity";
 import type { NotificationSocketPayload, UserProfileUpdatedPayload } from "@/lib/socket/events";
@@ -631,6 +631,17 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       });
     };
 
+    const handleChannelMessagesStale = (data: {
+      channelId: string;
+      latestMessageId: string;
+      serverId: string;
+    }) => {
+      void queryClient.invalidateQueries({
+        exact: true,
+        queryKey: getMessagesQueryKey("channel", data.channelId),
+      });
+    };
+
     const handleServerSettingsUpdated = (data: { serverId: string }) => {
       refreshWorkspaceServers();
       void queryClient.invalidateQueries({
@@ -774,6 +785,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     };
 
     socket.on("server:unread:update", handleServerUnreadUpdate);
+    socket.on("channel:messages:stale", handleChannelMessagesStale);
     socket.on("server:membership:added", handleServerMembershipAdded);
     socket.on("server:settings:updated", handleServerSettingsUpdated);
     socket.on("notification:new", handleNotificationNew);
@@ -782,6 +794,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     window.addEventListener("whispr:account-updated", handleAccountUpdated);
     return () => {
       socket.off("server:unread:update", handleServerUnreadUpdate);
+      socket.off("channel:messages:stale", handleChannelMessagesStale);
       socket.off("server:membership:added", handleServerMembershipAdded);
       socket.off("server:settings:updated", handleServerSettingsUpdated);
       socket.off("notification:new", handleNotificationNew);

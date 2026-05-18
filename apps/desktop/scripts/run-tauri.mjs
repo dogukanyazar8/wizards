@@ -9,11 +9,15 @@ const require = createRequire(import.meta.url);
 const desktopRoot = path.resolve(path.dirname(scriptPath), "..");
 const generatedDir = path.join(desktopRoot, ".tauri", "generated");
 const generatedConfigPath = path.join(generatedDir, "tauri.conf.generated.json");
+const defaultProductionWebUrl = "https://whispr.team";
 
 const command = process.argv[2];
+const extraArgs = process.argv.slice(3);
+const writeConfigOnly = extraArgs.includes("--write-config-only");
+const unknownArgs = extraArgs.filter((arg) => arg !== "--write-config-only");
 
-if (!["dev", "build"].includes(command)) {
-  console.error("Usage: node ./scripts/run-tauri.mjs <dev|build>");
+if (!["dev", "build"].includes(command) || unknownArgs.length > 0) {
+  console.error("Usage: node ./scripts/run-tauri.mjs <dev|build> [--write-config-only]");
   process.exit(1);
 }
 
@@ -25,7 +29,7 @@ const devUrl = parseUrl(
 const webUrl =
   command === "dev"
     ? devUrl
-    : parseRequiredProductionUrl(process.env.TAURI_WEB_URL);
+    : parseProductionUrl(process.env.TAURI_WEB_URL || defaultProductionWebUrl);
 const capabilityUrls =
   command === "dev"
     ? Array.from(
@@ -104,6 +108,11 @@ console.log(`[Whispr Desktop] generated config: ${generatedConfigPath}`);
 console.log(`[Whispr Desktop] allowed web origins: ${capabilityUrls.join(", ")}`);
 console.log(`[Whispr Desktop] native permissions: ${nativeUxPermissions.join(", ")}`);
 
+if (writeConfigOnly) {
+  console.log("[Whispr Desktop] config-only mode: skipping Tauri CLI invocation");
+  process.exit(0);
+}
+
 const child = spawn(
   process.execPath,
   [require.resolve("@tauri-apps/cli/tauri.js"), command, "--config", generatedConfigPath],
@@ -122,12 +131,7 @@ child.on("exit", (code, signal) => {
   process.exit(code ?? 1);
 });
 
-function parseRequiredProductionUrl(value) {
-  if (!value) {
-    console.error("TAURI_WEB_URL is required for production desktop builds.");
-    process.exit(1);
-  }
-
+function parseProductionUrl(value) {
   const url = parseUrl(value, "TAURI_WEB_URL");
 
   if (url.protocol !== "https:") {
@@ -216,15 +220,9 @@ function buildDesktopCsp(webUrl, mode) {
       "https://avatars.githubusercontent.com",
       "https://media*.giphy.com",
     ],
-    "media-src": [
-      "'self'",
-      "blob:",
-      "data:",
-      "https://*.ufs.sh",
-      "https://*.uploadthing.com",
-    ],
+    "media-src": ["'self'", "blob:", "data:", "https://*.ufs.sh", "https://*.uploadthing.com"],
     "object-src": ["'none'"],
-    "script-src": ["'self'", "https://challenges.cloudflare.com"],
+    "script-src": ["'self'", "'wasm-unsafe-eval'", "blob:", "https://challenges.cloudflare.com"],
     "style-src": ["'self'", "'unsafe-inline'"],
     "worker-src": ["'self'", "blob:"],
   };

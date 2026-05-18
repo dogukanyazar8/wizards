@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   TurnstileVerificationError,
+  assertTurnstileActionAllowed,
   assertTurnstileHostnameAllowed,
   getExpectedTurnstileHostnames,
 } from "./turnstile";
@@ -35,6 +36,21 @@ describe("Turnstile hostname validation", () => {
           ["app.example.test"],
           true,
         ),
+      (error) =>
+        error instanceof TurnstileVerificationError &&
+        error.code === "ACTION_MISMATCH",
+    );
+  });
+});
+
+describe("Turnstile action validation", () => {
+  it("accepts the expected login action", () => {
+    assert.doesNotThrow(() => assertTurnstileActionAllowed("login", "login"));
+  });
+
+  it("rejects tokens issued for a different action", () => {
+    assert.throws(
+      () => assertTurnstileActionAllowed("register", "login"),
       (error) =>
         error instanceof TurnstileVerificationError &&
         error.code === "ACTION_MISMATCH",

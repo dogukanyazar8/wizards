@@ -7,7 +7,9 @@ on:
         default: smoke
         description: Playwright E2E scope to run manually
         options:
+          - api
           - smoke
+          - realtime
           - full
         required: true
         type: choice
@@ -16,6 +18,13 @@ on:
     branches:
       - main
       - staging
+      - uat
+    tags:
+      - "v*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   verify:
@@ -25,15 +34,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 10.33.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
@@ -44,26 +55,38 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm db:generate
 
+      - name: Check E2E password guard
+        run: |
+          if grep -RE 'E2E_TEST_PASSWORD[[:space:]]*(\?\?|\|\|)|WhisprE2E!2026' apps/web/src apps/web/e2e; then
+            echo "::error::Hardcoded E2E password fallback found"
+            exit 1
+          fi
+
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Dependency audit
+        run: pnpm audit --audit-level moderate
+
       - name: Lint
         run: pnpm lint
 
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Test
-        run: pnpm test
+      - name: Test with coverage baseline
+        run: pnpm test:coverage
 
       - name: Build
         run: pnpm build
-
-      - name: Dependency audit
-        run: pnpm audit --audit-level moderate
 
   e2e-smoke:
     name: Playwright E2E
     runs-on: ubuntu-latest
     needs: verify
-    timeout-minutes: 25
+    timeout-minutes: 35
 
     services:
       postgres:
@@ -101,24 +124,32 @@ jobs:
       NEXT_TELEMETRY_DISABLED: "1"
       NEXTAUTH_SECRET: whispr-e2e-auth-secret-change-me-local-only
       NEXTAUTH_URL: http://127.0.0.1:3000
+      NODE_ENV: test
       REDIS_URL: redis://localhost:6379
       SOCKET_ALLOWED_ORIGINS: http://127.0.0.1:3000
       TURBO_TELEMETRY_DISABLED: "1"
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 10.33.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
+
+      - name: Generate E2E test password
+        shell: bash
+        run: |
+          password="$(node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('base64url'))")"
+          echo "::add-mask::$password"
+          echo "E2E_TEST_PASSWORD=$password" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -126,15 +157,23 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm db:generate
 
-      - name: Sync E2E database schema
-        run: pnpm --filter @wizards/db exec prisma db push --schema prisma/schema.prisma --skip-generate
+      - name: Apply E2E database migrations
+        run: pnpm --filter @wizards/db exec prisma migrate deploy --schema prisma/schema.prisma
 
       - name: Install Playwright Chromium
         run: pnpm --filter @wizards/web exec playwright install --with-deps chromium
 
+      - name: Run Playwright API tests
+        if: github.event_name != 'workflow_dispatch' || inputs.e2e_scope == 'api' || inputs.e2e_scope == 'smoke' || inputs.e2e_scope == 'realtime'
+        run: pnpm --filter @wizards/web e2e:api
+
       - name: Run Playwright smoke tests
         if: github.event_name != 'workflow_dispatch' || inputs.e2e_scope == 'smoke'
         run: pnpm --filter @wizards/web e2e:smoke
+
+      - name: Run Playwright realtime and voice tests
+        if: github.event_name != 'workflow_dispatch' || inputs.e2e_scope == 'realtime'
+        run: pnpm --filter @wizards/web e2e:realtime
 
       - name: Run Playwright full suite
         if: github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'full'
@@ -142,7 +181,7 @@ jobs:
 
       - name: Upload Playwright report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           if-no-files-found: ignore
           name: playwright-report
@@ -150,3 +189,132 @@ jobs:
             apps/web/playwright-report
             apps/web/test-results
           retention-days: 7
+
+  desktop-build:
+    name: Tauri Desktop Build
+    runs-on: windows-latest
+    needs: verify
+    timeout-minutes: 45
+
+    env:
+      TAURI_WEB_URL: https://whispr.team
+      TURBO_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          workspaces: apps/desktop/src-tauri
+          cache-on-failure: true
+
+      - name: Require code signing secrets for release tags
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX_BASE64) -or [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) {
+            Write-Error "Release desktop builds require WINDOWS_CERTIFICATE_PFX_BASE64 and WINDOWS_CERTIFICATE_PASSWORD secrets before publishing."
+            exit 1
+          }
+
+      - name: Audit Rust dependencies
+        shell: pwsh
+        working-directory: apps/desktop/src-tauri
+        env:
+          CARGO_AUDIT_VERSION: 0.22.1
+        run: |
+          $expectedVersion = "cargo-audit $env:CARGO_AUDIT_VERSION"
+          $currentVersion = ""
+
+          if (Get-Command cargo-audit -ErrorAction SilentlyContinue) {
+            $currentVersion = (cargo audit --version).Trim()
+          }
+
+          if ($currentVersion -ne $expectedVersion) {
+            cargo install cargo-audit --version $env:CARGO_AUDIT_VERSION --locked --force
+          }
+
+          cargo audit
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate desktop production config
+        run: pnpm --filter @wizards/desktop build:desktop:config
+
+      - name: Build desktop app
+        run: pnpm --filter @wizards/desktop build:desktop
+
+      - name: Sign desktop release artifacts
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+        run: |
+          $certificatePath = Join-Path $env:RUNNER_TEMP "whispr-codesign.pfx"
+          try {
+            [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_PFX_BASE64))
+
+            $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+              Where-Object { $_.FullName -match "\\x64\\signtool.exe$" } |
+              Sort-Object FullName -Descending |
+              Select-Object -First 1
+
+            if (-not $signtool) {
+              throw "signtool.exe was not found on the Windows runner."
+            }
+
+            $artifacts = @(
+              Get-ChildItem "apps\desktop\src-tauri\target\release" -Filter "*.exe" -File -ErrorAction SilentlyContinue
+              Get-ChildItem "apps\desktop\src-tauri\target\release\bundle" -Include "*.exe", "*.msi" -Recurse -File -ErrorAction SilentlyContinue
+            )
+
+            if ($artifacts.Count -eq 0) {
+              throw "No desktop artifacts were found to sign."
+            }
+
+            foreach ($artifact in $artifacts) {
+              & $signtool.FullName sign /f $certificatePath /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $artifact.FullName
+              if ($LASTEXITCODE -ne 0) {
+                throw "signtool failed for $($artifact.FullName) with exit code $LASTEXITCODE."
+              }
+            }
+          } finally {
+            if (Test-Path $certificatePath) {
+              Remove-Item $certificatePath -Force
+            }
+          }
+
+      - name: Upload desktop artifacts
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          if-no-files-found: error
+          name: whispr-desktop-windows
+          path: |
+            apps/desktop/src-tauri/target/release/*.exe
+            apps/desktop/src-tauri/target/release/bundle/**/*.exe
+            apps/desktop/src-tauri/target/release/bundle/**/*.msi
+          retention-days: 14

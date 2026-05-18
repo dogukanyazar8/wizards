@@ -88,18 +88,25 @@ export async function upsertVoiceState(input: {
   return VoiceStateMutationResponseSchema.parse(payload);
 }
 
-export async function deleteVoiceState() {
+export async function deleteVoiceState(input: { sessionId?: string } = {}) {
   return requestJson<{ success: true }>("/api/v1/voice/state", {
     method: "DELETE",
+    body: input,
   });
 }
 
-export async function sendVoiceHeartbeat(sessionId: string) {
+export async function sendVoiceHeartbeat(
+  sessionId: string,
+  state: {
+    selfStream?: boolean;
+    selfVideo?: boolean;
+  } = {},
+) {
   return requestJson<{ channelId: string; serverId: string; success: true }>(
     "/api/v1/voice/state/heartbeat",
     {
       method: "PATCH",
-      body: { sessionId },
+      body: { sessionId, ...state },
     },
   );
 }

@@ -1,4 +1,5 @@
 import { requireApiUserId } from "@/lib/auth/api";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError } from "@/lib/api";
 import { listDMThreadMessages } from "@/lib/dm/service";
 import {
@@ -18,6 +19,7 @@ type RouteContext = {
 export async function GET(request: Request, context: RouteContext) {
   try {
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "dm:messages:list");
     const { conversationId, messageId } = DMThreadParamsSchema.parse(await context.params);
     const url = new URL(request.url);
     const query = DMMessagesQuerySchema.parse({

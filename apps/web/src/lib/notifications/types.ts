@@ -15,7 +15,8 @@ export interface NotificationDTO {
     | "DM"
     | "MENTION"
     | "MODERATION"
-    | "SERVER_INVITE";
+    | "SERVER_INVITE"
+    | "SYSTEM";
   actor: NotificationActorDTO | null;
   message: string;
   actionUrl: string | null;

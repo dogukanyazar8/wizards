@@ -11,7 +11,7 @@ type RouteContext = {
 export async function GET(_: Request, context: RouteContext) {
   try {
     const userId = await requireApiUserId();
-    await enforceApiRateLimit(userId, "dm:hide");
+    await enforceApiRateLimit(userId, "dm:conversation:read");
     const { conversationId } = DMConversationParamsSchema.parse(await context.params);
     const conversation = await getDirectMessageConversationForUser(conversationId, userId);
 
@@ -24,6 +24,7 @@ export async function GET(_: Request, context: RouteContext) {
 export async function DELETE(_: Request, context: RouteContext) {
   try {
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "dm:hide");
     const { conversationId } = DMConversationParamsSchema.parse(await context.params);
     await hideDirectMessage(userId, conversationId);
 

@@ -23,8 +23,26 @@ const REQUIRED_URL_ENV_VARS = [
   "REDIS_URL",
 ] as const;
 
+const OPTIONAL_BOOLEAN_ENV_VARS = [
+  "PERMISSION_CACHE_DISABLED",
+  "PERMISSION_CACHE_METRICS",
+  "WORKSPACE_PERFORMANCE_METRICS",
+] as const;
+
+const OPTIONAL_POSITIVE_INTEGER_ENV_VARS = [
+  "WORKSPACE_PERFORMANCE_METRICS_INTERVAL_MS",
+] as const;
+
 function isPresent(value: string | undefined): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function isBooleanFlag(value: string) {
+  return value === "true" || value === "false";
+}
+
+function isPositiveInteger(value: string) {
+  return /^[1-9]\d*$/.test(value);
 }
 
 function isValidUrl(value: string) {
@@ -57,11 +75,33 @@ export function validateWebEnvironment(
     if (!isPresent(env.AUTH_SECRET) && !isPresent(env.NEXTAUTH_SECRET)) {
       missing.push("AUTH_SECRET");
     }
+
+    if (
+      isPresent(env.AUTH_SECRET) &&
+      isPresent(env.NEXTAUTH_SECRET) &&
+      env.AUTH_SECRET.trim() !== env.NEXTAUTH_SECRET.trim()
+    ) {
+      invalid.push("AUTH_SECRET/NEXTAUTH_SECRET");
+    }
   }
 
   for (const key of REQUIRED_URL_ENV_VARS) {
     const value = env[key];
     if (isPresent(value) && !isValidUrl(value)) {
+      invalid.push(key);
+    }
+  }
+
+  for (const key of OPTIONAL_BOOLEAN_ENV_VARS) {
+    const value = env[key];
+    if (isPresent(value) && !isBooleanFlag(value)) {
+      invalid.push(key);
+    }
+  }
+
+  for (const key of OPTIONAL_POSITIVE_INTEGER_ENV_VARS) {
+    const value = env[key];
+    if (isPresent(value) && !isPositiveInteger(value)) {
       invalid.push(key);
     }
   }

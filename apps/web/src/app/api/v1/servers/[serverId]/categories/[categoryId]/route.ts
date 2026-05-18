@@ -5,7 +5,7 @@ import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import {
   deleteWorkspaceCategory,
   updateWorkspaceCategory,
-} from "@/lib/workspace/service";
+} from "@/lib/workspace/category-service";
 
 type RouteContext = {
   params: Promise<{
