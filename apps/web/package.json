@@ -34,7 +34,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@emoji-mart/data": "^1.2.1",
     "@emoji-mart/react": "^1.1.1",
-    "@hookform/resolvers": "^3.10.0",
+    "@hookform/resolvers": "^5.2.2",
     "@livekit/components-core": "^0.12.13",
     "@livekit/components-react": "^2.9.20",
     "@livekit/krisp-noise-filter": "^0.3.4",
