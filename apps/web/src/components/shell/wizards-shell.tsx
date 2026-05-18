@@ -1208,7 +1208,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
 
   return (
     <div
-      className="app-shell flex h-[100dvh] overflow-hidden md:h-screen"
+      className="app-shell whispr-channel-shell flex h-[100dvh] overflow-hidden md:h-screen"
       style={shellStyle}
       suppressHydrationWarning
     >
@@ -1260,7 +1260,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
             initial={{ opacity: 0 }}
           >
             <div
-              className="absolute inset-0 bg-[hsl(var(--backdrop)/0.6)]"
+              className="absolute inset-0 bg-[hsl(var(--backdrop)/0.52)] backdrop-blur-sm"
               data-testid="mobile-workspace-drawer-backdrop"
               onClick={() => setMobileSidebarOpen(false)}
             />
@@ -1268,7 +1268,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
               animate={{ x: 0 }}
               aria-label={t("shell.mobile.workspaceNavigation")}
               aria-modal="true"
-              className="app-shell absolute inset-y-0 left-0 flex max-w-[100vw] overflow-hidden shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)]"
+              className="app-shell absolute inset-y-0 left-0 flex max-w-[100vw] overflow-hidden rounded-r-[30px] shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)]"
               data-testid="mobile-workspace-drawer"
               exit={{ x: -24 }}
               initial={{ x: -24 }}

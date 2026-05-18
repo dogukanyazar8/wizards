@@ -87,6 +87,10 @@
     "mtime": 1777980040.279281,
     "hash": "1e524776792d0596c6283f35e147bbd6"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\design\\whispr-chat-preview.spec.ts": {
+    "mtime": 1779116716.3398433,
+    "hash": "3df409761f6b866c6052ad072db7eeaf"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\message-interactions\\message-interactions.spec.ts": {
     "mtime": 1778011338.655213,
     "hash": "f3fe6abd9d8d7bfcffc9b578aa8684a7"
@@ -519,6 +523,10 @@
     "mtime": 1779082192.4509103,
     "hash": "3b203ff35a382aeceb14cf03c4a56720"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\design\\whispr-chat\\page.tsx": {
+    "mtime": 1779116716.3398433,
+    "hash": "faa9e014806c3aca1ad4b2ccf733cbad"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\invite\\[code]\\page.tsx": {
     "mtime": 1779082192.4519114,
     "hash": "8ca6a9e86fec6d429acc329c9fbf1445"
@@ -588,8 +596,8 @@
     "hash": "3495b71e084346c8a04ce33cfe27fd54"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\chat-area.tsx": {
-    "mtime": 1779082192.4554143,
-    "hash": "17eca88d534259187e6fea1f2aad8cf6"
+    "mtime": 1779116716.3431468,
+    "hash": "53711f740dc7c4df7625fd2e8836501d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\clear-channel-history-action.tsx": {
     "mtime": 1777382828.3728209,
@@ -624,8 +632,8 @@
     "hash": "b8547d01d43b2f749f0919bbb62e56f6"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\message-input.tsx": {
-    "mtime": 1778571009.038648,
-    "hash": "69cf1408ad603531d6962513b95aef66"
+    "mtime": 1779116716.3451498,
+    "hash": "a156994e5aa5a4076ca454bd501ec7a1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\message-item.tsx": {
     "mtime": 1778571009.0396478,
@@ -654,6 +662,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\chat\\typing-indicator.tsx": {
     "mtime": 1777164956.7291996,
     "hash": "8005fef45605da0cf56ba3f3ba62eff7"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\design\\whispr-chat-preview.tsx": {
+    "mtime": 1779116716.3451498,
+    "hash": "7867dd2d9a9139fdc9ac5227618f4208"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\desktop\\desktop-diagnostics-panel.tsx": {
     "mtime": 1779082192.4564211,
@@ -796,8 +808,8 @@
     "hash": "d3d00a0cfe353d7d4a30b31870790a41"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\main-channel-panel.tsx": {
-    "mtime": 1778571008.1232574,
-    "hash": "ff830d4b20566901c30a05e4cf89f101"
+    "mtime": 1779116716.3462927,
+    "hash": "70fc805b703c28fe40ae35260163d967"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\server-feature-toggle.tsx": {
     "mtime": 1777980040.3234186,
@@ -812,8 +824,8 @@
     "hash": "040a5b786ea7f70d2f63740c839df538"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\server-member-panel.tsx": {
-    "mtime": 1778582979.6598341,
-    "hash": "31d9e9581c6da0861b2c42372a57c7b9"
+    "mtime": 1779116716.3462927,
+    "hash": "e2c255d81c4806ee75216e5a9af7f0d8"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\server-rail.tsx": {
     "mtime": 1778233740.6043544,
@@ -828,8 +840,8 @@
     "hash": "f34de525f75314aba949d6e1a06277a8"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\wizards-shell.tsx": {
-    "mtime": 1779082192.4614208,
-    "hash": "506b17905397ac54da91ce1f3a5c6f5d"
+    "mtime": 1779116716.3462927,
+    "hash": "eeec8a5077138d9feb3f592c07137472"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\workspace-modals.tsx": {
     "mtime": 1778571008.1252582,
@@ -1012,8 +1024,8 @@
     "hash": "0eb021251290cac1d1717628d28baacf"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale.ts": {
-    "mtime": 1779097290.839142,
-    "hash": "53361cac693ae02daacc1b34e050f5fe"
+    "mtime": 1779116716.3462927,
+    "hash": "6bc38511a8e72436daf21d6b494f77d2"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\logger.test.ts": {
     "mtime": 1779082192.4940214,

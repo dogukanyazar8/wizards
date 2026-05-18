@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Users,
+  X,
 } from "lucide-react";
 import type {
   WorkspaceMember,
@@ -24,6 +25,8 @@ import { cn } from "@/lib/utils";
 
 type ServerMemberPanelProps = {
   detail: WorkspaceServerDetail;
+  onClose?: () => void;
+  variant?: "sidebar" | "drawer";
 };
 
 type MemberGroupKind = "owner" | "admin" | "role" | "member" | "offline" | "online";
@@ -382,9 +385,7 @@ function MemberRow({
 
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1.5">
-          <p className="truncate text-sm font-semibold text-app-foreground">
-            {member.displayName}
-          </p>
+          <p className="truncate text-sm font-semibold text-app-foreground">{member.displayName}</p>
           {role.kind === "owner" ? (
             <Crown className="h-3.5 w-3.5 shrink-0 text-amber-500" />
           ) : role.kind === "admin" ? (
@@ -489,7 +490,11 @@ function MemberSection({
   );
 }
 
-export function ServerMemberPanel({ detail }: ServerMemberPanelProps) {
+export function ServerMemberPanel({
+  detail,
+  onClose,
+  variant = "sidebar",
+}: ServerMemberPanelProps) {
   const { locale, t } = useI18n();
   const { memberPanelCollapsed, setMemberPanelCollapsed } = useAppStore(
     useShallow((state) => ({
@@ -510,9 +515,10 @@ export function ServerMemberPanel({ detail }: ServerMemberPanelProps) {
     }),
     [t],
   );
-  const roleById = useMemo(() => new Map(detail.roles.map((role) => [role.id, role])), [
-    detail.roles,
-  ]);
+  const roleById = useMemo(
+    () => new Map(detail.roles.map((role) => [role.id, role])),
+    [detail.roles],
+  );
   const { offlineGroup, onlineGroups } = useMemo(
     () =>
       buildMemberGroups({
@@ -557,33 +563,46 @@ export function ServerMemberPanel({ detail }: ServerMemberPanelProps) {
     setMemberPanelCollapsed(!memberPanelCollapsed);
     closePanelMenu();
   }, [closePanelMenu, memberPanelCollapsed, setMemberPanelCollapsed]);
+  const isDrawer = variant === "drawer";
+  const isCollapsed = !isDrawer && memberPanelCollapsed;
 
   return (
     <aside
       className={cn(
-        "hidden h-full shrink-0 border-l border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.74),hsl(var(--surface-soft)/0.34))] backdrop-blur-xl transition-[width,padding] duration-200 xl:flex xl:flex-col",
-        memberPanelCollapsed ? "w-[88px] p-3" : "w-[312px] p-4",
+        "h-full shrink-0 border-l border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.82),hsl(var(--surface-soft)/0.36))] backdrop-blur-xl transition-[width,padding] duration-200",
+        isDrawer ? "flex w-full flex-col p-4" : "hidden min-[1440px]:flex min-[1440px]:flex-col",
+        !isDrawer && (isCollapsed ? "w-[88px] p-3" : "w-[312px] p-4"),
       )}
-      data-testid="server-member-panel"
-      onContextMenu={handlePanelContextMenu}
+      data-testid={isDrawer ? "server-member-panel-drawer" : "server-member-panel"}
+      onContextMenu={isDrawer ? undefined : handlePanelContextMenu}
       suppressHydrationWarning
     >
+      {isDrawer && onClose ? (
+        <div className="mb-3 flex items-center justify-end">
+          <button
+            aria-label={t("common.close")}
+            className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-2xl border text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            onClick={onClose}
+            type="button"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ) : null}
+
       <div
         className={cn(
           "rounded-[30px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.66)] shadow-[0_22px_54px_hsl(var(--shadow-color)/0.08)]",
-          memberPanelCollapsed ? "p-2.5" : "p-4",
+          isCollapsed ? "p-2.5" : "p-4",
         )}
       >
         <div
-          className={cn(
-            "flex",
-            memberPanelCollapsed ? "flex-col items-center gap-2" : "items-center gap-3",
-          )}
+          className={cn("flex", isCollapsed ? "flex-col items-center gap-2" : "items-center gap-3")}
         >
           <div className="app-panel-soft flex h-12 w-12 items-center justify-center rounded-[20px] border">
             <Users className="h-5 w-5 text-app-foreground" />
           </div>
-          {memberPanelCollapsed ? (
+          {isCollapsed ? (
             <span className="rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.42)] px-2 py-0.5 text-[10px] font-bold text-app-muted">
               {detail.server.memberCount}
             </span>
@@ -605,12 +624,12 @@ export function ServerMemberPanel({ detail }: ServerMemberPanelProps) {
       <div
         className={cn(
           "mt-4 min-h-0 flex-1 overflow-y-auto",
-          memberPanelCollapsed ? "space-y-4 px-0.5" : "space-y-5 pr-1",
+          isCollapsed ? "space-y-4 px-0.5" : "space-y-5 pr-1",
         )}
       >
         {visibleGroups.map((group) => (
           <MemberSection
-            collapsed={memberPanelCollapsed}
+            collapsed={isCollapsed}
             emptyLabel={t("shell.memberPanel.emptyOnline")}
             group={group}
             key={group.key}
@@ -619,7 +638,7 @@ export function ServerMemberPanel({ detail }: ServerMemberPanelProps) {
           />
         ))}
         <MemberSection
-          collapsed={memberPanelCollapsed}
+          collapsed={isCollapsed}
           emptyLabel={t("shell.memberPanel.emptyOffline")}
           group={offlineGroup}
           roleById={roleById}
@@ -627,7 +646,7 @@ export function ServerMemberPanel({ detail }: ServerMemberPanelProps) {
         />
       </div>
 
-      <ContextMenu onClose={closePanelMenu} open={panelMenu.open} position={panelMenu}>
+      <ContextMenu onClose={closePanelMenu} open={!isDrawer && panelMenu.open} position={panelMenu}>
         <ContextMenuItem className="gap-2" onClick={toggleMemberPanelCollapsed}>
           {memberPanelCollapsed ? (
             <PanelRightOpen className="h-4 w-4" />
