@@ -3649,6 +3649,113 @@ h4 {
       );
   }
 
+  html.theme-light .whispr-channel-shell,
+  html.theme-dawn .whispr-channel-shell,
+  html.theme-lavender .whispr-channel-shell {
+    --surface-base: 228 43% 98%;
+    --surface-rail: 0 0% 100%;
+    --surface-panel: 225 50% 97%;
+    --surface-card: 0 0% 100%;
+    --surface-soft: 247 74% 95%;
+    --surface-main-top: 228 42% 98%;
+    --surface-main-bottom: 225 42% 97%;
+    --border: 225 31% 89%;
+    --primary: 248 78% 63%;
+    --ring: 248 78% 63%;
+    --text-secondary: 225 14% 43%;
+    --text-muted: 226 13% 66%;
+  }
+
+  .whispr-channel-shell {
+    background-image:
+      radial-gradient(circle at 16% 0%, hsl(var(--ambient-1) / 0.14), transparent 30%),
+      radial-gradient(circle at 100% 0%, hsl(var(--primary) / 0.08), transparent 26%),
+      linear-gradient(180deg, hsl(var(--surface-base)), hsl(var(--surface-main-bottom)));
+  }
+
+  .whispr-channel-shell .app-rail {
+    border-color: hsl(var(--border) / 0.68);
+    background: linear-gradient(
+      180deg,
+      hsl(var(--surface-card) / 0.92),
+      hsl(var(--surface-soft) / 0.42)
+    );
+    box-shadow: inset -1px 0 0 hsl(var(--background) / 0.46);
+  }
+
+  .whispr-channel-shell [data-testid="channel-sidebar"] {
+    border-color: hsl(var(--border) / 0.66);
+    background:
+      radial-gradient(circle at 58% 8%, hsl(var(--primary) / 0.12), transparent 24%),
+      linear-gradient(180deg, hsl(var(--surface-card) / 0.88), hsl(var(--surface-panel) / 0.92));
+  }
+
+  .whispr-channel-shell [data-main-panel-frame="true"] {
+    border-color: hsl(var(--border) / 0.78);
+    background: linear-gradient(
+      180deg,
+      hsl(var(--surface-card) / 0.96),
+      hsl(var(--surface-card) / 0.9)
+    );
+    box-shadow:
+      0 26px 68px hsl(var(--shadow-color) / 0.08),
+      inset 0 1px 0 hsl(var(--background) / 0.62);
+  }
+
+  .whispr-channel-shell [data-testid="chat-channel-header"] {
+    background: linear-gradient(
+      180deg,
+      hsl(var(--surface-card) / 0.9),
+      hsl(var(--surface-card) / 0.76)
+    );
+    box-shadow: 0 1px 0 hsl(var(--background) / 0.62);
+  }
+
+  .whispr-channel-shell [data-testid="message-list"] {
+    background:
+      radial-gradient(circle at 54% 0%, hsl(var(--primary) / 0.035), transparent 30%),
+      linear-gradient(180deg, hsl(var(--surface-card) / 0.18), hsl(var(--surface-card) / 0));
+    padding-inline: clamp(0.5rem, 1.2vw, 1rem);
+    padding-top: 0.75rem;
+  }
+
+  .whispr-channel-shell [data-testid="message-composer"] {
+    border-top-color: hsl(var(--border) / 0.58);
+    background: linear-gradient(
+      180deg,
+      hsl(var(--surface-card) / 0.24),
+      hsl(var(--surface-card) / 0.92)
+    );
+  }
+
+  .whispr-channel-shell [data-testid="server-member-panel"],
+  .whispr-channel-shell [data-testid="server-member-panel-drawer"] {
+    border-color: hsl(var(--border) / 0.7);
+    background: linear-gradient(
+      180deg,
+      hsl(var(--surface-card) / 0.86),
+      hsl(var(--surface-panel) / 0.82)
+    );
+  }
+
+  @media (max-width: 767px) {
+    .whispr-channel-shell [data-main-panel-frame="true"] {
+      border-left: 0;
+      border-right: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    .whispr-channel-shell [data-testid="chat-channel-header"] {
+      padding-left: 4rem;
+      padding-right: 0.5rem;
+    }
+
+    .whispr-channel-shell [data-testid="message-composer"] {
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    }
+  }
+
   .app-tooltip {
     border-color: hsl(var(--border) / 0.82);
     background-color: hsl(var(--surface-overlay) / 0.97);

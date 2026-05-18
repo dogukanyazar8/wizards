@@ -2,21 +2,26 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bold,
   Braces,
   ChartNoAxesColumnIncreasing,
   Code2,
+  Command,
   FileText,
   ImageIcon,
+  ImagePlus,
   Italic,
   List,
   ListOrdered,
   Loader2,
+  Mic,
   Paperclip,
+  Plus,
   Quote,
   Send,
+  Shield,
   Smile,
   Strikethrough,
   Underline,
@@ -64,6 +69,7 @@ interface MessageInputProps {
   mentionMembers?: WorkspaceMember[];
   uploadthingEnabled: boolean;
   maxLength?: number | null;
+  onStartVoiceMessage?: () => void;
   variant?: "default" | "thread";
 }
 
@@ -129,7 +135,123 @@ function getActiveMention(value: string, cursorIndex: number) {
   };
 }
 
-export function MessageInput({
+type ComposerButtonVariant = "primary" | "tool" | "ghost";
+
+type ComposerButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "title"> & {
+  active?: boolean;
+  icon?: React.ComponentType<{ className?: string }>;
+  label: string;
+  title?: string;
+  variant?: ComposerButtonVariant;
+};
+
+function ComposerButton({
+  active = false,
+  className,
+  children,
+  disabled,
+  icon: Icon,
+  label,
+  title,
+  type = "button",
+  variant = "tool",
+  ...props
+}: ComposerButtonProps) {
+  return (
+    <button
+      aria-label={label}
+      className={cn(
+        "group/composer-button inline-flex h-11 min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-2xl border text-sm font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:transition-transform",
+        variant === "primary"
+          ? "border-[hsl(var(--primary)/0.34)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.92),hsl(var(--primary))_52%,hsl(var(--ambient-1)/0.88))] text-white shadow-[0_16px_34px_hsl(var(--primary)/0.24),inset_0_1px_0_rgba(255,255,255,0.3)] hover:shadow-[0_20px_44px_hsl(var(--primary)/0.32),inset_0_1px_0_rgba(255,255,255,0.35)] motion-safe:hover:scale-[1.025]"
+          : variant === "ghost"
+            ? "border-transparent bg-transparent text-app-muted hover:bg-[hsl(var(--surface-soft)/0.64)] hover:text-app-foreground"
+            : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.92)] text-app-muted shadow-[0_8px_20px_hsl(var(--shadow-color)/0.045),inset_0_1px_0_hsl(var(--background)/0.62)] hover:border-[hsl(var(--primary)/0.24)] hover:bg-[hsl(var(--primary)/0.08)] hover:text-[hsl(var(--primary))]",
+        active &&
+          variant !== "primary" &&
+          "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.13)] text-[hsl(var(--primary))] shadow-[0_12px_26px_hsl(var(--primary)/0.12)]",
+        disabled && "motion-safe:hover:scale-100",
+        className,
+      )}
+      disabled={disabled}
+      title={title ?? label}
+      type={type}
+      {...props}
+    >
+      {Icon ? <Icon className="h-[18px] w-[18px]" aria-hidden="true" /> : null}
+      {children}
+    </button>
+  );
+}
+
+function ComposerActionSheet({
+  children,
+  onClose,
+  open,
+  title,
+}: {
+  children: React.ReactNode;
+  onClose: () => void;
+  open: boolean;
+  title: string;
+}) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-[80] md:hidden">
+      <button
+        aria-label={title}
+        className="absolute inset-0 cursor-default bg-[hsl(var(--backdrop)/0.38)] backdrop-blur-sm"
+        onClick={onClose}
+        type="button"
+      />
+      <div className="absolute inset-x-2 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.98)] p-3 shadow-[0_24px_60px_hsl(var(--shadow-color)/0.18)]">
+        <div className="mb-3 flex items-center justify-between gap-3 px-1">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-app-soft">{title}</p>
+          <button
+            aria-label={title}
+            className="rounded-full p-2 text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+            onClick={onClose}
+            type="button"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="grid grid-cols-4 gap-2">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+type AutoResizeTextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  formattingOpen?: boolean;
+  isThreadComposer?: boolean;
+};
+
+const AutoResizeTextarea = forwardRef<HTMLTextAreaElement, AutoResizeTextareaProps>(
+  function AutoResizeTextarea(
+    { className, formattingOpen = false, isThreadComposer = false, ...props },
+    ref,
+  ) {
+    return (
+      <textarea
+        ref={ref}
+        className={cn(
+          "message-font-scope max-h-[35dvh] min-h-11 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2.5 text-[15px] leading-6 text-app-foreground shadow-none placeholder-app-muted focus-visible:outline-none focus-visible:ring-0 md:max-h-40 md:px-3 md:py-2.5",
+          formattingOpen ? "rounded-b-[22px] rounded-t-none" : "rounded-[22px]",
+          isThreadComposer ? "max-h-[8.5rem]" : "",
+          className,
+        )}
+        rows={1}
+        {...props}
+      />
+    );
+  },
+);
+
+export function ChatComposer({
   conversationId,
   mode,
   autoFocus = false,
@@ -143,6 +265,7 @@ export function MessageInput({
   mentionMembers = [],
   uploadthingEnabled,
   maxLength = MAX_MESSAGE_LENGTH,
+  onStartVoiceMessage,
   variant = "default",
 }: MessageInputProps) {
   const { t } = useI18n();
@@ -156,6 +279,9 @@ export function MessageInput({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [showFormattingToolbar, setShowFormattingToolbar] = useState(false);
+  const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const [selectionIndex, setSelectionIndex] = useState(0);
   const [activeMentionIndex, setActiveMentionIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -169,16 +295,16 @@ export function MessageInput({
   const readyAttachmentDrafts = useMemo(
     () =>
       attachmentDrafts.filter(
-        (draft): draft is AttachmentDraft & {
+        (
+          draft,
+        ): draft is AttachmentDraft & {
           attachment: MessageAttachment;
           input: UploadedAttachmentInput;
         } => draft.status === "ready" && Boolean(draft.attachment) && Boolean(draft.input),
       ),
     [attachmentDrafts],
   );
-  const hasUploadingAttachments = attachmentDrafts.some(
-    (draft) => draft.status === "uploading",
-  );
+  const hasUploadingAttachments = attachmentDrafts.some((draft) => draft.status === "uploading");
   const disabledMessage = disabledReason ?? t("chat.input.disabled");
   const canSend =
     (content.trim().length > 0 || readyAttachmentDrafts.length > 0) &&
@@ -210,12 +336,25 @@ export function MessageInput({
   const formatButtonLabelClass = isThreadComposer ? "sr-only" : "hidden sm:inline";
   const compactToolButtonClass = cn(
     "inline-flex items-center justify-center gap-1.5 rounded-[14px] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card)/0.92)] text-[12.5px] font-semibold text-app-muted shadow-[0_8px_20px_hsl(var(--shadow-color)/0.04)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.24)] hover:bg-[hsl(var(--surface-card))] hover:text-app-foreground hover:shadow-[0_12px_26px_hsl(var(--shadow-color)/0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.44)] disabled:cursor-not-allowed disabled:opacity-55",
-    isThreadComposer
-      ? "h-9 w-9 px-0"
-      : "min-h-8 px-2.5 py-1.5 md:min-h-0",
+    isThreadComposer ? "h-9 w-9 px-0" : "min-h-8 px-2.5 py-1.5 md:min-h-0",
   );
   const formattingActionButtonClass =
     "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[13px] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card)/0.92)] px-2.5 py-1.5 text-[12.5px] font-bold text-app-muted shadow-[0_8px_18px_hsl(var(--shadow-color)/0.04)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.26)] hover:bg-[hsl(var(--primary)/0.07)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.4)] disabled:cursor-not-allowed disabled:opacity-50";
+  const composerHint = t("chat.input.sendHint");
+  const composerActionsTitle = t("chat.input.actions");
+
+  const resizeTextarea = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    const viewportHeight = typeof window === "undefined" ? 900 : Math.max(window.innerHeight, 480);
+    const maxHeight = isThreadComposer ? 136 : Math.min(160, viewportHeight * 0.35);
+
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+  }, [isThreadComposer]);
 
   const updateContentWithSelection = (
     nextContent: string,
@@ -232,6 +371,7 @@ export function MessageInput({
     window.requestAnimationFrame(() => {
       textareaRef.current?.focus({ preventScroll: true });
       textareaRef.current?.setSelectionRange(selectionStart, selectionEnd);
+      resizeTextarea();
     });
   };
 
@@ -308,11 +448,7 @@ export function MessageInput({
   };
 
   const insertCodeBlock = () => {
-    insertMarkdownWrap(
-      "```text\n",
-      "\n```",
-      t("chat.input.codeBlockFallback"),
-    );
+    insertMarkdownWrap("```text\n", "\n```", t("chat.input.codeBlockFallback"));
   };
 
   const insertPollTemplate = () => {
@@ -321,17 +457,13 @@ export function MessageInput({
     }
 
     const { end, start } = getCurrentSelection();
-    const needsLeadingBreak =
-      start > 0 && !content.slice(0, start).endsWith("\n") ? "\n\n" : "";
+    const needsLeadingBreak = start > 0 && !content.slice(0, start).endsWith("\n") ? "\n\n" : "";
     const pollTemplate = `${needsLeadingBreak}${t("chat.input.pollTemplate")}`;
     const nextContent = content.slice(0, start) + pollTemplate + content.slice(end);
     const questionOffset = pollTemplate.indexOf(t("chat.input.pollQuestion"));
-    const selectionStart =
-      start + (questionOffset >= 0 ? questionOffset : pollTemplate.length);
+    const selectionStart = start + (questionOffset >= 0 ? questionOffset : pollTemplate.length);
     const selectionEnd =
-      questionOffset >= 0
-        ? selectionStart + t("chat.input.pollQuestion").length
-        : selectionStart;
+      questionOffset >= 0 ? selectionStart + t("chat.input.pollQuestion").length : selectionStart;
 
     updateContentWithSelection(nextContent, selectionStart, selectionEnd);
   };
@@ -381,13 +513,7 @@ export function MessageInput({
       }, 3000);
     }
 
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${Math.min(
-        textareaRef.current.scrollHeight,
-        96,
-      )}px`;
-    }
+    resizeTextarea();
   };
 
   const insertMention = (member: WorkspaceMember) => {
@@ -397,9 +523,7 @@ export function MessageInput({
 
     const mentionText = `@${member.username} `;
     const nextContent =
-      content.slice(0, activeMention.start) +
-      mentionText +
-      content.slice(activeMention.end);
+      content.slice(0, activeMention.start) + mentionText + content.slice(activeMention.end);
     const nextCursor = activeMention.start + mentionText.length;
 
     setContent(nextContent);
@@ -409,6 +533,7 @@ export function MessageInput({
     window.requestAnimationFrame(() => {
       textareaRef.current?.focus();
       textareaRef.current?.setSelectionRange(nextCursor, nextCursor);
+      resizeTextarea();
     });
   };
 
@@ -676,8 +801,7 @@ export function MessageInput({
   };
 
   const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
-    const relatedTarget =
-      event.relatedTarget instanceof Node ? event.relatedTarget : null;
+    const relatedTarget = event.relatedTarget instanceof Node ? event.relatedTarget : null;
 
     if (relatedTarget && event.currentTarget.contains(relatedTarget)) {
       return;
@@ -724,6 +848,7 @@ export function MessageInput({
     clearAttachmentDrafts();
     setShowEmojiPicker(false);
     setShowGifPicker(false);
+    setIsActionSheetOpen(false);
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -738,7 +863,12 @@ export function MessageInput({
     stopTyping();
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const nativeEvent = event.nativeEvent as KeyboardEvent & { isComposing?: boolean };
+    if (isComposing || nativeEvent.isComposing) {
+      return;
+    }
+
     if (disabled) {
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
@@ -771,6 +901,12 @@ export function MessageInput({
       }
     }
 
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      handleSend();
+      return;
+    }
+
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       handleSend();
@@ -801,9 +937,27 @@ export function MessageInput({
     if (disabled) {
       setShowEmojiPicker(false);
       setShowGifPicker(false);
+      setIsActionSheetOpen(false);
+      setIsFocused(false);
       stopTyping();
     }
   }, [disabled, stopTyping]);
+
+  useEffect(() => {
+    if (!isActionSheetOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setIsActionSheetOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isActionSheetOpen]);
 
   useEffect(() => {
     if (!autoFocus || disabled) {
@@ -817,13 +971,119 @@ export function MessageInput({
     return () => window.cancelAnimationFrame(frameId);
   }, [autoFocus, conversationId, disabled, mode]);
 
+  const placeholder = disabled
+    ? disabledMessage
+    : mode === "dm"
+      ? t("dm.input.placeholder")
+      : t("chat.input.placeholder");
+
+  const characterCounter = hasFiniteMaxLength ? (
+    <span
+      className={cn(
+        "whitespace-nowrap text-xs font-semibold",
+        content.length > effectiveMaxLength * 0.9 ? "text-app-danger" : "text-app-muted",
+      )}
+    >
+      {`${content.length}/${effectiveMaxLength}`}
+    </span>
+  ) : (
+    <span className="inline-flex items-center rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.48)] px-2.5 py-1.5 text-[11px] font-semibold text-app-muted shadow-[inset_0_1px_0_hsl(var(--background)/0.55)]">
+      {t("chat.input.adminUnlimited")}
+    </span>
+  );
+
+  const composerShortcutHint = (
+    <span
+      aria-label={composerHint}
+      className="hidden min-w-0 items-center gap-2 whitespace-nowrap text-[11px] font-semibold text-app-muted xl:inline-flex"
+    >
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.48)] px-2.5 py-1.5 shadow-[inset_0_1px_0_hsl(var(--background)/0.55)]">
+        <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-0.5 font-sans text-[10px] font-black leading-none text-app-foreground shadow-sm">
+          Enter
+        </kbd>
+        <span>{t("chat.input.enterToSend")}</span>
+      </span>
+      <span className="h-1 w-1 rounded-full bg-[hsl(var(--border))]" aria-hidden="true" />
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.48)] px-2.5 py-1.5 shadow-[inset_0_1px_0_hsl(var(--background)/0.55)]">
+        <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-0.5 font-sans text-[10px] font-black leading-none text-app-foreground shadow-sm">
+          Shift
+        </kbd>
+        <span className="text-app-soft">+</span>
+        <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-0.5 font-sans text-[10px] font-black leading-none text-app-foreground shadow-sm">
+          Enter
+        </kbd>
+        <span>{t("chat.input.shiftEnterNewLine")}</span>
+      </span>
+    </span>
+  );
+
+  const openFilePicker = () => {
+    if (disabled) {
+      setAttachmentUploadError(disabledMessage);
+      return;
+    }
+
+    if (!allowFileUploads) {
+      setAttachmentUploadError(t("chat.attachments.disabled"));
+      return;
+    }
+
+    if (!uploadthingEnabled) {
+      setAttachmentUploadError(t("chat.attachments.uploadNotConfigured"));
+      return;
+    }
+
+    setIsActionSheetOpen(false);
+    fileInputRef.current?.click();
+  };
+
+  const toggleEmojiPicker = () => {
+    if (disabled) {
+      setAttachmentUploadError(disabledMessage);
+      return;
+    }
+
+    setIsActionSheetOpen(false);
+    setShowGifPicker(false);
+    setShowEmojiPicker((current) => !current);
+  };
+
+  const toggleGifPicker = () => {
+    if (disabled) {
+      setAttachmentUploadError(disabledMessage);
+      return;
+    }
+    if (!allowGifs) {
+      setAttachmentUploadError(t("chat.gifs.disabled"));
+      return;
+    }
+
+    setIsActionSheetOpen(false);
+    setShowEmojiPicker(false);
+    setShowGifPicker((current) => !current);
+  };
+
+  const insertSlashCommand = () => {
+    if (disabled) {
+      return;
+    }
+
+    const { end, start } = getCurrentSelection();
+    const nextContent = content.slice(0, start) + "/" + content.slice(end);
+    updateContentWithSelection(nextContent, start + 1);
+    setIsActionSheetOpen(false);
+  };
+
+  const actionSheetButtonClass =
+    "flex min-h-16 flex-col items-center justify-center gap-1 rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.94)] px-2 py-2 text-center text-[11px] font-bold text-app-muted shadow-[0_8px_18px_hsl(var(--shadow-color)/0.045)] transition hover:border-[hsl(var(--primary)/0.26)] hover:bg-[hsl(var(--primary)/0.08)] hover:text-[hsl(var(--primary))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-not-allowed disabled:opacity-55";
+
   return (
     <div
       className={cn(
-        "sticky bottom-0 z-20 border-t border-app-border bg-[hsl(var(--surface-card)/0.9)] backdrop-blur-xl md:static",
+        "sticky bottom-0 z-20 border-t border-[hsl(var(--border)/0.58)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.22),hsl(var(--surface-card)/0.92))] backdrop-blur-xl md:static",
         isThreadComposer
           ? "space-y-2 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:p-3"
-          : "space-y-3 p-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:p-4 md:pt-3",
+          : "space-y-3 p-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:p-4 md:pt-3",
       )}
       data-testid="message-composer"
       data-composer-variant={isThreadComposer ? "thread" : "default"}
@@ -836,10 +1096,10 @@ export function MessageInput({
 
       <div
         className={cn(
-          "relative border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.96)] shadow-[0_20px_54px_hsl(var(--shadow-color)/0.085),inset_0_1px_0_hsl(var(--background)/0.56)]",
-          isThreadComposer
-            ? "rounded-[22px] p-2"
-            : "rounded-[24px] p-2.5 md:rounded-[28px] md:p-3",
+          "relative border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.98)] shadow-[0_18px_52px_hsl(var(--shadow-color)/0.09),inset_0_1px_0_hsl(var(--background)/0.66)] transition-colors duration-150",
+          isFocused &&
+            "border-[hsl(var(--primary)/0.42)] shadow-[0_22px_58px_hsl(var(--primary)/0.12),inset_0_1px_0_hsl(var(--background)/0.7)]",
+          isThreadComposer ? "rounded-[22px] p-2" : "rounded-[24px] p-2.5 md:rounded-[30px] md:p-4",
         )}
       >
         {disabled ? (
@@ -950,11 +1210,25 @@ export function MessageInput({
 
         {attachmentUploadError ? (
           <div className="mb-3 rounded-2xl border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-xs font-medium text-[hsl(var(--danger))]">
-            <span data-testid="attachment-upload-error">
-            {attachmentUploadError}
-            </span>
+            <span data-testid="attachment-upload-error">{attachmentUploadError}</span>
           </div>
         ) : null}
+
+        <div className="relative z-40">
+          {showEmojiPicker ? (
+            <EmojiPicker
+              onSelect={(emoji) => {
+                setContent((current) => current + emoji);
+                setShowEmojiPicker(false);
+                window.requestAnimationFrame(resizeTextarea);
+              }}
+              onClose={() => setShowEmojiPicker(false)}
+            />
+          ) : null}
+          {showGifPicker && allowGifs && !disabled ? (
+            <GifPicker onClose={() => setShowGifPicker(false)} onSelect={handleGifSelect} />
+          ) : null}
+        </div>
 
         <div className="relative flex flex-col">
           <div className="relative flex-1">
@@ -991,9 +1265,7 @@ export function MessageInput({
                 <button
                   aria-label={t("chat.input.underline")}
                   className={formattingActionButtonClass}
-                  onClick={() =>
-                    insertMarkdownWrap("++", "++", t("chat.input.underlineFallback"))
-                  }
+                  onClick={() => insertMarkdownWrap("++", "++", t("chat.input.underlineFallback"))}
                   onMouseDown={(event) => event.preventDefault()}
                   type="button"
                 >
@@ -1010,9 +1282,7 @@ export function MessageInput({
                   type="button"
                 >
                   <Strikethrough className="h-4 w-4" />
-                  <span className="sr-only sm:not-sr-only">
-                    {t("chat.input.strikethrough")}
-                  </span>
+                  <span className="sr-only sm:not-sr-only">{t("chat.input.strikethrough")}</span>
                 </button>
                 <button
                   aria-label={t("chat.input.bulletedList")}
@@ -1079,13 +1349,17 @@ export function MessageInput({
                 </button>
               </div>
             ) : null}
-            <textarea
+            <AutoResizeTextarea
               ref={textareaRef}
               value={content}
               onChange={handleInput}
               onClick={(event) =>
                 setSelectionIndex(event.currentTarget.selectionStart ?? content.length)
               }
+              onCompositionEnd={() => setIsComposing(false)}
+              onCompositionStart={() => setIsComposing(true)}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
               onKeyDown={handleKeyDown}
               onKeyUp={(event) =>
                 setSelectionIndex(event.currentTarget.selectionStart ?? content.length)
@@ -1094,26 +1368,16 @@ export function MessageInput({
               onSelect={(event) =>
                 setSelectionIndex(event.currentTarget.selectionStart ?? content.length)
               }
-              placeholder={
-                disabled
-                  ? disabledMessage
-                  : mode === "dm"
-                    ? t("dm.input.placeholder")
-                    : t("chat.input.placeholder")
-              }
+              placeholder={placeholder}
               disabled={disabled}
               data-testid="message-input"
               className={cn(
-                "message-font-scope w-full resize-none border-0 bg-transparent px-4 py-3 pr-4 text-[15px] leading-7 text-app-foreground shadow-none placeholder-app-muted focus-visible:bg-[hsl(var(--surface-soft)/0.24)] focus-visible:outline-none focus-visible:ring-0",
-                showFormattingToolbar
-                  ? "rounded-b-[22px] rounded-t-none"
-                  : "rounded-[22px]",
-                isThreadComposer
-                  ? "max-h-[8.5rem] min-h-[4.75rem]"
-                  : "max-h-[12rem] min-h-[6.25rem] md:min-h-[6.75rem]",
+                "bg-[hsl(var(--surface-soft)/0.28)] pr-4 focus-visible:bg-[hsl(var(--surface-soft)/0.36)]",
+                isThreadComposer ? "min-h-[4.5rem]" : "min-h-[4.5rem] md:min-h-[4.75rem]",
               )}
+              formattingOpen={showFormattingToolbar}
+              isThreadComposer={isThreadComposer}
               maxLength={hasFiniteMaxLength ? effectiveMaxLength : undefined}
-              rows={1}
             />
 
             {activeMention && mode === "channel" && !disabled ? (
@@ -1185,11 +1449,48 @@ export function MessageInput({
                   type="file"
                 />
 
+                <ComposerButton
+                  aria-expanded={isActionSheetOpen}
+                  className={cn(
+                    isThreadComposer ? "h-10 min-h-10 min-w-10 rounded-xl" : "h-11 w-11",
+                  )}
+                  data-testid="message-file-button"
+                  disabled={disabled}
+                  icon={Plus}
+                  label={t("chat.attachments.attachFile")}
+                  onClick={() => {
+                    if (disabled) {
+                      setAttachmentUploadError(disabledMessage);
+                      return;
+                    }
+
+                    if (typeof window !== "undefined" && window.innerWidth < 768) {
+                      setIsActionSheetOpen((current) => !current);
+                      return;
+                    }
+
+                    if (!allowFileUploads) {
+                      setAttachmentUploadError(t("chat.attachments.disabled"));
+                      return;
+                    }
+
+                    openFilePicker();
+                  }}
+                  title={
+                    disabled
+                      ? disabledMessage
+                      : !allowFileUploads
+                        ? t("chat.attachments.disabled")
+                        : t("chat.attachments.attachFile")
+                  }
+                />
+
                 <button
                   aria-expanded={showFormattingToolbar}
                   aria-label={t("chat.input.toggleFormatting")}
                   className={cn(
                     compactToolButtonClass,
+                    "hidden md:inline-flex",
                     showFormattingToolbar
                       ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))] shadow-[0_12px_26px_hsl(var(--primary)/0.12)]"
                       : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted hover:text-app-foreground",
@@ -1204,15 +1505,6 @@ export function MessageInput({
                 </button>
 
                 <div className="relative inline-flex">
-                  {showEmojiPicker ? (
-                    <EmojiPicker
-                      onSelect={(emoji) => {
-                        setContent((current) => current + emoji);
-                        setShowEmojiPicker(false);
-                      }}
-                      onClose={() => setShowEmojiPicker(false)}
-                    />
-                  ) : null}
                   <button
                     onClick={() => {
                       if (disabled) {
@@ -1226,6 +1518,7 @@ export function MessageInput({
                     onPointerDown={(event) => event.stopPropagation()}
                     className={cn(
                       compactToolButtonClass,
+                      "hidden md:inline-flex",
                       "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted hover:text-app-foreground",
                     )}
                     aria-label={t("chat.input.openEmojiPicker")}
@@ -1241,16 +1534,11 @@ export function MessageInput({
                 </div>
 
                 <div className="relative inline-flex">
-                  {showGifPicker && allowGifs && !disabled ? (
-                    <GifPicker
-                      onClose={() => setShowGifPicker(false)}
-                      onSelect={handleGifSelect}
-                    />
-                  ) : null}
                   <button
                     aria-label={t("chat.gifs.openPicker")}
                     className={cn(
                       compactToolButtonClass,
+                      "hidden md:inline-flex",
                       "border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.26)] text-app-soft hover:border-[hsl(var(--primary)/0.38)] hover:text-app-foreground",
                     )}
                     data-testid="gif-picker-button"
@@ -1282,95 +1570,162 @@ export function MessageInput({
                     <span className={formatButtonLabelClass}>{t("chat.attachments.gif")}</span>
                   </button>
                 </div>
-
-                <button
-                  aria-label={t("chat.attachments.attachFile")}
-                  className={cn(
-                    compactToolButtonClass,
-                    "border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.26)] text-app-soft hover:border-[hsl(var(--primary)/0.38)] hover:text-app-foreground",
-                  )}
-                  data-testid="message-file-button"
-                  disabled={!allowFileUploads || disabled}
-                  onClick={() => {
-                    if (disabled) {
-                      setAttachmentUploadError(disabledMessage);
-                      return;
-                    }
-
-                    if (!allowFileUploads) {
-                      setAttachmentUploadError(t("chat.attachments.disabled"));
-                      return;
-                    }
-
-                    if (!uploadthingEnabled) {
-                      setAttachmentUploadError(t("chat.attachments.uploadNotConfigured"));
-                      return;
-                    }
-
-                    fileInputRef.current?.click();
-                  }}
-                  title={
-                    disabled
-                      ? disabledMessage
-                      : !allowFileUploads
-                      ? t("chat.attachments.disabled")
-                      : uploadthingEnabled
-                      ? t("chat.attachments.attachFile")
-                      : t("chat.attachments.uploadNotConfigured")
-                  }
-                  type="button"
-                >
-                  <Paperclip className="h-3.5 w-3.5" />
-                  <span className={formatButtonLabelClass}>
-                    {t("chat.attachments.attachFile")}
-                  </span>
-                </button>
               </div>
 
               <div
                 className={cn(
-                  "ml-auto flex items-center gap-3",
+                  "ml-auto flex min-w-0 items-center gap-2 md:gap-3",
                   isThreadComposer ? "w-full justify-between" : "",
                 )}
               >
-                <span
-                  className={cn(
-                    "whitespace-nowrap text-xs font-semibold",
-                    hasFiniteMaxLength && content.length > effectiveMaxLength * 0.9
-                      ? "text-app-danger"
-                      : "text-app-muted",
-                  )}
-                >
-                  {hasFiniteMaxLength
-                    ? `${content.length}/${effectiveMaxLength}`
-                    : t("chat.input.adminUnlimited")}
+                {!isThreadComposer ? composerShortcutHint : null}
+
+                <span className="hidden items-center gap-2 sm:inline-flex">
+                  {!hasFiniteMaxLength ? (
+                    <span
+                      aria-hidden="true"
+                      className="hidden h-1 w-1 rounded-full bg-[hsl(var(--border))] xl:inline-block"
+                    />
+                  ) : null}
+                  {characterCounter}
                 </span>
 
-                <button
-                  onClick={handleSend}
-                  disabled={disabled}
+                <ComposerButton
+                  className={cn(
+                    isThreadComposer ? "h-10 min-h-10 min-w-10 rounded-xl" : "h-11 w-11",
+                  )}
+                  disabled={disabled || !onStartVoiceMessage}
+                  icon={Mic}
+                  label={t("chat.input.voiceMessage")}
+                  onClick={onStartVoiceMessage}
+                  title={
+                    onStartVoiceMessage
+                      ? t("chat.input.voiceMessage")
+                      : t("chat.input.voiceMessageUnavailable")
+                  }
+                  variant="ghost"
+                />
+
+                <ComposerButton
                   aria-disabled={!canSend}
                   className={cn(
-                    "inline-flex items-center justify-center gap-2 rounded-[18px] border border-[hsl(var(--primary)/0.32)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.94),hsl(var(--primary))_50%,hsl(var(--ambient-1)/0.9))] px-4 text-sm font-extrabold text-white shadow-[0_16px_34px_hsl(var(--primary)/0.26),inset_0_1px_0_rgba(255,255,255,0.28)] ring-1 ring-white/20 transition hover:-translate-y-0.5 hover:scale-[1.012] hover:shadow-[0_20px_48px_hsl(var(--primary)/0.34),inset_0_1px_0_rgba(255,255,255,0.34)] hover:saturate-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.58)] disabled:cursor-not-allowed disabled:opacity-75",
-                    !canSend && !disabled ? "saturate-[0.92]" : "",
                     isThreadComposer
-                      ? "h-10 min-w-[8rem]"
-                      : "h-11 min-w-[9.25rem] md:min-w-[9.75rem]",
+                      ? "h-10 min-h-10 min-w-10 rounded-xl"
+                      : "h-11 w-11 md:h-12 md:w-12",
                   )}
-                  aria-label={t("chat.input.sendMessage")}
                   data-testid="message-send-button"
-                  type="button"
+                  disabled={!canSend}
+                  icon={Send}
+                  label={t("chat.input.sendMessage")}
+                  onClick={handleSend}
+                  variant="primary"
                 >
-                  <span className={isThreadComposer ? "inline" : "hidden sm:inline"}>
-                    {t("chat.input.sendMessage")}
-                  </span>
-                  <Send className="h-4 w-4" />
-                </button>
+                  <span className="sr-only">{t("chat.input.sendMessage")}</span>
+                </ComposerButton>
               </div>
             </div>
+
+            <ComposerActionSheet
+              onClose={() => setIsActionSheetOpen(false)}
+              open={isActionSheetOpen}
+              title={composerActionsTitle}
+            >
+              <button
+                className={actionSheetButtonClass}
+                data-testid="mobile-formatting-button"
+                onClick={() => {
+                  setShowFormattingToolbar((current) => !current);
+                  setIsActionSheetOpen(false);
+                }}
+                type="button"
+              >
+                <span className="text-sm font-black tracking-[-0.04em]">Aa</span>
+                <span>{t("chat.input.formatting")}</span>
+              </button>
+              <button
+                className={actionSheetButtonClass}
+                data-testid="mobile-emoji-picker-button"
+                disabled={disabled}
+                onClick={toggleEmojiPicker}
+                type="button"
+              >
+                <Smile className="h-5 w-5" />
+                <span>{t("chat.input.openEmojiPicker")}</span>
+              </button>
+              <button
+                className={actionSheetButtonClass}
+                data-testid="mobile-gif-picker-button"
+                disabled={!allowGifs || disabled}
+                onClick={toggleGifPicker}
+                type="button"
+              >
+                <ImageIcon className="h-5 w-5" />
+                <span>{t("chat.attachments.gif")}</span>
+              </button>
+              <button
+                className={actionSheetButtonClass}
+                data-testid="mobile-image-picker-button"
+                disabled={!allowFileUploads || disabled}
+                onClick={openFilePicker}
+                type="button"
+              >
+                <ImagePlus className="h-5 w-5" />
+                <span>{t("chat.attachments.image")}</span>
+              </button>
+              <button
+                className={actionSheetButtonClass}
+                data-testid="mobile-sticker-button"
+                disabled={disabled}
+                onClick={() => {
+                  insertPollTemplate();
+                  setIsActionSheetOpen(false);
+                }}
+                type="button"
+              >
+                <Shield className="h-5 w-5" />
+                <span>{t("chat.input.sticker")}</span>
+              </button>
+              <button
+                className={actionSheetButtonClass}
+                data-testid="mobile-code-button"
+                disabled={disabled}
+                onClick={() => {
+                  insertCodeBlock();
+                  setIsActionSheetOpen(false);
+                }}
+                type="button"
+              >
+                <Code2 className="h-5 w-5" />
+                <span>{t("chat.input.codeBlock")}</span>
+              </button>
+              <button
+                className={actionSheetButtonClass}
+                data-testid="mobile-slash-button"
+                disabled={disabled}
+                onClick={insertSlashCommand}
+                type="button"
+              >
+                <Command className="h-5 w-5" />
+                <span>{t("chat.input.slashCommands")}</span>
+              </button>
+              <button
+                className={actionSheetButtonClass}
+                data-testid="mobile-file-button"
+                disabled={!allowFileUploads || disabled}
+                onClick={openFilePicker}
+                type="button"
+              >
+                <Paperclip className="h-5 w-5" />
+                <span>{t("chat.attachments.file")}</span>
+              </button>
+            </ComposerActionSheet>
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+export function MessageInput(props: MessageInputProps) {
+  return <ChatComposer {...props} />;
 }
