@@ -21,7 +21,7 @@
     "format": "prettier --check ."
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^7.8.0",
     "bcryptjs": "^2.4.3"
   },
   "devDependencies": {
