@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import type { KrispNoiseFilterProcessor } from "@livekit/krisp-noise-filter";
+import type * as KrispNoiseFilterModule from "@livekit/krisp-noise-filter";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
   VoiceParticipantsContext,
@@ -33,6 +34,7 @@ import { VoiceInviteToasts } from "@/components/voice/voice-invite-toasts";
 import { WHISPR_DESKTOP_BEFORE_CLOSE_EVENT, isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import { logError } from "@/lib/logger";
 import { getSocket } from "@/lib/socket/client";
+import { collectVoiceAudioHealthFromSender } from "@/lib/voice/audio-health";
 import {
   isCameraDeviceUnavailable,
   isCameraPermissionDenied,
@@ -50,6 +52,7 @@ import {
   isCameraSupported,
   isLiveKitCloudUrl,
   isScreenShareSupported,
+  supportsMediaConstraint,
 } from "@/lib/voice/media-capabilities";
 import {
   applyRemoteAudioState,
@@ -74,11 +77,29 @@ import {
   type VoiceParticipantViewModel,
 } from "@/lib/voice/participant-view-model";
 import {
+  getVoicePerformanceErrorMetadata,
   getVoicePerformanceDurationMs,
   getVoicePerformanceNow,
   measureVoicePerformance,
   recordVoicePerformanceMetric,
 } from "@/lib/voice/performance";
+import {
+  getAudioCaptureProcessingProfile,
+  getBrowserNoiseFilterEnabled,
+  getKrispNoiseFilterTier,
+  isKrispNoiseFilterTier,
+  resolveNoiseFilterTier,
+  shouldUseEnhancedNoiseFilterCapture,
+  shouldUseKrispNoiseFilter,
+  type AudioCaptureProcessingProfile,
+  type KrispProcessorQuality,
+  type NoiseFilterTier,
+} from "@/lib/voice/noise-filter";
+import {
+  getFallbackKrispQuality,
+  getPreferredKrispQuality,
+  shouldPrewarmKrispProcessor,
+} from "@/lib/voice/krisp-quality";
 import {
   deleteVoiceState,
   fetchLiveKitToken,
@@ -114,16 +135,31 @@ import {
 const NEXT_PUBLIC_LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "";
 const RECONNECT_TIMEOUT_MS = 30_000;
 const MICROPHONE_HEALTH_CHECK_INTERVAL_MS = 2_500;
+const VOICE_AUDIO_HEALTH_METRICS_INTERVAL_MS = 30_000;
 const KRISP_PROCESSOR_NAME = "livekit-noise-filter";
-const PREFERRED_KRISP_QUALITY = "high";
-const FALLBACK_KRISP_QUALITY = "medium";
 const KRISP_BUFFER_DROP_MS = 300;
 const KRISP_BUFFER_OVERFLOW_MS = 200;
+
+let krispModulePromise: Promise<typeof KrispNoiseFilterModule> | null = null;
+
+function loadKrispModule() {
+  krispModulePromise ??= import("@livekit/krisp-noise-filter").catch((error) => {
+    krispModulePromise = null;
+    throw error;
+  });
+
+  return krispModulePromise;
+}
 
 export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const isDesktopRuntime = useMemo(isWhisprDesktopRuntime, []);
+  const preferredKrispQuality = useMemo(getPreferredKrispQuality, []);
+  const fallbackKrispQuality = useMemo(
+    () => getFallbackKrispQuality(preferredKrispQuality),
+    [preferredKrispQuality],
+  );
   const roomRef = useRef<Room | null>(null);
   const joinRequestRef = useRef<string | null>(null);
   const preparedMicrophoneAccessRef = useRef<boolean | null>(null);
@@ -145,6 +181,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     setTimeout,
   });
   const krispProcessorRef = useRef<KrispNoiseFilterProcessor | null>(null);
+  const krispProcessorQualityRef = useRef<KrispProcessorQuality | null>(null);
   const lastEmittedScreenShareStateRef = useRef<boolean | null>(null);
   const connectionWarningMessageRef = useRef<string | null>(null);
   const cleanupVoiceResourcesRef = useRef<() => void>(() => undefined);
@@ -167,6 +204,9 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const [isApplyingAudioPreferences, setIsApplyingAudioPreferences] = useState(false);
   const [isApplyingScreenShareQuality, setIsApplyingScreenShareQuality] = useState(false);
   const [isKrispNoiseCancellationActive, setIsKrispNoiseCancellationActive] = useState(false);
+  const [activeKrispQuality, setActiveKrispQuality] =
+    useState<KrispProcessorQuality | null>(null);
+  const [isVoiceIsolationSupported, setIsVoiceIsolationSupported] = useState(false);
   const [isRecoveringKrispNoiseCancellation, setIsRecoveringKrispNoiseCancellation] =
     useState(false);
 
@@ -210,6 +250,74 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     })),
   );
 
+  const resolveNoiseFilterTierForPreferences = useCallback(
+    (
+      preferences: VoiceAudioPreferences,
+      overrides: {
+        isKrispNoiseCancellationActive?: boolean;
+        krispQuality?: KrispProcessorQuality | null;
+      } = {},
+    ) =>
+      resolveNoiseFilterTier({
+        browserNoiseFilterEnabled: getBrowserNoiseFilterEnabled(
+          preferences,
+          isVoiceIsolationSupported,
+        ),
+        isKrispNoiseCancellationActive:
+          overrides.isKrispNoiseCancellationActive ?? isKrispNoiseCancellationActive,
+        krispQuality:
+          overrides.krispQuality === undefined ? activeKrispQuality : overrides.krispQuality,
+      }),
+    [activeKrispQuality, isKrispNoiseCancellationActive, isVoiceIsolationSupported],
+  );
+
+  const activeNoiseFilterTier = useMemo(
+    () => resolveNoiseFilterTierForPreferences(audioPreferences),
+    [audioPreferences, resolveNoiseFilterTierForPreferences],
+  );
+
+  const getAudioCaptureConfig = useCallback(
+    (
+      preferences: VoiceAudioPreferences,
+      options: { forceNativeProcessing?: boolean } = {},
+    ): {
+      enhancedNoiseFilterActive: boolean;
+      processingProfile: AudioCaptureProcessingProfile;
+    } => {
+      const liveKitCloudNoiseFilterAvailable =
+        !options.forceNativeProcessing &&
+        supportsLiveKitCloudNoiseCancellationRef.current &&
+        krispAvailability === "available";
+      const processingProfile = getAudioCaptureProcessingProfile(
+        preferences,
+        liveKitCloudNoiseFilterAvailable,
+        isVoiceIsolationSupported,
+      );
+
+      return {
+        enhancedNoiseFilterActive:
+          processingProfile === "enhanced" &&
+          shouldUseEnhancedNoiseFilterCapture(
+            preferences,
+            liveKitCloudNoiseFilterAvailable,
+            isVoiceIsolationSupported,
+          ),
+        processingProfile,
+      };
+    },
+    [isVoiceIsolationSupported, krispAvailability],
+  );
+
+  const recordNoiseFilterTierResolved = useCallback((tier: NoiseFilterTier) => {
+    recordVoicePerformanceMetric({
+      durationMs: 0,
+      operation: "noise_filter_tier_resolved",
+      result: "success",
+      runtime: "client",
+      tier,
+    });
+  }, []);
+
   useEffect(() => {
     if (!screenShareError) {
       return;
@@ -225,6 +333,64 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       window.clearTimeout(timeout);
     };
   }, [screenShareError]);
+
+  useEffect(() => {
+    if (!room || !isKrispNoiseFilterTier(activeNoiseFilterTier)) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const recordAudioHealth = async () => {
+      const localMicrophoneTrack = getLocalMicrophoneTrack(roomRef.current);
+
+      if (!isLocalMicrophoneTrackLive(localMicrophoneTrack) || !localMicrophoneTrack.sender) {
+        return;
+      }
+
+      try {
+        const metric = await collectVoiceAudioHealthFromSender(localMicrophoneTrack.sender);
+        if (cancelled || !metric) {
+          return;
+        }
+
+        recordVoicePerformanceMetric({
+          ...metric,
+          durationMs: 0,
+          operation: "krisp_audio_health",
+          result: "success",
+          runtime: "client",
+          tier: activeNoiseFilterTier,
+        });
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        recordVoicePerformanceMetric({
+          ...getVoicePerformanceErrorMetadata(error),
+          durationMs: 0,
+          operation: "krisp_audio_health",
+          result: "error",
+          runtime: "client",
+          tier: activeNoiseFilterTier,
+        });
+      }
+    };
+
+    const interval = window.setInterval(() => {
+      void recordAudioHealth();
+    }, VOICE_AUDIO_HEALTH_METRICS_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [activeNoiseFilterTier, room]);
+
+  useEffect(() => {
+    setIsVoiceIsolationSupported(supportsMediaConstraint("voiceIsolation"));
+  }, []);
 
   const clearReconnectTimeout = useCallback(() => {
     reconnectTimeoutControllerRef.current?.clear();
@@ -504,7 +670,13 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     }
 
     try {
-      const krispModule = await import("@livekit/krisp-noise-filter");
+      const krispModule = await measureVoicePerformance(
+        {
+          operation: "krisp_module_load",
+          runtime: "client",
+        },
+        loadKrispModule,
+      );
 
       if (!krispModule.isKrispNoiseFilterSupported()) {
         setKrispAvailability("unsupported_browser");
@@ -531,12 +703,13 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       krispProcessorRef.current = krispModule.KrispNoiseFilter({
         bufferDropMs: KRISP_BUFFER_DROP_MS,
         bufferOverflowMs: KRISP_BUFFER_OVERFLOW_MS,
-        quality: PREFERRED_KRISP_QUALITY,
+        quality: preferredKrispQuality,
       });
+      krispProcessorQualityRef.current = preferredKrispQuality;
     }
 
     return krispProcessorRef.current;
-  }, [ensureKrispSupport]);
+  }, [ensureKrispSupport, preferredKrispQuality]);
 
   const resetKrispProcessor = useCallback(async () => {
     if (krispProcessorRef.current) {
@@ -544,6 +717,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       krispProcessorRef.current = null;
     }
 
+    krispProcessorQualityRef.current = null;
+    setActiveKrispQuality(null);
     setIsKrispNoiseCancellationActive(false);
   }, []);
 
@@ -554,14 +729,19 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     }
 
     await resetKrispProcessor();
+    if (!fallbackKrispQuality) {
+      return null;
+    }
+
     krispProcessorRef.current = krispModule.KrispNoiseFilter({
       bufferDropMs: KRISP_BUFFER_DROP_MS,
       bufferOverflowMs: KRISP_BUFFER_OVERFLOW_MS,
-      quality: FALLBACK_KRISP_QUALITY,
+      quality: fallbackKrispQuality,
     });
+    krispProcessorQualityRef.current = fallbackKrispQuality;
 
     return krispProcessorRef.current;
-  }, [ensureKrispSupport, resetKrispProcessor]);
+  }, [ensureKrispSupport, fallbackKrispQuality, resetKrispProcessor]);
 
   const detachKrispNoiseCancellation = useCallback(
     async (track: LocalAudioTrack | null = getLocalMicrophoneTrack(roomRef.current)) => {
@@ -578,6 +758,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       }
 
       krispProcessorRef.current = null;
+      krispProcessorQualityRef.current = null;
+      setActiveKrispQuality(null);
       setIsKrispNoiseCancellationActive(false);
     },
     [],
@@ -590,43 +772,69 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         return false;
       }
 
-      const enableProcessor = async (processor: KrispNoiseFilterProcessor | null) => {
+      const enableProcessor = async (
+        processor: KrispNoiseFilterProcessor | null,
+        quality: KrispProcessorQuality,
+      ) => {
+        const tier = getKrispNoiseFilterTier(quality);
         if (!processor) {
           setIsKrispNoiseCancellationActive(false);
+          setActiveKrispQuality(null);
+          recordVoicePerformanceMetric({
+            durationMs: 0,
+            errorCode: "KRISP_PROCESSOR_UNAVAILABLE",
+            operation: "krisp_processor_attach",
+            result: "error",
+            runtime: "client",
+            tier,
+          });
           return false;
         }
 
-        const currentProcessor = track.getProcessor();
-        if (currentProcessor?.name === KRISP_PROCESSOR_NAME && currentProcessor !== processor) {
-          await track.stopProcessor().catch(() => undefined);
-        }
+        const isActive = await measureVoicePerformance(
+          {
+            operation: "krisp_processor_attach",
+            runtime: "client",
+            tier,
+          },
+          async () => {
+            const currentProcessor = track.getProcessor();
+            if (
+              currentProcessor?.name === KRISP_PROCESSOR_NAME &&
+              currentProcessor !== processor
+            ) {
+              await track.stopProcessor().catch(() => undefined);
+            }
 
-        if (track.getProcessor()?.name !== KRISP_PROCESSOR_NAME) {
-          await track.setProcessor(
-            processor as unknown as TrackProcessor<Track.Kind.Audio, AudioProcessorOptions>,
-          );
-        }
+            if (track.getProcessor()?.name !== KRISP_PROCESSOR_NAME) {
+              await track.setProcessor(
+                processor as unknown as TrackProcessor<Track.Kind.Audio, AudioProcessorOptions>,
+              );
+            }
 
-        const nextEnabled = await processor.setEnabled(true);
-        const isActive = nextEnabled ?? processor.isEnabled();
+            const nextEnabled = await processor.setEnabled(true);
+            return nextEnabled ?? processor.isEnabled();
+          },
+        );
         setIsKrispNoiseCancellationActive(isActive === true);
+        setActiveKrispQuality(isActive === true ? quality : null);
         setKrispAvailability("available");
         return isActive === true;
       };
 
       try {
         const processor = await getOrCreateKrispProcessor();
-        return await enableProcessor(processor);
+        return await enableProcessor(processor, preferredKrispQuality);
       } catch (error) {
         if (isLikelyKrispSecurityPolicyError(error)) {
           setKrispAvailability("blocked_by_security_policy");
         }
-        logError("[voice] High quality Krisp failed, retrying stable quality", error);
+        logError("[voice] Preferred Krisp quality failed, retrying stable quality", error);
       }
 
       try {
         const fallbackProcessor = await createFallbackKrispProcessor();
-        return await enableProcessor(fallbackProcessor);
+        return await enableProcessor(fallbackProcessor, fallbackKrispQuality ?? preferredKrispQuality);
       } catch (error) {
         // Krisp is an enhancement; keep the published microphone alive and fall back to WebRTC.
         logError("[voice] Krisp noise cancellation failed", error);
@@ -634,23 +842,80 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         setKrispAvailability(
           isLikelyKrispSecurityPolicyError(error) ? "blocked_by_security_policy" : "unavailable",
         );
+        recordVoicePerformanceMetric({
+          ...getVoicePerformanceErrorMetadata(error),
+          durationMs: 0,
+          operation: "krisp_processor_attach",
+          result: "error",
+          runtime: "client",
+          tier: getKrispNoiseFilterTier(fallbackKrispQuality ?? preferredKrispQuality),
+        });
         setIsKrispNoiseCancellationActive(false);
         return false;
       }
     },
-    [createFallbackKrispProcessor, detachKrispNoiseCancellation, getOrCreateKrispProcessor],
+    [
+      createFallbackKrispProcessor,
+      detachKrispNoiseCancellation,
+      fallbackKrispQuality,
+      getOrCreateKrispProcessor,
+      preferredKrispQuality,
+    ],
+  );
+
+  const syncNoiseFilterForTrack = useCallback(
+    async (
+      track: LocalAudioTrack,
+      preferences: VoiceAudioPreferences,
+    ): Promise<{
+      isKrispActive: boolean;
+      processingProfile: AudioCaptureProcessingProfile;
+    }> => {
+      const shouldEnableKrisp = shouldUseKrispNoiseFilter(
+        preferences,
+        supportsLiveKitCloudNoiseCancellationRef.current,
+      );
+      const isKrispActive = await syncKrispNoiseCancellation(track, shouldEnableKrisp);
+      const captureConfig = getAudioCaptureConfig(preferences);
+
+      if (!isKrispActive && captureConfig.enhancedNoiseFilterActive) {
+        const nativeCaptureConfig = getAudioCaptureConfig(preferences, {
+          forceNativeProcessing: true,
+        });
+        await track.restartTrack(
+          buildAudioCaptureOptions(preferences, {
+            enhancedNoiseFilterActive: nativeCaptureConfig.enhancedNoiseFilterActive,
+          }),
+        );
+
+        return {
+          isKrispActive: false,
+          processingProfile: nativeCaptureConfig.processingProfile,
+        };
+      }
+
+      return {
+        isKrispActive,
+        processingProfile: captureConfig.processingProfile,
+      };
+    },
+    [getAudioCaptureConfig, syncKrispNoiseCancellation],
   );
 
   const enableLocalMicrophone = useCallback(
     async (targetRoom: Room, preferences: VoiceAudioPreferences) => {
       try {
+        const captureConfig = getAudioCaptureConfig(preferences);
         await targetRoom.localParticipant.setMicrophoneEnabled(
           true,
-          buildAudioCaptureOptions(preferences),
+          buildAudioCaptureOptions(preferences, {
+            enhancedNoiseFilterActive: captureConfig.enhancedNoiseFilterActive,
+          }),
         );
 
         return {
           preferences,
+          processingProfile: captureConfig.processingProfile,
           track: getLocalMicrophoneTrack(targetRoom),
         };
       } catch (error) {
@@ -689,18 +954,22 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
           useVoiceStore.getState().setAudioPreference("voiceIsolation", false);
         }
 
+        const fallbackCaptureConfig = getAudioCaptureConfig(fallbackPreferences);
         await targetRoom.localParticipant.setMicrophoneEnabled(
           true,
-          buildAudioCaptureOptions(fallbackPreferences),
+          buildAudioCaptureOptions(fallbackPreferences, {
+            enhancedNoiseFilterActive: fallbackCaptureConfig.enhancedNoiseFilterActive,
+          }),
         );
 
         return {
           preferences: fallbackPreferences,
+          processingProfile: fallbackCaptureConfig.processingProfile,
           track: getLocalMicrophoneTrack(targetRoom),
         };
       }
     },
-    [],
+    [getAudioCaptureConfig],
   );
 
   const applyAudioPreferencesToRoom = useCallback(
@@ -723,7 +992,11 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         return;
       }
 
-      const nextSignature = getAudioCaptureRestartSignature(audioPreferences);
+      let activeCaptureConfig = getAudioCaptureConfig(audioPreferences);
+      const nextSignature = getAudioCaptureRestartSignature(
+        audioPreferences,
+        activeCaptureConfig.processingProfile,
+      );
       const shouldRestartCapture = appliedAudioPreferencesSignatureRef.current !== nextSignature;
 
       setIsApplyingAudioPreferences(true);
@@ -731,7 +1004,11 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       try {
         if (shouldRestartCapture) {
           try {
-            await localMicrophoneTrack.restartTrack(buildAudioCaptureOptions(audioPreferences));
+            await localMicrophoneTrack.restartTrack(
+              buildAudioCaptureOptions(audioPreferences, {
+                enhancedNoiseFilterActive: activeCaptureConfig.enhancedNoiseFilterActive,
+              }),
+            );
             appliedAudioPreferencesSignatureRef.current = nextSignature;
           } catch (error) {
             const shouldRetryWithDefaultDevice =
@@ -771,22 +1048,39 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
               useVoiceStore.getState().setAudioPreference("voiceIsolation", false);
             }
 
-            await localMicrophoneTrack.restartTrack(buildAudioCaptureOptions(fallbackPreferences));
+            const fallbackCaptureConfig = getAudioCaptureConfig(fallbackPreferences);
+            await localMicrophoneTrack.restartTrack(
+              buildAudioCaptureOptions(fallbackPreferences, {
+                enhancedNoiseFilterActive: fallbackCaptureConfig.enhancedNoiseFilterActive,
+              }),
+            );
             appliedAudioPreferencesSignatureRef.current =
-              getAudioCaptureRestartSignature(fallbackPreferences);
+              getAudioCaptureRestartSignature(
+                fallbackPreferences,
+                fallbackCaptureConfig.processingProfile,
+              );
+            activeCaptureConfig = fallbackCaptureConfig;
           }
         }
 
-        await syncKrispNoiseCancellation(
+        const syncedNoiseFilter = await syncNoiseFilterForTrack(
           localMicrophoneTrack,
-          audioPreferences.krispNoiseCancellation,
+          audioPreferences,
+        );
+        activeCaptureConfig = {
+          ...activeCaptureConfig,
+          processingProfile: syncedNoiseFilter.processingProfile,
+        };
+        appliedAudioPreferencesSignatureRef.current = getAudioCaptureRestartSignature(
+          audioPreferences,
+          activeCaptureConfig.processingProfile,
         );
         syncParticipants(targetRoom);
       } finally {
         setIsApplyingAudioPreferences(false);
       }
     },
-    [audioPreferences, syncKrispNoiseCancellation, syncParticipants],
+    [audioPreferences, getAudioCaptureConfig, syncNoiseFilterForTrack, syncParticipants],
   );
 
   const ensureLocalMicrophonePublished = useCallback(
@@ -827,25 +1121,28 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
             return false;
           }
 
-          const { preferences, track: localMicrophoneTrack } = await enableLocalMicrophone(
-            targetRoom,
-            useVoiceStore.getState().audioPreferences,
-          );
+          const {
+            preferences,
+            processingProfile,
+            track: localMicrophoneTrack,
+          } = await enableLocalMicrophone(targetRoom, useVoiceStore.getState().audioPreferences);
 
           if (roomRef.current !== targetRoom) {
             await stopLocalTracks(targetRoom).catch(() => undefined);
             return false;
           }
 
+          let nextProcessingProfile = processingProfile;
           if (localMicrophoneTrack) {
-            await syncKrispNoiseCancellation(
+            const syncedNoiseFilter = await syncNoiseFilterForTrack(
               localMicrophoneTrack,
-              preferences.krispNoiseCancellation,
+              preferences,
             );
+            nextProcessingProfile = syncedNoiseFilter.processingProfile;
           }
 
           appliedAudioPreferencesSignatureRef.current =
-            getAudioCaptureRestartSignature(preferences);
+            getAudioCaptureRestartSignature(preferences, nextProcessingProfile);
           useVoiceStore.getState().setMuted(false);
           setErrorMessage(null);
           syncParticipants(targetRoom);
@@ -891,7 +1188,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       enableLocalMicrophone,
       isDesktopRuntime,
       requestMicrophonePermission,
-      syncKrispNoiseCancellation,
+      syncNoiseFilterForTrack,
       syncParticipants,
       t,
     ],
@@ -935,9 +1232,16 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         return krispModule !== null;
       }
 
-      const isActive = await syncKrispNoiseCancellation(localMicrophoneTrack, true);
+      const syncedNoiseFilter = await syncNoiseFilterForTrack(
+        localMicrophoneTrack,
+        useVoiceStore.getState().audioPreferences,
+      );
+      appliedAudioPreferencesSignatureRef.current = getAudioCaptureRestartSignature(
+        useVoiceStore.getState().audioPreferences,
+        syncedNoiseFilter.processingProfile,
+      );
       syncParticipants(activeRoom);
-      return isActive;
+      return syncedNoiseFilter.isKrispActive;
     } finally {
       setIsRecoveringKrispNoiseCancellation(false);
     }
@@ -945,9 +1249,35 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     ensureKrispSupport,
     ensureLocalMicrophonePublished,
     resetKrispProcessor,
-    syncKrispNoiseCancellation,
+    syncNoiseFilterForTrack,
     syncParticipants,
   ]);
+
+  const preloadVoiceProcessing = useCallback(async () => {
+    if (
+      !shouldUseKrispNoiseFilter(
+        useVoiceStore.getState().audioPreferences,
+        supportsLiveKitCloudNoiseCancellationRef.current,
+      )
+    ) {
+      if (!supportsLiveKitCloudNoiseCancellationRef.current) {
+        setKrispAvailability("requires_livekit_cloud");
+        return false;
+      }
+      return true;
+    }
+
+    const krispModule = await ensureKrispSupport();
+    if (!krispModule) {
+      return false;
+    }
+
+    if (shouldPrewarmKrispProcessor()) {
+      await getOrCreateKrispProcessor();
+    }
+
+    return true;
+  }, [ensureKrispSupport, getOrCreateKrispProcessor]);
 
   const setActiveScreenShareId = useCallback((id: string) => {
     setActiveScreenShareIdState(id);
@@ -1401,8 +1731,11 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
 
       const sessionId = crypto.randomUUID();
       let voiceStateCreated = false;
+      const initialCaptureConfig = getAudioCaptureConfig(currentState.audioPreferences);
       const nextRoom = new Room({
-        audioCaptureDefaults: buildAudioCaptureOptions(currentState.audioPreferences),
+        audioCaptureDefaults: buildAudioCaptureOptions(currentState.audioPreferences, {
+          enhancedNoiseFilterActive: initialCaptureConfig.enhancedNoiseFilterActive,
+        }),
       });
       roomRef.current = nextRoom;
       setRoom(nextRoom);
@@ -1548,6 +1881,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
 
         if (!hasMicrophoneAccess) {
           setIsKrispNoiseCancellationActive(false);
+          setActiveKrispQuality(null);
+          recordNoiseFilterTierResolved("off");
           setErrorMessage(microphoneDeniedMessage);
           syncRoomParticipants();
           return;
@@ -1555,26 +1890,39 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
 
         if (shouldStartMuted) {
           setIsKrispNoiseCancellationActive(false);
+          setActiveKrispQuality(null);
+          recordNoiseFilterTierResolved("off");
           setErrorMessage(null);
           syncRoomParticipants();
           return;
         }
 
         void enableLocalMicrophone(nextRoom, useVoiceStore.getState().audioPreferences)
-          .then(async ({ preferences, track: localMicrophoneTrack }) => {
+          .then(async ({ preferences, processingProfile, track: localMicrophoneTrack }) => {
             if (roomRef.current !== nextRoom) {
               await stopLocalTracks(nextRoom).catch(() => undefined);
               return;
             }
 
+            let nextProcessingProfile = processingProfile;
+            let resolvedTier: NoiseFilterTier = "off";
             if (localMicrophoneTrack) {
-              await syncKrispNoiseCancellation(
+              const syncedNoiseFilter = await syncNoiseFilterForTrack(
                 localMicrophoneTrack,
-                preferences.krispNoiseCancellation,
+                preferences,
               );
+              const isKrispActive = syncedNoiseFilter.isKrispActive;
+              nextProcessingProfile = syncedNoiseFilter.processingProfile;
+              resolvedTier = resolveNoiseFilterTierForPreferences(preferences, {
+                isKrispNoiseCancellationActive: isKrispActive,
+                krispQuality: isKrispActive ? krispProcessorQualityRef.current : null,
+              });
             }
-            appliedAudioPreferencesSignatureRef.current =
-              getAudioCaptureRestartSignature(preferences);
+            recordNoiseFilterTierResolved(resolvedTier);
+            appliedAudioPreferencesSignatureRef.current = getAudioCaptureRestartSignature(
+              preferences,
+              nextProcessingProfile,
+            );
             setErrorMessage(null);
             useVoiceStore.getState().setMuted(false);
             syncRoomParticipants();
@@ -1595,6 +1943,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
             }
 
             setIsKrispNoiseCancellationActive(false);
+            setActiveKrispQuality(null);
+            recordNoiseFilterTierResolved("off");
             useVoiceStore.getState().setMuted(true);
             setErrorMessage(
               isMicrophonePermissionDenied(error)
@@ -1659,15 +2009,18 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       clearReconnectTimeout,
       enableLocalMicrophone,
       ensureLocalMicrophonePublished,
+      getAudioCaptureConfig,
       isDesktopRuntime,
       krispAvailability,
       leaveChannel,
+      recordNoiseFilterTierResolved,
       resetKrispProcessor,
       requestMicrophonePermission,
+      resolveNoiseFilterTierForPreferences,
       startHeartbeat,
       stopHeartbeat,
       setConnectionWarning,
-      syncKrispNoiseCancellation,
+      syncNoiseFilterForTrack,
       syncParticipants,
       syncScreenShares,
       t,
@@ -1717,17 +2070,23 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       }
 
       try {
-        const { preferences, track: localMicrophoneTrack } = await enableLocalMicrophone(
-          activeRoom,
-          nextAudioPreferences,
-        );
+        const {
+          preferences,
+          processingProfile,
+          track: localMicrophoneTrack,
+        } = await enableLocalMicrophone(activeRoom, nextAudioPreferences);
+        let nextProcessingProfile = processingProfile;
         if (localMicrophoneTrack) {
-          await syncKrispNoiseCancellation(
+          const syncedNoiseFilter = await syncNoiseFilterForTrack(
             localMicrophoneTrack,
-            preferences.krispNoiseCancellation,
+            preferences,
           );
+          nextProcessingProfile = syncedNoiseFilter.processingProfile;
         }
-        appliedAudioPreferencesSignatureRef.current = getAudioCaptureRestartSignature(preferences);
+        appliedAudioPreferencesSignatureRef.current = getAudioCaptureRestartSignature(
+          preferences,
+          nextProcessingProfile,
+        );
         setErrorMessage(null);
       } catch (error) {
         if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(activeRoom))) {
@@ -1759,7 +2118,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     isDesktopRuntime,
     enableLocalMicrophone,
     requestMicrophonePermission,
-    syncKrispNoiseCancellation,
+    syncNoiseFilterForTrack,
     syncParticipants,
     t,
   ]);
@@ -1789,21 +2148,37 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     }
 
     let cancelled = false;
+    let idleCallbackId: number | null = null;
+    let timeoutId: number | null = null;
 
-    void ensureKrispSupport().then((module) => {
-      if (cancelled) {
-        return;
-      }
+    const preload = () => {
+      void preloadVoiceProcessing().then((loaded) => {
+        if (cancelled) {
+          return;
+        }
 
-      if (!module && krispAvailability === "checking") {
-        setKrispAvailability("unavailable");
-      }
-    });
+        if (!loaded && krispAvailability === "checking") {
+          setKrispAvailability("unavailable");
+        }
+      });
+    };
+
+    if (typeof window.requestIdleCallback === "function") {
+      idleCallbackId = window.requestIdleCallback(preload, { timeout: 3_000 });
+    } else {
+      timeoutId = window.setTimeout(preload, 1_200);
+    }
 
     return () => {
       cancelled = true;
+      if (idleCallbackId !== null && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleCallbackId);
+      }
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
     };
-  }, [ensureKrispSupport, krispAvailability]);
+  }, [krispAvailability, preloadVoiceProcessing]);
 
   useEffect(() => {
     const activeRoom = roomRef.current;
@@ -1954,6 +2329,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const voiceStateValue = useMemo<VoiceStateContextValue>(
     () => ({
       activeChannelId,
+      activeNoiseFilterTier,
       audioPreferences,
       cameraError,
       cameraStatus,
@@ -1981,6 +2357,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       setParticipantVolume: useVoiceStore.getState().setParticipantVolume,
       setScreenShareQuality,
       retryKrispNoiseCancellation,
+      preloadVoiceProcessing,
       prepareForVoiceJoin,
       joinChannel,
       leaveChannel,
@@ -1994,6 +2371,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     [
       activeChannelId,
       activeScreenShareId,
+      activeNoiseFilterTier,
       audioPreferences,
       cameraError,
       cameraStatus,
@@ -2011,6 +2389,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       joinChannel,
       krispAvailability,
       leaveChannel,
+      preloadVoiceProcessing,
       prepareForVoiceJoin,
       room,
       retryKrispNoiseCancellation,

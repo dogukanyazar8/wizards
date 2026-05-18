@@ -7,6 +7,10 @@ import {
   normalizeScreenShareQualityId,
   type ScreenShareQualityId,
 } from "@/lib/voice/screen-share";
+import {
+  isEnhancedNoiseFilterMode,
+  type EnhancedNoiseFilterMode,
+} from "@/lib/voice/noise-filter";
 
 export const DEFAULT_PARTICIPANT_VOLUME = 100;
 export const MAX_PARTICIPANT_VOLUME = 100;
@@ -18,6 +22,7 @@ export const VOICE_PREFERENCES_STORAGE_KEY = "wizards-voice";
 export interface VoiceAudioPreferences {
   autoGainControl: boolean;
   echoCancellation: boolean;
+  enhancedNoiseFilterMode: EnhancedNoiseFilterMode;
   inputDeviceId: string;
   krispNoiseCancellation: boolean;
   noiseSuppression: boolean;
@@ -28,6 +33,7 @@ export interface VoiceAudioPreferences {
 export const DEFAULT_VOICE_AUDIO_PREFERENCES: VoiceAudioPreferences = {
   autoGainControl: true,
   echoCancellation: true,
+  enhancedNoiseFilterMode: "layered",
   inputDeviceId: DEFAULT_AUDIO_DEVICE_ID,
   krispNoiseCancellation: true,
   noiseSuppression: true,
@@ -89,6 +95,9 @@ export function sanitizeAudioPreferences(value: unknown): VoiceAudioPreferences 
       typeof value.echoCancellation === "boolean"
         ? value.echoCancellation
         : DEFAULT_VOICE_AUDIO_PREFERENCES.echoCancellation,
+    enhancedNoiseFilterMode: isEnhancedNoiseFilterMode(value.enhancedNoiseFilterMode)
+      ? value.enhancedNoiseFilterMode
+      : DEFAULT_VOICE_AUDIO_PREFERENCES.enhancedNoiseFilterMode,
     inputDeviceId:
       typeof value.inputDeviceId === "string" && value.inputDeviceId.trim()
         ? value.inputDeviceId

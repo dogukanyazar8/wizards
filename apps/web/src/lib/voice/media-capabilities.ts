@@ -10,6 +10,7 @@ import {
   type VoiceAudioPreferences,
   type VoiceCameraPreferences,
 } from "@/store/voice-store";
+import type { AudioCaptureProcessingProfile } from "@/lib/voice/noise-filter";
 
 export async function getMicrophonePermissionState() {
   if (typeof navigator === "undefined" || !("permissions" in navigator)) {
@@ -50,16 +51,20 @@ export function supportsMediaConstraint(name: string) {
 
 export function buildAudioCaptureOptions(
   audioPreferences: VoiceAudioPreferences,
+  captureProcessing: { enhancedNoiseFilterActive?: boolean } = {},
 ): AudioCaptureOptions {
+  const enhancedNoiseFilterActive = captureProcessing.enhancedNoiseFilterActive === true;
   const options: AudioCaptureOptions = {
     autoGainControl: audioPreferences.autoGainControl,
     channelCount: { ideal: 1 },
     echoCancellation: audioPreferences.echoCancellation,
-    noiseSuppression: audioPreferences.noiseSuppression,
+    noiseSuppression: enhancedNoiseFilterActive ? false : audioPreferences.noiseSuppression,
     // Keep advanced browser cleanup as a preference, not a hard requirement.
     // Unsupported or unavailable implementations should not block microphone access.
     voiceIsolation:
-      audioPreferences.voiceIsolation && supportsMediaConstraint("voiceIsolation")
+      !enhancedNoiseFilterActive &&
+      audioPreferences.voiceIsolation &&
+      supportsMediaConstraint("voiceIsolation")
         ? { ideal: true }
         : false,
   };
@@ -87,6 +92,16 @@ export function buildCameraCaptureOptions(
   return options;
 }
 
-export function getAudioCaptureRestartSignature(audioPreferences: VoiceAudioPreferences) {
-  return audioPreferences.inputDeviceId;
+export function getAudioCaptureRestartSignature(
+  audioPreferences: VoiceAudioPreferences,
+  processingProfile: AudioCaptureProcessingProfile = "native",
+) {
+  return [
+    audioPreferences.inputDeviceId,
+    audioPreferences.noiseSuppression ? "ns" : "no-ns",
+    audioPreferences.echoCancellation ? "ec" : "no-ec",
+    audioPreferences.autoGainControl ? "agc" : "no-agc",
+    audioPreferences.voiceIsolation ? "vi" : "no-vi",
+    processingProfile,
+  ].join("::");
 }
