@@ -33,6 +33,23 @@ function formatBuildId(buildId: string) {
   return buildId.trim() || "unknown";
 }
 
+function isTranslationKey(value: string) {
+  return /^[a-z][a-z0-9]*(?:\.[a-zA-Z0-9_-]+)+$/.test(value);
+}
+
+function translateUpdateText(
+  t: (key: string, values?: Record<string, number | string>) => string,
+  key: string,
+  fallback: string | undefined,
+) {
+  const translated = t(key);
+  if (translated !== key) {
+    return translated;
+  }
+
+  return isTranslationKey(key) ? fallback ?? key : key;
+}
+
 export function AppUpdateNotifier() {
   const { t } = useI18n();
   const [latestVersion, setLatestVersion] = useState<WhisprVersionPayload | null>(null);
@@ -194,22 +211,28 @@ export function AppUpdateNotifier() {
               </span>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
-              {latestVersion.notes.map((note) => (
-                <article
-                  className="rounded-[22px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--background)/0.72)] p-4 shadow-[0_12px_32px_hsl(var(--foreground)/0.06)]"
-                  key={note.id}
-                >
-                  <p className="text-[0.68rem] font-black uppercase tracking-[0.24em] text-[hsl(var(--primary))]">
-                    {t(note.categoryKey)}
-                  </p>
-                  <h3 className="mt-2 text-sm font-black text-app-foreground">
-                    {t(note.titleKey)}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-app-muted">
-                    {t(note.descriptionKey)}
-                  </p>
-                </article>
-              ))}
+              {latestVersion.notes.map((note) => {
+                const category = translateUpdateText(t, note.categoryKey, note.fallbackCategory);
+                const title = translateUpdateText(t, note.titleKey, note.fallbackTitle);
+                const description = translateUpdateText(
+                  t,
+                  note.descriptionKey,
+                  note.fallbackDescription,
+                );
+
+                return (
+                  <article
+                    className="rounded-[22px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--background)/0.72)] p-4 shadow-[0_12px_32px_hsl(var(--foreground)/0.06)]"
+                    key={note.id}
+                  >
+                    <p className="text-[0.68rem] font-black uppercase tracking-[0.24em] text-[hsl(var(--primary))]">
+                      {category}
+                    </p>
+                    <h3 className="mt-2 text-sm font-black text-app-foreground">{title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-app-muted">{description}</p>
+                  </article>
+                );
+              })}
             </div>
           </div>
         ) : null}

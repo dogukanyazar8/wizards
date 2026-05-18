@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { assertVoiceChannelCapacity, type VoiceCapacityDelegate } from "./capacity";
 import {
   acquireVoiceCleanupLock,
   acquireVoiceJoinLocks,
@@ -15,6 +16,7 @@ import {
   shouldAttemptVoiceCleanup,
   VOICE_CLEANUP_LOCK_KEY,
 } from "./service";
+import { MAX_VOICE_PARTICIPANTS } from "./types";
 
 type UpsertMutationInput = Parameters<typeof runVoiceStateUpsertMutation>[0];
 type VoiceStateUpsertCall = Parameters<UpsertMutationInput["tx"]["voiceState"]["upsert"]>[0];
@@ -25,6 +27,7 @@ type ExistingVoiceState = Awaited<
 type ClearMutationInput = Parameters<typeof runVoiceStateClearMutation>[0];
 type VoiceStateClearRecord = Awaited<ReturnType<ClearMutationInput["voiceState"]["findUnique"]>>;
 type VoiceStateDeleteManyCall = Parameters<ClearMutationInput["voiceState"]["deleteMany"]>[0];
+type VoiceCapacityCountCall = Parameters<VoiceCapacityDelegate["count"]>[0];
 
 class MemoryVoiceJoinRedis {
   readonly evalCalls: Array<{
@@ -119,6 +122,52 @@ describe("voice service concurrency helpers", () => {
     });
 
     assert.equal(channelLock?.key, "voice:join:lock:voice-channel");
+  });
+
+  it("checks voice capacity from voice state while excluding the current user", async () => {
+    const countCalls: VoiceCapacityCountCall[] = [];
+    const voiceState: VoiceCapacityDelegate = {
+      async count(args) {
+        countCalls.push(args);
+        return MAX_VOICE_PARTICIPANTS - 1;
+      },
+    };
+
+    await assertVoiceChannelCapacity({
+      channelId: "channel-1",
+      userId: "user-1",
+      voiceState,
+    });
+
+    assert.deepEqual(countCalls, [
+      {
+        where: {
+          channelId: "channel-1",
+          NOT: { userId: "user-1" },
+        },
+      },
+    ]);
+  });
+
+  it("rejects a voice join when the channel already has the maximum other participants", async () => {
+    await assert.rejects(
+      () =>
+        assertVoiceChannelCapacity({
+          channelId: "channel-1",
+          userId: "user-1",
+          voiceState: {
+            async count() {
+              return MAX_VOICE_PARTICIPANTS;
+            },
+          },
+        }),
+      (error) => {
+        assert.ok(error instanceof Error);
+        assert.equal(error.message, "Voice channel is full");
+        assert.equal("code" in error ? error.code : undefined, "ROOM_FULL");
+        return true;
+      },
+    );
   });
 
   it("rejects stale leave requests from older voice sessions", () => {

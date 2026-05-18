@@ -31,6 +31,7 @@ import { ThemePicker } from "@/components/theme/theme-picker";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { CameraPreferencesPanel } from "@/components/voice/camera-preferences-panel";
+import { ScreenSharePreferencesPanel } from "@/components/voice/screen-share-preferences-panel";
 import { VoicePreferencesPanel } from "@/components/voice/voice-preferences-panel";
 import {
   CHANNEL_SIDEBAR_WIDTH_STEP,
@@ -394,22 +395,6 @@ function RangeSliderCard({
         <div className="mt-5">{preview}</div>
       </div>
     </SettingCard>
-  );
-}
-
-function ComingSoonCard({ description, title }: { description: string; title: string }) {
-  return (
-    <div className="app-panel-soft rounded-[24px] border border-dashed p-5">
-      <div className="flex items-start gap-3">
-        <div className="rounded-2xl bg-[hsl(var(--primary)/0.12)] p-2 text-[hsl(var(--primary))]">
-          <Sparkles className="h-4 w-4" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-app-foreground">{title}</p>
-          <p className="text-app-muted mt-1 text-sm leading-6">{description}</p>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -1066,15 +1051,12 @@ export function SettingsPanel({
 
         {showScreenShare ? (
           <SettingCard
-            badge="Phase 8"
+            badge={t("settings.voice.screenShare.badge")}
             description={t("settings.voice.screenShare.description")}
             icon={MonitorUp}
             title={t("settings.voice.screenShare.title")}
           >
-            <ComingSoonCard
-              description={t("settings.voice.screenShare.description")}
-              title={t("settings.voice.screenShare.title")}
-            />
+            <ScreenSharePreferencesPanel />
           </SettingCard>
         ) : null}
       </div>

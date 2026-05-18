@@ -5,12 +5,12 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ApiError } from "@/lib/api";
 import { assertUnblockedDMParticipants } from "@/lib/dm/blocking";
+import { assertVoiceChannelCapacity } from "@/lib/voice/capacity";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
 import type { CreateLiveKitTokenBody, LiveKitTokenResponse } from "./types";
 
 const LIVEKIT_TOKEN_TTL = "1h";
-const MAX_VOICE_PARTICIPANTS = 10;
 const ALLOWED_PUBLISH_SOURCES = [
   TrackSource.MICROPHONE,
   TrackSource.CAMERA,
@@ -156,15 +156,7 @@ async function resolveVoiceRoomName(userId: string, channelId: string) {
   );
 
   const roomName = `voice:${channel.id}`;
-  const roomService = getLiveKitRoomServiceClient();
-  const participants = await roomService.listParticipants(roomName).catch(() => []);
-  const hasExistingParticipant = participants.some(
-    (participant) => participant.identity === userId,
-  );
-
-  if (participants.length >= MAX_VOICE_PARTICIPANTS && !hasExistingParticipant) {
-    throw new ApiError("Voice channel is full", 403, "ROOM_FULL");
-  }
+  await assertVoiceChannelCapacity({ channelId: channel.id, userId });
 
   return roomName;
 }

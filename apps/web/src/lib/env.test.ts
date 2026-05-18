@@ -71,9 +71,11 @@ describe("web environment validation", () => {
         AUTH_SECRET: "secret",
         DATABASE_URL: "postgresql://user:pass@localhost:5432/whispr",
         NEXTAUTH_URL: "https://app.example.test",
+        NEXT_PUBLIC_VOICE_PERFORMANCE_METRICS: "false",
         PERMISSION_CACHE_DISABLED: "false",
         REDIS_URL: "rediss://default:pass@redis.example.test:6379/0",
         SOCKET_ALLOWED_ORIGINS: "https://app.example.test",
+        VOICE_PERFORMANCE_METRICS: "true",
         WORKSPACE_PERFORMANCE_METRICS: "true",
         WORKSPACE_PERFORMANCE_METRICS_INTERVAL_MS: "30000",
       },
@@ -91,9 +93,11 @@ describe("web environment validation", () => {
         AUTH_SECRET: "secret",
         DATABASE_URL: "postgresql://user:pass@localhost:5432/whispr",
         NEXTAUTH_URL: "https://app.example.test",
+        NEXT_PUBLIC_VOICE_PERFORMANCE_METRICS: "TRUE",
         PERMISSION_CACHE_METRICS: "yes",
         REDIS_URL: "rediss://default:pass@redis.example.test:6379/0",
         SOCKET_ALLOWED_ORIGINS: "https://app.example.test",
+        VOICE_PERFORMANCE_METRICS: "1",
         WORKSPACE_PERFORMANCE_METRICS: "TRUE",
         WORKSPACE_PERFORMANCE_METRICS_INTERVAL_MS: "30s",
       },
@@ -101,7 +105,9 @@ describe("web environment validation", () => {
     );
 
     assert.deepEqual(invalid.invalid, [
+      "NEXT_PUBLIC_VOICE_PERFORMANCE_METRICS",
       "PERMISSION_CACHE_METRICS",
+      "VOICE_PERFORMANCE_METRICS",
       "WORKSPACE_PERFORMANCE_METRICS",
       "WORKSPACE_PERFORMANCE_METRICS_INTERVAL_MS",
     ]);
