@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  AlertTriangle,
   ChevronDown,
   Radio,
   RotateCcw,
@@ -12,10 +13,21 @@ import {
 import {
   useVoiceState,
   type KrispAvailability,
+  type NoiseFilterTier,
 } from "@/components/providers/voice-provider";
 import { useI18n } from "@/components/providers/locale-provider";
 import { AudioDeviceSelect } from "@/components/voice/audio-device-select";
 import { cn } from "@/lib/utils";
+import { supportsMediaConstraint } from "@/lib/voice/media-capabilities";
+import {
+  ENHANCED_NOISE_FILTER_MODES,
+  isKrispNoiseFilterTier,
+  type EnhancedNoiseFilterMode,
+} from "@/lib/voice/noise-filter";
+
+const SHOW_NOISE_FILTER_EXPERIMENTS =
+  process.env.NEXT_PUBLIC_VOICE_NOISE_FILTER_EXPERIMENTS === "true" ||
+  process.env.NODE_ENV !== "production";
 
 type VoicePreferenceToggleRowProps = {
   checked: boolean;
@@ -45,39 +57,73 @@ function resolveKrispHelperText(status: KrispAvailability, t: (key: string) => s
 }
 
 function resolveCleanVoiceStatus(args: {
-  isKrispNoiseCancellationActive: boolean;
+  activeNoiseFilterTier: NoiseFilterTier;
   krispAvailability: KrispAvailability;
   krispEnabled: boolean;
   t: (key: string) => string;
 }) {
-  if (args.isKrispNoiseCancellationActive) {
-    return {
-      description: args.t("voice.settings.cleanVoiceKrispDescription"),
-      label: args.t("voice.settings.cleanVoiceKrisp"),
-    };
-  }
-
-  if (args.krispAvailability === "checking") {
+  if (
+    args.krispAvailability === "checking" &&
+    args.krispEnabled &&
+    !isKrispNoiseFilterTier(args.activeNoiseFilterTier)
+  ) {
     return {
       description: args.t("voice.settings.cleanVoiceCheckingDescription"),
       label: args.t("voice.settings.cleanVoiceChecking"),
     };
   }
 
-  if (args.krispEnabled) {
-    return {
-      description:
-        args.krispAvailability === "available"
-          ? args.t("voice.settings.cleanVoiceWebRtcDescription")
-          : resolveKrispHelperText(args.krispAvailability, args.t),
-      label: args.t("voice.settings.cleanVoiceWebRtc"),
-    };
+  switch (args.activeNoiseFilterTier) {
+    case "krisp_high":
+      return {
+        description: args.t("voice.settings.cleanVoiceKrispHighDescription"),
+        label: args.t("voice.settings.cleanVoiceKrispHigh"),
+      };
+    case "krisp_medium":
+      return {
+        description: args.t("voice.settings.cleanVoiceKrispMediumDescription"),
+        label: args.t("voice.settings.cleanVoiceKrispMedium"),
+      };
+    case "krisp_low":
+      return {
+        description: args.t("voice.settings.cleanVoiceKrispLowDescription"),
+        label: args.t("voice.settings.cleanVoiceKrispLow"),
+      };
+    case "browser_native":
+      return {
+        description:
+          args.krispEnabled && args.krispAvailability !== "available"
+            ? resolveKrispHelperText(args.krispAvailability, args.t)
+            : args.t("voice.settings.cleanVoiceWebRtcDescription"),
+        label: args.t("voice.settings.cleanVoiceWebRtc"),
+      };
+    case "off":
+    default:
+      return {
+        description: args.t("voice.settings.cleanVoiceLimitedDescription"),
+        label: args.t("voice.settings.cleanVoiceLimited"),
+      };
   }
+}
 
-  return {
-    description: args.t("voice.settings.cleanVoiceLimitedDescription"),
-    label: args.t("voice.settings.cleanVoiceLimited"),
-  };
+function resolveNoiseFilterTierLabel(tier: NoiseFilterTier, t: (key: string) => string) {
+  return t(`voice.settings.noiseFilterTier.${tier}`);
+}
+
+function resolveKrispRetryUnavailableReason(
+  status: KrispAvailability,
+  t: (key: string) => string,
+) {
+  switch (status) {
+    case "blocked_by_security_policy":
+      return t("voice.settings.retryKrispBlocked");
+    case "requires_livekit_cloud":
+      return t("voice.settings.retryKrispRequiresCloud");
+    case "unsupported_browser":
+      return t("voice.settings.retryKrispUnsupported");
+    default:
+      return null;
+  }
 }
 
 export function VoicePreferenceToggleRow({
@@ -126,28 +172,40 @@ export function VoicePreferenceToggleRow({
 export function VoicePreferencesPanel() {
   const { t } = useI18n();
   const [cleanVoiceFeedbackVisible, setCleanVoiceFeedbackVisible] = useState(false);
+  const [voiceIsolationSupported, setVoiceIsolationSupported] = useState(false);
   const cleanVoiceFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
+    activeNoiseFilterTier,
     audioPreferences,
     isApplyingAudioPreferences,
-    isKrispNoiseCancellationActive,
     isRecoveringKrispNoiseCancellation,
     krispAvailability,
+    preloadVoiceProcessing,
     retryKrispNoiseCancellation,
     setAudioPreference,
   } = useVoiceState();
 
   const krispEnabled = audioPreferences.krispNoiseCancellation;
   const krispAvailable = krispAvailability === "available";
+  const noiseFilterTierLabel = resolveNoiseFilterTierLabel(activeNoiseFilterTier, t);
+  const krispRetryUnavailableReason = resolveKrispRetryUnavailableReason(krispAvailability, t);
+  const krispRetryDisabled =
+    isRecoveringKrispNoiseCancellation || krispRetryUnavailableReason !== null;
+  const shouldHighlightKrispRetry =
+    krispEnabled &&
+    krispAvailability !== "available" &&
+    krispAvailability !== "checking";
   const cleanVoiceStatus = resolveCleanVoiceStatus({
-    isKrispNoiseCancellationActive,
+    activeNoiseFilterTier,
     krispAvailability,
     krispEnabled,
     t,
   });
   const applyCleanVoiceProfile = () => {
     setAudioPreference("noiseSuppression", true);
-    setAudioPreference("voiceIsolation", true);
+    if (voiceIsolationSupported) {
+      setAudioPreference("voiceIsolation", true);
+    }
     setAudioPreference("echoCancellation", true);
     setAudioPreference("autoGainControl", true);
     setAudioPreference("krispNoiseCancellation", true);
@@ -163,6 +221,18 @@ export function VoicePreferencesPanel() {
       cleanVoiceFeedbackTimerRef.current = null;
     }, 3200);
   };
+
+  useEffect(() => {
+    setVoiceIsolationSupported(supportsMediaConstraint("voiceIsolation"));
+  }, []);
+
+  useEffect(() => {
+    void preloadVoiceProcessing().catch(() => undefined);
+  }, [
+    audioPreferences.enhancedNoiseFilterMode,
+    krispEnabled,
+    preloadVoiceProcessing,
+  ]);
 
   useEffect(
     () => () => {
@@ -193,19 +263,29 @@ export function VoicePreferencesPanel() {
                   {cleanVoiceStatus.description}
                 </p>
               </div>
-              <span
-                className={cn(
-                  "inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]",
-                  isApplyingAudioPreferences
-                    ? "border-[hsl(var(--warning)/0.28)] bg-[hsl(var(--warning)/0.1)] text-app-foreground"
-                    : "border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.1)] text-app-foreground",
-                )}
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                {isApplyingAudioPreferences
-                  ? t("voice.settings.badgeApplying")
-                  : t("voice.settings.badgeReady")}
-              </span>
+              <div className="flex flex-wrap gap-2">
+                <span
+                  className={cn(
+                    "inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]",
+                    isApplyingAudioPreferences
+                      ? "border-[hsl(var(--warning)/0.28)] bg-[hsl(var(--warning)/0.1)] text-app-foreground"
+                      : "border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.1)] text-app-foreground",
+                  )}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  {isApplyingAudioPreferences
+                    ? t("voice.settings.badgeApplying")
+                    : t("voice.settings.badgeReady")}
+                </span>
+                <span
+                  className="inline-flex w-fit items-center gap-2 rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.7)] px-3 py-1 text-[11px] font-semibold text-app-muted"
+                  data-testid="voice-noise-filter-tier"
+                  title={t("voice.settings.activeNoiseFilter")}
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  {noiseFilterTierLabel}
+                </span>
+              </div>
             </div>
 
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
@@ -234,18 +314,28 @@ export function VoicePreferencesPanel() {
                 {t("voice.settings.applyCleanVoiceProfile")}
               </button>
               <button
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] px-4 py-2 text-sm font-semibold text-app-foreground transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.08)] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className={cn(
+                  "inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  shouldHighlightKrispRetry
+                    ? "border-[hsl(var(--warning)/0.38)] bg-[hsl(var(--warning)/0.1)] text-app-foreground hover:bg-[hsl(var(--warning)/0.16)]"
+                    : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.08)]",
+                )}
                 data-testid="voice-krisp-retry"
-                disabled={isRecoveringKrispNoiseCancellation}
+                disabled={krispRetryDisabled}
                 onClick={() => void retryKrispNoiseCancellation()}
+                title={krispRetryUnavailableReason ?? t("voice.settings.retryKrisp")}
                 type="button"
               >
-                <RotateCcw
-                  className={cn(
-                    "h-4 w-4",
-                    isRecoveringKrispNoiseCancellation && "animate-spin",
-                  )}
-                />
+                {shouldHighlightKrispRetry && !isRecoveringKrispNoiseCancellation ? (
+                  <AlertTriangle className="h-4 w-4" />
+                ) : (
+                  <RotateCcw
+                    className={cn(
+                      "h-4 w-4",
+                      isRecoveringKrispNoiseCancellation && "animate-spin",
+                    )}
+                  />
+                )}
                 {isRecoveringKrispNoiseCancellation
                   ? t("voice.settings.retryingKrisp")
                   : t("voice.settings.retryKrisp")}
@@ -300,8 +390,12 @@ export function VoicePreferencesPanel() {
           />
 
           <VoicePreferenceToggleRow
-            checked={audioPreferences.voiceIsolation}
+            checked={voiceIsolationSupported && audioPreferences.voiceIsolation}
             description={t("voice.settings.voiceIsolationDesc")}
+            disabled={!voiceIsolationSupported}
+            helperText={
+              voiceIsolationSupported ? null : t("voice.settings.voiceIsolationUnsupported")
+            }
             label={t("voice.settings.voiceIsolation")}
             onToggle={() =>
               setAudioPreference("voiceIsolation", !audioPreferences.voiceIsolation)
@@ -334,6 +428,53 @@ export function VoicePreferencesPanel() {
             label={t("voice.settings.krisp")}
             onToggle={() => setAudioPreference("krispNoiseCancellation", !krispEnabled)}
           />
+
+          {SHOW_NOISE_FILTER_EXPERIMENTS ? (
+            <div
+              className="app-panel-soft rounded-[22px] border p-3 sm:rounded-[24px] sm:p-4"
+              data-testid="voice-noise-filter-mode"
+            >
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-semibold text-app-foreground">
+                  {t("voice.settings.noiseFilterMode")}
+                </p>
+                <p className="text-sm leading-5 text-app-muted sm:leading-6">
+                  {t("voice.settings.noiseFilterModeDesc")}
+                </p>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                {ENHANCED_NOISE_FILTER_MODES.map((mode) => {
+                  const isActive = audioPreferences.enhancedNoiseFilterMode === mode;
+                  return (
+                    <button
+                      aria-pressed={isActive}
+                      className={cn(
+                        "min-h-20 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                        isActive
+                          ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.12)] text-app-foreground"
+                          : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.54)] text-app-muted hover:border-[hsl(var(--primary)/0.24)] hover:bg-[hsl(var(--primary)/0.06)]",
+                      )}
+                      key={mode}
+                      onClick={() =>
+                        setAudioPreference(
+                          "enhancedNoiseFilterMode",
+                          mode as EnhancedNoiseFilterMode,
+                        )
+                      }
+                      type="button"
+                    >
+                      <span className="block text-xs font-semibold uppercase tracking-[0.12em]">
+                        {t(`voice.settings.noiseFilterMode.${mode}`)}
+                      </span>
+                      <span className="mt-1 block text-xs leading-5">
+                        {t(`voice.settings.noiseFilterMode.${mode}.desc`)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
       </details>
 

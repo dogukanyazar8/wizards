@@ -111,6 +111,56 @@ describe("voice performance metrics", () => {
     ]);
   });
 
+  it("includes the resolved noise filtering tier when a voice metric supplies one", () => {
+    const payload = JSON.parse(
+      formatVoicePerformanceMetric(
+        {
+          durationMs: 0,
+          operation: "noise_filter_tier_resolved",
+          result: "success",
+          runtime: "client",
+          tier: "krisp_medium",
+        },
+        new Date("2026-05-18T07:00:00.000Z"),
+      ),
+    ) as Record<string, unknown>;
+
+    assert.equal(payload.operation, "noise_filter_tier_resolved");
+    assert.equal(payload.tier, "krisp_medium");
+    assert.equal(payload.durationMs, 0);
+    assert.equal(payload.hardwareConcurrency, undefined);
+    assert.equal(payload.deviceMemory, undefined);
+  });
+
+  it("formats coarse audio health telemetry without device capability fields", () => {
+    const payload = JSON.parse(
+      formatVoicePerformanceMetric(
+        {
+          audioLevel: 0.18,
+          durationMs: 0,
+          operation: "krisp_audio_health",
+          packetsLost: 1,
+          packetsSent: 42,
+          result: "success",
+          roundTripTimeMs: 31.5,
+          runtime: "client",
+          tier: "krisp_high",
+          totalAudioEnergy: 3.2,
+          totalSamplesDuration: 9.4,
+        },
+        new Date("2026-05-18T07:00:00.000Z"),
+      ),
+    ) as Record<string, unknown>;
+
+    assert.equal(payload.operation, "krisp_audio_health");
+    assert.equal(payload.tier, "krisp_high");
+    assert.equal(payload.packetsSent, 42);
+    assert.equal(payload.packetsLost, 1);
+    assert.equal(payload.roundTripTimeMs, 31.5);
+    assert.equal(payload.hardwareConcurrency, undefined);
+    assert.equal(payload.deviceMemory, undefined);
+  });
+
   it("records failed measured operations with status and code metadata", async () => {
     const logs: unknown[][] = [];
     console.info = (...args: unknown[]) => {

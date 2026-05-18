@@ -573,6 +573,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
   const voiceStateValue = useMemo<VoiceStateContextValue>(
     () => ({
       activeChannelId,
+      activeNoiseFilterTier: "browser_native",
       audioPreferences,
       cameraError,
       cameraStatus,
@@ -600,6 +601,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
       setParticipantVolume: useVoiceStore.getState().setParticipantVolume,
       setScreenShareQuality,
       retryKrispNoiseCancellation: async () => false,
+      preloadVoiceProcessing: async () => true,
       prepareForVoiceJoin,
       joinChannel,
       leaveChannel,

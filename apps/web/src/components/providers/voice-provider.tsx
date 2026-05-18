@@ -14,6 +14,7 @@ export {
 } from "@/components/providers/voice-context";
 export type {
   KrispAvailability,
+  NoiseFilterTier,
   VoiceCameraStatus,
   VoiceParticipantViewModel,
   VoiceProviderProps,

@@ -71,6 +71,7 @@ describe("web environment validation", () => {
         AUTH_SECRET: "secret",
         DATABASE_URL: "postgresql://user:pass@localhost:5432/whispr",
         NEXTAUTH_URL: "https://app.example.test",
+        NEXT_PUBLIC_VOICE_NOISE_FILTER_EXPERIMENTS: "true",
         NEXT_PUBLIC_VOICE_PERFORMANCE_METRICS: "false",
         PERMISSION_CACHE_DISABLED: "false",
         REDIS_URL: "rediss://default:pass@redis.example.test:6379/0",
@@ -93,6 +94,7 @@ describe("web environment validation", () => {
         AUTH_SECRET: "secret",
         DATABASE_URL: "postgresql://user:pass@localhost:5432/whispr",
         NEXTAUTH_URL: "https://app.example.test",
+        NEXT_PUBLIC_VOICE_NOISE_FILTER_EXPERIMENTS: "yes",
         NEXT_PUBLIC_VOICE_PERFORMANCE_METRICS: "TRUE",
         PERMISSION_CACHE_METRICS: "yes",
         REDIS_URL: "rediss://default:pass@redis.example.test:6379/0",
@@ -105,6 +107,7 @@ describe("web environment validation", () => {
     );
 
     assert.deepEqual(invalid.invalid, [
+      "NEXT_PUBLIC_VOICE_NOISE_FILTER_EXPERIMENTS",
       "NEXT_PUBLIC_VOICE_PERFORMANCE_METRICS",
       "PERMISSION_CACHE_METRICS",
       "VOICE_PERFORMANCE_METRICS",

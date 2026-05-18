@@ -3,6 +3,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { type ConnectionState, type Room } from "livekit-client";
 import type { ScreenShareQualityId } from "@/lib/voice/screen-share";
+import type { NoiseFilterTier } from "@/lib/voice/noise-filter";
 import type { VoiceScreenShareViewModel } from "@/lib/voice/participant-mapping";
 import type { VoiceParticipantViewModel } from "@/lib/voice/participant-view-model";
 import type { VoiceAudioPreferences } from "@/store/voice-store";
@@ -18,6 +19,7 @@ export type VoiceProviderProps = {
 };
 
 export type { VoiceParticipantViewModel, VoiceScreenShareViewModel };
+export type { NoiseFilterTier };
 
 export type KrispAvailability =
   | "available"
@@ -38,6 +40,7 @@ export type VoiceCameraStatus =
 
 export type VoiceContextValue = {
   activeChannelId: string | null;
+  activeNoiseFilterTier: NoiseFilterTier;
   audioPreferences: VoiceAudioPreferences;
   cameraError: string | null;
   cameraStatus: VoiceCameraStatus;
@@ -69,6 +72,7 @@ export type VoiceContextValue = {
   setParticipantVolume: (userId: string, volume: number) => void;
   setScreenShareQuality: (qualityId: ScreenShareQualityId) => Promise<void>;
   retryKrispNoiseCancellation: () => Promise<boolean>;
+  preloadVoiceProcessing: () => Promise<boolean>;
   prepareForVoiceJoin: () => Promise<boolean>;
   joinChannel: (input: { channelId: string; serverId: string }) => Promise<void>;
   leaveChannel: () => Promise<void>;

@@ -451,11 +451,32 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.applyCleanVoiceProfile": "Optimize clean voice",
     "voice.settings.retryKrisp": "Retry Krisp",
     "voice.settings.retryingKrisp": "Retrying Krisp...",
+    "voice.settings.retryKrispBlocked":
+      "Krisp is blocked by the current security policy. Browser cleanup stays active until the page has the latest headers.",
+    "voice.settings.retryKrispRequiresCloud":
+      "Krisp retry needs a LiveKit Cloud room. Browser cleanup stays active in this environment.",
+    "voice.settings.retryKrispUnsupported":
+      "This browser cannot run Krisp. Browser cleanup stays active instead.",
+    "voice.settings.activeNoiseFilter": "Active noise filter",
+    "voice.settings.noiseFilterTier.krisp_high": "Krisp High",
+    "voice.settings.noiseFilterTier.krisp_medium": "Krisp Medium",
+    "voice.settings.noiseFilterTier.krisp_low": "Krisp Low",
+    "voice.settings.noiseFilterTier.browser_native": "Browser cleanup",
+    "voice.settings.noiseFilterTier.off": "Off",
     "voice.settings.cleanVoiceProfileApplied":
-      "Clean voice profile applied: noise suppression, echo cancellation, stable gain, voice isolation, and Krisp preference are enabled.",
+      "Clean voice profile applied: noise suppression, echo cancellation, stable gain, supported voice isolation, and Krisp preference are enabled.",
     "voice.settings.cleanVoiceKrisp": "Clean voice active",
     "voice.settings.cleanVoiceKrispDescription":
       "Krisp and browser cleanup are active. Your microphone is optimized for speech before it reaches the room.",
+    "voice.settings.cleanVoiceKrispHigh": "Krisp High active",
+    "voice.settings.cleanVoiceKrispHighDescription":
+      "Enhanced Krisp is running at the strongest quality level for maximum room-noise cleanup.",
+    "voice.settings.cleanVoiceKrispMedium": "Krisp Medium active",
+    "voice.settings.cleanVoiceKrispMediumDescription":
+      "Enhanced Krisp is balancing strong cleanup with lighter processing for this device.",
+    "voice.settings.cleanVoiceKrispLow": "Krisp Low active",
+    "voice.settings.cleanVoiceKrispLowDescription":
+      "Enhanced Krisp is using its lightest profile to keep speech stable on this device.",
     "voice.settings.cleanVoiceChecking": "Checking clean voice",
     "voice.settings.cleanVoiceCheckingDescription":
       "Whispr is checking whether enhanced Krisp cleanup is available. Browser cleanup stays active meanwhile.",
@@ -542,6 +563,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.voiceIsolation": "Voice isolation",
     "voice.settings.voiceIsolationDesc":
       "Asks supported browsers for stronger voice-first cleanup before Whispr adds Krisp.",
+    "voice.settings.voiceIsolationUnsupported": "This browser does not support voice isolation.",
     "voice.settings.echoCancellation": "Echo cancellation",
     "voice.settings.echoCancellationDesc":
       "Prevents your speakers from feeding back into your microphone during conversations.",
@@ -562,6 +584,18 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "This browser does not currently support LiveKit's Krisp noise filter.",
     "voice.settings.krispUnavailable":
       "Krisp could not be initialized right now. Whispr fell back to WebRTC cleanup; if a network or content blocker is active, allow LiveKit integrations and try again.",
+    "voice.settings.noiseFilterMode": "Noise filter mode",
+    "voice.settings.noiseFilterModeDesc":
+      "Experimental local-only modes for comparing browser cleanup and Krisp processing in UAT.",
+    "voice.settings.noiseFilterMode.layered": "Layered",
+    "voice.settings.noiseFilterMode.layered.desc":
+      "Keeps the current Krisp plus browser cleanup behavior.",
+    "voice.settings.noiseFilterMode.krisp_only": "Krisp only",
+    "voice.settings.noiseFilterMode.krisp_only.desc":
+      "When Krisp is available, bypasses browser noise suppression and voice isolation.",
+    "voice.settings.noiseFilterMode.browser_only": "Browser only",
+    "voice.settings.noiseFilterMode.browser_only.desc":
+      "Skips Krisp and keeps the browser cleanup pipeline.",
     "voice.settings.localOnlyTitle": "Local-only preferences",
     "voice.settings.localOnlyDescription":
       "These settings affect only your device and do not change the mix for anyone else.",
@@ -2347,11 +2381,32 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.applyCleanVoiceProfile": "Temiz sesi optimize et",
     "voice.settings.retryKrisp": "Krisp'i yeniden dene",
     "voice.settings.retryingKrisp": "Krisp yeniden deneniyor...",
+    "voice.settings.retryKrispBlocked":
+      "Krisp mevcut güvenlik politikası tarafından engelleniyor. Sayfa güncel başlıkları alana kadar tarayıcı temizliği aktif kalır.",
+    "voice.settings.retryKrispRequiresCloud":
+      "Krisp'i yeniden denemek için LiveKit Cloud odası gerekir. Bu ortamda tarayıcı temizliği aktif kalır.",
+    "voice.settings.retryKrispUnsupported":
+      "Bu tarayıcı Krisp'i çalıştıramıyor. Bunun yerine tarayıcı temizliği aktif kalır.",
+    "voice.settings.activeNoiseFilter": "Aktif gürültü filtresi",
+    "voice.settings.noiseFilterTier.krisp_high": "Krisp High",
+    "voice.settings.noiseFilterTier.krisp_medium": "Krisp Medium",
+    "voice.settings.noiseFilterTier.krisp_low": "Krisp Low",
+    "voice.settings.noiseFilterTier.browser_native": "Tarayıcı temizliği",
+    "voice.settings.noiseFilterTier.off": "Kapalı",
     "voice.settings.cleanVoiceProfileApplied":
-      "Temiz ses profili uygulandı: gürültü engelleme, eko engelleme, stabil kazanç, ses izolasyonu ve Krisp tercihi açıldı.",
+      "Temiz ses profili uygulandı: gürültü engelleme, eko engelleme, stabil kazanç, desteklenen ses izolasyonu ve Krisp tercihi açıldı.",
     "voice.settings.cleanVoiceKrisp": "Temiz ses aktif",
     "voice.settings.cleanVoiceKrispDescription":
       "Krisp ve tarayıcı temizliği aktif. Mikrofonun odaya ulaşmadan önce konuşma için optimize ediliyor.",
+    "voice.settings.cleanVoiceKrispHigh": "Krisp High aktif",
+    "voice.settings.cleanVoiceKrispHighDescription":
+      "Gelişmiş Krisp, oda gürültüsünü en güçlü şekilde azaltmak için en yüksek kalite seviyesinde çalışıyor.",
+    "voice.settings.cleanVoiceKrispMedium": "Krisp Medium aktif",
+    "voice.settings.cleanVoiceKrispMediumDescription":
+      "Gelişmiş Krisp, bu cihaz için güçlü temizlik ile daha hafif işlem yükünü dengeliyor.",
+    "voice.settings.cleanVoiceKrispLow": "Krisp Low aktif",
+    "voice.settings.cleanVoiceKrispLowDescription":
+      "Gelişmiş Krisp, bu cihazda konuşmayı stabil tutmak için en hafif profili kullanıyor.",
     "voice.settings.cleanVoiceChecking": "Temiz ses kontrol ediliyor",
     "voice.settings.cleanVoiceCheckingDescription":
       "Whispr gelişmiş Krisp temizliğinin kullanılabilirliğini kontrol ediyor. Bu sırada tarayıcı temizliği açık kalır.",
@@ -2440,6 +2495,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.voiceIsolation": "Ses izolasyonu",
     "voice.settings.voiceIsolationDesc":
       "Destekleyen tarayıcılarda Whispr Krisp'i eklemeden önce daha güçlü konuşma odaklı temizleme ister.",
+    "voice.settings.voiceIsolationUnsupported": "Bu tarayıcı ses izolasyonunu desteklemiyor.",
     "voice.settings.echoCancellation": "Eko engelleme",
     "voice.settings.echoCancellationDesc":
       "Konuşma sırasında hoparlör sesinin yeniden mikrofona dönmesini önler.",
@@ -2460,6 +2516,18 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Bu tarayıcı şu anda LiveKit'in Krisp filtresini desteklemiyor.",
     "voice.settings.krispUnavailable":
       "Krisp şu anda başlatılamadı. Whispr WebRTC temizliğine döndü; ağ ya da içerik engelleyici varsa LiveKit entegrasyonlarına izin verip tekrar dene.",
+    "voice.settings.noiseFilterMode": "Gürültü filtresi modu",
+    "voice.settings.noiseFilterModeDesc":
+      "UAT'ta tarayıcı temizliği ve Krisp işleme hattını karşılaştırmak için yerel deney modları.",
+    "voice.settings.noiseFilterMode.layered": "Katmanlı",
+    "voice.settings.noiseFilterMode.layered.desc":
+      "Mevcut Krisp ve tarayıcı temizliği davranışını korur.",
+    "voice.settings.noiseFilterMode.krisp_only": "Yalnızca Krisp",
+    "voice.settings.noiseFilterMode.krisp_only.desc":
+      "Krisp kullanılabiliyorsa tarayıcı gürültü engelleme ve ses izolasyonunu bypass eder.",
+    "voice.settings.noiseFilterMode.browser_only": "Yalnızca tarayıcı",
+    "voice.settings.noiseFilterMode.browser_only.desc":
+      "Krisp'i atlar ve tarayıcı temizleme hattını kullanır.",
     "voice.settings.localOnlyTitle": "Yerel tercihler",
     "voice.settings.localOnlyDescription":
       "Bu ayarlar yalnızca senin cihazını etkiler ve başkalarının miksini değiştirmez.",
