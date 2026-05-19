@@ -157,8 +157,8 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm db:generate
 
-      - name: Apply E2E database migrations
-        run: pnpm --filter @wizards/db exec prisma migrate deploy --schema prisma/schema.prisma
+      - name: Sync E2E database schema
+        run: pnpm --filter @wizards/db exec prisma db push --schema prisma/schema.prisma --skip-generate
 
       - name: Install Playwright Chromium
         run: pnpm --filter @wizards/web exec playwright install --with-deps chromium
