@@ -132,19 +132,17 @@ describe("app startup readiness", () => {
     assert.equal(SHELL_SPLASH_FADE_OUT_MS, 260);
   });
 
-  it("mounts and shows the splash before the shell is allowed to appear", () => {
-    assert.equal(shouldMountShellSplash("pending"), true);
+  it("mounts and shows only active startup splash phases", () => {
     assert.equal(shouldMountShellSplash("showing"), true);
     assert.equal(shouldMountShellSplash("hiding"), true);
     assert.equal(shouldMountShellSplash("dismissed"), false);
 
-    assert.equal(shouldShowShellSplash("pending"), true);
     assert.equal(shouldShowShellSplash("showing"), true);
     assert.equal(shouldShowShellSplash("hiding"), false);
+    assert.equal(shouldShowShellSplash("dismissed"), false);
   });
 
   it("falls back to the shell instead of keeping the splash forever after max timeout", () => {
-    assert.equal(getShellSplashPhaseAfterMaxTimeout("pending"), "dismissed");
     assert.equal(getShellSplashPhaseAfterMaxTimeout("showing"), "hiding");
     assert.equal(getShellSplashPhaseAfterMaxTimeout("hiding"), "hiding");
     assert.equal(getShellSplashPhaseAfterMaxTimeout("dismissed"), "dismissed");

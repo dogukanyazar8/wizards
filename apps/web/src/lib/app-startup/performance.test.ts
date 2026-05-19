@@ -49,11 +49,32 @@ describe("app startup performance metrics", () => {
     ]);
     assert.equal(payload.durationMs, 123.46);
     assert.equal(payload.operation, "app_startup_ready");
+    assert.equal(payload.result, "success");
     assert.equal(payload.runtime, "web");
     assert.equal(payload.type, "app_startup");
     assert.equal(payload.timestamp, "2026-05-19T06:00:00.000Z");
     assert.equal(payload.email, undefined);
     assert.equal(payload.serverId, undefined);
+    assert.equal(payload.userId, undefined);
+  });
+
+  it("formats timeout metrics without adding route or session context", () => {
+    const payload = JSON.parse(
+      formatAppStartupMetric(
+        {
+          durationMs: 5000,
+          result: "timeout",
+          runtime: "desktop",
+        },
+        new Date("2026-05-19T06:00:05.000Z"),
+      ),
+    ) as Record<string, unknown>;
+
+    assert.equal(payload.durationMs, 5000);
+    assert.equal(payload.result, "timeout");
+    assert.equal(payload.runtime, "desktop");
+    assert.equal(payload.route, undefined);
+    assert.equal(payload.sessionId, undefined);
     assert.equal(payload.userId, undefined);
   });
 

@@ -30,12 +30,13 @@ export type VoicePageExitHandlerOptions<RoomType extends VoicePageExitRoom> = {
 export function createVoicePageExitHandler<RoomType extends VoicePageExitRoom>(
   options: VoicePageExitHandlerOptions<RoomType>,
 ) {
-  return () => {
+  return async () => {
     options.stopHeartbeat();
     options.clearReconnectTimeout();
 
     const activeRoom = options.getRoom();
     const store = options.getState();
+    const cleanupTasks: Promise<unknown>[] = [];
 
     if (store.isScreenSharing && store.screenShareMode === "voice") {
       options.emitVoiceScreenShareState(store.activeChannelId, store.serverId, false, {
@@ -44,15 +45,17 @@ export function createVoicePageExitHandler<RoomType extends VoicePageExitRoom>(
     }
 
     if (activeRoom) {
-      void options.stopScreenShare(activeRoom).catch(() => undefined);
-      void options.stopCamera(activeRoom).catch(() => undefined);
-      void options.stopLocalTracks(activeRoom).catch(() => undefined);
-      void activeRoom.disconnect(true).catch(() => undefined);
+      cleanupTasks.push(options.stopScreenShare(activeRoom));
+      cleanupTasks.push(options.stopCamera(activeRoom));
+      cleanupTasks.push(options.stopLocalTracks(activeRoom));
+      cleanupTasks.push(activeRoom.disconnect(true));
     }
 
     const activeSession = options.getState().sessionId;
     if (activeSession) {
-      void options.notifyVoiceExit(activeSession).catch(() => undefined);
+      cleanupTasks.push(options.notifyVoiceExit(activeSession));
     }
+
+    await Promise.allSettled(cleanupTasks);
   };
 }

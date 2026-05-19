@@ -11,7 +11,7 @@ function createDeferredRoom(calls: string[]): VoicePageExitRoom {
 }
 
 describe("voice page-exit cleanup", () => {
-  it("stops heartbeat and reconnect timers before disconnecting media resources", () => {
+  it("stops heartbeat and reconnect timers before disconnecting media resources", async () => {
     const calls: string[] = [];
     const room = createDeferredRoom(calls);
     const handler = createVoicePageExitHandler({
@@ -32,17 +32,21 @@ describe("voice page-exit cleanup", () => {
       stopScreenShare: async () => calls.push("stop-screen-share"),
     });
 
-    handler();
+    await handler();
 
-    assert.deepEqual(calls.slice(0, 4), [
+    assert.deepEqual(calls, [
       "stop-heartbeat",
       "clear-reconnect",
       "screen-share:false",
       "stop-screen-share",
+      "stop-camera",
+      "stop-local-tracks",
+      "disconnect:true",
+      "notify:session-1",
     ]);
   });
 
-  it("does not emit screen-share cleanup for non-voice shares", () => {
+  it("does not emit screen-share cleanup for non-voice shares", async () => {
     const calls: string[] = [];
     const handler = createVoicePageExitHandler({
       clearReconnectTimeout: () => calls.push("clear-reconnect"),
@@ -62,8 +66,52 @@ describe("voice page-exit cleanup", () => {
       stopScreenShare: async () => calls.push("stop-screen-share"),
     });
 
-    handler();
+    await handler();
 
     assert.deepEqual(calls, ["stop-heartbeat", "clear-reconnect"]);
+  });
+
+  it("waits for asynchronous desktop cleanup before resolving", async () => {
+    const calls: string[] = [];
+    let resolveNotify!: () => void;
+    const notifyFinished = new Promise<void>((resolve) => {
+      resolveNotify = resolve;
+    });
+    const handler = createVoicePageExitHandler({
+      clearReconnectTimeout: () => calls.push("clear-reconnect"),
+      emitVoiceScreenShareState: () => calls.push("screen-share"),
+      getRoom: () => null,
+      getState: () => ({
+        activeChannelId: "channel-1",
+        isScreenSharing: false,
+        screenShareMode: null,
+        serverId: "server-1",
+        sessionId: "session-1",
+      }),
+      notifyVoiceExit: async (sessionId) => {
+        calls.push(`notify-start:${sessionId}`);
+        await notifyFinished;
+        calls.push(`notify-end:${sessionId}`);
+      },
+      stopCamera: async () => calls.push("stop-camera"),
+      stopHeartbeat: () => calls.push("stop-heartbeat"),
+      stopLocalTracks: async () => calls.push("stop-local-tracks"),
+      stopScreenShare: async () => calls.push("stop-screen-share"),
+    });
+
+    const cleanup = handler();
+    await Promise.resolve();
+
+    assert.deepEqual(calls, ["stop-heartbeat", "clear-reconnect", "notify-start:session-1"]);
+
+    resolveNotify();
+    await cleanup;
+
+    assert.deepEqual(calls, [
+      "stop-heartbeat",
+      "clear-reconnect",
+      "notify-start:session-1",
+      "notify-end:session-1",
+    ]);
   });
 });

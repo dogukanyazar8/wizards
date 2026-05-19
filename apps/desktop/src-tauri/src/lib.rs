@@ -33,8 +33,6 @@ if (document.documentElement) {
 }
 "#;
 
-const DESKTOP_BEFORE_CLOSE_SCRIPT: &str =
-    r#"window.dispatchEvent(new Event("whispr:desktop-before-close"));"#;
 const DESKTOP_START_PATH: &str = "/desktop/start";
 const DESKTOP_MAIN_WINDOW_WIDTH: f64 = 1920.0;
 const DESKTOP_MAIN_WINDOW_HEIGHT: f64 = 1080.0;
@@ -42,6 +40,19 @@ const DESKTOP_MIN_WINDOW_WIDTH: f64 = 960.0;
 const DESKTOP_MIN_WINDOW_HEIGHT: f64 = 640.0;
 const DESKTOP_SPLASH_WINDOW_WIDTH: f64 = 432.0;
 const DESKTOP_SPLASH_WINDOW_HEIGHT: f64 = 292.0;
+const DESKTOP_BEFORE_CLOSE_TIMEOUT_MS: u64 = 3_000;
+
+#[derive(Default)]
+struct DesktopCloseState {
+    exiting: bool,
+    next_request_id: u64,
+    pending_request_id: Option<u64>,
+}
+
+#[derive(Clone, Default)]
+struct DesktopCloseCoordinator {
+    state: Arc<Mutex<DesktopCloseState>>,
+}
 
 pub fn run() {
     let mut builder = tauri::Builder::default();
@@ -57,6 +68,8 @@ pub fn run() {
     builder
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
+        .manage(DesktopCloseCoordinator::default())
+        .invoke_handler(tauri::generate_handler![complete_desktop_before_close])
         .setup(|app| {
             let app_url = configured_app_url();
             let app_name =
@@ -64,9 +77,10 @@ pub fn run() {
             let oauth_navigation_active = Arc::new(Mutex::new(false));
             let desktop_window_promoted =
                 Arc::new(Mutex::new(app_url.path() != DESKTOP_START_PATH));
+            let close_coordinator = app.state::<DesktopCloseCoordinator>().inner().clone();
             let webview_data_directory = resolve_webview_data_directory(app)?;
 
-            setup_tray(app, &app_name)?;
+            setup_tray(app, &app_name, close_coordinator.clone())?;
 
             let mut main_window_builder =
                 WebviewWindowBuilder::new(app, "main", WebviewUrl::External(app_url.clone()))
@@ -133,11 +147,13 @@ pub fn run() {
             }
 
             let main_window = main_window_builder.build()?;
-            let close_signal_window = main_window.clone();
+            let close_request_app = app.handle().clone();
+            let close_request_coordinator = close_coordinator.clone();
 
             main_window.on_window_event(move |event| {
-                if matches!(event, WindowEvent::CloseRequested { .. }) {
-                    let _ = close_signal_window.eval(DESKTOP_BEFORE_CLOSE_SCRIPT);
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    request_app_quit(&close_request_app, &close_request_coordinator);
                 }
             });
 
@@ -147,6 +163,17 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running Whispr desktop");
+}
+
+#[tauri::command]
+fn complete_desktop_before_close(
+    app: AppHandle,
+    close_coordinator: tauri::State<'_, DesktopCloseCoordinator>,
+    request_id: u64,
+) {
+    if complete_desktop_close_request(close_coordinator.inner(), request_id) {
+        app.exit(0);
+    }
 }
 
 fn promote_desktop_window<R: tauri::Runtime>(
@@ -188,7 +215,11 @@ fn resolve_webview_data_directory(app: &tauri::App) -> tauri::Result<PathBuf> {
     Ok(data_directory)
 }
 
-fn setup_tray(app: &mut tauri::App, app_name: &str) -> tauri::Result<()> {
+fn setup_tray(
+    app: &mut tauri::App,
+    app_name: &str,
+    close_coordinator: DesktopCloseCoordinator,
+) -> tauri::Result<()> {
     let show_item = MenuItem::with_id(app, "show", format!("Show {app_name}"), true, None::<&str>)?;
     let settings_item = MenuItem::with_id(app, "settings", "Open Settings", true, None::<&str>)?;
     let diagnostics_item = MenuItem::with_id(
@@ -229,13 +260,13 @@ fn setup_tray(app: &mut tauri::App, app_name: &str) -> tauri::Result<()> {
         .tooltip(format!("{app_name} Desktop"))
         .menu(&menu)
         .show_menu_on_left_click(false)
-        .on_menu_event(|app, event| match event.id().as_ref() {
+        .on_menu_event(move |app, event| match event.id().as_ref() {
             "show" => show_main_window(app),
             "settings" => dispatch_desktop_command(app, "open-settings", None),
             "diagnostics" => dispatch_desktop_command(app, "open-desktop-diagnostics", None),
             "toggle_mute" => dispatch_desktop_command(app, "toggle-mute", None),
             "toggle_deafen" => dispatch_desktop_command(app, "toggle-deafen", None),
-            "quit" => request_app_quit(app),
+            "quit" => request_app_quit(app, &close_coordinator),
             _ => {}
         })
         .on_tray_icon_event(|tray, event| match event {
@@ -267,16 +298,68 @@ fn show_main_window(app: &tauri::AppHandle) {
     }
 }
 
-fn request_app_quit(app: &tauri::AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.eval(DESKTOP_BEFORE_CLOSE_SCRIPT);
+fn request_app_quit(app: &tauri::AppHandle, close_coordinator: &DesktopCloseCoordinator) {
+    let Some(request_id) = begin_desktop_close_request(close_coordinator) else {
+        return;
+    };
+
+    let Some(window) = app.get_webview_window("main") else {
+        if complete_desktop_close_request(close_coordinator, request_id) {
+            app.exit(0);
+        }
+        return;
+    };
+
+    let script = format!(
+        "window.dispatchEvent(new CustomEvent('whispr:desktop-before-close', {{ detail: {{ requestId: {request_id} }}, cancelable: true }}));"
+    );
+    if window.eval(&script).is_err() {
+        if complete_desktop_close_request(close_coordinator, request_id) {
+            app.exit(0);
+        }
+        return;
     }
 
     let app_handle = app.clone();
+    let timeout_coordinator = close_coordinator.clone();
     std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(500));
-        app_handle.exit(0);
+        std::thread::sleep(Duration::from_millis(DESKTOP_BEFORE_CLOSE_TIMEOUT_MS));
+        if complete_desktop_close_request(&timeout_coordinator, request_id) {
+            app_handle.exit(0);
+        }
     });
+}
+
+fn begin_desktop_close_request(close_coordinator: &DesktopCloseCoordinator) -> Option<u64> {
+    close_coordinator.state.lock().ok().and_then(|mut state| {
+        if state.exiting || state.pending_request_id.is_some() {
+            return None;
+        }
+
+        state.next_request_id = state.next_request_id.saturating_add(1).max(1);
+        let request_id = state.next_request_id;
+        state.pending_request_id = Some(request_id);
+        Some(request_id)
+    })
+}
+
+fn complete_desktop_close_request(
+    close_coordinator: &DesktopCloseCoordinator,
+    request_id: u64,
+) -> bool {
+    close_coordinator
+        .state
+        .lock()
+        .map(|mut state| {
+            if state.exiting || state.pending_request_id != Some(request_id) {
+                return false;
+            }
+
+            state.exiting = true;
+            state.pending_request_id = None;
+            true
+        })
+        .unwrap_or(false)
 }
 
 fn setup_deep_links(app: &AppHandle) -> tauri::Result<()> {

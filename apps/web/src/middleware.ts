@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { WHISPR_REQUEST_PATHNAME_HEADER } from "@/lib/request-context";
 
 const REDIRECT_IF_AUTHENTICATED = new Set(["/login", "/register"]);
 const CSRF_PROTECTED_API_PREFIXES = ["/api/v1", "/api/e2e"] as const;
@@ -198,6 +199,7 @@ export async function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", cspHeader);
+  requestHeaders.set(WHISPR_REQUEST_PATHNAME_HEADER, pathname);
 
   if (isCsrfProtectedApiPath(pathname)) {
     if (

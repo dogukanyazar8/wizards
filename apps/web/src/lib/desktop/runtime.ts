@@ -29,6 +29,10 @@ export interface WhisprDesktopCommandDetail {
   path?: string | null;
 }
 
+export interface WhisprDesktopBeforeCloseDetail {
+  requestId?: number;
+}
+
 export function isWhisprDesktopRuntime() {
   return typeof window !== "undefined" && window.__WHISPR_DESKTOP__?.shell === "desktop";
 }
@@ -84,6 +88,30 @@ export async function promoteWhisprDesktopWindow() {
     await runDesktopWindowStep(() => currentWindow.show());
 
     return resized;
+  } catch {
+    return false;
+  }
+}
+
+export function getWhisprDesktopBeforeCloseRequestId(event: Event): number | null {
+  const requestId = (event as CustomEvent<WhisprDesktopBeforeCloseDetail>).detail?.requestId;
+
+  if (typeof requestId !== "number") {
+    return null;
+  }
+
+  return Number.isSafeInteger(requestId) && requestId > 0 ? requestId : null;
+}
+
+export async function completeWhisprDesktopBeforeClose(requestId: number) {
+  if (!isWhisprDesktopRuntime()) {
+    return false;
+  }
+
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("complete_desktop_before_close", { requestId });
+    return true;
   } catch {
     return false;
   }

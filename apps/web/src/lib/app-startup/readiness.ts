@@ -1,6 +1,6 @@
 export type AppStartupStatus = "session" | "workspace" | "realtime" | "ready";
 
-export type ShellReadinessPhase = "pending" | "showing" | "hiding" | "dismissed";
+export type ShellReadinessPhase = "showing" | "hiding" | "dismissed";
 
 export type ShellReadinessRoute =
   | "dm-conversation"
@@ -74,11 +74,11 @@ export function getShellReadinessStatus(
 }
 
 export function shouldMountShellSplash(phase: ShellReadinessPhase): boolean {
-  return phase === "pending" || phase === "showing" || phase === "hiding";
+  return phase === "showing" || phase === "hiding";
 }
 
 export function shouldShowShellSplash(phase: ShellReadinessPhase): boolean {
-  return phase === "pending" || phase === "showing";
+  return phase === "showing";
 }
 
 export function getShellSplashPhaseAfterMaxTimeout(
@@ -86,10 +86,6 @@ export function getShellSplashPhaseAfterMaxTimeout(
 ): ShellReadinessPhase {
   if (phase === "showing") {
     return "hiding";
-  }
-
-  if (phase === "pending") {
-    return "dismissed";
   }
 
   return phase;

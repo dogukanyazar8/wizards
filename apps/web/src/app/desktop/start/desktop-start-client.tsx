@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppStartupScreen } from "@/components/app/app-startup-screen";
 import {
@@ -8,13 +8,13 @@ import {
   promoteWhisprDesktopWindow,
   showWhisprDesktopWindow,
 } from "@/lib/desktop/runtime";
+import { resolveDesktopStartDestination } from "@/lib/desktop/start";
 
 const DESKTOP_STARTUP_MIN_VISIBLE_MS = 760;
 const DESKTOP_MAIN_VIEWPORT_READY_WIDTH = 900;
 
 interface DesktopStartClientProps {
-  authenticated: boolean;
-  destination: string;
+  callbackUrl: string;
 }
 
 function waitForMainWindowViewport() {
@@ -25,41 +25,62 @@ function waitForMainWindowViewport() {
   });
 }
 
-export function DesktopStartClient({ authenticated, destination }: DesktopStartClientProps) {
+function waitForMinimumStartupVisibility() {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, DESKTOP_STARTUP_MIN_VISIBLE_MS);
+  });
+}
+
+export function DesktopStartClient({ callbackUrl }: DesktopStartClientProps) {
   const router = useRouter();
+  const [authenticated, setAuthenticated] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    const destinationPromise = resolveDesktopStartDestination(callbackUrl).then((resolution) => {
+      if (!cancelled) {
+        setAuthenticated(resolution.authenticated);
+      }
+
+      return resolution.destination;
+    });
+
     if (!isWhisprDesktopRuntime()) {
-      router.replace(destination);
+      void destinationPromise.then((destination) => {
+        if (!cancelled) {
+          router.replace(destination);
+        }
+      });
       return undefined;
     }
 
-    let cancelled = false;
     void showWhisprDesktopWindow();
 
-    const fadeTimeoutId = window.setTimeout(() => {
-      void (async () => {
-        const promoted = await promoteWhisprDesktopWindow();
-        const viewportReady = promoted ? await waitForMainWindowViewport() : false;
+    void (async () => {
+      const [destination] = await Promise.all([
+        destinationPromise,
+        waitForMinimumStartupVisibility(),
+      ]);
 
-        if (cancelled) {
-          return;
-        }
+      const promoted = await promoteWhisprDesktopWindow();
+      const viewportReady = promoted ? await waitForMainWindowViewport() : false;
 
-        if (viewportReady) {
-          router.replace(destination);
-          return;
-        }
+      if (cancelled) {
+        return;
+      }
 
-        window.location.replace(destination);
-      })();
-    }, DESKTOP_STARTUP_MIN_VISIBLE_MS);
+      if (viewportReady) {
+        router.replace(destination);
+        return;
+      }
+
+      window.location.replace(destination);
+    })();
 
     return () => {
       cancelled = true;
-      window.clearTimeout(fadeTimeoutId);
     };
-  }, [destination, router]);
+  }, [callbackUrl, router]);
 
   return (
     <AppStartupScreen

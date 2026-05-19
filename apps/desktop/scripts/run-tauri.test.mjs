@@ -36,7 +36,16 @@ describe("desktop Tauri config generation", () => {
 
     assert.equal(generatedConfig.build.frontendDist, `${productionUrl}/`);
     assert.deepEqual(capability.remote.urls, [productionUrl, `${productionUrl}/*`]);
-    assert.match(generatedConfig.app.security.csp, /connect-src[^;]*https:\/\/whispr\.team/);
+    assert.ok(
+      getCspDirective(generatedConfig.app.security.csp, "connect-src").includes(productionUrl),
+      "Expected production HTTPS origin in connect-src",
+    );
+    assert.ok(
+      getCspDirective(generatedConfig.app.security.csp, "connect-src").includes(
+        "wss://whispr.team",
+      ),
+      "Expected production WebSocket origin in connect-src",
+    );
     assert.deepEqual(getCspDirective(generatedConfig.app.security.csp, "script-src"), [
       "'self'",
       "'wasm-unsafe-eval'",
@@ -78,6 +87,12 @@ describe("desktop Tauri config generation", () => {
 
     assert.equal(generatedConfig.build.frontendDist, `${productionUrl}/`);
     assert.deepEqual(capability.remote.urls, [productionUrl, `${productionUrl}/*`]);
+    assert.ok(
+      getCspDirective(generatedConfig.app.security.csp, "connect-src").includes(
+        "wss://uat.whispr.team",
+      ),
+      "Expected override WebSocket origin in connect-src",
+    );
   });
 
   it("rejects non-HTTPS production web origins", async () => {

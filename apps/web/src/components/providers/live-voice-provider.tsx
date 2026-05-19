@@ -31,7 +31,12 @@ import {
 } from "@/components/providers/voice-provider-shared";
 import { VoiceAudioRenderer } from "@/components/voice/voice-audio-renderer";
 import { VoiceInviteToasts } from "@/components/voice/voice-invite-toasts";
-import { WHISPR_DESKTOP_BEFORE_CLOSE_EVENT, isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
+import {
+  WHISPR_DESKTOP_BEFORE_CLOSE_EVENT,
+  completeWhisprDesktopBeforeClose,
+  getWhisprDesktopBeforeCloseRequestId,
+  isWhisprDesktopRuntime,
+} from "@/lib/desktop/runtime";
 import { logError } from "@/lib/logger";
 import { getSocket } from "@/lib/socket/client";
 import { collectVoiceAudioHealthFromSender } from "@/lib/voice/audio-health";
@@ -2309,14 +2314,29 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       stopLocalTracks,
       stopScreenShare,
     });
+    const handleBrowserPageExit = () => {
+      void handlePageExit();
+    };
+    const handleDesktopBeforeClose = (event: Event) => {
+      const requestId = getWhisprDesktopBeforeCloseRequestId(event);
+      if (requestId === null) {
+        void handlePageExit();
+        return;
+      }
 
-    window.addEventListener("beforeunload", handlePageExit);
-    window.addEventListener("pagehide", handlePageExit);
-    window.addEventListener(WHISPR_DESKTOP_BEFORE_CLOSE_EVENT, handlePageExit);
+      event.preventDefault();
+      void handlePageExit().finally(() => {
+        void completeWhisprDesktopBeforeClose(requestId);
+      });
+    };
+
+    window.addEventListener("beforeunload", handleBrowserPageExit);
+    window.addEventListener("pagehide", handleBrowserPageExit);
+    window.addEventListener(WHISPR_DESKTOP_BEFORE_CLOSE_EVENT, handleDesktopBeforeClose);
     return () => {
-      window.removeEventListener("beforeunload", handlePageExit);
-      window.removeEventListener("pagehide", handlePageExit);
-      window.removeEventListener(WHISPR_DESKTOP_BEFORE_CLOSE_EVENT, handlePageExit);
+      window.removeEventListener("beforeunload", handleBrowserPageExit);
+      window.removeEventListener("pagehide", handleBrowserPageExit);
+      window.removeEventListener(WHISPR_DESKTOP_BEFORE_CLOSE_EVENT, handleDesktopBeforeClose);
     };
   }, [
     clearReconnectTimeout,

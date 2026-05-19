@@ -5,6 +5,7 @@ import {
   getAppStartupDurationMs,
   getAppStartupRuntime,
   recordAppStartupReadyMetric,
+  type AppStartupResult,
 } from "@/lib/app-startup/performance";
 import {
   getInitialShellSplashPhase,
@@ -35,13 +36,33 @@ function getNow() {
   return typeof performance === "undefined" ? Date.now() : performance.now();
 }
 
+function recordStartupMetricOnce(
+  readyMetricRecordedRef: { current: boolean },
+  shouldRecordStartupMetricRef: { current: boolean },
+  startupStartedAtMs: number,
+  result: AppStartupResult,
+) {
+  if (readyMetricRecordedRef.current || !shouldRecordStartupMetricRef.current) {
+    return;
+  }
+
+  readyMetricRecordedRef.current = true;
+  recordAppStartupReadyMetric({
+    durationMs: getAppStartupDurationMs(startupStartedAtMs, getNow()),
+    result,
+    runtime: getAppStartupRuntime(),
+  });
+}
+
 export function useShellReadiness(input: ShellReadinessInput): ShellReadinessState {
   const isReady = isShellReady(input);
+  const isReadyRef = useRef(isReady);
   const initialPhaseRef = useRef<ShellReadinessPhase | null>(null);
 
   if (initialPhaseRef.current === null) {
     initialPhaseRef.current = getInitialShellSplashPhase();
   }
+  isReadyRef.current = isReady;
 
   const [phase, setPhase] = useState<ShellReadinessPhase>(initialPhaseRef.current);
   const startupStartedAtRef = useRef(getNow());
@@ -57,6 +78,14 @@ export function useShellReadiness(input: ShellReadinessInput): ShellReadinessSta
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
+      if (!isReadyRef.current) {
+        recordStartupMetricOnce(
+          readyMetricRecordedRef,
+          shouldRecordStartupMetricRef,
+          startupStartedAtRef.current,
+          "timeout",
+        );
+      }
       setPhase(getShellSplashPhaseAfterMaxTimeout);
     }, SHELL_SPLASH_MAX_VISIBLE_MS);
 
@@ -99,12 +128,12 @@ export function useShellReadiness(input: ShellReadinessInput): ShellReadinessSta
       return;
     }
 
-    readyMetricRecordedRef.current = true;
-    recordAppStartupReadyMetric({
-      durationMs: getAppStartupDurationMs(startupStartedAtRef.current, getNow()),
-      result: "success",
-      runtime: getAppStartupRuntime(),
-    });
+    recordStartupMetricOnce(
+      readyMetricRecordedRef,
+      shouldRecordStartupMetricRef,
+      startupStartedAtRef.current,
+      "success",
+    );
   }, [isReady]);
 
   return useMemo(

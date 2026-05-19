@@ -174,6 +174,11 @@ function originPattern(url) {
   return `${url.protocol}//${url.host}`;
 }
 
+function websocketOriginPattern(url) {
+  const protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${url.host}`;
+}
+
 function capabilityUrlPatterns(url) {
   const origin = originPattern(url);
   return [origin, `${origin}/*`];
@@ -183,6 +188,7 @@ function buildDesktopCsp(webUrl, mode) {
   const connectSources = new Set([
     "'self'",
     originPattern(webUrl),
+    websocketOriginPattern(webUrl),
     "https://api.giphy.com",
     "https://*.giphy.com",
     "https://*.livekit.cloud",

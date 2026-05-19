@@ -20,7 +20,11 @@ import {
   TRANSIENT_VOICE_ERROR_DISMISS_MS,
 } from "@/components/providers/voice-provider-shared";
 import { VoiceInviteToasts } from "@/components/voice/voice-invite-toasts";
-import { WHISPR_DESKTOP_BEFORE_CLOSE_EVENT } from "@/lib/desktop/runtime";
+import {
+  WHISPR_DESKTOP_BEFORE_CLOSE_EVENT,
+  completeWhisprDesktopBeforeClose,
+  getWhisprDesktopBeforeCloseRequestId,
+} from "@/lib/desktop/runtime";
 import { getSocket } from "@/lib/socket/client";
 import {
   deleteVoiceState,
@@ -546,26 +550,41 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
   }, [currentUser.id, participants, syncParticipantsFromState]);
 
   useEffect(() => {
-    const handlePageExit = () => {
+    const runPageExitCleanup = async () => {
       const store = useVoiceStore.getState();
       if (store.isScreenSharing && store.screenShareMode === "voice") {
         emitScreenShareState(store.activeChannelId, store.serverId, false);
       }
 
       if (store.sessionId) {
-        void notifyVoiceExit(store.sessionId);
+        await notifyVoiceExit(store.sessionId).catch(() => undefined);
       }
 
       store.leave();
     };
+    const handleBrowserPageExit = () => {
+      void runPageExitCleanup();
+    };
+    const handleDesktopBeforeClose = (event: Event) => {
+      const requestId = getWhisprDesktopBeforeCloseRequestId(event);
+      if (requestId === null) {
+        void runPageExitCleanup();
+        return;
+      }
 
-    window.addEventListener("beforeunload", handlePageExit);
-    window.addEventListener("pagehide", handlePageExit);
-    window.addEventListener(WHISPR_DESKTOP_BEFORE_CLOSE_EVENT, handlePageExit);
+      event.preventDefault();
+      void runPageExitCleanup().finally(() => {
+        void completeWhisprDesktopBeforeClose(requestId);
+      });
+    };
+
+    window.addEventListener("beforeunload", handleBrowserPageExit);
+    window.addEventListener("pagehide", handleBrowserPageExit);
+    window.addEventListener(WHISPR_DESKTOP_BEFORE_CLOSE_EVENT, handleDesktopBeforeClose);
     return () => {
-      window.removeEventListener("beforeunload", handlePageExit);
-      window.removeEventListener("pagehide", handlePageExit);
-      window.removeEventListener(WHISPR_DESKTOP_BEFORE_CLOSE_EVENT, handlePageExit);
+      window.removeEventListener("beforeunload", handleBrowserPageExit);
+      window.removeEventListener("pagehide", handleBrowserPageExit);
+      window.removeEventListener(WHISPR_DESKTOP_BEFORE_CLOSE_EVENT, handleDesktopBeforeClose);
       stopHeartbeat();
     };
   }, [emitScreenShareState, stopHeartbeat]);

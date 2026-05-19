@@ -5,7 +5,12 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Maximize2, Minus, X } from "lucide-react";
 import type { Window as TauriWindow } from "@tauri-apps/api/window";
-import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
+import {
+  WHISPR_DESKTOP_BEFORE_CLOSE_EVENT,
+  completeWhisprDesktopBeforeClose,
+  getWhisprDesktopBeforeCloseRequestId,
+  isWhisprDesktopRuntime,
+} from "@/lib/desktop/runtime";
 import { cn } from "@/lib/utils";
 
 type WindowAction = (window: TauriWindow) => Promise<void>;
@@ -69,6 +74,35 @@ export function DesktopWindowChrome() {
       document.documentElement.classList.remove("whispr-desktop-chrome");
     };
   }, [pathname]);
+
+  useEffect(() => {
+    if (!isDesktop) {
+      return;
+    }
+
+    const handleDesktopBeforeCloseFallback = (event: Event) => {
+      const requestId = getWhisprDesktopBeforeCloseRequestId(event);
+      if (requestId === null) {
+        return;
+      }
+
+      queueMicrotask(() => {
+        if (event.defaultPrevented) {
+          return;
+        }
+
+        void completeWhisprDesktopBeforeClose(requestId);
+      });
+    };
+
+    window.addEventListener(WHISPR_DESKTOP_BEFORE_CLOSE_EVENT, handleDesktopBeforeCloseFallback);
+    return () => {
+      window.removeEventListener(
+        WHISPR_DESKTOP_BEFORE_CLOSE_EVENT,
+        handleDesktopBeforeCloseFallback,
+      );
+    };
+  }, [isDesktop]);
 
   if (!isDesktop || pathname === "/desktop/start") {
     return null;

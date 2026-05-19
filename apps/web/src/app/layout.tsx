@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import {
   DM_Sans,
   Inter,
@@ -24,6 +25,10 @@ import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
 import { getRequestLocale } from "@/lib/locale/server";
+import {
+  isDesktopStartPathname,
+  WHISPR_REQUEST_PATHNAME_HEADER,
+} from "@/lib/request-context";
 
 const bodyFont = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -86,7 +91,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth();
+  const headerStore = await headers();
+  const requestPathname = headerStore.get(WHISPR_REQUEST_PATHNAME_HEADER);
+  const skipRootAuth = isDesktopStartPathname(requestPathname);
+  const session = skipRootAuth ? null : await auth();
   const locale = await getRequestLocale(session?.user?.locale);
   const theme = session?.user?.theme || undefined;
   const currentUser = session?.user
