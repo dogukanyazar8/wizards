@@ -1,14 +1,14 @@
 use std::{
+    path::PathBuf,
     sync::{Arc, Mutex},
     time::Duration,
 };
 
 use tauri::{
-    AppHandle,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    webview::NewWindowResponse,
-    Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent,
+    webview::{NewWindowResponse, PageLoadEvent},
+    AppHandle, LogicalSize, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent,
 };
 use url::Url;
 
@@ -20,6 +20,10 @@ Object.defineProperty(window, "__WHISPR_DESKTOP__", {
   writable: false
 });
 const markWhisprDesktopChrome = () => {
+  if (window.location?.pathname === "/desktop/start") {
+    document.documentElement?.classList.remove("whispr-desktop-chrome");
+    return;
+  }
   document.documentElement?.classList.add("whispr-desktop-chrome");
 };
 if (document.documentElement) {
@@ -31,6 +35,13 @@ if (document.documentElement) {
 
 const DESKTOP_BEFORE_CLOSE_SCRIPT: &str =
     r#"window.dispatchEvent(new Event("whispr:desktop-before-close"));"#;
+const DESKTOP_START_PATH: &str = "/desktop/start";
+const DESKTOP_MAIN_WINDOW_WIDTH: f64 = 1920.0;
+const DESKTOP_MAIN_WINDOW_HEIGHT: f64 = 1080.0;
+const DESKTOP_MIN_WINDOW_WIDTH: f64 = 960.0;
+const DESKTOP_MIN_WINDOW_HEIGHT: f64 = 640.0;
+const DESKTOP_SPLASH_WINDOW_WIDTH: f64 = 432.0;
+const DESKTOP_SPLASH_WINDOW_HEIGHT: f64 = 292.0;
 
 pub fn run() {
     let mut builder = tauri::Builder::default();
@@ -51,17 +62,18 @@ pub fn run() {
             let app_name =
                 std::env::var("WHISPR_DESKTOP_APP_NAME").unwrap_or_else(|_| "Whispr".into());
             let oauth_navigation_active = Arc::new(Mutex::new(false));
+            let desktop_window_promoted =
+                Arc::new(Mutex::new(app_url.path() != DESKTOP_START_PATH));
+            let webview_data_directory = resolve_webview_data_directory(app)?;
 
             setup_tray(app, &app_name)?;
 
-            let main_window =
+            let mut main_window_builder =
                 WebviewWindowBuilder::new(app, "main", WebviewUrl::External(app_url.clone()))
                     .title(app_name)
-                    .inner_size(1920.0, 1080.0)
-                    .min_inner_size(960.0, 640.0)
                     .decorations(false)
-                    .resizable(true)
                     .center()
+                    .data_directory(webview_data_directory)
                     .initialization_script(DESKTOP_INIT_SCRIPT)
                     .on_navigation({
                         let allowed_origin = app_url.clone();
@@ -81,11 +93,46 @@ pub fn run() {
                             false
                         }
                     })
+                    .on_page_load({
+                        let allowed_origin = app_url.clone();
+                        let desktop_window_promoted = Arc::clone(&desktop_window_promoted);
+
+                        move |window, payload| {
+                            let url = payload.url();
+                            if !is_same_origin(url, &allowed_origin) {
+                                return;
+                            }
+
+                            match payload.event() {
+                                PageLoadEvent::Started if url.path() != DESKTOP_START_PATH => {
+                                    promote_desktop_window(&window, &desktop_window_promoted);
+                                }
+                                PageLoadEvent::Finished if url.path() == DESKTOP_START_PATH => {
+                                    let _ = window.show();
+                                }
+                                _ => {}
+                            }
+                        }
+                    })
                     .on_new_window(|url, _features| {
                         open_external_url(&url);
                         NewWindowResponse::Deny
-                    })
-                    .build()?;
+                    });
+
+            if app_url.path() == DESKTOP_START_PATH {
+                main_window_builder = main_window_builder
+                    .inner_size(DESKTOP_SPLASH_WINDOW_WIDTH, DESKTOP_SPLASH_WINDOW_HEIGHT)
+                    .min_inner_size(DESKTOP_SPLASH_WINDOW_WIDTH, DESKTOP_SPLASH_WINDOW_HEIGHT)
+                    .resizable(false)
+                    .visible(false);
+            } else {
+                main_window_builder = main_window_builder
+                    .inner_size(DESKTOP_MAIN_WINDOW_WIDTH, DESKTOP_MAIN_WINDOW_HEIGHT)
+                    .min_inner_size(DESKTOP_MIN_WINDOW_WIDTH, DESKTOP_MIN_WINDOW_HEIGHT)
+                    .resizable(true);
+            }
+
+            let main_window = main_window_builder.build()?;
             let close_signal_window = main_window.clone();
 
             main_window.on_window_event(move |event| {
@@ -102,11 +149,55 @@ pub fn run() {
         .expect("error while running Whispr desktop");
 }
 
+fn promote_desktop_window<R: tauri::Runtime>(
+    window: &tauri::WebviewWindow<R>,
+    promoted: &Arc<Mutex<bool>>,
+) {
+    let should_promote = promoted
+        .lock()
+        .map(|mut already_promoted| {
+            if *already_promoted {
+                false
+            } else {
+                *already_promoted = true;
+                true
+            }
+        })
+        .unwrap_or(false);
+
+    if !should_promote {
+        return;
+    }
+
+    let _ = window.set_min_size(None::<LogicalSize<f64>>);
+    let _ = window.set_size(LogicalSize::new(
+        DESKTOP_MAIN_WINDOW_WIDTH,
+        DESKTOP_MAIN_WINDOW_HEIGHT,
+    ));
+    let _ = window.set_min_size(Some(LogicalSize::new(
+        DESKTOP_MIN_WINDOW_WIDTH,
+        DESKTOP_MIN_WINDOW_HEIGHT,
+    )));
+    let _ = window.set_resizable(true);
+    let _ = window.center();
+}
+
+fn resolve_webview_data_directory(app: &tauri::App) -> tauri::Result<PathBuf> {
+    let data_directory = app.path().app_data_dir()?.join("webview");
+    std::fs::create_dir_all(&data_directory)?;
+    Ok(data_directory)
+}
+
 fn setup_tray(app: &mut tauri::App, app_name: &str) -> tauri::Result<()> {
     let show_item = MenuItem::with_id(app, "show", format!("Show {app_name}"), true, None::<&str>)?;
     let settings_item = MenuItem::with_id(app, "settings", "Open Settings", true, None::<&str>)?;
-    let diagnostics_item =
-        MenuItem::with_id(app, "diagnostics", "Desktop Diagnostics", true, None::<&str>)?;
+    let diagnostics_item = MenuItem::with_id(
+        app,
+        "diagnostics",
+        "Desktop Diagnostics",
+        true,
+        None::<&str>,
+    )?;
     let mute_item = MenuItem::with_id(app, "toggle_mute", "Toggle Mute", true, None::<&str>)?;
     let deafen_item = MenuItem::with_id(app, "toggle_deafen", "Toggle Deafen", true, None::<&str>)?;
     let updates_item = MenuItem::with_id(
@@ -312,10 +403,14 @@ fn configured_app_url() -> Url {
         }
     };
 
-    let url = Url::parse(&raw_url).expect("WHISPR_DESKTOP_WEB_URL must be a valid URL");
+    let mut url = Url::parse(&raw_url).expect("WHISPR_DESKTOP_WEB_URL must be a valid URL");
 
     if !cfg!(debug_assertions) && url.scheme() != "https" {
         panic!("WHISPR_DESKTOP_WEB_URL must use HTTPS in production desktop builds");
+    }
+
+    if url.path() == "/" {
+        url.set_path(DESKTOP_START_PATH);
     }
 
     url
@@ -337,6 +432,7 @@ fn sync_oauth_navigation_state(url: &Url, oauth_navigation_active: &Arc<Mutex<bo
 
     if path.starts_with("/api/auth/error")
         || path == "/login"
+        || path == DESKTOP_START_PATH
         || path.starts_with("/channels")
         || path.starts_with("/settings")
     {

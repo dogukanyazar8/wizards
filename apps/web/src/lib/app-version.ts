@@ -47,54 +47,54 @@ export const WHISPR_RELEASE_CHANNEL =
 
 export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
   {
-    categoryKey: "app.update.category.voice",
-    descriptionKey: "app.update.notes.voiceReliability.description",
-    fallbackCategory: "Voice",
+    categoryKey: "app.update.category.desktop",
+    descriptionKey: "app.update.notes.desktopStartup.description",
+    fallbackCategory: "Desktop",
     fallbackDescription:
-      "Voice joins are now idempotent, heartbeat timers bind safely in browsers, failed joins roll back their server state, and non-critical sync steps no longer tear down an active call.",
-    fallbackTitle: "Voice connection stability",
-    id: "voice-reliability",
-    titleKey: "app.update.notes.voiceReliability.title",
-  },
-  {
-    categoryKey: "app.update.category.voice",
-    descriptionKey: "app.update.notes.voiceParticipantSync.description",
-    fallbackCategory: "Voice",
-    fallbackDescription:
-      "Leaving a voice room now removes only the departing user from local cache and broadcasts state to both authorized viewers and active participants, so remaining names stay visible without a refresh.",
-    fallbackTitle: "Live voice roster sync",
-    id: "voice-participant-sync",
-    titleKey: "app.update.notes.voiceParticipantSync.title",
-  },
-  {
-    categoryKey: "app.update.category.quality",
-    descriptionKey: "app.update.notes.architectureSplit.description",
-    fallbackCategory: "Quality",
-    fallbackDescription:
-      "The voice provider and workspace service are now split into tested helpers and domain services, keeping lifecycle, cache, and transaction rules easier to reason about.",
-    fallbackTitle: "Leaner voice and workspace architecture",
-    id: "architecture-split",
-    titleKey: "app.update.notes.architectureSplit.title",
+      "Desktop now opens with a compact Whispr startup window, keeps the splash visible while the main workspace is promoted, and avoids blank first-run screens.",
+    fallbackTitle: "Discord-style desktop startup",
+    id: "desktop-startup",
+    titleKey: "app.update.notes.desktopStartup.title",
   },
   {
     categoryKey: "app.update.category.security",
-    descriptionKey: "app.update.notes.securityHardening.description",
+    descriptionKey: "app.update.notes.rememberedDesktopSession.description",
     fallbackCategory: "Security",
     fallbackDescription:
-      "JSON-only mutating APIs, stricter link and attachment fetch validation, OAuth, admin, session, permission, and rate-limit safeguards reduce cross-site and SSRF risk.",
-    fallbackTitle: "Security hardening sweep",
-    id: "security-hardening",
-    titleKey: "app.update.notes.securityHardening.title",
+      "Remember me now extends trusted credential sessions, while regular logins keep a shorter lifetime and the desktop WebView stores its session in a stable app data profile.",
+    fallbackTitle: "Remembered desktop sessions",
+    id: "remembered-desktop-session",
+    titleKey: "app.update.notes.rememberedDesktopSession.title",
+  },
+  {
+    categoryKey: "app.update.category.performance",
+    descriptionKey: "app.update.notes.startupReadiness.description",
+    fallbackCategory: "Performance",
+    fallbackDescription:
+      "Browser startup now shows the Whispr splash before the shell, then fades into the workspace only after layout, route data, and workspace state are ready.",
+    fallbackTitle: "First-paint startup readiness",
+    id: "startup-readiness",
+    titleKey: "app.update.notes.startupReadiness.title",
   },
   {
     categoryKey: "app.update.category.desktop",
-    descriptionKey: "app.update.notes.releaseReadiness.description",
+    descriptionKey: "app.update.notes.desktopChrome.description",
     fallbackCategory: "Desktop",
     fallbackDescription:
-      "The desktop build now targets whispr.team capabilities, LiveKit/Krisp CSP support, health and readiness checks, Railway config, and migration-aware startup paths.",
-    fallbackTitle: "Desktop and deploy readiness",
-    id: "release-readiness",
-    titleKey: "app.update.notes.releaseReadiness.title",
+      "The desktop title bar is slimmer and calmer, keeps the Whispr title consistent, and hides chrome entirely during startup.",
+    fallbackTitle: "Cleaner desktop window chrome",
+    id: "desktop-chrome",
+    titleKey: "app.update.notes.desktopChrome.title",
+  },
+  {
+    categoryKey: "app.update.category.quality",
+    descriptionKey: "app.update.notes.startupSafety.description",
+    fallbackCategory: "Quality",
+    fallbackDescription:
+      "Startup navigation now validates safe callback paths, keeps update and title copy localized, and uses fallback promotion paths when desktop resizing cannot complete in place.",
+    fallbackTitle: "Safer app startup flow",
+    id: "startup-safety",
+    titleKey: "app.update.notes.startupSafety.title",
   },
 ];
 

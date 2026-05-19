@@ -51,6 +51,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
 
     "startup.title": "Whispr is starting",
     "startup.description": "Your workspace is being prepared.",
+    "startup.desktop.title": "Whispr is starting",
+    "startup.desktop.description": "Secure session and desktop workspace are being prepared.",
     "startup.session": "Preparing your account...",
     "startup.workspace": "Loading workspace...",
     "startup.realtime": "Connecting realtime...",
@@ -154,6 +156,21 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.releaseReadiness.title": "Desktop and deploy readiness",
     "app.update.notes.releaseReadiness.description":
       "The desktop build now targets whispr.team capabilities, LiveKit/Krisp CSP support, health and readiness checks, Railway config, and migration-aware startup paths.",
+    "app.update.notes.desktopStartup.title": "Discord-style desktop startup",
+    "app.update.notes.desktopStartup.description":
+      "Desktop now opens with a compact Whispr startup window, keeps the splash visible while the main workspace is promoted, and avoids blank first-run screens.",
+    "app.update.notes.rememberedDesktopSession.title": "Remembered desktop sessions",
+    "app.update.notes.rememberedDesktopSession.description":
+      "Remember me now extends trusted credential sessions, while regular logins keep a shorter lifetime and the desktop WebView stores its session in a stable app data profile.",
+    "app.update.notes.startupReadiness.title": "First-paint startup readiness",
+    "app.update.notes.startupReadiness.description":
+      "Browser startup now shows the Whispr splash before the shell, then fades into the workspace only after layout, route data, and workspace state are ready.",
+    "app.update.notes.desktopChrome.title": "Cleaner desktop window chrome",
+    "app.update.notes.desktopChrome.description":
+      "The desktop title bar is slimmer and calmer, keeps the Whispr title consistent, and hides chrome entirely during startup.",
+    "app.update.notes.startupSafety.title": "Safer app startup flow",
+    "app.update.notes.startupSafety.description":
+      "Startup navigation now validates safe callback paths, keeps update and title copy localized, and uses fallback promotion paths when desktop resizing cannot complete in place.",
 
     "validation.category.pattern":
       "Category names can use letters, numbers, spaces, hyphens, or underscores.",
@@ -1997,6 +2014,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
 
     "startup.title": "Whispr başlatılıyor",
     "startup.description": "Çalışma alanın hazırlanıyor.",
+    "startup.desktop.title": "Whispr başlatılıyor",
+    "startup.desktop.description": "Güvenli oturumun ve masaüstü çalışma alanın hazırlanıyor.",
     "startup.session": "Hesabın hazırlanıyor...",
     "startup.workspace": "Çalışma alanı yükleniyor...",
     "startup.realtime": "Canlı bağlantı kuruluyor...",
@@ -2100,6 +2119,21 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.releaseReadiness.title": "Masaüstü ve deploy hazırlığı",
     "app.update.notes.releaseReadiness.description":
       "Masaüstü build'i artık whispr.team capability'leri, LiveKit/Krisp CSP desteği, health/readiness kontrolleri, Railway konfigürasyonu ve migration-aware başlangıç yollarıyla uyumlu.",
+    "app.update.notes.desktopStartup.title": "Discord tarzı masaüstü başlangıcı",
+    "app.update.notes.desktopStartup.description":
+      "Masaüstü artık kompakt Whispr başlangıç penceresiyle açılır, ana çalışma alanına geçerken splash görünür kalır ve ilk çalıştırmadaki boş ekran riski kapanır.",
+    "app.update.notes.rememberedDesktopSession.title": "Hatırlanan masaüstü oturumları",
+    "app.update.notes.rememberedDesktopSession.description":
+      "Beni hatırla artık güvenilen credential oturumlarını uzatır; normal girişler daha kısa ömürlü kalır ve masaüstü WebView oturumunu kararlı uygulama verisi profilinde saklar.",
+    "app.update.notes.startupReadiness.title": "İlk ekranda hazır başlangıç",
+    "app.update.notes.startupReadiness.description":
+      "Tarayıcı başlangıcı artık shell görünmeden önce Whispr splash ekranını gösterir; layout, rota verisi ve çalışma alanı hazır olunca ana ekrana yumuşakça geçer.",
+    "app.update.notes.desktopChrome.title": "Daha sade masaüstü pencere çubuğu",
+    "app.update.notes.desktopChrome.description":
+      "Masaüstü başlık çubuğu artık daha ince ve sakin, Whispr başlığını tutarlı gösterir ve başlangıç sırasında pencere çubuğunu tamamen gizler.",
+    "app.update.notes.startupSafety.title": "Daha güvenli uygulama başlangıcı",
+    "app.update.notes.startupSafety.description":
+      "Başlangıç yönlendirmesi artık güvenli callback yollarını doğrular, güncelleme ve başlık metinlerini lokalize tutar ve masaüstü boyutlandırması yerinde tamamlanamazsa yedek geçiş yolları kullanır.",
 
     "validation.category.pattern":
       "Kategori adları harf, sayı, boşluk, tire veya alt çizgi içerebilir.",

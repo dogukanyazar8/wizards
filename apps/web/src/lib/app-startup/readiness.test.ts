@@ -4,7 +4,6 @@ import {
   getShellReadinessStatus,
   getShellSplashPhaseAfterMaxTimeout,
   isShellReady,
-  SHELL_SPLASH_DELAY_MS,
   SHELL_SPLASH_FADE_OUT_MS,
   SHELL_SPLASH_MAX_VISIBLE_MS,
   SHELL_SPLASH_MIN_VISIBLE_MS,
@@ -127,19 +126,19 @@ describe("app startup readiness", () => {
     assert.equal(getShellReadinessStatus(readyInput), "ready");
   });
 
-  it("keeps splash timing constants aligned with the anti-flicker policy", () => {
-    assert.equal(SHELL_SPLASH_DELAY_MS, 120);
+  it("keeps splash timing constants aligned with the first-paint startup policy", () => {
     assert.equal(SHELL_SPLASH_MIN_VISIBLE_MS, 400);
     assert.equal(SHELL_SPLASH_MAX_VISIBLE_MS, 5000);
     assert.equal(SHELL_SPLASH_FADE_OUT_MS, 260);
   });
 
-  it("mounts and shows the splash only for visible phases", () => {
-    assert.equal(shouldMountShellSplash("pending"), false);
+  it("mounts and shows the splash before the shell is allowed to appear", () => {
+    assert.equal(shouldMountShellSplash("pending"), true);
     assert.equal(shouldMountShellSplash("showing"), true);
     assert.equal(shouldMountShellSplash("hiding"), true);
     assert.equal(shouldMountShellSplash("dismissed"), false);
 
+    assert.equal(shouldShowShellSplash("pending"), true);
     assert.equal(shouldShowShellSplash("showing"), true);
     assert.equal(shouldShowShellSplash("hiding"), false);
   });

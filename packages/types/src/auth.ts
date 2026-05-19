@@ -10,7 +10,20 @@ export const LoginCredentialsSchema = z.object({
   password: z.string().min(8, "validation.password.min"),
 });
 
+const RememberMeSchema = z.preprocess((value) => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return ["1", "on", "true", "yes"].includes(value.toLowerCase());
+  }
+
+  return false;
+}, z.boolean());
+
 export const LoginSchema = LoginCredentialsSchema.extend({
+  rememberMe: RememberMeSchema,
   turnstileToken: TurnstileTokenSchema,
 });
 

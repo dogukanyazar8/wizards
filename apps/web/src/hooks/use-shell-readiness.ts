@@ -10,7 +10,6 @@ import {
   getShellReadinessStatus,
   getShellSplashPhaseAfterMaxTimeout,
   isShellReady,
-  SHELL_SPLASH_DELAY_MS,
   SHELL_SPLASH_FADE_OUT_MS,
   SHELL_SPLASH_MAX_VISIBLE_MS,
   SHELL_SPLASH_MIN_VISIBLE_MS,
@@ -34,10 +33,10 @@ function getNow() {
 
 export function useShellReadiness(input: ShellReadinessInput): ShellReadinessState {
   const isReady = isShellReady(input);
-  const [phase, setPhase] = useState<ShellReadinessPhase>("pending");
+  const [phase, setPhase] = useState<ShellReadinessPhase>("showing");
   const startupStartedAtRef = useRef(getNow());
   const readyMetricRecordedRef = useRef(false);
-  const shownAtRef = useRef<number | null>(null);
+  const shownAtRef = useRef<number>(startupStartedAtRef.current);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -48,30 +47,11 @@ export function useShellReadiness(input: ShellReadinessInput): ShellReadinessSta
   }, []);
 
   useEffect(() => {
-    if (phase !== "pending") {
-      return undefined;
-    }
-
-    if (isReady) {
-      setPhase("dismissed");
-      return undefined;
-    }
-
-    const delayId = window.setTimeout(() => {
-      shownAtRef.current = getNow();
-      setPhase("showing");
-    }, SHELL_SPLASH_DELAY_MS);
-
-    return () => window.clearTimeout(delayId);
-  }, [isReady, phase]);
-
-  useEffect(() => {
     if (!isReady || phase !== "showing") {
       return undefined;
     }
 
-    const shownAt = shownAtRef.current ?? getNow();
-    const remainingMs = Math.max(0, SHELL_SPLASH_MIN_VISIBLE_MS - (getNow() - shownAt));
+    const remainingMs = Math.max(0, SHELL_SPLASH_MIN_VISIBLE_MS - (getNow() - shownAtRef.current));
 
     if (remainingMs === 0) {
       setPhase("hiding");

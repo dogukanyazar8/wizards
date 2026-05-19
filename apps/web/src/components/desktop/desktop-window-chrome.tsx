@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Maximize2, Minus, X } from "lucide-react";
 import type { Window as TauriWindow } from "@tauri-apps/api/window";
@@ -37,7 +38,7 @@ function ChromeButton({
     <button
       aria-label={ariaLabel}
       className={cn(
-        "inline-flex h-full w-11 items-center justify-center text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring)/0.55)]",
+        "inline-flex h-7 w-9 items-center justify-center rounded-lg text-app-muted transition-colors duration-150 hover:bg-[hsl(var(--surface-soft)/0.78)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)]",
         className,
       )}
       onClick={onClick}
@@ -50,13 +51,16 @@ function ChromeButton({
 }
 
 export function DesktopWindowChrome() {
+  const pathname = usePathname();
   const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
     const desktop = isWhisprDesktopRuntime();
+    const isStartupRoute = pathname === "/desktop/start";
     setIsDesktop(desktop);
 
-    if (!desktop) {
+    if (!desktop || isStartupRoute) {
+      document.documentElement.classList.remove("whispr-desktop-chrome");
       return;
     }
 
@@ -64,21 +68,21 @@ export function DesktopWindowChrome() {
     return () => {
       document.documentElement.classList.remove("whispr-desktop-chrome");
     };
-  }, []);
+  }, [pathname]);
 
-  if (!isDesktop) {
+  if (!isDesktop || pathname === "/desktop/start") {
     return null;
   }
 
   return (
     <div
-      className="desktop-window-chrome flex h-[var(--desktop-titlebar-height)] select-none items-center border-b border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.96),hsl(var(--surface-soft)/0.7))] text-app-foreground shadow-[0_1px_0_hsl(var(--background)/0.34)]"
+      className="desktop-window-chrome flex h-[var(--desktop-titlebar-height)] select-none items-center border-b border-[hsl(var(--border)/0.52)] bg-[hsl(var(--surface-card)/0.86)] text-app-foreground shadow-[0_1px_0_hsl(var(--foreground)/0.04)] backdrop-blur-xl supports-[backdrop-filter]:bg-[hsl(var(--surface-card)/0.72)]"
       data-testid="desktop-window-chrome"
     >
-      <div className="flex h-full min-w-0 flex-1 items-center gap-2 px-3" data-tauri-drag-region>
+      <div className="flex h-full min-w-0 flex-1 items-center gap-2 px-2.5" data-tauri-drag-region>
         <span
           aria-hidden="true"
-          className="relative grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded-lg border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--surface-card)/0.72)] shadow-[0_8px_18px_hsl(var(--primary)/0.12)]"
+          className="relative grid h-5 w-5 shrink-0 place-items-center overflow-hidden rounded-md border border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--surface-card)/0.72)] shadow-[0_6px_14px_hsl(var(--primary)/0.1)]"
           data-tauri-drag-region
         >
           <Image
@@ -86,25 +90,25 @@ export function DesktopWindowChrome() {
             className="h-full w-full object-cover"
             data-tauri-drag-region
             draggable={false}
-            height={24}
+            height={20}
             priority
             src="/app-icons/whispr.png"
             unoptimized
-            width={24}
+            width={20}
           />
         </span>
         <span
-          className="truncate text-xs font-bold uppercase tracking-[0.18em] text-app-muted"
+          className="truncate text-[12px] font-semibold tracking-[-0.01em] text-app-foreground"
           data-tauri-drag-region
         >
           Whispr
         </span>
       </div>
 
-      <div className="flex h-full shrink-0 items-center">
+      <div className="flex h-full shrink-0 items-center gap-1 px-1.5">
         <ChromeButton
           aria-label="Minimize window"
-          icon={<Minus className="h-4 w-4" />}
+          icon={<Minus className="h-3.5 w-3.5" />}
           onClick={() => {
             void runWindowAction((window) => window.minimize());
           }}
@@ -120,8 +124,8 @@ export function DesktopWindowChrome() {
         />
         <ChromeButton
           aria-label="Close window"
-          className="hover:bg-[hsl(var(--danger))] hover:text-white"
-          icon={<X className="h-4 w-4" />}
+          className="hover:bg-[hsl(var(--danger)/0.94)] hover:text-white"
+          icon={<X className="h-3.5 w-3.5" />}
           onClick={() => {
             void runWindowAction((window) => window.close());
           }}

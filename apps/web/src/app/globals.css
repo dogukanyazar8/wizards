@@ -20,7 +20,7 @@
   --border-color: var(--border);
   --accent-color: var(--primary);
   --input-bg: var(--input);
-  --desktop-titlebar-height: 36px;
+  --desktop-titlebar-height: 34px;
 }
 
 :root,

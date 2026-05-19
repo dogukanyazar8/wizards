@@ -7,6 +7,7 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { AppStartupScreen } from "@/components/app/app-startup-screen";
 import { LoginCard } from "@/components/auth/login-card";
 import { LoginPage } from "@/components/auth/login-page";
 import { getLoginRoleHint, RoleTabs, type LoginRole } from "@/components/auth/role-tabs";
@@ -15,6 +16,7 @@ import { TurnstileWidget } from "@/components/auth/turnstile-widget";
 import { useI18n } from "@/components/providers/locale-provider";
 import { loginAction } from "@/lib/auth/actions";
 import { LOGIN_FAILED_MESSAGE_KEY } from "@/lib/auth/login-errors";
+import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 
 type OAuthProvider = "google";
 
@@ -52,6 +54,7 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [selectedRole, setSelectedRole] = useState<LoginRole>("business");
   const [socialNotice, setSocialNotice] = useState<string | null>(null);
+  const [showDesktopStartup, setShowDesktopStartup] = useState(false);
 
   useEffect(() => {
     setServerError(getAuthErrorMessage(authError));
@@ -68,6 +71,7 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
     defaultValues: {
       email: "",
       password: "",
+      rememberMe: false,
       turnstileToken: "",
     },
   });
@@ -95,16 +99,19 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
   const onSubmit = async (values: LoginInput) => {
     setServerError(null);
     setSocialNotice(null);
+    setShowDesktopStartup(isWhisprDesktopRuntime());
 
     const formData = new FormData();
     formData.set("email", values.email);
     formData.set("password", values.password);
+    formData.set("rememberMe", values.rememberMe ? "true" : "false");
     formData.set("turnstileToken", values.turnstileToken);
     formData.set("callbackUrl", callbackUrl);
 
     const result = await loginAction(formData);
 
     if (!result.success) {
+      setShowDesktopStartup(false);
       setServerError(result.error ?? "auth.login.alertUnavailable");
     }
   };
@@ -113,10 +120,12 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
     setServerError(null);
     setSocialNotice(null);
     setOauthLoading(provider);
+    setShowDesktopStartup(isWhisprDesktopRuntime());
 
     try {
       await signIn(provider, { callbackUrl });
     } catch {
+      setShowDesktopStartup(false);
       setServerError("auth.login.oauthError");
       setOauthLoading(null);
     }
@@ -129,6 +138,10 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
 
   return (
     <LoginPage>
+      {showDesktopStartup ? (
+        <AppStartupScreen experience="desktop" status="session" variant="overlay" />
+      ) : null}
+
       <LoginCard>
         <div className="modern-login-card-header">
           <p>{t("auth.login.modernEyebrow")}</p>
@@ -193,7 +206,7 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
           <input type="hidden" {...register("turnstileToken")} />
 
           <label className="modern-login-checkbox">
-            <input type="checkbox" />
+            <input type="checkbox" {...register("rememberMe")} />
             <span>{t("auth.login.rememberMe")}</span>
           </label>
 

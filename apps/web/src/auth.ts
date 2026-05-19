@@ -7,6 +7,7 @@ import { LoginCredentialsSchema } from "@wizards/types";
 import bcrypt from "bcryptjs";
 import NextAuth, { type NextAuthConfig, type NextAuthResult } from "next-auth";
 import type { Adapter, AdapterAccount, AdapterUser } from "next-auth/adapters";
+import { decode as decodeJwt, encode as encodeJwt } from "next-auth/jwt";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
@@ -66,6 +67,34 @@ function loadAuthEnvironment() {
 }
 
 loadAuthEnvironment();
+
+const REMEMBERED_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+const SHORT_SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
+
+function parseRememberMeCredential(value: unknown) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  return ["1", "on", "true", "yes"].includes(value.toLowerCase());
+}
+
+function getJwtSessionMaxAge(token: unknown) {
+  if (
+    token &&
+    typeof token === "object" &&
+    "rememberMe" in token &&
+    (token as { rememberMe?: unknown }).rememberMe === false
+  ) {
+    return SHORT_SESSION_MAX_AGE_SECONDS;
+  }
+
+  return REMEMBERED_SESSION_MAX_AGE_SECONDS;
+}
 
 function readLocalEnvValue(key: string): string {
   if (process.env.NODE_ENV === "production") {
@@ -483,10 +512,19 @@ const authConfig = {
   adapter,
   session: {
     strategy: "jwt",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: REMEMBERED_SESSION_MAX_AGE_SECONDS,
   },
   jwt: {
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: REMEMBERED_SESSION_MAX_AGE_SECONDS,
+    async encode(params) {
+      return encodeJwt({
+        ...params,
+        maxAge: getJwtSessionMaxAge(params.token),
+      });
+    },
+    async decode(params) {
+      return decodeJwt(params);
+    },
   },
   cookies: {
     sessionToken: {
@@ -510,6 +548,7 @@ const authConfig = {
         email: { label: "Email", type: "email" },
         loginProof: { label: "Login proof", type: "text" },
         password: { label: "Password", type: "password" },
+        rememberMe: { label: "Remember me", type: "text" },
       },
       async authorize(credentials) {
         const credentialRecord =
@@ -528,6 +567,7 @@ const authConfig = {
         }
 
         const { email: normalizedEmail, password } = parsedCredentials.data;
+        const rememberMe = parseRememberMeCredential(credentialRecord?.rememberMe);
         const loginProof =
           typeof credentialRecord?.loginProof === "string" ? credentialRecord.loginProof : "";
 
@@ -592,6 +632,7 @@ const authConfig = {
           avatarUrl: user.avatarUrl,
           isBanned: user.isBanned,
           locale: normalizeAppLocale(user.locale),
+          rememberMe,
           theme: normalizeWizardsThemeId(user.theme),
         };
       },
@@ -660,6 +701,7 @@ const authConfig = {
           authEmailVerified?: unknown;
           deletedAt?: unknown;
           isBanned?: unknown;
+          rememberMe?: unknown;
         };
         const userId = stringOrEmpty(user.id);
         if (userId) {
@@ -695,6 +737,8 @@ const authConfig = {
             ? userRecord.authEmailVerified
             : Boolean(user.emailVerified);
         token.isBanned = typeof userRecord.isBanned === "boolean" ? userRecord.isBanned : false;
+        token.rememberMe =
+          typeof userRecord.rememberMe === "boolean" ? userRecord.rememberMe : true;
         token.authStatusHydrated = true;
         token.profileHydrated = true;
       }

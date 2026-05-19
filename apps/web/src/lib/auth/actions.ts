@@ -379,6 +379,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
   const validation = LoginSchema.safeParse({
     email: normalizeAuthEmail(getFormValue(formData, "email")),
     password: getFormValue(formData, "password"),
+    rememberMe: getFormValue(formData, "rememberMe"),
     turnstileToken: getFormValue(formData, "turnstileToken"),
   });
 
@@ -389,7 +390,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     };
   }
 
-  const { email, password } = validation.data;
+  const { email, password, rememberMe } = validation.data;
   const redirectTo = getSafeAuthRedirectPath(getFormValue(formData, "callbackUrl"));
   const ipAddress = await getRequestIpAddress();
 
@@ -442,6 +443,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
       email,
       loginProof,
       password,
+      rememberMe: rememberMe ? "true" : "false",
       redirectTo,
     });
 

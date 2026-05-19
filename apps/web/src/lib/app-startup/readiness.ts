@@ -20,7 +20,6 @@ export type ShellReadinessInput = {
   serversLoading: boolean;
 };
 
-export const SHELL_SPLASH_DELAY_MS = 120;
 export const SHELL_SPLASH_MIN_VISIBLE_MS = 400;
 export const SHELL_SPLASH_MAX_VISIBLE_MS = 5000;
 export const SHELL_SPLASH_FADE_OUT_MS = 260;
@@ -75,11 +74,11 @@ export function getShellReadinessStatus(
 }
 
 export function shouldMountShellSplash(phase: ShellReadinessPhase): boolean {
-  return phase === "showing" || phase === "hiding";
+  return phase === "pending" || phase === "showing" || phase === "hiding";
 }
 
 export function shouldShowShellSplash(phase: ShellReadinessPhase): boolean {
-  return phase === "showing";
+  return phase === "pending" || phase === "showing";
 }
 
 export function getShellSplashPhaseAfterMaxTimeout(

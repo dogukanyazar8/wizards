@@ -29,4 +29,23 @@ describe("auth schemas", () => {
       true,
     );
   });
+
+  it("normalizes remember-me form values without affecting internal credentials parsing", () => {
+    const remembered = LoginSchema.parse({
+      email: "ada@example.test",
+      password: "password123",
+      rememberMe: "on",
+      turnstileToken: "token",
+    });
+
+    assert.equal(remembered.rememberMe, true);
+
+    const oneTime = LoginSchema.parse({
+      email: "ada@example.test",
+      password: "password123",
+      turnstileToken: "token",
+    });
+
+    assert.equal(oneTime.rememberMe, false);
+  });
 });

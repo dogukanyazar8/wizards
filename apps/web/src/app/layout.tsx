@@ -68,7 +68,11 @@ const messageOutfitFont = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Whispr",
+  title: {
+    default: "Whispr",
+    template: "Whispr",
+  },
+  applicationName: "Whispr",
   description: "Whispr collaboration workspace",
   icons: {
     apple: "/app-icons/whispr.png",
