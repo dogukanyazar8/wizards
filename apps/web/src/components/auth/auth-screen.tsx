@@ -30,6 +30,7 @@ import {
   AudienceSelector,
   type AudienceSelectorValue,
 } from "@/components/auth/audience-selector";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
   DEFAULT_WIZARDS_THEME,
@@ -45,7 +46,6 @@ type AudienceTone = "team" | "personal" | "gamer";
 type BetaNoticeVariant = "compact" | "hero";
 
 const LANGUAGE_OPTIONS: AppLocale[] = ["tr", "en"];
-const LOGO_BAR_HEIGHTS = [17, 25, 34, 24, 18];
 const AUDIENCES: Array<{
   icon: LucideIcon;
   key: AudienceTone;
@@ -89,34 +89,7 @@ function useAuthVariant(): AuthVariant {
   return pathname?.startsWith("/register") ? "register" : "login";
 }
 
-export function BrandLogo({
-  animated = true,
-  className,
-}: {
-  animated?: boolean;
-  className?: string;
-}) {
-  return (
-    <Link className={cn("whispr-brand-logo", className)} href="/login">
-      <span
-        aria-hidden="true"
-        className={cn("whispr-logo-icon", animated && "whispr-logo-icon-animated")}
-      >
-        {LOGO_BAR_HEIGHTS.map((height, index) => (
-          <span
-            className="whispr-logo-bar"
-            key={`${height}-${index}`}
-            style={{
-              animationDelay: `${index * 0.13}s`,
-              height,
-            }}
-          />
-        ))}
-      </span>
-      <span className="whispr-logo-wordmark">Whispr</span>
-    </Link>
-  );
-}
+export { BrandLogo };
 
 export function ThemeLanguageControls() {
   const { locale, setLocale, t } = useI18n();

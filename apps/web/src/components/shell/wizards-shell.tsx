@@ -9,6 +9,7 @@ import type { WorkspaceServerDetail, WorkspaceServerSummary } from "@wizards/typ
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Button } from "@wizards/ui";
 import { useShallow } from "zustand/react/shallow";
+import { AppStartupScreen } from "@/components/app/app-startup-screen";
 import { ChannelSidebar, UserProfileFooter } from "@/components/shell/channel-sidebar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { MainChannelPanel } from "@/components/shell/main-channel-panel";
@@ -20,6 +21,7 @@ import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { useSocket } from "@/hooks/use-socket";
+import { useShellReadiness } from "@/hooks/use-shell-readiness";
 import { useDMConversations } from "@/hooks/use-dm-conversations";
 import { getMessagesQueryKey, type MessagePages } from "@/hooks/use-messages";
 import { useAppearanceHydration } from "@/hooks/use-appearance-hydration";
@@ -437,7 +439,7 @@ function getAddMemberErrorKey(error: unknown) {
 export function WizardsShell({ children, currentUser, uploadthingEnabled }: WizardsShellProps) {
   const { t } = useI18n();
   const socket = useSocket();
-  useAppearanceHydration();
+  const appearanceHydratedFromHook = useAppearanceHydration();
   const params = useParams<{
     channelId?: string;
     serverId?: string;
@@ -450,6 +452,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const [addMemberSuccess, setAddMemberSuccess] = React.useState<string | null>(null);
   const [currentUserSnapshot, setCurrentUserSnapshot] = React.useState(currentUser);
   const [currentUserStatus, setCurrentUserStatus] = React.useState(currentUser.status);
+  const [socketConnected, setSocketConnected] = React.useState(socket.connected);
   const [leaveServerCandidate, setLeaveServerCandidate] =
     React.useState<WorkspaceServerSummary | null>(null);
   const {
@@ -523,13 +526,14 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     [activeVoiceChannelId, activeVoiceServerId],
   );
 
-  const { data: layoutSettings } = useQuery({
+  const layoutSettingsQuery = useQuery({
     queryKey: settingsQueryKeys.layout,
     queryFn: fetchLayoutSettings,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
   });
+  const layoutSettings = layoutSettingsQuery.data;
 
   const { conversations: dmConversations } = useDMConversations(currentUserSnapshot.id);
 
@@ -544,6 +548,20 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     socket,
     status: currentUserStatus,
   });
+
+  useEffect(() => {
+    const handleConnect = () => setSocketConnected(true);
+    const handleDisconnect = () => setSocketConnected(false);
+
+    setSocketConnected(socket.connected);
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+
+    return () => {
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+    };
+  }, [socket]);
 
   useEffect(() => {
     setCurrentUserSnapshot(currentUser);
@@ -903,6 +921,16 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     () => serversQuery.data ?? [],
     [serversQuery.data],
   );
+  const readiness = useShellReadiness({
+    activeServerDetailLoading: Boolean(
+      activeServerId && serverDetailQuery.isLoading && !serverDetailQuery.data,
+    ),
+    appearanceHydrated: appearanceHydrated || appearanceHydratedFromHook,
+    isServerRoute: Boolean(activeServerId),
+    layoutSettingsLoaded: layoutSettingsQuery.isSuccess && Boolean(layoutSettings),
+    realtimeConnected: socketConnected,
+    serversLoading: serversQuery.isLoading && !serversQuery.data,
+  });
   const removeServerAccess = React.useCallback(
     (serverId: string) => {
       forgetServerState(serverId);
@@ -1212,6 +1240,17 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       style={shellStyle}
       suppressHydrationWarning
     >
+      {readiness.shouldMountSplash ? (
+        <AppStartupScreen
+          busy={!readiness.isReady}
+          className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${
+            readiness.shouldShowSplash ? "opacity-100" : "pointer-events-none opacity-0"
+          }`}
+          status={readiness.status}
+          variant="overlay"
+        />
+      ) : null}
+
       <div
         className="hidden h-full shrink-0 md:flex"
         style={{ width: `calc(${displayServerRailWidth}px + ${channelSidebarWidth}px)` }}

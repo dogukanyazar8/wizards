@@ -49,6 +49,13 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "auth.controls.dark": "Dark",
     "auth.controls.light": "Light",
 
+    "startup.title": "Whispr is starting",
+    "startup.description": "Your workspace is being prepared.",
+    "startup.session": "Preparing your account...",
+    "startup.workspace": "Loading workspace...",
+    "startup.realtime": "Connecting realtime...",
+    "startup.ready": "Ready",
+
     "app.update.badge": "Update ready",
     "app.update.title": "A newer Whispr build is ready",
     "app.update.description":
@@ -1987,6 +1994,13 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
 
     "auth.controls.dark": "Koyu",
     "auth.controls.light": "Açık",
+
+    "startup.title": "Whispr başlatılıyor",
+    "startup.description": "Çalışma alanın hazırlanıyor.",
+    "startup.session": "Hesabın hazırlanıyor...",
+    "startup.workspace": "Çalışma alanı yükleniyor...",
+    "startup.realtime": "Canlı bağlantı kuruluyor...",
+    "startup.ready": "Hazır",
 
     "app.update.badge": "Güncelleme hazır",
     "app.update.title": "Yeni bir Whispr sürümü hazır",

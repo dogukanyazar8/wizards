@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   APP_LOCALE_COOKIE_NAME,
