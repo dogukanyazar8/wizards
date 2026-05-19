@@ -232,8 +232,8 @@
     "hash": "eebfb6b15b3c4f739daba3e3e3a61bc9"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\admin\\layout.tsx": {
-    "mtime": 1779082192.4245396,
-    "hash": "62de9955cdade088874525396e79a987"
+    "mtime": 1779193122.001339,
+    "hash": "26b2873ad63963a11c7ae54710e9c365"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\admin\\page.tsx": {
     "mtime": 1779082192.4245396,
@@ -552,8 +552,8 @@
     "hash": "8ca6a9e86fec6d429acc329c9fbf1445"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\settings\\layout.tsx": {
-    "mtime": 1778571008.1082585,
-    "hash": "9bb3c51f13b8cd960546a45ca0172c82"
+    "mtime": 1779193113.9825585,
+    "hash": "f2d5dcf5b72669c7e1eb2d37fcb6e218"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\settings\\page.tsx": {
     "mtime": 1778057284.1341853,
@@ -582,6 +582,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\app\\app-startup-screen.tsx": {
     "mtime": 1779181725.5623517,
     "hash": "80ef1efdacb7d7301ab9312a96309ce4"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\app\\app-startup-session-marker.tsx": {
+    "mtime": 1779193095.5552647,
+    "hash": "6e6e459d60ae0cb6c44f20f0d87a46c7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\app\\app-update-notifier.tsx": {
     "mtime": 1779089161.7516537,
@@ -992,8 +996,8 @@
     "hash": "990c5800d61f9bdc1726d575edec62c5"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\hooks\\use-shell-readiness.ts": {
-    "mtime": 1779192451.0369606,
-    "hash": "8d6acb2570bab6704eda8a468f286e4f"
+    "mtime": 1779193106.7402685,
+    "hash": "aacad7d0a11835aa6466c7dd7453a694"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\hooks\\use-socket.ts": {
     "mtime": 1777099723.3988962,
@@ -1190,6 +1194,14 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\app-startup\\readiness.ts": {
     "mtime": 1779192458.6961577,
     "hash": "1f8c564299323e4d88b73ea6416fcb75"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\app-startup\\session.test.ts": {
+    "mtime": 1779193132.9279308,
+    "hash": "e0e1068f65f18fae170191476a1bbe30"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\app-startup\\session.ts": {
+    "mtime": 1779193089.490837,
+    "hash": "5fa52119756f3068fff04189934ef67a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\appearance\\actions.ts": {
     "mtime": 1777165496.994203,

@@ -7,6 +7,10 @@ import {
   recordAppStartupReadyMetric,
 } from "@/lib/app-startup/performance";
 import {
+  getInitialShellSplashPhase,
+  markShellStartupSplashSeen,
+} from "@/lib/app-startup/session";
+import {
   getShellReadinessStatus,
   getShellSplashPhaseAfterMaxTimeout,
   isShellReady,
@@ -33,10 +37,23 @@ function getNow() {
 
 export function useShellReadiness(input: ShellReadinessInput): ShellReadinessState {
   const isReady = isShellReady(input);
-  const [phase, setPhase] = useState<ShellReadinessPhase>("showing");
+  const initialPhaseRef = useRef<ShellReadinessPhase | null>(null);
+
+  if (initialPhaseRef.current === null) {
+    initialPhaseRef.current = getInitialShellSplashPhase();
+  }
+
+  const [phase, setPhase] = useState<ShellReadinessPhase>(initialPhaseRef.current);
   const startupStartedAtRef = useRef(getNow());
   const readyMetricRecordedRef = useRef(false);
+  const shouldRecordStartupMetricRef = useRef(initialPhaseRef.current !== "dismissed");
   const shownAtRef = useRef<number>(startupStartedAtRef.current);
+
+  useEffect(() => {
+    if (initialPhaseRef.current !== "dismissed") {
+      markShellStartupSplashSeen();
+    }
+  }, []);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -78,7 +95,7 @@ export function useShellReadiness(input: ShellReadinessInput): ShellReadinessSta
   }, [phase]);
 
   useEffect(() => {
-    if (!isReady || readyMetricRecordedRef.current) {
+    if (!isReady || readyMetricRecordedRef.current || !shouldRecordStartupMetricRef.current) {
       return;
     }
 

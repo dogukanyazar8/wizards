@@ -1,3 +1,4 @@
+import { AppStartupSessionMarker } from "@/components/app/app-startup-session-marker";
 import { LocaleSessionSync } from "@/components/locale/locale-session-sync";
 import { SettingsSidebar } from "@/components/settings/settings-sidebar";
 import { ThemeSessionSync } from "@/components/theme/theme-session-sync";
@@ -11,6 +12,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
       className="app-shell h-dvh min-h-0 overflow-x-hidden overflow-y-auto overscroll-y-contain px-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4 sm:py-6 md:px-6 lg:px-8"
       data-settings-scroll-root
     >
+      <AppStartupSessionMarker />
       <LocaleSessionSync preferredLocale={session.user.locale} />
       <ThemeSessionSync preferredTheme={session.user.theme} />
 

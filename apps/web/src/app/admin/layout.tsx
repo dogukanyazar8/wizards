@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import { requireAdminUser } from "@/lib/admin/access";
 import { requireAuth } from "@/lib/auth/utils";
+import { AppStartupSessionMarker } from "@/components/app/app-startup-session-marker";
 import { LocaleSessionSync } from "@/components/locale/locale-session-sync";
 import { ThemeSessionSync } from "@/components/theme/theme-session-sync";
 
@@ -24,6 +25,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <main className="app-shell min-h-dvh overflow-x-hidden px-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4 sm:py-6 md:px-6 lg:px-8">
+      <AppStartupSessionMarker />
       <LocaleSessionSync preferredLocale={session.user.locale} />
       <ThemeSessionSync preferredTheme={session.user.theme} />
       {children}
