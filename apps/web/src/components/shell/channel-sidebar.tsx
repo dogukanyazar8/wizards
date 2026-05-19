@@ -568,6 +568,7 @@ export function UserProfileFooter({
           <div
             aria-label={t("shell.user.quickMenu")}
             className="absolute bottom-[calc(100%+0.75rem)] left-2 right-2 z-40 max-h-[min(32rem,calc(100dvh-8rem))] overflow-y-auto rounded-[28px] border border-[hsl(var(--border)/0.76)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.99),hsl(var(--surface-soft)/0.86))] p-4 shadow-[0_28px_78px_hsl(var(--shadow-color)/0.19)] backdrop-blur-2xl sm:left-auto sm:right-[-2px] sm:w-[min(23rem,calc(100vw-2rem))]"
+            data-testid="user-quick-menu"
             role="dialog"
           >
             <div className="absolute -bottom-2 right-7 h-4 w-4 rotate-45 border-b border-r border-[hsl(var(--border)/0.76)] bg-[hsl(var(--surface-soft)/0.9)]" />
@@ -651,6 +652,7 @@ export function UserProfileFooter({
 
             <button
               className="grid w-full grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-2.5 rounded-[22px] px-0 py-0 text-left transition hover:translate-x-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              data-testid="user-appearance-settings-button"
               onClick={() => {
                 setIsQuickMenuOpen(false);
                 onOpenAppearanceSettings();

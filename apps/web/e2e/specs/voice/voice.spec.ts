@@ -6,6 +6,7 @@ import {
   expectVoiceParticipantCount,
   getE2EServerRoute,
 } from "../../helpers/db";
+import { gotoAppRoute, openSettingsFromUserQuickMenu } from "../../helpers/navigation";
 import { e2eUsers, type E2EUserKey } from "../../helpers/test-data";
 
 const E2E_MICROPHONE_DENIED_KEY = "whispr:e2e:deny-microphone";
@@ -36,7 +37,9 @@ async function openVoiceChannel(page: Page): Promise<{
   voiceChannelId: string;
 }> {
   const route = await getE2EServerRoute();
-  await page.goto(`/channels/${route.serverId}/${route.voiceChannelId}`);
+  await gotoAppRoute(page, `/channels/${route.serverId}/${route.voiceChannelId}`, {
+    readyTestId: "voice-channel-view",
+  });
   await expect(page.getByTestId("voice-channel-view")).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId("voice-room-control-disconnect")).toBeVisible({
     timeout: 10_000,
@@ -225,8 +228,7 @@ test.describe("voice and screen share", () => {
 
     await loginAs(page, "alice");
     await openVoiceChannel(page);
-    await page.getByTestId("user-settings-button").click();
-    await expect(page).toHaveURL(/\/settings/);
+    await openSettingsFromUserQuickMenu(page);
     await expectVoiceParticipantCount(voiceChannelId, 1);
 
     await page.goto(`/channels/${serverId}/${voiceChannelId}`);

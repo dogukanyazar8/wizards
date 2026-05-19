@@ -1,12 +1,13 @@
 import { test, expect } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
+import { gotoAppRoute } from "../../helpers/navigation";
 
 test.describe("server smoke", () => {
   test("user can create and open a server", async ({ page }) => {
     const serverName = `Whispr Smoke ${Date.now()}`;
 
     await loginAs(page, "alice");
-    await page.goto("/channels/@me");
+    await gotoAppRoute(page, "/channels/@me", { readyTestId: "create-server-button" });
     await page.getByTestId("create-server-button").click();
 
     await expect(page.getByTestId("server-create-form")).toBeVisible();

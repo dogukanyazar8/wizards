@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 import { test, expect } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
 import { getE2EServerRoute } from "../../helpers/db";
+import { gotoAppRoute } from "../../helpers/navigation";
 
 async function sendMessage(page: Page, content: string) {
   await page.getByTestId("message-input").fill(content);
@@ -14,7 +15,9 @@ test.describe("server messaging smoke", () => {
     const message = `Smoke server message ${Date.now()}`;
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await gotoAppRoute(page, `/channels/${serverId}/${textChannelId}`, {
+      readyTestId: "message-input",
+    });
     await sendMessage(page, message);
 
     await expect(page.getByTestId("message-item").filter({ hasText: message })).toBeVisible();
@@ -25,7 +28,9 @@ test.describe("server messaging smoke", () => {
     const link = `https://example.com/whispr-e2e-${Date.now()}`;
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await gotoAppRoute(page, `/channels/${serverId}/${textChannelId}`, {
+      readyTestId: "message-input",
+    });
     await sendMessage(page, link);
     await expect(page.getByTestId("message-item").filter({ hasText: link })).toBeVisible();
 

@@ -6,6 +6,8 @@ const webRoot = dirname(fileURLToPath(import.meta.url));
 const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
 const isCI = process.env.CI === "true";
 const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === "1";
+const turnstileTestSiteKey = ["1x", "0".repeat(20), "AA"].join("");
+const turnstileTestSecretKey = ["1x", "0".repeat(31), "AA"].join("");
 const webServerEnv = Object.fromEntries(
   Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
 );
@@ -17,6 +19,9 @@ webServerEnv.APP_URL = baseURL;
 webServerEnv.AUTH_URL = baseURL;
 webServerEnv.NEXTAUTH_URL = baseURL;
 webServerEnv.NEXT_PUBLIC_E2E_TEST_MODE = process.env.NEXT_PUBLIC_E2E_TEST_MODE ?? "true";
+webServerEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY =
+  process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? turnstileTestSiteKey;
+webServerEnv.TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY ?? turnstileTestSecretKey;
 webServerEnv.UPLOADTHING_TOKEN = process.env.UPLOADTHING_TOKEN ?? "e2e-uploadthing-token";
 webServerEnv.LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY ?? "e2e-livekit-api-key";
 webServerEnv.LIVEKIT_API_SECRET =

@@ -196,6 +196,10 @@ LIVEKIT_URL=ws://127.0.0.1:7880
 NEXT_PUBLIC_LIVEKIT_URL=ws://127.0.0.1:7880
 ```
 
+Playwright config also provides Cloudflare's official dummy Turnstile test keys
+when local values are not set. They are safe for local and CI automation and
+must not be reused as production secrets.
+
 Do not point `E2E_DATABASE_URL` at staging or production.
 Generate a local E2E password with a password manager or a random-value command,
 then keep it in your local environment only.

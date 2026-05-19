@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 import { test, expect } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
 import { getDMUnreadCount, getE2EDMConversationId } from "../../helpers/db";
+import { gotoAppRoute } from "../../helpers/navigation";
 
 async function sendMessage(page: Page, content: string) {
   await page.getByTestId("message-input").fill(content);
@@ -14,7 +15,7 @@ test.describe("DM smoke", () => {
     const message = `Smoke DM message ${Date.now()}`;
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/@me/${conversationId}`);
+    await gotoAppRoute(page, `/channels/@me/${conversationId}`, { readyTestId: "message-input" });
     await sendMessage(page, message);
 
     await expect(page.getByTestId("message-item").filter({ hasText: message })).toBeVisible();
@@ -30,7 +31,9 @@ test.describe("DM smoke", () => {
 
     try {
       await loginAs(alicePage, "alice");
-      await alicePage.goto(`/channels/@me/${conversationId}`);
+      await gotoAppRoute(alicePage, `/channels/@me/${conversationId}`, {
+        readyTestId: "message-input",
+      });
       await sendMessage(alicePage, message);
 
       await expect
@@ -38,7 +41,7 @@ test.describe("DM smoke", () => {
         .toBeGreaterThan(0);
 
       await loginAs(bobPage, "bob");
-      await bobPage.goto("/channels/@me");
+      await gotoAppRoute(bobPage, "/channels/@me", { readyTestId: "server-rail" });
       await expect(
         bobPage.getByTestId(`dm-conversation-${conversationId}-unread-badge`),
       ).toBeVisible();

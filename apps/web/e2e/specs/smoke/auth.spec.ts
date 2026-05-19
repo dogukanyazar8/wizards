@@ -5,7 +5,9 @@ import {
   loginAs,
   loginViaUi,
   logout,
+  submitLoginForm,
 } from "../../helpers/auth";
+import { gotoAppRoute } from "../../helpers/navigation";
 import { expectUserStatus } from "../../helpers/db";
 import { e2eUserPassword, e2eUsers } from "../../helpers/test-data";
 
@@ -19,10 +21,10 @@ test.describe("auth smoke", () => {
   });
 
   test("wrong password fails without entering the app", async ({ page }) => {
-    await page.goto("/login");
+    await gotoAppRoute(page, "/login");
     await page.locator('input[name="email"]').fill(e2eUsers.alice.email);
     await page.locator('input[name="password"]').fill(`${e2eUserPassword}-wrong`);
-    await page.locator('button[type="submit"]').click();
+    await submitLoginForm(page);
 
     await expect(page).toHaveURL(/\/login/);
     await expect(page.getByTestId("login-form").getByRole("alert")).toContainText(

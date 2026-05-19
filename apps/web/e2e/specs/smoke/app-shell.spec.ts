@@ -1,10 +1,11 @@
 import { test, expect } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
+import { gotoAppRoute, openSettingsFromUserQuickMenu } from "../../helpers/navigation";
 
 test.describe("app shell smoke", () => {
   test("authenticated user lands on the DM home shell", async ({ page }) => {
     await loginAs(page, "alice");
-    await page.goto("/channels/@me");
+    await gotoAppRoute(page, "/channels/@me", { readyTestId: "server-rail" });
 
     await expect(page).toHaveURL(/\/channels\/@me$/);
     await expect(page.getByTestId("server-rail")).toBeVisible();
@@ -14,12 +15,11 @@ test.describe("app shell smoke", () => {
 
   test("settings opens and closes from the user bar", async ({ page }) => {
     await loginAs(page, "alice");
-    await page.goto("/channels/@me");
+    await gotoAppRoute(page, "/channels/@me", { readyTestId: "user-bar" });
 
-    await page.getByTestId("user-settings-button").click();
-    await expect(page).toHaveURL(/\/settings/);
+    await openSettingsFromUserQuickMenu(page);
 
-    await page.goBack();
+    await page.goBack({ waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/channels\/@me/);
     await expect(page.getByTestId("user-bar")).toBeVisible();
   });

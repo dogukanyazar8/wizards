@@ -70,6 +70,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["localhost", "127.0.0.1"],
   env: {
     NEXT_PUBLIC_WHISPR_BUILD_ID: whisprBuildId,
     NEXT_PUBLIC_WHISPR_BUILD_TIME: whisprBuildTime,

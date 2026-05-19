@@ -28,12 +28,12 @@
     "hash": "90426577ad8f38459f3e566411c85589"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\next.config.ts": {
-    "mtime": 1779082192.420543,
-    "hash": "1e30b2a65a272dba212263677254f251"
+    "mtime": 1779167245.0090506,
+    "hash": "03007a76c7d530909a382ab09548975c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright.config.ts": {
-    "mtime": 1777980040.2862802,
-    "hash": "d4e4bc19c9c7e0992254effc4d1e664a"
+    "mtime": 1779167567.4543808,
+    "hash": "263b044f9fa400e33a8abee6dfdad467"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\postcss.config.mjs": {
     "mtime": 1777980040.2862802,
@@ -56,12 +56,16 @@
     "hash": "cfd50dafc2aba2c7949c80f12c197bb9"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\helpers\\auth.ts": {
-    "mtime": 1777980040.2762806,
-    "hash": "3f7807cfe5cc61e704bc348e3934dae3"
+    "mtime": 1779167304.0124707,
+    "hash": "366f12032c7aa4b172e2665105225563"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\helpers\\db.ts": {
     "mtime": 1779082192.4195395,
     "hash": "19eed26cd884911451bc8d037e92b7ef"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\helpers\\navigation.ts": {
+    "mtime": 1779167216.112229,
+    "hash": "5a7a875397ef23c6e92b926c7a27f86b"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\helpers\\test-data.ts": {
     "mtime": 1777980040.2772803,
@@ -108,28 +112,28 @@
     "hash": "28bcdde76d95d61376b932a9e5324de8"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\smoke\\app-shell.spec.ts": {
-    "mtime": 1777980040.2822804,
-    "hash": "b44be8b80fc347b1804bd40ae78dcee7"
+    "mtime": 1779167412.4769373,
+    "hash": "cb95ebeeabfd4a95bdd341020a77e919"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\smoke\\auth.spec.ts": {
-    "mtime": 1777980040.2822804,
-    "hash": "43cfa7b33fbe5608c0a2605590bf1d97"
+    "mtime": 1779167313.4137254,
+    "hash": "e8bd9c5e4bf496fa04369a8343ddfbfd"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\smoke\\dm.spec.ts": {
-    "mtime": 1777980040.2832801,
-    "hash": "e2996c65b1598a214be8c9cc75dc6666"
+    "mtime": 1779167348.5875616,
+    "hash": "f045ace0475874edf2589eee4ed48b66"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\smoke\\messaging.spec.ts": {
-    "mtime": 1777980040.2832801,
-    "hash": "1436532e7ee6496dd5d1952b31d32123"
+    "mtime": 1779167356.329681,
+    "hash": "aa0089376bbbfb6cecb7f20b23cdef3c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\smoke\\server.spec.ts": {
-    "mtime": 1777980040.2832801,
-    "hash": "b6c003ebcedeb27e8bca6e499eb83a78"
+    "mtime": 1779167363.995734,
+    "hash": "6d1d63e3fa1cdc3b36781df664d93cb3"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\voice\\voice.spec.ts": {
-    "mtime": 1778233740.601353,
-    "hash": "dcaa3057ae14727744819179e0fc5607"
+    "mtime": 1779167373.3144667,
+    "hash": "7dbab362332c121664fad0034de67f65"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\scripts\\cleanup-account-reauth-challenges.ts": {
     "mtime": 1779082192.4225411,
@@ -804,8 +808,8 @@
     "hash": "161dd1c98836902d4588d296345de4cf"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\channel-sidebar.tsx": {
-    "mtime": 1779082192.4604201,
-    "hash": "d3d00a0cfe353d7d4a30b31870790a41"
+    "mtime": 1779167264.6633027,
+    "hash": "19fb43050fc1c4d5f8d415684d7113ea"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\main-channel-panel.tsx": {
     "mtime": 1779116716.3462927,
@@ -2040,12 +2044,12 @@
     "hash": "e4c32ab21b3892b17ee7cd46850c9df4"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\README.md": {
-    "mtime": 1779082192.418542,
-    "hash": "9586277a6aa163d1623bf9412cbbdbef"
+    "mtime": 1779167583.4608614,
+    "hash": "278de6aa75a572afac91ba3ef1efe773"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright-report\\index.html": {
-    "mtime": 1778857495.3529985,
-    "hash": "dded540bee3cbd97ecf285dfa567fe5c"
+    "mtime": 1779167482.3634694,
+    "hash": "bca00c786f0c4bb96be69aea26ac9209"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\legal\\cookies.txt": {
     "mtime": 1778571008.0962586,
