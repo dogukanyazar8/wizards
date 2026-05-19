@@ -16,9 +16,10 @@ import {
 const readyInput: ShellReadinessInput = {
   activeServerDetailLoading: false,
   appearanceHydrated: true,
-  isServerRoute: false,
+  dmConversationsLoading: false,
   layoutSettingsLoaded: true,
   realtimeConnected: true,
+  route: "other",
   serversLoading: false,
 };
 
@@ -35,7 +36,7 @@ describe("app startup readiness", () => {
       isShellReady({
         ...readyInput,
         activeServerDetailLoading: true,
-        isServerRoute: true,
+        route: "server-channel",
       }),
       false,
     );
@@ -43,7 +44,54 @@ describe("app startup readiness", () => {
       isShellReady({
         ...readyInput,
         activeServerDetailLoading: true,
-        isServerRoute: false,
+        route: "server-root",
+      }),
+      false,
+    );
+    assert.equal(
+      isShellReady({
+        ...readyInput,
+        activeServerDetailLoading: true,
+        route: "other",
+      }),
+      true,
+    );
+  });
+
+  it("blocks DM routes on the conversation list without blocking unrelated routes", () => {
+    assert.equal(
+      isShellReady({
+        ...readyInput,
+        dmConversationsLoading: true,
+        route: "dm-list",
+      }),
+      false,
+    );
+    assert.equal(
+      isShellReady({
+        ...readyInput,
+        dmConversationsLoading: true,
+        route: "dm-conversation",
+      }),
+      false,
+    );
+    assert.equal(
+      isShellReady({
+        ...readyInput,
+        dmConversationsLoading: true,
+        route: "server-channel",
+      }),
+      true,
+    );
+  });
+
+  it("does not use the global startup splash as a settings loading gate", () => {
+    assert.equal(
+      isShellReady({
+        ...readyInput,
+        activeServerDetailLoading: true,
+        dmConversationsLoading: true,
+        route: "settings",
       }),
       true,
     );
@@ -64,7 +112,15 @@ describe("app startup readiness", () => {
       getShellReadinessStatus({
         ...readyInput,
         activeServerDetailLoading: true,
-        isServerRoute: true,
+        route: "server-channel",
+      }),
+      "workspace",
+    );
+    assert.equal(
+      getShellReadinessStatus({
+        ...readyInput,
+        dmConversationsLoading: true,
+        route: "dm-list",
       }),
       "workspace",
     );
@@ -74,7 +130,7 @@ describe("app startup readiness", () => {
   it("keeps splash timing constants aligned with the anti-flicker policy", () => {
     assert.equal(SHELL_SPLASH_DELAY_MS, 120);
     assert.equal(SHELL_SPLASH_MIN_VISIBLE_MS, 400);
-    assert.equal(SHELL_SPLASH_MAX_VISIBLE_MS, 7000);
+    assert.equal(SHELL_SPLASH_MAX_VISIBLE_MS, 5000);
     assert.equal(SHELL_SPLASH_FADE_OUT_MS, 260);
   });
 

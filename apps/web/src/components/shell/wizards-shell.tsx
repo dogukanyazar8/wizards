@@ -26,6 +26,7 @@ import { useDMConversations } from "@/hooks/use-dm-conversations";
 import { getMessagesQueryKey, type MessagePages } from "@/hooks/use-messages";
 import { useAppearanceHydration } from "@/hooks/use-appearance-hydration";
 import { usePresenceActivity } from "@/hooks/use-presence-activity";
+import type { ShellReadinessRoute } from "@/lib/app-startup/readiness";
 import type { NotificationSocketPayload, UserProfileUpdatedPayload } from "@/lib/socket/events";
 import { useAppStore } from "@/lib/store";
 import {
@@ -535,7 +536,8 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   });
   const layoutSettings = layoutSettingsQuery.data;
 
-  const { conversations: dmConversations } = useDMConversations(currentUserSnapshot.id);
+  const dmConversationsQuery = useDMConversations(currentUserSnapshot.id);
+  const dmConversations = dmConversationsQuery.conversations;
 
   const visibleCurrentUser = useMemo(
     () => ({
@@ -584,6 +586,16 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const isDmRoute = rawServerId === "@me" && Boolean(activeChannelId);
   const isServerIndexRoute = Boolean(activeServerId && !activeChannelId);
   const isServerConversationRoute = Boolean(activeServerId && activeChannelId);
+  // Settings routes use their own layout, so this shell only classifies channel surfaces.
+  const shellReadinessRoute: ShellReadinessRoute = isDmRoute
+    ? "dm-conversation"
+    : isFriendsRoute
+      ? "dm-list"
+      : isServerConversationRoute
+        ? "server-channel"
+        : isServerIndexRoute
+          ? "server-root"
+          : "other";
   const isServerRailIconOnly = serverRailCollapsed;
   const displayServerRailWidth = isServerRailIconOnly
     ? ICON_ONLY_SERVER_RAIL_WIDTH
@@ -926,9 +938,10 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       activeServerId && serverDetailQuery.isLoading && !serverDetailQuery.data,
     ),
     appearanceHydrated: appearanceHydrated || appearanceHydratedFromHook,
-    isServerRoute: Boolean(activeServerId),
+    dmConversationsLoading: dmConversationsQuery.isLoading && !dmConversationsQuery.data,
     layoutSettingsLoaded: layoutSettingsQuery.isSuccess && Boolean(layoutSettings),
     realtimeConnected: socketConnected,
+    route: shellReadinessRoute,
     serversLoading: serversQuery.isLoading && !serversQuery.data,
   });
   const removeServerAccess = React.useCallback(

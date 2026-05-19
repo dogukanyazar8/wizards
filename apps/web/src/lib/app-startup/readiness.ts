@@ -2,26 +2,55 @@ export type AppStartupStatus = "session" | "workspace" | "realtime" | "ready";
 
 export type ShellReadinessPhase = "pending" | "showing" | "hiding" | "dismissed";
 
+export type ShellReadinessRoute =
+  | "dm-conversation"
+  | "dm-list"
+  | "other"
+  | "server-channel"
+  | "server-root"
+  | "settings";
+
 export type ShellReadinessInput = {
   activeServerDetailLoading: boolean;
   appearanceHydrated: boolean;
-  isServerRoute: boolean;
+  dmConversationsLoading?: boolean;
   layoutSettingsLoaded: boolean;
   realtimeConnected: boolean;
+  route: ShellReadinessRoute;
   serversLoading: boolean;
 };
 
 export const SHELL_SPLASH_DELAY_MS = 120;
 export const SHELL_SPLASH_MIN_VISIBLE_MS = 400;
-export const SHELL_SPLASH_MAX_VISIBLE_MS = 7000;
+export const SHELL_SPLASH_MAX_VISIBLE_MS = 5000;
 export const SHELL_SPLASH_FADE_OUT_MS = 260;
+
+function routeNeedsServerDetail(route: ShellReadinessRoute): boolean {
+  return route === "server-channel" || route === "server-root";
+}
+
+function routeNeedsDMConversations(route: ShellReadinessRoute): boolean {
+  return route === "dm-conversation" || route === "dm-list";
+}
+
+function isRouteDataLoading(input: ShellReadinessInput): boolean {
+  if (routeNeedsServerDetail(input.route) && input.activeServerDetailLoading) {
+    return true;
+  }
+
+  if (routeNeedsDMConversations(input.route) && input.dmConversationsLoading) {
+    return true;
+  }
+
+  return false;
+}
 
 export function isShellReady(input: ShellReadinessInput): boolean {
   return (
     input.appearanceHydrated &&
     input.layoutSettingsLoaded &&
     !input.serversLoading &&
-    (!input.isServerRoute || !input.activeServerDetailLoading)
+    !isRouteDataLoading(input)
   );
 }
 
@@ -34,7 +63,7 @@ export function getShellReadinessStatus(
     return "session";
   }
 
-  if (input.serversLoading || (input.isServerRoute && input.activeServerDetailLoading)) {
+  if (input.serversLoading || isRouteDataLoading(input)) {
     return "workspace";
   }
 
