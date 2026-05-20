@@ -42,6 +42,7 @@ import {
 import { fetchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
 import { dmQueryKeys, type DMConversationsInfiniteData } from "@/lib/dm/client";
 import { ICON_ONLY_SERVER_RAIL_WIDTH } from "@/lib/appearance";
+import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import { useVoiceStore } from "@/store/voice-store";
 
 type WizardsShellProps = {
@@ -453,6 +454,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const [addMemberSuccess, setAddMemberSuccess] = React.useState<string | null>(null);
   const [currentUserSnapshot, setCurrentUserSnapshot] = React.useState(currentUser);
   const [currentUserStatus, setCurrentUserStatus] = React.useState(currentUser.status);
+  const [isDesktopRuntime, setIsDesktopRuntime] = React.useState(false);
   const [socketConnected, setSocketConnected] = React.useState(socket.connected);
   const [leaveServerCandidate, setLeaveServerCandidate] =
     React.useState<WorkspaceServerSummary | null>(null);
@@ -550,6 +552,10 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     socket,
     status: currentUserStatus,
   });
+
+  useEffect(() => {
+    setIsDesktopRuntime(isWhisprDesktopRuntime());
+  }, []);
 
   useEffect(() => {
     const handleConnect = () => setSocketConnected(true);
@@ -1259,6 +1265,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
           className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${
             readiness.shouldShowSplash ? "opacity-100" : "pointer-events-none opacity-0"
           }`}
+          experience={isDesktopRuntime ? "desktop" : "default"}
           status={readiness.status}
           variant="overlay"
         />
