@@ -30,12 +30,20 @@ describe("desktop Tauri config generation", () => {
 
     const generatedConfig = JSON.parse(await readFile(generatedConfigPath, "utf8"));
     const capability = generatedConfig.app.security.capabilities.find(
-      (entry) => entry.identifier === "whispr-desktop-native-ux",
+      (entry) => entry.identifier === "main",
+    );
+    const voiceMiniCapability = generatedConfig.app.security.capabilities.find(
+      (entry) => entry.identifier === "voice-mini",
+    );
+    const gameOverlayCapability = generatedConfig.app.security.capabilities.find(
+      (entry) => entry.identifier === "game-overlay",
     );
     const serializedConfig = JSON.stringify(generatedConfig);
 
     assert.equal(generatedConfig.build.frontendDist, `${productionUrl}/`);
     assert.deepEqual(capability.remote.urls, [productionUrl, `${productionUrl}/*`]);
+    assert.deepEqual(voiceMiniCapability.remote.urls, [productionUrl, `${productionUrl}/*`]);
+    assert.deepEqual(gameOverlayCapability.remote.urls, [productionUrl, `${productionUrl}/*`]);
     assert.ok(
       getCspDirective(generatedConfig.app.security.csp, "connect-src").includes(productionUrl),
       "Expected production HTTPS origin in connect-src",
@@ -82,7 +90,7 @@ describe("desktop Tauri config generation", () => {
 
     const generatedConfig = JSON.parse(await readFile(generatedConfigPath, "utf8"));
     const capability = generatedConfig.app.security.capabilities.find(
-      (entry) => entry.identifier === "whispr-desktop-native-ux",
+      (entry) => entry.identifier === "main",
     );
 
     assert.equal(generatedConfig.build.frontendDist, `${productionUrl}/`);
@@ -92,6 +100,61 @@ describe("desktop Tauri config generation", () => {
         "wss://uat.whispr.team",
       ),
       "Expected override WebSocket origin in connect-src",
+    );
+  });
+
+  it("keeps generated desktop permissions aligned with the main window capability", async () => {
+    const env = { ...process.env };
+    delete env.TAURI_WEB_URL;
+
+    await execFileAsync(process.execPath, [runTauriScript, "build", "--write-config-only"], {
+      cwd: desktopRoot,
+      env,
+    });
+
+    const generatedConfig = JSON.parse(await readFile(generatedConfigPath, "utf8"));
+    const staticCapability = JSON.parse(
+      await readFile(path.join(desktopRoot, "src-tauri", "capabilities", "main.json"), "utf8"),
+    );
+    const generatedCapability = generatedConfig.app.security.capabilities.find(
+      (entry) => entry.identifier === "main",
+    );
+    const staticVoiceMiniCapability = JSON.parse(
+      await readFile(
+        path.join(desktopRoot, "src-tauri", "capabilities", "voice-mini.json"),
+        "utf8",
+      ),
+    );
+    const generatedVoiceMiniCapability = generatedConfig.app.security.capabilities.find(
+      (entry) => entry.identifier === "voice-mini",
+    );
+    const staticGameOverlayCapability = JSON.parse(
+      await readFile(
+        path.join(desktopRoot, "src-tauri", "capabilities", "game-overlay.json"),
+        "utf8",
+      ),
+    );
+    const generatedGameOverlayCapability = generatedConfig.app.security.capabilities.find(
+      (entry) => entry.identifier === "game-overlay",
+    );
+
+    assert.ok(generatedCapability, "Expected generated main capability");
+    assert.ok(generatedVoiceMiniCapability, "Expected generated voice mini capability");
+    assert.ok(generatedGameOverlayCapability, "Expected generated game overlay capability");
+    assert.deepEqual(
+      generatedCapability.permissions,
+      staticCapability.permissions,
+      "Generated builds must not silently widen or narrow the checked-in main capability permissions.",
+    );
+    assert.deepEqual(
+      generatedVoiceMiniCapability.permissions,
+      staticVoiceMiniCapability.permissions,
+      "Generated builds must keep the voice mini window least-privilege capability aligned.",
+    );
+    assert.deepEqual(
+      generatedGameOverlayCapability.permissions,
+      staticGameOverlayCapability.permissions,
+      "Generated builds must keep the game overlay read-only capability aligned.",
     );
   });
 

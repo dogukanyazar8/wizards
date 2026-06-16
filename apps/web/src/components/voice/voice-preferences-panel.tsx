@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
   AlertTriangle,
   ChevronDown,
+  EyeOff,
+  Gamepad2,
+  Keyboard,
   Radio,
   RotateCcw,
   ShieldCheck,
@@ -17,6 +20,13 @@ import {
 } from "@/components/providers/voice-provider";
 import { useI18n } from "@/components/providers/locale-provider";
 import { AudioDeviceSelect } from "@/components/voice/audio-device-select";
+import {
+  hideDesktopGameOverlaySurface,
+  refreshDesktopCompanionSurfacesWithLayout,
+  testDesktopGameOverlaySurface,
+  testDesktopVoiceMiniSurface,
+} from "@/lib/desktop/controls";
+import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import { cn } from "@/lib/utils";
 import { supportsMediaConstraint } from "@/lib/voice/media-capabilities";
 import {
@@ -24,10 +34,27 @@ import {
   isKrispNoiseFilterTier,
   type EnhancedNoiseFilterMode,
 } from "@/lib/voice/noise-filter";
+import {
+  DEFAULT_PUSH_TO_TALK_HANGOVER_MS,
+  MAX_PUSH_TO_TALK_HANGOVER_MS,
+  MIN_PUSH_TO_TALK_HANGOVER_MS,
+  useVoiceStore,
+  type VoiceInputMode,
+} from "@/store/voice-store";
+import type { VoiceOverlayAnchor, VoiceOverlayPreferences, VoiceOverlaySize } from "@wizards/types";
 
 const SHOW_NOISE_FILTER_EXPERIMENTS =
   process.env.NEXT_PUBLIC_VOICE_NOISE_FILTER_EXPERIMENTS === "true" ||
   process.env.NODE_ENV !== "production";
+
+const DESKTOP_GAME_OVERLAY_ANCHORS: VoiceOverlayAnchor[] = [
+  "top-left",
+  "top-right",
+  "bottom-left",
+  "bottom-right",
+];
+
+const DESKTOP_GAME_OVERLAY_SIZES: VoiceOverlaySize[] = ["compact", "normal", "large"];
 
 type VoicePreferenceToggleRowProps = {
   checked: boolean;
@@ -110,10 +137,7 @@ function resolveNoiseFilterTierLabel(tier: NoiseFilterTier, t: (key: string) => 
   return t(`voice.settings.noiseFilterTier.${tier}`);
 }
 
-function resolveKrispRetryUnavailableReason(
-  status: KrispAvailability,
-  t: (key: string) => string,
-) {
+function resolveKrispRetryUnavailableReason(status: KrispAvailability, t: (key: string) => string) {
   switch (status) {
     case "blocked_by_security_policy":
       return t("voice.settings.retryKrispBlocked");
@@ -169,11 +193,171 @@ export function VoicePreferenceToggleRow({
   );
 }
 
+function resolveShortcutKey(event: KeyboardEvent<HTMLInputElement>) {
+  if (event.code === "Space") {
+    return "Space";
+  }
+  if (/^Key[A-Z]$/u.test(event.code)) {
+    return event.code.replace("Key", "");
+  }
+  if (/^Digit[0-9]$/u.test(event.code)) {
+    return event.code.replace("Digit", "");
+  }
+  if (/^F(?:[1-9]|1[0-9]|2[0-4])$/u.test(event.code)) {
+    return event.code;
+  }
+  if (event.code.startsWith("Numpad")) {
+    return event.code;
+  }
+
+  switch (event.key) {
+    case "ArrowDown":
+    case "ArrowLeft":
+    case "ArrowRight":
+    case "ArrowUp":
+    case "Backspace":
+    case "CapsLock":
+    case "Delete":
+    case "End":
+    case "Enter":
+    case "Home":
+    case "Insert":
+    case "PageDown":
+    case "PageUp":
+    case "Tab":
+      return event.key;
+    case "`":
+      return "Backquote";
+    case ",":
+      return "Comma";
+    case ".":
+      return "Period";
+    case "/":
+      return "Slash";
+    case ";":
+      return "Semicolon";
+    case "'":
+      return "Quote";
+    case "-":
+      return "Minus";
+    case "=":
+      return "Equal";
+    case "\\":
+      return "Backslash";
+    case "[":
+      return "BracketLeft";
+    case "]":
+      return "BracketRight";
+    default:
+      return null;
+  }
+}
+
+function formatShortcutFromKeyboardEvent(event: KeyboardEvent<HTMLInputElement>) {
+  const key = resolveShortcutKey(event);
+  if (!key || ["Alt", "Control", "Meta", "Shift"].includes(event.key)) {
+    return null;
+  }
+
+  const modifiers = [
+    event.ctrlKey ? "Ctrl" : null,
+    event.metaKey ? "Super" : null,
+    event.altKey ? "Alt" : null,
+    event.shiftKey ? "Shift" : null,
+  ].filter(Boolean);
+
+  if (modifiers.length === 0 && !/^F(?:1[3-9]|2[0-4])$/u.test(key)) {
+    return null;
+  }
+
+  return [...modifiers, key].join("+");
+}
+
+function DesktopShortcutInputRow({
+  description,
+  label,
+  onChange,
+  value,
+}: {
+  description: string;
+  label: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <label className="grid gap-2 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.66)] p-3 shadow-[0_10px_24px_hsl(var(--shadow-color)/0.04)]">
+      <span className="flex items-center justify-between gap-3">
+        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-app-muted">
+          {label}
+        </span>
+        <kbd className="rounded-xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.68)] px-2 py-1 text-[11px] font-semibold text-app-foreground">
+          {value}
+        </kbd>
+      </span>
+      <input
+        aria-label={label}
+        className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.88)] px-3 text-sm font-semibold text-app-foreground outline-none transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.45)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          const shortcut = formatShortcutFromKeyboardEvent(event);
+          if (!shortcut) {
+            return;
+          }
+
+          event.preventDefault();
+          onChange(shortcut);
+        }}
+        placeholder={value}
+        spellCheck={false}
+        value={value}
+      />
+      <span className="text-xs leading-5 text-app-soft">{description}</span>
+    </label>
+  );
+}
+
+function VoiceInputModeButton({
+  active,
+  description,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  description: string;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-pressed={active}
+      className={cn(
+        "min-h-20 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+        active
+          ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.12)] text-app-foreground"
+          : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.54)] text-app-muted hover:border-[hsl(var(--primary)/0.24)] hover:bg-[hsl(var(--primary)/0.06)]",
+      )}
+      onClick={onClick}
+      type="button"
+    >
+      <span className="block text-xs font-semibold uppercase tracking-[0.12em]">{label}</span>
+      <span className="mt-1 block text-xs leading-5">{description}</span>
+    </button>
+  );
+}
+
 export function VoicePreferencesPanel() {
   const { t } = useI18n();
   const [cleanVoiceFeedbackVisible, setCleanVoiceFeedbackVisible] = useState(false);
+  const [desktopSurfaceFeedback, setDesktopSurfaceFeedback] = useState<
+    "failure" | "focus" | "hide" | "overlay" | "refresh" | "voice-mini" | null
+  >(null);
+  const [desktopSurfacePending, setDesktopSurfacePending] = useState<
+    "hide" | "overlay" | "refresh" | "voice-mini" | null
+  >(null);
+  const [isDesktopRuntime, setIsDesktopRuntime] = useState(false);
   const [voiceIsolationSupported, setVoiceIsolationSupported] = useState(false);
   const cleanVoiceFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const desktopSurfaceFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
     activeNoiseFilterTier,
     audioPreferences,
@@ -184,6 +368,38 @@ export function VoicePreferencesPanel() {
     retryKrispNoiseCancellation,
     setAudioPreference,
   } = useVoiceState();
+  const desktopGlobalShortcutsEnabled = useVoiceStore(
+    (state) => state.desktopGlobalShortcutsEnabled,
+  );
+  const desktopGameOverlayAnchor = useVoiceStore((state) => state.desktopGameOverlayAnchor);
+  const desktopGameOverlayEnabled = useVoiceStore((state) => state.desktopGameOverlayEnabled);
+  const desktopGameOverlaySize = useVoiceStore((state) => state.desktopGameOverlaySize);
+  const desktopGameOverlaySpeakingOnly = useVoiceStore(
+    (state) => state.desktopGameOverlaySpeakingOnly,
+  );
+  const gameOverlayPanicShortcut = useVoiceStore((state) => state.gameOverlayPanicShortcut);
+  const desktopVoiceMiniEnabled = useVoiceStore((state) => state.desktopVoiceMiniEnabled);
+  const pushToTalkHangoverMs = useVoiceStore((state) => state.pushToTalkHangoverMs);
+  const pushToTalkShortcut = useVoiceStore((state) => state.pushToTalkShortcut);
+  const toggleDeafenShortcut = useVoiceStore((state) => state.toggleDeafenShortcut);
+  const toggleMuteShortcut = useVoiceStore((state) => state.toggleMuteShortcut);
+  const voiceInputMode = useVoiceStore((state) => state.voiceInputMode);
+  const setDesktopGlobalShortcutsEnabled = useVoiceStore(
+    (state) => state.setDesktopGlobalShortcutsEnabled,
+  );
+  const setDesktopGameOverlayAnchor = useVoiceStore((state) => state.setDesktopGameOverlayAnchor);
+  const setDesktopGameOverlayEnabled = useVoiceStore((state) => state.setDesktopGameOverlayEnabled);
+  const setDesktopGameOverlaySize = useVoiceStore((state) => state.setDesktopGameOverlaySize);
+  const setDesktopGameOverlaySpeakingOnly = useVoiceStore(
+    (state) => state.setDesktopGameOverlaySpeakingOnly,
+  );
+  const setDesktopVoiceMiniEnabled = useVoiceStore((state) => state.setDesktopVoiceMiniEnabled);
+  const setGameOverlayPanicShortcut = useVoiceStore((state) => state.setGameOverlayPanicShortcut);
+  const setPushToTalkHangoverMs = useVoiceStore((state) => state.setPushToTalkHangoverMs);
+  const setPushToTalkShortcut = useVoiceStore((state) => state.setPushToTalkShortcut);
+  const setToggleDeafenShortcut = useVoiceStore((state) => state.setToggleDeafenShortcut);
+  const setToggleMuteShortcut = useVoiceStore((state) => state.setToggleMuteShortcut);
+  const setVoiceInputMode = useVoiceStore((state) => state.setVoiceInputMode);
 
   const krispEnabled = audioPreferences.krispNoiseCancellation;
   const krispAvailable = krispAvailability === "available";
@@ -192,15 +408,18 @@ export function VoicePreferencesPanel() {
   const krispRetryDisabled =
     isRecoveringKrispNoiseCancellation || krispRetryUnavailableReason !== null;
   const shouldHighlightKrispRetry =
-    krispEnabled &&
-    krispAvailability !== "available" &&
-    krispAvailability !== "checking";
+    krispEnabled && krispAvailability !== "available" && krispAvailability !== "checking";
   const cleanVoiceStatus = resolveCleanVoiceStatus({
     activeNoiseFilterTier,
     krispAvailability,
     krispEnabled,
     t,
   });
+  const desktopGameOverlayPreferences: VoiceOverlayPreferences = {
+    anchor: desktopGameOverlayAnchor,
+    size: desktopGameOverlaySize,
+    speakingOnly: desktopGameOverlaySpeakingOnly,
+  };
   const applyCleanVoiceProfile = () => {
     setAudioPreference("noiseSuppression", true);
     if (voiceIsolationSupported) {
@@ -222,22 +441,56 @@ export function VoicePreferencesPanel() {
     }, 3200);
   };
 
+  const showDesktopSurfaceFeedback = (
+    nextFeedback: "failure" | "focus" | "hide" | "overlay" | "refresh" | "voice-mini",
+  ) => {
+    setDesktopSurfaceFeedback(nextFeedback);
+
+    if (desktopSurfaceFeedbackTimerRef.current) {
+      clearTimeout(desktopSurfaceFeedbackTimerRef.current);
+    }
+
+    desktopSurfaceFeedbackTimerRef.current = setTimeout(() => {
+      setDesktopSurfaceFeedback(null);
+      desktopSurfaceFeedbackTimerRef.current = null;
+    }, 3600);
+  };
+
+  const runDesktopSurfaceAction = async (
+    action: "hide" | "overlay" | "refresh" | "voice-mini",
+    task: () => Promise<unknown>,
+  ) => {
+    if (!isDesktopRuntime || desktopSurfacePending) {
+      return;
+    }
+
+    setDesktopSurfacePending(action);
+    try {
+      const result = await task();
+      showDesktopSurfaceFeedback(result === false ? "focus" : action);
+    } catch {
+      showDesktopSurfaceFeedback("failure");
+    } finally {
+      setDesktopSurfacePending(null);
+    }
+  };
+
   useEffect(() => {
     setVoiceIsolationSupported(supportsMediaConstraint("voiceIsolation"));
+    setIsDesktopRuntime(isWhisprDesktopRuntime());
   }, []);
 
   useEffect(() => {
     void preloadVoiceProcessing().catch(() => undefined);
-  }, [
-    audioPreferences.enhancedNoiseFilterMode,
-    krispEnabled,
-    preloadVoiceProcessing,
-  ]);
+  }, [audioPreferences.enhancedNoiseFilterMode, krispEnabled, preloadVoiceProcessing]);
 
   useEffect(
     () => () => {
       if (cleanVoiceFeedbackTimerRef.current) {
         clearTimeout(cleanVoiceFeedbackTimerRef.current);
+      }
+      if (desktopSurfaceFeedbackTimerRef.current) {
+        clearTimeout(desktopSurfaceFeedbackTimerRef.current);
       }
     },
     [],
@@ -330,10 +583,7 @@ export function VoicePreferencesPanel() {
                   <AlertTriangle className="h-4 w-4" />
                 ) : (
                   <RotateCcw
-                    className={cn(
-                      "h-4 w-4",
-                      isRecoveringKrispNoiseCancellation && "animate-spin",
-                    )}
+                    className={cn("h-4 w-4", isRecoveringKrispNoiseCancellation && "animate-spin")}
                   />
                 )}
                 {isRecoveringKrispNoiseCancellation
@@ -397,9 +647,7 @@ export function VoicePreferencesPanel() {
               voiceIsolationSupported ? null : t("voice.settings.voiceIsolationUnsupported")
             }
             label={t("voice.settings.voiceIsolation")}
-            onToggle={() =>
-              setAudioPreference("voiceIsolation", !audioPreferences.voiceIsolation)
-            }
+            onToggle={() => setAudioPreference("voiceIsolation", !audioPreferences.voiceIsolation)}
           />
 
           <VoicePreferenceToggleRow
@@ -477,6 +725,328 @@ export function VoicePreferencesPanel() {
           ) : null}
         </div>
       </details>
+
+      {isDesktopRuntime ? (
+        <details
+          className="group app-panel-soft rounded-[26px] border p-4"
+          data-testid="voice-desktop-controls"
+        >
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.62)] p-2 text-app-muted">
+                <Keyboard className="h-4 w-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-app-foreground">
+                  {t("voice.settings.desktopControlsTitle")}
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-app-muted">
+                  {t("voice.settings.desktopControlsDescription")}
+                </span>
+              </span>
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0 text-app-muted transition group-open:rotate-180" />
+          </summary>
+
+          <div className="mt-4 grid gap-3">
+            <VoicePreferenceToggleRow
+              checked={desktopGlobalShortcutsEnabled}
+              description={t("voice.settings.desktopShortcutsDesc")}
+              helperText={t("voice.settings.desktopShortcutsHelper")}
+              label={t("voice.settings.desktopShortcuts")}
+              onToggle={() => setDesktopGlobalShortcutsEnabled(!desktopGlobalShortcutsEnabled)}
+            />
+
+            <VoicePreferenceToggleRow
+              checked={desktopVoiceMiniEnabled}
+              description={t("voice.settings.desktopVoiceMiniDesc")}
+              helperText={t("voice.settings.desktopVoiceMiniHelper")}
+              label={t("voice.settings.desktopVoiceMini")}
+              onToggle={() => setDesktopVoiceMiniEnabled(!desktopVoiceMiniEnabled)}
+            />
+
+            <div className="order-5 app-panel-soft rounded-[22px] border p-3 sm:rounded-[24px] sm:p-4">
+              <div className="flex items-start justify-between gap-3 sm:gap-4">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-app-foreground">
+                    <Gamepad2 className="h-4 w-4 text-[hsl(var(--primary))]" />
+                    {t("voice.settings.desktopGameOverlay")}
+                  </p>
+                  <p className="mt-1 text-sm leading-5 text-app-muted sm:leading-6">
+                    {t("voice.settings.desktopGameOverlayDesc")}
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-app-soft">
+                    {t("voice.settings.desktopGameOverlayHelper")}
+                  </p>
+                </div>
+
+                <button
+                  aria-checked={desktopGameOverlayEnabled}
+                  className={cn(
+                    "relative mt-1 inline-flex h-8 w-14 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-7 sm:w-12",
+                    desktopGameOverlayEnabled
+                      ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
+                      : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
+                  )}
+                  onClick={() => setDesktopGameOverlayEnabled(!desktopGameOverlayEnabled)}
+                  role="switch"
+                  type="button"
+                >
+                  <span
+                    className={cn(
+                      "absolute left-1 h-6 w-6 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition sm:h-5 sm:w-5",
+                      desktopGameOverlayEnabled &&
+                        "translate-x-6 bg-[hsl(var(--primary))] sm:translate-x-5",
+                    )}
+                  />
+                </button>
+              </div>
+              <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-app-soft">
+                    {t("voice.settings.desktopOverlayPosition")}
+                  </p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {DESKTOP_GAME_OVERLAY_ANCHORS.map((anchor) => (
+                      <button
+                        className={cn(
+                          "min-h-10 rounded-2xl border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)]",
+                          desktopGameOverlayAnchor === anchor
+                            ? "border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]"
+                            : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.7)] text-app-muted hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--primary)/0.07)]",
+                        )}
+                        key={anchor}
+                        onClick={() => setDesktopGameOverlayAnchor(anchor)}
+                        type="button"
+                      >
+                        {t(`voice.settings.desktopOverlayPosition.${anchor}`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-app-soft">
+                    {t("voice.settings.desktopOverlaySize")}
+                  </p>
+                  <div className="mt-2 grid grid-cols-3 gap-2 lg:grid-cols-1">
+                    {DESKTOP_GAME_OVERLAY_SIZES.map((size) => (
+                      <button
+                        className={cn(
+                          "min-h-10 rounded-2xl border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)]",
+                          desktopGameOverlaySize === size
+                            ? "border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]"
+                            : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.7)] text-app-muted hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--primary)/0.07)]",
+                        )}
+                        key={size}
+                        onClick={() => setDesktopGameOverlaySize(size)}
+                        type="button"
+                      >
+                        {t(`voice.settings.desktopOverlaySize.${size}`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex items-start justify-between gap-3 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.52)] p-3">
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-app-foreground">
+                    {t("voice.settings.desktopOverlaySpeakingOnly")}
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-app-muted">
+                    {t("voice.settings.desktopOverlaySpeakingOnlyDesc")}
+                  </span>
+                </span>
+                <button
+                  aria-checked={desktopGameOverlaySpeakingOnly}
+                  className={cn(
+                    "relative mt-1 inline-flex h-8 w-14 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-7 sm:w-12",
+                    desktopGameOverlaySpeakingOnly
+                      ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
+                      : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
+                  )}
+                  onClick={() => setDesktopGameOverlaySpeakingOnly(!desktopGameOverlaySpeakingOnly)}
+                  role="switch"
+                  type="button"
+                >
+                  <span
+                    className={cn(
+                      "absolute left-1 h-6 w-6 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition sm:h-5 sm:w-5",
+                      desktopGameOverlaySpeakingOnly &&
+                        "translate-x-6 bg-[hsl(var(--primary))] sm:translate-x-5",
+                    )}
+                  />
+                </button>
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                <button
+                  className={cn(
+                    "inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] px-3 text-xs font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.38)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
+                    desktopSurfacePending === "overlay" && "text-[hsl(var(--primary))]",
+                  )}
+                  disabled={!isDesktopRuntime || desktopSurfacePending !== null}
+                  onClick={() =>
+                    void runDesktopSurfaceAction("overlay", () =>
+                      testDesktopGameOverlaySurface(desktopGameOverlayPreferences),
+                    )
+                  }
+                  type="button"
+                >
+                  <Gamepad2 className="h-3.5 w-3.5" />
+                  {desktopSurfacePending === "overlay"
+                    ? t("voice.settings.desktopOverlayTesting")
+                    : t("voice.settings.desktopOverlayTest")}
+                </button>
+                <button
+                  className={cn(
+                    "inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] px-3 text-xs font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.38)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
+                    desktopSurfacePending === "voice-mini" && "text-[hsl(var(--primary))]",
+                  )}
+                  disabled={!isDesktopRuntime || desktopSurfacePending !== null}
+                  onClick={() =>
+                    void runDesktopSurfaceAction("voice-mini", testDesktopVoiceMiniSurface)
+                  }
+                  type="button"
+                >
+                  <Radio className="h-3.5 w-3.5" />
+                  {desktopSurfacePending === "voice-mini"
+                    ? t("voice.settings.desktopMiniTesting")
+                    : t("voice.settings.desktopMiniTest")}
+                </button>
+                <button
+                  className={cn(
+                    "inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] px-3 text-xs font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.38)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
+                    desktopSurfacePending === "refresh" && "text-[hsl(var(--primary))]",
+                  )}
+                  disabled={!isDesktopRuntime || desktopSurfacePending !== null}
+                  onClick={() =>
+                    void runDesktopSurfaceAction("refresh", () =>
+                      refreshDesktopCompanionSurfacesWithLayout({
+                        anchor: desktopGameOverlayAnchor,
+                        size: desktopGameOverlaySize,
+                      }),
+                    )
+                  }
+                  type="button"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  {desktopSurfacePending === "refresh"
+                    ? t("voice.settings.desktopSurfacesRefreshing")
+                    : t("voice.settings.desktopSurfacesRefresh")}
+                </button>
+                <button
+                  className={cn(
+                    "inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--warning)/0.28)] bg-[hsl(var(--warning)/0.08)] px-3 text-xs font-semibold text-app-foreground transition hover:border-[hsl(var(--warning)/0.46)] hover:bg-[hsl(var(--warning)/0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
+                    desktopSurfacePending === "hide" && "text-[hsl(var(--warning))]",
+                  )}
+                  disabled={!isDesktopRuntime || desktopSurfacePending !== null}
+                  onClick={() =>
+                    void runDesktopSurfaceAction("hide", async () => {
+                      setDesktopGameOverlayEnabled(false);
+                      await hideDesktopGameOverlaySurface();
+                    })
+                  }
+                  type="button"
+                >
+                  <EyeOff className="h-3.5 w-3.5" />
+                  {desktopSurfacePending === "hide"
+                    ? t("voice.settings.desktopOverlayHiding")
+                    : t("voice.settings.desktopOverlayHide")}
+                </button>
+              </div>
+              {desktopSurfaceFeedback ? (
+                <p
+                  className={cn(
+                    "mt-3 rounded-2xl border px-3 py-2 text-xs font-semibold leading-5",
+                    desktopSurfaceFeedback === "failure" || desktopSurfaceFeedback === "focus"
+                      ? "border-amber-200 bg-amber-50 text-amber-700"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-700",
+                  )}
+                >
+                  {t(`voice.settings.desktopSurfaceFeedback.${desktopSurfaceFeedback}`)}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="order-1 app-panel-soft rounded-[22px] border p-3 sm:rounded-[24px] sm:p-4">
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-semibold text-app-foreground">
+                  {t("voice.settings.inputMode")}
+                </p>
+                <p className="text-sm leading-5 text-app-muted sm:leading-6">
+                  {t("voice.settings.inputModeDesc")}
+                </p>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {(["voice-activity", "push-to-talk"] as VoiceInputMode[]).map((mode) => (
+                  <VoiceInputModeButton
+                    active={voiceInputMode === mode}
+                    description={t(`voice.settings.inputMode.${mode}.desc`)}
+                    key={mode}
+                    label={t(`voice.settings.inputMode.${mode}`)}
+                    onClick={() => setVoiceInputMode(mode)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="order-2 grid gap-3 md:grid-cols-2">
+              <DesktopShortcutInputRow
+                description={t("voice.settings.toggleMuteShortcutDesc")}
+                label={t("voice.settings.toggleMuteShortcut")}
+                onChange={setToggleMuteShortcut}
+                value={toggleMuteShortcut}
+              />
+              <DesktopShortcutInputRow
+                description={t("voice.settings.toggleDeafenShortcutDesc")}
+                label={t("voice.settings.toggleDeafenShortcut")}
+                onChange={setToggleDeafenShortcut}
+                value={toggleDeafenShortcut}
+              />
+              <DesktopShortcutInputRow
+                description={t("voice.settings.pushToTalkShortcutDesc")}
+                label={t("voice.settings.pushToTalkShortcut")}
+                onChange={setPushToTalkShortcut}
+                value={pushToTalkShortcut}
+              />
+              <DesktopShortcutInputRow
+                description={t("voice.settings.gameOverlayPanicShortcutDesc")}
+                label={t("voice.settings.gameOverlayPanicShortcut")}
+                onChange={setGameOverlayPanicShortcut}
+                value={gameOverlayPanicShortcut}
+              />
+            </div>
+
+            <label className="order-3 app-panel-soft rounded-[22px] border p-3 sm:rounded-[24px] sm:p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-app-foreground">
+                    {t("voice.settings.pushToTalkHangover")}
+                  </span>
+                  <span className="mt-1 block text-sm leading-5 text-app-muted sm:leading-6">
+                    {t("voice.settings.pushToTalkHangoverDesc")}
+                  </span>
+                </span>
+                <span className="rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] px-3 py-1 text-xs font-semibold text-app-muted">
+                  {pushToTalkHangoverMs} ms
+                </span>
+              </div>
+              <input
+                className="mt-4 w-full accent-[hsl(var(--primary))]"
+                max={MAX_PUSH_TO_TALK_HANGOVER_MS}
+                min={MIN_PUSH_TO_TALK_HANGOVER_MS}
+                onChange={(event) => setPushToTalkHangoverMs(event.target.valueAsNumber)}
+                step={50}
+                type="range"
+                value={
+                  Number.isFinite(pushToTalkHangoverMs)
+                    ? pushToTalkHangoverMs
+                    : DEFAULT_PUSH_TO_TALK_HANGOVER_MS
+                }
+              />
+            </label>
+          </div>
+        </details>
+      ) : null}
 
       <div className="app-panel-soft flex items-start gap-3 rounded-[22px] border p-3 sm:rounded-[24px] sm:p-4">
         <div className="rounded-2xl bg-[hsl(var(--primary)/0.12)] p-2 text-[hsl(var(--primary))]">

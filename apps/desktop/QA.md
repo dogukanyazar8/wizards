@@ -10,6 +10,8 @@ Run this checklist against a fresh Windows install after a production desktop bu
 - Confirm the Whispr icon and app name appear correctly in the window, taskbar, tray, and Start Menu.
 - Confirm the app loads the configured production `TAURI_WEB_URL`.
 - Quit and reopen the app.
+- Move and resize the main window, quit, reopen, and confirm the window restores to the saved size and monitor.
+- Confirm the first startup splash remains the compact splash size and is not restored to the previous main window size.
 
 ## Auth And Session
 
@@ -82,6 +84,7 @@ Run this checklist against a fresh Windows install after a production desktop bu
 - Enable message previews and confirm native notifications show only expected title/body text.
 - Disable desktop notifications and confirm native notifications stop.
 - Confirm unread badge behavior if supported by the OS/runtime.
+- In Desktop Diagnostics, enable launch at startup, confirm the OS login item/registry entry is created, then disable it and confirm it is removed.
 - Click tray Show and confirm the window focuses.
 - Click tray Settings and Desktop Diagnostics and confirm they route safely inside Whispr.
 - Click tray mute/deafen actions during a voice session and confirm they match the in-app state.
@@ -94,6 +97,8 @@ Run this checklist against a fresh Windows install after a production desktop bu
 - Confirm network and Socket.IO indicators change correctly when the network is disconnected and restored.
 - Confirm notification permission status matches the OS/browser permission.
 - Confirm voice lifecycle shows connected while in a voice channel and idle after leaving.
+- Toggle launch at startup from the diagnostics panel and confirm failures are shown without changing session state.
+- If `NEXT_PUBLIC_DESKTOP_METRICS=true` is enabled, confirm desktop metric logs contain operation/result/runtime/duration only and do not include user, server, route, message, or token data.
 
 ## Settings And Shortcuts
 
@@ -102,6 +107,10 @@ Run this checklist against a fresh Windows install after a production desktop bu
 - Toggle deafen with `Ctrl+Shift+D`.
 - Navigate back with `Alt+Left`.
 - Confirm shortcuts do not trigger while typing in inputs, textareas, selects, or contenteditable fields.
+- In Voice Settings, enable global voice shortcuts and confirm the configured mute/deafen shortcuts work while another application is focused.
+- Switch microphone input mode to push-to-talk, hold the configured shortcut, and confirm the microphone opens only while the key is held plus the configured release cushion.
+- Confirm push-to-talk does not transmit while deafened and shows the desktop-safe voice warning instead.
+- Enter a duplicate or modifierless shortcut, confirm the native registration fails closed, then restore a valid unique shortcut.
 - Change appearance/settings and confirm web app behavior is unaffected.
 
 ## Regression Pass

@@ -11,10 +11,7 @@ import { decode as decodeJwt, encode as encodeJwt } from "next-auth/jwt";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
-import {
-  DEFAULT_WIZARDS_THEME,
-  normalizeWizardsThemeId,
-} from "@/lib/appearance";
+import { DEFAULT_WIZARDS_THEME, normalizeWizardsThemeId } from "@/lib/appearance";
 import { normalizeAppLocale } from "@/lib/locale";
 import { persistUserLocale } from "@/lib/locale/persistence";
 import { getRequestLocale } from "@/lib/locale/server";
@@ -32,9 +29,10 @@ import {
   type OAuthEmailAccount,
 } from "@/lib/auth/oauth-email";
 import {
-  isUserSessionRevoked,
-  shouldCheckSessionRevocation,
-} from "@/lib/auth/session-revocation";
+  getAuthSessionCookieConfig,
+  getAuthSessionCookieOptions,
+} from "@/lib/auth/session-cookies";
+import { isUserSessionRevoked, shouldCheckSessionRevocation } from "@/lib/auth/session-revocation";
 
 function getAuthEnvCandidates() {
   return [
@@ -108,9 +106,7 @@ function readLocalEnvValue(key: string): string {
 
     try {
       const content = readFileSync(candidate, "utf8");
-      const line = content
-        .split(/\r?\n/)
-        .find((item) => item.trim().startsWith(`${key}=`));
+      const line = content.split(/\r?\n/).find((item) => item.trim().startsWith(`${key}=`));
 
       if (!line) {
         continue;
@@ -190,7 +186,10 @@ async function getUniqueUsername(seed: string): Promise<string> {
 }
 
 function mapUserToAdapterUser(
-  user: Pick<PrismaUser, "id" | "email" | "emailVerifiedAt" | "displayName" | "username" | "avatarUrl">,
+  user: Pick<
+    PrismaUser,
+    "id" | "email" | "emailVerifiedAt" | "displayName" | "username" | "avatarUrl"
+  >,
 ): AdapterUser {
   return {
     id: user.id,
@@ -528,13 +527,8 @@ const authConfig = {
   },
   cookies: {
     sessionToken: {
-      name: process.env.NODE_ENV === "production" ? "__Secure-authjs.session-token" : "authjs.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "strict",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-      },
+      name: getAuthSessionCookieConfig().cookieName,
+      options: getAuthSessionCookieOptions(),
     },
   },
   pages: {
@@ -558,8 +552,7 @@ const authConfig = {
 
         const parsedCredentials = LoginCredentialsSchema.safeParse({
           email: normalizeAuthEmail(credentialRecord?.email),
-          password:
-            typeof credentialRecord?.password === "string" ? credentialRecord.password : "",
+          password: typeof credentialRecord?.password === "string" ? credentialRecord.password : "",
         });
 
         if (!parsedCredentials.success) {
@@ -603,10 +596,7 @@ const authConfig = {
           return null;
         }
 
-        const isPasswordValid = await bcrypt.compare(
-          password,
-          user.passwordHash,
-        );
+        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
         if (!isPasswordValid) {
           return null;
@@ -755,10 +745,7 @@ const authConfig = {
       const nowSeconds = Math.floor(Date.now() / 1000);
       const revocationCheckedAt =
         typeof token.revocationCheckedAt === "number" ? token.revocationCheckedAt : undefined;
-      if (
-        revocationUserId &&
-        shouldCheckSessionRevocation(revocationCheckedAt, nowSeconds)
-      ) {
+      if (revocationUserId && shouldCheckSessionRevocation(revocationCheckedAt, nowSeconds)) {
         token.revocationCheckedAt = nowSeconds;
 
         if (
@@ -865,5 +852,4 @@ export const handlers: NextAuthResult["handlers"] = nextAuthResult.handlers;
 export const signIn: NextAuthResult["signIn"] = nextAuthResult.signIn;
 export const signOut: NextAuthResult["signOut"] = nextAuthResult.signOut;
 export const auth: NextAuthResult["auth"] = nextAuthResult.auth;
-export const unstable_update: NextAuthResult["unstable_update"] =
-  nextAuthResult.unstable_update;
+export const unstable_update: NextAuthResult["unstable_update"] = nextAuthResult.unstable_update;

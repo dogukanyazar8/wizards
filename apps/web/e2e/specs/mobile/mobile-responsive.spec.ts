@@ -2,6 +2,7 @@ import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
 import { getE2EServerRoute } from "../../helpers/db";
+import { sendComposerMessage } from "../../helpers/messages";
 
 const mobileViewports = [
   { height: 800, name: "360x800", width: 360 },
@@ -59,8 +60,7 @@ async function expectFitsViewport(page: Page, locator: Locator): Promise<void> {
 }
 
 async function sendMessage(page: Page, content: string): Promise<void> {
-  await page.getByTestId("message-input").fill(content);
-  await page.getByTestId("message-send-button").click();
+  await sendComposerMessage(page, content);
 }
 
 function messageByText(page: Page, content: string): Locator {

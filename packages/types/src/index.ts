@@ -16,3 +16,4 @@ export * from "./auth";
 export * from "./workspace";
 export * from "./messages";
 export * from "./socket";
+export * from "./voice-mini";

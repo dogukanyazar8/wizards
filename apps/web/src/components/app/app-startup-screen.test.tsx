@@ -27,12 +27,7 @@ function renderStartupScreen({
 
   return renderToStaticMarkup(
     <LocaleProvider initialLocale={locale}>
-      <AppStartupScreen
-        {...busyProps}
-        {...experienceProps}
-        status={status}
-        variant={variant}
-      />
+      <AppStartupScreen {...busyProps} {...experienceProps} status={status} variant={variant} />
     </LocaleProvider>,
   );
 }
@@ -92,7 +87,6 @@ describe("AppStartupScreen", () => {
 
     for (const html of [webHtml, overlayHtml, desktopHtml, desktopOverlayHtml]) {
       assert.match(html, /max-w-\[432px\]/);
-      assert.match(html, /min-h-\[292px\]/);
       assert.match(html, /gap-4/);
       assert.match(html, /rounded-none/);
       assert.match(html, /border border-\[hsl\(var\(--foreground\)\/0\.14\)\]/);
@@ -110,6 +104,16 @@ describe("AppStartupScreen", () => {
       assert.doesNotMatch(html, /shadow-\[0_24px_80px/);
       assert.doesNotMatch(html, /backdrop-blur-xl/);
       assert.doesNotMatch(html, /bg-\[hsl\(var\(--card\)\/0\.86\)\]/);
+    }
+
+    for (const html of [webHtml, overlayHtml]) {
+      assert.match(html, /min-h-\[292px\]/);
+      assert.doesNotMatch(html, /h-\[292px\] min-h-0/);
+    }
+
+    for (const html of [desktopHtml, desktopOverlayHtml]) {
+      assert.match(html, /h-\[292px\] min-h-0/);
+      assert.doesNotMatch(html, /flex min-h-\[292px\] w-full max-w-\[432px\]/);
     }
 
     assert.match(webHtml, /rounded-none/);

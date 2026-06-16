@@ -37,6 +37,7 @@ import {
   getWhisprDesktopBeforeCloseRequestId,
   isWhisprDesktopRuntime,
 } from "@/lib/desktop/runtime";
+import { clearDesktopTransientAuthSession } from "@/lib/desktop/session";
 import { logError } from "@/lib/logger";
 import { getSocket } from "@/lib/socket/client";
 import { collectVoiceAudioHealthFromSender } from "@/lib/voice/audio-health";
@@ -124,7 +125,10 @@ import {
   removeVoiceStateParticipantFromCache,
 } from "@/lib/voice/state-cache";
 import { VOICE_HEARTBEAT_INTERVAL_MS, type VoiceChannelStateDTO } from "@/lib/voice/types";
-import { useVoiceAudioLevels, type RemoteVoiceAudioLevel } from "@/lib/voice/use-voice-audio-levels";
+import {
+  useVoiceAudioLevels,
+  type RemoteVoiceAudioLevel,
+} from "@/lib/voice/use-voice-audio-levels";
 import { useVoiceHeartbeat } from "@/lib/voice/use-voice-heartbeat";
 import {
   getScreenShareCaptureOptions,
@@ -173,9 +177,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     promise: Promise<boolean>;
     room: Room;
   } | null>(null);
-  const microphoneRecoveryRunnerRef = useRef<((targetRoom: Room) => Promise<boolean>) | null>(
-    null,
-  );
+  const microphoneRecoveryRunnerRef = useRef<((targetRoom: Room) => Promise<boolean>) | null>(null);
   const microphoneIntentionalMuteRef = useRef(false);
   const remoteAudioLevelsRef = useRef(new Map<string, RemoteVoiceAudioLevel>());
   const reconnectTimeoutControllerRef = useRef<ReconnectTimeoutController | null>(null);
@@ -192,6 +194,11 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const cleanupVoiceResourcesRef = useRef<() => void>(() => undefined);
   const leaveCleanupPromiseRef = useRef<Promise<void> | null>(null);
   const microphoneSettingsFailedMessageRef = useRef(t("voice.errors.microphoneSettingsFailed"));
+  const pushToTalkReleaseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pushToTalkStateRef = useRef({
+    active: false,
+    restoreMuted: true,
+  });
   const supportsLiveKitCloudNoiseCancellationRef = useRef(
     isLiveKitCloudUrl(NEXT_PUBLIC_LIVEKIT_URL),
   );
@@ -209,8 +216,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const [isApplyingAudioPreferences, setIsApplyingAudioPreferences] = useState(false);
   const [isApplyingScreenShareQuality, setIsApplyingScreenShareQuality] = useState(false);
   const [isKrispNoiseCancellationActive, setIsKrispNoiseCancellationActive] = useState(false);
-  const [activeKrispQuality, setActiveKrispQuality] =
-    useState<KrispProcessorQuality | null>(null);
+  const [activeKrispQuality, setActiveKrispQuality] = useState<KrispProcessorQuality | null>(null);
   const [isVoiceIsolationSupported, setIsVoiceIsolationSupported] = useState(false);
   const [isRecoveringKrispNoiseCancellation, setIsRecoveringKrispNoiseCancellation] =
     useState(false);
@@ -233,27 +239,35 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     activeChannelId,
     audioPreferences,
     cameraPreferences,
+    desktopGlobalShortcutsEnabled,
     isDeafened,
     isMuted,
     isScreenSharing,
     participantVolumes,
+    pushToTalkHangoverMs,
     screenShareError,
     screenShareQuality,
     serverId,
+    voiceInputMode,
   } = useVoiceStore(
     useShallow((state) => ({
       activeChannelId: state.activeChannelId,
       audioPreferences: state.audioPreferences,
       cameraPreferences: state.cameraPreferences,
+      desktopGlobalShortcutsEnabled: state.desktopGlobalShortcutsEnabled,
       isDeafened: state.isDeafened,
       isMuted: state.isMuted,
       isScreenSharing: state.isScreenSharing,
       participantVolumes: state.participantVolumes,
+      pushToTalkHangoverMs: state.pushToTalkHangoverMs,
       screenShareError: state.screenShareError,
       screenShareQuality: state.screenShareQuality,
       serverId: state.serverId,
+      voiceInputMode: state.voiceInputMode,
     })),
   );
+  const pushToTalkEnabled =
+    isDesktopRuntime && desktopGlobalShortcutsEnabled && voiceInputMode === "push-to-talk";
 
   const resolveNoiseFilterTierForPreferences = useCallback(
     (
@@ -587,6 +601,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     const metadata = JSON.stringify({
       avatarUrl: currentUser.avatarUrl ?? null,
       displayName: currentUser.displayName,
+      isDeafened,
       username: currentUser.username,
     });
     const name = currentUser.displayName || currentUser.username;
@@ -609,6 +624,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     currentUser.avatarUrl,
     currentUser.displayName,
     currentUser.username,
+    isDeafened,
     room,
     syncParticipants,
     syncScreenShares,
@@ -804,10 +820,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
           },
           async () => {
             const currentProcessor = track.getProcessor();
-            if (
-              currentProcessor?.name === KRISP_PROCESSOR_NAME &&
-              currentProcessor !== processor
-            ) {
+            if (currentProcessor?.name === KRISP_PROCESSOR_NAME && currentProcessor !== processor) {
               await track.stopProcessor().catch(() => undefined);
             }
 
@@ -839,7 +852,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
 
       try {
         const fallbackProcessor = await createFallbackKrispProcessor();
-        return await enableProcessor(fallbackProcessor, fallbackKrispQuality ?? preferredKrispQuality);
+        return await enableProcessor(
+          fallbackProcessor,
+          fallbackKrispQuality ?? preferredKrispQuality,
+        );
       } catch (error) {
         // Krisp is an enhancement; keep the published microphone alive and fall back to WebRTC.
         logError("[voice] Krisp noise cancellation failed", error);
@@ -1059,11 +1075,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
                 enhancedNoiseFilterActive: fallbackCaptureConfig.enhancedNoiseFilterActive,
               }),
             );
-            appliedAudioPreferencesSignatureRef.current =
-              getAudioCaptureRestartSignature(
-                fallbackPreferences,
-                fallbackCaptureConfig.processingProfile,
-              );
+            appliedAudioPreferencesSignatureRef.current = getAudioCaptureRestartSignature(
+              fallbackPreferences,
+              fallbackCaptureConfig.processingProfile,
+            );
             activeCaptureConfig = fallbackCaptureConfig;
           }
         }
@@ -1146,8 +1161,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
             nextProcessingProfile = syncedNoiseFilter.processingProfile;
           }
 
-          appliedAudioPreferencesSignatureRef.current =
-            getAudioCaptureRestartSignature(preferences, nextProcessingProfile);
+          appliedAudioPreferencesSignatureRef.current = getAudioCaptureRestartSignature(
+            preferences,
+            nextProcessingProfile,
+          );
           useVoiceStore.getState().setMuted(false);
           setErrorMessage(null);
           syncParticipants(targetRoom);
@@ -2036,7 +2053,11 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const toggleMute = useCallback(async () => {
     const activeRoom = roomRef.current;
     if (!activeRoom) {
+      const nextMuted = !useVoiceStore.getState().isMuted;
       useVoiceStore.getState().toggleMute();
+      if (pushToTalkStateRef.current.active) {
+        pushToTalkStateRef.current.restoreMuted = nextMuted;
+      }
       return;
     }
 
@@ -2115,6 +2136,9 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     }
 
     useVoiceStore.getState().setMuted(nextMuted);
+    if (pushToTalkStateRef.current.active) {
+      pushToTalkStateRef.current.restoreMuted = nextMuted;
+    }
     if (nextMuted) {
       microphoneIntentionalMuteRef.current = false;
     }
@@ -2127,6 +2151,67 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     syncParticipants,
     t,
   ]);
+
+  const startPushToTalk = useCallback(async () => {
+    if (!pushToTalkEnabled || !roomRef.current) {
+      return;
+    }
+
+    if (pushToTalkReleaseTimeoutRef.current) {
+      clearTimeout(pushToTalkReleaseTimeoutRef.current);
+      pushToTalkReleaseTimeoutRef.current = null;
+    }
+
+    if (pushToTalkStateRef.current.active) {
+      return;
+    }
+
+    const store = useVoiceStore.getState();
+    if (store.isDeafened) {
+      setTransientErrorMessage(t("voice.errors.pushToTalkDeafened"));
+      return;
+    }
+
+    const wasMuted = store.isMuted;
+    pushToTalkStateRef.current = {
+      active: true,
+      restoreMuted: wasMuted,
+    };
+
+    if (wasMuted) {
+      await toggleMute();
+      if (useVoiceStore.getState().isMuted) {
+        pushToTalkStateRef.current.active = false;
+      } else {
+        pushToTalkStateRef.current.restoreMuted = wasMuted;
+      }
+    }
+  }, [pushToTalkEnabled, setTransientErrorMessage, t, toggleMute]);
+
+  const stopPushToTalk = useCallback(async () => {
+    if (!pushToTalkStateRef.current.active) {
+      return;
+    }
+
+    const shouldRestoreMuted = pushToTalkStateRef.current.restoreMuted;
+    pushToTalkStateRef.current.active = false;
+
+    if (pushToTalkReleaseTimeoutRef.current) {
+      clearTimeout(pushToTalkReleaseTimeoutRef.current);
+      pushToTalkReleaseTimeoutRef.current = null;
+    }
+
+    if (!shouldRestoreMuted) {
+      return;
+    }
+
+    pushToTalkReleaseTimeoutRef.current = setTimeout(() => {
+      pushToTalkReleaseTimeoutRef.current = null;
+      if (!pushToTalkStateRef.current.active && !useVoiceStore.getState().isMuted) {
+        void toggleMute();
+      }
+    }, pushToTalkHangoverMs);
+  }, [pushToTalkHangoverMs, toggleMute]);
 
   const toggleDeafen = useCallback(async () => {
     const activeRoom = roomRef.current;
@@ -2145,6 +2230,31 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     );
     syncParticipants(activeRoom);
   }, [syncParticipants]);
+
+  useEffect(() => {
+    if (
+      voiceInputMode !== "push-to-talk" ||
+      !pushToTalkEnabled ||
+      !room ||
+      pushToTalkStateRef.current.active ||
+      pushToTalkReleaseTimeoutRef.current
+    ) {
+      return;
+    }
+
+    if (!useVoiceStore.getState().isMuted) {
+      void toggleMute();
+    }
+  }, [pushToTalkEnabled, room, toggleMute, voiceInputMode]);
+
+  useEffect(
+    () => () => {
+      if (pushToTalkReleaseTimeoutRef.current) {
+        clearTimeout(pushToTalkReleaseTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!supportsLiveKitCloudNoiseCancellationRef.current) {
@@ -2325,7 +2435,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       }
 
       event.preventDefault();
-      void handlePageExit().finally(() => {
+      void Promise.all([handlePageExit(), clearDesktopTransientAuthSession()]).finally(() => {
         void completeWhisprDesktopBeforeClose(requestId);
       });
     };
@@ -2372,6 +2482,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       screenShareQuality,
       serverId,
       activeScreenShareId,
+      startPushToTalk,
+      stopPushToTalk,
       setAudioPreference: useVoiceStore.getState().setAudioPreference,
       setActiveScreenShareId,
       setParticipantVolume: useVoiceStore.getState().setParticipantVolume,
@@ -2418,6 +2530,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       serverId,
       setActiveScreenShareId,
       setScreenShareQuality,
+      startPushToTalk,
+      stopPushToTalk,
       stopCamera,
       stopScreenShare,
       toggleCamera,

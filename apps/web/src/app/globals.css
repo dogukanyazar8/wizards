@@ -858,6 +858,18 @@ body {
   font-family: var(--font-sans), sans-serif;
 }
 
+html.whispr-desktop-transparent-surface,
+html.whispr-desktop-transparent-surface body {
+  border: 0 !important;
+  box-shadow: none !important;
+  min-height: 100%;
+  outline: 0 !important;
+  overflow: hidden;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
 .message-font-scope {
   font-family: var(--whispr-message-font, var(--font-sans), sans-serif);
 }

@@ -3,6 +3,7 @@ import type { LocalVideoTrack, RemoteVideoTrack, Room } from "livekit-client";
 import { getParticipantAudioActivity } from "@/lib/voice/provider-lifecycle";
 import {
   getParticipantCameraState,
+  getParticipantDeafenState,
   getParticipantProfile,
   type VoiceCurrentUser,
 } from "@/lib/voice/participant-mapping";
@@ -13,6 +14,7 @@ export interface VoiceParticipantViewModel {
   cameraTrack: LocalVideoTrack | RemoteVideoTrack | null;
   displayName: string | null;
   isCameraEnabled: boolean;
+  isDeafened: boolean;
   isLocal: boolean;
   isMuted: boolean;
   isSpeaking: boolean;
@@ -29,12 +31,14 @@ export function collectVoiceParticipants(
       const profile = getParticipantProfile(participant, currentUser);
       const audioActivity = getParticipantAudioActivity(participant);
       const cameraState = getParticipantCameraState(participant);
+      const isLocal = participant.identity === currentUser.id;
 
       return {
         ...profile,
         ...audioActivity,
         ...cameraState,
-        isLocal: participant.identity === currentUser.id,
+        isDeafened: getParticipantDeafenState(participant),
+        isLocal,
       };
     },
   );

@@ -8,6 +8,7 @@ import {
   getServerMemberId,
   resetFriendshipBetween,
 } from "../../helpers/db";
+import { sendComposerMessage } from "../../helpers/messages";
 import { e2eUsers, type E2EUserKey } from "../../helpers/test-data";
 
 type LoggedInPage = {
@@ -25,8 +26,7 @@ async function openLoggedInPage(browser: Browser, userKey: E2EUserKey): Promise<
 }
 
 async function sendMessage(page: Page, content: string): Promise<void> {
-  await page.getByTestId("message-input").fill(content);
-  await page.getByTestId("message-send-button").click();
+  await sendComposerMessage(page, content);
 }
 
 async function closeLoggedInPages(pages: LoggedInPage[]): Promise<void> {
@@ -164,6 +164,7 @@ test.describe("realtime multi-user flows", () => {
         .getByTestId("message-input")
         .fill(`Realtime mention ${suffix} @${e2eUsers.bob.username}`);
       await alice.page.getByTestId(`mention-suggestion-${e2eUsers.bob.username}`).click();
+      await expect(alice.page.getByTestId("message-send-button")).toBeEnabled();
       await alice.page.getByTestId("message-send-button").click();
 
       const bobMessage = bob.page

@@ -16,11 +16,7 @@ import {
   clampNotificationPopupTimeoutSeconds,
   clampServerRailIconSize,
 } from "@/lib/appearance";
-import {
-  DEFAULT_APP_ICON_ID,
-  isAppIconId,
-  type AppIconId,
-} from "@/lib/app-icons";
+import { DEFAULT_APP_ICON_ID, isAppIconId, type AppIconId } from "@/lib/app-icons";
 import {
   DEFAULT_MESSAGE_FONT_ID,
   applyMessageFontToDocument,
@@ -137,7 +133,10 @@ interface AppState extends PersistedRouteState {
   inviteModal: InviteModalState;
   mainPanelWidth: number;
   memberPanelCollapsed: boolean;
+  desktopCloseToTrayEnabled: boolean;
   desktopNotificationPreviews: boolean;
+  desktopRichPresenceEnabled: boolean;
+  desktopStreamerModeEnabled: boolean;
   messageFont: MessageFontId;
   mobileSidebarOpen: boolean;
   notificationAutoClose: boolean;
@@ -193,7 +192,10 @@ interface AppState extends PersistedRouteState {
   setAppearanceHydrated: (hydrated: boolean) => void;
   setAppIconId: (iconId: AppIconId) => void;
   setChannelSidebarWidth: (width: number) => void;
+  setDesktopCloseToTrayEnabled: (enabled: boolean) => void;
   setDesktopNotificationPreviews: (enabled: boolean) => void;
+  setDesktopRichPresenceEnabled: (enabled: boolean) => void;
+  setDesktopStreamerModeEnabled: (enabled: boolean) => void;
   setMainPanelWidth: (width: number) => void;
   setMemberPanelCollapsed: (collapsed: boolean) => void;
   setMessageFont: (fontId: MessageFontId) => void;
@@ -218,7 +220,10 @@ type PersistedAppState = Pick<
   | "appIconId"
   | "channelSidebarWidth"
   | "collapsedCategories"
+  | "desktopCloseToTrayEnabled"
   | "desktopNotificationPreviews"
+  | "desktopRichPresenceEnabled"
+  | "desktopStreamerModeEnabled"
   | "lastChannelByServerId"
   | "mainPanelWidth"
   | "memberPanelCollapsed"
@@ -270,7 +275,10 @@ function createInitialState(): Omit<
   | "setAppearanceHydrated"
   | "setAppIconId"
   | "setChannelSidebarWidth"
+  | "setDesktopCloseToTrayEnabled"
   | "setDesktopNotificationPreviews"
+  | "setDesktopRichPresenceEnabled"
+  | "setDesktopStreamerModeEnabled"
   | "setMainPanelWidth"
   | "setMemberPanelCollapsed"
   | "setMessageFont"
@@ -318,7 +326,10 @@ function createInitialState(): Omit<
     lastChannelByServerId: {},
     mainPanelWidth: DEFAULT_MAIN_PANEL_WIDTH,
     memberPanelCollapsed: false,
+    desktopCloseToTrayEnabled: true,
     desktopNotificationPreviews: false,
+    desktopRichPresenceEnabled: false,
+    desktopStreamerModeEnabled: false,
     messageFont: DEFAULT_MESSAGE_FONT_ID,
     mobileSidebarOpen: false,
     notificationAutoClose: true,
@@ -355,7 +366,9 @@ function sanitizeBooleanRecord(value: unknown): Record<string, boolean> {
   }
 
   return Object.fromEntries(
-    Object.entries(value).filter((entry): entry is [string, boolean] => typeof entry[1] === "boolean"),
+    Object.entries(value).filter(
+      (entry): entry is [string, boolean] => typeof entry[1] === "boolean",
+    ),
   );
 }
 
@@ -365,7 +378,9 @@ function sanitizeStringRecord(value: unknown): Record<string, string> {
   }
 
   return Object.fromEntries(
-    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+    Object.entries(value).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
   );
 }
 
@@ -405,22 +420,26 @@ function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
     ),
     collapsedCategories: sanitizeBooleanRecord(value.collapsedCategories),
     lastChannelByServerId: sanitizeStringRecord(value.lastChannelByServerId),
+    desktopCloseToTrayEnabled:
+      typeof value.desktopCloseToTrayEnabled === "boolean" ? value.desktopCloseToTrayEnabled : true,
     desktopNotificationPreviews:
       typeof value.desktopNotificationPreviews === "boolean"
         ? value.desktopNotificationPreviews
         : false,
+    desktopRichPresenceEnabled:
+      typeof value.desktopRichPresenceEnabled === "boolean"
+        ? value.desktopRichPresenceEnabled
+        : false,
+    desktopStreamerModeEnabled:
+      typeof value.desktopStreamerModeEnabled === "boolean"
+        ? value.desktopStreamerModeEnabled
+        : false,
     mainPanelWidth: clampMainPanelWidth(
-      typeof value.mainPanelWidth === "number"
-        ? value.mainPanelWidth
-        : DEFAULT_MAIN_PANEL_WIDTH,
+      typeof value.mainPanelWidth === "number" ? value.mainPanelWidth : DEFAULT_MAIN_PANEL_WIDTH,
     ),
     memberPanelCollapsed:
-      typeof value.memberPanelCollapsed === "boolean"
-        ? value.memberPanelCollapsed
-        : false,
-    messageFont: isMessageFontId(value.messageFont)
-      ? value.messageFont
-      : DEFAULT_MESSAGE_FONT_ID,
+      typeof value.memberPanelCollapsed === "boolean" ? value.memberPanelCollapsed : false,
+    messageFont: isMessageFontId(value.messageFont) ? value.messageFont : DEFAULT_MESSAGE_FONT_ID,
     notificationAutoClose:
       typeof value.notificationAutoClose === "boolean" ? value.notificationAutoClose : true,
     notificationLimit: clampNotificationLimit(
@@ -435,23 +454,17 @@ function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
     ),
     openChannelGroupPositions: sanitizeNumberRecord(value.openChannelGroupPositions),
     serverRailCollapsed:
-      typeof value.serverRailCollapsed === "boolean"
-        ? value.serverRailCollapsed
-        : false,
+      typeof value.serverRailCollapsed === "boolean" ? value.serverRailCollapsed : false,
     serverRailIconSize: clampServerRailIconSize(
       typeof value.serverRailIconSize === "number"
         ? value.serverRailIconSize
         : DEFAULT_SERVER_RAIL_ICON_SIZE,
     ),
     serverRailWidth: clampExpandedServerRailWidth(
-      typeof value.serverRailWidth === "number"
-        ? value.serverRailWidth
-        : DEFAULT_SERVER_RAIL_WIDTH,
+      typeof value.serverRailWidth === "number" ? value.serverRailWidth : DEFAULT_SERVER_RAIL_WIDTH,
     ),
     showCategoryMoveControls:
-      typeof value.showCategoryMoveControls === "boolean"
-        ? value.showCategoryMoveControls
-        : true,
+      typeof value.showCategoryMoveControls === "boolean" ? value.showCategoryMoveControls : true,
   };
 }
 
@@ -636,10 +649,7 @@ export const useAppStore = create<AppState>()(
         }),
       resetServerRailWidth: () =>
         set((state) => {
-          if (
-            state.serverRailWidth === DEFAULT_SERVER_RAIL_WIDTH &&
-            !state.serverRailCollapsed
-          ) {
+          if (state.serverRailWidth === DEFAULT_SERVER_RAIL_WIDTH && !state.serverRailCollapsed) {
             return state;
           }
 
@@ -709,9 +719,21 @@ export const useAppStore = create<AppState>()(
             channelSidebarWidth: nextWidth,
           };
         }),
+      setDesktopCloseToTrayEnabled: (enabled) =>
+        set({
+          desktopCloseToTrayEnabled: enabled,
+        }),
       setDesktopNotificationPreviews: (enabled) =>
         set({
           desktopNotificationPreviews: enabled,
+        }),
+      setDesktopRichPresenceEnabled: (enabled) =>
+        set({
+          desktopRichPresenceEnabled: enabled,
+        }),
+      setDesktopStreamerModeEnabled: (enabled) =>
+        set({
+          desktopStreamerModeEnabled: enabled,
         }),
       setMainPanelWidth: (width) =>
         set((state) => {
@@ -940,6 +962,36 @@ export const useAppStore = create<AppState>()(
           };
         }
 
+        if (version < 8) {
+          nextPersistedState = {
+            ...nextPersistedState,
+            desktopStreamerModeEnabled:
+              typeof nextPersistedState.desktopStreamerModeEnabled === "boolean"
+                ? nextPersistedState.desktopStreamerModeEnabled
+                : false,
+          };
+        }
+
+        if (version < 9) {
+          nextPersistedState = {
+            ...nextPersistedState,
+            desktopRichPresenceEnabled:
+              typeof nextPersistedState.desktopRichPresenceEnabled === "boolean"
+                ? nextPersistedState.desktopRichPresenceEnabled
+                : false,
+          };
+        }
+
+        if (version < 10) {
+          nextPersistedState = {
+            ...nextPersistedState,
+            desktopCloseToTrayEnabled:
+              typeof nextPersistedState.desktopCloseToTrayEnabled === "boolean"
+                ? nextPersistedState.desktopCloseToTrayEnabled
+                : true,
+          };
+        }
+
         return nextPersistedState;
       },
       merge: (persistedState, currentState) => ({
@@ -954,7 +1006,10 @@ export const useAppStore = create<AppState>()(
         appIconId: state.appIconId,
         channelSidebarWidth: state.channelSidebarWidth,
         collapsedCategories: state.collapsedCategories,
+        desktopCloseToTrayEnabled: state.desktopCloseToTrayEnabled,
         desktopNotificationPreviews: state.desktopNotificationPreviews,
+        desktopRichPresenceEnabled: state.desktopRichPresenceEnabled,
+        desktopStreamerModeEnabled: state.desktopStreamerModeEnabled,
         lastChannelByServerId: state.lastChannelByServerId,
         mainPanelWidth: state.mainPanelWidth,
         memberPanelCollapsed: state.memberPanelCollapsed,
@@ -969,7 +1024,7 @@ export const useAppStore = create<AppState>()(
         showCategoryMoveControls: state.showCategoryMoveControls,
       }),
       storage: createJSONStorage(() => localStorage),
-      version: 7,
+      version: 10,
     },
   ),
 );

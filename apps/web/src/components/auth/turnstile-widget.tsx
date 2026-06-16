@@ -4,6 +4,10 @@ import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/components/providers/locale-provider";
 import type { TurnstileAction } from "@/lib/auth/turnstile";
+import {
+  E2E_TURNSTILE_TOKEN,
+  isE2ETurnstileBypassEnabled,
+} from "@/lib/auth/turnstile-e2e";
 
 type TurnstileWidgetProps = {
   action?: TurnstileAction;
@@ -58,14 +62,35 @@ export function TurnstileWidget({
   const widgetIdRef = useRef<string | null>(null);
   const [scriptReady, setScriptReady] = useState(false);
   const [scriptFailed, setScriptFailed] = useState(false);
+  const isE2EBypass = isE2ETurnstileBypassEnabled();
 
   useEffect(() => {
+    if (!isE2EBypass) {
+      return;
+    }
+
+    onTokenChange(E2E_TURNSTILE_TOKEN);
+
+    return () => {
+      onTokenChange("");
+    };
+  }, [isE2EBypass, onTokenChange]);
+
+  useEffect(() => {
+    if (isE2EBypass) {
+      return;
+    }
+
     if (window.turnstile) {
       setScriptReady(true);
     }
-  }, []);
+  }, [isE2EBypass]);
 
   useEffect(() => {
+    if (isE2EBypass) {
+      return;
+    }
+
     if (!siteKey || !scriptReady || !containerRef.current || !window.turnstile) {
       return;
     }
@@ -97,7 +122,11 @@ export function TurnstileWidget({
       widgetIdRef.current = null;
       onTokenChange("");
     };
-  }, [action, locale, onTokenChange, scriptReady, siteKey]);
+  }, [action, isE2EBypass, locale, onTokenChange, scriptReady, siteKey]);
+
+  if (isE2EBypass) {
+    return null;
+  }
 
   if (!siteKey) {
     return (

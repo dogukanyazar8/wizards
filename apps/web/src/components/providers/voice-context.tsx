@@ -64,6 +64,8 @@ export type VoiceContextValue = {
   screenShareQuality: ScreenShareQualityId;
   serverId: string | null;
   activeScreenShareId: string | null;
+  startPushToTalk: () => Promise<void>;
+  stopPushToTalk: () => Promise<void>;
   setAudioPreference: <Key extends keyof VoiceAudioPreferences>(
     key: Key,
     value: VoiceAudioPreferences[Key],

@@ -39,6 +39,7 @@ export interface VoiceScreenShareViewModel {
 type ParticipantMetadata = {
   avatarUrl?: string | null;
   displayName?: string | null;
+  isDeafened?: boolean;
   username?: string | null;
 };
 
@@ -98,6 +99,10 @@ export function getParticipantCameraState(participant: Participant): VoicePartic
     cameraTrack: isCameraEnabled ? cameraTrack : null,
     isCameraEnabled,
   };
+}
+
+export function getParticipantDeafenState(participant: ParticipantProfileSource) {
+  return parseParticipantMetadata(participant).isDeafened === true;
 }
 
 export function getScreenShareId(participantId: string, trackSid: string) {

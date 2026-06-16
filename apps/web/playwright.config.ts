@@ -33,6 +33,10 @@ webServerEnv.AUTH_SECRET =
   process.env.AUTH_SECRET ?? "whispr-e2e-auth-secret-change-me-local-only";
 webServerEnv.NEXTAUTH_SECRET =
   process.env.NEXTAUTH_SECRET ?? webServerEnv.AUTH_SECRET;
+webServerEnv.NODE_OPTIONS = [
+  process.env.NODE_OPTIONS,
+  "--max-old-space-size=4096",
+].filter(Boolean).join(" ");
 
 export default defineConfig({
   testDir: "./e2e/specs",
@@ -73,7 +77,7 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: "pnpm dev",
+          command: isCI ? "pnpm start" : "pnpm dev",
           cwd: webRoot,
           env: webServerEnv,
           reuseExistingServer: !isCI,

@@ -25,6 +25,7 @@ import {
   completeWhisprDesktopBeforeClose,
   getWhisprDesktopBeforeCloseRequestId,
 } from "@/lib/desktop/runtime";
+import { clearDesktopTransientAuthSession } from "@/lib/desktop/session";
 import { getSocket } from "@/lib/socket/client";
 import {
   deleteVoiceState,
@@ -62,6 +63,7 @@ function mapE2EVoiceParticipants(
   currentUser: VoiceProviderProps["currentUser"],
   participants: VoiceChannelStateDTO["participants"],
   isCameraEnabled: boolean,
+  isDeafened: boolean,
   isMuted: boolean,
 ): VoiceParticipantViewModel[] {
   return participants.map((participant) => {
@@ -74,6 +76,7 @@ function mapE2EVoiceParticipants(
       cameraTrack: participantCameraEnabled ? E2E_CAMERA_TRACK : null,
       displayName: participant.displayName,
       isCameraEnabled: participantCameraEnabled,
+      isDeafened: participant.userId === currentUser.id ? isDeafened : false,
       isLocal: participant.userId === currentUser.id,
       isMuted: participant.userId === currentUser.id ? isMuted : false,
       isSpeaking: false,
@@ -169,6 +172,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
           currentUser,
           stateParticipants,
           cameraStatus === "enabled",
+          useVoiceStore.getState().isDeafened,
           useVoiceStore.getState().isMuted,
         ),
       );
@@ -269,13 +273,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
     }
 
     store.leave();
-  }, [
-    currentUser.id,
-    removeVoiceStateParticipant,
-    stopCamera,
-    stopHeartbeat,
-    stopScreenShare,
-  ]);
+  }, [currentUser.id, removeVoiceStateParticipant, stopCamera, stopHeartbeat, stopScreenShare]);
 
   const joinChannel = useCallback(
     async ({ channelId, serverId: nextServerId }: { channelId: string; serverId: string }) => {
@@ -347,8 +345,50 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
     );
   }, []);
 
+  const startPushToTalk = useCallback(async () => {
+    const store = useVoiceStore.getState();
+    if (
+      !store.desktopGlobalShortcutsEnabled ||
+      store.voiceInputMode !== "push-to-talk" ||
+      !store.activeChannelId
+    ) {
+      return;
+    }
+
+    if (store.isDeafened) {
+      setTransientErrorMessage(t("voice.errors.pushToTalkDeafened"));
+      return;
+    }
+
+    if (store.isMuted) {
+      await toggleMute();
+    }
+  }, [setTransientErrorMessage, t, toggleMute]);
+
+  const stopPushToTalk = useCallback(async () => {
+    const store = useVoiceStore.getState();
+    if (
+      store.desktopGlobalShortcutsEnabled &&
+      store.voiceInputMode === "push-to-talk" &&
+      !store.isMuted
+    ) {
+      await toggleMute();
+    }
+  }, [toggleMute]);
+
   const toggleDeafen = useCallback(async () => {
-    useVoiceStore.getState().setDeafened(!useVoiceStore.getState().isDeafened);
+    const nextDeafened = !useVoiceStore.getState().isDeafened;
+    useVoiceStore.getState().setDeafened(nextDeafened);
+    setParticipants((current) =>
+      current.map((participant) =>
+        participant.isLocal
+          ? {
+              ...participant,
+              isDeafened: nextDeafened,
+            }
+          : participant,
+      ),
+    );
   }, []);
 
   const toggleCamera = useCallback(async () => {
@@ -573,7 +613,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
       }
 
       event.preventDefault();
-      void runPageExitCleanup().finally(() => {
+      void Promise.all([runPageExitCleanup(), clearDesktopTransientAuthSession()]).finally(() => {
         void completeWhisprDesktopBeforeClose(requestId);
       });
     };
@@ -615,6 +655,8 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
       screenShareQuality,
       serverId,
       activeScreenShareId,
+      startPushToTalk,
+      stopPushToTalk,
       setAudioPreference: useVoiceStore.getState().setAudioPreference,
       setActiveScreenShareId,
       setParticipantVolume: useVoiceStore.getState().setParticipantVolume,
@@ -653,6 +695,8 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
       serverId,
       setActiveScreenShareId,
       setScreenShareQuality,
+      startPushToTalk,
+      stopPushToTalk,
       stopCamera,
       stopScreenShare,
       toggleCamera,
@@ -679,4 +723,3 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
     </VoiceStateContext.Provider>
   );
 }
-

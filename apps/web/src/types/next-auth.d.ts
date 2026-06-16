@@ -44,6 +44,7 @@ declare module "next-auth/jwt" {
     isBanned?: boolean;
     locale?: string | null;
     profileHydrated?: boolean;
+    rememberMe?: boolean;
     revoked?: boolean;
     revocationCheckedAt?: number;
     theme?: string | null;

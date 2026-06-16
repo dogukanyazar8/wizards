@@ -31,7 +31,7 @@ function formatWhisprVersion(version: string, codename: string) {
 }
 
 const WHISPR_VERSION_NUMBER =
-  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.7";
+  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.8";
 export const WHISPR_RELEASE_CODENAME =
   process.env.NEXT_PUBLIC_WHISPR_RELEASE_CODENAME ?? "Echo";
 export const WHISPR_APP_VERSION = formatWhisprVersion(
@@ -51,50 +51,50 @@ export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
     descriptionKey: "app.update.notes.desktopStartup.description",
     fallbackCategory: "Desktop",
     fallbackDescription:
-      "Desktop now opens with a compact Whispr startup window, keeps the splash visible while the main workspace is promoted, and avoids blank first-run screens.",
-    fallbackTitle: "Discord-style desktop startup",
-    id: "desktop-startup",
+      "Desktop now opens with a compact startup window, keeps the Whispr splash consistent through promotion, restores remembered sessions, and preserves the main window size and position.",
+    fallbackTitle: "Desktop startup and session polish",
+    id: "desktop-startup-session",
     titleKey: "app.update.notes.desktopStartup.title",
   },
   {
-    categoryKey: "app.update.category.security",
-    descriptionKey: "app.update.notes.rememberedDesktopSession.description",
-    fallbackCategory: "Security",
+    categoryKey: "app.update.category.voice",
+    descriptionKey: "app.update.notes.desktopVoiceControls.description",
+    fallbackCategory: "Voice",
     fallbackDescription:
-      "Remember me now extends trusted credential sessions, while regular logins keep a shorter lifetime and the desktop WebView stores its session in a stable app data profile.",
-    fallbackTitle: "Remembered desktop sessions",
-    id: "remembered-desktop-session",
-    titleKey: "app.update.notes.rememberedDesktopSession.title",
-  },
-  {
-    categoryKey: "app.update.category.performance",
-    descriptionKey: "app.update.notes.startupReadiness.description",
-    fallbackCategory: "Performance",
-    fallbackDescription:
-      "Browser startup now shows the Whispr splash before the shell, then fades into the workspace only after layout, route data, and workspace state are ready.",
-    fallbackTitle: "First-paint startup readiness",
-    id: "startup-readiness",
-    titleKey: "app.update.notes.startupReadiness.title",
+      "Desktop voice controls now support safer global shortcuts, push-to-talk hold behavior, mute and deafen shortcuts, and a calmer voice settings panel.",
+    fallbackTitle: "Desktop voice controls",
+    id: "desktop-voice-controls",
+    titleKey: "app.update.notes.desktopVoiceControls.title",
   },
   {
     categoryKey: "app.update.category.desktop",
-    descriptionKey: "app.update.notes.desktopChrome.description",
+    descriptionKey: "app.update.notes.desktopOverlay.description",
     fallbackCategory: "Desktop",
     fallbackDescription:
-      "The desktop title bar is slimmer and calmer, keeps the Whispr title consistent, and hides chrome entirely during startup.",
-    fallbackTitle: "Cleaner desktop window chrome",
-    id: "desktop-chrome",
-    titleKey: "app.update.notes.desktopChrome.title",
+      "Voice mini window and game overlay surfaces now stream sanitized voice state, show mute and deafen status from desktop or web users, and avoid blocking the game view.",
+    fallbackTitle: "Voice overlay and mini window",
+    id: "desktop-overlay-mini",
+    titleKey: "app.update.notes.desktopOverlay.title",
+  },
+  {
+    categoryKey: "app.update.category.security",
+    descriptionKey: "app.update.notes.desktopSecurityFoundation.description",
+    fallbackCategory: "Security",
+    fallbackDescription:
+      "Tauri capabilities are split by surface, production CSP covers the desktop WebSocket path, close-to-tray is configurable, and updater/autostart foundations stay opt-in.",
+    fallbackTitle: "Safer desktop shell foundation",
+    id: "desktop-security-foundation",
+    titleKey: "app.update.notes.desktopSecurityFoundation.title",
   },
   {
     categoryKey: "app.update.category.quality",
-    descriptionKey: "app.update.notes.startupSafety.description",
+    descriptionKey: "app.update.notes.releaseVerification.description",
     fallbackCategory: "Quality",
     fallbackDescription:
-      "Startup navigation now validates safe callback paths, keeps update and title copy localized, and uses fallback promotion paths when desktop resizing cannot complete in place.",
-    fallbackTitle: "Safer app startup flow",
-    id: "startup-safety",
-    titleKey: "app.update.notes.startupSafety.title",
+      "Release checks now cover desktop helpers, session cookies, Turnstile dev bypasses, voice participant mapping, route contracts, and refreshed Playwright message helpers.",
+    fallbackTitle: "Release verification pass",
+    id: "release-verification",
+    titleKey: "app.update.notes.releaseVerification.title",
   },
 ];
 

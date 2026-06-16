@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { getCurrentUser, requireAuth } from "@/lib/auth/utils";
 import { LocaleSessionSync } from "@/components/locale/locale-session-sync";
 import { ThemeSessionSync } from "@/components/theme/theme-session-sync";
+import { AuthenticatedAppProviders } from "@/components/providers/authenticated-app-providers";
 import { WizardsShell } from "@/components/shell/wizards-shell";
 
 function getVisibleStatus(status: string | null | undefined) {
@@ -29,7 +30,14 @@ export default async function MainLayout({ children }: { children: ReactNode }) 
     user?.username ?? session.user.username ?? session.user.email?.split("@")[0] ?? "whispr";
 
   return (
-    <>
+    <AuthenticatedAppProviders
+      currentUser={{
+        id: session.user.id,
+        avatarUrl: user?.avatarUrl ?? session.user.avatarUrl ?? session.user.image ?? null,
+        displayName,
+        username,
+      }}
+    >
       <LocaleSessionSync preferredLocale={session.user.locale} />
       <ThemeSessionSync preferredTheme={session.user.theme} />
       <WizardsShell
@@ -44,6 +52,6 @@ export default async function MainLayout({ children }: { children: ReactNode }) 
       >
         {children}
       </WizardsShell>
-    </>
+    </AuthenticatedAppProviders>
   );
 }

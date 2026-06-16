@@ -1,3 +1,5 @@
+import { E2E_TURNSTILE_TOKEN } from "./turnstile-e2e";
+
 const TURNSTILE_SITEVERIFY_URL =
   "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const DEFAULT_TURNSTILE_ACTION = "register";
@@ -100,6 +102,14 @@ export async function verifyTurnstileToken(
   options: { expectedAction?: TurnstileAction } = {},
 ) {
   const normalizedToken = token.trim();
+  if (
+    normalizedToken === E2E_TURNSTILE_TOKEN &&
+    process.env.E2E_TEST_MODE === "true" &&
+    process.env.NODE_ENV !== "production"
+  ) {
+    return true;
+  }
+
   if (!normalizedToken) {
     throw new TurnstileVerificationError(
       "INVALID_TOKEN",

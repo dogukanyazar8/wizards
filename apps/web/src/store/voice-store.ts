@@ -8,9 +8,14 @@ import {
   type ScreenShareQualityId,
 } from "@/lib/voice/screen-share";
 import {
-  isEnhancedNoiseFilterMode,
-  type EnhancedNoiseFilterMode,
-} from "@/lib/voice/noise-filter";
+  DEFAULT_DESKTOP_GAME_OVERLAY_ANCHOR,
+  DEFAULT_DESKTOP_GAME_OVERLAY_SIZE,
+  DEFAULT_DESKTOP_GAME_OVERLAY_SPEAKING_ONLY,
+  sanitizeDesktopGameOverlayAnchor,
+  sanitizeDesktopGameOverlaySize,
+} from "@/lib/desktop/voice-mini";
+import type { VoiceOverlayAnchor, VoiceOverlaySize } from "@wizards/types";
+import { isEnhancedNoiseFilterMode, type EnhancedNoiseFilterMode } from "@/lib/voice/noise-filter";
 
 export const DEFAULT_PARTICIPANT_VOLUME = 100;
 export const MAX_PARTICIPANT_VOLUME = 100;
@@ -18,6 +23,17 @@ export const MIN_PARTICIPANT_VOLUME = 0;
 export const DEFAULT_AUDIO_DEVICE_ID = "default";
 export const DEFAULT_CAMERA_DEVICE_ID = DEFAULT_AUDIO_DEVICE_ID;
 export const VOICE_PREFERENCES_STORAGE_KEY = "wizards-voice";
+export const DEFAULT_PUSH_TO_TALK_HANGOVER_MS = 200;
+export const DEFAULT_GAME_OVERLAY_PANIC_SHORTCUT = "CmdOrCtrl+Shift+O";
+export const DEFAULT_PUSH_TO_TALK_SHORTCUT = "Alt+V";
+export const DEFAULT_TOGGLE_DEAFEN_SHORTCUT = "CmdOrCtrl+Shift+D";
+export const DEFAULT_TOGGLE_MUTE_SHORTCUT = "CmdOrCtrl+Shift+M";
+export const MAX_PUSH_TO_TALK_HANGOVER_MS = 750;
+export const MIN_PUSH_TO_TALK_HANGOVER_MS = 0;
+
+const RESERVED_DESKTOP_VOICE_SHORTCUTS = new Set(["alt+space", "ctrl+space", "control+space"]);
+
+export type VoiceInputMode = "push-to-talk" | "voice-activity";
 
 export interface VoiceAudioPreferences {
   autoGainControl: boolean;
@@ -166,19 +182,71 @@ function sanitizeScreenShareQuality(value: unknown): ScreenShareQualityId {
   return normalizeScreenShareQualityId(value);
 }
 
+export function sanitizeVoiceInputMode(value: unknown): VoiceInputMode {
+  return value === "push-to-talk" ? "push-to-talk" : "voice-activity";
+}
+
+export function sanitizeDesktopVoiceShortcut(value: unknown, fallback: string) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const normalized = value.replace(/\s+/g, "").trim();
+  const normalizedKey = normalized.toLowerCase();
+  if (
+    normalized.length === 0 ||
+    normalized.length > 64 ||
+    /[\0\r\n]/u.test(normalized) ||
+    RESERVED_DESKTOP_VOICE_SHORTCUTS.has(normalizedKey) ||
+    normalizedKey.endsWith("+space")
+  ) {
+    return fallback;
+  }
+
+  return normalized;
+}
+
+export function sanitizePushToTalkHangoverMs(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULT_PUSH_TO_TALK_HANGOVER_MS;
+  }
+
+  return Math.min(
+    MAX_PUSH_TO_TALK_HANGOVER_MS,
+    Math.max(MIN_PUSH_TO_TALK_HANGOVER_MS, Math.round(value)),
+  );
+}
+
 type PersistedVoiceStoreState = {
   audioProcessingVersion: number;
   audioPreferences: VoiceAudioPreferences;
   cameraPreferences: VoiceCameraPreferences;
+  desktopGlobalShortcutsEnabled: boolean;
+  desktopGameOverlayAnchor: VoiceOverlayAnchor;
+  desktopGameOverlayEnabled: boolean;
+  desktopGameOverlaySize: VoiceOverlaySize;
+  desktopGameOverlaySpeakingOnly: boolean;
+  gameOverlayPanicShortcut: string;
+  desktopVoiceMiniEnabled: boolean;
   hasConfiguredKrispPreference: boolean;
   participantVolumes: Record<string, number>;
+  pushToTalkHangoverMs: number;
+  pushToTalkShortcut: string;
   screenShareQuality: ScreenShareQualityId;
+  toggleDeafenShortcut: string;
+  toggleMuteShortcut: string;
+  voiceInputMode: VoiceInputMode;
 };
 
 interface VoiceStoreState extends PersistedVoiceStoreState {
   activeChannelId: string | null;
   clearParticipantVolumes: () => void;
   clearScreenShareState: () => void;
+  desktopGlobalShortcutsEnabled: boolean;
+  desktopGameOverlayAnchor: VoiceOverlayAnchor;
+  desktopGameOverlayEnabled: boolean;
+  desktopGameOverlaySize: VoiceOverlaySize;
+  desktopGameOverlaySpeakingOnly: boolean;
   isScreenSharing: boolean;
   isDeafened: boolean;
   isMuted: boolean;
@@ -189,6 +257,12 @@ interface VoiceStoreState extends PersistedVoiceStoreState {
   screenShareMode: "dm" | "voice" | null;
   serverId: string | null;
   sessionId: string | null;
+  gameOverlayPanicShortcut: string;
+  pushToTalkHangoverMs: number;
+  pushToTalkShortcut: string;
+  toggleDeafenShortcut: string;
+  toggleMuteShortcut: string;
+  voiceInputMode: VoiceInputMode;
   join: (input: { channelId: string; serverId: string; sessionId: string }) => void;
   leave: () => void;
   resetParticipantVolume: (userId: string) => void;
@@ -201,6 +275,18 @@ interface VoiceStoreState extends PersistedVoiceStoreState {
     key: Key,
     value: VoiceCameraPreferences[Key],
   ) => void;
+  setDesktopGlobalShortcutsEnabled: (enabled: boolean) => void;
+  setDesktopGameOverlayAnchor: (anchor: VoiceOverlayAnchor) => void;
+  setDesktopGameOverlayEnabled: (enabled: boolean) => void;
+  setDesktopGameOverlaySize: (size: VoiceOverlaySize) => void;
+  setDesktopGameOverlaySpeakingOnly: (speakingOnly: boolean) => void;
+  setDesktopVoiceMiniEnabled: (enabled: boolean) => void;
+  setGameOverlayPanicShortcut: (shortcut: string) => void;
+  setPushToTalkHangoverMs: (hangoverMs: number) => void;
+  setPushToTalkShortcut: (shortcut: string) => void;
+  setToggleDeafenShortcut: (shortcut: string) => void;
+  setToggleMuteShortcut: (shortcut: string) => void;
+  setVoiceInputMode: (mode: VoiceInputMode) => void;
   toggleDeafen: () => void;
   toggleMute: () => void;
   setDeafened: (isDeafened: boolean) => void;
@@ -243,6 +329,13 @@ export const useVoiceStore = create<VoiceStoreState>()(
             participantVolumes: {},
           };
         }),
+      desktopGlobalShortcutsEnabled: false,
+      desktopGameOverlayAnchor: DEFAULT_DESKTOP_GAME_OVERLAY_ANCHOR,
+      desktopGameOverlayEnabled: false,
+      desktopGameOverlaySize: DEFAULT_DESKTOP_GAME_OVERLAY_SIZE,
+      desktopGameOverlaySpeakingOnly: DEFAULT_DESKTOP_GAME_OVERLAY_SPEAKING_ONLY,
+      desktopVoiceMiniEnabled: false,
+      gameOverlayPanicShortcut: DEFAULT_GAME_OVERLAY_PANIC_SHORTCUT,
       isDeafened: false,
       hasConfiguredKrispPreference: false,
       isMuted: false,
@@ -256,6 +349,11 @@ export const useVoiceStore = create<VoiceStoreState>()(
       screenShareQuality: DEFAULT_SCREEN_SHARE_QUALITY_ID,
       serverId: null,
       sessionId: null,
+      pushToTalkHangoverMs: DEFAULT_PUSH_TO_TALK_HANGOVER_MS,
+      pushToTalkShortcut: DEFAULT_PUSH_TO_TALK_SHORTCUT,
+      toggleDeafenShortcut: DEFAULT_TOGGLE_DEAFEN_SHORTCUT,
+      toggleMuteShortcut: DEFAULT_TOGGLE_MUTE_SHORTCUT,
+      voiceInputMode: "voice-activity",
       join: ({ channelId, serverId, sessionId }) =>
         set({
           activeChannelId: channelId,
@@ -317,6 +415,60 @@ export const useVoiceStore = create<VoiceStoreState>()(
               [key]: value,
             },
           };
+        }),
+      setDesktopGlobalShortcutsEnabled: (enabled) =>
+        set({
+          desktopGlobalShortcutsEnabled: enabled,
+        }),
+      setDesktopGameOverlayAnchor: (anchor) =>
+        set({
+          desktopGameOverlayAnchor: sanitizeDesktopGameOverlayAnchor(anchor),
+        }),
+      setDesktopGameOverlayEnabled: (enabled) =>
+        set({
+          desktopGameOverlayEnabled: enabled,
+        }),
+      setDesktopGameOverlaySize: (size) =>
+        set({
+          desktopGameOverlaySize: sanitizeDesktopGameOverlaySize(size),
+        }),
+      setDesktopGameOverlaySpeakingOnly: (speakingOnly) =>
+        set({
+          desktopGameOverlaySpeakingOnly: speakingOnly,
+        }),
+      setDesktopVoiceMiniEnabled: (enabled) =>
+        set({
+          desktopVoiceMiniEnabled: enabled,
+        }),
+      setGameOverlayPanicShortcut: (shortcut) =>
+        set({
+          gameOverlayPanicShortcut: sanitizeDesktopVoiceShortcut(
+            shortcut,
+            DEFAULT_GAME_OVERLAY_PANIC_SHORTCUT,
+          ),
+        }),
+      setPushToTalkHangoverMs: (hangoverMs) =>
+        set({
+          pushToTalkHangoverMs: sanitizePushToTalkHangoverMs(hangoverMs),
+        }),
+      setPushToTalkShortcut: (shortcut) =>
+        set({
+          pushToTalkShortcut: sanitizeDesktopVoiceShortcut(shortcut, DEFAULT_PUSH_TO_TALK_SHORTCUT),
+        }),
+      setToggleDeafenShortcut: (shortcut) =>
+        set({
+          toggleDeafenShortcut: sanitizeDesktopVoiceShortcut(
+            shortcut,
+            DEFAULT_TOGGLE_DEAFEN_SHORTCUT,
+          ),
+        }),
+      setToggleMuteShortcut: (shortcut) =>
+        set({
+          toggleMuteShortcut: sanitizeDesktopVoiceShortcut(shortcut, DEFAULT_TOGGLE_MUTE_SHORTCUT),
+        }),
+      setVoiceInputMode: (mode) =>
+        set({
+          voiceInputMode: sanitizeVoiceInputMode(mode),
         }),
       toggleDeafen: () =>
         set((state) => ({
@@ -399,8 +551,36 @@ export const useVoiceStore = create<VoiceStoreState>()(
             ? false
             : persistedState.hasConfiguredKrispPreference === true,
           cameraPreferences: sanitizeCameraPreferences(persistedState.cameraPreferences),
+          desktopGlobalShortcutsEnabled: persistedState.desktopGlobalShortcutsEnabled === true,
+          desktopGameOverlayAnchor: sanitizeDesktopGameOverlayAnchor(
+            persistedState.desktopGameOverlayAnchor,
+          ),
+          desktopGameOverlayEnabled: persistedState.desktopGameOverlayEnabled === true,
+          desktopGameOverlaySize: sanitizeDesktopGameOverlaySize(
+            persistedState.desktopGameOverlaySize,
+          ),
+          desktopGameOverlaySpeakingOnly: persistedState.desktopGameOverlaySpeakingOnly === true,
+          desktopVoiceMiniEnabled: persistedState.desktopVoiceMiniEnabled === true,
+          gameOverlayPanicShortcut: sanitizeDesktopVoiceShortcut(
+            persistedState.gameOverlayPanicShortcut,
+            DEFAULT_GAME_OVERLAY_PANIC_SHORTCUT,
+          ),
           participantVolumes: sanitizeParticipantVolumes(persistedState.participantVolumes),
+          pushToTalkHangoverMs: sanitizePushToTalkHangoverMs(persistedState.pushToTalkHangoverMs),
+          pushToTalkShortcut: sanitizeDesktopVoiceShortcut(
+            persistedState.pushToTalkShortcut,
+            DEFAULT_PUSH_TO_TALK_SHORTCUT,
+          ),
           screenShareQuality: sanitizeScreenShareQuality(persistedState.screenShareQuality),
+          toggleDeafenShortcut: sanitizeDesktopVoiceShortcut(
+            persistedState.toggleDeafenShortcut,
+            DEFAULT_TOGGLE_DEAFEN_SHORTCUT,
+          ),
+          toggleMuteShortcut: sanitizeDesktopVoiceShortcut(
+            persistedState.toggleMuteShortcut,
+            DEFAULT_TOGGLE_MUTE_SHORTCUT,
+          ),
+          voiceInputMode: sanitizeVoiceInputMode(persistedState.voiceInputMode),
         };
       },
       name: VOICE_PREFERENCES_STORAGE_KEY,
@@ -408,9 +588,21 @@ export const useVoiceStore = create<VoiceStoreState>()(
         audioProcessingVersion: state.audioProcessingVersion,
         audioPreferences: state.audioPreferences,
         cameraPreferences: state.cameraPreferences,
+        desktopGlobalShortcutsEnabled: state.desktopGlobalShortcutsEnabled,
+        desktopGameOverlayAnchor: state.desktopGameOverlayAnchor,
+        desktopGameOverlayEnabled: state.desktopGameOverlayEnabled,
+        desktopGameOverlaySize: state.desktopGameOverlaySize,
+        desktopGameOverlaySpeakingOnly: state.desktopGameOverlaySpeakingOnly,
+        desktopVoiceMiniEnabled: state.desktopVoiceMiniEnabled,
+        gameOverlayPanicShortcut: state.gameOverlayPanicShortcut,
         hasConfiguredKrispPreference: state.hasConfiguredKrispPreference,
         participantVolumes: state.participantVolumes,
+        pushToTalkHangoverMs: state.pushToTalkHangoverMs,
+        pushToTalkShortcut: state.pushToTalkShortcut,
         screenShareQuality: state.screenShareQuality,
+        toggleDeafenShortcut: state.toggleDeafenShortcut,
+        toggleMuteShortcut: state.toggleMuteShortcut,
+        voiceInputMode: state.voiceInputMode,
       }),
       storage: createJSONStorage(() => localStorage),
     },

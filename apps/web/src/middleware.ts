@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { getAuthSessionCookieConfig } from "@/lib/auth/session-cookies";
 import { WHISPR_REQUEST_PATHNAME_HEADER } from "@/lib/request-context";
 
 const REDIRECT_IF_AUTHENTICATED = new Set(["/login", "/register"]);
@@ -180,17 +181,6 @@ function isProtectedRoute(pathname: string): boolean {
   );
 }
 
-function getSessionCookieConfig() {
-  const secureCookie = process.env.NODE_ENV === "production";
-
-  return {
-    cookieName: secureCookie
-      ? "__Secure-authjs.session-token"
-      : "authjs.session-token",
-    secureCookie,
-  };
-}
-
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
@@ -237,7 +227,7 @@ export async function middleware(request: NextRequest) {
   let isAuthenticated = false;
   try {
     if (secret) {
-      const sessionCookie = getSessionCookieConfig();
+      const sessionCookie = getAuthSessionCookieConfig();
       const token = await getToken({
         cookieName: sessionCookie.cookieName,
         req: request,

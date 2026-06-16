@@ -10,6 +10,7 @@ const PUBLIC_ROUTE_PATHS = new Set(["app/version"]);
 
 const BODYLESS_MUTATING_ROUTE_PATHS = new Set([
   "admin/notification-campaigns/[campaignId]/send",
+  "auth/desktop-session",
   "channels/[channelId]/messages",
   "channels/[channelId]/messages/[messageId]/pin",
   "channels/[channelId]/read",
@@ -116,9 +117,7 @@ describe("API v1 route contract", () => {
       .filter((route) => !PARSE_JSON_BODY_CALL_PATTERN.test(route.content))
       .map((route) => route.routePath);
 
-    assert.deepEqual(mutatingWithoutJsonParser, [
-      ...BODYLESS_MUTATING_ROUTE_PATHS,
-    ]);
+    assert.deepEqual(mutatingWithoutJsonParser, [...BODYLESS_MUTATING_ROUTE_PATHS]);
 
     for (const routePath of BODYLESS_MUTATING_ROUTE_PATHS) {
       assert.equal(

@@ -7,6 +7,7 @@ import {
   getE2EServerRoute,
   setE2EServerMediaSettings,
 } from "../../helpers/db";
+import { sendComposerMessage } from "../../helpers/messages";
 
 const ONE_BY_ONE_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
@@ -16,8 +17,7 @@ function messageByText(page: Page, content: string) {
 }
 
 async function sendMessage(page: Page, content: string): Promise<void> {
-  await page.getByTestId("message-input").fill(content);
-  await page.getByTestId("message-send-button").click();
+  await sendComposerMessage(page, content);
 }
 
 function attachmentDraftByFilename(page: Page, filename: string) {

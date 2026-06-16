@@ -156,9 +156,21 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.releaseReadiness.title": "Desktop and deploy readiness",
     "app.update.notes.releaseReadiness.description":
       "The desktop build now targets whispr.team capabilities, LiveKit/Krisp CSP support, health and readiness checks, Railway config, and migration-aware startup paths.",
-    "app.update.notes.desktopStartup.title": "Discord-style desktop startup",
+    "app.update.notes.desktopStartup.title": "Desktop startup and session polish",
     "app.update.notes.desktopStartup.description":
-      "Desktop now opens with a compact Whispr startup window, keeps the splash visible while the main workspace is promoted, and avoids blank first-run screens.",
+      "Desktop now opens with a compact Whispr startup window, keeps the splash consistent through promotion, restores remembered sessions, and preserves the main window size and position.",
+    "app.update.notes.desktopVoiceControls.title": "Desktop voice controls",
+    "app.update.notes.desktopVoiceControls.description":
+      "Global shortcuts, push-to-talk hold behavior, mute and deafen shortcuts, and the voice settings panel are now calmer and safer to use on desktop.",
+    "app.update.notes.desktopOverlay.title": "Voice overlay and mini window",
+    "app.update.notes.desktopOverlay.description":
+      "Voice mini window and game overlay surfaces now stream sanitized voice state, show mute and deafen status from desktop or web users, and avoid blocking the game view.",
+    "app.update.notes.desktopSecurityFoundation.title": "Safer desktop shell foundation",
+    "app.update.notes.desktopSecurityFoundation.description":
+      "Tauri capabilities are split by surface, production CSP covers the desktop WebSocket path, close-to-tray is configurable, and updater/autostart foundations stay opt-in.",
+    "app.update.notes.releaseVerification.title": "Release verification pass",
+    "app.update.notes.releaseVerification.description":
+      "Release checks now cover desktop helpers, session cookies, Turnstile dev bypasses, voice participant mapping, route contracts, and refreshed Playwright message helpers.",
     "app.update.notes.rememberedDesktopSession.title": "Remembered desktop sessions",
     "app.update.notes.rememberedDesktopSession.description":
       "Remember me now extends trusted credential sessions, while regular logins keep a shorter lifetime and the desktop WebView stores its session in a stable app data profile.",
@@ -338,6 +350,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Voice connection is unstable. Whispr is reconnecting without leaving the room.",
     "voice.errors.connectionStillReconnecting":
       "Voice is still reconnecting. Keep this tab open while Whispr restores the call.",
+    "voice.errors.pushToTalkDeafened": "Push-to-talk stays disabled while you are deafened.",
     "voice.view.connecting": "Connecting to voice channel...",
     "voice.view.disconnectedTitle": "You left this voice channel",
     "voice.view.disconnectedDescription":
@@ -623,6 +636,78 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.noiseFilterMode.browser_only": "Browser only",
     "voice.settings.noiseFilterMode.browser_only.desc":
       "Skips Krisp and keeps the browser cleanup pipeline.",
+    "voice.settings.desktopControlsTitle": "Desktop voice controls",
+    "voice.settings.desktopControlsDescription":
+      "Opt in to global shortcuts and push-to-talk for the Whispr desktop app. Shortcuts are registered only for the exact combinations you choose.",
+    "voice.settings.desktopShortcuts": "Enable global voice shortcuts",
+    "voice.settings.desktopShortcutsDesc":
+      "Lets Whispr react to mute, deafen, and push-to-talk shortcuts while another app is focused.",
+    "voice.settings.desktopShortcutsHelper":
+      "Global shortcuts are local to this desktop app, require a modifier key, and can be turned off anytime.",
+    "voice.settings.desktopVoiceMini": "Show compact voice mini window",
+    "voice.settings.desktopVoiceMiniDesc":
+      "When you are in voice, Whispr can show a small always-on-top controller with sanitized participant state.",
+    "voice.settings.desktopVoiceMiniHelper":
+      "The mini window receives only display names, avatars, speaking state, mute state, and connection quality.",
+    "voice.settings.desktopGameOverlay": "Show game overlay",
+    "voice.settings.desktopGameOverlayDesc":
+      "Shows a click-through, always-on-top voice overlay for borderless or windowed games.",
+    "voice.settings.desktopGameOverlayHelper":
+      "Manual mode only: Whispr does not inspect game memory or send detected process data anywhere.",
+    "voice.settings.desktopOverlayTest": "Test overlay",
+    "voice.settings.desktopOverlayTesting": "Showing overlay...",
+    "voice.settings.desktopMiniTest": "Test mini window",
+    "voice.settings.desktopMiniTesting": "Showing mini...",
+    "voice.settings.desktopSurfacesRefresh": "Refresh windows",
+    "voice.settings.desktopSurfacesRefreshing": "Refreshing...",
+    "voice.settings.desktopOverlayHide": "Hide overlay",
+    "voice.settings.desktopOverlayHiding": "Hiding overlay...",
+    "voice.settings.desktopSurfaceFeedback.overlay":
+      "Overlay test opened. If it is not visible, switch the game to borderless/windowed and use refresh.",
+    "voice.settings.desktopSurfaceFeedback.focus":
+      "Overlay is kept hidden while Whispr is focused so it cannot block window controls. Switch to your game or another window to preview it.",
+    "voice.settings.desktopSurfaceFeedback.voice-mini":
+      "Mini window test opened. It should appear near the lower-right corner of the active display.",
+    "voice.settings.desktopSurfaceFeedback.refresh":
+      "Desktop voice windows were moved to the active display and re-applied as always-on-top.",
+    "voice.settings.desktopSurfaceFeedback.hide":
+      "Game overlay was hidden and the overlay toggle was turned off.",
+    "voice.settings.desktopSurfaceFeedback.failure":
+      "Whispr could not show the desktop voice window. Check that you are running the desktop app.",
+    "voice.settings.desktopOverlayPosition": "Overlay position",
+    "voice.settings.desktopOverlayPosition.top-left": "Top left",
+    "voice.settings.desktopOverlayPosition.top-right": "Top right",
+    "voice.settings.desktopOverlayPosition.bottom-left": "Bottom left",
+    "voice.settings.desktopOverlayPosition.bottom-right": "Bottom right",
+    "voice.settings.desktopOverlaySize": "Overlay size",
+    "voice.settings.desktopOverlaySize.compact": "Compact",
+    "voice.settings.desktopOverlaySize.normal": "Normal",
+    "voice.settings.desktopOverlaySize.large": "Large",
+    "voice.settings.desktopOverlaySpeakingOnly": "Show speaking users only",
+    "voice.settings.desktopOverlaySpeakingOnlyDesc":
+      "Keeps the overlay quieter by hiding silent participants until someone speaks.",
+    "voice.settings.inputMode": "Microphone input mode",
+    "voice.settings.inputModeDesc":
+      "Choose whether Whispr transmits automatically or only while push-to-talk is held.",
+    "voice.settings.inputMode.voice-activity": "Voice activity",
+    "voice.settings.inputMode.voice-activity.desc":
+      "Use the normal live microphone behavior and keep mute as a manual control.",
+    "voice.settings.inputMode.push-to-talk": "Push-to-talk",
+    "voice.settings.inputMode.push-to-talk.desc":
+      "Keep the microphone closed until the push-to-talk shortcut is held.",
+    "voice.settings.toggleMuteShortcut": "Mute shortcut",
+    "voice.settings.toggleMuteShortcutDesc": "Default: CmdOrCtrl+Shift+M.",
+    "voice.settings.toggleDeafenShortcut": "Deafen shortcut",
+    "voice.settings.toggleDeafenShortcutDesc": "Default: CmdOrCtrl+Shift+D.",
+    "voice.settings.pushToTalkShortcut": "Push-to-talk shortcut",
+    "voice.settings.pushToTalkShortcutDesc":
+      "Default: Alt+V. Hold it to talk; release it to close the mic.",
+    "voice.settings.gameOverlayPanicShortcut": "Hide overlay shortcut",
+    "voice.settings.gameOverlayPanicShortcutDesc":
+      "Default: CmdOrCtrl+Shift+O. Also available from the tray menu.",
+    "voice.settings.pushToTalkHangover": "Release cushion",
+    "voice.settings.pushToTalkHangoverDesc":
+      "Keeps the mic open briefly after key release so the last syllable is not cut off.",
     "voice.settings.localOnlyTitle": "Local-only preferences",
     "voice.settings.localOnlyDescription":
       "These settings affect only your device and do not change the mix for anyone else.",
@@ -849,8 +934,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "If an account exists for {email}, you'll receive reset instructions.",
     "auth.forgot.genericSuccess":
       "If an account exists for this email, we sent reset instructions.",
-    "auth.forgot.rateLimited":
-      "Too many reset emails were requested. Please try again later.",
+    "auth.forgot.rateLimited": "Too many reset emails were requested. Please try again later.",
     "auth.forgot.resetTitle": "Reset your password",
     "auth.forgot.sending": "Sending...",
     "auth.forgot.submit": "Send Reset Link",
@@ -899,8 +983,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "We received a request to confirm this account before deleting it. Use the secure link below to continue.",
     "auth.reauthEmail.cta": "Confirm account deletion",
     "auth.reauthEmail.expires": "This link expires in {minutes} minutes.",
-    "auth.reauthEmail.fallback":
-      "If the button does not work, paste this link into your browser:",
+    "auth.reauthEmail.fallback": "If the button does not work, paste this link into your browser:",
     "auth.reauthEmail.footer":
       "Whispr requires a fresh email confirmation before deleting OAuth-only accounts.",
     "auth.reauthEmail.greeting": "Hi {name},",
@@ -1096,6 +1179,15 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.notifications.desktopPreviews.title": "Show message previews on desktop",
     "settings.notifications.desktopPreviews.description":
       "When off, desktop notifications use generic text so private messages are not exposed on the OS notification surface.",
+    "settings.notifications.closeToTray.title": "Keep Whispr running in the tray",
+    "settings.notifications.closeToTray.description":
+      "When the close button is pressed, hide the main window and keep voice, notifications, and tray access active. Turn this off if the close button should fully quit Whispr.",
+    "settings.notifications.streamerMode.title": "Streamer mode privacy",
+    "settings.notifications.streamerMode.description":
+      "Suppresses native desktop notification popups and clears the app badge while you are streaming or recording.",
+    "settings.notifications.richPresence.title": "Local desktop activity",
+    "settings.notifications.richPresence.description":
+      "Updates only the local Whispr window title and tray tooltip while you are in voice or screen sharing. No game, process, server, or message data is published.",
     "settings.notifications.mobile.title": "Mobile notifications",
     "settings.notifications.mobile.description":
       "Keep mobile delivery enabled for account-level notification preferences.",
@@ -1170,6 +1262,16 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "desktop.health.socket.title": "Realtime connection is reconnecting",
     "desktop.health.socket.description":
       "Whispr is keeping the session alive while Socket.IO reconnects. Avoid sending critical messages until it is back.",
+    "desktop.voiceMini.aria": "Whispr voice mini controls",
+    "desktop.voiceMini.connected": "Voice connected",
+    "desktop.voiceMini.idle": "Whispr Voice",
+    "desktop.voiceMini.leaveVoice": "Leave voice",
+    "desktop.voiceMini.reconnecting": "Reconnecting",
+    "desktop.voiceMini.toggleDeafen": "Toggle deafen",
+    "desktop.voiceMini.toggleMute": "Toggle mute",
+    "desktop.gameOverlay.aria": "Whispr game voice overlay",
+    "desktop.gameOverlay.idle": "Voice overlay ready",
+    "desktop.gameOverlay.title": "Voice overlay",
     "desktop.diagnostics.kicker": "Desktop",
     "desktop.diagnostics.title": "Desktop readiness check",
     "desktop.diagnostics.description":
@@ -1197,10 +1299,48 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "desktop.diagnostics.notifications.label": "Notifications",
     "desktop.diagnostics.notifications.detail":
       "Native alerts stay permission-gated and can hide message previews for privacy.",
+    "desktop.diagnostics.autostart.label": "Launch Whispr at startup",
+    "desktop.diagnostics.autostart.detail":
+      "Opt in to start Whispr automatically when this computer signs in. The setting is stored by the operating system and can be turned off here anytime.",
+    "desktop.diagnostics.autostart.error":
+      "Whispr could not update the operating system startup setting.",
+    "desktop.diagnostics.streamerMode.label": "Streamer mode",
+    "desktop.diagnostics.streamerMode.detail":
+      "Hides desktop badges and suppresses native notification popups while you are sharing or recording your screen.",
     "desktop.diagnostics.shell.label": "Native shell",
     "desktop.diagnostics.shell.detail":
       "Tray actions, single-instance focus, safe deep links, and external-link handoff are additive desktop behavior.",
     "desktop.diagnostics.shell.ready": "ready",
+    "desktop.diagnostics.overlayWindows.label": "Voice overlay windows",
+    "desktop.diagnostics.overlayWindows.visible": "visible",
+    "desktop.diagnostics.overlayWindows.idle": "idle",
+    "desktop.diagnostics.overlayWindows.needsRepair": "needs repair",
+    "desktop.diagnostics.overlayWindows.refresh": "Refresh overlay windows",
+    "desktop.diagnostics.overlayWindows.refreshing": "Refreshing...",
+    "desktop.diagnostics.overlayWindows.repair": "Repair game overlay",
+    "desktop.diagnostics.overlayWindows.hide": "Hide game overlay",
+    "desktop.diagnostics.overlayWindows.error": "Overlay window command failed.",
+    "desktop.diagnostics.capabilities.platform.label": "Platform",
+    "desktop.diagnostics.capabilities.platform.detail":
+      "Reports only the operating system family and CPU architecture used by the local Tauri shell.",
+    "desktop.diagnostics.capabilities.nativeScreenCapture.label": "Native screen capture",
+    "desktop.diagnostics.capabilities.nativeScreenCapture.detail":
+      "Reserved for a future OS-native capture spike. Current screen sharing continues through the browser WebRTC path.",
+    "desktop.diagnostics.capabilities.systemAudioCapture.label": "System audio capture",
+    "desktop.diagnostics.capabilities.systemAudioCapture.detail":
+      "Reserved for a future loopback audio spike. Whispr does not capture system audio natively yet.",
+    "desktop.diagnostics.capabilities.hardwareEncode.label": "Hardware encode",
+    "desktop.diagnostics.capabilities.hardwareEncode.detail":
+      "Tracked as WebRTC codec hint telemetry only; the OS WebView still chooses the actual encoder.",
+    "desktop.diagnostics.capabilities.richPresence.label": "Local activity status",
+    "desktop.diagnostics.capabilities.richPresence.detail":
+      "Available as opt-in local window title and tray tooltip updates without publishing external presence.",
+    "desktop.diagnostics.capabilities.status.available": "available",
+    "desktop.diagnostics.capabilities.status.research_gated": "research",
+    "desktop.diagnostics.capabilities.status.unsupported": "unsupported",
+    "desktop.diagnostics.capabilities.status.unknown": "unknown",
+    "desktop.diagnostics.capabilities.error":
+      "Whispr could not read local desktop capability diagnostics.",
 
     "appearance.page.badge": "User Settings",
     "appearance.page.description":
@@ -1371,8 +1511,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.channelSidebar.customizeHint": "Live channel-list width",
     "shell.channelSidebar.width": "Sidebar width",
     "shell.channelSidebar.categoryMoveArrows": "Move arrows",
-    "shell.channelSidebar.categoryMoveArrowsHint":
-      "Show or hide up/down arrows.",
+    "shell.channelSidebar.categoryMoveArrowsHint": "Show or hide up/down arrows.",
     "shell.channelSidebar.categoryMoveArrowsVisible": "Move arrows visible",
     "shell.channelSidebar.categoryMoveArrowsHidden": "Move arrows hidden",
     "shell.channelSidebar.expandAllCategories": "Expand all categories",
@@ -1763,8 +1902,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.notification.memberAdded.title": "Added to {server}",
     "workspace.notification.memberAdded.body": "{actor} added you to {server}.",
     "workspace.notification.rolesAssigned.title": "Role updated in {server}",
-    "workspace.notification.rolesAssigned.body":
-      "You were granted {roles} in {server}.",
+    "workspace.notification.rolesAssigned.body": "You were granted {roles} in {server}.",
     "workspace.modal.saveChanges": "Save Changes",
     "workspace.modal.createServer": "Create Server",
     "workspace.modal.addMemberTitle": "Add User",
@@ -1821,11 +1959,9 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.permissions.preset.LOCKED_VISIBLE.description":
       "Members can see the channel, but need an allowed role to use it.",
     "workspace.permissions.preset.PRIVATE": "Private / hidden",
-    "workspace.permissions.preset.PRIVATE.description":
-      "Hide this channel from regular members.",
+    "workspace.permissions.preset.PRIVATE.description": "Hide this channel from regular members.",
     "workspace.permissions.preset.PUBLIC": "Public",
-    "workspace.permissions.preset.PUBLIC.description":
-      "Everyone can see and use this channel.",
+    "workspace.permissions.preset.PUBLIC.description": "Everyone can see and use this channel.",
     "workspace.permissions.preset.ROLE_GATED": "Role-gated",
     "workspace.permissions.preset.ROLE_GATED.description":
       "Only selected roles can see and use this channel.",
@@ -2119,9 +2255,21 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.releaseReadiness.title": "Masaüstü ve deploy hazırlığı",
     "app.update.notes.releaseReadiness.description":
       "Masaüstü build'i artık whispr.team capability'leri, LiveKit/Krisp CSP desteği, health/readiness kontrolleri, Railway konfigürasyonu ve migration-aware başlangıç yollarıyla uyumlu.",
-    "app.update.notes.desktopStartup.title": "Discord tarzı masaüstü başlangıcı",
+    "app.update.notes.desktopStartup.title": "Masaüstü başlangıç ve oturum cilası",
     "app.update.notes.desktopStartup.description":
-      "Masaüstü artık kompakt Whispr başlangıç penceresiyle açılır, ana çalışma alanına geçerken splash görünür kalır ve ilk çalıştırmadaki boş ekran riski kapanır.",
+      "Masaüstü artık kompakt Whispr başlangıç penceresiyle açılır, geçiş boyunca splash tasarımını tutarlı tutar, hatırlanan oturumları geri yükler ve ana pencere boyutu ile konumunu korur.",
+    "app.update.notes.desktopVoiceControls.title": "Masaüstü ses kontrolleri",
+    "app.update.notes.desktopVoiceControls.description":
+      "Global kısayollar, bas-konuş basılı tutma davranışı, sustur/sağırlaştır kısayolları ve ses ayarları paneli masaüstünde daha sakin ve güvenli kullanılacak şekilde yenilendi.",
+    "app.update.notes.desktopOverlay.title": "Ses overlay ve mini pencere",
+    "app.update.notes.desktopOverlay.description":
+      "Ses mini penceresi ve oyun overlay yüzeyleri artık arındırılmış ses durumunu taşır, web veya masaüstü kullanıcılarının sustur/sağırlaştır durumunu gösterir ve oyun görünümünü engellemez.",
+    "app.update.notes.desktopSecurityFoundation.title": "Daha güvenli masaüstü kabuğu",
+    "app.update.notes.desktopSecurityFoundation.description":
+      "Tauri izinleri yüzeye göre ayrıldı, production CSP masaüstü WebSocket yolunu kapsıyor, tray'e kapatma ayarlanabilir ve updater/autostart temelleri opt-in kalıyor.",
+    "app.update.notes.releaseVerification.title": "Release doğrulama geçişi",
+    "app.update.notes.releaseVerification.description":
+      "Release kontrolleri artık desktop helper'ları, oturum çerezlerini, Turnstile geliştirme geçişini, ses katılımcı eşlemesini, route kontratlarını ve yenilenen Playwright mesaj helper'larını kapsıyor.",
     "app.update.notes.rememberedDesktopSession.title": "Hatırlanan masaüstü oturumları",
     "app.update.notes.rememberedDesktopSession.description":
       "Beni hatırla artık güvenilen credential oturumlarını uzatır; normal girişler daha kısa ömürlü kalır ve masaüstü WebView oturumunu kararlı uygulama verisi profilinde saklar.",
@@ -2301,6 +2449,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Ses bağlantısı kararsız. Whispr odadan çıkmadan yeniden bağlanıyor.",
     "voice.errors.connectionStillReconnecting":
       "Ses hâlâ yeniden bağlanıyor. Whispr görüşmeyi toparlarken bu sekmeyi açık tut.",
+    "voice.errors.pushToTalkDeafened": "Sağırlaştırılmışken bas-konuş devre dışı kalır.",
     "voice.view.connecting": "Ses kanalına bağlanılıyor...",
     "voice.view.disconnectedTitle": "Bu ses kanalından ayrıldın",
     "voice.view.disconnectedDescription":
@@ -2590,6 +2739,78 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "voice.settings.noiseFilterMode.browser_only": "Yalnızca tarayıcı",
     "voice.settings.noiseFilterMode.browser_only.desc":
       "Krisp'i atlar ve tarayıcı temizleme hattını kullanır.",
+    "voice.settings.desktopControlsTitle": "Masaüstü ses kontrolleri",
+    "voice.settings.desktopControlsDescription":
+      "Whispr masaüstü uygulaması için global kısayolları ve bas-konuş modunu isteğe bağlı aç. Yalnızca seçtiğin tam kombinasyonlar kaydedilir.",
+    "voice.settings.desktopShortcuts": "Global ses kısayollarını aç",
+    "voice.settings.desktopShortcutsDesc":
+      "Başka bir uygulama odaktayken bile Whispr'in mikrofon, sağırlaştırma ve bas-konuş kısayollarına tepki vermesini sağlar.",
+    "voice.settings.desktopShortcutsHelper":
+      "Global kısayollar bu masaüstü uygulamasına özeldir, değiştirici tuş ister ve istediğin zaman kapatılabilir.",
+    "voice.settings.desktopVoiceMini": "Kompakt ses mini penceresini göster",
+    "voice.settings.desktopVoiceMiniDesc":
+      "Ses kanalındayken Whispr, sanitize edilmiş katılımcı durumuyla küçük ve üstte kalan bir kontrol penceresi gösterebilir.",
+    "voice.settings.desktopVoiceMiniHelper":
+      "Mini pencereye yalnızca görünen adlar, avatarlar, konuşma durumu, mute durumu ve bağlantı kalitesi gider.",
+    "voice.settings.desktopGameOverlay": "Oyun overlay'ini göster",
+    "voice.settings.desktopGameOverlayDesc":
+      "Borderless veya pencereli oyunlar için tıklamayı geçiren, üstte kalan ses overlay'i gösterir.",
+    "voice.settings.desktopGameOverlayHelper":
+      "Yalnızca manuel mod: Whispr oyun belleğini incelemez ve tespit edilen süreç bilgisini hiçbir yere göndermez.",
+    "voice.settings.desktopOverlayTest": "Overlay'i test et",
+    "voice.settings.desktopOverlayTesting": "Overlay gösteriliyor...",
+    "voice.settings.desktopMiniTest": "Mini pencereyi test et",
+    "voice.settings.desktopMiniTesting": "Mini gösteriliyor...",
+    "voice.settings.desktopSurfacesRefresh": "Pencereleri yenile",
+    "voice.settings.desktopSurfacesRefreshing": "Yenileniyor...",
+    "voice.settings.desktopOverlayHide": "Overlay'i gizle",
+    "voice.settings.desktopOverlayHiding": "Overlay gizleniyor...",
+    "voice.settings.desktopSurfaceFeedback.overlay":
+      "Overlay testi açıldı. Görünmüyorsa oyunu kenarsız/pencereli moda alıp yenilemeyi dene.",
+    "voice.settings.desktopSurfaceFeedback.focus":
+      "Whispr odaktayken overlay pencere kontrollerini engellememesi için gizli tutulur. Önizlemek için oyuna veya başka bir pencereye geç.",
+    "voice.settings.desktopSurfaceFeedback.voice-mini":
+      "Mini pencere testi açıldı. Aktif ekranın sağ alt tarafına yakın görünmeli.",
+    "voice.settings.desktopSurfaceFeedback.refresh":
+      "Masaüstü ses pencereleri aktif ekrana taşındı ve üstte kalacak şekilde tekrar uygulandı.",
+    "voice.settings.desktopSurfaceFeedback.hide":
+      "Oyun overlay'i gizlendi ve overlay anahtarı kapatıldı.",
+    "voice.settings.desktopSurfaceFeedback.failure":
+      "Whispr masaüstü ses penceresini gösteremedi. Masaüstü uygulamasında olduğundan emin ol.",
+    "voice.settings.desktopOverlayPosition": "Overlay konumu",
+    "voice.settings.desktopOverlayPosition.top-left": "Üst sol",
+    "voice.settings.desktopOverlayPosition.top-right": "Üst sağ",
+    "voice.settings.desktopOverlayPosition.bottom-left": "Alt sol",
+    "voice.settings.desktopOverlayPosition.bottom-right": "Alt sağ",
+    "voice.settings.desktopOverlaySize": "Overlay boyutu",
+    "voice.settings.desktopOverlaySize.compact": "Kompakt",
+    "voice.settings.desktopOverlaySize.normal": "Normal",
+    "voice.settings.desktopOverlaySize.large": "Geniş",
+    "voice.settings.desktopOverlaySpeakingOnly": "Yalnızca konuşanları göster",
+    "voice.settings.desktopOverlaySpeakingOnlyDesc":
+      "Sessiz katılımcıları biri konuşana kadar gizleyerek overlay'i daha sakin tutar.",
+    "voice.settings.inputMode": "Mikrofon giriş modu",
+    "voice.settings.inputModeDesc":
+      "Whispr'in otomatik mi yoksa yalnızca bas-konuş tuşu basılıyken mi ses ileteceğini seç.",
+    "voice.settings.inputMode.voice-activity": "Ses etkinliği",
+    "voice.settings.inputMode.voice-activity.desc":
+      "Normal canlı mikrofon davranışını kullanır; sessize alma manuel kontrol olarak kalır.",
+    "voice.settings.inputMode.push-to-talk": "Bas-konuş",
+    "voice.settings.inputMode.push-to-talk.desc":
+      "Bas-konuş kısayolu basılı tutulana kadar mikrofonu kapalı tutar.",
+    "voice.settings.toggleMuteShortcut": "Mikrofon kısayolu",
+    "voice.settings.toggleMuteShortcutDesc": "Varsayılan: CmdOrCtrl+Shift+M.",
+    "voice.settings.toggleDeafenShortcut": "Sağırlaştırma kısayolu",
+    "voice.settings.toggleDeafenShortcutDesc": "Varsayılan: CmdOrCtrl+Shift+D.",
+    "voice.settings.pushToTalkShortcut": "Bas-konuş kısayolu",
+    "voice.settings.pushToTalkShortcutDesc":
+      "Varsayılan: Alt+V. Konuşmak için basılı tut; bırakınca mikrofon kapanır.",
+    "voice.settings.gameOverlayPanicShortcut": "Overlay gizleme kısayolu",
+    "voice.settings.gameOverlayPanicShortcutDesc":
+      "Varsayılan: CmdOrCtrl+Shift+O. Sistem tepsisi menüsünden de kullanılabilir.",
+    "voice.settings.pushToTalkHangover": "Bırakma tamponu",
+    "voice.settings.pushToTalkHangoverDesc":
+      "Son hecenin kesilmemesi için tuş bırakıldıktan sonra mikrofonu kısa süre açık tutar.",
     "voice.settings.localOnlyTitle": "Yerel tercihler",
     "voice.settings.localOnlyDescription":
       "Bu ayarlar yalnızca senin cihazını etkiler ve başkalarının miksini değiştirmez.",
@@ -2857,8 +3078,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Şifren başarıyla değiştirildi. Artık yeni şifrenle giriş yapabilirsin.",
     "auth.passwordReset.successTitle": "Şifre güncellendi",
     "auth.passwordReset.title": "Yeni şifre oluştur",
-    "auth.passwordReset.unavailable":
-      "Şifreni şu anda sıfırlayamadık. Lütfen tekrar dene.",
+    "auth.passwordReset.unavailable": "Şifreni şu anda sıfırlayamadık. Lütfen tekrar dene.",
 
     "auth.reauthEmail.body":
       "Bu hesabı silmeden önce doğrulamak için bir istek aldık. Devam etmek için aşağıdaki güvenli bağlantıyı kullan.",
@@ -3060,6 +3280,15 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.notifications.desktopPreviews.title": "Masaüstünde mesaj önizlemelerini göster",
     "settings.notifications.desktopPreviews.description":
       "Kapalıyken masaüstü bildirimleri genel metin kullanır; özel mesajlar işletim sistemi bildirim alanında görünmez.",
+    "settings.notifications.closeToTray.title": "Whispr tray'de çalışmaya devam etsin",
+    "settings.notifications.closeToTray.description":
+      "Kapat düğmesine basıldığında ana pencereyi gizler; ses, bildirimler ve tray erişimi açık kalır. Kapat düğmesi Whispr'dan tamamen çıksın istiyorsan kapat.",
+    "settings.notifications.streamerMode.title": "Yayıncı modu gizliliği",
+    "settings.notifications.streamerMode.description":
+      "Yayın veya kayıt sırasında native masaüstü bildirim açılırlarını susturur ve uygulama rozetini temizler.",
+    "settings.notifications.richPresence.title": "Yerel masaüstü etkinliği",
+    "settings.notifications.richPresence.description":
+      "Ses kanalındayken veya ekran paylaşırken yalnızca bu cihazdaki Whispr pencere başlığını ve tray ipucunu günceller. Oyun, süreç, sunucu veya mesaj verisi yayımlanmaz.",
     "settings.notifications.mobile.title": "Mobil bildirimler",
     "settings.notifications.mobile.description":
       "Hesap seviyesindeki bildirim tercihleri için mobil teslimatı açık tut.",
@@ -3134,6 +3363,16 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "desktop.health.socket.title": "Gerçek zamanlı bağlantı yeniden bağlanıyor",
     "desktop.health.socket.description":
       "Socket.IO yeniden bağlanırken Whispr oturumu canlı tutar. Geri gelene kadar kritik mesaj göndermekten kaçın.",
+    "desktop.voiceMini.aria": "Whispr ses mini kontrolleri",
+    "desktop.voiceMini.connected": "Ses bağlı",
+    "desktop.voiceMini.idle": "Whispr Ses",
+    "desktop.voiceMini.leaveVoice": "Sesten ayrıl",
+    "desktop.voiceMini.reconnecting": "Yeniden bağlanıyor",
+    "desktop.voiceMini.toggleDeafen": "Sağırlaştırmayı değiştir",
+    "desktop.voiceMini.toggleMute": "Mikrofonu değiştir",
+    "desktop.gameOverlay.aria": "Whispr oyun ses overlay'i",
+    "desktop.gameOverlay.idle": "Ses overlay'i hazır",
+    "desktop.gameOverlay.title": "Ses overlay'i",
     "desktop.diagnostics.kicker": "Masaüstü",
     "desktop.diagnostics.title": "Masaüstü hazır olma kontrolü",
     "desktop.diagnostics.description":
@@ -3161,10 +3400,48 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "desktop.diagnostics.notifications.label": "Bildirimler",
     "desktop.diagnostics.notifications.detail":
       "Native uyarılar izin kontrollüdür ve gizlilik için mesaj önizlemelerini gizleyebilir.",
+    "desktop.diagnostics.autostart.label": "Whispr bilgisayarla açılsın",
+    "desktop.diagnostics.autostart.detail":
+      "Bu bilgisayarda oturum açıldığında Whispr'in otomatik başlamasını isteğe bağlı aç. Ayar işletim sistemi tarafından saklanır ve buradan her zaman kapatılabilir.",
+    "desktop.diagnostics.autostart.error":
+      "Whispr işletim sistemi başlangıç ayarını güncelleyemedi.",
+    "desktop.diagnostics.streamerMode.label": "Yayıncı modu",
+    "desktop.diagnostics.streamerMode.detail":
+      "Ekranını paylaşırken veya kayıt alırken masaüstü rozetlerini gizler ve native bildirim açılırlarını susturur.",
     "desktop.diagnostics.shell.label": "Native kabuk",
     "desktop.diagnostics.shell.detail":
       "Tray işlemleri, single-instance focus, güvenli deep link ve harici link devri ek masaüstü davranışlarıdır.",
     "desktop.diagnostics.shell.ready": "hazır",
+    "desktop.diagnostics.overlayWindows.label": "Ses overlay pencereleri",
+    "desktop.diagnostics.overlayWindows.visible": "görünür",
+    "desktop.diagnostics.overlayWindows.idle": "boşta",
+    "desktop.diagnostics.overlayWindows.needsRepair": "onarım gerekli",
+    "desktop.diagnostics.overlayWindows.refresh": "Overlay pencerelerini yenile",
+    "desktop.diagnostics.overlayWindows.refreshing": "Yenileniyor...",
+    "desktop.diagnostics.overlayWindows.repair": "Oyun overlay'ini onar",
+    "desktop.diagnostics.overlayWindows.hide": "Oyun overlay'ini gizle",
+    "desktop.diagnostics.overlayWindows.error": "Overlay pencere komutu başarısız oldu.",
+    "desktop.diagnostics.capabilities.platform.label": "Platform",
+    "desktop.diagnostics.capabilities.platform.detail":
+      "Yalnızca yerel Tauri kabuğunun kullandığı işletim sistemi ailesini ve CPU mimarisini raporlar.",
+    "desktop.diagnostics.capabilities.nativeScreenCapture.label": "Native ekran yakalama",
+    "desktop.diagnostics.capabilities.nativeScreenCapture.detail":
+      "Gelecekteki OS-native yakalama araştırması için ayrıldı. Mevcut ekran paylaşımı tarayıcı WebRTC yolunu kullanmaya devam eder.",
+    "desktop.diagnostics.capabilities.systemAudioCapture.label": "Sistem sesi yakalama",
+    "desktop.diagnostics.capabilities.systemAudioCapture.detail":
+      "Gelecekteki loopback ses araştırması için ayrıldı. Whispr henüz sistem sesini native olarak yakalamaz.",
+    "desktop.diagnostics.capabilities.hardwareEncode.label": "Donanımsal encode",
+    "desktop.diagnostics.capabilities.hardwareEncode.detail":
+      "Yalnızca WebRTC codec ipucu telemetrisi olarak izlenir; gerçek encoder seçimini OS WebView yapar.",
+    "desktop.diagnostics.capabilities.richPresence.label": "Yerel etkinlik durumu",
+    "desktop.diagnostics.capabilities.richPresence.detail":
+      "Harici presence yayımlamadan, isteğe bağlı yerel pencere başlığı ve tray ipucu güncellemeleri olarak kullanılabilir.",
+    "desktop.diagnostics.capabilities.status.available": "kullanılabilir",
+    "desktop.diagnostics.capabilities.status.research_gated": "araştırma",
+    "desktop.diagnostics.capabilities.status.unsupported": "desteklenmiyor",
+    "desktop.diagnostics.capabilities.status.unknown": "bilinmiyor",
+    "desktop.diagnostics.capabilities.error":
+      "Whispr yerel masaüstü capability tanılamasını okuyamadı.",
 
     "appearance.page.badge": "Kullanıcı Ayarları",
     "appearance.page.description":
@@ -3335,8 +3612,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.channelSidebar.customizeHint": "Canlı kanal listesi genişliği",
     "shell.channelSidebar.width": "Sidebar genişliği",
     "shell.channelSidebar.categoryMoveArrows": "Taşıma okları",
-    "shell.channelSidebar.categoryMoveArrowsHint":
-      "Yukarı/aşağı oklarını göster veya gizle.",
+    "shell.channelSidebar.categoryMoveArrowsHint": "Yukarı/aşağı oklarını göster veya gizle.",
     "shell.channelSidebar.categoryMoveArrowsVisible": "Taşıma okları görünür",
     "shell.channelSidebar.categoryMoveArrowsHidden": "Taşıma okları gizli",
     "shell.channelSidebar.expandAllCategories": "Tüm kategorileri aç",
@@ -3728,8 +4004,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.notification.memberAdded.title": "{server} sunucusuna eklendin",
     "workspace.notification.memberAdded.body": "{actor} seni {server} sunucusuna ekledi.",
     "workspace.notification.rolesAssigned.title": "{server} içinde rolün güncellendi",
-    "workspace.notification.rolesAssigned.body":
-      "{server} içinde sana {roles} rolü verildi.",
+    "workspace.notification.rolesAssigned.body": "{server} içinde sana {roles} rolü verildi.",
     "workspace.modal.saveChanges": "Değişiklikleri Kaydet",
     "workspace.modal.createServer": "Sunucu Oluştur",
     "workspace.modal.addMemberTitle": "Kullanıcı Ekle",
@@ -3787,8 +4062,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "workspace.permissions.preset.LOCKED_VISIBLE.description":
       "Üyeler kanalı görür, kullanmak için izinli role ihtiyaç duyar.",
     "workspace.permissions.preset.PRIVATE": "Gizli / özel",
-    "workspace.permissions.preset.PRIVATE.description":
-      "Bu kanalı normal üyelerden gizle.",
+    "workspace.permissions.preset.PRIVATE.description": "Bu kanalı normal üyelerden gizle.",
     "workspace.permissions.preset.PUBLIC": "Herkese açık",
     "workspace.permissions.preset.PUBLIC.description":
       "Herkes bu kanalı görebilir ve kullanabilir.",

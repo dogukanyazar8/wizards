@@ -6,6 +6,7 @@ import {
   collectScreenShares,
   countActiveScreenShares,
   getParticipantCameraState,
+  getParticipantDeafenState,
   getParticipantProfile,
   getScreenShareId,
   parseParticipantMetadata,
@@ -62,12 +63,14 @@ describe("voice participant mapping helpers", () => {
         metadata: JSON.stringify({
           avatarUrl: "https://example.com/a.png",
           displayName: "Alice",
+          isDeafened: true,
           username: "alice",
         }),
       }),
       {
         avatarUrl: "https://example.com/a.png",
         displayName: "Alice",
+        isDeafened: true,
         username: "alice",
       },
     );
@@ -150,6 +153,27 @@ describe("voice participant mapping helpers", () => {
         cameraTrack: null,
         isCameraEnabled: false,
       },
+    );
+  });
+
+  it("reads remote deafen state from participant metadata", () => {
+    assert.equal(
+      getParticipantDeafenState(
+        createParticipant({
+          identity: "user-2",
+          metadata: JSON.stringify({ isDeafened: true }),
+        }) as never,
+      ),
+      true,
+    );
+    assert.equal(
+      getParticipantDeafenState(
+        createParticipant({
+          identity: "user-2",
+          metadata: JSON.stringify({ isDeafened: false }),
+        }) as never,
+      ),
+      false,
     );
   });
 

@@ -11,6 +11,7 @@ import {
   getWhisprDesktopBeforeCloseRequestId,
   isWhisprDesktopRuntime,
 } from "@/lib/desktop/runtime";
+import { clearDesktopTransientAuthSession } from "@/lib/desktop/session";
 import { cn } from "@/lib/utils";
 
 type WindowAction = (window: TauriWindow) => Promise<void>;
@@ -61,10 +62,13 @@ export function DesktopWindowChrome() {
 
   useEffect(() => {
     const desktop = isWhisprDesktopRuntime();
-    const isStartupRoute = pathname === "/desktop/start";
+    const isChromeLessDesktopRoute =
+      pathname === "/desktop/start" ||
+      pathname === "/desktop/voice-mini" ||
+      pathname === "/desktop/game-overlay";
     setIsDesktop(desktop);
 
-    if (!desktop || isStartupRoute) {
+    if (!desktop || isChromeLessDesktopRoute) {
       document.documentElement.classList.remove("whispr-desktop-chrome");
       return;
     }
@@ -91,7 +95,10 @@ export function DesktopWindowChrome() {
           return;
         }
 
-        void completeWhisprDesktopBeforeClose(requestId);
+        event.preventDefault();
+        void clearDesktopTransientAuthSession().finally(() => {
+          void completeWhisprDesktopBeforeClose(requestId);
+        });
       });
     };
 
@@ -104,7 +111,12 @@ export function DesktopWindowChrome() {
     };
   }, [isDesktop]);
 
-  if (!isDesktop || pathname === "/desktop/start") {
+  if (
+    !isDesktop ||
+    pathname === "/desktop/start" ||
+    pathname === "/desktop/voice-mini" ||
+    pathname === "/desktop/game-overlay"
+  ) {
     return null;
   }
 

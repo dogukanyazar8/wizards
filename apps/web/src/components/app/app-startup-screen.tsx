@@ -55,7 +55,8 @@ export function AppStartupScreen({
 }: AppStartupScreenProps) {
   const { t } = useI18n();
   const isBusy = busy ?? status !== "ready";
-  const isCompactDesktopStartupWindow = experience === "desktop" && variant === "page";
+  const isDesktopExperience = experience === "desktop";
+  const isCompactDesktopStartupWindow = isDesktopExperience && variant === "page";
 
   return (
     <section
@@ -74,9 +75,13 @@ export function AppStartupScreen({
     >
       <div
         className={cn(
-          "flex min-h-[292px] w-full max-w-[432px] flex-col items-center justify-center gap-4 px-8 py-6 text-center",
+          "flex w-full max-w-[432px] flex-col items-center justify-center gap-4 px-8 py-6 text-center",
+          isDesktopExperience ? "h-[292px] min-h-0" : "min-h-[292px]",
           STARTUP_WINDOW_FRAME,
-          isCompactDesktopStartupWindow && "h-dvh",
+          // Keep the desktop startup frame fixed even after the native window
+          // promotes to the full app size; otherwise the card stretches
+          // vertically before the shell route takes over.
+          isCompactDesktopStartupWindow && "max-h-dvh",
         )}
       >
         <div aria-hidden="true" className={STARTUP_WINDOW_AMBIENT} />

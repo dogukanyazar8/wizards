@@ -11,22 +11,34 @@ declare global {
 
 export const WHISPR_DESKTOP_BEFORE_CLOSE_EVENT = "whispr:desktop-before-close";
 export const WHISPR_DESKTOP_COMMAND_EVENT = "whispr:desktop-command";
+export const WHISPR_DESKTOP_GAME_OVERLAY_SNAPSHOT_EVENT = "whispr:desktop-game-overlay-snapshot";
+export const WHISPR_DESKTOP_VOICE_MINI_SNAPSHOT_EVENT = "whispr:desktop-voice-mini-snapshot";
 
 const DESKTOP_MAIN_WINDOW_WIDTH = 1920;
 const DESKTOP_MAIN_WINDOW_HEIGHT = 1080;
 const DESKTOP_MIN_WINDOW_WIDTH = 960;
 const DESKTOP_MIN_WINDOW_HEIGHT = 640;
+const DESKTOP_MAIN_VIEWPORT_READY_WIDTH = 900;
+const DESKTOP_PROMOTION_VERIFY_INTERVAL_MS = 50;
+const DESKTOP_PROMOTION_VERIFY_ATTEMPTS = 12;
 
 export type WhisprDesktopCommand =
+  | "desktop-surface-ready"
   | "navigate"
   | "open-desktop-diagnostics"
   | "open-settings"
+  | "hide-game-overlay"
+  | "refresh-game-overlay"
+  | "leave-voice"
+  | "voice-shortcut-push-to-talk-start"
+  | "voice-shortcut-push-to-talk-stop"
   | "toggle-deafen"
   | "toggle-mute";
 
 export interface WhisprDesktopCommandDetail {
   command: WhisprDesktopCommand;
   path?: string | null;
+  surface?: "game-overlay" | "voice-mini" | null;
 }
 
 export interface WhisprDesktopBeforeCloseDetail {
@@ -44,6 +56,22 @@ async function runDesktopWindowStep(step: () => Promise<void>) {
   } catch {
     return false;
   }
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function waitForPromotedDesktopViewport() {
+  for (let attempt = 0; attempt < DESKTOP_PROMOTION_VERIFY_ATTEMPTS; attempt += 1) {
+    if (window.innerWidth >= DESKTOP_MAIN_VIEWPORT_READY_WIDTH) {
+      return true;
+    }
+
+    await wait(DESKTOP_PROMOTION_VERIFY_INTERVAL_MS);
+  }
+
+  return window.innerWidth >= DESKTOP_MAIN_VIEWPORT_READY_WIDTH;
 }
 
 export async function showWhisprDesktopWindow() {
@@ -66,6 +94,17 @@ export async function promoteWhisprDesktopWindow() {
   }
 
   try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const promoted = await invoke<boolean>("promote_desktop_main_window");
+    if (promoted && (await waitForPromotedDesktopViewport())) {
+      return true;
+    }
+  } catch {
+    // Older dev shells may not expose the Rust promotion command yet. Fall back
+    // to the legacy JS path so local desktop sessions can still boot.
+  }
+
+  try {
     const [{ LogicalSize }, { getCurrentWindow }] = await Promise.all([
       import("@tauri-apps/api/dpi"),
       import("@tauri-apps/api/window"),
@@ -75,9 +114,7 @@ export async function promoteWhisprDesktopWindow() {
     await runDesktopWindowStep(() => currentWindow.setMinSize(null));
     await runDesktopWindowStep(() => currentWindow.setResizable(true));
     const resized = await runDesktopWindowStep(() =>
-      currentWindow.setSize(
-        new LogicalSize(DESKTOP_MAIN_WINDOW_WIDTH, DESKTOP_MAIN_WINDOW_HEIGHT),
-      ),
+      currentWindow.setSize(new LogicalSize(DESKTOP_MAIN_WINDOW_WIDTH, DESKTOP_MAIN_WINDOW_HEIGHT)),
     );
     await runDesktopWindowStep(() =>
       currentWindow.setMinSize(
@@ -120,9 +157,9 @@ export async function completeWhisprDesktopBeforeClose(requestId: number) {
 export function isSafeDesktopInternalPath(value: string | null | undefined): value is string {
   return Boolean(
     value &&
-      value.length <= 768 &&
-      value.startsWith("/") &&
-      !value.startsWith("//") &&
-      !value.includes("\\"),
+    value.length <= 768 &&
+    value.startsWith("/") &&
+    !value.startsWith("//") &&
+    !value.includes("\\"),
   );
 }

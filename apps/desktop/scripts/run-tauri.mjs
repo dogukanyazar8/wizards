@@ -45,11 +45,22 @@ const nativeUxPermissions = [
   "notification:allow-notify",
   "notification:allow-request-permission",
   "core:window:allow-close",
+  "core:window:allow-center",
+  "core:event:allow-listen",
+  "core:event:allow-unlisten",
   "core:window:allow-internal-toggle-maximize",
+  "core:window:allow-is-focused",
   "core:window:allow-minimize",
+  "core:window:allow-set-min-size",
+  "core:window:allow-set-resizable",
+  "core:window:allow-set-size",
+  "core:window:allow-show",
   "core:window:allow-start-dragging",
   "core:window:allow-toggle-maximize",
+  "window-state:default",
 ];
+const voiceMiniPermissions = ["core:window:allow-start-dragging"];
+const gameOverlayPermissions = [];
 const desktopCsp = buildDesktopCsp(webUrl, command);
 const tauriEnv = {
   ...process.env,
@@ -76,14 +87,34 @@ await writeFile(
           csp: desktopCsp,
           capabilities: [
             {
-              identifier: "whispr-desktop-native-ux",
+              identifier: "main",
               description:
-                "Whispr remote web content receives only the minimal Tauri permissions required for native desktop UX.",
+                "Whispr's primary desktop window receives the minimal permissions required for native notifications, custom window chrome, startup promotion, and persisted window state.",
               windows: ["main"],
               remote: {
                 urls: capabilityUrls,
               },
               permissions: nativeUxPermissions,
+            },
+            {
+              identifier: "voice-mini",
+              description:
+                "Whispr's compact voice mini window receives only the window-drag permission it needs; voice data is delivered through sanitized app commands from the main window.",
+              windows: ["voice-mini"],
+              remote: {
+                urls: capabilityUrls,
+              },
+              permissions: voiceMiniPermissions,
+            },
+            {
+              identifier: "game-overlay",
+              description:
+                "Whispr's read-only game overlay receives no webview command permissions; sanitized voice state is pushed by the main window through Rust-owned app commands.",
+              windows: ["game-overlay"],
+              remote: {
+                urls: capabilityUrls,
+              },
+              permissions: gameOverlayPermissions,
             },
           ],
         },
@@ -107,6 +138,8 @@ console.log(`[Whispr Desktop] web target: ${webUrl.href}`);
 console.log(`[Whispr Desktop] generated config: ${generatedConfigPath}`);
 console.log(`[Whispr Desktop] allowed web origins: ${capabilityUrls.join(", ")}`);
 console.log(`[Whispr Desktop] native permissions: ${nativeUxPermissions.join(", ")}`);
+console.log(`[Whispr Desktop] voice mini permissions: ${voiceMiniPermissions.join(", ")}`);
+console.log(`[Whispr Desktop] game overlay permissions: ${gameOverlayPermissions.join(", ") || "(none)"}`);
 
 if (writeConfigOnly) {
   console.log("[Whispr Desktop] config-only mode: skipping Tauri CLI invocation");

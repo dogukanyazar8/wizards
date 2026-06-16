@@ -1,13 +1,8 @@
-import type { Page } from "@playwright/test";
 import { test, expect } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
 import { getE2EServerRoute } from "../../helpers/db";
+import { sendComposerMessage } from "../../helpers/messages";
 import { gotoAppRoute } from "../../helpers/navigation";
-
-async function sendMessage(page: Page, content: string) {
-  await page.getByTestId("message-input").fill(content);
-  await page.getByTestId("message-send-button").click();
-}
 
 test.describe("server messaging smoke", () => {
   test("user can send a server text message", async ({ page }) => {
@@ -18,7 +13,7 @@ test.describe("server messaging smoke", () => {
     await gotoAppRoute(page, `/channels/${serverId}/${textChannelId}`, {
       readyTestId: "message-input",
     });
-    await sendMessage(page, message);
+    await sendComposerMessage(page, message);
 
     await expect(page.getByTestId("message-item").filter({ hasText: message })).toBeVisible();
   });
@@ -31,7 +26,7 @@ test.describe("server messaging smoke", () => {
     await gotoAppRoute(page, `/channels/${serverId}/${textChannelId}`, {
       readyTestId: "message-input",
     });
-    await sendMessage(page, link);
+    await sendComposerMessage(page, link);
     await expect(page.getByTestId("message-item").filter({ hasText: link })).toBeVisible();
 
     const [popup] = await Promise.all([

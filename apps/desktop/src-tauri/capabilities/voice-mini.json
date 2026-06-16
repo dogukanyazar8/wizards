@@ -1,0 +1,19 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "voice-mini",
+  "description": "Whispr's compact voice mini window receives only the window-drag permission it needs; voice data is delivered through sanitized app commands from the main window.",
+  "windows": ["voice-mini"],
+  "remote": {
+    "urls": [
+      "https://whispr.team",
+      "https://whispr.team/*",
+      "https://whispr.invalid",
+      "https://whispr.invalid/*",
+      "http://localhost:3000",
+      "http://localhost:3000/*",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:3000/*"
+    ]
+  },
+  "permissions": ["core:window:allow-start-dragging"]
+}

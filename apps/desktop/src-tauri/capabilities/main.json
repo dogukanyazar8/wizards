@@ -1,0 +1,37 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Whispr's primary desktop window receives the minimal permissions required for native notifications, custom window chrome, startup promotion, and persisted window state.",
+  "windows": ["main"],
+  "remote": {
+    "urls": [
+      "https://whispr.team",
+      "https://whispr.team/*",
+      "https://whispr.invalid",
+      "https://whispr.invalid/*",
+      "http://localhost:3000",
+      "http://localhost:3000/*",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:3000/*"
+    ]
+  },
+  "permissions": [
+    "notification:allow-is-permission-granted",
+    "notification:allow-notify",
+    "notification:allow-request-permission",
+    "core:window:allow-close",
+    "core:window:allow-center",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:window:allow-internal-toggle-maximize",
+    "core:window:allow-is-focused",
+    "core:window:allow-minimize",
+    "core:window:allow-set-min-size",
+    "core:window:allow-set-resizable",
+    "core:window:allow-set-size",
+    "core:window:allow-show",
+    "core:window:allow-start-dragging",
+    "core:window:allow-toggle-maximize",
+    "window-state:default"
+  ]
+}

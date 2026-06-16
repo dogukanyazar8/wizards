@@ -450,7 +450,10 @@ export function SettingsPanel({
     applyPersistedSettings,
     appIconId,
     channelSidebarWidth,
+    desktopCloseToTrayEnabled,
     desktopNotificationPreviews,
+    desktopRichPresenceEnabled,
+    desktopStreamerModeEnabled,
     mainPanelWidth,
     messageFont,
     notificationAutoClose,
@@ -464,7 +467,10 @@ export function SettingsPanel({
     serverRailWidth,
     setAppIconId,
     setChannelSidebarWidth,
+    setDesktopCloseToTrayEnabled,
     setDesktopNotificationPreviews,
+    setDesktopRichPresenceEnabled,
+    setDesktopStreamerModeEnabled,
     setMainPanelWidth,
     setMessageFont,
     setNotificationAutoClose,
@@ -478,7 +484,10 @@ export function SettingsPanel({
       applyPersistedSettings: state.applyPersistedSettings,
       appIconId: state.appIconId,
       channelSidebarWidth: state.channelSidebarWidth,
+      desktopCloseToTrayEnabled: state.desktopCloseToTrayEnabled,
       desktopNotificationPreviews: state.desktopNotificationPreviews,
+      desktopRichPresenceEnabled: state.desktopRichPresenceEnabled,
+      desktopStreamerModeEnabled: state.desktopStreamerModeEnabled,
       mainPanelWidth: state.mainPanelWidth,
       messageFont: state.messageFont,
       notificationAutoClose: state.notificationAutoClose,
@@ -492,7 +501,10 @@ export function SettingsPanel({
       serverRailWidth: state.serverRailWidth,
       setAppIconId: state.setAppIconId,
       setChannelSidebarWidth: state.setChannelSidebarWidth,
+      setDesktopCloseToTrayEnabled: state.setDesktopCloseToTrayEnabled,
       setDesktopNotificationPreviews: state.setDesktopNotificationPreviews,
+      setDesktopRichPresenceEnabled: state.setDesktopRichPresenceEnabled,
+      setDesktopStreamerModeEnabled: state.setDesktopStreamerModeEnabled,
       setMainPanelWidth: state.setMainPanelWidth,
       setMessageFont: state.setMessageFont,
       setNotificationAutoClose: state.setNotificationAutoClose,
@@ -621,9 +633,7 @@ export function SettingsPanel({
     [patchSettingsMutation],
   );
 
-  const selectedMessageFont = normalizeMessageFontId(
-    serverSettings?.messageFont ?? messageFont,
-  );
+  const selectedMessageFont = normalizeMessageFontId(serverSettings?.messageFont ?? messageFont);
 
   const handleMessageFontChange = useCallback(
     (nextFont: MessageFontId) => {
@@ -1608,6 +1618,31 @@ export function SettingsPanel({
                 onChange={setDesktopNotificationPreviews}
                 testId="settings-desktop-notification-previews"
               />
+              {isDesktopRuntime ? (
+                <>
+                  <ToggleRow
+                    checked={desktopCloseToTrayEnabled}
+                    description={t("settings.notifications.closeToTray.description")}
+                    label={t("settings.notifications.closeToTray.title")}
+                    onChange={setDesktopCloseToTrayEnabled}
+                    testId="settings-desktop-close-to-tray"
+                  />
+                  <ToggleRow
+                    checked={desktopStreamerModeEnabled}
+                    description={t("settings.notifications.streamerMode.description")}
+                    label={t("settings.notifications.streamerMode.title")}
+                    onChange={setDesktopStreamerModeEnabled}
+                    testId="settings-desktop-streamer-mode"
+                  />
+                  <ToggleRow
+                    checked={desktopRichPresenceEnabled}
+                    description={t("settings.notifications.richPresence.description")}
+                    label={t("settings.notifications.richPresence.title")}
+                    onChange={setDesktopRichPresenceEnabled}
+                    testId="settings-desktop-rich-presence"
+                  />
+                </>
+              ) : null}
               <ToggleRow
                 checked={serverSettings?.mobileNotifications ?? true}
                 description={t("settings.notifications.mobile.description")}

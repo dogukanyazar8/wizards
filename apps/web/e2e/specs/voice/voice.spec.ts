@@ -6,6 +6,7 @@ import {
   expectVoiceParticipantCount,
   getE2EServerRoute,
 } from "../../helpers/db";
+import { sendComposerMessage } from "../../helpers/messages";
 import { gotoAppRoute, openSettingsFromUserQuickMenu } from "../../helpers/navigation";
 import { e2eUsers, type E2EUserKey } from "../../helpers/test-data";
 
@@ -51,8 +52,7 @@ async function openVoiceChannel(page: Page): Promise<{
 }
 
 async function sendMessage(page: Page, content: string): Promise<void> {
-  await page.getByTestId("message-input").fill(content);
-  await page.getByTestId("message-send-button").click();
+  await sendComposerMessage(page, content);
 }
 
 async function setRangeValue(page: Page, testId: string, value: number): Promise<void> {

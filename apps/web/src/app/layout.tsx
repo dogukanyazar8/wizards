@@ -11,24 +11,15 @@ import {
 } from "next/font/google";
 import "./globals.css";
 import { auth } from "@/auth";
-import { AppUpdateNotifier } from "@/components/app/app-update-notifier";
-import { DesktopExperience } from "@/components/desktop/desktop-experience";
 import { DesktopWindowChrome } from "@/components/desktop/desktop-window-chrome";
 import { AppIconProvider } from "@/components/providers/app-icon-provider";
-import { SocketProvider } from "@/components/providers/socket-provider";
-import { SoundEffectsProvider } from "@/components/providers/sound-effects-provider";
-import { VoiceProvider } from "@/components/providers/voice-provider";
-import { ActiveVoiceReminder } from "@/components/voice/active-voice-reminder";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { MessageFontSync } from "@/components/providers/message-font-sync";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
 import { getRequestLocale } from "@/lib/locale/server";
-import {
-  isDesktopStartPathname,
-  WHISPR_REQUEST_PATHNAME_HEADER,
-} from "@/lib/request-context";
+import { isDesktopStartPathname, WHISPR_REQUEST_PATHNAME_HEADER } from "@/lib/request-context";
 
 const bodyFont = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -97,15 +88,6 @@ export default async function RootLayout({
   const session = skipRootAuth ? null : await auth();
   const locale = await getRequestLocale(session?.user?.locale);
   const theme = session?.user?.theme || undefined;
-  const currentUser = session?.user
-    ? {
-        id: session.user.id,
-        avatarUrl: session.user.avatarUrl ?? session.user.image ?? null,
-        displayName:
-          session.user.displayName ?? session.user.username ?? session.user.email ?? "Whispr",
-        username: session.user.username ?? session.user.email?.split("@")[0] ?? "whispr",
-      }
-    : null;
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -122,20 +104,7 @@ export default async function RootLayout({
               <QueryProvider>
                 <MessageFontSync />
                 <DesktopWindowChrome />
-                {currentUser ? (
-                  <SocketProvider>
-                    <SoundEffectsProvider currentUserId={currentUser.id}>
-                      <VoiceProvider currentUser={currentUser}>
-                        <DesktopExperience />
-                        <AppUpdateNotifier />
-                        {children}
-                        <ActiveVoiceReminder />
-                      </VoiceProvider>
-                    </SoundEffectsProvider>
-                  </SocketProvider>
-                ) : (
-                  children
-                )}
+                {children}
               </QueryProvider>
             </AppIconProvider>
           </LocaleProvider>

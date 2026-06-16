@@ -1,13 +1,8 @@
-import type { Page } from "@playwright/test";
 import { test, expect } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
 import { getDMUnreadCount, getE2EDMConversationId } from "../../helpers/db";
+import { sendComposerMessage } from "../../helpers/messages";
 import { gotoAppRoute } from "../../helpers/navigation";
-
-async function sendMessage(page: Page, content: string) {
-  await page.getByTestId("message-input").fill(content);
-  await page.getByTestId("message-send-button").click();
-}
 
 test.describe("DM smoke", () => {
   test("user can open a DM and send a message", async ({ page }) => {
@@ -16,7 +11,7 @@ test.describe("DM smoke", () => {
 
     await loginAs(page, "alice");
     await gotoAppRoute(page, `/channels/@me/${conversationId}`, { readyTestId: "message-input" });
-    await sendMessage(page, message);
+    await sendComposerMessage(page, message);
 
     await expect(page.getByTestId("message-item").filter({ hasText: message })).toBeVisible();
   });
@@ -34,7 +29,7 @@ test.describe("DM smoke", () => {
       await gotoAppRoute(alicePage, `/channels/@me/${conversationId}`, {
         readyTestId: "message-input",
       });
-      await sendMessage(alicePage, message);
+      await sendComposerMessage(alicePage, message);
 
       await expect
         .poll(() => getDMUnreadCount("bob", conversationId), { timeout: 10_000 })

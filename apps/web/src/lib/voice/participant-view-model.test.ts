@@ -77,6 +77,7 @@ describe("voice participant view models", () => {
       metadata: JSON.stringify({
         avatarUrl: "https://example.com/remote.png",
         displayName: "Remote User",
+        isDeafened: true,
         username: "remote",
       }),
       publications: [
@@ -99,6 +100,7 @@ describe("voice participant view models", () => {
         cameraTrack: localCameraTrack,
         displayName: "Current User",
         isCameraEnabled: true,
+        isDeafened: false,
         isLocal: true,
         isMuted: false,
         isSpeaking: true,
@@ -111,6 +113,7 @@ describe("voice participant view models", () => {
         cameraTrack: remoteCameraTrack,
         displayName: "Remote User",
         isCameraEnabled: true,
+        isDeafened: true,
         isLocal: false,
         isMuted: false,
         isSpeaking: true,
