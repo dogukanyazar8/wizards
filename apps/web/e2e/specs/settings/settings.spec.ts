@@ -120,26 +120,15 @@ test.describe("settings and preferences", () => {
     );
 
     await openSettings(page, "/settings?section=appearance&panel=serverRail");
-    await setRangeValue(page, "settings-server-rail-width", 160);
-    await expect
-      .poll(() => getPersistedUiState(page).then((state) => state.serverRailWidth))
-      .toBe(160);
-    await setRangeValue(page, "settings-server-rail-icon-size", 48);
-    await expect
-      .poll(() => getPersistedUiState(page).then((state) => state.serverRailIconSize))
-      .toBe(48);
-    await page.getByTestId("settings-server-rail-collapse").click();
-
-    await expect
-      .poll(() => getE2EUserPreferences("alice").then((preferences) => preferences.serverRailWidth))
-      .toBe(160);
+    await expect(page.getByTestId("settings-server-rail-compact-preview")).toBeVisible();
+    await expect(page.getByTestId("settings-server-rail-width")).toHaveCount(0);
+    await expect(page.getByTestId("settings-server-rail-icon-size")).toHaveCount(0);
+    await expect(page.getByTestId("settings-server-rail-collapse")).toHaveCount(0);
+    await expect(page.getByTestId("settings-server-rail-expand")).toHaveCount(0);
     await expect
       .poll(() => getPersistedUiState(page))
       .toMatchObject({
         appIconId: "wave-4",
-        serverRailCollapsed: true,
-        serverRailIconSize: 48,
-        serverRailWidth: 160,
       });
 
     await page.reload();

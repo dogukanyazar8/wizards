@@ -67,8 +67,10 @@ export default async function SettingsPage() {
         avatarUrl: user.avatarUrl,
         displayName: user.displayName,
         email: user.email,
+        emailVerified: user.emailVerified,
         id: user.id,
         status: user.status,
+        twoFactorEnabled: user.twoFactorEnabled,
         username: user.username,
       }}
       uploadthingEnabled={Boolean(process.env.UPLOADTHING_TOKEN)}

@@ -2,15 +2,23 @@
 
 import { useCallback, useMemo, useState } from "react";
 import {
+  ChevronRight,
   Crown,
+  Hash,
+  Info,
   PanelRightClose,
   PanelRightOpen,
+  Radio,
+  Settings2,
   ShieldCheck,
   SlidersHorizontal,
+  UserPlus,
   Users,
+  Volume2,
   X,
 } from "lucide-react";
 import type {
+  WorkspaceChannel,
   WorkspaceMember,
   WorkspacePermissionKey,
   WorkspaceRole,
@@ -20,8 +28,10 @@ import { useShallow } from "zustand/react/shallow";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
+import { useVoiceStates } from "@/hooks/use-voice-states";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import type { VoiceChannelStateDTO } from "@/lib/voice/types";
 
 type ServerMemberPanelProps = {
   detail: WorkspaceServerDetail;
@@ -84,6 +94,20 @@ const OWNER_GROUP_RANK = 20_000_000;
 const ADMIN_GROUP_RANK = 10_000_000;
 const MEMBER_GROUP_RANK = 0;
 const OFFLINE_GROUP_RANK = -1;
+
+function getServerChannels(detail: WorkspaceServerDetail) {
+  return [
+    ...detail.ungroupedChannels,
+    ...detail.categories.flatMap((category) => category.channels),
+  ];
+}
+
+function getVoiceChannelName(
+  channelsById: Map<string, WorkspaceChannel>,
+  state: VoiceChannelStateDTO,
+) {
+  return channelsById.get(state.channelId)?.name ?? null;
+}
 
 function getStatusDotClass(status: WorkspaceMember["status"]) {
   if (status === "ONLINE") {
@@ -341,7 +365,7 @@ function MemberRow({
     return (
       <div
         aria-label={memberTitle}
-        className="group/member relative mx-auto flex h-12 w-12 items-center justify-center rounded-[20px] border border-transparent transition hover:border-[hsl(var(--border)/0.62)] hover:bg-[hsl(var(--surface-soft)/0.42)]"
+        className="group/member relative mx-auto flex h-12 w-12 items-center justify-center rounded-[20px] transition hover:bg-[hsl(var(--surface-soft)/0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
         data-testid={`server-member-${member.username}`}
         title={memberTitle}
       >
@@ -364,7 +388,7 @@ function MemberRow({
 
   return (
     <div
-      className="group/member flex min-w-0 items-center gap-3 rounded-[22px] border border-transparent px-2.5 py-2 transition hover:border-[hsl(var(--border)/0.58)] hover:bg-[hsl(var(--surface-soft)/0.36)]"
+      className="group/member flex min-w-0 items-center gap-3 rounded-[22px] px-2.5 py-2 transition hover:bg-[hsl(var(--surface-soft)/0.36)]"
       data-testid={`server-member-${member.username}`}
     >
       <div className="relative shrink-0">
@@ -490,18 +514,198 @@ function MemberSection({
   );
 }
 
+function ServerInfoCard({
+  detail,
+  memberCountLabel,
+}: {
+  detail: WorkspaceServerDetail;
+  memberCountLabel: string;
+}) {
+  const description = detail.server.description?.trim();
+
+  return (
+    <section className="rounded-[24px] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.42),hsl(var(--surface-soft)/0.18))] p-3.5">
+      <div className="flex items-center gap-3">
+        <Avatar
+          alt={detail.server.name}
+          className="h-12 w-12 rounded-[20px] ring-4 ring-[hsl(var(--primary)/0.1)]"
+          fallback={detail.server.shortName ?? detail.server.name}
+          src={detail.server.iconUrl}
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-app-foreground">{detail.server.name}</p>
+          <p className="mt-1 text-xs font-semibold text-app-muted">{memberCountLabel}</p>
+        </div>
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-[hsl(var(--primary)/0.08)] text-[hsl(var(--primary))]">
+          <Info className="h-4 w-4" />
+        </span>
+      </div>
+      {description ? (
+        <p className="mt-3 line-clamp-3 text-xs leading-5 text-app-muted">{description}</p>
+      ) : null}
+    </section>
+  );
+}
+
+function ActiveVoiceCard({
+  channelsById,
+  liveLabel,
+  states,
+  title,
+  voiceParticipantsLabel,
+}: {
+  channelsById: Map<string, WorkspaceChannel>;
+  liveLabel: string;
+  states: VoiceChannelStateDTO[];
+  title: string;
+  voiceParticipantsLabel: (count: number) => string;
+}) {
+  const activeStates = states
+    .filter((state) => state.participants.length > 0)
+    .map((state) => ({
+      channelName: getVoiceChannelName(channelsById, state),
+      state,
+    }))
+    .filter(
+      (entry): entry is { channelName: string; state: VoiceChannelStateDTO } =>
+        entry.channelName != null,
+    );
+
+  if (activeStates.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="rounded-[26px] border border-[hsl(var(--primary)/0.14)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.11),hsl(var(--surface-card)/0.72)_45%,hsl(var(--accent)/0.07))] p-4 shadow-[0_12px_34px_hsl(var(--primary)/0.06)]">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
+            <Radio className="h-4 w-4" />
+          </span>
+          <h2 className="truncate text-xs font-black uppercase tracking-[0.18em] text-app-muted">
+            {title}
+          </h2>
+        </div>
+        <span className="rounded-full border border-[hsl(var(--success)/0.24)] bg-[hsl(var(--success)/0.1)] px-2 py-1 text-[10px] font-bold text-[hsl(var(--success))]">
+          {liveLabel}
+        </span>
+      </div>
+
+      <div className="mt-3 space-y-2.5">
+        {activeStates.map(({ channelName, state }) => {
+          return (
+            <div
+              className="rounded-[20px] bg-[hsl(var(--surface-card)/0.54)] px-3 py-2.5"
+              key={state.channelId}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Volume2 className="h-4 w-4 shrink-0 text-[hsl(var(--primary))]" />
+                  <p className="truncate text-sm font-semibold text-app-foreground">
+                    {channelName}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs font-semibold text-app-muted">
+                  {voiceParticipantsLabel(state.participants.length)}
+                </span>
+              </div>
+              <div className="mt-2 flex -space-x-2 overflow-hidden">
+                {state.participants.slice(0, 5).map((participant) => (
+                  <Avatar
+                    alt={participant.displayName ?? participant.username}
+                    className="h-7 w-7 rounded-full border-2 border-[hsl(var(--surface-card))]"
+                    fallback={participant.displayName ?? participant.username}
+                    key={participant.userId}
+                    src={participant.avatarUrl}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+type QuickAction = {
+  icon: typeof Settings2;
+  label: string;
+  onClick: () => void;
+};
+
+function QuickAccessCard({
+  actions,
+  hint,
+  title,
+}: {
+  actions: QuickAction[];
+  hint: string;
+  title: string;
+}) {
+  if (actions.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="rounded-[24px] bg-[hsl(var(--surface-card)/0.38)] p-3.5">
+      <div className="flex items-start gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-[hsl(var(--surface-soft)/0.44)] text-app-muted">
+          <SlidersHorizontal className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-sm font-bold text-app-foreground">{title}</h2>
+          <p className="mt-1 text-xs leading-5 text-app-muted">{hint}</p>
+        </div>
+      </div>
+
+      <div className="mt-3 space-y-1.5">
+        {actions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <button
+              className="group/action flex min-h-11 w-full items-center gap-3 rounded-[18px] px-2.5 py-2 text-left transition hover:bg-[hsl(var(--surface-soft)/0.44)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              key={action.label}
+              onClick={action.onClick}
+              type="button"
+            >
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-[hsl(var(--surface-card)/0.62)] text-app-muted transition group-hover/action:text-[hsl(var(--primary))]">
+                <Icon className="h-4 w-4" />
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-app-foreground">
+                {action.label}
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-app-soft" />
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export function ServerMemberPanel({
   detail,
   onClose,
   variant = "sidebar",
 }: ServerMemberPanelProps) {
   const { locale, t } = useI18n();
-  const { memberPanelCollapsed, setMemberPanelCollapsed } = useAppStore(
+  const {
+    memberPanelCollapsed,
+    openChannelModal,
+    openInviteModal,
+    openServerSettings,
+    setMemberPanelCollapsed,
+  } = useAppStore(
     useShallow((state) => ({
       memberPanelCollapsed: state.memberPanelCollapsed,
+      openChannelModal: state.openChannelModal,
+      openInviteModal: state.openInviteModal,
+      openServerSettings: state.openServerSettings,
       setMemberPanelCollapsed: state.setMemberPanelCollapsed,
     })),
   );
+  const voiceStatesQuery = useVoiceStates(detail.server.id);
   const [panelMenu, setPanelMenu] = useState({
     open: false,
     x: 0,
@@ -518,6 +722,10 @@ export function ServerMemberPanel({
   const roleById = useMemo(
     () => new Map(detail.roles.map((role) => [role.id, role])),
     [detail.roles],
+  );
+  const channelsById = useMemo(
+    () => new Map(getServerChannels(detail).map((channel) => [channel.id, channel])),
+    [detail],
   );
   const { offlineGroup, onlineGroups } = useMemo(
     () =>
@@ -565,12 +773,68 @@ export function ServerMemberPanel({
   }, [closePanelMenu, memberPanelCollapsed, setMemberPanelCollapsed]);
   const isDrawer = variant === "drawer";
   const isCollapsed = !isDrawer && memberPanelCollapsed;
+  const canManageServer = detail.server.isAdmin || detail.server.isOwner;
+  const quickActions = useMemo<QuickAction[]>(() => {
+    if (!canManageServer) {
+      return [];
+    }
+
+    const runAction = (action: () => void) => {
+      action();
+      onClose?.();
+    };
+
+    return [
+      {
+        icon: Settings2,
+        label: t("shell.channelSidebar.serverSettings"),
+        onClick: () => runAction(() => openServerSettings(detail.server.id)),
+      },
+      {
+        icon: Hash,
+        label: t("shell.channelSidebar.createTextChannel"),
+        onClick: () =>
+          runAction(() =>
+            openChannelModal({
+              mode: "create",
+              serverId: detail.server.id,
+              type: "TEXT",
+            }),
+          ),
+      },
+      {
+        icon: Volume2,
+        label: t("shell.channelSidebar.createVoiceChannel"),
+        onClick: () =>
+          runAction(() =>
+            openChannelModal({
+              mode: "create",
+              serverId: detail.server.id,
+              type: "VOICE",
+            }),
+          ),
+      },
+      {
+        icon: UserPlus,
+        label: t("shell.channelSidebar.createInvite"),
+        onClick: () => runAction(() => openInviteModal(detail.server.id)),
+      },
+    ];
+  }, [
+    canManageServer,
+    detail.server.id,
+    onClose,
+    openChannelModal,
+    openInviteModal,
+    openServerSettings,
+    t,
+  ]);
 
   return (
     <aside
       className={cn(
-        "h-full shrink-0 border-l border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.82),hsl(var(--surface-soft)/0.36))] backdrop-blur-xl transition-[width,padding] duration-200",
-        isDrawer ? "flex w-full flex-col p-4" : "hidden min-[1440px]:flex min-[1440px]:flex-col",
+        "h-full shrink-0 border-l border-[hsl(var(--border)/0.48)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.62),hsl(var(--surface-soft)/0.24))] backdrop-blur-xl transition-[width,padding] duration-200",
+        isDrawer ? "flex w-full flex-col p-4" : "hidden xl:flex xl:flex-col",
         !isDrawer && (isCollapsed ? "w-[88px] p-3" : "w-[312px] p-4"),
       )}
       data-testid={isDrawer ? "server-member-panel-drawer" : "server-member-panel"}
@@ -581,7 +845,7 @@ export function ServerMemberPanel({
         <div className="mb-3 flex items-center justify-end">
           <button
             aria-label={t("common.close")}
-            className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-2xl border text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--surface-soft)/0.42)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.68)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             onClick={onClose}
             type="button"
           >
@@ -590,60 +854,88 @@ export function ServerMemberPanel({
         </div>
       ) : null}
 
-      <div
-        className={cn(
-          "rounded-[30px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.66)] shadow-[0_22px_54px_hsl(var(--shadow-color)/0.08)]",
-          isCollapsed ? "p-2.5" : "p-4",
-        )}
-      >
-        <div
-          className={cn("flex", isCollapsed ? "flex-col items-center gap-2" : "items-center gap-3")}
-        >
-          <div className="app-panel-soft flex h-12 w-12 items-center justify-center rounded-[20px] border">
-            <Users className="h-5 w-5 text-app-foreground" />
-          </div>
-          {isCollapsed ? (
+      {isCollapsed ? (
+        <div className="rounded-[30px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.66)] p-2.5 shadow-[0_22px_54px_hsl(var(--shadow-color)/0.08)]">
+          <div className="flex flex-col items-center gap-2">
+            <div className="app-panel-soft flex h-12 w-12 items-center justify-center rounded-[20px] border">
+              <Users className="h-5 w-5 text-app-foreground" />
+            </div>
             <span className="rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.42)] px-2 py-0.5 text-[10px] font-bold text-app-muted">
               {detail.server.memberCount}
             </span>
-          ) : (
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-app-foreground">
-                {detail.server.name}
-              </p>
-              <p className="mt-1 text-xs font-medium text-app-muted">
-                {t("shell.memberPanel.subtitle", {
-                  count: detail.server.memberCount,
-                })}
-              </p>
-            </div>
-          )}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="space-y-3">
+          <ServerInfoCard
+            detail={detail}
+            memberCountLabel={t("shell.memberPanel.subtitle", {
+              count: detail.server.memberCount,
+            })}
+          />
+          <ActiveVoiceCard
+            channelsById={channelsById}
+            liveLabel={t("shell.memberPanel.activeVoiceLive")}
+            states={voiceStatesQuery.data ?? []}
+            title={t("shell.memberPanel.activeVoice")}
+            voiceParticipantsLabel={(count) =>
+              t("shell.memberPanel.voiceParticipants", {
+                count,
+              })
+            }
+          />
+          <QuickAccessCard
+            actions={quickActions}
+            hint={t("shell.memberPanel.quickAccessHint")}
+            title={t("shell.memberPanel.quickAccess")}
+          />
+        </div>
+      )}
 
       <div
         className={cn(
           "mt-4 min-h-0 flex-1 overflow-y-auto",
-          isCollapsed ? "space-y-4 px-0.5" : "space-y-5 pr-1",
+          isCollapsed ? "space-y-4 px-0.5" : "pr-1",
         )}
       >
-        {visibleGroups.map((group) => (
+        <section
+          className={cn(
+            isCollapsed
+              ? "space-y-4"
+              : "space-y-5 rounded-[24px] bg-[hsl(var(--surface-card)/0.32)] p-3.5",
+          )}
+        >
+          {!isCollapsed ? (
+            <div className="flex items-center justify-between gap-3 px-1">
+              <div className="flex min-w-0 items-center gap-2">
+                <Users className="h-4 w-4 shrink-0 text-app-muted" />
+                <h2 className="truncate text-xs font-black uppercase tracking-[0.18em] text-app-muted">
+                  {t("shell.memberPanel.membersTitle")}
+                </h2>
+              </div>
+              <span className="rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.42)] px-2 py-0.5 text-[10px] font-bold text-app-muted">
+                {detail.server.memberCount}
+              </span>
+            </div>
+          ) : null}
+          {visibleGroups.map((group) => (
+            <MemberSection
+              collapsed={isCollapsed}
+              emptyLabel={t("shell.memberPanel.emptyOnline")}
+              group={group}
+              key={group.key}
+              roleById={roleById}
+              roleLabels={roleLabels}
+            />
+          ))}
           <MemberSection
             collapsed={isCollapsed}
-            emptyLabel={t("shell.memberPanel.emptyOnline")}
-            group={group}
-            key={group.key}
+            emptyLabel={t("shell.memberPanel.emptyOffline")}
+            group={offlineGroup}
             roleById={roleById}
             roleLabels={roleLabels}
           />
-        ))}
-        <MemberSection
-          collapsed={isCollapsed}
-          emptyLabel={t("shell.memberPanel.emptyOffline")}
-          group={offlineGroup}
-          roleById={roleById}
-          roleLabels={roleLabels}
-        />
+        </section>
       </div>
 
       <ContextMenu onClose={closePanelMenu} open={!isDrawer && panelMenu.open} position={panelMenu}>

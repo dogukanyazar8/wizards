@@ -412,40 +412,33 @@ export function ProfileAvatarField({
     : undefined;
 
   return (
-    <div
-      className="app-panel-soft rounded-[28px] border p-4 sm:p-5"
-      data-testid="profile-avatar-field"
-    >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="relative w-fit">
+    <div className="space-y-5" data-testid="profile-avatar-field">
+      <div className="flex flex-col items-center text-center">
+        <div className="relative">
           <Avatar
             alt={account.displayName ?? account.username}
-            className="h-24 w-24 rounded-[30px] shadow-[0_20px_55px_hsl(var(--shadow-color)/0.12)]"
+            className="h-32 w-32 rounded-full border-[hsl(var(--primary)/0.22)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.22),hsl(var(--surface-soft)/0.96))] text-2xl shadow-[0_26px_72px_hsl(var(--primary)/0.16)] ring-4 ring-[hsl(var(--primary)/0.08)]"
             fallback={buildAvatarFallback(account)}
             src={account.avatarUrl}
           />
-          <span className="absolute -bottom-2 -right-2 grid h-10 w-10 place-items-center rounded-2xl border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))] shadow-[0_14px_34px_hsl(var(--primary)/0.18)]">
+          <span className="absolute bottom-1 right-1 grid h-11 w-11 place-items-center rounded-2xl border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--surface)/0.96)] text-[hsl(var(--primary))] shadow-[0_16px_40px_hsl(var(--primary)/0.18)]">
             <ImagePlus className="h-4 w-4" />
           </span>
         </div>
 
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-app-foreground">
-            {t("settings.account.avatar.title")}
+        {!uploadthingEnabled ? (
+          <p className="mt-4 rounded-2xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs font-semibold leading-5 text-amber-600">
+            {t("settings.account.avatar.uploadsDisabled")}
           </p>
-          <p className="mt-1 text-sm leading-6 text-app-muted">
-            {t("settings.account.avatar.description")}
+        ) : null}
+        {error ? (
+          <p className="mt-4 rounded-2xl border border-rose-500/25 bg-rose-500/10 px-3 py-2 text-xs font-semibold leading-5 text-rose-600">
+            {error}
           </p>
-          {!uploadthingEnabled ? (
-            <p className="mt-2 text-xs font-medium text-app-warning">
-              {t("settings.account.avatar.uploadsDisabled")}
-            </p>
-          ) : null}
-          {error ? <p className="mt-2 text-xs font-medium text-app-danger">{error}</p> : null}
-        </div>
+        ) : null}
       </div>
 
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+      <div className="flex flex-col gap-2">
         <input
           accept="image/jpeg,image/png,image/webp"
           className="hidden"
@@ -457,7 +450,7 @@ export function ProfileAvatarField({
         />
 
         <button
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.12)] px-4 text-sm font-semibold text-[hsl(var(--primary))] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.12)] px-4 text-sm font-semibold text-[hsl(var(--primary))] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
           data-testid="profile-avatar-choose"
           disabled={isBusy || !uploadthingEnabled}
           onClick={() => inputRef.current?.click()}
@@ -468,7 +461,7 @@ export function ProfileAvatarField({
         </button>
 
         <button
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.58)] px-4 text-sm font-semibold text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.86)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
+          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.58)] px-4 text-sm font-semibold text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.86)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
           data-testid="profile-avatar-clear"
           disabled={isBusy || !account.avatarUrl}
           onClick={() => {

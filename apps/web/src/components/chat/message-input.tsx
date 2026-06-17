@@ -164,12 +164,12 @@ function ComposerButton({
         "group/composer-button inline-flex h-11 min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-2xl border text-sm font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:transition-transform",
         variant === "primary"
           ? "border-[hsl(var(--primary)/0.34)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.92),hsl(var(--primary))_52%,hsl(var(--ambient-1)/0.88))] text-white shadow-[0_16px_34px_hsl(var(--primary)/0.24),inset_0_1px_0_rgba(255,255,255,0.3)] hover:shadow-[0_20px_44px_hsl(var(--primary)/0.32),inset_0_1px_0_rgba(255,255,255,0.35)] motion-safe:hover:scale-[1.025]"
-          : variant === "ghost"
+        : variant === "ghost"
             ? "border-transparent bg-transparent text-app-muted hover:bg-[hsl(var(--surface-soft)/0.64)] hover:text-app-foreground"
-            : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.92)] text-app-muted shadow-[0_8px_20px_hsl(var(--shadow-color)/0.045),inset_0_1px_0_hsl(var(--background)/0.62)] hover:border-[hsl(var(--primary)/0.24)] hover:bg-[hsl(var(--primary)/0.08)] hover:text-[hsl(var(--primary))]",
+            : "border-transparent bg-[hsl(var(--surface-soft)/0.34)] text-app-muted hover:bg-[hsl(var(--primary)/0.08)] hover:text-[hsl(var(--primary))]",
         active &&
           variant !== "primary" &&
-          "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.13)] text-[hsl(var(--primary))] shadow-[0_12px_26px_hsl(var(--primary)/0.12)]",
+          "border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.13)] text-[hsl(var(--primary))]",
         disabled && "motion-safe:hover:scale-100",
         className,
       )}
@@ -335,11 +335,11 @@ export function ChatComposer({
 
   const formatButtonLabelClass = isThreadComposer ? "sr-only" : "hidden sm:inline";
   const compactToolButtonClass = cn(
-    "inline-flex items-center justify-center gap-1.5 rounded-[14px] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card)/0.92)] text-[12.5px] font-semibold text-app-muted shadow-[0_8px_20px_hsl(var(--shadow-color)/0.04)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.24)] hover:bg-[hsl(var(--surface-card))] hover:text-app-foreground hover:shadow-[0_12px_26px_hsl(var(--shadow-color)/0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.44)] disabled:cursor-not-allowed disabled:opacity-55",
+    "inline-flex items-center justify-center gap-1.5 rounded-[14px] border border-transparent bg-[hsl(var(--surface-soft)/0.3)] text-[12.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.44)] disabled:cursor-not-allowed disabled:opacity-55",
     isThreadComposer ? "h-9 w-9 px-0" : "min-h-8 px-2.5 py-1.5 md:min-h-0",
   );
   const formattingActionButtonClass =
-    "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[13px] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card)/0.92)] px-2.5 py-1.5 text-[12.5px] font-bold text-app-muted shadow-[0_8px_18px_hsl(var(--shadow-color)/0.04)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.26)] hover:bg-[hsl(var(--primary)/0.07)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.4)] disabled:cursor-not-allowed disabled:opacity-50";
+    "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[13px] border border-transparent bg-[hsl(var(--surface-soft)/0.3)] px-2.5 py-1.5 text-[12.5px] font-bold text-app-muted transition hover:bg-[hsl(var(--primary)/0.07)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.4)] disabled:cursor-not-allowed disabled:opacity-50";
   const composerHint = t("chat.input.sendHint");
   const composerActionsTitle = t("chat.input.actions");
 
@@ -1080,10 +1080,10 @@ export function ChatComposer({
   return (
     <div
       className={cn(
-        "sticky bottom-0 z-20 border-t border-[hsl(var(--border)/0.58)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.22),hsl(var(--surface-card)/0.92))] backdrop-blur-xl md:static",
+        "sticky bottom-0 z-20 bg-[hsl(var(--surface-card)/0.18)] backdrop-blur-xl md:static",
         isThreadComposer
           ? "space-y-2 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:p-3"
-          : "space-y-3 p-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:p-4 md:pt-3",
+          : "space-y-3 p-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:p-4 md:pt-2.5",
       )}
       data-testid="message-composer"
       data-composer-variant={isThreadComposer ? "thread" : "default"}
@@ -1096,10 +1096,10 @@ export function ChatComposer({
 
       <div
         className={cn(
-          "relative border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.98)] shadow-[0_18px_52px_hsl(var(--shadow-color)/0.09),inset_0_1px_0_hsl(var(--background)/0.66)] transition-colors duration-150",
+          "relative border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card)/0.94)] shadow-[0_14px_42px_hsl(var(--shadow-color)/0.075),inset_0_1px_0_hsl(var(--background)/0.58)] transition-colors duration-150",
           isFocused &&
-            "border-[hsl(var(--primary)/0.42)] shadow-[0_22px_58px_hsl(var(--primary)/0.12),inset_0_1px_0_hsl(var(--background)/0.7)]",
-          isThreadComposer ? "rounded-[22px] p-2" : "rounded-[24px] p-2.5 md:rounded-[30px] md:p-4",
+            "border-[hsl(var(--primary)/0.38)] shadow-[0_18px_48px_hsl(var(--primary)/0.11),inset_0_1px_0_hsl(var(--background)/0.66)]",
+          isThreadComposer ? "rounded-[22px] p-2" : "rounded-[24px] p-2.5 md:rounded-[28px] md:p-3",
         )}
       >
         {disabled ? (
@@ -1372,8 +1372,8 @@ export function ChatComposer({
               disabled={disabled}
               data-testid="message-input"
               className={cn(
-                "bg-[hsl(var(--surface-soft)/0.28)] pr-4 focus-visible:bg-[hsl(var(--surface-soft)/0.36)]",
-                isThreadComposer ? "min-h-[4.5rem]" : "min-h-[4.5rem] md:min-h-[4.75rem]",
+                "bg-[hsl(var(--surface-soft)/0.24)] pr-4 focus-visible:bg-[hsl(var(--surface-soft)/0.34)]",
+                isThreadComposer ? "min-h-[4.25rem]" : "min-h-[3.75rem] md:min-h-[4rem]",
               )}
               formattingOpen={showFormattingToolbar}
               isThreadComposer={isThreadComposer}
@@ -1631,6 +1631,7 @@ export function ChatComposer({
               title={composerActionsTitle}
             >
               <button
+                aria-label={t("chat.input.formatting")}
                 className={actionSheetButtonClass}
                 data-testid="mobile-formatting-button"
                 onClick={() => {
@@ -1643,6 +1644,7 @@ export function ChatComposer({
                 <span>{t("chat.input.formatting")}</span>
               </button>
               <button
+                aria-label={t("chat.input.openEmojiPicker")}
                 className={actionSheetButtonClass}
                 data-testid="mobile-emoji-picker-button"
                 disabled={disabled}
@@ -1653,6 +1655,7 @@ export function ChatComposer({
                 <span>{t("chat.input.openEmojiPicker")}</span>
               </button>
               <button
+                aria-label={t("chat.gifs.openPicker")}
                 className={actionSheetButtonClass}
                 data-testid="mobile-gif-picker-button"
                 disabled={!allowGifs || disabled}
@@ -1663,6 +1666,7 @@ export function ChatComposer({
                 <span>{t("chat.attachments.gif")}</span>
               </button>
               <button
+                aria-label={t("chat.attachments.image")}
                 className={actionSheetButtonClass}
                 data-testid="mobile-image-picker-button"
                 disabled={!allowFileUploads || disabled}
@@ -1673,6 +1677,7 @@ export function ChatComposer({
                 <span>{t("chat.attachments.image")}</span>
               </button>
               <button
+                aria-label={t("chat.input.sticker")}
                 className={actionSheetButtonClass}
                 data-testid="mobile-sticker-button"
                 disabled={disabled}
@@ -1686,6 +1691,7 @@ export function ChatComposer({
                 <span>{t("chat.input.sticker")}</span>
               </button>
               <button
+                aria-label={t("chat.input.codeBlock")}
                 className={actionSheetButtonClass}
                 data-testid="mobile-code-button"
                 disabled={disabled}
@@ -1699,6 +1705,7 @@ export function ChatComposer({
                 <span>{t("chat.input.codeBlock")}</span>
               </button>
               <button
+                aria-label={t("chat.input.slashCommands")}
                 className={actionSheetButtonClass}
                 data-testid="mobile-slash-button"
                 disabled={disabled}
@@ -1709,6 +1716,7 @@ export function ChatComposer({
                 <span>{t("chat.input.slashCommands")}</span>
               </button>
               <button
+                aria-label={t("chat.attachments.file")}
                 className={actionSheetButtonClass}
                 data-testid="mobile-file-button"
                 disabled={!allowFileUploads || disabled}

@@ -54,12 +54,12 @@ export function ChannelItem({
     <div className="min-w-0 max-w-full overflow-hidden">
       <div
         className={cn(
-          "group relative flex min-w-0 max-w-full items-center gap-0.5 overflow-hidden rounded-[20px] border px-0.5 py-1 transition sm:gap-1",
+          "group relative flex min-w-0 max-w-full items-center gap-0.5 overflow-hidden rounded-[18px] px-0.5 py-0.5 transition sm:gap-1",
           active
-            ? "border-[hsl(var(--primary)/0.28)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.18),hsl(var(--surface-card)/0.72))] text-[hsl(var(--foreground))] shadow-[0_14px_30px_hsl(var(--primary)/0.08)]"
-            : "border-transparent text-app-muted hover:border-[hsl(var(--border)/0.56)] hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-[hsl(var(--foreground))]",
+            ? "bg-[linear-gradient(135deg,hsl(var(--primary)/0.16),hsl(var(--surface-card)/0.58))] text-[hsl(var(--foreground))]"
+            : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.42)] hover:text-[hsl(var(--foreground))]",
           isLocked &&
-            "border-[hsl(var(--border)/0.38)] bg-[hsl(var(--surface-soft)/0.24)] text-app-soft hover:border-[hsl(var(--border)/0.38)] hover:bg-[hsl(var(--surface-soft)/0.24)] hover:text-app-soft",
+            "bg-[hsl(var(--surface-soft)/0.18)] text-app-soft hover:bg-[hsl(var(--surface-soft)/0.22)] hover:text-app-soft",
         )}
       >
         {active && !isLocked ? (
@@ -93,12 +93,12 @@ export function ChannelItem({
         >
           <span
             className={cn(
-              "flex h-6 w-6 shrink-0 items-center justify-center rounded-xl border transition",
+              "flex h-6 w-6 shrink-0 items-center justify-center rounded-xl transition",
               active
-                ? "border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]"
-                : "border-[hsl(var(--border)/0.42)] bg-[hsl(var(--surface-card)/0.38)] text-app-soft group-hover:text-app-foreground",
+                ? "bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]"
+                : "bg-[hsl(var(--surface-card)/0.28)] text-app-soft group-hover:text-app-foreground",
               isLocked &&
-                "border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-soft)/0.42)] text-app-soft group-hover:text-app-soft",
+                "bg-[hsl(var(--surface-soft)/0.32)] text-app-soft group-hover:text-app-soft",
             )}
           >
             <Icon className="h-3.5 w-3.5" />
@@ -145,9 +145,11 @@ export function ChannelItem({
           ) : null}
           {!isLocked && type === "VOICE" ? (
             <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-              <span className="rounded-full border border-[hsl(var(--border)/0.55)] bg-[hsl(var(--surface-card)/0.42)] px-2 py-0.5 text-[11px] font-semibold text-app-soft">
-                {participantCount}/10
-              </span>
+              {participantCount > 0 ? (
+                <span className="rounded-full border border-[hsl(var(--border)/0.55)] bg-[hsl(var(--surface-card)/0.42)] px-2 py-0.5 text-[11px] font-semibold text-app-soft">
+                  {participantCount}
+                </span>
+              ) : null}
               {previewParticipants.length > 0 ? (
                 <div className="hidden items-center -space-x-2 min-[390px]:flex">
                   {previewParticipants.map((participant) => (

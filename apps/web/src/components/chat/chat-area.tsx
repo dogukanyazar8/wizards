@@ -739,14 +739,14 @@ export function ChatArea({
       serverMembersQuery.data &&
       typeof document !== "undefined"
         ? createPortal(
-            <div className="fixed inset-0 z-[90] min-[1440px]:hidden">
+            <div className="fixed inset-0 z-[90] xl:hidden">
               <div
                 className="absolute inset-0 bg-[hsl(var(--backdrop)/0.5)] backdrop-blur-sm"
                 onClick={() => setShowMembersDrawer(false)}
                 role="presentation"
               />
               <div
-                aria-label={serverMembersQuery.data.server.name}
+                aria-label={t("shell.channelSidebar.memberView")}
                 aria-modal="true"
                 className="absolute inset-y-0 right-0 w-[min(88vw,23rem)] overflow-hidden rounded-l-[30px] shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)]"
                 role="dialog"
@@ -762,7 +762,8 @@ export function ChatArea({
           )
         : null}
       {mode === "dm" && directMessageParticipant ? (
-        <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-app-border bg-[hsl(var(--surface-card)/0.78)] px-3 py-3 backdrop-blur-xl md:px-5 md:py-4">
+        <div className="sticky top-0 z-20 border-b border-[hsl(var(--border)/0.4)] px-3 py-2 backdrop-blur-xl md:px-4 md:py-3">
+          <div className="flex items-center justify-between gap-3 rounded-[20px] bg-[hsl(var(--surface-card)/0.34)] p-2 md:p-2.5">
           <div className="flex min-w-0 items-center gap-3">
             <div className="relative">
               <Avatar
@@ -784,10 +785,10 @@ export function ChatArea({
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
             <button
               aria-label={t("dm.screenShare.share")}
-              className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-2xl border text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60 md:h-auto md:w-auto md:p-2.5"
+              className="flex h-11 w-11 items-center justify-center rounded-2xl text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.48)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60 md:h-auto md:w-auto md:p-2.5"
               disabled={dmScreenShare.isStarting}
               onClick={() => {
                 void dmScreenShare.startShare();
@@ -799,7 +800,7 @@ export function ChatArea({
             </button>
             <button
               aria-label={t("dm.header.voiceCall")}
-              className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-2xl border text-app-muted transition disabled:cursor-not-allowed disabled:opacity-60 md:h-auto md:w-auto md:p-2.5"
+              className="flex h-11 w-11 items-center justify-center rounded-2xl text-app-muted transition disabled:cursor-not-allowed disabled:opacity-60 md:h-auto md:w-auto md:p-2.5"
               disabled
               title={t("dm.header.voiceComingSoon")}
               type="button"
@@ -808,15 +809,16 @@ export function ChatArea({
             </button>
           </div>
         </div>
+        </div>
       ) : null}
 
       {mode === "channel" ? (
         <div
-          className="sticky top-0 z-30 border-b border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.78)] px-3 py-3 pl-16 backdrop-blur-xl md:px-5 md:py-4"
+          className="sticky top-0 z-30 border-b border-[hsl(var(--border)/0.4)] px-3 py-2 pl-16 backdrop-blur-xl md:px-4 md:py-3 md:pl-4"
           data-testid="chat-channel-header"
         >
-          <div className="flex min-h-12 items-center gap-3">
-            <div className="app-panel-soft flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] border text-app-foreground shadow-[0_14px_32px_hsl(var(--shadow-color)/0.08)]">
+          <div className="flex min-h-14 items-center gap-3 rounded-[20px] bg-[hsl(var(--surface-card)/0.34)] p-2 md:p-2.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
               <Hash className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
@@ -835,11 +837,12 @@ export function ChatArea({
               ) : null}
             </div>
 
-            <div className="flex shrink-0 items-center gap-1.5 rounded-[20px] border border-[hsl(var(--border)/0.24)] bg-[hsl(var(--surface-card)/0.32)] p-1 shadow-[0_12px_28px_hsl(var(--shadow-color)/0.04)] backdrop-blur-md">
+            <div className="flex shrink-0 items-center gap-1.5 rounded-[20px] bg-[hsl(var(--surface-card)/0.36)] p-1 backdrop-blur-md">
               {hasPinnedMessages ? (
                 <div className="relative">
                   <button
                     aria-expanded={showPinnedMessages}
+                    aria-label={t("chat.pins.title", { count: pinnedMessages.length })}
                     className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
                     data-testid="channel-pins-toggle"
                     onClick={() => setShowPinnedMessages((current) => !current)}
@@ -909,6 +912,7 @@ export function ChatArea({
                 <button
                   aria-expanded={showNotificationMenu}
                   aria-haspopup="menu"
+                  aria-label={t("chat.notifications.openSettings")}
                   className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
                   data-testid="channel-notification-settings-open"
                   onClick={() => setShowNotificationMenu((current) => !current)}
@@ -923,7 +927,8 @@ export function ChatArea({
               </div>
               <button
                 aria-expanded={showMembersDrawer}
-                className="inline-flex min-h-10 items-center justify-center rounded-2xl px-3 py-1.5 text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-60 min-[1440px]:hidden"
+                aria-label={t("shell.channelSidebar.memberView")}
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-2xl px-3 py-1.5 text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-60 md:min-h-10 md:min-w-10 xl:hidden"
                 data-testid="members-drawer-open"
                 disabled={!serverMembersQuery.data}
                 onClick={() => setShowMembersDrawer(true)}
@@ -933,6 +938,7 @@ export function ChatArea({
               </button>
               <button
                 aria-expanded={showSearch}
+                aria-label={t("chat.search.open")}
                 className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
                 data-testid="message-search-open"
                 onClick={() => setShowSearch(true)}
@@ -1032,7 +1038,8 @@ export function ChatArea({
             <div className="inline-flex w-fit max-w-full shrink-0 items-center gap-1 rounded-[20px] border border-[hsl(var(--border)/0.22)] bg-[hsl(var(--surface-card)/0.20)] p-1 shadow-[0_12px_28px_hsl(var(--shadow-color)/0.04)] backdrop-blur-md">
               <button
                 aria-expanded={showSearch}
-                className="inline-flex min-h-9 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                aria-label={t("chat.search.open")}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] md:min-h-9"
                 data-testid="message-search-open"
                 onClick={() => setShowSearch(true)}
                 ref={searchButtonRef}

@@ -68,6 +68,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.currentBuild": "Current build {build}",
     "app.update.latestBuild": "Latest build {build}",
     "app.update.category.devices": "Devices",
+    "app.update.category.design": "Design",
     "app.update.category.security": "Security",
     "app.update.category.performance": "Performance",
     "app.update.category.desktop": "Desktop",
@@ -156,6 +157,15 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.releaseReadiness.title": "Desktop and deploy readiness",
     "app.update.notes.releaseReadiness.description":
       "The desktop build now targets whispr.team capabilities, LiveKit/Krisp CSP support, health and readiness checks, Railway config, and migration-aware startup paths.",
+    "app.update.notes.mainShellRefresh.title": "Main workspace refresh",
+    "app.update.notes.mainShellRefresh.description":
+      "The main workspace now uses a calmer four-column shell, lighter visual hierarchy, compact channel navigation, and real-data-only chat surfaces.",
+    "app.update.notes.settingsRefresh.title": "Modern settings experience",
+    "app.update.notes.settingsRefresh.description":
+      "Settings now has a modern sidebar, redesigned account profile cards, profile completion, privacy previews, and safer desktop preference surfaces.",
+    "app.update.notes.compactServerRail.title": "Compact server rail",
+    "app.update.notes.compactServerRail.description":
+      "The server rail is now always compact, icon-first, easier to scan, and uses a stronger active server ring without the old density controls.",
     "app.update.notes.desktopStartup.title": "Desktop startup and session polish",
     "app.update.notes.desktopStartup.description":
       "Desktop now opens with a compact Whispr startup window, keeps the splash consistent through promotion, restores remembered sessions, and preserves the main window size and position.",
@@ -995,14 +1005,97 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.backToChannels": "Back to Channels",
     "settings.description":
       "Tune voice, appearance, and notifications without dropping out of the conversation.",
+    "settings.search.placeholder": "Search settings...",
+    "settings.search.shortcut": "Ctrl K",
     "settings.account.badge": "My Account",
     "settings.account.title": "My Account",
     "settings.account.nav": "Profile & Presence",
     "settings.account.description":
       "Keep your public identity, sign-in email, and visible status aligned with how you want to show up across Whispr.",
+    "settings.account.pageDescription":
+      "Manage your account details, personalize your profile, and define your privacy preferences.",
     "settings.account.summaryTitle": "Profile snapshot",
     "settings.account.summaryDescription":
       "A quick view of how your account appears across friends, DMs, and servers.",
+    "settings.account.profile.edit": "Edit Profile",
+    "settings.account.profile.changeStatus": "Change Status",
+    "settings.account.copy.username": "Copy username",
+    "settings.account.copy.email": "Copy email",
+    "settings.account.completion.title": "Profile completion",
+    "settings.account.completion.description":
+      "Complete the visible fields that help friends recognize and trust your profile.",
+    "settings.account.completion.action": "Complete my profile",
+    "settings.account.quickSuggestions.title": "Quick suggestions",
+    "settings.account.quickSuggestions.description":
+      "Suggestions to keep your account safer and strengthen your profile.",
+    "settings.account.quickSuggestions.email.title": "Verify email address",
+    "settings.account.quickSuggestions.email.description":
+      "Your sign-in email is attached to this account.",
+    "settings.account.quickSuggestions.twoFactor.title": "Enable two-factor authentication",
+    "settings.account.quickSuggestions.twoFactor.description":
+      "A backend-backed 2FA flow with re-auth and recovery codes is required before activation.",
+    "settings.account.quickSuggestions.recoveryCodes.title": "View backup codes",
+    "settings.account.quickSuggestions.recoveryCodes.description":
+      "Recovery codes will be available after 2FA is safely implemented.",
+    "settings.account.quickSuggestions.securityLink": "View all security settings",
+    "settings.account.security.title": "Security center",
+    "settings.account.security.description":
+      "Review account protection signals without exposing unfinished security controls as active.",
+    "settings.account.security.emailUnverified": "Unverified",
+    "settings.account.security.backendRequired":
+      "Requires a re-authenticated backend flow before it can be enabled safely.",
+    "settings.account.security.sessions.title": "Active sessions & devices",
+    "settings.account.security.sessions.description":
+      "See signed-in devices and revoke sessions from a dedicated device center.",
+    "settings.account.security.sessions.note":
+      "Preview only until the session management API is connected.",
+    "settings.account.security.export.title": "Data export & account actions",
+    "settings.account.security.export.description":
+      "Export account data or start destructive account actions from a re-auth protected surface.",
+    "settings.account.security.export.note":
+      "Destructive actions stay disabled here until confirmation and re-auth flows are wired.",
+    "settings.account.previewSoon": "Soon",
+    "settings.account.preview": "Preview",
+    "settings.account.privacy.title": "Privacy & visibility",
+    "settings.account.privacy.description":
+      "Manage who can see your profile and permissions.",
+    "settings.account.privacy.profile.title": "Profile visibility",
+    "settings.account.privacy.profile.description": "Choose who can see your profile.",
+    "settings.account.privacy.online.title": "Online status visibility",
+    "settings.account.privacy.online.description":
+      "Decide who can see your online status.",
+    "settings.account.privacy.dm.title": "Direct messages",
+    "settings.account.privacy.dm.description": "Decide who can message you directly.",
+    "settings.account.privacy.dmPolicy.title": "Direct message permissions",
+    "settings.account.privacy.dmPolicy.EVERYONE": "Everyone",
+    "settings.account.privacy.dmPolicy.FRIENDS": "Friends",
+    "settings.account.privacy.dmPolicy.MUTUAL_SERVERS": "Mutual servers",
+    "settings.account.privacy.dmPolicy.NOBODY": "Nobody",
+    "settings.account.privacy.friendRequests.title": "Friend requests",
+    "settings.account.privacy.friendRequests.description":
+      "Choose who can send you friend requests. This is enforced server-side.",
+    "settings.account.privacy.friendRequestPolicy.EVERYONE": "Everyone",
+    "settings.account.privacy.friendRequestPolicy.MUTUAL_SERVERS": "Mutual servers",
+    "settings.account.privacy.friendRequestPolicy.MUTUAL_FRIENDS": "Mutual friends",
+    "settings.account.privacy.friendRequestPolicy.NOBODY": "Nobody",
+    "settings.account.visibility.everyone": "Everyone",
+    "settings.account.preferences.title": "Account preferences",
+    "settings.account.preferences.description":
+      "Personalize account-level preferences for your Whispr experience.",
+    "settings.account.preferences.timeZone.title": "Time zone",
+    "settings.account.preferences.timeZone.description":
+      "Use your browser time zone for meetings and timestamps.",
+    "settings.account.preferences.language.title": "Language preference",
+    "settings.account.preferences.language.description":
+      "Change the app language from the existing language settings.",
+    "settings.account.preferences.dateFormat.title": "Date and time format",
+    "settings.account.preferences.dateFormat.description":
+      "A saved format preference needs API support before it becomes editable.",
+    "settings.account.preferences.dateFormat.value": "Locale default",
+    "settings.account.preferences.accessibility.title": "Accessibility density",
+    "settings.account.preferences.accessibility.description":
+      "A saved density preference will be added with validated user settings.",
+    "settings.account.preferences.accessibility.value": "Comfortable",
     "settings.account.editTitle": "Edit account details",
     "settings.account.editDescription":
       "Update your visible name, username, email, or preferred online status without leaving the workspace.",
@@ -1357,12 +1450,17 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "appearance.language.enFull": "English",
     "appearance.language.eyebrow": "Dil / Language",
     "appearance.serverRail.eyebrow": "Server Rail",
-    "appearance.serverRail.title": "Widen the server column to reduce crowding",
+    "appearance.serverRail.title":
+      "Whispr now keeps the server rail compact, icon-first, and consistent across desktop and mobile.",
     "appearance.serverRail.compact": "Compact",
     "appearance.serverRail.balanced": "Balanced",
     "appearance.serverRail.spacious": "Spacious",
-    "appearance.serverRail.iconOnly": "Icon-only",
-    "appearance.serverRail.expanded": "Expanded",
+    "appearance.serverRail.compactMode": "Fixed compact rail",
+    "appearance.serverRail.widthMetric": "Rail width",
+    "appearance.serverRail.iconMetric": "Icon",
+    "appearance.serverRail.touchMetric": "Touch target",
+    "appearance.serverRail.iconOnly": "Compact rail",
+    "appearance.serverRail.expanded": "Standard rail",
     "appearance.serverRail.iconsTitle": "Server icon size",
     "appearance.serverRail.iconsDescription":
       "Tune the DM and server avatar scale in the left rail without changing the rest of the shell.",
@@ -1469,8 +1567,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.serverRail.createShort": "New",
     "shell.serverRail.addServer": "Add Server",
     "shell.serverRail.resetOrder": "Reset order",
-    "shell.serverRail.collapse": "Show icons only",
-    "shell.serverRail.expand": "Expand sidebar",
+    "shell.serverRail.collapse": "Use compact rail",
+    "shell.serverRail.expand": "Use standard rail",
     "shell.serverRail.customize": "Rail controls",
     "shell.serverRail.customizeHint": "Live size and spacing",
     "shell.serverRail.width": "Rail width",
@@ -1479,6 +1577,11 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.mobile.workspaceNavigation": "Workspace navigation",
     "shell.channelSidebar.empty":
       "Pick a server to browse channels, or create one to start building your workspace.",
+    "shell.channelSidebar.searchLabel": "Search channels",
+    "shell.channelSidebar.searchPlaceholder": "Search channels",
+    "shell.channelSidebar.searchEmptyTitle": "No matching channels",
+    "shell.channelSidebar.searchEmptyDescription":
+      "Try a different name or clear the search to see every channel.",
     "shell.channelSidebar.openChannels": "Open Channels",
     "shell.channelSidebar.memberView": "Member View",
     "shell.channelSidebar.serverSettings": "Server Settings",
@@ -1528,6 +1631,12 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.memberPanel.owner": "Owner",
     "shell.memberPanel.admin": "Admin",
     "shell.memberPanel.member": "Member",
+    "shell.memberPanel.membersTitle": "Members",
+    "shell.memberPanel.quickAccess": "Quick access",
+    "shell.memberPanel.quickAccessHint": "Safe server actions you can already use.",
+    "shell.memberPanel.activeVoice": "Active now",
+    "shell.memberPanel.activeVoiceLive": "Live",
+    "shell.memberPanel.voiceParticipants": "{count} in voice",
     "shell.user.toggleMute": "Toggle mute",
     "shell.user.toggleDeafen": "Toggle deafen",
     "shell.user.status": "Online status",
@@ -1686,7 +1795,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.list.errorTitle": "Unable to load messages.",
     "chat.list.errorDescription": "Please refresh the channel and try again.",
     "chat.list.emptyTitle": "No messages yet.",
-    "chat.list.emptyDescription": "Be the first to send a message!",
+    "chat.list.emptyDescription": "You can send the first message in this channel.",
     "chat.list.ariaLabel": "Message history",
     "chat.list.scrollToLatest": "Scroll to latest messages",
     "chat.search.attachmentOnly": "Attachment-only message",
@@ -1715,6 +1824,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.notifications.mentionsHint": "Only notify when someone mentions you.",
     "chat.notifications.muted": "Muted",
     "chat.notifications.mutedHint": "Pause channel notifications.",
+    "chat.notifications.openSettings": "Open notification settings",
     "chat.date.today": "Today",
     "chat.date.yesterday": "Yesterday",
     "chat.input.placeholder": "Send a message...",
@@ -2167,6 +2277,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.currentBuild": "Mevcut build {build}",
     "app.update.latestBuild": "Yeni build {build}",
     "app.update.category.devices": "Cihazlar",
+    "app.update.category.design": "Tasarım",
     "app.update.category.security": "Güvenlik",
     "app.update.category.performance": "Performans",
     "app.update.category.desktop": "Masaüstü",
@@ -2255,6 +2366,15 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.releaseReadiness.title": "Masaüstü ve deploy hazırlığı",
     "app.update.notes.releaseReadiness.description":
       "Masaüstü build'i artık whispr.team capability'leri, LiveKit/Krisp CSP desteği, health/readiness kontrolleri, Railway konfigürasyonu ve migration-aware başlangıç yollarıyla uyumlu.",
+    "app.update.notes.mainShellRefresh.title": "Ana çalışma alanı yenilendi",
+    "app.update.notes.mainShellRefresh.description":
+      "Ana çalışma alanı artık daha sakin dört kolonlu shell, daha hafif görsel hiyerarşi, kompakt kanal navigasyonu ve yalnızca gerçek veriye dayalı chat yüzeyleri kullanıyor.",
+    "app.update.notes.settingsRefresh.title": "Modern ayarlar deneyimi",
+    "app.update.notes.settingsRefresh.description":
+      "Ayarlar artık modern sidebar, yenilenen hesap profil kartları, profil tamamlanma oranı, gizlilik önizlemeleri ve daha güvenli masaüstü tercih yüzeyleriyle çalışıyor.",
+    "app.update.notes.compactServerRail.title": "Kompakt sunucu rayı",
+    "app.update.notes.compactServerRail.description":
+      "Sunucu rayı artık her zaman kompakt, ikon odaklı, daha kolay taranabilir ve eski yoğunluk kontrolleri yerine daha belirgin aktif sunucu halkası kullanıyor.",
     "app.update.notes.desktopStartup.title": "Masaüstü başlangıç ve oturum cilası",
     "app.update.notes.desktopStartup.description":
       "Masaüstü artık kompakt Whispr başlangıç penceresiyle açılır, geçiş boyunca splash tasarımını tutarlı tutar, hatırlanan oturumları geri yükler ve ana pencere boyutu ile konumunu korur.",
@@ -3096,14 +3216,99 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.backToChannels": "Kanallara Dön",
     "settings.description":
       "Konuşmadan kopmadan ses, görünüm ve bildirim tercihlerini ince ayarla.",
+    "settings.search.placeholder": "Ayarlar’da ara...",
+    "settings.search.shortcut": "Ctrl K",
     "settings.account.badge": "Hesabım",
     "settings.account.title": "Hesabım",
     "settings.account.nav": "Profil ve Durum",
     "settings.account.description":
       "Whispr genelinde nasıl göründüğünü belirleyen görünen adını, giriş e-postanı ve çevrimiçi durumunu tek yerde yönet.",
+    "settings.account.pageDescription":
+      "Hesap bilgilerini yönet, profilini özelleştir ve gizlilik tercihlerini belirle.",
     "settings.account.summaryTitle": "Profil özeti",
     "settings.account.summaryDescription":
       "Arkadaşlar, DM'ler ve sunucular içinde hesabının nasıl göründüğüne dair hızlı bir görünüm.",
+    "settings.account.profile.edit": "Profili Düzenle",
+    "settings.account.profile.changeStatus": "Durum Değiştir",
+    "settings.account.copy.username": "Kullanıcı adını kopyala",
+    "settings.account.copy.email": "E-postayı kopyala",
+    "settings.account.completion.title": "Profil tamamlanma oranı",
+    "settings.account.completion.description":
+      "Arkadaşlarının profilini tanımasına ve güvenmesine yardımcı olan görünür alanları tamamla.",
+    "settings.account.completion.action": "Profilimi tamamla",
+    "settings.account.quickSuggestions.title": "Hızlı öneriler",
+    "settings.account.quickSuggestions.description":
+      "Hesabını güvende tutmak ve profilini güçlendirmek için öneriler.",
+    "settings.account.quickSuggestions.email.title": "E-posta adresini doğrula",
+    "settings.account.quickSuggestions.email.description": "Giriş e-postan bu hesaba bağlı.",
+    "settings.account.quickSuggestions.twoFactor.title":
+      "İki faktörlü doğrulamayı etkinleştir",
+    "settings.account.quickSuggestions.twoFactor.description":
+      "Etkinleştirme için yeniden doğrulama ve yedek kodları olan backend destekli 2FA akışı gerekir.",
+    "settings.account.quickSuggestions.recoveryCodes.title": "Yedek kodları görüntüle",
+    "settings.account.quickSuggestions.recoveryCodes.description":
+      "Yedek kodlar güvenli 2FA akışı eklendikten sonra kullanılabilir olacak.",
+    "settings.account.quickSuggestions.securityLink": "Tüm güvenlik ayarlarını görüntüle",
+    "settings.account.security.title": "Güvenlik merkezi",
+    "settings.account.security.description":
+      "Tamamlanmamış güvenlik kontrollerini aktifmiş gibi göstermeden hesap koruma sinyallerini incele.",
+    "settings.account.security.emailUnverified": "Doğrulanmadı",
+    "settings.account.security.backendRequired":
+      "Güvenli şekilde açılmadan önce yeniden doğrulamalı backend akışı gerekir.",
+    "settings.account.security.sessions.title": "Aktif oturumlar ve cihazlar",
+    "settings.account.security.sessions.description":
+      "Oturum açmış cihazları gör ve oturumları ayrı bir cihaz merkezinden sonlandır.",
+    "settings.account.security.sessions.note":
+      "Oturum yönetimi API'si bağlanana kadar yalnızca önizleme.",
+    "settings.account.security.export.title": "Veri dışa aktarma ve hesap işlemleri",
+    "settings.account.security.export.description":
+      "Hesap verilerini dışa aktar veya yıkıcı hesap işlemlerini yeniden doğrulama korumalı yüzeyden başlat.",
+    "settings.account.security.export.note":
+      "Onay ve yeniden doğrulama akışları bağlanana kadar yıkıcı işlemler burada kapalı kalır.",
+    "settings.account.previewSoon": "Yakında",
+    "settings.account.preview": "Önizleme",
+    "settings.account.privacy.title": "Gizlilik ve görünürlük",
+    "settings.account.privacy.description":
+      "Profilinin kimler tarafından görülebileceğini ve izinlerini yönet.",
+    "settings.account.privacy.profile.title": "Profil görünürlüğü",
+    "settings.account.privacy.profile.description":
+      "Profilinizi kimlerin görebileceğini seçin.",
+    "settings.account.privacy.online.title": "Çevrimiçi durum görünürlüğü",
+    "settings.account.privacy.online.description":
+      "Çevrimiçi durumunuzun kimlere görüneceğini belirleyin.",
+    "settings.account.privacy.dm.title": "Doğrudan mesajlar",
+    "settings.account.privacy.dm.description":
+      "Sizinle kimlerin doğrudan mesajlaşabileceğini belirleyin.",
+    "settings.account.privacy.dmPolicy.title": "Doğrudan mesaj izinleri",
+    "settings.account.privacy.dmPolicy.EVERYONE": "Herkes",
+    "settings.account.privacy.dmPolicy.FRIENDS": "Arkadaşlar",
+    "settings.account.privacy.dmPolicy.MUTUAL_SERVERS": "Ortak sunucular",
+    "settings.account.privacy.dmPolicy.NOBODY": "Hiç kimse",
+    "settings.account.privacy.friendRequests.title": "Arkadaşlık istekleri",
+    "settings.account.privacy.friendRequests.description":
+      "Sana kimlerin arkadaşlık isteği gönderebileceğini seç. Bu tercih server tarafında uygulanır.",
+    "settings.account.privacy.friendRequestPolicy.EVERYONE": "Herkes",
+    "settings.account.privacy.friendRequestPolicy.MUTUAL_SERVERS": "Ortak sunucular",
+    "settings.account.privacy.friendRequestPolicy.MUTUAL_FRIENDS": "Ortak arkadaşlar",
+    "settings.account.privacy.friendRequestPolicy.NOBODY": "Hiç kimse",
+    "settings.account.visibility.everyone": "Herkes",
+    "settings.account.preferences.title": "Hesap tercihleri",
+    "settings.account.preferences.description":
+      "Whispr deneyimini kişiselleştirmek için hesap tercihlerini yönet.",
+    "settings.account.preferences.timeZone.title": "Saat dilimi",
+    "settings.account.preferences.timeZone.description":
+      "Toplantılar ve zaman bilgileri için tarayıcı saat dilimini kullan.",
+    "settings.account.preferences.language.title": "Dil tercihi",
+    "settings.account.preferences.language.description":
+      "Uygulama dil tercihini mevcut dil ayarlarından değiştir.",
+    "settings.account.preferences.dateFormat.title": "Tarih ve saat formatı",
+    "settings.account.preferences.dateFormat.description":
+      "Kaydedilebilir format tercihi düzenlenmeden önce API desteği gerektirir.",
+    "settings.account.preferences.dateFormat.value": "Yerel varsayılan",
+    "settings.account.preferences.accessibility.title": "Erişilebilirlik yoğunluğu",
+    "settings.account.preferences.accessibility.description":
+      "Kaydedilebilir yoğunluk tercihi doğrulanmış kullanıcı ayarlarıyla eklenecek.",
+    "settings.account.preferences.accessibility.value": "Rahat",
     "settings.account.editTitle": "Hesap bilgilerini düzenle",
     "settings.account.editDescription":
       "Görünür adını, kullanıcı adını, e-postanı veya tercih ettiğin çevrimiçi durumu çalışma alanından çıkmadan güncelle.",
@@ -3458,12 +3663,17 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "appearance.language.enFull": "İngilizce",
     "appearance.language.eyebrow": "Dil / Language",
     "appearance.serverRail.eyebrow": "Sunucu Rayı",
-    "appearance.serverRail.title": "Kalabalığı azaltmak için sunucu sütununu genişlet",
+    "appearance.serverRail.title":
+      "Whispr sunucu rayını artık masaüstü ve mobilde tutarlı, kompakt ve ikon odaklı tutar.",
     "appearance.serverRail.compact": "Kompakt",
     "appearance.serverRail.balanced": "Dengeli",
     "appearance.serverRail.spacious": "Geniş",
-    "appearance.serverRail.iconOnly": "Sadece ikon",
-    "appearance.serverRail.expanded": "Genişletilmiş",
+    "appearance.serverRail.compactMode": "Sabit kompakt ray",
+    "appearance.serverRail.widthMetric": "Ray genişliği",
+    "appearance.serverRail.iconMetric": "İkon",
+    "appearance.serverRail.touchMetric": "Dokunma alanı",
+    "appearance.serverRail.iconOnly": "Kompakt ray",
+    "appearance.serverRail.expanded": "Standart ray",
     "appearance.serverRail.iconsTitle": "Sunucu ikon boyutu",
     "appearance.serverRail.iconsDescription":
       "DM ve sunucu avatarlarının sol raydaki ölçeğini kabuğun geri kalanını değiştirmeden ayarla.",
@@ -3570,8 +3780,8 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.serverRail.createShort": "Yeni",
     "shell.serverRail.addServer": "Sunucu Ekle",
     "shell.serverRail.resetOrder": "Sıralamayı sıfırla",
-    "shell.serverRail.collapse": "Sadece ikonları göster",
-    "shell.serverRail.expand": "Sidebar'ı genişlet",
+    "shell.serverRail.collapse": "Kompakt ray kullan",
+    "shell.serverRail.expand": "Standart ray kullan",
     "shell.serverRail.customize": "Ray kontrolleri",
     "shell.serverRail.customizeHint": "Canlı boyut ve aralık",
     "shell.serverRail.width": "Ray genişliği",
@@ -3580,6 +3790,11 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.mobile.workspaceNavigation": "Çalışma alanı gezinmesi",
     "shell.channelSidebar.empty":
       "Kanalları gezmek için bir sunucu seç veya kendi çalışma alanını kurmak için yeni bir sunucu oluştur.",
+    "shell.channelSidebar.searchLabel": "Kanallarda ara",
+    "shell.channelSidebar.searchPlaceholder": "Kanallarda ara",
+    "shell.channelSidebar.searchEmptyTitle": "Eşleşen kanal yok",
+    "shell.channelSidebar.searchEmptyDescription":
+      "Farklı bir ad dene veya tüm kanalları görmek için aramayı temizle.",
     "shell.channelSidebar.openChannels": "Açık Kanallar",
     "shell.channelSidebar.memberView": "Üye Görünümü",
     "shell.channelSidebar.serverSettings": "Sunucu Ayarları",
@@ -3629,6 +3844,12 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "shell.memberPanel.owner": "Sahip",
     "shell.memberPanel.admin": "Admin",
     "shell.memberPanel.member": "Üye",
+    "shell.memberPanel.membersTitle": "Üyeler",
+    "shell.memberPanel.quickAccess": "Hızlı erişim",
+    "shell.memberPanel.quickAccessHint": "Zaten desteklenen güvenli sunucu aksiyonları.",
+    "shell.memberPanel.activeVoice": "Aktif şu anda",
+    "shell.memberPanel.activeVoiceLive": "Canlı",
+    "shell.memberPanel.voiceParticipants": "{count} seste",
     "shell.user.toggleMute": "Sesi kapat",
     "shell.user.toggleDeafen": "Kulaklığı kapat",
     "shell.user.status": "Çevrimiçi durum",
@@ -3786,7 +4007,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.list.errorTitle": "Mesajlar yüklenemedi.",
     "chat.list.errorDescription": "Lütfen kanalı yenileyip tekrar deneyin.",
     "chat.list.emptyTitle": "Henüz mesaj yok.",
-    "chat.list.emptyDescription": "İlk mesajı sen gönder!",
+    "chat.list.emptyDescription": "Bu kanaldaki ilk mesajı gönderebilirsin.",
     "chat.list.ariaLabel": "Mesaj geçmişi",
     "chat.list.scrollToLatest": "En son mesajlara kaydır",
     "chat.search.attachmentOnly": "Yalnızca ek içeren mesaj",
@@ -3815,6 +4036,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "chat.notifications.mentionsHint": "Yalnızca biri seni etiketlediğinde bildir.",
     "chat.notifications.muted": "Sessiz",
     "chat.notifications.mutedHint": "Kanal bildirimlerini duraklat.",
+    "chat.notifications.openSettings": "Bildirim ayarlarını aç",
     "chat.date.today": "Bugün",
     "chat.date.yesterday": "Dün",
     "chat.input.placeholder": "Bir mesaj gönder...",

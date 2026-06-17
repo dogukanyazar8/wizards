@@ -4,28 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { motion, Reorder } from "framer-motion";
-import {
-  MessageCircleMore,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  RotateCcw,
-  SlidersHorizontal,
-} from "lucide-react";
+import { MessageCircleMore, Plus, RotateCcw } from "lucide-react";
+import Image from "next/image";
 import type { WorkspaceServerSummary } from "@wizards/types";
 import { useI18n } from "@/components/providers/locale-provider";
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { ServerRailSkeleton } from "@/components/shell/shell-skeletons";
 import { ServerIcon } from "@/components/shell/server-icon";
-import {
-  EXPANDED_MIN_SERVER_RAIL_WIDTH,
-  MAX_SERVER_RAIL_ICON_SIZE,
-  MAX_SERVER_RAIL_WIDTH,
-  MIN_SERVER_RAIL_ICON_SIZE,
-  SERVER_RAIL_ICON_SIZE_STEP,
-  SERVER_RAIL_WIDTH_STEP,
-} from "@/lib/appearance";
-import { cn } from "@/lib/utils";
+import { COMPACT_SERVER_RAIL_ICON_SIZE, COMPACT_SERVER_RAIL_TOUCH_SIZE } from "@/lib/appearance";
 
 const SERVER_RAIL_ORDER_STORAGE_KEY = "wizards.serverRail.order.v1";
 
@@ -33,19 +19,12 @@ type ServerRailProps = {
   activeServerId: string | null;
   currentUserId: string;
   dmUnreadCount?: number;
-  iconSize: number;
-  isIconOnly?: boolean;
   loading: boolean;
   onNavigate: (href: string) => void;
   onOpenCreateServer: () => void;
   onOpenServerContextMenu: (serverId: string, event: MouseEvent<HTMLButtonElement>) => void;
   onPrefetch?: (href: string) => void;
   resolveServerHref: (server: WorkspaceServerSummary) => string;
-  onSetIconSize: (size: number) => void;
-  onSetExpanded?: () => void;
-  onSetIconOnly?: () => void;
-  onSetWidth: (width: number) => void;
-  serverRailWidth: number;
   servers: WorkspaceServerSummary[];
 };
 
@@ -57,6 +36,14 @@ function getPreviewLabel(value: string) {
 
 function getServerShortLabel(server: WorkspaceServerSummary) {
   return server.shortName ?? getPreviewLabel(server.name);
+}
+
+function getCompactCountLabel(count: number) {
+  return count > 99 ? "99+" : String(count);
+}
+
+function joinTooltipHints(values: string[]) {
+  return values.filter(Boolean).join(" • ");
 }
 
 function parseStoredServerOrder(rawValue: string | null) {
@@ -125,63 +112,16 @@ function isServerRailItemTarget(target: EventTarget | null) {
   return target instanceof HTMLElement && target.closest("[data-server-rail-item]") !== null;
 }
 
-function RailTuningControl({
-  label,
-  max,
-  min,
-  onChange,
-  step,
-  value,
-}: {
-  label: string;
-  max: number;
-  min: number;
-  onChange: (value: number) => void;
-  step: number;
-  value: number;
-}) {
-  return (
-    <label className="block rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.36)] p-3">
-      <span className="mb-2 flex items-center justify-between gap-3">
-        <span className="text-xs font-semibold text-app-foreground">{label}</span>
-        <span className="rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.68)] px-2 py-0.5 text-[11px] font-bold text-app-muted">
-          {value}px
-        </span>
-      </span>
-      <input
-        className="accent-[hsl(var(--primary))] h-2 w-full cursor-pointer"
-        max={max}
-        min={min}
-        onChange={(event) => onChange(Number(event.target.value))}
-        step={step}
-        type="range"
-        value={value}
-      />
-      <span className="mt-1 flex justify-between text-[10px] font-semibold uppercase tracking-[0.12em] text-app-soft">
-        <span>{min}px</span>
-        <span>{max}px</span>
-      </span>
-    </label>
-  );
-}
-
 export function ServerRail({
   activeServerId,
   currentUserId,
   dmUnreadCount = 0,
-  iconSize,
-  isIconOnly = false,
   loading,
   onNavigate,
   onOpenCreateServer,
   onOpenServerContextMenu,
   onPrefetch,
   resolveServerHref,
-  onSetIconSize,
-  onSetExpanded,
-  onSetIconOnly,
-  onSetWidth,
-  serverRailWidth,
   servers,
 }: ServerRailProps) {
   const { t } = useI18n();
@@ -231,6 +171,7 @@ export function ServerRail({
     () => orderedServers.map((server) => server.id),
     [orderedServers],
   );
+  const serverCountLabel = getCompactCountLabel(servers.length);
 
   const persistServerOrder = useCallback(
     (nextOrder: string[]) => {
@@ -268,11 +209,15 @@ export function ServerRail({
     const rect = addBtnRef.current.getBoundingClientRect();
     setAddTooltipPos({ top: rect.top + rect.height / 2, left: rect.right + 12 });
   };
+  const dmTooltipHint =
+    dmUnreadCount > 0
+      ? t("shell.channelItem.unreadCount", { count: dmUnreadCount })
+      : undefined;
 
   if (loading) {
     return (
       <aside
-        className="app-rail h-full w-[var(--server-rail-width)] shrink-0 border-r border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.9),hsl(var(--surface-soft)/0.34))] backdrop-blur-xl"
+        className="app-rail h-full w-[var(--server-rail-width)] shrink-0 bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.9),hsl(var(--surface-soft)/0.34))] backdrop-blur-xl"
         data-testid="server-rail"
       >
         <ServerRailSkeleton />
@@ -282,58 +227,68 @@ export function ServerRail({
 
   return (
     <aside
-      className={cn(
-        "app-rail flex h-full w-[var(--server-rail-width)] shrink-0 flex-col border-r border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.74),hsl(var(--surface-soft)/0.34))] pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-xl",
-        isIconOnly ? "px-2 pb-3" : "px-3 pb-4",
-      )}
+      className="app-rail flex h-full w-[var(--server-rail-width)] shrink-0 flex-col items-center bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.58),hsl(var(--surface-soft)/0.2))] px-2 pb-3 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur-xl"
       data-testid="server-rail"
       onContextMenu={handleRailContextMenu}
     >
       <div
-        className={cn(
-          "relative w-full shrink-0 rounded-[30px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.66)] shadow-[0_22px_54px_hsl(var(--shadow-color)/0.08)]",
-          isIconOnly ? "p-2" : "p-2.5",
-        )}
+        aria-label="Whispr"
+        className="relative mb-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-[hsl(var(--surface-card)/0.58)] ring-1 ring-[hsl(var(--border)/0.42)]"
         data-server-rail-item
+        role="img"
+        title="Whispr"
       >
+        <Image
+          alt=""
+          aria-hidden="true"
+          className="rounded-[13px]"
+          height={30}
+          priority={false}
+          src="/app-icons/whispr.png"
+          width={30}
+        />
+        <span
+          aria-label={t("shell.serverRail.servers")}
+          className="absolute -bottom-1 right-0 flex h-4 min-w-4 items-center justify-center rounded-full border border-[hsl(var(--background)/0.58)] bg-[hsl(var(--primary))] px-1 text-[9px] font-black leading-none text-[hsl(var(--primary-foreground))] shadow-[0_8px_18px_hsl(var(--primary)/0.24)]"
+          title={t("shell.serverRail.servers")}
+        >
+          {serverCountLabel}
+        </span>
+      </div>
+      <div className="flex w-full shrink-0 flex-col items-center gap-1.5" data-server-rail-item>
         <ServerIcon
           active={!activeServerId}
           badgeCount={dmUnreadCount}
           fallback="DM"
-          iconSize={iconSize}
+          iconSize={COMPACT_SERVER_RAIL_ICON_SIZE}
           label={t("shell.serverRail.directMessages")}
           labelPreview="DM"
           onClick={() => onNavigate("/channels/@me")}
-          showLabel={!isIconOnly}
           testId="server-rail-dm"
+          tooltipHint={dmTooltipHint}
           {...(onPrefetch ? { onPrefetch: () => onPrefetch("/channels/@me") } : {})}
         />
+        <div className="h-px w-7 rounded-full bg-[hsl(var(--border)/0.5)]" aria-hidden="true" />
       </div>
 
-      <div className="mt-4 flex min-h-0 w-full flex-1 flex-col">
-        {!isIconOnly ? (
-          <div className="mb-3 flex items-center justify-between px-2">
-            <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-[hsl(var(--muted-foreground))]">
-              {t("shell.serverRail.servers")}
-            </span>
-            <span className="rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.4)] px-2 py-0.5 text-[10px] font-semibold text-app-muted">
-              {servers.length}
-            </span>
-          </div>
-        ) : null}
-
-        <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
+      <div className="mt-2 flex min-h-0 w-full flex-1 flex-col items-center">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-0.5">
           <Reorder.Group
             axis="y"
-            className={cn(
-              "m-0 flex w-full list-none flex-col p-0",
-              isIconOnly ? "items-center gap-2" : "gap-2.5",
-            )}
+            className="m-0 flex w-full list-none flex-col items-center gap-1.5 p-0"
             onReorder={persistServerOrder}
             values={orderedServerIds}
           >
             {orderedServers.map((server) => {
               const serverHref = resolveServerHref(server);
+              const tooltipHint = joinTooltipHints([
+                server.mentionCount > 0
+                  ? t("shell.channelItem.mentionCount", { count: server.mentionCount })
+                  : "",
+                server.unreadCount > 0
+                  ? t("shell.channelItem.unreadCount", { count: server.unreadCount })
+                  : "",
+              ]);
 
               return (
                 <Reorder.Item
@@ -361,7 +316,7 @@ export function ServerRail({
                     badgeCount={server.unreadCount}
                     className={draggingServerId === server.id ? "cursor-grabbing" : "cursor-grab"}
                     fallback={server.name}
-                    iconSize={iconSize}
+                    iconSize={COMPACT_SERVER_RAIL_ICON_SIZE}
                     iconUrl={server.iconUrl}
                     label={server.name}
                     labelPreview={getServerShortLabel(server)}
@@ -375,8 +330,8 @@ export function ServerRail({
                     }}
                     onContextMenu={(event) => onOpenServerContextMenu(server.id, event)}
                     reorderable={orderedServers.length > 1}
-                    showLabel={!isIconOnly}
                     testId={`server-rail-server-${server.id}`}
+                    tooltipHint={tooltipHint || undefined}
                     {...(onPrefetch ? { onPrefetch: () => onPrefetch(serverHref) } : {})}
                   />
                 </Reorder.Item>
@@ -384,16 +339,11 @@ export function ServerRail({
             })}
           </Reorder.Group>
 
-          <div className={orderedServers.length > 0 ? "mt-3" : ""} data-server-rail-item>
+          <div className={orderedServers.length > 0 ? "mt-2" : ""} data-server-rail-item>
             <motion.button
               ref={addBtnRef}
               aria-label={t("shell.serverRail.createServer")}
-              className={cn(
-                "group relative flex shrink-0 items-center justify-center border border-[hsl(var(--success)/0.28)] bg-[linear-gradient(180deg,hsl(var(--success)/0.15),hsl(var(--success)/0.06))] text-left text-[hsl(var(--success))] shadow-[inset_0_1px_0_hsl(var(--background)/0.24),0_14px_30px_hsl(var(--success)/0.08)] outline-none transition hover:border-[hsl(var(--success)/0.42)] hover:bg-[hsl(var(--success)/0.14)] focus-visible:ring-2 focus-visible:ring-[hsl(var(--success)/0.55)]",
-                isIconOnly
-                  ? "mx-auto rounded-[22px] p-0"
-                  : "h-14 w-full gap-2 rounded-[22px] px-2.5",
-              )}
+              className="group relative mx-auto flex shrink-0 items-center justify-center rounded-[18px] text-left text-[hsl(var(--primary))] outline-none transition hover:bg-[hsl(var(--primary)/0.1)] focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background)/0.72)]"
               onBlur={() => setAddTooltipPos(null)}
               onClick={onOpenCreateServer}
               onFocus={showAddTooltip}
@@ -401,38 +351,22 @@ export function ServerRail({
               onMouseLeave={() => setAddTooltipPos(null)}
               data-testid="create-server-button"
               type="button"
-              whileHover={{ scale: 1.018, x: 1 }}
+              whileHover={{ scale: 1.035, y: -1 }}
               whileTap={{ scale: 0.985 }}
-              {...(isIconOnly
-                ? {
-                    style: {
-                      height: iconSize + 8,
-                      width: iconSize + 8,
-                    },
-                  }
-                : {})}
+              style={{
+                height: COMPACT_SERVER_RAIL_TOUCH_SIZE,
+                width: COMPACT_SERVER_RAIL_TOUCH_SIZE,
+              }}
             >
               <span
-                className={cn(
-                  "flex shrink-0 items-center justify-center rounded-[17px] border border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.14)]",
-                  isIconOnly ? "" : "h-10 w-10",
-                )}
-                style={
-                  isIconOnly
-                    ? {
-                        height: iconSize,
-                        width: iconSize,
-                      }
-                    : undefined
-                }
+                className="flex shrink-0 items-center justify-center rounded-[16px] bg-[hsl(var(--primary)/0.12)] ring-1 ring-[hsl(var(--primary)/0.18)]"
+                style={{
+                  height: COMPACT_SERVER_RAIL_ICON_SIZE,
+                  width: COMPACT_SERVER_RAIL_ICON_SIZE,
+                }}
               >
-                <Plus className="h-5 w-5" />
+                <Plus className="h-4 w-4" />
               </span>
-              {!isIconOnly ? (
-                <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-[0.08em]">
-                  {t("shell.serverRail.createShort")}
-                </span>
-              ) : null}
             </motion.button>
           </div>
         </div>
@@ -475,65 +409,6 @@ export function ServerRail({
           <RotateCcw className="h-4 w-4" />
           {t("shell.serverRail.resetOrder")}
         </ContextMenuItem>
-        {onSetIconOnly && onSetExpanded ? (
-          <>
-            <ContextMenuSeparator />
-            <ContextMenuItem
-              className="gap-2"
-              onClick={() => {
-                closeRailContextMenu();
-                if (isIconOnly) {
-                  onSetExpanded();
-                  return;
-                }
-
-                onSetIconOnly();
-              }}
-            >
-              {isIconOnly ? (
-                <PanelLeftOpen className="h-4 w-4" />
-              ) : (
-                <PanelLeftClose className="h-4 w-4" />
-              )}
-              {isIconOnly ? t("shell.serverRail.expand") : t("shell.serverRail.collapse")}
-            </ContextMenuItem>
-            <ContextMenuSeparator />
-            <div className="w-60 space-y-3 px-2 py-2">
-              <div className="flex items-center gap-2 px-1">
-                <span className="flex h-8 w-8 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-app-foreground">
-                    {t("shell.serverRail.customize")}
-                  </p>
-                  <p className="truncate text-[11px] text-app-muted">
-                    {t("shell.serverRail.customizeHint")}
-                  </p>
-                </div>
-              </div>
-              <RailTuningControl
-                label={t("shell.serverRail.width")}
-                max={MAX_SERVER_RAIL_WIDTH}
-                min={EXPANDED_MIN_SERVER_RAIL_WIDTH}
-                onChange={(nextValue) => {
-                  onSetExpanded();
-                  onSetWidth(nextValue);
-                }}
-                step={SERVER_RAIL_WIDTH_STEP}
-                value={serverRailWidth}
-              />
-              <RailTuningControl
-                label={t("shell.serverRail.iconSize")}
-                max={MAX_SERVER_RAIL_ICON_SIZE}
-                min={MIN_SERVER_RAIL_ICON_SIZE}
-                onChange={onSetIconSize}
-                step={SERVER_RAIL_ICON_SIZE_STEP}
-                value={iconSize}
-              />
-            </div>
-          </>
-        ) : null}
         <ContextMenuSeparator />
         <ContextMenuItem
           onClick={() => {

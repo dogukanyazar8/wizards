@@ -95,8 +95,9 @@ export function MainChannelPanel({
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-0 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-0 md:px-2.5 md:pb-2.5 md:pt-2.5">
         <div
-          className="mx-auto flex min-h-0 w-full flex-1 overflow-hidden border-x-0 border-y border-[hsl(var(--border)/0.72)] bg-[linear-gradient(160deg,hsl(var(--surface-card)/0.94),hsl(var(--surface-soft)/0.24))] shadow-none md:rounded-[30px] md:border md:shadow-[0_24px_62px_hsl(var(--shadow-color)/0.075)]"
+          className="whispr-surface-pane mx-auto flex min-h-0 w-full flex-1 overflow-hidden border-x-0 border-y shadow-none md:rounded-none md:border-x-0"
           data-main-panel-frame="true"
+          data-surface-layer="pane"
           style={{ maxWidth: children ? "100%" : `${mainPanelWidth}px` }}
         >
           {children ? (

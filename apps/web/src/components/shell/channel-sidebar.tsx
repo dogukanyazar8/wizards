@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useTransition } from "react";
+import React, { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
   closestCenter,
   DndContext,
@@ -31,6 +31,7 @@ import {
   MoreHorizontal,
   Plus,
   RotateCcw,
+  Search,
   Settings2,
   SlidersHorizontal,
   Trash2,
@@ -38,7 +39,6 @@ import {
   Volume2,
 } from "lucide-react";
 import { Button } from "@wizards/ui";
-import { useState } from "react";
 import type { WorkspaceChannel, WorkspaceServerDetail } from "@wizards/types";
 import { useShallow } from "zustand/react/shallow";
 import { FriendsSidebar } from "@/components/friends/friends-sidebar";
@@ -430,40 +430,40 @@ export function UserProfileFooter({
 
   return (
     <div
-      className="app-panel relative min-w-0 rounded-[28px] border px-3 py-3 shadow-[0_22px_54px_hsl(var(--shadow-color)/0.1)] sm:rounded-[32px] sm:px-4"
+      className="relative min-w-0 rounded-[22px] px-1.5 py-1.5"
       data-notification-popup-anchor="user"
       data-testid="user-bar"
       data-user-bar-anchor="true"
       ref={userBarRef}
     >
-      <div className="flex min-w-0 flex-wrap items-center gap-3 sm:gap-4">
-        <div className="relative shrink-0 drop-shadow-[0_14px_28px_hsl(var(--shadow-color)/0.12)]">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <div className="relative shrink-0 drop-shadow-[0_10px_20px_hsl(var(--shadow-color)/0.08)]">
           <Avatar
             alt={user.displayName}
-            className="h-14 w-14 sm:h-16 sm:w-16"
+            className="h-10 w-10 sm:h-11 sm:w-11"
             fallback={user.displayName}
             src={user.avatarUrl}
           />
           <span
             aria-hidden="true"
             className={cn(
-              "absolute bottom-1 right-1 h-4 w-4 rounded-full border-[3px] border-[hsl(var(--surface-card))]",
+              "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[hsl(var(--surface-card))]",
               getStatusDotClass(status),
             )}
           />
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[17px] font-extrabold leading-5 tracking-[-0.02em] text-app-foreground">
+          <p className="truncate text-sm font-extrabold leading-5 tracking-[-0.01em] text-app-foreground">
             {user.displayName}
           </p>
-          <p className="mt-1 truncate text-[13px] font-semibold text-app-muted">@{user.username}</p>
-          <div className="relative mt-1.5 inline-flex max-w-full">
+          <p className="truncate text-[11px] font-semibold text-app-muted">@{user.username}</p>
+          <div className="relative mt-0.5 inline-flex max-w-full">
             <button
               aria-expanded={isStatusMenuOpen}
               aria-haspopup="listbox"
               aria-label={t("shell.user.status")}
-              className="inline-flex max-w-full items-center gap-1.5 bg-transparent p-0 text-left text-[13px] font-semibold text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
+              className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-transparent p-0 text-left text-[11px] font-semibold text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
               disabled={isUpdatingStatus}
               onClick={() => setIsStatusMenuOpen((open) => !open)}
               title={t("shell.user.statusTitle")}
@@ -473,7 +473,7 @@ export function UserProfileFooter({
                 className={cn("h-2.5 w-2.5 shrink-0 rounded-full", getStatusDotClass(status))}
               />
               <span className="truncate">{t(currentStatusOption.key)}</span>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-app-soft" />
+              <ChevronDown className="h-3 w-3 shrink-0 text-app-soft" />
             </button>
 
             {isStatusMenuOpen ? (
@@ -510,30 +510,30 @@ export function UserProfileFooter({
           </div>
         </div>
 
-        <div className="ml-auto grid shrink-0 grid-cols-4 gap-1.5 sm:flex sm:items-center sm:gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           <button
             aria-label={t("shell.user.toggleMute")}
             className={cn(
-              "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft)/0.74)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-12 sm:w-12",
+              "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               isMuted
-                ? "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
-                : "border-[hsl(var(--border)/0.66)]",
+                ? "bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
+                : "text-app-foreground",
             )}
             onClick={() => {
               void toggleMute();
             }}
             type="button"
           >
-            <Mic className={cn("h-[18px] w-[18px]", isMuted && "text-[hsl(var(--danger))]")} />
+            <Mic className={cn("h-4 w-4", isMuted && "text-[hsl(var(--danger))]")} />
           </button>
 
           <button
             aria-label={t("shell.user.toggleDeafen")}
             className={cn(
-              "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft)/0.74)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-12 sm:w-12",
+              "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               isDeafened
-                ? "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
-                : "border-[hsl(var(--border)/0.66)]",
+                ? "bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
+                : "text-app-foreground",
             )}
             onClick={() => {
               void toggleDeafen();
@@ -541,18 +541,18 @@ export function UserProfileFooter({
             type="button"
           >
             <Volume2
-              className={cn("h-[18px] w-[18px]", isDeafened && "text-[hsl(var(--danger))]")}
+              className={cn("h-4 w-4", isDeafened && "text-[hsl(var(--danger))]")}
             />
           </button>
 
-          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.72)] shadow-[0_10px_26px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft)/0.74)] sm:h-12 sm:w-12">
-            <NotificationBell className="h-12 w-12 rounded-full hover:bg-transparent" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] transition hover:bg-[hsl(var(--surface-soft)/0.68)]">
+            <NotificationBell className="h-9 w-9 rounded-full hover:bg-transparent" />
           </div>
 
           <button
             aria-label={t("shell.user.appearanceSettings")}
             className={cn(
-              "inline-flex h-11 w-11 items-center justify-center rounded-full border border-[hsl(var(--primary)/0.28)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.16),hsl(var(--surface-card)/0.78))] text-[hsl(var(--primary))] shadow-[0_14px_30px_hsl(var(--primary)/0.12)] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-12 sm:w-12",
+              "inline-flex h-9 w-9 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               isQuickMenuOpen && "bg-[hsl(var(--primary)/0.18)]",
             )}
             data-testid="user-settings-button"
@@ -560,7 +560,7 @@ export function UserProfileFooter({
             title={t("shell.user.appearanceSettingsTitle")}
             type="button"
           >
-            <Settings2 className="h-[18px] w-[18px]" />
+            <Settings2 className="h-4 w-4" />
           </button>
         </div>
 
@@ -727,7 +727,7 @@ export function ChannelSidebar({
   onPrefetch,
   showUserFooter = true,
 }: ChannelSidebarProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const queryClient = useQueryClient();
   const voiceStatesQuery = useVoiceStates(detail?.server.id ?? null);
   const { prepareForVoiceJoin } = useVoiceState();
@@ -792,6 +792,18 @@ export function ChannelSidebar({
     id: string;
     name: string;
   } | null>(null);
+  const [channelSearchQuery, setChannelSearchQuery] = useState("");
+  const normalizedChannelSearchQuery = channelSearchQuery.trim().toLocaleLowerCase(locale);
+  const isFilteringChannels = normalizedChannelSearchQuery.length > 0;
+  const filterChannels = (channels: WorkspaceChannel[]) => {
+    if (!isFilteringChannels) {
+      return channels;
+    }
+
+    return channels.filter((channel) =>
+      channel.name.toLocaleLowerCase(locale).includes(normalizedChannelSearchQuery),
+    );
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1178,21 +1190,33 @@ export function ChannelSidebar({
   }
 
   const canManage = detail.server.isAdmin;
-  const hasOpenChannelGroup = detail.ungroupedChannels.length > 0;
+  const visibleCategories = isFilteringChannels
+    ? detail.categories
+        .map((category) => ({
+          ...category,
+          channels: filterChannels(category.channels),
+        }))
+        .filter((category) => category.channels.length > 0)
+    : detail.categories;
+  const visibleUngroupedChannels = filterChannels(detail.ungroupedChannels);
+  const hasOpenChannelGroup = visibleUngroupedChannels.length > 0;
   const openChannelGroupPosition = hasOpenChannelGroup
     ? Math.min(
-        detail.categories.length,
+        visibleCategories.length,
         Math.max(
           0,
-          openChannelGroupPositions[detail.server.id] ?? detail.categories.length,
+          openChannelGroupPositions[detail.server.id] ?? visibleCategories.length,
         ),
       )
-    : detail.categories.length;
-  const displayGroups: SidebarDisplayGroup[] = detail.categories.map((category) => ({
+    : visibleCategories.length;
+  const displayGroups: SidebarDisplayGroup[] = visibleCategories.map((category) => ({
     category,
     key: `category:${category.id}`,
     type: "category",
   }));
+  const hasVisibleChannels =
+    visibleUngroupedChannels.length > 0 ||
+    visibleCategories.some((category) => category.channels.length > 0);
 
   if (hasOpenChannelGroup) {
     displayGroups.splice(openChannelGroupPosition, 0, {
@@ -1271,7 +1295,7 @@ export function ChannelSidebar({
 
     return (
       <div
-        className="group/category space-y-1 rounded-[22px] border border-[hsl(var(--border)/0.32)] bg-[hsl(var(--surface-card)/0.18)] px-1.5 py-1.5"
+        className="group/category space-y-1 rounded-[18px] px-1.5 py-1.5"
         data-sidebar-interactive="true"
         key={groupKey}
       >
@@ -1293,7 +1317,7 @@ export function ChannelSidebar({
           {canShowMoveControls ? (
             <div
               aria-label={t("shell.channelSidebar.sectionMoveControls", { name: label })}
-              className="hidden shrink-0 items-center rounded-2xl border border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-card)/0.64)] p-0.5 shadow-[0_10px_22px_hsl(var(--shadow-color)/0.08)] group-hover/category:flex group-focus-within/category:flex"
+              className="hidden shrink-0 items-center rounded-2xl bg-[hsl(var(--surface-card)/0.54)] p-0.5 group-hover/category:flex group-focus-within/category:flex"
             >
               <button
                 aria-label={t("shell.channelSidebar.moveSectionUp", { name: label })}
@@ -1430,13 +1454,13 @@ export function ChannelSidebar({
 
   return (
     <aside
-      className="app-sidebar flex h-full w-full min-w-0 flex-col overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0"
+      className="app-sidebar flex h-full w-full min-w-0 flex-col overflow-hidden bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.96),hsl(var(--surface-soft)/0.32))] pt-[env(safe-area-inset-top)] md:pt-0"
       data-testid="channel-sidebar"
     >
-      <div className="border-b border-[hsl(var(--border)/0.78)] p-3">
+      <div className="space-y-3 border-b border-[hsl(var(--border)/0.42)] p-3">
         <button
           aria-label={`Open ${detail.server.name} menu`}
-          className="app-panel flex min-h-[4.25rem] w-full min-w-0 items-center justify-between gap-3 rounded-[26px] border px-4 py-3 text-left shadow-[0_18px_38px_hsl(var(--shadow-color)/0.08)] transition hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+          className="flex min-h-[4rem] w-full min-w-0 items-center justify-between gap-3 rounded-[22px] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.6),hsl(var(--primary)/0.07))] px-3 py-2.5 text-left transition hover:bg-[hsl(var(--surface-card)/0.76)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
           data-sidebar-interactive="true"
           onClick={(event) => {
             const rect = event.currentTarget.getBoundingClientRect();
@@ -1459,14 +1483,28 @@ export function ChannelSidebar({
               {t("shell.channelSidebar.membersCount", { count: detail.server.memberCount })}
             </p>
           </div>
-          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted">
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--surface-soft)/0.38)] text-app-muted">
             <ChevronDown className="h-4 w-4" />
           </span>
         </button>
+        <label className="relative block" data-sidebar-interactive="true">
+          <span className="sr-only">{t("shell.channelSidebar.searchLabel")}</span>
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-soft" />
+          <input
+            className="h-11 w-full rounded-[18px] border border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-card)/0.52)] pl-9 pr-20 text-sm font-medium text-app-foreground outline-none transition placeholder:text-app-soft hover:border-[hsl(var(--primary)/0.22)] focus:border-[hsl(var(--primary)/0.42)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
+            onChange={(event) => setChannelSearchQuery(event.target.value)}
+            placeholder={t("shell.channelSidebar.searchPlaceholder")}
+            type="search"
+            value={channelSearchQuery}
+          />
+          <span className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded-xl bg-[hsl(var(--surface-soft)/0.48)] px-2 py-1 text-[10px] font-bold text-app-soft sm:inline-flex">
+            Ctrl K
+          </span>
+        </label>
         {canManage ? (
-          <div className="mt-2 grid grid-cols-3 gap-2" data-sidebar-interactive="true">
+          <div className="grid grid-cols-3 gap-2" data-sidebar-interactive="true">
             <button
-              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.28)] px-2 text-xs font-semibold text-app-muted transition hover:border-[hsl(var(--primary)/0.35)] hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl bg-[hsl(var(--surface-soft)/0.24)] px-2 text-xs font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onClick={() =>
                 openChannelModal({
                   mode: "create",
@@ -1480,7 +1518,7 @@ export function ChannelSidebar({
               <span>{t("shell.channelSidebar.addTextChannel")}</span>
             </button>
             <button
-              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.28)] px-2 text-xs font-semibold text-app-muted transition hover:border-[hsl(var(--primary)/0.35)] hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl bg-[hsl(var(--surface-soft)/0.24)] px-2 text-xs font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onClick={() =>
                 openChannelModal({
                   mode: "create",
@@ -1494,7 +1532,7 @@ export function ChannelSidebar({
               <span>{t("shell.channelSidebar.addVoiceChannel")}</span>
             </button>
             <button
-              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.28)] px-2 text-xs font-semibold text-app-muted transition hover:border-[hsl(var(--primary)/0.35)] hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl bg-[hsl(var(--surface-soft)/0.24)] px-2 text-xs font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onClick={() => openInviteModal(detail.server.id)}
               type="button"
             >
@@ -1525,37 +1563,48 @@ export function ChannelSidebar({
             });
           }}
         >
-          <SortableContext
-            items={detail.categories.map((category) => `category-sort:${category.id}`)}
-            strategy={verticalListSortingStrategy}
-          >
-            {displayGroups.map((group) =>
-              group.type === "category" ? (
-                <SortableCategoryGroup
-                  canManage={canManage}
-                  categoryId={group.category.id}
-                  key={group.key}
-                >
-                  {(sortable) =>
-                    renderChannelGroup(
-                      group.category.name,
-                      group.category.id,
-                      group.category.channels,
-                      group.key,
-                      sortable,
-                    )
-                  }
-                </SortableCategoryGroup>
-              ) : (
-                renderChannelGroup(
-                  t("shell.channelSidebar.openChannels"),
-                  null,
-                  detail.ungroupedChannels,
-                  group.key,
-                )
-              ),
-            )}
-          </SortableContext>
+          {hasVisibleChannels ? (
+            <SortableContext
+              items={detail.categories.map((category) => `category-sort:${category.id}`)}
+              strategy={verticalListSortingStrategy}
+            >
+              {displayGroups.map((group) =>
+                group.type === "category" ? (
+                  <SortableCategoryGroup
+                    canManage={canManage}
+                    categoryId={group.category.id}
+                    key={group.key}
+                  >
+                    {(sortable) =>
+                      renderChannelGroup(
+                        group.category.name,
+                        group.category.id,
+                        group.category.channels,
+                        group.key,
+                        sortable,
+                      )
+                    }
+                  </SortableCategoryGroup>
+                ) : (
+                  renderChannelGroup(
+                    t("shell.channelSidebar.openChannels"),
+                    null,
+                    visibleUngroupedChannels,
+                    group.key,
+                  )
+                ),
+              )}
+            </SortableContext>
+          ) : (
+            <div className="rounded-[24px] border border-dashed border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.28)] px-4 py-8 text-center">
+              <p className="text-sm font-semibold text-app-foreground">
+                {t("shell.channelSidebar.searchEmptyTitle")}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-app-muted">
+                {t("shell.channelSidebar.searchEmptyDescription")}
+              </p>
+            </div>
+          )}
         </div>
       </DndContext>
 

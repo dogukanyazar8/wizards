@@ -31,7 +31,7 @@ function formatWhisprVersion(version: string, codename: string) {
 }
 
 const WHISPR_VERSION_NUMBER =
-  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.8";
+  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.9";
 export const WHISPR_RELEASE_CODENAME =
   process.env.NEXT_PUBLIC_WHISPR_RELEASE_CODENAME ?? "Echo";
 export const WHISPR_APP_VERSION = formatWhisprVersion(
@@ -46,6 +46,36 @@ export const WHISPR_RELEASE_CHANNEL =
   process.env.NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL ?? "beta";
 
 export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
+  {
+    categoryKey: "app.update.category.design",
+    descriptionKey: "app.update.notes.mainShellRefresh.description",
+    fallbackCategory: "Design",
+    fallbackDescription:
+      "The main workspace now uses a calmer four-column shell, lighter visual hierarchy, compact channel navigation, and real-data-only chat surfaces.",
+    fallbackTitle: "Main workspace refresh",
+    id: "main-shell-refresh",
+    titleKey: "app.update.notes.mainShellRefresh.title",
+  },
+  {
+    categoryKey: "app.update.category.design",
+    descriptionKey: "app.update.notes.settingsRefresh.description",
+    fallbackCategory: "Design",
+    fallbackDescription:
+      "Settings now has a modern sidebar, redesigned account profile cards, profile completion, privacy previews, and safer desktop preference surfaces.",
+    fallbackTitle: "Modern settings experience",
+    id: "settings-refresh",
+    titleKey: "app.update.notes.settingsRefresh.title",
+  },
+  {
+    categoryKey: "app.update.category.design",
+    descriptionKey: "app.update.notes.compactServerRail.description",
+    fallbackCategory: "Design",
+    fallbackDescription:
+      "The server rail is now always compact, icon-first, easier to scan, and uses a stronger active server ring without the old density controls.",
+    fallbackTitle: "Compact server rail",
+    id: "compact-server-rail",
+    titleKey: "app.update.notes.compactServerRail.title",
+  },
   {
     categoryKey: "app.update.category.desktop",
     descriptionKey: "app.update.notes.desktopStartup.description",

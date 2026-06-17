@@ -31,8 +31,10 @@ export type AccountSettingsState = {
   avatarUrl: string | null;
   displayName: string | null;
   email: string;
+  emailVerified: boolean;
   id: string;
   status: UserStatus;
+  twoFactorEnabled: boolean;
   username: string;
 };
 
@@ -63,16 +65,20 @@ function mapUserToAccountState(user: {
   avatarUrl: string | null;
   displayName: string | null;
   email: string;
+  emailVerified: boolean;
   id: string;
   status: UserStatus;
+  twoFactorEnabled: boolean;
   username: string;
 }): AccountSettingsState {
   return {
     avatarUrl: user.avatarUrl,
     displayName: user.displayName,
     email: user.email,
+    emailVerified: user.emailVerified,
     id: user.id,
     status: user.status,
+    twoFactorEnabled: user.twoFactorEnabled,
     username: user.username,
   };
 }
@@ -244,8 +250,10 @@ export async function updateAccountSettingsAction(
       customStatus: true,
       displayName: true,
       email: true,
+      emailVerified: true,
       id: true,
       status: true,
+      twoFactorEnabled: true,
       username: true,
     },
   });
@@ -311,8 +319,10 @@ export async function updateAccountAvatarAction(
       customStatus: true,
       displayName: true,
       email: true,
+      emailVerified: true,
       id: true,
       status: true,
+      twoFactorEnabled: true,
       username: true,
     },
   });

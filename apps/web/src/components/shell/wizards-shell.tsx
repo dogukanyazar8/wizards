@@ -41,8 +41,9 @@ import {
 } from "@/lib/workspace/client";
 import { fetchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
 import { dmQueryKeys, type DMConversationsInfiniteData } from "@/lib/dm/client";
-import { ICON_ONLY_SERVER_RAIL_WIDTH } from "@/lib/appearance";
+import { COMPACT_SERVER_RAIL_WIDTH } from "@/lib/appearance";
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
+import { cn } from "@/lib/utils";
 import { useVoiceStore } from "@/store/voice-store";
 
 type WizardsShellProps = {
@@ -278,14 +279,7 @@ interface NavigationPanelProps {
   onOpenSettings: () => void;
   onCurrentUserStatusChange: (status: "ONLINE" | "IDLE" | "DND" | "OFFLINE") => void;
   resolveServerHref: (server: WorkspaceServerSummary) => string;
-  serverRailIconSize: number;
-  serverRailWidth: number;
-  isServerRailIconOnly: boolean;
   currentUserId: string;
-  onExpandServerRail: () => void;
-  onCollapseServerRail: () => void;
-  onServerRailIconSizeChange: (size: number) => void;
-  onServerRailWidthChange: (width: number) => void;
 }
 
 const NavigationPanel = React.memo(
@@ -306,53 +300,41 @@ const NavigationPanel = React.memo(
     onOpenSettings,
     onCurrentUserStatusChange,
     resolveServerHref,
-    serverRailIconSize,
-    serverRailWidth,
-    isServerRailIconOnly,
     currentUserId,
-    onExpandServerRail,
-    onCollapseServerRail,
-    onServerRailIconSizeChange,
-    onServerRailWidthChange,
   }: NavigationPanelProps) => (
     <div
-      className={
-        isMobile ? "flex h-full min-w-0 flex-1 flex-col" : "hidden h-full min-w-0 flex-col md:flex"
-      }
+      className={cn(
+        isMobile
+          ? "flex h-full min-w-0 flex-1 flex-col bg-[hsl(var(--background))]"
+          : "hidden h-full min-w-0 flex-col md:flex",
+      )}
     >
       <div className="flex min-h-0 flex-1">
         <div
           className={
             isMobile
-              ? "flex h-full w-[112px] shrink-0 [--server-rail-width:112px]"
-              : "flex h-full shrink-0"
+              ? "flex h-full w-[var(--server-rail-width)] shrink-0"
+              : "flex h-full shrink-0 overflow-hidden border-r border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-card)/0.52)]"
           }
         >
           <ServerRail
             activeServerId={activeServerId}
             currentUserId={currentUserId}
             dmUnreadCount={dmUnreadCount}
-            iconSize={serverRailIconSize}
-            isIconOnly={isServerRailIconOnly}
             loading={serversQueryLoading}
             onNavigate={onNavigate}
             onOpenCreateServer={onOpenCreateServer}
             onOpenServerContextMenu={onOpenServerContextMenu}
             onPrefetch={onPrefetch}
             resolveServerHref={resolveServerHref}
-            onSetIconSize={onServerRailIconSizeChange}
-            onSetExpanded={onExpandServerRail}
-            onSetIconOnly={onCollapseServerRail}
-            onSetWidth={onServerRailWidthChange}
-            serverRailWidth={serverRailWidth}
             servers={servers}
           />
         </div>
         <div
           className={
             isMobile
-              ? "flex min-w-0 max-w-[calc(100vw-112px)] flex-1 overflow-hidden"
-              : "flex min-w-0 overflow-hidden"
+              ? "flex min-w-0 max-w-[calc(100vw-var(--server-rail-width))] flex-1 overflow-hidden"
+              : "flex min-w-0 overflow-hidden border-r border-[hsl(var(--border)/0.48)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.64),hsl(var(--surface-soft)/0.22))]"
           }
           style={isMobile ? undefined : { width: `var(--channel-sidebar-width)` }}
         >
@@ -370,7 +352,12 @@ const NavigationPanel = React.memo(
         </div>
       </div>
       <div
-        className="border-t border-[hsl(var(--border)/0.78)] py-3 pl-3 pr-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3"
+        className={cn(
+          "border-t border-[hsl(var(--border)/0.42)] pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-2",
+          isMobile && "py-2 pl-2 pr-2",
+          !isMobile &&
+            "border-r border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-card)/0.38)] py-2 pl-[calc(var(--server-rail-width)+0.5rem)] pr-2",
+        )}
         data-notification-popup-anchor="controls-border"
       >
         <UserProfileFooter
@@ -474,15 +461,9 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     persistedActiveArea,
     persistedActiveChannelId,
     persistedActiveServerId,
-    serverRailCollapsed,
-    serverRailIconSize,
-    serverRailWidth,
     serverContextMenu,
     serverSettingsServerId,
     setActiveRoute,
-    setServerRailCollapsed,
-    setServerRailIconSize,
-    setServerRailWidth,
     setMobileSidebarOpen,
     applyPersistedSettings,
   } = useAppStore(
@@ -502,15 +483,9 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       persistedActiveArea: state.activeArea,
       persistedActiveChannelId: state.activeChannelId,
       persistedActiveServerId: state.activeServerId,
-      serverRailCollapsed: state.serverRailCollapsed,
-      serverRailIconSize: state.serverRailIconSize,
-      serverRailWidth: state.serverRailWidth,
       serverContextMenu: state.serverContextMenu,
       serverSettingsServerId: state.serverSettingsServerId,
       setActiveRoute: state.setActiveRoute,
-      setServerRailCollapsed: state.setServerRailCollapsed,
-      setServerRailIconSize: state.setServerRailIconSize,
-      setServerRailWidth: state.setServerRailWidth,
       setMobileSidebarOpen: state.setMobileSidebarOpen,
       applyPersistedSettings: state.applyPersistedSettings,
     })),
@@ -602,10 +577,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
         : isServerIndexRoute
           ? "server-root"
           : "other";
-  const isServerRailIconOnly = serverRailCollapsed;
-  const displayServerRailWidth = isServerRailIconOnly
-    ? ICON_ONLY_SERVER_RAIL_WIDTH
-    : serverRailWidth;
+  const displayServerRailWidth = COMPACT_SERVER_RAIL_WIDTH;
   const showMobileBackButton = isDmRoute || isServerConversationRoute;
 
   useEffect(() => {
@@ -1045,10 +1017,9 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     () =>
       ({
         "--channel-sidebar-width": `${channelSidebarWidth}px`,
-        "--server-rail-icon-size": `${serverRailIconSize}px`,
         "--server-rail-width": `${displayServerRailWidth}px`,
       }) as CSSProperties,
-    [channelSidebarWidth, displayServerRailWidth, serverRailIconSize],
+    [channelSidebarWidth, displayServerRailWidth],
   );
 
   useEffect(() => {
@@ -1255,7 +1226,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
 
   return (
     <div
-      className="app-shell whispr-channel-shell flex h-[100dvh] overflow-hidden md:h-screen"
+      className="app-shell whispr-channel-shell flex h-[100dvh] overflow-hidden bg-[radial-gradient(circle_at_16%_8%,hsl(var(--primary)/0.08),transparent_30%),radial-gradient(circle_at_88%_16%,hsl(var(--surface-highlight)/0.58),transparent_28%),linear-gradient(180deg,hsl(var(--background)),hsl(var(--surface-base)))] p-0 md:h-screen md:p-3"
       style={shellStyle}
       suppressHydrationWarning
     >
@@ -1300,13 +1271,6 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
           onOpenSettings={openSettings}
           onCurrentUserStatusChange={setCurrentUserStatus}
           resolveServerHref={resolveServerHref}
-          serverRailIconSize={serverRailIconSize}
-          serverRailWidth={serverRailWidth}
-          isServerRailIconOnly={isServerRailIconOnly}
-          onExpandServerRail={() => setServerRailCollapsed(false)}
-          onCollapseServerRail={() => setServerRailCollapsed(true)}
-          onServerRailIconSizeChange={setServerRailIconSize}
-          onServerRailWidthChange={setServerRailWidth}
         />
       </div>
 
@@ -1360,20 +1324,13 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                 onOpenSettings={openSettings}
                 onCurrentUserStatusChange={setCurrentUserStatus}
                 resolveServerHref={resolveServerHref}
-                serverRailIconSize={serverRailIconSize}
-                serverRailWidth={serverRailWidth}
-                isServerRailIconOnly={false}
-                onExpandServerRail={() => setServerRailCollapsed(false)}
-                onCollapseServerRail={() => setServerRailCollapsed(true)}
-                onServerRailIconSizeChange={setServerRailIconSize}
-                onServerRailWidthChange={setServerRailWidth}
               />
             </motion.div>
           </motion.div>
         ) : null}
       </AnimatePresence>
 
-      <div className="flex min-w-0 flex-1">
+      <div className="flex min-w-0 flex-1 md:gap-0">
         <MainChannelPanel
           channel={activeChannel}
           fallbackTitle={

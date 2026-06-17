@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { prisma } from "@wizards/db";
+import {
+  DmPolicy,
+  FriendRequestPolicy,
+  prisma,
+} from "@wizards/db";
 import { requireApiUserId } from "@/lib/auth/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
@@ -30,6 +34,8 @@ const PatchSettingsSchema = z.object({
   emailNotifications: z.boolean().optional(),
   notificationSound: z.boolean().optional(),
   notificationSoundFile: z.string().trim().min(1).max(64).optional(),
+  dmPolicy: z.nativeEnum(DmPolicy).optional(),
+  friendRequestPolicy: z.nativeEnum(FriendRequestPolicy).optional(),
 });
 
 export type UserLayoutSettings = {
@@ -38,6 +44,8 @@ export type UserLayoutSettings = {
   messageFont: MessageFontId;
   notificationLimit: number;
   notificationAutoClose: boolean;
+  dmPolicy: DmPolicy;
+  friendRequestPolicy: FriendRequestPolicy;
   desktopNotifications: boolean;
   mobileNotifications: boolean;
   emailNotifications: boolean;
@@ -60,6 +68,8 @@ function mapSettingsResponse(input: {
     messageFont: string;
     notificationLimit: number;
     notificationAutoClose: boolean;
+    dmPolicy: DmPolicy;
+    friendRequestPolicy: FriendRequestPolicy;
   };
   notificationSettings?: {
     desktopNotifications: boolean;
@@ -103,6 +113,8 @@ export async function GET() {
             messageFont: true,
             notificationLimit: true,
             notificationAutoClose: true,
+            dmPolicy: true,
+            friendRequestPolicy: true,
           },
         },
         notificationSettings: {
@@ -144,6 +156,8 @@ export async function PATCH(request: Request) {
       messageFont: MessageFontId;
       notificationLimit: number;
       notificationAutoClose: boolean;
+      dmPolicy: DmPolicy;
+      friendRequestPolicy: FriendRequestPolicy;
     }> = {};
 
     if (body.serverRailWidth !== undefined) {
@@ -160,6 +174,12 @@ export async function PATCH(request: Request) {
     }
     if (body.notificationAutoClose !== undefined) {
       layoutData.notificationAutoClose = body.notificationAutoClose;
+    }
+    if (body.dmPolicy !== undefined) {
+      layoutData.dmPolicy = body.dmPolicy;
+    }
+    if (body.friendRequestPolicy !== undefined) {
+      layoutData.friendRequestPolicy = body.friendRequestPolicy;
     }
 
     const notificationSettingsData: Partial<{
@@ -196,6 +216,8 @@ export async function PATCH(request: Request) {
           messageFont: true,
           notificationLimit: true,
           notificationAutoClose: true,
+          dmPolicy: true,
+          friendRequestPolicy: true,
         },
       });
 

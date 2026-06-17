@@ -3661,6 +3661,42 @@ h4 {
       );
   }
 
+  /*
+   * Whispr application hierarchy contract
+   *
+   * L0 canvas  : full application background
+   * L1 pane    : primary columns such as rail, sidebar, chat, right info
+   * L2 section : headers and grouped content inside a pane
+   * L3 control : inputs, selected rows, composer controls
+   * L4 overlay : popovers, sheets, dialogs and menus
+   *
+   * Keep L1 nearly flat. Use borders for column dividers, controls and overlays;
+   * reserve stronger shadows for L4 surfaces and the composer.
+   */
+  .whispr-surface-pane {
+    border-color: hsl(var(--border) / 0.42);
+    background:
+      radial-gradient(circle at 54% 0%, hsl(var(--primary) / 0.026), transparent 34%),
+      linear-gradient(180deg, hsl(var(--surface-card) / 0.72), hsl(var(--surface-card) / 0.42));
+    box-shadow: inset 0 1px 0 hsl(var(--background) / 0.42);
+  }
+
+  .whispr-surface-section {
+    border-color: hsl(var(--border) / 0.34);
+    background: hsl(var(--surface-card) / 0.48);
+  }
+
+  .whispr-surface-control {
+    border-color: hsl(var(--border) / 0.52);
+    background: hsl(var(--surface-card) / 0.64);
+  }
+
+  .whispr-surface-overlay {
+    border-color: hsl(var(--border) / 0.82);
+    background: hsl(var(--surface-overlay) / 0.97);
+    box-shadow: 0 32px 80px hsl(var(--shadow-color) / 0.24);
+  }
+
   html.theme-light .whispr-channel-shell,
   html.theme-dawn .whispr-channel-shell,
   html.theme-lavender .whispr-channel-shell {
@@ -3686,41 +3722,33 @@ h4 {
   }
 
   .whispr-channel-shell .app-rail {
-    border-color: hsl(var(--border) / 0.68);
+    border-color: hsl(var(--border) / 0.44);
     background: linear-gradient(
       180deg,
-      hsl(var(--surface-card) / 0.92),
-      hsl(var(--surface-soft) / 0.42)
+      hsl(var(--surface-card) / 0.62),
+      hsl(var(--surface-soft) / 0.24)
     );
-    box-shadow: inset -1px 0 0 hsl(var(--background) / 0.46);
+    box-shadow: inset -1px 0 0 hsl(var(--background) / 0.34);
   }
 
   .whispr-channel-shell [data-testid="channel-sidebar"] {
-    border-color: hsl(var(--border) / 0.66);
+    border-color: hsl(var(--border) / 0.44);
     background:
-      radial-gradient(circle at 58% 8%, hsl(var(--primary) / 0.12), transparent 24%),
-      linear-gradient(180deg, hsl(var(--surface-card) / 0.88), hsl(var(--surface-panel) / 0.92));
+      radial-gradient(circle at 58% 8%, hsl(var(--primary) / 0.08), transparent 24%),
+      linear-gradient(180deg, hsl(var(--surface-card) / 0.62), hsl(var(--surface-panel) / 0.72));
   }
 
   .whispr-channel-shell [data-main-panel-frame="true"] {
-    border-color: hsl(var(--border) / 0.78);
-    background: linear-gradient(
-      180deg,
-      hsl(var(--surface-card) / 0.96),
-      hsl(var(--surface-card) / 0.9)
-    );
-    box-shadow:
-      0 26px 68px hsl(var(--shadow-color) / 0.08),
-      inset 0 1px 0 hsl(var(--background) / 0.62);
+    border-color: hsl(var(--border) / 0.42);
+    background:
+      radial-gradient(circle at 54% 0%, hsl(var(--primary) / 0.026), transparent 34%),
+      linear-gradient(180deg, hsl(var(--surface-card) / 0.72), hsl(var(--surface-card) / 0.42));
+    box-shadow: inset 0 1px 0 hsl(var(--background) / 0.42);
   }
 
   .whispr-channel-shell [data-testid="chat-channel-header"] {
-    background: linear-gradient(
-      180deg,
-      hsl(var(--surface-card) / 0.9),
-      hsl(var(--surface-card) / 0.76)
-    );
-    box-shadow: 0 1px 0 hsl(var(--background) / 0.62);
+    background: hsl(var(--surface-card) / 0.2);
+    box-shadow: none;
   }
 
   .whispr-channel-shell [data-testid="message-list"] {
@@ -3732,21 +3760,17 @@ h4 {
   }
 
   .whispr-channel-shell [data-testid="message-composer"] {
-    border-top-color: hsl(var(--border) / 0.58);
-    background: linear-gradient(
-      180deg,
-      hsl(var(--surface-card) / 0.24),
-      hsl(var(--surface-card) / 0.92)
-    );
+    border-top-color: hsl(var(--border) / 0.34);
+    background: linear-gradient(180deg, hsl(var(--surface-card) / 0.08), hsl(var(--surface-card) / 0.34));
   }
 
   .whispr-channel-shell [data-testid="server-member-panel"],
   .whispr-channel-shell [data-testid="server-member-panel-drawer"] {
-    border-color: hsl(var(--border) / 0.7);
+    border-color: hsl(var(--border) / 0.48);
     background: linear-gradient(
       180deg,
-      hsl(var(--surface-card) / 0.86),
-      hsl(var(--surface-panel) / 0.82)
+      hsl(var(--surface-card) / 0.62),
+      hsl(var(--surface-panel) / 0.56)
     );
   }
 

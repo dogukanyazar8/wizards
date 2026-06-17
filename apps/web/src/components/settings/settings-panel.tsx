@@ -3,19 +3,32 @@
 import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Accessibility,
   BellRing,
   Camera,
+  CalendarDays,
+  CheckCircle2,
   ChevronRight,
+  Clock3,
+  Copy,
+  ExternalLink,
+  Eye,
+  Globe2,
   ImageIcon,
   Info,
+  KeyRound,
   Languages,
   LayoutPanelTop,
+  LockKeyhole,
   Mail,
+  MessageCircle,
   MonitorUp,
+  ShieldCheck,
   Sparkles,
   Type,
   UserRound,
   Volume2,
+  type LucideIcon,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -35,26 +48,20 @@ import { ScreenSharePreferencesPanel } from "@/components/voice/screen-share-pre
 import { VoicePreferencesPanel } from "@/components/voice/voice-preferences-panel";
 import {
   CHANNEL_SIDEBAR_WIDTH_STEP,
+  COMPACT_SERVER_RAIL_ICON_SIZE,
+  COMPACT_SERVER_RAIL_TOUCH_SIZE,
+  COMPACT_SERVER_RAIL_WIDTH,
   DEFAULT_CHANNEL_SIDEBAR_WIDTH,
   DEFAULT_MAIN_PANEL_WIDTH,
-  DEFAULT_SERVER_RAIL_ICON_SIZE,
-  DEFAULT_SERVER_RAIL_WIDTH,
-  EXPANDED_MIN_SERVER_RAIL_WIDTH,
-  ICON_ONLY_SERVER_RAIL_WIDTH,
   MAX_CHANNEL_SIDEBAR_WIDTH,
   MAX_MAIN_PANEL_WIDTH,
-  MAX_SERVER_RAIL_ICON_SIZE,
   MAX_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
-  MAX_SERVER_RAIL_WIDTH,
   MIN_CHANNEL_SIDEBAR_WIDTH,
   MIN_MAIN_PANEL_WIDTH,
   MIN_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
-  MIN_SERVER_RAIL_ICON_SIZE,
   NOTIFICATION_LIMIT_OPTIONS,
   NOTIFICATION_POPUP_TIMEOUT_STEP,
   MAIN_PANEL_WIDTH_STEP,
-  SERVER_RAIL_ICON_SIZE_STEP,
-  SERVER_RAIL_WIDTH_STEP,
 } from "@/lib/appearance";
 import { APP_ICON_OPTIONS, type AppIconId } from "@/lib/app-icons";
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
@@ -68,6 +75,10 @@ import {
   type UpdateAccountSettingsResult,
   updateAccountSettingsAction,
 } from "@/lib/account/actions";
+import {
+  getProfileCompletionSummary,
+  type ProfileCompletionSummary,
+} from "@/lib/account/profile-completion";
 import { fetchLayoutSettings, patchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
 import {
   buildSettingsHref,
@@ -105,6 +116,30 @@ type SettingsPanelProps = {
 };
 
 type AccountField = "displayName" | "email" | "status" | "username";
+type DmPolicyValue = UserLayoutSettings["dmPolicy"];
+type FriendRequestPolicyValue = UserLayoutSettings["friendRequestPolicy"];
+
+const DM_POLICY_OPTIONS = [
+  "EVERYONE",
+  "FRIENDS",
+  "MUTUAL_SERVERS",
+  "NOBODY",
+] as const satisfies readonly DmPolicyValue[];
+
+const FRIEND_REQUEST_POLICY_OPTIONS = [
+  "EVERYONE",
+  "MUTUAL_SERVERS",
+  "MUTUAL_FRIENDS",
+  "NOBODY",
+] as const satisfies readonly FriendRequestPolicyValue[];
+
+function getDmPolicyLabelKey(policy: DmPolicyValue) {
+  return `settings.account.privacy.dmPolicy.${policy}`;
+}
+
+function getFriendRequestPolicyLabelKey(policy: FriendRequestPolicyValue) {
+  return `settings.account.privacy.friendRequestPolicy.${policy}`;
+}
 
 function SectionHero({
   badge,
@@ -398,6 +433,93 @@ function RangeSliderCard({
   );
 }
 
+function CompactServerRailPreview({
+  description,
+  iconLabel,
+  modeLabel,
+  targetLabel,
+  title,
+  widthLabel,
+}: {
+  description: string;
+  iconLabel: string;
+  modeLabel: string;
+  targetLabel: string;
+  title: string;
+  widthLabel: string;
+}) {
+  const metrics = [
+    { label: widthLabel, value: `${COMPACT_SERVER_RAIL_WIDTH}px` },
+    { label: iconLabel, value: `${COMPACT_SERVER_RAIL_ICON_SIZE}px` },
+    { label: targetLabel, value: `${COMPACT_SERVER_RAIL_TOUCH_SIZE}px` },
+  ];
+
+  return (
+    <SettingCard description={description} icon={LayoutPanelTop} title={title}>
+      <div
+        className="grid gap-4 rounded-[28px] border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-soft)/0.22)] p-4 md:grid-cols-[auto_minmax(0,1fr)]"
+        data-testid="settings-server-rail-compact-preview"
+      >
+        <div
+          aria-hidden="true"
+          className="flex flex-col items-center rounded-[24px] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.86),hsl(var(--surface-soft)/0.34))] px-2 py-3"
+          style={{ width: COMPACT_SERVER_RAIL_WIDTH }}
+        >
+          <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-[hsl(var(--surface-card)/0.7)] ring-1 ring-[hsl(var(--border)/0.5)]">
+            <div className="h-7 w-7 rounded-[12px] bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--ambient-1)))]" />
+          </div>
+          <div className="mt-2 h-px w-7 rounded-full bg-[hsl(var(--border)/0.64)]" />
+          <div className="mt-2 flex flex-col gap-1.5">
+            {[0, 1, 2, 3].map((index) => (
+              <div
+                className="relative flex items-center justify-center rounded-[18px]"
+                key={index}
+                style={{
+                  height: COMPACT_SERVER_RAIL_TOUCH_SIZE,
+                  width: COMPACT_SERVER_RAIL_TOUCH_SIZE,
+                }}
+              >
+                {index === 1 ? (
+                  <span className="absolute left-0 h-7 w-1 rounded-full bg-[hsl(var(--primary))]" />
+                ) : null}
+                <div
+                  className={cn(
+                    "rounded-[16px] ring-1",
+                    index === 1
+                      ? "bg-[hsl(var(--primary)/0.16)] ring-[hsl(var(--primary)/0.28)]"
+                      : "bg-[hsl(var(--surface-card)/0.7)] ring-transparent",
+                  )}
+                  style={{
+                    height: COMPACT_SERVER_RAIL_ICON_SIZE,
+                    width: COMPACT_SERVER_RAIL_ICON_SIZE,
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-w-0 space-y-4">
+          <div className="inline-flex rounded-full border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] px-3 py-1 text-xs font-bold text-[hsl(var(--primary))]">
+            {modeLabel}
+          </div>
+          <p className="max-w-2xl text-sm leading-6 text-app-muted">{description}</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {metrics.map((metric) => (
+              <div className="rounded-[20px] bg-[hsl(var(--surface-card)/0.68)] p-3" key={metric.label}>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-app-soft">
+                  {metric.label}
+                </p>
+                <p className="mt-1 text-sm font-extrabold text-app-foreground">{metric.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </SettingCard>
+  );
+}
+
 function StatusDot({ status }: { status: UserStatus }) {
   const colorClass =
     status === UserStatus.ONLINE
@@ -423,12 +545,632 @@ function buildAvatarFallback(account: AccountSettingsState) {
     .toUpperCase();
 }
 
+function getAccountStatusLabelKey(status: UserStatus) {
+  return status === UserStatus.INVISIBLE
+    ? "settings.account.status.invisible"
+    : `friends.status.${status.toLowerCase()}`;
+}
+
+function getBrowserTimeZoneLabel(timeZone: string, locale: "en" | "tr") {
+  const city = timeZone.split("/").pop()?.replace(/_/g, " ") || timeZone;
+  const localizedCity = locale === "tr" && city === "Istanbul" ? "\u0130stanbul" : city;
+
+  try {
+    const parts = new Intl.DateTimeFormat("en", {
+      timeZone,
+      timeZoneName: "longOffset",
+    }).formatToParts(new Date());
+    const offset = parts.find((part) => part.type === "timeZoneName")?.value ?? "GMT+03:00";
+    return `(${offset.replace("GMT", "UTC")}) ${localizedCity}`;
+  } catch {
+    return localizedCity;
+  }
+}
+
+function getLocaleDisplayName(locale: "en" | "tr") {
+  return locale === "tr" ? "T\u00fcrk\u00e7e" : "English";
+}
+
+function copyAccountValue(value: string) {
+  if (typeof navigator === "undefined" || !navigator.clipboard) {
+    return;
+  }
+
+  void navigator.clipboard.writeText(value).catch(() => undefined);
+}
+
+function AccountPageHeader({
+  description,
+  eyebrow,
+  title,
+}: {
+  description: string;
+  eyebrow: string;
+  title: string;
+}) {
+  return (
+    <section className="min-w-0 max-w-4xl px-1 py-2">
+      <p className="text-xs font-black uppercase tracking-[0.26em] text-[hsl(var(--primary))]">
+        {eyebrow}
+      </p>
+      <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-app-foreground sm:text-4xl">
+        {title}
+      </h2>
+      <p className="mt-3 max-w-3xl text-sm leading-7 text-app-muted sm:text-base">
+        {description}
+      </p>
+    </section>
+  );
+}
+
+function AccountInfoTile({
+  action,
+  label,
+  value,
+}: {
+  action?: ReactNode;
+  label: string;
+  value: ReactNode;
+}) {
+  return (
+    <div className="rounded-[22px] border border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface)/0.92),hsl(var(--surface-soft)/0.42))] p-4 shadow-[inset_0_1px_0_hsl(var(--surface-highlight)/0.45)]">
+      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-app-soft">{label}</p>
+      <div className="mt-2 flex min-w-0 items-center justify-between gap-3">
+        <div className="min-w-0 break-words text-sm font-bold text-app-foreground">{value}</div>
+        {action}
+      </div>
+    </div>
+  );
+}
+
+function ProfileSummaryCard({
+  account,
+  completion,
+  onChangeStatus,
+  onEdit,
+  statusLabel,
+  t,
+  visibleName,
+}: {
+  account: AccountSettingsState;
+  completion: ProfileCompletionSummary;
+  onChangeStatus: () => void;
+  onEdit: () => void;
+  statusLabel: string;
+  t: (key: string, values?: Record<string, number | string>) => string;
+  visibleName: string;
+}) {
+  return (
+    <section className="min-w-0 overflow-hidden rounded-[32px] border border-[hsl(var(--border)/0.72)] bg-[linear-gradient(135deg,hsl(var(--surface)/0.98),hsl(var(--surface-soft)/0.58))] p-5 shadow-[0_24px_70px_hsl(var(--shadow-color)/0.1)] sm:p-6">
+      <div className="flex items-start gap-3">
+        <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
+          <UserRound className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-lg font-extrabold text-app-foreground">
+            {t("settings.account.summaryTitle")}
+          </h3>
+          <p className="mt-1 text-sm leading-6 text-app-muted">
+            {t("settings.account.summaryDescription")}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="relative w-fit">
+            <Avatar
+              alt={visibleName}
+              className="h-24 w-24 rounded-full border-[hsl(var(--primary)/0.2)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.24),hsl(var(--primary)/0.1))] text-xl shadow-[0_22px_60px_hsl(var(--primary)/0.12)] ring-4 ring-[hsl(var(--primary)/0.08)] sm:h-28 sm:w-28"
+              fallback={buildAvatarFallback(account)}
+              src={account.avatarUrl}
+            />
+            <span className="absolute bottom-2 right-1 h-5 w-5 rounded-full border-4 border-[hsl(var(--surface))] bg-emerald-500 shadow-[0_8px_20px_hsl(var(--shadow-color)/0.18)]" />
+          </div>
+
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="max-w-full truncate text-2xl font-extrabold tracking-tight text-app-foreground">
+                {visibleName}
+              </h4>
+              <Badge className="border-emerald-500/25 bg-emerald-500/10 text-emerald-600">
+                {statusLabel}
+              </Badge>
+            </div>
+            <p className="mt-1 truncate text-sm font-semibold text-app-muted">@{account.username}</p>
+            <p className="mt-2 break-words text-sm font-medium text-app-muted">{account.email}</p>
+          </div>
+        </div>
+
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[190px]">
+          <Button className="w-full justify-center" onClick={onEdit} type="button">
+            {t("settings.account.profile.edit")}
+          </Button>
+          <Button
+            className="w-full justify-center"
+            onClick={onChangeStatus}
+            type="button"
+            variant="outline"
+          >
+            {t("settings.account.profile.changeStatus")}
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-3 md:grid-cols-2">
+        <AccountInfoTile label={t("settings.account.fields.displayName")} value={visibleName} />
+        <AccountInfoTile
+          action={
+            <button
+              aria-label={t("settings.account.copy.username")}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-app-soft transition hover:bg-[hsl(var(--primary)/0.1)] hover:text-[hsl(var(--primary))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              onClick={() => copyAccountValue(account.username)}
+              type="button"
+            >
+              <Copy className="h-4 w-4" />
+            </button>
+          }
+          label={t("common.username")}
+          value={`@${account.username}`}
+        />
+        <AccountInfoTile
+          action={
+            <button
+              aria-label={t("settings.account.copy.email")}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-app-soft transition hover:bg-[hsl(var(--primary)/0.1)] hover:text-[hsl(var(--primary))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              onClick={() => copyAccountValue(account.email)}
+              type="button"
+            >
+              <Copy className="h-4 w-4" />
+            </button>
+          }
+          label={t("common.email")}
+          value={account.email}
+        />
+        <AccountInfoTile
+          action={<ChevronRight className="h-4 w-4 shrink-0 text-app-soft" />}
+          label={t("settings.account.fields.status")}
+          value={
+            <span className="inline-flex items-center gap-2">
+              <StatusDot status={account.status} />
+              {statusLabel}
+            </span>
+          }
+        />
+      </div>
+
+      <div className="mt-6 rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.76)] p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-extrabold text-app-foreground">
+            {t("settings.account.completion.title")}
+          </p>
+          <span className="text-sm font-black text-[hsl(var(--primary))]">
+            %{completion.percent}
+          </span>
+        </div>
+        <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-[hsl(var(--surface-soft)/0.82)]">
+          <div
+            className="h-full rounded-full bg-[linear-gradient(90deg,hsl(var(--primary)),hsl(var(--primary)/0.58))] shadow-[0_10px_24px_hsl(var(--primary)/0.2)] transition-all"
+            style={{ width: `${completion.percent}%` }}
+          />
+        </div>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-medium leading-5 text-app-muted">
+            {t("settings.account.completion.description")}
+          </p>
+          <button
+            className="inline-flex min-h-10 items-center justify-center rounded-2xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.1)] px-4 text-xs font-black text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            onClick={onEdit}
+            type="button"
+          >
+            {t("settings.account.completion.action")}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ProfilePhotoCard({
+  account,
+  onAvatarUpdated,
+  t,
+  uploadthingEnabled,
+}: {
+  account: AccountSettingsState;
+  onAvatarUpdated: (account: AccountSettingsState) => void;
+  t: (key: string, values?: Record<string, number | string>) => string;
+  uploadthingEnabled: boolean;
+}) {
+  return (
+    <section className="rounded-[32px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.92)] p-5 shadow-[0_20px_60px_hsl(var(--shadow-color)/0.08)]">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
+          <Camera className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-base font-extrabold text-app-foreground">
+            {t("settings.account.avatar.title")}
+          </h3>
+          <p className="mt-1 text-sm leading-6 text-app-muted">
+            {t("settings.account.avatar.description")}
+          </p>
+        </div>
+      </div>
+      <div className="mt-5">
+        <ProfileAvatarField
+          account={account}
+          onAvatarUpdated={onAvatarUpdated}
+          uploadthingEnabled={uploadthingEnabled}
+        />
+      </div>
+    </section>
+  );
+}
+
+function SuggestionRow({
+  description,
+  disabled,
+  icon: Icon,
+  note,
+  status,
+  title,
+}: {
+  description: string;
+  disabled?: boolean;
+  icon: LucideIcon;
+  note?: string;
+  status: ReactNode;
+  title: string;
+}) {
+  return (
+    <div
+      aria-disabled={disabled || undefined}
+      className={cn(
+        "flex items-center gap-3 rounded-[22px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface)/0.76)] p-3 transition",
+        disabled ? "opacity-72" : "hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.06)]",
+      )}
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-extrabold text-app-foreground">{title}</p>
+        <p className="mt-1 text-xs leading-5 text-app-muted">{description}</p>
+        {note ? <p className="mt-2 text-xs font-semibold text-app-soft">{note}</p> : null}
+      </div>
+      {status}
+    </div>
+  );
+}
+
+function SecurityCenterCard({
+  account,
+  t,
+}: {
+  account: AccountSettingsState;
+  t: (key: string, values?: Record<string, number | string>) => string;
+}) {
+  return (
+    <section className="rounded-[32px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.92)] p-5 shadow-[0_20px_60px_hsl(var(--shadow-color)/0.08)]">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-500">
+          <ShieldCheck className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-base font-extrabold text-app-foreground">
+            {t("settings.account.security.title")}
+          </h3>
+          <p className="mt-1 text-sm leading-6 text-app-muted">
+            {t("settings.account.security.description")}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-5 space-y-3">
+        <SuggestionRow
+          description={t("settings.account.quickSuggestions.email.description")}
+          icon={Mail}
+          status={
+            account.emailVerified ? (
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
+            ) : (
+              <Badge tone="muted">{t("settings.account.security.emailUnverified")}</Badge>
+            )
+          }
+          title={t("settings.account.quickSuggestions.email.title")}
+        />
+        <SuggestionRow
+          description={t("settings.account.quickSuggestions.twoFactor.description")}
+          disabled
+          icon={LockKeyhole}
+          note={t("settings.account.security.backendRequired")}
+          status={
+            account.twoFactorEnabled ? (
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
+            ) : (
+              <Badge tone="muted">{t("settings.account.previewSoon")}</Badge>
+            )
+          }
+          title={t("settings.account.quickSuggestions.twoFactor.title")}
+        />
+        <SuggestionRow
+          description={t("settings.account.quickSuggestions.recoveryCodes.description")}
+          disabled
+          icon={KeyRound}
+          note={t("settings.account.security.backendRequired")}
+          status={<Badge tone="muted">{t("settings.account.previewSoon")}</Badge>}
+          title={t("settings.account.quickSuggestions.recoveryCodes.title")}
+        />
+        <SuggestionRow
+          description={t("settings.account.security.sessions.description")}
+          disabled
+          icon={MonitorUp}
+          note={t("settings.account.security.sessions.note")}
+          status={<Badge tone="muted">{t("settings.account.preview")}</Badge>}
+          title={t("settings.account.security.sessions.title")}
+        />
+        <SuggestionRow
+          description={t("settings.account.security.export.description")}
+          disabled
+          icon={ExternalLink}
+          note={t("settings.account.security.export.note")}
+          status={<Badge tone="muted">{t("settings.account.preview")}</Badge>}
+          title={t("settings.account.security.export.title")}
+        />
+      </div>
+
+      <button
+        className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-2xl px-3 text-sm font-black text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+        disabled
+        type="button"
+      >
+        {t("settings.account.quickSuggestions.securityLink")}
+        <ExternalLink className="h-4 w-4" />
+      </button>
+    </section>
+  );
+}
+
+function AccountPreferenceRow({
+  description,
+  icon: Icon,
+  preview = false,
+  previewLabel,
+  title,
+  value,
+  onClick,
+}: {
+  description: string;
+  icon: LucideIcon;
+  onClick?: () => void;
+  preview?: boolean;
+  previewLabel?: string;
+  title: string;
+  value: string;
+}) {
+  const content = (
+    <>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-extrabold text-app-foreground">{title}</span>
+        <span className="mt-1 block text-xs leading-5 text-app-muted">{description}</span>
+      </span>
+      <span className="flex min-w-0 shrink-0 items-center gap-2 text-right text-xs font-black text-app-muted sm:text-sm">
+        <span className="max-w-[9rem] truncate sm:max-w-[14rem]">{value}</span>
+        {preview && previewLabel ? <Badge tone="muted">{previewLabel}</Badge> : null}
+        <ChevronRight className="h-4 w-4 shrink-0 text-app-soft" />
+      </span>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        className="flex w-full items-center gap-3 rounded-[22px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface)/0.76)] p-3 text-left transition hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+        onClick={onClick}
+        type="button"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 rounded-[22px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface)/0.76)] p-3">
+      {content}
+    </div>
+  );
+}
+
+function AccountPreferenceSelectRow<TValue extends string>({
+  description,
+  disabled = false,
+  icon: Icon,
+  labelForValue,
+  onChange,
+  options,
+  title,
+  value,
+}: {
+  description: string;
+  disabled?: boolean;
+  icon: LucideIcon;
+  labelForValue: (value: TValue) => string;
+  onChange: (value: TValue) => void;
+  options: readonly TValue[];
+  title: string;
+  value: TValue;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-[22px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface)/0.76)] p-3 sm:flex-row sm:items-center">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-extrabold text-app-foreground">{title}</span>
+        <span className="mt-1 block text-xs leading-5 text-app-muted">{description}</span>
+      </span>
+      <select
+        aria-label={title}
+        className="min-h-11 w-full rounded-2xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.92)] px-3 text-sm font-bold text-app-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-[13.5rem]"
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value as TValue)}
+        value={value}
+      >
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {labelForValue(option)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function PrivacyVisibilityCard({
+  dmPolicy,
+  disabled,
+  friendRequestPolicy,
+  onDmPolicyChange,
+  onFriendRequestPolicyChange,
+  t,
+}: {
+  disabled: boolean;
+  dmPolicy: DmPolicyValue;
+  friendRequestPolicy: FriendRequestPolicyValue;
+  onDmPolicyChange: (policy: DmPolicyValue) => void;
+  onFriendRequestPolicyChange: (policy: FriendRequestPolicyValue) => void;
+  t: (key: string, values?: Record<string, number | string>) => string;
+}) {
+  return (
+    <section className="rounded-[32px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.92)] p-5 shadow-[0_20px_60px_hsl(var(--shadow-color)/0.08)] sm:p-6">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
+          <ShieldCheck className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-lg font-extrabold text-app-foreground">
+            {t("settings.account.privacy.title")}
+          </h3>
+          <p className="mt-1 text-sm leading-6 text-app-muted">
+            {t("settings.account.privacy.description")}
+          </p>
+        </div>
+      </div>
+      <div className="mt-5 space-y-3">
+        <AccountPreferenceRow
+          description={t("settings.account.privacy.profile.description")}
+          icon={Eye}
+          preview
+          previewLabel={t("settings.account.preview")}
+          title={t("settings.account.privacy.profile.title")}
+          value={t("settings.account.visibility.everyone")}
+        />
+        <AccountPreferenceRow
+          description={t("settings.account.privacy.online.description")}
+          icon={UserRound}
+          preview
+          previewLabel={t("settings.account.preview")}
+          title={t("settings.account.privacy.online.title")}
+          value={t("settings.account.visibility.everyone")}
+        />
+        <AccountPreferenceSelectRow
+          description={t("settings.account.privacy.dm.description")}
+          disabled={disabled}
+          icon={MessageCircle}
+          labelForValue={(value) => t(getDmPolicyLabelKey(value))}
+          onChange={onDmPolicyChange}
+          options={DM_POLICY_OPTIONS}
+          title={t("settings.account.privacy.dmPolicy.title")}
+          value={dmPolicy}
+        />
+        <AccountPreferenceSelectRow
+          description={t("settings.account.privacy.friendRequests.description")}
+          disabled={disabled}
+          icon={UserRound}
+          labelForValue={(value) => t(getFriendRequestPolicyLabelKey(value))}
+          onChange={onFriendRequestPolicyChange}
+          options={FRIEND_REQUEST_POLICY_OPTIONS}
+          title={t("settings.account.privacy.friendRequests.title")}
+          value={friendRequestPolicy}
+        />
+      </div>
+    </section>
+  );
+}
+
+function AccountPreferencesCard({
+  locale,
+  onOpenLanguageSettings,
+  t,
+  timeZoneLabel,
+}: {
+  locale: "en" | "tr";
+  onOpenLanguageSettings: () => void;
+  t: (key: string, values?: Record<string, number | string>) => string;
+  timeZoneLabel: string;
+}) {
+  return (
+    <section className="rounded-[32px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.92)] p-5 shadow-[0_20px_60px_hsl(var(--shadow-color)/0.08)] sm:p-6">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
+          <Globe2 className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-lg font-extrabold text-app-foreground">
+            {t("settings.account.preferences.title")}
+          </h3>
+          <p className="mt-1 text-sm leading-6 text-app-muted">
+            {t("settings.account.preferences.description")}
+          </p>
+        </div>
+      </div>
+      <div className="mt-5 space-y-3">
+        <AccountPreferenceRow
+          description={t("settings.account.preferences.timeZone.description")}
+          icon={Clock3}
+          preview
+          previewLabel={t("settings.account.preview")}
+          title={t("settings.account.preferences.timeZone.title")}
+          value={timeZoneLabel}
+        />
+        <AccountPreferenceRow
+          description={t("settings.account.preferences.language.description")}
+          icon={Languages}
+          onClick={onOpenLanguageSettings}
+          title={t("settings.account.preferences.language.title")}
+          value={getLocaleDisplayName(locale)}
+        />
+        <AccountPreferenceRow
+          description={t("settings.account.preferences.dateFormat.description")}
+          icon={CalendarDays}
+          preview
+          previewLabel={t("settings.account.preview")}
+          title={t("settings.account.preferences.dateFormat.title")}
+          value={t("settings.account.preferences.dateFormat.value")}
+        />
+        <AccountPreferenceRow
+          description={t("settings.account.preferences.accessibility.description")}
+          icon={Accessibility}
+          preview
+          previewLabel={t("settings.account.preview")}
+          title={t("settings.account.preferences.accessibility.title")}
+          value={t("settings.account.preferences.accessibility.value")}
+        />
+      </div>
+    </section>
+  );
+}
+
 export function SettingsPanel({
   buildInfo,
   initialAccount,
   uploadthingEnabled,
 }: SettingsPanelProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -442,6 +1184,7 @@ export function SettingsPanel({
   } | null>(null);
   const [iconFeedbackVisible, setIconFeedbackVisible] = useState(false);
   const [isDesktopRuntime, setIsDesktopRuntime] = useState(false);
+  const [browserTimeZone, setBrowserTimeZone] = useState("Europe/Istanbul");
   const [accountFieldErrors, setAccountFieldErrors] = useState<
     Partial<Record<AccountField, string>>
   >({});
@@ -461,10 +1204,6 @@ export function SettingsPanel({
     notificationPopupTimeoutSeconds,
     resetChannelSidebarWidth,
     resetMainPanelWidth,
-    resetServerRailWidth,
-    serverRailCollapsed,
-    serverRailIconSize,
-    serverRailWidth,
     setAppIconId,
     setChannelSidebarWidth,
     setDesktopCloseToTrayEnabled,
@@ -476,9 +1215,6 @@ export function SettingsPanel({
     setNotificationAutoClose,
     setNotificationLimit,
     setNotificationPopupTimeoutSeconds,
-    setServerRailCollapsed,
-    setServerRailIconSize,
-    setServerRailWidth,
   } = useAppStore(
     useShallow((state) => ({
       applyPersistedSettings: state.applyPersistedSettings,
@@ -495,10 +1231,6 @@ export function SettingsPanel({
       notificationPopupTimeoutSeconds: state.notificationPopupTimeoutSeconds,
       resetChannelSidebarWidth: state.resetChannelSidebarWidth,
       resetMainPanelWidth: state.resetMainPanelWidth,
-      resetServerRailWidth: state.resetServerRailWidth,
-      serverRailCollapsed: state.serverRailCollapsed,
-      serverRailIconSize: state.serverRailIconSize,
-      serverRailWidth: state.serverRailWidth,
       setAppIconId: state.setAppIconId,
       setChannelSidebarWidth: state.setChannelSidebarWidth,
       setDesktopCloseToTrayEnabled: state.setDesktopCloseToTrayEnabled,
@@ -510,9 +1242,6 @@ export function SettingsPanel({
       setNotificationAutoClose: state.setNotificationAutoClose,
       setNotificationLimit: state.setNotificationLimit,
       setNotificationPopupTimeoutSeconds: state.setNotificationPopupTimeoutSeconds,
-      setServerRailCollapsed: state.setServerRailCollapsed,
-      setServerRailIconSize: state.setServerRailIconSize,
-      setServerRailWidth: state.setServerRailWidth,
     })),
   );
   const {
@@ -583,6 +1312,17 @@ export function SettingsPanel({
 
   useEffect(() => {
     setIsDesktopRuntime(isWhisprDesktopRuntime());
+  }, []);
+
+  useEffect(() => {
+    try {
+      const nextTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (nextTimeZone) {
+        setBrowserTimeZone(nextTimeZone);
+      }
+    } catch {
+      setBrowserTimeZone("Europe/Istanbul");
+    }
   }, []);
 
   const settingsQuery = useQuery({
@@ -656,25 +1396,6 @@ export function SettingsPanel({
       });
     },
     [],
-  );
-
-  const handleServerRailWidthChange = useCallback(
-    (nextValue: number) => {
-      void queryClient.cancelQueries({ queryKey: settingsQueryKeys.layout });
-      setServerRailWidth(nextValue);
-      queryClient.setQueryData<UserLayoutSettings | undefined>(
-        settingsQueryKeys.layout,
-        (current) => (current ? { ...current, serverRailWidth: nextValue } : current),
-      );
-    },
-    [queryClient, setServerRailWidth],
-  );
-
-  const handleServerRailCollapsedChange = useCallback(
-    (collapsed: boolean) => {
-      setServerRailCollapsed(collapsed);
-    },
-    [setServerRailCollapsed],
   );
 
   const handleMainCanvasWidthChange = useCallback(
@@ -808,165 +1529,134 @@ export function SettingsPanel({
 
   const renderAccountSection = () => {
     const visibleName = accountState.displayName?.trim() || accountState.username;
+    const statusLabel = t(getAccountStatusLabelKey(accountState.status));
+    const completion = getProfileCompletionSummary({
+      avatarUrl: accountState.avatarUrl,
+      displayName: accountState.displayName,
+      email: accountState.email,
+      emailVerified: accountState.emailVerified,
+      username: accountState.username,
+    });
+    const timeZoneLabel = getBrowserTimeZoneLabel(browserTimeZone, locale);
+    const dmPolicy = serverSettings?.dmPolicy ?? "FRIENDS";
+    const friendRequestPolicy = serverSettings?.friendRequestPolicy ?? "EVERYONE";
 
     return (
       <div className="space-y-6">
-        <SectionHero
-          badge={t("settings.account.badge")}
-          description={t("settings.account.description")}
+        <AccountPageHeader
+          description={t("settings.account.pageDescription")}
+          eyebrow={t("settings.account.badge")}
           title={t("settings.account.title")}
         />
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)]">
-          <SettingCard
-            description={t("settings.account.summaryDescription")}
-            icon={UserRound}
-            title={t("settings.account.summaryTitle")}
-          >
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="flex min-w-0 items-center gap-4">
-                <Avatar
-                  alt={visibleName}
-                  className="h-16 w-16 rounded-[24px] bg-[linear-gradient(135deg,hsl(var(--primary)/0.28),hsl(var(--primary)/0.12))] text-lg shadow-[0_18px_48px_hsl(var(--shadow-color)/0.1)] sm:h-20 sm:w-20 sm:rounded-[26px] sm:text-xl"
-                  fallback={buildAvatarFallback(accountState)}
-                  src={accountState.avatarUrl}
-                />
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-lg font-semibold text-app-foreground sm:text-xl">
-                      {visibleName}
-                    </p>
-                    <StatusDot status={accountState.status} />
-                  </div>
-                  <p className="mt-1 text-sm text-app-muted">@{accountState.username}</p>
-                  <p className="mt-2 text-sm text-app-muted">{accountState.email}</p>
-                </div>
-              </div>
-
-              <Button
-                className="w-full sm:w-auto"
-                onClick={() => setIsEditingAccount(true)}
-                type="button"
-                variant="outline"
-              >
-                {t("common.edit")}
-              </Button>
-            </div>
-
-            <div className="mt-6 grid gap-3 md:grid-cols-2">
-              <InfoPill label={t("settings.account.fields.displayName")} value={visibleName} />
-              <InfoPill label={t("common.username")} value={`@${accountState.username}`} />
-              <InfoPill label={t("common.email")} value={accountState.email} />
-              <InfoPill
-                label={t("settings.account.fields.status")}
-                value={t(
-                  accountState.status === UserStatus.INVISIBLE
-                    ? "settings.account.status.invisible"
-                    : `friends.status.${accountState.status.toLowerCase()}`,
-                )}
-              />
-            </div>
-          </SettingCard>
-
-          <SettingCard
-            description={t("settings.account.avatar.description")}
-            icon={Camera}
-            title={t("settings.account.avatar.title")}
-          >
-            <ProfileAvatarField
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,360px)] 2xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="min-w-0 space-y-6">
+            <ProfileSummaryCard
               account={accountState}
-              onAvatarUpdated={handleAvatarUpdated}
-              uploadthingEnabled={uploadthingEnabled}
+              completion={completion}
+              onChangeStatus={() => setIsEditingAccount(true)}
+              onEdit={() => setIsEditingAccount(true)}
+              statusLabel={statusLabel}
+              t={t}
+              visibleName={visibleName}
             />
-          </SettingCard>
 
-          <SettingCard
-            description={t("settings.account.editDescription")}
-            icon={Mail}
-            title={t("settings.account.editTitle")}
-          >
+            {accountFeedback ? (
+              <div
+                className={cn(
+                  "rounded-[24px] border p-4 text-sm font-semibold shadow-[0_16px_40px_hsl(var(--shadow-color)/0.06)]",
+                  accountFeedback.tone === "success"
+                    ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600"
+                    : "border-rose-500/25 bg-rose-500/10 text-rose-600",
+                )}
+              >
+                {accountFeedback.value}
+              </div>
+            ) : null}
+
             {isEditingAccount ? (
-              <div className="space-y-4">
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-app-foreground">
-                    {t("settings.account.fields.displayName")}
-                  </span>
-                  <input
-                    className="app-panel w-full rounded-2xl border px-4 py-3 text-sm text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                    onChange={(event) =>
-                      handleAccountDraftChange("displayName", event.target.value)
-                    }
-                    type="text"
-                    value={accountDraft.displayName ?? ""}
-                  />
-                  {accountFieldErrors.displayName ? (
-                    <p className="mt-2 text-xs text-app-danger">
-                      {t(accountFieldErrors.displayName)}
-                    </p>
-                  ) : null}
-                </label>
+              <SettingCard
+                description={t("settings.account.editDescription")}
+                icon={Mail}
+                title={t("settings.account.editTitle")}
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-bold text-app-foreground">
+                      {t("settings.account.fields.displayName")}
+                    </span>
+                    <input
+                      className="app-panel w-full rounded-2xl border px-4 py-3 text-sm font-semibold text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                      onChange={(event) =>
+                        handleAccountDraftChange("displayName", event.target.value)
+                      }
+                      type="text"
+                      value={accountDraft.displayName ?? ""}
+                    />
+                    {accountFieldErrors.displayName ? (
+                      <p className="mt-2 text-xs font-semibold text-app-danger">
+                        {t(accountFieldErrors.displayName)}
+                      </p>
+                    ) : null}
+                  </label>
 
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-app-foreground">
-                    {t("common.username")}
-                  </span>
-                  <input
-                    className="app-panel w-full rounded-2xl border px-4 py-3 text-sm text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                    onChange={(event) => handleAccountDraftChange("username", event.target.value)}
-                    type="text"
-                    value={accountDraft.username}
-                  />
-                  {accountFieldErrors.username ? (
-                    <p className="mt-2 text-xs text-app-danger">{t(accountFieldErrors.username)}</p>
-                  ) : null}
-                </label>
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-bold text-app-foreground">
+                      {t("common.username")}
+                    </span>
+                    <input
+                      className="app-panel w-full rounded-2xl border px-4 py-3 text-sm font-semibold text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                      onChange={(event) =>
+                        handleAccountDraftChange("username", event.target.value)
+                      }
+                      type="text"
+                      value={accountDraft.username}
+                    />
+                    {accountFieldErrors.username ? (
+                      <p className="mt-2 text-xs font-semibold text-app-danger">
+                        {t(accountFieldErrors.username)}
+                      </p>
+                    ) : null}
+                  </label>
 
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-app-foreground">
-                    {t("common.email")}
-                  </span>
-                  <input
-                    className="app-panel w-full rounded-2xl border px-4 py-3 text-sm text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                    onChange={(event) => handleAccountDraftChange("email", event.target.value)}
-                    type="email"
-                    value={accountDraft.email}
-                  />
-                  {accountFieldErrors.email ? (
-                    <p className="mt-2 text-xs text-app-danger">{t(accountFieldErrors.email)}</p>
-                  ) : null}
-                </label>
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-bold text-app-foreground">
+                      {t("common.email")}
+                    </span>
+                    <input
+                      className="app-panel w-full rounded-2xl border px-4 py-3 text-sm font-semibold text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                      onChange={(event) => handleAccountDraftChange("email", event.target.value)}
+                      type="email"
+                      value={accountDraft.email}
+                    />
+                    {accountFieldErrors.email ? (
+                      <p className="mt-2 text-xs font-semibold text-app-danger">
+                        {t(accountFieldErrors.email)}
+                      </p>
+                    ) : null}
+                  </label>
 
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-app-foreground">
-                    {t("settings.account.fields.status")}
-                  </span>
-                  <select
-                    className="app-panel w-full rounded-2xl border px-4 py-3 text-sm text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                    onChange={(event) =>
-                      handleAccountDraftChange("status", event.target.value as UserStatus)
-                    }
-                    value={accountDraft.status}
-                  >
-                    {accountStatusOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {t(option.key)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-bold text-app-foreground">
+                      {t("settings.account.fields.status")}
+                    </span>
+                    <select
+                      className="app-panel w-full rounded-2xl border px-4 py-3 text-sm font-semibold text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                      onChange={(event) =>
+                        handleAccountDraftChange("status", event.target.value as UserStatus)
+                      }
+                      value={accountDraft.status}
+                    >
+                      {accountStatusOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {t(option.key)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
 
-                {accountFeedback ? (
-                  <p
-                    className={cn(
-                      "text-sm",
-                      accountFeedback.tone === "success" ? "text-app-success" : "text-app-danger",
-                    )}
-                  >
-                    {accountFeedback.value}
-                  </p>
-                ) : null}
-
-                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
                   <Button
                     className="w-full sm:w-auto"
                     onClick={cancelAccountEditing}
@@ -984,23 +1674,36 @@ export function SettingsPanel({
                     {isSavingAccount ? t("common.saving") : t("common.save")}
                   </Button>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="app-panel-soft rounded-[24px] border p-4">
-                  <p className="text-sm font-semibold text-app-foreground">
-                    {t("settings.account.editHintTitle")}
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-app-muted">
-                    {t("settings.account.editHintDescription")}
-                  </p>
-                </div>
-                {accountFeedback ? (
-                  <p className="text-sm text-app-success">{accountFeedback.value}</p>
-                ) : null}
-              </div>
-            )}
-          </SettingCard>
+              </SettingCard>
+            ) : null}
+
+            <PrivacyVisibilityCard
+              disabled={patchSettingsMutation.isPending}
+              dmPolicy={dmPolicy}
+              friendRequestPolicy={friendRequestPolicy}
+              onDmPolicyChange={(nextPolicy) => updateServerSettings({ dmPolicy: nextPolicy })}
+              onFriendRequestPolicyChange={(nextPolicy) =>
+                updateServerSettings({ friendRequestPolicy: nextPolicy })
+              }
+              t={t}
+            />
+            <AccountPreferencesCard
+              locale={locale}
+              onOpenLanguageSettings={() => openPanel("language")}
+              t={t}
+              timeZoneLabel={timeZoneLabel}
+            />
+          </div>
+
+          <div className="space-y-6 xl:sticky xl:top-6 xl:self-start">
+            <ProfilePhotoCard
+              account={accountState}
+              onAvatarUpdated={handleAvatarUpdated}
+              t={t}
+              uploadthingEnabled={uploadthingEnabled}
+            />
+            <SecurityCenterCard account={accountState} t={t} />
+          </div>
         </div>
       </div>
     );
@@ -1173,119 +1876,13 @@ export function SettingsPanel({
         ) : null}
 
         {showServerRail ? (
-          <RangeSliderCard
+          <CompactServerRailPreview
             description={t("appearance.serverRail.title")}
-            labels={[
-              t("appearance.serverRail.compact"),
-              t("appearance.serverRail.balanced"),
-              t("appearance.serverRail.spacious"),
-            ]}
-            max={MAX_SERVER_RAIL_WIDTH}
-            min={EXPANDED_MIN_SERVER_RAIL_WIDTH}
-            onChange={handleServerRailWidthChange}
-            preview={
-              <div className="app-panel-soft rounded-[24px] border p-4">
-                <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <button
-                    className={cn(
-                      "rounded-2xl border px-3 py-2 text-sm font-semibold transition",
-                      serverRailCollapsed
-                        ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
-                        : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground",
-                    )}
-                    data-testid="settings-server-rail-collapse"
-                    onClick={() => handleServerRailCollapsedChange(true)}
-                    type="button"
-                  >
-                    {t("appearance.serverRail.iconOnly")}
-                  </button>
-                  <button
-                    className={cn(
-                      "rounded-2xl border px-3 py-2 text-sm font-semibold transition",
-                      !serverRailCollapsed
-                        ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.14)] text-app-foreground"
-                        : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground",
-                    )}
-                    data-testid="settings-server-rail-expand"
-                    onClick={() => handleServerRailCollapsedChange(false)}
-                    type="button"
-                  >
-                    {t("appearance.serverRail.expanded")}
-                  </button>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div
-                    className="app-panel-soft shrink-0 rounded-[22px] border p-3"
-                    style={{
-                      width: `min(${Math.max(
-                        72,
-                        serverRailCollapsed ? ICON_ONLY_SERVER_RAIL_WIDTH : serverRailWidth,
-                      )}px, 28vw)`,
-                    }}
-                  >
-                    <div
-                      className="mx-auto rounded-[16px] bg-[hsl(var(--primary)/0.18)]"
-                      style={{
-                        height: serverRailIconSize,
-                        width: serverRailIconSize,
-                      }}
-                    />
-                  </div>
-                  <div className="app-panel min-w-0 flex-1 rounded-[22px] border p-4">
-                    <div className="h-4 w-32 rounded-full bg-[hsl(var(--surface-soft))]" />
-                    <div className="mt-3 h-3 w-20 rounded-full bg-[hsl(var(--surface-soft)/0.8)]" />
-                  </div>
-                </div>
-              </div>
-            }
-            step={SERVER_RAIL_WIDTH_STEP}
-            testId="settings-server-rail-width"
+            iconLabel={t("appearance.serverRail.iconMetric")}
+            modeLabel={t("appearance.serverRail.compactMode")}
+            targetLabel={t("appearance.serverRail.touchMetric")}
             title={t("settings.appearance.advanced.serverRailTitle")}
-            value={serverRailWidth}
-          />
-        ) : null}
-
-        {showServerRail ? (
-          <RangeSliderCard
-            description={t("appearance.serverRail.iconsTitle")}
-            labels={[
-              t("appearance.serverRail.iconSmall"),
-              t("appearance.serverRail.iconBalanced"),
-              t("appearance.serverRail.iconLarge"),
-            ]}
-            max={MAX_SERVER_RAIL_ICON_SIZE}
-            min={MIN_SERVER_RAIL_ICON_SIZE}
-            onChange={setServerRailIconSize}
-            preview={
-              <div className="app-panel-soft rounded-[24px] border p-4">
-                <div className="flex items-center gap-3">
-                  {["DM", "W", "PU"].map((label, index) => (
-                    <div
-                      className={cn(
-                        "flex items-center justify-center rounded-[18px] border text-xs font-bold uppercase transition",
-                        index === 1
-                          ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.16)] text-[hsl(var(--primary))]"
-                          : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.66)] text-app-muted",
-                      )}
-                      key={label}
-                      style={{
-                        height: serverRailIconSize,
-                        width: serverRailIconSize,
-                      }}
-                    >
-                      {label}
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-3 text-xs leading-5 text-app-muted">
-                  {t("appearance.serverRail.iconsDescription")}
-                </p>
-              </div>
-            }
-            step={SERVER_RAIL_ICON_SIZE_STEP}
-            testId="settings-server-rail-icon-size"
-            title={t("appearance.serverRail.iconsTitle")}
-            value={serverRailIconSize}
+            widthLabel={t("appearance.serverRail.widthMetric")}
           />
         ) : null}
 
@@ -1341,17 +1938,14 @@ export function SettingsPanel({
                   <div
                     className="app-panel-soft shrink-0 rounded-[22px] border p-3"
                     style={{
-                      width: `${Math.max(
-                        72,
-                        serverRailCollapsed ? ICON_ONLY_SERVER_RAIL_WIDTH : serverRailWidth,
-                      )}px`,
+                      width: `${COMPACT_SERVER_RAIL_WIDTH}px`,
                     }}
                   >
                     <div
                       className="mx-auto rounded-[16px] bg-[hsl(var(--primary)/0.18)]"
                       style={{
-                        height: serverRailIconSize,
-                        width: serverRailIconSize,
+                        height: COMPACT_SERVER_RAIL_ICON_SIZE,
+                        width: COMPACT_SERVER_RAIL_ICON_SIZE,
                       }}
                     />
                   </div>
@@ -1377,15 +1971,10 @@ export function SettingsPanel({
           <Button
             className="w-full sm:w-auto"
             disabled={
-              serverRailWidth === DEFAULT_SERVER_RAIL_WIDTH &&
-              !serverRailCollapsed &&
-              serverRailIconSize === DEFAULT_SERVER_RAIL_ICON_SIZE &&
               channelSidebarWidth === DEFAULT_CHANNEL_SIDEBAR_WIDTH &&
               mainPanelWidth === DEFAULT_MAIN_PANEL_WIDTH
             }
             onClick={() => {
-              resetServerRailWidth();
-              setServerRailIconSize(DEFAULT_SERVER_RAIL_ICON_SIZE);
               resetChannelSidebarWidth();
               resetMainPanelWidth();
             }}

@@ -5,6 +5,10 @@ import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { GripVertical } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
+import {
+  COMPACT_SERVER_RAIL_ICON_SIZE,
+  COMPACT_SERVER_RAIL_TOUCH_SIZE,
+} from "@/lib/appearance";
 import { cn } from "@/lib/utils";
 
 type ServerIconProps = {
@@ -23,6 +27,7 @@ type ServerIconProps = {
   reorderable?: boolean;
   showLabel?: boolean;
   testId?: string;
+  tooltipHint?: string | undefined;
 };
 
 export function ServerIcon({
@@ -41,19 +46,15 @@ export function ServerIcon({
   reorderable = false,
   showLabel = false,
   testId,
+  tooltipHint,
 }: ServerIconProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null);
   const preview = labelPreview ?? fallback;
-  const resolvedIconSize = iconSize ?? (showLabel ? 40 : 48);
-  const resolvedRowHeight = Math.max(56, resolvedIconSize + 14);
-  const activeIndicatorHeight = Math.max(34, Math.min(42, resolvedIconSize));
-  const activeIndicatorLeft = showLabel
-    ? "0.125rem"
-    : `calc(50% - ${resolvedIconSize / 2 + 8}px)`;
-  const activeIndicatorTop = showLabel
-    ? (resolvedRowHeight - activeIndicatorHeight) / 2
-    : Math.max(0, (resolvedIconSize - activeIndicatorHeight) / 2);
+  const resolvedIconSize = iconSize ?? (showLabel ? 40 : COMPACT_SERVER_RAIL_ICON_SIZE);
+  const resolvedTouchSize = showLabel
+    ? Math.max(56, resolvedIconSize + 14)
+    : Math.max(COMPACT_SERVER_RAIL_TOUCH_SIZE, resolvedIconSize + 8);
 
   const showTooltip = () => {
     if (!buttonRef.current) return;
@@ -70,27 +71,19 @@ export function ServerIcon({
 
   return (
     <div className="relative flex w-full items-center justify-center">
-      <motion.span
-        animate={{
-          opacity: active ? 1 : 0,
-          scaleY: active ? 1 : 0.4,
-        }}
-        className="pointer-events-none absolute z-20 w-1.5 rounded-full bg-[linear-gradient(180deg,hsl(var(--primary)),hsl(var(--ambient-1)))] shadow-[0_0_20px_hsl(var(--primary)/0.46)]"
-        style={{
-          height: activeIndicatorHeight,
-          left: activeIndicatorLeft,
-          top: activeIndicatorTop,
-          transformOrigin: "center",
-        }}
-        transition={{ duration: 0.16 }}
-      />
       <motion.button
         ref={buttonRef}
         aria-current={active ? "page" : undefined}
         aria-label={label}
         className={cn(
-          "group relative outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.7)]",
-          !showLabel && "mx-auto flex items-center justify-center",
+          "group relative outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.7)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background)/0.72)]",
+          !showLabel &&
+            cn(
+              "mx-auto flex items-center justify-center rounded-[16px] transition-all duration-150",
+              active
+                ? "bg-[hsl(var(--primary)/0.1)] shadow-[0_12px_28px_hsl(var(--primary)/0.14)] ring-1 ring-[hsl(var(--primary)/0.28)]"
+                : "hover:bg-[hsl(var(--primary)/0.08)]",
+            ),
           showLabel &&
             "flex w-full items-center gap-2.5 rounded-[22px] border px-2.5 text-left transition-all duration-200",
           showLabel && reorderable && "pr-5",
@@ -114,9 +107,12 @@ export function ServerIcon({
         onMouseLeave={hideTooltip}
         data-testid={testId}
         type="button"
-        whileHover={showLabel ? { scale: 1.018, x: 1 } : { scale: 1.06, y: -1 }}
+        whileHover={showLabel ? { scale: 1.018, x: 1 } : { scale: 1.035, y: -1 }}
         whileTap={showLabel ? { scale: 0.985 } : { scale: 0.97 }}
-        {...(showLabel ? { style: { height: resolvedRowHeight } } : {})}
+        style={{
+          height: resolvedTouchSize,
+          width: showLabel ? undefined : resolvedTouchSize,
+        }}
       >
         <Avatar
           alt={label}
@@ -124,13 +120,13 @@ export function ServerIcon({
             "transition-all duration-200",
             active
               ? cn(
-                  showLabel ? "rounded-[16px]" : "rounded-[18px]",
-                  "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.18)] shadow-[0_16px_32px_hsl(var(--primary)/0.16)] ring-1 ring-[hsl(var(--primary)/0.24)]",
+                  showLabel ? "rounded-[15px]" : "rounded-[14px]",
+                  "border-[hsl(var(--primary)/0.56)] bg-[hsl(var(--primary)/0.17)] shadow-[0_12px_26px_hsl(var(--primary)/0.18)] ring-2 ring-[hsl(var(--primary)/0.34)]",
                 )
               : cn(
-                  showLabel ? "rounded-[18px]" : "rounded-[22px]",
-                  "bg-[hsl(var(--surface-soft)/0.74)] shadow-[0_12px_26px_hsl(var(--shadow-color)/0.08)] group-hover:border-[hsl(var(--primary)/0.24)] group-hover:bg-[hsl(var(--surface-card)/0.9)]",
-                  !showLabel && "group-hover:rounded-[18px]",
+                  showLabel ? "rounded-[16px]" : "rounded-[13px]",
+                  "bg-[hsl(var(--surface-soft)/0.7)] shadow-none ring-1 ring-transparent group-hover:bg-[hsl(var(--surface-card)/0.86)] group-hover:ring-[hsl(var(--primary)/0.16)]",
+                  !showLabel && "group-hover:rounded-[14px]",
                 ),
           )}
           fallback={fallback}
@@ -155,7 +151,7 @@ export function ServerIcon({
           <span
             aria-hidden="true"
             className={cn(
-              "pointer-events-none absolute inline-flex min-w-[1.45rem] items-center justify-center whitespace-nowrap rounded-full border border-[hsl(var(--background)/0.36)] bg-[hsl(var(--primary))] px-1.5 py-0.5 text-[10px] font-black leading-none text-[hsl(var(--primary-foreground))] shadow-[0_10px_24px_hsl(var(--primary)/0.36)]",
+              "pointer-events-none absolute inline-flex min-w-[1.35rem] items-center justify-center whitespace-nowrap rounded-full border border-[hsl(var(--background)/0.5)] bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--ambient-1)))] px-1.5 py-0.5 text-[9px] font-black leading-none text-[hsl(var(--primary-foreground))] shadow-[0_8px_20px_hsl(var(--primary)/0.28)]",
               showLabel
                 ? "left-8 top-7"
                 : "bottom-0 right-0 translate-x-[24%] translate-y-[18%]",
@@ -168,7 +164,7 @@ export function ServerIcon({
           <span
             aria-hidden="true"
             className={cn(
-              "pointer-events-none absolute inline-flex min-w-[1.35rem] items-center justify-center whitespace-nowrap rounded-full bg-[hsl(var(--danger))] px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white shadow-[0_10px_22px_hsl(var(--danger)/0.35)]",
+              "pointer-events-none absolute inline-flex min-w-[1.05rem] items-center justify-center whitespace-nowrap rounded-full border border-[hsl(var(--background)/0.42)] bg-[hsl(var(--danger)/0.92)] px-1 py-0.5 text-[9px] font-bold leading-none text-white shadow-[0_7px_16px_hsl(var(--danger)/0.24)]",
               showLabel
                 ? "left-8 top-7"
                 : "bottom-0 right-0 translate-x-[24%] translate-y-[18%]",
@@ -184,10 +180,15 @@ export function ServerIcon({
         typeof document !== "undefined" &&
         createPortal(
           <span
-            className="app-tooltip pointer-events-none fixed z-[60] max-w-[160px] -translate-y-1/2 truncate rounded-xl border px-2.5 py-1 text-xs shadow-[0_12px_26px_hsl(var(--shadow-color)/0.12)]"
+            className="app-tooltip pointer-events-none fixed z-[60] max-w-[190px] -translate-y-1/2 rounded-xl border px-2.5 py-1.5 text-xs shadow-[0_12px_26px_hsl(var(--shadow-color)/0.12)]"
             style={{ top: tooltipPos.top, left: tooltipPos.left }}
           >
-            {label}
+            <span className="block truncate font-semibold text-app-foreground">{label}</span>
+            {tooltipHint ? (
+              <span className="mt-0.5 block truncate text-[11px] font-medium text-app-muted">
+                {tooltipHint}
+              </span>
+            ) : null}
           </span>,
           document.body,
         )}

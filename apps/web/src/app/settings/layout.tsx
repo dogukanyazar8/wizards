@@ -21,16 +21,24 @@ export default async function SettingsLayout({ children }: { children: React.Rea
       }}
     >
       <main
-        className="app-shell h-dvh min-h-0 overflow-x-hidden overflow-y-auto overscroll-y-contain px-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4 sm:py-6 md:px-6 lg:px-8"
+        className="app-shell h-dvh min-h-0 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-[radial-gradient(circle_at_16%_8%,hsl(var(--primary)/0.09),transparent_28%),radial-gradient(circle_at_86%_18%,hsl(var(--surface-highlight)/0.62),transparent_26%),linear-gradient(180deg,hsl(var(--background)),hsl(var(--surface-base)))] px-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4 sm:py-5 md:px-6 lg:px-5 lg:py-5 xl:px-7"
         data-settings-scroll-root
       >
         <AppStartupSessionMarker />
         <LocaleSessionSync preferredLocale={session.user.locale} />
         <ThemeSessionSync preferredTheme={session.user.theme} />
 
-        <div className="mx-auto grid w-full max-w-[1600px] min-w-0 gap-4 overflow-x-hidden sm:gap-6 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]">
-          <SettingsSidebar />
-          <section className="min-w-0 max-w-full overflow-x-hidden pb-8">{children}</section>
+        <div className="mx-auto grid w-full max-w-[1760px] min-w-0 gap-4 overflow-x-hidden sm:gap-5 lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]">
+          <SettingsSidebar
+            currentUser={{
+              avatarUrl: session.user.avatarUrl ?? session.user.image ?? null,
+              displayName,
+              username,
+            }}
+          />
+          <section className="min-w-0 max-w-full overflow-x-hidden pb-8 lg:pt-2">
+            {children}
+          </section>
         </div>
       </main>
     </AuthenticatedAppProviders>

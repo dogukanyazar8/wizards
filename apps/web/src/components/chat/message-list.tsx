@@ -373,7 +373,7 @@ export function MessageList({
     <div
       ref={listRef}
       onScroll={handleScroll}
-      className="relative flex-1 space-y-0 overflow-y-auto overscroll-contain bg-transparent px-1 py-1.5 sm:px-2 md:px-2"
+      className="relative flex-1 space-y-0 overflow-y-auto overscroll-contain bg-transparent px-3 py-2 sm:px-4 md:px-5 md:py-3"
       aria-label={t("chat.list.ariaLabel")}
       aria-live="polite"
       aria-relevant="additions text"
@@ -414,9 +414,12 @@ export function MessageList({
       ) : null}
 
       {!error && allMessages.length === 0 && !isLoading ? (
-        <div className="flex h-full items-center justify-center text-app-muted">
-          <div className="text-center">
-            <p className="text-sm">{t("chat.list.emptyTitle")}</p>
+        <div className="flex h-full items-center justify-center px-4 text-app-muted">
+          <div className="max-w-sm rounded-[26px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] px-6 py-5 text-center shadow-[0_18px_42px_hsl(var(--shadow-color)/0.06)] backdrop-blur-xl">
+            <p className="text-sm font-bold text-app-foreground">{t("chat.list.emptyTitle")}</p>
+            <p className="mt-1 text-xs leading-5 text-app-muted">
+              {t("chat.list.emptyDescription")}
+            </p>
           </div>
         </div>
       ) : null}
@@ -425,7 +428,7 @@ export function MessageList({
         <div key={message.id}>
           {showDateSeparator ? (
             <div
-              className="sticky top-2 z-10 my-1.5 flex items-center gap-2 px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-app-soft sm:px-3"
+              className="sticky top-2 z-10 my-2 flex items-center gap-2 px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-app-soft"
               data-testid="message-date-separator"
               role="separator"
             >

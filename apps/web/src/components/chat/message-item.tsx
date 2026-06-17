@@ -916,7 +916,7 @@ export const MessageItem = React.memo(
       <>
         <div
           className={cn(
-            "group relative px-1 py-0 transition sm:px-2",
+            "group relative px-0 py-[1px] transition",
             "data-[jump-highlight=true]:rounded-3xl data-[jump-highlight=true]:bg-[hsl(var(--primary)/0.12)] data-[jump-highlight=true]:ring-2 data-[jump-highlight=true]:ring-[hsl(var(--primary)/0.28)]",
             isOptimistic && !isFailed && "opacity-70",
             isFailed && "opacity-95",
@@ -959,8 +959,8 @@ export const MessageItem = React.memo(
 
           <div
             className={cn(
-              "grid grid-cols-[2.25rem_minmax(0,1fr)] items-start gap-3 rounded-[14px] transition hover:bg-[hsl(var(--surface-soft)/0.32)]",
-              isGrouped ? "py-0" : "pb-1 pt-1.5",
+              "grid grid-cols-[2.35rem_minmax(0,1fr)] items-start gap-3 rounded-[18px] px-2 transition hover:bg-[hsl(var(--surface-card)/0.44)] sm:grid-cols-[2.5rem_minmax(0,1fr)] sm:px-3",
+              isGrouped ? "py-0.5" : "py-2",
             )}
           >
             <div className="flex justify-center">
@@ -980,7 +980,7 @@ export const MessageItem = React.memo(
                     <Avatar
                       src={message.author.avatarUrl}
                       alt={message.author.displayName}
-                      className="h-9 w-9 flex-shrink-0 rounded-full"
+                      className="h-9 w-9 flex-shrink-0 rounded-full shadow-[0_6px_16px_hsl(var(--shadow-color)/0.055)]"
                       fallback={message.author.displayName[0] || "?"}
                     />
                   </span>
@@ -1041,7 +1041,7 @@ export const MessageItem = React.memo(
                   onCancel={() => setIsEditing(false)}
                 />
               ) : hasRenderableMessageBody ? (
-                <div className="message-font-scope max-w-full break-words text-sm leading-relaxed text-app-foreground">
+                <div className="message-font-scope max-w-full break-words text-sm leading-relaxed text-app-foreground [overflow-wrap:anywhere]">
                   <div className="relative inline-block max-w-full align-top md:max-w-[calc(100%-10rem)] 2xl:max-w-[76rem] [&_a]:text-[hsl(var(--primary))] [&_code]:break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto">
                     {markdownContent.trim().length > 0 ? (
                       <ReactMarkdown
