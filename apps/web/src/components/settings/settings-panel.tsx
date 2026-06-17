@@ -47,16 +47,13 @@ import { CameraPreferencesPanel } from "@/components/voice/camera-preferences-pa
 import { ScreenSharePreferencesPanel } from "@/components/voice/screen-share-preferences-panel";
 import { VoicePreferencesPanel } from "@/components/voice/voice-preferences-panel";
 import {
-  CHANNEL_SIDEBAR_WIDTH_STEP,
   COMPACT_SERVER_RAIL_ICON_SIZE,
   COMPACT_SERVER_RAIL_TOUCH_SIZE,
   COMPACT_SERVER_RAIL_WIDTH,
   DEFAULT_CHANNEL_SIDEBAR_WIDTH,
   DEFAULT_MAIN_PANEL_WIDTH,
-  MAX_CHANNEL_SIDEBAR_WIDTH,
   MAX_MAIN_PANEL_WIDTH,
   MAX_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
-  MIN_CHANNEL_SIDEBAR_WIDTH,
   MIN_MAIN_PANEL_WIDTH,
   MIN_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
   NOTIFICATION_LIMIT_OPTIONS,
@@ -1192,7 +1189,6 @@ export function SettingsPanel({
   const {
     applyPersistedSettings,
     appIconId,
-    channelSidebarWidth,
     desktopCloseToTrayEnabled,
     desktopNotificationPreviews,
     desktopRichPresenceEnabled,
@@ -1202,10 +1198,8 @@ export function SettingsPanel({
     notificationAutoClose,
     notificationLimit,
     notificationPopupTimeoutSeconds,
-    resetChannelSidebarWidth,
     resetMainPanelWidth,
     setAppIconId,
-    setChannelSidebarWidth,
     setDesktopCloseToTrayEnabled,
     setDesktopNotificationPreviews,
     setDesktopRichPresenceEnabled,
@@ -1219,7 +1213,6 @@ export function SettingsPanel({
     useShallow((state) => ({
       applyPersistedSettings: state.applyPersistedSettings,
       appIconId: state.appIconId,
-      channelSidebarWidth: state.channelSidebarWidth,
       desktopCloseToTrayEnabled: state.desktopCloseToTrayEnabled,
       desktopNotificationPreviews: state.desktopNotificationPreviews,
       desktopRichPresenceEnabled: state.desktopRichPresenceEnabled,
@@ -1229,10 +1222,8 @@ export function SettingsPanel({
       notificationAutoClose: state.notificationAutoClose,
       notificationLimit: state.notificationLimit,
       notificationPopupTimeoutSeconds: state.notificationPopupTimeoutSeconds,
-      resetChannelSidebarWidth: state.resetChannelSidebarWidth,
       resetMainPanelWidth: state.resetMainPanelWidth,
       setAppIconId: state.setAppIconId,
-      setChannelSidebarWidth: state.setChannelSidebarWidth,
       setDesktopCloseToTrayEnabled: state.setDesktopCloseToTrayEnabled,
       setDesktopNotificationPreviews: state.setDesktopNotificationPreviews,
       setDesktopRichPresenceEnabled: state.setDesktopRichPresenceEnabled,
@@ -1403,18 +1394,6 @@ export function SettingsPanel({
       setMainPanelWidth(nextValue);
     },
     [setMainPanelWidth],
-  );
-
-  const handleChannelSidebarWidthChange = useCallback(
-    (nextValue: number) => {
-      void queryClient.cancelQueries({ queryKey: settingsQueryKeys.layout });
-      setChannelSidebarWidth(nextValue);
-      queryClient.setQueryData<UserLayoutSettings | undefined>(
-        settingsQueryKeys.layout,
-        (current) => (current ? { ...current, channelSidebarWidth: nextValue } : current),
-      );
-    },
-    [queryClient, setChannelSidebarWidth],
   );
 
   const handleNotificationLimitChange = useCallback(
@@ -1922,19 +1901,27 @@ export function SettingsPanel({
         ) : null}
 
         {showChannelSidebar ? (
-          <RangeSliderCard
+          <SettingCard
             description={t("appearance.sidebar.title")}
-            labels={[
-              t("appearance.sidebar.compact"),
-              t("appearance.sidebar.readable"),
-              t("appearance.sidebar.studio"),
-            ]}
-            max={MAX_CHANNEL_SIDEBAR_WIDTH}
-            min={MIN_CHANNEL_SIDEBAR_WIDTH}
-            onChange={handleChannelSidebarWidthChange}
-            preview={
-              <div className="app-panel-soft rounded-[24px] border p-4">
-                <div className="flex items-center gap-3">
+            icon={LayoutPanelTop}
+            title={t("settings.appearance.advanced.channelSidebarTitle")}
+          >
+            <div className="flex items-center justify-end">
+              <div className="app-panel-soft inline-flex items-center gap-2 rounded-2xl border px-3 py-2">
+                <span className="text-app-foreground text-sm font-medium">
+                  {DEFAULT_CHANNEL_SIDEBAR_WIDTH}px
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-4 overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] p-4 sm:p-5">
+              <div className="text-app-muted flex items-center justify-between text-xs font-medium">
+                <span>{t("appearance.sidebar.compact")}</span>
+                <span>{t("appearance.sidebar.readable")}</span>
+                <span>{t("appearance.sidebar.studio")}</span>
+              </div>
+              <div className="mt-5 app-panel-soft rounded-[24px] border p-4">
+                <div className="flex items-center gap-3 overflow-hidden">
                   <div
                     className="app-panel-soft shrink-0 rounded-[22px] border p-3"
                     style={{
@@ -1951,31 +1938,23 @@ export function SettingsPanel({
                   </div>
                   <div
                     className="app-panel shrink-0 rounded-[24px] border p-4"
-                    style={{ width: `min(${channelSidebarWidth}px, 52vw)` }}
+                    style={{ width: `min(${DEFAULT_CHANNEL_SIDEBAR_WIDTH}px, 52vw)` }}
                   >
-                    <div className="h-4 w-36 rounded-full bg-[hsl(var(--surface-soft))]" />
-                    <div className="mt-3 h-3 w-44 rounded-full bg-[hsl(var(--surface-soft)/0.8)]" />
-                    <div className="mt-3 h-3 w-32 rounded-full bg-[hsl(var(--surface-soft)/0.72)]" />
+                    <div className="h-4 w-28 rounded-full bg-[hsl(var(--surface-soft))]" />
+                    <div className="mt-3 h-3 w-36 rounded-full bg-[hsl(var(--surface-soft)/0.8)]" />
+                    <div className="mt-3 h-3 w-24 rounded-full bg-[hsl(var(--surface-soft)/0.72)]" />
                   </div>
                 </div>
               </div>
-            }
-            step={CHANNEL_SIDEBAR_WIDTH_STEP}
-            testId="settings-channel-sidebar-width"
-            title={t("settings.appearance.advanced.channelSidebarTitle")}
-            value={channelSidebarWidth}
-          />
+            </div>
+          </SettingCard>
         ) : null}
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
           <Button
             className="w-full sm:w-auto"
-            disabled={
-              channelSidebarWidth === DEFAULT_CHANNEL_SIDEBAR_WIDTH &&
-              mainPanelWidth === DEFAULT_MAIN_PANEL_WIDTH
-            }
+            disabled={mainPanelWidth === DEFAULT_MAIN_PANEL_WIDTH}
             onClick={() => {
-              resetChannelSidebarWidth();
               resetMainPanelWidth();
             }}
             data-testid="settings-layout-reset"

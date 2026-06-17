@@ -373,7 +373,7 @@ export function MessageList({
     <div
       ref={listRef}
       onScroll={handleScroll}
-      className="relative flex-1 space-y-0 overflow-y-auto overscroll-contain bg-transparent px-3 py-2 sm:px-4 md:px-5 md:py-3"
+      className="relative flex-1 space-y-0 overflow-y-auto overscroll-contain bg-transparent px-3 py-1 sm:px-4 md:px-5 md:py-2"
       aria-label={t("chat.list.ariaLabel")}
       aria-live="polite"
       aria-relevant="additions text"

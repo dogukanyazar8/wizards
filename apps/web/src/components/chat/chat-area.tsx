@@ -814,11 +814,11 @@ export function ChatArea({
 
       {mode === "channel" ? (
         <div
-          className="sticky top-0 z-30 border-b border-[hsl(var(--border)/0.4)] px-3 py-2 pl-16 backdrop-blur-xl md:px-4 md:py-3 md:pl-4"
+          className="sticky top-0 z-30 px-3 py-1.5 pl-16 backdrop-blur-xl md:px-4 md:py-2 md:pl-4"
           data-testid="chat-channel-header"
         >
-          <div className="flex min-h-14 items-center gap-3 rounded-[20px] bg-[hsl(var(--surface-card)/0.34)] p-2 md:p-2.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
+          <div className="flex min-h-12 items-center gap-3 p-1 md:p-1.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
               <Hash className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
@@ -837,7 +837,7 @@ export function ChatArea({
               ) : null}
             </div>
 
-            <div className="flex shrink-0 items-center gap-1.5 rounded-[20px] bg-[hsl(var(--surface-card)/0.36)] p-1 backdrop-blur-md">
+            <div className="flex shrink-0 items-center gap-1 rounded-[18px] bg-[hsl(var(--surface-soft)/0.34)] p-1 backdrop-blur-md">
               {hasPinnedMessages ? (
                 <div className="relative">
                   <button

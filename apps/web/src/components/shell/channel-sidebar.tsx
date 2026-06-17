@@ -30,10 +30,8 @@ import {
   Mic,
   MoreHorizontal,
   Plus,
-  RotateCcw,
   Search,
   Settings2,
-  SlidersHorizontal,
   Trash2,
   UserPlus,
   Volume2,
@@ -70,11 +68,6 @@ import { useAppStore } from "@/lib/store";
 import { updatePresenceStatusAction } from "@/lib/account/actions";
 import { logoutAction } from "@/lib/auth/actions";
 import type { VoiceChannelStateDTO } from "@/lib/voice/types";
-import {
-  CHANNEL_SIDEBAR_WIDTH_STEP,
-  MAX_CHANNEL_SIDEBAR_WIDTH,
-  MIN_CHANNEL_SIDEBAR_WIDTH,
-} from "@/lib/appearance";
 
 type PresenceStatus = "ONLINE" | "IDLE" | "DND" | "OFFLINE";
 
@@ -250,7 +243,7 @@ function ChannelDropZone({
     <div
       ref={setNodeRef}
       className={cn(
-        "min-h-6 rounded-[20px] border border-transparent px-0.5 py-0.5 transition",
+        "min-h-5 rounded-[16px] border border-transparent px-0.5 py-0 transition",
         canManage && isOver
           ? "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.08)] shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.08)]"
           : "",
@@ -258,7 +251,7 @@ function ChannelDropZone({
     >
       {children}
       {canManage && empty ? (
-        <div className="rounded-2xl border border-dashed border-[hsl(var(--border)/0.55)] px-3 py-2 text-xs font-medium text-app-soft">
+        <div className="rounded-[14px] border border-dashed border-[hsl(var(--border)/0.5)] px-2 py-1.5 text-[11px] font-medium text-app-soft">
           {emptyLabel}
         </div>
       ) : null}
@@ -302,46 +295,6 @@ function getStatusDotClass(status: PresenceStatus) {
   }
 
   return "bg-slate-400 shadow-[0_0_0_3px_hsl(var(--muted)/0.18)]";
-}
-
-function SidebarTuningControl({
-  label,
-  max,
-  min,
-  onChange,
-  step,
-  value,
-}: {
-  label: string;
-  max: number;
-  min: number;
-  onChange: (value: number) => void;
-  step: number;
-  value: number;
-}) {
-  return (
-    <label className="block rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.36)] p-3">
-      <span className="mb-2 flex items-center justify-between gap-3">
-        <span className="text-xs font-semibold text-app-foreground">{label}</span>
-        <span className="rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.68)] px-2 py-0.5 text-[11px] font-bold text-app-muted">
-          {value}px
-        </span>
-      </span>
-      <input
-        className="h-2 w-full cursor-pointer accent-[hsl(var(--primary))]"
-        max={max}
-        min={min}
-        onChange={(event) => onChange(Number(event.target.value))}
-        step={step}
-        type="range"
-        value={value}
-      />
-      <span className="mt-1 flex justify-between text-[10px] font-semibold uppercase tracking-[0.12em] text-app-soft">
-        <span>{min}px</span>
-        <span>{max}px</span>
-      </span>
-    </label>
-  );
 }
 
 export function UserProfileFooter({
@@ -430,17 +383,17 @@ export function UserProfileFooter({
 
   return (
     <div
-      className="relative min-w-0 rounded-[22px] px-1.5 py-1.5"
+      className="relative flex min-h-[3.25rem] w-full min-w-0 translate-y-[4px] items-center rounded-[18px] pl-0 pr-1"
       data-notification-popup-anchor="user"
       data-testid="user-bar"
       data-user-bar-anchor="true"
       ref={userBarRef}
     >
-      <div className="flex min-w-0 items-center gap-2.5">
+      <div className="flex w-full min-w-0 items-center gap-3">
         <div className="relative shrink-0 drop-shadow-[0_10px_20px_hsl(var(--shadow-color)/0.08)]">
           <Avatar
             alt={user.displayName}
-            className="h-10 w-10 sm:h-11 sm:w-11"
+            className="h-9 w-9 sm:h-10 sm:w-10"
             fallback={user.displayName}
             src={user.avatarUrl}
           />
@@ -453,17 +406,17 @@ export function UserProfileFooter({
           />
         </div>
 
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-extrabold leading-5 tracking-[-0.01em] text-app-foreground">
+        <div className="min-w-0 flex-1 basis-0">
+          <p className="truncate text-[13px] font-extrabold leading-5 tracking-[-0.01em] text-app-foreground">
             {user.displayName}
           </p>
-          <p className="truncate text-[11px] font-semibold text-app-muted">@{user.username}</p>
-          <div className="relative mt-0.5 inline-flex max-w-full">
+          <p className="truncate text-[10.5px] font-semibold text-app-muted">@{user.username}</p>
+          <div className="relative mt-0.5 inline-flex max-w-full align-top">
             <button
               aria-expanded={isStatusMenuOpen}
               aria-haspopup="listbox"
               aria-label={t("shell.user.status")}
-              className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-transparent p-0 text-left text-[11px] font-semibold text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
+              className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-transparent p-0 text-left text-[10.5px] font-semibold text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
               disabled={isUpdatingStatus}
               onClick={() => setIsStatusMenuOpen((open) => !open)}
               title={t("shell.user.statusTitle")}
@@ -478,7 +431,7 @@ export function UserProfileFooter({
 
             {isStatusMenuOpen ? (
               <div
-                className="absolute bottom-[calc(100%+0.55rem)] left-0 z-50 w-52 rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.98)] p-2 shadow-[0_24px_70px_hsl(var(--shadow-color)/0.22)] backdrop-blur-2xl"
+                className="absolute bottom-[calc(100%+0.45rem)] left-0 z-50 w-44 rounded-[18px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.98)] p-1.5 shadow-[0_18px_48px_hsl(var(--shadow-color)/0.18)] backdrop-blur-2xl"
                 role="listbox"
               >
                 {USER_STATUS_OPTIONS.map((option) => {
@@ -488,7 +441,7 @@ export function UserProfileFooter({
                     <button
                       aria-selected={selected}
                       className={cn(
-                        "flex w-full items-center gap-2 rounded-[18px] px-3 py-2 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]",
+                        "flex w-full items-center gap-2 rounded-[14px] px-2.5 py-1.5 text-left text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]",
                         selected
                           ? "bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]"
                           : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-app-foreground",
@@ -510,11 +463,11 @@ export function UserProfileFooter({
           </div>
         </div>
 
-        <div className="ml-auto flex shrink-0 items-center gap-1">
+        <div className="ml-4 flex shrink-0 items-center gap-0.5">
           <button
             aria-label={t("shell.user.toggleMute")}
             className={cn(
-              "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               isMuted
                 ? "bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
                 : "text-app-foreground",
@@ -530,7 +483,7 @@ export function UserProfileFooter({
           <button
             aria-label={t("shell.user.toggleDeafen")}
             className={cn(
-              "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               isDeafened
                 ? "bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
                 : "text-app-foreground",
@@ -545,14 +498,14 @@ export function UserProfileFooter({
             />
           </button>
 
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] transition hover:bg-[hsl(var(--surface-soft)/0.68)]">
-            <NotificationBell className="h-9 w-9 rounded-full hover:bg-transparent" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] transition hover:bg-[hsl(var(--surface-soft)/0.68)]">
+            <NotificationBell className="h-8 w-8 rounded-full hover:bg-transparent" />
           </div>
 
           <button
             aria-label={t("shell.user.appearanceSettings")}
             className={cn(
-              "inline-flex h-9 w-9 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+              "inline-flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               isQuickMenuOpen && "bg-[hsl(var(--primary)/0.18)]",
             )}
             data-testid="user-settings-button"
@@ -732,7 +685,6 @@ export function ChannelSidebar({
   const voiceStatesQuery = useVoiceStates(detail?.server.id ?? null);
   const { prepareForVoiceJoin } = useVoiceState();
   const {
-    channelSidebarWidth,
     collapsedCategories,
     openCategoryModal,
     openChannelModal,
@@ -740,15 +692,12 @@ export function ChannelSidebar({
     openChannelGroupPositions,
     openInviteModal,
     openServerSettings,
-    resetChannelSidebarWidth,
-    setChannelSidebarWidth,
     setOpenChannelGroupPosition,
     setShowCategoryMoveControls,
     showCategoryMoveControls,
     toggleCategoryCollapse,
   } = useAppStore(
     useShallow((state) => ({
-      channelSidebarWidth: state.channelSidebarWidth,
       collapsedCategories: state.collapsedCategories,
       openCategoryModal: state.openCategoryModal,
       openChannelModal: state.openChannelModal,
@@ -756,8 +705,6 @@ export function ChannelSidebar({
       openChannelGroupPositions: state.openChannelGroupPositions,
       openInviteModal: state.openInviteModal,
       openServerSettings: state.openServerSettings,
-      resetChannelSidebarWidth: state.resetChannelSidebarWidth,
-      setChannelSidebarWidth: state.setChannelSidebarWidth,
       setOpenChannelGroupPosition: state.setOpenChannelGroupPosition,
       setShowCategoryMoveControls: state.setShowCategoryMoveControls,
       showCategoryMoveControls: state.showCategoryMoveControls,
@@ -1049,28 +996,20 @@ export function ChannelSidebar({
   );
 
   const renderSidebarControls = () => (
-    <div className="w-64 max-w-[calc(100vw-2.5rem)] space-y-2 px-2 py-2">
+    <div className="w-60 max-w-[calc(100vw-2.5rem)] space-y-2 px-2 py-2">
       <div className="flex items-start gap-2 px-1">
         <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted">
-          <SlidersHorizontal className="h-4 w-4" />
+          <ArrowUp className="h-4 w-4" />
         </span>
         <div className="min-w-0">
           <p className="text-xs font-bold text-app-foreground">
-            {t("shell.channelSidebar.customize")}
+            {t("shell.channelSidebar.categoryMoveArrows")}
           </p>
           <p className="mt-0.5 text-[11px] leading-4 text-app-soft">
-            {t("shell.channelSidebar.customizeHint")}
+            {t("shell.channelSidebar.categoryMoveArrowsHint")}
           </p>
         </div>
       </div>
-      <SidebarTuningControl
-        label={t("shell.channelSidebar.width")}
-        max={MAX_CHANNEL_SIDEBAR_WIDTH}
-        min={MIN_CHANNEL_SIDEBAR_WIDTH}
-        onChange={setChannelSidebarWidth}
-        step={CHANNEL_SIDEBAR_WIDTH_STEP}
-        value={channelSidebarWidth}
-      />
       <button
         aria-pressed={showCategoryMoveControls}
         className="flex w-full items-center gap-2.5 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.32)] p-2.5 text-left transition hover:bg-[hsl(var(--surface-soft)/0.56)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
@@ -1111,19 +1050,6 @@ export function ChannelSidebar({
             )}
           />
         </span>
-      </button>
-      <button
-        className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-xs font-bold text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.55)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
-        onClick={() => {
-          resetChannelSidebarWidth();
-          setHeaderMenu((state) => ({ ...state, open: false }));
-          setEmptyMenu((state) => ({ ...state, open: false }));
-          setCategoryMenu((state) => ({ ...state, open: false }));
-        }}
-        type="button"
-      >
-        <RotateCcw className="h-3.5 w-3.5" />
-        {t("appearance.resetSidebar")}
       </button>
     </div>
   );
@@ -1175,7 +1101,7 @@ export function ChannelSidebar({
         </div>
         {showUserFooter ? (
           <div
-            className="border-t border-[hsl(var(--border)/0.78)] py-3 pl-3 pr-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3"
+            className="flex min-h-[4.25rem] items-center justify-start border-t border-[hsl(var(--border)/0.78)] py-2 pl-3 pr-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-2"
             data-notification-popup-anchor="controls-border"
           >
             <UserProfileFooter
@@ -1295,7 +1221,7 @@ export function ChannelSidebar({
 
     return (
       <div
-        className="group/category space-y-1 rounded-[18px] px-1.5 py-1.5"
+        className="group/category space-y-0.5 rounded-[16px] px-1 py-1"
         data-sidebar-interactive="true"
         key={groupKey}
       >
@@ -1304,24 +1230,24 @@ export function ChannelSidebar({
             <button
               aria-label={t("shell.channelSidebar.dragCategory", { name: label })}
               className={cn(
-                "text-app-soft inline-flex h-7 w-6 shrink-0 items-center justify-center rounded-xl transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                "text-app-soft inline-flex h-6 w-5 shrink-0 items-center justify-center rounded-lg transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                 categorySortable.isDragging && "cursor-grabbing text-app-foreground",
               )}
               type="button"
               {...categorySortable.attributes}
               {...categorySortable.listeners}
             >
-              <GripVertical className="h-3.5 w-3.5" />
+              <GripVertical className="h-3 w-3" />
             </button>
           ) : null}
           {canShowMoveControls ? (
             <div
               aria-label={t("shell.channelSidebar.sectionMoveControls", { name: label })}
-              className="hidden shrink-0 items-center rounded-2xl bg-[hsl(var(--surface-card)/0.54)] p-0.5 group-hover/category:flex group-focus-within/category:flex"
+              className="hidden shrink-0 items-center rounded-xl bg-[hsl(var(--surface-card)/0.48)] p-0.5 group-hover/category:flex group-focus-within/category:flex"
             >
               <button
                 aria-label={t("shell.channelSidebar.moveSectionUp", { name: label })}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-xl text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-35"
+                className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-35"
                 disabled={!canMoveGroupUp || categoryReorderMutation.isPending}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -1330,11 +1256,11 @@ export function ChannelSidebar({
                 title={t("shell.channelSidebar.moveSectionUp", { name: label })}
                 type="button"
               >
-                <ArrowUp className="h-3.5 w-3.5" />
+                <ArrowUp className="h-3 w-3" />
               </button>
               <button
                 aria-label={t("shell.channelSidebar.moveSectionDown", { name: label })}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-xl text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-35"
+                className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-35"
                 disabled={!canMoveGroupDown || categoryReorderMutation.isPending}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -1343,12 +1269,12 @@ export function ChannelSidebar({
                 title={t("shell.channelSidebar.moveSectionDown", { name: label })}
                 type="button"
               >
-                <ArrowDown className="h-3.5 w-3.5" />
+                <ArrowDown className="h-3 w-3" />
               </button>
             </div>
           ) : null}
           <button
-            className="text-app-soft flex min-w-0 flex-1 items-center justify-between rounded-2xl px-2 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.24em] transition hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-[hsl(var(--foreground))]"
+            className="text-app-soft flex min-w-0 flex-1 items-center justify-between rounded-[12px] px-1.5 py-0.5 text-left text-[10px] font-semibold uppercase tracking-[0.2em] transition hover:bg-[hsl(var(--surface-soft)/0.5)] hover:text-[hsl(var(--foreground))]"
             onClick={() => {
               if (categoryId) {
                 toggleCategoryCollapse(detail.server.id, categoryId);
@@ -1359,14 +1285,14 @@ export function ChannelSidebar({
             <span className="truncate">{label}</span>
             {categoryId ? (
               <ChevronDown
-                className={cn("h-3.5 w-3.5 shrink-0 transition", collapsed && "-rotate-90")}
+                className={cn("h-3 w-3 shrink-0 transition", collapsed && "-rotate-90")}
               />
             ) : null}
           </button>
           {canManage && categoryId ? (
             <button
               aria-label={t("shell.channelSidebar.categoryActions")}
-              className="text-app-soft inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-2xl border border-transparent opacity-0 transition hover:border-[hsl(var(--border)/0.62)] hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] group-hover/category:opacity-100"
+              className="text-app-soft inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-xl border border-transparent opacity-0 transition hover:border-[hsl(var(--border)/0.58)] hover:bg-[hsl(var(--surface-soft)/0.68)] hover:text-app-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] group-hover/category:opacity-100"
               onClick={(event) => {
                 event.stopPropagation();
                 const rect = event.currentTarget.getBoundingClientRect();
@@ -1380,12 +1306,12 @@ export function ChannelSidebar({
               }}
               type="button"
             >
-              <MoreHorizontal className="h-4 w-4" />
+              <MoreHorizontal className="h-3.5 w-3.5" />
             </button>
           ) : null}
         </div>
         {canShowMoveControls ? (
-          <p className="hidden px-2.5 text-[10px] font-medium leading-4 text-app-soft transition group-hover/category:block group-focus-within/category:block">
+          <p className="hidden px-2 text-[9.5px] font-medium leading-4 text-app-soft transition group-hover/category:block group-focus-within/category:block">
             {t(
               categoryId
                 ? "shell.channelSidebar.categoryMoveHint"
@@ -1457,10 +1383,10 @@ export function ChannelSidebar({
       className="app-sidebar flex h-full w-full min-w-0 flex-col overflow-hidden bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.96),hsl(var(--surface-soft)/0.32))] pt-[env(safe-area-inset-top)] md:pt-0"
       data-testid="channel-sidebar"
     >
-      <div className="space-y-3 border-b border-[hsl(var(--border)/0.42)] p-3">
+      <div className="space-y-2 border-b border-[hsl(var(--border)/0.36)] px-2.5 py-2.5">
         <button
           aria-label={`Open ${detail.server.name} menu`}
-          className="flex min-h-[4rem] w-full min-w-0 items-center justify-between gap-3 rounded-[22px] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.6),hsl(var(--primary)/0.07))] px-3 py-2.5 text-left transition hover:bg-[hsl(var(--surface-card)/0.76)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+          className="flex min-h-[3.35rem] w-full min-w-0 items-center justify-between gap-2.5 rounded-[18px] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.54),hsl(var(--primary)/0.06))] px-2.5 py-2 text-left transition hover:bg-[hsl(var(--surface-card)/0.72)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
           data-sidebar-interactive="true"
           onClick={(event) => {
             const rect = event.currentTarget.getBoundingClientRect();
@@ -1473,38 +1399,41 @@ export function ChannelSidebar({
           type="button"
         >
           <div className="min-w-0">
-            <p className="text-app-soft text-[10px] font-semibold uppercase tracking-[0.22em]">
+            <p className="text-app-soft text-[9.5px] font-semibold uppercase tracking-[0.2em]">
               {t("shell.channelSidebar.manageServer")}
             </p>
-            <p className="text-app-foreground mt-1 truncate text-base font-semibold leading-5">
+            <p className="text-app-foreground mt-0.5 truncate text-[15px] font-semibold leading-5">
               {detail.server.name}
             </p>
-            <p className="text-app-soft mt-0.5 truncate text-xs">
+            <p className="text-app-soft truncate text-[11px]">
               {t("shell.channelSidebar.membersCount", { count: detail.server.memberCount })}
             </p>
           </div>
-          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--surface-soft)/0.38)] text-app-muted">
+          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] bg-[hsl(var(--surface-soft)/0.34)] text-app-muted">
             <ChevronDown className="h-4 w-4" />
           </span>
         </button>
         <label className="relative block" data-sidebar-interactive="true">
           <span className="sr-only">{t("shell.channelSidebar.searchLabel")}</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-soft" />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-app-soft" />
           <input
-            className="h-11 w-full rounded-[18px] border border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-card)/0.52)] pl-9 pr-20 text-sm font-medium text-app-foreground outline-none transition placeholder:text-app-soft hover:border-[hsl(var(--primary)/0.22)] focus:border-[hsl(var(--primary)/0.42)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
+            className="h-10 w-full rounded-[16px] border border-[hsl(var(--border)/0.42)] bg-[hsl(var(--surface-card)/0.5)] pl-8 pr-16 text-[13px] font-medium text-app-foreground outline-none transition placeholder:text-app-soft hover:border-[hsl(var(--primary)/0.22)] focus:border-[hsl(var(--primary)/0.42)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
             onChange={(event) => setChannelSearchQuery(event.target.value)}
             placeholder={t("shell.channelSidebar.searchPlaceholder")}
             type="search"
             value={channelSearchQuery}
           />
-          <span className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded-xl bg-[hsl(var(--surface-soft)/0.48)] px-2 py-1 text-[10px] font-bold text-app-soft sm:inline-flex">
+          <span className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-[10px] bg-[hsl(var(--surface-soft)/0.48)] px-1.5 py-0.5 text-[9.5px] font-bold text-app-soft sm:inline-flex">
             Ctrl K
           </span>
         </label>
         {canManage ? (
-          <div className="grid grid-cols-3 gap-2" data-sidebar-interactive="true">
+          <div
+            className="grid grid-cols-[0.72fr_0.68fr_1.18fr] gap-1"
+            data-sidebar-interactive="true"
+          >
             <button
-              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl bg-[hsl(var(--surface-soft)/0.24)] px-2 text-xs font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="inline-flex h-8 min-w-0 items-center justify-center gap-0.5 rounded-[13px] bg-[hsl(var(--surface-soft)/0.22)] px-1 text-[10.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onClick={() =>
                 openChannelModal({
                   mode: "create",
@@ -1514,11 +1443,11 @@ export function ChannelSidebar({
               }
               type="button"
             >
-              <Hash className="h-3.5 w-3.5" />
-              <span>{t("shell.channelSidebar.addTextChannel")}</span>
+              <Hash className="h-3 w-3 shrink-0" />
+              <span className="min-w-0 truncate">{t("shell.channelSidebar.addTextChannel")}</span>
             </button>
             <button
-              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl bg-[hsl(var(--surface-soft)/0.24)] px-2 text-xs font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="inline-flex h-8 min-w-0 items-center justify-center gap-0.5 rounded-[13px] bg-[hsl(var(--surface-soft)/0.22)] px-1 text-[10.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onClick={() =>
                 openChannelModal({
                   mode: "create",
@@ -1528,16 +1457,16 @@ export function ChannelSidebar({
               }
               type="button"
             >
-              <Volume2 className="h-3.5 w-3.5" />
-              <span>{t("shell.channelSidebar.addVoiceChannel")}</span>
+              <Volume2 className="h-3 w-3 shrink-0" />
+              <span className="min-w-0 truncate">{t("shell.channelSidebar.addVoiceChannel")}</span>
             </button>
             <button
-              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl bg-[hsl(var(--surface-soft)/0.24)] px-2 text-xs font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="inline-flex h-8 min-w-0 items-center justify-center gap-0.5 rounded-[13px] bg-[hsl(var(--surface-soft)/0.22)] px-1 text-[10.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onClick={() => openInviteModal(detail.server.id)}
               type="button"
             >
-              <UserPlus className="h-3.5 w-3.5" />
-              <span>{t("shell.channelSidebar.createInvite")}</span>
+              <UserPlus className="h-3 w-3 shrink-0" />
+              <span className="min-w-0 truncate">{t("shell.channelSidebar.createInvite")}</span>
             </button>
           </div>
         ) : null}
@@ -1545,7 +1474,7 @@ export function ChannelSidebar({
 
       <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd} sensors={sensors}>
         <div
-          className="min-w-0 flex-1 space-y-2.5 overflow-y-auto overflow-x-hidden p-3"
+          className="min-w-0 flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden px-2 py-2.5"
           onContextMenu={(event) => {
             const target = event.target;
             if (
@@ -1610,7 +1539,7 @@ export function ChannelSidebar({
 
       {showUserFooter ? (
         <div
-          className="border-t border-[hsl(var(--border)/0.78)] py-3 pl-3 pr-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3"
+          className="flex min-h-[4.25rem] items-center justify-start border-t border-[hsl(var(--border)/0.78)] py-2 pl-0 pr-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-2"
           data-notification-popup-anchor="controls-border"
         >
           <UserProfileFooter

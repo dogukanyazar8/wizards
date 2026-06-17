@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Maximize2, Minus, X } from "lucide-react";
+import { Copy, Minus, Square, X } from "lucide-react";
 import type { Window as TauriWindow } from "@tauri-apps/api/window";
 import {
   WHISPR_DESKTOP_BEFORE_CLOSE_EVENT,
@@ -23,6 +23,14 @@ async function runWindowAction(action: WindowAction) {
   } catch {
     // Window controls are only available inside the Tauri desktop shell.
   }
+}
+
+function isChromeLessDesktopPathname(pathname: string | null) {
+  return (
+    pathname === "/desktop/start" ||
+    pathname === "/desktop/voice-mini" ||
+    pathname === "/desktop/game-overlay"
+  );
 }
 
 type ChromeButtonProps = {
@@ -59,13 +67,11 @@ function ChromeButton({
 export function DesktopWindowChrome() {
   const pathname = usePathname();
   const [isDesktop, setIsDesktop] = useState(false);
+  const [isWindowMaximized, setIsWindowMaximized] = useState(false);
+  const isChromeLessDesktopRoute = isChromeLessDesktopPathname(pathname);
 
   useEffect(() => {
     const desktop = isWhisprDesktopRuntime();
-    const isChromeLessDesktopRoute =
-      pathname === "/desktop/start" ||
-      pathname === "/desktop/voice-mini" ||
-      pathname === "/desktop/game-overlay";
     setIsDesktop(desktop);
 
     if (!desktop || isChromeLessDesktopRoute) {
@@ -77,7 +83,46 @@ export function DesktopWindowChrome() {
     return () => {
       document.documentElement.classList.remove("whispr-desktop-chrome");
     };
-  }, [pathname]);
+  }, [isChromeLessDesktopRoute]);
+
+  useEffect(() => {
+    if (!isDesktop || isChromeLessDesktopRoute) {
+      setIsWindowMaximized(false);
+      return;
+    }
+
+    let disposed = false;
+    let unlistenResize: (() => void) | undefined;
+
+    const syncMaximizedState = async (window: TauriWindow) => {
+      try {
+        const maximized = await window.isMaximized();
+        if (!disposed) {
+          setIsWindowMaximized(maximized);
+        }
+      } catch {
+        // Maximize state is best-effort and only available inside Tauri.
+      }
+    };
+
+    void (async () => {
+      try {
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        const currentWindow = getCurrentWindow();
+        await syncMaximizedState(currentWindow);
+        unlistenResize = await currentWindow.onResized(() => {
+          void syncMaximizedState(currentWindow);
+        });
+      } catch {
+        // Native window events are unavailable in the web runtime.
+      }
+    })();
+
+    return () => {
+      disposed = true;
+      unlistenResize?.();
+    };
+  }, [isChromeLessDesktopRoute, isDesktop]);
 
   useEffect(() => {
     if (!isDesktop) {
@@ -113,12 +158,12 @@ export function DesktopWindowChrome() {
 
   if (
     !isDesktop ||
-    pathname === "/desktop/start" ||
-    pathname === "/desktop/voice-mini" ||
-    pathname === "/desktop/game-overlay"
+    isChromeLessDesktopRoute
   ) {
     return null;
   }
+
+  const maximizeLabel = isWindowMaximized ? "Restore window" : "Maximize window";
 
   return (
     <div
@@ -161,12 +206,25 @@ export function DesktopWindowChrome() {
           title="Minimize"
         />
         <ChromeButton
-          aria-label="Maximize window"
-          icon={<Maximize2 className="h-3.5 w-3.5" />}
+          aria-label={maximizeLabel}
+          icon={
+            isWindowMaximized ? (
+              <Copy className="h-3.5 w-3.5" />
+            ) : (
+              <Square className="h-3.5 w-3.5" />
+            )
+          }
           onClick={() => {
-            void runWindowAction((window) => window.toggleMaximize());
+            void runWindowAction(async (window) => {
+              await window.toggleMaximize();
+              try {
+                setIsWindowMaximized(await window.isMaximized());
+              } catch {
+                setIsWindowMaximized((current) => !current);
+              }
+            });
           }}
-          title="Maximize"
+          title={maximizeLabel}
         />
         <ChromeButton
           aria-label="Close window"

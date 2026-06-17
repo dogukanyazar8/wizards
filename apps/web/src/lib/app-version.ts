@@ -51,7 +51,7 @@ export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
     descriptionKey: "app.update.notes.mainShellRefresh.description",
     fallbackCategory: "Design",
     fallbackDescription:
-      "The main workspace now uses a calmer four-column shell, lighter visual hierarchy, compact channel navigation, and real-data-only chat surfaces.",
+      "The main workspace now uses a calmer four-column shell, fewer nested borders, tighter chat spacing, a cleaner composer, and a better-aligned compact user bar.",
     fallbackTitle: "Main workspace refresh",
     id: "main-shell-refresh",
     titleKey: "app.update.notes.mainShellRefresh.title",
@@ -71,7 +71,7 @@ export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
     descriptionKey: "app.update.notes.compactServerRail.description",
     fallbackCategory: "Design",
     fallbackDescription:
-      "The server rail is now always compact, icon-first, easier to scan, and uses a stronger active server ring without the old density controls.",
+      "The server rail is now always compact and icon-first, differentiates DMs from servers, tightens icon spacing, and uses a cleaner active server ring without the old density controls.",
     fallbackTitle: "Compact server rail",
     id: "compact-server-rail",
     titleKey: "app.update.notes.compactServerRail.title",

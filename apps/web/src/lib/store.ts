@@ -992,6 +992,17 @@ export const useAppStore = create<AppState>()(
           };
         }
 
+        if (
+          version < 12 &&
+          typeof nextPersistedState.channelSidebarWidth === "number" &&
+          nextPersistedState.channelSidebarWidth !== DEFAULT_CHANNEL_SIDEBAR_WIDTH
+        ) {
+          nextPersistedState = {
+            ...nextPersistedState,
+            channelSidebarWidth: DEFAULT_CHANNEL_SIDEBAR_WIDTH,
+          };
+        }
+
         return nextPersistedState;
       },
       merge: (persistedState, currentState) => ({
@@ -1024,7 +1035,7 @@ export const useAppStore = create<AppState>()(
         showCategoryMoveControls: state.showCategoryMoveControls,
       }),
       storage: createJSONStorage(() => localStorage),
-      version: 10,
+      version: 12,
     },
   ),
 );

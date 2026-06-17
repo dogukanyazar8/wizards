@@ -1080,10 +1080,10 @@ export function ChatComposer({
   return (
     <div
       className={cn(
-        "sticky bottom-0 z-20 bg-[hsl(var(--surface-card)/0.18)] backdrop-blur-xl md:static",
+        "sticky bottom-0 z-20 bg-transparent backdrop-blur-xl md:static",
         isThreadComposer
           ? "space-y-2 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:p-3"
-          : "space-y-3 p-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:p-4 md:pt-2.5",
+          : "space-y-2 p-2 pb-[max(0.65rem,env(safe-area-inset-bottom))] md:px-3 md:pb-3 md:pt-1.5",
       )}
       data-testid="message-composer"
       data-composer-variant={isThreadComposer ? "thread" : "default"}
@@ -1096,10 +1096,10 @@ export function ChatComposer({
 
       <div
         className={cn(
-          "relative border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card)/0.94)] shadow-[0_14px_42px_hsl(var(--shadow-color)/0.075),inset_0_1px_0_hsl(var(--background)/0.58)] transition-colors duration-150",
+          "relative border border-[hsl(var(--border)/0.44)] bg-[hsl(var(--surface-card)/0.94)] shadow-[0_10px_30px_hsl(var(--shadow-color)/0.055),inset_0_1px_0_hsl(var(--background)/0.5)] transition-colors duration-150",
           isFocused &&
-            "border-[hsl(var(--primary)/0.38)] shadow-[0_18px_48px_hsl(var(--primary)/0.11),inset_0_1px_0_hsl(var(--background)/0.66)]",
-          isThreadComposer ? "rounded-[22px] p-2" : "rounded-[24px] p-2.5 md:rounded-[28px] md:p-3",
+            "border-[hsl(var(--primary)/0.38)] shadow-[0_14px_38px_hsl(var(--primary)/0.095),inset_0_1px_0_hsl(var(--background)/0.62)]",
+          isThreadComposer ? "rounded-[18px] p-2" : "rounded-[20px] p-2.5 md:rounded-[22px] md:p-3",
         )}
       >
         {disabled ? (
@@ -1433,7 +1433,7 @@ export function ChatComposer({
 
             <div
               className={cn(
-                "mt-2 flex flex-wrap items-center justify-between gap-2.5 border-t border-[hsl(var(--border)/0.5)] px-1 pt-2.5",
+                "mt-2 flex flex-wrap items-center justify-between gap-2.5 px-0 pt-1.5",
                 isThreadComposer ? "gap-2" : "md:gap-3 md:px-2",
               )}
             >

@@ -159,13 +159,13 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "The desktop build now targets whispr.team capabilities, LiveKit/Krisp CSP support, health and readiness checks, Railway config, and migration-aware startup paths.",
     "app.update.notes.mainShellRefresh.title": "Main workspace refresh",
     "app.update.notes.mainShellRefresh.description":
-      "The main workspace now uses a calmer four-column shell, lighter visual hierarchy, compact channel navigation, and real-data-only chat surfaces.",
+      "The main workspace now uses a calmer four-column shell, fewer nested borders, tighter chat spacing, a cleaner composer, and a better-aligned compact user bar.",
     "app.update.notes.settingsRefresh.title": "Modern settings experience",
     "app.update.notes.settingsRefresh.description":
       "Settings now has a modern sidebar, redesigned account profile cards, profile completion, privacy previews, and safer desktop preference surfaces.",
     "app.update.notes.compactServerRail.title": "Compact server rail",
     "app.update.notes.compactServerRail.description":
-      "The server rail is now always compact, icon-first, easier to scan, and uses a stronger active server ring without the old density controls.",
+      "The server rail is now always compact and icon-first, differentiates DMs from servers, tightens icon spacing, and uses a cleaner active server ring without the old density controls.",
     "app.update.notes.desktopStartup.title": "Desktop startup and session polish",
     "app.update.notes.desktopStartup.description":
       "Desktop now opens with a compact Whispr startup window, keeps the splash consistent through promotion, restores remembered sessions, and preserves the main window size and position.",
@@ -2368,13 +2368,13 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Masaüstü build'i artık whispr.team capability'leri, LiveKit/Krisp CSP desteği, health/readiness kontrolleri, Railway konfigürasyonu ve migration-aware başlangıç yollarıyla uyumlu.",
     "app.update.notes.mainShellRefresh.title": "Ana çalışma alanı yenilendi",
     "app.update.notes.mainShellRefresh.description":
-      "Ana çalışma alanı artık daha sakin dört kolonlu shell, daha hafif görsel hiyerarşi, kompakt kanal navigasyonu ve yalnızca gerçek veriye dayalı chat yüzeyleri kullanıyor.",
+      "Ana çalışma alanı artık daha sakin dört kolonlu shell, daha az iç içe çerçeve, daha sıkı sohbet aralığı, daha temiz composer ve daha iyi hizalanmış kompakt userbar kullanıyor.",
     "app.update.notes.settingsRefresh.title": "Modern ayarlar deneyimi",
     "app.update.notes.settingsRefresh.description":
       "Ayarlar artık modern sidebar, yenilenen hesap profil kartları, profil tamamlanma oranı, gizlilik önizlemeleri ve daha güvenli masaüstü tercih yüzeyleriyle çalışıyor.",
     "app.update.notes.compactServerRail.title": "Kompakt sunucu rayı",
     "app.update.notes.compactServerRail.description":
-      "Sunucu rayı artık her zaman kompakt, ikon odaklı, daha kolay taranabilir ve eski yoğunluk kontrolleri yerine daha belirgin aktif sunucu halkası kullanıyor.",
+      "Sunucu rayı artık her zaman kompakt ve ikon odaklı, DM ile sunucuları daha net ayırıyor, ikon aralıklarını sıkılaştırıyor ve eski yoğunluk kontrolleri yerine daha temiz aktif sunucu halkası kullanıyor.",
     "app.update.notes.desktopStartup.title": "Masaüstü başlangıç ve oturum cilası",
     "app.update.notes.desktopStartup.description":
       "Masaüstü artık kompakt Whispr başlangıç penceresiyle açılır, geçiş boyunca splash tasarımını tutarlı tutar, hatırlanan oturumları geri yükler ve ana pencere boyutu ile konumunu korur.",

@@ -54,7 +54,7 @@ export function ChannelItem({
     <div className="min-w-0 max-w-full overflow-hidden">
       <div
         className={cn(
-          "group relative flex min-w-0 max-w-full items-center gap-0.5 overflow-hidden rounded-[18px] px-0.5 py-0.5 transition sm:gap-1",
+          "group relative flex min-w-0 max-w-full items-center gap-0.5 overflow-hidden rounded-[15px] px-0.5 py-0 transition sm:gap-0.5",
           active
             ? "bg-[linear-gradient(135deg,hsl(var(--primary)/0.16),hsl(var(--surface-card)/0.58))] text-[hsl(var(--foreground))]"
             : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.42)] hover:text-[hsl(var(--foreground))]",
@@ -63,7 +63,7 @@ export function ChannelItem({
         )}
       >
         {active && !isLocked ? (
-          <span className="absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full bg-[hsl(var(--primary))]" />
+          <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-[hsl(var(--primary))]" />
         ) : null}
         <button
           aria-current={active && !isLocked ? "page" : undefined}
@@ -76,7 +76,7 @@ export function ChannelItem({
             { name },
           )}
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-1.5 rounded-2xl px-1.5 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)]",
+            "flex min-h-9 min-w-0 flex-1 items-center gap-1 rounded-[14px] px-1.5 py-0.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)] md:min-h-8",
             isLocked && "cursor-not-allowed",
           )}
           disabled={isLocked}
@@ -93,7 +93,7 @@ export function ChannelItem({
         >
           <span
             className={cn(
-              "flex h-6 w-6 shrink-0 items-center justify-center rounded-xl transition",
+              "flex h-5 w-5 shrink-0 items-center justify-center rounded-[10px] transition",
               active
                 ? "bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]"
                 : "bg-[hsl(var(--surface-card)/0.28)] text-app-soft group-hover:text-app-foreground",
@@ -103,10 +103,12 @@ export function ChannelItem({
           >
             <Icon className="h-3.5 w-3.5" />
           </span>
-          <span className="min-w-0 truncate text-sm font-semibold tracking-[-0.01em]">{name}</span>
+          <span className="min-w-0 truncate text-[13px] font-semibold tracking-[-0.01em]">
+            {name}
+          </span>
           {isLocked ? (
             <span
-              className="ml-auto inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.44)] px-2 text-[10px] font-bold uppercase tracking-[0.12em] text-app-soft"
+              className="ml-auto inline-flex h-5 shrink-0 items-center gap-1 rounded-full border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-card)/0.38)] px-1.5 text-[9.5px] font-bold uppercase tracking-[0.1em] text-app-soft"
               title={t("shell.channelItem.locked", { name })}
             >
               <Lock className="h-3 w-3" />
@@ -116,7 +118,7 @@ export function ChannelItem({
             <div className="ml-auto flex shrink-0 items-center gap-1">
               {isReadOnly ? (
                 <span
-                  className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.44)] px-2 text-[10px] font-bold uppercase tracking-[0.12em] text-app-soft"
+                  className="inline-flex h-5 shrink-0 items-center gap-1 rounded-full border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-card)/0.38)] px-1.5 text-[9.5px] font-bold uppercase tracking-[0.1em] text-app-soft"
                   title={t("shell.channelItem.readOnly", { name })}
                 >
                   <Eye className="h-3 w-3" />
@@ -126,7 +128,7 @@ export function ChannelItem({
               {unreadCount > 0 ? (
                 <span
                   className={cn(
-                    "inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full border px-1.5 text-[11px] font-black shadow-[0_10px_22px_hsl(var(--primary)/0.12)]",
+                    "inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full border px-1.5 text-[10px] font-black shadow-[0_8px_18px_hsl(var(--primary)/0.1)]",
                     mentionCount > 0
                       ? "border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.14)] text-[hsl(var(--danger))]"
                       : "border-[hsl(var(--primary)/0.26)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]",
@@ -144,9 +146,9 @@ export function ChannelItem({
             </div>
           ) : null}
           {!isLocked && type === "VOICE" ? (
-            <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-1">
               {participantCount > 0 ? (
-                <span className="rounded-full border border-[hsl(var(--border)/0.55)] bg-[hsl(var(--surface-card)/0.42)] px-2 py-0.5 text-[11px] font-semibold text-app-soft">
+                <span className="rounded-full border border-[hsl(var(--border)/0.5)] bg-[hsl(var(--surface-card)/0.38)] px-1.5 py-0.5 text-[10px] font-semibold text-app-soft">
                   {participantCount}
                 </span>
               ) : null}
@@ -155,14 +157,14 @@ export function ChannelItem({
                   {previewParticipants.map((participant) => (
                     <Avatar
                       alt={participant.displayName ?? participant.username}
-                      className="h-5 w-5 border-2 border-[hsl(var(--surface-card))] text-[9px]"
+                      className="h-[18px] w-[18px] border-2 border-[hsl(var(--surface-card))] text-[8px]"
                       fallback={participant.displayName ?? participant.username}
                       key={participant.userId}
                       src={participant.avatarUrl}
                     />
                   ))}
                   {participantCount > previewParticipants.length ? (
-                    <span className="ml-1 text-[11px] font-semibold text-app-soft">
+                    <span className="ml-1 text-[10px] font-semibold text-app-soft">
                       +{participantCount - previewParticipants.length}
                     </span>
                   ) : null}
@@ -176,7 +178,7 @@ export function ChannelItem({
           <div className="hidden items-center gap-1 opacity-0 transition group-hover:opacity-100 sm:flex">
             <button
               aria-label={t("shell.channelItem.edit", { name })}
-              className="text-app-muted rounded-xl p-1.5 transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-[hsl(var(--foreground))]"
+              className="text-app-muted rounded-lg p-1 transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-[hsl(var(--foreground))]"
               onClick={onEdit}
               type="button"
             >
@@ -184,7 +186,7 @@ export function ChannelItem({
             </button>
             <button
               aria-label={t("shell.channelItem.delete", { name })}
-              className="text-app-muted rounded-xl p-1.5 transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger))]"
+              className="text-app-muted rounded-lg p-1 transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger))]"
               onClick={onDelete}
               type="button"
             >
@@ -195,21 +197,21 @@ export function ChannelItem({
       </div>
 
       {type === "VOICE" && visibleParticipantRows.length > 0 ? (
-        <div className="mt-1.5 space-y-1.5 pl-6 sm:pl-7">
+        <div className="mt-1 space-y-1 pl-5 sm:pl-6">
           {visibleParticipantRows.map((participant) => {
             const participantLabel = participant.displayName ?? participant.username;
             const isCurrentUser = participant.userId === currentUserId;
 
             return (
               <div
-                className="app-panel-soft flex min-h-9 items-center gap-2 rounded-2xl border px-2.5 py-1.5 text-xs text-app-muted"
+                className="app-panel-soft flex min-h-8 items-center gap-1.5 rounded-xl border px-2 py-1 text-[11px] text-app-muted"
                 data-testid={`voice-sidebar-participant-${participant.username}`}
                 data-user-id={participant.userId}
                 key={participant.userId}
               >
                 <Avatar
                   alt={participantLabel}
-                  className="h-5 w-5 border border-[hsl(var(--border)/0.72)] text-[9px]"
+                  className="h-[18px] w-[18px] border border-[hsl(var(--border)/0.72)] text-[8px]"
                   fallback={participantLabel}
                   src={participant.avatarUrl}
                 />
@@ -217,13 +219,13 @@ export function ChannelItem({
                   {participantLabel}
                 </span>
                 {isCurrentUser ? (
-                  <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[hsl(var(--primary))]">
+                  <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.1em] text-[hsl(var(--primary))]">
                     {t("voice.sidebar.you")}
                   </span>
                 ) : null}
                 {participant.isScreenSharing ? (
                   <span
-                    className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.12)] px-1.5 py-0.5 text-[10px] font-semibold text-[hsl(var(--success))]"
+                    className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.12)] px-1.5 py-0.5 text-[9.5px] font-semibold text-[hsl(var(--success))]"
                     data-testid={`voice-sidebar-screen-share-${participant.username}`}
                     title={t("voice.sidebar.screenSharing")}
                   >
@@ -236,7 +238,7 @@ export function ChannelItem({
           })}
 
           {hiddenParticipantCount > 0 ? (
-            <div className="pl-1 text-[11px] font-medium text-app-soft">
+            <div className="pl-1 text-[10px] font-medium text-app-soft">
               {t("voice.sidebar.moreParticipants", { count: hiddenParticipantCount })}
             </div>
           ) : null}

@@ -81,7 +81,7 @@ export function ServerIcon({
             cn(
               "mx-auto flex items-center justify-center rounded-[16px] transition-all duration-150",
               active
-                ? "bg-[hsl(var(--primary)/0.1)] shadow-[0_12px_28px_hsl(var(--primary)/0.14)] ring-1 ring-[hsl(var(--primary)/0.28)]"
+                ? "bg-[hsl(var(--primary)/0.1)] shadow-[0_0_0_4px_hsl(var(--primary)/0.08)] ring-1 ring-[hsl(var(--primary)/0.28)]"
                 : "hover:bg-[hsl(var(--primary)/0.08)]",
             ),
           showLabel &&
@@ -120,8 +120,8 @@ export function ServerIcon({
             "transition-all duration-200",
             active
               ? cn(
-                  showLabel ? "rounded-[15px]" : "rounded-[14px]",
-                  "border-[hsl(var(--primary)/0.56)] bg-[hsl(var(--primary)/0.17)] shadow-[0_12px_26px_hsl(var(--primary)/0.18)] ring-2 ring-[hsl(var(--primary)/0.34)]",
+                showLabel ? "rounded-[15px]" : "rounded-[14px]",
+                  "border-[hsl(var(--primary)/0.56)] bg-[hsl(var(--primary)/0.17)] shadow-[0_0_0_3px_hsl(var(--primary)/0.12)] ring-2 ring-[hsl(var(--primary)/0.34)]",
                 )
               : cn(
                   showLabel ? "rounded-[16px]" : "rounded-[13px]",

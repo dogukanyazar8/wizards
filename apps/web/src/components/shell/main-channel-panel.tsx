@@ -93,9 +93,9 @@ export function MainChannelPanel({
     <section className="app-main-gradient relative flex min-h-0 flex-1 flex-col overflow-hidden">
       {leading ? <div className="absolute left-3 top-3 z-50 md:hidden">{leading}</div> : null}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-0 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-0 md:px-2.5 md:pb-2.5 md:pt-2.5">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-0 pb-0 pt-0">
         <div
-          className="whispr-surface-pane mx-auto flex min-h-0 w-full flex-1 overflow-hidden border-x-0 border-y shadow-none md:rounded-none md:border-x-0"
+          className="whispr-surface-pane mx-auto flex min-h-0 w-full flex-1 overflow-hidden rounded-[18px] border-0 shadow-none"
           data-main-panel-frame="true"
           data-surface-layer="pane"
           style={{ maxWidth: children ? "100%" : `${mainPanelWidth}px` }}

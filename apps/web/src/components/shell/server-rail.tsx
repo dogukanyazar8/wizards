@@ -38,10 +38,6 @@ function getServerShortLabel(server: WorkspaceServerSummary) {
   return server.shortName ?? getPreviewLabel(server.name);
 }
 
-function getCompactCountLabel(count: number) {
-  return count > 99 ? "99+" : String(count);
-}
-
 function joinTooltipHints(values: string[]) {
   return values.filter(Boolean).join(" • ");
 }
@@ -126,8 +122,10 @@ export function ServerRail({
 }: ServerRailProps) {
   const { t } = useI18n();
   const addBtnRef = useRef<HTMLButtonElement>(null);
+  const dmBtnRef = useRef<HTMLButtonElement>(null);
   const recentlyDraggedServerIdRef = useRef<string | null>(null);
   const [addTooltipPos, setAddTooltipPos] = useState<{ top: number; left: number } | null>(null);
+  const [dmTooltipPos, setDmTooltipPos] = useState<{ top: number; left: number } | null>(null);
   const [draggingServerId, setDraggingServerId] = useState<string | null>(null);
   const [railContextMenu, setRailContextMenu] = useState({
     open: false,
@@ -171,7 +169,6 @@ export function ServerRail({
     () => orderedServers.map((server) => server.id),
     [orderedServers],
   );
-  const serverCountLabel = getCompactCountLabel(servers.length);
 
   const persistServerOrder = useCallback(
     (nextOrder: string[]) => {
@@ -209,6 +206,11 @@ export function ServerRail({
     const rect = addBtnRef.current.getBoundingClientRect();
     setAddTooltipPos({ top: rect.top + rect.height / 2, left: rect.right + 12 });
   };
+  const showDmTooltip = () => {
+    if (!dmBtnRef.current) return;
+    const rect = dmBtnRef.current.getBoundingClientRect();
+    setDmTooltipPos({ top: rect.top + rect.height / 2, left: rect.right + 12 });
+  };
   const dmTooltipHint =
     dmUnreadCount > 0
       ? t("shell.channelItem.unreadCount", { count: dmUnreadCount })
@@ -233,7 +235,7 @@ export function ServerRail({
     >
       <div
         aria-label="Whispr"
-        className="relative mb-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-[hsl(var(--surface-card)/0.58)] ring-1 ring-[hsl(var(--border)/0.42)]"
+        className="mb-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-[hsl(var(--surface-card)/0.58)] ring-1 ring-[hsl(var(--border)/0.42)]"
         data-server-rail-item
         role="img"
         title="Whispr"
@@ -247,32 +249,54 @@ export function ServerRail({
           src="/app-icons/whispr.png"
           width={30}
         />
-        <span
-          aria-label={t("shell.serverRail.servers")}
-          className="absolute -bottom-1 right-0 flex h-4 min-w-4 items-center justify-center rounded-full border border-[hsl(var(--background)/0.58)] bg-[hsl(var(--primary))] px-1 text-[9px] font-black leading-none text-[hsl(var(--primary-foreground))] shadow-[0_8px_18px_hsl(var(--primary)/0.24)]"
-          title={t("shell.serverRail.servers")}
-        >
-          {serverCountLabel}
-        </span>
       </div>
-      <div className="flex w-full shrink-0 flex-col items-center gap-1.5" data-server-rail-item>
-        <ServerIcon
-          active={!activeServerId}
-          badgeCount={dmUnreadCount}
-          fallback="DM"
-          iconSize={COMPACT_SERVER_RAIL_ICON_SIZE}
-          label={t("shell.serverRail.directMessages")}
-          labelPreview="DM"
+      <div className="flex w-full shrink-0 flex-col items-center gap-2" data-server-rail-item>
+        <motion.button
+          ref={dmBtnRef}
+          aria-current={!activeServerId ? "page" : undefined}
+          aria-label={t("shell.serverRail.directMessages")}
+          className="group relative mx-auto flex h-11 w-11 items-center justify-center rounded-[18px] outline-none transition-all duration-150 focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.7)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background)/0.72)]"
+          data-testid="server-rail-dm"
+          onBlur={() => setDmTooltipPos(null)}
           onClick={() => onNavigate("/channels/@me")}
-          testId="server-rail-dm"
-          tooltipHint={dmTooltipHint}
-          {...(onPrefetch ? { onPrefetch: () => onPrefetch("/channels/@me") } : {})}
-        />
-        <div className="h-px w-7 rounded-full bg-[hsl(var(--border)/0.5)]" aria-hidden="true" />
+          onFocus={() => {
+            onPrefetch?.("/channels/@me");
+            showDmTooltip();
+          }}
+          onMouseEnter={() => {
+            onPrefetch?.("/channels/@me");
+            showDmTooltip();
+          }}
+          onMouseLeave={() => setDmTooltipPos(null)}
+          title={t("shell.serverRail.directMessages")}
+          type="button"
+          whileHover={{ scale: 1.035, y: -1 }}
+          whileTap={{ scale: 0.97 }}
+        >
+          <span
+            className={
+              !activeServerId
+                ? "flex h-9 w-9 items-center justify-center rounded-[15px] bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--ambient-1)))] text-[hsl(var(--primary-foreground))] shadow-[0_14px_30px_hsl(var(--primary)/0.24)] ring-2 ring-[hsl(var(--primary)/0.24)]"
+                : "flex h-9 w-9 items-center justify-center rounded-[15px] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] ring-1 ring-[hsl(var(--primary)/0.16)] transition group-hover:bg-[hsl(var(--primary)/0.14)] group-hover:ring-[hsl(var(--primary)/0.24)]"
+            }
+          >
+            <MessageCircleMore aria-hidden="true" className="h-[18px] w-[18px]" />
+          </span>
+          {dmUnreadCount > 0 ? (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-0 right-0 inline-flex min-w-[1.05rem] translate-x-[18%] translate-y-[12%] items-center justify-center whitespace-nowrap rounded-full border border-[hsl(var(--background)/0.56)] bg-[hsl(var(--danger)/0.94)] px-1 py-0.5 text-[9px] font-bold leading-none text-white shadow-[0_7px_16px_hsl(var(--danger)/0.24)]"
+              data-testid="server-rail-dm-unread-badge"
+            >
+              {dmUnreadCount > 99 ? "99+" : dmUnreadCount}
+            </span>
+          ) : null}
+        </motion.button>
+        <div className="h-px w-6 rounded-full bg-[hsl(var(--border)/0.42)]" aria-hidden="true" />
       </div>
 
       <div className="mt-2 flex min-h-0 w-full flex-1 flex-col items-center">
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-0.5">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-0.5 pt-1">
           <Reorder.Group
             axis="y"
             className="m-0 flex w-full list-none flex-col items-center gap-1.5 p-0"
@@ -380,6 +404,25 @@ export function ServerRail({
             style={{ top: addTooltipPos.top, left: addTooltipPos.left }}
           >
             {t("shell.serverRail.addServer")}
+          </span>,
+          document.body,
+        )}
+
+      {dmTooltipPos !== null &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <span
+            className="app-tooltip pointer-events-none fixed z-[60] max-w-[190px] -translate-y-1/2 rounded-xl border px-2.5 py-1.5 text-xs shadow-[0_12px_26px_hsl(var(--shadow-color)/0.12)]"
+            style={{ top: dmTooltipPos.top, left: dmTooltipPos.left }}
+          >
+            <span className="block truncate font-semibold text-app-foreground">
+              {t("shell.serverRail.directMessages")}
+            </span>
+            {dmTooltipHint ? (
+              <span className="mt-0.5 block truncate text-[11px] font-medium text-app-muted">
+                {dmTooltipHint}
+              </span>
+            ) : null}
           </span>,
           document.body,
         )}

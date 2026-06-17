@@ -353,10 +353,10 @@ const NavigationPanel = React.memo(
       </div>
       <div
         className={cn(
-          "border-t border-[hsl(var(--border)/0.42)] pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-2",
-          isMobile && "py-2 pl-2 pr-2",
+          "flex min-h-[4.25rem] items-center border-t border-[hsl(var(--border)/0.42)] pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-2 md:pb-2",
+          isMobile && "pl-2 pr-2",
           !isMobile &&
-            "border-r border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-card)/0.38)] py-2 pl-[calc(var(--server-rail-width)+0.5rem)] pr-2",
+            "border-r border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-card)/0.38)] py-2 pl-0 pr-2",
         )}
         data-notification-popup-anchor="controls-border"
       >
