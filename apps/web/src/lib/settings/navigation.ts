@@ -1,6 +1,7 @@
 export type SettingsSection =
   | "account"
   | "voice"
+  | "desktop"
   | "appearance"
   | "notifications"
   | "about";
@@ -14,11 +15,11 @@ export type SettingsPanelKey =
   | "messageFont"
   | "advanced"
   | "appIcon"
-  | "serverRail"
-  | "mainCanvas"
-  | "channelSidebar"
   | "general"
   | "sounds"
+  | "desktopBehavior"
+  | "desktopVoice"
+  | "desktopDiagnostics"
   | "overview"
   | "build"
   | "whatsNew"
@@ -33,18 +34,16 @@ export type SettingsSelection = {
 const PANELS_BY_SECTION: Record<SettingsSection, readonly SettingsPanelKey[]> = {
   account: [],
   voice: ["audio", "camera", "screenShare"],
+  desktop: ["desktopBehavior", "desktopVoice", "desktopDiagnostics"],
   appearance: [
     "language",
     "theme",
     "messageFont",
     "advanced",
     "appIcon",
-    "serverRail",
-    "mainCanvas",
-    "channelSidebar",
   ],
   notifications: ["general", "sounds"],
-  about: ["overview", "build", "whatsNew", "desktop", "developer"],
+  about: ["overview", "build", "whatsNew", "developer"],
 };
 
 export function buildSettingsHref(
@@ -71,9 +70,13 @@ export function resolveSettingsSelection(searchParams: {
   const rawSection = searchParams.get("section");
   const rawPanel = searchParams.get("panel");
 
+  if (rawSection === "about" && rawPanel === "desktop") {
+    return { panel: "desktopDiagnostics", section: "desktop" };
+  }
+
   const section = (
     rawSection &&
-    ["account", "voice", "appearance", "notifications", "about"].includes(rawSection)
+    ["account", "voice", "desktop", "appearance", "notifications", "about"].includes(rawSection)
       ? rawSection
       : "account"
   ) as SettingsSection;
@@ -87,11 +90,5 @@ export function resolveSettingsSelection(searchParams: {
 }
 
 export function isAdvancedAppearancePanel(panel: SettingsPanelKey | null) {
-  return (
-    panel === "advanced" ||
-    panel === "appIcon" ||
-    panel === "serverRail" ||
-    panel === "mainCanvas" ||
-    panel === "channelSidebar"
-  );
+  return panel === "advanced" || panel === "appIcon";
 }

@@ -31,7 +31,7 @@ function formatWhisprVersion(version: string, codename: string) {
 }
 
 const WHISPR_VERSION_NUMBER =
-  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.9";
+  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.10";
 export const WHISPR_RELEASE_CODENAME =
   process.env.NEXT_PUBLIC_WHISPR_RELEASE_CODENAME ?? "Echo";
 export const WHISPR_APP_VERSION = formatWhisprVersion(
@@ -46,6 +46,16 @@ export const WHISPR_RELEASE_CHANNEL =
   process.env.NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL ?? "beta";
 
 export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
+  {
+    categoryKey: "app.update.category.design",
+    descriptionKey: "app.update.notes.settingsInformationArchitecture.description",
+    fallbackCategory: "Design",
+    fallbackDescription:
+      "Settings sections now open as compact accordion groups, keep only one group emphasized at a time, show a clearer email verification signal in Profile and Status, and use denser controls across device, theme, voice, and desktop preferences.",
+    fallbackTitle: "Cleaner settings information architecture",
+    id: "settings-information-architecture",
+    titleKey: "app.update.notes.settingsInformationArchitecture.title",
+  },
   {
     categoryKey: "app.update.category.design",
     descriptionKey: "app.update.notes.mainShellRefresh.description",

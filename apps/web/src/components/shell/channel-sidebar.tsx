@@ -21,6 +21,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDown,
   ArrowUp,
+  Check,
   ChevronDown,
   Clock3,
   Edit3,
@@ -308,6 +309,7 @@ export function UserProfileFooter({
   const [isUpdatingStatus, startStatusTransition] = useTransition();
   const [status, setStatus] = useState<PresenceStatus>(user.status);
   const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
+  const [isIdleTimeoutMenuOpen, setIsIdleTimeoutMenuOpen] = useState(false);
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const userBarRef = useRef<HTMLDivElement | null>(null);
   const { idleTimeoutMinutes, setIdleTimeoutMinutes } = usePresenceIdleTimeoutPreference();
@@ -344,8 +346,19 @@ export function UserProfileFooter({
     });
   };
 
+  const handleIdleTimeoutSelect = (minutes: number) => {
+    setIdleTimeoutMinutes(minutes);
+    setIsIdleTimeoutMenuOpen(false);
+  };
+
   useEffect(() => {
-    if (!isQuickMenuOpen && !isStatusMenuOpen) {
+    if (!isQuickMenuOpen) {
+      setIsIdleTimeoutMenuOpen(false);
+    }
+  }, [isQuickMenuOpen]);
+
+  useEffect(() => {
+    if (!isQuickMenuOpen && !isStatusMenuOpen && !isIdleTimeoutMenuOpen) {
       return;
     }
 
@@ -356,6 +369,7 @@ export function UserProfileFooter({
         !userBarRef.current.contains(event.target)
       ) {
         setIsQuickMenuOpen(false);
+        setIsIdleTimeoutMenuOpen(false);
         setIsStatusMenuOpen(false);
       }
     };
@@ -363,6 +377,7 @@ export function UserProfileFooter({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsQuickMenuOpen(false);
+        setIsIdleTimeoutMenuOpen(false);
         setIsStatusMenuOpen(false);
       }
     };
@@ -374,7 +389,7 @@ export function UserProfileFooter({
       window.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isQuickMenuOpen, isStatusMenuOpen]);
+  }, [isIdleTimeoutMenuOpen, isQuickMenuOpen, isStatusMenuOpen]);
 
   const currentStatusOption = USER_STATUS_OPTIONS.find((option) => option.value === status) ?? {
     key: "friends.status.online",
@@ -509,7 +524,16 @@ export function UserProfileFooter({
               isQuickMenuOpen && "bg-[hsl(var(--primary)/0.18)]",
             )}
             data-testid="user-settings-button"
-            onClick={() => setIsQuickMenuOpen((open) => !open)}
+            onClick={() => {
+              setIsQuickMenuOpen((open) => {
+                const nextOpen = !open;
+                if (!nextOpen) {
+                  setIsIdleTimeoutMenuOpen(false);
+                }
+
+                return nextOpen;
+              });
+            }}
             title={t("shell.user.appearanceSettingsTitle")}
             type="button"
           >
@@ -520,21 +544,21 @@ export function UserProfileFooter({
         {isQuickMenuOpen ? (
           <div
             aria-label={t("shell.user.quickMenu")}
-            className="absolute bottom-[calc(100%+0.75rem)] left-2 right-2 z-40 max-h-[min(32rem,calc(100dvh-8rem))] overflow-y-auto rounded-[28px] border border-[hsl(var(--border)/0.76)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.99),hsl(var(--surface-soft)/0.86))] p-4 shadow-[0_28px_78px_hsl(var(--shadow-color)/0.19)] backdrop-blur-2xl sm:left-auto sm:right-[-2px] sm:w-[min(23rem,calc(100vw-2rem))]"
+            className="absolute bottom-[calc(100%+0.55rem)] left-1 right-1 z-40 max-h-[min(28rem,calc(100dvh-7rem))] overflow-visible rounded-[20px] border border-[hsl(var(--border)/0.58)] bg-[linear-gradient(180deg,hsl(var(--surface-overlay)/0.98),hsl(var(--surface-panel)/0.9))] p-2.5 shadow-[0_18px_54px_hsl(var(--shadow-color)/0.14)] backdrop-blur-xl sm:left-auto sm:right-0 sm:w-[min(19rem,calc(100vw-1.25rem))]"
             data-testid="user-quick-menu"
             role="dialog"
           >
-            <div className="absolute -bottom-2 right-7 h-4 w-4 rotate-45 border-b border-r border-[hsl(var(--border)/0.76)] bg-[hsl(var(--surface-soft)/0.9)]" />
+            <div className="absolute -bottom-1.5 right-6 h-3 w-3 rotate-45 border-b border-r border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-panel)/0.9)]" />
 
-            <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_8rem] items-center gap-2.5">
-              <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
-                <Clock3 className="h-[18px] w-[18px]" />
+            <div className="grid grid-cols-[2rem_minmax(0,1fr)_6.75rem] items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-[14px] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted">
+                <Clock3 className="h-4 w-4" />
               </span>
               <div className="min-w-0">
-                <p className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
+                <p className="truncate text-[13px] font-bold text-app-foreground">
                   {t("shell.user.idleAfter")}
                 </p>
-                <p className="mt-0.5 text-[13px] leading-5 text-app-muted">
+                <p className="mt-0.5 truncate text-[11px] leading-4 text-app-muted">
                   {t("shell.user.idleAfterDescription")}
                 </p>
               </div>
@@ -542,36 +566,96 @@ export function UserProfileFooter({
                 {t("shell.user.idleAfterTitle")}
               </label>
               <div className="relative min-w-0">
-                <select
-                  className="h-10 w-full appearance-none rounded-2xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.86)] px-3 pr-8 text-[13px] font-bold text-app-foreground shadow-[inset_0_1px_0_hsl(var(--background)/0.5)] transition hover:bg-[hsl(var(--surface-card))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                <button
+                  aria-controls={
+                    isIdleTimeoutMenuOpen ? "user-presence-idle-timeout-menu" : undefined
+                  }
+                  aria-expanded={isIdleTimeoutMenuOpen}
+                  aria-haspopup="listbox"
+                  className={cn(
+                    "flex h-8 w-full min-w-0 items-center justify-between gap-2 rounded-[14px] border border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-soft)/0.34)] px-2.5 text-left text-[11px] font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]",
+                    isIdleTimeoutMenuOpen &&
+                      "border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.1)] shadow-[0_10px_28px_hsl(var(--primary)/0.1)]",
+                  )}
                   id="user-presence-idle-timeout"
-                  onChange={(event) => setIdleTimeoutMinutes(Number(event.target.value))}
+                  onClick={() => setIsIdleTimeoutMenuOpen((open) => !open)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "ArrowDown" ||
+                      event.key === "Enter" ||
+                      event.key === " "
+                    ) {
+                      event.preventDefault();
+                      setIsIdleTimeoutMenuOpen(true);
+                      return;
+                    }
+
+                    if (event.key === "Escape") {
+                      setIsIdleTimeoutMenuOpen(false);
+                    }
+                  }}
                   title={t("shell.user.idleAfterTitle")}
-                  value={idleTimeoutMinutes}
+                  type="button"
                 >
-                  {PRESENCE_IDLE_TIMEOUT_OPTIONS.map((minutes) => (
-                    <option key={minutes} value={minutes}>
-                      {t("shell.user.idleMinutes", { count: minutes })}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-app-muted" />
+                  <span className="min-w-0 truncate">
+                    {t("shell.user.idleMinutes", { count: idleTimeoutMinutes })}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "h-3.5 w-3.5 shrink-0 text-app-muted transition",
+                      isIdleTimeoutMenuOpen && "rotate-180 text-[hsl(var(--primary))]",
+                    )}
+                  />
+                </button>
+
+                {isIdleTimeoutMenuOpen ? (
+                  <div
+                    className="absolute right-0 top-[calc(100%+0.35rem)] z-[95] w-full overflow-hidden rounded-[16px] border border-[hsl(var(--border)/0.52)] bg-[linear-gradient(180deg,hsl(var(--surface-overlay)/0.98),hsl(var(--surface-panel)/0.94))] p-1.5 shadow-[0_16px_44px_hsl(var(--shadow-color)/0.14)] backdrop-blur-xl"
+                    id="user-presence-idle-timeout-menu"
+                    role="listbox"
+                  >
+                    {PRESENCE_IDLE_TIMEOUT_OPTIONS.map((minutes) => {
+                      const selected = minutes === idleTimeoutMinutes;
+
+                      return (
+                        <button
+                          aria-selected={selected}
+                          className={cn(
+                            "flex h-8 w-full items-center justify-between gap-2 rounded-[12px] px-2 text-left text-[11px] font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]",
+                            selected
+                              ? "bg-[hsl(var(--primary)/0.13)] text-[hsl(var(--primary))]"
+                              : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.62)] hover:text-app-foreground",
+                          )}
+                          key={minutes}
+                          onClick={() => handleIdleTimeoutSelect(minutes)}
+                          role="option"
+                          type="button"
+                        >
+                          <span className="truncate">
+                            {t("shell.user.idleMinutes", { count: minutes })}
+                          </span>
+                          {selected ? <Check className="h-3 w-3 shrink-0" /> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
               </div>
             </div>
 
-            <div className="my-4 h-px bg-[hsl(var(--border)/0.6)]" />
+            <div className="my-3 h-px bg-[hsl(var(--border)/0.42)]" />
 
-            <div className="grid gap-3.5">
-              <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-start gap-2.5">
-                <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
-                  <Mic className="h-[18px] w-[18px]" />
+            <div className="grid gap-2.5">
+              <div className="grid grid-cols-[2rem_minmax(0,1fr)] items-start gap-2">
+                <span className="grid h-8 w-8 place-items-center rounded-[14px] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted">
+                  <Mic className="h-4 w-4" />
                 </span>
-                <div className="min-w-0 space-y-2">
+                <div className="min-w-0 space-y-1.5">
                   <div className="min-w-0">
-                    <p className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
+                    <p className="truncate text-[13px] font-bold text-app-foreground">
                       {t("shell.user.microphone")}
                     </p>
-                    <p className="mt-0.5 truncate text-[13px] text-app-muted">
+                    <p className="mt-0.5 truncate text-[11px] text-app-muted">
                       {t("shell.user.inputDevice")}
                     </p>
                   </div>
@@ -581,16 +665,16 @@ export function UserProfileFooter({
                 </div>
               </div>
 
-              <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-start gap-2.5">
-                <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
-                  <Volume2 className="h-[18px] w-[18px]" />
+              <div className="grid grid-cols-[2rem_minmax(0,1fr)] items-start gap-2">
+                <span className="grid h-8 w-8 place-items-center rounded-[14px] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted">
+                  <Volume2 className="h-4 w-4" />
                 </span>
-                <div className="min-w-0 space-y-2">
+                <div className="min-w-0 space-y-1.5">
                   <div className="min-w-0">
-                    <p className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
+                    <p className="truncate text-[13px] font-bold text-app-foreground">
                       {t("shell.user.speaker")}
                     </p>
-                    <p className="mt-0.5 truncate text-[13px] text-app-muted">
+                    <p className="mt-0.5 truncate text-[11px] text-app-muted">
                       {t("shell.user.outputDevice")}
                     </p>
                   </div>
@@ -601,10 +685,10 @@ export function UserProfileFooter({
               </div>
             </div>
 
-            <div className="my-4 h-px bg-[hsl(var(--border)/0.6)]" />
+            <div className="my-3 h-px bg-[hsl(var(--border)/0.42)]" />
 
             <button
-              className="grid w-full grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-2.5 rounded-[22px] px-0 py-0 text-left transition hover:translate-x-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="grid w-full grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-[16px] px-1 py-1 text-left transition hover:bg-[hsl(var(--surface-soft)/0.44)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
               data-testid="user-appearance-settings-button"
               onClick={() => {
                 setIsQuickMenuOpen(false);
@@ -612,14 +696,14 @@ export function UserProfileFooter({
               }}
               type="button"
             >
-              <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.08)] text-[hsl(var(--primary))]">
-                <Settings2 className="h-[18px] w-[18px]" />
+              <span className="grid h-8 w-8 place-items-center rounded-[14px] bg-[hsl(var(--primary)/0.09)] text-[hsl(var(--primary))]">
+                <Settings2 className="h-4 w-4" />
               </span>
               <span className="min-w-0">
-                <span className="block truncate text-[15px] font-extrabold tracking-[-0.02em] text-app-foreground">
+                <span className="block truncate text-[13px] font-bold text-app-foreground">
                   {t("shell.user.appearanceSettingsTitle")}
                 </span>
-                <span className="mt-0.5 block truncate text-[13px] text-app-muted">
+                <span className="mt-0.5 block truncate text-[11px] text-app-muted">
                   {t("shell.user.settingsDescription")}
                 </span>
               </span>
@@ -627,21 +711,21 @@ export function UserProfileFooter({
 
             <button
               aria-label={t("shell.user.logout")}
-              className="mt-3.5 grid w-full grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-2.5 rounded-[22px] px-0 py-0 text-left transition hover:translate-x-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-1.5 grid w-full grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-[16px] px-1 py-1 text-left transition hover:bg-[hsl(var(--danger)/0.07)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.38)] disabled:cursor-not-allowed disabled:opacity-60"
               data-testid="user-logout-button"
               disabled={isLoggingOut}
               onClick={handleLogout}
               title={t("shell.user.logoutTitle")}
               type="button"
             >
-              <span className="grid h-10 w-10 place-items-center rounded-full border border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.08)] text-[hsl(var(--danger))]">
-                <LogOut className="h-[18px] w-[18px]" />
+              <span className="grid h-8 w-8 place-items-center rounded-[14px] bg-[hsl(var(--danger)/0.08)] text-[hsl(var(--danger))]">
+                <LogOut className="h-4 w-4" />
               </span>
               <span className="min-w-0">
-                <span className="block truncate text-[15px] font-extrabold tracking-[-0.02em] text-[hsl(var(--danger))]">
+                <span className="block truncate text-[13px] font-bold text-[hsl(var(--danger))]">
                   {t("shell.user.logout")}
                 </span>
-                <span className="mt-0.5 block truncate text-[13px] text-app-muted">
+                <span className="mt-0.5 block truncate text-[11px] text-app-muted">
                   {t("shell.user.logoutDescription")}
                 </span>
               </span>

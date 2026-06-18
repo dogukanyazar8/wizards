@@ -72,6 +72,19 @@ export function formatErrorLog(scope: string, error: unknown, now = new Date()) 
   });
 }
 
+export function formatWarningLog(scope: string, error: unknown, now = new Date()) {
+  return stringifyStructuredLog({
+    timestamp: now.toISOString(),
+    level: "warn",
+    scope: redactText(scope),
+    error: redactValue(error),
+  });
+}
+
 export function logError(scope: string, error: unknown) {
   console.error(formatErrorLog(scope, error));
+}
+
+export function logWarning(scope: string, error: unknown) {
+  console.warn(formatWarningLog(scope, error));
 }

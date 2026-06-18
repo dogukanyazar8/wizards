@@ -143,16 +143,16 @@ function StatusIcon({ status }: { status: ScreenShareStatus }) {
 
 function InlineMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.58)] px-3 py-2">
-      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-app-soft">{label}</p>
-      <p className="mt-1 truncate text-sm font-semibold text-app-foreground">{value}</p>
+    <div className="min-w-0 rounded-xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.56)] px-2.5 py-1.5">
+      <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-app-soft">{label}</p>
+      <p className="mt-0.5 truncate text-xs font-semibold text-app-foreground">{value}</p>
     </div>
   );
 }
 
 function FeaturePill({ children }: { children: string }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.48)] px-3 py-1.5 text-xs font-semibold text-app-muted">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-card)/0.48)] px-2.5 py-1 text-[11px] font-semibold text-app-muted">
       <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--success))]" aria-hidden="true" />
       <span className="truncate">{children}</span>
     </span>
@@ -239,28 +239,28 @@ export function ScreenSharePreferencesPanel() {
           : t("settings.voice.screenShare.action.unavailable");
 
   return (
-    <div className="space-y-4" data-testid="screen-share-preferences-panel">
-      <div className="overflow-hidden rounded-[26px] border border-[hsl(var(--primary)/0.20)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.92),hsl(var(--primary)/0.07))]">
-        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:p-5">
+    <div className="space-y-3" data-testid="screen-share-preferences-panel">
+      <div className="overflow-hidden rounded-[20px] border border-[hsl(var(--primary)/0.18)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.92),hsl(var(--primary)/0.06))]">
+        <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-start">
           <div
             className={cn(
-              "grid h-12 w-12 shrink-0 place-items-center rounded-2xl border",
+              "grid h-10 w-10 shrink-0 place-items-center rounded-xl border",
               getStatusToneClass(status.tone),
             )}
           >
             <StatusIcon status={status} />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-app-foreground">{t(status.labelKey)}</p>
-                <p className="mt-1 text-sm leading-6 text-app-muted">
+                <p className="text-[13px] font-semibold text-app-foreground">{t(status.labelKey)}</p>
+                <p className="mt-0.5 text-xs leading-4 text-app-muted">
                   {screenShareError ?? t(status.descriptionKey)}
                 </p>
               </div>
               <button
                 className={cn(
-                  "inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-2xl border px-4 py-2 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  "inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                   isScreenSharing
                     ? "border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.10)] text-[hsl(var(--danger))] hover:bg-[hsl(var(--danger)/0.14)]"
                     : "border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.18)]",
@@ -280,7 +280,7 @@ export function ScreenSharePreferencesPanel() {
               </button>
             </div>
 
-            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
               <InlineMetric
                 label={t("settings.voice.screenShare.metric.activeShares")}
                 value={t("settings.voice.screenShare.metric.activeSharesValue", {
@@ -304,22 +304,22 @@ export function ScreenSharePreferencesPanel() {
         </div>
       </div>
 
-      <div className="rounded-[24px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.34)] p-4 sm:p-5">
-        <div className="flex items-start gap-3">
-          <div className="rounded-2xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.62)] p-2 text-app-muted">
+      <div className="rounded-[18px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-soft)/0.32)] p-3">
+        <div className="flex items-start gap-2.5">
+          <div className="rounded-xl border border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-card)/0.62)] p-2 text-app-muted">
             <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-app-foreground">
+            <p className="text-[13px] font-semibold text-app-foreground">
               {t("settings.voice.screenShare.quality.title")}
             </p>
-            <p className="mt-1 text-sm leading-6 text-app-muted">
+            <p className="mt-0.5 text-xs leading-4 text-app-muted">
               {t("settings.voice.screenShare.quality.description")}
             </p>
           </div>
         </div>
 
-        <div className="mt-4 grid gap-2 lg:grid-cols-3">
+        <div className="mt-3 grid gap-2 lg:grid-cols-3">
           {SCREEN_SHARE_QUALITY_OPTIONS.map((option) => {
             const isSelected = option.id === screenShareQuality;
             const isPending = pendingQualityId === option.id;
@@ -328,7 +328,7 @@ export function ScreenSharePreferencesPanel() {
               <button
                 aria-pressed={isSelected}
                 className={cn(
-                  "min-h-[7.5rem] rounded-[22px] border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  "min-h-[5.75rem] rounded-[16px] border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                   isSelected
                     ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.12)] shadow-[0_16px_36px_hsl(var(--primary)/0.10)]"
                     : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--background)/0.58)] hover:border-[hsl(var(--primary)/0.30)] hover:bg-[hsl(var(--primary)/0.06)]",
@@ -340,22 +340,22 @@ export function ScreenSharePreferencesPanel() {
                 onClick={() => void handleQualityChange(option.id)}
                 type="button"
               >
-                <span className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-black uppercase tracking-[0.18em] text-[hsl(var(--primary))]">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-black uppercase tracking-[0.14em] text-[hsl(var(--primary))]">
                     {option.shortLabel}
                   </span>
                   {isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin text-app-muted" aria-hidden="true" />
                   ) : isSelected ? (
-                    <span className="grid h-6 w-6 place-items-center rounded-full bg-[hsl(var(--primary)/0.16)] text-[hsl(var(--primary))]">
+                    <span className="grid h-5 w-5 place-items-center rounded-full bg-[hsl(var(--primary)/0.16)] text-[hsl(var(--primary))]">
                       <Check className="h-3.5 w-3.5" aria-hidden="true" />
                     </span>
                   ) : null}
                 </span>
-                <span className="mt-3 block text-sm font-semibold text-app-foreground">
+                <span className="mt-2 block text-[13px] font-semibold text-app-foreground">
                   {t(option.labelKey)}
                 </span>
-                <span className="mt-2 block text-sm leading-6 text-app-muted">
+                <span className="mt-1 block text-[11px] leading-4 text-app-muted">
                   {t(option.descriptionKey)}
                 </span>
               </button>
@@ -364,7 +364,7 @@ export function ScreenSharePreferencesPanel() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5">
         <FeaturePill>{t("settings.voice.screenShare.feature.voiceRooms")}</FeaturePill>
         <FeaturePill>{t("settings.voice.screenShare.feature.directMessages")}</FeaturePill>
         <FeaturePill>{t("settings.voice.screenShare.feature.surfaceSwitching")}</FeaturePill>

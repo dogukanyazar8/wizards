@@ -6,17 +6,15 @@ import {
   ChevronDown,
   Code2,
   FileText,
+  Gamepad2,
   Headphones,
   ImageIcon,
   Info,
   Languages,
-  LayoutDashboard,
   MonitorUp,
   Palette,
-  PanelLeft,
   Search,
   Settings,
-  Sidebar,
   Sparkles,
   Type,
   UserRound,
@@ -26,14 +24,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { useI18n } from "@/components/providers/locale-provider";
 import { Avatar } from "@/components/ui/avatar";
 import {
   buildSettingsHref,
-  isAdvancedAppearancePanel,
   resolveSettingsSelection,
   type SettingsPanelKey,
+  type SettingsSelection,
   type SettingsSection as SettingsSectionKey,
 } from "@/lib/settings/navigation";
 import { cn } from "@/lib/utils";
@@ -53,13 +51,26 @@ type NavItem = {
 
 type SettingsSidebarProps = {
   currentUser: SettingsSidebarUser;
+  mode?: "dialog" | "page";
+  onBackToChannels?: () => void;
+  onSelectionChange?: (selection: SettingsSelection) => void;
+  selection?: SettingsSelection;
+};
+
+const DEFAULT_OPEN_SETTING_GROUPS: Record<SettingsSectionKey, boolean> = {
+  account: false,
+  appearance: false,
+  about: false,
+  desktop: false,
+  notifications: false,
+  voice: false,
 };
 
 function SettingsCard({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div
       className={cn(
-        "rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.84)] shadow-[0_22px_60px_hsl(var(--shadow-color)/0.08)] backdrop-blur-xl",
+        "rounded-[20px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface)/0.84)] shadow-[0_12px_34px_hsl(var(--shadow-color)/0.05)] backdrop-blur-xl",
         className,
       )}
     >
@@ -75,15 +86,15 @@ function SettingsSearch() {
   return (
     <label className="group relative block" htmlFor={searchId}>
       <span className="sr-only">{t("settings.search.placeholder")}</span>
-      <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-app-soft transition group-focus-within:text-[hsl(var(--primary))]" />
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-app-soft transition group-focus-within:text-[hsl(var(--primary))]" />
       <input
         aria-label={t("settings.search.placeholder")}
-        className="h-12 w-full rounded-[18px] border border-[hsl(var(--border)/0.78)] bg-[hsl(var(--surface)/0.92)] pl-11 pr-16 text-sm font-medium text-app-foreground shadow-[inset_0_1px_0_hsl(var(--surface-highlight)/0.68)] outline-none transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.45)] focus:ring-4 focus:ring-[hsl(var(--primary)/0.12)]"
+        className="h-9 w-full rounded-[13px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.9)] pl-9 pr-12 text-xs font-medium text-app-foreground shadow-[inset_0_1px_0_hsl(var(--surface-highlight)/0.5)] outline-none transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.45)] focus:ring-4 focus:ring-[hsl(var(--primary)/0.12)]"
         id={searchId}
         placeholder={t("settings.search.placeholder")}
         type="search"
       />
-      <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.72)] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-app-soft sm:inline-flex">
+      <span className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded-lg border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.72)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-app-soft sm:inline-flex">
         {t("settings.search.shortcut")}
       </span>
     </label>
@@ -109,13 +120,13 @@ function SettingsNavItem({
     <button
       aria-current={active ? "page" : undefined}
       className={cn(
-        "group relative flex min-h-11 w-full items-center gap-3 overflow-hidden rounded-2xl px-3.5 py-2.5 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface))]",
+        "group relative flex min-h-9 w-full items-center gap-2 overflow-hidden rounded-lg px-2.5 py-1.5 text-left text-[13px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface))]",
         active
           ? "bg-[linear-gradient(90deg,hsl(var(--primary)/0.16),hsl(var(--primary)/0.08))] text-[hsl(var(--primary))] shadow-[0_16px_35px_hsl(var(--primary)/0.12)]"
           : nested
             ? "text-app-soft hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground"
             : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.82)] hover:text-app-foreground",
-        nested ? "pl-5 text-[13px] font-medium" : "",
+        nested ? "pl-3.5 text-xs font-medium" : "",
         className,
       )}
       onClick={onClick}
@@ -123,20 +134,20 @@ function SettingsNavItem({
     >
       <span
         className={cn(
-          "absolute left-0 top-2 h-[calc(100%-1rem)] w-1 rounded-r-full transition",
+          "absolute left-0 top-2 h-[calc(100%-1rem)] w-0.5 rounded-r-full transition",
           active ? "bg-[hsl(var(--primary))] opacity-100" : "bg-transparent opacity-0",
         )}
       />
       <span
         className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition",
+          "flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition",
           active
             ? "bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]"
             : "bg-[hsl(var(--surface-soft)/0.6)] text-app-soft group-hover:text-app-foreground",
-          nested ? "h-7 w-7 rounded-lg" : "",
+          nested ? "h-6 w-6 rounded-lg" : "",
         )}
       >
-        <Icon className={cn("h-4 w-4", nested ? "h-3.5 w-3.5" : "")} />
+        <Icon className={cn("h-3.5 w-3.5", nested ? "h-3 w-3" : "")} />
       </span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
     </button>
@@ -144,25 +155,68 @@ function SettingsNavItem({
 }
 
 function SettingsSection({
+  active = false,
   children,
+  expanded = true,
   icon: Icon,
   label,
+  onToggle,
 }: {
+  active?: boolean;
   children: ReactNode;
+  expanded?: boolean;
   icon: LucideIcon;
   label: string;
+  onToggle?: () => void;
 }) {
+  const contentId = useId();
+  const highlighted = active || expanded;
+
   return (
-    <section className="space-y-2.5" aria-label={label}>
-      <div className="flex items-center gap-2 px-2">
-        <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
-          <Icon className="h-3.5 w-3.5" />
+    <section className="space-y-1.5" aria-label={label}>
+      <button
+        aria-controls={contentId}
+        aria-expanded={expanded}
+        className={cn(
+          "group flex min-h-8 w-full items-center gap-2 rounded-lg px-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface))]",
+          active
+            ? "bg-[hsl(var(--primary)/0.08)] text-[hsl(var(--primary))]"
+            : expanded
+              ? "bg-[hsl(var(--surface-soft)/0.72)] text-app-foreground"
+              : "text-app-soft hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground",
+        )}
+        onClick={onToggle}
+        type="button"
+      >
+        <span
+          className={cn(
+            "flex h-5 w-5 items-center justify-center rounded-md transition",
+            active
+              ? "bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]"
+              : highlighted
+                ? "bg-[hsl(var(--surface))] text-app-foreground"
+                : "bg-[hsl(var(--primary)/0.08)] text-[hsl(var(--primary))]",
+          )}
+        >
+          <Icon className="h-3 w-3" aria-hidden="true" />
         </span>
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-app-soft">
+        <span className="min-w-0 flex-1 truncate text-[10px] font-bold uppercase tracking-[0.18em]">
           {label}
-        </p>
-      </div>
-      <div className="space-y-1.5">{children}</div>
+        </span>
+        <ChevronDown
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 transition duration-150 motion-reduce:transition-none",
+            expanded ? "rotate-180" : "",
+            highlighted ? "text-[hsl(var(--primary))]" : "",
+          )}
+          aria-hidden="true"
+        />
+      </button>
+      {expanded ? (
+        <div className="space-y-1" id={contentId}>
+          {children}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -171,7 +225,7 @@ function SettingsRow({ children, className }: { children: ReactNode; className?:
   return (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface)/0.72)] p-3",
+        "flex items-center gap-2 rounded-xl border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface)/0.72)] p-2",
         className,
       )}
     >
@@ -182,42 +236,86 @@ function SettingsRow({ children, className }: { children: ReactNode; className?:
 
 function SettingsUserFooter({ user }: { user: SettingsSidebarUser }) {
   return (
-    <SettingsRow className="mt-4 shrink-0 bg-[linear-gradient(135deg,hsl(var(--surface)/0.92),hsl(var(--surface-soft)/0.72))] shadow-[0_14px_34px_hsl(var(--shadow-color)/0.07)]">
+    <SettingsRow className="mt-2 shrink-0 bg-[linear-gradient(135deg,hsl(var(--surface)/0.92),hsl(var(--surface-soft)/0.72))] shadow-[0_8px_20px_hsl(var(--shadow-color)/0.05)]">
       <div className="relative">
         <Avatar
           alt={user.displayName}
-          className="h-10 w-10 border-[hsl(var(--primary)/0.2)]"
+          className="h-8 w-8 border-[hsl(var(--primary)/0.2)]"
           fallback={user.displayName || user.username}
           src={user.avatarUrl}
         />
-        <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[hsl(var(--surface))] bg-emerald-500" />
+        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[hsl(var(--surface))] bg-emerald-500" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold text-app-foreground">{user.displayName}</p>
+        <p className="truncate text-[13px] font-bold text-app-foreground">{user.displayName}</p>
         <p className="truncate text-xs font-medium text-app-soft">@{user.username}</p>
       </div>
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl text-app-soft transition hover:bg-[hsl(var(--surface-soft))] hover:text-app-foreground">
-        <Settings className="h-4 w-4" aria-hidden="true" />
+      <span className="flex h-7 w-7 items-center justify-center rounded-lg text-app-soft transition hover:bg-[hsl(var(--surface-soft))] hover:text-app-foreground">
+        <Settings className="h-3.5 w-3.5" aria-hidden="true" />
       </span>
     </SettingsRow>
   );
 }
 
-export function SettingsSidebar({ currentUser }: SettingsSidebarProps) {
+export function SettingsSidebar({
+  currentUser,
+  mode = "page",
+  onBackToChannels,
+  onSelectionChange,
+  selection,
+}: SettingsSidebarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useI18n();
-  const { panel, section } = resolveSettingsSelection(searchParams);
-  const [advancedOpen, setAdvancedOpen] = useState(true);
-
-  useEffect(() => {
-    if (section === "appearance" && isAdvancedAppearancePanel(panel)) {
-      setAdvancedOpen(true);
-    }
-  }, [panel, section]);
+  const routeSelection = resolveSettingsSelection(searchParams);
+  const { panel, section } = selection ?? routeSelection;
+  const [openGroups, setOpenGroups] = useState(DEFAULT_OPEN_SETTING_GROUPS);
 
   const goTo = (nextSection: SettingsSectionKey, nextPanel?: SettingsPanelKey | null) => {
+    if (onSelectionChange) {
+      onSelectionChange({ panel: nextPanel ?? null, section: nextSection });
+      return;
+    }
+
     router.push(buildSettingsHref(nextSection, nextPanel));
+  };
+
+  const toggleGroup = (group: SettingsSectionKey) => {
+    setOpenGroups((current) => {
+      const shouldOpen = !current[group];
+
+      return {
+        account: group === "account" ? shouldOpen : false,
+        appearance: group === "appearance" ? shouldOpen : false,
+        about: group === "about" ? shouldOpen : false,
+        desktop: group === "desktop" ? shouldOpen : false,
+        notifications: group === "notifications" ? shouldOpen : false,
+        voice: group === "voice" ? shouldOpen : false,
+      };
+    });
+  };
+
+  const renderBackToChannels = (className: string) => {
+    const content = (
+      <>
+        <ArrowLeft className="h-4 w-4" />
+        {t("settings.backToChannels")}
+      </>
+    );
+
+    if (onBackToChannels) {
+      return (
+        <button className={className} onClick={onBackToChannels} type="button">
+          {content}
+        </button>
+      );
+    }
+
+    return (
+      <Link className={className} href="/channels">
+        {content}
+      </Link>
+    );
   };
 
   const voiceItems: NavItem[] = [
@@ -250,32 +348,32 @@ export function SettingsSidebar({ currentUser }: SettingsSidebarProps) {
       panel: "messageFont",
       section: "appearance",
     },
-  ];
-
-  const advancedItems: NavItem[] = [
     {
       icon: ImageIcon,
       label: t("settings.appearance.icons.title"),
       panel: "appIcon",
       section: "appearance",
     },
+  ];
+
+  const desktopItems: NavItem[] = [
     {
-      icon: PanelLeft,
-      label: t("settings.appearance.advanced.serverRailTitle"),
-      panel: "serverRail",
-      section: "appearance",
+      icon: MonitorUp,
+      label: t("settings.desktop.behavior.title"),
+      panel: "desktopBehavior",
+      section: "desktop",
     },
     {
-      icon: LayoutDashboard,
-      label: t("settings.appearance.advanced.mainCanvasTitle"),
-      panel: "mainCanvas",
-      section: "appearance",
+      icon: Gamepad2,
+      label: t("settings.desktop.voice.title"),
+      panel: "desktopVoice",
+      section: "desktop",
     },
     {
-      icon: Sidebar,
-      label: t("settings.appearance.advanced.channelSidebarTitle"),
-      panel: "channelSidebar",
-      section: "appearance",
+      icon: Info,
+      label: t("settings.desktop.diagnostics.title"),
+      panel: "desktopDiagnostics",
+      section: "desktop",
     },
   ];
 
@@ -309,12 +407,6 @@ export function SettingsSidebar({ currentUser }: SettingsSidebarProps) {
       section: "about",
     },
     {
-      icon: MonitorUp,
-      label: t("settings.about.desktop.title"),
-      panel: "desktop",
-      section: "about",
-    },
-    {
       icon: Code2,
       label: t("settings.about.developer.title"),
       panel: "developer",
@@ -325,6 +417,7 @@ export function SettingsSidebar({ currentUser }: SettingsSidebarProps) {
   const mobileSections: Array<{ icon: LucideIcon; label: string; section: SettingsSectionKey }> = [
     { icon: UserRound, label: t("settings.account.title"), section: "account" },
     { icon: Headphones, label: t("settings.groups.voiceVideo.title"), section: "voice" },
+    { icon: MonitorUp, label: t("settings.groups.desktop.title"), section: "desktop" },
     { icon: Sparkles, label: t("settings.groups.appearance.title"), section: "appearance" },
     {
       icon: BellRing,
@@ -337,17 +430,10 @@ export function SettingsSidebar({ currentUser }: SettingsSidebarProps) {
   const mobilePanelItems: NavItem[] =
     section === "voice"
       ? voiceItems
+      : section === "desktop"
+        ? desktopItems
       : section === "appearance"
-        ? [
-            ...appearanceItems,
-            {
-              icon: Sparkles,
-              label: t("settings.appearance.advanced.title"),
-              panel: "advanced",
-              section: "appearance",
-            },
-            ...advancedItems,
-          ]
+        ? appearanceItems
         : section === "notifications"
           ? notificationItems
           : section === "about"
@@ -357,36 +443,32 @@ export function SettingsSidebar({ currentUser }: SettingsSidebarProps) {
   return (
     <>
       <aside className="lg:hidden" data-testid="settings-mobile-sidebar">
-        <SettingsCard className="min-w-0 max-w-full overflow-hidden p-4">
+        <SettingsCard className="min-w-0 max-w-full overflow-hidden p-2.5">
           <div className="flex items-center justify-between gap-3">
-            <Link
-              className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.86)] px-3 text-sm font-bold text-app-foreground shadow-[0_10px_30px_hsl(var(--shadow-color)/0.06)] transition hover:bg-[hsl(var(--surface-soft)/0.82)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-              href="/channels"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              {t("settings.backToChannels")}
-            </Link>
+            {renderBackToChannels(
+              "inline-flex min-h-10 items-center gap-2 rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.86)] px-3 text-xs font-bold text-app-foreground shadow-[0_8px_22px_hsl(var(--shadow-color)/0.05)] transition hover:bg-[hsl(var(--surface-soft)/0.82)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+            )}
             <p className="text-app-soft text-[11px] font-bold uppercase tracking-[0.22em]">
               {t("common.settings")}
             </p>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-3">
             <SettingsSearch />
           </div>
 
-          <div className="mt-5">
-            <h1 className="text-app-foreground text-2xl font-bold leading-tight">
+          <div className="mt-4">
+            <h1 className="text-app-foreground text-xl font-bold leading-tight">
               {t("settings.title")}
             </h1>
-            <p className="text-app-muted mt-2 line-clamp-2 text-sm leading-6">
+            <p className="text-app-muted mt-1.5 line-clamp-2 text-xs leading-5">
               {t("settings.description")}
             </p>
           </div>
 
           <nav
             aria-label={t("settings.title")}
-            className="mt-5 flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-1"
+            className="mt-4 flex max-w-full gap-1.5 overflow-x-auto overscroll-x-contain pb-1"
           >
             {mobileSections.map((item) => {
               const Icon = item.icon;
@@ -394,7 +476,7 @@ export function SettingsSidebar({ currentUser }: SettingsSidebarProps) {
               return (
                 <button
                   className={cn(
-                    "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-2xl border px-4 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                    "inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                     section === item.section
                       ? "border-[hsl(var(--primary)/0.36)] bg-[hsl(var(--primary)/0.13)] text-[hsl(var(--primary))]"
                       : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface)/0.72)] text-app-muted hover:text-app-foreground",
@@ -414,7 +496,7 @@ export function SettingsSidebar({ currentUser }: SettingsSidebarProps) {
           {mobilePanelItems.length > 0 ? (
             <nav
               aria-label={`${t("settings.title")} ${t("common.overview")}`}
-              className="mt-3 flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-1"
+              className="mt-2.5 flex max-w-full gap-1.5 overflow-x-auto overscroll-x-contain pb-1"
             >
               {mobilePanelItems.map((item) => {
                 const Icon = item.icon;
@@ -423,7 +505,7 @@ export function SettingsSidebar({ currentUser }: SettingsSidebarProps) {
                 return (
                   <button
                     className={cn(
-                      "inline-flex min-h-10 shrink-0 items-center gap-2 rounded-2xl border px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                      "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                       isActive
                         ? "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]"
                         : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.68)] text-app-muted hover:text-app-foreground",
@@ -444,43 +526,50 @@ export function SettingsSidebar({ currentUser }: SettingsSidebarProps) {
       </aside>
 
       <aside
-        className="hidden h-[calc(100dvh-2.5rem)] min-h-[640px] overflow-hidden rounded-[32px] border border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface)/0.96),hsl(var(--surface-soft)/0.62))] p-4 shadow-[0_28px_80px_hsl(var(--shadow-color)/0.1)] backdrop-blur-xl lg:sticky lg:top-5 lg:flex lg:flex-col"
+        className={cn(
+            "hidden overflow-hidden rounded-[22px] border border-[hsl(var(--border)/0.66)] bg-[linear-gradient(180deg,hsl(var(--surface)/0.96),hsl(var(--surface-soft)/0.58))] p-2.5 shadow-[0_14px_40px_hsl(var(--shadow-color)/0.06)] backdrop-blur-xl lg:flex lg:flex-col",
+          mode === "dialog"
+            ? "h-full min-h-0"
+            : "h-[calc(100dvh-2rem)] min-h-[600px] lg:sticky lg:top-4",
+        )}
         data-testid="settings-desktop-sidebar"
       >
-        <div className="flex items-center gap-3 rounded-[24px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface)/0.72)] p-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--primary)/0.72))] text-sm font-black text-white shadow-[0_16px_34px_hsl(var(--primary)/0.22)]">
+        <div className="flex items-center gap-2 rounded-[16px] border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface)/0.72)] p-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--primary)/0.72))] text-xs font-black text-white shadow-[0_10px_22px_hsl(var(--primary)/0.16)]">
             W
           </span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-extrabold text-app-foreground">Whispr</p>
+            <p className="truncate text-[13px] font-extrabold text-app-foreground">Whispr</p>
             <p className="truncate text-xs font-semibold text-app-soft">{t("settings.title")}</p>
           </div>
         </div>
 
-        <Link
-          className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.82)] px-4 text-sm font-bold text-app-foreground shadow-[0_12px_32px_hsl(var(--shadow-color)/0.06)] transition hover:bg-[hsl(var(--surface-soft)/0.82)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-          href="/channels"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t("settings.backToChannels")}
-        </Link>
+        {renderBackToChannels(
+          "mt-3 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.82)] px-3 text-xs font-bold text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.05)] transition hover:bg-[hsl(var(--surface-soft)/0.82)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+        )}
 
-        <div className="mt-4">
+        <div className="mt-3">
           <SettingsSearch />
         </div>
 
-        <div className="mt-6 px-1">
-          <h1 className="text-app-foreground text-3xl font-extrabold leading-tight tracking-tight">
+        <div className="mt-3 px-1">
+          <h1 className="text-app-foreground text-xl font-extrabold leading-tight tracking-tight">
             {t("settings.title")}
           </h1>
-          <p className="text-app-muted mt-2 text-sm leading-6">{t("settings.description")}</p>
+          <p className="text-app-muted mt-1.5 text-xs leading-5">{t("settings.description")}</p>
         </div>
 
         <nav
           aria-label={t("settings.title")}
-          className="settings-scrollbar mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto pr-1"
+        className="settings-scrollbar mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1"
         >
-          <SettingsSection icon={UserRound} label={t("settings.account.badge")}>
+          <SettingsSection
+            active={section === "account" && openGroups.account}
+            expanded={openGroups.account}
+            icon={UserRound}
+            label={t("settings.account.badge")}
+            onToggle={() => toggleGroup("account")}
+          >
             <SettingsNavItem
               active={section === "account"}
               icon={UserRound}
@@ -489,7 +578,13 @@ export function SettingsSidebar({ currentUser }: SettingsSidebarProps) {
             />
           </SettingsSection>
 
-          <SettingsSection icon={Headphones} label={t("settings.groups.voiceVideo.badge")}>
+          <SettingsSection
+            active={section === "voice" && openGroups.voice}
+            expanded={openGroups.voice}
+            icon={Headphones}
+            label={t("settings.groups.voiceVideo.badge")}
+            onToggle={() => toggleGroup("voice")}
+          >
             {voiceItems.map((item) => (
               <SettingsNavItem
                 active={section === item.section && panel === item.panel}
@@ -501,7 +596,31 @@ export function SettingsSidebar({ currentUser }: SettingsSidebarProps) {
             ))}
           </SettingsSection>
 
-          <SettingsSection icon={Sparkles} label={t("settings.groups.appearance.badge")}>
+          <SettingsSection
+            active={section === "desktop" && openGroups.desktop}
+            expanded={openGroups.desktop}
+            icon={MonitorUp}
+            label={t("settings.groups.desktop.badge")}
+            onToggle={() => toggleGroup("desktop")}
+          >
+            {desktopItems.map((item) => (
+              <SettingsNavItem
+                active={section === item.section && panel === item.panel}
+                icon={item.icon}
+                key={item.panel}
+                label={item.label}
+                onClick={() => goTo(item.section, item.panel)}
+              />
+            ))}
+          </SettingsSection>
+
+          <SettingsSection
+            active={section === "appearance" && openGroups.appearance}
+            expanded={openGroups.appearance}
+            icon={Sparkles}
+            label={t("settings.groups.appearance.badge")}
+            onToggle={() => toggleGroup("appearance")}
+          >
             {appearanceItems.map((item) => (
               <SettingsNavItem
                 active={section === item.section && panel === item.panel}
@@ -511,57 +630,15 @@ export function SettingsSidebar({ currentUser }: SettingsSidebarProps) {
                 onClick={() => goTo(item.section, item.panel)}
               />
             ))}
-
-            <button
-              aria-expanded={advancedOpen}
-              className={cn(
-                "group relative flex min-h-11 w-full items-center gap-3 rounded-2xl px-3.5 py-2.5 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface))]",
-                section === "appearance" && isAdvancedAppearancePanel(panel)
-                  ? "bg-[linear-gradient(90deg,hsl(var(--primary)/0.16),hsl(var(--primary)/0.08))] text-[hsl(var(--primary))]"
-                  : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.82)] hover:text-app-foreground",
-              )}
-              onClick={() => {
-                setAdvancedOpen((current) => !current);
-                goTo("appearance", "advanced");
-              }}
-              type="button"
-            >
-              <span
-                className={cn(
-                  "absolute left-0 top-2 h-[calc(100%-1rem)] w-1 rounded-r-full transition",
-                  section === "appearance" && isAdvancedAppearancePanel(panel)
-                    ? "bg-[hsl(var(--primary))] opacity-100"
-                    : "bg-transparent opacity-0",
-                )}
-              />
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--surface-soft)/0.6)] text-app-soft group-hover:text-app-foreground">
-                <Sparkles className="h-4 w-4" />
-              </span>
-              <span className="min-w-0 flex-1 truncate">
-                {t("settings.appearance.advanced.title")}
-              </span>
-              <ChevronDown
-                className={cn("h-4 w-4 transition", advancedOpen ? "rotate-180" : "")}
-              />
-            </button>
-
-            {advancedOpen ? (
-              <div className="space-y-1.5 border-l border-[hsl(var(--border)/0.7)] pl-3">
-                {advancedItems.map((item) => (
-                  <SettingsNavItem
-                    active={section === item.section && panel === item.panel}
-                    icon={item.icon}
-                    key={item.panel}
-                    label={item.label}
-                    nested
-                    onClick={() => goTo(item.section, item.panel)}
-                  />
-                ))}
-              </div>
-            ) : null}
           </SettingsSection>
 
-          <SettingsSection icon={BellRing} label={t("settings.groups.notifications.badge")}>
+          <SettingsSection
+            active={section === "notifications" && openGroups.notifications}
+            expanded={openGroups.notifications}
+            icon={BellRing}
+            label={t("settings.groups.notifications.badge")}
+            onToggle={() => toggleGroup("notifications")}
+          >
             {notificationItems.map((item) => (
               <SettingsNavItem
                 active={section === item.section && panel === item.panel}
@@ -573,7 +650,13 @@ export function SettingsSidebar({ currentUser }: SettingsSidebarProps) {
             ))}
           </SettingsSection>
 
-          <SettingsSection icon={Info} label={t("settings.about.title")}>
+          <SettingsSection
+            active={section === "about" && openGroups.about}
+            expanded={openGroups.about}
+            icon={Info}
+            label={t("settings.about.title")}
+            onToggle={() => toggleGroup("about")}
+          >
             {aboutItems.map((item) => (
               <SettingsNavItem
                 active={section === item.section && panel === item.panel}

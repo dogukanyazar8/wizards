@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { formatErrorLog } from "./logger";
+import { formatErrorLog, formatWarningLog } from "./logger";
 
 describe("structured logger", () => {
   it("formats errors as redacted JSON log entries", () => {
@@ -41,5 +41,29 @@ describe("structured logger", () => {
     ) as { error: { uploadedBytes: string } };
 
     assert.equal(payload.error.uploadedBytes, "123");
+  });
+
+  it("formats warnings with the same redaction rules as errors", () => {
+    const payload = JSON.parse(
+      formatWarningLog(
+        "voice:metadata",
+        { token: "secret-token", error: new Error("timeout for sk_test_1234567890abcdef") },
+        new Date("2026-05-14T00:00:00.000Z"),
+      ),
+    ) as {
+      error: {
+        error: {
+          message: string;
+        };
+        token: string;
+      };
+      level: string;
+      scope: string;
+    };
+
+    assert.equal(payload.level, "warn");
+    assert.equal(payload.scope, "voice:metadata");
+    assert.equal(payload.error.token, "[redacted]");
+    assert.equal(payload.error.error.message, "timeout for [redacted-secret]");
   });
 });

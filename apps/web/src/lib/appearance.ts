@@ -316,6 +316,10 @@ export function getThemePreviewBackground(preview: WizardsThemePreview) {
   return `linear-gradient(135deg, ${preview.stops[0]} 0%, ${preview.stops[1]} 55%, ${preview.stops[2]} 100%)`;
 }
 
+export function getWizardsThemeMode(value: string | null | undefined) {
+  return WIZARDS_THEME_MAP[normalizeWizardsThemeId(value)].mode;
+}
+
 export const ICON_ONLY_SERVER_RAIL_WIDTH = 88;
 export const EXPANDED_MIN_SERVER_RAIL_WIDTH = 136;
 export const DEFAULT_SERVER_RAIL_WIDTH = 136;
@@ -350,6 +354,34 @@ export const MAX_NOTIFICATION_POPUP_TIMEOUT_SECONDS = 30;
 export const NOTIFICATION_POPUP_TIMEOUT_STEP = 5;
 export const NOTIFICATION_POPUP_TIMEOUT_OPTIONS = [5, 10, 15, 20, 30] as const;
 export const APP_THEME_STORAGE_KEY = "wizards-theme";
+
+const WIZARDS_THEME_CLASS_NAMES = Array.from(
+  new Set([...WIZARDS_THEME_IDS, ...Object.keys(LEGACY_THEME_ALIASES)]),
+);
+
+export function applyWizardsThemeToDocument(value: string | null | undefined) {
+  const theme = normalizeWizardsThemeId(value);
+
+  if (typeof document === "undefined") {
+    return theme;
+  }
+
+  const root = document.documentElement;
+  const mode = getWizardsThemeMode(theme);
+
+  root.classList.remove(...WIZARDS_THEME_CLASS_NAMES);
+  root.classList.add(theme);
+  root.dataset.theme = mode;
+  root.style.colorScheme = mode;
+
+  try {
+    window.localStorage.setItem(APP_THEME_STORAGE_KEY, theme);
+  } catch {
+    // Ignore storage failures; the visual theme is already applied for this runtime.
+  }
+
+  return theme;
+}
 
 const SERVER_RAIL_WIDTH_STORAGE_KEY = "wizards.serverRailWidth";
 const CHANNEL_SIDEBAR_WIDTH_STORAGE_KEY = "wizards.channelSidebarWidth";

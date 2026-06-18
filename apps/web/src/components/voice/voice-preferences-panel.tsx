@@ -65,6 +65,8 @@ type VoicePreferenceToggleRowProps = {
   onToggle: () => void;
 };
 
+export type VoicePreferencesPanelMode = "all" | "audio" | "desktop";
+
 function resolveKrispHelperText(status: KrispAvailability, t: (key: string) => string) {
   switch (status) {
     case "available":
@@ -159,18 +161,18 @@ export function VoicePreferenceToggleRow({
   onToggle,
 }: VoicePreferenceToggleRowProps) {
   return (
-    <div className="app-panel-soft rounded-[22px] border p-3 sm:rounded-[24px] sm:p-4">
-      <div className="flex items-start justify-between gap-3 sm:gap-4">
+    <div className="app-panel-soft rounded-[18px] border p-2.5 sm:p-3">
+      <div className="flex items-start justify-between gap-2.5 sm:gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-app-foreground">{label}</p>
-          <p className="mt-1 text-sm leading-5 text-app-muted sm:leading-6">{description}</p>
-          {helperText ? <p className="mt-2 text-xs leading-5 text-app-soft">{helperText}</p> : null}
+          <p className="text-[13px] font-semibold text-app-foreground">{label}</p>
+          <p className="mt-0.5 text-xs leading-4 text-app-muted">{description}</p>
+          {helperText ? <p className="mt-1.5 text-[11px] leading-4 text-app-soft">{helperText}</p> : null}
         </div>
 
         <button
           aria-checked={checked}
           className={cn(
-            "relative mt-1 inline-flex h-8 w-14 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-7 sm:w-12",
+            "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
             checked
               ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
               : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
@@ -183,8 +185,8 @@ export function VoicePreferenceToggleRow({
         >
           <span
             className={cn(
-              "absolute left-1 h-6 w-6 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition sm:h-5 sm:w-5",
-              checked && "translate-x-6 bg-[hsl(var(--primary))] sm:translate-x-5",
+              "absolute left-1 h-5 w-5 rounded-full bg-white shadow-[0_5px_14px_hsl(var(--shadow-color)/0.14)] transition",
+              checked && "translate-x-5 bg-[hsl(var(--primary))]",
             )}
           />
         </button>
@@ -285,18 +287,18 @@ function DesktopShortcutInputRow({
   value: string;
 }) {
   return (
-    <label className="grid gap-2 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.66)] p-3 shadow-[0_10px_24px_hsl(var(--shadow-color)/0.04)]">
-      <span className="flex items-center justify-between gap-3">
-        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-app-muted">
+    <label className="grid gap-1.5 rounded-xl border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-card)/0.62)] p-2.5 shadow-[0_8px_18px_hsl(var(--shadow-color)/0.035)]">
+      <span className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-app-muted">
           {label}
         </span>
-        <kbd className="rounded-xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.68)] px-2 py-1 text-[11px] font-semibold text-app-foreground">
+        <kbd className="rounded-lg border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-soft)/0.68)] px-1.5 py-0.5 text-[10px] font-semibold text-app-foreground">
           {value}
         </kbd>
       </span>
       <input
         aria-label={label}
-        className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.88)] px-3 text-sm font-semibold text-app-foreground outline-none transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.45)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
+        className="min-h-9 rounded-xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] px-2.5 text-xs font-semibold text-app-foreground outline-none transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.45)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
           const shortcut = formatShortcutFromKeyboardEvent(event);
@@ -311,7 +313,7 @@ function DesktopShortcutInputRow({
         spellCheck={false}
         value={value}
       />
-      <span className="text-xs leading-5 text-app-soft">{description}</span>
+      <span className="text-[11px] leading-4 text-app-soft">{description}</span>
     </label>
   );
 }
@@ -331,7 +333,7 @@ function VoiceInputModeButton({
     <button
       aria-pressed={active}
       className={cn(
-        "min-h-20 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+        "min-h-[4.25rem] rounded-xl border px-2.5 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
         active
           ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.12)] text-app-foreground"
           : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.54)] text-app-muted hover:border-[hsl(var(--primary)/0.24)] hover:bg-[hsl(var(--primary)/0.06)]",
@@ -339,13 +341,13 @@ function VoiceInputModeButton({
       onClick={onClick}
       type="button"
     >
-      <span className="block text-xs font-semibold uppercase tracking-[0.12em]">{label}</span>
-      <span className="mt-1 block text-xs leading-5">{description}</span>
+      <span className="block text-[11px] font-semibold uppercase tracking-[0.1em]">{label}</span>
+      <span className="mt-1 block text-[11px] leading-4">{description}</span>
     </button>
   );
 }
 
-export function VoicePreferencesPanel() {
+export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreferencesPanelMode }) {
   const { t } = useI18n();
   const [cleanVoiceFeedbackVisible, setCleanVoiceFeedbackVisible] = useState(false);
   const [desktopSurfaceFeedback, setDesktopSurfaceFeedback] = useState<
@@ -496,30 +498,35 @@ export function VoicePreferencesPanel() {
     [],
   );
 
+  const showAudioControls = mode !== "desktop";
+  const showDesktopControls = mode !== "audio";
+
   return (
-    <div className="space-y-4">
-      <div
-        className="overflow-hidden rounded-[28px] border border-[hsl(var(--primary)/0.22)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.94),hsl(var(--primary)/0.08))] shadow-[0_18px_48px_hsl(var(--shadow-color)/0.08)]"
-        data-testid="voice-clean-voice-status"
-      >
-        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:p-5">
-          <div className="rounded-3xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.12)] p-3 text-[hsl(var(--primary))]">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-app-foreground">
-                  {cleanVoiceStatus.label}
-                </p>
-                <p className="mt-1 text-sm leading-6 text-app-muted">
-                  {cleanVoiceStatus.description}
-                </p>
+    <div className="space-y-3">
+      {showAudioControls ? (
+        <>
+          <div
+            className="overflow-hidden rounded-[22px] border border-[hsl(var(--primary)/0.18)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.94),hsl(var(--primary)/0.07))] shadow-[0_14px_36px_hsl(var(--shadow-color)/0.06)]"
+            data-testid="voice-clean-voice-status"
+          >
+            <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-start">
+              <div className="rounded-2xl border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.12)] p-2.5 text-[hsl(var(--primary))]">
+                <ShieldCheck className="h-4 w-4" />
               </div>
-              <div className="flex flex-wrap gap-2">
-                <span
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[13px] font-semibold text-app-foreground">
+                      {cleanVoiceStatus.label}
+                    </p>
+                    <p className="mt-0.5 text-xs leading-4 text-app-muted">
+                      {cleanVoiceStatus.description}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span
                   className={cn(
-                    "inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]",
+                    "inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]",
                     isApplyingAudioPreferences
                       ? "border-[hsl(var(--warning)/0.28)] bg-[hsl(var(--warning)/0.1)] text-app-foreground"
                       : "border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.1)] text-app-foreground",
@@ -531,7 +538,7 @@ export function VoicePreferencesPanel() {
                     : t("voice.settings.badgeReady")}
                 </span>
                 <span
-                  className="inline-flex w-fit items-center gap-2 rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.7)] px-3 py-1 text-[11px] font-semibold text-app-muted"
+                  className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.7)] px-2.5 py-0.5 text-[10px] font-semibold text-app-muted"
                   data-testid="voice-noise-filter-tier"
                   title={t("voice.settings.activeNoiseFilter")}
                 >
@@ -541,14 +548,14 @@ export function VoicePreferencesPanel() {
               </div>
             </div>
 
-            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
               {[
                 t("voice.settings.cleanVoiceFeatureNoise"),
                 t("voice.settings.cleanVoiceFeatureEcho"),
                 t("voice.settings.cleanVoiceFeatureGain"),
               ].map((feature) => (
                 <div
-                  className="rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.54)] px-3 py-2 text-xs font-semibold text-app-muted"
+                  className="rounded-xl border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-card)/0.52)] px-2.5 py-1.5 text-[11px] font-semibold text-app-muted"
                   key={feature}
                 >
                   {feature}
@@ -556,9 +563,9 @@ export function VoicePreferencesPanel() {
               ))}
             </div>
 
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <button
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.12)] px-4 py-2 text-sm font-semibold text-[hsl(var(--primary))] transition hover:-translate-y-0.5 hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.12)] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                 data-testid="voice-clean-voice-profile"
                 onClick={applyCleanVoiceProfile}
                 type="button"
@@ -568,7 +575,7 @@ export function VoicePreferencesPanel() {
               </button>
               <button
                 className={cn(
-                  "inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                   shouldHighlightKrispRetry
                     ? "border-[hsl(var(--warning)/0.38)] bg-[hsl(var(--warning)/0.1)] text-app-foreground hover:bg-[hsl(var(--warning)/0.16)]"
                     : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.08)]",
@@ -593,7 +600,7 @@ export function VoicePreferencesPanel() {
             </div>
             {cleanVoiceFeedbackVisible ? (
               <p
-                className="mt-3 rounded-2xl border border-[hsl(var(--success)/0.26)] bg-[hsl(var(--success)/0.1)] px-3 py-2 text-xs font-semibold leading-5 text-app-foreground"
+                className="mt-2.5 rounded-xl border border-[hsl(var(--success)/0.24)] bg-[hsl(var(--success)/0.1)] px-2.5 py-1.5 text-[11px] font-semibold leading-4 text-app-foreground"
                 data-testid="voice-clean-voice-feedback"
               >
                 {t("voice.settings.cleanVoiceProfileApplied")}
@@ -603,25 +610,25 @@ export function VoicePreferencesPanel() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+      <div className="grid gap-2.5 sm:grid-cols-2">
         <AudioDeviceSelect kind="input" />
         <AudioDeviceSelect kind="output" />
       </div>
 
       <details
-        className="group app-panel-soft rounded-[26px] border p-4"
+        className="group app-panel-soft rounded-[20px] border p-3"
         data-testid="voice-advanced-controls"
       >
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
-          <span className="flex min-w-0 items-center gap-3">
-            <span className="rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.62)] p-2 text-app-muted">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+          <span className="flex min-w-0 items-center gap-2.5">
+            <span className="rounded-xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.62)] p-2 text-app-muted">
               <SlidersHorizontal className="h-4 w-4" />
             </span>
             <span className="min-w-0">
-              <span className="block text-sm font-semibold text-app-foreground">
+              <span className="block text-[13px] font-semibold text-app-foreground">
                 {t("voice.settings.advancedTitle")}
               </span>
-              <span className="mt-1 block text-xs leading-5 text-app-muted">
+              <span className="mt-0.5 block text-xs leading-4 text-app-muted">
                 {t("voice.settings.advancedDescription")}
               </span>
             </span>
@@ -629,7 +636,7 @@ export function VoicePreferencesPanel() {
           <ChevronDown className="h-4 w-4 shrink-0 text-app-muted transition group-open:rotate-180" />
         </summary>
 
-        <div className="mt-4 grid gap-3">
+        <div className="mt-3 grid gap-2.5">
           <VoicePreferenceToggleRow
             checked={audioPreferences.noiseSuppression}
             description={t("voice.settings.noiseSuppressionDesc")}
@@ -679,14 +686,14 @@ export function VoicePreferencesPanel() {
 
           {SHOW_NOISE_FILTER_EXPERIMENTS ? (
             <div
-              className="app-panel-soft rounded-[22px] border p-3 sm:rounded-[24px] sm:p-4"
+              className="app-panel-soft rounded-[18px] border p-2.5 sm:p-3"
               data-testid="voice-noise-filter-mode"
             >
               <div className="flex flex-col gap-1">
-                <p className="text-sm font-semibold text-app-foreground">
+                <p className="text-[13px] font-semibold text-app-foreground">
                   {t("voice.settings.noiseFilterMode")}
                 </p>
-                <p className="text-sm leading-5 text-app-muted sm:leading-6">
+                <p className="text-xs leading-4 text-app-muted">
                   {t("voice.settings.noiseFilterModeDesc")}
                 </p>
               </div>
@@ -697,7 +704,7 @@ export function VoicePreferencesPanel() {
                     <button
                       aria-pressed={isActive}
                       className={cn(
-                        "min-h-20 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                        "min-h-[4.25rem] rounded-xl border px-2.5 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                         isActive
                           ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.12)] text-app-foreground"
                           : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.54)] text-app-muted hover:border-[hsl(var(--primary)/0.24)] hover:bg-[hsl(var(--primary)/0.06)]",
@@ -711,10 +718,10 @@ export function VoicePreferencesPanel() {
                       }
                       type="button"
                     >
-                      <span className="block text-xs font-semibold uppercase tracking-[0.12em]">
+                      <span className="block text-[11px] font-semibold uppercase tracking-[0.1em]">
                         {t(`voice.settings.noiseFilterMode.${mode}`)}
                       </span>
-                      <span className="mt-1 block text-xs leading-5">
+                      <span className="mt-1 block text-[11px] leading-4">
                         {t(`voice.settings.noiseFilterMode.${mode}.desc`)}
                       </span>
                     </button>
@@ -726,21 +733,24 @@ export function VoicePreferencesPanel() {
         </div>
       </details>
 
-      {isDesktopRuntime ? (
+        </>
+      ) : null}
+
+      {showDesktopControls && isDesktopRuntime ? (
         <details
-          className="group app-panel-soft rounded-[26px] border p-4"
+          className="group app-panel-soft rounded-[20px] border p-3"
           data-testid="voice-desktop-controls"
         >
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
-            <span className="flex min-w-0 items-center gap-3">
-              <span className="rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.62)] p-2 text-app-muted">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+            <span className="flex min-w-0 items-center gap-2.5">
+              <span className="rounded-xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.62)] p-2 text-app-muted">
                 <Keyboard className="h-4 w-4" />
               </span>
               <span className="min-w-0">
-                <span className="block text-sm font-semibold text-app-foreground">
+                <span className="block text-[13px] font-semibold text-app-foreground">
                   {t("voice.settings.desktopControlsTitle")}
                 </span>
-                <span className="mt-1 block text-xs leading-5 text-app-muted">
+                <span className="mt-0.5 block text-xs leading-4 text-app-muted">
                   {t("voice.settings.desktopControlsDescription")}
                 </span>
               </span>
@@ -748,7 +758,7 @@ export function VoicePreferencesPanel() {
             <ChevronDown className="h-4 w-4 shrink-0 text-app-muted transition group-open:rotate-180" />
           </summary>
 
-          <div className="mt-4 grid gap-3">
+          <div className="mt-3 grid gap-2.5">
             <VoicePreferenceToggleRow
               checked={desktopGlobalShortcutsEnabled}
               description={t("voice.settings.desktopShortcutsDesc")}
@@ -765,17 +775,17 @@ export function VoicePreferencesPanel() {
               onToggle={() => setDesktopVoiceMiniEnabled(!desktopVoiceMiniEnabled)}
             />
 
-            <div className="order-5 app-panel-soft rounded-[22px] border p-3 sm:rounded-[24px] sm:p-4">
-              <div className="flex items-start justify-between gap-3 sm:gap-4">
+            <div className="order-5 app-panel-soft rounded-[18px] border p-2.5 sm:p-3">
+              <div className="flex items-start justify-between gap-2.5 sm:gap-3">
                 <div className="min-w-0">
-                  <p className="flex items-center gap-2 text-sm font-semibold text-app-foreground">
+                  <p className="flex items-center gap-1.5 text-[13px] font-semibold text-app-foreground">
                     <Gamepad2 className="h-4 w-4 text-[hsl(var(--primary))]" />
                     {t("voice.settings.desktopGameOverlay")}
                   </p>
-                  <p className="mt-1 text-sm leading-5 text-app-muted sm:leading-6">
+                  <p className="mt-0.5 text-xs leading-4 text-app-muted">
                     {t("voice.settings.desktopGameOverlayDesc")}
                   </p>
-                  <p className="mt-2 text-xs leading-5 text-app-soft">
+                  <p className="mt-1.5 text-[11px] leading-4 text-app-soft">
                     {t("voice.settings.desktopGameOverlayHelper")}
                   </p>
                 </div>
@@ -783,7 +793,7 @@ export function VoicePreferencesPanel() {
                 <button
                   aria-checked={desktopGameOverlayEnabled}
                   className={cn(
-                    "relative mt-1 inline-flex h-8 w-14 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-7 sm:w-12",
+                    "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                     desktopGameOverlayEnabled
                       ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
                       : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
@@ -794,23 +804,23 @@ export function VoicePreferencesPanel() {
                 >
                   <span
                     className={cn(
-                      "absolute left-1 h-6 w-6 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition sm:h-5 sm:w-5",
+                      "absolute left-1 h-5 w-5 rounded-full bg-white shadow-[0_5px_14px_hsl(var(--shadow-color)/0.14)] transition",
                       desktopGameOverlayEnabled &&
-                        "translate-x-6 bg-[hsl(var(--primary))] sm:translate-x-5",
+                        "translate-x-5 bg-[hsl(var(--primary))]",
                     )}
                   />
                 </button>
               </div>
-              <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+              <div className="mt-3 grid gap-2.5 lg:grid-cols-[1.2fr_0.8fr]">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-app-soft">
                     {t("voice.settings.desktopOverlayPosition")}
                   </p>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
+                  <div className="mt-1.5 grid grid-cols-2 gap-1.5">
                     {DESKTOP_GAME_OVERLAY_ANCHORS.map((anchor) => (
                       <button
                         className={cn(
-                          "min-h-10 rounded-2xl border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)]",
+                          "min-h-9 rounded-xl border px-2.5 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)]",
                           desktopGameOverlayAnchor === anchor
                             ? "border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]"
                             : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.7)] text-app-muted hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--primary)/0.07)]",
@@ -828,11 +838,11 @@ export function VoicePreferencesPanel() {
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-app-soft">
                     {t("voice.settings.desktopOverlaySize")}
                   </p>
-                  <div className="mt-2 grid grid-cols-3 gap-2 lg:grid-cols-1">
+                  <div className="mt-1.5 grid grid-cols-3 gap-1.5 lg:grid-cols-1">
                     {DESKTOP_GAME_OVERLAY_SIZES.map((size) => (
                       <button
                         className={cn(
-                          "min-h-10 rounded-2xl border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)]",
+                          "min-h-9 rounded-xl border px-2.5 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)]",
                           desktopGameOverlaySize === size
                             ? "border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]"
                             : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.7)] text-app-muted hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--primary)/0.07)]",
@@ -847,19 +857,19 @@ export function VoicePreferencesPanel() {
                   </div>
                 </div>
               </div>
-              <div className="mt-4 flex items-start justify-between gap-3 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.52)] p-3">
+              <div className="mt-3 flex items-start justify-between gap-2.5 rounded-xl border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-card)/0.5)] p-2.5">
                 <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-app-foreground">
+                  <span className="block text-[13px] font-semibold text-app-foreground">
                     {t("voice.settings.desktopOverlaySpeakingOnly")}
                   </span>
-                  <span className="mt-1 block text-xs leading-5 text-app-muted">
+                  <span className="mt-0.5 block text-[11px] leading-4 text-app-muted">
                     {t("voice.settings.desktopOverlaySpeakingOnlyDesc")}
                   </span>
                 </span>
                 <button
                   aria-checked={desktopGameOverlaySpeakingOnly}
                   className={cn(
-                    "relative mt-1 inline-flex h-8 w-14 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-7 sm:w-12",
+                    "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                     desktopGameOverlaySpeakingOnly
                       ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
                       : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
@@ -870,17 +880,17 @@ export function VoicePreferencesPanel() {
                 >
                   <span
                     className={cn(
-                      "absolute left-1 h-6 w-6 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition sm:h-5 sm:w-5",
+                      "absolute left-1 h-5 w-5 rounded-full bg-white shadow-[0_5px_14px_hsl(var(--shadow-color)/0.14)] transition",
                       desktopGameOverlaySpeakingOnly &&
-                        "translate-x-6 bg-[hsl(var(--primary))] sm:translate-x-5",
+                        "translate-x-5 bg-[hsl(var(--primary))]",
                     )}
                   />
                 </button>
               </div>
-              <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-3 grid gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
                 <button
                   className={cn(
-                    "inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] px-3 text-xs font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.38)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
+                    "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 text-[11px] font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.38)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
                     desktopSurfacePending === "overlay" && "text-[hsl(var(--primary))]",
                   )}
                   disabled={!isDesktopRuntime || desktopSurfacePending !== null}
@@ -898,7 +908,7 @@ export function VoicePreferencesPanel() {
                 </button>
                 <button
                   className={cn(
-                    "inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] px-3 text-xs font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.38)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
+                    "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 text-[11px] font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.38)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
                     desktopSurfacePending === "voice-mini" && "text-[hsl(var(--primary))]",
                   )}
                   disabled={!isDesktopRuntime || desktopSurfacePending !== null}
@@ -914,7 +924,7 @@ export function VoicePreferencesPanel() {
                 </button>
                 <button
                   className={cn(
-                    "inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] px-3 text-xs font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.38)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
+                    "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 text-[11px] font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.38)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
                     desktopSurfacePending === "refresh" && "text-[hsl(var(--primary))]",
                   )}
                   disabled={!isDesktopRuntime || desktopSurfacePending !== null}
@@ -935,7 +945,7 @@ export function VoicePreferencesPanel() {
                 </button>
                 <button
                   className={cn(
-                    "inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--warning)/0.28)] bg-[hsl(var(--warning)/0.08)] px-3 text-xs font-semibold text-app-foreground transition hover:border-[hsl(var(--warning)/0.46)] hover:bg-[hsl(var(--warning)/0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
+                    "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--warning)/0.28)] bg-[hsl(var(--warning)/0.08)] px-2.5 text-[11px] font-semibold text-app-foreground transition hover:border-[hsl(var(--warning)/0.46)] hover:bg-[hsl(var(--warning)/0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
                     desktopSurfacePending === "hide" && "text-[hsl(var(--warning))]",
                   )}
                   disabled={!isDesktopRuntime || desktopSurfacePending !== null}
@@ -956,7 +966,7 @@ export function VoicePreferencesPanel() {
               {desktopSurfaceFeedback ? (
                 <p
                   className={cn(
-                    "mt-3 rounded-2xl border px-3 py-2 text-xs font-semibold leading-5",
+                    "mt-2.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-semibold leading-4",
                     desktopSurfaceFeedback === "failure" || desktopSurfaceFeedback === "focus"
                       ? "border-amber-200 bg-amber-50 text-amber-700"
                       : "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -967,12 +977,12 @@ export function VoicePreferencesPanel() {
               ) : null}
             </div>
 
-            <div className="order-1 app-panel-soft rounded-[22px] border p-3 sm:rounded-[24px] sm:p-4">
+            <div className="order-1 app-panel-soft rounded-[18px] border p-2.5 sm:p-3">
               <div className="flex flex-col gap-1">
-                <p className="text-sm font-semibold text-app-foreground">
+                <p className="text-[13px] font-semibold text-app-foreground">
                   {t("voice.settings.inputMode")}
                 </p>
-                <p className="text-sm leading-5 text-app-muted sm:leading-6">
+                <p className="text-xs leading-4 text-app-muted">
                   {t("voice.settings.inputModeDesc")}
                 </p>
               </div>
@@ -989,7 +999,7 @@ export function VoicePreferencesPanel() {
               </div>
             </div>
 
-            <div className="order-2 grid gap-3 md:grid-cols-2">
+            <div className="order-2 grid gap-2.5 md:grid-cols-2">
               <DesktopShortcutInputRow
                 description={t("voice.settings.toggleMuteShortcutDesc")}
                 label={t("voice.settings.toggleMuteShortcut")}
@@ -1016,22 +1026,22 @@ export function VoicePreferencesPanel() {
               />
             </div>
 
-            <label className="order-3 app-panel-soft rounded-[22px] border p-3 sm:rounded-[24px] sm:p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
+            <label className="order-3 app-panel-soft rounded-[18px] border p-2.5 sm:p-3">
+              <div className="flex flex-wrap items-start justify-between gap-2.5">
                 <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-app-foreground">
+                  <span className="block text-[13px] font-semibold text-app-foreground">
                     {t("voice.settings.pushToTalkHangover")}
                   </span>
-                  <span className="mt-1 block text-sm leading-5 text-app-muted sm:leading-6">
+                  <span className="mt-0.5 block text-xs leading-4 text-app-muted">
                     {t("voice.settings.pushToTalkHangoverDesc")}
                   </span>
                 </span>
-                <span className="rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] px-3 py-1 text-xs font-semibold text-app-muted">
+                <span className="rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] px-2.5 py-0.5 text-[11px] font-semibold text-app-muted">
                   {pushToTalkHangoverMs} ms
                 </span>
               </div>
               <input
-                className="mt-4 w-full accent-[hsl(var(--primary))]"
+                className="mt-3 w-full accent-[hsl(var(--primary))]"
                 max={MAX_PUSH_TO_TALK_HANGOVER_MS}
                 min={MIN_PUSH_TO_TALK_HANGOVER_MS}
                 onChange={(event) => setPushToTalkHangoverMs(event.target.valueAsNumber)}
@@ -1048,19 +1058,37 @@ export function VoicePreferencesPanel() {
         </details>
       ) : null}
 
-      <div className="app-panel-soft flex items-start gap-3 rounded-[22px] border p-3 sm:rounded-[24px] sm:p-4">
-        <div className="rounded-2xl bg-[hsl(var(--primary)/0.12)] p-2 text-[hsl(var(--primary))]">
-          <Radio className="h-4 w-4" />
+      {showDesktopControls && !isDesktopRuntime ? (
+        <div className="app-panel-soft flex items-start gap-2.5 rounded-[18px] border p-2.5 sm:p-3">
+          <div className="rounded-xl bg-[hsl(var(--primary)/0.12)] p-2 text-[hsl(var(--primary))]">
+            <Keyboard className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold text-app-foreground">
+              {t("voice.settings.desktopControlsTitle")}
+            </p>
+            <p className="mt-0.5 text-xs leading-4 text-app-muted">
+              {t("voice.settings.desktopControlsDescription")}
+            </p>
+          </div>
         </div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-app-foreground">
-            {t("voice.settings.localOnlyTitle")}
-          </p>
-          <p className="mt-1 text-sm leading-5 text-app-muted sm:leading-6">
-            {t("voice.settings.localOnlyDescription")}
-          </p>
+      ) : null}
+
+      {showAudioControls ? (
+        <div className="app-panel-soft flex items-start gap-2.5 rounded-[18px] border p-2.5 sm:p-3">
+          <div className="rounded-xl bg-[hsl(var(--primary)/0.12)] p-2 text-[hsl(var(--primary))]">
+            <Radio className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold text-app-foreground">
+              {t("voice.settings.localOnlyTitle")}
+            </p>
+            <p className="mt-0.5 text-xs leading-4 text-app-muted">
+              {t("voice.settings.localOnlyDescription")}
+            </p>
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

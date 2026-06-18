@@ -13,6 +13,7 @@ import {
   Copy,
   ExternalLink,
   Eye,
+  Gamepad2,
   Globe2,
   ImageIcon,
   Info,
@@ -47,18 +48,10 @@ import { CameraPreferencesPanel } from "@/components/voice/camera-preferences-pa
 import { ScreenSharePreferencesPanel } from "@/components/voice/screen-share-preferences-panel";
 import { VoicePreferencesPanel } from "@/components/voice/voice-preferences-panel";
 import {
-  COMPACT_SERVER_RAIL_ICON_SIZE,
-  COMPACT_SERVER_RAIL_TOUCH_SIZE,
-  COMPACT_SERVER_RAIL_WIDTH,
-  DEFAULT_CHANNEL_SIDEBAR_WIDTH,
-  DEFAULT_MAIN_PANEL_WIDTH,
-  MAX_MAIN_PANEL_WIDTH,
   MAX_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
-  MIN_MAIN_PANEL_WIDTH,
   MIN_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
   NOTIFICATION_LIMIT_OPTIONS,
   NOTIFICATION_POPUP_TIMEOUT_STEP,
-  MAIN_PANEL_WIDTH_STEP,
 } from "@/lib/appearance";
 import { APP_ICON_OPTIONS, type AppIconId } from "@/lib/app-icons";
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
@@ -81,6 +74,7 @@ import {
   buildSettingsHref,
   resolveSettingsSelection,
   type SettingsPanelKey,
+  type SettingsSelection,
 } from "@/lib/settings/navigation";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -108,7 +102,10 @@ type SettingsPanelProps = {
     releaseChannel: string;
     version: string;
   };
+  className?: string;
   initialAccount: AccountSettingsState;
+  onSelectionChange?: (selection: SettingsSelection) => void;
+  selection?: SettingsSelection;
   uploadthingEnabled: boolean;
 };
 
@@ -148,12 +145,12 @@ function SectionHero({
   title: string;
 }) {
   return (
-    <section className="app-panel min-w-0 max-w-full overflow-hidden rounded-[28px] border p-5 sm:rounded-[32px] sm:p-7">
-      <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.24em]">{badge}</p>
-      <h2 className="text-app-foreground mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
+    <section className="app-panel min-w-0 max-w-full overflow-hidden rounded-[20px] border p-3 sm:p-4">
+      <p className="text-app-soft text-[10px] font-semibold uppercase tracking-[0.2em]">{badge}</p>
+      <h2 className="text-app-foreground mt-1.5 text-lg font-semibold tracking-tight sm:text-xl">
         {title}
       </h2>
-      <p className="text-app-muted mt-3 max-w-3xl text-sm leading-7">{description}</p>
+      <p className="text-app-muted mt-1.5 max-w-3xl text-xs leading-5">{description}</p>
     </section>
   );
 }
@@ -172,15 +169,15 @@ function SettingCard({
   title: string;
 }) {
   return (
-    <section className="app-panel min-w-0 max-w-full overflow-hidden rounded-[28px] border p-5 sm:rounded-[30px] sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <section className="app-panel min-w-0 max-w-full overflow-hidden rounded-[20px] border p-3 sm:p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <div className="app-panel-soft mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-[hsl(var(--primary))]">
-            <Icon className="h-4 w-4" />
+          <div className="app-panel-soft mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-[hsl(var(--primary))]">
+            <Icon className="h-3.5 w-3.5" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-app-foreground text-lg font-semibold">{title}</h3>
-            <p className="text-app-muted mt-1 text-sm leading-6">{description}</p>
+            <h3 className="text-app-foreground text-[15px] font-semibold">{title}</h3>
+            <p className="text-app-muted mt-0.5 text-xs leading-5">{description}</p>
           </div>
         </div>
         {badge ? (
@@ -189,16 +186,16 @@ function SettingCard({
           </Badge>
         ) : null}
       </div>
-      <div className="mt-5">{children}</div>
+      <div className="mt-3">{children}</div>
     </section>
   );
 }
 
 function InfoPill({ label, value }: { label: string; value: string }) {
   return (
-    <div className="app-panel-soft rounded-[22px] border p-4">
-      <p className="text-app-soft text-[11px] font-semibold uppercase tracking-[0.18em]">{label}</p>
-      <p className="text-app-foreground mt-2 break-words text-sm font-medium">{value}</p>
+    <div className="app-panel-soft rounded-[16px] border p-2.5">
+      <p className="text-app-soft text-[10px] font-semibold uppercase tracking-[0.16em]">{label}</p>
+      <p className="text-app-foreground mt-1 break-words text-xs font-medium">{value}</p>
     </div>
   );
 }
@@ -219,16 +216,16 @@ function ToggleRow({
   testId?: string;
 }) {
   return (
-    <div className="app-panel-soft rounded-[24px] border p-4">
-      <div className="flex items-start justify-between gap-4">
+    <div className="app-panel-soft rounded-[18px] border p-2.5 sm:p-3">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-app-foreground">{label}</p>
-          <p className="text-app-muted mt-1 text-sm leading-6">{description}</p>
+          <p className="text-[13px] font-semibold text-app-foreground">{label}</p>
+          <p className="text-app-muted mt-0.5 text-xs leading-4">{description}</p>
         </div>
         <button
           aria-checked={checked}
           className={cn(
-            "relative mt-1 inline-flex h-8 w-14 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-7 sm:w-12",
+            "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
             checked
               ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
               : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
@@ -242,8 +239,8 @@ function ToggleRow({
         >
           <span
             className={cn(
-              "absolute left-1 h-6 w-6 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition sm:h-5 sm:w-5",
-              checked && "translate-x-6 bg-[hsl(var(--primary))] sm:translate-x-5",
+              "absolute left-1 h-5 w-5 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition",
+              checked && "translate-x-5 bg-[hsl(var(--primary))]",
             )}
           />
         </button>
@@ -284,15 +281,15 @@ function SoundVolumeRow({
   volumeLabel: string;
 }) {
   return (
-    <div className="app-panel-soft rounded-[24px] border p-4">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="app-panel-soft rounded-[18px] border p-2.5 sm:p-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-app-foreground">{label}</p>
-          <p className="text-app-muted mt-1 text-sm leading-6">{description}</p>
+          <p className="text-[13px] font-semibold text-app-foreground">{label}</p>
+          <p className="text-app-muted mt-0.5 text-xs leading-4">{description}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button
-            className="min-h-10 rounded-2xl border border-[hsl(var(--border)/0.78)] px-3 py-2 text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
+            className="min-h-9 rounded-xl border border-[hsl(var(--border)/0.78)] px-2.5 py-1.5 text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
             disabled={!checked || volume === 0}
             onClick={onPreview}
             type="button"
@@ -303,7 +300,7 @@ function SoundVolumeRow({
             aria-label={label}
             aria-checked={checked}
             className={cn(
-              "relative inline-flex h-8 w-14 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-7 sm:w-12",
+              "relative inline-flex h-7 w-12 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               checked
                 ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
                 : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
@@ -315,15 +312,15 @@ function SoundVolumeRow({
           >
             <span
               className={cn(
-                "absolute left-1 h-6 w-6 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition sm:h-5 sm:w-5",
-                checked && "translate-x-6 bg-[hsl(var(--primary))] sm:translate-x-5",
+                "absolute left-1 h-5 w-5 rounded-full bg-white shadow-[0_6px_16px_hsl(var(--shadow-color)/0.16)] transition",
+                checked && "translate-x-5 bg-[hsl(var(--primary))]",
               )}
             />
           </button>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_minmax(180px,240px)]">
+      <div className="mt-3 grid gap-2.5 sm:grid-cols-[1fr_minmax(160px,220px)]">
         <div>
           <label
             className="text-xs font-semibold uppercase tracking-[0.16em] text-app-soft"
@@ -332,7 +329,7 @@ function SoundVolumeRow({
             {profileLabel}
           </label>
           <select
-            className="app-panel mt-2 w-full rounded-2xl border px-4 py-3 text-sm text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            className="app-panel mt-1.5 w-full rounded-xl border px-3 py-2 text-xs text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             disabled={!checked}
             id={testId ? `${testId}-profile` : undefined}
             data-testid={testId ? `${testId}-profile` : undefined}
@@ -348,11 +345,11 @@ function SoundVolumeRow({
         </div>
 
         <div>
-          <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
             <label className="text-xs font-semibold uppercase tracking-[0.16em] text-app-soft">
               {volumeLabel}
             </label>
-            <span className="rounded-full border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] px-2.5 py-1 text-xs font-semibold text-app-foreground">
+            <span className="rounded-full border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] px-2 py-0.5 text-[11px] font-semibold text-app-foreground">
               {volume}%
             </span>
           </div>
@@ -372,164 +369,6 @@ function SoundVolumeRow({
       </div>
     </div>
   );
-}
-
-function RangeSliderCard({
-  description,
-  labels,
-  max,
-  min,
-  onChange,
-  preview,
-  step,
-  testId,
-  title,
-  value,
-}: {
-  description: string;
-  labels: [string, string, string];
-  max: number;
-  min: number;
-  onChange: (nextValue: number) => void;
-  preview: ReactNode;
-  step: number;
-  testId?: string;
-  title: string;
-  value: number;
-}) {
-  const sliderValue = Math.min(max, Math.max(min, value));
-
-  return (
-    <SettingCard description={description} icon={LayoutPanelTop} title={title}>
-      <div className="flex items-center justify-end">
-        <div className="app-panel-soft inline-flex items-center gap-2 rounded-2xl border px-3 py-2">
-          <span className="text-app-foreground text-sm font-medium">{value}px</span>
-        </div>
-      </div>
-
-      <div className="mt-4 overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] p-4 sm:p-5">
-        <input
-          aria-label={title}
-          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.9)] accent-[hsl(var(--primary))]"
-          max={max}
-          min={min}
-          data-testid={testId}
-          onChange={(event) => onChange(Number(event.target.value))}
-          step={step}
-          type="range"
-          value={sliderValue}
-        />
-        <div className="text-app-muted mt-3 flex items-center justify-between text-xs font-medium">
-          <span>{labels[0]}</span>
-          <span>{labels[1]}</span>
-          <span>{labels[2]}</span>
-        </div>
-        <div className="mt-5">{preview}</div>
-      </div>
-    </SettingCard>
-  );
-}
-
-function CompactServerRailPreview({
-  description,
-  iconLabel,
-  modeLabel,
-  targetLabel,
-  title,
-  widthLabel,
-}: {
-  description: string;
-  iconLabel: string;
-  modeLabel: string;
-  targetLabel: string;
-  title: string;
-  widthLabel: string;
-}) {
-  const metrics = [
-    { label: widthLabel, value: `${COMPACT_SERVER_RAIL_WIDTH}px` },
-    { label: iconLabel, value: `${COMPACT_SERVER_RAIL_ICON_SIZE}px` },
-    { label: targetLabel, value: `${COMPACT_SERVER_RAIL_TOUCH_SIZE}px` },
-  ];
-
-  return (
-    <SettingCard description={description} icon={LayoutPanelTop} title={title}>
-      <div
-        className="grid gap-4 rounded-[28px] border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-soft)/0.22)] p-4 md:grid-cols-[auto_minmax(0,1fr)]"
-        data-testid="settings-server-rail-compact-preview"
-      >
-        <div
-          aria-hidden="true"
-          className="flex flex-col items-center rounded-[24px] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.86),hsl(var(--surface-soft)/0.34))] px-2 py-3"
-          style={{ width: COMPACT_SERVER_RAIL_WIDTH }}
-        >
-          <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-[hsl(var(--surface-card)/0.7)] ring-1 ring-[hsl(var(--border)/0.5)]">
-            <div className="h-7 w-7 rounded-[12px] bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--ambient-1)))]" />
-          </div>
-          <div className="mt-2 h-px w-7 rounded-full bg-[hsl(var(--border)/0.64)]" />
-          <div className="mt-2 flex flex-col gap-1.5">
-            {[0, 1, 2, 3].map((index) => (
-              <div
-                className="relative flex items-center justify-center rounded-[18px]"
-                key={index}
-                style={{
-                  height: COMPACT_SERVER_RAIL_TOUCH_SIZE,
-                  width: COMPACT_SERVER_RAIL_TOUCH_SIZE,
-                }}
-              >
-                {index === 1 ? (
-                  <span className="absolute left-0 h-7 w-1 rounded-full bg-[hsl(var(--primary))]" />
-                ) : null}
-                <div
-                  className={cn(
-                    "rounded-[16px] ring-1",
-                    index === 1
-                      ? "bg-[hsl(var(--primary)/0.16)] ring-[hsl(var(--primary)/0.28)]"
-                      : "bg-[hsl(var(--surface-card)/0.7)] ring-transparent",
-                  )}
-                  style={{
-                    height: COMPACT_SERVER_RAIL_ICON_SIZE,
-                    width: COMPACT_SERVER_RAIL_ICON_SIZE,
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="min-w-0 space-y-4">
-          <div className="inline-flex rounded-full border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] px-3 py-1 text-xs font-bold text-[hsl(var(--primary))]">
-            {modeLabel}
-          </div>
-          <p className="max-w-2xl text-sm leading-6 text-app-muted">{description}</p>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {metrics.map((metric) => (
-              <div className="rounded-[20px] bg-[hsl(var(--surface-card)/0.68)] p-3" key={metric.label}>
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-app-soft">
-                  {metric.label}
-                </p>
-                <p className="mt-1 text-sm font-extrabold text-app-foreground">{metric.value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </SettingCard>
-  );
-}
-
-function StatusDot({ status }: { status: UserStatus }) {
-  const colorClass =
-    status === UserStatus.ONLINE
-      ? "bg-emerald-400"
-      : status === UserStatus.IDLE
-        ? "bg-amber-400"
-        : status === UserStatus.DND
-          ? "bg-rose-400"
-          : status === UserStatus.INVISIBLE
-            ? "bg-slate-500"
-            : "bg-slate-400";
-
-  return <span className={cn("h-2.5 w-2.5 rounded-full", colorClass)} />;
 }
 
 function buildAvatarFallback(account: AccountSettingsState) {
@@ -586,14 +425,14 @@ function AccountPageHeader({
   title: string;
 }) {
   return (
-    <section className="min-w-0 max-w-4xl px-1 py-2">
-      <p className="text-xs font-black uppercase tracking-[0.26em] text-[hsl(var(--primary))]">
+    <section className="min-w-0 max-w-4xl px-0.5 py-0.5">
+      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[hsl(var(--primary))]">
         {eyebrow}
       </p>
-      <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-app-foreground sm:text-4xl">
+      <h2 className="mt-1.5 text-xl font-extrabold tracking-tight text-app-foreground sm:text-2xl">
         {title}
       </h2>
-      <p className="mt-3 max-w-3xl text-sm leading-7 text-app-muted sm:text-base">
+      <p className="mt-1.5 max-w-3xl text-xs leading-5 text-app-muted">
         {description}
       </p>
     </section>
@@ -610,11 +449,13 @@ function AccountInfoTile({
   value: ReactNode;
 }) {
   return (
-    <div className="rounded-[22px] border border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface)/0.92),hsl(var(--surface-soft)/0.42))] p-4 shadow-[inset_0_1px_0_hsl(var(--surface-highlight)/0.45)]">
-      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-app-soft">{label}</p>
-      <div className="mt-2 flex min-w-0 items-center justify-between gap-3">
-        <div className="min-w-0 break-words text-sm font-bold text-app-foreground">{value}</div>
-        {action}
+    <div className="flex min-h-[64px] flex-col justify-center rounded-[15px] border border-[hsl(var(--border)/0.62)] bg-[linear-gradient(180deg,hsl(var(--surface)/0.86),hsl(var(--surface-soft)/0.34))] p-2.5 shadow-[inset_0_1px_0_hsl(var(--surface-highlight)/0.36)]">
+      <p className="text-[9px] font-black uppercase tracking-[0.15em] text-app-soft">{label}</p>
+      <div className="mt-1 flex min-h-7 min-w-0 items-center justify-between gap-2">
+        <div className="min-w-0 flex-1 break-words text-xs font-bold leading-4 text-app-foreground">
+          {value}
+        </div>
+        {action ?? <span className="h-7 w-7 shrink-0" aria-hidden="true" />}
       </div>
     </div>
   );
@@ -623,7 +464,8 @@ function AccountInfoTile({
 function ProfileSummaryCard({
   account,
   completion,
-  onChangeStatus,
+  editForm,
+  isEditing,
   onEdit,
   statusLabel,
   t,
@@ -631,132 +473,134 @@ function ProfileSummaryCard({
 }: {
   account: AccountSettingsState;
   completion: ProfileCompletionSummary;
-  onChangeStatus: () => void;
+  editForm?: ReactNode;
+  isEditing: boolean;
   onEdit: () => void;
   statusLabel: string;
   t: (key: string, values?: Record<string, number | string>) => string;
   visibleName: string;
 }) {
   return (
-    <section className="min-w-0 overflow-hidden rounded-[32px] border border-[hsl(var(--border)/0.72)] bg-[linear-gradient(135deg,hsl(var(--surface)/0.98),hsl(var(--surface-soft)/0.58))] p-5 shadow-[0_24px_70px_hsl(var(--shadow-color)/0.1)] sm:p-6">
+    <section className="min-w-0 overflow-hidden rounded-[22px] border border-[hsl(var(--border)/0.66)] bg-[linear-gradient(135deg,hsl(var(--surface)/0.98),hsl(var(--surface-soft)/0.52))] p-3 shadow-[0_14px_38px_hsl(var(--shadow-color)/0.06)] sm:p-4">
       <div className="flex items-start gap-3">
-        <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
-          <UserRound className="h-4 w-4" />
+        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
+          <UserRound className="h-3.5 w-3.5" />
         </span>
         <div className="min-w-0">
-          <h3 className="text-lg font-extrabold text-app-foreground">
+          <h3 className="text-[15px] font-extrabold text-app-foreground">
             {t("settings.account.summaryTitle")}
           </h3>
-          <p className="mt-1 text-sm leading-6 text-app-muted">
+          <p className="mt-0.5 text-xs leading-4 text-app-muted">
             {t("settings.account.summaryDescription")}
           </p>
         </div>
       </div>
 
-      <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
+      <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative w-fit">
             <Avatar
               alt={visibleName}
-              className="h-24 w-24 rounded-full border-[hsl(var(--primary)/0.2)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.24),hsl(var(--primary)/0.1))] text-xl shadow-[0_22px_60px_hsl(var(--primary)/0.12)] ring-4 ring-[hsl(var(--primary)/0.08)] sm:h-28 sm:w-28"
+              className="h-16 w-16 rounded-full border-[hsl(var(--primary)/0.2)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.24),hsl(var(--primary)/0.1))] text-base shadow-[0_14px_34px_hsl(var(--primary)/0.1)] ring-4 ring-[hsl(var(--primary)/0.08)] sm:h-20 sm:w-20"
               fallback={buildAvatarFallback(account)}
               src={account.avatarUrl}
             />
-            <span className="absolute bottom-2 right-1 h-5 w-5 rounded-full border-4 border-[hsl(var(--surface))] bg-emerald-500 shadow-[0_8px_20px_hsl(var(--shadow-color)/0.18)]" />
+            <span className="absolute bottom-1 right-0.5 h-4 w-4 rounded-full border-[3px] border-[hsl(var(--surface))] bg-emerald-500 shadow-[0_8px_18px_hsl(var(--shadow-color)/0.16)]" />
           </div>
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h4 className="max-w-full truncate text-2xl font-extrabold tracking-tight text-app-foreground">
+              <h4 className="max-w-full truncate text-lg font-extrabold tracking-tight text-app-foreground">
                 {visibleName}
               </h4>
               <Badge className="border-emerald-500/25 bg-emerald-500/10 text-emerald-600">
                 {statusLabel}
               </Badge>
             </div>
-            <p className="mt-1 truncate text-sm font-semibold text-app-muted">@{account.username}</p>
-            <p className="mt-2 break-words text-sm font-medium text-app-muted">{account.email}</p>
+            <p className="mt-0.5 truncate text-xs font-semibold text-app-muted">@{account.username}</p>
+            <p className="mt-1 break-words text-xs font-medium text-app-muted">{account.email}</p>
           </div>
         </div>
 
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[190px]">
-          <Button className="w-full justify-center" onClick={onEdit} type="button">
-            {t("settings.account.profile.edit")}
-          </Button>
-          <Button
-            className="w-full justify-center"
-            onClick={onChangeStatus}
-            type="button"
-            variant="outline"
-          >
-            {t("settings.account.profile.changeStatus")}
-          </Button>
+        {!isEditing ? (
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[150px]">
+            <Button className="w-full justify-center" onClick={onEdit} type="button">
+              {t("settings.account.profile.edit")}
+            </Button>
+          </div>
+        ) : null}
+      </div>
+
+      {isEditing && editForm ? (
+        editForm
+      ) : (
+        <div className="mt-3 grid gap-2 md:grid-cols-2">
+          <AccountInfoTile label={t("settings.account.fields.displayName")} value={visibleName} />
+          <AccountInfoTile
+            action={
+              <button
+                aria-label={t("settings.account.copy.username")}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-app-soft transition hover:bg-[hsl(var(--primary)/0.1)] hover:text-[hsl(var(--primary))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                onClick={() => copyAccountValue(account.username)}
+                type="button"
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </button>
+            }
+            label={t("common.username")}
+            value={`@${account.username}`}
+          />
+          <AccountInfoTile
+            action={
+              <button
+                aria-label={t("settings.account.copy.email")}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-app-soft transition hover:bg-[hsl(var(--primary)/0.1)] hover:text-[hsl(var(--primary))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                onClick={() => copyAccountValue(account.email)}
+                type="button"
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </button>
+            }
+            label={t("common.email")}
+            value={account.email}
+          />
+          <AccountInfoTile
+            label={t("settings.account.fields.emailStatus")}
+            value={
+              account.emailVerified ? (
+                <span className="inline-flex items-center gap-1.5 text-emerald-600">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  {t("settings.account.security.emailVerified")}
+                </span>
+              ) : (
+                <Badge tone="muted">{t("settings.account.security.emailUnverified")}</Badge>
+              )
+            }
+          />
         </div>
-      </div>
+      )}
 
-      <div className="mt-6 grid gap-3 md:grid-cols-2">
-        <AccountInfoTile label={t("settings.account.fields.displayName")} value={visibleName} />
-        <AccountInfoTile
-          action={
-            <button
-              aria-label={t("settings.account.copy.username")}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-app-soft transition hover:bg-[hsl(var(--primary)/0.1)] hover:text-[hsl(var(--primary))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-              onClick={() => copyAccountValue(account.username)}
-              type="button"
-            >
-              <Copy className="h-4 w-4" />
-            </button>
-          }
-          label={t("common.username")}
-          value={`@${account.username}`}
-        />
-        <AccountInfoTile
-          action={
-            <button
-              aria-label={t("settings.account.copy.email")}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-app-soft transition hover:bg-[hsl(var(--primary)/0.1)] hover:text-[hsl(var(--primary))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-              onClick={() => copyAccountValue(account.email)}
-              type="button"
-            >
-              <Copy className="h-4 w-4" />
-            </button>
-          }
-          label={t("common.email")}
-          value={account.email}
-        />
-        <AccountInfoTile
-          action={<ChevronRight className="h-4 w-4 shrink-0 text-app-soft" />}
-          label={t("settings.account.fields.status")}
-          value={
-            <span className="inline-flex items-center gap-2">
-              <StatusDot status={account.status} />
-              {statusLabel}
-            </span>
-          }
-        />
-      </div>
-
-      <div className="mt-6 rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.76)] p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-extrabold text-app-foreground">
+      <div className="mt-3 rounded-[16px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.72)] p-2.5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-extrabold text-app-foreground">
             {t("settings.account.completion.title")}
           </p>
-          <span className="text-sm font-black text-[hsl(var(--primary))]">
+          <span className="text-xs font-black text-[hsl(var(--primary))]">
             %{completion.percent}
           </span>
         </div>
-        <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-[hsl(var(--surface-soft)/0.82)]">
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[hsl(var(--surface-soft)/0.82)]">
           <div
             className="h-full rounded-full bg-[linear-gradient(90deg,hsl(var(--primary)),hsl(var(--primary)/0.58))] shadow-[0_10px_24px_hsl(var(--primary)/0.2)] transition-all"
             style={{ width: `${completion.percent}%` }}
           />
         </div>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs font-medium leading-5 text-app-muted">
+        <div className="mt-2.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[11px] font-medium leading-4 text-app-muted">
             {t("settings.account.completion.description")}
           </p>
           <button
-            className="inline-flex min-h-10 items-center justify-center rounded-2xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.1)] px-4 text-xs font-black text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            className="inline-flex min-h-9 items-center justify-center rounded-xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.1)] px-3 text-xs font-black text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             onClick={onEdit}
             type="button"
           >
@@ -780,21 +624,21 @@ function ProfilePhotoCard({
   uploadthingEnabled: boolean;
 }) {
   return (
-    <section className="rounded-[32px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.92)] p-5 shadow-[0_20px_60px_hsl(var(--shadow-color)/0.08)]">
+    <section className="rounded-[20px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface)/0.9)] p-3 shadow-[0_12px_32px_hsl(var(--shadow-color)/0.05)] sm:p-4">
       <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
-          <Camera className="h-4 w-4" />
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
+          <Camera className="h-3.5 w-3.5" />
         </span>
         <div className="min-w-0">
-          <h3 className="text-base font-extrabold text-app-foreground">
+          <h3 className="text-sm font-extrabold text-app-foreground">
             {t("settings.account.avatar.title")}
           </h3>
-          <p className="mt-1 text-sm leading-6 text-app-muted">
+          <p className="mt-1 text-xs leading-5 text-app-muted">
             {t("settings.account.avatar.description")}
           </p>
         </div>
       </div>
-      <div className="mt-5">
+      <div className="mt-3">
         <ProfileAvatarField
           account={account}
           onAvatarUpdated={onAvatarUpdated}
@@ -824,17 +668,17 @@ function SuggestionRow({
     <div
       aria-disabled={disabled || undefined}
       className={cn(
-        "flex items-center gap-3 rounded-[22px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface)/0.76)] p-3 transition",
+        "flex items-center gap-2 rounded-[15px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.72)] p-2 transition",
         disabled ? "opacity-72" : "hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.06)]",
       )}
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
-        <Icon className="h-4 w-4" />
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
+        <Icon className="h-3.5 w-3.5" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-extrabold text-app-foreground">{title}</p>
-        <p className="mt-1 text-xs leading-5 text-app-muted">{description}</p>
-        {note ? <p className="mt-2 text-xs font-semibold text-app-soft">{note}</p> : null}
+        <p className="text-[13px] font-bold text-app-foreground">{title}</p>
+        <p className="mt-0.5 text-xs leading-4 text-app-muted">{description}</p>
+        {note ? <p className="mt-1 text-[11px] font-semibold text-app-soft">{note}</p> : null}
       </div>
       {status}
     </div>
@@ -849,22 +693,22 @@ function SecurityCenterCard({
   t: (key: string, values?: Record<string, number | string>) => string;
 }) {
   return (
-    <section className="rounded-[32px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.92)] p-5 shadow-[0_20px_60px_hsl(var(--shadow-color)/0.08)]">
+    <section className="rounded-[20px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface)/0.9)] p-3 shadow-[0_12px_32px_hsl(var(--shadow-color)/0.05)] sm:p-4">
       <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-500">
-          <ShieldCheck className="h-4 w-4" />
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/10 text-amber-500">
+          <ShieldCheck className="h-3.5 w-3.5" />
         </span>
         <div className="min-w-0">
-          <h3 className="text-base font-extrabold text-app-foreground">
+          <h3 className="text-sm font-extrabold text-app-foreground">
             {t("settings.account.security.title")}
           </h3>
-          <p className="mt-1 text-sm leading-6 text-app-muted">
+          <p className="mt-1 text-xs leading-5 text-app-muted">
             {t("settings.account.security.description")}
           </p>
         </div>
       </div>
 
-      <div className="mt-5 space-y-3">
+      <div className="mt-3 space-y-2">
         <SuggestionRow
           description={t("settings.account.quickSuggestions.email.description")}
           icon={Mail}
@@ -918,7 +762,7 @@ function SecurityCenterCard({
       </div>
 
       <button
-        className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-2xl px-3 text-sm font-black text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-3 inline-flex min-h-8 items-center gap-2 rounded-lg px-2.5 text-xs font-black text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
         disabled
         type="button"
       >
@@ -948,15 +792,15 @@ function AccountPreferenceRow({
 }) {
   const content = (
     <>
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
-        <Icon className="h-4 w-4" />
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
+        <Icon className="h-3.5 w-3.5" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-extrabold text-app-foreground">{title}</span>
-        <span className="mt-1 block text-xs leading-5 text-app-muted">{description}</span>
+        <span className="block text-[13px] font-bold text-app-foreground">{title}</span>
+        <span className="mt-0.5 block text-xs leading-4 text-app-muted">{description}</span>
       </span>
-      <span className="flex min-w-0 shrink-0 items-center gap-2 text-right text-xs font-black text-app-muted sm:text-sm">
-        <span className="max-w-[9rem] truncate sm:max-w-[14rem]">{value}</span>
+      <span className="flex min-w-0 shrink-0 items-center gap-2 text-right text-xs font-black text-app-muted">
+        <span className="max-w-[8rem] truncate sm:max-w-[12rem]">{value}</span>
         {preview && previewLabel ? <Badge tone="muted">{previewLabel}</Badge> : null}
         <ChevronRight className="h-4 w-4 shrink-0 text-app-soft" />
       </span>
@@ -966,7 +810,7 @@ function AccountPreferenceRow({
   if (onClick) {
     return (
       <button
-        className="flex w-full items-center gap-3 rounded-[22px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface)/0.76)] p-3 text-left transition hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+        className="flex w-full items-center gap-2 rounded-[15px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.72)] p-2 text-left transition hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
         onClick={onClick}
         type="button"
       >
@@ -976,7 +820,7 @@ function AccountPreferenceRow({
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-[22px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface)/0.76)] p-3">
+    <div className="flex items-center gap-2 rounded-[15px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.72)] p-2">
       {content}
     </div>
   );
@@ -1002,17 +846,17 @@ function AccountPreferenceSelectRow<TValue extends string>({
   value: TValue;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-[22px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface)/0.76)] p-3 sm:flex-row sm:items-center">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
-        <Icon className="h-4 w-4" />
+    <div className="flex flex-col gap-2 rounded-[15px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.72)] p-2 sm:flex-row sm:items-center">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
+        <Icon className="h-3.5 w-3.5" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-extrabold text-app-foreground">{title}</span>
-        <span className="mt-1 block text-xs leading-5 text-app-muted">{description}</span>
+        <span className="block text-[13px] font-bold text-app-foreground">{title}</span>
+        <span className="mt-0.5 block text-xs leading-4 text-app-muted">{description}</span>
       </span>
       <select
         aria-label={title}
-        className="min-h-11 w-full rounded-2xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.92)] px-3 text-sm font-bold text-app-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-[13.5rem]"
+        className="min-h-9 w-full rounded-lg border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface)/0.9)] px-2.5 text-xs font-bold text-app-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-[12rem]"
         disabled={disabled}
         onChange={(event) => onChange(event.target.value as TValue)}
         value={value}
@@ -1043,21 +887,21 @@ function PrivacyVisibilityCard({
   t: (key: string, values?: Record<string, number | string>) => string;
 }) {
   return (
-    <section className="rounded-[32px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.92)] p-5 shadow-[0_20px_60px_hsl(var(--shadow-color)/0.08)] sm:p-6">
+    <section className="rounded-[20px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface)/0.9)] p-3 shadow-[0_12px_32px_hsl(var(--shadow-color)/0.05)] sm:p-4">
       <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
-          <ShieldCheck className="h-4 w-4" />
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
+          <ShieldCheck className="h-3.5 w-3.5" />
         </span>
         <div className="min-w-0">
-          <h3 className="text-lg font-extrabold text-app-foreground">
+          <h3 className="text-[15px] font-extrabold text-app-foreground">
             {t("settings.account.privacy.title")}
           </h3>
-          <p className="mt-1 text-sm leading-6 text-app-muted">
+          <p className="mt-0.5 text-xs leading-4 text-app-muted">
             {t("settings.account.privacy.description")}
           </p>
         </div>
       </div>
-      <div className="mt-5 space-y-3">
+      <div className="mt-3 space-y-2">
         <AccountPreferenceRow
           description={t("settings.account.privacy.profile.description")}
           icon={Eye}
@@ -1111,21 +955,21 @@ function AccountPreferencesCard({
   timeZoneLabel: string;
 }) {
   return (
-    <section className="rounded-[32px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.92)] p-5 shadow-[0_20px_60px_hsl(var(--shadow-color)/0.08)] sm:p-6">
+    <section className="rounded-[20px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface)/0.9)] p-3 shadow-[0_12px_32px_hsl(var(--shadow-color)/0.05)] sm:p-4">
       <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
-          <Globe2 className="h-4 w-4" />
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
+          <Globe2 className="h-3.5 w-3.5" />
         </span>
         <div className="min-w-0">
-          <h3 className="text-lg font-extrabold text-app-foreground">
+          <h3 className="text-[15px] font-extrabold text-app-foreground">
             {t("settings.account.preferences.title")}
           </h3>
-          <p className="mt-1 text-sm leading-6 text-app-muted">
+          <p className="mt-0.5 text-xs leading-4 text-app-muted">
             {t("settings.account.preferences.description")}
           </p>
         </div>
       </div>
-      <div className="mt-5 space-y-3">
+      <div className="mt-3 space-y-2">
         <AccountPreferenceRow
           description={t("settings.account.preferences.timeZone.description")}
           icon={Clock3}
@@ -1164,14 +1008,18 @@ function AccountPreferencesCard({
 
 export function SettingsPanel({
   buildInfo,
+  className,
   initialAccount,
+  onSelectionChange,
+  selection,
   uploadthingEnabled,
 }: SettingsPanelProps) {
   const { locale, t } = useI18n();
   const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { panel, section } = resolveSettingsSelection(searchParams);
+  const routeSelection = resolveSettingsSelection(searchParams);
+  const { panel, section } = selection ?? routeSelection;
   const [isEditingAccount, setIsEditingAccount] = useState(false);
   const [accountState, setAccountState] = useState(initialAccount);
   const [accountDraft, setAccountDraft] = useState(initialAccount);
@@ -1193,18 +1041,15 @@ export function SettingsPanel({
     desktopNotificationPreviews,
     desktopRichPresenceEnabled,
     desktopStreamerModeEnabled,
-    mainPanelWidth,
     messageFont,
     notificationAutoClose,
     notificationLimit,
     notificationPopupTimeoutSeconds,
-    resetMainPanelWidth,
     setAppIconId,
     setDesktopCloseToTrayEnabled,
     setDesktopNotificationPreviews,
     setDesktopRichPresenceEnabled,
     setDesktopStreamerModeEnabled,
-    setMainPanelWidth,
     setMessageFont,
     setNotificationAutoClose,
     setNotificationLimit,
@@ -1217,18 +1062,15 @@ export function SettingsPanel({
       desktopNotificationPreviews: state.desktopNotificationPreviews,
       desktopRichPresenceEnabled: state.desktopRichPresenceEnabled,
       desktopStreamerModeEnabled: state.desktopStreamerModeEnabled,
-      mainPanelWidth: state.mainPanelWidth,
       messageFont: state.messageFont,
       notificationAutoClose: state.notificationAutoClose,
       notificationLimit: state.notificationLimit,
       notificationPopupTimeoutSeconds: state.notificationPopupTimeoutSeconds,
-      resetMainPanelWidth: state.resetMainPanelWidth,
       setAppIconId: state.setAppIconId,
       setDesktopCloseToTrayEnabled: state.setDesktopCloseToTrayEnabled,
       setDesktopNotificationPreviews: state.setDesktopNotificationPreviews,
       setDesktopRichPresenceEnabled: state.setDesktopRichPresenceEnabled,
       setDesktopStreamerModeEnabled: state.setDesktopStreamerModeEnabled,
-      setMainPanelWidth: state.setMainPanelWidth,
       setMessageFont: state.setMessageFont,
       setNotificationAutoClose: state.setNotificationAutoClose,
       setNotificationLimit: state.setNotificationLimit,
@@ -1389,13 +1231,6 @@ export function SettingsPanel({
     [],
   );
 
-  const handleMainCanvasWidthChange = useCallback(
-    (nextValue: number) => {
-      setMainPanelWidth(nextValue);
-    },
-    [setMainPanelWidth],
-  );
-
   const handleNotificationLimitChange = useCallback(
     (nextValue: number) => {
       void queryClient.cancelQueries({ queryKey: settingsQueryKeys.layout });
@@ -1443,8 +1278,20 @@ export function SettingsPanel({
     [],
   );
 
+  const navigateSettings = useCallback(
+    (nextSection: SettingsSelection["section"], nextPanel?: SettingsPanelKey | null) => {
+      if (onSelectionChange) {
+        onSelectionChange({ panel: nextPanel ?? null, section: nextSection });
+        return;
+      }
+
+      router.push(buildSettingsHref(nextSection, nextPanel));
+    },
+    [onSelectionChange, router],
+  );
+
   const openPanel = (targetPanel: SettingsPanelKey) => {
-    router.push(buildSettingsHref("appearance", targetPanel));
+    navigateSettings("appearance", targetPanel);
   };
 
   const handleAccountDraftChange = <TField extends keyof AccountSettingsState>(
@@ -1454,6 +1301,13 @@ export function SettingsPanel({
     setAccountDraft((current) => ({ ...current, [field]: value }));
     setAccountFieldErrors((current) => ({ ...current, [field]: undefined }));
     setAccountFeedback(null);
+  };
+
+  const beginAccountEditing = () => {
+    setAccountDraft(accountState);
+    setAccountFieldErrors({});
+    setAccountFeedback(null);
+    setIsEditingAccount(true);
   };
 
   const cancelAccountEditing = () => {
@@ -1519,22 +1373,117 @@ export function SettingsPanel({
     const timeZoneLabel = getBrowserTimeZoneLabel(browserTimeZone, locale);
     const dmPolicy = serverSettings?.dmPolicy ?? "FRIENDS";
     const friendRequestPolicy = serverSettings?.friendRequestPolicy ?? "EVERYONE";
+    const accountEditForm = (
+      <div className="mt-3 rounded-[16px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.72)] p-2.5 sm:p-3">
+        <div className="grid gap-2.5 md:grid-cols-2">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold text-app-foreground">
+              {t("settings.account.fields.displayName")}
+            </span>
+            <input
+              className="w-full rounded-lg border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] px-2.5 py-2 text-xs font-semibold text-app-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              onChange={(event) => handleAccountDraftChange("displayName", event.target.value)}
+              type="text"
+              value={accountDraft.displayName ?? ""}
+            />
+            {accountFieldErrors.displayName ? (
+              <p className="mt-1.5 text-xs font-semibold text-app-danger">
+                {t(accountFieldErrors.displayName)}
+              </p>
+            ) : null}
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold text-app-foreground">
+              {t("common.username")}
+            </span>
+            <input
+              className="w-full rounded-lg border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] px-2.5 py-2 text-xs font-semibold text-app-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              onChange={(event) => handleAccountDraftChange("username", event.target.value)}
+              type="text"
+              value={accountDraft.username}
+            />
+            {accountFieldErrors.username ? (
+              <p className="mt-1.5 text-xs font-semibold text-app-danger">
+                {t(accountFieldErrors.username)}
+              </p>
+            ) : null}
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold text-app-foreground">
+              {t("common.email")}
+            </span>
+            <input
+              className="w-full rounded-lg border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] px-2.5 py-2 text-xs font-semibold text-app-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              onChange={(event) => handleAccountDraftChange("email", event.target.value)}
+              type="email"
+              value={accountDraft.email}
+            />
+            {accountFieldErrors.email ? (
+              <p className="mt-1.5 text-xs font-semibold text-app-danger">
+                {t(accountFieldErrors.email)}
+              </p>
+            ) : null}
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold text-app-foreground">
+              {t("settings.account.fields.status")}
+            </span>
+            <select
+              className="w-full rounded-lg border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] px-2.5 py-2 text-xs font-semibold text-app-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              onChange={(event) =>
+                handleAccountDraftChange("status", event.target.value as UserStatus)
+              }
+              value={accountDraft.status}
+            >
+              {accountStatusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {t(option.key)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+          <Button
+            className="w-full sm:w-auto"
+            onClick={cancelAccountEditing}
+            type="button"
+            variant="outline"
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button
+            className="w-full sm:w-auto"
+            disabled={isSavingAccount}
+            onClick={saveAccount}
+            type="button"
+          >
+            {isSavingAccount ? t("common.saving") : t("common.save")}
+          </Button>
+        </div>
+      </div>
+    );
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-3">
         <AccountPageHeader
           description={t("settings.account.pageDescription")}
           eyebrow={t("settings.account.badge")}
           title={t("settings.account.title")}
         />
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,360px)] 2xl:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="min-w-0 space-y-6">
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(260px,312px)] 2xl:grid-cols-[minmax(0,1fr)_328px]">
+          <div className="min-w-0 space-y-3">
             <ProfileSummaryCard
               account={accountState}
               completion={completion}
-              onChangeStatus={() => setIsEditingAccount(true)}
-              onEdit={() => setIsEditingAccount(true)}
+              editForm={accountEditForm}
+              isEditing={isEditingAccount}
+              onEdit={beginAccountEditing}
               statusLabel={statusLabel}
               t={t}
               visibleName={visibleName}
@@ -1543,7 +1492,7 @@ export function SettingsPanel({
             {accountFeedback ? (
               <div
                 className={cn(
-                  "rounded-[24px] border p-4 text-sm font-semibold shadow-[0_16px_40px_hsl(var(--shadow-color)/0.06)]",
+                  "rounded-[16px] border p-2.5 text-xs font-semibold shadow-[0_10px_24px_hsl(var(--shadow-color)/0.05)]",
                   accountFeedback.tone === "success"
                     ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600"
                     : "border-rose-500/25 bg-rose-500/10 text-rose-600",
@@ -1551,109 +1500,6 @@ export function SettingsPanel({
               >
                 {accountFeedback.value}
               </div>
-            ) : null}
-
-            {isEditingAccount ? (
-              <SettingCard
-                description={t("settings.account.editDescription")}
-                icon={Mail}
-                title={t("settings.account.editTitle")}
-              >
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-bold text-app-foreground">
-                      {t("settings.account.fields.displayName")}
-                    </span>
-                    <input
-                      className="app-panel w-full rounded-2xl border px-4 py-3 text-sm font-semibold text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                      onChange={(event) =>
-                        handleAccountDraftChange("displayName", event.target.value)
-                      }
-                      type="text"
-                      value={accountDraft.displayName ?? ""}
-                    />
-                    {accountFieldErrors.displayName ? (
-                      <p className="mt-2 text-xs font-semibold text-app-danger">
-                        {t(accountFieldErrors.displayName)}
-                      </p>
-                    ) : null}
-                  </label>
-
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-bold text-app-foreground">
-                      {t("common.username")}
-                    </span>
-                    <input
-                      className="app-panel w-full rounded-2xl border px-4 py-3 text-sm font-semibold text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                      onChange={(event) =>
-                        handleAccountDraftChange("username", event.target.value)
-                      }
-                      type="text"
-                      value={accountDraft.username}
-                    />
-                    {accountFieldErrors.username ? (
-                      <p className="mt-2 text-xs font-semibold text-app-danger">
-                        {t(accountFieldErrors.username)}
-                      </p>
-                    ) : null}
-                  </label>
-
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-bold text-app-foreground">
-                      {t("common.email")}
-                    </span>
-                    <input
-                      className="app-panel w-full rounded-2xl border px-4 py-3 text-sm font-semibold text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                      onChange={(event) => handleAccountDraftChange("email", event.target.value)}
-                      type="email"
-                      value={accountDraft.email}
-                    />
-                    {accountFieldErrors.email ? (
-                      <p className="mt-2 text-xs font-semibold text-app-danger">
-                        {t(accountFieldErrors.email)}
-                      </p>
-                    ) : null}
-                  </label>
-
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-bold text-app-foreground">
-                      {t("settings.account.fields.status")}
-                    </span>
-                    <select
-                      className="app-panel w-full rounded-2xl border px-4 py-3 text-sm font-semibold text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                      onChange={(event) =>
-                        handleAccountDraftChange("status", event.target.value as UserStatus)
-                      }
-                      value={accountDraft.status}
-                    >
-                      {accountStatusOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {t(option.key)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-                  <Button
-                    className="w-full sm:w-auto"
-                    onClick={cancelAccountEditing}
-                    type="button"
-                    variant="outline"
-                  >
-                    {t("common.cancel")}
-                  </Button>
-                  <Button
-                    className="w-full sm:w-auto"
-                    disabled={isSavingAccount}
-                    onClick={saveAccount}
-                    type="button"
-                  >
-                    {isSavingAccount ? t("common.saving") : t("common.save")}
-                  </Button>
-                </div>
-              </SettingCard>
             ) : null}
 
             <PrivacyVisibilityCard
@@ -1674,7 +1520,7 @@ export function SettingsPanel({
             />
           </div>
 
-          <div className="space-y-6 xl:sticky xl:top-6 xl:self-start">
+          <div className="space-y-3 xl:sticky xl:top-4 xl:self-start">
             <ProfilePhotoCard
               account={accountState}
               onAvatarUpdated={handleAvatarUpdated}
@@ -1694,41 +1540,14 @@ export function SettingsPanel({
     const showScreenShare = panel === null || panel === "screenShare";
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-3">
         <SectionHero
           badge={t("settings.groups.voiceVideo.badge")}
           description={t("settings.groups.voiceVideo.description")}
           title={t("settings.groups.voiceVideo.title")}
         />
 
-        {isDesktopRuntime ? (
-          <SettingCard
-            description={t("settings.voice.desktopPermissions.description")}
-            icon={MonitorUp}
-            title={t("settings.voice.desktopPermissions.title")}
-          >
-            <div className="grid gap-3 md:grid-cols-2">
-              <InfoPill
-                label={t("settings.voice.desktopPermissions.microphone.label")}
-                value={t("settings.voice.desktopPermissions.microphone.value")}
-              />
-              <InfoPill
-                label={t("settings.voice.desktopPermissions.camera.label")}
-                value={t("settings.voice.desktopPermissions.camera.value")}
-              />
-              <InfoPill
-                label={t("settings.voice.desktopPermissions.screenShare.label")}
-                value={t("settings.voice.desktopPermissions.screenShare.value")}
-              />
-              <InfoPill
-                label={t("settings.voice.desktopPermissions.cleanup.label")}
-                value={t("settings.voice.desktopPermissions.cleanup.value")}
-              />
-            </div>
-          </SettingCard>
-        ) : null}
-
-        {showAudio ? <VoicePreferencesPanel /> : null}
+        {showAudio ? <VoicePreferencesPanel mode="audio" /> : null}
 
         {showCamera ? (
           <SettingCard
@@ -1755,40 +1574,101 @@ export function SettingsPanel({
     );
   };
 
-  const renderAdvancedControls = (
-    target: "all" | "appIcon" | "serverRail" | "mainCanvas" | "channelSidebar",
-  ) => {
-    const showAppIcon = target === "all" || target === "appIcon";
-    const showServerRail = target === "all" || target === "serverRail";
-    const showMainCanvas = target === "all" || target === "mainCanvas";
-    const showChannelSidebar = target === "all" || target === "channelSidebar";
+  const renderDesktopSection = () => {
+    const showBehavior = panel === null || panel === "desktopBehavior";
+    const showVoice = panel === null || panel === "desktopVoice";
+    const showDiagnostics = panel === null || panel === "desktopDiagnostics";
 
     return (
-      <div className="space-y-6">
-        <SettingCard
-          description={t("settings.appearance.advanced.description")}
-          icon={LayoutPanelTop}
-          title={t("settings.appearance.advanced.title")}
-        >
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <InfoPill
-              label={t("settings.appearance.icons.title")}
-              value={t("settings.appearance.icons.description")}
-            />
-            <InfoPill
-              label={t("settings.appearance.advanced.serverRailTitle")}
-              value={t("settings.appearance.advanced.serverRailDescription")}
-            />
-            <InfoPill
-              label={t("settings.appearance.advanced.mainCanvasTitle")}
-              value={t("settings.appearance.advanced.mainCanvasDescription")}
-            />
-            <InfoPill
-              label={t("settings.appearance.advanced.channelSidebarTitle")}
-              value={t("settings.appearance.advanced.channelSidebarDescription")}
-            />
-          </div>
-        </SettingCard>
+      <div className="space-y-3">
+        <SectionHero
+          badge={t("settings.groups.desktop.badge")}
+          description={t("settings.groups.desktop.description")}
+          title={t("settings.groups.desktop.title")}
+        />
+
+        {showBehavior ? (
+          <SettingCard
+            description={t("settings.desktop.behavior.description")}
+            icon={MonitorUp}
+            title={t("settings.desktop.behavior.title")}
+          >
+            <div className="space-y-3">
+              {!isDesktopRuntime ? (
+                <p className="rounded-[16px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.24)] px-3 py-2 text-xs leading-5 text-app-muted">
+                  {t("settings.desktop.webOnlyNote")}
+                </p>
+              ) : null}
+              <ToggleRow
+                checked={desktopCloseToTrayEnabled}
+                description={t("settings.notifications.closeToTray.description")}
+                disabled={!isDesktopRuntime}
+                label={t("settings.notifications.closeToTray.title")}
+                onChange={setDesktopCloseToTrayEnabled}
+                testId="settings-desktop-close-to-tray"
+              />
+              <ToggleRow
+                checked={desktopStreamerModeEnabled}
+                description={t("settings.notifications.streamerMode.description")}
+                disabled={!isDesktopRuntime}
+                label={t("settings.notifications.streamerMode.title")}
+                onChange={setDesktopStreamerModeEnabled}
+                testId="settings-desktop-streamer-mode"
+              />
+              <ToggleRow
+                checked={desktopRichPresenceEnabled}
+                description={t("settings.notifications.richPresence.description")}
+                disabled={!isDesktopRuntime}
+                label={t("settings.notifications.richPresence.title")}
+                onChange={setDesktopRichPresenceEnabled}
+                testId="settings-desktop-rich-presence"
+              />
+            </div>
+          </SettingCard>
+        ) : null}
+
+        {showVoice ? (
+          <SettingCard
+            description={t("settings.desktop.voice.description")}
+            icon={Gamepad2}
+            title={t("settings.desktop.voice.title")}
+          >
+            <VoicePreferencesPanel mode="desktop" />
+          </SettingCard>
+        ) : null}
+
+        {showDiagnostics ? (
+          <SettingCard
+            description={t("settings.desktop.diagnostics.description")}
+            icon={Info}
+            title={t("settings.desktop.diagnostics.title")}
+          >
+            <DesktopDiagnosticsPanel />
+          </SettingCard>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderAdvancedControls = (target: "all" | "appIcon") => {
+    const showAppIcon = target === "all" || target === "appIcon";
+
+    return (
+      <div className="space-y-3">
+        {target === "all" ? (
+          <SettingCard
+            description={t("settings.appearance.advanced.description")}
+            icon={LayoutPanelTop}
+            title={t("settings.appearance.advanced.title")}
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              <InfoPill
+                label={t("settings.appearance.icons.title")}
+                value={t("settings.appearance.icons.description")}
+              />
+            </div>
+          </SettingCard>
+        ) : null}
 
         {showAppIcon ? (
           <SettingCard
@@ -1804,7 +1684,7 @@ export function SettingsPanel({
                   <button
                     aria-pressed={selected}
                     className={cn(
-                      "group min-w-0 rounded-[24px] border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                      "group min-w-0 rounded-[18px] border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                       selected
                         ? "border-[hsl(var(--primary)/0.55)] bg-[hsl(var(--primary)/0.12)] shadow-[0_18px_42px_hsl(var(--shadow-color)/0.1)]"
                         : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.28)] hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--surface-soft)/0.48)]",
@@ -1815,21 +1695,21 @@ export function SettingsPanel({
                     onClick={() => handleAppIconChange(icon.id)}
                     type="button"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] border border-[hsl(var(--border)/0.65)] bg-[linear-gradient(145deg,hsl(var(--surface-card)),hsl(var(--surface-soft)/0.44))] p-2 shadow-inner">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] border border-[hsl(var(--border)/0.65)] bg-[linear-gradient(145deg,hsl(var(--surface-card)),hsl(var(--surface-soft)/0.44))] p-1.5 shadow-inner">
                         <Image
                           alt=""
-                          className="h-11 w-11 object-contain transition group-hover:scale-105"
-                          height={44}
+                          className="h-8 w-8 object-contain transition group-hover:scale-105"
+                          height={32}
                           src={icon.src}
-                          width={44}
+                          width={32}
                         />
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-app-foreground">
                           {t(icon.labelKey)}
                         </p>
-                        <p className="mt-1 text-xs leading-5 text-app-muted">
+                        <p className="mt-0.5 text-xs leading-4 text-app-muted">
                           {selected
                             ? t("settings.appearance.icons.selected")
                             : t("settings.appearance.icons.select")}
@@ -1842,11 +1722,11 @@ export function SettingsPanel({
             </div>
             {iconFeedbackVisible ? (
               <div
-                className="mt-4 rounded-[22px] border border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.08)] px-4 py-3 text-sm text-[hsl(var(--success))]"
+                className="mt-3 rounded-[16px] border border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.08)] px-3 py-2 text-xs text-[hsl(var(--success))]"
                 data-testid="app-icon-feedback"
               >
                 <p className="font-semibold">{t("settings.appearance.icons.updated")}</p>
-                <p className="mt-1 leading-6 text-app-muted">
+                <p className="mt-0.5 leading-4 text-app-muted">
                   {t("settings.appearance.icons.updatedDescription")}
                 </p>
               </div>
@@ -1854,116 +1734,6 @@ export function SettingsPanel({
           </SettingCard>
         ) : null}
 
-        {showServerRail ? (
-          <CompactServerRailPreview
-            description={t("appearance.serverRail.title")}
-            iconLabel={t("appearance.serverRail.iconMetric")}
-            modeLabel={t("appearance.serverRail.compactMode")}
-            targetLabel={t("appearance.serverRail.touchMetric")}
-            title={t("settings.appearance.advanced.serverRailTitle")}
-            widthLabel={t("appearance.serverRail.widthMetric")}
-          />
-        ) : null}
-
-        {showMainCanvas ? (
-          <RangeSliderCard
-            description={t("appearance.canvas.description")}
-            labels={[
-              t("appearance.canvas.compact"),
-              t("appearance.canvas.balanced"),
-              t("appearance.canvas.immersive"),
-            ]}
-            max={MAX_MAIN_PANEL_WIDTH}
-            min={MIN_MAIN_PANEL_WIDTH}
-            onChange={handleMainCanvasWidthChange}
-            preview={
-              <div className="app-panel-soft rounded-[24px] border p-4">
-                <div className="mx-auto flex max-w-full justify-center">
-                  <div
-                    className="rounded-[24px] border border-[hsl(var(--border)/0.74)] bg-[linear-gradient(160deg,hsl(var(--surface-card)/0.9),hsl(var(--surface-soft)/0.34))] p-4 shadow-[0_18px_42px_hsl(var(--shadow-color)/0.08)]"
-                    style={{ width: `${Math.min(mainPanelWidth, 520)}px` }}
-                  >
-                    <div className="h-4 w-32 rounded-full bg-[hsl(var(--surface-soft))]" />
-                    <div className="mt-3 h-24 rounded-[18px] bg-[hsl(var(--surface-soft)/0.82)]" />
-                    <div className="mt-3 flex gap-3">
-                      <div className="h-3 flex-1 rounded-full bg-[hsl(var(--surface-soft)/0.72)]" />
-                      <div className="h-3 w-24 rounded-full bg-[hsl(var(--surface-soft)/0.58)]" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            }
-            step={MAIN_PANEL_WIDTH_STEP}
-            testId="settings-main-canvas-width"
-            title={t("settings.appearance.advanced.mainCanvasTitle")}
-            value={mainPanelWidth}
-          />
-        ) : null}
-
-        {showChannelSidebar ? (
-          <SettingCard
-            description={t("appearance.sidebar.title")}
-            icon={LayoutPanelTop}
-            title={t("settings.appearance.advanced.channelSidebarTitle")}
-          >
-            <div className="flex items-center justify-end">
-              <div className="app-panel-soft inline-flex items-center gap-2 rounded-2xl border px-3 py-2">
-                <span className="text-app-foreground text-sm font-medium">
-                  {DEFAULT_CHANNEL_SIDEBAR_WIDTH}px
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-4 overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] p-4 sm:p-5">
-              <div className="text-app-muted flex items-center justify-between text-xs font-medium">
-                <span>{t("appearance.sidebar.compact")}</span>
-                <span>{t("appearance.sidebar.readable")}</span>
-                <span>{t("appearance.sidebar.studio")}</span>
-              </div>
-              <div className="mt-5 app-panel-soft rounded-[24px] border p-4">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div
-                    className="app-panel-soft shrink-0 rounded-[22px] border p-3"
-                    style={{
-                      width: `${COMPACT_SERVER_RAIL_WIDTH}px`,
-                    }}
-                  >
-                    <div
-                      className="mx-auto rounded-[16px] bg-[hsl(var(--primary)/0.18)]"
-                      style={{
-                        height: COMPACT_SERVER_RAIL_ICON_SIZE,
-                        width: COMPACT_SERVER_RAIL_ICON_SIZE,
-                      }}
-                    />
-                  </div>
-                  <div
-                    className="app-panel shrink-0 rounded-[24px] border p-4"
-                    style={{ width: `min(${DEFAULT_CHANNEL_SIDEBAR_WIDTH}px, 52vw)` }}
-                  >
-                    <div className="h-4 w-28 rounded-full bg-[hsl(var(--surface-soft))]" />
-                    <div className="mt-3 h-3 w-36 rounded-full bg-[hsl(var(--surface-soft)/0.8)]" />
-                    <div className="mt-3 h-3 w-24 rounded-full bg-[hsl(var(--surface-soft)/0.72)]" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </SettingCard>
-        ) : null}
-
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-          <Button
-            className="w-full sm:w-auto"
-            disabled={mainPanelWidth === DEFAULT_MAIN_PANEL_WIDTH}
-            onClick={() => {
-              resetMainPanelWidth();
-            }}
-            data-testid="settings-layout-reset"
-            type="button"
-            variant="outline"
-          >
-            {t("appearance.resetLayout")}
-          </Button>
-        </div>
       </div>
     );
   };
@@ -1975,7 +1745,7 @@ export function SettingsPanel({
       icon={Type}
       title={t("settings.appearance.messageFont.title")}
     >
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
         {MESSAGE_FONT_OPTIONS.map((option) => {
           const isSelected = option.id === selectedMessageFont;
 
@@ -1983,7 +1753,7 @@ export function SettingsPanel({
             <button
               aria-pressed={isSelected}
               className={cn(
-                "group min-h-36 rounded-[24px] border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                "group min-h-28 rounded-[18px] border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                 isSelected
                   ? "border-[hsl(var(--primary)/0.48)] bg-[hsl(var(--primary)/0.12)] shadow-[0_18px_42px_hsl(var(--primary)/0.12)]"
                   : "border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.28)] hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--surface-card)/0.72)]",
@@ -2004,17 +1774,17 @@ export function SettingsPanel({
                   </span>
                 ) : null}
               </div>
-              <p className="mt-5 text-2xl font-semibold tracking-tight text-app-foreground">
+              <p className="mt-3 text-xl font-semibold tracking-tight text-app-foreground">
                 {t("settings.appearance.messageFont.preview")}
               </p>
-              <p className="mt-3 text-sm leading-6 text-app-muted">
+              <p className="mt-2 text-xs leading-5 text-app-muted">
                 {t("settings.appearance.messageFont.sample")}
               </p>
             </button>
           );
         })}
       </div>
-      <p className="mt-4 rounded-[20px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.28)] px-4 py-3 text-xs leading-5 text-app-muted">
+      <p className="mt-3 rounded-[16px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.28)] px-3 py-2 text-xs leading-5 text-app-muted">
         {t("settings.appearance.messageFont.note")}
       </p>
     </SettingCard>
@@ -2022,7 +1792,7 @@ export function SettingsPanel({
 
   const renderAppearanceSection = () => {
     return (
-      <div className="space-y-6">
+      <div className="space-y-3">
         <SectionHero
           badge={t("settings.groups.appearance.badge")}
           description={t("settings.groups.appearance.description")}
@@ -2051,44 +1821,10 @@ export function SettingsPanel({
 
         {panel === null || panel === "messageFont" ? renderMessageFontPicker() : null}
 
-        {panel === null ? (
-          <SettingCard
-            description={t("settings.appearance.advanced.description")}
-            icon={LayoutPanelTop}
-            title={t("settings.appearance.advanced.title")}
-          >
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <InfoPill
-                  label={t("settings.appearance.icons.title")}
-                  value={t("settings.appearance.icons.description")}
-                />
-                <InfoPill
-                  label={t("settings.appearance.advanced.serverRailTitle")}
-                  value={t("settings.appearance.advanced.serverRailDescription")}
-                />
-                <InfoPill
-                  label={t("settings.appearance.advanced.mainCanvasTitle")}
-                  value={t("settings.appearance.advanced.mainCanvasDescription")}
-                />
-                <InfoPill
-                  label={t("settings.appearance.advanced.channelSidebarTitle")}
-                  value={t("settings.appearance.advanced.channelSidebarDescription")}
-                />
-              </div>
-              <Button onClick={() => openPanel("advanced")} type="button" variant="outline">
-                {t("settings.appearance.advanced.open")}
-                <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </SettingCard>
-        ) : null}
+        {panel === null ? renderAdvancedControls("appIcon") : null}
 
         {panel === "advanced" ? renderAdvancedControls("all") : null}
         {panel === "appIcon" ? renderAdvancedControls("appIcon") : null}
-        {panel === "serverRail" ? renderAdvancedControls("serverRail") : null}
-        {panel === "mainCanvas" ? renderAdvancedControls("mainCanvas") : null}
-        {panel === "channelSidebar" ? renderAdvancedControls("channelSidebar") : null}
       </div>
     );
   };
@@ -2098,7 +1834,7 @@ export function SettingsPanel({
     const showSounds = panel === null || panel === "sounds";
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-3">
         <SectionHero
           badge={t("settings.groups.notifications.badge")}
           description={t("settings.groups.notifications.description")}
@@ -2111,14 +1847,14 @@ export function SettingsPanel({
             icon={BellRing}
             title={t("settings.notifications.general.title")}
           >
-            <div className="space-y-4">
-              <div className="rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] p-5">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <label className="text-app-foreground text-sm font-medium">
+            <div className="space-y-3">
+              <div className="rounded-[16px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-soft)/0.22)] p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <label className="text-app-foreground text-xs font-semibold">
                     {t("appearance.notifications.count")}
                   </label>
-                  <div className="app-panel-soft inline-flex items-center gap-2 rounded-2xl border px-3 py-2">
-                    <span className="text-app-foreground text-sm font-medium">
+                  <div className="app-panel-soft inline-flex items-center gap-2 rounded-xl border px-2.5 py-1.5">
+                    <span className="text-app-foreground text-xs font-semibold">
                       {notificationLimit}
                     </span>
                   </div>
@@ -2136,13 +1872,13 @@ export function SettingsPanel({
                 />
               </div>
 
-              <div className="rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] p-5">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <label className="text-app-foreground text-sm font-medium">
+              <div className="rounded-[16px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-soft)/0.22)] p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <label className="text-app-foreground text-xs font-semibold">
                     {t("appearance.notifications.duration")}
                   </label>
-                  <div className="app-panel-soft inline-flex items-center gap-2 rounded-2xl border px-3 py-2">
-                    <span className="text-app-foreground text-sm font-medium">
+                  <div className="app-panel-soft inline-flex items-center gap-2 rounded-xl border px-2.5 py-1.5">
+                    <span className="text-app-foreground text-xs font-semibold">
                       {notificationPopupTimeoutSeconds}s
                     </span>
                   </div>
@@ -2160,7 +1896,7 @@ export function SettingsPanel({
                   type="range"
                   value={notificationPopupTimeoutSeconds}
                 />
-                <p className="text-app-muted mt-4 text-xs leading-5">
+                <p className="text-app-muted mt-3 text-xs leading-5">
                   {t("appearance.notifications.durationDesc")}
                 </p>
               </div>
@@ -2186,31 +1922,6 @@ export function SettingsPanel({
                 onChange={setDesktopNotificationPreviews}
                 testId="settings-desktop-notification-previews"
               />
-              {isDesktopRuntime ? (
-                <>
-                  <ToggleRow
-                    checked={desktopCloseToTrayEnabled}
-                    description={t("settings.notifications.closeToTray.description")}
-                    label={t("settings.notifications.closeToTray.title")}
-                    onChange={setDesktopCloseToTrayEnabled}
-                    testId="settings-desktop-close-to-tray"
-                  />
-                  <ToggleRow
-                    checked={desktopStreamerModeEnabled}
-                    description={t("settings.notifications.streamerMode.description")}
-                    label={t("settings.notifications.streamerMode.title")}
-                    onChange={setDesktopStreamerModeEnabled}
-                    testId="settings-desktop-streamer-mode"
-                  />
-                  <ToggleRow
-                    checked={desktopRichPresenceEnabled}
-                    description={t("settings.notifications.richPresence.description")}
-                    label={t("settings.notifications.richPresence.title")}
-                    onChange={setDesktopRichPresenceEnabled}
-                    testId="settings-desktop-rich-presence"
-                  />
-                </>
-              ) : null}
               <ToggleRow
                 checked={serverSettings?.mobileNotifications ?? true}
                 description={t("settings.notifications.mobile.description")}
@@ -2235,7 +1946,7 @@ export function SettingsPanel({
             icon={Volume2}
             title={t("settings.notifications.sounds.title")}
           >
-            <div className="space-y-4">
+            <div className="space-y-3">
               <SoundVolumeRow
                 checked={serverSettings?.notificationSound ?? true}
                 description={t("settings.notifications.soundToggle.description")}
@@ -2288,7 +1999,7 @@ export function SettingsPanel({
                 volume={voiceLeaveVolume}
                 volumeLabel={t("settings.notifications.sound.volume")}
               />
-              <p className="text-app-muted rounded-[20px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.22)] px-4 py-3 text-xs leading-5">
+              <p className="text-app-muted rounded-[16px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.22)] px-3 py-2 text-xs leading-5">
                 {t("settings.notifications.sound.localDeviceNote")}
               </p>
             </div>
@@ -2302,7 +2013,6 @@ export function SettingsPanel({
     const showOverview = panel === null || panel === "overview";
     const showBuild = panel === null || panel === "build";
     const showWhatsNew = panel === null || panel === "whatsNew";
-    const showDesktop = panel === null || panel === "desktop";
     const showDeveloper = panel === null || panel === "developer";
     const featuredContributor = buildInfo.contributors.find(
       (contributor) => contributor === FEATURED_CONTRIBUTOR_NAME,
@@ -2312,7 +2022,7 @@ export function SettingsPanel({
       : buildInfo.contributors;
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-3">
         <SectionHero
           badge={t("settings.about.badge")}
           description={t("settings.about.description")}
@@ -2325,11 +2035,11 @@ export function SettingsPanel({
             icon={Info}
             title={t("common.overview")}
           >
-            <div className="space-y-4">
-              <p className="text-app-muted text-sm leading-7">
+            <div className="space-y-2.5">
+              <p className="text-app-muted text-xs leading-6">
                 {t("settings.about.overview.body")}
               </p>
-              <p className="text-app-muted text-sm leading-7">
+              <p className="text-app-muted text-xs leading-6">
                 {t("settings.about.overview.bodySecondary")}
               </p>
             </div>
@@ -2342,8 +2052,8 @@ export function SettingsPanel({
             icon={LayoutPanelTop}
             title={t("settings.about.buildInfo.title")}
           >
-            <div className="space-y-4">
-              <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-3">
+              <div className="grid gap-2.5 md:grid-cols-2">
                 <InfoPill label={t("settings.about.buildInfo.version")} value={buildInfo.version} />
                 <InfoPill
                   label={t("settings.about.buildInfo.lastUpdate")}
@@ -2360,7 +2070,7 @@ export function SettingsPanel({
                 />
               </div>
 
-              <div className="app-panel-soft inline-flex max-w-full flex-wrap items-center gap-2 rounded-[22px] border px-4 py-3 text-[11px] font-semibold text-app-muted shadow-[0_14px_32px_hsl(var(--shadow-color)/0.06)]">
+              <div className="app-panel-soft inline-flex max-w-full flex-wrap items-center gap-2 rounded-[16px] border px-3 py-2 text-[11px] font-semibold text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.05)]">
                 <span className="text-app-foreground">{t("shell.footer.builtWith")}</span>
                 <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 text-[hsl(var(--primary))]">
                   AI
@@ -2380,39 +2090,29 @@ export function SettingsPanel({
             icon={Sparkles}
             title={t("settings.about.whatsNew.title")}
           >
-            <div className="grid gap-3">
+            <div className="grid gap-2.5">
               {buildInfo.notes.map((note) => (
                 <article
-                  className="app-panel-soft rounded-[24px] border p-4 shadow-[0_14px_34px_hsl(var(--shadow-color)/0.05)]"
+                  className="app-panel-soft rounded-[18px] border p-3 shadow-[0_10px_24px_hsl(var(--shadow-color)/0.04)]"
                   key={note.id}
                 >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[hsl(var(--primary))]">
+                      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[hsl(var(--primary))]">
                         {t(note.categoryKey)}
                       </p>
-                      <h4 className="mt-2 text-base font-semibold text-app-foreground">
+                      <h4 className="mt-1.5 text-[15px] font-semibold text-app-foreground">
                         {t(note.titleKey)}
                       </h4>
                     </div>
-                    <span className="rounded-full border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.1)] px-3 py-1 text-[11px] font-bold text-[hsl(var(--primary))]">
+                    <span className="rounded-full border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.1)] px-2.5 py-0.5 text-[10px] font-bold text-[hsl(var(--primary))]">
                       v{buildInfo.version}
                     </span>
                   </div>
-                  <p className="mt-3 text-sm leading-6 text-app-muted">{t(note.descriptionKey)}</p>
+                  <p className="mt-2 text-xs leading-5 text-app-muted">{t(note.descriptionKey)}</p>
                 </article>
               ))}
             </div>
-          </SettingCard>
-        ) : null}
-
-        {showDesktop ? (
-          <SettingCard
-            description={t("settings.about.desktop.description")}
-            icon={MonitorUp}
-            title={t("settings.about.desktop.title")}
-          >
-            <DesktopDiagnosticsPanel />
           </SettingCard>
         ) : null}
 
@@ -2422,33 +2122,33 @@ export function SettingsPanel({
             icon={UserRound}
             title={t("settings.about.developer.title")}
           >
-            <div className="space-y-4">
+            <div className="space-y-3">
               <InfoPill
                 label={t("settings.about.developer.name")}
                 value={buildInfo.developerName}
               />
 
-              <div className="app-panel-soft rounded-[24px] border p-4">
+              <div className="app-panel-soft rounded-[18px] border p-3">
                 <p className="text-app-soft text-[11px] font-semibold uppercase tracking-[0.18em]">
                   {t("settings.about.developer.contributors")}
                 </p>
-                <p className="text-app-muted mt-2 text-sm leading-6">
+                <p className="text-app-muted mt-1.5 text-xs leading-5">
                   {t("settings.about.developer.contributorsDescription")}
                 </p>
 
                 {featuredContributor ? (
-                  <div className="relative mt-4 overflow-hidden rounded-[24px] border border-[hsl(var(--primary)/0.28)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.16),hsl(var(--surface)/0.9)_54%,hsl(var(--accent)/0.14))] p-4 shadow-[0_24px_72px_hsl(var(--primary)/0.14)]">
+                  <div className="relative mt-3 overflow-hidden rounded-[18px] border border-[hsl(var(--primary)/0.28)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.16),hsl(var(--surface)/0.9)_54%,hsl(var(--accent)/0.14))] p-3 shadow-[0_18px_48px_hsl(var(--primary)/0.12)]">
                     <div className="absolute -right-12 -top-14 h-36 w-36 rounded-full bg-[hsl(var(--primary)/0.18)] blur-3xl" />
-                    <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--surface)/0.78)] text-sm font-bold text-[hsl(var(--primary))] shadow-inner">
+                    <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--surface)/0.78)] text-xs font-bold text-[hsl(var(--primary))] shadow-inner">
                           OG
                         </div>
                         <div className="min-w-0">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary))]">
                             {t("settings.about.developer.featuredContributor")}
                           </p>
-                          <p className="mt-1 truncate text-base font-semibold text-app-foreground">
+                          <p className="mt-0.5 truncate text-sm font-semibold text-app-foreground">
                             {featuredContributor}
                           </p>
                         </div>
@@ -2461,10 +2161,10 @@ export function SettingsPanel({
                   </div>
                 ) : null}
 
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <div className="mt-3 grid gap-2.5 md:grid-cols-2">
                   {contributorList.map((contributor) => (
-                    <div className="app-panel rounded-[20px] border px-4 py-3" key={contributor}>
-                      <p className="text-sm font-medium text-app-foreground">{contributor}</p>
+                    <div className="app-panel rounded-[15px] border px-3 py-2" key={contributor}>
+                      <p className="text-xs font-medium text-app-foreground">{contributor}</p>
                     </div>
                   ))}
                 </div>
@@ -2478,11 +2178,15 @@ export function SettingsPanel({
 
   return (
     <div
-      className="min-w-0 max-w-full space-y-6 overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+6rem)] lg:pb-0"
+      className={cn(
+        "min-w-0 max-w-full space-y-3 overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+5rem)] lg:pb-0",
+        className,
+      )}
       data-testid="settings-panel"
     >
       {section === "account" ? renderAccountSection() : null}
       {section === "voice" ? renderVoiceSection() : null}
+      {section === "desktop" ? renderDesktopSection() : null}
       {section === "appearance" ? renderAppearanceSection() : null}
       {section === "notifications" ? renderNotificationsSection() : null}
       {section === "about" ? renderAboutSection() : null}

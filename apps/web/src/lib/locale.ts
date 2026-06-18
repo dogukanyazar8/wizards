@@ -193,6 +193,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.startupSafety.title": "Safer app startup flow",
     "app.update.notes.startupSafety.description":
       "Startup navigation now validates safe callback paths, keeps update and title copy localized, and uses fallback promotion paths when desktop resizing cannot complete in place.",
+    "app.update.notes.settingsInformationArchitecture.title":
+      "Cleaner settings information architecture",
+    "app.update.notes.settingsInformationArchitecture.description":
+      "Settings sections now open as compact accordion groups, keep only one group emphasized at a time, show a clearer email verification signal in Profile and Status, and use denser controls across device, theme, voice, and desktop preferences.",
 
     "validation.category.pattern":
       "Category names can use letters, numbers, spaces, hyphens, or underscores.",
@@ -1041,6 +1045,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.account.security.title": "Security center",
     "settings.account.security.description":
       "Review account protection signals without exposing unfinished security controls as active.",
+    "settings.account.security.emailVerified": "Verified",
     "settings.account.security.emailUnverified": "Unverified",
     "settings.account.security.backendRequired":
       "Requires a re-authenticated backend flow before it can be enabled safely.",
@@ -1103,6 +1108,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.account.editHintDescription":
       "Open edit mode whenever you want to refresh the details other people see in Whispr.",
     "settings.account.fields.displayName": "Display name",
+    "settings.account.fields.emailStatus": "Email status",
     "settings.account.fields.status": "Online status",
     "settings.account.status.invisible": "Invisible",
     "settings.account.saved": "Account settings updated.",
@@ -1137,6 +1143,12 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.account.errors.usernameTaken": "That username is already taken.",
     "settings.nav.appearance": "Appearance",
     "settings.title": "Settings",
+    "settings.overlay.title": "Whispr settings",
+    "settings.overlay.description":
+      "Tune your account, voice, appearance, and notifications without leaving the current conversation.",
+    "settings.overlay.loading": "Preparing settings...",
+    "settings.overlay.error": "Settings could not be loaded.",
+    "settings.overlay.retry": "Try again",
     "settings.page.badge": "Workspace Settings",
     "settings.page.title": "Settings",
     "settings.page.description":
@@ -1145,6 +1157,21 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.groups.voiceVideo.title": "Voice & Video",
     "settings.groups.voiceVideo.description":
       "Fine-tune your microphone, camera preview, and realtime media surfaces from one focused control room.",
+    "settings.groups.desktop.badge": "Desktop",
+    "settings.groups.desktop.title": "Desktop",
+    "settings.groups.desktop.description":
+      "Group native Whispr controls, global shortcuts, overlays, and diagnostics in one desktop-focused place.",
+    "settings.desktop.behavior.title": "Desktop behavior",
+    "settings.desktop.behavior.description":
+      "Choose how the installed app closes, protects streams, and reflects local activity on this device.",
+    "settings.desktop.voice.title": "Shortcuts & overlay",
+    "settings.desktop.voice.description":
+      "Manage push-to-talk, mute and deafen shortcuts, the mini voice window, and the game overlay without mixing them into core audio setup.",
+    "settings.desktop.diagnostics.title": "Desktop Diagnostics",
+    "settings.desktop.diagnostics.description":
+      "Inspect the Tauri shell, socket connection, notification permission, and active voice lifecycle without changing your session.",
+    "settings.desktop.webOnlyNote":
+      "These controls are available only in the Whispr desktop app. Browser sessions keep them disabled.",
     "settings.voice.audio.title": "Audio",
     "settings.voice.camera.badge": "Live preview",
     "settings.voice.camera.title": "Camera",
@@ -1196,25 +1223,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.voice.screenShare.feature.detailMode": "Detail-optimized capture",
     "settings.voice.screenShare.feature.noSystemAudio": "No system audio capture",
     "settings.voice.screenShare.feature.shareLimit": "2 active shares per room",
-    "settings.voice.desktopPermissions.title": "Desktop media safety",
-    "settings.voice.desktopPermissions.description":
-      "Whispr Desktop keeps media permissions in the shared web layer while the native shell handles window close and lifecycle cleanup.",
-    "settings.voice.desktopPermissions.microphone.label": "Microphone",
-    "settings.voice.desktopPermissions.microphone.value":
-      "Uses the browser permission prompt and the selected Whispr input device.",
-    "settings.voice.desktopPermissions.camera.label": "Camera",
-    "settings.voice.desktopPermissions.camera.value":
-      "Requested only when the user starts camera preview or turns video on.",
-    "settings.voice.desktopPermissions.screenShare.label": "Screen share",
-    "settings.voice.desktopPermissions.screenShare.value":
-      "Requires explicit user selection and stops through the existing LiveKit flow.",
-    "settings.voice.desktopPermissions.cleanup.label": "Close behavior",
-    "settings.voice.desktopPermissions.cleanup.value":
-      "The desktop shell signals Whispr before quit so voice and screen share cleanup can run.",
     "settings.groups.appearance.badge": "Appearance",
     "settings.groups.appearance.title": "Appearance",
     "settings.groups.appearance.description":
-      "Control language, theme, and advanced shell sizing so the workspace fits how you read and move.",
+      "Control language, theme, message typography, and the app icon so Whispr feels comfortable to read.",
     "settings.appearance.language.title": "Language",
     "settings.appearance.language.description":
       "Switch the interface language instantly. Your preference stays synced to your account and this device.",
@@ -1233,7 +1245,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "These message fonts are bundled by Whispr, so switching them does not require a runtime third-party font request.",
     "settings.appearance.advanced.title": "Advanced",
     "settings.appearance.advanced.description":
-      "Adjust the shell proportions that shape navigation, readability, and focus.",
+      "Fine-tune the app icon and device-level appearance details.",
     "settings.appearance.advanced.open": "Open advanced controls",
     "settings.appearance.advanced.serverRailTitle": "Server rail",
     "settings.appearance.advanced.serverRailDescription":
@@ -2402,6 +2414,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "app.update.notes.startupSafety.title": "Daha güvenli uygulama başlangıcı",
     "app.update.notes.startupSafety.description":
       "Başlangıç yönlendirmesi artık güvenli callback yollarını doğrular, güncelleme ve başlık metinlerini lokalize tutar ve masaüstü boyutlandırması yerinde tamamlanamazsa yedek geçiş yolları kullanır.",
+    "app.update.notes.settingsInformationArchitecture.title":
+      "Daha temiz ayarlar bilgi mimarisi",
+    "app.update.notes.settingsInformationArchitecture.description":
+      "Ayarlar bölümleri artık kompakt accordion grupları olarak açılır, aynı anda yalnızca bir grubu öne çıkarır, Profil ve Durum içinde e-posta doğrulama bilgisini daha net gösterir ve cihaz, tema, ses ile masaüstü tercihlerinde daha yoğun kontroller kullanır.",
 
     "validation.category.pattern":
       "Kategori adları harf, sayı, boşluk, tire veya alt çizgi içerebilir.",
@@ -3252,6 +3268,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.account.security.title": "Güvenlik merkezi",
     "settings.account.security.description":
       "Tamamlanmamış güvenlik kontrollerini aktifmiş gibi göstermeden hesap koruma sinyallerini incele.",
+    "settings.account.security.emailVerified": "Doğrulandı",
     "settings.account.security.emailUnverified": "Doğrulanmadı",
     "settings.account.security.backendRequired":
       "Güvenli şekilde açılmadan önce yeniden doğrulamalı backend akışı gerekir.",
@@ -3316,6 +3333,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.account.editHintDescription":
       "Whispr içinde diğer insanların gördüğü bilgileri yenilemek istediğinde düzenleme modunu aç.",
     "settings.account.fields.displayName": "Görünen ad",
+    "settings.account.fields.emailStatus": "E-posta durumu",
     "settings.account.fields.status": "Çevrimiçi durum",
     "settings.account.status.invisible": "Görünmez",
     "settings.account.saved": "Hesap ayarları güncellendi.",
@@ -3350,6 +3368,12 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.account.errors.usernameTaken": "Bu kullanıcı adı zaten alınmış.",
     "settings.nav.appearance": "Görünüm",
     "settings.title": "Ayarlar",
+    "settings.overlay.title": "Whispr ayarları",
+    "settings.overlay.description":
+      "Geçerli konuşmadan ayrılmadan hesabını, sesini, görünümünü ve bildirimlerini ince ayarla.",
+    "settings.overlay.loading": "Ayarlar hazırlanıyor...",
+    "settings.overlay.error": "Ayarlar yüklenemedi.",
+    "settings.overlay.retry": "Tekrar dene",
     "settings.page.badge": "Çalışma Alanı Ayarları",
     "settings.page.title": "Ayarlar",
     "settings.page.description":
@@ -3358,6 +3382,21 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.groups.voiceVideo.title": "Ses ve Görüntü",
     "settings.groups.voiceVideo.description":
       "Mikrofonunu, kamera önizlemeni ve gerçek zamanlı medya yüzeylerini tek odaklı kontrol alanından ayarla.",
+    "settings.groups.desktop.badge": "Masaüstü",
+    "settings.groups.desktop.title": "Masaüstü",
+    "settings.groups.desktop.description":
+      "Native Whispr kontrollerini, global kısayolları, overlay'leri ve tanılamayı masaüstüne odaklı tek alanda topla.",
+    "settings.desktop.behavior.title": "Masaüstü davranışı",
+    "settings.desktop.behavior.description":
+      "Yüklü uygulamanın nasıl kapanacağını, yayın gizliliğini ve bu cihazdaki yerel etkinlik yansımalarını seç.",
+    "settings.desktop.voice.title": "Kısayollar ve overlay",
+    "settings.desktop.voice.description":
+      "Bas-konuş, mikrofon/sağırlaştırma kısayolları, mini ses penceresi ve oyun overlay'ini temel ses kurulumundan ayırarak yönet.",
+    "settings.desktop.diagnostics.title": "Masaüstü Tanılama",
+    "settings.desktop.diagnostics.description":
+      "Oturumunu değiştirmeden Tauri kabuğunu, socket bağlantısını, bildirim iznini ve aktif ses yaşam döngüsünü incele.",
+    "settings.desktop.webOnlyNote":
+      "Bu kontroller yalnızca Whispr masaüstü uygulamasında kullanılabilir. Tarayıcı oturumlarında devre dışı kalır.",
     "settings.voice.audio.title": "Ses",
     "settings.voice.camera.badge": "Canlı önizleme",
     "settings.voice.camera.title": "Kamera",
@@ -3409,25 +3448,10 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
     "settings.voice.screenShare.feature.detailMode": "Detay odaklı yakalama",
     "settings.voice.screenShare.feature.noSystemAudio": "Sistem sesi yakalanmaz",
     "settings.voice.screenShare.feature.shareLimit": "Oda başına 2 aktif paylaşım",
-    "settings.voice.desktopPermissions.title": "Masaüstü medya güvenliği",
-    "settings.voice.desktopPermissions.description":
-      "Whispr Desktop medya izinlerini ortak web katmanında tutar; native kabuk pencere kapanışı ve yaşam döngüsü temizliğini yönetir.",
-    "settings.voice.desktopPermissions.microphone.label": "Mikrofon",
-    "settings.voice.desktopPermissions.microphone.value":
-      "Tarayıcı izin istemini ve Whispr'da seçili giriş cihazını kullanır.",
-    "settings.voice.desktopPermissions.camera.label": "Kamera",
-    "settings.voice.desktopPermissions.camera.value":
-      "Yalnızca kullanıcı kamera önizlemesini başlatınca veya videoyu açınca istenir.",
-    "settings.voice.desktopPermissions.screenShare.label": "Ekran paylaşımı",
-    "settings.voice.desktopPermissions.screenShare.value":
-      "Açık kullanıcı seçimi gerektirir ve mevcut LiveKit akışı üzerinden durdurulur.",
-    "settings.voice.desktopPermissions.cleanup.label": "Kapanış davranışı",
-    "settings.voice.desktopPermissions.cleanup.value":
-      "Desktop kabuğu çıkmadan önce Whispr'a sinyal gönderir; ses ve ekran paylaşımı temizliği çalışabilir.",
     "settings.groups.appearance.badge": "Görünüm",
     "settings.groups.appearance.title": "Görünüm",
     "settings.groups.appearance.description":
-      "Dil, tema ve gelişmiş kabuk boyutlarını; okuma ve gezinme şekline uygun olacak biçimde ayarla.",
+      "Dil, tema, mesaj tipografisi ve uygulama ikonunu Whispr rahat okunacak şekilde ayarla.",
     "settings.appearance.language.title": "Dil",
     "settings.appearance.language.description":
       "Arayüz dilini anında değiştir. Tercihin hesabın ve bu cihazla senkron kalır.",
@@ -3446,7 +3470,7 @@ export const APP_MESSAGES: Record<AppLocale, TranslationDictionary> = {
       "Bu mesaj fontları Whispr tarafından paketlenir; geçiş yapmak çalışma anında üçüncü taraf font isteği gerektirmez.",
     "settings.appearance.advanced.title": "Gelişmiş",
     "settings.appearance.advanced.description":
-      "Gezinme, okunabilirlik ve odağı şekillendiren kabuk oranlarını ayarla.",
+      "Uygulama ikonunu ve cihaza özel görünüm ayrıntılarını ince ayarla.",
     "settings.appearance.advanced.open": "Gelişmiş kontrolleri aç",
     "settings.appearance.advanced.serverRailTitle": "Sunucu rayı",
     "settings.appearance.advanced.serverRailDescription":

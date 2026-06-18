@@ -840,7 +840,7 @@ export function DesktopExperience() {
           }
           break;
         case "open-desktop-diagnostics":
-          router.push("/settings?section=about&panel=desktop");
+          router.push("/settings?section=desktop&panel=desktopDiagnostics");
           break;
         case "open-settings":
           router.push("/settings");

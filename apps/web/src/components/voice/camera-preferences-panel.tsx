@@ -218,19 +218,19 @@ function CameraDeviceSelect({
   };
 
   return (
-    <div className="app-panel-soft relative rounded-[24px] border p-4" onKeyDown={handleKeyDown} ref={rootRef}>
-      <div className="flex items-start justify-between gap-3">
+    <div className="app-panel-soft relative rounded-[18px] border p-3" onKeyDown={handleKeyDown} ref={rootRef}>
+      <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-app-foreground">
+          <p className="text-[13px] font-semibold text-app-foreground">
             {t("voice.camera.deviceTitle")}
           </p>
-          <p className="mt-1 text-sm leading-5 text-app-muted">
+          <p className="mt-0.5 text-xs leading-4 text-app-muted">
             {t("voice.camera.deviceDescription")}
           </p>
         </div>
         <button
           aria-label={t("voice.camera.refresh")}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60"
           disabled={isLoading}
           onClick={onRefresh}
           type="button"
@@ -239,14 +239,14 @@ function CameraDeviceSelect({
         </button>
       </div>
 
-      <div className="relative mt-4">
+      <div className="relative mt-3">
         <button
           aria-controls={isOpen ? listboxId : undefined}
           aria-expanded={isOpen}
           aria-haspopup="listbox"
           aria-label={t("voice.camera.deviceLabel")}
           className={cn(
-            "flex min-h-12 w-full items-center gap-3 rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.68)] px-3 text-left text-sm font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+            "flex min-h-10 w-full items-center gap-2.5 rounded-xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 text-left text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
             isOpen &&
               "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.1)] shadow-[0_18px_46px_hsl(var(--primary)/0.12)]",
           )}
@@ -254,7 +254,7 @@ function CameraDeviceSelect({
           onClick={() => setIsOpen((current) => !current)}
           type="button"
         >
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[hsl(var(--surface-soft)/0.72)] text-app-muted">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[hsl(var(--surface-soft)/0.72)] text-app-muted">
             <Camera className="h-3.5 w-3.5" />
           </span>
           <span className="min-w-0 flex-1 truncate">
@@ -270,13 +270,13 @@ function CameraDeviceSelect({
 
         {isOpen ? (
           <div
-            className="absolute left-0 right-0 top-[calc(100%+0.75rem)] z-[95] overflow-hidden rounded-[24px] border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.96)] p-2 shadow-[0_24px_70px_hsl(var(--shadow-color)/0.24)] backdrop-blur-2xl"
+            className="absolute left-0 right-0 top-[calc(100%+0.55rem)] z-[95] overflow-hidden rounded-[16px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.96)] p-1.5 shadow-[0_18px_54px_hsl(var(--shadow-color)/0.18)] backdrop-blur-2xl"
             data-testid="camera-device-select-menu"
           >
             <div
               aria-activedescendant={`${listboxId}-${options[activeIndex]?.deviceId ?? "none"}`}
               aria-label={t("voice.camera.deviceLabel")}
-              className="max-h-64 overflow-y-auto pr-1"
+              className="max-h-56 overflow-y-auto pr-1"
               id={listboxId}
               role="listbox"
             >
@@ -288,7 +288,7 @@ function CameraDeviceSelect({
                   <button
                     aria-selected={isSelected}
                     className={cn(
-                      "group/camera-option flex w-full items-center gap-3 rounded-2xl px-2.5 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]",
+                      "group/camera-option flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]",
                       isSelected
                         ? "bg-[hsl(var(--primary)/0.13)] text-app-foreground"
                         : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.64)] hover:text-app-foreground",
@@ -304,7 +304,7 @@ function CameraDeviceSelect({
                   >
                     <span
                       className={cn(
-                        "grid h-8 w-8 shrink-0 place-items-center rounded-xl border transition",
+                        "grid h-7 w-7 shrink-0 place-items-center rounded-lg border transition",
                         isSelected
                           ? "border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.16)] text-[hsl(var(--primary))]"
                           : "border-[hsl(var(--border)/0.55)] bg-[hsl(var(--surface-soft)/0.38)] text-app-muted group-hover/camera-option:text-app-foreground",
@@ -313,7 +313,7 @@ function CameraDeviceSelect({
                       <Video className="h-3.5 w-3.5" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">{device.label}</span>
+                      <span className="block truncate text-xs font-semibold">{device.label}</span>
                       {device.deviceId === DEFAULT_CAMERA_DEVICE_ID ? (
                         <span className="mt-0.5 block truncate text-[11px] font-medium text-app-soft">
                           {t("voice.camera.liveUpdateHint")}
@@ -322,7 +322,7 @@ function CameraDeviceSelect({
                     </span>
                     <span
                       className={cn(
-                        "grid h-7 w-7 shrink-0 place-items-center rounded-full border transition",
+                        "grid h-6 w-6 shrink-0 place-items-center rounded-full border transition",
                         isSelected
                           ? "border-[hsl(var(--primary)/0.35)] bg-[hsl(var(--primary)/0.17)] text-[hsl(var(--primary))] opacity-100"
                           : "border-transparent text-app-muted opacity-0 group-hover/camera-option:opacity-50",
@@ -338,7 +338,7 @@ function CameraDeviceSelect({
         ) : null}
       </div>
 
-      <p className="mt-3 text-xs leading-5 text-app-soft">{t("voice.camera.liveUpdateHint")}</p>
+      <p className="mt-2 text-[11px] leading-4 text-app-soft">{t("voice.camera.liveUpdateHint")}</p>
     </div>
   );
 }
@@ -362,7 +362,7 @@ function CameraOptionButton({
     <button
       aria-pressed={active}
       className={cn(
-        "group/camera-control flex min-h-24 flex-col items-start justify-between rounded-[22px] border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+        "group/camera-control flex min-h-[5.25rem] flex-col items-start justify-between rounded-[18px] border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
         active
           ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.12)] shadow-[0_18px_46px_hsl(var(--primary)/0.12)]"
           : "border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.54)] hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.26)] hover:bg-[hsl(var(--surface-card)/0.82)]",
@@ -374,7 +374,7 @@ function CameraOptionButton({
     >
       <span
         className={cn(
-          "grid h-10 w-10 place-items-center rounded-2xl border transition",
+          "grid h-8 w-8 place-items-center rounded-xl border transition",
           active
             ? "border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.18)] text-[hsl(var(--primary))]"
             : "border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.46)] text-app-muted group-hover/camera-control:text-app-foreground",
@@ -382,8 +382,8 @@ function CameraOptionButton({
       >
         <Icon className="h-4 w-4" />
       </span>
-      <span className="mt-3 block text-sm font-semibold text-app-foreground">{label}</span>
-      <span className="mt-1 block text-xs leading-5 text-app-muted">{description}</span>
+      <span className="mt-2 block text-[13px] font-semibold text-app-foreground">{label}</span>
+      <span className="mt-0.5 block text-[11px] leading-4 text-app-muted">{description}</span>
     </button>
   );
 }
@@ -583,10 +583,10 @@ export function CameraPreferencesPanel() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="overflow-hidden rounded-[30px] border border-[hsl(var(--primary)/0.22)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.96),hsl(var(--primary)/0.09)_58%,hsl(var(--accent)/0.1))] shadow-[0_22px_64px_hsl(var(--shadow-color)/0.1)]">
+    <div className="space-y-3">
+      <div className="overflow-hidden rounded-[18px] border border-[hsl(var(--primary)/0.18)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.96),hsl(var(--primary)/0.08)_58%,hsl(var(--accent)/0.08))] shadow-[0_12px_32px_hsl(var(--shadow-color)/0.06)]">
         <div className="grid gap-0 lg:grid-cols-[minmax(0,1.2fr)_minmax(20rem,0.8fr)]">
-          <div className="relative min-h-[18rem] overflow-hidden bg-black sm:min-h-[24rem] lg:min-h-[32rem]">
+          <div className="relative min-h-[12rem] overflow-hidden bg-black sm:min-h-[16rem] lg:min-h-[20rem]">
             {previewStream && cameraPreferences.backgroundBlur ? (
               <video
                 aria-hidden="true"
@@ -605,7 +605,7 @@ export function CameraPreferencesPanel() {
                 className={cn(
                   "relative z-10 h-full w-full object-cover transition duration-500",
                   cameraPreferences.backgroundBlur &&
-                    "rounded-[30px] border border-white/18 shadow-[0_24px_90px_rgba(0,0,0,0.42)]",
+                    "rounded-[22px] border border-white/18 shadow-[0_20px_70px_rgba(0,0,0,0.38)]",
                 )}
                 data-testid="camera-settings-preview-video"
                 muted
@@ -614,56 +614,56 @@ export function CameraPreferencesPanel() {
                 style={foregroundVideoStyle}
               />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center p-6">
+              <div className="absolute inset-0 flex items-center justify-center p-3">
                 <div className="max-w-sm text-center">
-                  <div className="mx-auto grid h-20 w-20 place-items-center rounded-[28px] border border-white/14 bg-white/8 text-white shadow-[0_24px_80px_rgba(0,0,0,0.3)] backdrop-blur-xl">
+                  <div className="mx-auto grid h-14 w-14 place-items-center rounded-[18px] border border-white/14 bg-white/8 text-white shadow-[0_16px_48px_rgba(0,0,0,0.22)] backdrop-blur-xl">
                     {previewStatus === "starting" ? (
-                      <RefreshCw className="h-8 w-8 animate-spin" />
+                      <RefreshCw className="h-6 w-6 animate-spin" />
                     ) : (
-                      <CameraOff className="h-8 w-8" />
+                      <CameraOff className="h-6 w-6" />
                     )}
                   </div>
-                  <p className="mt-5 text-lg font-semibold text-white">{previewTitle}</p>
-                  <p className="mt-2 text-sm leading-6 text-white/64">{previewDescription}</p>
+                  <p className="mt-3 text-sm font-semibold text-white">{previewTitle}</p>
+                  <p className="mt-1.5 text-xs leading-5 text-white/64">{previewDescription}</p>
                 </div>
               </div>
             )}
 
-            <div className="pointer-events-none absolute inset-x-4 top-4 z-20 flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-white/14 bg-black/35 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_12px_34px_rgba(0,0,0,0.2)] backdrop-blur-xl">
+            <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex flex-wrap items-center gap-1.5">
+              <span className="rounded-full border border-white/14 bg-black/35 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_10px_28px_rgba(0,0,0,0.18)] backdrop-blur-xl">
                 {selectedDeviceLabel}
               </span>
               {cameraPreferences.mirrorPreview ? (
-                <span className="rounded-full border border-white/14 bg-white/12 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-xl">
+                <span className="rounded-full border border-white/14 bg-white/12 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-xl">
                   {t("voice.camera.mirrorBadge")}
                 </span>
               ) : null}
               {cameraPreferences.rotation !== 0 ? (
-                <span className="rounded-full border border-white/14 bg-white/12 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-xl">
+                <span className="rounded-full border border-white/14 bg-white/12 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-xl">
                   {t("voice.camera.rotationBadge", { degrees: cameraPreferences.rotation })}
                 </span>
               ) : null}
             </div>
           </div>
 
-          <div className="flex flex-col justify-between gap-5 p-4 sm:p-5 lg:p-6">
+          <div className="flex flex-col justify-between gap-3 p-3">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[hsl(var(--primary))]">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.12)] px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--primary))]">
                 <Sparkles className="h-3.5 w-3.5" />
                 {t("voice.camera.previewBadge")}
               </div>
-              <h3 className="mt-4 text-2xl font-semibold tracking-tight text-app-foreground">
+              <h3 className="mt-2.5 text-lg font-semibold tracking-tight text-app-foreground">
                 {t("voice.camera.previewTitle")}
               </h3>
-              <p className="mt-3 text-sm leading-6 text-app-muted">
+              <p className="mt-1.5 text-xs leading-5 text-app-muted">
                 {t("voice.camera.previewDescription")}
               </p>
             </div>
 
-            <div className="grid gap-3">
+            <div className="grid gap-2.5">
               <button
                 className={cn(
-                  "inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                   isPreviewRunning
                     ? "border-[hsl(var(--danger)/0.34)] bg-[hsl(var(--danger)/0.1)] text-app-danger hover:bg-[hsl(var(--danger)/0.15)]"
                     : "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.13)] text-[hsl(var(--primary))] hover:-translate-y-0.5 hover:bg-[hsl(var(--primary)/0.18)]",
@@ -687,16 +687,16 @@ export function CameraPreferencesPanel() {
                     : t("voice.camera.startPreview")}
               </button>
 
-              <div className="rounded-[24px] border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.52)] p-4">
-                <p className="text-sm font-semibold text-app-foreground">{previewTitle}</p>
-                <p className="mt-1 text-sm leading-6 text-app-muted">{previewDescription}</p>
+              <div className="rounded-[18px] border border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-card)/0.52)] p-3">
+                <p className="text-[13px] font-semibold text-app-foreground">{previewTitle}</p>
+                <p className="mt-0.5 text-xs leading-4 text-app-muted">{previewDescription}</p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <CameraDeviceSelect
           devices={devices}
           isLoading={isLoading}
@@ -705,7 +705,7 @@ export function CameraPreferencesPanel() {
           selectedDeviceId={cameraPreferences.deviceId}
         />
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-2.5 sm:grid-cols-2">
           <CameraOptionButton
             active={cameraPreferences.mirrorPreview}
             description={t("voice.camera.mirrorDescription")}
@@ -739,16 +739,16 @@ export function CameraPreferencesPanel() {
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-        <div className="app-panel-soft flex items-start gap-3 rounded-[24px] border p-4">
-          <div className="rounded-2xl bg-[hsl(var(--success)/0.12)] p-2 text-[hsl(var(--success))]">
+      <div className="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="app-panel-soft flex items-start gap-2.5 rounded-[18px] border p-3">
+          <div className="rounded-xl bg-[hsl(var(--success)/0.12)] p-2 text-[hsl(var(--success))]">
             <ShieldCheck className="h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-app-foreground">
+            <p className="text-[13px] font-semibold text-app-foreground">
               {t("voice.camera.privacyTitle")}
             </p>
-            <p className="mt-1 text-sm leading-6 text-app-muted">
+            <p className="mt-0.5 text-xs leading-4 text-app-muted">
               {supportsDeviceEnumeration
                 ? t("voice.camera.privacyDescription")
                 : t("voice.camera.enumerationUnsupported")}
@@ -757,7 +757,7 @@ export function CameraPreferencesPanel() {
         </div>
 
         <button
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.64)] px-4 text-sm font-semibold text-app-foreground transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.64)] px-3 text-xs font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
           onClick={resetCameraPreferences}
           type="button"
         >

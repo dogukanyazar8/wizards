@@ -53,7 +53,7 @@ export function LanguageSwitcher({
       <div
         className={cn(
           "inline-flex items-center rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.4)] p-1",
-          variant === "panel" && "app-panel-soft rounded-2xl border px-1.5 py-1.5",
+          variant === "panel" && "app-panel-soft rounded-xl border px-1 py-1",
         )}
       >
         {LANGUAGE_OPTIONS.map((option) => {
@@ -62,7 +62,7 @@ export function LanguageSwitcher({
           return (
             <button
               className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-semibold tracking-[0.18em] transition",
+                "rounded-full px-2.5 py-1.5 text-xs font-semibold tracking-[0.14em] transition",
                 active
                   ? "bg-[hsl(var(--surface-card))] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.12)]"
                   : "text-app-soft hover:text-app-foreground",

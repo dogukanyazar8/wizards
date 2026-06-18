@@ -23,6 +23,7 @@ export const VOICE_AUDIO_LEVEL_IDLE_THRESHOLD = 0.006;
 export const VOICE_AUDIO_LEVEL_SPEAKING_THRESHOLD = 0.025;
 export const VOICE_REMOTE_AUDIO_LEVEL_STALE_MS = 450;
 export const LIVEKIT_CONNECT_RETRY_DELAYS_MS = [650, 1_500] as const;
+export const LIVEKIT_LOCAL_PARTICIPANT_PROFILE_RETRY_DELAYS_MS = [500, 1_500] as const;
 
 export const ROOM_PARTICIPANT_SYNC_EVENTS = [
   "participantConnected",
@@ -147,7 +148,7 @@ export function isTransientLiveKitConnectionError(error: unknown) {
 }
 
 function wait(ms: number) {
-  return new Promise((resolve) => {
+  return new Promise<void>((resolve) => {
     setTimeout(resolve, ms);
   });
 }
@@ -160,6 +161,34 @@ export type ConnectLiveKitRoomClient = {
 export type ConnectLiveKitRoomRetryOptions = {
   isTransientError?: (error: unknown) => boolean;
   retryDelaysMs?: readonly number[];
+  wait?: (ms: number) => Promise<void>;
+};
+
+export type LiveKitLocalParticipantProfileClient = {
+  metadata?: string | null;
+  name?: string | null;
+  setMetadata: (metadata: string) => Promise<void>;
+  setName: (name: string) => Promise<void>;
+};
+
+export type LiveKitLocalParticipantProfile = {
+  metadata: string;
+  name: string;
+};
+
+export type LiveKitLocalParticipantProfileFieldSync =
+  | { status: "failed"; error: unknown }
+  | { status: "skipped" | "unchanged" | "updated" };
+
+export type LiveKitLocalParticipantProfileSyncResult = {
+  metadata: LiveKitLocalParticipantProfileFieldSync;
+  name: LiveKitLocalParticipantProfileFieldSync;
+};
+
+export type SyncLiveKitLocalParticipantProfileOptions = {
+  isTransientError?: (error: unknown) => boolean;
+  retryDelaysMs?: readonly number[];
+  shouldContinue?: () => boolean;
   wait?: (ms: number) => Promise<void>;
 };
 
@@ -187,6 +216,75 @@ export async function connectLiveKitRoomWithRetry(
       await waitForRetry(retryDelay);
     }
   }
+}
+
+export function isTransientLiveKitSignalRequestError(error: unknown) {
+  return (
+    error instanceof Error &&
+    /network|reconnect|request.*timed out|signal|timeout|transport|timed out/i.test(
+      error.message,
+    )
+  );
+}
+
+async function syncLiveKitLocalParticipantProfileField(
+  apply: () => Promise<void>,
+  options: Required<SyncLiveKitLocalParticipantProfileOptions>,
+): Promise<LiveKitLocalParticipantProfileFieldSync> {
+  for (let attempt = 0; ; attempt += 1) {
+    if (!options.shouldContinue()) {
+      return { status: "skipped" };
+    }
+
+    try {
+      await apply();
+      return { status: "updated" };
+    } catch (error) {
+      const retryDelay = options.retryDelaysMs[attempt];
+      if (!options.shouldContinue()) {
+        return { status: "skipped" };
+      }
+
+      if (retryDelay === undefined || !options.isTransientError(error)) {
+        return { status: "failed", error };
+      }
+
+      await options.wait(retryDelay);
+    }
+  }
+}
+
+export async function syncLiveKitLocalParticipantProfile(
+  participant: LiveKitLocalParticipantProfileClient,
+  profile: LiveKitLocalParticipantProfile,
+  options: SyncLiveKitLocalParticipantProfileOptions = {},
+): Promise<LiveKitLocalParticipantProfileSyncResult> {
+  const syncOptions: Required<SyncLiveKitLocalParticipantProfileOptions> = {
+    isTransientError: options.isTransientError ?? isTransientLiveKitSignalRequestError,
+    retryDelaysMs:
+      options.retryDelaysMs ?? LIVEKIT_LOCAL_PARTICIPANT_PROFILE_RETRY_DELAYS_MS,
+    shouldContinue: options.shouldContinue ?? (() => true),
+    wait: options.wait ?? wait,
+  };
+
+  const result: LiveKitLocalParticipantProfileSyncResult = {
+    metadata:
+      participant.metadata === profile.metadata
+        ? { status: "unchanged" }
+        : await syncLiveKitLocalParticipantProfileField(
+            () => participant.setMetadata(profile.metadata),
+            syncOptions,
+          ),
+    name:
+      participant.name === profile.name
+        ? { status: "unchanged" }
+        : await syncLiveKitLocalParticipantProfileField(
+            () => participant.setName(profile.name),
+            syncOptions,
+          ),
+  };
+
+  return result;
 }
 
 export function registerRoomParticipantSyncListeners(

@@ -4683,7 +4683,7 @@ dependencies = [
 
 [[package]]
 name = "whispr-desktop"
-version = "0.8.9"
+version = "0.8.10"
 dependencies = [
  "open",
  "serde",

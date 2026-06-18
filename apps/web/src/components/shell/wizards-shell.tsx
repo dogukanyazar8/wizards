@@ -12,6 +12,7 @@ import { useShallow } from "zustand/react/shallow";
 import { AppStartupScreen } from "@/components/app/app-startup-screen";
 import { ChannelSidebar, UserProfileFooter } from "@/components/shell/channel-sidebar";
 import { useI18n } from "@/components/providers/locale-provider";
+import { InAppSettingsOverlay } from "@/components/settings/in-app-settings-overlay";
 import { MainChannelPanel } from "@/components/shell/main-channel-panel";
 import { MobileDrawerTrigger, ServerRail } from "@/components/shell/server-rail";
 import { ServerSettingsOverlay } from "@/components/shell/server-settings-overlay";
@@ -445,6 +446,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const [socketConnected, setSocketConnected] = React.useState(socket.connected);
   const [leaveServerCandidate, setLeaveServerCandidate] =
     React.useState<WorkspaceServerSummary | null>(null);
+  const [settingsOverlayOpen, setSettingsOverlayOpen] = React.useState(false);
   const {
     appearanceHydrated,
     closeServerContextMenu,
@@ -1200,7 +1202,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
 
   const openSettings = () => {
     setMobileSidebarOpen(false);
-    router.push("/settings");
+    setSettingsOverlayOpen(true);
   };
 
   const openDeleteServerFromSettings = React.useCallback(
@@ -1580,6 +1582,11 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
         onOpenDeleteServer={openDeleteServerFromSettings}
         open={Boolean(serverSettingsServerId && serverSettingsServerId === activeServerId)}
         uploadthingEnabled={uploadthingEnabled}
+      />
+
+      <InAppSettingsOverlay
+        onClose={() => setSettingsOverlayOpen(false)}
+        open={settingsOverlayOpen}
       />
     </div>
   );

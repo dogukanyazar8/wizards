@@ -138,7 +138,7 @@ export function AudioDeviceSelect({
   const statusText = isOutputUnsupported
     ? t("voice.devices.outputUnsupported")
     : supportsDeviceEnumeration
-      ? t("voice.devices.liveUpdateHint")
+      ? null
       : t("voice.devices.enumerationUnsupported");
   const selectedIndex = Math.max(
     options.findIndex((device) => device.deviceId === selectedDeviceId),
@@ -257,20 +257,20 @@ export function AudioDeviceSelect({
   const renderMenu = (position: "compact" | "panel") => (
     <div
       className={cn(
-        "absolute z-[95] overflow-hidden rounded-[24px] border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.96)] p-2 shadow-[0_24px_70px_hsl(var(--shadow-color)/0.24)] backdrop-blur-2xl",
+        "absolute z-[95] overflow-hidden rounded-[16px] border border-[hsl(var(--border)/0.52)] bg-[linear-gradient(180deg,hsl(var(--surface-overlay)/0.98),hsl(var(--surface-panel)/0.94))] p-1 shadow-[0_16px_44px_hsl(var(--shadow-color)/0.13)] backdrop-blur-xl",
         position === "compact" &&
-          "bottom-[calc(100%+0.55rem)] right-0 w-[min(22rem,calc(100vw-1.5rem))]",
+          "bottom-[calc(100%+0.45rem)] left-auto right-0 w-[min(16.5rem,calc(100vw-1.5rem))]",
         position === "panel" && "left-0 right-0 top-[calc(100%+0.75rem)]",
       )}
       data-testid={`audio-device-select-${kind}-menu`}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-[hsl(var(--border)/0.54)] px-3 py-2.5">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))] shadow-inner shadow-white/20">
-            <Icon className="h-4 w-4" />
+      <div className="flex items-center justify-between gap-2 border-b border-[hsl(var(--border)/0.38)] px-2 py-1.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-[hsl(var(--primary)/0.11)] text-[hsl(var(--primary))] shadow-inner shadow-white/20">
+            <Icon className="h-3.5 w-3.5" />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-app-foreground">
+            <p className="truncate text-[13px] font-bold text-app-foreground">
               {title}
             </p>
             <p className="truncate text-[11px] font-medium text-app-muted">
@@ -280,7 +280,7 @@ export function AudioDeviceSelect({
         </div>
         <button
           aria-label={t("voice.devices.refresh")}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.5)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.86)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60"
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-xl border border-[hsl(var(--border)/0.46)] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60"
           disabled={isLoading}
           data-testid={`audio-device-select-${kind}-menu-refresh`}
           onClick={handleRefresh}
@@ -293,7 +293,7 @@ export function AudioDeviceSelect({
       <div
         aria-label={label}
         aria-activedescendant={`${listboxId}-${options[activeIndex]?.deviceId ?? "none"}`}
-        className="mt-2 max-h-64 overflow-y-auto pr-1"
+        className="mt-1 overflow-visible"
         id={listboxId}
         role="listbox"
       >
@@ -305,7 +305,7 @@ export function AudioDeviceSelect({
             <button
               aria-selected={isSelected}
               className={cn(
-                "group/device-option flex w-full items-center gap-3 rounded-2xl px-2.5 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]",
+                "group/device-option flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]",
                 isSelected
                   ? "bg-[hsl(var(--primary)/0.13)] text-app-foreground"
                   : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.64)] hover:text-app-foreground",
@@ -318,46 +318,44 @@ export function AudioDeviceSelect({
               onClick={() => handleSelect(device.deviceId)}
               onMouseEnter={() => setActiveIndex(index)}
               role="option"
+              title={device.label}
               type="button"
             >
               <span
                 className={cn(
-                  "grid h-8 w-8 shrink-0 place-items-center rounded-xl border transition",
+                  "grid h-6 w-6 shrink-0 place-items-center rounded-[10px] border transition",
                   isSelected
                     ? "border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.16)] text-[hsl(var(--primary))]"
                     : "border-[hsl(var(--border)/0.55)] bg-[hsl(var(--surface-soft)/0.38)] text-app-muted group-hover/device-option:text-app-foreground",
                 )}
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className="h-3 w-3" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold">
+                <span className="block truncate text-xs font-bold leading-5">
                   {device.label}
                 </span>
-                {device.deviceId === DEFAULT_AUDIO_DEVICE_ID && (
-                  <span className="mt-0.5 block truncate text-[11px] font-medium text-app-soft">
-                    {t("voice.devices.liveUpdateHint")}
-                  </span>
-                )}
               </span>
               <span
                 className={cn(
-                  "grid h-7 w-7 shrink-0 place-items-center rounded-full border transition",
+                  "grid h-5 w-5 shrink-0 place-items-center rounded-full border transition",
                   isSelected
                     ? "border-[hsl(var(--primary)/0.35)] bg-[hsl(var(--primary)/0.17)] text-[hsl(var(--primary))] opacity-100"
                     : "border-transparent text-app-muted opacity-0 group-hover/device-option:opacity-50",
                 )}
               >
-                <Check className="h-3.5 w-3.5" />
+                <Check className="h-3 w-3" />
               </span>
             </button>
           );
         })}
       </div>
 
-      <p className="mt-2 border-t border-[hsl(var(--border)/0.48)] px-3 pb-2 pt-3 text-[11px] leading-4 text-app-soft">
-        {statusText}
-      </p>
+      {statusText ? (
+        <p className="mt-1.5 border-t border-[hsl(var(--border)/0.4)] px-2 pb-1.5 pt-2 text-[10.5px] leading-4 text-app-soft">
+          {statusText}
+        </p>
+      ) : null}
     </div>
   );
 
@@ -375,9 +373,9 @@ export function AudioDeviceSelect({
           aria-haspopup="listbox"
           aria-label={label}
           className={cn(
-            "group/device flex min-h-10 w-full min-w-0 items-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.3)] px-2.5 py-2 text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.68)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+            "group/device flex min-h-8 w-full min-w-0 items-center gap-2 rounded-[14px] border border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-soft)/0.34)] px-2.5 py-1.5 text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.68)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
             isOpen &&
-              "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.1)] text-app-foreground shadow-[0_14px_40px_hsl(var(--primary)/0.12)]",
+              "border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.1)] text-app-foreground shadow-[0_10px_28px_hsl(var(--primary)/0.1)]",
             isDisabled && "cursor-not-allowed opacity-60",
           )}
           disabled={isDisabled}
@@ -405,29 +403,29 @@ export function AudioDeviceSelect({
   return (
     <div
       className={cn(
-        "app-panel-soft relative rounded-[22px] border p-3 sm:rounded-[24px] sm:p-4",
+        "app-panel-soft relative rounded-[18px] border p-2.5 sm:p-3",
         isOpen && "z-[96]",
       )}
       data-testid={`audio-device-select-${kind}-panel`}
       onKeyDown={handleKeyDown}
       ref={rootRef}
     >
-      <div className="flex items-start gap-3">
-        <div className="rounded-2xl bg-[hsl(var(--primary)/0.12)] p-2 text-[hsl(var(--primary))]">
+      <div className="flex items-start gap-2.5">
+        <div className="rounded-xl bg-[hsl(var(--primary)/0.12)] p-2 text-[hsl(var(--primary))]">
           <Icon className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-app-foreground">
+              <p className="text-[13px] font-semibold text-app-foreground">
                 {title}
               </p>
-              <p className="mt-1 text-sm leading-5 text-app-muted">
+              <p className="mt-0.5 text-xs leading-4 text-app-muted">
                 {description}
               </p>
             </div>
             <button
-              className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.42)] px-3 text-xs font-semibold text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.42)] px-2.5 text-[11px] font-semibold text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60"
               disabled={isLoading}
               data-testid={`audio-device-select-${kind}-refresh`}
               onClick={handleRefresh}
@@ -438,14 +436,14 @@ export function AudioDeviceSelect({
             </button>
           </div>
 
-          <div className="relative mt-3">
+          <div className="relative mt-2.5">
             <button
               aria-controls={isOpen ? listboxId : undefined}
               aria-expanded={isOpen}
               aria-haspopup="listbox"
               aria-label={label}
               className={cn(
-                "flex min-h-12 w-full items-center gap-3 rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.68)] px-3 text-left text-sm font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.88)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60",
+                "flex min-h-10 w-full items-center gap-2.5 rounded-xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 text-left text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.88)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60",
                 isOpen &&
                   "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.09)] shadow-[0_18px_46px_hsl(var(--primary)/0.12)]",
               )}
@@ -454,7 +452,7 @@ export function AudioDeviceSelect({
               onClick={() => setIsOpen((current) => !current)}
               type="button"
             >
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[hsl(var(--surface-soft)/0.72)] text-app-muted">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[hsl(var(--surface-soft)/0.72)] text-app-muted">
                 <Icon className="h-3.5 w-3.5" />
               </span>
               <span className="min-w-0 flex-1 truncate">
@@ -470,7 +468,9 @@ export function AudioDeviceSelect({
             {isOpen && renderMenu("panel")}
           </div>
 
-          <p className="mt-2 text-xs leading-5 text-app-soft">{statusText}</p>
+          {statusText ? (
+            <p className="mt-1.5 text-[11px] leading-4 text-app-soft">{statusText}</p>
+          ) : null}
         </div>
       </div>
     </div>

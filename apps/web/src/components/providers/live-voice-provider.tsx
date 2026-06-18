@@ -38,7 +38,7 @@ import {
   isWhisprDesktopRuntime,
 } from "@/lib/desktop/runtime";
 import { clearDesktopTransientAuthSession } from "@/lib/desktop/session";
-import { logError } from "@/lib/logger";
+import { logError, logWarning } from "@/lib/logger";
 import { getSocket } from "@/lib/socket/client";
 import { collectVoiceAudioHealthFromSender } from "@/lib/voice/audio-health";
 import {
@@ -117,6 +117,7 @@ import {
   connectLiveKitRoomWithRetry,
   createReconnectTimeoutController,
   registerRoomParticipantSyncListeners,
+  syncLiveKitLocalParticipantProfile,
   type ReconnectTimeoutController,
 } from "@/lib/voice/provider-lifecycle";
 import {
@@ -148,6 +149,7 @@ const VOICE_AUDIO_HEALTH_METRICS_INTERVAL_MS = 30_000;
 const KRISP_PROCESSOR_NAME = "livekit-noise-filter";
 const KRISP_BUFFER_DROP_MS = 300;
 const KRISP_BUFFER_OVERFLOW_MS = 200;
+const LOCAL_PARTICIPANT_PROFILE_SYNC_DEBOUNCE_MS = 250;
 
 let krispModulePromise: Promise<typeof KrispNoiseFilterModule> | null = null;
 
@@ -190,6 +192,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const krispProcessorRef = useRef<KrispNoiseFilterProcessor | null>(null);
   const krispProcessorQualityRef = useRef<KrispProcessorQuality | null>(null);
   const lastEmittedScreenShareStateRef = useRef<boolean | null>(null);
+  const localParticipantProfileSyncSequenceRef = useRef(0);
+  const localParticipantProfileSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectionWarningMessageRef = useRef<string | null>(null);
   const cleanupVoiceResourcesRef = useRef<() => void>(() => undefined);
   const leaveCleanupPromiseRef = useRef<Promise<void> | null>(null);
@@ -594,6 +598,14 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
 
   useEffect(() => {
     const activeRoom = room;
+    localParticipantProfileSyncSequenceRef.current += 1;
+    const syncSequence = localParticipantProfileSyncSequenceRef.current;
+
+    if (localParticipantProfileSyncTimeoutRef.current) {
+      clearTimeout(localParticipantProfileSyncTimeoutRef.current);
+      localParticipantProfileSyncTimeoutRef.current = null;
+    }
+
     if (!activeRoom) {
       return;
     }
@@ -606,21 +618,65 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     });
     const name = currentUser.displayName || currentUser.username;
 
-    if (activeRoom.localParticipant.metadata !== metadata) {
-      void activeRoom.localParticipant.setMetadata(metadata).catch((error) => {
-        logError("[voice] Local participant metadata update failed", error);
-      });
-    }
-
-    if (activeRoom.localParticipant.name !== name) {
-      void activeRoom.localParticipant.setName(name).catch((error) => {
-        logError("[voice] Local participant name update failed", error);
-      });
-    }
-
     syncParticipants(activeRoom);
     syncScreenShares(activeRoom);
+
+    if (
+      connectionState !== ConnectionState.Connected ||
+      activeRoom.state !== ConnectionState.Connected
+    ) {
+      return;
+    }
+
+    const isActiveConnectedRoom = () =>
+      localParticipantProfileSyncSequenceRef.current === syncSequence &&
+      roomRef.current === activeRoom &&
+      activeRoom.state === ConnectionState.Connected;
+
+    localParticipantProfileSyncTimeoutRef.current = setTimeout(() => {
+      localParticipantProfileSyncTimeoutRef.current = null;
+
+      void syncLiveKitLocalParticipantProfile(
+        activeRoom.localParticipant,
+        {
+          metadata,
+          name,
+        },
+        {
+          shouldContinue: isActiveConnectedRoom,
+        },
+      )
+        .then((result) => {
+          if (!isActiveConnectedRoom()) {
+            return;
+          }
+
+          if (result.metadata.status === "failed") {
+            logWarning("[voice] Local participant metadata update skipped", result.metadata.error);
+          }
+
+          if (result.name.status === "failed") {
+            logWarning("[voice] Local participant name update skipped", result.name.error);
+          }
+
+          syncParticipants(activeRoom);
+          syncScreenShares(activeRoom);
+        })
+        .catch((error) => {
+          if (isActiveConnectedRoom()) {
+            logWarning("[voice] Local participant profile sync skipped", error);
+          }
+        });
+    }, LOCAL_PARTICIPANT_PROFILE_SYNC_DEBOUNCE_MS);
+
+    return () => {
+      if (localParticipantProfileSyncTimeoutRef.current) {
+        clearTimeout(localParticipantProfileSyncTimeoutRef.current);
+        localParticipantProfileSyncTimeoutRef.current = null;
+      }
+    };
   }, [
+    connectionState,
     currentUser.avatarUrl,
     currentUser.displayName,
     currentUser.username,
