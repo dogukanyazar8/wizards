@@ -1,10 +1,11 @@
 import { auth } from "@/auth";
 import { prisma } from "@wizards/db";
+import type { Session } from "next-auth";
 import { redirect } from "next/navigation";
 
-export async function getCurrentUser() {
-  const session = await auth();
+type AuthSession = Session | null | undefined;
 
+export async function getCurrentUserForSession(session: AuthSession) {
   if (!session?.user?.id) {
     return null;
   }
@@ -24,6 +25,10 @@ export async function getCurrentUser() {
       updatedAt: true,
     },
   });
+}
+
+export async function getCurrentUser(session?: AuthSession) {
+  return getCurrentUserForSession(session ?? (await auth()));
 }
 
 export async function requireAuth() {

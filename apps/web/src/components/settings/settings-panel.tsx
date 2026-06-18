@@ -31,6 +31,7 @@ import {
   Volume2,
   type LucideIcon,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { UserStatus } from "@wizards/db";
@@ -39,14 +40,10 @@ import { useShallow } from "zustand/react/shallow";
 import type { UserLayoutSettings } from "@/app/api/v1/users/me/settings/route";
 import { LanguageSwitcher } from "@/components/locale/language-switcher";
 import { useI18n } from "@/components/providers/locale-provider";
-import { DesktopDiagnosticsPanel } from "@/components/desktop/desktop-diagnostics-panel";
 import { ProfileAvatarField } from "@/components/settings/profile-avatar-field";
 import { ThemePicker } from "@/components/theme/theme-picker";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { CameraPreferencesPanel } from "@/components/voice/camera-preferences-panel";
-import { ScreenSharePreferencesPanel } from "@/components/voice/screen-share-preferences-panel";
-import { VoicePreferencesPanel } from "@/components/voice/voice-preferences-panel";
 import {
   MAX_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
   MIN_NOTIFICATION_POPUP_TIMEOUT_SECONDS,
@@ -90,6 +87,39 @@ import {
 import type { WhisprReleaseNote } from "@/lib/app-version";
 
 const FEATURED_CONTRIBUTOR_NAME = "O\u011Fuz G\u00FC\u011F\u00FCmc\u00FCo\u011Flu";
+
+const CameraPreferencesPanel = dynamic(
+  () =>
+    import("@/components/voice/camera-preferences-panel").then(
+      (mod) => mod.CameraPreferencesPanel,
+    ),
+  { ssr: false },
+);
+const DesktopDiagnosticsPanel = dynamic(
+  () =>
+    import("@/components/desktop/desktop-diagnostics-panel").then(
+      (mod) => mod.DesktopDiagnosticsPanel,
+    ),
+  { ssr: false },
+);
+const ScreenSharePreferencesPanel = dynamic(
+  () =>
+    import("@/components/voice/screen-share-preferences-panel").then(
+      (mod) => mod.ScreenSharePreferencesPanel,
+    ),
+  { ssr: false },
+);
+const SettingsVoiceProviderBoundary = dynamic(
+  () =>
+    import("@/components/settings/settings-voice-provider-boundary").then(
+      (mod) => mod.SettingsVoiceProviderBoundary,
+    ),
+  { ssr: false },
+);
+const VoicePreferencesPanel = dynamic(
+  () => import("@/components/voice/voice-preferences-panel").then((mod) => mod.VoicePreferencesPanel),
+  { ssr: false },
+);
 
 type SettingsPanelProps = {
   buildInfo: {
@@ -1540,37 +1570,39 @@ export function SettingsPanel({
     const showScreenShare = panel === null || panel === "screenShare";
 
     return (
-      <div className="space-y-3">
-        <SectionHero
-          badge={t("settings.groups.voiceVideo.badge")}
-          description={t("settings.groups.voiceVideo.description")}
-          title={t("settings.groups.voiceVideo.title")}
-        />
+      <SettingsVoiceProviderBoundary account={accountState}>
+        <div className="space-y-3">
+          <SectionHero
+            badge={t("settings.groups.voiceVideo.badge")}
+            description={t("settings.groups.voiceVideo.description")}
+            title={t("settings.groups.voiceVideo.title")}
+          />
 
-        {showAudio ? <VoicePreferencesPanel mode="audio" /> : null}
+          {showAudio ? <VoicePreferencesPanel mode="audio" /> : null}
 
-        {showCamera ? (
-          <SettingCard
-            badge={t("settings.voice.camera.badge")}
-            description={t("settings.voice.camera.description")}
-            icon={Camera}
-            title={t("settings.voice.camera.title")}
-          >
-            <CameraPreferencesPanel />
-          </SettingCard>
-        ) : null}
+          {showCamera ? (
+            <SettingCard
+              badge={t("settings.voice.camera.badge")}
+              description={t("settings.voice.camera.description")}
+              icon={Camera}
+              title={t("settings.voice.camera.title")}
+            >
+              <CameraPreferencesPanel />
+            </SettingCard>
+          ) : null}
 
-        {showScreenShare ? (
-          <SettingCard
-            badge={t("settings.voice.screenShare.badge")}
-            description={t("settings.voice.screenShare.description")}
-            icon={MonitorUp}
-            title={t("settings.voice.screenShare.title")}
-          >
-            <ScreenSharePreferencesPanel />
-          </SettingCard>
-        ) : null}
-      </div>
+          {showScreenShare ? (
+            <SettingCard
+              badge={t("settings.voice.screenShare.badge")}
+              description={t("settings.voice.screenShare.description")}
+              icon={MonitorUp}
+              title={t("settings.voice.screenShare.title")}
+            >
+              <ScreenSharePreferencesPanel />
+            </SettingCard>
+          ) : null}
+        </div>
+      </SettingsVoiceProviderBoundary>
     );
   };
 
@@ -1627,24 +1659,30 @@ export function SettingsPanel({
           </SettingCard>
         ) : null}
 
-        {showVoice ? (
-          <SettingCard
-            description={t("settings.desktop.voice.description")}
-            icon={Gamepad2}
-            title={t("settings.desktop.voice.title")}
-          >
-            <VoicePreferencesPanel mode="desktop" />
-          </SettingCard>
-        ) : null}
+        {showVoice || showDiagnostics ? (
+          <SettingsVoiceProviderBoundary account={accountState}>
+            <div className="space-y-3">
+              {showVoice ? (
+                <SettingCard
+                  description={t("settings.desktop.voice.description")}
+                  icon={Gamepad2}
+                  title={t("settings.desktop.voice.title")}
+                >
+                  <VoicePreferencesPanel mode="desktop" />
+                </SettingCard>
+              ) : null}
 
-        {showDiagnostics ? (
-          <SettingCard
-            description={t("settings.desktop.diagnostics.description")}
-            icon={Info}
-            title={t("settings.desktop.diagnostics.title")}
-          >
-            <DesktopDiagnosticsPanel />
-          </SettingCard>
+              {showDiagnostics ? (
+                <SettingCard
+                  description={t("settings.desktop.diagnostics.description")}
+                  icon={Info}
+                  title={t("settings.desktop.diagnostics.title")}
+                >
+                  <DesktopDiagnosticsPanel />
+                </SettingCard>
+              ) : null}
+            </div>
+          </SettingsVoiceProviderBoundary>
         ) : null}
       </div>
     );

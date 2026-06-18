@@ -5,8 +5,8 @@ import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { motion, Reorder } from "framer-motion";
 import { MessageCircleMore, Plus, RotateCcw } from "lucide-react";
-import Image from "next/image";
 import type { WorkspaceServerSummary } from "@wizards/types";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { useI18n } from "@/components/providers/locale-provider";
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { ServerRailSkeleton } from "@/components/shell/shell-skeletons";
@@ -234,20 +234,13 @@ export function ServerRail({
       onContextMenu={handleRailContextMenu}
     >
       <div
-        aria-label="Whispr"
         className="mb-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-[hsl(var(--surface-card)/0.58)] ring-1 ring-[hsl(var(--border)/0.42)]"
         data-server-rail-item
-        role="img"
         title="Whispr"
       >
-        <Image
-          alt=""
-          aria-hidden="true"
-          className="rounded-[13px]"
-          height={30}
-          priority={false}
-          src="/app-icons/whispr.png"
-          width={30}
+        <BrandLogo
+          className="[&_.whispr-logo-icon]:h-9 [&_.whispr-logo-icon]:w-9 [&_.whispr-logo-icon]:rounded-[12px] [&_.whispr-logo-wordmark]:hidden"
+          interactive={false}
         />
       </div>
       <div className="flex w-full shrink-0 flex-col items-center gap-2" data-server-rail-item>

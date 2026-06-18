@@ -2,6 +2,7 @@ import { prisma } from "@wizards/db";
 import { getRedis } from "@/lib/redis";
 
 export const HEALTH_CHECK_TIMEOUT_MS = 1000;
+export const DEFAULT_READINESS_CACHE_TTL_MS = 2_000;
 export const HEALTH_RESPONSE_HEADERS = {
   "Cache-Control": "no-store",
 } as const;
@@ -11,6 +12,11 @@ type DependencyStatus = "error" | "ok";
 type ReadinessDependencyChecks = {
   database?: () => Promise<unknown>;
   redis?: () => Promise<unknown>;
+};
+
+type ReadinessCacheEntry = {
+  expiresAt: number;
+  payload: ReadinessPayload;
 };
 
 export type HealthPayload = {
@@ -41,6 +47,25 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs = HEALTH_CHECK_TIMEOUT_MS
   });
 }
 
+let defaultReadinessCache: ReadinessCacheEntry | null = null;
+
+function readPositiveIntegerEnv(name: string, fallback: number) {
+  const value = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function getReadinessCacheTtlMs() {
+  return readPositiveIntegerEnv("WHISPR_READY_CACHE_MS", DEFAULT_READINESS_CACHE_TTL_MS);
+}
+
+function usesDefaultReadinessChecks(checks: ReadinessDependencyChecks) {
+  return !checks.database && !checks.redis;
+}
+
+export function resetReadinessCacheForTests() {
+  defaultReadinessCache = null;
+}
+
 function defaultDatabaseCheck() {
   return prisma.$queryRaw`SELECT 1`;
 }
@@ -65,6 +90,19 @@ export async function getReadinessPayload({
   now?: Date;
   timeoutMs?: number;
 } = {}): Promise<ReadinessPayload> {
+  const shouldUseCache = usesDefaultReadinessChecks(checks);
+  const cacheTtlMs = getReadinessCacheTtlMs();
+  const nowMs = now.getTime();
+
+  if (
+    shouldUseCache &&
+    cacheTtlMs > 0 &&
+    defaultReadinessCache &&
+    defaultReadinessCache.expiresAt > nowMs
+  ) {
+    return defaultReadinessCache.payload;
+  }
+
   const [database, redis] = await Promise.allSettled([
     withTimeout((checks.database ?? defaultDatabaseCheck)(), timeoutMs),
     withTimeout((checks.redis ?? defaultRedisCheck)(), timeoutMs),
@@ -74,7 +112,7 @@ export async function getReadinessPayload({
   const redisStatus = redis.status === "fulfilled" ? "ok" : "error";
   const isReady = databaseStatus === "ok" && redisStatus === "ok";
 
-  return {
+  const payload: ReadinessPayload = {
     checks: {
       database: databaseStatus,
       redis: redisStatus,
@@ -82,6 +120,15 @@ export async function getReadinessPayload({
     status: isReady ? "ok" : "error",
     timestamp: now.toISOString(),
   };
+
+  if (shouldUseCache && cacheTtlMs > 0) {
+    defaultReadinessCache = {
+      expiresAt: nowMs + cacheTtlMs,
+      payload,
+    };
+  }
+
+  return payload;
 }
 
 export function getReadinessStatusCode(payload: ReadinessPayload) {

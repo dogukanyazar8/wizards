@@ -12,6 +12,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const ACTIVE_SESSION_WINDOW_MS = 2 * 60 * 1000;
 const MAX_DASHBOARD_DAYS = 90;
 const DEFAULT_DASHBOARD_DAYS = 14;
+const DEFAULT_DASHBOARD_CACHE_TTL_MS = 15_000;
 
 type MetricTotals = {
   appSeconds: number;
@@ -39,7 +40,28 @@ type MetricRow = {
   voiceSeconds: number;
 };
 
-export type AdminDashboardSnapshot = Awaited<ReturnType<typeof getAdminDashboardSnapshot>>;
+export type AdminDashboardSnapshot = Awaited<ReturnType<typeof getAdminDashboardSnapshotUncached>>;
+
+type AdminDashboardCacheEntry = {
+  expiresAt: number;
+  promise: Promise<AdminDashboardSnapshot>;
+};
+
+const dashboardSnapshotCache = new Map<string, AdminDashboardCacheEntry>();
+
+function getDashboardCacheTtlMs() {
+  const rawValue = process.env.WHISPR_ADMIN_DASHBOARD_CACHE_MS;
+  if (!rawValue) {
+    return DEFAULT_DASHBOARD_CACHE_TTL_MS;
+  }
+
+  const parsed = Number.parseInt(rawValue, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_DASHBOARD_CACHE_TTL_MS;
+}
+
+export function resetAdminDashboardSnapshotCacheForTests() {
+  dashboardSnapshotCache.clear();
+}
 
 export function normalizeDashboardDays(value: number | string | null | undefined) {
   const parsed =
@@ -233,6 +255,39 @@ function getDisplayName(user: { displayName: string | null; username: string }) 
 }
 
 export async function getAdminDashboardSnapshot(daysInput?: number | string | null) {
+  const days = normalizeDashboardDays(daysInput);
+  const cacheTtlMs = getDashboardCacheTtlMs();
+
+  if (cacheTtlMs <= 0) {
+    return getAdminDashboardSnapshotUncached(days);
+  }
+
+  const cacheKey = String(days);
+  const nowMs = Date.now();
+  const cached = dashboardSnapshotCache.get(cacheKey);
+
+  if (cached && cached.expiresAt > nowMs) {
+    return cached.promise;
+  }
+
+  const promise = getAdminDashboardSnapshotUncached(days).catch((error) => {
+    const current = dashboardSnapshotCache.get(cacheKey);
+    if (current?.promise === promise) {
+      dashboardSnapshotCache.delete(cacheKey);
+    }
+
+    throw error;
+  });
+
+  dashboardSnapshotCache.set(cacheKey, {
+    expiresAt: nowMs + cacheTtlMs,
+    promise,
+  });
+
+  return promise;
+}
+
+async function getAdminDashboardSnapshotUncached(daysInput?: number | string | null) {
   const now = new Date();
   const { days, previousStart, rangeEnd, rangeStart } = getDashboardDateRange(daysInput, now);
   const activeSince = new Date(now.getTime() - ACTIVE_SESSION_WINDOW_MS);

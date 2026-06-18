@@ -8,6 +8,7 @@ import {
   type AppStartupScreenVariant,
 } from "@/components/app/app-startup-screen";
 import { LocaleProvider } from "@/components/providers/locale-provider";
+import { getMessagesForLocale } from "@/lib/locale";
 
 function renderStartupScreen({
   busy,
@@ -26,7 +27,7 @@ function renderStartupScreen({
   const experienceProps = experience ? { experience } : {};
 
   return renderToStaticMarkup(
-    <LocaleProvider initialLocale={locale}>
+    <LocaleProvider initialLocale={locale} initialMessages={getMessagesForLocale(locale)}>
       <AppStartupScreen {...busyProps} {...experienceProps} status={status} variant={variant} />
     </LocaleProvider>,
   );

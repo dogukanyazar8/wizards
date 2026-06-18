@@ -213,15 +213,20 @@ export function registerMessageHandlers(
         { permissions },
       );
       const messageCreatedAt = new Date(message.createdAt);
+      const fanoutStartedAt = Date.now();
+      const presenceLookupStartedAt = Date.now();
       const [activeChannelViewerCandidateUserIds, activeServerMemberUserIds] = await Promise.all([
         getActiveChannelViewerUserIds(data.channelId),
         getActiveServerMemberUserIds(channel.serverId),
       ]);
+      const presenceLookupDurationMs = Date.now() - presenceLookupStartedAt;
+      const permissionFilterStartedAt = Date.now();
       const permittedActiveUserIds = await filterUserIdsByChannelPermission(
         data.channelId,
         [...activeChannelViewerCandidateUserIds, ...activeServerMemberUserIds],
         PermissionBits.VIEW_CHANNEL,
       );
+      const permissionFilterDurationMs = Date.now() - permissionFilterStartedAt;
       const {
         activeChannelViewerUserIds,
         permittedUnreadUserIds,
@@ -234,6 +239,7 @@ export function registerMessageHandlers(
         senderId: userId,
       });
 
+      const directEmitStartedAt = Date.now();
       if (unreadUpdateUserIds.length > 0) {
         io.to(unreadUpdateUserIds.map((memberUserId) => `user:${memberUserId}`)).emit(
           "channel:messages:stale",
@@ -251,6 +257,7 @@ export function registerMessageHandlers(
           message,
         );
       }
+      const directEmitDurationMs = Date.now() - directEmitStartedAt;
 
       void (async () => {
         await markChannelReadStates({
@@ -267,8 +274,12 @@ export function registerMessageHandlers(
       recordMessageSendFanoutMetric({
         activeChannelViewerCount: activeChannelViewerCandidateUserIds.length,
         activeServerMemberCount: activeServerMemberUserIds.length,
+        directEmitDurationMs,
+        fanoutDurationMs: Date.now() - fanoutStartedAt,
         permittedChannelViewerCount: activeChannelViewerUserIds.length,
         permittedUnreadUserCount: permittedUnreadUserIds.length,
+        permissionFilterDurationMs,
+        presenceLookupDurationMs,
         readUserCount: readUserIds.length,
         unreadUpdateUserCount: unreadUpdateUserIds.length,
       });

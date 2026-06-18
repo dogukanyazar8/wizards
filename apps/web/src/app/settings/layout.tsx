@@ -19,6 +19,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
         displayName,
         username,
       }}
+      voiceFeatures="active"
     >
       <main
         className="app-shell h-dvh min-h-0 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-[radial-gradient(circle_at_16%_8%,hsl(var(--primary)/0.08),transparent_28%),radial-gradient(circle_at_86%_18%,hsl(var(--surface-highlight)/0.54),transparent_26%),linear-gradient(180deg,hsl(var(--background)),hsl(var(--surface-base)))] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4 md:px-5 lg:px-4 xl:px-5"

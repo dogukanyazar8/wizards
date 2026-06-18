@@ -25,11 +25,19 @@ type MessageSendFanoutMetrics = {
   calls: number;
   maxActiveChannelViewerCount: number;
   maxActiveServerMemberCount: number;
+  maxDirectEmitDurationMs: number;
+  maxFanoutDurationMs: number;
+  maxPermissionFilterDurationMs: number;
+  maxPresenceLookupDurationMs: number;
   maxUnreadUpdateUserCount: number;
   totalActiveChannelViewerCount: number;
   totalActiveServerMemberCount: number;
+  totalDirectEmitDurationMs: number;
+  totalFanoutDurationMs: number;
   totalPermittedChannelViewerCount: number;
   totalPermittedUnreadUserCount: number;
+  totalPermissionFilterDurationMs: number;
+  totalPresenceLookupDurationMs: number;
   totalReadUserCount: number;
   totalUnreadUpdateUserCount: number;
 };
@@ -82,11 +90,19 @@ function createMessageSendFanoutMetrics(): MessageSendFanoutMetrics {
     calls: 0,
     maxActiveChannelViewerCount: 0,
     maxActiveServerMemberCount: 0,
+    maxDirectEmitDurationMs: 0,
+    maxFanoutDurationMs: 0,
+    maxPermissionFilterDurationMs: 0,
+    maxPresenceLookupDurationMs: 0,
     maxUnreadUpdateUserCount: 0,
     totalActiveChannelViewerCount: 0,
     totalActiveServerMemberCount: 0,
+    totalDirectEmitDurationMs: 0,
+    totalFanoutDurationMs: 0,
     totalPermittedChannelViewerCount: 0,
     totalPermittedUnreadUserCount: 0,
+    totalPermissionFilterDurationMs: 0,
+    totalPresenceLookupDurationMs: 0,
     totalReadUserCount: 0,
     totalUnreadUpdateUserCount: 0,
   };
@@ -267,8 +283,12 @@ export function recordUnreadFanoutMetric(args: {
 export function recordMessageSendFanoutMetric(args: {
   activeChannelViewerCount: number;
   activeServerMemberCount: number;
+  directEmitDurationMs: number;
+  fanoutDurationMs: number;
   permittedChannelViewerCount: number;
   permittedUnreadUserCount: number;
+  permissionFilterDurationMs: number;
+  presenceLookupDurationMs: number;
   readUserCount: number;
   unreadUpdateUserCount: number;
 }) {
@@ -279,8 +299,12 @@ export function recordMessageSendFanoutMetric(args: {
   messageSendFanoutMetrics.calls += 1;
   messageSendFanoutMetrics.totalActiveChannelViewerCount += args.activeChannelViewerCount;
   messageSendFanoutMetrics.totalActiveServerMemberCount += args.activeServerMemberCount;
+  messageSendFanoutMetrics.totalDirectEmitDurationMs += args.directEmitDurationMs;
+  messageSendFanoutMetrics.totalFanoutDurationMs += args.fanoutDurationMs;
   messageSendFanoutMetrics.totalPermittedChannelViewerCount += args.permittedChannelViewerCount;
   messageSendFanoutMetrics.totalPermittedUnreadUserCount += args.permittedUnreadUserCount;
+  messageSendFanoutMetrics.totalPermissionFilterDurationMs += args.permissionFilterDurationMs;
+  messageSendFanoutMetrics.totalPresenceLookupDurationMs += args.presenceLookupDurationMs;
   messageSendFanoutMetrics.totalReadUserCount += args.readUserCount;
   messageSendFanoutMetrics.totalUnreadUpdateUserCount += args.unreadUpdateUserCount;
   messageSendFanoutMetrics.maxActiveChannelViewerCount = Math.max(
@@ -290,6 +314,22 @@ export function recordMessageSendFanoutMetric(args: {
   messageSendFanoutMetrics.maxActiveServerMemberCount = Math.max(
     messageSendFanoutMetrics.maxActiveServerMemberCount,
     args.activeServerMemberCount,
+  );
+  messageSendFanoutMetrics.maxDirectEmitDurationMs = Math.max(
+    messageSendFanoutMetrics.maxDirectEmitDurationMs,
+    args.directEmitDurationMs,
+  );
+  messageSendFanoutMetrics.maxFanoutDurationMs = Math.max(
+    messageSendFanoutMetrics.maxFanoutDurationMs,
+    args.fanoutDurationMs,
+  );
+  messageSendFanoutMetrics.maxPermissionFilterDurationMs = Math.max(
+    messageSendFanoutMetrics.maxPermissionFilterDurationMs,
+    args.permissionFilterDurationMs,
+  );
+  messageSendFanoutMetrics.maxPresenceLookupDurationMs = Math.max(
+    messageSendFanoutMetrics.maxPresenceLookupDurationMs,
+    args.presenceLookupDurationMs,
   );
   messageSendFanoutMetrics.maxUnreadUpdateUserCount = Math.max(
     messageSendFanoutMetrics.maxUnreadUpdateUserCount,

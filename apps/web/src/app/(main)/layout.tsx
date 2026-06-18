@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { getCurrentUser, requireAuth } from "@/lib/auth/utils";
+import { getCurrentUserForSession, requireAuth } from "@/lib/auth/utils";
 import { LocaleSessionSync } from "@/components/locale/locale-session-sync";
 import { ThemeSessionSync } from "@/components/theme/theme-session-sync";
 import { AuthenticatedAppProviders } from "@/components/providers/authenticated-app-providers";
@@ -19,7 +19,7 @@ function getVisibleStatus(status: string | null | undefined) {
 
 export default async function MainLayout({ children }: { children: ReactNode }) {
   const session = await requireAuth();
-  const user = await getCurrentUser();
+  const user = await getCurrentUserForSession(session);
   const displayName =
     user?.displayName ??
     session.user.displayName ??

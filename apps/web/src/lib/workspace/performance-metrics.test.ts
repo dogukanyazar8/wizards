@@ -53,8 +53,12 @@ describe("workspace performance metrics", () => {
       recordMessageSendFanoutMetric({
         activeChannelViewerCount: 3,
         activeServerMemberCount: 5,
+        directEmitDurationMs: 2,
+        fanoutDurationMs: 9,
         permittedChannelViewerCount: 3,
         permittedUnreadUserCount: 4,
+        permissionFilterDurationMs: 4,
+        presenceLookupDurationMs: 3,
         readUserCount: 4,
         unreadUpdateUserCount: 1,
       });
@@ -77,7 +81,11 @@ describe("workspace performance metrics", () => {
         messageSendFanout: {
           calls: number;
           maxActiveServerMemberCount: number;
+          maxFanoutDurationMs: number;
+          maxPermissionFilterDurationMs: number;
+          maxPresenceLookupDurationMs: number;
           maxUnreadUpdateUserCount: number;
+          totalDirectEmitDurationMs: number;
         };
         permissionCache: {
           channelSnapshot: { hit: number };
@@ -103,7 +111,11 @@ describe("workspace performance metrics", () => {
       assert.equal(payload.permissionCache.invalidations.server, 1);
       assert.equal(payload.messageSendFanout.calls, 1);
       assert.equal(payload.messageSendFanout.maxActiveServerMemberCount, 5);
+      assert.equal(payload.messageSendFanout.maxFanoutDurationMs, 9);
+      assert.equal(payload.messageSendFanout.maxPermissionFilterDurationMs, 4);
+      assert.equal(payload.messageSendFanout.maxPresenceLookupDurationMs, 3);
       assert.equal(payload.messageSendFanout.maxUnreadUpdateUserCount, 1);
+      assert.equal(payload.messageSendFanout.totalDirectEmitDurationMs, 2);
       assert.equal(payload.unreadFanout.calls, 1);
       assert.equal(payload.unreadFanout.maxDurationMs, 12);
       assert.equal(payload.unreadFanout.maxVisibilityGroupCount, 1);

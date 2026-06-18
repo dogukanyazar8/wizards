@@ -18,6 +18,7 @@ import { MessageFontSync } from "@/components/providers/message-font-sync";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
+import { getMessagesForLocale } from "@/lib/locale";
 import { getRequestLocale } from "@/lib/locale/server";
 import { isDesktopStartPathname, WHISPR_REQUEST_PATHNAME_HEADER } from "@/lib/request-context";
 
@@ -29,12 +30,6 @@ const bodyFont = Plus_Jakarta_Sans({
 const displayFont = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-display",
-});
-
-const authDisplayFont = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-auth-display",
-  weight: ["700", "800"],
 });
 
 const authBodyFont = DM_Sans({
@@ -87,19 +82,20 @@ export default async function RootLayout({
   const skipRootAuth = isDesktopStartPathname(requestPathname);
   const session = skipRootAuth ? null : await auth();
   const locale = await getRequestLocale(session?.user?.locale);
+  const localeMessages = getMessagesForLocale(locale);
   const theme = session?.user?.theme || undefined;
 
   return (
     <html lang={locale} suppressHydrationWarning>
       <body
-        className={`${bodyFont.variable} ${displayFont.variable} ${authDisplayFont.variable} ${authBodyFont.variable} ${messageOpenSansFont.variable} ${messageInterFont.variable} ${messageRalewayFont.variable} ${messageOutfitFont.variable}`}
+        className={`${bodyFont.variable} ${displayFont.variable} ${authBodyFont.variable} ${messageOpenSansFont.variable} ${messageInterFont.variable} ${messageRalewayFont.variable} ${messageOutfitFont.variable}`}
       >
         <ThemeProvider
           storageKey="wizards-theme"
           defaultTheme={theme ?? DEFAULT_WIZARDS_THEME}
           attribute="class"
         >
-          <LocaleProvider initialLocale={locale}>
+          <LocaleProvider initialLocale={locale} initialMessages={localeMessages}>
             <AppIconProvider>
               <QueryProvider>
                 <MessageFontSync />

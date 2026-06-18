@@ -25,6 +25,7 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useId, useState, type ReactNode } from "react";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { useI18n } from "@/components/providers/locale-provider";
 import { Avatar } from "@/components/ui/avatar";
 import {
@@ -535,9 +536,10 @@ export function SettingsSidebar({
         data-testid="settings-desktop-sidebar"
       >
         <div className="flex items-center gap-2 rounded-[16px] border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface)/0.72)] p-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--primary)/0.72))] text-xs font-black text-white shadow-[0_10px_22px_hsl(var(--primary)/0.16)]">
-            W
-          </span>
+          <BrandLogo
+            className="shrink-0 [&_.whispr-logo-icon]:h-9 [&_.whispr-logo-icon]:w-9 [&_.whispr-logo-icon]:rounded-[12px] [&_.whispr-logo-wordmark]:hidden"
+            interactive={false}
+          />
           <div className="min-w-0">
             <p className="truncate text-[13px] font-extrabold text-app-foreground">Whispr</p>
             <p className="truncate text-xs font-semibold text-app-soft">{t("settings.title")}</p>

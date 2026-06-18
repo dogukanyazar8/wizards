@@ -20,6 +20,14 @@ const ALLOWED_PUBLISH_SOURCES = [
 const WORKSPACE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../..");
 
 let liveKitEnvLoaded = false;
+let liveKitRoomServiceClientCache:
+  | {
+      apiKey: string;
+      apiSecret: string;
+      client: RoomServiceClient;
+      serviceUrl: string;
+    }
+  | null = null;
 
 function loadEnvFallback(filePath: string) {
   const contents = readFileSync(filePath, "utf8");
@@ -138,7 +146,25 @@ function getLiveKitServiceUrl() {
 
 export function getLiveKitRoomServiceClient() {
   const { apiKey, apiSecret } = getLiveKitCredentials();
-  return new RoomServiceClient(getLiveKitServiceUrl(), apiKey, apiSecret);
+  const serviceUrl = getLiveKitServiceUrl();
+
+  if (
+    liveKitRoomServiceClientCache?.apiKey === apiKey &&
+    liveKitRoomServiceClientCache.apiSecret === apiSecret &&
+    liveKitRoomServiceClientCache.serviceUrl === serviceUrl
+  ) {
+    return liveKitRoomServiceClientCache.client;
+  }
+
+  const client = new RoomServiceClient(serviceUrl, apiKey, apiSecret);
+  liveKitRoomServiceClientCache = {
+    apiKey,
+    apiSecret,
+    client,
+    serviceUrl,
+  };
+
+  return client;
 }
 
 async function resolveVoiceRoomName(userId: string, channelId: string) {

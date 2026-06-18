@@ -31,7 +31,7 @@ function formatWhisprVersion(version: string, codename: string) {
 }
 
 const WHISPR_VERSION_NUMBER =
-  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.10";
+  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.11";
 export const WHISPR_RELEASE_CODENAME =
   process.env.NEXT_PUBLIC_WHISPR_RELEASE_CODENAME ?? "Echo";
 export const WHISPR_APP_VERSION = formatWhisprVersion(
@@ -46,6 +46,36 @@ export const WHISPR_RELEASE_CHANNEL =
   process.env.NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL ?? "beta";
 
 export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
+  {
+    categoryKey: "app.update.category.performance",
+    descriptionKey: "app.update.notes.runtimeEfficiency.description",
+    fallbackCategory: "Performance",
+    fallbackDescription:
+      "Production now runs the compiled web server instead of a TypeScript runtime, can move outbox work to a dedicated process, caches readiness checks briefly, and adds safer workspace fanout metrics.",
+    fallbackTitle: "Leaner production runtime",
+    id: "runtime-efficiency",
+    titleKey: "app.update.notes.runtimeEfficiency.title",
+  },
+  {
+    categoryKey: "app.update.category.performance",
+    descriptionKey: "app.update.notes.clientBundleTrim.description",
+    fallbackCategory: "Performance",
+    fallbackDescription:
+      "Locale messages are split by language for lighter client delivery, unused font loading was removed, admin snapshots and link previews do less repeated work, and metrics stay opt-in.",
+    fallbackTitle: "Lighter client and server work",
+    id: "client-bundle-trim",
+    titleKey: "app.update.notes.clientBundleTrim.title",
+  },
+  {
+    categoryKey: "app.update.category.design",
+    descriptionKey: "app.update.notes.animatedWhisprIdentity.description",
+    fallbackCategory: "Design",
+    fallbackDescription:
+      "The animated Whispr identity now appears consistently in the server rail and settings sidebar without replacing the existing brand mark.",
+    fallbackTitle: "Animated Whispr identity",
+    id: "animated-whispr-identity",
+    titleKey: "app.update.notes.animatedWhisprIdentity.title",
+  },
   {
     categoryKey: "app.update.category.design",
     descriptionKey: "app.update.notes.settingsInformationArchitecture.description",

@@ -3,21 +3,29 @@ import { cleanupAccountReauthChallenges } from "@/lib/auth/reauth-cleanup";
 import { cleanupOutboxJobs, drainOutboxJobs } from "@/lib/outbox/service";
 
 const DEFAULT_OUTBOX_WORKER_BATCH_SIZE = 25;
-const DEFAULT_OUTBOX_WORKER_INTERVAL_MS = 1_000;
+const DEFAULT_OUTBOX_WORKER_INTERVAL_MS = 5_000;
 const OUTBOX_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
 let workerTimer: ReturnType<typeof setInterval> | null = null;
 let drainInFlight = false;
 let lastCleanupAt = 0;
 
+type StartOutboxWorkerOptions = {
+  keepAlive?: boolean;
+  runImmediately?: boolean;
+};
+
 function readPositiveIntegerEnv(name: string, fallback: number) {
   const value = Number.parseInt(process.env[name] ?? "", 10);
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
-export function startOutboxWorker() {
+export function startOutboxWorker({
+  keepAlive = false,
+  runImmediately = true,
+}: StartOutboxWorkerOptions = {}) {
   if (workerTimer || process.env.WHISPR_OUTBOX_WORKER === "false") {
-    return;
+    return false;
   }
 
   const batchSize = readPositiveIntegerEnv(
@@ -55,9 +63,16 @@ export function startOutboxWorker() {
       });
   };
 
-  drain();
+  if (runImmediately) {
+    drain();
+  }
+
   workerTimer = setInterval(drain, intervalMs);
-  workerTimer.unref?.();
+  if (!keepAlive) {
+    workerTimer.unref?.();
+  }
+
+  return true;
 }
 
 export function stopOutboxWorkerForTests() {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { normalizeAppLocale } from "@/lib/locale";
+import { normalizeAppLocale } from "@/lib/locale/core";
 import { useI18n } from "@/components/providers/locale-provider";
 
 type LocaleSessionSyncProps = {

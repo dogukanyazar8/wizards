@@ -32,6 +32,26 @@ const EXPORTED_METHOD_PATTERN =
 const MUTATING_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 const PARSE_JSON_BODY_CALL_PATTERN = /\bparseJsonBody\s*\(/;
 const RAW_REQUEST_BODY_CALL_PATTERN = /\b(?:request|req)\.(?:json|text|formData)\s*\(/;
+const RATE_LIMIT_CALL_PATTERN =
+  /enforceApiRateLimit\s*\(\s*[^,]+,\s*"([^"]+)"\s*\)/g;
+
+const EXPECTED_RATE_LIMIT_ACTIONS = [
+  {
+    action: "server:detail",
+    method: "GET",
+    routePath: "servers/[serverId]",
+  },
+  {
+    action: "server:update",
+    method: "PATCH",
+    routePath: "servers/[serverId]",
+  },
+  {
+    action: "server:delete",
+    method: "DELETE",
+    routePath: "servers/[serverId]",
+  },
+] as const;
 
 type RouteFile = {
   content: string;
@@ -61,6 +81,25 @@ function exportedMethods(content: string) {
   return [...content.matchAll(EXPORTED_METHOD_PATTERN)]
     .map((match) => match[1] || match[2])
     .filter((method): method is string => Boolean(method));
+}
+
+function routeMethodBody(content: string, method: string) {
+  const methodMatch = new RegExp(
+    `export\\s+(?:async\\s+)?function\\s+${method}\\b|export\\s+const\\s+${method}\\b`,
+  ).exec(content);
+  if (!methodMatch) {
+    return "";
+  }
+
+  const rest = content.slice(methodMatch.index + methodMatch[0].length);
+  const nextMethodMatch = EXPORTED_METHOD_PATTERN.exec(rest);
+  EXPORTED_METHOD_PATTERN.lastIndex = 0;
+
+  return nextMethodMatch ? rest.slice(0, nextMethodMatch.index) : rest;
+}
+
+function rateLimitActions(content: string) {
+  return [...content.matchAll(RATE_LIMIT_CALL_PATTERN)].map((match) => match[1]);
 }
 
 function readRoutes(): RouteFile[] {
@@ -134,5 +173,16 @@ describe("API v1 route contract", () => {
       .map((route) => route.path);
 
     assert.deepEqual(rawBodyReaders, []);
+  });
+
+  it("keeps high-risk route rate-limit actions mapped to the intended method", () => {
+    for (const expected of EXPECTED_RATE_LIMIT_ACTIONS) {
+      const route = routes.find((candidate) => candidate.routePath === expected.routePath);
+      assert.ok(route, `Missing route for ${expected.routePath}`);
+
+      const body = routeMethodBody(route.content, expected.method);
+      assert.ok(body, `Missing ${expected.method} in ${expected.routePath}`);
+      assert.deepEqual(rateLimitActions(body), [expected.action]);
+    }
   });
 });

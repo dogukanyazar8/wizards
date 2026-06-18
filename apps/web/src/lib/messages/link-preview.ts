@@ -10,10 +10,11 @@ import { logError } from "@/lib/logger";
 import { getRedis } from "@/lib/redis";
 
 const LINK_PREVIEW_TIMEOUT_MS = 2500;
-const LINK_PREVIEW_MAX_BYTES = 512 * 1024;
+const LINK_PREVIEW_MAX_BYTES = 256 * 1024;
 const LINK_PREVIEW_CACHE_SECONDS = 12 * 60 * 60;
 const LINK_PREVIEW_USER_AGENT = "WhisprLinkPreview/1.0";
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+const inFlightPreviewRequests = new Map<string, Promise<LinkPreview>>();
 
 type ResolvedAddress = {
   address: string;
@@ -386,6 +387,11 @@ function isRedirectStatus(status: number) {
   return REDIRECT_STATUSES.has(status);
 }
 
+function isHtmlContentType(contentType: string) {
+  const normalized = contentType.toLowerCase();
+  return normalized.includes("text/html") || normalized.includes("application/xhtml+xml");
+}
+
 export function extractLinkPreviewMetadata(
   html: string,
   sourceUrl: URL,
@@ -488,6 +494,14 @@ function requestPublicHttpUrl(
           getHeader(incoming.headers, "content-length") ?? "0",
           10,
         );
+        const contentType = getHeader(incoming.headers, "content-type") ?? "";
+        if (contentType && !isHtmlContentType(contentType)) {
+          incoming.resume();
+          request.destroy();
+          finish(new ApiError("Link preview is unavailable.", 415, "PREVIEW_UNAVAILABLE"));
+          return;
+        }
+
         if (Number.isFinite(contentLength) && contentLength > LINK_PREVIEW_MAX_BYTES) {
           incoming.resume();
           request.destroy();
@@ -537,19 +551,11 @@ function requestPublicHttpUrl(
   });
 }
 
-export async function fetchLinkPreview(
-  rawUrl: string,
-  options: LinkPreviewFetchOptions = {},
-): Promise<LinkPreview> {
-  const resolveHost = options.resolveHost ?? resolvePublicHostAddresses;
-  const initialTarget = await assertPublicHttpUrl(rawUrl, resolveHost);
-  const normalizedUrl = initialTarget.url.toString();
-  const cached = await readCachedPreview(normalizedUrl);
-
-  if (cached) {
-    return cached;
-  }
-
+async function fetchLinkPreviewFromTarget(
+  normalizedUrl: string,
+  initialTarget: PublicHttpUrl,
+  resolveHost: ResolveHost,
+) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), LINK_PREVIEW_TIMEOUT_MS);
 
@@ -580,7 +586,7 @@ export async function fetchLinkPreview(
     }
 
     const contentType = getHeader(response.headers, "content-type") ?? "";
-    if (!contentType.toLowerCase().includes("text/html")) {
+    if (!isHtmlContentType(contentType)) {
       throw new ApiError("Link preview is unavailable.", 415, "PREVIEW_UNAVAILABLE");
     }
 
@@ -605,4 +611,38 @@ export async function fetchLinkPreview(
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+export async function fetchLinkPreview(
+  rawUrl: string,
+  options: LinkPreviewFetchOptions = {},
+): Promise<LinkPreview> {
+  const resolveHost = options.resolveHost ?? resolvePublicHostAddresses;
+  const initialTarget = await assertPublicHttpUrl(rawUrl, resolveHost);
+  const normalizedUrl = initialTarget.url.toString();
+  const cached = await readCachedPreview(normalizedUrl);
+
+  if (cached) {
+    return cached;
+  }
+
+  if (options.resolveHost) {
+    return fetchLinkPreviewFromTarget(normalizedUrl, initialTarget, resolveHost);
+  }
+
+  const inFlight = inFlightPreviewRequests.get(normalizedUrl);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const promise = fetchLinkPreviewFromTarget(normalizedUrl, initialTarget, resolveHost).finally(
+    () => {
+      if (inFlightPreviewRequests.get(normalizedUrl) === promise) {
+        inFlightPreviewRequests.delete(normalizedUrl);
+      }
+    },
+  );
+  inFlightPreviewRequests.set(normalizedUrl, promise);
+
+  return promise;
 }

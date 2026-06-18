@@ -33,6 +33,10 @@ describe("API rate limit configuration", () => {
       "user:data-export",
       "user:delete",
       "notification:mark-read",
+      "link-preview",
+      "server:detail",
+      "server:delete",
+      "server:update",
     ];
 
     for (const action of requiredActions) {
@@ -47,6 +51,8 @@ describe("API rate limit configuration", () => {
       "voice:states:list": { limit: 30, windowSeconds: 60 },
       "dm:mark-read": { limit: 180, windowSeconds: 60 },
       "channel:messages:list": { limit: 120, windowSeconds: 60 },
+      "server:detail": { limit: 240, windowSeconds: 60 },
+      "link-preview": { limit: 30, windowSeconds: 60 },
     } satisfies Partial<
       Record<ApiRateLimitAction, { limit: number; windowSeconds: number }>
     >;

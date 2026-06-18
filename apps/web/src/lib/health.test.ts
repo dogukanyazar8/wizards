@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { getOperationalProbeResponse, getReadinessPayload, getReadinessStatusCode } from "./health";
+import {
+  getOperationalProbeResponse,
+  getReadinessPayload,
+  getReadinessStatusCode,
+  resetReadinessCacheForTests,
+} from "./health";
 
 const fixedDate = new Date("2026-05-14T00:00:00.000Z");
 
@@ -68,6 +73,46 @@ describe("health probes", () => {
     });
     assert.equal(readiness.status, "error");
     assert.equal(getReadinessStatusCode(readiness), 503);
+  });
+
+  it("does not cache injected readiness checks", async () => {
+    const originalCacheMs = process.env.WHISPR_READY_CACHE_MS;
+    process.env.WHISPR_READY_CACHE_MS = "2000";
+    resetReadinessCacheForTests();
+
+    try {
+      let databaseChecks = 0;
+      let redisChecks = 0;
+      const defaultChecks = {
+        database: async () => {
+          databaseChecks += 1;
+          return 1;
+        },
+        redis: async () => {
+          redisChecks += 1;
+          return "PONG";
+        },
+      };
+
+      await getReadinessPayload({
+        checks: defaultChecks,
+        now: new Date("2026-05-14T00:00:00.000Z"),
+      });
+      await getReadinessPayload({
+        checks: defaultChecks,
+        now: new Date("2026-05-14T00:00:01.000Z"),
+      });
+
+      assert.equal(databaseChecks, 2);
+      assert.equal(redisChecks, 2);
+    } finally {
+      if (originalCacheMs === undefined) {
+        delete process.env.WHISPR_READY_CACHE_MS;
+      } else {
+        process.env.WHISPR_READY_CACHE_MS = originalCacheMs;
+      }
+      resetReadinessCacheForTests();
+    }
   });
 
   it("maps /ready to readiness and ignores non-probe paths", async () => {
