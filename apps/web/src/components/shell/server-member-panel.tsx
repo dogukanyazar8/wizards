@@ -4,8 +4,11 @@ import { useCallback, useMemo, useState } from "react";
 import {
   ChevronRight,
   Crown,
+  Download,
+  ExternalLink,
   Hash,
   Info,
+  Laptop,
   PanelRightClose,
   PanelRightOpen,
   Radio,
@@ -29,6 +32,12 @@ import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { useVoiceStates } from "@/hooks/use-voice-states";
+import {
+  WHISPR_APP_VERSION,
+  WHISPR_DESKTOP_DOWNLOAD_URL,
+  WHISPR_RELEASE_CHANNEL,
+} from "@/lib/app-version";
+import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { VoiceChannelStateDTO } from "@/lib/voice/types";
@@ -684,6 +693,62 @@ function QuickAccessCard({
   );
 }
 
+function DesktopDownloadCard({
+  ctaLabel,
+  description,
+  downloadUrl,
+  hint,
+  title,
+  versionLabel,
+}: {
+  ctaLabel: string;
+  description: string;
+  downloadUrl: string;
+  hint: string;
+  title: string;
+  versionLabel: string;
+}) {
+  return (
+    <section
+      aria-label={title}
+      className="mt-4 rounded-[24px] bg-[linear-gradient(135deg,hsl(var(--primary)/0.1),hsl(var(--surface-card)/0.64)_48%,hsl(var(--accent)/0.08))] p-3.5"
+    >
+      <div className="flex items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[18px] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
+          <Laptop className="h-[18px] w-[18px]" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm font-bold text-app-foreground">{title}</h2>
+          <p className="mt-1 text-xs leading-5 text-app-muted">{description}</p>
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="max-w-full truncate rounded-full bg-[hsl(var(--surface-card)/0.72)] px-2.5 py-1 text-[11px] font-bold text-app-muted">
+          {versionLabel}
+        </span>
+        <span className="rounded-full bg-[hsl(var(--primary)/0.1)] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[hsl(var(--primary))]">
+          {WHISPR_RELEASE_CHANNEL}
+        </span>
+      </div>
+
+      <a
+        aria-label={ctaLabel}
+        className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-[18px] bg-[hsl(var(--primary))] px-3 py-2 text-sm font-bold text-[hsl(var(--primary-foreground))] shadow-[0_14px_32px_hsl(var(--primary)/0.18)] transition hover:translate-y-[-1px] hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface-card))] motion-reduce:transform-none"
+        href={downloadUrl}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        <Download className="h-4 w-4" />
+        <span>{ctaLabel}</span>
+        <ExternalLink className="h-3.5 w-3.5 opacity-75" />
+      </a>
+
+      <p className="mt-2 text-[11px] leading-4 text-app-soft">{hint}</p>
+    </section>
+  );
+}
+
 export function ServerMemberPanel({
   detail,
   onClose,
@@ -773,6 +838,7 @@ export function ServerMemberPanel({
   }, [closePanelMenu, memberPanelCollapsed, setMemberPanelCollapsed]);
   const isDrawer = variant === "drawer";
   const isCollapsed = !isDrawer && memberPanelCollapsed;
+  const showDesktopDownloadCard = !isCollapsed && !isWhisprDesktopRuntime();
   const canManageServer = detail.server.isAdmin || detail.server.isOwner;
   const quickActions = useMemo<QuickAction[]>(() => {
     if (!canManageServer) {
@@ -937,6 +1003,17 @@ export function ServerMemberPanel({
           />
         </section>
       </div>
+
+      {showDesktopDownloadCard ? (
+        <DesktopDownloadCard
+          ctaLabel={t("shell.memberPanel.desktopDownloadCta")}
+          description={t("shell.memberPanel.desktopDownloadDescription")}
+          downloadUrl={WHISPR_DESKTOP_DOWNLOAD_URL}
+          hint={t("shell.memberPanel.desktopDownloadHint")}
+          title={t("shell.memberPanel.desktopDownloadTitle")}
+          versionLabel={WHISPR_APP_VERSION}
+        />
+      ) : null}
 
       <ContextMenu onClose={closePanelMenu} open={!isDrawer && panelMenu.open} position={panelMenu}>
         <ContextMenuItem className="gap-2" onClick={toggleMemberPanelCollapsed}>

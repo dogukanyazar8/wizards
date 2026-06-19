@@ -1714,6 +1714,12 @@ export const EN_MESSAGES = {
     "shell.memberPanel.activeVoice": "Active now",
     "shell.memberPanel.activeVoiceLive": "Live",
     "shell.memberPanel.voiceParticipants": "{count} in voice",
+    "shell.memberPanel.desktopDownloadTitle": "Whispr Desktop",
+    "shell.memberPanel.desktopDownloadDescription":
+      "Download the latest desktop build and use Whispr with native notifications, tray behavior, and voice shortcuts.",
+    "shell.memberPanel.desktopDownloadCta": "Download desktop",
+    "shell.memberPanel.desktopDownloadHint":
+      "UAT and production download targets are controlled through a safe HTTPS release link.",
     "shell.user.toggleMute": "Toggle mute",
     "shell.user.toggleDeafen": "Toggle deafen",
     "shell.user.status": "Online status",
@@ -2022,7 +2028,6 @@ export const EN_MESSAGES = {
     "notifications.bell.empty": "No notifications",
     "notifications.bell.new": "New",
     "notifications.bell.unreadSummary": "{count} unread updates waiting for you",
-    "notifications.bell.liveUpdates": "Live updates",
     "notifications.bell.emptyDescription":
       "You're all caught up. New mentions, requests, and direct messages will land here.",
     "notifications.type.friendRequest": "{name} sent you a friend request",

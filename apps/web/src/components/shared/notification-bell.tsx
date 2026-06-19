@@ -24,14 +24,27 @@ import {
 import type { NotificationDTO } from "@/lib/notifications/types";
 import { cn } from "@/lib/utils";
 
+const COMPACT_NOTIFICATION_LIMIT = 8;
+const NOTIFICATION_POPUP_WIDTH = 304;
+
 function formatNotificationDate(locale: string, createdAt: string) {
   return new Intl.DateTimeFormat(locale, {
-    dateStyle: "medium",
+    dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(createdAt));
 }
 
-export function NotificationBell({ className }: { className?: string } = {}) {
+type NotificationBellProps = {
+  className?: string;
+  onOpenChange?: (open: boolean) => void;
+  open?: boolean;
+};
+
+export function NotificationBell({
+  className,
+  onOpenChange,
+  open: controlledOpen,
+}: NotificationBellProps = {}) {
   const { locale, t } = useI18n();
   const router = useRouter();
   const socket = useSocket();
@@ -50,7 +63,7 @@ export function NotificationBell({ className }: { className?: string } = {}) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const baseTitleRef = useRef<string | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [dropdownPos, setDropdownPos] = useState<{
@@ -58,6 +71,18 @@ export function NotificationBell({ className }: { className?: string } = {}) {
     left: number;
     maxHeight: number;
   } | null>(null);
+  const popupNotificationLimit = Math.min(notificationLimit, COMPACT_NOTIFICATION_LIMIT);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setPopoverOpen = useCallback(
+    (nextOpen: boolean) => {
+      if (controlledOpen === undefined) {
+        setUncontrolledOpen(nextOpen);
+      }
+
+      onOpenChange?.(nextOpen);
+    },
+    [controlledOpen, onOpenChange],
+  );
 
   const unreadQuery = useQuery({
     queryFn: fetchUnreadCount,
@@ -67,24 +92,32 @@ export function NotificationBell({ className }: { className?: string } = {}) {
 
   const listQuery = useQuery({
     enabled: open,
-    queryFn: () => fetchNotifications(notificationLimit),
-    queryKey: notificationsQueryKeys.list(notificationLimit),
+    queryFn: () => fetchNotifications(popupNotificationLimit),
+    queryKey: notificationsQueryKeys.list(popupNotificationLimit),
     staleTime: 30_000,
   });
 
   const syncNotificationQueries = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.unreadCount });
     void queryClient.invalidateQueries({
-      queryKey: notificationsQueryKeys.list(notificationLimit),
+      queryKey: notificationsQueryKeys.list(popupNotificationLimit),
     });
-  }, [notificationLimit, queryClient]);
+  }, [popupNotificationLimit, queryClient]);
+
+  const prefetchNotifications = useCallback(() => {
+    void queryClient.prefetchQuery({
+      queryFn: () => fetchNotifications(popupNotificationLimit),
+      queryKey: notificationsQueryKeys.list(popupNotificationLimit),
+      staleTime: 30_000,
+    });
+  }, [popupNotificationLimit, queryClient]);
 
   const removeFriendRequestNotification = useCallback(
     (requestId: string) => {
       let removedUnreadCount = 0;
 
       queryClient.setQueryData<NotificationDTO[] | undefined>(
-        notificationsQueryKeys.list(notificationLimit),
+        notificationsQueryKeys.list(popupNotificationLimit),
         (current) => {
           if (!current) {
             return current;
@@ -110,7 +143,7 @@ export function NotificationBell({ className }: { className?: string } = {}) {
 
       syncNotificationQueries();
     },
-    [notificationLimit, queryClient, syncNotificationQueries],
+    [popupNotificationLimit, queryClient, syncNotificationQueries],
   );
 
   useEffect(() => {
@@ -175,12 +208,12 @@ export function NotificationBell({ className }: { className?: string } = {}) {
         return;
       }
 
-      setOpen(false);
+      setPopoverOpen(false);
     };
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setOpen(false);
+        setPopoverOpen(false);
       }
     };
 
@@ -191,7 +224,7 @@ export function NotificationBell({ className }: { className?: string } = {}) {
       document.removeEventListener("pointerdown", handlePointerDown, true);
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [open]);
+  }, [open, setPopoverOpen]);
 
   useEffect(() => {
     if (!open || !notificationAutoClose) {
@@ -199,11 +232,11 @@ export function NotificationBell({ className }: { className?: string } = {}) {
     }
 
     const timeout = window.setTimeout(() => {
-      setOpen(false);
+      setPopoverOpen(false);
     }, notificationPopupTimeoutSeconds * 1000);
 
     return () => window.clearTimeout(timeout);
-  }, [notificationAutoClose, notificationPopupTimeoutSeconds, open]);
+  }, [notificationAutoClose, notificationPopupTimeoutSeconds, open, setPopoverOpen]);
 
   const markAllMutation = useMutation({
     mutationFn: markAllNotificationsRead,
@@ -218,7 +251,7 @@ export function NotificationBell({ className }: { className?: string } = {}) {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.unreadCount });
       await queryClient.invalidateQueries({
-        queryKey: notificationsQueryKeys.list(notificationLimit),
+        queryKey: notificationsQueryKeys.list(popupNotificationLimit),
       });
     },
   });
@@ -234,10 +267,11 @@ export function NotificationBell({ className }: { className?: string } = {}) {
       setUnreadCount(context?.previousCount ?? 0);
     },
     onSuccess: async () => {
-      setOpen(false);
+      setPopoverOpen(false);
+      setDropdownPos(null);
       await queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.unreadCount });
       await queryClient.invalidateQueries({
-        queryKey: notificationsQueryKeys.list(notificationLimit),
+        queryKey: notificationsQueryKeys.list(popupNotificationLimit),
       });
     },
   });
@@ -249,7 +283,7 @@ export function NotificationBell({ className }: { className?: string } = {}) {
   );
 
   const closePopover = () => {
-    setOpen(false);
+    setPopoverOpen(false);
     setDropdownPos(null);
   };
 
@@ -265,7 +299,7 @@ export function NotificationBell({ className }: { className?: string } = {}) {
 
     if (isMobileViewport) {
       setDropdownPos({ bottom: 0, left: 0, maxHeight: window.innerHeight });
-      setOpen(true);
+      setPopoverOpen(true);
       return;
     }
 
@@ -276,23 +310,23 @@ export function NotificationBell({ className }: { className?: string } = {}) {
     const userBarAnchor = buttonRef.current.closest<HTMLElement>("[data-user-bar-anchor='true']");
     const sidebarRoot = buttonRef.current.closest<HTMLElement>(".app-sidebar");
     const anchorElement =
+      userBarAnchor ??
       controlsRoot ??
       sidebarRoot?.querySelector<HTMLElement>("[data-notification-popup-anchor='controls-border']") ??
       sidebarRoot?.querySelector<HTMLElement>("[data-notification-popup-anchor='voice']") ??
-      sidebarRoot?.querySelector<HTMLElement>("[data-notification-popup-anchor='user']") ??
-      userBarAnchor;
+      sidebarRoot?.querySelector<HTMLElement>("[data-notification-popup-anchor='user']");
     const userBarRect = anchorElement?.getBoundingClientRect() ?? rect;
-    const minMargin = 16;
-    const popupWidth = Math.min(384, window.innerWidth - minMargin * 2);
+    const minMargin = 12;
+    const popupWidth = Math.min(NOTIFICATION_POPUP_WIDTH, window.innerWidth - minMargin * 2);
     const gapFromBar = 6;
     const bottom = Math.max(minMargin, window.innerHeight - userBarRect.top + gapFromBar);
-    const maxHeight = Math.max(280, userBarRect.top - gapFromBar - minMargin);
+    const maxHeight = Math.max(260, userBarRect.top - gapFromBar - minMargin);
 
     let left = userBarRect.right - popupWidth;
     left = Math.max(minMargin, Math.min(left, window.innerWidth - popupWidth - minMargin));
 
     setDropdownPos({ bottom, left, maxHeight });
-    setOpen(true);
+    setPopoverOpen(true);
   };
 
   const handleReadAndNavigate = async (notification: NotificationDTO) => {
@@ -301,7 +335,7 @@ export function NotificationBell({ className }: { className?: string } = {}) {
       setUnreadCount((current) => Math.max(0, current - 1));
       void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.unreadCount });
       void queryClient.invalidateQueries({
-        queryKey: notificationsQueryKeys.list(notificationLimit),
+        queryKey: notificationsQueryKeys.list(popupNotificationLimit),
       });
     }
 
@@ -321,6 +355,8 @@ export function NotificationBell({ className }: { className?: string } = {}) {
           className,
         )}
         data-testid="notification-bell-button"
+        onFocus={prefetchNotifications}
+        onMouseEnter={prefetchNotifications}
         onClick={handleToggle}
         type="button"
       >
@@ -343,10 +379,10 @@ export function NotificationBell({ className }: { className?: string } = {}) {
                   ref={popoverRef}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   className={cn(
-                    "fixed z-[80] overflow-hidden border border-[hsl(var(--border)/0.72)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.96),hsl(var(--surface-soft)/0.8))] shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)] backdrop-blur-xl",
+                    "fixed z-[80] overflow-hidden border border-[hsl(var(--border)/0.66)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.98),hsl(var(--surface-soft)/0.9))] shadow-[0_18px_46px_hsl(var(--shadow-color)/0.14)] backdrop-blur-xl",
                     isMobileViewport
-                      ? "inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-h-[min(34rem,calc(100dvh-1.5rem))] rounded-[28px]"
-                      : "w-[min(24rem,calc(100vw-2rem))] rounded-[28px]",
+                      ? "inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] max-h-[min(30rem,calc(100dvh-1rem))] rounded-[22px]"
+                      : "w-[min(19rem,calc(100vw-1.25rem))] rounded-[22px]",
                   )}
                   data-notification-popup="true"
                   exit={{ opacity: 0, scale: 0.97, y: -10 }}
@@ -362,72 +398,64 @@ export function NotificationBell({ className }: { className?: string } = {}) {
                   }
                   transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <div className="border-b border-[hsl(var(--border)/0.72)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.92),hsl(var(--primary)/0.12))] px-5 py-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <div className="app-panel-soft flex h-10 w-10 items-center justify-center rounded-2xl border">
-                            <Sparkles className="h-4 w-4 text-app-foreground" />
-                          </div>
-                          <div>
-                            <h3 className="text-sm font-semibold text-app-foreground">
-                              {t("notifications.bell.title")}
-                            </h3>
-                            <p className="mt-1 text-xs text-app-muted">{unreadSummaryLabel}</p>
-                          </div>
+                  <div className="border-b border-[hsl(var(--border)/0.58)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.94),hsl(var(--primary)/0.08))] px-3 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl border border-[hsl(var(--primary)/0.16)] bg-[hsl(var(--primary)/0.09)] text-[hsl(var(--primary))]">
+                          <Sparkles className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="truncate text-sm font-semibold text-app-foreground">
+                            {t("notifications.bell.title")}
+                          </h3>
+                          <p className="mt-0.5 truncate text-[11px] text-app-muted">
+                            {unreadSummaryLabel}
+                          </p>
                         </div>
                       </div>
-                      {unreadCount > 0 ? <Badge>{unreadCount}</Badge> : null}
-                    </div>
-
-                    <div className="mt-4 flex items-center justify-between gap-3">
-                      <span className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-soft)/0.52)] px-3 py-1.5 text-[11px] font-medium text-app-muted">
-                        <Inbox className="h-3.5 w-3.5" />
-                        {t("notifications.bell.liveUpdates")}
-                      </span>
                       {unreadCount > 0 ? (
                         <button
-                          className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary))] px-3 py-1.5 text-[11px] font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_12px_24px_hsl(var(--primary)/0.24)] transition hover:brightness-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
+                          className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary))] px-2.5 text-[11px] font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_10px_20px_hsl(var(--primary)/0.18)] transition hover:brightness-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
                           disabled={markAllMutation.isPending}
                           onClick={() => markAllMutation.mutate()}
                           type="button"
                         >
-                          <CheckCheck className="h-3.5 w-3.5" />
+                          <CheckCheck className="h-3 w-3" />
                           {t("notifications.bell.markAllRead")}
                         </button>
                       ) : null}
                     </div>
                   </div>
 
-                  <div className="max-h-[min(24rem,calc(100dvh-13rem))] overflow-y-auto p-3 sm:max-h-[28rem]">
+                  <div className="max-h-[min(19rem,calc(100dvh-10rem))] overflow-y-auto p-2 sm:max-h-[22rem]">
                     {listQuery.isLoading ? (
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {Array.from({ length: 4 }).map((_, index) => (
-                          <div className="app-panel rounded-[24px] border p-4" key={index}>
-                            <div className="flex items-center gap-3">
-                              <div className="h-11 w-11 animate-pulse rounded-full bg-[hsl(var(--surface-soft))]" />
-                              <div className="min-w-0 flex-1 space-y-2">
-                                <div className="h-3 w-24 animate-pulse rounded-full bg-[hsl(var(--surface-soft))]" />
-                                <div className="h-4 w-40 animate-pulse rounded-full bg-[hsl(var(--surface-soft)/0.85)]" />
+                          <div className="rounded-[18px] bg-[hsl(var(--surface-card)/0.5)] p-2.5" key={index}>
+                            <div className="flex items-center gap-2.5">
+                              <div className="h-8 w-8 animate-pulse rounded-full bg-[hsl(var(--surface-soft))]" />
+                              <div className="min-w-0 flex-1 space-y-1.5">
+                                <div className="h-2.5 w-20 animate-pulse rounded-full bg-[hsl(var(--surface-soft))]" />
+                                <div className="h-3 w-32 animate-pulse rounded-full bg-[hsl(var(--surface-soft)/0.85)]" />
                               </div>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : list.length === 0 ? (
-                      <div className="app-panel flex min-h-[220px] flex-col items-center justify-center rounded-[26px] border border-dashed border-[hsl(var(--border)/0.7)] px-5 text-center sm:min-h-[260px] sm:px-6">
-                        <div className="app-panel-soft flex h-14 w-14 items-center justify-center rounded-[22px] border">
-                          <Inbox className="h-5 w-5 text-app-muted" />
+                      <div className="flex min-h-[168px] flex-col items-center justify-center rounded-[20px] border border-dashed border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.48)] px-4 text-center">
+                        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-[hsl(var(--surface-soft)/0.7)]">
+                          <Inbox className="h-4 w-4 text-app-muted" />
                         </div>
-                        <p className="mt-4 text-sm font-semibold text-app-foreground">
+                        <p className="mt-3 text-sm font-semibold text-app-foreground">
                           {t("notifications.bell.empty")}
                         </p>
-                        <p className="mt-2 text-sm leading-6 text-app-muted">
+                        <p className="mt-1.5 text-xs leading-5 text-app-muted">
                           {t("notifications.bell.emptyDescription")}
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="space-y-1.5">
                         {list.map((notification) => (
                           <NotificationItem
                             key={notification.id}
@@ -443,10 +471,10 @@ export function NotificationBell({ className }: { className?: string } = {}) {
                   </div>
 
                   {list.length > 0 ? (
-                    <div className="border-t border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.72)] px-4 py-3">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                    <div className="border-t border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.78)] px-2.5 py-2.5">
+                      <div className="flex items-center gap-2">
                         <button
-                          className="min-h-11 flex-1 rounded-2xl border border-[hsl(var(--border)/0.78)] px-3 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                          className="min-h-9 flex-1 rounded-xl border border-[hsl(var(--border)/0.68)] px-3 text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                           onClick={() => {
                             closePopover();
                             router.push("/channels/@me");
@@ -456,12 +484,12 @@ export function NotificationBell({ className }: { className?: string } = {}) {
                           {t("notifications.bell.seeAll")}
                         </button>
                         <button
-                          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.14)] px-3 py-2 text-sm font-medium text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:opacity-50"
+                          className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.1)] px-2.5 text-xs font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:opacity-50"
                           disabled={clearAllMutation.isPending}
                           onClick={() => clearAllMutation.mutate()}
                           type="button"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5" />
                           {t("notifications.bell.clearAll")}
                         </button>
                       </div>
@@ -513,10 +541,10 @@ function NotificationItem({
 
   return (
     <div
-      className={`app-panel w-full rounded-[24px] border p-4 transition ${
+      className={`w-full rounded-[18px] border px-2.5 py-2 transition ${
         notification.readAt
-          ? "border-[hsl(var(--border)/0.62)] opacity-80 hover:bg-[hsl(var(--surface-soft)/0.28)]"
-          : "border-[hsl(var(--primary)/0.28)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.12),hsl(var(--surface-card)/0.92))] shadow-[0_16px_34px_hsl(var(--shadow-color)/0.08)] hover:opacity-95"
+          ? "border-transparent bg-transparent opacity-80 hover:border-[hsl(var(--border)/0.42)] hover:bg-[hsl(var(--surface-card)/0.52)]"
+          : "border-[hsl(var(--primary)/0.2)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.1),hsl(var(--surface-card)/0.82))] shadow-[0_10px_24px_hsl(var(--shadow-color)/0.06)] hover:bg-[linear-gradient(135deg,hsl(var(--primary)/0.13),hsl(var(--surface-card)/0.92))]"
       }`}
       data-testid="notification-item"
     >
@@ -525,27 +553,28 @@ function NotificationItem({
         onClick={handleClick}
         type="button"
       >
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-2.5">
           <Avatar
             alt={actorName}
-            className="h-11 w-11 shrink-0 text-sm"
+            className="h-8 w-8 shrink-0 text-xs"
             fallback={actorName}
             src={actorAvatarUrl}
           />
 
           <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="truncate text-xs font-semibold uppercase tracking-[0.18em] text-app-soft">
-                  @{actorUsername}
+                <p className="truncate text-[11px] font-semibold text-app-muted">
+                  {actorName}
+                  <span className="ml-1 text-app-soft">@{actorUsername}</span>
                 </p>
-                <p className="mt-2 text-sm font-semibold text-app-foreground">
+                <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-app-foreground [overflow-wrap:anywhere]">
                   {notification.message}
                 </p>
               </div>
               {!notification.readAt ? (
                 <Badge
-                  className="border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
+                  className="shrink-0 border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary))] px-1.5 py-0 text-[10px] text-[hsl(var(--primary-foreground))]"
                   tone="danger"
                 >
                   {t("notifications.bell.new")}
@@ -553,13 +582,11 @@ function NotificationItem({
               ) : null}
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-app-muted">
-              <span>{actorName}</span>
-              <span className="text-app-soft">/</span>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-app-soft">
               <span>{formatNotificationDate(locale, notification.createdAt)}</span>
               {isReading && !notification.readAt ? (
                 <>
-                  <span className="text-app-soft">/</span>
+                  <span>/</span>
                   <span>...</span>
                 </>
               ) : null}
@@ -569,7 +596,7 @@ function NotificationItem({
       </button>
 
       {notification.type === "FRIEND_REQUEST" && notification.meta?.friendRequestId ? (
-        <div className="mt-4 border-t border-[hsl(var(--border)/0.62)] pt-4">
+        <div className="mt-2 border-t border-[hsl(var(--border)/0.48)] pt-2">
           <FriendRequestActions
             onHandled={onDismissFriendRequest}
             requestId={notification.meta.friendRequestId}
@@ -612,7 +639,7 @@ function FriendRequestActions({
   return (
     <div className="flex gap-2">
       <button
-        className="flex-1 rounded-2xl bg-[hsl(var(--primary))] px-3 py-2 text-xs font-semibold text-[hsl(var(--primary-foreground))] transition hover:opacity-90 disabled:opacity-50"
+        className="min-h-8 flex-1 rounded-xl bg-[hsl(var(--primary))] px-2.5 text-[11px] font-semibold text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
         disabled={acceptMutation.isPending || declineMutation.isPending}
         onClick={() => acceptMutation.mutate()}
         type="button"
@@ -620,7 +647,7 @@ function FriendRequestActions({
         {t("notifications.actions.accept")}
       </button>
       <button
-        className="flex-1 rounded-2xl border border-[hsl(var(--border)/0.78)] px-3 py-2 text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] disabled:opacity-50"
+        className="min-h-8 flex-1 rounded-xl border border-[hsl(var(--border)/0.66)] px-2.5 text-[11px] font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
         disabled={acceptMutation.isPending || declineMutation.isPending}
         onClick={() => declineMutation.mutate()}
         type="button"

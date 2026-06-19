@@ -308,12 +308,16 @@ export function UserProfileFooter({
   const [isLoggingOut, startLogoutTransition] = useTransition();
   const [isUpdatingStatus, startStatusTransition] = useTransition();
   const [status, setStatus] = useState<PresenceStatus>(user.status);
-  const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
+  const [activeUserPopup, setActiveUserPopup] = useState<
+    "notifications" | "quick" | "status" | null
+  >(null);
   const [isIdleTimeoutMenuOpen, setIsIdleTimeoutMenuOpen] = useState(false);
-  const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const userBarRef = useRef<HTMLDivElement | null>(null);
   const { idleTimeoutMinutes, setIdleTimeoutMinutes } = usePresenceIdleTimeoutPreference();
   const { isDeafened, isMuted, leaveChannel, toggleDeafen, toggleMute } = useVoiceState();
+  const isNotificationPopupOpen = activeUserPopup === "notifications";
+  const isQuickMenuOpen = activeUserPopup === "quick";
+  const isStatusMenuOpen = activeUserPopup === "status";
 
   useEffect(() => {
     setStatus(user.status);
@@ -328,7 +332,7 @@ export function UserProfileFooter({
   };
 
   const handleStatusChange = (nextStatus: PresenceStatus) => {
-    setIsStatusMenuOpen(false);
+    setActiveUserPopup(null);
     const previousStatus = status;
     setStatus(nextStatus);
     onStatusChange(nextStatus);
@@ -363,22 +367,27 @@ export function UserProfileFooter({
     }
 
     const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      const targetElement = target instanceof Element ? target : null;
+
+      if (targetElement?.closest("[data-notification-popup='true']")) {
+        return;
+      }
+
       if (
         userBarRef.current &&
-        event.target instanceof Node &&
-        !userBarRef.current.contains(event.target)
+        target instanceof Node &&
+        !userBarRef.current.contains(target)
       ) {
-        setIsQuickMenuOpen(false);
         setIsIdleTimeoutMenuOpen(false);
-        setIsStatusMenuOpen(false);
+        setActiveUserPopup(null);
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setIsQuickMenuOpen(false);
         setIsIdleTimeoutMenuOpen(false);
-        setIsStatusMenuOpen(false);
+        setActiveUserPopup(null);
       }
     };
 
@@ -433,7 +442,10 @@ export function UserProfileFooter({
               aria-label={t("shell.user.status")}
               className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-transparent p-0 text-left text-[10.5px] font-semibold text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
               disabled={isUpdatingStatus}
-              onClick={() => setIsStatusMenuOpen((open) => !open)}
+              onClick={() => {
+                setIsIdleTimeoutMenuOpen(false);
+                setActiveUserPopup((current) => (current === "status" ? null : "status"));
+              }}
               title={t("shell.user.statusTitle")}
               type="button"
             >
@@ -514,7 +526,20 @@ export function UserProfileFooter({
           </button>
 
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] transition hover:bg-[hsl(var(--surface-soft)/0.68)]">
-            <NotificationBell className="h-8 w-8 rounded-full hover:bg-transparent" />
+            <NotificationBell
+              className="h-8 w-8 rounded-full hover:bg-transparent"
+              onOpenChange={(nextOpen) => {
+                setIsIdleTimeoutMenuOpen(false);
+                setActiveUserPopup((current) => {
+                  if (nextOpen) {
+                    return "notifications";
+                  }
+
+                  return current === "notifications" ? null : current;
+                });
+              }}
+              open={isNotificationPopupOpen}
+            />
           </div>
 
           <button
@@ -525,13 +550,9 @@ export function UserProfileFooter({
             )}
             data-testid="user-settings-button"
             onClick={() => {
-              setIsQuickMenuOpen((open) => {
-                const nextOpen = !open;
-                if (!nextOpen) {
-                  setIsIdleTimeoutMenuOpen(false);
-                }
-
-                return nextOpen;
+              setIsIdleTimeoutMenuOpen(false);
+              setActiveUserPopup((current) => {
+                return current === "quick" ? null : "quick";
               });
             }}
             title={t("shell.user.appearanceSettingsTitle")}
@@ -691,7 +712,7 @@ export function UserProfileFooter({
               className="grid w-full grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-[16px] px-1 py-1 text-left transition hover:bg-[hsl(var(--surface-soft)/0.44)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
               data-testid="user-appearance-settings-button"
               onClick={() => {
-                setIsQuickMenuOpen(false);
+                setActiveUserPopup(null);
                 onOpenAppearanceSettings();
               }}
               type="button"

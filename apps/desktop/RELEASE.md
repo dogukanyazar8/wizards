@@ -13,7 +13,7 @@ Keep these versions aligned for each release:
 - Tauri package version: `apps/desktop/src-tauri/Cargo.toml`
 - Tauri app version: `apps/desktop/src-tauri/tauri.conf.json`
 
-The current desktop version is `0.8.12`.
+The current desktop version is `0.8.13`.
 
 ## Build Commands
 
