@@ -1714,6 +1714,12 @@ export const EN_MESSAGES = {
     "shell.memberPanel.activeVoice": "Active now",
     "shell.memberPanel.activeVoiceLive": "Live",
     "shell.memberPanel.voiceParticipants": "{count} in voice",
+    "shell.memberPanel.desktopDownloadTitle": "Whispr Desktop",
+    "shell.memberPanel.desktopDownloadDescription":
+      "Download the latest desktop build and use Whispr with native notifications, tray behavior, and voice shortcuts.",
+    "shell.memberPanel.desktopDownloadCta": "Download desktop",
+    "shell.memberPanel.desktopDownloadHint":
+      "UAT and production download targets are controlled through a safe HTTPS release link.",
     "shell.user.toggleMute": "Toggle mute",
     "shell.user.toggleDeafen": "Toggle deafen",
     "shell.user.status": "Online status",

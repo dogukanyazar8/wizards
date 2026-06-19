@@ -30,6 +30,21 @@ function formatWhisprVersion(version: string, codename: string) {
   return `${trimmedVersion} "${trimmedCodename}"`;
 }
 
+function getSafeHttpsUrl(value: string | undefined, fallback: string) {
+  if (!value) {
+    return fallback;
+  }
+
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.toString() : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+const DEFAULT_WHISPR_DESKTOP_DOWNLOAD_URL =
+  "https://github.com/dogukanyazar8/wizards/releases/latest";
 const WHISPR_VERSION_NUMBER =
   process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.12";
 export const WHISPR_RELEASE_CODENAME =
@@ -44,6 +59,10 @@ export const WHISPR_BUILD_TIME =
   process.env.NEXT_PUBLIC_WHISPR_BUILD_TIME ?? "";
 export const WHISPR_RELEASE_CHANNEL =
   process.env.NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL ?? "beta";
+export const WHISPR_DESKTOP_DOWNLOAD_URL = getSafeHttpsUrl(
+  process.env.NEXT_PUBLIC_WHISPR_DESKTOP_DOWNLOAD_URL,
+  DEFAULT_WHISPR_DESKTOP_DOWNLOAD_URL,
+);
 
 export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
   {

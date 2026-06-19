@@ -1719,6 +1719,12 @@ export const TR_MESSAGES = {
     "shell.memberPanel.activeVoice": "Aktif şu anda",
     "shell.memberPanel.activeVoiceLive": "Canlı",
     "shell.memberPanel.voiceParticipants": "{count} seste",
+    "shell.memberPanel.desktopDownloadTitle": "Whispr Desktop",
+    "shell.memberPanel.desktopDownloadDescription":
+      "En güncel masaüstü sürümünü indir ve Whispr'i native bildirimler, tray ve ses kısayollarıyla kullan.",
+    "shell.memberPanel.desktopDownloadCta": "Masaüstünü indir",
+    "shell.memberPanel.desktopDownloadHint":
+      "UAT ve prod indirme adresleri güvenli HTTPS release linkiyle yönetilir.",
     "shell.user.toggleMute": "Sesi kapat",
     "shell.user.toggleDeafen": "Kulaklığı kapat",
     "shell.user.status": "Çevrimiçi durum",
