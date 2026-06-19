@@ -13,7 +13,7 @@ Keep these versions aligned for each release:
 - Tauri package version: `apps/desktop/src-tauri/Cargo.toml`
 - Tauri app version: `apps/desktop/src-tauri/tauri.conf.json`
 
-The current desktop version is `0.8.8`.
+The current desktop version is `0.8.12`.
 
 ## Build Commands
 
@@ -48,18 +48,28 @@ The generated target and bundle directories are ignored by git.
 
 ## Signing And Updates
 
-Code signing is not configured yet because no Windows signing certificate was provided. Do not add signing secrets or certificates to the repository.
+Windows release builds are code-signed in CI when the release certificate secrets are present. Do not add signing secrets, certificates, private updater keys, generated installers, or temporary manifest drafts to the repository.
 
-Auto-update runtime installation is not enabled until release signing is ready. When updater support is switched on, require all of the following before shipping:
+Auto-update support is installed as a flag-gated signed release path:
 
-- Ed25519 update signatures are mandatory.
-- The public updater key is embedded in Tauri config.
-- The private updater key is stored only in CI secrets or a hardware-backed release vault.
-- The update manifest is served over HTTPS.
-- The app must never install an update without a valid signature.
-- Update checks may be instrumented with PII-free `desktop_update_check` metrics only.
+- `WHISPR_DESKTOP_UPDATER_ENABLED=true` is required before updater permissions, updater artifacts, or updater runtime UI are enabled.
+- `WHISPR_DESKTOP_UPDATER_PUBLIC_KEY` is embedded into the generated Tauri config.
+- `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` must be provided by CI secrets or a hardware-backed release vault.
+- `WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED=true`, `WINDOWS_CERTIFICATE_PFX_BASE64`, and `WINDOWS_CERTIFICATE_PASSWORD` are required when updater artifacts are produced so Windows installers are signed before updater signatures are generated.
+- `WHISPR_DESKTOP_UPDATER_ENDPOINTS` must contain one or more HTTPS `latest.json` manifest URLs.
+- Updater endpoints must never point to localhost, `whispr.invalid`, or an insecure transport.
+- Windows updater install mode is `basicUi`; Whispr shows its own "Download and restart" prompt and never silently installs updates.
+- The app must never install an update without a valid Ed25519 signature.
+- Update metrics remain PII-free and cover check, download, signature verification, install, and relaunch outcomes.
 
-Do not commit updater private keys, signing certificates, generated installers, or manifest drafts containing temporary local paths.
+Recommended rollout rings:
+
+1. `WHISPR_DESKTOP_RELEASE_RING=dev` for local/internal release validation. Do not use this ring for broad distribution.
+2. `WHISPR_DESKTOP_RELEASE_RING=uat` for signed UAT smoke, voice, overlay, and updater QA.
+3. `WHISPR_DESKTOP_RELEASE_RING=canary` for a small monitored production rollout with the same signed artifact.
+4. `WHISPR_DESKTOP_RELEASE_RING=stable` only after update check, download, install, relaunch, crash, and support metrics look healthy.
+
+Each ring should point to a distinct HTTPS manifest endpoint so rollback is controlled by the manifest, not by changing already-installed clients.
 
 ## macOS And Linux Readiness
 
@@ -73,23 +83,37 @@ macOS and Linux bundle targets are not enabled in Phase 5. Before enabling them,
 
 ## CI Plan
 
-No existing GitHub Actions workflow was found in this repository. When CI is introduced, use separate jobs for web validation and desktop packaging.
+The GitHub Actions workflow has three desktop layers:
 
-Recommended desktop job shape:
+- `desktop-ops` runs on Windows, macOS, and Linux. Windows is mandatory; macOS and Linux are staged `continue-on-error` targets until platform signing and packaging mature.
+- `desktop-ops` runs `pnpm --filter @wizards/desktop release:ops`, `pnpm --filter @wizards/desktop test`, and `pnpm --filter @wizards/desktop build:desktop:config`.
+- `desktop-build` runs on `windows-latest`, installs Rust stable, audits Rust dependencies, generates the production config, builds the Tauri app, signs tagged release artifacts when certificate secrets exist, and uploads Windows bundles for release tags.
 
-- Run on `windows-latest`.
-- Install Node using `.nvmrc`.
-- Enable pnpm through Corepack.
-- Install Rust stable with the MSVC target.
-- Run `pnpm install --frozen-lockfile`.
-- Run the web validation commands.
-- Run `pnpm --filter @wizards/desktop build:desktop`; set non-secret `TAURI_WEB_URL` only for explicit HTTPS override builds.
-- Upload NSIS artifacts from `apps/desktop/src-tauri/target/release/bundle/nsis/`.
-- Add code signing only after certificate storage and access controls are approved.
-- Validate `apps/desktop/src-tauri/capabilities/*.json`.
-- Run `pnpm --filter @wizards/desktop test`.
-- Build generated Tauri config with `pnpm --filter @wizards/desktop build:desktop:config`.
-- Confirm generated config permissions match `src-tauri/capabilities/main.json`.
+The required desktop smoke gates are:
+
+- `launch`
+- `auth-restore`
+- `close-to-tray`
+- `updater-check-mock`
+- `shortcut-registration`
+- `overlay-show-hide`
+
+The release performance budgets are:
+
+- Warm start <= 2000 ms.
+- Memory <= 220 MB warm idle.
+- Overlay CPU <= 3% average while visible.
+- Shortcut latency <= 50 ms p95.
+
+The release safety rules are:
+
+- `no-broad-native-permissions`: never grant broad filesystem, shell, or process Tauri permissions.
+- `signed-updater-only`: never enable updater distribution without Ed25519 signatures and HTTPS manifests.
+- `no-native-game-hooks`: never add native game hooks without dedicated anti-cheat research and review.
+- `no-hardware-encode-claims`: never present hardware encode as guaranteed; WebRTC/WebView owns encoder choice.
+- `no-desktop-secrets`: never store tokens, session secrets, private keys, or server credentials in desktop code.
+- `no-fake-security-ui`: never show privacy or security controls as active unless backend enforcement exists.
+- `overlay-voice-only`: never send messages, DMs, emails, invite links, or private content to overlay windows.
 
 ## Release Checklist
 
@@ -109,4 +133,7 @@ Recommended desktop job shape:
 - Confirm `NEXT_PUBLIC_DESKTOP_METRICS=true` desktop shortcut metrics include only operation/result/runtime/duration metadata.
 - Confirm Settings -> About -> Desktop Diagnostics reports expected origin, network, socket, notification, and voice state.
 - Confirm generated installer is not committed.
+- Confirm generated updater artifacts and signatures are not committed.
+- Confirm updater endpoints are HTTPS `latest.json` manifests for the intended release ring.
+- Confirm updater UI asks the user to download and restart; silent install remains disabled.
 - Complete the desktop QA checklist in `QA.md`.

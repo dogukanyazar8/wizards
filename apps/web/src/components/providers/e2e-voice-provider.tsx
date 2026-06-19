@@ -1,7 +1,7 @@
 "use client";
 
 import { ConnectionState, type LocalVideoTrack } from "livekit-client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -25,6 +25,7 @@ import {
   completeWhisprDesktopBeforeClose,
   getWhisprDesktopBeforeCloseRequestId,
 } from "@/lib/desktop/runtime";
+import { recordDesktopPerformanceMetric } from "@/lib/desktop/performance";
 import { clearDesktopTransientAuthSession } from "@/lib/desktop/session";
 import { getSocket } from "@/lib/socket/client";
 import {
@@ -89,6 +90,8 @@ function mapE2EVoiceParticipants(
 export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
+  const pushToTalkReleaseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pushToTalkHoldingRef = useRef(false);
   const [participants, setParticipants] = useState<VoiceParticipantViewModel[]>([]);
   const [screenShares, setScreenShares] = useState<VoiceScreenShareViewModel[]>([]);
   const [activeScreenShareId, setActiveScreenShareIdState] = useState<string | null>(null);
@@ -355,41 +358,86 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
       return;
     }
 
+    if (pushToTalkReleaseTimeoutRef.current) {
+      clearTimeout(pushToTalkReleaseTimeoutRef.current);
+      pushToTalkReleaseTimeoutRef.current = null;
+    }
+
+    if (pushToTalkHoldingRef.current) {
+      return;
+    }
+
     if (store.isDeafened) {
       setTransientErrorMessage(t("voice.errors.pushToTalkDeafened"));
       return;
     }
 
-    if (store.isMuted) {
-      await toggleMute();
+    pushToTalkHoldingRef.current = true;
+    if (!store.isMuted) {
+      return;
     }
+
+    await toggleMute();
   }, [setTransientErrorMessage, t, toggleMute]);
 
   const stopPushToTalk = useCallback(async () => {
     const store = useVoiceStore.getState();
     if (
-      store.desktopGlobalShortcutsEnabled &&
-      store.voiceInputMode === "push-to-talk" &&
-      !store.isMuted
+      !store.desktopGlobalShortcutsEnabled ||
+      store.voiceInputMode !== "push-to-talk" ||
+      !pushToTalkHoldingRef.current
     ) {
-      await toggleMute();
+      return;
     }
+
+    pushToTalkHoldingRef.current = false;
+    if (pushToTalkReleaseTimeoutRef.current) {
+      clearTimeout(pushToTalkReleaseTimeoutRef.current);
+      pushToTalkReleaseTimeoutRef.current = null;
+    }
+
+    pushToTalkReleaseTimeoutRef.current = setTimeout(() => {
+      pushToTalkReleaseTimeoutRef.current = null;
+      if (!pushToTalkHoldingRef.current && !useVoiceStore.getState().isMuted) {
+        void toggleMute();
+      }
+    }, store.pushToTalkHangoverMs);
   }, [toggleMute]);
 
   const toggleDeafen = useCallback(async () => {
     const nextDeafened = !useVoiceStore.getState().isDeafened;
     useVoiceStore.getState().setDeafened(nextDeafened);
+    if (nextDeafened) {
+      pushToTalkHoldingRef.current = false;
+      if (pushToTalkReleaseTimeoutRef.current) {
+        clearTimeout(pushToTalkReleaseTimeoutRef.current);
+        pushToTalkReleaseTimeoutRef.current = null;
+      }
+      useVoiceStore.getState().setMuted(true);
+    }
     setParticipants((current) =>
       current.map((participant) =>
         participant.isLocal
           ? {
               ...participant,
+              audioLevel: nextDeafened ? 0 : participant.audioLevel,
               isDeafened: nextDeafened,
+              isMuted: nextDeafened ? true : participant.isMuted,
+              isSpeaking: nextDeafened ? false : participant.isSpeaking,
             }
           : participant,
       ),
     );
   }, []);
+
+  useEffect(
+    () => () => {
+      if (pushToTalkReleaseTimeoutRef.current) {
+        clearTimeout(pushToTalkReleaseTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   const toggleCamera = useCallback(async () => {
     if (cameraStatus === "starting" || cameraStatus === "stopping") {
@@ -613,9 +661,31 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
       }
 
       event.preventDefault();
-      void Promise.all([runPageExitCleanup(), clearDesktopTransientAuthSession()]).finally(() => {
-        void completeWhisprDesktopBeforeClose(requestId);
-      });
+      const cleanupStartedAt = performance.now();
+      const hadVoiceSession = Boolean(useVoiceStore.getState().sessionId);
+      void Promise.allSettled([runPageExitCleanup(), clearDesktopTransientAuthSession()])
+        .then((results) => {
+          const result = results.every((item) => item.status === "fulfilled")
+            ? "success"
+            : "failure";
+
+          if (hadVoiceSession) {
+            recordDesktopPerformanceMetric({
+              durationMs: performance.now() - cleanupStartedAt,
+              operation: "desktop_voice_leave_timing",
+              result,
+            });
+          }
+
+          recordDesktopPerformanceMetric({
+            durationMs: performance.now() - cleanupStartedAt,
+            operation: "desktop_close_cleanup",
+            result,
+          });
+        })
+        .finally(() => {
+          void completeWhisprDesktopBeforeClose(requestId);
+        });
     };
 
     window.addEventListener("beforeunload", handleBrowserPageExit);

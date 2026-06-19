@@ -1,42 +1,56 @@
 use std::{
     collections::{HashMap, HashSet},
+    fs::{self, OpenOptions},
+    io::Write,
+    panic,
     path::PathBuf,
     str::FromStr,
     sync::{Arc, Mutex},
-    time::Duration,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use serde::{Deserialize, Serialize};
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    webview::{NewWindowResponse, PageLoadEvent},
+    webview::{NewWindowResponse, PageLoadEvent, WebviewWindow},
     AppHandle, LogicalSize, Manager, PhysicalPosition, PhysicalSize, WebviewUrl,
     WebviewWindowBuilder, WindowEvent,
 };
 use url::Url;
 
 #[cfg(windows)]
+use std::path::Path;
+
+#[cfg(windows)]
 use windows_sys::Win32::{
-    Foundation::{HWND, LPARAM, RECT},
+    Foundation::{CloseHandle, HWND, LPARAM, RECT},
     Graphics::Dwm::{
         DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_COLOR_NONE,
         DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
     },
+    System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION},
     UI::WindowsAndMessaging::{
         EnumChildWindows, GetAncestor, GetForegroundWindow, GetWindowLongPtrW, GetWindowRect,
-        IsIconic, IsWindowVisible, SetLayeredWindowAttributes, SetWindowLongPtrW, SetWindowPos,
-        ShowWindow, GA_ROOT, GWL_EXSTYLE, GWL_STYLE, HWND_NOTOPMOST, HWND_TOPMOST, LWA_ALPHA,
-        SWP_FRAMECHANGED, SWP_HIDEWINDOW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER,
-        SWP_NOSENDCHANGING, SWP_NOSIZE, SWP_SHOWWINDOW, SW_HIDE, SW_SHOWNOACTIVATE, WS_BORDER,
-        WS_CAPTION, WS_DLGFRAME, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
-        WS_EX_TRANSPARENT, WS_THICKFRAME,
+        GetWindowThreadProcessId, IsIconic, IsWindowVisible, SetLayeredWindowAttributes,
+        SetWindowLongPtrW, SetWindowPos, ShowWindow, GA_ROOT, GWL_EXSTYLE, GWL_STYLE,
+        HWND_NOTOPMOST, HWND_TOPMOST, LWA_ALPHA, SWP_FRAMECHANGED, SWP_HIDEWINDOW,
+        SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSENDCHANGING, SWP_NOSIZE,
+        SWP_SHOWWINDOW, SW_HIDE, SW_SHOWNOACTIVATE, WS_BORDER, WS_CAPTION, WS_DLGFRAME,
+        WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_THICKFRAME,
     },
 };
 
-const DESKTOP_INIT_SCRIPT: &str = r#"
+const DESKTOP_INIT_SCRIPT_TEMPLATE: &str = r#"
 Object.defineProperty(window, "__WHISPR_DESKTOP__", {
-  value: Object.freeze({ platform: "tauri", shell: "desktop" }),
+  value: Object.freeze({
+    platform: "tauri",
+    releaseRing: __WHISPR_DESKTOP_RELEASE_RING__,
+    shell: "desktop",
+    features: Object.freeze({
+      updater: __WHISPR_DESKTOP_UPDATER_ENABLED__
+    })
+  }),
   configurable: false,
   enumerable: false,
   writable: false
@@ -66,6 +80,7 @@ if (document.documentElement) {
 }
 "#;
 
+const DESKTOP_MAIN_WINDOW_LABEL: &str = "main";
 const DESKTOP_START_PATH: &str = "/desktop/start";
 const DESKTOP_GAME_OVERLAY_PATH: &str = "/desktop/game-overlay";
 const DESKTOP_GAME_OVERLAY_WINDOW_LABEL: &str = "game-overlay";
@@ -89,6 +104,63 @@ const MAX_DESKTOP_SHORTCUTS: usize = 4;
 const MAX_DESKTOP_SHORTCUT_LENGTH: usize = 64;
 const MAX_DESKTOP_GAME_OVERLAY_SNAPSHOT_BYTES: usize = 16_384;
 const MAX_DESKTOP_VOICE_MINI_SNAPSHOT_BYTES: usize = 16_384;
+const DESKTOP_NATIVE_LOG_FILENAME: &str = "desktop-diagnostics.log";
+const DESKTOP_NATIVE_LOG_MAX_BYTES: u64 = 256 * 1024;
+const DESKTOP_NATIVE_LOG_MAX_LINES: usize = 200;
+const DESKTOP_DIAGNOSTIC_TEXT_MAX_CHARS: usize = 512;
+const DESKTOP_SUPPORT_BUNDLE_VERSION: u8 = 2;
+
+fn desktop_init_script(updater_enabled: bool, release_ring: &str) -> String {
+    let release_ring_json =
+        serde_json::to_string(release_ring).unwrap_or_else(|_| "\"uat\"".into());
+
+    DESKTOP_INIT_SCRIPT_TEMPLATE
+        .replace(
+            "__WHISPR_DESKTOP_UPDATER_ENABLED__",
+            if updater_enabled { "true" } else { "false" },
+        )
+        .replace(
+            "__WHISPR_DESKTOP_RELEASE_RING__",
+            release_ring_json.as_str(),
+        )
+}
+
+fn desktop_release_ring() -> String {
+    match desktop_config_value("WHISPR_DESKTOP_RELEASE_RING", "uat").as_str() {
+        "production" => "production".into(),
+        "production-small" => "production-small".into(),
+        "dev" => "dev".into(),
+        "canary" => "canary".into(),
+        "stable" => "stable".into(),
+        _ => "uat".into(),
+    }
+}
+
+fn desktop_updater_enabled() -> bool {
+    matches!(
+        desktop_config_value("WHISPR_DESKTOP_UPDATER_ENABLED", "").as_str(),
+        "1" | "true"
+    )
+}
+
+fn desktop_config_value(name: &str, fallback: &str) -> String {
+    if let Ok(value) = std::env::var(name) {
+        return value;
+    }
+
+    match name {
+        "WHISPR_DESKTOP_WEB_URL" => option_env!("WHISPR_DESKTOP_WEB_URL")
+            .unwrap_or(fallback)
+            .to_string(),
+        "WHISPR_DESKTOP_RELEASE_RING" => option_env!("WHISPR_DESKTOP_RELEASE_RING")
+            .unwrap_or(fallback)
+            .to_string(),
+        "WHISPR_DESKTOP_UPDATER_ENABLED" => option_env!("WHISPR_DESKTOP_UPDATER_ENABLED")
+            .unwrap_or(fallback)
+            .to_string(),
+        _ => fallback.to_string(),
+    }
+}
 
 #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
 fn desktop_window_state_flags() -> tauri_plugin_window_state::StateFlags {
@@ -144,6 +216,76 @@ impl DesktopCompanionSurfaceState {
             *last_error = Some(error);
         }
     }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopNativeLogRecord {
+    level: String,
+    message: String,
+    scope: String,
+    timestamp_ms: u64,
+}
+
+#[derive(Clone, Default)]
+struct DesktopNativeLogState {
+    records: Arc<Mutex<Vec<DesktopNativeLogRecord>>>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopSupportWebDiagnostics {
+    network_status: String,
+    notification_permission: String,
+    overlay_health: String,
+    socket_status: String,
+    user_agent: String,
+    voice_status: String,
+}
+
+impl DesktopSupportWebDiagnostics {
+    fn sanitized(self) -> Self {
+        Self {
+            network_status: sanitize_diagnostic_text(&self.network_status),
+            notification_permission: sanitize_diagnostic_text(&self.notification_permission),
+            overlay_health: sanitize_diagnostic_text(&self.overlay_health),
+            socket_status: sanitize_diagnostic_text(&self.socket_status),
+            user_agent: sanitize_diagnostic_text(&self.user_agent),
+            voice_status: sanitize_diagnostic_text(&self.voice_status),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopSupportAppInfo {
+    app_version: &'static str,
+    release_ring: String,
+    tauri_version: &'static str,
+    updater_enabled: bool,
+    webview_version: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopSupportPlatformInfo {
+    arch: &'static str,
+    family: &'static str,
+    os: &'static str,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopSupportBundle {
+    app: DesktopSupportAppInfo,
+    bundle_version: u8,
+    capabilities: DesktopPlatformCapabilities,
+    companion_surfaces: DesktopCompanionSurfacesStatus,
+    generated_at_ms: u64,
+    native_logs: Vec<DesktopNativeLogRecord>,
+    platform: DesktopSupportPlatformInfo,
+    shortcuts: DesktopVoiceShortcutStatus,
+    web: DesktopSupportWebDiagnostics,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -212,8 +354,11 @@ impl DesktopActivityStatus {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct DesktopPlatformFeature {
+    fallback: &'static str,
+    permission: &'static str,
     status: &'static str,
     strategy: &'static str,
+    user_control: &'static str,
 }
 
 #[derive(Debug, Serialize)]
@@ -221,6 +366,7 @@ struct DesktopPlatformFeature {
 struct DesktopPlatformCapabilities {
     arch: &'static str,
     hardware_encode: DesktopPlatformFeature,
+    livekit_custom_track: DesktopPlatformFeature,
     native_screen_capture: DesktopPlatformFeature,
     platform: &'static str,
     rich_presence: DesktopPlatformFeature,
@@ -363,6 +509,8 @@ struct DesktopVoiceShortcutStatus {
 pub fn run() {
     let desktop_app_name =
         std::env::var("WHISPR_DESKTOP_APP_NAME").unwrap_or_else(|_| "Whispr".into());
+    let desktop_release_ring = desktop_release_ring();
+    let desktop_updater_enabled = desktop_updater_enabled();
     let voice_shortcut_registry = DesktopVoiceShortcutRegistry::default();
     let mut builder = tauri::Builder::default();
 
@@ -392,6 +540,10 @@ pub fn run() {
                 .with_filter(|_| false)
                 .build(),
         );
+        if desktop_updater_enabled {
+            builder = builder.plugin(tauri_plugin_process::init());
+            builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+        }
     }
 
     builder
@@ -400,23 +552,26 @@ pub fn run() {
         .manage(DesktopCloseCoordinator::default())
         .manage(DesktopCloseBehaviorState::default())
         .manage(DesktopCompanionSurfaceState::default())
+        .manage(DesktopNativeLogState::default())
         .manage(DesktopWindowPromotionState::default())
         .manage(voice_shortcut_registry)
         .invoke_handler(tauri::generate_handler![
             complete_desktop_before_close,
             configure_desktop_voice_shortcuts,
+            export_desktop_diagnostics_bundle,
             get_desktop_quit_on_close_enabled,
             get_desktop_autostart_enabled,
+            get_desktop_foreground_process_name,
             get_desktop_main_window_focused,
             get_desktop_companion_surfaces_status,
             get_desktop_platform_capabilities,
+            get_desktop_voice_shortcut_status,
             publish_desktop_game_overlay_snapshot,
             publish_desktop_voice_mini_snapshot,
             refresh_desktop_companion_surfaces,
             set_desktop_activity_status,
             set_desktop_game_overlay_visible,
             set_desktop_voice_mini_visible,
-            dispatch_desktop_voice_mini_command,
             promote_desktop_main_window,
             set_desktop_quit_on_close_enabled,
             set_desktop_autostart_enabled
@@ -424,11 +579,21 @@ pub fn run() {
         .setup(move |app| {
             let app_url = configured_app_url();
             let app_name = desktop_app_name.clone();
+            let init_script =
+                desktop_init_script(desktop_updater_enabled, desktop_release_ring.as_str());
             let oauth_navigation_active = Arc::new(Mutex::new(false));
             let close_coordinator = app.state::<DesktopCloseCoordinator>().inner().clone();
             let close_behavior_state = app.state::<DesktopCloseBehaviorState>().inner().clone();
             let promotion_state = app.state::<DesktopWindowPromotionState>().inner().clone();
+            let native_log_state = app.state::<DesktopNativeLogState>().inner().clone();
             let webview_data_directory = resolve_webview_data_directory(app)?;
+            install_desktop_panic_hook(app.handle().clone(), native_log_state);
+            record_desktop_native_log(
+                app.handle(),
+                "info",
+                "desktop_setup",
+                "Desktop shell setup started.",
+            );
             set_desktop_window_promoted(&promotion_state, app_url.path() != DESKTOP_START_PATH);
 
             setup_tray(
@@ -444,7 +609,7 @@ pub fn run() {
                     .decorations(false)
                     .center()
                     .data_directory(webview_data_directory)
-                    .initialization_script(DESKTOP_INIT_SCRIPT)
+                    .initialization_script(init_script)
                     .on_navigation({
                         let allowed_origin = app_url.clone();
                         let oauth_navigation_active = Arc::clone(&oauth_navigation_active);
@@ -529,38 +694,67 @@ pub fn run() {
         .expect("error while running Whispr desktop");
 }
 
+fn is_authorized_desktop_command_window_label(label: &str) -> bool {
+    label == DESKTOP_MAIN_WINDOW_LABEL
+}
+
+fn assert_desktop_main_command_window(window: &WebviewWindow) -> Result<(), String> {
+    if is_authorized_desktop_command_window_label(window.label()) {
+        return Ok(());
+    }
+
+    Err("Desktop command is only available to the main Whispr window.".to_string())
+}
+
 #[tauri::command]
 fn complete_desktop_before_close(
+    window: WebviewWindow,
     app: AppHandle,
     close_coordinator: tauri::State<'_, DesktopCloseCoordinator>,
     promotion_state: tauri::State<'_, DesktopWindowPromotionState>,
     request_id: u64,
-) {
+) -> Result<(), String> {
+    assert_desktop_main_command_window(&window)?;
+
     if complete_desktop_close_request(close_coordinator.inner(), request_id) {
+        record_desktop_native_log(
+            &app,
+            "info",
+            "close_handshake",
+            "Web cleanup acknowledged; exiting.",
+        );
         save_desktop_main_window_state(&app, promotion_state.inner());
         app.exit(0);
     }
+
+    Ok(())
 }
 
 #[tauri::command]
 fn promote_desktop_main_window(
+    window: WebviewWindow,
     app: AppHandle,
     promotion_state: tauri::State<'_, DesktopWindowPromotionState>,
-) -> bool {
+) -> Result<bool, String> {
+    assert_desktop_main_command_window(&window)?;
+
     let Some(window) = app.get_webview_window("main") else {
-        return false;
+        return Ok(false);
     };
 
     promote_desktop_window(&window, promotion_state.inner());
-    true
+    Ok(true)
 }
 
 #[tauri::command]
 fn configure_desktop_voice_shortcuts(
+    window: WebviewWindow,
     app: AppHandle,
     registry: tauri::State<'_, DesktopVoiceShortcutRegistry>,
     config: DesktopVoiceShortcutConfig,
 ) -> Result<DesktopVoiceShortcutStatus, String> {
+    assert_desktop_main_command_window(&window)?;
+
     #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
     {
         configure_desktop_voice_shortcuts_impl(&app, registry.inner(), config)
@@ -574,7 +768,59 @@ fn configure_desktop_voice_shortcuts(
 }
 
 #[tauri::command]
-fn get_desktop_autostart_enabled(app: AppHandle) -> Result<bool, String> {
+fn get_desktop_voice_shortcut_status(
+    window: WebviewWindow,
+    registry: tauri::State<'_, DesktopVoiceShortcutRegistry>,
+) -> Result<DesktopVoiceShortcutStatus, String> {
+    assert_desktop_main_command_window(&window)?;
+
+    Ok(desktop_voice_shortcut_registry_status(registry.inner()))
+}
+
+#[tauri::command]
+fn export_desktop_diagnostics_bundle(
+    window: WebviewWindow,
+    app: AppHandle,
+    surface_state: tauri::State<'_, DesktopCompanionSurfaceState>,
+    registry: tauri::State<'_, DesktopVoiceShortcutRegistry>,
+    web: DesktopSupportWebDiagnostics,
+) -> Result<DesktopSupportBundle, String> {
+    assert_desktop_main_command_window(&window)?;
+
+    record_desktop_native_log(
+        &app,
+        "info",
+        "diagnostics_export",
+        "Desktop diagnostics support bundle exported.",
+    );
+
+    Ok(DesktopSupportBundle {
+        app: DesktopSupportAppInfo {
+            app_version: env!("CARGO_PKG_VERSION"),
+            release_ring: desktop_release_ring(),
+            tauri_version: tauri::VERSION,
+            updater_enabled: desktop_updater_enabled(),
+            webview_version: tauri::webview_version().unwrap_or_else(|_| "unknown".into()),
+        },
+        bundle_version: DESKTOP_SUPPORT_BUNDLE_VERSION,
+        capabilities: desktop_platform_capabilities(),
+        companion_surfaces: desktop_companion_surfaces_status(&app, surface_state.inner()),
+        generated_at_ms: current_unix_ms(),
+        native_logs: read_desktop_native_logs(&app),
+        platform: DesktopSupportPlatformInfo {
+            arch: std::env::consts::ARCH,
+            family: std::env::consts::FAMILY,
+            os: std::env::consts::OS,
+        },
+        shortcuts: desktop_voice_shortcut_registry_status(registry.inner()),
+        web: web.sanitized(),
+    })
+}
+
+#[tauri::command]
+fn get_desktop_autostart_enabled(window: WebviewWindow, app: AppHandle) -> Result<bool, String> {
+    assert_desktop_main_command_window(&window)?;
+
     #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
     {
         use tauri_plugin_autostart::ManagerExt;
@@ -591,7 +837,13 @@ fn get_desktop_autostart_enabled(app: AppHandle) -> Result<bool, String> {
 }
 
 #[tauri::command]
-fn set_desktop_autostart_enabled(app: AppHandle, enabled: bool) -> Result<bool, String> {
+fn set_desktop_autostart_enabled(
+    window: WebviewWindow,
+    app: AppHandle,
+    enabled: bool,
+) -> Result<bool, String> {
+    assert_desktop_main_command_window(&window)?;
+
     #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
     {
         use tauri_plugin_autostart::ManagerExt;
@@ -619,63 +871,125 @@ fn set_desktop_autostart_enabled(app: AppHandle, enabled: bool) -> Result<bool, 
 
 #[tauri::command]
 fn get_desktop_quit_on_close_enabled(
+    window: WebviewWindow,
     close_behavior: tauri::State<'_, DesktopCloseBehaviorState>,
-) -> bool {
-    is_desktop_quit_on_close_enabled(close_behavior.inner())
+) -> Result<bool, String> {
+    assert_desktop_main_command_window(&window)?;
+
+    Ok(is_desktop_quit_on_close_enabled(close_behavior.inner()))
 }
 
 #[tauri::command]
 fn set_desktop_quit_on_close_enabled(
+    window: WebviewWindow,
     close_behavior: tauri::State<'_, DesktopCloseBehaviorState>,
     enabled: bool,
-) -> bool {
+) -> Result<bool, String> {
+    assert_desktop_main_command_window(&window)?;
+
     set_desktop_quit_on_close(close_behavior.inner(), enabled);
-    enabled
+    Ok(enabled)
 }
 
 #[tauri::command]
-fn get_desktop_platform_capabilities() -> DesktopPlatformCapabilities {
+fn get_desktop_platform_capabilities(
+    window: WebviewWindow,
+) -> Result<DesktopPlatformCapabilities, String> {
+    assert_desktop_main_command_window(&window)?;
+
+    Ok(desktop_platform_capabilities())
+}
+
+fn desktop_platform_capabilities() -> DesktopPlatformCapabilities {
     DesktopPlatformCapabilities {
         arch: std::env::consts::ARCH,
-        hardware_encode: DesktopPlatformFeature {
-            status: "research_gated",
-            strategy: "webrtc_codec_hint_telemetry",
-        },
-        native_screen_capture: DesktopPlatformFeature {
-            status: "research_gated",
-            strategy: native_screen_capture_strategy(),
-        },
+        hardware_encode: desktop_research_feature(
+            "webrtc_codec_hint_telemetry_only",
+            "os_webview_encoder_selection",
+            "not_applicable",
+            "codec_hint_only",
+        ),
+        livekit_custom_track: desktop_research_feature(
+            "livekit_custom_track_factory_spike",
+            "standard_livekit_get_display_media",
+            "user_initiated_capture_required",
+            "explicit_user_permission_required",
+        ),
+        native_screen_capture: desktop_research_feature(
+            native_screen_capture_strategy(),
+            "browser_get_display_media",
+            native_screen_capture_permission_strategy(),
+            "explicit_user_permission_required",
+        ),
         platform: std::env::consts::OS,
         rich_presence: DesktopPlatformFeature {
+            fallback: "none",
+            permission: "not_applicable",
             status: "available",
             strategy: "local_window_and_tray_activity",
+            user_control: "opt_in",
         },
-        system_audio_capture: DesktopPlatformFeature {
-            status: "research_gated",
-            strategy: system_audio_capture_strategy(),
-        },
+        system_audio_capture: desktop_research_feature(
+            system_audio_capture_strategy(),
+            "no_system_audio_capture",
+            system_audio_capture_permission_strategy(),
+            "explicit_user_permission_required",
+        ),
+    }
+}
+
+fn desktop_research_feature(
+    strategy: &'static str,
+    fallback: &'static str,
+    permission: &'static str,
+    user_control: &'static str,
+) -> DesktopPlatformFeature {
+    DesktopPlatformFeature {
+        fallback,
+        permission,
+        status: "research_gated",
+        strategy,
+        user_control,
     }
 }
 
 #[tauri::command]
-fn get_desktop_main_window_focused(app: AppHandle) -> bool {
-    is_main_window_focused(&app)
+fn get_desktop_foreground_process_name(window: WebviewWindow) -> Result<Option<String>, String> {
+    assert_desktop_main_command_window(&window)?;
+
+    Ok(desktop_foreground_process_name())
+}
+
+#[tauri::command]
+fn get_desktop_main_window_focused(window: WebviewWindow, app: AppHandle) -> Result<bool, String> {
+    assert_desktop_main_command_window(&window)?;
+
+    Ok(is_main_window_focused(&app))
 }
 
 #[tauri::command]
 fn get_desktop_companion_surfaces_status(
+    window: WebviewWindow,
     app: AppHandle,
     surface_state: tauri::State<'_, DesktopCompanionSurfaceState>,
-) -> DesktopCompanionSurfacesStatus {
-    desktop_companion_surfaces_status(&app, surface_state.inner())
+) -> Result<DesktopCompanionSurfacesStatus, String> {
+    assert_desktop_main_command_window(&window)?;
+
+    Ok(desktop_companion_surfaces_status(
+        &app,
+        surface_state.inner(),
+    ))
 }
 
 #[tauri::command]
 fn refresh_desktop_companion_surfaces(
+    window: WebviewWindow,
     app: AppHandle,
     surface_state: tauri::State<'_, DesktopCompanionSurfaceState>,
     layout: Option<DesktopGameOverlayLayout>,
-) -> DesktopCompanionSurfacesStatus {
+) -> Result<DesktopCompanionSurfacesStatus, String> {
+    assert_desktop_main_command_window(&window)?;
+
     let layout = layout.unwrap_or_default();
     let state_for_task = surface_state.inner().clone();
 
@@ -704,11 +1018,20 @@ fn refresh_desktop_companion_surfaces(
         Ok(())
     });
 
-    desktop_companion_surfaces_queued_status(&app, surface_state.inner())
+    Ok(desktop_companion_surfaces_queued_status(
+        &app,
+        surface_state.inner(),
+    ))
 }
 
 #[tauri::command]
-fn set_desktop_activity_status(app: AppHandle, status: Option<String>) -> Result<bool, String> {
+fn set_desktop_activity_status(
+    window: WebviewWindow,
+    app: AppHandle,
+    status: Option<String>,
+) -> Result<bool, String> {
+    assert_desktop_main_command_window(&window)?;
+
     let status = DesktopActivityStatus::from_optional(status.as_deref())?;
 
     if let Some(window) = app.get_webview_window("main") {
@@ -727,11 +1050,14 @@ fn set_desktop_activity_status(app: AppHandle, status: Option<String>) -> Result
 
 #[tauri::command]
 fn set_desktop_game_overlay_visible(
+    window: WebviewWindow,
     app: AppHandle,
     surface_state: tauri::State<'_, DesktopCompanionSurfaceState>,
     visible: bool,
     layout: Option<DesktopGameOverlayLayout>,
 ) -> Result<bool, String> {
+    assert_desktop_main_command_window(&window)?;
+
     let layout = layout.unwrap_or_default();
     let state_for_task = surface_state.inner().clone();
     schedule_desktop_companion_surface_task(
@@ -752,9 +1078,12 @@ fn set_desktop_game_overlay_visible(
 
 #[tauri::command]
 fn publish_desktop_game_overlay_snapshot(
+    window: WebviewWindow,
     app: AppHandle,
     snapshot: serde_json::Value,
 ) -> Result<bool, String> {
+    assert_desktop_main_command_window(&window)?;
+
     publish_desktop_snapshot_to_window(
         &app,
         DESKTOP_GAME_OVERLAY_WINDOW_LABEL,
@@ -767,10 +1096,13 @@ fn publish_desktop_game_overlay_snapshot(
 
 #[tauri::command]
 fn set_desktop_voice_mini_visible(
+    window: WebviewWindow,
     app: AppHandle,
     surface_state: tauri::State<'_, DesktopCompanionSurfaceState>,
     visible: bool,
 ) -> Result<bool, String> {
+    assert_desktop_main_command_window(&window)?;
+
     let state_for_task = surface_state.inner().clone();
     schedule_desktop_companion_surface_task(
         &app,
@@ -790,9 +1122,12 @@ fn set_desktop_voice_mini_visible(
 
 #[tauri::command]
 fn publish_desktop_voice_mini_snapshot(
+    window: WebviewWindow,
     app: AppHandle,
     snapshot: serde_json::Value,
 ) -> Result<bool, String> {
+    assert_desktop_main_command_window(&window)?;
+
     publish_desktop_snapshot_to_window(
         &app,
         DESKTOP_VOICE_MINI_WINDOW_LABEL,
@@ -801,19 +1136,6 @@ fn publish_desktop_voice_mini_snapshot(
         MAX_DESKTOP_VOICE_MINI_SNAPSHOT_BYTES,
         "voice mini",
     )
-}
-
-#[tauri::command]
-fn dispatch_desktop_voice_mini_command(app: AppHandle, command: String) -> Result<bool, String> {
-    let desktop_command = match command.as_str() {
-        "leaveVoice" => "leave-voice",
-        "toggleDeafen" => "toggle-deafen",
-        "toggleMute" => "toggle-mute",
-        _ => return Err("Desktop voice mini command is not allowed.".to_string()),
-    };
-
-    dispatch_desktop_command_without_focus(&app, desktop_command, None);
-    Ok(true)
 }
 
 fn publish_desktop_snapshot_to_window(
@@ -856,6 +1178,12 @@ fn schedule_desktop_companion_surface_task<F>(
     F: FnOnce(AppHandle) -> Result<(), String> + Send + 'static,
 {
     surface_state.clear_error();
+    record_desktop_native_log(
+        app,
+        "info",
+        "companion_surface",
+        format!("Task started: {label}").as_str(),
+    );
 
     let app_for_task = app.clone();
     let state_for_task = surface_state.clone();
@@ -863,20 +1191,235 @@ fn schedule_desktop_companion_surface_task<F>(
         .name(format!("whispr-desktop-surface-{label}"))
         .spawn(move || {
             eprintln!("Desktop companion surface task started: {label}");
-            match task(app_for_task) {
+            match task(app_for_task.clone()) {
                 Ok(()) => {
                     eprintln!("Desktop companion surface task succeeded: {label}");
+                    record_desktop_native_log(
+                        &app_for_task,
+                        "info",
+                        "companion_surface",
+                        format!("Task succeeded: {label}").as_str(),
+                    );
                     state_for_task.clear_error();
                 }
-                Err(error) => state_for_task.set_error(error),
+                Err(error) => {
+                    record_desktop_native_log(
+                        &app_for_task,
+                        "error",
+                        "companion_surface",
+                        format!("Task failed: {label}: {error}").as_str(),
+                    );
+                    state_for_task.set_error(error);
+                }
             };
         });
 
     if let Err(error) = spawn_result {
+        record_desktop_native_log(
+            app,
+            "error",
+            "companion_surface",
+            format!("Unable to start task: {label}: {error}").as_str(),
+        );
         surface_state.set_error(format!(
             "Unable to start desktop companion surface task: {error}"
         ));
     }
+}
+
+fn current_unix_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis().min(u64::MAX as u128) as u64)
+        .unwrap_or(0)
+}
+
+fn sanitize_diagnostic_text(value: &str) -> String {
+    let normalized = value
+        .chars()
+        .map(|character| {
+            if character.is_control() && character != '\n' && character != '\t' {
+                ' '
+            } else {
+                character
+            }
+        })
+        .collect::<String>();
+    let lower = normalized.to_ascii_lowercase();
+
+    if [
+        "authorization",
+        "bearer",
+        "cookie",
+        "password",
+        "secret",
+        "session",
+        "token",
+    ]
+    .iter()
+    .any(|needle| lower.contains(needle))
+    {
+        return "[redacted-sensitive-diagnostic]".into();
+    }
+
+    let redacted = normalized
+        .split_whitespace()
+        .map(|part| {
+            if part.contains('@') {
+                "[redacted-email]"
+            } else {
+                part
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    redacted
+        .chars()
+        .take(DESKTOP_DIAGNOSTIC_TEXT_MAX_CHARS)
+        .collect()
+}
+
+fn desktop_native_log_path(app: &AppHandle) -> Option<PathBuf> {
+    let log_dir = app.path().app_log_dir().ok()?;
+    if fs::create_dir_all(&log_dir).is_err() {
+        return None;
+    }
+
+    Some(log_dir.join(DESKTOP_NATIVE_LOG_FILENAME))
+}
+
+fn push_desktop_native_log_record(
+    app: Option<&AppHandle>,
+    state: &DesktopNativeLogState,
+    record: DesktopNativeLogRecord,
+) {
+    if let Ok(mut records) = state.records.lock() {
+        records.push(record.clone());
+        if records.len() > DESKTOP_NATIVE_LOG_MAX_LINES {
+            let overflow = records.len() - DESKTOP_NATIVE_LOG_MAX_LINES;
+            records.drain(0..overflow);
+        }
+    }
+
+    let Some(app) = app else {
+        return;
+    };
+    let Some(path) = desktop_native_log_path(app) else {
+        return;
+    };
+
+    if fs::metadata(&path)
+        .map(|metadata| metadata.len() > DESKTOP_NATIVE_LOG_MAX_BYTES)
+        .unwrap_or(false)
+    {
+        let _ = fs::write(&path, "");
+    }
+
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
+        if let Ok(line) = serde_json::to_string(&record) {
+            let _ = writeln!(file, "{line}");
+        }
+    }
+}
+
+fn record_desktop_native_log(app: &AppHandle, level: &str, scope: &str, message: &str) {
+    let state = app.state::<DesktopNativeLogState>().inner().clone();
+    push_desktop_native_log_record(
+        Some(app),
+        &state,
+        DesktopNativeLogRecord {
+            level: sanitize_diagnostic_text(level),
+            message: sanitize_diagnostic_text(message),
+            scope: sanitize_diagnostic_text(scope),
+            timestamp_ms: current_unix_ms(),
+        },
+    );
+}
+
+fn record_desktop_native_log_with_state(
+    app: Option<&AppHandle>,
+    state: &DesktopNativeLogState,
+    level: &str,
+    scope: &str,
+    message: &str,
+) {
+    push_desktop_native_log_record(
+        app,
+        state,
+        DesktopNativeLogRecord {
+            level: sanitize_diagnostic_text(level),
+            message: sanitize_diagnostic_text(message),
+            scope: sanitize_diagnostic_text(scope),
+            timestamp_ms: current_unix_ms(),
+        },
+    );
+}
+
+fn read_desktop_native_logs(app: &AppHandle) -> Vec<DesktopNativeLogRecord> {
+    let state = app.state::<DesktopNativeLogState>().inner().clone();
+    let memory_records = state
+        .records
+        .lock()
+        .map(|records| records.clone())
+        .unwrap_or_default();
+
+    let Some(path) = desktop_native_log_path(app) else {
+        return memory_records;
+    };
+    let Ok(content) = fs::read_to_string(path) else {
+        return memory_records;
+    };
+
+    let lines = content.lines().collect::<Vec<_>>();
+    let start = lines.len().saturating_sub(DESKTOP_NATIVE_LOG_MAX_LINES);
+    let mut records = Vec::new();
+    for line in &lines[start..] {
+        if let Ok(record) = serde_json::from_str::<DesktopNativeLogRecord>(line) {
+            records.push(record);
+        }
+    }
+
+    if records.is_empty() {
+        return memory_records;
+    }
+
+    if records.len() > DESKTOP_NATIVE_LOG_MAX_LINES {
+        records.drain(0..records.len() - DESKTOP_NATIVE_LOG_MAX_LINES);
+    }
+
+    records
+}
+
+fn install_desktop_panic_hook(app: AppHandle, state: DesktopNativeLogState) {
+    let default_hook = panic::take_hook();
+
+    panic::set_hook(Box::new(move |panic_info| {
+        let location = panic_info
+            .location()
+            .map(|location| format!("{}:{}", location.file(), location.line()))
+            .unwrap_or_else(|| "unknown-location".into());
+        let payload = panic_info
+            .payload()
+            .downcast_ref::<&str>()
+            .copied()
+            .or_else(|| {
+                panic_info
+                    .payload()
+                    .downcast_ref::<String>()
+                    .map(String::as_str)
+            })
+            .unwrap_or("unknown panic");
+
+        record_desktop_native_log_with_state(
+            Some(&app),
+            &state,
+            "error",
+            "panic",
+            format!("{location}: {payload}").as_str(),
+        );
+        default_hook(panic_info);
+    }));
 }
 
 fn native_screen_capture_strategy() -> &'static str {
@@ -891,6 +1434,18 @@ fn native_screen_capture_strategy() -> &'static str {
     }
 }
 
+fn native_screen_capture_permission_strategy() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "windows_graphics_capture_picker_required"
+    } else if cfg!(target_os = "macos") {
+        "screen_recording_permission_required"
+    } else if cfg!(target_os = "linux") {
+        "xdg_desktop_portal_permission_required"
+    } else {
+        "unsupported_platform"
+    }
+}
+
 fn system_audio_capture_strategy() -> &'static str {
     if cfg!(target_os = "windows") {
         "wasapi_loopback_spike"
@@ -898,6 +1453,18 @@ fn system_audio_capture_strategy() -> &'static str {
         "coreaudio_tap_spike"
     } else if cfg!(target_os = "linux") {
         "pipewire_pulseaudio_monitor_spike"
+    } else {
+        "unsupported_platform"
+    }
+}
+
+fn system_audio_capture_permission_strategy() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "loopback_capture_user_opt_in_required"
+    } else if cfg!(target_os = "macos") {
+        "screen_capture_audio_permission_research"
+    } else if cfg!(target_os = "linux") {
+        "pipewire_portal_audio_permission_required"
     } else {
         "unsupported_platform"
     }
@@ -1016,6 +1583,7 @@ fn parse_desktop_voice_shortcut(
         || value
             .chars()
             .any(|character| matches!(character, '\0' | '\n' | '\r'))
+        || is_reserved_desktop_voice_shortcut(value)
     {
         return Err("Desktop voice shortcut is invalid.".to_string());
     }
@@ -1028,6 +1596,33 @@ fn parse_desktop_voice_shortcut(
     }
 
     Ok(shortcut)
+}
+
+#[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+fn normalize_desktop_voice_shortcut(value: &str) -> String {
+    value
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect::<String>()
+        .to_lowercase()
+}
+
+#[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+fn is_reserved_desktop_voice_shortcut(value: &str) -> bool {
+    let normalized = normalize_desktop_voice_shortcut(value);
+    matches!(
+        normalized.as_str(),
+        "alt+escape"
+            | "alt+f4"
+            | "alt+space"
+            | "alt+tab"
+            | "cmdorctrl+space"
+            | "control+space"
+            | "ctrl+alt+delete"
+            | "ctrl+space"
+            | "meta+space"
+            | "super+space"
+    ) || normalized.ends_with("+space")
 }
 
 #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
@@ -1110,6 +1705,30 @@ fn desktop_voice_shortcut_status(
                 shortcut: entry.shortcut.into_string(),
             })
             .collect(),
+    }
+}
+
+fn desktop_voice_shortcut_registry_status(
+    registry: &DesktopVoiceShortcutRegistry,
+) -> DesktopVoiceShortcutStatus {
+    #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+    {
+        let entries = registry
+            .entries
+            .lock()
+            .map(|entries| entries.clone())
+            .unwrap_or_default();
+
+        return desktop_voice_shortcut_status(!entries.is_empty(), &entries);
+    }
+
+    #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
+    {
+        let _ = registry;
+        DesktopVoiceShortcutStatus {
+            enabled: false,
+            registered: Vec::new(),
+        }
     }
 }
 
@@ -1235,11 +1854,36 @@ fn save_desktop_main_window_state(app: &AppHandle, promotion_state: &DesktopWind
     }
 
     let Some(window) = app.get_webview_window("main") else {
+        record_desktop_native_log(
+            app,
+            "warning",
+            "window_state",
+            "Main window missing during save.",
+        );
         return;
     };
 
     if let Some(state) = capture_desktop_main_window_state(&window) {
-        let _ = write_desktop_main_window_state(app, state);
+        match write_desktop_main_window_state(app, state) {
+            Ok(()) => {
+                record_desktop_native_log(app, "info", "window_state", "Main window state saved.");
+            }
+            Err(error) => {
+                record_desktop_native_log(
+                    app,
+                    "error",
+                    "window_state",
+                    format!("Unable to save main window state: {error}").as_str(),
+                );
+            }
+        }
+    } else {
+        record_desktop_native_log(
+            app,
+            "warning",
+            "window_state",
+            "Main window state capture skipped.",
+        );
     }
 }
 
@@ -2083,10 +2727,14 @@ fn hide_main_window_to_tray(app: &tauri::AppHandle, promotion_state: &DesktopWin
 
 fn hide_desktop_game_overlay_window(app: &tauri::AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(DESKTOP_GAME_OVERLAY_WINDOW_LABEL) {
-        if let Err(error) = park_desktop_game_overlay_window(&window) {
-            let _ = window.close();
-            return Err(error);
+        let park_result = park_desktop_game_overlay_window(&window);
+        if let Err(error) = park_result {
+            eprintln!("Unable to park desktop game overlay before destroy: {error}");
         }
+
+        window
+            .close()
+            .map_err(|error| format!("Unable to destroy desktop game overlay window: {error}"))?;
     }
 
     Ok(())
@@ -2094,6 +2742,64 @@ fn hide_desktop_game_overlay_window(app: &tauri::AppHandle) -> Result<(), String
 
 fn is_main_window_focused(app: &tauri::AppHandle) -> bool {
     is_main_window_focused_impl(app)
+}
+
+#[cfg(windows)]
+fn sanitize_desktop_executable_name(value: &str) -> Option<String> {
+    let basename = Path::new(value).file_name()?.to_string_lossy();
+    if basename.contains('\0') || basename.contains('\r') || basename.contains('\n') {
+        return None;
+    }
+
+    let normalized = basename.split_whitespace().collect::<Vec<_>>().join(" ");
+
+    if normalized.is_empty()
+        || normalized.len() > 128
+        || normalized.contains('\\')
+        || normalized.contains('/')
+    {
+        return None;
+    }
+
+    Some(normalized)
+}
+
+#[cfg(windows)]
+fn desktop_foreground_process_name() -> Option<String> {
+    unsafe {
+        let foreground_hwnd = GetForegroundWindow();
+        if foreground_hwnd.is_null() {
+            return None;
+        }
+
+        let mut process_id = 0;
+        GetWindowThreadProcessId(foreground_hwnd, &mut process_id);
+        if process_id == 0 {
+            return None;
+        }
+
+        let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, process_id);
+        if process.is_null() {
+            return None;
+        }
+
+        let mut buffer = [0u16; 1024];
+        let mut length = buffer.len() as u32;
+        let succeeded = QueryFullProcessImageNameW(process, 0, buffer.as_mut_ptr(), &mut length);
+        CloseHandle(process);
+
+        if succeeded == 0 || length == 0 {
+            return None;
+        }
+
+        let path = String::from_utf16_lossy(&buffer[..length as usize]);
+        sanitize_desktop_executable_name(&path)
+    }
+}
+
+#[cfg(not(windows))]
+fn desktop_foreground_process_name() -> Option<String> {
+    None
 }
 
 #[cfg(windows)]
@@ -2184,7 +2890,7 @@ fn show_or_create_desktop_game_overlay_window(
     .inner_size(overlay_width, overlay_height)
     .min_inner_size(overlay_width, overlay_height)
     .data_directory(webview_data_directory)
-    .initialization_script(DESKTOP_INIT_SCRIPT)
+    .initialization_script(desktop_init_script(false, desktop_release_ring().as_str()))
     .on_navigation(move |url| {
         if is_same_origin(url, &allowed_origin) {
             return true;
@@ -2313,7 +3019,7 @@ fn show_or_create_desktop_voice_mini_window(app: &tauri::AppHandle) -> Result<()
     .inner_size(DESKTOP_VOICE_MINI_WIDTH, DESKTOP_VOICE_MINI_HEIGHT)
     .min_inner_size(DESKTOP_VOICE_MINI_WIDTH, DESKTOP_VOICE_MINI_HEIGHT)
     .data_directory(webview_data_directory)
-    .initialization_script(DESKTOP_INIT_SCRIPT)
+    .initialization_script(desktop_init_script(false, desktop_release_ring().as_str()))
     .on_navigation(move |url| {
         if is_same_origin(url, &allowed_origin) {
             return true;
@@ -2376,10 +3082,22 @@ fn request_app_quit(
     promotion_state: &DesktopWindowPromotionState,
 ) {
     let Some(request_id) = begin_desktop_close_request(close_coordinator) else {
+        record_desktop_native_log(
+            app,
+            "warning",
+            "close_handshake",
+            "Close request ignored because another request is pending.",
+        );
         return;
     };
 
     let Some(window) = app.get_webview_window("main") else {
+        record_desktop_native_log(
+            app,
+            "warning",
+            "close_handshake",
+            "Main window missing during close; exiting immediately.",
+        );
         if complete_desktop_close_request(close_coordinator, request_id) {
             save_desktop_main_window_state(app, promotion_state);
             app.exit(0);
@@ -2390,7 +3108,19 @@ fn request_app_quit(
     let script = format!(
         "window.dispatchEvent(new CustomEvent('whispr:desktop-before-close', {{ detail: {{ requestId: {request_id} }}, cancelable: true }}));"
     );
+    record_desktop_native_log(
+        app,
+        "info",
+        "close_handshake",
+        "Close cleanup request dispatched to web runtime.",
+    );
     if window.eval(&script).is_err() {
+        record_desktop_native_log(
+            app,
+            "error",
+            "close_handshake",
+            "Unable to dispatch close cleanup request; exiting immediately.",
+        );
         if complete_desktop_close_request(close_coordinator, request_id) {
             save_desktop_main_window_state(app, promotion_state);
             app.exit(0);
@@ -2404,6 +3134,12 @@ fn request_app_quit(
     std::thread::spawn(move || {
         std::thread::sleep(Duration::from_millis(DESKTOP_BEFORE_CLOSE_TIMEOUT_MS));
         if complete_desktop_close_request(&timeout_coordinator, request_id) {
+            record_desktop_native_log(
+                &app_handle,
+                "warning",
+                "close_handshake",
+                "Close cleanup timed out; using fallback exit.",
+            );
             save_desktop_main_window_state(&app_handle, &timeout_promotion_state);
             app_handle.exit(0);
         }
@@ -2567,8 +3303,9 @@ fn dispatch_desktop_surface_ready(app: &AppHandle, surface: &str) {
     let Ok(surface_json) = serde_json::to_string(surface) else {
         return;
     };
+    let issued_at_ms = current_unix_ms();
     let script = format!(
-        "window.dispatchEvent(new CustomEvent('whispr:desktop-command', {{ detail: {{ command: 'desktop-surface-ready', surface: {surface_json} }} }}));"
+        "window.dispatchEvent(new CustomEvent('whispr:desktop-command', {{ detail: {{ command: 'desktop-surface-ready', surface: {surface_json}, issuedAtMs: {issued_at_ms} }} }}));"
     );
 
     let _ = window.eval(&script);
@@ -2595,24 +3332,30 @@ fn dispatch_desktop_command_with_focus(
         Some(value) => serde_json::to_string(value).unwrap_or_else(|_| "null".to_string()),
         None => "null".to_string(),
     };
+    let issued_at_ms = current_unix_ms();
     let script = format!(
-        "window.dispatchEvent(new CustomEvent('whispr:desktop-command', {{ detail: {{ command: {command_json}, path: {path_json} }} }}));"
+        "window.dispatchEvent(new CustomEvent('whispr:desktop-command', {{ detail: {{ command: {command_json}, path: {path_json}, issuedAtMs: {issued_at_ms} }} }}));"
     );
 
     let _ = window.eval(&script);
 }
 
 fn configured_app_url() -> Url {
-    let raw_url = match std::env::var("WHISPR_DESKTOP_WEB_URL") {
-        Ok(value) => value,
-        Err(_) if cfg!(debug_assertions) => "http://localhost:3000".into(),
-        Err(_) => {
-            panic!(
-                "WHISPR_DESKTOP_WEB_URL is required for production desktop builds. \
-                 Use apps/desktop/scripts/run-tauri.mjs build with TAURI_WEB_URL set."
-            )
-        }
-    };
+    let raw_url = desktop_config_value(
+        "WHISPR_DESKTOP_WEB_URL",
+        if cfg!(debug_assertions) {
+            "http://localhost:3000"
+        } else {
+            ""
+        },
+    );
+
+    if raw_url.trim().is_empty() {
+        panic!(
+            "WHISPR_DESKTOP_WEB_URL is required for production desktop builds. \
+             Use apps/desktop/scripts/run-tauri.mjs build with TAURI_WEB_URL set."
+        );
+    }
 
     let mut url = Url::parse(&raw_url).expect("WHISPR_DESKTOP_WEB_URL must be a valid URL");
 
@@ -2699,5 +3442,83 @@ fn open_external_url(url: &Url) {
         _ => {
             eprintln!("Blocked unsupported external URL scheme: {}", url.scheme());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn desktop_custom_commands_are_main_window_only() {
+        assert!(is_authorized_desktop_command_window_label("main"));
+        assert!(!is_authorized_desktop_command_window_label("voice-mini"));
+        assert!(!is_authorized_desktop_command_window_label("game-overlay"));
+        assert!(!is_authorized_desktop_command_window_label("settings"));
+        assert!(!is_authorized_desktop_command_window_label(""));
+    }
+
+    #[test]
+    fn desktop_diagnostic_text_is_redacted_and_bounded() {
+        assert_eq!(
+            sanitize_diagnostic_text("authorization bearer abc"),
+            "[redacted-sensitive-diagnostic]"
+        );
+        assert_eq!(
+            sanitize_diagnostic_text("user@example.com connected"),
+            "[redacted-email] connected"
+        );
+        assert!(
+            sanitize_diagnostic_text(&"a".repeat(DESKTOP_DIAGNOSTIC_TEXT_MAX_CHARS + 20)).len()
+                <= DESKTOP_DIAGNOSTIC_TEXT_MAX_CHARS
+        );
+    }
+
+    #[test]
+    fn desktop_native_media_capabilities_stay_research_gated() {
+        let capabilities = desktop_platform_capabilities();
+
+        assert_eq!(capabilities.native_screen_capture.status, "research_gated");
+        assert_eq!(capabilities.native_screen_capture.fallback, "browser_get_display_media");
+        assert_eq!(capabilities.system_audio_capture.status, "research_gated");
+        assert_eq!(capabilities.system_audio_capture.fallback, "no_system_audio_capture");
+        assert_eq!(capabilities.livekit_custom_track.status, "research_gated");
+        assert_eq!(
+            capabilities.livekit_custom_track.fallback,
+            "standard_livekit_get_display_media"
+        );
+        assert_eq!(capabilities.hardware_encode.status, "research_gated");
+        assert_eq!(
+            capabilities.hardware_encode.strategy,
+            "webrtc_codec_hint_telemetry_only"
+        );
+        assert_eq!(
+            capabilities.hardware_encode.fallback,
+            "os_webview_encoder_selection"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn desktop_foreground_process_name_is_pathless() {
+        assert_eq!(
+            sanitize_desktop_executable_name(r"C:\Games\osu!\osu!.exe"),
+            Some("osu!.exe".to_string())
+        );
+        assert_eq!(sanitize_desktop_executable_name(""), None);
+        assert_eq!(sanitize_desktop_executable_name("bad\nname.exe"), None);
+    }
+
+    #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+    #[test]
+    fn desktop_voice_shortcuts_reject_reserved_combinations() {
+        assert!(is_reserved_desktop_voice_shortcut("Alt+Space"));
+        assert!(is_reserved_desktop_voice_shortcut("Ctrl+Space"));
+        assert!(is_reserved_desktop_voice_shortcut("CmdOrCtrl+Shift+Space"));
+        assert!(is_reserved_desktop_voice_shortcut("Alt+Tab"));
+        assert!(is_reserved_desktop_voice_shortcut("Alt+F4"));
+        assert!(!is_reserved_desktop_voice_shortcut("Alt+V"));
+        assert!(parse_desktop_voice_shortcut("Alt+V").is_ok());
+        assert!(parse_desktop_voice_shortcut("Alt+Space").is_err());
     }
 }

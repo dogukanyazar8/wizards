@@ -51,6 +51,7 @@ import {
   NOTIFICATION_POPUP_TIMEOUT_STEP,
 } from "@/lib/appearance";
 import { APP_ICON_OPTIONS, type AppIconId } from "@/lib/app-icons";
+import type { DesktopRichPresenceAudience } from "@/lib/desktop/privacy";
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import {
   MESSAGE_FONT_OPTIONS,
@@ -156,6 +157,11 @@ const FRIEND_REQUEST_POLICY_OPTIONS = [
   "MUTUAL_FRIENDS",
   "NOBODY",
 ] as const satisfies readonly FriendRequestPolicyValue[];
+
+const DESKTOP_RICH_PRESENCE_AUDIENCE_OPTIONS = [
+  "nobody",
+  "friends",
+] as const satisfies readonly DesktopRichPresenceAudience[];
 
 function getDmPolicyLabelKey(policy: DmPolicyValue) {
   return `settings.account.privacy.dmPolicy.${policy}`;
@@ -1069,8 +1075,10 @@ export function SettingsPanel({
     appIconId,
     desktopCloseToTrayEnabled,
     desktopNotificationPreviews,
+    desktopRichPresenceAudience,
     desktopRichPresenceEnabled,
     desktopStreamerModeEnabled,
+    desktopStreamerModeProcessDetectionEnabled,
     messageFont,
     notificationAutoClose,
     notificationLimit,
@@ -1078,8 +1086,10 @@ export function SettingsPanel({
     setAppIconId,
     setDesktopCloseToTrayEnabled,
     setDesktopNotificationPreviews,
+    setDesktopRichPresenceAudience,
     setDesktopRichPresenceEnabled,
     setDesktopStreamerModeEnabled,
+    setDesktopStreamerModeProcessDetectionEnabled,
     setMessageFont,
     setNotificationAutoClose,
     setNotificationLimit,
@@ -1090,8 +1100,11 @@ export function SettingsPanel({
       appIconId: state.appIconId,
       desktopCloseToTrayEnabled: state.desktopCloseToTrayEnabled,
       desktopNotificationPreviews: state.desktopNotificationPreviews,
+      desktopRichPresenceAudience: state.desktopRichPresenceAudience,
       desktopRichPresenceEnabled: state.desktopRichPresenceEnabled,
       desktopStreamerModeEnabled: state.desktopStreamerModeEnabled,
+      desktopStreamerModeProcessDetectionEnabled:
+        state.desktopStreamerModeProcessDetectionEnabled,
       messageFont: state.messageFont,
       notificationAutoClose: state.notificationAutoClose,
       notificationLimit: state.notificationLimit,
@@ -1099,8 +1112,11 @@ export function SettingsPanel({
       setAppIconId: state.setAppIconId,
       setDesktopCloseToTrayEnabled: state.setDesktopCloseToTrayEnabled,
       setDesktopNotificationPreviews: state.setDesktopNotificationPreviews,
+      setDesktopRichPresenceAudience: state.setDesktopRichPresenceAudience,
       setDesktopRichPresenceEnabled: state.setDesktopRichPresenceEnabled,
       setDesktopStreamerModeEnabled: state.setDesktopStreamerModeEnabled,
+      setDesktopStreamerModeProcessDetectionEnabled:
+        state.setDesktopStreamerModeProcessDetectionEnabled,
       setMessageFont: state.setMessageFont,
       setNotificationAutoClose: state.setNotificationAutoClose,
       setNotificationLimit: state.setNotificationLimit,
@@ -1648,12 +1664,32 @@ export function SettingsPanel({
                 testId="settings-desktop-streamer-mode"
               />
               <ToggleRow
+                checked={desktopStreamerModeProcessDetectionEnabled}
+                description={t("settings.notifications.streamerMode.processDetection.description")}
+                disabled={!isDesktopRuntime}
+                label={t("settings.notifications.streamerMode.processDetection.title")}
+                onChange={setDesktopStreamerModeProcessDetectionEnabled}
+                testId="settings-desktop-streamer-mode-process-detection"
+              />
+              <ToggleRow
                 checked={desktopRichPresenceEnabled}
                 description={t("settings.notifications.richPresence.description")}
                 disabled={!isDesktopRuntime}
                 label={t("settings.notifications.richPresence.title")}
                 onChange={setDesktopRichPresenceEnabled}
                 testId="settings-desktop-rich-presence"
+              />
+              <AccountPreferenceSelectRow<DesktopRichPresenceAudience>
+                description={t("settings.notifications.richPresence.audience.description")}
+                disabled={!isDesktopRuntime || !desktopRichPresenceEnabled}
+                icon={Eye}
+                labelForValue={(value) =>
+                  t(`settings.notifications.richPresence.audience.${value}`)
+                }
+                onChange={setDesktopRichPresenceAudience}
+                options={DESKTOP_RICH_PRESENCE_AUDIENCE_OPTIONS}
+                title={t("settings.notifications.richPresence.audience.title")}
+                value={desktopRichPresenceAudience}
               />
             </div>
           </SettingCard>

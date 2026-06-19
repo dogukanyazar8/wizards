@@ -57,6 +57,17 @@ export const TR_MESSAGES = {
     "app.update.whatsNew": "Neler yeni",
     "app.update.currentBuild": "Mevcut build {build}",
     "app.update.latestBuild": "Yeni build {build}",
+    "desktop.update.badge": "Masaüstü güncellemesi",
+    "desktop.update.title": "İmzalı Whispr Desktop güncellemesi mevcut",
+    "desktop.update.description":
+      "Şu anda v{current} kullanıyorsun. {ring} release halkasında v{latest} sürümü hazır.",
+    "desktop.update.install": "İndir ve yeniden başlat",
+    "desktop.update.installing": "Güncelleniyor...",
+    "desktop.update.later": "Daha sonra",
+    "desktop.update.error":
+      "Masaüstü güncelleme kontrolü güvenli şekilde başarısız oldu. Whispr'i kullanmaya devam edebilirsin.",
+    "desktop.update.installError":
+      "Güncelleme kurulamadı. Whispr mevcut sürümünü değiştirmedi.",
     "app.update.category.devices": "Cihazlar",
     "app.update.category.design": "Tasarım",
     "app.update.category.security": "Güvenlik",
@@ -196,6 +207,10 @@ export const TR_MESSAGES = {
     "app.update.notes.animatedWhisprIdentity.title": "Hareketli Whispr kimliği",
     "app.update.notes.animatedWhisprIdentity.description":
       "Hareketli Whispr kimliği, mevcut marka işaretini değiştirmeden sunucu rayı ve ayarlar kenar çubuğunda tutarlı şekilde görünür.",
+
+    "app.update.notes.desktopReleaseRuntime.title": "Güvenilir UAT masaüstü açılışı",
+    "app.update.notes.desktopReleaseRuntime.description":
+      "Kurulu masaüstü build'leri artık seçilen web origin'i, release halkasını ve updater durumunu build sırasında içine alır; böylece UAT installer'ları makine genelinde environment değişkeni beklemeden açılır ve imzalı updater yapılandırması kapalı kalır.",
 
     "validation.category.pattern":
       "Kategori adları harf, sayı, boşluk, tire veya alt çizgi içerebilir.",
@@ -549,6 +564,8 @@ export const TR_MESSAGES = {
       "Yalnızca sorun giderirken değiştir. Ses yakalama değişiklikleri güvenli şekilde saklanır ve aktif görüşmeyi kesmez.",
     "voice.devices.defaultInput": "Sistem varsayılan mikrofonu",
     "voice.devices.defaultOutput": "Sistem varsayılan hoparlörü",
+    "voice.devices.communicationsInput": "Varsayılan iletişim mikrofonu",
+    "voice.devices.communicationsOutput": "Varsayılan iletişim hoparlörü",
     "voice.devices.enumerationUnsupported":
       "Bu tarayıcı ses aygıtlarını listeleyemiyor. Whispr sistem varsayılanını kullanacak.",
     "voice.devices.inputDescription":
@@ -703,6 +720,16 @@ export const TR_MESSAGES = {
     "voice.settings.desktopOverlaySpeakingOnly": "Yalnızca konuşanları göster",
     "voice.settings.desktopOverlaySpeakingOnlyDesc":
       "Sessiz katılımcıları biri konuşana kadar gizleyerek overlay'i daha sakin tutar.",
+    "voice.settings.desktopOverlayProcessDetection": "Oyun executable'ını algıla",
+    "voice.settings.desktopOverlayProcessDetectionDesc":
+      "Pencereli/kenarsız oyunlar için isteğe bağlı kapı. Whispr yalnızca öndeki executable adını okur, path okumaz ve yerel whitelist kullanır.",
+    "voice.settings.desktopOverlayPerGame": "Oyun bazlı overlay ayarları",
+    "voice.settings.desktopOverlayPerGameDesc":
+      "Whitelist'teki oyunlar için overlay'i ayrı ayrı aç, konumunu ve yoğunluğunu belirle.",
+    "voice.settings.desktopOverlayLocalOnly": "Yerel",
+    "voice.settings.desktopOverlayGameEnabled": "Açık",
+    "voice.settings.desktopOverlayGameDisabled": "Kapalı",
+    "voice.settings.desktopOverlayGameSpeakingOnly": "Konuşanlar",
     "voice.settings.inputMode": "Mikrofon giriş modu",
     "voice.settings.inputModeDesc":
       "Whispr'in otomatik mi yoksa yalnızca bas-konuş tuşu basılıyken mi ses ileteceğini seç.",
@@ -1226,6 +1253,11 @@ export const TR_MESSAGES = {
     "settings.voice.screenShare.feature.detailMode": "Detay odaklı yakalama",
     "settings.voice.screenShare.feature.noSystemAudio": "Sistem sesi yakalanmaz",
     "settings.voice.screenShare.feature.shareLimit": "Oda başına 2 aktif paylaşım",
+    "settings.voice.screenShare.nativeResearch.title": "Native medya araştırması",
+    "settings.voice.screenShare.nativeResearch.description":
+      "Whispr şu anda güvenli WebRTC ekran seçicisini kullanır. Windows Graphics Capture, WASAPI loopback, ScreenCaptureKit ve PipeWire entegrasyonları kullanıcı izniyle ayrı spike olarak doğrulanacak.",
+    "settings.voice.screenShare.nativeResearch.hardwareEncode":
+      "Donanımsal encode için JS tarafı NVENC/AMF seçemez; yalnızca codec/kalite ipucu verilir, gerçek encoder seçimini OS WebView yapar.",
     "settings.groups.appearance.badge": "Görünüm",
     "settings.groups.appearance.title": "Görünüm",
     "settings.groups.appearance.description":
@@ -1292,10 +1324,19 @@ export const TR_MESSAGES = {
       "Kapat düğmesine basıldığında ana pencereyi gizler; ses, bildirimler ve tray erişimi açık kalır. Kapat düğmesi Whispr'dan tamamen çıksın istiyorsan kapat.",
     "settings.notifications.streamerMode.title": "Yayıncı modu gizliliği",
     "settings.notifications.streamerMode.description":
-      "Yayın veya kayıt sırasında native masaüstü bildirim açılırlarını susturur ve uygulama rozetini temizler.",
+      "Yayın veya kayıt sırasında native masaüstü bildirim açılırlarını, bildirim seslerini, uygulama rozetini ve overlay kimlik detaylarını bastırır.",
+    "settings.notifications.streamerMode.processDetection.title":
+      "OBS ve XSplit'i yerel olarak algıla",
+    "settings.notifications.streamerMode.processDetection.description":
+      "Desteklenen yayın araçları odaktayken Whispr'in yayıncı gizliliğini açması için yerel süreç algılamayı isteğe bağlı etkinleştir. Çalıştırılabilir dosya yolları saklanmaz veya paylaşılmaz.",
     "settings.notifications.richPresence.title": "Yerel masaüstü etkinliği",
     "settings.notifications.richPresence.description":
       "Ses kanalındayken veya ekran paylaşırken yalnızca bu cihazdaki Whispr pencere başlığını ve tray ipucunu günceller. Oyun, süreç, sunucu veya mesaj verisi yayımlanmaz.",
+    "settings.notifications.richPresence.audience.title": "Etkinlik görünürlüğü",
+    "settings.notifications.richPresence.audience.description":
+      "Yerel masaüstü etkinliğini gizli tut veya gelecekteki yalnızca arkadaşlara açık presence yüzeylerine süreç yolu göstermeden izin ver.",
+    "settings.notifications.richPresence.audience.nobody": "Kimse",
+    "settings.notifications.richPresence.audience.friends": "Yalnızca arkadaşlar",
     "settings.notifications.mobile.title": "Mobil bildirimler",
     "settings.notifications.mobile.description":
       "Hesap seviyesindeki bildirim tercihleri için mobil teslimatı açık tut.",
@@ -1414,11 +1455,23 @@ export const TR_MESSAGES = {
       "Whispr işletim sistemi başlangıç ayarını güncelleyemedi.",
     "desktop.diagnostics.streamerMode.label": "Yayıncı modu",
     "desktop.diagnostics.streamerMode.detail":
-      "Ekranını paylaşırken veya kayıt alırken masaüstü rozetlerini gizler ve native bildirim açılırlarını susturur.",
+      "Ekranını paylaşırken veya kayıt alırken masaüstü rozetlerini, bildirim seslerini, native bildirim açılırlarını ve detaylı overlay kimliklerini bastırır.",
     "desktop.diagnostics.shell.label": "Native kabuk",
     "desktop.diagnostics.shell.detail":
       "Tray işlemleri, single-instance focus, güvenli deep link ve harici link devri ek masaüstü davranışlarıdır.",
     "desktop.diagnostics.shell.ready": "hazır",
+    "desktop.diagnostics.supportBundle.label": "Destek paketi",
+    "desktop.diagnostics.supportBundle.detail":
+      "Uygulama, platform, overlay, kısayol, socket ve redakte edilmiş native log tanılarını yerel JSON olarak dışa aktarır. Token, e-posta adresi ve mesaj içeriği dahil edilmez.",
+    "desktop.diagnostics.supportBundle.button": "Tanıları dışa aktar",
+    "desktop.diagnostics.supportBundle.exporting": "Dışa aktarılıyor...",
+    "desktop.diagnostics.supportBundle.success": "Tanı paketi indirildi.",
+    "desktop.diagnostics.supportBundle.error": "Whispr tanı paketini dışa aktaramadı.",
+    "desktop.diagnostics.shortcuts.label": "Global kısayollar",
+    "desktop.diagnostics.shortcuts.detail":
+      "Yalnızca kayıtlı aksiyon adlarını ve tuş kombinasyonlarını raporlar; tuş geçmişi saklanmaz.",
+    "desktop.diagnostics.shortcuts.enabled": "kayıtlı",
+    "desktop.diagnostics.shortcuts.disabled": "kapalı",
     "desktop.diagnostics.overlayWindows.label": "Ses overlay pencereleri",
     "desktop.diagnostics.overlayWindows.visible": "görünür",
     "desktop.diagnostics.overlayWindows.idle": "boşta",
@@ -1437,6 +1490,9 @@ export const TR_MESSAGES = {
     "desktop.diagnostics.capabilities.systemAudioCapture.label": "Sistem sesi yakalama",
     "desktop.diagnostics.capabilities.systemAudioCapture.detail":
       "Gelecekteki loopback ses araştırması için ayrıldı. Whispr henüz sistem sesini native olarak yakalamaz.",
+    "desktop.diagnostics.capabilities.livekitCustomTrack.label": "LiveKit custom track",
+    "desktop.diagnostics.capabilities.livekitCustomTrack.detail":
+      "Native yakalanan kareleri LiveKit'e güvenli custom track olarak bağlama araştırması. Üretimde standart getDisplayMedia yolu korunur.",
     "desktop.diagnostics.capabilities.hardwareEncode.label": "Donanımsal encode",
     "desktop.diagnostics.capabilities.hardwareEncode.detail":
       "Yalnızca WebRTC codec ipucu telemetrisi olarak izlenir; gerçek encoder seçimini OS WebView yapar.",
@@ -1449,6 +1505,17 @@ export const TR_MESSAGES = {
     "desktop.diagnostics.capabilities.status.unknown": "bilinmiyor",
     "desktop.diagnostics.capabilities.error":
       "Whispr yerel masaüstü capability tanılamasını okuyamadı.",
+    "desktop.diagnostics.nativeMedia.title": "Native medya araştırması",
+    "desktop.diagnostics.nativeMedia.mode.web_get_display_media_fallback":
+      "Üretim yolu hâlâ WebRTC getDisplayMedia fallback'i. Native capture ve sistem sesi kullanıcı izniyle doğrulanmadan etkinleştirilmez.",
+    "desktop.diagnostics.nativeMedia.mode.native_spike_ready":
+      "Native capture spike hazır görünüyor; yine de kullanıcı izni ve fallback yolu korunur.",
+    "desktop.diagnostics.nativeMedia.feature.nativeScreenCapture": "OS-native ekran yakalama",
+    "desktop.diagnostics.nativeMedia.feature.systemAudioCapture": "Sistem sesi loopback",
+    "desktop.diagnostics.nativeMedia.feature.livekitCustomTrack": "LiveKit custom track",
+    "desktop.diagnostics.nativeMedia.feature.hardwareEncode": "Donanımsal encode gerçekliği",
+    "desktop.diagnostics.nativeMedia.fallback": "Fallback",
+    "desktop.diagnostics.nativeMedia.permission": "İzin",
 
     "appearance.page.badge": "Kullanıcı Ayarları",
     "appearance.page.description":

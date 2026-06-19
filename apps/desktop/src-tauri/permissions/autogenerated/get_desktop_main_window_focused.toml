@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-desktop-main-window-focused"
+description = "Enables the get_desktop_main_window_focused command without any pre-configured scope."
+commands.allow = ["get_desktop_main_window_focused"]
+
+[[permission]]
+identifier = "deny-get-desktop-main-window-focused"
+description = "Denies the get_desktop_main_window_focused command without any pre-configured scope."
+commands.deny = ["get_desktop_main_window_focused"]

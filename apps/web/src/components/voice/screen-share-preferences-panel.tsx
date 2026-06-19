@@ -364,6 +364,25 @@ export function ScreenSharePreferencesPanel() {
         </div>
       </div>
 
+      <div className="rounded-[18px] border border-[hsl(var(--warning)/0.22)] bg-[hsl(var(--warning)/0.07)] p-3">
+        <div className="flex items-start gap-2.5">
+          <div className="rounded-xl border border-[hsl(var(--warning)/0.24)] bg-[hsl(var(--warning)/0.10)] p-2 text-[hsl(var(--warning))]">
+            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold text-app-foreground">
+              {t("settings.voice.screenShare.nativeResearch.title")}
+            </p>
+            <p className="mt-0.5 text-xs leading-4 text-app-muted">
+              {t("settings.voice.screenShare.nativeResearch.description")}
+            </p>
+            <p className="mt-1.5 text-[11px] leading-4 text-app-soft">
+              {t("settings.voice.screenShare.nativeResearch.hardwareEncode")}
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-wrap gap-1.5">
         <FeaturePill>{t("settings.voice.screenShare.feature.voiceRooms")}</FeaturePill>
         <FeaturePill>{t("settings.voice.screenShare.feature.directMessages")}</FeaturePill>

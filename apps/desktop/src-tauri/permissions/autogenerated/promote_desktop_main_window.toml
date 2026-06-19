@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-promote-desktop-main-window"
+description = "Enables the promote_desktop_main_window command without any pre-configured scope."
+commands.allow = ["promote_desktop_main_window"]
+
+[[permission]]
+identifier = "deny-promote-desktop-main-window"
+description = "Denies the promote_desktop_main_window command without any pre-configured scope."
+commands.deny = ["promote_desktop_main_window"]

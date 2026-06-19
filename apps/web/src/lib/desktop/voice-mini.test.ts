@@ -99,6 +99,32 @@ describe("desktop voice mini snapshot", () => {
     assert.equal(snapshot.participants[0]?.isDeafened, true);
   });
 
+  it("minimizes exported identity fields in streamer privacy mode", () => {
+    const snapshot = buildVoiceMiniSnapshot({
+      activeChannelId: "channel-1",
+      connectionState: ConnectionState.Connected,
+      isDeafened: false,
+      isMuted: true,
+      participants: [
+        participant({
+          avatarUrl: "https://whispr.test/private-avatar.png",
+          displayName: "Private Broadcaster",
+          isLocal: true,
+          userId: "real-user-id",
+        }),
+      ],
+      privacyMode: "streamer",
+      socketConnected: true,
+    });
+
+    assert.equal(snapshot.privacyMode, "streamer");
+    assert.equal(snapshot.participants[0]?.avatarUrl, null);
+    assert.equal(snapshot.participants[0]?.displayName, "Voice participant");
+    assert.equal(snapshot.participants[0]?.userId, "participant-1");
+    assert.equal(snapshot.participants[0]?.isMuted, true);
+    assert.equal(snapshot.participants[0]?.audioLevel, 0.42);
+  });
+
   it("marks realtime loss without treating it as participant data", () => {
     assert.equal(
       resolveVoiceMiniConnectionQuality({

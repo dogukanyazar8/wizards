@@ -57,6 +57,16 @@ export const EN_MESSAGES = {
     "app.update.whatsNew": "What's new",
     "app.update.currentBuild": "Current build {build}",
     "app.update.latestBuild": "Latest build {build}",
+    "desktop.update.badge": "Desktop update",
+    "desktop.update.title": "A signed Whispr Desktop update is available",
+    "desktop.update.description":
+      "You are using v{current}. Version v{latest} is available on the {ring} release ring.",
+    "desktop.update.install": "Download and restart",
+    "desktop.update.installing": "Updating...",
+    "desktop.update.later": "Later",
+    "desktop.update.error": "Desktop update check failed safely. You can keep using Whispr.",
+    "desktop.update.installError":
+      "The update could not be installed. Whispr did not change your current version.",
     "app.update.category.devices": "Devices",
     "app.update.category.design": "Design",
     "app.update.category.security": "Security",
@@ -196,6 +206,10 @@ export const EN_MESSAGES = {
     "app.update.notes.animatedWhisprIdentity.title": "Animated Whispr identity",
     "app.update.notes.animatedWhisprIdentity.description":
       "The animated Whispr identity now appears consistently in the server rail and settings sidebar without replacing the existing brand mark.",
+
+    "app.update.notes.desktopReleaseRuntime.title": "Reliable UAT desktop launch",
+    "app.update.notes.desktopReleaseRuntime.description":
+      "Installed desktop builds now embed the selected web origin, release ring, and updater state at build time, so UAT installers open without machine-wide environment variables while signed updater configuration stays gated.",
 
     "validation.category.pattern":
       "Category names can use letters, numbers, spaces, hyphens, or underscores.",
@@ -547,6 +561,8 @@ export const EN_MESSAGES = {
       "Only change these if you are troubleshooting. Capture changes are saved safely and avoid interrupting an active call.",
     "voice.devices.defaultInput": "System default microphone",
     "voice.devices.defaultOutput": "System default speaker",
+    "voice.devices.communicationsInput": "Default communications microphone",
+    "voice.devices.communicationsOutput": "Default communications speaker",
     "voice.devices.enumerationUnsupported":
       "This browser cannot list audio devices. Whispr will use the system default.",
     "voice.devices.inputDescription":
@@ -699,6 +715,16 @@ export const EN_MESSAGES = {
     "voice.settings.desktopOverlaySpeakingOnly": "Show speaking users only",
     "voice.settings.desktopOverlaySpeakingOnlyDesc":
       "Keeps the overlay quieter by hiding silent participants until someone speaks.",
+    "voice.settings.desktopOverlayProcessDetection": "Detect game executable",
+    "voice.settings.desktopOverlayProcessDetectionDesc":
+      "Opt-in gate for windowed/borderless games. Whispr reads only the foreground executable name, never the path, and uses a local whitelist.",
+    "voice.settings.desktopOverlayPerGame": "Per-game overlay settings",
+    "voice.settings.desktopOverlayPerGameDesc":
+      "Enable the overlay, position, and density separately for whitelisted games.",
+    "voice.settings.desktopOverlayLocalOnly": "Local",
+    "voice.settings.desktopOverlayGameEnabled": "On",
+    "voice.settings.desktopOverlayGameDisabled": "Off",
+    "voice.settings.desktopOverlayGameSpeakingOnly": "Speaking",
     "voice.settings.inputMode": "Microphone input mode",
     "voice.settings.inputModeDesc":
       "Choose whether Whispr transmits automatically or only while push-to-talk is held.",
@@ -1222,6 +1248,11 @@ export const EN_MESSAGES = {
     "settings.voice.screenShare.feature.detailMode": "Detail-optimized capture",
     "settings.voice.screenShare.feature.noSystemAudio": "No system audio capture",
     "settings.voice.screenShare.feature.shareLimit": "2 active shares per room",
+    "settings.voice.screenShare.nativeResearch.title": "Native media research",
+    "settings.voice.screenShare.nativeResearch.description":
+      "Whispr currently uses the safe WebRTC screen picker. Windows Graphics Capture, WASAPI loopback, ScreenCaptureKit, and PipeWire integrations will be validated as separate user-permissioned spikes.",
+    "settings.voice.screenShare.nativeResearch.hardwareEncode":
+      "JavaScript cannot select NVENC or AMF directly; Whispr can only provide codec and quality hints while the OS WebView chooses the actual encoder.",
     "settings.groups.appearance.badge": "Appearance",
     "settings.groups.appearance.title": "Appearance",
     "settings.groups.appearance.description":
@@ -1288,10 +1319,19 @@ export const EN_MESSAGES = {
       "When the close button is pressed, hide the main window and keep voice, notifications, and tray access active. Turn this off if the close button should fully quit Whispr.",
     "settings.notifications.streamerMode.title": "Streamer mode privacy",
     "settings.notifications.streamerMode.description":
-      "Suppresses native desktop notification popups and clears the app badge while you are streaming or recording.",
+      "Suppresses native desktop notification popups, notification sounds, app badges, and detailed overlay identities while you are streaming or recording.",
+    "settings.notifications.streamerMode.processDetection.title":
+      "Detect OBS and XSplit locally",
+    "settings.notifications.streamerMode.processDetection.description":
+      "Opt in to local process detection so Whispr can enable streamer privacy when supported streaming tools are focused. Executable paths are never stored or shared.",
     "settings.notifications.richPresence.title": "Local desktop activity",
     "settings.notifications.richPresence.description":
       "Updates only the local Whispr window title and tray tooltip while you are in voice or screen sharing. No game, process, server, or message data is published.",
+    "settings.notifications.richPresence.audience.title": "Activity visibility",
+    "settings.notifications.richPresence.audience.description":
+      "Keep local desktop activity private, or allow future friend-only presence surfaces without exposing process paths.",
+    "settings.notifications.richPresence.audience.nobody": "Nobody",
+    "settings.notifications.richPresence.audience.friends": "Friends only",
     "settings.notifications.mobile.title": "Mobile notifications",
     "settings.notifications.mobile.description":
       "Keep mobile delivery enabled for account-level notification preferences.",
@@ -1410,11 +1450,23 @@ export const EN_MESSAGES = {
       "Whispr could not update the operating system startup setting.",
     "desktop.diagnostics.streamerMode.label": "Streamer mode",
     "desktop.diagnostics.streamerMode.detail":
-      "Hides desktop badges and suppresses native notification popups while you are sharing or recording your screen.",
+      "Suppresses desktop badges, notification sounds, native notification popups, and detailed overlay identities while you are sharing or recording your screen.",
     "desktop.diagnostics.shell.label": "Native shell",
     "desktop.diagnostics.shell.detail":
       "Tray actions, single-instance focus, safe deep links, and external-link handoff are additive desktop behavior.",
     "desktop.diagnostics.shell.ready": "ready",
+    "desktop.diagnostics.supportBundle.label": "Support bundle",
+    "desktop.diagnostics.supportBundle.detail":
+      "Exports a local JSON snapshot with app, platform, overlay, shortcut, socket, and redacted native log diagnostics. Tokens, email addresses, and message content are not included.",
+    "desktop.diagnostics.supportBundle.button": "Export diagnostics",
+    "desktop.diagnostics.supportBundle.exporting": "Exporting...",
+    "desktop.diagnostics.supportBundle.success": "Diagnostics bundle downloaded.",
+    "desktop.diagnostics.supportBundle.error": "Whispr could not export the diagnostics bundle.",
+    "desktop.diagnostics.shortcuts.label": "Global shortcuts",
+    "desktop.diagnostics.shortcuts.detail":
+      "Reports only the registered action names and key combinations; no keystroke history is stored.",
+    "desktop.diagnostics.shortcuts.enabled": "registered",
+    "desktop.diagnostics.shortcuts.disabled": "disabled",
     "desktop.diagnostics.overlayWindows.label": "Voice overlay windows",
     "desktop.diagnostics.overlayWindows.visible": "visible",
     "desktop.diagnostics.overlayWindows.idle": "idle",
@@ -1433,6 +1485,9 @@ export const EN_MESSAGES = {
     "desktop.diagnostics.capabilities.systemAudioCapture.label": "System audio capture",
     "desktop.diagnostics.capabilities.systemAudioCapture.detail":
       "Reserved for a future loopback audio spike. Whispr does not capture system audio natively yet.",
+    "desktop.diagnostics.capabilities.livekitCustomTrack.label": "LiveKit custom track",
+    "desktop.diagnostics.capabilities.livekitCustomTrack.detail":
+      "Research for safely wiring native-captured frames into LiveKit as a custom track. Production keeps the standard getDisplayMedia path.",
     "desktop.diagnostics.capabilities.hardwareEncode.label": "Hardware encode",
     "desktop.diagnostics.capabilities.hardwareEncode.detail":
       "Tracked as WebRTC codec hint telemetry only; the OS WebView still chooses the actual encoder.",
@@ -1445,6 +1500,17 @@ export const EN_MESSAGES = {
     "desktop.diagnostics.capabilities.status.unknown": "unknown",
     "desktop.diagnostics.capabilities.error":
       "Whispr could not read local desktop capability diagnostics.",
+    "desktop.diagnostics.nativeMedia.title": "Native media research",
+    "desktop.diagnostics.nativeMedia.mode.web_get_display_media_fallback":
+      "The production path is still the WebRTC getDisplayMedia fallback. Native capture and system audio stay disabled until user-permissioned validation passes.",
+    "desktop.diagnostics.nativeMedia.mode.native_spike_ready":
+      "The native capture spike appears ready, but user permission and the fallback path remain required.",
+    "desktop.diagnostics.nativeMedia.feature.nativeScreenCapture": "OS-native screen capture",
+    "desktop.diagnostics.nativeMedia.feature.systemAudioCapture": "System audio loopback",
+    "desktop.diagnostics.nativeMedia.feature.livekitCustomTrack": "LiveKit custom track",
+    "desktop.diagnostics.nativeMedia.feature.hardwareEncode": "Hardware encode reality",
+    "desktop.diagnostics.nativeMedia.fallback": "Fallback",
+    "desktop.diagnostics.nativeMedia.permission": "Permission",
 
     "appearance.page.badge": "User Settings",
     "appearance.page.description":

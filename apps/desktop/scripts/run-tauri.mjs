@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
+import { DESKTOP_RELEASE_RINGS } from "./release-ops.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const require = createRequire(import.meta.url);
@@ -10,6 +11,7 @@ const desktopRoot = path.resolve(path.dirname(scriptPath), "..");
 const generatedDir = path.join(desktopRoot, ".tauri", "generated");
 const generatedConfigPath = path.join(generatedDir, "tauri.conf.generated.json");
 const defaultProductionWebUrl = "https://whispr.team";
+const updaterReleaseRings = new Set(DESKTOP_RELEASE_RINGS);
 
 const command = process.argv[2];
 const extraArgs = process.argv.slice(3);
@@ -22,6 +24,7 @@ if (!["dev", "build"].includes(command) || unknownArgs.length > 0) {
 }
 
 const appName = process.env.TAURI_APP_NAME || "Whispr";
+const windowsSigningConfig = resolveWindowsSigningConfig();
 const devUrl = parseUrl(
   process.env.TAURI_DEV_WEB_URL || "http://localhost:3000",
   "TAURI_DEV_WEB_URL",
@@ -30,6 +33,7 @@ const webUrl =
   command === "dev"
     ? devUrl
     : parseProductionUrl(process.env.TAURI_WEB_URL || defaultProductionWebUrl);
+const updaterConfig = resolveUpdaterConfig(command);
 const capabilityUrls =
   command === "dev"
     ? Array.from(
@@ -40,7 +44,36 @@ const capabilityUrls =
         ]),
       )
     : capabilityUrlPatterns(webUrl);
+const appCommandPermissions = [
+  "allow-complete-desktop-before-close",
+  "allow-configure-desktop-voice-shortcuts",
+  "allow-export-desktop-diagnostics-bundle",
+  "allow-get-desktop-autostart-enabled",
+  "allow-get-desktop-companion-surfaces-status",
+  "allow-get-desktop-foreground-process-name",
+  "allow-get-desktop-main-window-focused",
+  "allow-get-desktop-platform-capabilities",
+  "allow-get-desktop-quit-on-close-enabled",
+  "allow-get-desktop-voice-shortcut-status",
+  "allow-promote-desktop-main-window",
+  "allow-publish-desktop-game-overlay-snapshot",
+  "allow-publish-desktop-voice-mini-snapshot",
+  "allow-refresh-desktop-companion-surfaces",
+  "allow-set-desktop-activity-status",
+  "allow-set-desktop-autostart-enabled",
+  "allow-set-desktop-game-overlay-visible",
+  "allow-set-desktop-quit-on-close-enabled",
+  "allow-set-desktop-voice-mini-visible",
+];
 const nativeUxPermissions = [
+  ...appCommandPermissions,
+  ...(updaterConfig.enabled
+    ? [
+        "updater:allow-check",
+        "updater:allow-download-and-install",
+        "process:allow-restart",
+      ]
+    : []),
   "notification:allow-is-permission-granted",
   "notification:allow-notify",
   "notification:allow-request-permission",
@@ -66,8 +99,31 @@ const tauriEnv = {
   ...process.env,
   PATH: withRustupPath(process.env.PATH),
   WHISPR_DESKTOP_APP_NAME: appName,
+  WHISPR_DESKTOP_RELEASE_RING: updaterConfig.releaseRing,
+  WHISPR_DESKTOP_UPDATER_ENABLED: updaterConfig.enabled ? "true" : "false",
   WHISPR_DESKTOP_WEB_URL: webUrl.href,
 };
+const pluginsConfig = {
+  "deep-link": {
+    desktop: {
+      schemes: ["whispr"],
+    },
+  },
+  ...(updaterConfig.enabled
+    ? {
+        updater: {
+          endpoints: updaterConfig.endpoints.map((endpoint) => endpoint.href),
+          pubkey: updaterConfig.publicKey,
+          windows: {
+            installMode: "basicUi",
+          },
+        },
+      }
+    : {}),
+};
+const bundleConfig = updaterConfig.enabled
+  ? buildUpdaterBundleConfig(windowsSigningConfig)
+  : undefined;
 
 await mkdir(generatedDir, { recursive: true });
 
@@ -77,7 +133,7 @@ await writeFile(
     {
       productName: appName,
       build: {
-        devUrl: devUrl.href,
+        devUrl: command === "dev" ? devUrl.href : webUrl.href,
         frontendDist: webUrl.href,
       },
       app: {
@@ -119,13 +175,8 @@ await writeFile(
           ],
         },
       },
-      plugins: {
-        "deep-link": {
-          desktop: {
-            schemes: ["whispr"],
-          },
-        },
-      },
+      ...(bundleConfig ? { bundle: bundleConfig } : {}),
+      plugins: pluginsConfig,
     },
     null,
     2,
@@ -140,6 +191,15 @@ console.log(`[Whispr Desktop] allowed web origins: ${capabilityUrls.join(", ")}`
 console.log(`[Whispr Desktop] native permissions: ${nativeUxPermissions.join(", ")}`);
 console.log(`[Whispr Desktop] voice mini permissions: ${voiceMiniPermissions.join(", ")}`);
 console.log(`[Whispr Desktop] game overlay permissions: ${gameOverlayPermissions.join(", ") || "(none)"}`);
+console.log(
+  `[Whispr Desktop] updater: ${
+    updaterConfig.enabled
+      ? `enabled (${updaterConfig.releaseRing}, ${updaterConfig.endpoints
+          .map((endpoint) => endpoint.href)
+          .join(", ")})`
+      : "disabled"
+  }`,
+);
 
 if (writeConfigOnly) {
   console.log("[Whispr Desktop] config-only mode: skipping Tauri CLI invocation");
@@ -173,6 +233,143 @@ function parseProductionUrl(value) {
   }
 
   return url;
+}
+
+function resolveUpdaterConfig(mode) {
+  const enabled = isEnabledValue(process.env.WHISPR_DESKTOP_UPDATER_ENABLED);
+  const releaseRing = parseUpdaterReleaseRing(process.env.WHISPR_DESKTOP_RELEASE_RING || "uat");
+
+  if (!enabled) {
+    return {
+      enabled: false,
+      endpoints: [],
+      publicKey: "",
+      releaseRing,
+    };
+  }
+
+  if (mode !== "build") {
+    console.error("WHISPR_DESKTOP_UPDATER_ENABLED can only be used for production builds.");
+    process.exit(1);
+  }
+
+  const publicKey = (process.env.WHISPR_DESKTOP_UPDATER_PUBLIC_KEY || "").trim();
+  if (!publicKey) {
+    console.error("WHISPR_DESKTOP_UPDATER_PUBLIC_KEY is required when desktop updater is enabled.");
+    process.exit(1);
+  }
+
+  if (!windowsSigningConfig.enabled) {
+    console.error("WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED=true is required when desktop updater is enabled.");
+    process.exit(1);
+  }
+
+  const endpointValues = parseUpdaterEndpointValues(
+    process.env.WHISPR_DESKTOP_UPDATER_ENDPOINTS ||
+      process.env.WHISPR_DESKTOP_UPDATER_ENDPOINT ||
+      "",
+  );
+
+  if (endpointValues.length === 0) {
+    console.error(
+      "WHISPR_DESKTOP_UPDATER_ENDPOINTS must include at least one HTTPS latest.json endpoint when desktop updater is enabled.",
+    );
+    process.exit(1);
+  }
+
+  return {
+    enabled: true,
+    endpoints: endpointValues.map(parseUpdaterEndpoint),
+    publicKey,
+    releaseRing,
+  };
+}
+
+function buildUpdaterBundleConfig(signingConfig) {
+  return {
+    createUpdaterArtifacts: true,
+    windows: {
+      ...(signingConfig.enabled
+        ? {
+            digestAlgorithm: "sha256",
+            signCommand: {
+              args: [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                signingConfig.scriptPath,
+                "%1",
+              ],
+              cmd: "powershell",
+            },
+            timestampUrl: "http://timestamp.digicert.com",
+          }
+        : {}),
+    },
+  };
+}
+
+function resolveWindowsSigningConfig() {
+  const enabled = isEnabledValue(process.env.WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED);
+
+  if (!enabled) {
+    return {
+      enabled: false,
+      scriptPath: "",
+    };
+  }
+
+  if (!process.env.WINDOWS_CERTIFICATE_PFX_BASE64?.trim()) {
+    console.error("WINDOWS_CERTIFICATE_PFX_BASE64 is required when Windows signing is enabled.");
+    process.exit(1);
+  }
+
+  if (!process.env.WINDOWS_CERTIFICATE_PASSWORD?.trim()) {
+    console.error("WINDOWS_CERTIFICATE_PASSWORD is required when Windows signing is enabled.");
+    process.exit(1);
+  }
+
+  return {
+    enabled: true,
+    scriptPath: path.join(desktopRoot, "scripts", "sign-windows-artifact.ps1"),
+  };
+}
+
+function parseUpdaterEndpointValues(value) {
+  return value
+    .split(/[\n,]/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function parseUpdaterEndpoint(value) {
+  const endpoint = parseProductionUrl(value);
+
+  if (isLoopbackHost(endpoint.hostname) || endpoint.hostname === "whispr.invalid") {
+    console.error("Desktop updater endpoints must not point to localhost or whispr.invalid.");
+    process.exit(1);
+  }
+
+  if (!endpoint.pathname.endsWith(".json")) {
+    console.error("Desktop updater endpoints must point to an HTTPS latest.json manifest.");
+    process.exit(1);
+  }
+
+  return endpoint;
+}
+
+function parseUpdaterReleaseRing(value) {
+  const ring = value.trim() || "uat";
+
+  if (!updaterReleaseRings.has(ring)) {
+    console.error(
+      `WHISPR_DESKTOP_RELEASE_RING must be one of: ${Array.from(updaterReleaseRings).join(", ")}.`,
+    );
+    process.exit(1);
+  }
+
+  return ring;
 }
 
 function parseUrl(value, name) {
@@ -273,6 +470,10 @@ function buildDesktopCsp(webUrl, mode) {
 
 function isLoopbackHost(hostname) {
   return ["localhost", "127.0.0.1", "[::1]", "::1"].includes(hostname);
+}
+
+function isEnabledValue(value) {
+  return value === "1" || value === "true";
 }
 
 function withRustupPath(currentPath = "") {

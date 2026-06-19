@@ -4,6 +4,7 @@ import {
   VoiceOverlayPreferencesSchema,
   VoiceMiniSnapshotSchema,
   type VoiceMiniConnectionQuality,
+  type VoiceMiniSnapshotPrivacyMode,
   type VoiceOverlayAnchor,
   type VoiceOverlayPreferences,
   type VoiceOverlaySize,
@@ -31,6 +32,7 @@ export interface VoiceMiniSnapshotInput {
   isMuted: boolean;
   overlayPreferences?: Partial<VoiceOverlayPreferences>;
   participants: VoiceParticipantViewModel[];
+  privacyMode?: VoiceMiniSnapshotPrivacyMode;
   socketConnected: boolean;
 }
 
@@ -120,18 +122,23 @@ export function resolveVoiceMiniConnectionQuality({
 }
 
 export function buildVoiceMiniSnapshot(input: VoiceMiniSnapshotInput): VoiceMiniSnapshot {
+  const privacyMode = input.privacyMode ?? "standard";
   const participants = input.participants
     .slice(0, MAX_VOICE_MINI_PARTICIPANTS)
-    .map((participant) => ({
-      audioLevel: clampAudioLevel(participant.audioLevel),
-      avatarUrl: sanitizeAvatarUrl(participant.avatarUrl),
-      displayName: sanitizeDisplayName(participant),
-      isDeafened: participant.isLocal ? input.isDeafened : participant.isDeafened,
-      isLocal: participant.isLocal,
-      isMuted: participant.isLocal ? input.isMuted : participant.isMuted,
-      isSpeaking: Boolean(participant.isSpeaking),
-      userId: participant.userId.slice(0, 128),
-    }));
+    .map((participant, index) => {
+      const isStreamerMode = privacyMode === "streamer";
+
+      return {
+        audioLevel: clampAudioLevel(participant.audioLevel),
+        avatarUrl: isStreamerMode ? null : sanitizeAvatarUrl(participant.avatarUrl),
+        displayName: isStreamerMode ? "Voice participant" : sanitizeDisplayName(participant),
+        isDeafened: participant.isLocal ? input.isDeafened : participant.isDeafened,
+        isLocal: participant.isLocal,
+        isMuted: participant.isLocal ? input.isMuted : participant.isMuted,
+        isSpeaking: Boolean(participant.isSpeaking),
+        userId: isStreamerMode ? `participant-${index + 1}` : participant.userId.slice(0, 128),
+      };
+    });
 
   return VoiceMiniSnapshotSchema.parse({
     active: Boolean(input.activeChannelId),
@@ -141,6 +148,7 @@ export function buildVoiceMiniSnapshot(input: VoiceMiniSnapshotInput): VoiceMini
     },
     overlay: sanitizeDesktopGameOverlayPreferences(input.overlayPreferences ?? null),
     participants,
+    privacyMode,
     updatedAt: new Date().toISOString(),
   });
 }

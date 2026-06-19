@@ -37,7 +37,7 @@ function toAudioDeviceOption(device: MediaDeviceInfo): AudioDeviceOption | null 
     return null;
   }
 
-  if (!device.deviceId || device.deviceId === "communications") {
+  if (!device.deviceId) {
     return null;
   }
 

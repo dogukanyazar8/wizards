@@ -7,7 +7,7 @@ import {
   type VoiceMiniParticipant,
   type VoiceMiniSnapshot,
 } from "@wizards/types";
-import { dispatchDesktopVoiceMiniCommand } from "@/lib/desktop/controls";
+import { postDesktopVoiceMiniCommand } from "@/lib/desktop/controls";
 import { WHISPR_DESKTOP_VOICE_MINI_SNAPSHOT_EVENT } from "@/lib/desktop/runtime";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -149,7 +149,7 @@ export function DesktopVoiceMini() {
           <VoiceMiniAction
             active={Boolean(localParticipant?.isMuted)}
             aria-label={t("desktop.voiceMini.toggleMute")}
-            onClick={() => void dispatchDesktopVoiceMiniCommand("toggleMute")}
+            onClick={() => postDesktopVoiceMiniCommand("toggleMute")}
           >
             {localParticipant?.isMuted ? (
               <MicOff className="h-4 w-4" />
@@ -160,13 +160,13 @@ export function DesktopVoiceMini() {
           <VoiceMiniAction
             active={Boolean(localParticipant?.isDeafened)}
             aria-label={t("desktop.voiceMini.toggleDeafen")}
-            onClick={() => void dispatchDesktopVoiceMiniCommand("toggleDeafen")}
+            onClick={() => postDesktopVoiceMiniCommand("toggleDeafen")}
           >
             <Headphones className="h-4 w-4" />
           </VoiceMiniAction>
           <VoiceMiniAction
             aria-label={t("desktop.voiceMini.leaveVoice")}
-            onClick={() => void dispatchDesktopVoiceMiniCommand("leaveVoice")}
+            onClick={() => postDesktopVoiceMiniCommand("leaveVoice")}
             tone="danger"
           >
             <PhoneOff className="h-4 w-4" />

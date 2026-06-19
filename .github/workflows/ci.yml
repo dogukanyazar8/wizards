@@ -190,15 +190,77 @@ jobs:
             apps/web/test-results
           retention-days: 7
 
-  desktop-build:
-    name: Tauri Desktop Build
-    runs-on: windows-latest
+  desktop-ops:
+    name: Desktop Ops (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     needs: verify
-    timeout-minutes: 45
+    timeout-minutes: 20
+    continue-on-error: ${{ matrix.staged }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            staged: false
+          - os: macos-latest
+            staged: true
+          - os: ubuntu-latest
+            staged: true
 
     env:
       TAURI_WEB_URL: https://whispr.team
       TURBO_TELEMETRY_DISABLED: "1"
+      WHISPR_DESKTOP_RELEASE_RING: uat
+      WHISPR_DESKTOP_UPDATER_ENABLED: "false"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate desktop release operations contract
+        run: pnpm --filter @wizards/desktop release:ops
+
+      - name: Run desktop script tests
+        run: pnpm --filter @wizards/desktop test
+
+      - name: Generate desktop production config
+        run: pnpm --filter @wizards/desktop build:desktop:config
+
+  desktop-build:
+    name: Tauri Desktop Build
+    runs-on: windows-latest
+    needs:
+      - verify
+      - desktop-ops
+    timeout-minutes: 45
+
+    env:
+      TAURI_WEB_URL: https://whispr.team
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      TURBO_TELEMETRY_DISABLED: "1"
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+      WHISPR_DESKTOP_RELEASE_RING: ${{ vars.WHISPR_DESKTOP_RELEASE_RING || 'uat' }}
+      WHISPR_DESKTOP_UPDATER_ENABLED: ${{ vars.WHISPR_DESKTOP_UPDATER_ENABLED || 'false' }}
+      WHISPR_DESKTOP_UPDATER_ENDPOINTS: ${{ vars.WHISPR_DESKTOP_UPDATER_ENDPOINTS }}
+      WHISPR_DESKTOP_UPDATER_PUBLIC_KEY: ${{ vars.WHISPR_DESKTOP_UPDATER_PUBLIC_KEY }}
+      WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED: ${{ (startsWith(github.ref, 'refs/tags/') || vars.WHISPR_DESKTOP_UPDATER_ENABLED == 'true') && 'true' || 'false' }}
 
     steps:
       - name: Checkout
@@ -229,12 +291,27 @@ jobs:
       - name: Require code signing secrets for release tags
         if: startsWith(github.ref, 'refs/tags/')
         shell: pwsh
-        env:
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-          WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX_BASE64) -or [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) {
             Write-Error "Release desktop builds require WINDOWS_CERTIFICATE_PFX_BASE64 and WINDOWS_CERTIFICATE_PASSWORD secrets before publishing."
+            exit 1
+          }
+
+      - name: Require updater signing configuration when enabled
+        if: env.WHISPR_DESKTOP_UPDATER_ENABLED == 'true'
+        shell: pwsh
+        run: |
+          $missing = @()
+          if ([string]::IsNullOrWhiteSpace($env:WHISPR_DESKTOP_UPDATER_ENDPOINTS)) { $missing += "WHISPR_DESKTOP_UPDATER_ENDPOINTS" }
+          if ([string]::IsNullOrWhiteSpace($env:WHISPR_DESKTOP_UPDATER_PUBLIC_KEY)) { $missing += "WHISPR_DESKTOP_UPDATER_PUBLIC_KEY" }
+          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)) { $missing += "TAURI_SIGNING_PRIVATE_KEY" }
+          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD)) { $missing += "TAURI_SIGNING_PRIVATE_KEY_PASSWORD" }
+          if ($env:WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED -ne "true") { $missing += "WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED" }
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX_BASE64)) { $missing += "WINDOWS_CERTIFICATE_PFX_BASE64" }
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) { $missing += "WINDOWS_CERTIFICATE_PASSWORD" }
+
+          if ($missing.Count -gt 0) {
+            Write-Error "Desktop updater is enabled but required signed-release configuration is missing: $($missing -join ', ')."
             exit 1
           }
 
@@ -267,11 +344,8 @@ jobs:
         run: pnpm --filter @wizards/desktop build:desktop
 
       - name: Sign desktop release artifacts
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && env.WHISPR_DESKTOP_UPDATER_ENABLED != 'true'
         shell: pwsh
-        env:
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-          WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
         run: |
           $certificatePath = Join-Path $env:RUNNER_TEMP "whispr-codesign.pfx"
           try {
@@ -317,4 +391,7 @@ jobs:
             apps/desktop/src-tauri/target/release/*.exe
             apps/desktop/src-tauri/target/release/bundle/**/*.exe
             apps/desktop/src-tauri/target/release/bundle/**/*.msi
+            apps/desktop/src-tauri/target/release/bundle/**/*.sig
+            apps/desktop/src-tauri/target/release/bundle/**/*.zip
+            apps/desktop/src-tauri/target/release/bundle/**/*.json
           retention-days: 14

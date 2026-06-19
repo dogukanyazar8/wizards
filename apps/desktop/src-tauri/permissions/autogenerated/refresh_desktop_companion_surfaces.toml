@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-refresh-desktop-companion-surfaces"
+description = "Enables the refresh_desktop_companion_surfaces command without any pre-configured scope."
+commands.allow = ["refresh_desktop_companion_surfaces"]
+
+[[permission]]
+identifier = "deny-refresh-desktop-companion-surfaces"
+description = "Denies the refresh_desktop_companion_surfaces command without any pre-configured scope."
+commands.deny = ["refresh_desktop_companion_surfaces"]

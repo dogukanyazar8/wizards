@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import { useSocket } from "@/hooks/use-socket";
 import { fetchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
+import { useAppStore } from "@/lib/store";
 import { useVoiceStore } from "@/store/voice-store";
 import {
   resolveSoundEffectPath,
@@ -33,6 +34,9 @@ export function SoundEffectsProvider({
   const hasTrackedActiveChannelRef = useRef(false);
   const previousActiveChannelIdRef = useRef<string | null>(null);
   const activeChannelId = useVoiceStore((state) => state.activeChannelId);
+  const streamerModeActive = useAppStore(
+    (state) => state.desktopStreamerModeEnabled || state.desktopStreamerModeDetected,
+  );
   const {
     notificationVolume,
     voiceJoinEnabled,
@@ -76,7 +80,7 @@ export function SoundEffectsProvider({
 
   const playSound = useCallback(
     (effect: SoundEffectKey, volume: number, profile?: SoundProfileKey | string) => {
-      if (typeof window === "undefined" || volume <= 0) {
+      if (streamerModeActive || typeof window === "undefined" || volume <= 0) {
         return;
       }
 
@@ -87,7 +91,7 @@ export function SoundEffectsProvider({
         // Browser autoplay policies can reject playback until the user interacts.
       });
     },
-    [getAudio],
+    [getAudio, streamerModeActive],
   );
 
   useEffect(() => {

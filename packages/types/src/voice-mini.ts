@@ -44,6 +44,10 @@ export const VoiceOverlayPreferencesSchema = z.object({
 
 export type VoiceOverlayPreferences = z.infer<typeof VoiceOverlayPreferencesSchema>;
 
+export const VoiceMiniSnapshotPrivacyModeSchema = z.enum(["standard", "streamer"]);
+
+export type VoiceMiniSnapshotPrivacyMode = z.infer<typeof VoiceMiniSnapshotPrivacyModeSchema>;
+
 export const VoiceMiniSnapshotSchema = z.object({
   active: z.boolean(),
   connection: z.object({
@@ -52,6 +56,7 @@ export const VoiceMiniSnapshotSchema = z.object({
   }),
   overlay: VoiceOverlayPreferencesSchema.optional(),
   participants: z.array(VoiceMiniParticipantSchema).max(12),
+  privacyMode: VoiceMiniSnapshotPrivacyModeSchema.optional(),
   updatedAt: z.string().datetime(),
 });
 

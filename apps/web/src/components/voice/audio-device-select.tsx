@@ -15,6 +15,10 @@ import {
   useAudioDevices,
   type AudioDeviceOption,
 } from "@/hooks/use-audio-devices";
+import {
+  DEFAULT_COMMUNICATIONS_DEVICE_ID,
+  resolveAudioDeviceFallback,
+} from "@/lib/voice/audio-device-fallback";
 import { cn } from "@/lib/utils";
 import { DEFAULT_AUDIO_DEVICE_ID } from "@/store/voice-store";
 
@@ -49,6 +53,15 @@ function getDefaultDeviceLabel(
     : t("voice.devices.defaultOutput");
 }
 
+function getCommunicationsDeviceLabel(
+  kind: "input" | "output",
+  t: (key: string) => string,
+) {
+  return kind === "input"
+    ? t("voice.devices.communicationsInput")
+    : t("voice.devices.communicationsOutput");
+}
+
 function withDefaultOption(
   kind: "input" | "output",
   devices: AudioDeviceOption[],
@@ -60,7 +73,9 @@ function withDefaultOption(
     label:
       device.deviceId === DEFAULT_AUDIO_DEVICE_ID
         ? defaultLabel
-        : getFallbackLabel(device, index, t),
+        : device.deviceId === DEFAULT_COMMUNICATIONS_DEVICE_ID
+          ? getCommunicationsDeviceLabel(kind, t)
+          : getFallbackLabel(device, index, t),
   }));
 
   if (
@@ -150,16 +165,19 @@ export function AudioDeviceSelect({
   }, []);
 
   useEffect(() => {
-    if (
-      selectedDeviceId !== DEFAULT_AUDIO_DEVICE_ID &&
-      devices.length > 0 &&
-      !devices.some((device) => device.deviceId === selectedDeviceId)
-    ) {
-      if (kind === "input") {
-        setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
-      } else {
-        setAudioPreference("outputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
-      }
+    const fallback = resolveAudioDeviceFallback({
+      devices,
+      preferredDeviceId: selectedDeviceId,
+    });
+
+    if (!fallback.changed) {
+      return;
+    }
+
+    if (kind === "input") {
+      setAudioPreference("inputDeviceId", fallback.deviceId);
+    } else {
+      setAudioPreference("outputDeviceId", fallback.deviceId);
     }
   }, [devices, kind, selectedDeviceId, setAudioPreference]);
 
@@ -259,8 +277,8 @@ export function AudioDeviceSelect({
       className={cn(
         "absolute z-[95] overflow-hidden rounded-[16px] border border-[hsl(var(--border)/0.52)] bg-[linear-gradient(180deg,hsl(var(--surface-overlay)/0.98),hsl(var(--surface-panel)/0.94))] p-1 shadow-[0_16px_44px_hsl(var(--shadow-color)/0.13)] backdrop-blur-xl",
         position === "compact" &&
-          "bottom-[calc(100%+0.45rem)] left-auto right-0 w-[min(16.5rem,calc(100vw-1.5rem))]",
-        position === "panel" && "left-0 right-0 top-[calc(100%+0.75rem)]",
+          "bottom-[calc(100%+0.45rem)] left-auto right-0 w-[min(18rem,calc(100vw-1.5rem))]",
+        position === "panel" && "left-auto right-0 top-[calc(100%+0.75rem)] w-[min(20rem,100%)]",
       )}
       data-testid={`audio-device-select-${kind}-menu`}
     >
@@ -293,7 +311,7 @@ export function AudioDeviceSelect({
       <div
         aria-label={label}
         aria-activedescendant={`${listboxId}-${options[activeIndex]?.deviceId ?? "none"}`}
-        className="mt-1 overflow-visible"
+        className="mt-1 max-h-[min(18rem,60vh)] overflow-y-auto pr-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         id={listboxId}
         role="listbox"
       >
@@ -332,7 +350,7 @@ export function AudioDeviceSelect({
                 <Icon className="h-3 w-3" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-bold leading-5">
+                <span className="block overflow-hidden text-ellipsis text-xs font-bold leading-4 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
                   {device.label}
                 </span>
               </span>

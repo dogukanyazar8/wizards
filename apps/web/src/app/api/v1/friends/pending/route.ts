@@ -1,6 +1,6 @@
 import { requireApiUserId } from "@/lib/auth/api";
 import { jsonError } from "@/lib/api";
-import { listPendingFriendRequests } from "@/lib/friends/service";
+import { listPendingFriendRequests } from "@/lib/friends/queries";
 
 export async function GET() {
   try {

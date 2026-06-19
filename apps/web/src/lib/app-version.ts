@@ -31,7 +31,7 @@ function formatWhisprVersion(version: string, codename: string) {
 }
 
 const WHISPR_VERSION_NUMBER =
-  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.11";
+  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.12";
 export const WHISPR_RELEASE_CODENAME =
   process.env.NEXT_PUBLIC_WHISPR_RELEASE_CODENAME ?? "Echo";
 export const WHISPR_APP_VERSION = formatWhisprVersion(
@@ -46,6 +46,16 @@ export const WHISPR_RELEASE_CHANNEL =
   process.env.NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL ?? "beta";
 
 export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
+  {
+    categoryKey: "app.update.category.desktop",
+    descriptionKey: "app.update.notes.desktopReleaseRuntime.description",
+    fallbackCategory: "Desktop",
+    fallbackDescription:
+      "Installed desktop builds now embed the selected web origin, release ring, and updater state at build time, so UAT installers open without machine-wide environment variables while signed updater configuration stays gated.",
+    fallbackTitle: "Reliable UAT desktop launch",
+    id: "desktop-release-runtime",
+    titleKey: "app.update.notes.desktopReleaseRuntime.title",
+  },
   {
     categoryKey: "app.update.category.performance",
     descriptionKey: "app.update.notes.runtimeEfficiency.description",

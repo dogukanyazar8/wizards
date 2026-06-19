@@ -10,7 +10,8 @@ Minimal Tauri shell for the existing Whispr web app.
 - The desktop shell does not include Prisma, database URLs, auth secrets, LiveKit secrets, upload secrets, or server-side credentials.
 - Tauri IPC is limited to native notification permission/dispatch and minimal window controls required for the custom desktop titlebar.
 - Off-origin navigation opens in the system browser by default. During an active Auth.js OAuth redirect only, the WebView allows the known provider origins needed to return the session cookie to Whispr.
-- The tray menu exposes Show, Settings, Desktop Diagnostics, mute/deafen commands, a disabled update placeholder, and Quit. Minimize-to-tray is intentionally not enabled.
+- The tray menu exposes Show, Settings, Desktop Diagnostics, mute/deafen commands, and Quit.
+- Signed auto-update support is flag-gated. When enabled for a release build, it requires an HTTPS manifest, an embedded Ed25519 public key, CI-held signing private key material, and an explicit user click on "Download and restart".
 - Desktop notifications are driven by the existing authenticated socket and settings flows. Message previews are disabled by default and can be enabled locally from notification settings.
 - Desktop deep links use the `whispr://` scheme and are restricted to safe internal routes such as `/channels`, `/settings`, and `/invite`.
 - A single-instance guard focuses the existing window instead of launching duplicate desktop sessions.
@@ -68,3 +69,66 @@ pnpm --filter @wizards/desktop build:desktop
 `TAURI_WEB_URL` is public configuration, not a secret. Do not add server secrets to this app.
 
 The initial production bundle target is a Windows NSIS installer. macOS and Linux bundle targets are intentionally documented but not enabled until they have dedicated QA and signing/notarization plans.
+
+## Release Operations
+
+Desktop release operations are guarded by a small machine-readable contract in `scripts/release-ops.mjs`. Run it locally with:
+
+```powershell
+pnpm --filter @wizards/desktop release:ops
+pnpm --filter @wizards/desktop test
+```
+
+Release rings are ordered from safest to broadest:
+
+- `dev` for local/internal validation.
+- `uat` for signed UAT builds and manual QA.
+- `canary` for a small monitored production rollout.
+- `stable` for the broad production release.
+
+Windows is the mandatory desktop CI target. macOS and Linux are staged signal targets until signing, notarization, installer, portal, and tray behavior are release-ready.
+
+Mandatory desktop smoke gates:
+
+- `launch`
+- `auth-restore`
+- `close-to-tray`
+- `updater-check-mock`
+- `shortcut-registration`
+- `overlay-show-hide`
+
+Performance budgets:
+
+- Warm start: <= 2000 ms.
+- Memory: <= 220 MB warm idle.
+- Overlay CPU: <= 3% average while visible.
+- Shortcut latency: <= 50 ms p95.
+
+Safety rules:
+
+- `no-broad-native-permissions`
+- `signed-updater-only`
+- `no-native-game-hooks`
+- `no-hardware-encode-claims`
+- `no-desktop-secrets`
+- `no-fake-security-ui`
+- `overlay-voice-only`
+
+## Signed Updater Builds
+
+Updater support is disabled unless the release build is configured with:
+
+```powershell
+$env:WHISPR_DESKTOP_UPDATER_ENABLED="true"
+$env:WHISPR_DESKTOP_RELEASE_RING="uat"
+$env:WHISPR_DESKTOP_UPDATER_ENDPOINTS="https://updates.whispr.team/desktop/uat/latest.json"
+$env:WHISPR_DESKTOP_UPDATER_PUBLIC_KEY="<ed25519-public-key>"
+$env:WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED="true"
+$env:TAURI_SIGNING_PRIVATE_KEY="<ci-secret>"
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD="<ci-secret>"
+$env:WINDOWS_CERTIFICATE_PFX_BASE64="<ci-secret>"
+$env:WINDOWS_CERTIFICATE_PASSWORD="<ci-secret>"
+pnpm --filter @wizards/desktop build:desktop
+```
+
+Do not use local or HTTP endpoints for updater manifests. Do not commit Ed25519 updater private keys, Windows certificate material, generated updater artifacts, or manifest drafts.

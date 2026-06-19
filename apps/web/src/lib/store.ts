@@ -18,6 +18,11 @@ import {
 } from "@/lib/appearance";
 import { DEFAULT_APP_ICON_ID, isAppIconId, type AppIconId } from "@/lib/app-icons";
 import {
+  DEFAULT_DESKTOP_RICH_PRESENCE_AUDIENCE,
+  sanitizeDesktopRichPresenceAudience,
+  type DesktopRichPresenceAudience,
+} from "@/lib/desktop/privacy";
+import {
   DEFAULT_MESSAGE_FONT_ID,
   applyMessageFontToDocument,
   isMessageFontId,
@@ -135,8 +140,11 @@ interface AppState extends PersistedRouteState {
   memberPanelCollapsed: boolean;
   desktopCloseToTrayEnabled: boolean;
   desktopNotificationPreviews: boolean;
+  desktopRichPresenceAudience: DesktopRichPresenceAudience;
   desktopRichPresenceEnabled: boolean;
+  desktopStreamerModeDetected: boolean;
   desktopStreamerModeEnabled: boolean;
+  desktopStreamerModeProcessDetectionEnabled: boolean;
   messageFont: MessageFontId;
   mobileSidebarOpen: boolean;
   notificationAutoClose: boolean;
@@ -194,8 +202,11 @@ interface AppState extends PersistedRouteState {
   setChannelSidebarWidth: (width: number) => void;
   setDesktopCloseToTrayEnabled: (enabled: boolean) => void;
   setDesktopNotificationPreviews: (enabled: boolean) => void;
+  setDesktopRichPresenceAudience: (audience: DesktopRichPresenceAudience) => void;
   setDesktopRichPresenceEnabled: (enabled: boolean) => void;
+  setDesktopStreamerModeDetected: (detected: boolean) => void;
   setDesktopStreamerModeEnabled: (enabled: boolean) => void;
+  setDesktopStreamerModeProcessDetectionEnabled: (enabled: boolean) => void;
   setMainPanelWidth: (width: number) => void;
   setMemberPanelCollapsed: (collapsed: boolean) => void;
   setMessageFont: (fontId: MessageFontId) => void;
@@ -222,8 +233,10 @@ type PersistedAppState = Pick<
   | "collapsedCategories"
   | "desktopCloseToTrayEnabled"
   | "desktopNotificationPreviews"
+  | "desktopRichPresenceAudience"
   | "desktopRichPresenceEnabled"
   | "desktopStreamerModeEnabled"
+  | "desktopStreamerModeProcessDetectionEnabled"
   | "lastChannelByServerId"
   | "mainPanelWidth"
   | "memberPanelCollapsed"
@@ -277,8 +290,11 @@ function createInitialState(): Omit<
   | "setChannelSidebarWidth"
   | "setDesktopCloseToTrayEnabled"
   | "setDesktopNotificationPreviews"
+  | "setDesktopRichPresenceAudience"
   | "setDesktopRichPresenceEnabled"
+  | "setDesktopStreamerModeDetected"
   | "setDesktopStreamerModeEnabled"
+  | "setDesktopStreamerModeProcessDetectionEnabled"
   | "setMainPanelWidth"
   | "setMemberPanelCollapsed"
   | "setMessageFont"
@@ -328,8 +344,11 @@ function createInitialState(): Omit<
     memberPanelCollapsed: false,
     desktopCloseToTrayEnabled: true,
     desktopNotificationPreviews: false,
+    desktopRichPresenceAudience: DEFAULT_DESKTOP_RICH_PRESENCE_AUDIENCE,
     desktopRichPresenceEnabled: false,
+    desktopStreamerModeDetected: false,
     desktopStreamerModeEnabled: false,
+    desktopStreamerModeProcessDetectionEnabled: false,
     messageFont: DEFAULT_MESSAGE_FONT_ID,
     mobileSidebarOpen: false,
     notificationAutoClose: true,
@@ -430,9 +449,16 @@ function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
       typeof value.desktopRichPresenceEnabled === "boolean"
         ? value.desktopRichPresenceEnabled
         : false,
+    desktopRichPresenceAudience: sanitizeDesktopRichPresenceAudience(
+      value.desktopRichPresenceAudience,
+    ),
     desktopStreamerModeEnabled:
       typeof value.desktopStreamerModeEnabled === "boolean"
         ? value.desktopStreamerModeEnabled
+        : false,
+    desktopStreamerModeProcessDetectionEnabled:
+      typeof value.desktopStreamerModeProcessDetectionEnabled === "boolean"
+        ? value.desktopStreamerModeProcessDetectionEnabled
         : false,
     mainPanelWidth: clampMainPanelWidth(
       typeof value.mainPanelWidth === "number" ? value.mainPanelWidth : DEFAULT_MAIN_PANEL_WIDTH,
@@ -727,13 +753,25 @@ export const useAppStore = create<AppState>()(
         set({
           desktopNotificationPreviews: enabled,
         }),
+      setDesktopRichPresenceAudience: (audience) =>
+        set({
+          desktopRichPresenceAudience: sanitizeDesktopRichPresenceAudience(audience),
+        }),
       setDesktopRichPresenceEnabled: (enabled) =>
         set({
           desktopRichPresenceEnabled: enabled,
         }),
+      setDesktopStreamerModeDetected: (detected) =>
+        set({
+          desktopStreamerModeDetected: detected,
+        }),
       setDesktopStreamerModeEnabled: (enabled) =>
         set({
           desktopStreamerModeEnabled: enabled,
+        }),
+      setDesktopStreamerModeProcessDetectionEnabled: (enabled) =>
+        set({
+          desktopStreamerModeProcessDetectionEnabled: enabled,
         }),
       setMainPanelWidth: (width) =>
         set((state) => {
@@ -1003,6 +1041,19 @@ export const useAppStore = create<AppState>()(
           };
         }
 
+        if (version < 13) {
+          nextPersistedState = {
+            ...nextPersistedState,
+            desktopRichPresenceAudience: sanitizeDesktopRichPresenceAudience(
+              nextPersistedState.desktopRichPresenceAudience,
+            ),
+            desktopStreamerModeProcessDetectionEnabled:
+              typeof nextPersistedState.desktopStreamerModeProcessDetectionEnabled === "boolean"
+                ? nextPersistedState.desktopStreamerModeProcessDetectionEnabled
+                : false,
+          };
+        }
+
         return nextPersistedState;
       },
       merge: (persistedState, currentState) => ({
@@ -1019,8 +1070,11 @@ export const useAppStore = create<AppState>()(
         collapsedCategories: state.collapsedCategories,
         desktopCloseToTrayEnabled: state.desktopCloseToTrayEnabled,
         desktopNotificationPreviews: state.desktopNotificationPreviews,
+        desktopRichPresenceAudience: state.desktopRichPresenceAudience,
         desktopRichPresenceEnabled: state.desktopRichPresenceEnabled,
         desktopStreamerModeEnabled: state.desktopStreamerModeEnabled,
+        desktopStreamerModeProcessDetectionEnabled:
+          state.desktopStreamerModeProcessDetectionEnabled,
         lastChannelByServerId: state.lastChannelByServerId,
         mainPanelWidth: state.mainPanelWidth,
         memberPanelCollapsed: state.memberPanelCollapsed,
@@ -1035,7 +1089,7 @@ export const useAppStore = create<AppState>()(
         showCategoryMoveControls: state.showCategoryMoveControls,
       }),
       storage: createJSONStorage(() => localStorage),
-      version: 12,
+      version: 13,
     },
   ),
 );

@@ -1,16 +1,31 @@
 export type DesktopMetricRuntime = "desktop";
-export type DesktopMetricResult = "success" | "failure" | "skipped";
+export type DesktopMetricResult = "failure" | "signature_failure" | "skipped" | "success";
 export type DesktopMetricOperation =
   | "desktop_activity_status_updated"
+  | "desktop_audio_device_fallback"
+  | "desktop_close_cleanup"
+  | "desktop_companion_surfaces_hidden"
   | "desktop_companion_surfaces_refreshed"
+  | "desktop_diagnostics_export"
   | "desktop_game_overlay_health"
   | "desktop_game_overlay_panic_disabled"
   | "desktop_game_overlay_recovered"
   | "desktop_game_overlay_visible"
+  | "desktop_lifecycle_resume"
+  | "desktop_network_transition"
   | "desktop_platform_capabilities_loaded"
+  | "desktop_push_to_talk_latency"
   | "desktop_runtime_ready"
+  | "desktop_shortcut_latency"
   | "desktop_shortcuts_configured"
+  | "desktop_startup_duration"
   | "desktop_update_check"
+  | "desktop_update_download"
+  | "desktop_update_install"
+  | "desktop_update_relaunch"
+  | "desktop_update_signature_verification"
+  | "desktop_voice_join_timing"
+  | "desktop_voice_leave_timing"
   | "desktop_window_state";
 
 export type DesktopPerformanceMetric = {

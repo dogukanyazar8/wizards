@@ -2,6 +2,56 @@
 
 Run this checklist against a fresh Windows install after a production desktop build.
 
+## Release Rings
+
+- `dev`: local/internal validation only.
+- `uat`: signed UAT validation with full smoke, voice, overlay, close-to-tray, and updater mock checks.
+- `canary`: small monitored production rollout after UAT passes.
+- `stable`: broad production rollout after canary health is acceptable.
+
+## Mandatory Desktop Smoke Gates
+
+These smoke gates are release blockers on Windows and staged signal checks on macOS/Linux:
+
+- `launch`: app starts, compact splash appears, the configured web origin renders, and the main shell becomes interactive.
+- `auth-restore`: remember-me/session restore works after quitting and reopening.
+- `close-to-tray`: close button keeps the app alive in tray when configured, tray Show restores the window, and Quit exits.
+- `updater-check-mock`: a mocked signed HTTPS `latest.json` check succeeds; invalid signatures fail closed.
+- `shortcut-registration`: desktop voice shortcuts register, trigger, unregister, and reject unsafe duplicates.
+- `overlay-show-hide`: mini window and game overlay show, hide, repair, and panic-disable without locking the main window.
+
+## Performance Budgets
+
+Capture these budgets on a warm Windows profile after the app has been idle for at least 60 seconds:
+
+- Warm start <= 2000 ms from process launch to interactive main shell.
+- Memory <= 220 MB warm idle for the desktop process family.
+- Overlay CPU <= 3% average while visible over a 60 second window.
+- Shortcut latency <= 50 ms p95 from key press to visible/audio state change.
+
+If a budget regresses, attach the diagnostics export and the exact build ring before promotion beyond `uat`.
+
+## Desktop Safety Rules
+
+- `no-broad-native-permissions`: do not add broad filesystem, shell, or process permissions.
+- `signed-updater-only`: do not ship updater support without HTTPS manifests and Ed25519 signatures.
+- `no-native-game-hooks`: do not add native game hooks without anti-cheat research.
+- `no-hardware-encode-claims`: do not claim guaranteed hardware encode; WebRTC/WebView chooses the encoder.
+- `no-desktop-secrets`: do not store tokens, secrets, private keys, or backend credentials in desktop code.
+- `no-fake-security-ui`: do not present privacy/security toggles as active unless backend enforcement exists.
+- `overlay-voice-only`: do not send messages, DMs, email, invite links, or private content to overlay windows.
+
+## Overlay And Game Matrix
+
+| Platform | Windowed game | Borderless game | Exclusive fullscreen | Notes |
+| --- | --- | --- | --- | --- |
+| Windows | Supported | Supported | Research only | Compositor overlay only; no native game hook. |
+| macOS | Staged | Best effort | Research only | Requires platform QA around Spaces, focus, and capture permissions. |
+| Linux X11 | Staged | Best effort | Research only | Window manager behavior varies. |
+| Linux Wayland | Staged | Best effort | Research only | Compositor protocol support varies. |
+
+Overlay must remain click-through, show only sanitized voice participant data, and never expose chat, DM, invite, email, or file content.
+
 ## Install And Launch
 
 - Install the generated NSIS installer on a clean Windows user profile.
@@ -89,6 +139,16 @@ Run this checklist against a fresh Windows install after a production desktop bu
 - Click tray Settings and Desktop Diagnostics and confirm they route safely inside Whispr.
 - Click tray mute/deafen actions during a voice session and confirm they match the in-app state.
 - Click tray Quit and confirm the app exits cleanly.
+
+## Signed Updates
+
+- Build once with `WHISPR_DESKTOP_UPDATER_ENABLED=false` and confirm no native update prompt appears.
+- Build a UAT ring artifact with `WHISPR_DESKTOP_UPDATER_ENABLED=true`, a HTTPS `latest.json` endpoint, the matching Ed25519 public key, and Windows code signing enabled.
+- Host a signed newer UAT manifest and confirm Whispr shows "Download and restart" instead of installing silently.
+- Click "Later" and confirm the app keeps running without downloading or installing anything.
+- Click "Download and restart" and confirm download progress advances, the signature is accepted, the installer runs with basic UI, and Whispr relaunches.
+- Serve a manifest with a bad signature and confirm the update is rejected and the currently installed version remains unchanged.
+- Confirm update metrics, when `NEXT_PUBLIC_DESKTOP_METRICS=true`, include only operation/result/runtime/duration and no user, token, server, message, endpoint, or file path data.
 
 ## Desktop Diagnostics
 

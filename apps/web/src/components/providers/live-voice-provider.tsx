@@ -37,10 +37,12 @@ import {
   getWhisprDesktopBeforeCloseRequestId,
   isWhisprDesktopRuntime,
 } from "@/lib/desktop/runtime";
+import { recordDesktopPerformanceMetric } from "@/lib/desktop/performance";
 import { clearDesktopTransientAuthSession } from "@/lib/desktop/session";
 import { logError, logWarning } from "@/lib/logger";
 import { getSocket } from "@/lib/socket/client";
 import { collectVoiceAudioHealthFromSender } from "@/lib/voice/audio-health";
+import { resolveAudioDeviceFallback } from "@/lib/voice/audio-device-fallback";
 import {
   isCameraDeviceUnavailable,
   isCameraPermissionDenied,
@@ -151,6 +153,20 @@ const KRISP_BUFFER_DROP_MS = 300;
 const KRISP_BUFFER_OVERFLOW_MS = 200;
 const LOCAL_PARTICIPANT_PROFILE_SYNC_DEBOUNCE_MS = 250;
 
+type PushToTalkPhase = "idle" | "holding" | "release-cushion";
+
+type PushToTalkState = {
+  phase: PushToTalkPhase;
+  restoreMuted: boolean;
+  startedAt: number | null;
+};
+
+const IDLE_PUSH_TO_TALK_STATE: PushToTalkState = {
+  phase: "idle",
+  restoreMuted: true,
+  startedAt: null,
+};
+
 let krispModulePromise: Promise<typeof KrispNoiseFilterModule> | null = null;
 
 function loadKrispModule() {
@@ -199,10 +215,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const leaveCleanupPromiseRef = useRef<Promise<void> | null>(null);
   const microphoneSettingsFailedMessageRef = useRef(t("voice.errors.microphoneSettingsFailed"));
   const pushToTalkReleaseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pushToTalkStateRef = useRef({
-    active: false,
-    restoreMuted: true,
-  });
+  const pushToTalkStateRef = useRef<PushToTalkState>(IDLE_PUSH_TO_TALK_STATE);
   const supportsLiveKitCloudNoiseCancellationRef = useRef(
     isLiveKitCloudUrl(NEXT_PUBLIC_LIVEKIT_URL),
   );
@@ -1281,6 +1294,64 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     };
   }, [ensureLocalMicrophonePublished]);
 
+  const reconcileAudioDeviceFallbacks = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.enumerateDevices) {
+      return;
+    }
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const inputDevices = devices
+      .filter((device) => device.kind === "audioinput" && device.deviceId)
+      .map((device) => ({ deviceId: device.deviceId, kind: device.kind }));
+    const outputDevices = devices
+      .filter((device) => device.kind === "audiooutput" && device.deviceId)
+      .map((device) => ({ deviceId: device.deviceId, kind: device.kind }));
+    const voiceStore = useVoiceStore.getState();
+    const inputFallback = resolveAudioDeviceFallback({
+      devices: inputDevices,
+      preferredDeviceId: voiceStore.audioPreferences.inputDeviceId,
+    });
+    const outputFallback = resolveAudioDeviceFallback({
+      devices: outputDevices,
+      preferredDeviceId: voiceStore.audioPreferences.outputDeviceId,
+    });
+
+    if (inputFallback.changed) {
+      useVoiceStore.getState().setAudioPreference("inputDeviceId", inputFallback.deviceId);
+      appliedAudioPreferencesSignatureRef.current = null;
+    }
+
+    if (outputFallback.changed) {
+      useVoiceStore.getState().setAudioPreference("outputDeviceId", outputFallback.deviceId);
+    }
+
+    if (inputFallback.changed || outputFallback.changed) {
+      recordDesktopPerformanceMetric({
+        operation: "desktop_audio_device_fallback",
+        result: "success",
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.addEventListener) {
+      return;
+    }
+
+    const handleDeviceChange = () => {
+      void reconcileAudioDeviceFallbacks().catch((error) => {
+        logWarning("[voice] Audio device hotplug reconciliation failed", error);
+        recordDesktopPerformanceMetric({
+          operation: "desktop_audio_device_fallback",
+          result: "failure",
+        });
+      });
+    };
+
+    navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
+    return () => navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
+  }, [reconcileAudioDeviceFallbacks]);
+
   const retryKrispNoiseCancellation = useCallback(async () => {
     setIsRecoveringKrispNoiseCancellation(true);
     setKrispAvailability("checking");
@@ -2111,7 +2182,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     if (!activeRoom) {
       const nextMuted = !useVoiceStore.getState().isMuted;
       useVoiceStore.getState().toggleMute();
-      if (pushToTalkStateRef.current.active) {
+      if (pushToTalkStateRef.current.phase === "holding") {
         pushToTalkStateRef.current.restoreMuted = nextMuted;
       }
       return;
@@ -2192,7 +2263,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     }
 
     useVoiceStore.getState().setMuted(nextMuted);
-    if (pushToTalkStateRef.current.active) {
+    if (pushToTalkStateRef.current.phase === "holding") {
       pushToTalkStateRef.current.restoreMuted = nextMuted;
     }
     if (nextMuted) {
@@ -2209,16 +2280,18 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   ]);
 
   const startPushToTalk = useCallback(async () => {
-    if (!pushToTalkEnabled || !roomRef.current) {
+    const activeRoom = roomRef.current;
+    if (!pushToTalkEnabled || !activeRoom) {
       return;
     }
 
+    const previousPushToTalkState = pushToTalkStateRef.current;
     if (pushToTalkReleaseTimeoutRef.current) {
       clearTimeout(pushToTalkReleaseTimeoutRef.current);
       pushToTalkReleaseTimeoutRef.current = null;
     }
 
-    if (pushToTalkStateRef.current.active) {
+    if (previousPushToTalkState.phase === "holding") {
       return;
     }
 
@@ -2228,29 +2301,96 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       return;
     }
 
+    const startedAt = performance.now();
     const wasMuted = store.isMuted;
+    const restoreMuted =
+      previousPushToTalkState.phase === "release-cushion"
+        ? previousPushToTalkState.restoreMuted
+        : wasMuted;
     pushToTalkStateRef.current = {
-      active: true,
-      restoreMuted: wasMuted,
+      phase: "holding",
+      restoreMuted,
+      startedAt,
     };
 
-    if (wasMuted) {
-      await toggleMute();
-      if (useVoiceStore.getState().isMuted) {
-        pushToTalkStateRef.current.active = false;
-      } else {
-        pushToTalkStateRef.current.restoreMuted = wasMuted;
-      }
+    if (!wasMuted && isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(activeRoom))) {
+      recordDesktopPerformanceMetric({
+        durationMs: performance.now() - startedAt,
+        operation: "desktop_push_to_talk_latency",
+        result: "success",
+      });
+      return;
     }
-  }, [pushToTalkEnabled, setTransientErrorMessage, t, toggleMute]);
+
+    const microphoneDeniedMessage = isDesktopRuntime
+      ? t("voice.errors.microphoneDeniedDesktop")
+      : t("voice.errors.microphoneDenied");
+    const microphoneEnableFailedMessage = t("voice.errors.microphoneEnableFailed");
+
+    try {
+      await requestMicrophonePermission();
+      const {
+        preferences,
+        processingProfile,
+        track: localMicrophoneTrack,
+      } = await enableLocalMicrophone(activeRoom, useVoiceStore.getState().audioPreferences);
+      let nextProcessingProfile = processingProfile;
+      if (localMicrophoneTrack) {
+        const syncedNoiseFilter = await syncNoiseFilterForTrack(localMicrophoneTrack, preferences);
+        nextProcessingProfile = syncedNoiseFilter.processingProfile;
+      }
+      appliedAudioPreferencesSignatureRef.current = getAudioCaptureRestartSignature(
+        preferences,
+        nextProcessingProfile,
+      );
+      microphoneIntentionalMuteRef.current = false;
+      useVoiceStore.getState().setMuted(false);
+      setErrorMessage(null);
+      syncParticipants(activeRoom);
+      recordDesktopPerformanceMetric({
+        durationMs: performance.now() - startedAt,
+        operation: "desktop_push_to_talk_latency",
+        result: "success",
+      });
+    } catch (error) {
+      pushToTalkStateRef.current = IDLE_PUSH_TO_TALK_STATE;
+      if (wasMuted) {
+        useVoiceStore.getState().setMuted(true);
+      }
+      setIsKrispNoiseCancellationActive(false);
+      setErrorMessage(
+        isMicrophonePermissionDenied(error)
+          ? microphoneDeniedMessage
+          : microphoneEnableFailedMessage,
+      );
+      syncParticipants(activeRoom);
+      recordDesktopPerformanceMetric({
+        durationMs: performance.now() - startedAt,
+        operation: "desktop_push_to_talk_latency",
+        result: "failure",
+      });
+    }
+  }, [
+    enableLocalMicrophone,
+    isDesktopRuntime,
+    pushToTalkEnabled,
+    requestMicrophonePermission,
+    setTransientErrorMessage,
+    syncNoiseFilterForTrack,
+    syncParticipants,
+    t,
+  ]);
 
   const stopPushToTalk = useCallback(async () => {
-    if (!pushToTalkStateRef.current.active) {
+    if (pushToTalkStateRef.current.phase !== "holding") {
       return;
     }
 
     const shouldRestoreMuted = pushToTalkStateRef.current.restoreMuted;
-    pushToTalkStateRef.current.active = false;
+    pushToTalkStateRef.current = {
+      ...pushToTalkStateRef.current,
+      phase: "release-cushion",
+    };
 
     if (pushToTalkReleaseTimeoutRef.current) {
       clearTimeout(pushToTalkReleaseTimeoutRef.current);
@@ -2258,16 +2398,46 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     }
 
     if (!shouldRestoreMuted) {
+      pushToTalkStateRef.current = IDLE_PUSH_TO_TALK_STATE;
       return;
     }
 
     pushToTalkReleaseTimeoutRef.current = setTimeout(() => {
       pushToTalkReleaseTimeoutRef.current = null;
-      if (!pushToTalkStateRef.current.active && !useVoiceStore.getState().isMuted) {
-        void toggleMute();
+      if (
+        pushToTalkStateRef.current.phase !== "release-cushion" ||
+        useVoiceStore.getState().isMuted
+      ) {
+        pushToTalkStateRef.current = IDLE_PUSH_TO_TALK_STATE;
+        return;
       }
+
+      const activeRoom = roomRef.current;
+      const finishRelease = () => {
+        appliedAudioPreferencesSignatureRef.current = null;
+        setIsKrispNoiseCancellationActive(false);
+        useVoiceStore.getState().setMuted(true);
+        microphoneIntentionalMuteRef.current = false;
+        pushToTalkStateRef.current = IDLE_PUSH_TO_TALK_STATE;
+        if (activeRoom) {
+          syncParticipants(activeRoom);
+        }
+      };
+
+      if (!activeRoom) {
+        finishRelease();
+        return;
+      }
+
+      microphoneIntentionalMuteRef.current = true;
+      void activeRoom.localParticipant
+        .setMicrophoneEnabled(false)
+        .catch((error) => {
+          logError("[voice] Push-to-talk release failed to close microphone", error);
+        })
+        .finally(finishRelease);
     }, pushToTalkHangoverMs);
-  }, [pushToTalkHangoverMs, toggleMute]);
+  }, [pushToTalkHangoverMs, syncParticipants]);
 
   const toggleDeafen = useCallback(async () => {
     const activeRoom = roomRef.current;
@@ -2292,7 +2462,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       voiceInputMode !== "push-to-talk" ||
       !pushToTalkEnabled ||
       !room ||
-      pushToTalkStateRef.current.active ||
+      pushToTalkStateRef.current.phase !== "idle" ||
       pushToTalkReleaseTimeoutRef.current
     ) {
       return;
@@ -2311,6 +2481,46 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     },
     [],
   );
+
+  useEffect(() => {
+    if (pushToTalkStateRef.current.phase === "idle" || !isDeafened) {
+      return;
+    }
+
+    if (pushToTalkReleaseTimeoutRef.current) {
+      clearTimeout(pushToTalkReleaseTimeoutRef.current);
+      pushToTalkReleaseTimeoutRef.current = null;
+    }
+
+    pushToTalkStateRef.current = IDLE_PUSH_TO_TALK_STATE;
+    if (useVoiceStore.getState().isMuted) {
+      return;
+    }
+
+    const activeRoom = roomRef.current;
+    const finishDeafenGuard = () => {
+      appliedAudioPreferencesSignatureRef.current = null;
+      setIsKrispNoiseCancellationActive(false);
+      microphoneIntentionalMuteRef.current = false;
+      useVoiceStore.getState().setMuted(true);
+      if (activeRoom) {
+        syncParticipants(activeRoom);
+      }
+    };
+
+    if (!activeRoom) {
+      finishDeafenGuard();
+      return;
+    }
+
+    microphoneIntentionalMuteRef.current = true;
+    void activeRoom.localParticipant
+      .setMicrophoneEnabled(false)
+      .catch((error) => {
+        logError("[voice] Push-to-talk deafen guard failed to close microphone", error);
+      })
+      .finally(finishDeafenGuard);
+  }, [isDeafened, syncParticipants]);
 
   useEffect(() => {
     if (!supportsLiveKitCloudNoiseCancellationRef.current) {
@@ -2491,9 +2701,31 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       }
 
       event.preventDefault();
-      void Promise.all([handlePageExit(), clearDesktopTransientAuthSession()]).finally(() => {
-        void completeWhisprDesktopBeforeClose(requestId);
-      });
+      const cleanupStartedAt = performance.now();
+      const hadVoiceSession = Boolean(useVoiceStore.getState().sessionId || roomRef.current);
+      void Promise.allSettled([handlePageExit(), clearDesktopTransientAuthSession()])
+        .then((results) => {
+          const result = results.every((item) => item.status === "fulfilled")
+            ? "success"
+            : "failure";
+
+          if (hadVoiceSession) {
+            recordDesktopPerformanceMetric({
+              durationMs: performance.now() - cleanupStartedAt,
+              operation: "desktop_voice_leave_timing",
+              result,
+            });
+          }
+
+          recordDesktopPerformanceMetric({
+            durationMs: performance.now() - cleanupStartedAt,
+            operation: "desktop_close_cleanup",
+            result,
+          });
+        })
+        .finally(() => {
+          void completeWhisprDesktopBeforeClose(requestId);
+        });
     };
 
     window.addEventListener("beforeunload", handleBrowserPageExit);

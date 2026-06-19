@@ -3,7 +3,11 @@
 declare global {
   interface Window {
     __WHISPR_DESKTOP__?: {
+      features?: {
+        updater?: boolean;
+      };
       platform: "tauri";
+      releaseRing?: "production" | "production-small" | "uat";
       shell: "desktop";
     };
   }
@@ -37,6 +41,7 @@ export type WhisprDesktopCommand =
 
 export interface WhisprDesktopCommandDetail {
   command: WhisprDesktopCommand;
+  issuedAtMs?: number | null;
   path?: string | null;
   surface?: "game-overlay" | "voice-mini" | null;
 }
@@ -47,6 +52,14 @@ export interface WhisprDesktopBeforeCloseDetail {
 
 export function isWhisprDesktopRuntime() {
   return typeof window !== "undefined" && window.__WHISPR_DESKTOP__?.shell === "desktop";
+}
+
+export function isWhisprDesktopUpdaterEnabled() {
+  return Boolean(isWhisprDesktopRuntime() && window.__WHISPR_DESKTOP__?.features?.updater);
+}
+
+export function getWhisprDesktopReleaseRing() {
+  return window.__WHISPR_DESKTOP__?.releaseRing ?? "uat";
 }
 
 async function runDesktopWindowStep(step: () => Promise<void>) {

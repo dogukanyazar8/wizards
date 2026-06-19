@@ -39,13 +39,17 @@ export type DesktopActivityStatus = "idle" | "offline" | "reconnecting" | "strea
 export type DesktopPlatformFeatureStatus = "available" | "research_gated" | "unsupported";
 
 export interface DesktopPlatformFeature {
+  fallback: string;
+  permission: string;
   status: DesktopPlatformFeatureStatus;
   strategy: string;
+  userControl: string;
 }
 
 export interface DesktopPlatformCapabilities {
   arch: string;
   hardwareEncode: DesktopPlatformFeature;
+  livekitCustomTrack: DesktopPlatformFeature;
   nativeScreenCapture: DesktopPlatformFeature;
   platform: string;
   richPresence: DesktopPlatformFeature;
@@ -68,6 +72,44 @@ export interface DesktopCompanionSurfacesStatus {
   voiceMini: DesktopCompanionSurfaceInfo;
 }
 
+export interface DesktopSupportWebDiagnostics {
+  networkStatus: "offline" | "online" | "unknown";
+  notificationPermission: string;
+  overlayHealth: DesktopSurfaceHealth | "unknown";
+  socketStatus: "connected" | "disconnected" | "reconnecting" | "unknown";
+  userAgent: string;
+  voiceStatus: string;
+}
+
+export interface DesktopNativeLogRecord {
+  level: string;
+  message: string;
+  scope: string;
+  timestampMs: number;
+}
+
+export interface DesktopSupportBundle {
+  app: {
+    appVersion: string;
+    releaseRing: string;
+    tauriVersion: string;
+    updaterEnabled: boolean;
+    webviewVersion: string;
+  };
+  bundleVersion: number;
+  capabilities: DesktopPlatformCapabilities;
+  companionSurfaces: DesktopCompanionSurfacesStatus;
+  generatedAtMs: number;
+  nativeLogs: DesktopNativeLogRecord[];
+  platform: {
+    arch: string;
+    family: string;
+    os: string;
+  };
+  shortcuts: DesktopVoiceShortcutStatus;
+  web: DesktopSupportWebDiagnostics;
+}
+
 export interface DesktopGameOverlayLayout {
   anchor: VoiceOverlayAnchor;
   size: VoiceOverlaySize;
@@ -77,6 +119,7 @@ export type DesktopSurfaceHealth = "idle" | "needs-repair" | "ready";
 
 const MIN_COMPANION_SURFACE_SIZE_PX = 24;
 const DESKTOP_COMMAND_TIMEOUT_MS = 4_000;
+export const WHISPR_DESKTOP_VOICE_MINI_COMMAND_CHANNEL = "whispr:desktop-voice-mini-command";
 
 async function getTauriInvoke() {
   const { invoke } = await import("@tauri-apps/api/core");
@@ -129,6 +172,14 @@ export async function getDesktopMainWindowFocused() {
   } catch {
     return document.visibilityState === "visible" && window.document.hasFocus();
   }
+}
+
+export async function getDesktopForegroundProcessName() {
+  if (!isWhisprDesktopRuntime()) {
+    return null;
+  }
+
+  return invokeDesktopCommand<string | null>("get_desktop_foreground_process_name");
 }
 
 function buildDesktopOverlayTestSnapshot(
@@ -269,6 +320,22 @@ export async function getDesktopCompanionSurfacesStatus() {
   );
 }
 
+export async function getDesktopVoiceShortcutStatus() {
+  if (!isWhisprDesktopRuntime()) {
+    return null;
+  }
+
+  return invokeDesktopCommand<DesktopVoiceShortcutStatus>("get_desktop_voice_shortcut_status");
+}
+
+export async function exportDesktopDiagnosticsBundle(web: DesktopSupportWebDiagnostics) {
+  if (!isWhisprDesktopRuntime()) {
+    return null;
+  }
+
+  return invokeDesktopCommand<DesktopSupportBundle>("export_desktop_diagnostics_bundle", { web });
+}
+
 export async function refreshDesktopCompanionSurfaces() {
   if (!isWhisprDesktopRuntime()) {
     return null;
@@ -390,10 +457,16 @@ export async function testDesktopVoiceMiniSurface() {
   return true;
 }
 
-export async function dispatchDesktopVoiceMiniCommand(command: DesktopVoiceMiniCommand) {
-  if (!isWhisprDesktopRuntime()) {
+export function postDesktopVoiceMiniCommand(command: DesktopVoiceMiniCommand) {
+  if (!isWhisprDesktopRuntime() || typeof BroadcastChannel === "undefined") {
     return false;
   }
 
-  return invokeDesktopCommand<boolean>("dispatch_desktop_voice_mini_command", { command });
+  const channel = new BroadcastChannel(WHISPR_DESKTOP_VOICE_MINI_COMMAND_CHANNEL);
+  try {
+    channel.postMessage({ command });
+    return true;
+  } finally {
+    channel.close();
+  }
 }

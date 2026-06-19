@@ -6,8 +6,10 @@ import {
   DEFAULT_PUSH_TO_TALK_SHORTCUT,
   DEFAULT_TOGGLE_MUTE_SHORTCUT,
   MAX_PUSH_TO_TALK_HANGOVER_MS,
+  isReservedDesktopVoiceShortcut,
   sanitizeDesktopVoiceShortcut,
   sanitizePushToTalkHangoverMs,
+  sanitizeUniqueDesktopVoiceShortcut,
   sanitizeVoiceInputMode,
 } from "./voice-store";
 import {
@@ -41,6 +43,14 @@ describe("voice desktop preference sanitizers", () => {
       sanitizeDesktopVoiceShortcut("Ctrl+Space", DEFAULT_PUSH_TO_TALK_SHORTCUT),
       DEFAULT_PUSH_TO_TALK_SHORTCUT,
     );
+    assert.equal(
+      sanitizeDesktopVoiceShortcut("Alt+Tab", DEFAULT_PUSH_TO_TALK_SHORTCUT),
+      DEFAULT_PUSH_TO_TALK_SHORTCUT,
+    );
+    assert.equal(
+      sanitizeDesktopVoiceShortcut("Alt+F4", DEFAULT_PUSH_TO_TALK_SHORTCUT),
+      DEFAULT_PUSH_TO_TALK_SHORTCUT,
+    );
     assert.equal(DEFAULT_PUSH_TO_TALK_SHORTCUT, "Alt+V");
     assert.equal(
       sanitizeDesktopVoiceShortcut("A".repeat(65), DEFAULT_PUSH_TO_TALK_SHORTCUT),
@@ -49,6 +59,21 @@ describe("voice desktop preference sanitizers", () => {
     assert.equal(
       sanitizeDesktopVoiceShortcut("", DEFAULT_GAME_OVERLAY_PANIC_SHORTCUT),
       DEFAULT_GAME_OVERLAY_PANIC_SHORTCUT,
+    );
+  });
+
+  it("rejects reserved shortcuts and prevents duplicate desktop shortcut assignments", () => {
+    assert.equal(isReservedDesktopVoiceShortcut("Ctrl+Space"), true);
+    assert.equal(isReservedDesktopVoiceShortcut("CmdOrCtrl+Shift+Space"), true);
+    assert.equal(isReservedDesktopVoiceShortcut("Alt+V"), false);
+    assert.equal(
+      sanitizeUniqueDesktopVoiceShortcut(
+        DEFAULT_TOGGLE_MUTE_SHORTCUT,
+        DEFAULT_PUSH_TO_TALK_SHORTCUT,
+        [DEFAULT_TOGGLE_MUTE_SHORTCUT],
+        DEFAULT_PUSH_TO_TALK_SHORTCUT,
+      ),
+      DEFAULT_PUSH_TO_TALK_SHORTCUT,
     );
   });
 

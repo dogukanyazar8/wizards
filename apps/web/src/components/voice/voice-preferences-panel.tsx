@@ -26,6 +26,7 @@ import {
   testDesktopGameOverlaySurface,
   testDesktopVoiceMiniSurface,
 } from "@/lib/desktop/controls";
+import { DESKTOP_GAME_OVERLAY_EXECUTABLE_NAMES } from "@/lib/desktop/game-overlay-process";
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import { cn } from "@/lib/utils";
 import { supportsMediaConstraint } from "@/lib/voice/media-capabilities";
@@ -55,6 +56,22 @@ const DESKTOP_GAME_OVERLAY_ANCHORS: VoiceOverlayAnchor[] = [
 ];
 
 const DESKTOP_GAME_OVERLAY_SIZES: VoiceOverlaySize[] = ["compact", "normal", "large"];
+
+const DESKTOP_GAME_OVERLAY_GAME_LABELS: Record<
+  (typeof DESKTOP_GAME_OVERLAY_EXECUTABLE_NAMES)[number],
+  string
+> = {
+  "cs2.exe": "Counter-Strike 2",
+  "dota2.exe": "Dota 2",
+  "fortniteclient-win64-shipping.exe": "Fortnite",
+  "javaw.exe": "Minecraft Java",
+  "league of legends.exe": "League of Legends",
+  "minecraft.exe": "Minecraft",
+  "osu!.exe": "osu!",
+  "osu.exe": "osu!",
+  "rocketleague.exe": "Rocket League",
+  "valorant-win64-shipping.exe": "VALORANT",
+};
 
 type VoicePreferenceToggleRowProps = {
   checked: boolean;
@@ -375,6 +392,12 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
   );
   const desktopGameOverlayAnchor = useVoiceStore((state) => state.desktopGameOverlayAnchor);
   const desktopGameOverlayEnabled = useVoiceStore((state) => state.desktopGameOverlayEnabled);
+  const desktopGameOverlayGameSettings = useVoiceStore(
+    (state) => state.desktopGameOverlayGameSettings,
+  );
+  const desktopGameOverlayProcessDetectionEnabled = useVoiceStore(
+    (state) => state.desktopGameOverlayProcessDetectionEnabled,
+  );
   const desktopGameOverlaySize = useVoiceStore((state) => state.desktopGameOverlaySize);
   const desktopGameOverlaySpeakingOnly = useVoiceStore(
     (state) => state.desktopGameOverlaySpeakingOnly,
@@ -391,6 +414,12 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
   );
   const setDesktopGameOverlayAnchor = useVoiceStore((state) => state.setDesktopGameOverlayAnchor);
   const setDesktopGameOverlayEnabled = useVoiceStore((state) => state.setDesktopGameOverlayEnabled);
+  const setDesktopGameOverlayGamePreference = useVoiceStore(
+    (state) => state.setDesktopGameOverlayGamePreference,
+  );
+  const setDesktopGameOverlayProcessDetectionEnabled = useVoiceStore(
+    (state) => state.setDesktopGameOverlayProcessDetectionEnabled,
+  );
   const setDesktopGameOverlaySize = useVoiceStore((state) => state.setDesktopGameOverlaySize);
   const setDesktopGameOverlaySpeakingOnly = useVoiceStore(
     (state) => state.setDesktopGameOverlaySpeakingOnly,
@@ -422,6 +451,13 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
     size: desktopGameOverlaySize,
     speakingOnly: desktopGameOverlaySpeakingOnly,
   };
+  const getDesktopGameOverlayGamePreference = (executableName: string) =>
+    desktopGameOverlayGameSettings[executableName] ?? {
+      anchor: desktopGameOverlayAnchor,
+      enabled: desktopGameOverlayEnabled,
+      size: desktopGameOverlaySize,
+      speakingOnly: desktopGameOverlaySpeakingOnly,
+    };
   const applyCleanVoiceProfile = () => {
     setAudioPreference("noiseSuppression", true);
     if (voiceIsolationSupported) {
@@ -886,6 +922,165 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                     )}
                   />
                 </button>
+              </div>
+              <div className="mt-2 flex items-start justify-between gap-2.5 rounded-xl border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-card)/0.5)] p-2.5">
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-semibold text-app-foreground">
+                    {t("voice.settings.desktopOverlayProcessDetection")}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] leading-4 text-app-muted">
+                    {t("voice.settings.desktopOverlayProcessDetectionDesc")}
+                  </span>
+                </span>
+                <button
+                  aria-checked={desktopGameOverlayProcessDetectionEnabled}
+                  className={cn(
+                    "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                    desktopGameOverlayProcessDetectionEnabled
+                      ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
+                      : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
+                  )}
+                  onClick={() =>
+                    setDesktopGameOverlayProcessDetectionEnabled(
+                      !desktopGameOverlayProcessDetectionEnabled,
+                    )
+                  }
+                  role="switch"
+                  type="button"
+                >
+                  <span
+                    className={cn(
+                      "absolute left-1 h-5 w-5 rounded-full bg-white shadow-[0_5px_14px_hsl(var(--shadow-color)/0.14)] transition",
+                      desktopGameOverlayProcessDetectionEnabled &&
+                        "translate-x-5 bg-[hsl(var(--primary))]",
+                    )}
+                  />
+                </button>
+              </div>
+              <div
+                className={cn(
+                  "mt-2 rounded-xl border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-card)/0.42)] p-2.5 transition",
+                  !desktopGameOverlayProcessDetectionEnabled && "opacity-60",
+                )}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-semibold text-app-foreground">
+                      {t("voice.settings.desktopOverlayPerGame")}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] leading-4 text-app-muted">
+                      {t("voice.settings.desktopOverlayPerGameDesc")}
+                    </span>
+                  </span>
+                  <span className="rounded-full border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-soft)/0.58)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-app-soft">
+                    {t("voice.settings.desktopOverlayLocalOnly")}
+                  </span>
+                </div>
+
+                <div className="mt-2 grid gap-1.5">
+                  {DESKTOP_GAME_OVERLAY_EXECUTABLE_NAMES.map((executableName) => {
+                    const preference = getDesktopGameOverlayGamePreference(executableName);
+                    const gameLabel = DESKTOP_GAME_OVERLAY_GAME_LABELS[executableName];
+
+                    return (
+                      <div
+                        className="grid gap-1.5 rounded-xl border border-[hsl(var(--border)/0.42)] bg-[hsl(var(--surface-card)/0.54)] p-2 lg:grid-cols-[minmax(0,1.15fr)_74px_90px_92px_96px]"
+                        key={executableName}
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-[12px] font-semibold text-app-foreground">
+                            {gameLabel}
+                          </p>
+                          <p className="truncate font-mono text-[10px] text-app-soft">
+                            {executableName}
+                          </p>
+                        </div>
+
+                        <button
+                          aria-checked={preference.enabled}
+                          className={cn(
+                            "inline-flex min-h-8 items-center justify-center rounded-lg border px-2 text-[10px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
+                            preference.enabled
+                              ? "border-[hsl(var(--primary)/0.46)] bg-[hsl(var(--primary)/0.13)] text-[hsl(var(--primary))]"
+                              : "border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-soft)/0.54)] text-app-muted",
+                          )}
+                          disabled={!desktopGameOverlayProcessDetectionEnabled}
+                          onClick={() =>
+                            setDesktopGameOverlayGamePreference(executableName, {
+                              ...preference,
+                              enabled: !preference.enabled,
+                            })
+                          }
+                          role="switch"
+                          type="button"
+                        >
+                          {preference.enabled
+                            ? t("voice.settings.desktopOverlayGameEnabled")
+                            : t("voice.settings.desktopOverlayGameDisabled")}
+                        </button>
+
+                        <select
+                          aria-label={`${gameLabel} ${t("voice.settings.desktopOverlayPosition")}`}
+                          className="min-h-8 rounded-lg border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.72)] px-2 text-[10px] font-semibold text-app-muted outline-none transition focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55"
+                          disabled={!desktopGameOverlayProcessDetectionEnabled}
+                          onChange={(event) =>
+                            setDesktopGameOverlayGamePreference(executableName, {
+                              ...preference,
+                              anchor: event.target.value as VoiceOverlayAnchor,
+                            })
+                          }
+                          value={preference.anchor}
+                        >
+                          {DESKTOP_GAME_OVERLAY_ANCHORS.map((anchor) => (
+                            <option key={anchor} value={anchor}>
+                              {t(`voice.settings.desktopOverlayPosition.${anchor}`)}
+                            </option>
+                          ))}
+                        </select>
+
+                        <select
+                          aria-label={`${gameLabel} ${t("voice.settings.desktopOverlaySize")}`}
+                          className="min-h-8 rounded-lg border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.72)] px-2 text-[10px] font-semibold text-app-muted outline-none transition focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55"
+                          disabled={!desktopGameOverlayProcessDetectionEnabled}
+                          onChange={(event) =>
+                            setDesktopGameOverlayGamePreference(executableName, {
+                              ...preference,
+                              size: event.target.value as VoiceOverlaySize,
+                            })
+                          }
+                          value={preference.size}
+                        >
+                          {DESKTOP_GAME_OVERLAY_SIZES.map((size) => (
+                            <option key={size} value={size}>
+                              {t(`voice.settings.desktopOverlaySize.${size}`)}
+                            </option>
+                          ))}
+                        </select>
+
+                        <button
+                          aria-checked={preference.speakingOnly}
+                          className={cn(
+                            "inline-flex min-h-8 items-center justify-center rounded-lg border px-2 text-[10px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
+                            preference.speakingOnly
+                              ? "border-[hsl(var(--success)/0.42)] bg-[hsl(var(--success)/0.12)] text-[hsl(var(--success))]"
+                              : "border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-soft)/0.54)] text-app-muted",
+                          )}
+                          disabled={!desktopGameOverlayProcessDetectionEnabled}
+                          onClick={() =>
+                            setDesktopGameOverlayGamePreference(executableName, {
+                              ...preference,
+                              speakingOnly: !preference.speakingOnly,
+                            })
+                          }
+                          role="switch"
+                          type="button"
+                        >
+                          {t("voice.settings.desktopOverlayGameSpeakingOnly")}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
               <div className="mt-3 grid gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
                 <button

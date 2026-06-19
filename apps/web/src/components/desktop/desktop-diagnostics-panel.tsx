@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { useSocket } from "@/hooks/use-socket";
 import {
+  exportDesktopDiagnosticsBundle,
   getDesktopCompanionSurfacesStatus,
   getDesktopAutostartEnabled,
   getDesktopPlatformCapabilities,
+  getDesktopVoiceShortcutStatus,
   hideDesktopGameOverlaySurface,
   repairDesktopGameOverlaySurface,
   refreshDesktopCompanionSurfaces,
@@ -15,7 +17,13 @@ import {
   type DesktopPlatformCapabilities,
   type DesktopPlatformFeature,
   type DesktopPlatformFeatureStatus,
+  type DesktopSupportBundle,
+  type DesktopVoiceShortcutStatus,
 } from "@/lib/desktop/controls";
+import {
+  getDesktopNativeMediaResearchItems,
+  getDesktopScreenShareRuntimeMode,
+} from "@/lib/desktop/native-media";
 import { recordDesktopPerformanceMetric } from "@/lib/desktop/performance";
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import { useAppStore } from "@/lib/store";
@@ -88,7 +96,7 @@ function formatCapabilityDetail(feature: DesktopPlatformFeature | null, fallback
     return fallback;
   }
 
-  return `${fallback} (${feature.strategy})`;
+  return `${fallback} (${feature.strategy}; fallback: ${feature.fallback}; permission: ${feature.permission})`;
 }
 
 function formatSurfaceStatus(status: DesktopCompanionSurfacesStatus | null) {
@@ -145,6 +153,24 @@ async function readNotificationPermission() {
   return "unknown";
 }
 
+function saveDiagnosticsBundle(bundle: DesktopSupportBundle) {
+  const generatedAt = new Date(bundle.generatedAtMs || Date.now())
+    .toISOString()
+    .replace(/[:.]/g, "-");
+  const blob = new Blob([JSON.stringify(bundle, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `whispr-desktop-diagnostics-${generatedAt}.json`;
+  anchor.rel = "noopener";
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 export function DesktopDiagnosticsPanel() {
   const { t } = useI18n();
   const socket = useSocket();
@@ -171,6 +197,11 @@ export function DesktopDiagnosticsPanel() {
   );
   const [companionSurfacesError, setCompanionSurfacesError] = useState<string | null>(null);
   const [companionSurfacesPending, setCompanionSurfacesPending] = useState(false);
+  const [voiceShortcutStatus, setVoiceShortcutStatus] =
+    useState<DesktopVoiceShortcutStatus | null>(null);
+  const [diagnosticsExportPending, setDiagnosticsExportPending] = useState(false);
+  const [diagnosticsExportError, setDiagnosticsExportError] = useState<string | null>(null);
+  const [diagnosticsExportSuccess, setDiagnosticsExportSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     setIsDesktop(isWhisprDesktopRuntime());
@@ -229,6 +260,10 @@ export function DesktopDiagnosticsPanel() {
             formatDesktopError(error, t("desktop.diagnostics.overlayWindows.error")),
           );
         });
+
+      void getDesktopVoiceShortcutStatus()
+        .then((status) => setVoiceShortcutStatus(status))
+        .catch(() => setVoiceShortcutStatus(null));
     }
 
     return () => {
@@ -335,6 +370,53 @@ export function DesktopDiagnosticsPanel() {
     companionSurfaces,
     Boolean(desktopGameOverlayEnabled && voice.activeChannelId),
   );
+  const nativeMediaResearchItems = getDesktopNativeMediaResearchItems(platformCapabilities);
+  const screenShareRuntimeMode = getDesktopScreenShareRuntimeMode(platformCapabilities);
+
+  const downloadDiagnosticsBundle = async () => {
+    if (!isDesktop || diagnosticsExportPending) {
+      return;
+    }
+
+    setDiagnosticsExportPending(true);
+    setDiagnosticsExportError(null);
+    setDiagnosticsExportSuccess(null);
+    const startedAt = performance.now();
+
+    try {
+      const bundle = await exportDesktopDiagnosticsBundle({
+        networkStatus: isOnline ? "online" : "offline",
+        notificationPermission,
+        overlayHealth,
+        socketStatus: socketConnected ? "connected" : isOnline ? "reconnecting" : "disconnected",
+        userAgent: navigator.userAgent,
+        voiceStatus,
+      });
+
+      if (!bundle) {
+        throw new Error(t("desktop.diagnostics.supportBundle.error"));
+      }
+
+      saveDiagnosticsBundle(bundle);
+      setDiagnosticsExportSuccess(t("desktop.diagnostics.supportBundle.success"));
+      recordDesktopPerformanceMetric({
+        durationMs: performance.now() - startedAt,
+        operation: "desktop_diagnostics_export",
+        result: "success",
+      });
+    } catch (error) {
+      setDiagnosticsExportError(
+        formatDesktopError(error, t("desktop.diagnostics.supportBundle.error")),
+      );
+      recordDesktopPerformanceMetric({
+        durationMs: performance.now() - startedAt,
+        operation: "desktop_diagnostics_export",
+        result: "failure",
+      });
+    } finally {
+      setDiagnosticsExportPending(false);
+    }
+  };
 
   return (
     <div className="space-y-3">
@@ -359,6 +441,36 @@ export function DesktopDiagnosticsPanel() {
             }
             tone={isDesktop ? "good" : "muted"}
           />
+        </div>
+      </div>
+
+      <div className="rounded-[18px] border border-indigo-100 bg-white/82 p-3 shadow-[0_12px_34px_rgba(99,102,241,0.08)]">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold text-slate-900">
+              {t("desktop.diagnostics.supportBundle.label")}
+            </p>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">
+              {t("desktop.diagnostics.supportBundle.detail")}
+            </p>
+            {diagnosticsExportError ? (
+              <p className="mt-2 text-xs font-semibold text-rose-600">{diagnosticsExportError}</p>
+            ) : diagnosticsExportSuccess ? (
+              <p className="mt-2 text-xs font-semibold text-emerald-600">
+                {diagnosticsExportSuccess}
+              </p>
+            ) : null}
+          </div>
+          <button
+            className="inline-flex min-h-9 items-center rounded-full border border-indigo-200 bg-indigo-600 px-3 text-xs font-semibold text-white shadow-[0_12px_28px_rgba(99,102,241,0.22)] transition hover:bg-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!isDesktop || diagnosticsExportPending}
+            onClick={() => void downloadDiagnosticsBundle()}
+            type="button"
+          >
+            {diagnosticsExportPending
+              ? t("desktop.diagnostics.supportBundle.exporting")
+              : t("desktop.diagnostics.supportBundle.button")}
+          </button>
         </div>
       </div>
 
@@ -410,6 +522,22 @@ export function DesktopDiagnosticsPanel() {
           label={t("desktop.diagnostics.shell.label")}
           status={t("desktop.diagnostics.shell.ready")}
           tone={isDesktop ? "good" : "muted"}
+        />
+        <DiagnosticRow
+          detail={
+            voiceShortcutStatus?.registered.length
+              ? voiceShortcutStatus.registered
+                  .map((shortcut) => `${shortcut.action}: ${shortcut.shortcut}`)
+                  .join(" / ")
+              : t("desktop.diagnostics.shortcuts.detail")
+          }
+          label={t("desktop.diagnostics.shortcuts.label")}
+          status={
+            voiceShortcutStatus?.enabled
+              ? t("desktop.diagnostics.shortcuts.enabled")
+              : t("desktop.diagnostics.shortcuts.disabled")
+          }
+          tone={voiceShortcutStatus?.enabled ? "good" : "muted"}
         />
         <div className="rounded-[18px] border border-slate-200/80 bg-white/78 p-3 shadow-[0_10px_28px_rgba(148,163,184,0.1)]">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -479,6 +607,48 @@ export function DesktopDiagnosticsPanel() {
           }
           tone={platformCapabilities ? "good" : "muted"}
         />
+        <div className="rounded-[18px] border border-slate-200/80 bg-white/78 p-3 shadow-[0_10px_28px_rgba(148,163,184,0.1)] lg:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-slate-900">
+                {t("desktop.diagnostics.nativeMedia.title")}
+              </p>
+              <p className="mt-1.5 text-xs leading-4 text-slate-500">
+                {t(`desktop.diagnostics.nativeMedia.mode.${screenShareRuntimeMode}`)}
+              </p>
+            </div>
+            <DiagnosticPill
+              label={t("desktop.diagnostics.capabilities.status.research_gated")}
+              tone="warn"
+            />
+          </div>
+          <div className="mt-2.5 grid gap-1.5 md:grid-cols-2">
+            {nativeMediaResearchItems.map((item) => (
+              <div
+                className="rounded-xl border border-slate-200/70 bg-slate-50/72 px-2.5 py-2"
+                key={item.id}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-[12px] font-semibold text-slate-800">
+                    {t(`desktop.diagnostics.nativeMedia.feature.${item.id}`)}
+                  </p>
+                  <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                    {getCapabilityStatusLabel(item.status, t)}
+                  </span>
+                </div>
+                <p className="mt-1 truncate font-mono text-[10px] text-slate-500">
+                  {item.strategy}
+                </p>
+                <p className="mt-0.5 truncate text-[10px] text-slate-500">
+                  {t("desktop.diagnostics.nativeMedia.fallback")}: {item.fallback}
+                </p>
+                <p className="mt-0.5 truncate text-[10px] text-slate-500">
+                  {t("desktop.diagnostics.nativeMedia.permission")}: {item.permission}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
         <DiagnosticRow
           detail={formatCapabilityDetail(
             platformCapabilities?.nativeScreenCapture ?? null,
@@ -504,6 +674,19 @@ export function DesktopDiagnosticsPanel() {
               : unknownCapabilityStatus
           }
           tone={getCapabilityTone(platformCapabilities?.systemAudioCapture.status ?? "unknown")}
+        />
+        <DiagnosticRow
+          detail={formatCapabilityDetail(
+            platformCapabilities?.livekitCustomTrack ?? null,
+            t("desktop.diagnostics.capabilities.livekitCustomTrack.detail"),
+          )}
+          label={t("desktop.diagnostics.capabilities.livekitCustomTrack.label")}
+          status={
+            platformCapabilities
+              ? getCapabilityStatusLabel(platformCapabilities.livekitCustomTrack.status, t)
+              : unknownCapabilityStatus
+          }
+          tone={getCapabilityTone(platformCapabilities?.livekitCustomTrack.status ?? "unknown")}
         />
         <DiagnosticRow
           detail={formatCapabilityDetail(

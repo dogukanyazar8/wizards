@@ -9,13 +9,16 @@ import { fetchUnreadCount, notificationsQueryKeys } from "@/lib/notifications/cl
 import type { NotificationSocketPayload } from "@/lib/socket/events";
 import { fetchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
 import {
+  WHISPR_DESKTOP_BEFORE_CLOSE_EVENT,
   WHISPR_DESKTOP_COMMAND_EVENT,
+  getWhisprDesktopBeforeCloseRequestId,
   isSafeDesktopInternalPath,
   isWhisprDesktopRuntime,
   type WhisprDesktopCommandDetail,
 } from "@/lib/desktop/runtime";
 import {
   configureDesktopVoiceShortcuts,
+  getDesktopForegroundProcessName,
   hideDesktopGameOverlaySurface,
   getDesktopMainWindowFocused,
   publishDesktopGameOverlaySnapshot,
@@ -26,9 +29,22 @@ import {
   setDesktopActivityStatus,
   setDesktopQuitOnCloseEnabled,
   setDesktopVoiceMiniVisible,
+  WHISPR_DESKTOP_VOICE_MINI_COMMAND_CHANNEL,
+  type DesktopVoiceMiniCommand,
   type DesktopActivityStatus,
 } from "@/lib/desktop/controls";
+import {
+  isDesktopGameOverlayOperationInFlight,
+  transitionDesktopGameOverlayState,
+  type DesktopGameOverlayEvent,
+  type DesktopGameOverlayState,
+} from "@/lib/desktop/game-overlay-state";
+import { resolveDesktopGameOverlayProcessGate } from "@/lib/desktop/game-overlay-process";
 import { recordDesktopPerformanceMetric } from "@/lib/desktop/performance";
+import {
+  canPublishDesktopRichPresence,
+  resolveDesktopStreamerMode,
+} from "@/lib/desktop/privacy";
 import { buildVoiceMiniSnapshot } from "@/lib/desktop/voice-mini";
 import { useAppStore } from "@/lib/store";
 import { useVoiceStore } from "@/store/voice-store";
@@ -50,6 +66,19 @@ const DESKTOP_NOTIFICATION_TYPES = new Set<NotificationSocketPayload["type"]>([
   "MODERATION",
 ]);
 const DESKTOP_COMPANION_SURFACE_FOCUS_SETTLE_MS = 650;
+const DESKTOP_COMPANION_SURFACE_REFRESH_MS = 5_000;
+const DESKTOP_GAME_OVERLAY_PROCESS_POLL_MS = 2_000;
+const DESKTOP_GAME_OVERLAY_REPAIR_COOLDOWN_MS = 1_500;
+const DESKTOP_RESUME_CHECK_INTERVAL_MS = 10_000;
+const DESKTOP_RESUME_GAP_MS = 45_000;
+const DESKTOP_SHORTCUT_COMMANDS = new Set<WhisprDesktopCommandDetail["command"]>([
+  "hide-game-overlay",
+  "toggle-deafen",
+  "toggle-mute",
+  "voice-shortcut-push-to-talk-start",
+  "voice-shortcut-push-to-talk-stop",
+]);
+type DesktopCompanionSurfaceHideReason = "before-close" | "focus" | "offline" | "resume" | "unmount";
 
 function isEditableTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) {
@@ -237,6 +266,27 @@ function DesktopConnectionHealth({
   );
 }
 
+function isDesktopVoiceMiniCommand(value: unknown): value is DesktopVoiceMiniCommand {
+  return value === "leaveVoice" || value === "toggleDeafen" || value === "toggleMute";
+}
+
+function recordDesktopShortcutLatency(detail: WhisprDesktopCommandDetail) {
+  if (!DESKTOP_SHORTCUT_COMMANDS.has(detail.command) || typeof detail.issuedAtMs !== "number") {
+    return;
+  }
+
+  const latencyMs = Date.now() - detail.issuedAtMs;
+  if (!Number.isFinite(latencyMs) || latencyMs < 0 || latencyMs > 60_000) {
+    return;
+  }
+
+  recordDesktopPerformanceMetric({
+    durationMs: latencyMs,
+    operation: "desktop_shortcut_latency",
+    result: "success",
+  });
+}
+
 export function DesktopExperience() {
   const router = useRouter();
   const socket = useSocket();
@@ -257,12 +307,21 @@ export function DesktopExperience() {
   const { t } = useI18n();
   const desktopNotificationPreviews = useAppStore((state) => state.desktopNotificationPreviews);
   const desktopCloseToTrayEnabled = useAppStore((state) => state.desktopCloseToTrayEnabled);
+  const desktopRichPresenceAudience = useAppStore((state) => state.desktopRichPresenceAudience);
   const desktopRichPresenceEnabled = useAppStore((state) => state.desktopRichPresenceEnabled);
+  const desktopStreamerModeProcessDetectionEnabled = useAppStore(
+    (state) => state.desktopStreamerModeProcessDetectionEnabled,
+  );
   const desktopStreamerModeEnabled = useAppStore((state) => state.desktopStreamerModeEnabled);
+  const setDesktopStreamerModeDetected = useAppStore(
+    (state) => state.setDesktopStreamerModeDetected,
+  );
   const {
     desktopGlobalShortcutsEnabled,
     desktopGameOverlayAnchor,
     desktopGameOverlayEnabled,
+    desktopGameOverlayGameSettings,
+    desktopGameOverlayProcessDetectionEnabled,
     desktopGameOverlaySize,
     desktopGameOverlaySpeakingOnly,
     gameOverlayPanicShortcut,
@@ -277,6 +336,8 @@ export function DesktopExperience() {
       desktopGlobalShortcutsEnabled: state.desktopGlobalShortcutsEnabled,
       desktopGameOverlayAnchor: state.desktopGameOverlayAnchor,
       desktopGameOverlayEnabled: state.desktopGameOverlayEnabled,
+      desktopGameOverlayGameSettings: state.desktopGameOverlayGameSettings,
+      desktopGameOverlayProcessDetectionEnabled: state.desktopGameOverlayProcessDetectionEnabled,
       desktopGameOverlaySize: state.desktopGameOverlaySize,
       desktopGameOverlaySpeakingOnly: state.desktopGameOverlaySpeakingOnly,
       gameOverlayPanicShortcut: state.gameOverlayPanicShortcut,
@@ -291,11 +352,17 @@ export function DesktopExperience() {
   const [isDesktop, setIsDesktop] = useState(false);
   const [isMainWindowFocused, setIsMainWindowFocused] = useState(true);
   const [desktopCompanionSurfacesGateOpen, setDesktopCompanionSurfacesGateOpen] = useState(false);
+  const [foregroundProcessName, setForegroundProcessName] = useState<string | null>(null);
+  const [gameOverlayState, setGameOverlayState] =
+    useState<DesktopGameOverlayState>("hidden");
   const [isOnline, setIsOnline] = useState(true);
   const [socketConnected, setSocketConnected] = useState(false);
   const runtimeMetricRecordedRef = useRef(false);
+  const gameOverlayStateRef = useRef<DesktopGameOverlayState>("hidden");
   const gameOverlayVisibleRef = useRef(false);
+  const overlayOperationIdRef = useRef(0);
   const voiceMiniVisibleRef = useRef(false);
+  const voiceJoinTimingRef = useRef<{ channelId: string; startedAt: number } | null>(null);
   const overlayRecoveryInFlightRef = useRef(false);
   const lastOverlayRecoveryAtRef = useRef(0);
 
@@ -314,9 +381,35 @@ export function DesktopExperience() {
     staleTime: 30_000,
   });
 
+  useEffect(() => {
+    gameOverlayStateRef.current = gameOverlayState;
+  }, [gameOverlayState]);
+
+  const transitionGameOverlayState = useCallback((event: DesktopGameOverlayEvent) => {
+    setGameOverlayState((current) => transitionDesktopGameOverlayState(current, event));
+  }, []);
+
   const desktopNotificationsEnabled =
     settingsQuery.isSuccess && settingsQuery.data.desktopNotifications !== false;
-  const desktopActivityStatus: DesktopActivityStatus = !desktopRichPresenceEnabled
+  const desktopStreamerMode = useMemo(
+    () =>
+      resolveDesktopStreamerMode({
+        foregroundProcessName,
+        manualEnabled: desktopStreamerModeEnabled,
+        processDetectionEnabled: desktopStreamerModeProcessDetectionEnabled,
+      }),
+    [
+      desktopStreamerModeEnabled,
+      desktopStreamerModeProcessDetectionEnabled,
+      foregroundProcessName,
+    ],
+  );
+  const effectiveDesktopStreamerModeEnabled = desktopStreamerMode.active;
+  const desktopRichPresenceCanPublish = canPublishDesktopRichPresence({
+    audience: desktopRichPresenceAudience,
+    enabled: desktopRichPresenceEnabled,
+  });
+  const desktopActivityStatus: DesktopActivityStatus = !desktopRichPresenceCanPublish
     ? "idle"
     : !isOnline
       ? "offline"
@@ -329,25 +422,71 @@ export function DesktopExperience() {
             : activeChannelId
               ? "voice"
               : "idle";
-  const desktopGameOverlayPreferences = useMemo(
-    () => ({
-      anchor: desktopGameOverlayAnchor,
-      size: desktopGameOverlaySize,
-      speakingOnly: desktopGameOverlaySpeakingOnly,
-    }),
-    [desktopGameOverlayAnchor, desktopGameOverlaySize, desktopGameOverlaySpeakingOnly],
+
+  useEffect(() => {
+    if (!isDesktop) {
+      setDesktopStreamerModeDetected(false);
+      return;
+    }
+
+    setDesktopStreamerModeDetected(desktopStreamerMode.reason === "detected");
+
+    return () => {
+      setDesktopStreamerModeDetected(false);
+    };
+  }, [desktopStreamerMode.reason, isDesktop, setDesktopStreamerModeDetected]);
+
+  const gameOverlayProcessGate = useMemo(
+    () =>
+      resolveDesktopGameOverlayProcessGate({
+        fallbackPreference: {
+          anchor: desktopGameOverlayAnchor,
+          enabled: desktopGameOverlayEnabled,
+          size: desktopGameOverlaySize,
+          speakingOnly: desktopGameOverlaySpeakingOnly,
+        },
+        foregroundProcessName,
+        gameSettings: desktopGameOverlayGameSettings,
+        processDetectionEnabled: desktopGameOverlayProcessDetectionEnabled,
+      }),
+    [
+      desktopGameOverlayAnchor,
+      desktopGameOverlayEnabled,
+      desktopGameOverlayGameSettings,
+      desktopGameOverlayProcessDetectionEnabled,
+      desktopGameOverlaySize,
+      desktopGameOverlaySpeakingOnly,
+      foregroundProcessName,
+    ],
   );
+  const desktopGameOverlayPreferences = useMemo(() => {
+    const perGamePreference = gameOverlayProcessGate.preference;
+
+    return {
+      anchor: perGamePreference?.anchor ?? desktopGameOverlayAnchor,
+      size: perGamePreference?.size ?? desktopGameOverlaySize,
+      speakingOnly: perGamePreference?.speakingOnly ?? desktopGameOverlaySpeakingOnly,
+    };
+  }, [
+    desktopGameOverlayAnchor,
+    desktopGameOverlaySize,
+    desktopGameOverlaySpeakingOnly,
+    gameOverlayProcessGate.preference,
+  ]);
   const desktopGameOverlayLayout = useMemo(
     () => ({
-      anchor: desktopGameOverlayAnchor,
-      size: desktopGameOverlaySize,
+      anchor: desktopGameOverlayPreferences.anchor,
+      size: desktopGameOverlayPreferences.size,
     }),
-    [desktopGameOverlayAnchor, desktopGameOverlaySize],
+    [desktopGameOverlayPreferences.anchor, desktopGameOverlayPreferences.size],
   );
   const canShowDesktopCompanionSurfaces =
     isDesktop && !isMainWindowFocused && desktopCompanionSurfacesGateOpen;
   const shouldShowGameOverlay =
-    desktopGameOverlayEnabled && Boolean(activeChannelId) && canShowDesktopCompanionSurfaces;
+    desktopGameOverlayEnabled &&
+    gameOverlayProcessGate.allowed &&
+    Boolean(activeChannelId) &&
+    canShowDesktopCompanionSurfaces;
   const shouldShowVoiceMini =
     desktopVoiceMiniEnabled && Boolean(activeChannelId) && canShowDesktopCompanionSurfaces;
   const publishGameOverlaySnapshot = useCallback(() => {
@@ -362,6 +501,7 @@ export function DesktopExperience() {
       isMuted,
       overlayPreferences: desktopGameOverlayPreferences,
       participants,
+      privacyMode: effectiveDesktopStreamerModeEnabled ? "streamer" : "standard",
       socketConnected,
     });
 
@@ -370,6 +510,7 @@ export function DesktopExperience() {
     activeChannelId,
     connectionState,
     desktopGameOverlayPreferences,
+    effectiveDesktopStreamerModeEnabled,
     isDeafened,
     isMuted,
     participants,
@@ -392,27 +533,80 @@ export function DesktopExperience() {
     void publishDesktopVoiceMiniSnapshot(snapshot).catch(() => undefined);
   }, [activeChannelId, connectionState, isDeafened, isMuted, participants, socketConnected]);
 
+  const hideDesktopCompanionSurfaces = useCallback(
+    async (_reason: DesktopCompanionSurfaceHideReason) => {
+      void _reason;
+      const hadGameOverlay = gameOverlayVisibleRef.current;
+      const hadVoiceMini = voiceMiniVisibleRef.current;
+
+      if (!hadGameOverlay && !hadVoiceMini) {
+        return;
+      }
+
+      gameOverlayVisibleRef.current = false;
+      voiceMiniVisibleRef.current = false;
+      overlayRecoveryInFlightRef.current = false;
+      overlayOperationIdRef.current += 1;
+      transitionGameOverlayState({ type: "hide" });
+
+      const startedAt = performance.now();
+      const cleanupTasks: Promise<unknown>[] = [];
+
+      if (hadGameOverlay) {
+        cleanupTasks.push(hideDesktopGameOverlaySurface());
+      }
+
+      if (hadVoiceMini) {
+        cleanupTasks.push(setDesktopVoiceMiniVisible(false));
+      }
+
+      const results = await Promise.allSettled(cleanupTasks);
+      recordDesktopPerformanceMetric({
+        durationMs: performance.now() - startedAt,
+        operation: "desktop_companion_surfaces_hidden",
+        result: results.every((result) => result.status === "fulfilled") ? "success" : "failure",
+      });
+    },
+    [transitionGameOverlayState],
+  );
+
   const repairGameOverlaySurface = useCallback(
     async (reason: "command" | "health-check" | "show" | "visibility") => {
-      if (!isDesktop || !desktopGameOverlayEnabled || !activeChannelId || isMainWindowFocused) {
+      if (
+        !isDesktop ||
+        !desktopGameOverlayEnabled ||
+        !activeChannelId ||
+        isMainWindowFocused ||
+        !desktopCompanionSurfacesGateOpen
+      ) {
         return;
       }
 
       const now = performance.now();
       if (
         overlayRecoveryInFlightRef.current ||
-        (reason !== "show" && now - lastOverlayRecoveryAtRef.current < 1_500)
+        isDesktopGameOverlayOperationInFlight(gameOverlayStateRef.current) ||
+        (reason !== "show" &&
+          now - lastOverlayRecoveryAtRef.current < DESKTOP_GAME_OVERLAY_REPAIR_COOLDOWN_MS)
       ) {
         return;
       }
 
       overlayRecoveryInFlightRef.current = true;
       lastOverlayRecoveryAtRef.current = now;
+      transitionGameOverlayState({ type: "repair-requested" });
+      const operationId = ++overlayOperationIdRef.current;
       const startedAt = performance.now();
 
       try {
         const status = await repairDesktopGameOverlaySurface(desktopGameOverlayLayout);
         const health = resolveDesktopGameOverlayHealth(status, true);
+        if (overlayOperationIdRef.current === operationId) {
+          gameOverlayVisibleRef.current = health === "ready";
+          transitionGameOverlayState({
+            type: health === "ready" ? "repair-succeeded" : "repair-failed",
+          });
+        }
         publishGameOverlaySnapshot();
         recordDesktopPerformanceMetric({
           durationMs: performance.now() - startedAt,
@@ -425,17 +619,23 @@ export function DesktopExperience() {
           operation: "desktop_game_overlay_recovered",
           result: "failure",
         });
+        if (overlayOperationIdRef.current === operationId) {
+          gameOverlayVisibleRef.current = false;
+          transitionGameOverlayState({ type: "repair-failed" });
+        }
       } finally {
         overlayRecoveryInFlightRef.current = false;
       }
     },
     [
       activeChannelId,
+      desktopCompanionSurfacesGateOpen,
       desktopGameOverlayEnabled,
       desktopGameOverlayLayout,
       isMainWindowFocused,
       isDesktop,
       publishGameOverlaySnapshot,
+      transitionGameOverlayState,
     ],
   );
 
@@ -522,6 +722,47 @@ export function DesktopExperience() {
   }, [isDesktop, isMainWindowFocused]);
 
   useEffect(() => {
+    const processDetectionEnabled =
+      desktopGameOverlayProcessDetectionEnabled || desktopStreamerModeProcessDetectionEnabled;
+
+    if (!isDesktop || !processDetectionEnabled || isMainWindowFocused) {
+      setForegroundProcessName(null);
+      return;
+    }
+
+    let cancelled = false;
+    const syncForegroundProcessName = () => {
+      void getDesktopForegroundProcessName()
+        .then((processName) => {
+          if (!cancelled) {
+            setForegroundProcessName(processName);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setForegroundProcessName(null);
+          }
+        });
+    };
+
+    syncForegroundProcessName();
+    const intervalId = window.setInterval(
+      syncForegroundProcessName,
+      DESKTOP_GAME_OVERLAY_PROCESS_POLL_MS,
+    );
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [
+    desktopGameOverlayProcessDetectionEnabled,
+    desktopStreamerModeProcessDetectionEnabled,
+    isDesktop,
+    isMainWindowFocused,
+  ]);
+
+  useEffect(() => {
     if (!isDesktop || runtimeMetricRecordedRef.current) {
       return;
     }
@@ -531,7 +772,49 @@ export function DesktopExperience() {
       operation: "desktop_runtime_ready",
       result: "success",
     });
+    recordDesktopPerformanceMetric({
+      durationMs: performance.now(),
+      operation: "desktop_startup_duration",
+      result: "success",
+    });
   }, [isDesktop]);
+
+  useEffect(() => {
+    if (!isDesktop) {
+      return;
+    }
+
+    if (!activeChannelId) {
+      if (voiceJoinTimingRef.current) {
+        recordDesktopPerformanceMetric({
+          durationMs: performance.now() - voiceJoinTimingRef.current.startedAt,
+          operation: "desktop_voice_join_timing",
+          result: "failure",
+        });
+        voiceJoinTimingRef.current = null;
+      }
+      return;
+    }
+
+    if (connectionState === "connected") {
+      if (voiceJoinTimingRef.current?.channelId === activeChannelId) {
+        recordDesktopPerformanceMetric({
+          durationMs: performance.now() - voiceJoinTimingRef.current.startedAt,
+          operation: "desktop_voice_join_timing",
+          result: "success",
+        });
+        voiceJoinTimingRef.current = null;
+      }
+      return;
+    }
+
+    if (voiceJoinTimingRef.current?.channelId !== activeChannelId) {
+      voiceJoinTimingRef.current = {
+        channelId: activeChannelId,
+        startedAt: performance.now(),
+      };
+    }
+  }, [activeChannelId, connectionState, isDesktop]);
 
   useEffect(() => {
     if (!isDesktop) {
@@ -574,25 +857,102 @@ export function DesktopExperience() {
     }
 
     const syncOnlineState = () => setIsOnline(navigator.onLine);
+    const handleOnline = () => {
+      setIsOnline(true);
+      setSocketConnected(socket.connected);
+      recordDesktopPerformanceMetric({
+        operation: "desktop_network_transition",
+        result: "success",
+      });
+      void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.root });
+      void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.unreadCount });
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      setSocketConnected(false);
+      recordDesktopPerformanceMetric({
+        operation: "desktop_network_transition",
+        result: "success",
+      });
+      void hideDesktopCompanionSurfaces("offline");
+    };
     const syncSocketState = () => setSocketConnected(socket.connected);
 
     syncOnlineState();
     syncSocketState();
 
-    window.addEventListener("online", syncOnlineState);
-    window.addEventListener("offline", syncOnlineState);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
     socket.on("connect", syncSocketState);
     socket.on("connect_error", syncSocketState);
     socket.on("disconnect", syncSocketState);
 
     return () => {
-      window.removeEventListener("online", syncOnlineState);
-      window.removeEventListener("offline", syncOnlineState);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
       socket.off("connect", syncSocketState);
       socket.off("connect_error", syncSocketState);
       socket.off("disconnect", syncSocketState);
     };
-  }, [isDesktop, socket]);
+  }, [hideDesktopCompanionSurfaces, isDesktop, queryClient, socket]);
+
+  useEffect(() => {
+    if (!isDesktop) {
+      return;
+    }
+
+    let lastTickAt = Date.now();
+    let hiddenAt: number | null = document.visibilityState === "hidden" ? Date.now() : null;
+
+    const refreshAfterResume = (gapMs: number) => {
+      recordDesktopPerformanceMetric({
+        durationMs: gapMs,
+        operation: "desktop_lifecycle_resume",
+        result: "success",
+      });
+      setIsOnline(navigator.onLine);
+      setSocketConnected(socket.connected);
+      void hideDesktopCompanionSurfaces("resume");
+      void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.root });
+      void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.unreadCount });
+    };
+
+    const detectResumeGap = () => {
+      const now = Date.now();
+      const gapMs = now - lastTickAt;
+      lastTickAt = now;
+
+      if (gapMs >= DESKTOP_RESUME_GAP_MS) {
+        refreshAfterResume(gapMs);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAt = Date.now();
+        return;
+      }
+
+      const now = Date.now();
+      const gapMs = hiddenAt ? now - hiddenAt : 0;
+      hiddenAt = null;
+      lastTickAt = now;
+
+      if (gapMs >= DESKTOP_RESUME_GAP_MS) {
+        refreshAfterResume(gapMs);
+      }
+    };
+
+    const intervalId = window.setInterval(detectResumeGap, DESKTOP_RESUME_CHECK_INTERVAL_MS);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pageshow", detectResumeGap);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pageshow", detectResumeGap);
+    };
+  }, [hideDesktopCompanionSurfaces, isDesktop, queryClient, socket]);
 
   useEffect(() => {
     if (!isDesktop) {
@@ -656,11 +1016,8 @@ export function DesktopExperience() {
       return;
     }
 
-    gameOverlayVisibleRef.current = false;
-    voiceMiniVisibleRef.current = false;
-    void hideDesktopGameOverlaySurface().catch(() => undefined);
-    void setDesktopVoiceMiniVisible(false).catch(() => undefined);
-  }, [isDesktop, isMainWindowFocused]);
+    void hideDesktopCompanionSurfaces("focus").catch(() => undefined);
+  }, [hideDesktopCompanionSurfaces, isDesktop, isMainWindowFocused]);
 
   useEffect(() => {
     if (!isDesktop) {
@@ -674,15 +1031,25 @@ export function DesktopExperience() {
     if (gameOverlayVisibleRef.current !== shouldShowGameOverlay) {
       gameOverlayVisibleRef.current = shouldShowGameOverlay;
       const startedAt = performance.now();
+      const operationId = ++overlayOperationIdRef.current;
+      transitionGameOverlayState({
+        type: shouldShowGameOverlay ? "show-requested" : "hide",
+      });
       const visibilityTask = shouldShowGameOverlay
         ? repairDesktopGameOverlaySurface(desktopGameOverlayLayout)
         : hideDesktopGameOverlaySurface();
 
       void Promise.resolve(visibilityTask)
         .then(() => {
+          if (overlayOperationIdRef.current !== operationId) {
+            return;
+          }
           if (shouldShowGameOverlay) {
             publishGameOverlaySnapshot();
           }
+          transitionGameOverlayState({
+            type: shouldShowGameOverlay ? "show-succeeded" : "hide",
+          });
           recordDesktopPerformanceMetric({
             durationMs: performance.now() - startedAt,
             operation: "desktop_game_overlay_visible",
@@ -690,7 +1057,12 @@ export function DesktopExperience() {
           });
         })
         .catch(() => {
-          gameOverlayVisibleRef.current = !shouldShowGameOverlay;
+          if (overlayOperationIdRef.current === operationId) {
+            gameOverlayVisibleRef.current = !shouldShowGameOverlay;
+            transitionGameOverlayState({
+              type: shouldShowGameOverlay ? "show-failed" : "hide",
+            });
+          }
           recordDesktopPerformanceMetric({
             durationMs: performance.now() - startedAt,
             operation: "desktop_game_overlay_visible",
@@ -704,6 +1076,7 @@ export function DesktopExperience() {
     isMainWindowFocused,
     publishGameOverlaySnapshot,
     shouldShowGameOverlay,
+    transitionGameOverlayState,
   ]);
 
   useEffect(() => {
@@ -721,17 +1094,29 @@ export function DesktopExperience() {
 
   useEffect(
     () => () => {
-      if (gameOverlayVisibleRef.current) {
-        gameOverlayVisibleRef.current = false;
-        void hideDesktopGameOverlaySurface().catch(() => undefined);
-      }
-      if (voiceMiniVisibleRef.current) {
-        voiceMiniVisibleRef.current = false;
-        void setDesktopVoiceMiniVisible(false).catch(() => undefined);
-      }
+      void hideDesktopCompanionSurfaces("unmount").catch(() => undefined);
     },
-    [],
+    [hideDesktopCompanionSurfaces],
   );
+
+  useEffect(() => {
+    if (!isDesktop) {
+      return;
+    }
+
+    const handleDesktopBeforeClose = (event: Event) => {
+      if (getWhisprDesktopBeforeCloseRequestId(event) === null) {
+        return;
+      }
+
+      void hideDesktopCompanionSurfaces("before-close").catch(() => undefined);
+    };
+
+    window.addEventListener(WHISPR_DESKTOP_BEFORE_CLOSE_EVENT, handleDesktopBeforeClose);
+    return () => {
+      window.removeEventListener(WHISPR_DESKTOP_BEFORE_CLOSE_EVENT, handleDesktopBeforeClose);
+    };
+  }, [hideDesktopCompanionSurfaces, isDesktop]);
 
   useEffect(() => {
     if (!shouldShowGameOverlay) {
@@ -776,6 +1161,9 @@ export function DesktopExperience() {
 
           if (overlayHealth === "needs-repair") {
             void repairGameOverlaySurface("health-check");
+          } else if (overlayHealth === "ready" && shouldShowGameOverlay) {
+            gameOverlayVisibleRef.current = true;
+            transitionGameOverlayState({ type: "repair-succeeded" });
           }
 
           if (shouldShowGameOverlay) {
@@ -789,7 +1177,7 @@ export function DesktopExperience() {
     };
 
     refreshSurfaces();
-    const intervalId = window.setInterval(refreshSurfaces, 2_500);
+    const intervalId = window.setInterval(refreshSurfaces, DESKTOP_COMPANION_SURFACE_REFRESH_MS);
 
     return () => {
       cancelled = true;
@@ -803,6 +1191,7 @@ export function DesktopExperience() {
     repairGameOverlaySurface,
     shouldShowGameOverlay,
     shouldShowVoiceMini,
+    transitionGameOverlayState,
   ]);
 
   useEffect(() => {
@@ -833,6 +1222,8 @@ export function DesktopExperience() {
         return;
       }
 
+      recordDesktopShortcutLatency(detail);
+
       switch (detail.command) {
         case "navigate":
           if (isSafeDesktopInternalPath(detail.path)) {
@@ -847,6 +1238,9 @@ export function DesktopExperience() {
           break;
         case "hide-game-overlay":
           setDesktopGameOverlayEnabled(false);
+          gameOverlayVisibleRef.current = false;
+          overlayOperationIdRef.current += 1;
+          transitionGameOverlayState({ type: "hide" });
           void hideDesktopGameOverlaySurface().then(() => {
             recordDesktopPerformanceMetric({
               operation: "desktop_game_overlay_panic_disabled",
@@ -903,7 +1297,46 @@ export function DesktopExperience() {
     shouldShowVoiceMini,
     toggleDeafen,
     toggleMute,
+    transitionGameOverlayState,
   ]);
+
+  useEffect(() => {
+    if (!isDesktop || typeof BroadcastChannel === "undefined") {
+      return;
+    }
+
+    const channel = new BroadcastChannel(WHISPR_DESKTOP_VOICE_MINI_COMMAND_CHANNEL);
+    const handleVoiceMiniCommand = (event: MessageEvent<unknown>) => {
+      const payload = event.data;
+      if (!payload || typeof payload !== "object" || !("command" in payload)) {
+        return;
+      }
+
+      const command = (payload as { command?: unknown }).command;
+      if (!isDesktopVoiceMiniCommand(command)) {
+        return;
+      }
+
+      switch (command) {
+        case "leaveVoice":
+          void leaveChannel();
+          break;
+        case "toggleDeafen":
+          void toggleDeafen();
+          break;
+        case "toggleMute":
+          void toggleMute();
+          break;
+      }
+    };
+
+    channel.addEventListener("message", handleVoiceMiniCommand);
+
+    return () => {
+      channel.removeEventListener("message", handleVoiceMiniCommand);
+      channel.close();
+    };
+  }, [isDesktop, leaveChannel, toggleDeafen, toggleMute]);
 
   useEffect(() => {
     if (!isDesktop) {
@@ -918,8 +1351,8 @@ export function DesktopExperience() {
       return;
     }
 
-    applyAppBadge(desktopStreamerModeEnabled ? 0 : (unreadQuery.data ?? 0));
-  }, [desktopStreamerModeEnabled, isDesktop, unreadQuery.data]);
+    applyAppBadge(effectiveDesktopStreamerModeEnabled ? 0 : (unreadQuery.data ?? 0));
+  }, [effectiveDesktopStreamerModeEnabled, isDesktop, unreadQuery.data]);
 
   useEffect(() => {
     if (!isDesktop) {
@@ -934,7 +1367,7 @@ export function DesktopExperience() {
       void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.root });
 
       if (
-        desktopStreamerModeEnabled ||
+        effectiveDesktopStreamerModeEnabled ||
         !desktopNotificationsEnabled ||
         document.visibilityState === "visible"
       ) {
@@ -966,7 +1399,7 @@ export function DesktopExperience() {
   }, [
     desktopNotificationPreviews,
     desktopNotificationsEnabled,
-    desktopStreamerModeEnabled,
+    effectiveDesktopStreamerModeEnabled,
     isDesktop,
     queryClient,
     router,
@@ -1007,6 +1440,9 @@ export function DesktopExperience() {
       if (commandOrControl && event.shiftKey && !event.altKey && key === "o") {
         event.preventDefault();
         setDesktopGameOverlayEnabled(false);
+        gameOverlayVisibleRef.current = false;
+        overlayOperationIdRef.current += 1;
+        transitionGameOverlayState({ type: "hide" });
         void hideDesktopGameOverlaySurface().then(() => {
           recordDesktopPerformanceMetric({
             operation: "desktop_game_overlay_panic_disabled",
@@ -1027,7 +1463,14 @@ export function DesktopExperience() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isDesktop, router, setDesktopGameOverlayEnabled, toggleDeafen, toggleMute]);
+  }, [
+    isDesktop,
+    router,
+    setDesktopGameOverlayEnabled,
+    toggleDeafen,
+    toggleMute,
+    transitionGameOverlayState,
+  ]);
 
   if (!isDesktop) {
     return null;
