@@ -46,7 +46,7 @@ function getSafeHttpsUrl(value: string | undefined, fallback: string) {
 const DEFAULT_WHISPR_DESKTOP_DOWNLOAD_URL =
   "https://github.com/dogukanyazar8/wizards/releases/latest";
 const WHISPR_VERSION_NUMBER =
-  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.12";
+  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.13";
 export const WHISPR_RELEASE_CODENAME =
   process.env.NEXT_PUBLIC_WHISPR_RELEASE_CODENAME ?? "Echo";
 export const WHISPR_APP_VERSION = formatWhisprVersion(
