@@ -77,7 +77,7 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: isCI ? "pnpm start" : "pnpm dev",
+          command: isCI ? "pnpm run e2e:web-server" : "pnpm dev",
           cwd: webRoot,
           env: webServerEnv,
           reuseExistingServer: !isCI,

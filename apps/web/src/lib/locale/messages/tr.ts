@@ -181,7 +181,7 @@ export const TR_MESSAGES = {
       "Tauri izinleri yüzeye göre ayrıldı, production CSP masaüstü WebSocket yolunu kapsıyor, tray'e kapatma ayarlanabilir ve updater/autostart temelleri opt-in kalıyor.",
     "app.update.notes.releaseVerification.title": "Release doğrulama geçişi",
     "app.update.notes.releaseVerification.description":
-      "Release kontrolleri artık desktop helper'ları, oturum çerezlerini, Turnstile geliştirme geçişini, ses katılımcı eşlemesini, route kontratlarını ve yenilenen Playwright mesaj helper'larını kapsıyor.",
+      "Release kontrolleri artık desktop helper'ları, oturum çerezlerini, Turnstile geliştirme geçişini, ses katılımcı eşlemesini, route kontratlarını, yenilenen Playwright mesaj helper'larını ve CI web server bundle başlangıcını kapsıyor.",
     "app.update.notes.rememberedDesktopSession.title": "Hatırlanan masaüstü oturumları",
     "app.update.notes.rememberedDesktopSession.description":
       "Beni hatırla artık güvenilen credential oturumlarını uzatır; normal girişler daha kısa ömürlü kalır ve masaüstü WebView oturumunu kararlı uygulama verisi profilinde saklar.",

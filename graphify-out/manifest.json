@@ -44,8 +44,8 @@
     "hash": "03007a76c7d530909a382ab09548975c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright.config.ts": {
-    "mtime": 1779176086.3748312,
-    "hash": "6def59b75ceac261dce886d57c7689f5"
+    "mtime": 1781859206.7118127,
+    "hash": "a5bcfe6b22df345b5bcd14a29e70de98"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\postcss.config.mjs": {
     "mtime": 1777980040.2862802,
@@ -1104,8 +1104,8 @@
     "hash": "3b76e9183e3dc50fa3645aba8a382d87"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\app-version.ts": {
-    "mtime": 1781843701.3259506,
-    "hash": "687c9d1080a7f5a6b2a55416a7fb5a75"
+    "mtime": 1781859539.0631754,
+    "hash": "ee6462fb74f4e85ec18c8fcc8ab99465"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\appearance.ts": {
     "mtime": 1781764071.194089,
@@ -1608,12 +1608,12 @@
     "hash": "1ef944a244e3589cd73cd4374255fea7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale\\messages\\en.ts": {
-    "mtime": 1781843732.041873,
-    "hash": "a0c94686c91ab5dc3305c916f3d38622"
+    "mtime": 1781859539.0641756,
+    "hash": "b1e9af923b37fbddaccdc63b51b42958"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale\\messages\\tr.ts": {
-    "mtime": 1781843732.0428767,
-    "hash": "2c076dba4d0301fd5e7d5b60ef4b8978"
+    "mtime": 1781859539.0656786,
+    "hash": "94133eb43f24b991fbfe4636eb3a0825"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\messages\\attachment-rules.ts": {
     "mtime": 1778004488.0175958,

@@ -23,6 +23,7 @@
     "e2e:seed": "node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && tsx e2e/setup/reset-and-seed.ts",
     "e2e:smoke": "playwright test e2e/specs/smoke",
     "e2e:ui": "playwright test --ui",
+    "e2e:web-server": "pnpm run build:server && pnpm start",
     "lint": "eslint .",
     "maintenance:cleanup-reauth": "node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && tsx scripts/cleanup-account-reauth-challenges.ts",
     "test": "node scripts/run-node-tests.mjs",

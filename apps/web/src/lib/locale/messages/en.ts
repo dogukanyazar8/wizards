@@ -180,7 +180,7 @@ export const EN_MESSAGES = {
       "Tauri capabilities are split by surface, production CSP covers the desktop WebSocket path, close-to-tray is configurable, and updater/autostart foundations stay opt-in.",
     "app.update.notes.releaseVerification.title": "Release verification pass",
     "app.update.notes.releaseVerification.description":
-      "Release checks now cover desktop helpers, session cookies, Turnstile dev bypasses, voice participant mapping, route contracts, and refreshed Playwright message helpers.",
+      "Release checks now cover desktop helpers, session cookies, Turnstile dev bypasses, voice participant mapping, route contracts, refreshed Playwright message helpers, and CI web server bundle startup.",
     "app.update.notes.rememberedDesktopSession.title": "Remembered desktop sessions",
     "app.update.notes.rememberedDesktopSession.description":
       "Remember me now extends trusted credential sessions, while regular logins keep a shorter lifetime and the desktop WebView stores its session in a stable app data profile.",

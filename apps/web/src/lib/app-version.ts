@@ -171,7 +171,7 @@ export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
     descriptionKey: "app.update.notes.releaseVerification.description",
     fallbackCategory: "Quality",
     fallbackDescription:
-      "Release checks now cover desktop helpers, session cookies, Turnstile dev bypasses, voice participant mapping, route contracts, and refreshed Playwright message helpers.",
+      "Release checks now cover desktop helpers, session cookies, Turnstile dev bypasses, voice participant mapping, route contracts, refreshed Playwright message helpers, and CI web server bundle startup.",
     fallbackTitle: "Release verification pass",
     id: "release-verification",
     titleKey: "app.update.notes.releaseVerification.title",
