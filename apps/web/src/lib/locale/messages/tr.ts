@@ -2032,7 +2032,6 @@ export const TR_MESSAGES = {
     "notifications.bell.empty": "Bildirim yok",
     "notifications.bell.new": "Yeni",
     "notifications.bell.unreadSummary": "Seni bekleyen {count} okunmamış güncelleme var",
-    "notifications.bell.liveUpdates": "Canlı güncellemeler",
     "notifications.bell.emptyDescription":
       "Her şeyi yakaladın. Yeni etiketlemeler, istekler ve direkt mesajlar burada görünecek.",
     "notifications.type.friendRequest": "{name} sana arkadaşlık isteği gönderdi",

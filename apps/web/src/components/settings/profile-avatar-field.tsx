@@ -480,6 +480,7 @@ export function ProfileAvatarField({
         description={t("settings.account.avatar.cropDescription")}
         onClose={closeCropModal}
         open={Boolean(cropDraft)}
+        overlayClassName="z-[120]"
         title={t("settings.account.avatar.cropTitle")}
       >
         {cropDraft ? (

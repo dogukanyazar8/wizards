@@ -876,8 +876,8 @@
     "hash": "d85402c5b5f95d2a25bf2865ee765c3c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\settings\\profile-avatar-field.tsx": {
-    "mtime": 1781862284.875028,
-    "hash": "d5eefa86b6a67b1cb0e4b75a9335bb29"
+    "mtime": 1781865570.4120317,
+    "hash": "89a70043fe2ab64142e90f2871dd36a9"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\settings\\settings-panel.tsx": {
     "mtime": 1781862284.8760283,
@@ -892,8 +892,8 @@
     "hash": "ca5586fc0ca27adba5263cd27e09e558"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shared\\notification-bell.tsx": {
-    "mtime": 1778077745.5081158,
-    "hash": "164790fa203e6afbfb8e49c936cf04e9"
+    "mtime": 1781866537.121863,
+    "hash": "cc2fb5dcebf10fa05d7839b8c7ea648e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shared\\user-profile-popover.tsx": {
     "mtime": 1777996921.3098757,
@@ -904,8 +904,8 @@
     "hash": "8a775c84ccee88755186ce802af3b588"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\channel-sidebar.tsx": {
-    "mtime": 1781862284.8780265,
-    "hash": "d6aa7bc609f776df717e6c78b9f4821b"
+    "mtime": 1781866619.1047447,
+    "hash": "d732e7fb2bca7ed3c906e52901cbb23c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\main-channel-panel.tsx": {
     "mtime": 1781862284.8790267,
@@ -980,8 +980,8 @@
     "hash": "7eee8302cdabfdcb2c975194635651ec"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\ui\\modal.tsx": {
-    "mtime": 1777473060.6525052,
-    "hash": "20578113a2059f716ef26283fcf35f4e"
+    "mtime": 1781865562.295529,
+    "hash": "b59729080e4542a079d2ca9109ecc2b8"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\ui\\skeleton.tsx": {
     "mtime": 1776879792.4478703,
@@ -1608,12 +1608,12 @@
     "hash": "1ef944a244e3589cd73cd4374255fea7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale\\messages\\en.ts": {
-    "mtime": 1781862636.598086,
-    "hash": "11f95c9938e34c917efd4046e16cbd81"
+    "mtime": 1781866279.9724233,
+    "hash": "94fe9918b5f90ef89238465905b5b682"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale\\messages\\tr.ts": {
-    "mtime": 1781862624.6649253,
-    "hash": "e907df8b169df67687f55d1a5d88ffc1"
+    "mtime": 1781866279.9734242,
+    "hash": "1006486c82d63c8c92beff016335f0f3"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\messages\\attachment-rules.ts": {
     "mtime": 1778004488.0175958,

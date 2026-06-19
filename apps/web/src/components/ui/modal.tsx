@@ -13,6 +13,7 @@ type ModalProps = {
   description?: string;
   onClose: () => void;
   open: boolean;
+  overlayClassName?: string;
   title: string;
 };
 
@@ -23,6 +24,7 @@ export function Modal({
   description,
   onClose,
   open,
+  overlayClassName,
   title,
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -99,7 +101,10 @@ export function Modal({
       {open ? (
         <motion.div
           animate={{ opacity: 1 }}
-          className="fixed inset-0 z-[80] flex items-end justify-center bg-[hsl(var(--background)/0.66)] p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:items-center sm:p-4"
+          className={cn(
+            "fixed inset-0 z-[80] flex items-end justify-center bg-[hsl(var(--background)/0.66)] p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:items-center sm:p-4",
+            overlayClassName,
+          )}
           exit={{ opacity: 0 }}
           initial={{ opacity: 0 }}
           onClick={onClose}

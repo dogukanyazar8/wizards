@@ -2028,7 +2028,6 @@ export const EN_MESSAGES = {
     "notifications.bell.empty": "No notifications",
     "notifications.bell.new": "New",
     "notifications.bell.unreadSummary": "{count} unread updates waiting for you",
-    "notifications.bell.liveUpdates": "Live updates",
     "notifications.bell.emptyDescription":
       "You're all caught up. New mentions, requests, and direct messages will land here.",
     "notifications.type.friendRequest": "{name} sent you a friend request",
