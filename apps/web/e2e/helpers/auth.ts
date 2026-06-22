@@ -41,10 +41,17 @@ export async function logout(page: Page): Promise<void> {
 }
 
 export async function submitLoginForm(page: Page): Promise<void> {
-  const submitButton = page.locator('button[type="submit"]');
+  const submitButton = page.getByTestId("login-form").locator('button[type="submit"]');
 
   await expect(submitButton).toBeEnabled({ timeout: 20_000 });
   await submitButton.click();
+}
+
+export async function expectLoginAlert(page: Page, pattern: RegExp): Promise<void> {
+  const alert = page.getByTestId("login-form").getByRole("alert");
+
+  await expect(alert).toBeVisible({ timeout: 15_000 });
+  await expect(alert).toContainText(pattern);
 }
 
 export async function logoutViaUi(page: Page): Promise<void> {

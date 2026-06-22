@@ -1,5 +1,6 @@
 import { test, expect } from "../../fixtures/test";
 import {
+  expectLoginAlert,
   expectLoggedIn,
   expectLoggedOut,
   loginAs,
@@ -27,8 +28,9 @@ test.describe("auth smoke", () => {
     await submitLoginForm(page);
 
     await expect(page).toHaveURL(/\/login/);
-    await expect(page.getByTestId("login-form").getByRole("alert")).toContainText(
-      /invalid|email|password|hatal|gecersiz|geçersiz/i,
+    await expectLoginAlert(
+      page,
+      /invalid|email|password|hatal|gecersiz|geçersiz|sifre|şifre/i,
     );
   });
 

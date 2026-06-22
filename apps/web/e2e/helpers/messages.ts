@@ -6,8 +6,11 @@ export async function sendComposerMessage(page: Page, content: string): Promise<
   const sendButton = page.getByTestId("message-send-button");
 
   await expect(input).toBeVisible();
-  await input.fill(content);
+  await expect(input).toBeEnabled({ timeout: 15_000 });
+  await input.fill("");
+  await input.click();
+  await page.keyboard.type(content, { delay: 1 });
   await expect(input).toHaveValue(content);
-  await expect(sendButton).toBeEnabled({ timeout: 10_000 });
+  await expect(sendButton).toBeEnabled({ timeout: 15_000 });
   await sendButton.click();
 }

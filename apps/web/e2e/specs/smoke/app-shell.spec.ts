@@ -1,6 +1,11 @@
 import { test, expect } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
-import { gotoAppRoute, openSettingsFromUserQuickMenu } from "../../helpers/navigation";
+import {
+  closeInAppSettingsOverlay,
+  expectSettingsOverlayClosed,
+  gotoAppRoute,
+  openSettingsFromUserQuickMenu,
+} from "../../helpers/navigation";
 
 test.describe("app shell smoke", () => {
   test("authenticated user lands on the DM home shell", async ({ page }) => {
@@ -18,8 +23,15 @@ test.describe("app shell smoke", () => {
     await gotoAppRoute(page, "/channels/@me", { readyTestId: "user-bar" });
 
     await openSettingsFromUserQuickMenu(page);
+    await expect(page).toHaveURL(/\/channels\/@me/);
 
-    await page.goBack({ waitUntil: "domcontentloaded" });
+    await closeInAppSettingsOverlay(page);
+    await expect(page).toHaveURL(/\/channels\/@me/);
+    await expect(page.getByTestId("user-bar")).toBeVisible();
+
+    await openSettingsFromUserQuickMenu(page);
+    await page.keyboard.press("Escape");
+    await expectSettingsOverlayClosed(page);
     await expect(page).toHaveURL(/\/channels\/@me/);
     await expect(page.getByTestId("user-bar")).toBeVisible();
   });

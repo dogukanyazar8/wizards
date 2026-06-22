@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -143,6 +144,7 @@ function DesktopOAuthPendingDialog({ onCancel, onRetry }: DesktopOAuthPendingDia
 
 export function LoginClient({ authError = null, callbackUrl }: LoginClientProps) {
   const { locale, t } = useI18n();
+  const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(() =>
     getAuthErrorMessage(authError),
   );
@@ -210,7 +212,10 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
     if (!result.success) {
       setShowDesktopStartup(false);
       setServerError(result.error ?? "auth.login.alertUnavailable");
+      return;
     }
+
+    router.replace(callbackUrl);
   };
 
   const openDesktopOAuthBrowser = useCallback(() => {
