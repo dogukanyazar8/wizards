@@ -100,8 +100,8 @@
     "hash": "cfd50dafc2aba2c7949c80f12c197bb9"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\helpers\\auth.ts": {
-    "mtime": 1782122582.0701993,
-    "hash": "a027aa2f8a7e2b4e2c42e1136176d611"
+    "mtime": 1782128494.7447708,
+    "hash": "921ecb37c7e6fc40e8bd621209e75da3"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\helpers\\db.ts": {
     "mtime": 1779082192.4195395,
@@ -164,8 +164,8 @@
     "hash": "8a721320828630daecd6ca50736b2365"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\smoke\\auth.spec.ts": {
-    "mtime": 1782122648.6485267,
-    "hash": "c103cbabb6d5e8f3cd0225c220a58ff7"
+    "mtime": 1782128507.8449297,
+    "hash": "78c4dc4d9730deedc77fe366edc27404"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\smoke\\dm.spec.ts": {
     "mtime": 1781862284.844887,
@@ -1484,12 +1484,12 @@
     "hash": "27f3e9b9b6aa5ecffada0f3c6862dba3"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\turnstile-e2e.ts": {
-    "mtime": 1781862284.8973958,
-    "hash": "4ad13e9ebf804bbe9a0a14c21e29b019"
+    "mtime": 1782126832.1431918,
+    "hash": "00ffd7aeb881332ec205b803c53b53f5"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\turnstile.test.ts": {
-    "mtime": 1781862284.8983965,
-    "hash": "71f33bc60ea7f9d7e959410dca14162a"
+    "mtime": 1782126848.7863083,
+    "hash": "c45803b830bcbafd4174147268a3d628"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\turnstile.ts": {
     "mtime": 1781862284.8983965,
@@ -2403,6 +2403,26 @@
     "mtime": 1776813228.071455,
     "hash": "b36b4471fa392f7fd52db5d67e6d22e8"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\trace\\index.C5466mMT.js": {
+    "mtime": 1782115344.0,
+    "hash": "cbb19437af7dd0cea34f746827aeba31"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\trace\\sw.bundle.js": {
+    "mtime": 1782115344.0,
+    "hash": "7ccc02daaa77f22e4bf963e93634e4cf"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\trace\\uiMode.Vipi55dB.js": {
+    "mtime": 1782115344.0,
+    "hash": "64b3fa8986d41977c754db8b69bdd6b9"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\trace\\assets\\codeMirrorModule-DS0FLvoc.js": {
+    "mtime": 1782115344.0,
+    "hash": "5c61b3c68aff2f28b96664e3077135ab"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\trace\\assets\\defaultSettingsView-GTWI-W_B.js": {
+    "mtime": 1782115344.0,
+    "hash": "22c74873c0cedf2f8d29e780d363759c"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\AGENTS.md": {
     "mtime": 1778571008.0802588,
     "hash": "747e73a5e1af4b72c0d65c9169c23199"
@@ -2444,8 +2464,8 @@
     "hash": "5fab3683d3559e2fc1591d606d67c5ed"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright-report\\index.html": {
-    "mtime": 1782122240.1662972,
-    "hash": "c9f811ed24376ca8baf1a04b8822709f"
+    "mtime": 1782128915.227042,
+    "hash": "b0b068290d4cd0ac44fbd54136c512fd"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\legal\\cookies.txt": {
     "mtime": 1778571008.0962586,
@@ -2470,6 +2490,86 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\docs\\prompts\\audit.md": {
     "mtime": 1777905283.8843613,
     "hash": "76531e248ad31c732e133e71b7722f3d"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\index.html": {
+    "mtime": 1782115344.0,
+    "hash": "b88e578605b8c0e2b212d2e02570b7da"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\22f2a0e5cf37f04fe174184966892537b94c915b.md": {
+    "mtime": 1782115344.0,
+    "hash": "a7f12b7091986195c45ea1b62938f101"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\3d8942761eb21b1bab344453f8ae8776fff5cf13.md": {
+    "mtime": 1782115344.0,
+    "hash": "fade9fa612a529970ba4651ae9955f7e"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\5ea7ad1b4f2f94d5e59bbcec2c9ffe32a4dd9011.md": {
+    "mtime": 1782115344.0,
+    "hash": "25fd6ab59aa46b93bdbcf5d6b40cf2df"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\67f5a97e987297b8bf816b33586c44b5da48a6b4.md": {
+    "mtime": 1782115344.0,
+    "hash": "cdca915baff7b7f2662fd633caba5609"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\8539e616018642bf5d04c7cae6b769a4d9c069ac.md": {
+    "mtime": 1782115344.0,
+    "hash": "7ebac4e595d669ebd6bfb046e712c0f5"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\8da440a1a96ec68ad02e381be9a6850fde4a37b6.md": {
+    "mtime": 1782115344.0,
+    "hash": "41c3ec3c5677ef2098e8640a32c9b1f1"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\deb873044045b80df13562898c1177c4cc305197.md": {
+    "mtime": 1782115344.0,
+    "hash": "0725399bbb3bcfd0dc17278daf9f6883"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\trace\\index.html": {
+    "mtime": 1782115344.0,
+    "hash": "e81b72620d3c61019ac5cde5f1456fa0"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\trace\\snapshot.html": {
+    "mtime": 1782115344.0,
+    "hash": "67ea969dd3e69466b5b7ee3fe7b5144e"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\trace\\uiMode.html": {
+    "mtime": 1782115344.0,
+    "hash": "4c89278e9dbcb30321a31ca55a240092"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-app-shell-app-shell--c7da7--lands-on-the-DM-home-shell-chromium\\error-context.md": {
+    "mtime": 1782115024.0,
+    "hash": "0725399bbb3bcfd0dc17278daf9f6883"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-user-can-login-through-the-UI-chromium\\error-context.md": {
+    "mtime": 1782115076.0,
+    "hash": "41c3ec3c5677ef2098e8640a32c9b1f1"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-user-can-login-through-the-UI-chromium-retry1\\error-context.md": {
+    "mtime": 1782115096.0,
+    "hash": "41c3ec3c5677ef2098e8640a32c9b1f1"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-user-can-login-through-the-UI-chromium-retry2\\error-context.md": {
+    "mtime": 1782115116.0,
+    "hash": "41c3ec3c5677ef2098e8640a32c9b1f1"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-wron-92f10-ls-without-entering-the-app-chromium\\error-context.md": {
+    "mtime": 1782115150.0,
+    "hash": "fade9fa612a529970ba4651ae9955f7e"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-wron-92f10-ls-without-entering-the-app-chromium-retry1\\error-context.md": {
+    "mtime": 1782115176.0,
+    "hash": "a7f12b7091986195c45ea1b62938f101"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-wron-92f10-ls-without-entering-the-app-chromium-retry2\\error-context.md": {
+    "mtime": 1782115200.0,
+    "hash": "7ebac4e595d669ebd6bfb046e712c0f5"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-dm-DM-smoke-user-can-open-a-DM-and-send-a-message-chromium\\error-context.md": {
+    "mtime": 1782115246.0,
+    "hash": "25fd6ab59aa46b93bdbcf5d6b40cf2df"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-messaging-server-mes-180fc--send-a-server-text-message-chromium\\error-context.md": {
+    "mtime": 1782115284.0,
+    "hash": "cdca915baff7b7f2662fd633caba5609"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\src-tauri\\icons\\128x128.png": {
     "mtime": 1778571008.084259,
@@ -2523,6 +2623,66 @@
     "mtime": 1778571008.0952592,
     "hash": "b16875851b180480e7f4dcca86e605c8"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\06ea318cf79572e089dccd83ebde6bd9dfce44ee.png": {
+    "mtime": 1782115344.0,
+    "hash": "badfe45bf04dc5093d0164689b37ada3"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\1926bbf7233c6a4ad369338cd96fd28dd2dbf6ab.png": {
+    "mtime": 1782115344.0,
+    "hash": "54529fcaa8b396d3c28c91fc0ed63e51"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\2b6b3cfd5733ff8bd0092a27708689124625357c.png": {
+    "mtime": 1782115344.0,
+    "hash": "9372bfa36d4f8e0a701116b4326bcb0e"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\770cf7108be161c995acc2c0949c5763996eca55.png": {
+    "mtime": 1782115344.0,
+    "hash": "99edaf6e89ea0f7c68e7304c820fb801"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\78485ad26ab49de2007fe98b0854715a58aaf5b6.png": {
+    "mtime": 1782115344.0,
+    "hash": "fb104b5fd49f2bc00c5499566cb87451"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\a3ea4e0200b630f31e846cdcc5cb8faa60826fa9.png": {
+    "mtime": 1782115344.0,
+    "hash": "1efb3c531ae12fbc5dc5281b06d35e7e"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\cb6d8481a179e7c4ae084e319bc93519a9719f32.png": {
+    "mtime": 1782115344.0,
+    "hash": "a289df36bee2e57787e43bddfe11cb6a"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\trace\\playwright-logo.svg": {
+    "mtime": 1782115344.0,
+    "hash": "3a2e616a4c02faa220f078f403535bfa"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-user-can-login-through-the-UI-chromium\\test-failed-1.png": {
+    "mtime": 1782115074.0,
+    "hash": "99edaf6e89ea0f7c68e7304c820fb801"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-user-can-login-through-the-UI-chromium-retry1\\test-failed-1.png": {
+    "mtime": 1782115096.0,
+    "hash": "1efb3c531ae12fbc5dc5281b06d35e7e"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-user-can-login-through-the-UI-chromium-retry2\\test-failed-1.png": {
+    "mtime": 1782115116.0,
+    "hash": "54529fcaa8b396d3c28c91fc0ed63e51"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-wron-92f10-ls-without-entering-the-app-chromium\\test-failed-1.png": {
+    "mtime": 1782115150.0,
+    "hash": "9372bfa36d4f8e0a701116b4326bcb0e"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-wron-92f10-ls-without-entering-the-app-chromium-retry1\\test-failed-1.png": {
+    "mtime": 1782115174.0,
+    "hash": "badfe45bf04dc5093d0164689b37ada3"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-wron-92f10-ls-without-entering-the-app-chromium-retry2\\test-failed-1.png": {
+    "mtime": 1782115198.0,
+    "hash": "a289df36bee2e57787e43bddfe11cb6a"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-messaging-server-mes-180fc--send-a-server-text-message-chromium\\test-failed-1.png": {
+    "mtime": 1782115284.0,
+    "hash": "fb104b5fd49f2bc00c5499566cb87451"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\sounds\\notification-whispr.mp3": {
     "mtime": 1777995270.2292292,
     "hash": "b58c83c9c481dad9e8d0742d8dd00c84"
@@ -2546,5 +2706,77 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\sounds\\voice-leave.mp3": {
     "mtime": 1777457513.682273,
     "hash": "c78e30e030b82503a7e282a09c90ae85"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\6afff0461092088fcb7db19f4d2f42afb3415fc7.webm": {
+    "mtime": 1782115344.0,
+    "hash": "3ebcc1c63c18fb387b65cc5d6b23f5e8"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\89c0d4e3e7f3857301ca0906fd09249918f13707.webm": {
+    "mtime": 1782115344.0,
+    "hash": "f00504ee998c95d79a09da976210a501"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\a82418be66e6bab071d6114622491953bdfac81d.webm": {
+    "mtime": 1782115344.0,
+    "hash": "d0fe6a4a8867e41d3175cb1c306f101f"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\a93f3aa30acf2e82e8e10df6a42efd69b7476b74.webm": {
+    "mtime": 1782115344.0,
+    "hash": "7edd8e9d196f191f4c530663cc54db76"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\ae3472adb75112edcc09330d26f2100fb6254358.webm": {
+    "mtime": 1782115344.0,
+    "hash": "3b1786bc45fa0aa05612745b8b827edc"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\bebbf6a5aab140b46a3c7e4640c5e34b2e8158eb.webm": {
+    "mtime": 1782115344.0,
+    "hash": "d478430eea493d158d8845af9a27307b"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\c3c79434db71398b12d314800e5b9506d37f8437.webm": {
+    "mtime": 1782115344.0,
+    "hash": "7717ccaf8de92648c16a423bebfc037a"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\e661a56d5f037a938107439d913acc6f6d1836bb.webm": {
+    "mtime": 1782115344.0,
+    "hash": "9cb5c18763893db1fbe3fdf1916a1eb1"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\playwright-report\\data\\f17cb4815680e4595196f9b5867da7c6e01606c1.webm": {
+    "mtime": 1782115344.0,
+    "hash": "d8ca255e5bde958100d7c17a2fa48955"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-app-shell-app-shell--c7da7--lands-on-the-DM-home-shell-chromium\\video.webm": {
+    "mtime": 1782115024.0,
+    "hash": "3ebcc1c63c18fb387b65cc5d6b23f5e8"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-user-can-login-through-the-UI-chromium\\video.webm": {
+    "mtime": 1782115076.0,
+    "hash": "d8ca255e5bde958100d7c17a2fa48955"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-user-can-login-through-the-UI-chromium-retry1\\video.webm": {
+    "mtime": 1782115096.0,
+    "hash": "f00504ee998c95d79a09da976210a501"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-user-can-login-through-the-UI-chromium-retry2\\video.webm": {
+    "mtime": 1782115116.0,
+    "hash": "d0fe6a4a8867e41d3175cb1c306f101f"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-wron-92f10-ls-without-entering-the-app-chromium\\video.webm": {
+    "mtime": 1782115150.0,
+    "hash": "3b1786bc45fa0aa05612745b8b827edc"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-wron-92f10-ls-without-entering-the-app-chromium-retry1\\video.webm": {
+    "mtime": 1782115176.0,
+    "hash": "7edd8e9d196f191f4c530663cc54db76"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-auth-auth-smoke-wron-92f10-ls-without-entering-the-app-chromium-retry2\\video.webm": {
+    "mtime": 1782115200.0,
+    "hash": "d478430eea493d158d8845af9a27307b"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-dm-DM-smoke-user-can-open-a-DM-and-send-a-message-chromium\\video.webm": {
+    "mtime": 1782115246.0,
+    "hash": "9cb5c18763893db1fbe3fdf1916a1eb1"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\playwright-report\\test-results\\smoke-messaging-server-mes-180fc--send-a-server-text-message-chromium\\video.webm": {
+    "mtime": 1782115284.0,
+    "hash": "7717ccaf8de92648c16a423bebfc037a"
   }
 }

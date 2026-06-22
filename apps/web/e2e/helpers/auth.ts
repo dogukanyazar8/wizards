@@ -12,12 +12,41 @@ async function assertSuccessfulE2EResponse(response: Awaited<ReturnType<Page["re
   throw new Error(`E2E auth helper failed with ${response.status()}: ${body}`);
 }
 
+async function getEnabledLoginSubmitButton(page: Page) {
+  const submitButton = page.getByTestId("login-form").locator('button[type="submit"]');
+
+  await expect(submitButton).toBeEnabled({ timeout: 20_000 });
+
+  return submitButton;
+}
+
+export async function fillLoginCredentials(
+  page: Page,
+  input: { email: string; password: string },
+): Promise<void> {
+  await getEnabledLoginSubmitButton(page);
+
+  const emailInput = page.locator('input[name="email"]');
+  const passwordInput = page.locator('input[name="password"]');
+
+  await expect(emailInput).toBeEditable({ timeout: 10_000 });
+  await expect(passwordInput).toBeEditable({ timeout: 10_000 });
+
+  await emailInput.fill(input.email);
+  await passwordInput.fill(input.password);
+
+  await expect(emailInput).toHaveValue(input.email);
+  await expect(passwordInput).toHaveValue(input.password);
+}
+
 export async function loginViaUi(page: Page, userKey: E2EUserKey): Promise<void> {
   const user = e2eUsers[userKey];
 
   await gotoAppRoute(page, "/login");
-  await page.locator('input[name="email"]').fill(user.email);
-  await page.locator('input[name="password"]').fill(e2eUserPassword);
+  await fillLoginCredentials(page, {
+    email: user.email,
+    password: e2eUserPassword,
+  });
   await submitLoginForm(page);
   await expect(page).toHaveURL(/\/channels/);
 }
@@ -41,9 +70,7 @@ export async function logout(page: Page): Promise<void> {
 }
 
 export async function submitLoginForm(page: Page): Promise<void> {
-  const submitButton = page.getByTestId("login-form").locator('button[type="submit"]');
-
-  await expect(submitButton).toBeEnabled({ timeout: 20_000 });
+  const submitButton = await getEnabledLoginSubmitButton(page);
   await submitButton.click();
 }
 
