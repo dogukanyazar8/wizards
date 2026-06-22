@@ -168,7 +168,7 @@ export function DesktopWindowChrome() {
 
   return (
     <div
-      className="desktop-window-chrome flex h-[var(--desktop-titlebar-height)] select-none items-center border-b border-[hsl(var(--border)/0.52)] bg-[hsl(var(--surface-card)/0.86)] text-app-foreground shadow-[0_1px_0_hsl(var(--foreground)/0.04)] backdrop-blur-xl supports-[backdrop-filter]:bg-[hsl(var(--surface-card)/0.72)]"
+      className="desktop-window-chrome relative z-[220] flex h-[var(--desktop-titlebar-height)] select-none items-center border-b border-[hsl(var(--border)/0.52)] bg-[hsl(var(--surface-card)/0.86)] text-app-foreground shadow-[0_1px_0_hsl(var(--foreground)/0.04)] backdrop-blur-xl supports-[backdrop-filter]:bg-[hsl(var(--surface-card)/0.72)]"
       data-testid="desktop-window-chrome"
     >
       <div className="flex h-full min-w-0 flex-1 items-center gap-2 px-2.5" data-tauri-drag-region>
