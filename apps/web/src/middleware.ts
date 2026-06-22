@@ -86,16 +86,19 @@ export function isMutatingApiRequestAllowed({
   return true;
 }
 
-function buildContentSecurityPolicy(nonce: string) {
-  const isDevelopment = process.env.NODE_ENV !== "production";
+export function buildContentSecurityPolicy(
+  nonce: string,
+  env: Record<string, string | undefined> = process.env,
+) {
+  const isDevelopment = env.NODE_ENV !== "production";
   const appOrigins = unique([
-    getOrigin(process.env.APP_URL),
-    getOrigin(process.env.AUTH_URL),
-    getOrigin(process.env.NEXTAUTH_URL),
+    getOrigin(env.APP_URL),
+    getOrigin(env.AUTH_URL),
+    getOrigin(env.NEXTAUTH_URL),
   ]);
   const liveKitOrigins = unique([
-    getOrigin(process.env.LIVEKIT_URL),
-    getOrigin(process.env.NEXT_PUBLIC_LIVEKIT_URL),
+    getOrigin(env.LIVEKIT_URL),
+    getOrigin(env.NEXT_PUBLIC_LIVEKIT_URL),
   ]);
 
   const directives = {
@@ -136,7 +139,6 @@ function buildContentSecurityPolicy(nonce: string) {
       "https://*.ufs.sh",
       "https://*.uploadthing.com",
       "https://avatars.githubusercontent.com",
-      "https://media*.giphy.com",
     ],
     "media-src": [
       "'self'",
@@ -148,8 +150,7 @@ function buildContentSecurityPolicy(nonce: string) {
     "object-src": ["'none'"],
     "script-src": unique([
       "'self'",
-      `'nonce-${nonce}'`,
-      ...(isDevelopment ? ["'unsafe-eval'"] : ["'strict-dynamic'"]),
+      ...(isDevelopment ? ["'unsafe-inline'", "'unsafe-eval'"] : [`'nonce-${nonce}'`, "'strict-dynamic'"]),
       // LiveKit Krisp uses a WASM-backed blob AudioWorklet/Worker for local noise filtering.
       // Keep this scoped to script execution primitives instead of broadly relaxing the policy.
       "'wasm-unsafe-eval'",
