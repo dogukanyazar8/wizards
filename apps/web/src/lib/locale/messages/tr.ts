@@ -1425,6 +1425,13 @@ export const TR_MESSAGES = {
     "settings.about.buildInfo.description":
       "Güncel uygulama sürümünü ve en son dağıtım tarihini referans olarak görüntüle.",
     "settings.about.buildInfo.version": "Sürüm",
+    "settings.about.buildInfo.webVersion": "Web sürümü",
+    "settings.about.buildInfo.desktopVersion": "Masaüstü sürümü",
+    "settings.about.buildInfo.desktopReleaseRing": "Masaüstü halkası",
+    "settings.about.buildInfo.desktopUpdater": "Masaüstü güncelleyici",
+    "settings.about.buildInfo.desktopUpdaterEnabled": "Açık",
+    "settings.about.buildInfo.desktopUpdaterDisabled": "Kapalı",
+    "settings.about.buildInfo.unknown": "Bilinmiyor",
     "settings.about.buildInfo.lastUpdate": "Son güncelleme",
     "settings.about.buildInfo.buildId": "Build ID",
     "settings.about.buildInfo.buildTime": "Build zamanı",

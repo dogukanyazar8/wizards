@@ -1420,6 +1420,13 @@ export const EN_MESSAGES = {
     "settings.about.buildInfo.description":
       "Reference the current application version and the latest deployed update date.",
     "settings.about.buildInfo.version": "Version",
+    "settings.about.buildInfo.webVersion": "Web version",
+    "settings.about.buildInfo.desktopVersion": "Desktop version",
+    "settings.about.buildInfo.desktopReleaseRing": "Desktop ring",
+    "settings.about.buildInfo.desktopUpdater": "Desktop updater",
+    "settings.about.buildInfo.desktopUpdaterEnabled": "Enabled",
+    "settings.about.buildInfo.desktopUpdaterDisabled": "Disabled",
+    "settings.about.buildInfo.unknown": "Unknown",
     "settings.about.buildInfo.lastUpdate": "Last update",
     "settings.about.buildInfo.buildId": "Build ID",
     "settings.about.buildInfo.buildTime": "Build time",

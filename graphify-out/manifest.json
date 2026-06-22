@@ -8,8 +8,8 @@
     "hash": "4778519ee1282adf84ec0e0dfdc9df22"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\run-tauri.mjs": {
-    "mtime": 1782105242.478249,
-    "hash": "69617f2e7373c1e8d4492fda66b9a393"
+    "mtime": 1782111148.7294784,
+    "hash": "c77efaa8c8c46120d6184169d18f0ec2"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\run-tauri.test.mjs": {
     "mtime": 1782105276.6618185,
@@ -20,12 +20,12 @@
     "hash": "57c865852fe5173e99a8c1c07309073e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\src-tauri\\build.rs": {
-    "mtime": 1781862284.8303523,
-    "hash": "cbca8e15b67547cd512315072bfc9299"
+    "mtime": 1782111358.0477238,
+    "hash": "7e687ef722367cd2034f56afd6e2bb65"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\src-tauri\\src\\lib.rs": {
-    "mtime": 1781884028.312857,
-    "hash": "e6cdd76d320c7a8cca9e020ee8756282"
+    "mtime": 1782111279.4236057,
+    "hash": "4374a2079d6441ccfba244d7610eaee7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\src-tauri\\src\\main.rs": {
     "mtime": 1777980040.2752805,
@@ -796,8 +796,8 @@
     "hash": "c6e0d019bf2df8ab5a2f47b5dbd1a089"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\desktop\\desktop-window-chrome.tsx": {
-    "mtime": 1782105922.9777312,
-    "hash": "ad3a6acb9d662faeeb594efe8fbe0739"
+    "mtime": 1782111922.2569969,
+    "hash": "59824ae6f898e6d06b8e5fd90fc2a2a4"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\dm\\dm-conversation-page.tsx": {
     "mtime": 1777980040.3159235,
@@ -916,8 +916,8 @@
     "hash": "9374c2c40d8973060562a59233c86947"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\settings\\settings-panel.tsx": {
-    "mtime": 1781862284.8760283,
-    "hash": "30bfd3566fa1b37f29b39c50f3319969"
+    "mtime": 1782111238.3261936,
+    "hash": "3f5fdce2452a472d30fcfc68629e1d91"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\settings\\settings-sidebar.tsx": {
     "mtime": 1781862284.8770292,
@@ -1480,8 +1480,8 @@
     "hash": "4eb573ae57b4dd83ec008c678e9ad011"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\desktop\\controls.ts": {
-    "mtime": 1781862284.8993957,
-    "hash": "8afcc3789c0aeb3986cc5f12f9e19e1b"
+    "mtime": 1782111184.9993985,
+    "hash": "507b079bb2d8f21998a23e74a3da4545"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\desktop\\game-overlay-process.test.ts": {
     "mtime": 1781862284.900398,
@@ -1676,12 +1676,12 @@
     "hash": "1ef944a244e3589cd73cd4374255fea7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale\\messages\\en.ts": {
-    "mtime": 1781887002.958415,
-    "hash": "38651d0df1cd5e34d73ca6fb7122a627"
+    "mtime": 1782111264.7487142,
+    "hash": "08d955cb05c9a908dba723812d3f0c91"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale\\messages\\tr.ts": {
-    "mtime": 1781887014.8041413,
-    "hash": "93e80352e9624cbaeb04fce6a23687d4"
+    "mtime": 1782111264.74772,
+    "hash": "cda09c5723db4164884371d97aff7397"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\messages\\attachment-rules.ts": {
     "mtime": 1778004488.0175958,

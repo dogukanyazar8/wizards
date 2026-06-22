@@ -11,6 +11,7 @@ import {
   completeWhisprDesktopBeforeClose,
   getWhisprDesktopBeforeCloseRequestId,
   isWhisprDesktopRuntime,
+  promoteWhisprDesktopWindow,
 } from "@/lib/desktop/runtime";
 import { clearDesktopTransientAuthSession } from "@/lib/desktop/session";
 import { cn } from "@/lib/utils";
@@ -123,6 +124,14 @@ export function DesktopWindowChrome() {
       disposed = true;
       unlistenResize?.();
     };
+  }, [isChromeLessDesktopRoute, isDesktop]);
+
+  useEffect(() => {
+    if (!isDesktop || isChromeLessDesktopRoute) {
+      return;
+    }
+
+    void promoteWhisprDesktopWindow();
   }, [isChromeLessDesktopRoute, isDesktop]);
 
   useEffect(() => {

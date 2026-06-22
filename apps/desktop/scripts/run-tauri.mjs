@@ -48,6 +48,7 @@ const appCommandPermissions = [
   "allow-complete-desktop-before-close",
   "allow-configure-desktop-voice-shortcuts",
   "allow-export-desktop-diagnostics-bundle",
+  "allow-get-desktop-app-info",
   "allow-get-desktop-autostart-enabled",
   "allow-get-desktop-companion-surfaces-status",
   "allow-get-desktop-foreground-process-name",

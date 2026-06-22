@@ -29,15 +29,17 @@ use windows_sys::Win32::{
         DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_COLOR_NONE,
         DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
     },
-    System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION},
+    System::Threading::{
+        OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION,
+    },
     UI::WindowsAndMessaging::{
         EnumChildWindows, GetAncestor, GetForegroundWindow, GetWindowLongPtrW, GetWindowRect,
         GetWindowThreadProcessId, IsIconic, IsWindowVisible, SetLayeredWindowAttributes,
         SetWindowLongPtrW, SetWindowPos, ShowWindow, GA_ROOT, GWL_EXSTYLE, GWL_STYLE,
-        HWND_NOTOPMOST, HWND_TOPMOST, LWA_ALPHA, SWP_FRAMECHANGED, SWP_HIDEWINDOW,
-        SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSENDCHANGING, SWP_NOSIZE,
-        SWP_SHOWWINDOW, SW_HIDE, SW_SHOWNOACTIVATE, WS_BORDER, WS_CAPTION, WS_DLGFRAME,
-        WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_THICKFRAME,
+        HWND_NOTOPMOST, HWND_TOPMOST, LWA_ALPHA, SWP_FRAMECHANGED, SWP_HIDEWINDOW, SWP_NOACTIVATE,
+        SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSENDCHANGING, SWP_NOSIZE, SWP_SHOWWINDOW, SW_HIDE,
+        SW_SHOWNOACTIVATE, WS_BORDER, WS_CAPTION, WS_DLGFRAME, WS_EX_LAYERED, WS_EX_NOACTIVATE,
+        WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_THICKFRAME,
     },
 };
 
@@ -264,6 +266,16 @@ struct DesktopSupportAppInfo {
     tauri_version: &'static str,
     updater_enabled: bool,
     webview_version: String,
+}
+
+fn desktop_support_app_info() -> DesktopSupportAppInfo {
+    DesktopSupportAppInfo {
+        app_version: env!("CARGO_PKG_VERSION"),
+        release_ring: desktop_release_ring(),
+        tauri_version: tauri::VERSION,
+        updater_enabled: desktop_updater_enabled(),
+        webview_version: tauri::webview_version().unwrap_or_else(|_| "unknown".into()),
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -559,6 +571,7 @@ pub fn run() {
             complete_desktop_before_close,
             configure_desktop_voice_shortcuts,
             export_desktop_diagnostics_bundle,
+            get_desktop_app_info,
             get_desktop_quit_on_close_enabled,
             get_desktop_autostart_enabled,
             get_desktop_foreground_process_name,
@@ -795,13 +808,7 @@ fn export_desktop_diagnostics_bundle(
     );
 
     Ok(DesktopSupportBundle {
-        app: DesktopSupportAppInfo {
-            app_version: env!("CARGO_PKG_VERSION"),
-            release_ring: desktop_release_ring(),
-            tauri_version: tauri::VERSION,
-            updater_enabled: desktop_updater_enabled(),
-            webview_version: tauri::webview_version().unwrap_or_else(|_| "unknown".into()),
-        },
+        app: desktop_support_app_info(),
         bundle_version: DESKTOP_SUPPORT_BUNDLE_VERSION,
         capabilities: desktop_platform_capabilities(),
         companion_surfaces: desktop_companion_surfaces_status(&app, surface_state.inner()),
@@ -3285,6 +3292,13 @@ fn is_safe_internal_desktop_path(route: &str) -> bool {
         || route.starts_with("/desktop/oauth/claim/")
 }
 
+#[tauri::command]
+fn get_desktop_app_info(window: WebviewWindow) -> Result<DesktopSupportAppInfo, String> {
+    assert_desktop_main_command_window(&window)?;
+
+    Ok(desktop_support_app_info())
+}
+
 fn dispatch_desktop_command(app: &AppHandle, command: &str, path: Option<&str>) {
     dispatch_desktop_command_with_focus(app, command, path, true);
 }
@@ -3531,13 +3545,29 @@ mod tests {
     }
 
     #[test]
+    fn desktop_app_info_exposes_runtime_version_metadata() {
+        let info = desktop_support_app_info();
+
+        assert_eq!(info.app_version, env!("CARGO_PKG_VERSION"));
+        assert!(!info.release_ring.trim().is_empty());
+        assert_eq!(info.tauri_version, tauri::VERSION);
+        assert!(!info.webview_version.trim().is_empty());
+    }
+
+    #[test]
     fn desktop_native_media_capabilities_stay_research_gated() {
         let capabilities = desktop_platform_capabilities();
 
         assert_eq!(capabilities.native_screen_capture.status, "research_gated");
-        assert_eq!(capabilities.native_screen_capture.fallback, "browser_get_display_media");
+        assert_eq!(
+            capabilities.native_screen_capture.fallback,
+            "browser_get_display_media"
+        );
         assert_eq!(capabilities.system_audio_capture.status, "research_gated");
-        assert_eq!(capabilities.system_audio_capture.fallback, "no_system_audio_capture");
+        assert_eq!(
+            capabilities.system_audio_capture.fallback,
+            "no_system_audio_capture"
+        );
         assert_eq!(capabilities.livekit_custom_track.status, "research_gated");
         assert_eq!(
             capabilities.livekit_custom_track.fallback,
@@ -3564,9 +3594,15 @@ mod tests {
             safe_desktop_deep_link_path("whispr://invite/ABCDEFGH?desktop=1"),
             Some("/invite/ABCDEFGH?desktop=1".to_string())
         );
-        assert_eq!(safe_desktop_deep_link_path("https://whispr.team/invite/ABCDEFGH"), None);
+        assert_eq!(
+            safe_desktop_deep_link_path("https://whispr.team/invite/ABCDEFGH"),
+            None
+        );
         assert_eq!(safe_desktop_deep_link_path("whispr://evil/ABCDEFGH"), None);
-        assert_eq!(safe_desktop_deep_link_path("whispr://invite/..\\settings"), None);
+        assert_eq!(
+            safe_desktop_deep_link_path("whispr://invite/..\\settings"),
+            None
+        );
     }
 
     #[test]
@@ -3580,7 +3616,10 @@ mod tests {
                     .to_string()
             )
         );
-        assert_eq!(safe_desktop_deep_link_path("whispr://oauth/..\\settings"), None);
+        assert_eq!(
+            safe_desktop_deep_link_path("whispr://oauth/..\\settings"),
+            None
+        );
         assert_eq!(safe_desktop_deep_link_path("whispr://oauth"), None);
     }
 

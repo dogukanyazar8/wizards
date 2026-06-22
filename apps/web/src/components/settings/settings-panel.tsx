@@ -51,6 +51,7 @@ import {
   NOTIFICATION_POPUP_TIMEOUT_STEP,
 } from "@/lib/appearance";
 import { APP_ICON_OPTIONS, type AppIconId } from "@/lib/app-icons";
+import { getDesktopAppInfo, type DesktopAppInfo } from "@/lib/desktop/controls";
 import type { DesktopRichPresenceAudience } from "@/lib/desktop/privacy";
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import {
@@ -234,6 +235,16 @@ function InfoPill({ label, value }: { label: string; value: string }) {
       <p className="text-app-foreground mt-1 break-words text-xs font-medium">{value}</p>
     </div>
   );
+}
+
+function formatNativeVersion(value: string | null | undefined) {
+  const trimmedValue = value?.trim();
+
+  if (!trimmedValue) {
+    return null;
+  }
+
+  return trimmedValue.toLowerCase().startsWith("v") ? trimmedValue : `v${trimmedValue}`;
 }
 
 function ToggleRow({
@@ -1065,6 +1076,7 @@ export function SettingsPanel({
   } | null>(null);
   const [iconFeedbackVisible, setIconFeedbackVisible] = useState(false);
   const [isDesktopRuntime, setIsDesktopRuntime] = useState(false);
+  const [desktopAppInfo, setDesktopAppInfo] = useState<DesktopAppInfo | null>(null);
   const [browserTimeZone, setBrowserTimeZone] = useState("Europe/Istanbul");
   const [accountFieldErrors, setAccountFieldErrors] = useState<
     Partial<Record<AccountField, string>>
@@ -1190,7 +1202,33 @@ export function SettingsPanel({
   }, [panel, section]);
 
   useEffect(() => {
-    setIsDesktopRuntime(isWhisprDesktopRuntime());
+    const isDesktop = isWhisprDesktopRuntime();
+    let isActive = true;
+
+    setIsDesktopRuntime(isDesktop);
+
+    if (!isDesktop) {
+      setDesktopAppInfo(null);
+      return () => {
+        isActive = false;
+      };
+    }
+
+    void getDesktopAppInfo()
+      .then((info) => {
+        if (isActive) {
+          setDesktopAppInfo(info);
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setDesktopAppInfo(null);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -2094,6 +2132,16 @@ export function SettingsPanel({
     const contributorList = featuredContributor
       ? buildInfo.contributors.filter((contributor) => contributor !== featuredContributor)
       : buildInfo.contributors;
+    const unknownBuildValue = t("settings.about.buildInfo.unknown");
+    const desktopVersion = formatNativeVersion(desktopAppInfo?.appVersion) ?? unknownBuildValue;
+    const desktopReleaseRing = desktopAppInfo?.releaseRing?.trim() || unknownBuildValue;
+    const desktopUpdaterState = desktopAppInfo
+      ? t(
+          desktopAppInfo.updaterEnabled
+            ? "settings.about.buildInfo.desktopUpdaterEnabled"
+            : "settings.about.buildInfo.desktopUpdaterDisabled",
+        )
+      : unknownBuildValue;
 
     return (
       <div className="space-y-3">
@@ -2128,7 +2176,16 @@ export function SettingsPanel({
           >
             <div className="space-y-3">
               <div className="grid gap-2.5 md:grid-cols-2">
-                <InfoPill label={t("settings.about.buildInfo.version")} value={buildInfo.version} />
+                <InfoPill
+                  label={t("settings.about.buildInfo.webVersion")}
+                  value={buildInfo.version}
+                />
+                {isDesktopRuntime ? (
+                  <InfoPill
+                    label={t("settings.about.buildInfo.desktopVersion")}
+                    value={desktopVersion}
+                  />
+                ) : null}
                 <InfoPill
                   label={t("settings.about.buildInfo.lastUpdate")}
                   value={buildInfo.lastUpdated}
@@ -2138,6 +2195,18 @@ export function SettingsPanel({
                   label={t("settings.about.buildInfo.releaseChannel")}
                   value={buildInfo.releaseChannel}
                 />
+                {isDesktopRuntime ? (
+                  <>
+                    <InfoPill
+                      label={t("settings.about.buildInfo.desktopReleaseRing")}
+                      value={desktopReleaseRing}
+                    />
+                    <InfoPill
+                      label={t("settings.about.buildInfo.desktopUpdater")}
+                      value={desktopUpdaterState}
+                    />
+                  </>
+                ) : null}
                 <InfoPill
                   label={t("settings.about.buildInfo.buildTime")}
                   value={buildInfo.buildTime || t("settings.about.buildInfo.developmentBuild")}

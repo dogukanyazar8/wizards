@@ -7,6 +7,7 @@ fn main() {
         "complete_desktop_before_close",
         "configure_desktop_voice_shortcuts",
         "export_desktop_diagnostics_bundle",
+        "get_desktop_app_info",
         "get_desktop_autostart_enabled",
         "get_desktop_companion_surfaces_status",
         "get_desktop_foreground_process_name",

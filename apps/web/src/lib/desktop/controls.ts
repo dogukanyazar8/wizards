@@ -72,6 +72,14 @@ export interface DesktopCompanionSurfacesStatus {
   voiceMini: DesktopCompanionSurfaceInfo;
 }
 
+export interface DesktopAppInfo {
+  appVersion: string;
+  releaseRing: string;
+  tauriVersion: string;
+  updaterEnabled: boolean;
+  webviewVersion: string;
+}
+
 export interface DesktopSupportWebDiagnostics {
   networkStatus: "offline" | "online" | "unknown";
   notificationPermission: string;
@@ -89,13 +97,7 @@ export interface DesktopNativeLogRecord {
 }
 
 export interface DesktopSupportBundle {
-  app: {
-    appVersion: string;
-    releaseRing: string;
-    tauriVersion: string;
-    updaterEnabled: boolean;
-    webviewVersion: string;
-  };
+  app: DesktopAppInfo;
   bundleVersion: number;
   capabilities: DesktopPlatformCapabilities;
   companionSurfaces: DesktopCompanionSurfacesStatus;
@@ -308,6 +310,27 @@ export async function getDesktopPlatformCapabilities() {
   }
 
   return invokeDesktopCommand<DesktopPlatformCapabilities>("get_desktop_platform_capabilities");
+}
+
+export async function getDesktopAppInfo() {
+  if (!isWhisprDesktopRuntime()) {
+    return null;
+  }
+
+  try {
+    return await invokeDesktopCommand<DesktopAppInfo>("get_desktop_app_info");
+  } catch {
+    const fallbackBundle = await exportDesktopDiagnosticsBundle({
+      networkStatus: "unknown",
+      notificationPermission: "unknown",
+      overlayHealth: "unknown",
+      socketStatus: "unknown",
+      userAgent: "unknown",
+      voiceStatus: "unknown",
+    });
+
+    return fallbackBundle?.app ?? null;
+  }
 }
 
 export async function getDesktopCompanionSurfacesStatus() {
