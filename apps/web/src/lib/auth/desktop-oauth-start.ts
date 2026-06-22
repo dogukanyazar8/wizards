@@ -1,0 +1,24 @@
+import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
+
+export const DESKTOP_OAUTH_COMPLETE_PATH = "/desktop/oauth/complete";
+export const DESKTOP_OAUTH_START_PATH = "/desktop/oauth/start";
+
+export function getDesktopOAuthGoogleAuthorizationParams() {
+  return {
+    prompt: "select_account",
+  } as const;
+}
+
+export function buildDesktopOAuthCompletePath(callbackUrl: string) {
+  const safeCallbackUrl = getSafeAuthRedirectPath(callbackUrl);
+  return `${DESKTOP_OAUTH_COMPLETE_PATH}?callbackUrl=${encodeURIComponent(safeCallbackUrl)}`;
+}
+
+export function buildDesktopOAuthStartPath(callbackUrl: string) {
+  const safeCallbackUrl = getSafeAuthRedirectPath(callbackUrl);
+  return `${DESKTOP_OAUTH_START_PATH}?callbackUrl=${encodeURIComponent(safeCallbackUrl)}`;
+}
+
+export function buildDesktopOAuthStartUrl(callbackUrl: string, origin: string) {
+  return new URL(buildDesktopOAuthStartPath(callbackUrl), origin).toString();
+}

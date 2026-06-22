@@ -1,6 +1,7 @@
 "use client";
 
 import type { Update as TauriUpdate } from "@tauri-apps/plugin-updater";
+import { getDesktopQuitOnCloseEnabled, setDesktopQuitOnCloseEnabled } from "@/lib/desktop/controls";
 import { recordDesktopPerformanceMetric } from "@/lib/desktop/performance";
 import { getWhisprDesktopReleaseRing, isWhisprDesktopUpdaterEnabled } from "@/lib/desktop/runtime";
 
@@ -115,6 +116,8 @@ export async function downloadInstallAndRelaunchDesktopUpdate(
 ) {
   let totalBytes: number | null = null;
   let downloadedBytes = 0;
+  let previousQuitOnClose: boolean | null = null;
+  let quitOnCloseOverridden = false;
   const downloadStartedAt = now();
 
   try {
@@ -124,6 +127,12 @@ export async function downloadInstallAndRelaunchDesktopUpdate(
         downloadedBytes = 0;
       } else if (event.event === "Progress") {
         downloadedBytes += event.data.chunkLength;
+      } else if (event.event === "Finished") {
+        recordDesktopPerformanceMetric({
+          durationMs: durationSince(downloadStartedAt),
+          operation: "desktop_update_download",
+          result: "success",
+        });
       }
 
       onProgress({ downloadedBytes, totalBytes });
@@ -131,9 +140,22 @@ export async function downloadInstallAndRelaunchDesktopUpdate(
       timeout: DESKTOP_UPDATE_DOWNLOAD_TIMEOUT_MS,
     });
 
+    try {
+      previousQuitOnClose = await getDesktopQuitOnCloseEnabled();
+      if (!previousQuitOnClose) {
+        await setDesktopQuitOnCloseEnabled(true);
+        quitOnCloseOverridden = true;
+      }
+    } catch {
+      previousQuitOnClose = null;
+    }
+
+    const installStartedAt = now();
+    await update.install();
+
     recordDesktopPerformanceMetric({
-      durationMs: durationSince(downloadStartedAt),
-      operation: "desktop_update_download",
+      durationMs: durationSince(installStartedAt),
+      operation: "desktop_update_install",
       result: "success",
     });
   } catch (error) {
@@ -141,27 +163,16 @@ export async function downloadInstallAndRelaunchDesktopUpdate(
       durationMs: durationSince(downloadStartedAt),
       operation: isSignatureFailure(error)
         ? "desktop_update_signature_verification"
-        : "desktop_update_download",
+        : downloadedBytes > 0
+          ? "desktop_update_install"
+          : "desktop_update_download",
       result: isSignatureFailure(error) ? "signature_failure" : "failure",
     });
-    throw error;
-  }
 
-  const installStartedAt = now();
+    if (quitOnCloseOverridden && previousQuitOnClose !== null) {
+      await setDesktopQuitOnCloseEnabled(previousQuitOnClose).catch(() => undefined);
+    }
 
-  try {
-    await update.install();
-    recordDesktopPerformanceMetric({
-      durationMs: durationSince(installStartedAt),
-      operation: "desktop_update_install",
-      result: "success",
-    });
-  } catch (error) {
-    recordDesktopPerformanceMetric({
-      durationMs: durationSince(installStartedAt),
-      operation: "desktop_update_install",
-      result: "failure",
-    });
     throw error;
   }
 

@@ -13,7 +13,7 @@ Keep these versions aligned for each release:
 - Tauri package version: `apps/desktop/src-tauri/Cargo.toml`
 - Tauri app version: `apps/desktop/src-tauri/tauri.conf.json`
 
-The current desktop version is `0.8.13`.
+The current desktop version is `0.8.14`.
 
 ## Build Commands
 
@@ -58,7 +58,7 @@ Auto-update support is installed as a flag-gated signed release path:
 - `WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED=true`, `WINDOWS_CERTIFICATE_PFX_BASE64`, and `WINDOWS_CERTIFICATE_PASSWORD` are required when updater artifacts are produced so Windows installers are signed before updater signatures are generated.
 - `WHISPR_DESKTOP_UPDATER_ENDPOINTS` must contain one or more HTTPS `latest.json` manifest URLs.
 - Updater endpoints must never point to localhost, `whispr.invalid`, or an insecure transport.
-- Windows updater install mode is `basicUi`; Whispr shows its own "Download and restart" prompt and never silently installs updates.
+- Windows updater install mode is `basicUi`; Whispr shows its own title-bar update indicator with a "Download and restart" action and never silently installs updates.
 - The app must never install an update without a valid Ed25519 signature.
 - Update metrics remain PII-free and cover check, download, signature verification, install, and relaunch outcomes.
 
@@ -135,5 +135,5 @@ The release safety rules are:
 - Confirm generated installer is not committed.
 - Confirm generated updater artifacts and signatures are not committed.
 - Confirm updater endpoints are HTTPS `latest.json` manifests for the intended release ring.
-- Confirm updater UI asks the user to download and restart; silent install remains disabled.
+- Confirm the title-bar updater UI asks the user to download and restart; silent install remains disabled.
 - Complete the desktop QA checklist in `QA.md`.

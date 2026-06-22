@@ -11,7 +11,7 @@ Minimal Tauri shell for the existing Whispr web app.
 - Tauri IPC is limited to native notification permission/dispatch and minimal window controls required for the custom desktop titlebar.
 - Off-origin navigation opens in the system browser by default. During an active Auth.js OAuth redirect only, the WebView allows the known provider origins needed to return the session cookie to Whispr.
 - The tray menu exposes Show, Settings, Desktop Diagnostics, mute/deafen commands, and Quit.
-- Signed auto-update support is flag-gated. When enabled for a release build, it requires an HTTPS manifest, an embedded Ed25519 public key, CI-held signing private key material, and an explicit user click on "Download and restart".
+- Signed auto-update support is flag-gated. When enabled for a release build, it requires an HTTPS manifest, an embedded Ed25519 public key, CI-held signing private key material, and an explicit user click on the title-bar "Download and restart" update action.
 - Desktop notifications are driven by the existing authenticated socket and settings flows. Message previews are disabled by default and can be enabled locally from notification settings.
 - Desktop deep links use the `whispr://` scheme and are restricted to safe internal routes such as `/channels`, `/settings`, and `/invite`.
 - A single-instance guard focuses the existing window instead of launching duplicate desktop sessions.

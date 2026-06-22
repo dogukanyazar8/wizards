@@ -115,7 +115,7 @@ const pluginsConfig = {
           endpoints: updaterConfig.endpoints.map((endpoint) => endpoint.href),
           pubkey: updaterConfig.publicKey,
           windows: {
-            installMode: "basicUi",
+            installMode: "passive",
           },
         },
       }

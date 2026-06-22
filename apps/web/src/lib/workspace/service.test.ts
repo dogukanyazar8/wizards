@@ -653,6 +653,45 @@ describe("workspace service characterization", { concurrency: false }, () => {
     });
   });
 
+  it("reports existing invite members without consuming the invite again", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      const operations: string[] = [];
+
+      patchMethod(prisma.serverInvite, "findUnique", async () => ({
+        channelId: "channel-1",
+        expiresAt: null,
+        id: "invite-1",
+        maxUses: 1,
+        server: {
+          id: "server-1",
+          ownerId: "owner",
+          roles: [defaultRole()],
+        },
+        uses: 1,
+      }), restores);
+      patchMethod(prisma.user, "findUnique", async () => ({
+        displayName: "Ada",
+        isBanned: false,
+        username: "ada",
+      }), restores);
+      patchMethod(prisma.serverBan, "findUnique", async () => null, restores);
+      patchMethod(prisma.serverMember, "findUnique", async () => ({ id: "member-existing" }), restores);
+      patchMethod(prisma, "$transaction", async () => {
+        operations.push("transaction.begin");
+        throw new Error("existing invite members should not create memberships");
+      }, restores);
+
+      const result = await joinWorkspaceServerByInvite("joiner", "INVITE1");
+
+      assert.deepEqual(result, {
+        alreadyMember: true,
+        channelId: "channel-1",
+        serverId: "server-1",
+      });
+      assert.deepEqual(operations, []);
+    });
+  });
+
   it("checks MANAGE_CHANNELS before channel updates", async () => {
     await withPatchedEnvironment(async (restores) => {
       patchMethod(prisma.channel, "findUnique", async () => ({

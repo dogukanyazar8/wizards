@@ -3,6 +3,7 @@ import { encode, getToken } from "next-auth/jwt";
 import { z } from "zod";
 import { prisma, UserStatus } from "@wizards/db";
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
+import { getAuthSessionCookieConfig, getAuthSessionCookieOptions } from "@/lib/auth/session-cookies";
 import { assertE2EApiRouteEnabled } from "@/lib/e2e/route-guard";
 import {
   e2eUsers,
@@ -24,21 +25,6 @@ function getAuthSecret(): string {
   }
 
   return secret;
-}
-
-function getSessionCookieName(): string {
-  return process.env.NODE_ENV === "production"
-    ? "__Secure-authjs.session-token"
-    : "authjs.session-token";
-}
-
-function getSessionCookieOptions() {
-  return {
-    httpOnly: true,
-    sameSite: "strict" as const,
-    path: "/",
-    secure: process.env.NODE_ENV === "production",
-  };
 }
 
 async function findE2EUser(userKey: E2EUserKey) {
@@ -73,7 +59,7 @@ export async function POST(request: NextRequest) {
     const { userKey } = await parseJsonBody(request, E2ESessionSchema);
     const user = await findE2EUser(userKey);
     const secret = getAuthSecret();
-    const cookieName = getSessionCookieName();
+    const { cookieName } = getAuthSessionCookieConfig();
     const issuedAt = Math.floor(Date.now() / 1000);
     const expiresAt = issuedAt + SESSION_MAX_AGE_SECONDS;
 
@@ -121,7 +107,7 @@ export async function POST(request: NextRequest) {
     });
 
     response.cookies.set(cookieName, sessionToken, {
-      ...getSessionCookieOptions(),
+      ...getAuthSessionCookieOptions(),
       expires: new Date(expiresAt * 1000),
       maxAge: SESSION_MAX_AGE_SECONDS,
     });
@@ -137,7 +123,7 @@ export async function DELETE(request: NextRequest) {
     assertE2EApiRouteEnabled(request.nextUrl);
 
     const secret = getAuthSecret();
-    const cookieName = getSessionCookieName();
+    const { cookieName } = getAuthSessionCookieConfig();
     const token = await getToken({
       cookieName,
       req: request,
@@ -161,7 +147,7 @@ export async function DELETE(request: NextRequest) {
 
     const response = NextResponse.json({ ok: true });
     response.cookies.set(cookieName, "", {
-      ...getSessionCookieOptions(),
+      ...getAuthSessionCookieOptions(),
       expires: new Date(0),
       maxAge: 0,
     });

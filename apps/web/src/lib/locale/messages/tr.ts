@@ -66,8 +66,18 @@ export const TR_MESSAGES = {
     "desktop.update.later": "Daha sonra",
     "desktop.update.error":
       "Masaüstü güncelleme kontrolü güvenli şekilde başarısız oldu. Whispr'i kullanmaya devam edebilirsin.",
+    "desktop.update.errorShort": "Güncelleme başarısız",
     "desktop.update.installError":
       "Güncelleme kurulamadı. Whispr mevcut sürümünü değiştirmedi.",
+    "desktop.update.pillReady": "Güncelleme mevcut",
+    "desktop.update.versionLabel": "Sürüm",
+    "desktop.update.versionLine": "v{current} -> v{latest}",
+    "desktop.update.ringLabel": "Halka",
+    "desktop.update.securityNote":
+      "Whispr imzalı güncelleme paketlerini indirir ve kurmadan önce doğrular.",
+    "desktop.update.progressLabel": "İndirme",
+    "desktop.update.progressValue": "%{progress}",
+    "desktop.update.checkAgain": "Tekrar kontrol et",
     "app.update.category.devices": "Cihazlar",
     "app.update.category.design": "Tasarım",
     "app.update.category.security": "Güvenlik",
@@ -870,6 +880,37 @@ export const TR_MESSAGES = {
     "auth.login.oauthAccountNotLinked":
       "Bu e-posta zaten bir hesaba ait. Güvenliğin için önce mevcut giriş yönteminle oturum aç.",
     "auth.login.oauthLoading": "Yükleniyor...",
+    "auth.desktopOAuth.badge": "Masaüstü girişi",
+    "auth.desktopOAuth.startButton": "Google ile devam et",
+    "auth.desktopOAuth.startDescription":
+      "Google oturumunu tarayıcıda tamamla. Başarılı olduğunda Whispr oturumu masaüstü uygulamasına güvenli şekilde aktaracak.",
+    "auth.desktopOAuth.startRetry": "Google girişini yeniden başlat",
+    "auth.desktopOAuth.startTitle": "Güvenli Google girişi",
+    "auth.desktopOAuth.pendingTitle": "Girişi tarayıcıda tamamla",
+    "auth.desktopOAuth.pendingDescription":
+      "Whispr dışında güvenli bir Google penceresi açıldı. Hesabını orada seç; Google onayladığında Whispr Desktop otomatik devam edecek.",
+    "auth.desktopOAuth.pendingBrowser": "Google girişi bekleniyor",
+    "auth.desktopOAuth.pendingSecurity":
+      "Google parolan sistem tarayıcısında kalır. Whispr yalnızca giriş başarılı olduğunda kısa ömürlü masaüstü aktarımını alır.",
+    "auth.desktopOAuth.pendingRetry": "Tarayıcıyı tekrar aç",
+    "auth.desktopOAuth.pendingCancel": "İptal et",
+    "auth.desktopOAuth.browserHint": "Tarayıcın sorarsa Whispr Desktop'ı açmasına izin ver.",
+    "auth.desktopOAuth.button": "Whispr Desktop'ı aç",
+    "auth.desktopOAuth.closeButton": "Bu sekmeyi kapatmayı dene",
+    "auth.desktopOAuth.closeHint":
+      "Whispr bu sekmeyi kapatmayı deneyecek. Tarayıcın açık bırakırsa güvenle kapatabilirsin.",
+    "auth.desktopOAuth.claimBrowserDescription":
+      "Bu giriş aktarımı yalnızca Whispr masaüstü uygulamasında güvenli şekilde tamamlanabilir.",
+    "auth.desktopOAuth.claimBrowserTitle": "Bu bağlantıyı Whispr Desktop'ta aç",
+    "auth.desktopOAuth.claimButton": "Whispr Desktop'ta devam et",
+    "auth.desktopOAuth.description":
+      "Google girişi tamamlandı. Whispr şimdi bu oturumu masaüstü uygulamasına güvenli şekilde aktaracak.",
+    "auth.desktopOAuth.failed":
+      "Whispr masaüstü girişini tamamlayamadı. Lütfen Google ile girişi tekrar dene.",
+    "auth.desktopOAuth.invalid": "Bu masaüstü giriş bağlantısı geçersiz veya süresi dolmuş.",
+    "auth.desktopOAuth.privacy":
+      "Bu aktarım kısa ömürlü tek kullanımlık bir token kullanır. Masaüstü bağlantısıyla parola, Google token'ı, e-posta veya mesaj içeriği gönderilmez.",
+    "auth.desktopOAuth.title": "Whispr Desktop'a dön",
     "auth.login.socialUnavailable":
       "{provider} ile oturum açma henüz hazır değil. Şimdilik e-posta veya Google ile devam edebilirsiniz.",
     "auth.login.orContinueWith": "veya şununla devam et",
@@ -2302,6 +2343,23 @@ export const TR_MESSAGES = {
     "invite.error.notFound": "Davet bulunamadı.",
     "invite.error.expired": "Davetin süresi dolmuş.",
     "invite.error.limit": "Davet kullanım sınırına ulaştı.",
+    "invite.desktop.badge": "Çalışma Alanı Daveti",
+    "invite.desktop.title": "Bu daveti Whispr'da aç",
+    "invite.desktop.description":
+      "En hızlı geçiş için masaüstü uygulamasında devam et veya daveti bu tarayıcıda kabul et. Whispr masaüstüne yalnızca davet kodunu iletir.",
+    "invite.desktop.desktopAction": "Whispr Desktop'ta Aç",
+    "invite.desktop.browserAction": "Tarayıcıda devam et",
+    "invite.desktop.desktopHint":
+      "Whispr Desktop kuruluysa tarayıcın uygulamayı açmak için izin isteyecek.",
+    "invite.desktop.privacy":
+      "Masaüstü bağlantısıyla oturum token'ı, e-posta, mesaj içeriği veya özel çalışma alanı verisi gönderilmez.",
+    "invite.desktop.downloadAction": "Masaüstü uygulaması gerekli mi?",
+    "invite.desktop.downloadDescription": "En güncel Whispr Desktop sürümünü indir",
+    "invite.already.badge": "Zaten Katıldın",
+    "invite.already.title": "Bu sunucunun zaten üyesisin",
+    "invite.already.description":
+      "Bu davet geçerli, ancak hesabın zaten bu sunucuda. Doğrudan sunucuya dönebilirsin.",
+    "invite.already.openServer": "Sunucuyu aç",
     "errors.genericTitle": "Bir şeyler ters gitti",
     "errors.genericDescription": "Beklenmeyen bir hata oluştu.",
     "errors.retry": "Tekrar dene",

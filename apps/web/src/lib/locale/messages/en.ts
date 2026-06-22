@@ -65,8 +65,18 @@ export const EN_MESSAGES = {
     "desktop.update.installing": "Updating...",
     "desktop.update.later": "Later",
     "desktop.update.error": "Desktop update check failed safely. You can keep using Whispr.",
+    "desktop.update.errorShort": "Update failed",
     "desktop.update.installError":
       "The update could not be installed. Whispr did not change your current version.",
+    "desktop.update.pillReady": "Update available",
+    "desktop.update.versionLabel": "Version",
+    "desktop.update.versionLine": "v{current} -> v{latest}",
+    "desktop.update.ringLabel": "Ring",
+    "desktop.update.securityNote":
+      "Whispr downloads signed update artifacts and verifies them before installing.",
+    "desktop.update.progressLabel": "Download",
+    "desktop.update.progressValue": "{progress}%",
+    "desktop.update.checkAgain": "Check again",
     "app.update.category.devices": "Devices",
     "app.update.category.design": "Design",
     "app.update.category.security": "Security",
@@ -864,6 +874,37 @@ export const EN_MESSAGES = {
     "auth.login.oauthAccountNotLinked":
       "This email already belongs to an account. For your security, sign in with your existing method first.",
     "auth.login.oauthLoading": "Loading...",
+    "auth.desktopOAuth.badge": "Desktop sign-in",
+    "auth.desktopOAuth.startButton": "Continue with Google",
+    "auth.desktopOAuth.startDescription":
+      "Complete Google sign-in in your browser. After it succeeds, Whispr will hand the session back to the desktop app safely.",
+    "auth.desktopOAuth.startRetry": "Restart Google sign-in",
+    "auth.desktopOAuth.startTitle": "Secure Google sign-in",
+    "auth.desktopOAuth.pendingTitle": "Complete sign-in in your browser",
+    "auth.desktopOAuth.pendingDescription":
+      "A secure Google window opened outside Whispr. Choose your account there; Whispr Desktop will continue automatically when Google confirms it.",
+    "auth.desktopOAuth.pendingBrowser": "Waiting for Google sign-in",
+    "auth.desktopOAuth.pendingSecurity":
+      "Your Google password stays in the system browser. Whispr only receives a short-lived desktop handoff after sign-in succeeds.",
+    "auth.desktopOAuth.pendingRetry": "Open browser again",
+    "auth.desktopOAuth.pendingCancel": "Cancel",
+    "auth.desktopOAuth.browserHint": "If your browser asks, allow it to open Whispr Desktop.",
+    "auth.desktopOAuth.button": "Open Whispr Desktop",
+    "auth.desktopOAuth.closeButton": "Try closing this tab",
+    "auth.desktopOAuth.closeHint":
+      "Whispr will try to close this tab. If your browser keeps it open, you can close it safely.",
+    "auth.desktopOAuth.claimBrowserDescription":
+      "This sign-in handoff can only be completed safely inside the Whispr desktop app.",
+    "auth.desktopOAuth.claimBrowserTitle": "Open this link in Whispr Desktop",
+    "auth.desktopOAuth.claimButton": "Continue in Whispr Desktop",
+    "auth.desktopOAuth.description":
+      "Google sign-in is complete. Whispr will now hand this session back to the desktop app.",
+    "auth.desktopOAuth.failed":
+      "Whispr could not complete desktop sign-in. Please try Google sign-in again.",
+    "auth.desktopOAuth.invalid": "This desktop sign-in link is invalid or expired.",
+    "auth.desktopOAuth.privacy":
+      "This handoff uses a short-lived one-time token. No password, Google token, email, or message content is sent through the desktop link.",
+    "auth.desktopOAuth.title": "Return to Whispr Desktop",
     "auth.login.socialUnavailable":
       "{provider} sign-in is not ready yet. You can continue with email or Google for now.",
     "auth.login.orContinueWith": "or continue with",
@@ -2295,6 +2336,23 @@ export const EN_MESSAGES = {
     "invite.error.notFound": "Invite not found.",
     "invite.error.expired": "Invite has expired.",
     "invite.error.limit": "Invite has reached its usage limit.",
+    "invite.desktop.badge": "Workspace Invite",
+    "invite.desktop.title": "Open this invite in Whispr",
+    "invite.desktop.description":
+      "Continue in the desktop app for the fastest handoff, or accept the invite in this browser. Whispr only passes the invite code to the desktop app.",
+    "invite.desktop.desktopAction": "Open in Whispr Desktop",
+    "invite.desktop.browserAction": "Continue in browser",
+    "invite.desktop.desktopHint":
+      "If Whispr Desktop is installed, your browser will ask for permission to open it.",
+    "invite.desktop.privacy":
+      "No session token, email, message content, or private workspace data is sent through the desktop link.",
+    "invite.desktop.downloadAction": "Need the desktop app?",
+    "invite.desktop.downloadDescription": "Download the latest Whispr Desktop release",
+    "invite.already.badge": "Already Joined",
+    "invite.already.title": "You're already in this server",
+    "invite.already.description":
+      "This invite is valid, but your account is already a member. You can jump straight back to the server.",
+    "invite.already.openServer": "Open server",
     "errors.genericTitle": "Something went wrong",
     "errors.genericDescription": "An unexpected error occurred.",
     "errors.retry": "Try again",

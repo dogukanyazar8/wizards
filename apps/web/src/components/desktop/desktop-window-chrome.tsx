@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Copy, Minus, Square, X } from "lucide-react";
 import type { Window as TauriWindow } from "@tauri-apps/api/window";
+import { DesktopNativeUpdateNotifier } from "@/components/desktop/desktop-native-update-notifier";
 import {
   WHISPR_DESKTOP_BEFORE_CLOSE_EVENT,
   completeWhisprDesktopBeforeClose,
@@ -197,6 +198,7 @@ export function DesktopWindowChrome() {
       </div>
 
       <div className="flex h-full shrink-0 items-center gap-1 px-1.5">
+        <DesktopNativeUpdateNotifier />
         <ChromeButton
           aria-label="Minimize window"
           icon={<Minus className="h-3.5 w-3.5" />}

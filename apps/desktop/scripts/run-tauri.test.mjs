@@ -102,6 +102,18 @@ describe("desktop Tauri config generation", () => {
     ]);
   });
 
+  it("uses the Whispr icon for NSIS installer and uninstaller binaries", async () => {
+    const staticConfigPath = path.join(desktopRoot, "src-tauri", "tauri.conf.json");
+    const staticConfig = JSON.parse(await readFile(staticConfigPath, "utf8"));
+
+    assert.equal(staticConfig.bundle.windows.nsis.installerIcon, "icons/icon.ico");
+    assert.equal(staticConfig.bundle.windows.nsis.uninstallerIcon, "icons/icon.ico");
+    assert.ok(
+      staticConfig.bundle.icon.includes("icons/icon.ico"),
+      "The app icon bundle must keep the same Whispr .ico used by the installer.",
+    );
+  });
+
   it("allows an explicit HTTPS production web origin override", async () => {
     const productionUrl = "https://uat.whispr.team";
 
@@ -179,7 +191,7 @@ describe("desktop Tauri config generation", () => {
       endpoints: [updateEndpoint],
       pubkey: updaterPublicKey,
       windows: {
-        installMode: "basicUi",
+        installMode: "passive",
       },
     });
     assert.ok(mainCapability.permissions.includes("updater:allow-check"));

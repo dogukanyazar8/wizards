@@ -142,9 +142,10 @@ Overlay must remain click-through, show only sanitized voice participant data, a
 
 ## Signed Updates
 
-- Build once with `WHISPR_DESKTOP_UPDATER_ENABLED=false` and confirm no native update prompt appears.
+- Build once with `WHISPR_DESKTOP_UPDATER_ENABLED=false` and confirm no title-bar update indicator appears.
 - Build a UAT ring artifact with `WHISPR_DESKTOP_UPDATER_ENABLED=true`, a HTTPS `latest.json` endpoint, the matching Ed25519 public key, and Windows code signing enabled.
-- Host a signed newer UAT manifest and confirm Whispr shows "Download and restart" instead of installing silently.
+- Host a signed newer UAT manifest and confirm the desktop title bar shows the compact update indicator beside the window controls.
+- Open the update indicator and confirm the signed-update popover shows current version, latest version, release ring, and the security note.
 - Click "Later" and confirm the app keeps running without downloading or installing anything.
 - Click "Download and restart" and confirm download progress advances, the signature is accepted, the installer runs with basic UI, and Whispr relaunches.
 - Serve a manifest with a bad signature and confirm the update is rejected and the currently installed version remains unchanged.
