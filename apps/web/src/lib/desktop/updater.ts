@@ -116,18 +116,33 @@ export async function downloadInstallAndRelaunchDesktopUpdate(
 ) {
   let totalBytes: number | null = null;
   let downloadedBytes = 0;
+  let downloadFinished = false;
   let previousQuitOnClose: boolean | null = null;
   let quitOnCloseOverridden = false;
   const downloadStartedAt = now();
 
   try {
-    await update.download((event) => {
+    try {
+      previousQuitOnClose = await getDesktopQuitOnCloseEnabled();
+      if (!previousQuitOnClose) {
+        await setDesktopQuitOnCloseEnabled(true);
+        quitOnCloseOverridden = true;
+      }
+    } catch {
+      previousQuitOnClose = null;
+    }
+
+    const installStartedAt = now();
+
+    await update.downloadAndInstall((event) => {
       if (event.event === "Started") {
         totalBytes = event.data.contentLength ?? null;
         downloadedBytes = 0;
+        downloadFinished = false;
       } else if (event.event === "Progress") {
         downloadedBytes += event.data.chunkLength;
       } else if (event.event === "Finished") {
+        downloadFinished = true;
         recordDesktopPerformanceMetric({
           durationMs: durationSince(downloadStartedAt),
           operation: "desktop_update_download",
@@ -140,19 +155,6 @@ export async function downloadInstallAndRelaunchDesktopUpdate(
       timeout: DESKTOP_UPDATE_DOWNLOAD_TIMEOUT_MS,
     });
 
-    try {
-      previousQuitOnClose = await getDesktopQuitOnCloseEnabled();
-      if (!previousQuitOnClose) {
-        await setDesktopQuitOnCloseEnabled(true);
-        quitOnCloseOverridden = true;
-      }
-    } catch {
-      previousQuitOnClose = null;
-    }
-
-    const installStartedAt = now();
-    await update.install();
-
     recordDesktopPerformanceMetric({
       durationMs: durationSince(installStartedAt),
       operation: "desktop_update_install",
@@ -163,7 +165,7 @@ export async function downloadInstallAndRelaunchDesktopUpdate(
       durationMs: durationSince(downloadStartedAt),
       operation: isSignatureFailure(error)
         ? "desktop_update_signature_verification"
-        : downloadedBytes > 0
+        : downloadFinished
           ? "desktop_update_install"
           : "desktop_update_download",
       result: isSignatureFailure(error) ? "signature_failure" : "failure",
