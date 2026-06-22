@@ -76,6 +76,8 @@ Desktop release operations are guarded by a small machine-readable contract in `
 
 ```powershell
 pnpm --filter @wizards/desktop release:ops
+pnpm --filter @wizards/desktop release:audit -- --ring uat --require-manifest --manifest <latest.json> --expected-version <version>
+pnpm --filter @wizards/desktop release:promotion -- --ring uat --web-url <https-url> --manifest <latest.json> --artifact <installer.exe> --signature <installer.exe.sig> --expected-version <version>
 pnpm --filter @wizards/desktop test
 ```
 
@@ -94,6 +96,9 @@ Mandatory desktop smoke gates:
 - `auth-restore`
 - `close-to-tray`
 - `updater-check-mock`
+- `updater-feed-preflight`
+- `release-audit-report`
+- `release-promotion-bundle`
 - `shortcut-registration`
 - `overlay-show-hide`
 

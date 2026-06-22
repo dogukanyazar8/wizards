@@ -17,6 +17,9 @@ These smoke gates are release blockers on Windows and staged signal checks on ma
 - `auth-restore`: remember-me/session restore works after quitting and reopening.
 - `close-to-tray`: close button keeps the app alive in tray when configured, tray Show restores the window, and Quit exits.
 - `updater-check-mock`: a mocked signed HTTPS `latest.json` check succeeds; invalid signatures fail closed.
+- `updater-feed-preflight`: local and remote `latest.json` manifests validate against the expected version, platform entry, artifact URL, and signature before promotion.
+- `release-audit-report`: a redacted audit report is generated with ring, version, artifact hash, updater feed, and safety contract checks before promotion.
+- `release-promotion-bundle`: redacted JSON and Markdown promotion evidence is generated before a signed build moves between release rings.
 - `shortcut-registration`: desktop voice shortcuts register, trigger, unregister, and reject unsafe duplicates.
 - `overlay-show-hide`: mini window and game overlay show, hide, repair, and panic-disable without locking the main window.
 
@@ -144,6 +147,10 @@ Overlay must remain click-through, show only sanitized voice participant data, a
 
 - Build once with `WHISPR_DESKTOP_UPDATER_ENABLED=false` and confirm no title-bar update indicator appears.
 - Build a UAT ring artifact with `WHISPR_DESKTOP_UPDATER_ENABLED=true`, a HTTPS `latest.json` endpoint, the matching Ed25519 public key, and Windows code signing enabled.
+- Run `pnpm --filter @wizards/desktop release:validate-manifest` against the local generated `latest.json`, installer, and `.sig` before upload.
+- Run `pnpm --filter @wizards/desktop release:validate-manifest -- --manifest https://updates.whispr.team/desktop/uat/latest.json --expected-version <version> --check-artifact-url` after upload.
+- Run `pnpm --filter @wizards/desktop release:audit` with `--require-manifest` before promotion and archive the generated report with internal release notes or CI artifacts.
+- Run `pnpm --filter @wizards/desktop release:promotion` before promotion and archive the generated JSON/Markdown evidence with the release handoff.
 - Host a signed newer UAT manifest and confirm the desktop title bar shows the compact update indicator beside the window controls.
 - Open the update indicator and confirm the signed-update popover shows current version, latest version, release ring, and the security note.
 - Click "Later" and confirm the app keeps running without downloading or installing anything.

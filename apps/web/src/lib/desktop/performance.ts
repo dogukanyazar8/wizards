@@ -23,6 +23,7 @@ export type DesktopMetricOperation =
   | "desktop_update_download"
   | "desktop_update_install"
   | "desktop_update_relaunch"
+  | "desktop_update_verify"
   | "desktop_update_signature_verification"
   | "desktop_voice_join_timing"
   | "desktop_voice_leave_timing"

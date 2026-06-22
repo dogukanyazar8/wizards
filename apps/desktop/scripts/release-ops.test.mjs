@@ -9,6 +9,8 @@ import {
   DESKTOP_RELEASE_SAFETY_RULES,
   DESKTOP_REQUIRED_SMOKE_TESTS,
   assertDesktopReleaseOpsContract,
+  assertDesktopVersionContract,
+  getDesktopVersionContract,
   getDesktopReleaseOpsContract,
 } from "./release-ops.mjs";
 
@@ -52,6 +54,30 @@ describe("desktop release operations contract", () => {
       "no-fake-security-ui",
       "overlay-voice-only",
     ]);
+  });
+
+  it("keeps web and native desktop version sources explicit", () => {
+    const contract = assertDesktopVersionContract(getDesktopVersionContract());
+
+    assert.equal(contract.rootPackageVersion, contract.webPackageVersion);
+    assert.equal(contract.webRuntimeVersion, contract.webPackageVersion);
+    assert.equal(contract.desktopNativeVersion, contract.desktopPackageVersion);
+    assert.equal(contract.desktopPackageVersion, contract.tauriConfigVersion);
+    assert.equal(contract.desktopPackageVersion, contract.cargoPackageVersion);
+  });
+
+  it("includes the version contract in release operations output", () => {
+    const contract = assertDesktopReleaseOpsContract(getDesktopReleaseOpsContract());
+
+    assert.ok(contract.versionContract);
+    assert.equal(
+      contract.versionContract.desktopNativeVersion,
+      contract.versionContract.desktopPackageVersion,
+    );
+    assert.equal(
+      contract.versionContract.webRuntimeVersion,
+      contract.versionContract.webPackageVersion,
+    );
   });
 
   it("documents release rings, smoke gates, budgets, and safety rules", async () => {

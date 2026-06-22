@@ -69,6 +69,10 @@ export const TR_MESSAGES = {
     "desktop.update.errorShort": "Güncelleme başarısız",
     "desktop.update.installError":
       "Güncelleme kurulamadı. Whispr mevcut sürümünü değiştirmedi.",
+    "desktop.update.verifyError":
+      "Güncelleme doğrulanamadı. Beklenen masaüstü sürümü v{expected}, çalışan sürüm v{actual}.",
+    "desktop.update.verifyUnavailable":
+      "Güncelleme doğrulanamadı. Beklenen v{expected} sürümünü kontrol etmek için masaüstü runtime bilgisi okunamadı.",
     "desktop.update.pillReady": "Güncelleme mevcut",
     "desktop.update.versionLabel": "Sürüm",
     "desktop.update.versionLine": "v{current} -> v{latest}",

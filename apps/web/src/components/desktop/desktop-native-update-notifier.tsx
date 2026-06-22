@@ -14,16 +14,18 @@ import { useI18n } from "@/components/providers/locale-provider";
 import {
   canUseDesktopNativeUpdater,
   checkDesktopNativeUpdate,
+  dismissDesktopUpdateVersion,
   downloadInstallAndRelaunchDesktopUpdate,
   getDesktopNativeUpdateInfo,
+  getDismissedDesktopUpdateVersion,
   type DesktopNativeUpdateDownloadState,
   type DesktopNativeUpdateInfo,
   type DesktopNativeUpdateStatus,
+  verifyPendingDesktopUpdateInstallation,
 } from "@/lib/desktop/updater";
 import { cn } from "@/lib/utils";
 
 const DESKTOP_UPDATE_RECHECK_MS = 6 * 60 * 60 * 1000;
-const DISMISSED_DESKTOP_UPDATE_STORAGE_KEY = "whispr.dismissedDesktopUpdateVersion";
 
 type NativeUpdate = Awaited<ReturnType<typeof checkDesktopNativeUpdate>>;
 
@@ -33,18 +35,6 @@ function formatDownloadProgress(state: DesktopNativeUpdateDownloadState | null) 
   }
 
   return Math.min(100, Math.round((state.downloadedBytes / state.totalBytes) * 100));
-}
-
-function getDismissedDesktopUpdateVersion() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return window.localStorage.getItem(DISMISSED_DESKTOP_UPDATE_STORAGE_KEY);
-}
-
-function dismissDesktopUpdateVersion(version: string) {
-  window.localStorage.setItem(DISMISSED_DESKTOP_UPDATE_STORAGE_KEY, version);
 }
 
 export function DesktopNativeUpdateNotifier() {
@@ -108,7 +98,41 @@ export function DesktopNativeUpdateNotifier() {
       return;
     }
 
-    void checkForUpdate({ reveal: false });
+    let cancelled = false;
+
+    const verifyAndCheck = async () => {
+      const verification = await verifyPendingDesktopUpdateInstallation();
+      if (cancelled) {
+        return;
+      }
+
+      if (verification && verification.status !== "matched") {
+        updateRef.current = null;
+        setDownloadState(null);
+        setUpdateInfo({
+          currentVersion: verification.currentVersion ?? t("settings.about.buildInfo.unknown"),
+          releaseRing: verification.releaseRing,
+          version: verification.expectedVersion,
+        });
+        setStatus("error");
+        setPanelOpen(true);
+        setError(
+          verification.status === "unavailable"
+            ? t("desktop.update.verifyUnavailable", {
+                expected: verification.expectedVersion,
+              })
+            : t("desktop.update.verifyError", {
+                actual: verification.currentVersion ?? t("settings.about.buildInfo.unknown"),
+                expected: verification.expectedVersion,
+              }),
+        );
+        return;
+      }
+
+      await checkForUpdate({ reveal: false });
+    };
+
+    void verifyAndCheck();
 
     const intervalId = window.setInterval(() => {
       void checkForUpdate({ reveal: false });
@@ -129,12 +153,13 @@ export function DesktopNativeUpdateNotifier() {
     window.addEventListener("focus", handleOnline);
 
     return () => {
+      cancelled = true;
       window.clearInterval(intervalId);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("focus", handleOnline);
     };
-  }, [canUseUpdater, checkForUpdate]);
+  }, [canUseUpdater, checkForUpdate, t]);
 
   useEffect(() => {
     if (!panelOpen) {
@@ -342,7 +367,7 @@ export function DesktopNativeUpdateNotifier() {
             <div className="mt-3 flex items-center gap-2">
               <button
                 className="inline-flex min-h-9 flex-1 items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-3 text-[11px] font-black text-white shadow-[0_12px_28px_hsl(var(--primary)/0.2)] transition hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-65"
-                disabled={isBusy || isChecking}
+                disabled={isBusy || isChecking || !updateRef.current}
                 onClick={installUpdate}
                 type="button"
               >

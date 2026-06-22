@@ -10,7 +10,11 @@
     "dev": "node ./scripts/run-tauri.mjs dev",
     "build:desktop": "node ./scripts/run-tauri.mjs build",
     "build:desktop:config": "node ./scripts/run-tauri.mjs build --write-config-only",
+    "release:audit": "node ./scripts/release-audit.mjs",
+    "release:manifest": "node ./scripts/create-update-manifest.mjs",
     "release:ops": "node ./scripts/release-ops.mjs",
+    "release:promotion": "node ./scripts/release-promotion.mjs",
+    "release:validate-manifest": "node ./scripts/validate-update-manifest.mjs",
     "test": "node --test scripts/*.test.mjs",
     "tauri": "tauri"
   },

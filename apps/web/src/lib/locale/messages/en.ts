@@ -68,6 +68,10 @@ export const EN_MESSAGES = {
     "desktop.update.errorShort": "Update failed",
     "desktop.update.installError":
       "The update could not be installed. Whispr did not change your current version.",
+    "desktop.update.verifyError":
+      "The update could not be verified. Expected desktop version v{expected}, but v{actual} is still running.",
+    "desktop.update.verifyUnavailable":
+      "The update could not be verified. Whispr could not read the desktop runtime version expected to be v{expected}.",
     "desktop.update.pillReady": "Update available",
     "desktop.update.versionLabel": "Version",
     "desktop.update.versionLine": "v{current} -> v{latest}",
