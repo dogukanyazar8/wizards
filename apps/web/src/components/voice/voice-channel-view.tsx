@@ -215,9 +215,9 @@ function getSpeakingClass(isSpeaking: boolean) {
 
 function getParticipantGridClass() {
   return cn(
-    "grid h-full min-h-0 w-full gap-3 sm:gap-4",
-    "grid-cols-1 grid-rows-[repeat(var(--voice-grid-mobile-rows),minmax(0,1fr))]",
-    "sm:grid-cols-[repeat(var(--voice-grid-columns),minmax(0,1fr))] sm:grid-rows-[repeat(var(--voice-grid-rows),minmax(0,1fr))]",
+    "grid h-full min-h-0 w-full content-start gap-2.5 overflow-y-auto pr-1 sm:gap-3",
+    "grid-cols-1 auto-rows-[minmax(13.5rem,auto)]",
+    "md:grid-cols-[repeat(auto-fit,minmax(min(100%,17rem),1fr))] md:auto-rows-fr",
   );
 }
 
@@ -308,14 +308,16 @@ function MicrophoneStatusPill({ muted }: { muted: boolean }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-bold shadow-[0_14px_38px_hsl(var(--shadow-color)/0.08)] transition",
+        "inline-flex min-w-0 items-center justify-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold shadow-[0_10px_28px_hsl(var(--shadow-color)/0.07)] transition sm:px-4 sm:py-2 sm:text-sm",
         muted
           ? "border-[hsl(var(--danger)/0.20)] bg-[hsl(var(--danger)/0.08)] text-[hsl(var(--danger))]"
           : "border-[hsl(var(--success)/0.20)] bg-[hsl(var(--success)/0.10)] text-[hsl(var(--success))]",
       )}
     >
-      {muted ? <MicOff className="h-[18px] w-[18px]" /> : <Mic className="h-[18px] w-[18px]" />}
-      {muted ? t("voice.room.microphoneClosed") : t("voice.room.microphoneActive")}
+      {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+      <span className="truncate">
+        {muted ? t("voice.room.microphoneClosed") : t("voice.room.microphoneActive")}
+      </span>
     </span>
   );
 }
@@ -326,18 +328,20 @@ function OutputStatusPill({ muted }: { muted: boolean }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-bold shadow-[0_14px_38px_hsl(var(--shadow-color)/0.08)] transition",
+        "inline-flex min-w-0 items-center justify-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold shadow-[0_10px_28px_hsl(var(--shadow-color)/0.07)] transition sm:px-4 sm:py-2 sm:text-sm",
         muted
           ? "border-[hsl(var(--danger)/0.20)] bg-[hsl(var(--danger)/0.08)] text-[hsl(var(--danger))]"
           : "border-[hsl(var(--success)/0.20)] bg-[hsl(var(--success)/0.10)] text-[hsl(var(--success))]",
       )}
     >
       {muted ? (
-        <VolumeX className="h-[18px] w-[18px]" />
+        <VolumeX className="h-4 w-4" />
       ) : (
-        <Volume2 className="h-[18px] w-[18px]" />
+        <Volume2 className="h-4 w-4" />
       )}
-      {muted ? t("voice.room.outputClosed") : t("voice.room.outputActive")}
+      <span className="truncate">
+        {muted ? t("voice.room.outputClosed") : t("voice.room.outputActive")}
+      </span>
     </span>
   );
 }
@@ -348,18 +352,20 @@ function CameraStatusPill({ enabled }: { enabled: boolean }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-bold shadow-[0_14px_38px_hsl(var(--shadow-color)/0.08)] transition",
+        "inline-flex min-w-0 items-center justify-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold shadow-[0_10px_28px_hsl(var(--shadow-color)/0.07)] transition sm:px-4 sm:py-2 sm:text-sm",
         enabled
           ? "border-[hsl(var(--success)/0.20)] bg-[hsl(var(--success)/0.10)] text-[hsl(var(--success))]"
           : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.52)] text-app-muted",
       )}
     >
       {enabled ? (
-        <Video className="h-[18px] w-[18px]" />
+        <Video className="h-4 w-4" />
       ) : (
-        <VideoOff className="h-[18px] w-[18px]" />
+        <VideoOff className="h-4 w-4" />
       )}
-      {enabled ? t("voice.room.cameraActive") : t("voice.room.cameraClosed")}
+      <span className="truncate">
+        {enabled ? t("voice.room.cameraActive") : t("voice.room.cameraClosed")}
+      </span>
     </span>
   );
 }
@@ -485,7 +491,7 @@ function VoiceParticipantTile({
   return (
     <article
       className={cn(
-        "relative flex h-full min-h-0 flex-col overflow-hidden rounded-[30px] border bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.92),hsl(var(--surface-soft)/0.44))] p-3 transition sm:p-4",
+        "relative flex h-full min-h-[13.5rem] min-w-0 flex-col overflow-hidden rounded-[22px] border bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.92),hsl(var(--surface-soft)/0.44))] p-2.5 transition sm:min-h-[15rem] sm:rounded-[26px] sm:p-3.5",
         getSpeakingClass(participant.isSpeaking),
       )}
       data-speaking={participant.isSpeaking ? "true" : "false"}
@@ -493,28 +499,30 @@ function VoiceParticipantTile({
       data-user-id={participant.userId}
       data-username={participant.username}
     >
-      <div className="flex shrink-0 items-start justify-between gap-3">
-        <div className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 py-1 text-[11px] font-semibold text-app-muted">
+      <div className="flex shrink-0 items-start justify-between gap-2">
+        <div className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.68)] px-2 py-1 text-[10px] font-semibold text-app-muted sm:text-[11px]">
           <span className="h-2.5 w-2.5 rounded-full bg-[hsl(var(--success))] shadow-[0_0_0_4px_hsl(var(--success)/0.12)]" />
-          {participant.isSpeaking ? t("voice.room.speaking") : t("voice.room.connected")}
+          <span className="truncate">
+            {participant.isSpeaking ? t("voice.room.speaking") : t("voice.room.connected")}
+          </span>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
           {isScreenSharing ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 text-[11px] font-semibold text-[hsl(var(--primary))]">
+            <span className="inline-flex max-w-[8rem] items-center gap-1 rounded-full border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.12)] px-2 py-1 text-[10px] font-semibold text-[hsl(var(--primary))] sm:text-[11px]">
               <MonitorUp className="h-3.5 w-3.5" />
-              {t("voice.room.screenSharing")}
+              <span className="truncate">{t("voice.room.screenSharing")}</span>
             </span>
           ) : null}
           {participant.isCameraEnabled ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--success)/0.22)] bg-[hsl(var(--success)/0.10)] px-2.5 py-1 text-[11px] font-semibold text-[hsl(var(--success))]">
+            <span className="inline-flex max-w-[7rem] items-center gap-1 rounded-full border border-[hsl(var(--success)/0.22)] bg-[hsl(var(--success)/0.10)] px-2 py-1 text-[10px] font-semibold text-[hsl(var(--success))] sm:text-[11px]">
               <Video className="h-3.5 w-3.5" />
-              {t("voice.room.cameraOn")}
+              <span className="truncate">{t("voice.room.cameraOn")}</span>
             </span>
           ) : null}
           <span
             className={cn(
-              "inline-flex h-9 w-9 items-center justify-center rounded-full border",
+              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border sm:h-9 sm:w-9",
               participant.isMuted
                 ? "border-[hsl(var(--danger)/0.26)] bg-[hsl(var(--danger)/0.12)] text-[hsl(var(--danger))]"
                 : "border-[hsl(var(--success)/0.22)] bg-[hsl(var(--success)/0.10)] text-[hsl(var(--success))]",
@@ -544,7 +552,7 @@ function VoiceParticipantTile({
           </div>
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-3 text-center">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-2 text-center sm:py-3">
           <div
             className={cn(
               "rounded-full p-1 transition",
@@ -556,12 +564,12 @@ function VoiceParticipantTile({
           >
             <Avatar
               alt={displayName}
-              className="h-[clamp(3.75rem,8vh,6rem)] w-[clamp(3.75rem,8vh,6rem)] border-none text-lg"
+              className="h-[clamp(3.25rem,7vh,5.5rem)] w-[clamp(3.25rem,7vh,5.5rem)] border-none text-lg"
               fallback={displayName}
               src={participant.avatarUrl}
             />
           </div>
-          <div className="mt-3 min-w-0">
+          <div className="mt-2 min-w-0 sm:mt-3">
             <p className="truncate text-base font-semibold text-app-foreground sm:text-lg">
               {displayName}
             </p>
@@ -579,15 +587,15 @@ function VoiceParticipantTile({
       )}
 
       {participant.isLocal ? (
-        <div className="flex shrink-0 flex-wrap justify-center gap-2 pb-1">
+        <div className="flex shrink-0 flex-wrap justify-center gap-1.5 pb-1 sm:gap-2">
           <MicrophoneStatusPill muted={participant.isMuted} />
           <CameraStatusPill enabled={participant.isCameraEnabled} />
           <OutputStatusPill muted={isLocalOutputMuted} />
         </div>
       ) : (
-        <div className="shrink-0 rounded-[20px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.56)] px-3 py-2">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-app-soft">
+        <div className="shrink-0 rounded-2xl border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-card)/0.52)] px-2.5 py-2 sm:rounded-[20px] sm:px-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-app-soft sm:text-xs sm:tracking-[0.16em]">
               {t("voice.grid.remoteVolume")}
             </span>
             <div className="flex items-center gap-2">

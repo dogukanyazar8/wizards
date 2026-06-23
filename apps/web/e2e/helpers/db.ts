@@ -469,6 +469,30 @@ export async function createIsolatedServerForMembershipTest(
   });
 }
 
+export async function deleteIsolatedE2EServer(serverId: string): Promise<void> {
+  await withE2EDatabase(async (prisma) => {
+    const server = await prisma.server.findUnique({
+      where: { id: serverId },
+      select: { features: true, id: true, name: true },
+    });
+
+    const isDisposableMembershipServer =
+      server?.name.startsWith("Whispr E2E Membership ") &&
+      server.features.includes("E2E_TEST");
+
+    if (!server || !isDisposableMembershipServer) {
+      return;
+    }
+
+    await prisma.voiceState.deleteMany({
+      where: { serverId: server.id },
+    });
+    await prisma.server.delete({
+      where: { id: server.id },
+    });
+  });
+}
+
 export async function addE2EServerMember(
   serverId: string,
   userKey: E2EUserKey,

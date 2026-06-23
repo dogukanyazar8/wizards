@@ -16,6 +16,7 @@ type ChannelSidebarNavigationOptions = AppRouteReadyOptions & {
 };
 
 const MESSAGE_LIST_LOADING_TEXT = /Loading messages|Mesajlar yükleniyor/i;
+const DEFAULT_APP_READY_TIMEOUT = process.env.CI === "true" ? 30_000 : 15_000;
 
 function appRouteSegment(value: string): string {
   return encodeURIComponent(value);
@@ -33,7 +34,7 @@ export async function waitForMessageListReady(
   page: Page,
   options: Pick<AppRouteReadyOptions, "timeout"> = {},
 ): Promise<void> {
-  const timeout = options.timeout ?? 15_000;
+  const timeout = options.timeout ?? DEFAULT_APP_READY_TIMEOUT;
   const messageList = visibleTestId(page, "message-list");
   const messageInput = visibleTestId(page, "message-input");
 
@@ -55,7 +56,7 @@ export async function gotoAppRoute(
 
   if (options.readyTestId) {
     await expect(visibleTestId(page, options.readyTestId)).toBeVisible({
-      timeout: options.timeout ?? 15_000,
+      timeout: options.timeout ?? DEFAULT_APP_READY_TIMEOUT,
     });
   }
 }
@@ -95,7 +96,7 @@ export async function clickServerRailServerAndWait(
   expectedUrl: string | RegExp,
   options: ServerRailNavigationOptions = {},
 ): Promise<void> {
-  const timeout = options.timeout ?? 15_000;
+  const timeout = options.timeout ?? DEFAULT_APP_READY_TIMEOUT;
   const serverRailItem = visibleTestId(page, `server-rail-server-${serverId}`);
 
   await expect(serverRailItem).toBeVisible({ timeout });
@@ -118,7 +119,7 @@ export async function clickServerRailDmAndWait(
   expectedUrl: string | RegExp = /\/channels\/@me(?:$|\/)/,
   options: AppRouteReadyOptions = {},
 ): Promise<void> {
-  const timeout = options.timeout ?? 15_000;
+  const timeout = options.timeout ?? DEFAULT_APP_READY_TIMEOUT;
   const dmItem = visibleTestId(page, "server-rail-dm");
 
   await expect(dmItem).toBeVisible({ timeout });
@@ -138,7 +139,7 @@ export async function clickChannelSidebarChannelAndWait(
   expectedUrl: string | RegExp,
   options: ChannelSidebarNavigationOptions = {},
 ): Promise<void> {
-  const timeout = options.timeout ?? 15_000;
+  const timeout = options.timeout ?? DEFAULT_APP_READY_TIMEOUT;
   const channelItem = visibleTestId(page, `channel-item-${channelId}`);
 
   await expect(channelItem).toBeVisible({ timeout });

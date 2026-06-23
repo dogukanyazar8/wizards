@@ -7,6 +7,7 @@ import {
 } from "../../helpers/diagnostics";
 import {
   createIsolatedServerForMembershipTest,
+  deleteIsolatedE2EServer,
   getE2EDMConversationId,
   getE2EServerRoute,
   getServerMemberId,
@@ -54,6 +55,8 @@ async function closeLoggedInPages(pages: LoggedInPage[]): Promise<void> {
 }
 
 test.describe("realtime multi-user flows", () => {
+  test.describe.configure({ timeout: process.env.CI === "true" ? 45_000 : 30_000 });
+
   test("server messages appear for another member without reload", async ({ browser }, testInfo) => {
     const { serverId, textChannelId } = await getE2EServerRoute();
     const alice = await openLoggedInPage(browser, "alice", testInfo);
@@ -163,6 +166,7 @@ test.describe("realtime multi-user flows", () => {
       });
     } finally {
       await closeLoggedInPages([alice, bob]);
+      await deleteIsolatedE2EServer(serverId);
     }
   });
 
