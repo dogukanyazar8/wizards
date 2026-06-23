@@ -19,6 +19,7 @@ describe("desktop release audit", () => {
         artifactPath,
         expectedVersion: "0.8.14",
         manifestSource: manifestPath,
+        manifestUrl: "https://updates.whispr.team/desktop/uat/latest.json",
         ring: "uat",
         signaturePath,
         webUrl: "https://wizardsweb-uat.up.railway.app/",
@@ -44,6 +45,7 @@ describe("desktop release audit", () => {
       });
       assert.deepEqual(report.updaterFeed, {
         artifactUrl: "https://updates.whispr.team/desktop/uat/Whispr_0.8.14_x64-setup.exe",
+        manifestUrl: "https://updates.whispr.team/desktop/uat/latest.json",
         platform: "windows-x86_64",
         signatureVerified: true,
         source: "latest.json",
@@ -135,6 +137,8 @@ describe("desktop release audit", () => {
         "--ring=uat",
         "--manifest",
         "latest.json",
+        "--manifest-url",
+        "https://updates.whispr.team/desktop/uat/latest.json",
         "--artifact",
         "Whispr_0.8.14_x64-setup.exe",
         "--signature",
@@ -153,6 +157,7 @@ describe("desktop release audit", () => {
         checkArtifactUrl: true,
         expectedVersion: "0.8.14",
         manifestSource: "latest.json",
+        manifestUrl: "https://updates.whispr.team/desktop/uat/latest.json",
         outputPath: "release-audit.json",
         platform: undefined,
         requireManifest: true,

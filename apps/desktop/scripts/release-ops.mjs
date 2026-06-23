@@ -75,6 +75,69 @@ export const DESKTOP_PERFORMANCE_BUDGETS = Object.freeze({
   shortcutLatencyMs: 50,
 });
 
+export const DESKTOP_RELEASE_PERFORMANCE_EVIDENCE = Object.freeze([
+  {
+    id: "warm-start",
+    budget: `<= ${DESKTOP_PERFORMANCE_BUDGETS.warmStartMs}ms`,
+    description: "Measure process launch to interactive main shell on a warm Windows profile.",
+  },
+  {
+    id: "idle-memory",
+    budget: `<= ${DESKTOP_PERFORMANCE_BUDGETS.memoryMb}MB`,
+    description: "Measure warm idle desktop process-family memory after at least 60 seconds.",
+  },
+  {
+    id: "updater-check-install",
+    budget: "success",
+    description: "Verify update check, download, install, relaunch, and version reporting on the target ring.",
+  },
+  {
+    id: "overlay-cpu",
+    budget: `<= ${DESKTOP_PERFORMANCE_BUDGETS.overlayCpuPercent}% average`,
+    description: "Measure overlay CPU while visible over a 60 second game/windowed-app session.",
+  },
+  {
+    id: "shortcut-latency",
+    budget: `<= ${DESKTOP_PERFORMANCE_BUDGETS.shortcutLatencyMs}ms p95`,
+    description: "Measure global shortcut press to visible/audio state change.",
+  },
+]);
+
+export const DESKTOP_RELEASE_PROMOTION_RULES = Object.freeze([
+  {
+    ring: "uat",
+    rollout: "manual QA users only",
+    entryCriteria: [
+      "release contract, Windows build, local manifest validation, R2 upload, and remote manifest validation pass",
+    ],
+    exitCriteria: [
+      "manual QA checklist completed",
+      "updater smoke succeeds from previous installed version",
+      "no blocker diagnostics, crash, voice, overlay, or auth regressions remain open",
+    ],
+  },
+  {
+    ring: "canary",
+    rollout: "small monitored production cohort",
+    entryCriteria: ["UAT evidence is attached", "rollback manifest is ready", "support owner is assigned"],
+    exitCriteria: [
+      "canary update health is clean",
+      "crash and install failure signals stay within budget",
+      "support feedback has no release blockers",
+    ],
+  },
+  {
+    ring: "stable",
+    rollout: "broad production release",
+    entryCriteria: [
+      "canary health is clean",
+      "stable dispatch guard is confirmed from main",
+      "real OV/EV Windows signing configuration is present",
+    ],
+    exitCriteria: ["stable update metrics remain healthy", "rollback window completed"],
+  },
+]);
+
 export const DESKTOP_RELEASE_SAFETY_RULES = Object.freeze([
   {
     id: "no-broad-native-permissions",
@@ -139,6 +202,12 @@ export function getDesktopReleaseOpsContract() {
     releaseRings: [...DESKTOP_RELEASE_RINGS],
     smokeTests: DESKTOP_REQUIRED_SMOKE_TESTS.map((test) => ({ ...test })),
     performanceBudgets: { ...DESKTOP_PERFORMANCE_BUDGETS },
+    performanceEvidence: DESKTOP_RELEASE_PERFORMANCE_EVIDENCE.map((item) => ({ ...item })),
+    promotionRules: DESKTOP_RELEASE_PROMOTION_RULES.map((rule) => ({
+      ...rule,
+      entryCriteria: [...rule.entryCriteria],
+      exitCriteria: [...rule.exitCriteria],
+    })),
     safetyRules: DESKTOP_RELEASE_SAFETY_RULES.map((rule) => ({ ...rule })),
     versionContract: getDesktopVersionContract(),
     platformMatrix: {
@@ -173,6 +242,33 @@ export function assertDesktopReleaseOpsContract(contract = getDesktopReleaseOpsC
   assertPositiveBudget(budgets.memoryMb, "memoryMb", 256);
   assertPositiveBudget(budgets.overlayCpuPercent, "overlayCpuPercent", 5);
   assertPositiveBudget(budgets.shortcutLatencyMs, "shortcutLatencyMs", 75);
+
+  const evidenceIds = new Set(contract.performanceEvidence.map((item) => item.id));
+  for (const requiredId of DESKTOP_RELEASE_PERFORMANCE_EVIDENCE.map((item) => item.id)) {
+    assertCondition(evidenceIds.has(requiredId), `Missing desktop performance evidence: ${requiredId}`);
+  }
+
+  for (const item of contract.performanceEvidence) {
+    assertCondition(
+      typeof item.description === "string" && item.description.length >= 20,
+      `Desktop performance evidence ${item.id} needs a practical description.`,
+    );
+    assertCondition(
+      typeof item.budget === "string" && item.budget.length > 0,
+      `Desktop performance evidence ${item.id} needs a budget.`,
+    );
+  }
+
+  const promotionRings = contract.promotionRules.map((rule) => rule.ring);
+  assertArrayEquals(promotionRings, ["uat", "canary", "stable"], "promotion rings");
+  for (const rule of contract.promotionRules) {
+    assertCondition(rule.entryCriteria.length > 0, `Promotion rule ${rule.ring} needs entry criteria.`);
+    assertCondition(rule.exitCriteria.length > 0, `Promotion rule ${rule.ring} needs exit criteria.`);
+    assertCondition(
+      typeof rule.rollout === "string" && rule.rollout.length > 0,
+      `Promotion rule ${rule.ring} needs a rollout description.`,
+    );
+  }
 
   const safetyRuleIds = new Set(contract.safetyRules.map((rule) => rule.id));
   for (const requiredRule of DESKTOP_RELEASE_SAFETY_RULES.map((rule) => rule.id)) {

@@ -5,6 +5,8 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   DESKTOP_PERFORMANCE_BUDGETS,
+  DESKTOP_RELEASE_PERFORMANCE_EVIDENCE,
+  DESKTOP_RELEASE_PROMOTION_RULES,
   DESKTOP_RELEASE_RINGS,
   DESKTOP_RELEASE_SAFETY_RULES,
   DESKTOP_REQUIRED_SMOKE_TESTS,
@@ -40,6 +42,27 @@ describe("desktop release operations contract", () => {
     assert.ok(DESKTOP_PERFORMANCE_BUDGETS.memoryMb <= 220);
     assert.ok(DESKTOP_PERFORMANCE_BUDGETS.overlayCpuPercent <= 3);
     assert.ok(DESKTOP_PERFORMANCE_BUDGETS.shortcutLatencyMs <= 50);
+  });
+
+  it("requires release performance evidence for the operational budgets", () => {
+    const evidenceIds = DESKTOP_RELEASE_PERFORMANCE_EVIDENCE.map((item) => item.id);
+
+    assert.deepEqual(evidenceIds, [
+      "warm-start",
+      "idle-memory",
+      "updater-check-install",
+      "overlay-cpu",
+      "shortcut-latency",
+    ]);
+    assert.ok(DESKTOP_RELEASE_PERFORMANCE_EVIDENCE.every((item) => item.description.length >= 20));
+  });
+
+  it("keeps ring promotion rules explicit", () => {
+    const promotionRings = DESKTOP_RELEASE_PROMOTION_RULES.map((rule) => rule.ring);
+
+    assert.deepEqual(promotionRings, ["uat", "canary", "stable"]);
+    assert.ok(DESKTOP_RELEASE_PROMOTION_RULES.every((rule) => rule.entryCriteria.length > 0));
+    assert.ok(DESKTOP_RELEASE_PROMOTION_RULES.every((rule) => rule.exitCriteria.length > 0));
   });
 
   it("codifies the desktop safety rules that must not regress", () => {
@@ -80,7 +103,7 @@ describe("desktop release operations contract", () => {
     );
   });
 
-  it("documents release rings, smoke gates, budgets, and safety rules", async () => {
+  it("documents release rings, smoke gates, budgets, promotion rules, and safety rules", async () => {
     const [readme, releaseGuide, qaGuide] = await Promise.all([
       readFile(path.join(desktopRoot, "README.md"), "utf8"),
       readFile(path.join(desktopRoot, "RELEASE.md"), "utf8"),
@@ -101,6 +124,17 @@ describe("desktop release operations contract", () => {
 
     for (const budget of ["warm start", "memory", "overlay CPU", "shortcut latency"]) {
       assert.match(docs, new RegExp(budget, "i"), `Expected documented budget: ${budget}`);
+    }
+
+    for (const evidence of DESKTOP_RELEASE_PERFORMANCE_EVIDENCE) {
+      assert.ok(
+        docs.includes(`\`${evidence.id}\``),
+        `Expected documented performance evidence: ${evidence.id}`,
+      );
+    }
+
+    for (const rule of DESKTOP_RELEASE_PROMOTION_RULES) {
+      assert.match(docs, new RegExp(rule.rollout, "i"), `Expected documented rollout: ${rule.rollout}`);
     }
 
     for (const safetyRule of DESKTOP_RELEASE_SAFETY_RULES) {

@@ -18,6 +18,7 @@ describe("desktop release promotion bundle", () => {
         artifactPath,
         expectedVersion: "0.8.14",
         manifestSource: manifestPath,
+        manifestUrl: "https://updates.whispr.team/desktop/uat/latest.json",
         ring: "uat",
         signaturePath,
         webUrl: "https://wizardsweb-uat.up.railway.app/",
@@ -28,11 +29,15 @@ describe("desktop release promotion bundle", () => {
       assert.equal(bundle.release.version, "0.8.14");
       assert.equal(bundle.release.webUrl, "https://wizardsweb-uat.up.railway.app/");
       assert.equal(bundle.release.artifactFileName, "Whispr_0.8.14_x64-setup.exe");
+      assert.equal(bundle.release.manifestUrl, "https://updates.whispr.team/desktop/uat/latest.json");
       assert.equal(bundle.release.updaterManifestSource, "latest.json");
       assert.ok(bundle.release.artifactSha256);
       assert.ok(bundle.requiredSmokeTests.some((test) => test.id === "release-promotion-bundle"));
+      assert.ok(bundle.manualQaSteps.some((step) => /updater card/i.test(step)));
       assert.ok(bundle.operatorChecklist.length >= 4);
-      assert.ok(bundle.rollbackPlan.length >= 3);
+      assert.ok(bundle.performanceEvidence.some((item) => item.id === "updater-check-install"));
+      assert.ok(bundle.promotionRules.some((rule) => rule.ring === "stable"));
+      assert.ok(bundle.rollbackPlan.some((item) => /aws --endpoint-url/.test(item)));
 
       const serialized = JSON.stringify(bundle);
       assert.doesNotMatch(serialized, new RegExp(signatureText));
@@ -61,6 +66,10 @@ describe("desktop release promotion bundle", () => {
       assert.match(json, /"ready-for-promotion"/);
       assert.match(markdown, /Whispr Desktop Release Promotion - 0\.8\.14 \(uat\)/);
       assert.match(markdown, /Mandatory Smoke Tests/);
+      assert.match(markdown, /Manual QA Steps/);
+      assert.match(markdown, /Performance Evidence/);
+      assert.match(markdown, /Ring Promotion Rules/);
+      assert.match(markdown, /aws --endpoint-url/);
       assert.doesNotMatch(json, new RegExp(signatureText));
       assert.doesNotMatch(markdown, new RegExp(signatureText));
     });
@@ -118,6 +127,8 @@ describe("desktop release promotion bundle", () => {
         "uat",
         "--manifest",
         "latest.json",
+        "--manifest-url",
+        "https://updates.whispr.team/desktop/uat/latest.json",
         "--artifact",
         "Whispr_0.8.14_x64-setup.exe",
         "--signature",
@@ -135,6 +146,7 @@ describe("desktop release promotion bundle", () => {
         checkArtifactUrl: true,
         expectedVersion: "0.8.14",
         manifestSource: "latest.json",
+        manifestUrl: "https://updates.whispr.team/desktop/uat/latest.json",
         outputDir: "release-evidence",
         platform: undefined,
         ring: "uat",

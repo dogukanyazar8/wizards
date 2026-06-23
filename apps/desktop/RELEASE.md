@@ -161,6 +161,12 @@ Recommended rollout rings:
 
 Each ring should point to a distinct HTTPS manifest endpoint so rollback is controlled by the manifest, not by changing already-installed clients.
 
+Promotion rules:
+
+- `uat`: rollout is manual QA users only. It requires release contract, Windows build, local manifest validation, R2 upload, and remote manifest validation to pass before manual testing starts. It exits only after the manual QA checklist, updater smoke from the previous installed version, and blocker review are clean.
+- `canary`: rollout is a small monitored production cohort. It requires UAT evidence, a ready rollback manifest, and an assigned support owner. It exits only when canary update health, install failures, crashes, and support feedback are within budget.
+- `stable`: rollout is a broad production release. It requires clean canary health, `main` branch dispatch, explicit stable confirmation, and real OV/EV Windows signing. It remains reversible until the rollback window is complete.
+
 ## macOS And Linux Readiness
 
 macOS and Linux bundle targets are not enabled in Phase 5. Before enabling them, add platform-specific QA for:
@@ -178,6 +184,125 @@ The GitHub Actions workflow has three desktop layers:
 - `desktop-ops` runs on Windows, macOS, and Linux. Windows is mandatory; macOS and Linux are staged `continue-on-error` targets until platform signing and packaging mature.
 - `desktop-ops` runs `pnpm --filter @wizards/desktop release:ops`, `pnpm --filter @wizards/desktop test`, and `pnpm --filter @wizards/desktop build:desktop:config`.
 - `desktop-build` runs on `windows-latest`, installs Rust stable, audits Rust dependencies, generates the production config, builds the Tauri app, signs tagged release artifacts when certificate secrets exist, and uploads Windows bundles for release tags.
+- `desktop-release.yml` is the release-operator workflow. It validates the requested ring/version/web URL contract, builds a Windows NSIS installer from that contract, optionally publishes the updater feed to R2, and optionally creates a GitHub Release with the installer plus redacted evidence.
+
+## Desktop Release Contract Workflow
+
+Desktop release automation starts with a separate GitHub Actions workflow:
+
+```text
+.github/workflows/desktop-release.yml
+```
+
+This workflow validates the release ring, version, web origin, tag strategy, stable-release guard, version contract, and desktop release operations contract before building the Windows desktop artifact. When publishing is requested, it uploads updater artifacts to Cloudflare R2, validates the remote manifest, and can create a GitHub Release after the R2 feed is proven reachable.
+
+Manual dispatch inputs:
+
+- `ring`: `uat`, `canary`, or `stable`.
+- `version`: desktop native version without a leading `v`.
+- `web_url`: HTTPS Whispr web origin embedded into the desktop build.
+- `publish_github_release`: create a GitHub Release after the R2 updater feed is published and validated.
+- `publish_r2`: publish updater-compatible artifacts for the selected release ring. This enables updater signing checks and requires a matching `.sig` artifact.
+- `updater_base_url`: optional HTTPS updater artifact directory. When omitted and `publish_r2=true`, the workflow defaults to `https://updates.whispr.team/desktop/<ring>/`.
+- `confirm_stable_release`: required extra guard for stable dispatches from `main`.
+
+Release tag strategy:
+
+- UAT: `v<version>-uat.<run-number>`
+- Canary: `v<version>-canary.<run-number>`
+- Stable: `v<version>`
+
+Stable dispatches are rejected unless all of these are true:
+
+- The workflow is dispatched from `main`.
+- `confirm_stable_release=true`.
+- `web_url=https://whispr.team/`.
+- `version` is a clean semver value without prerelease or build metadata.
+- `WINDOWS_CERTIFICATE_PFX_BASE64` and `WINDOWS_CERTIFICATE_PASSWORD` are present.
+- `WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND` is set to `OV` or `EV`.
+
+When `publish_r2=true`, the workflow rejects the build before Tauri runs unless all updater prerequisites are present:
+
+- `WHISPR_DESKTOP_UPDATER_ENDPOINTS` points to one or more HTTPS `latest.json` manifests.
+- `WHISPR_DESKTOP_UPDATER_PUBLIC_KEY` is configured as a repository/environment variable.
+- `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` are configured as secrets.
+- Windows signing is enabled with `WINDOWS_CERTIFICATE_PFX_BASE64` and `WINDOWS_CERTIFICATE_PASSWORD`. A self-signed PFX is acceptable for UAT smoke tests; stable must use the real OV/EV certificate configuration above.
+
+`publish_github_release=true` requires `publish_r2=true`. This prevents a GitHub Release from being created without a reachable updater manifest and rollback evidence.
+
+The contract also validates the updater artifact base URL before build:
+
+- It must use HTTPS.
+- It must not point to localhost, `127.0.0.1`, `::1`, or `whispr.invalid`.
+- It must be an artifact directory, not a `latest.json` file.
+- Its path must include the selected release ring segment, which prevents a UAT build from accidentally targeting the stable updater prefix.
+
+The workflow uploads three evidence groups:
+
+- `desktop-release-contract-<ring>-<version>` with the redacted dispatch contract.
+- `desktop-build-<ring>-<version>-windows` with the Windows NSIS installer, generated updater signature/JSON artifacts, `desktop-build-metadata.json`, and redacted release evidence.
+- `desktop-publish-evidence-<ring>-<version>` with the redacted R2/GitHub publishing plan.
+
+`desktop-build-metadata.json` contains only filenames, sizes, SHA-256 hashes, release ring, platform, version, and updater-enabled state. It intentionally excludes local absolute paths, updater signatures, private keys, signing passwords, PFX material, session tokens, and app secrets.
+
+When `publish_r2=true`, CI automatically runs these commands after the Windows build:
+
+1. `release:manifest` to create `latest.json` from the signed installer and `.sig` file. The updater signature is read verbatim from `.sig`; do not hand-edit or re-encode it.
+2. `release:validate-manifest` to verify platform, version, artifact URL, installer filename, and signature match.
+3. `release:audit` to generate redacted release audit JSON with artifact SHA-256, artifact size, ring, web URL, manifest URL, safety gates, and platform contract.
+4. `release:promotion` to generate redacted JSON and Markdown promotion evidence with the operator checklist and rollback plan.
+
+These evidence files are CI artifacts only. Do not upload audit/promotion evidence as updater assets, and do not publish private key material, tokens, PFX files, passwords, local absolute paths, or raw updater secret values.
+
+The publish plan can be validated locally with:
+
+```powershell
+pnpm --filter @wizards/desktop release:publish-plan -- `
+  --ring uat `
+  --version 0.8.14 `
+  --release-tag v0.8.14-uat.123 `
+  --web-url https://wizardsweb-uat.up.railway.app/ `
+  --updater-base-url https://updates.whispr.team/desktop/uat/ `
+  --publish-r2 true `
+  --publish-github-release true `
+  --artifact .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe `
+  --manifest .\src-tauri\target\release\bundle\nsis\latest.json `
+  --signature .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe.sig `
+  --metadata .\src-tauri\target\release\bundle\nsis\desktop-build-metadata.json `
+  --audit .\src-tauri\target\release\bundle\nsis\release-evidence\desktop-release-audit-0.8.14-uat.json `
+  --promotion-json .\src-tauri\target\release\bundle\nsis\release-evidence\desktop-release-promotion-0.8.14-uat.json `
+  --promotion-md .\src-tauri\target\release\bundle\nsis\release-evidence\desktop-release-promotion-0.8.14-uat.md
+```
+
+R2 publishing uses these keys:
+
+- `desktop/<ring>/Whispr_<version>_x64-setup.exe`
+- `desktop/<ring>/Whispr_<version>_x64-setup.exe.sig`
+- `desktop/<ring>/latest.json`
+
+The installer and `.sig` are uploaded with immutable cache headers. `latest.json` is uploaded with no-cache headers because rollback is manifest-based. To roll back a bad release, publish the previously validated signed `latest.json` back to the same `desktop/<ring>/latest.json` key. Do not mutate or delete already-distributed installer objects during rollback.
+
+R2 is the canonical public download and updater source. GitHub Release publishing is optional and attaches the installer, manifest, `.sig`, build metadata, release audit, promotion evidence, and publish plan. UAT and canary releases are created as GitHub pre-releases; stable releases are normal releases. Because the repository is private, GitHub Release assets are not a public distribution channel.
+
+Required R2 secrets:
+
+- `CLOUDFLARE_ACCOUNT_ID`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_BUCKET`
+
+The metadata guard can be run locally after a Windows build:
+
+```powershell
+pnpm --filter @wizards/desktop release:artifacts -- `
+  --version 0.8.14 `
+  --ring uat `
+  --updater-enabled true `
+  --artifact-dir .\src-tauri\target\release\bundle\nsis `
+  --out .\src-tauri\target\release\bundle\nsis\desktop-build-metadata.json
+```
+
+If updater artifacts are requested, this command fails unless `Whispr_<version>_x64-setup.exe.sig` exists next to the matching installer and is non-empty.
 
 The required desktop smoke gates are:
 
@@ -197,6 +322,16 @@ The release performance budgets are:
 - Memory <= 220 MB warm idle.
 - Overlay CPU <= 3% average while visible.
 - Shortcut latency <= 50 ms p95.
+
+Required performance evidence:
+
+- `warm-start`: process launch to interactive main shell.
+- `idle-memory`: warm idle desktop process-family memory after at least 60 seconds.
+- `updater-check-install`: update check, download, install, relaunch, and runtime version reporting.
+- `overlay-cpu`: overlay CPU while visible for a 60 second game/windowed-app session.
+- `shortcut-latency`: global shortcut key press to visible/audio state change.
+
+The workflow summary must include version, ring, artifact URL, manifest URL, artifact SHA-256, manual QA steps, performance evidence, and rollback guidance. Treat missing evidence as a release blocker beyond `uat`.
 
 The release safety rules are:
 

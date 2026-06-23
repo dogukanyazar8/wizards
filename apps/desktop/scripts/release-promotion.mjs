@@ -5,6 +5,8 @@ import { pathToFileURL } from "node:url";
 import { createDesktopReleaseAudit } from "./release-audit.mjs";
 import {
   DESKTOP_PERFORMANCE_BUDGETS,
+  DESKTOP_RELEASE_PERFORMANCE_EVIDENCE,
+  DESKTOP_RELEASE_PROMOTION_RULES,
   DESKTOP_RELEASE_RINGS,
   DESKTOP_RELEASE_SAFETY_RULES,
   DESKTOP_REQUIRED_SMOKE_TESTS,
@@ -30,6 +32,7 @@ export async function createDesktopReleasePromotionBundle(options = {}) {
     checkArtifactUrl: Boolean(options.checkArtifactUrl),
     expectedVersion: options.expectedVersion,
     manifestSource: options.manifestSource,
+    manifestUrl: options.manifestUrl,
     platform: options.platform,
     requireManifest: true,
     ring,
@@ -51,12 +54,20 @@ export async function createDesktopReleasePromotionBundle(options = {}) {
       artifactSizeBytes: audit.artifact.sizeBytes,
       artifactSha256: audit.artifact.sha256,
       artifactUrl: audit.updaterFeed.artifactUrl,
+      manifestUrl: audit.updaterFeed.manifestUrl,
       updaterManifestSource: audit.updaterFeed.source,
     },
     checks: audit.checks,
     requiredSmokeTests: DESKTOP_REQUIRED_SMOKE_TESTS.map((test) => ({ ...test })),
     performanceBudgets: { ...DESKTOP_PERFORMANCE_BUDGETS },
+    performanceEvidence: DESKTOP_RELEASE_PERFORMANCE_EVIDENCE.map((item) => ({ ...item })),
+    promotionRules: DESKTOP_RELEASE_PROMOTION_RULES.map((rule) => ({
+      ...rule,
+      entryCriteria: [...rule.entryCriteria],
+      exitCriteria: [...rule.exitCriteria],
+    })),
     safetyRules: DESKTOP_RELEASE_SAFETY_RULES.map((rule) => ({ ...rule })),
+    manualQaSteps: buildManualQaSteps(audit.ring),
     operatorChecklist: buildOperatorChecklist(audit.ring),
     rollbackPlan: buildRollbackPlan(audit.ring),
     evidence: {
@@ -95,6 +106,7 @@ export function parseReleasePromotionCliArgs(argv) {
     "check-artifact-url",
     "expected-version",
     "manifest",
+    "manifest-url",
     "out-dir",
     "platform",
     "ring",
@@ -146,6 +158,7 @@ export function parseReleasePromotionCliArgs(argv) {
     checkArtifactUrl: values.get("check-artifact-url") === "true",
     expectedVersion: values.get("expected-version"),
     manifestSource: values.get("manifest"),
+    manifestUrl: values.get("manifest-url"),
     outputDir: values.get("out-dir"),
     platform: values.get("platform"),
     ring: values.get("ring"),
@@ -175,17 +188,39 @@ function assertReadyAudit(audit) {
 
 function buildOperatorChecklist(ring) {
   return [
-    `Upload the installer and generated latest.json to the ${ring} update prefix.`,
-    "Run remote manifest validation with --check-artifact-url after upload.",
-    "Run remote release audit against the uploaded latest.json before exposing the ring.",
+    `Confirm the workflow published the installer, .sig, and generated latest.json to the ${ring} update prefix.`,
+    "Confirm remote manifest validation with --check-artifact-url passed after upload.",
+    "Archive the release audit, promotion bundle, publish plan, and GitHub Release link with the release handoff.",
     "Install the previous desktop version and verify the title-bar update flow reaches the new version.",
     "Complete mandatory Windows smoke gates before promoting to the next ring.",
+    "Record performance evidence for warm start, idle memory, updater install, overlay CPU, and shortcut latency.",
     "Keep generated private keys, signing passwords, PFX files, and temporary key material out of release assets.",
   ];
 }
 
+function buildManualQaSteps(ring) {
+  const steps = [
+    "Install the previous Windows desktop version for the same release ring.",
+    "Launch the app, authenticate, and confirm the updater card sees the new version.",
+    "Click Download and restart, then confirm the app relaunches and Settings -> About reports the new desktop runtime version.",
+    "Run auth restore, close-to-tray, voice join/leave, global shortcut, notification, and overlay smoke checks.",
+    "Export desktop diagnostics only if a failure occurs; redact user/session data before attaching it to support tickets.",
+  ];
+
+  if (ring === "stable") {
+    steps.push("Confirm canary health and support signals are clean before broad stable rollout.");
+  } else if (ring === "canary") {
+    steps.push("Limit rollout to the monitored canary cohort and keep the previous stable manifest ready.");
+  } else {
+    steps.push("Keep UAT release marked as non-production until manual QA is complete.");
+  }
+
+  return steps;
+}
+
 function buildRollbackPlan(ring) {
   return [
+    `Restore command: aws --endpoint-url <r2-endpoint> s3 cp <previous-latest.json> s3://<R2_BUCKET>/desktop/${ring}/latest.json --content-type application/json --cache-control "no-cache, no-store, must-revalidate".`,
     `Replace the ${ring} latest.json with the previous signed manifest if update installation regresses.`,
     "Keep the previous installer available until the new release has passed UAT/canary observation.",
     "Do not delete the previous artifact until update metrics and manual smoke tests are clean.",
@@ -209,11 +244,26 @@ function renderPromotionMarkdown(bundle) {
     `- Artifact: \`${bundle.release.artifactFileName}\` (${bundle.release.artifactSizeBytes} bytes)`,
     `- Artifact SHA-256: \`${bundle.release.artifactSha256}\``,
     `- Updater artifact URL: ${bundle.release.artifactUrl}`,
+    `- Updater manifest URL: ${bundle.release.manifestUrl || "not recorded"}`,
     `- Updater manifest source: ${bundle.release.updaterManifestSource}`,
     "",
     "## Automated Checks",
     "",
     ...bundle.checks.map((check) => `- [x] \`${check.id}\` - ${check.detail}`),
+    "",
+    "## Ring Promotion Rules",
+    "",
+    ...bundle.promotionRules.flatMap((rule) => [
+      `### ${rule.ring}`,
+      "",
+      `- Rollout: ${rule.rollout}`,
+      `- Entry: ${rule.entryCriteria.join("; ")}`,
+      `- Exit: ${rule.exitCriteria.join("; ")}`,
+      "",
+    ]),
+    "## Manual QA Steps",
+    "",
+    ...bundle.manualQaSteps.map((item) => `- [ ] ${item}`),
     "",
     "## Mandatory Smoke Tests",
     "",
@@ -225,6 +275,10 @@ function renderPromotionMarkdown(bundle) {
     `- Warm idle memory: <= ${bundle.performanceBudgets.memoryMb}MB`,
     `- Overlay CPU: <= ${bundle.performanceBudgets.overlayCpuPercent}%`,
     `- Shortcut latency p95: <= ${bundle.performanceBudgets.shortcutLatencyMs}ms`,
+    "",
+    "## Performance Evidence",
+    "",
+    ...bundle.performanceEvidence.map((item) => `- [ ] \`${item.id}\` - ${item.description} Budget: ${item.budget}.`),
     "",
     "## Operator Checklist",
     "",

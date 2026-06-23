@@ -45,6 +45,7 @@ export async function createDesktopReleaseAudit(options = {}) {
 
     updaterFeed = {
       artifactUrl: result.artifactUrl,
+      manifestUrl: options.manifestUrl ? normalizeManifestUrl(options.manifestUrl).href : inferManifestUrl(result.source),
       platform: result.platform,
       signatureVerified: Boolean(options.signaturePath),
       source: sanitizeAuditSource(result.source),
@@ -102,6 +103,7 @@ export function parseReleaseAuditCliArgs(argv) {
     "check-artifact-url",
     "expected-version",
     "manifest",
+    "manifest-url",
     "out",
     "platform",
     "require-manifest",
@@ -148,6 +150,7 @@ export function parseReleaseAuditCliArgs(argv) {
     checkArtifactUrl: values.get("check-artifact-url") === "true",
     expectedVersion: values.get("expected-version"),
     manifestSource: values.get("manifest"),
+    manifestUrl: values.get("manifest-url"),
     outputPath: values.get("out"),
     platform: values.get("platform"),
     requireManifest: values.get("require-manifest") === "true",
@@ -209,6 +212,16 @@ function normalizeWebUrl(value) {
   return url;
 }
 
+function normalizeManifestUrl(value) {
+  const url = normalizeWebUrl(value);
+
+  if (!url.pathname.endsWith(".json")) {
+    throw new Error("--manifest-url must point to a HTTPS .json updater manifest.");
+  }
+
+  return url;
+}
+
 function assertExistingFile(filePath, label) {
   const resolvedPath = path.resolve(String(filePath || ""));
 
@@ -258,6 +271,16 @@ function sanitizeAuditSource(source) {
   }
 
   return path.basename(value);
+}
+
+function inferManifestUrl(source) {
+  const value = String(source || "");
+
+  if (/^https:\/\//i.test(value)) {
+    return value;
+  }
+
+  return null;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

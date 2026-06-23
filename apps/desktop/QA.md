@@ -27,12 +27,25 @@ These smoke gates are release blockers on Windows and staged signal checks on ma
 
 Capture these budgets on a warm Windows profile after the app has been idle for at least 60 seconds:
 
-- Warm start <= 2000 ms from process launch to interactive main shell.
-- Memory <= 220 MB warm idle for the desktop process family.
-- Overlay CPU <= 3% average while visible over a 60 second window.
-- Shortcut latency <= 50 ms p95 from key press to visible/audio state change.
+- `warm-start`: warm start <= 2000 ms from process launch to interactive main shell.
+- `idle-memory`: memory <= 220 MB warm idle for the desktop process family.
+- `updater-check-install`: update check, download, install, relaunch, and Settings -> About runtime version reporting succeeds.
+- `overlay-cpu`: overlay CPU <= 3% average while visible over a 60 second window.
+- `shortcut-latency`: shortcut latency <= 50 ms p95 from key press to visible/audio state change.
 
 If a budget regresses, attach the diagnostics export and the exact build ring before promotion beyond `uat`.
+
+## Ring Promotion Rules
+
+- `uat`: rollout is manual QA users only. Enter after release contract, Windows build, local manifest validation, R2 upload, and remote manifest validation pass. Exit only after the manual QA checklist and updater smoke from the previous installed version pass with no blocker diagnostics, crash, voice, overlay, or auth regressions.
+- `canary`: rollout is a small monitored production cohort. Enter after UAT evidence is attached, rollback manifest is ready, and a support owner is assigned. Exit only when canary update health, crash, install failure, and support feedback are clean.
+- `stable`: rollout is a broad production release. Enter after canary health is clean, the stable dispatch guard is confirmed from `main`, and real OV/EV Windows signing configuration is present. Keep the rollback window open until stable update metrics remain healthy.
+
+## Rollback Evidence
+
+- Keep the previous signed `latest.json`, installer, and `.sig` available for the active ring.
+- Rollback command shape: `aws --endpoint-url <r2-endpoint> s3 cp <previous-latest.json> s3://<R2_BUCKET>/desktop/<ring>/latest.json --content-type application/json --cache-control "no-cache, no-store, must-revalidate"`.
+- After rollback, run remote manifest validation with `--check-artifact-url` and confirm the app no longer offers the bad release to users who have not updated yet.
 
 ## Desktop Safety Rules
 

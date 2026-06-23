@@ -27,29 +27,53 @@
     "mtime": 1782116231.0371125,
     "hash": "0321bb3ef93134b2913fb70309f00e88"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\desktop-release-artifacts.mjs": {
+    "mtime": 1782224160.3276548,
+    "hash": "d98000bcf5d1270068d8430793c40897"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\desktop-release-artifacts.test.mjs": {
+    "mtime": 1782224206.3256469,
+    "hash": "1dac73953b96592d499efe4ba0d694df"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\desktop-release-publish-plan.mjs": {
+    "mtime": 1782225949.875947,
+    "hash": "ac7ff25eacc00f5d385dea3bf9b05856"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\desktop-release-publish-plan.test.mjs": {
+    "mtime": 1782226086.694934,
+    "hash": "7d6cc9a05043ddcc0035ddd5ff25f3ce"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\desktop-release-workflow.mjs": {
+    "mtime": 1782225409.7063248,
+    "hash": "e6a9b5a2a550ebf858129e7e34c29a5a"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\desktop-release-workflow.test.mjs": {
+    "mtime": 1782225435.4466722,
+    "hash": "fbbeb08265efe40dee2939afed5a9851"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\release-audit.mjs": {
-    "mtime": 1782117514.001481,
-    "hash": "8eb89f26e273c6d35b900a62794e4ffd"
+    "mtime": 1782224949.3148868,
+    "hash": "c9648c606ac9e889b1e83e05b389a333"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\release-audit.test.mjs": {
-    "mtime": 1782117524.1818988,
-    "hash": "a84b34f8d88cb6595ffb6445643dabd8"
+    "mtime": 1782224989.912649,
+    "hash": "e318480dd9c3b39465abb6299dc3a00c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\release-ops.mjs": {
-    "mtime": 1782118057.2465158,
-    "hash": "cfc23f1e3ce569679871b4510df6b0e1"
+    "mtime": 1782226350.4607327,
+    "hash": "b81b21eeec81345c8493a272f5b4eb6a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\release-ops.test.mjs": {
-    "mtime": 1782115610.1836238,
-    "hash": "a2e2f5b3ef3e4b28a7607c85a671e78d"
+    "mtime": 1782226423.0374174,
+    "hash": "1451de95f59e99a9e217b8d8fd9d5fff"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\release-promotion.mjs": {
-    "mtime": 1782118003.3185058,
-    "hash": "8a1a7a756d0133303af1fe0e7d729411"
+    "mtime": 1782226398.5728636,
+    "hash": "eb405e417753d8e0922da6e82d109c53"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\release-promotion.test.mjs": {
-    "mtime": 1782118044.115009,
-    "hash": "29dc70e86f45cdf17dc1ef64fbb3f0a0"
+    "mtime": 1782226442.530517,
+    "hash": "7321c41feec45fdd59e53e7ccfabe037"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\run-tauri.mjs": {
     "mtime": 1782111148.7294784,
@@ -2628,16 +2652,16 @@
     "hash": "682266bb8b3da333261288b9b47a7130"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\QA.md": {
-    "mtime": 1782118164.599544,
-    "hash": "fe69123285cc27b0797e34e117dc1990"
+    "mtime": 1782226472.0405157,
+    "hash": "0f19d9bb803c7917793688d8ec795e66"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\README.md": {
-    "mtime": 1782118148.0754328,
-    "hash": "27b1da5aaedec29103c975cea06dd512"
+    "mtime": 1782225801.8543046,
+    "hash": "e5c9ddbad93c454ba8c5b94db28572da"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\RELEASE.md": {
-    "mtime": 1782118126.554966,
-    "hash": "8dcff4f22e2a4158cf7a4c6427d834a8"
+    "mtime": 1782226497.6817875,
+    "hash": "0ba100477bb2ab9c2b2713fb46e5b252"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\src-tauri\\capabilities\\README.md": {
     "mtime": 1781862284.8303523,
@@ -2648,8 +2672,8 @@
     "hash": "db7b898c6b01c402f8995220e0e390ee"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright-report\\index.html": {
-    "mtime": 1782219570.903533,
-    "hash": "ea7d3e3ceba13ff30701bbb006972a22"
+    "mtime": 1782220635.7266173,
+    "hash": "55f23700a645941adfce087758b1e698"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\legal\\cookies.txt": {
     "mtime": 1778571008.0962586,
