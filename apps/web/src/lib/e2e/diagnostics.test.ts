@@ -23,6 +23,21 @@ describe("E2E browser diagnostics", () => {
     assert.match(redacted, /token=\[redacted\]/);
   });
 
+  it("redacts UUIDs and long opaque IDs from page snapshots", () => {
+    const redacted = redactE2EDiagnosticText(
+      [
+        "url=/channels/6a481cbd-3706-4e14-978d-336a084ebed5/01jyy6rkkw2j5gdr2s2wvxfkry",
+        "testid=server-rail-server-6a481cbd-3706-4e14-978d-336a084ebed5",
+        "message-id=cabcdefghijklmnopqrstuvwx",
+      ].join(" "),
+    );
+
+    assert.equal(redacted.includes("6a481cbd-3706-4e14-978d-336a084ebed5"), false);
+    assert.equal(redacted.includes("01jyy6rkkw2j5gdr2s2wvxfkry"), false);
+    assert.equal(redacted.includes("cabcdefghijklmnopqrstuvwx"), false);
+    assert.match(redacted, /\[redacted-id\]/);
+  });
+
   it("keeps only the newest bounded diagnostic entries", () => {
     const entries: E2EDiagnosticEntry[] = [];
 
@@ -39,7 +54,47 @@ describe("E2E browser diagnostics", () => {
   it("formats empty diagnostics without leaking unrelated context", () => {
     assert.equal(
       formatE2EDiagnosticEntries([]),
-      "No browser warnings, errors, page errors, or failed requests were captured.",
+      "No browser warnings, errors, page errors, failed requests, or failing network responses were captured.",
     );
+  });
+
+  it("formats page, viewport, performance, network, and DOM diagnostics for Playwright attachments", () => {
+    const formatted = formatE2EDiagnosticEntries([
+      {
+        message: "label=alice | title=Whispr | readyState=complete | viewport=1440x900",
+        type: "page",
+        url: "https://example.test/channels/[redacted-id]",
+      },
+      {
+        message:
+          "label=alice | viewport=390x844 | dpr=2 | scrollWidthDelta=0 | visibleDialogs=1",
+        type: "viewport",
+        url: "https://example.test/channels/[redacted-id]",
+      },
+      {
+        message: "label=alice | loadMs=800 | resourceCount=120",
+        type: "performance",
+        url: "https://example.test/channels/[redacted-id]",
+      },
+      {
+        failure: "status=500",
+        method: "GET",
+        type: "network",
+        url: "https://example.test/api/v1/messages?token=[redacted]",
+      },
+      {
+        message: "label=alice visibleTestIds=server-rail,message-list,message-input",
+        type: "dom",
+        url: "https://example.test/channels/[redacted-id]",
+      },
+    ]);
+
+    assert.match(formatted, /type=page/);
+    assert.match(formatted, /type=viewport/);
+    assert.match(formatted, /type=performance/);
+    assert.match(formatted, /type=network/);
+    assert.match(formatted, /failure=status=500/);
+    assert.match(formatted, /type=dom/);
+    assert.match(formatted, /visibleTestIds=server-rail,message-list,message-input/);
   });
 });

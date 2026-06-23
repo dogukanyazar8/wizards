@@ -940,7 +940,7 @@ function RoomControlButton({
     <button
       aria-label={ariaLabel}
       className={cn(
-        "group flex min-w-[4rem] flex-col items-center gap-1 rounded-[20px] border px-2 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:min-w-[4.75rem] sm:rounded-[22px] sm:px-3",
+        "group flex min-w-0 flex-col items-center gap-1 rounded-[18px] border px-1.5 py-2 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:min-w-[4.75rem] sm:rounded-[22px] sm:px-3 sm:text-xs",
         destructive
           ? "border-[hsl(var(--danger)/0.30)] bg-[hsl(var(--danger)/0.12)] text-[hsl(var(--danger))] hover:bg-[hsl(var(--danger)/0.18)] focus-visible:ring-[hsl(var(--danger)/0.45)]"
           : active
@@ -955,13 +955,13 @@ function RoomControlButton({
       title={title}
       type="button"
     >
-      <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-current/10 bg-white/44 shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)] sm:h-11 sm:w-11">
+      <span className="relative flex h-9 w-9 items-center justify-center rounded-full border border-current/10 bg-white/44 shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)] sm:h-11 sm:w-11">
         {icon}
         {showChevron ? (
           <ChevronDown className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-card))] p-0.5 text-app-soft" />
         ) : null}
       </span>
-      <span className="max-w-[4.25rem] truncate sm:max-w-[5.25rem]">{label}</span>
+      <span className="max-w-full truncate sm:max-w-[5.25rem]">{label}</span>
       {children}
     </button>
   );
@@ -1003,8 +1003,8 @@ function VoiceControlBar({
 
   return (
     <>
-      <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-20 mt-4 flex justify-center sm:bottom-3 sm:mt-5">
-        <div className="flex max-w-full gap-1.5 overflow-x-auto overscroll-x-contain rounded-[26px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.9)] p-1.5 shadow-[0_24px_70px_hsl(var(--shadow-color)/0.14)] backdrop-blur-xl sm:gap-2 sm:rounded-[30px] sm:p-2">
+      <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-20 mt-3 flex justify-center sm:bottom-3 sm:mt-5">
+        <div className="grid w-full max-w-[25rem] grid-cols-3 gap-1.5 rounded-[24px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.9)] p-1.5 shadow-[0_24px_70px_hsl(var(--shadow-color)/0.14)] backdrop-blur-xl sm:flex sm:w-auto sm:max-w-full sm:gap-2 sm:rounded-[30px] sm:p-2">
           <RoomControlButton
             active={isMuted}
             ariaLabel={isMuted ? t("voice.controls.unmute") : t("voice.controls.mute")}
@@ -1812,7 +1812,7 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
     );
   }
 
-  if (errorMessage && !room) {
+  if (errorMessage && !room && activeChannelId !== channelId) {
     return (
       <div
         className="flex h-full items-center justify-center bg-transparent"

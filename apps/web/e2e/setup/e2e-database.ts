@@ -1,6 +1,11 @@
 import bcrypt from "bcryptjs";
 import Redis from "ioredis";
 import { ChannelType, PrismaClient, UserStatus } from "@wizards/db";
+import {
+  assertSafeE2EDatabaseUrl,
+  assertSafeE2ERedisUrl,
+  resolveE2EDatabaseUrl,
+} from "../../src/lib/e2e/environment";
 import { e2eServer, e2eUserPassword, e2eUsers } from "../helpers/test-data";
 
 export const E2E_INVITE_CODE = "E2E00001";
@@ -16,20 +21,8 @@ const E2E_CONTRIBUTOR_NAMES = [
   "Sedat Sarp Kaplan",
 ] as const;
 
-const SAFE_LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "postgres", "db"]);
-const FORBIDDEN_HOST_PARTS = [
-  "railway",
-  "neon",
-  "supabase",
-  "render",
-  "amazonaws",
-  "azure",
-  "google",
-  "vercel",
-];
-
 export function getE2EDatabaseUrl(): string {
-  const databaseUrl = process.env.E2E_DATABASE_URL ?? process.env.DATABASE_URL;
+  const databaseUrl = resolveE2EDatabaseUrl();
 
   if (!databaseUrl) {
     throw new Error("E2E_DATABASE_URL is required for Playwright E2E seed/reset.");
@@ -39,67 +32,11 @@ export function getE2EDatabaseUrl(): string {
 }
 
 export function assertSafeE2EDatabase(databaseUrl: string): void {
-  if (process.env.E2E_TEST_MODE !== "true") {
-    throw new Error("Refusing to reset E2E data because E2E_TEST_MODE is not true.");
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("Refusing to reset E2E data while NODE_ENV=production.");
-  }
-
-  let parsedUrl: URL;
-  try {
-    parsedUrl = new URL(databaseUrl);
-  } catch {
-    throw new Error("E2E database URL is not a valid URL.");
-  }
-
-  if (!["postgres:", "postgresql:"].includes(parsedUrl.protocol)) {
-    throw new Error("E2E database URL must use postgres/postgresql.");
-  }
-
-  const normalizedHost = parsedUrl.hostname.toLowerCase();
-  const databaseName = parsedUrl.pathname.replace(/^\//, "").toLowerCase();
-  const isLocalHost = SAFE_LOCAL_HOSTS.has(normalizedHost);
-  const isTestDatabase =
-    /(^|[_-])(e2e|test)([_-]|$)/.test(databaseName) || databaseName.includes("whispr_e2e");
-  const hasForbiddenHost = FORBIDDEN_HOST_PARTS.some((part) => normalizedHost.includes(part));
-
-  if (hasForbiddenHost || (!isLocalHost && !isTestDatabase)) {
-    throw new Error(
-      `Refusing to reset non-test database host="${normalizedHost}" database="${databaseName}".`,
-    );
-  }
-
-  if (!isTestDatabase) {
-    throw new Error(`Refusing to reset database "${databaseName}" because its name is not test-like.`);
-  }
+  assertSafeE2EDatabaseUrl(databaseUrl);
 }
 
 function assertSafeE2ERedis(redisUrl: string): void {
-  if (process.env.E2E_TEST_MODE !== "true") {
-    throw new Error("Refusing to reset E2E Redis state because E2E_TEST_MODE is not true.");
-  }
-
-  let parsedUrl: URL;
-  try {
-    parsedUrl = new URL(redisUrl);
-  } catch {
-    throw new Error("E2E Redis URL is not a valid URL.");
-  }
-
-  if (!["redis:", "rediss:"].includes(parsedUrl.protocol)) {
-    throw new Error("E2E Redis URL must use redis/rediss.");
-  }
-
-  const normalizedHost = parsedUrl.hostname.toLowerCase();
-  const isLocalHost = SAFE_LOCAL_HOSTS.has(normalizedHost);
-  const isTestHost = normalizedHost.includes("test") || normalizedHost.includes("e2e");
-  const hasForbiddenHost = FORBIDDEN_HOST_PARTS.some((part) => normalizedHost.includes(part));
-
-  if (hasForbiddenHost || (!isLocalHost && !isTestHost)) {
-    throw new Error(`Refusing to reset non-test Redis host="${normalizedHost}".`);
-  }
+  assertSafeE2ERedisUrl(redisUrl);
 }
 
 export async function resetE2ERedisState(): Promise<void> {

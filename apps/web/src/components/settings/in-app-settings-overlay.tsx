@@ -56,7 +56,7 @@ export function InAppSettingsOverlay({ onClose, open }: InAppSettingsOverlayProp
           animate={{ opacity: 1 }}
           aria-label={t("settings.overlay.title")}
           aria-modal="true"
-          className="fixed inset-0 z-[90] flex items-center justify-center p-2 sm:p-3"
+          className="fixed inset-0 z-[90] flex items-center justify-center p-1.5 sm:p-3"
           data-testid="in-app-settings-overlay"
           exit={{ opacity: 0 }}
           initial={{ opacity: 0 }}
@@ -71,7 +71,7 @@ export function InAppSettingsOverlay({ onClose, open }: InAppSettingsOverlayProp
 
           <motion.div
             animate={{ scale: 1, y: 0 }}
-            className="app-shell relative flex h-[min(94dvh,940px)] w-[min(98vw,1460px)] min-w-0 overflow-hidden rounded-[22px] border border-[hsl(var(--border)/0.56)] bg-[radial-gradient(circle_at_14%_10%,hsl(var(--primary)/0.09),transparent_28%),radial-gradient(circle_at_86%_14%,hsl(var(--surface-highlight)/0.48),transparent_26%),linear-gradient(180deg,hsl(var(--background)),hsl(var(--surface-base)))] shadow-[0_24px_78px_hsl(var(--shadow-color)/0.18)]"
+            className="app-shell relative flex h-[min(96dvh,940px)] w-[calc(100vw-0.75rem)] max-w-[1460px] min-w-0 overflow-hidden rounded-[18px] border border-[hsl(var(--border)/0.56)] bg-[radial-gradient(circle_at_14%_10%,hsl(var(--primary)/0.09),transparent_28%),radial-gradient(circle_at_86%_14%,hsl(var(--surface-highlight)/0.48),transparent_26%),linear-gradient(180deg,hsl(var(--background)),hsl(var(--surface-base)))] shadow-[0_24px_78px_hsl(var(--shadow-color)/0.18)] sm:h-[min(94dvh,940px)] sm:w-[min(98vw,1460px)] sm:rounded-[22px]"
             exit={{ scale: 0.985, y: 10 }}
             initial={{ scale: 0.985, y: 10 }}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
@@ -122,7 +122,7 @@ export function InAppSettingsOverlay({ onClose, open }: InAppSettingsOverlayProp
                 </div>
               </div>
             ) : (
-              <div className="grid h-full w-full min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 overflow-hidden p-2.5 lg:grid-cols-[292px_minmax(0,1fr)] lg:grid-rows-1 xl:grid-cols-[308px_minmax(0,1fr)]">
+              <div className="grid h-full w-full min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2 overflow-hidden p-1.5 sm:p-2.5 lg:grid-cols-[292px_minmax(0,1fr)] lg:grid-rows-1 xl:grid-cols-[308px_minmax(0,1fr)]">
                 <SettingsSidebar
                   currentUser={{
                     avatarUrl: settingsBootstrapQuery.data.initialAccount.avatarUrl,
@@ -137,7 +137,7 @@ export function InAppSettingsOverlay({ onClose, open }: InAppSettingsOverlayProp
                   selection={selection}
                 />
                 <section
-                  className="min-h-0 min-w-0 overflow-y-auto overscroll-contain rounded-[18px] px-1 pb-4 pt-10 lg:px-1.5 lg:pt-1.5"
+                  className="min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain rounded-[16px] px-1 pb-3 pt-10 lg:px-1.5 lg:pt-1.5"
                   data-settings-scroll-root
                 >
                   <SettingsPanel

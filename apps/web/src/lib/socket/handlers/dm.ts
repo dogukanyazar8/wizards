@@ -272,6 +272,7 @@ export function registerDMHandlers(
       const participants = await prisma.dMParticipant.findMany({
         where: { conversationId: data.conversationId },
         select: {
+          muted: true,
           userId: true,
           user: {
             select: dmNotificationUserSelect,

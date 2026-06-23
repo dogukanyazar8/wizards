@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MessageSquareMore, Users, X } from "lucide-react";
 import { useParams } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
-import { Avatar } from "@/components/ui/avatar";
+import { DmSidebar, type DmConversationItemView, type DmFilterId } from "@/components/dm/dm-sidebar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useSocket } from "@/hooks/use-socket";
 import { useDMConversations } from "@/hooks/use-dm-conversations";
@@ -21,20 +19,30 @@ type FriendsSidebarProps = {
   onPrefetch?: ((href: string) => void) | undefined;
 };
 
-function getStatusDotClass(status: "ONLINE" | "IDLE" | "DND" | "OFFLINE") {
-  if (status === "ONLINE") {
-    return "bg-[hsl(var(--success))]";
+function normalizeSearch(value: string, locale: string) {
+  return value.trim().toLocaleLowerCase(locale);
+}
+
+function formatConversationTime(value: string, locale: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
   }
 
-  if (status === "IDLE") {
-    return "bg-[hsl(42_96%_56%)]";
-  }
+  const today = new Date();
+  const sameDay =
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth() &&
+    date.getDate() === today.getDate();
 
-  if (status === "DND") {
-    return "bg-[hsl(var(--danger))]";
-  }
-
-  return "bg-[hsl(var(--text-soft))]";
+  return new Intl.DateTimeFormat(locale, sameDay ? {
+    hour: "2-digit",
+    minute: "2-digit",
+  } : {
+    day: "2-digit",
+    month: "short",
+  }).format(date);
 }
 
 export function FriendsSidebar({
@@ -42,9 +50,12 @@ export function FriendsSidebar({
   onNavigate,
   onPrefetch,
 }: FriendsSidebarProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const socket = useSocket();
   const params = useParams<{ channelId?: string; serverId?: string }>();
+  const [activeFilter, setActiveFilter] = useState<DmFilterId>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const newChatHref = "/channels/@me?dmAction=new";
   const activeConversationId =
     params.serverId === "@me" && typeof params.channelId === "string"
       ? params.channelId
@@ -62,11 +73,80 @@ export function FriendsSidebar({
     hideConversation,
     isFetchingNextPage,
     isHidingConversation,
+    isMarkingAsRead,
+    isMarkingAsUnread,
     isLoading: conversationsLoading,
+    isUpdatingMuted,
     markAsRead,
+    markAsUnread,
+    setMuted,
   } = useDMConversations(currentUserId);
 
-  const incomingCount = pendingQuery.data?.incoming.length ?? 0;
+  const incomingRequests = pendingQuery.data?.incoming ?? [];
+  const conversationItems = useMemo<DmConversationItemView[]>(
+    () =>
+      conversations.map((conversation) => {
+        const otherParticipant = findOtherParticipant(conversation, currentUserId);
+        const unreadCount =
+          conversation.participants.find(
+            (participant) => participant.userId === currentUserId,
+          )?.unreadCount ?? 0;
+        const displayName =
+          conversation.name ??
+          otherParticipant?.displayName ??
+          otherParticipant?.username ??
+          t("dm.sidebar.unknownUser");
+        const handle = otherParticipant?.username ? `@${otherParticipant.username}` : null;
+        const preview = conversation.lastMessage
+          ? getConversationPreview(
+              conversation,
+              58,
+              t("chat.attachments.image"),
+              t("chat.attachments.file"),
+              t("chat.attachments.gif"),
+            )
+          : t("dm.sidebar.emptyConversation");
+        const status = otherParticipant?.status ?? "OFFLINE";
+        const searchText = normalizeSearch(
+          [displayName, handle, preview].filter(Boolean).join(" "),
+          locale,
+        );
+
+        return {
+          avatarUrl: otherParticipant?.avatarUrl,
+          conversation,
+          displayName,
+          handle,
+          isMuted:
+            conversation.participants.find((participant) => participant.userId === currentUserId)
+              ?.muted ?? false,
+          isActive: activeConversationId === conversation.id,
+          preview,
+          searchText,
+          status,
+          timestampLabel: formatConversationTime(conversation.lastMessageAt, locale),
+          unreadCount,
+        };
+      }),
+    [activeConversationId, conversations, currentUserId, locale, t],
+  );
+  const unreadCount = useMemo(
+    () => conversationItems.reduce((total, item) => total + item.unreadCount, 0),
+    [conversationItems],
+  );
+  const filteredConversations = useMemo(() => {
+    const normalizedSearch = normalizeSearch(searchQuery, locale);
+    const byFilter =
+      activeFilter === "unread"
+        ? conversationItems.filter((item) => item.unreadCount > 0)
+        : conversationItems;
+
+    if (!normalizedSearch) {
+      return byFilter;
+    }
+
+    return byFilter.filter((item) => item.searchText.includes(normalizedSearch));
+  }, [activeFilter, conversationItems, locale, searchQuery]);
 
   useEffect(() => {
     const handleFriendsUpdated = () => {
@@ -81,165 +161,72 @@ export function FriendsSidebar({
   }, [refetchPending, socket]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden sm:gap-4">
-      <button
-        aria-current={activeConversationId ? undefined : "page"}
-        className={`app-panel flex min-h-14 items-center justify-between rounded-[22px] border px-3 py-3 text-left transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:rounded-[24px] sm:px-4 ${
-          activeConversationId
-            ? ""
-            : "border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.12)]"
-        }`}
-        onClick={() => onNavigate("/channels/@me")}
-        onMouseEnter={() => onPrefetch?.("/channels/@me")}
-        type="button"
-      >
-        <span className="flex items-center gap-3">
-          <span className="app-panel-soft flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border">
-            <Users className="h-4 w-4" />
-          </span>
-          <span className="text-app-foreground text-sm font-semibold">
-            {t("friends.sidebar.friends")}
-          </span>
-        </span>
-        {incomingCount > 0 ? <Badge>{incomingCount}</Badge> : null}
-      </button>
-
-      <div className="app-panel flex min-h-0 flex-1 flex-col rounded-[24px] border p-3 sm:rounded-[28px] sm:p-4">
-        <div className="flex items-center gap-2">
-          <MessageSquareMore className="text-app-muted h-4 w-4" />
-          <p className="text-app-foreground text-xs font-semibold uppercase tracking-[0.2em]">
-            {t("friends.sidebar.directMessages")}
-          </p>
-        </div>
-
-        <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
-          {conversationsLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div
-                  className="rounded-[20px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.28)] p-3"
-                  key={index}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 animate-pulse rounded-full bg-[hsl(var(--surface-soft))]" />
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="h-3 w-24 animate-pulse rounded-full bg-[hsl(var(--surface-soft))]" />
-                      <div className="h-3 w-32 animate-pulse rounded-full bg-[hsl(var(--surface-soft))]" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : conversations.length === 0 ? (
-            <div className="flex min-h-full items-center justify-center rounded-[24px] border border-dashed border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] px-4 py-6 text-center text-sm leading-6 text-app-muted">
-              {t("dm.sidebar.empty")}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {conversations.map((conversation) => {
-                const otherParticipant = findOtherParticipant(conversation, currentUserId);
-                const unreadCount =
-                  conversation.participants.find(
-                    (participant) => participant.userId === currentUserId,
-                  )?.unreadCount ?? 0;
-                const displayName =
-                  conversation.name ??
-                  otherParticipant?.displayName ??
-                  otherParticipant?.username ??
-                  t("dm.sidebar.unknownUser");
-                const preview = conversation.lastMessage
-                  ? getConversationPreview(
-                      conversation,
-                      40,
-                      t("chat.attachments.image"),
-                      t("chat.attachments.file"),
-                      t("chat.attachments.gif"),
-                    )
-                  : t("dm.sidebar.emptyConversation");
-                const isActive = activeConversationId === conversation.id;
-
-                return (
-                  <div className="group relative" key={conversation.id}>
-                    <button
-                      aria-current={isActive ? "page" : undefined}
-                      className={`flex min-h-16 w-full items-center gap-3 rounded-[20px] border px-3 py-3 pr-11 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:rounded-[22px] ${
-                        isActive
-                          ? "border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.12)]"
-                          : "border-transparent hover:border-[hsl(var(--border)/0.72)] hover:bg-[hsl(var(--surface-soft)/0.28)]"
-                      }`}
-                      data-testid={`dm-conversation-${conversation.id}`}
-                      onClick={() => {
-                        if (unreadCount > 0) {
-                          void markAsRead(conversation.id);
-                        }
-                        onNavigate(`/channels/@me/${conversation.id}`);
-                      }}
-                      onMouseEnter={() => onPrefetch?.(`/channels/@me/${conversation.id}`)}
-                      type="button"
-                    >
-                      <div className="relative">
-                        <Avatar
-                          alt={displayName}
-                          className="h-10 w-10 text-sm"
-                          fallback={displayName}
-                          src={otherParticipant?.avatarUrl}
-                        />
-                        <span
-                          aria-hidden="true"
-                          className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-[hsl(var(--surface-card))] ${getStatusDotClass(otherParticipant?.status ?? "OFFLINE")}`}
-                        />
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="text-app-foreground truncate text-sm font-semibold">
-                            {displayName}
-                          </p>
-                          {unreadCount > 0 ? (
-                            <span data-testid={`dm-conversation-${conversation.id}-unread-badge`}>
-                              <Badge>{unreadCount}</Badge>
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="mt-1 truncate text-xs text-app-muted">{preview}</p>
-                      </div>
-                    </button>
-
-                    <button
-                      aria-label={t("dm.sidebar.hideConversation", {
-                        name: displayName,
-                      })}
-                      className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.92)] text-app-muted opacity-100 shadow-[0_10px_22px_hsl(var(--shadow-color)/0.12)] transition hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:opacity-0 md:focus-visible:opacity-100 md:group-hover:opacity-100"
-                      disabled={isHidingConversation}
-                      onClick={async (event) => {
-                        event.stopPropagation();
-                        await hideConversation(conversation.id);
-                      }}
-                      type="button"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                );
-              })}
-              {hasNextPage ? (
-                <button
-                  className="mt-3 flex min-h-11 w-full items-center justify-center rounded-[18px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.34)] px-3 text-xs font-semibold text-app-muted transition hover:border-[hsl(var(--primary)/0.36)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={isFetchingNextPage}
-                  onClick={() => {
-                    void fetchNextPage();
-                  }}
-                  type="button"
-                >
-                  {isFetchingNextPage
-                    ? t("dm.sidebar.loadingMore")
-                    : t("dm.sidebar.loadMore")}
-                </button>
-              ) : null}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <DmSidebar
+      activeFilter={activeFilter}
+      conversations={conversationItems}
+      conversationsLoading={conversationsLoading}
+      filteredConversations={filteredConversations}
+      hasNextPage={Boolean(hasNextPage) && activeFilter === "all" && searchQuery.trim().length === 0}
+      incomingRequests={incomingRequests}
+      isFetchingNextPage={isFetchingNextPage}
+      isHidingConversation={
+        isHidingConversation || isMarkingAsRead || isMarkingAsUnread || isUpdatingMuted
+      }
+      onFilterChange={setActiveFilter}
+      onHideConversation={hideConversation}
+      onLoadMore={() => {
+        void fetchNextPage();
+      }}
+      onMarkConversationRead={markAsRead}
+      onMarkConversationUnread={markAsUnread}
+      onNavigate={onNavigate}
+      onOpenConversation={(item) => {
+        if (item.unreadCount > 0) {
+          void markAsRead(item.conversation.id);
+        }
+        onNavigate(`/channels/@me/${item.conversation.id}`);
+      }}
+      onPrefetch={onPrefetch}
+      onSetConversationMuted={setMuted}
+      onSearchChange={setSearchQuery}
+      onStartNewChat={() => {
+        setActiveFilter("all");
+        setSearchQuery("");
+        onNavigate(newChatHref);
+      }}
+      searchQuery={searchQuery}
+      text={{
+        all: t("dm.sidebar.filters.all"),
+        botNotifications: t("dm.sidebar.botNotifications"),
+        botNotificationsDescription: t("dm.sidebar.botNotificationsDescription"),
+        directMessages: t("friends.sidebar.directMessages"),
+        emptyDescription: t("dm.sidebar.empty"),
+        emptyRequests: t("dm.sidebar.emptyRequests"),
+        emptySearch: t("dm.sidebar.emptySearch"),
+        emptyTitle: t("dm.sidebar.emptyTitle"),
+        friends: t("friends.sidebar.friends"),
+        hideConversation: (name) => t("dm.sidebar.hideConversation", { name }),
+        loadMore: t("dm.sidebar.loadMore"),
+        loadingMore: t("dm.sidebar.loadingMore"),
+        markRead: t("dm.sidebar.actions.markRead"),
+        markUnread: t("dm.sidebar.actions.markUnread"),
+        moreActions: (name) => t("dm.sidebar.actions.more", { name }),
+        mute: t("dm.sidebar.actions.mute"),
+        newChat: t("dm.sidebar.newChat"),
+        pendingRequests: t("dm.sidebar.pendingRequests"),
+        pinSoon: t("dm.sidebar.actions.pinSoon"),
+        pinned: t("dm.sidebar.filters.pinned"),
+        previewBadge: t("dm.sidebar.previewBadge"),
+        quickStart: t("dm.sidebar.quickStart"),
+        requests: t("dm.sidebar.filters.requests"),
+        requestsDescription: (count) => t("dm.sidebar.requestsDescription", { count }),
+        searchPlaceholder: t("dm.sidebar.searchPlaceholder"),
+        subtitle: t("dm.sidebar.subtitle"),
+        unmute: t("dm.sidebar.actions.unmute"),
+        unread: t("dm.sidebar.filters.unread"),
+        unreadEmpty: t("dm.sidebar.unreadEmpty"),
+      }}
+      unreadCount={unreadCount}
+    />
   );
 }

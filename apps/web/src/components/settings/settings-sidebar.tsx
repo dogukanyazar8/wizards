@@ -443,8 +443,11 @@ export function SettingsSidebar({
 
   return (
     <>
-      <aside className="lg:hidden" data-testid="settings-mobile-sidebar">
-        <SettingsCard className="min-w-0 max-w-full overflow-hidden p-2.5">
+      <aside
+        className="min-w-0 max-w-full overflow-hidden lg:hidden"
+        data-testid="settings-mobile-sidebar"
+      >
+        <SettingsCard className="w-full min-w-0 max-w-full overflow-hidden p-2">
           <div className="flex items-center justify-between gap-3">
             {renderBackToChannels(
               "inline-flex min-h-10 items-center gap-2 rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.86)] px-3 text-xs font-bold text-app-foreground shadow-[0_8px_22px_hsl(var(--shadow-color)/0.05)] transition hover:bg-[hsl(var(--surface-soft)/0.82)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
@@ -454,32 +457,34 @@ export function SettingsSidebar({
             </p>
           </div>
 
-          <div className="mt-3">
+          <div className="mt-2.5">
             <SettingsSearch />
           </div>
 
-          <div className="mt-4">
-            <h1 className="text-app-foreground text-xl font-bold leading-tight">
+          <div className="mt-3">
+            <h1 className="text-app-foreground text-lg font-bold leading-tight">
               {t("settings.title")}
             </h1>
-            <p className="text-app-muted mt-1.5 line-clamp-2 text-xs leading-5">
+            <p className="text-app-muted mt-1 line-clamp-2 text-xs leading-5">
               {t("settings.description")}
             </p>
           </div>
 
           <nav
             aria-label={t("settings.title")}
-            className="mt-4 flex max-w-full gap-1.5 overflow-x-auto overscroll-x-contain pb-1"
+            className="mt-3 flex max-w-full gap-1.5 overflow-x-auto overscroll-x-contain pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {mobileSections.map((item) => {
               const Icon = item.icon;
+              const isActive = section === item.section;
 
               return (
                 <button
+                  aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-                    section === item.section
-                      ? "border-[hsl(var(--primary)/0.36)] bg-[hsl(var(--primary)/0.13)] text-[hsl(var(--primary))]"
+                    "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                    isActive
+                      ? "border-[hsl(var(--primary)/0.36)] bg-[hsl(var(--primary)/0.13)] text-[hsl(var(--primary))] shadow-[inset_0_-2px_0_hsl(var(--primary)/0.42)]"
                       : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface)/0.72)] text-app-muted hover:text-app-foreground",
                   )}
                   data-testid={`settings-mobile-section-${item.section}`}
@@ -497,7 +502,7 @@ export function SettingsSidebar({
           {mobilePanelItems.length > 0 ? (
             <nav
               aria-label={`${t("settings.title")} ${t("common.overview")}`}
-              className="mt-2.5 flex max-w-full gap-1.5 overflow-x-auto overscroll-x-contain pb-1"
+              className="mt-2 flex max-w-full gap-1.5 overflow-x-auto overscroll-x-contain pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
               {mobilePanelItems.map((item) => {
                 const Icon = item.icon;
@@ -505,10 +510,11 @@ export function SettingsSidebar({
 
                 return (
                   <button
+                    aria-current={isActive ? "page" : undefined}
                     className={cn(
-                      "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                      "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                       isActive
-                        ? "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]"
+                        ? "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))] shadow-[inset_0_-2px_0_hsl(var(--primary)/0.4)]"
                         : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.68)] text-app-muted hover:text-app-foreground",
                     )}
                     data-testid={`settings-mobile-panel-${item.section}-${item.panel ?? "all"}`}

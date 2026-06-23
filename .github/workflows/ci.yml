@@ -13,6 +13,8 @@ on:
           - full
         required: true
         type: choice
+  schedule:
+    - cron: "17 2 * * *"
   pull_request:
   push:
     branches:
@@ -160,23 +162,26 @@ jobs:
       - name: Sync E2E database schema
         run: pnpm --filter @wizards/db exec prisma db push --schema prisma/schema.prisma --skip-generate
 
+      - name: Validate Playwright E2E environment
+        run: pnpm --filter @wizards/web e2e:check-env
+
       - name: Install Playwright Chromium
         run: pnpm --filter @wizards/web exec playwright install --with-deps chromium
 
       - name: Run Playwright API tests
-        if: github.event_name != 'workflow_dispatch' || inputs.e2e_scope == 'api' || inputs.e2e_scope == 'smoke' || inputs.e2e_scope == 'realtime'
+        if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) || (github.event_name == 'workflow_dispatch' && (inputs.e2e_scope == 'api' || inputs.e2e_scope == 'smoke' || inputs.e2e_scope == 'realtime'))
         run: pnpm --filter @wizards/web e2e:api
 
       - name: Run Playwright smoke tests
-        if: github.event_name != 'workflow_dispatch' || inputs.e2e_scope == 'smoke'
+        if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) || (github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'smoke')
         run: pnpm --filter @wizards/web e2e:smoke
 
       - name: Run Playwright realtime and voice tests
-        if: github.event_name != 'workflow_dispatch' || inputs.e2e_scope == 'realtime'
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) || (github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'realtime')
         run: pnpm --filter @wizards/web e2e:realtime
 
       - name: Run Playwright full suite
-        if: github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'full'
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'full')
         run: pnpm --filter @wizards/web e2e
 
       - name: Upload Playwright report

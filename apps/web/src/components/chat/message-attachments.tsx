@@ -20,14 +20,14 @@ type MessageAttachmentsProps = {
 
 function gridClassName(count: number) {
   if (count <= 1) {
-    return "grid-cols-1 w-full max-w-[26rem]";
+    return "grid-cols-1 w-full max-w-full sm:max-w-[26rem]";
   }
 
   if (count === 2) {
-    return "grid-cols-2 w-full max-w-[32rem]";
+    return "grid-cols-2 w-full max-w-full sm:max-w-[32rem]";
   }
 
-  return "grid-cols-2 w-full max-w-[36rem] sm:grid-cols-3";
+  return "grid-cols-2 w-full max-w-full sm:max-w-[36rem] sm:grid-cols-3";
 }
 
 function formatAttachmentSize(size: number) {
@@ -119,7 +119,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
       ) : null}
 
       {videoAttachments.length > 0 ? (
-        <div className="mt-1 grid w-full max-w-[32rem] gap-1.5">
+        <div className="mt-1 grid w-full max-w-full gap-1.5 sm:max-w-[32rem]">
           {videoAttachments.map((attachment) => (
             <div
               className="overflow-hidden rounded-[18px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.82)] shadow-[0_12px_26px_hsl(var(--shadow-color)/0.06)]"
@@ -157,7 +157,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
       ) : null}
 
       {fileAttachments.length > 0 ? (
-        <div className="mt-1 grid w-full max-w-[32rem] gap-1.5">
+        <div className="mt-1 grid w-full max-w-full gap-1.5 sm:max-w-[32rem]">
           {fileAttachments.map((attachment) => (
             <a
               aria-label={t("chat.attachments.openFile", {

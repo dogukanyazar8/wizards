@@ -57,7 +57,17 @@ export async function loginAs(page: Page, userKey: E2EUserKey): Promise<void> {
   });
 
   await assertSuccessfulE2EResponse(response);
-  await gotoAppRoute(page, "/channels", { readyTestId: "server-rail" });
+  await gotoAppRoute(page, "/channels");
+  await expect(
+    page
+      .locator(
+        [
+          '[data-testid="server-rail"]:visible',
+          '[data-testid="mobile-workspace-drawer-button"]:visible',
+        ].join(", "),
+      )
+      .first(),
+  ).toBeVisible({ timeout: 15_000 });
   await expectLoggedIn(page);
 }
 

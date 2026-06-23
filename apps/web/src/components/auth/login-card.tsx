@@ -13,7 +13,11 @@ export function LoginCard({
   label?: string;
 }) {
   return (
-    <section className={cn("modern-login-card-shell", className)} aria-label={label}>
+    <section
+      className={cn("modern-login-card-shell", className)}
+      aria-label={label}
+      data-testid="auth-panel"
+    >
       <div className="modern-login-card-gradient" aria-hidden="true" />
       <div className="modern-login-card">{children}</div>
     </section>

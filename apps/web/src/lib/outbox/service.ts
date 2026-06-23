@@ -86,6 +86,7 @@ const DMMessageNotificationsPayloadSchema = z.object({
   messageId: z.string().min(1),
   participants: z.array(
     z.object({
+      muted: z.boolean().default(false),
       userId: z.string().min(1),
       user: z.object({
         locale: z.string().nullable(),
@@ -211,6 +212,7 @@ export async function enqueueDMMessageNotificationJob(args: {
   conversationId: string;
   messageId: string;
   participants: Array<{
+    muted: boolean;
     userId: string;
     user: {
       locale: string | null;

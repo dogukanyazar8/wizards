@@ -7,6 +7,8 @@ import {
   CheckCircle2,
   Clock3,
   Loader2,
+  MessageSquareMore,
+  RefreshCw,
   SendHorizontal,
   UserMinus,
   UserPlus,
@@ -14,8 +16,8 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -69,6 +71,11 @@ const EMPTY_BLOCKED_USERS: Array<{
   id: string;
   username: string;
 }> = [];
+const FRIENDS_TAB_IDS = new Set<FriendsTabId>(["online", "all", "pending", "add", "blocked"]);
+
+function isFriendsTabId(value: string | null): value is FriendsTabId {
+  return value !== null && FRIENDS_TAB_IDS.has(value as FriendsTabId);
+}
 
 function getAddFriendErrorMessage(
   code: FriendErrorCode | undefined,
@@ -97,28 +104,81 @@ function getFriendSortName(friend: FriendDto) {
   return friend.displayName || friend.username;
 }
 
+type FriendsMetricTone = "online" | "pending" | "total";
+
+const metricToneClasses: Record<
+  FriendsMetricTone,
+  {
+    icon: string;
+    line: string;
+  }
+> = {
+  online: {
+    icon: "bg-emerald-500/10 text-emerald-600",
+    line: "stroke-emerald-500",
+  },
+  pending: {
+    icon: "bg-amber-500/10 text-amber-600",
+    line: "stroke-amber-500",
+  },
+  total: {
+    icon: "bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]",
+    line: "stroke-[hsl(var(--primary))]",
+  },
+};
+
 function FriendsMetricCard({
   description,
+  helper,
   icon: Icon,
+  loading,
+  tone,
   value,
 }: {
   description: string;
+  helper: string;
   icon: LucideIcon;
+  loading: boolean;
+  tone: FriendsMetricTone;
   value: string;
 }) {
+  const toneClass = metricToneClasses[tone];
+
   return (
-    <div className="app-panel rounded-[20px] border p-2 text-center shadow-[0_12px_32px_hsl(var(--shadow-color)/0.06)] sm:rounded-[28px] sm:p-4 sm:text-left">
-      <div className="flex min-w-0 flex-col items-center justify-center gap-1 sm:flex-row sm:justify-between sm:gap-3">
-        <div className="min-w-0">
-          <p className="line-clamp-2 text-[10px] font-semibold uppercase leading-4 tracking-[0.12em] text-app-soft sm:text-[11px] sm:tracking-[0.22em]">
+    <div
+      className="relative min-h-[6.4rem] overflow-hidden border-b border-[hsl(var(--border)/0.58)] px-3.5 py-3.5 last:border-b-0 sm:border-b-0 sm:border-r sm:px-4 sm:py-4 sm:last:border-r-0"
+    >
+      <div className="relative flex min-w-0 items-start gap-3">
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] ${toneClass.icon}`}>
+          <Icon className="h-[18px] w-[18px]" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-black uppercase leading-4 tracking-[0.22em] text-app-soft">
             {description}
           </p>
-          <p className="text-app-foreground mt-1 text-lg font-semibold tracking-tight sm:mt-3 sm:text-2xl">
-            {value}
-          </p>
-        </div>
-        <div className="app-panel-soft hidden h-11 w-11 items-center justify-center rounded-[18px] border sm:flex sm:h-12 sm:w-12">
-          <Icon className="h-5 w-5 text-app-foreground" />
+          {loading ? (
+            <Skeleton className="mt-2 h-7 w-12 rounded-[10px]" />
+          ) : (
+            <p className="mt-1.5 text-2xl font-semibold leading-none tracking-tight text-app-foreground">
+              {value}
+            </p>
+          )}
+          <div className="mt-2.5 flex items-end justify-between gap-3">
+            <p className="min-w-0 text-xs font-semibold leading-5 text-app-muted">{helper}</p>
+            <svg
+              aria-hidden="true"
+              className="hidden h-6 w-24 shrink-0 sm:block"
+              fill="none"
+              viewBox="0 0 112 28"
+            >
+              <path
+                className={`${toneClass.line} opacity-80`}
+                d="M2 20 C14 19 17 17 25 18 C34 20 35 24 44 24 C54 24 54 10 64 10 C73 10 75 17 82 17 C90 17 90 13 97 13 C103 13 105 18 110 17"
+                strokeLinecap="round"
+                strokeWidth="2"
+              />
+            </svg>
+          </div>
         </div>
       </div>
     </div>
@@ -143,10 +203,10 @@ function FriendsTabButton({
   return (
     <button
       aria-selected={active}
-      className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] ${
+      className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-[13px] border px-3.5 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] ${
         active
-          ? "border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--foreground))]"
-          : "border-[hsl(var(--border)/0.78)] bg-[hsl(var(--surface-soft)/0.36)] text-app-muted hover:text-[hsl(var(--foreground))]"
+          ? "border-transparent bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))] shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.08)]"
+          : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.7)] text-app-muted hover:border-[hsl(var(--primary)/0.22)] hover:bg-[hsl(var(--surface-card)/0.92)] hover:text-app-foreground"
       }`}
       data-testid={testId}
       onClick={onClick}
@@ -160,38 +220,66 @@ function FriendsTabButton({
   );
 }
 
+function EmptyChatIllustration() {
+  return (
+    <div className="relative h-28 w-36" aria-hidden="true">
+      <div className="absolute left-5 top-5 h-16 w-20 rounded-[18px] bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(252_95%_70%))] shadow-[0_18px_38px_hsl(var(--primary)/0.22)]">
+        <div className="flex h-full items-center justify-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-white/85" />
+          <span className="h-2 w-2 rounded-full bg-white/85" />
+          <span className="h-2 w-2 rounded-full bg-white/85" />
+        </div>
+      </div>
+      <div className="absolute bottom-3 right-1 h-16 w-20 rounded-[18px] bg-white shadow-[0_14px_30px_hsl(var(--primary)/0.14)]">
+        <div className="ml-6 mt-6 h-1.5 w-10 rounded-full bg-[hsl(var(--primary)/0.22)]" />
+        <div className="ml-6 mt-2.5 h-1.5 w-7 rounded-full bg-[hsl(var(--primary)/0.18)]" />
+      </div>
+    </div>
+  );
+}
+
 function FriendsEmptyState({
-  description,
-  icon: Icon,
+  actionLabel,
   compact = false,
+  description,
+  onAction,
   title,
 }: {
+  actionLabel?: string;
   compact?: boolean;
   description: string;
-  icon: LucideIcon;
+  onAction?: () => void;
   title: string;
 }) {
   return (
     <div
-      className={`app-panel flex flex-col items-center justify-center rounded-[28px] border border-dashed border-[hsl(var(--border)/0.72)] px-4 text-center sm:rounded-[32px] sm:px-6 ${
-        compact
-          ? "min-h-[132px] py-5 sm:min-h-[220px] sm:py-8"
-          : "min-h-[240px] py-10 sm:min-h-[320px] sm:py-14"
+      className={`flex flex-col items-center justify-center px-4 text-center ${
+        compact ? "min-h-[9rem] py-5" : "min-h-[18rem] py-8 sm:min-h-[22rem] sm:py-10"
       }`}
     >
-      <div
-        className={`app-panel-soft flex items-center justify-center rounded-[24px] border ${
-          compact ? "h-12 w-12 sm:h-14 sm:w-14" : "h-16 w-16"
-        }`}
-      >
-        <Icon className={`text-app-muted ${compact ? "h-5 w-5" : "h-6 w-6"}`} />
-      </div>
-      <h2 className={`text-app-foreground font-semibold ${compact ? "mt-3 text-base" : "mt-5 text-lg"}`}>
+      {compact ? (
+        <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
+          <MessageSquareMore className="h-5 w-5" />
+        </div>
+      ) : (
+        <EmptyChatIllustration />
+      )}
+      <h2 className={`text-app-foreground font-semibold ${compact ? "mt-3 text-base" : "mt-4 text-lg"}`}>
         {title}
       </h2>
       <p className={`text-app-muted mt-2 max-w-md text-sm ${compact ? "leading-5" : "leading-6"}`}>
         {description}
       </p>
+      {actionLabel && onAction ? (
+        <button
+          className="mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-[13px] bg-[hsl(var(--primary))] px-4 text-sm font-bold text-[hsl(var(--primary-foreground))] shadow-[0_14px_28px_hsl(var(--primary)/0.18)] transition hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+          onClick={onAction}
+          type="button"
+        >
+          <UserPlus className="h-4 w-4" />
+          {actionLabel}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -371,10 +459,12 @@ function PendingRequestRow({
 export function FriendsView({ currentUserId }: { currentUserId: string }) {
   const { locale, t } = useI18n();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const socket = useSocket();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handledDmIntentRef = useRef<string | null>(null);
   const [activeTab, setActiveTab] = useState<FriendsTabId>("online");
   const [confirmState, setConfirmState] = useState<ConfirmState>(null);
   const [feedback, setFeedback] = useState<{
@@ -448,6 +538,35 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
     () => friends.filter((friend) => friend.status === "ONLINE" || friend.status === "IDLE"),
     [friends],
   );
+  const selectNewChatTab = useCallback(() => {
+    setActiveTab(friends.length > 0 ? "all" : "add");
+  }, [friends.length]);
+
+  useEffect(() => {
+    const requestedTab = searchParams.get("dmTab");
+
+    if (isFriendsTabId(requestedTab)) {
+      setActiveTab(requestedTab);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const dmAction = searchParams.get("dmAction");
+
+    if (dmAction !== "new" || friendsQuery.isLoading) {
+      return;
+    }
+
+    const intentKey = searchParams.toString();
+
+    if (handledDmIntentRef.current === intentKey) {
+      return;
+    }
+
+    handledDmIntentRef.current = intentKey;
+    selectNewChatTab();
+    router.replace("/channels/@me", { scroll: false });
+  }, [friendsQuery.isLoading, router, searchParams, selectNewChatTab]);
 
   const sortedFriends = useMemo(
     () =>
@@ -630,6 +749,20 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
   });
 
   const activeConfirmBusy = removeFriendMutation.isPending || blockFriendMutation.isPending;
+  const metricsLoading = friendsQuery.isLoading || pendingQuery.isLoading;
+  const isRefreshing =
+    friendsQuery.isFetching ||
+    pendingQuery.isFetching ||
+    (activeTab === "blocked" && blockedQuery.isFetching);
+
+  const refreshDashboardData = () => {
+    void friendsQuery.refetch();
+    void pendingQuery.refetch();
+
+    if (activeTab === "blocked") {
+      void blockedQuery.refetch();
+    }
+  };
 
   const handleUsernameChange = (value: string) => {
     setUsername(value);
@@ -650,28 +783,53 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
 
   return (
     <>
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="border-b border-[hsl(var(--border)/0.72)] px-3 py-3 sm:px-4 sm:py-4 md:px-6">
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
-            <FriendsMetricCard
-              description={t("friends.overview.onlineNow")}
-              icon={Users}
-              value={String(onlineFriends.length)}
-            />
-            <FriendsMetricCard
-              description={t("friends.overview.totalFriends")}
-              icon={UserPlus}
-              value={String(friends.length)}
-            />
-            <FriendsMetricCard
-              description={t("friends.overview.pendingRequests")}
-              icon={Clock3}
-              value={String(incomingCount)}
-            />
+      <div
+        aria-busy={metricsLoading}
+        className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[radial-gradient(circle_at_50%_0%,hsl(var(--primary)/0.06),transparent_28rem)]"
+        data-testid="friends-dashboard"
+      >
+        <div className="shrink-0 px-2.5 pb-2 pt-2.5 sm:px-3 sm:pb-2.5 sm:pt-3 md:px-4">
+          <div className="app-panel relative overflow-hidden rounded-[18px] border shadow-[0_12px_34px_hsl(var(--shadow-color)/0.04)]">
+            <div className="grid grid-cols-1 sm:grid-cols-3">
+              <FriendsMetricCard
+                description={t("friends.overview.onlineNow")}
+                helper={t("friends.overview.onlineHelper")}
+                icon={Users}
+                loading={metricsLoading}
+                tone="online"
+                value={String(onlineFriends.length)}
+              />
+              <FriendsMetricCard
+                description={t("friends.overview.totalFriends")}
+                helper={t("friends.overview.totalHelper")}
+                icon={UserPlus}
+                loading={metricsLoading}
+                tone="total"
+                value={String(friends.length)}
+              />
+              <FriendsMetricCard
+                description={t("friends.overview.pendingRequests")}
+                helper={t("friends.overview.pendingHelper")}
+                icon={Clock3}
+                loading={metricsLoading}
+                tone="pending"
+                value={String(incomingCount)}
+              />
+            </div>
+            <button
+              aria-label={t("friends.actions.refresh")}
+              className="absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-[12px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.82)] text-app-muted shadow-[0_10px_22px_hsl(var(--shadow-color)/0.045)] transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-60"
+              disabled={isRefreshing}
+              onClick={refreshDashboardData}
+              type="button"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+            </button>
           </div>
 
-          <div className="app-panel mt-3 rounded-[24px] border p-2 sm:mt-4 sm:rounded-[28px] sm:p-3">
-            <div className="flex gap-2 overflow-x-auto pb-1" role="tablist">
+          <div className="app-panel mt-2.5 rounded-[18px] border px-2.5 py-2.5 shadow-[0_10px_26px_hsl(var(--shadow-color)/0.035)]">
+            <div className="flex min-w-0 flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 flex-wrap gap-2 pb-1 sm:flex-nowrap sm:overflow-x-auto" role="tablist">
               <FriendsTabButton
                 active={activeTab === "online"}
                 icon={Users}
@@ -708,25 +866,38 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
                 onClick={() => setActiveTab("blocked")}
                 testId="friends-tab-blocked"
               />
+              </div>
+              <div className="flex shrink-0 items-center gap-2 text-xs font-bold text-app-muted">
+                <span className="hidden uppercase tracking-[0.18em] sm:inline">
+                  {t("friends.sort.label")}
+                </span>
+                <span className="rounded-[12px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] px-2.5 py-1.5 text-app-foreground">
+                  {t("friends.sort.newest")}
+                </span>
+              </div>
             </div>
           </div>
           <FriendsFeedbackNotice feedback={feedback} />
         </div>
 
-        <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6">
+        <div className="min-h-0 flex-1 px-2.5 pb-2.5 pt-0 sm:px-3 sm:pb-3 md:px-4 md:pb-4">
+          <div className="app-panel flex h-full min-h-[22rem] flex-col overflow-hidden rounded-[18px] border shadow-[0_16px_44px_hsl(var(--shadow-color)/0.04)]">
+            <div className="min-h-0 flex-1 overflow-y-auto p-2.5 sm:p-3 md:p-4">
           {activeTab === "online" ? (
             friendsQuery.isLoading ? (
               <FriendsListSkeleton />
             ) : friends.length === 0 ? (
               <FriendsEmptyState
+                actionLabel={t("friends.tabs.addFriend")}
                 description={t("friends.empty.noFriends")}
-                icon={Users}
+                onAction={() => setActiveTab("add")}
                 title={t("friends.tabs.online")}
               />
             ) : onlineFriends.length === 0 ? (
               <FriendsEmptyState
+                actionLabel={t("friends.actions.startChat")}
                 description={t("friends.empty.noOnline")}
-                icon={Clock3}
+                onAction={() => setActiveTab("all")}
                 title={t("friends.tabs.online")}
               />
             ) : (
@@ -750,8 +921,9 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
               <FriendsListSkeleton />
             ) : friends.length === 0 ? (
               <FriendsEmptyState
+                actionLabel={t("friends.tabs.addFriend")}
                 description={t("friends.empty.noFriends")}
-                icon={Users}
+                onAction={() => setActiveTab("add")}
                 title={t("friends.tabs.all")}
               />
             ) : (
@@ -781,7 +953,6 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
                     <FriendsEmptyState
                       compact
                       description={t("friends.empty.incoming")}
-                      icon={Clock3}
                       title={t("friends.pending.incomingTitle")}
                     />
                   ) : (
@@ -833,7 +1004,6 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
                     <FriendsEmptyState
                       compact
                       description={t("friends.empty.outgoing")}
-                      icon={Clock3}
                       title={t("friends.pending.outgoingTitle")}
                     />
                   ) : (
@@ -923,7 +1093,6 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
             ) : blockedUsers.length === 0 ? (
               <FriendsEmptyState
                 description={t("friends.empty.blocked")}
-                icon={Ban}
                 title={t("friends.tabs.blocked")}
               />
             ) : (
@@ -964,6 +1133,8 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
               </div>
             )
           ) : null}
+            </div>
+          </div>
         </div>
       </div>
 

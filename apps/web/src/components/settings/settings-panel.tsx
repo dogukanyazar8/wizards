@@ -1067,6 +1067,7 @@ export function SettingsPanel({
   const searchParams = useSearchParams();
   const routeSelection = resolveSettingsSelection(searchParams);
   const { panel, section } = selection ?? routeSelection;
+  const [clientReady, setClientReady] = useState(false);
   const [isEditingAccount, setIsEditingAccount] = useState(false);
   const [accountState, setAccountState] = useState(initialAccount);
   const [accountDraft, setAccountDraft] = useState(initialAccount);
@@ -1323,9 +1324,14 @@ export function SettingsPanel({
         settingsQueryKeys.layout,
         (current) => (current ? { ...current, notificationLimit: nextValue } : current),
       );
+      updateServerSettings({ notificationLimit: nextValue });
     },
-    [queryClient, setNotificationLimit],
+    [queryClient, setNotificationLimit, updateServerSettings],
   );
+
+  useEffect(() => {
+    setClientReady(true);
+  }, []);
 
   const handleNotificationAutoCloseChange = useCallback(
     (nextValue: boolean) => {
@@ -2325,6 +2331,7 @@ export function SettingsPanel({
         "min-w-0 max-w-full space-y-3 overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+5rem)] lg:pb-0",
         className,
       )}
+      data-client-ready={clientReady ? "true" : "false"}
       data-testid="settings-panel"
     >
       {section === "account" ? renderAccountSection() : null}

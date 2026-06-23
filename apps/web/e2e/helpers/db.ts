@@ -251,6 +251,15 @@ export async function expectVoiceParticipantCount(
     .toBe(count);
 }
 
+export async function expectVoiceParticipantCountAtLeast(
+  channelId: string,
+  count: number,
+): Promise<void> {
+  await expect
+    .poll(() => getVoiceParticipantCount(channelId), { timeout: 10_000 })
+    .toBeGreaterThanOrEqual(count);
+}
+
 export async function getE2EDMConversationId(): Promise<string> {
   return withE2EDatabase(async (prisma) => {
     const [alice, bob] = await Promise.all([

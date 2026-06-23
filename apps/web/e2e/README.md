@@ -12,14 +12,52 @@ The suite is designed to be deterministic, disposable, and safe by default:
 
 ## Current Status
 
-Last verified test discovery:
+Use live discovery instead of hardcoded counts:
 
-- `48` Playwright tests
-- `11` spec files
-- `10` smoke tests used by default CI
-- Browser project: Chromium
+```bash
+pnpm --filter @wizards/web e2e -- --list
+pnpm --filter @wizards/web e2e:smoke -- --list
+pnpm --filter @wizards/web e2e:realtime -- --list
+pnpm --filter @wizards/web e2e:mobile -- --list
+```
+
+Browser project: Chromium.
 
 This is E2E scenario coverage, not line/branch coverage. Unit/integration percentage coverage is enforced separately by the `test:coverage` script and governed by `docs/operations/coverage-ratchet.md`.
+
+## Strategy Matrix
+
+Whispr is a realtime chat, voice, media, desktop, and identity product. Test level
+selection is risk-based:
+
+| Risk area | Primary gate | Why |
+| --- | --- | --- |
+| Auth/session, permissions, rate limits | Unit, integration, API contract, smoke | Fast feedback and security boundary coverage before merge. |
+| Messaging, DM, attachments, settings | Unit, component where possible, API contract, smoke | Product-critical paths should fail quickly without requiring the full browser matrix. |
+| Realtime fanout, presence, voice lifecycle | Post-merge realtime/voice E2E | Multi-user and media flows are higher cost and more environment-sensitive. |
+| Mobile responsive, popups, drawer navigation | Scheduled/mobile regression plus targeted PR tests | Mobile quality needs viewport matrix coverage without slowing every small PR. |
+| Desktop release, updater, capabilities | Desktop ops contract and release build gates | Native permissions and signed artifacts must be validated before distribution. |
+| Accessibility, performance, load, media QoE | Scheduled/manual regression and production monitoring | Automation helps, but these require artifact review, budgets, and canary telemetry. |
+
+The source-of-truth strategy contract lives in
+`apps/web/src/lib/e2e/test-strategy.ts` and is covered by Node tests. If a new
+high-risk feature is added, add the risk area or suite there instead of relying
+on tribal knowledge.
+
+## CI Cadence
+
+The CI flow is intentionally layered:
+
+- **PR/pre-merge:** lint, typecheck, unit/integration coverage, build, API
+  contract E2E, and critical smoke E2E.
+- **Post-merge branch push:** the PR gate plus realtime/voice E2E.
+- **Nightly scheduled regression:** full Playwright suite.
+- **Manual workflow dispatch:** `api`, `smoke`, `realtime`, or `full` scope.
+- **Release gate:** desktop ops, generated config, updater/signing checks, and
+  release build jobs.
+
+This keeps PR feedback fast while still giving realtime, voice, mobile, and full
+regression flows a regular safety net.
 
 ## What Is Automated
 
@@ -232,6 +270,16 @@ The seed helper creates disposable, deterministic fixtures:
 
 ## Commands
 
+Check the local E2E environment before starting Playwright:
+
+```bash
+pnpm --filter @wizards/web e2e:check-env
+```
+
+All Playwright scripts run this preflight automatically. It fails before the
+web server starts if required E2E variables are missing or if a database/Redis
+target is not clearly disposable. The output intentionally redacts secrets.
+
 Run all E2E tests:
 
 ```bash
@@ -298,7 +346,13 @@ pnpm --filter @wizards/db exec prisma db push --schema prisma/schema.prisma --sk
 pnpm --filter @wizards/web exec playwright install chromium
 ```
 
-6. Run smoke or full E2E:
+6. Confirm the environment guard before starting Playwright:
+
+```bash
+pnpm --filter @wizards/web e2e:check-env
+```
+
+7. Run smoke or full E2E:
 
 ```bash
 pnpm --filter @wizards/web e2e:smoke
@@ -327,7 +381,7 @@ Production and remote staging auth are not weakened for tests. Do not point
 
 Workflow: `.github/workflows/ci.yml`
 
-Default push/PR flow:
+Default PR flow:
 
 1. `verify`
 2. `Playwright E2E`
@@ -353,15 +407,23 @@ Then it runs:
 - generate Prisma Client
 - apply migrations to the E2E database only
 - install Playwright Chromium with dependencies
+- run API contract E2E tests
 - run smoke E2E tests
 - upload Playwright report and test results on failure
 
+Branch pushes to `main`, `staging`, and `uat` also run the realtime/voice suite.
+Scheduled nightly runs execute the full Playwright suite.
+
 Manual GitHub Actions run:
 
+- `e2e_scope=api` runs API contract tests.
 - `e2e_scope=smoke` runs smoke tests.
-- `e2e_scope=full` runs the full 48-test suite.
+- `e2e_scope=realtime` runs API contract tests plus realtime/voice tests.
+- `e2e_scope=full` runs the full suite.
 
-The default CI intentionally runs smoke tests only to keep push/PR feedback fast and reliable.
+The default PR gate intentionally avoids realtime/voice/full regression work to
+keep feedback fast and reliable. Those suites still run post-merge, on schedule,
+or manually before high-risk releases.
 
 ## Debugging
 
@@ -406,10 +468,15 @@ Trace, screenshots, and video are configured in `playwright.config.ts`:
 - Prefer stable `data-testid` selectors for product-critical flows.
 - Keep E2E helpers test-only and gated.
 - Do not add sleeps unless testing timing stability explicitly.
+- Do not use `page.waitForTimeout`; wait for UI state, network state, or a domain-specific condition.
+- Use the shared `e2e/fixtures/test` fixture so failed runs attach browser diagnostics.
+- Route authenticated `/channels` and `/settings` navigation through readiness helpers instead of direct `page.goto`.
+- Keep every Playwright entrypoint behind `pnpm run e2e:check-env`.
 - Prefer `expect.poll` for realtime state that arrives asynchronously.
 - Keep smoke tests fast.
 - Put expensive multi-user/media tests outside smoke unless they protect a critical regression.
 - Never add production secrets to tests, CI, or docs.
+- Keep the governance tests green before broadening E2E scope; they protect CI signal quality.
 
 ## Recommended Next Steps
 

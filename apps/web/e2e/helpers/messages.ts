@@ -1,9 +1,10 @@
 import type { Page } from "@playwright/test";
 import { expect } from "../fixtures/test";
+import { visibleTestId } from "./navigation";
 
 export async function sendComposerMessage(page: Page, content: string): Promise<void> {
-  const input = page.getByTestId("message-input");
-  const sendButton = page.getByTestId("message-send-button");
+  const input = visibleTestId(page, "message-input");
+  const sendButton = visibleTestId(page, "message-send-button");
 
   await expect(input).toBeVisible();
   await expect(input).toBeEnabled({ timeout: 15_000 });

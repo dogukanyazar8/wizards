@@ -27,6 +27,7 @@ import { useDMConversations } from "@/hooks/use-dm-conversations";
 import { getMessagesQueryKey, type MessagePages } from "@/hooks/use-messages";
 import { useAppearanceHydration } from "@/hooks/use-appearance-hydration";
 import { usePresenceActivity } from "@/hooks/use-presence-activity";
+import { useBodyScrollLock, useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { ShellReadinessRoute } from "@/lib/app-startup/readiness";
 import type { NotificationSocketPayload, UserProfileUpdatedPayload } from "@/lib/socket/events";
 import { useAppStore } from "@/lib/store";
@@ -44,6 +45,7 @@ import { fetchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
 import { dmQueryKeys, type DMConversationsInfiniteData } from "@/lib/dm/client";
 import { COMPACT_SERVER_RAIL_WIDTH } from "@/lib/appearance";
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
+import { RESPONSIVE_SHELL_SIZES } from "@/lib/responsive";
 import { cn } from "@/lib/utils";
 import { useVoiceStore } from "@/store/voice-store";
 
@@ -58,6 +60,8 @@ type WizardsShellProps = {
   };
   uploadthingEnabled: boolean;
 };
+
+const DM_NAVIGATION_SIDEBAR_WIDTH = "clamp(19rem, 20vw, 23rem)";
 
 function findActiveChannel(
   serverId: string | null,
@@ -384,9 +388,9 @@ function MobileShellControls({
 }) {
   const { t } = useI18n();
 
-  return (
-    <div className="flex items-center gap-2 md:hidden">
-      {canGoBack ? (
+  if (canGoBack) {
+    return (
+      <div className="flex items-center md:hidden">
         <button
           aria-label={t("common.back")}
           className="app-panel-soft text-app-foreground inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
@@ -396,7 +400,12 @@ function MobileShellControls({
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
-      ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center md:hidden">
       <MobileDrawerTrigger onClick={onMenu} />
     </div>
   );
@@ -437,6 +446,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const responsiveLayout = useResponsiveLayout();
   const [addMemberServer, setAddMemberServer] = React.useState<WorkspaceServerSummary | null>(null);
   const [addMemberUsername, setAddMemberUsername] = React.useState("");
   const [addMemberSuccess, setAddMemberSuccess] = React.useState<string | null>(null);
@@ -580,10 +590,17 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
           ? "server-root"
           : "other";
   const displayServerRailWidth = COMPACT_SERVER_RAIL_WIDTH;
+  const isDirectMessagesSurface = isFriendsRoute || isDmRoute;
+  const navigationSidebarWidth = isDirectMessagesSurface
+    ? DM_NAVIGATION_SIDEBAR_WIDTH
+    : `${channelSidebarWidth}px`;
   const showMobileBackButton = isDmRoute || isServerConversationRoute;
+  const shouldShowMobileWorkspaceDrawer =
+    mobileSidebarOpen && responsiveLayout.shouldMountWorkspaceDrawer;
+  useBodyScrollLock(shouldShowMobileWorkspaceDrawer || settingsOverlayOpen);
 
   useEffect(() => {
-    if (!mobileSidebarOpen) {
+    if (!shouldShowMobileWorkspaceDrawer) {
       return;
     }
 
@@ -595,7 +612,13 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [mobileSidebarOpen, setMobileSidebarOpen]);
+  }, [setMobileSidebarOpen, shouldShowMobileWorkspaceDrawer]);
+
+  useEffect(() => {
+    if (mobileSidebarOpen && !responsiveLayout.shouldMountWorkspaceDrawer) {
+      setMobileSidebarOpen(false);
+    }
+  }, [mobileSidebarOpen, responsiveLayout.shouldMountWorkspaceDrawer, setMobileSidebarOpen]);
 
   useEffect(() => {
     setMobileSidebarOpen(false);
@@ -1018,10 +1041,10 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const shellStyle = useMemo(
     () =>
       ({
-        "--channel-sidebar-width": `${channelSidebarWidth}px`,
+        "--channel-sidebar-width": navigationSidebarWidth,
         "--server-rail-width": `${displayServerRailWidth}px`,
       }) as CSSProperties,
-    [channelSidebarWidth, displayServerRailWidth],
+    [displayServerRailWidth, navigationSidebarWidth],
   );
 
   useEffect(() => {
@@ -1246,7 +1269,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
 
       <div
         className="hidden h-full shrink-0 md:flex"
-        style={{ width: `calc(${displayServerRailWidth}px + ${channelSidebarWidth}px)` }}
+        style={{ width: `calc(${displayServerRailWidth}px + ${navigationSidebarWidth})` }}
         suppressHydrationWarning
       >
         <NavigationPanel
@@ -1277,7 +1300,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       </div>
 
       <AnimatePresence>
-        {mobileSidebarOpen ? (
+        {shouldShowMobileWorkspaceDrawer ? (
           <motion.div
             animate={{ opacity: 1 }}
             className="fixed inset-0 z-[70] md:hidden"
@@ -1298,7 +1321,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
               exit={{ x: -24 }}
               initial={{ x: -24 }}
               role="dialog"
-              style={{ width: "min(100vw, 28rem)" }}
+              style={{ width: RESPONSIVE_SHELL_SIZES.mobileWorkspaceDrawerWidth }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
               suppressHydrationWarning
             >
@@ -1353,7 +1376,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
         >
           {children}
         </MainChannelPanel>
-        {activeServerId && serverDetailQuery.data ? (
+        {responsiveLayout.shouldMountDesktopSupportPanel && activeServerId && serverDetailQuery.data ? (
           <ServerMemberPanel detail={serverDetailQuery.data} />
         ) : null}
       </div>

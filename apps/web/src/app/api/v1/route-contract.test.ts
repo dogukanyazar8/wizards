@@ -16,6 +16,7 @@ const BODYLESS_MUTATING_ROUTE_PATHS = new Set([
   "channels/[channelId]/read",
   "dm/[conversationId]",
   "dm/[conversationId]/read",
+  "dm/[conversationId]/unread",
   "friends/[userId]",
   "friends/block/[userId]",
   "notifications/[id]/read",
