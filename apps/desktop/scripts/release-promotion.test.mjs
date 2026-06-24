@@ -123,6 +123,7 @@ describe("desktop release promotion bundle", () => {
   it("parses promotion CLI options safely", () => {
     assert.deepEqual(
       parseReleasePromotionCliArgs([
+        "--",
         "--ring",
         "uat",
         "--manifest",

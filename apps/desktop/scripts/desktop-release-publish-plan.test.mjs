@@ -171,6 +171,7 @@ describe("desktop release publish plan", () => {
   it("parses CLI arguments for GitHub Actions usage", () => {
     assert.deepEqual(
       parseDesktopPublishPlanCliArgs([
+        "--",
         "--ring",
         "uat",
         "--version",

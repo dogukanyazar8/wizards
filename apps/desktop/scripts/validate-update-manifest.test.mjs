@@ -180,6 +180,7 @@ describe("desktop update manifest validation", () => {
   it("parses CLI validation options without accepting unknown switches", () => {
     assert.deepEqual(
       parseValidationCliArgs([
+        "--",
         "--manifest=latest.json",
         "--artifact",
         "Whispr_0.8.14_x64-setup.exe",

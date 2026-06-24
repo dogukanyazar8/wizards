@@ -220,6 +220,7 @@ describe("desktop release workflow contract", () => {
   it("parses CLI arguments for GitHub Actions usage", () => {
     assert.deepEqual(
       parseDesktopReleaseWorkflowCliArgs([
+        "--",
         "--ring=uat",
         "--version",
         desktopVersion,
