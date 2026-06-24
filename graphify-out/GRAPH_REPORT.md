@@ -1,16 +1,16 @@
 # Graph Report - Wizards  (2026-06-24)
 
 ## Corpus Check
-- 639 files · ~398,842 words
+- 639 files · ~398,953 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 7212 nodes · 20155 edges · 284 communities (259 shown, 25 thin omitted)
+- 7221 nodes · 20166 edges · 278 communities (255 shown, 23 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 274 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `2fda6036`
+- Built from commit: `479034f8`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -155,7 +155,6 @@
 - [[_COMMUNITY_Community 137|Community 137]]
 - [[_COMMUNITY_Community 138|Community 138]]
 - [[_COMMUNITY_Community 139|Community 139]]
-- [[_COMMUNITY_Community 140|Community 140]]
 - [[_COMMUNITY_Community 141|Community 141]]
 - [[_COMMUNITY_Community 142|Community 142]]
 - [[_COMMUNITY_Community 143|Community 143]]
@@ -267,11 +266,11 @@
 - [[_COMMUNITY_Community 249|Community 249]]
 - [[_COMMUNITY_Community 250|Community 250]]
 - [[_COMMUNITY_Community 251|Community 251]]
-- [[_COMMUNITY_Community 252|Community 252]]
 - [[_COMMUNITY_Community 253|Community 253]]
 - [[_COMMUNITY_Community 254|Community 254]]
 - [[_COMMUNITY_Community 255|Community 255]]
 - [[_COMMUNITY_Community 256|Community 256]]
+- [[_COMMUNITY_Community 257|Community 257]]
 - [[_COMMUNITY_Community 258|Community 258]]
 - [[_COMMUNITY_Community 259|Community 259]]
 - [[_COMMUNITY_Community 260|Community 260]]
@@ -289,12 +288,6 @@
 - [[_COMMUNITY_Community 272|Community 272]]
 - [[_COMMUNITY_Community 273|Community 273]]
 - [[_COMMUNITY_Community 274|Community 274]]
-- [[_COMMUNITY_Community 275|Community 275]]
-- [[_COMMUNITY_Community 276|Community 276]]
-- [[_COMMUNITY_Community 277|Community 277]]
-- [[_COMMUNITY_Community 278|Community 278]]
-- [[_COMMUNITY_Community 279|Community 279]]
-- [[_COMMUNITY_Community 280|Community 280]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `useI18n()` - 206 edges
@@ -309,98 +302,98 @@
 10. `parseJsonBody()` - 71 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `mt()` --calls--> `f`  [INFERRED]
-  actions_report/playwright-report/trace/assets/codeMirrorModule-DS0FLvoc.js → apps/web/src/app/api/uploadthing/core.ts
-- `Qa()` --calls--> `f`  [INFERRED]
-  actions_report/playwright-report/trace/assets/codeMirrorModule-DS0FLvoc.js → apps/web/src/app/api/uploadthing/core.ts
 - `dx()` --calls--> `f`  [INFERRED]
   actions_report/playwright-report/trace/assets/defaultSettingsView-GTWI-W_B.js → apps/web/src/app/api/uploadthing/core.ts
 - `u0()` --calls--> `f`  [INFERRED]
   actions_report/playwright-report/trace/assets/defaultSettingsView-GTWI-W_B.js → apps/web/src/app/api/uploadthing/core.ts
+- `Xa()` --calls--> `f`  [INFERRED]
+  actions_report/playwright-report/trace/assets/defaultSettingsView-GTWI-W_B.js → apps/web/src/app/api/uploadthing/core.ts
 - `q_()` --calls--> `f`  [INFERRED]
   actions_report/playwright-report/trace/assets/defaultSettingsView-GTWI-W_B.js → apps/web/src/app/api/uploadthing/core.ts
+- `gA` --calls--> `f`  [INFERRED]
+  actions_report/playwright-report/trace/assets/defaultSettingsView-GTWI-W_B.js → apps/web/src/app/api/uploadthing/core.ts
 
-## Communities (284 total, 25 thin omitted)
+## Communities (278 total, 23 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.03
-Nodes (187): a2(), AA(), ab(), Ad(), aE(), Ah, aS, aT() (+179 more)
+Nodes (199): a2(), AA(), ab(), ac(), Ad(), aE(), ar(), aS (+191 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.03
-Nodes (170): getAuthSessionCookieConfig(), DMRealtimeParticipant, getDMConversationRealtimeUpdates(), calls, loadConversationViews(), GET(), POST(), createEmptyThreadSummary() (+162 more)
+Cohesion: 0.04
+Nodes (160): GET(), RouteContext, DELETE(), getSocketRegistry(), getSocketServer(), GlobalSocketRegistry, setSocketServer(), invalidateServerRoomIdsCache() (+152 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.04
-Nodes (162): POST(), RouteContext, GET(), RouteContext, getSocketRegistry(), getSocketServer(), GlobalSocketRegistry, setSocketServer() (+154 more)
+Cohesion: 0.05
+Nodes (119): getAccountDataExport(), POST(), requireApiUserId(), GET(), POST(), RouteContext, DELETE(), PATCH() (+111 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.06
-Nodes (96): getAccountDataExport(), setAdminUserBanState(), POST(), requireApiUserId(), GET(), POST(), RouteContext, DELETE() (+88 more)
+Cohesion: 0.03
+Nodes (141): escapeHtml(), renderAccountDeletionReauthEmail(), GET(), GET(), createOrOpenDirectMessage(), dmAttachmentSelect, dmAuthorSelect, dmConversationInclude (+133 more)
 
 ### Community 4 - "Community 4"
-Cohesion: 0.05
-Nodes (99): $, Ai(), ar(), as(), bi, _block(), Bn, calculate() (+91 more)
+Cohesion: 0.03
+Nodes (135): applyDMConversationPresenceUpdateToPageData(), applyDMConversationUpdate(), applyDMConversationUpdateToPageData(), createDMConversationRequest(), createDMConversationsInfiniteData(), DMClientError, DMConversationsInfiniteData, dmQueryKeys (+127 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.04
-Nodes (88): AdminManagedServer, AdminManagedUser, AdminManagementPanel(), AdminManagementPanelProps, formatDuration(), formatNumber(), PaginatedResponse, UserAction (+80 more)
+Cohesion: 0.03
+Nodes (101): AUDIENCE_SELECTOR_OPTIONS, AudienceSelector(), AudienceSelectorOption, AudienceSelectorProps, AudienceSelectorValue, AUDIENCE_ICON_CLASS, AUDIENCES, AudienceTone (+93 more)
 
 ### Community 6 - "Community 6"
-Cohesion: 0.04
-Nodes (93): ActiveDMScreenShare, findScreenShareTrack(), IncomingDMScreenShare, parseParticipantMetadata(), UseDMScreenShareInput, applyScreenShareQualityToTrack(), LiveVoiceProvider(), applyRemoteAudioState() (+85 more)
+Cohesion: 0.05
+Nodes (100): $, Ai(), ar(), bi, _block(), calculate(), Ce(), ci (+92 more)
 
 ### Community 7 - "Community 7"
 Cohesion: 0.04
-Nodes (62): Button, ButtonProps, buttonVariants, DmConversationItem(), DmConversationItemView, DmFilterId, DmFilterOption, DmSidebar() (+54 more)
+Nodes (74): logoutAction(), Button, ButtonProps, buttonVariants, DmConversationItem(), DmConversationItemView, DmFilterId, DmFilterOption (+66 more)
 
 ### Community 8 - "Community 8"
-Cohesion: 0.05
-Nodes (51): ax(), bE(), Bi(), cc(), Cr, cT(), Da(), db() (+43 more)
+Cohesion: 0.04
+Nodes (80): AuthSessionCookieWriter, expireAuthSessionCookies(), getAuthSessionCookieConfig(), getAuthSessionCookieNamesToClear(), getAuthSessionCookieOptions(), shouldClearDesktopSessionOnClose(), writes, getAuthSecret() (+72 more)
 
 ### Community 9 - "Community 9"
 Cohesion: 0.05
-Nodes (59): __(), a_, b_(), b0, c_(), d_(), e_(), eE (+51 more)
+Nodes (50): ax(), bE(), Bi(), br(), Cr, cT(), Da(), db() (+42 more)
 
 ### Community 10 - "Community 10"
-Cohesion: 0.04
-Nodes (17): dE, Di(), f0, hh(), Jx(), kr(), La(), On() (+9 more)
+Cohesion: 0.05
+Nodes (72): AdminManagedServer, AdminManagedUser, AdminManagementPanel(), AdminManagementPanelProps, formatDuration(), formatNumber(), PaginatedResponse, UserAction (+64 more)
 
 ### Community 11 - "Community 11"
 Cohesion: 0.05
-Nodes (66): DMParticipantIdentity, FindBlockedUserIdsForUser, isDMParticipant(), createRealtimeDMMessage(), dmNotificationUserSelect, getBlockedUserIdsForUser(), registerChannelHandlers(), assertUnblockedDMParticipants() (+58 more)
+Nodes (68): GET(), AdminBootstrapEnv, canBootstrapAdminFromEnvironment(), getBootstrapAdminEmailConfig(), getBootstrapAdminEmails(), getOrCreateBootstrapRole(), isAllowedRole(), isProductionAdminBootstrapEnvironment() (+60 more)
 
 ### Community 12 - "Community 12"
-Cohesion: 0.05
-Nodes (73): AUDIENCE_SELECTOR_OPTIONS, AudienceSelector(), AudienceSelectorOption, AudienceSelectorProps, AudienceSelectorValue, AUDIENCE_ICON_CLASS, AUDIENCES, AudienceTone (+65 more)
+Cohesion: 0.04
+Nodes (16): dE, f0, hh(), Jx(), La(), lb(), On(), or (+8 more)
 
 ### Community 13 - "Community 13"
-Cohesion: 0.05
-Nodes (51): ChatArea(), ChatAreaProps, FloatingPanelPosition, getStatusKey(), PendingMessagePayload, DMScreenSharePanel(), IncomingDMScreenShareModal(), LinkPreviewCard() (+43 more)
+Cohesion: 0.06
+Nodes (57): __(), a_, b_(), c_(), d_(), e_(), f_(), fr (+49 more)
 
 ### Community 14 - "Community 14"
-Cohesion: 0.04
-Nodes (65): formatAttachmentSize(), getLightboxCursor(), getZoomLabel(), ImageLightbox(), ImageLightboxProps, PanOffset, PanStart, extensionFromFilename() (+57 more)
+Cohesion: 0.06
+Nodes (74): isActiveAuthUser(), ChannelPage(), hasAdminAccess(), CheckChannelMessageEditRateLimit, CheckChannelMessageRateLimit, VisiblePresenceStatus, ensureChannelMembership(), emitToChannelViewers() (+66 more)
 
 ### Community 15 - "Community 15"
-Cohesion: 0.04
-Nodes (62): getStatusDotClass(), useAppearanceHydration(), normalizeIdleTimeoutMinutes(), PRESENCE_IDLE_TIMEOUT_OPTIONS, PresenceSocket, PresenceStatus, readStoredIdleTimeoutMinutes(), usePresenceActivity() (+54 more)
+Cohesion: 0.05
+Nodes (66): findScreenShareTrack(), parseParticipantMetadata(), UseDMScreenShareInput, applyRemoteAudioState(), applyScreenShareQualityToTrack(), buildAudioCaptureOptions(), collectScreenShares(), connectLiveKitRoomWithRetry() (+58 more)
 
 ### Community 16 - "Community 16"
-Cohesion: 0.05
-Nodes (60): applyRemoteAudioState(), IDLE_PUSH_TO_TALK_STATE, PushToTalkPhase, PushToTalkState, resolveParticipantVolume(), DEFAULT_VOICE_CAMERA_PREFERENCES, VoiceAudioPreferences, VoiceCameraPreferences (+52 more)
+Cohesion: 0.04
+Nodes (62): formatAttachmentSize(), getLightboxCursor(), getZoomLabel(), ImageLightbox(), ImageLightboxProps, PanOffset, PanStart, extensionFromFilename() (+54 more)
 
 ### Community 17 - "Community 17"
-Cohesion: 0.07
-Nodes (66): buildDesktopOverlayTestSnapshot(), configureDesktopVoiceShortcuts(), DesktopCompanionSurfaceInfo, DesktopCompanionSurfacesStatus, DesktopGameOverlayLayout, DesktopNativeLogRecord, DesktopPlatformCapabilities, DesktopPlatformFeature (+58 more)
+Cohesion: 0.04
+Nodes (45): extractFirstUrl(), fetchPreview(), LinkPreviewCard(), MessageEditor(), MessageEditorProps, AutoResizeTextarea, AutoResizeTextareaProps, ChatComposer() (+37 more)
 
 ### Community 18 - "Community 18"
-Cohesion: 0.06
-Nodes (55): applyDMConversationPresenceUpdateToPageData(), applyDMConversationUpdate(), applyDMConversationUpdateToPageData(), createDMConversationsInfiniteData(), DMClientError, DMConversationsInfiniteData, dmQueryKeys, fetchDMConversation() (+47 more)
+Cohesion: 0.07
+Nodes (63): createRealtimeDMMessage(), dmNotificationUserSelect, mapDMMessagePayload(), mapDMMessagePayloadWithReactions(), cacheUserPresence(), getUserPresenceBroadcast(), DMParticipantIdentity, FindBlockedUserIdsForUser (+55 more)
 
 ### Community 19 - "Community 19"
-Cohesion: 0.06
-Nodes (58): GET(), AdminBootstrapEnv, canBootstrapAdminFromEnvironment(), getBootstrapAdminEmailConfig(), getBootstrapAdminEmails(), getOrCreateBootstrapRole(), isAllowedRole(), isProductionAdminBootstrapEnvironment() (+50 more)
+Cohesion: 0.04
+Nodes (64): getVoiceParticipantRoomName(), getVoiceStateViewerRoomName(), joinVoiceStateViewerRoomsForServer(), leaveVoiceStateViewerRoomsForServer(), joinedRooms, leftRooms, socket, VoiceStateViewerSocket (+56 more)
 
 ### Community 20 - "Community 20"
 Cohesion: 0.04
@@ -408,335 +401,335 @@ Nodes (53): VoiceAudioLevelPayload, ConnectLiveKitRoomClient, ConnectLiveKitRoom
 
 ### Community 21 - "Community 21"
 Cohesion: 0.05
-Nodes (46): ROLE_COPY, ROLE_OPTIONS, RoleTabs(), ChannelError(), EmojiPicker(), EmojiPickerProps, EmojiSelection, Picker (+38 more)
+Nodes (51): isDMParticipant(), registerChannelHandlers(), registerDMHandlers(), composeSocketHandlerRegistration(), registerSocketHandlers(), SocketHandlerRegistration, cleanup, cleanupCalls (+43 more)
 
 ### Community 22 - "Community 22"
-Cohesion: 0.06
-Nodes (51): DEFAULT_DESKTOP_GAME_OVERLAY_GAME_PREFERENCE, DESKTOP_GAME_OVERLAY_EXECUTABLE_NAMES, DESKTOP_GAME_OVERLAY_EXECUTABLE_WHITELIST, DesktopGameOverlayGamePreference, DesktopGameOverlayGameSettings, isWhitelistedDesktopGameExecutable(), normalizeDesktopExecutableName(), resolveDesktopGameOverlayProcessGate() (+43 more)
-
-### Community 23 - "Community 23"
 Cohesion: 0.03
 Nodes (62): AddServerMemberInput, AddServerMemberSchema, CreateCategoryInput, CreateCategorySchema, CreateChannelInput, CreateChannelSchema, CreateInviteInput, CreateInviteSchema (+54 more)
 
+### Community 23 - "Community 23"
+Cohesion: 0.06
+Nodes (48): AppStartupSessionMarker(), AppUpdateNotifier(), fetchLatestVersion(), formatBuildId(), isTranslationKey(), translateUpdateText(), authBodyFont, authDisplayFont (+40 more)
+
 ### Community 24 - "Community 24"
-Cohesion: 0.05
-Nodes (57): VoiceCapacityDelegate, getVoiceScreenShareStateKey(), acquireVoiceCleanupLock(), acquireVoiceJoinLocks(), buildVoiceStateDeleteWhere(), buildVoiceStateParticipantsForChannel(), canClearVoiceStateForSession(), cleanupStaleVoiceStates() (+49 more)
+Cohesion: 0.06
+Nodes (47): applyRemoteAudioState(), applyScreenShareQualityToTrack(), IDLE_PUSH_TO_TALK_STATE, PushToTalkPhase, PushToTalkState, resolveParticipantVolume(), runNonFatalVoiceJoinStep(), VoiceAudioPreferences (+39 more)
 
 ### Community 25 - "Community 25"
+Cohesion: 0.06
+Nodes (48): DEFAULT_DESKTOP_GAME_OVERLAY_GAME_PREFERENCE, DESKTOP_GAME_OVERLAY_EXECUTABLE_NAMES, DESKTOP_GAME_OVERLAY_EXECUTABLE_WHITELIST, DesktopGameOverlayGamePreference, DesktopGameOverlayGameSettings, isWhitelistedDesktopGameExecutable(), normalizeDesktopExecutableName(), resolveDesktopGameOverlayProcessGate() (+40 more)
+
+### Community 26 - "Community 26"
+Cohesion: 0.07
+Nodes (55): ATTACHMENT_REDIRECT_STATUSES, AttachmentHttpResponse, getHeader(), isRedirectStatus(), openPublicAttachmentDownload(), requestPublicAttachmentUrl(), assertAttachmentAccess(), assertDownloadableUrl() (+47 more)
+
+### Community 27 - "Community 27"
+Cohesion: 0.07
+Nodes (53): formatErrorLog(), formatWarningLog(), logError(), logWarning(), redactText(), redactValue(), stringifyStructuredLog(), payload (+45 more)
+
+### Community 28 - "Community 28"
 Cohesion: 0.05
 Nodes (4): gt, me, mt, tt
 
-### Community 26 - "Community 26"
-Cohesion: 0.06
-Nodes (28): cd(), cs(), dc(), fT(), hs(), Ia(), jc, Jh (+20 more)
-
-### Community 27 - "Community 27"
-Cohesion: 0.05
-Nodes (50): user, isDesktopOAuthHandoffToken(), buildUsernameCandidate(), normalizeUsername(), candidate, TURKISH_USERNAME_TRANSLITERATION, adapter, baseAdapter (+42 more)
-
-### Community 28 - "Community 28"
-Cohesion: 0.06
-Nodes (38): anonymizeAccount(), buildDeletedAccountIdentity(), deleteAccountUploadThingFiles(), extractUploadThingFileKey(), serializeAccountDataExport(), identity, payload, assertActiveApiUser() (+30 more)
-
 ### Community 29 - "Community 29"
-Cohesion: 0.08
-Nodes (43): isMissingUserSettingsThemeColumn(), updateThemePreferenceAction(), AuthLayout(), ADVANCED_WIZARDS_THEMES, applyWizardsThemeToDocument(), clampNotificationLimit(), getThemePreviewBackground(), getWizardsThemeMode() (+35 more)
+Cohesion: 0.05
+Nodes (51): VoiceCameraStatus, VoiceParticipantViewModel, VoiceScreenShareViewModel, VoiceInviteStatusPayload, isScreenShareSupported(), H1080_FPS60_PRESET, H1440_FPS30_PRESET, H1440_FPS60_PRESET (+43 more)
 
 ### Community 30 - "Community 30"
-Cohesion: 0.08
-Nodes (43): recordDesktopShortcutLatency(), DesktopNativeUpdateNotifier(), NativeUpdate, DesktopMetricOperation, DesktopMetricResult, DesktopMetricRuntime, DesktopPerformanceMetric, formatDesktopPerformanceMetric() (+35 more)
+Cohesion: 0.06
+Nodes (42): applyVoiceProfileUpdate(), applyVoiceScreenShareUpdate(), applyVoiceStateUpdate(), useVoiceStates(), AuthenticatedAppProviders(), AuthenticatedAppProvidersProps, E2E_CAMERA_TRACK, SocketContext (+34 more)
 
 ### Community 31 - "Community 31"
-Cohesion: 0.05
-Nodes (48): CreateDMBody, CreateDMBodySchema, DMConversationsPageResponseSchema, DMConversationsQuery, DMConversationsQuerySchema, DMConversationsResponseSchema, DMErrorCode, DMMessagesQuery (+40 more)
+Cohesion: 0.06
+Nodes (49): user, isGoogleEmailVerified(), buildUsernameCandidate(), normalizeUsername(), candidate, TURKISH_USERNAME_TRANSLITERATION, adapter, baseAdapter (+41 more)
 
 ### Community 32 - "Community 32"
-Cohesion: 0.05
-Nodes (40): desktop_foreground_process_name(), desktop_native_media_capabilities_stay_research_gated(), desktop_platform_capabilities(), desktop_research_feature(), DesktopCloseBehaviorState, DesktopCloseCoordinator, DesktopCloseState, DesktopCompanionSurfaceInfo (+32 more)
+Cohesion: 0.07
+Nodes (42): consumeDesktopOAuthHandoffToken(), createDesktopOAuthHandoffToken(), DesktopOAuthHandoffOptions, DesktopOAuthHandoffPayload, DesktopOAuthHandoffRedis, DesktopOAuthHandoffUser, getDesktopOAuthHandoffKey(), hashDesktopOAuthHandoffToken() (+34 more)
 
 ### Community 33 - "Community 33"
-Cohesion: 0.09
-Nodes (45): extractFirstUrl(), fetchPreview(), assertPublicHttpUrl(), assertPublicResolvedAddresses(), cacheKey(), collectTextNodes(), createPublicLookup(), extractLinkPreviewMetadata() (+37 more)
+Cohesion: 0.07
+Nodes (21): cd(), cs(), dc(), fT(), Ia(), jc, jS(), m0 (+13 more)
 
 ### Community 34 - "Community 34"
 Cohesion: 0.06
-Nodes (37): AuthenticatedAppProvidersProps, E2E_CAMERA_TRACK, E2EVoiceProvider(), KrispAvailability, VoiceCameraStatus, VoiceContextValue, VoiceParticipantsContext, VoiceParticipantsContextValue (+29 more)
+Nodes (16): bo(), Cn(), dr, Fn(), ho, In(), lt(), mn (+8 more)
 
 ### Community 35 - "Community 35"
 Cohesion: 0.07
 Nodes (31): AdminAccessUser, AdminDashboard(), AdminDashboardProps, formatBytes(), formatDateTime(), formatDuration(), formatNumber(), MetricCard() (+23 more)
 
 ### Community 36 - "Community 36"
-Cohesion: 0.08
-Nodes (37): cacheUserPresence(), getPresenceRedisKey(), getUserPresenceBroadcast(), mapStoredPresenceStatus(), cleanupPresence(), initializePresence(), addPresenceSocket(), getPresenceSocketsKey() (+29 more)
+Cohesion: 0.05
+Nodes (38): desktop_foreground_process_name(), desktop_native_media_capabilities_stay_research_gated(), desktop_platform_capabilities(), desktop_research_feature(), DesktopCloseBehaviorState, DesktopCloseCoordinator, DesktopCloseState, DesktopCompanionSurfaceInfo (+30 more)
 
 ### Community 37 - "Community 37"
+Cohesion: 0.07
+Nodes (37): ChatArea(), ChatAreaProps, FloatingPanelPosition, getStatusKey(), PendingMessagePayload, DMScreenSharePanel(), IncomingDMScreenShareModal(), ScreenShareVideo() (+29 more)
+
+### Community 38 - "Community 38"
 Cohesion: 0.14
 Nodes (5): Io(), nS, ur(), Vd, Wn()
 
-### Community 38 - "Community 38"
-Cohesion: 0.06
-Nodes (43): DIRECT_DATABASE_PROTOCOLS, ensurePrismaClientRuntime(), findGeneratedClientIndexPath(), hasNativeEngineArtifact(), isDirectDatabaseUrl(), isPrismaProxyUrl(), loadEnvFile(), loadWorkspaceEnv() (+35 more)
-
 ### Community 39 - "Community 39"
-Cohesion: 0.09
-Nodes (41): assertE2EEnvironmentReady(), assertSafeE2EDatabaseUrl(), assertSafeE2ERedisUrl(), describeOptionalUrlTarget(), describeUrlTarget(), E2EEnvironment, E2EEnvironmentIssue, E2EEnvironmentSummary (+33 more)
+Cohesion: 0.06
+Nodes (28): DesktopAppInfo, WhisprReleaseNote, NOTIFICATION_LIMIT_OPTIONS, SettingsBootstrapPayload, patchLayoutSettings(), SettingsPanelKey, AccountField, AccountPreferencesCard() (+20 more)
 
 ### Community 40 - "Community 40"
+Cohesion: 0.09
+Nodes (38): isMissingUserSettingsThemeColumn(), ThemeActionResult, updateThemePreferenceAction(), useAppearanceHydration(), applyWizardsThemeToDocument(), clampNotificationLimit(), getThemePreviewBackground(), getWizardsThemeMode() (+30 more)
+
+### Community 41 - "Community 41"
+Cohesion: 0.08
+Nodes (39): createDMMessageNotifications(), DMNotificationAttachment, DMNotificationParticipant, ChannelMentionNotificationsPayloadSchema, ChannelThreadReplyNotificationPayloadSchema, ClaimedOutboxJob, claimOutboxJobs(), DMMessageNotificationsPayloadSchema (+31 more)
+
+### Community 42 - "Community 42"
 Cohesion: 0.05
 Nodes (45): DMMessagesResponse, ChatMessage, ChatMessageSchema, ChatMessageType, ChatMessageTypeSchema, EditMessageInput, EditMessageInputSchema, MessageAttachmentSchema (+37 more)
 
-### Community 41 - "Community 41"
-Cohesion: 0.06
-Nodes (28): DesktopAppInfo, APP_ICON_OPTIONS, AppIconId, isAppIconId(), NOTIFICATION_LIMIT_OPTIONS, patchLayoutSettings(), SettingsPanelKey, AccountField (+20 more)
-
-### Community 42 - "Community 42"
-Cohesion: 0.09
-Nodes (36): oversizedBody, apiLoginAs(), apiLogout(), assertSuccessfulE2EApiResponse(), addE2EServerMember(), clearE2EVoiceStates(), createIsolatedServerForMembershipTest(), deleteIsolatedE2EServer() (+28 more)
-
 ### Community 43 - "Community 43"
-Cohesion: 0.08
-Nodes (43): assertUnblockedDMParticipants(), ALLOWED_PUBLISH_SOURCES, createLiveKitToken(), ensureLiveKitEnv(), getLiveKitCredentials(), getLiveKitRoomServiceClient(), getLiveKitServiceUrl(), getLiveKitUrl() (+35 more)
+Cohesion: 0.09
+Nodes (40): assertE2EEnvironmentReady(), assertSafeE2EDatabaseUrl(), assertSafeE2ERedisUrl(), describeOptionalUrlTarget(), describeUrlTarget(), E2EEnvironment, E2EEnvironmentIssue, E2EEnvironmentSummary (+32 more)
 
 ### Community 44 - "Community 44"
-Cohesion: 0.12
-Nodes (37): pasteImageIntoComposer(), assertSuccessfulE2EResponse(), expectLoggedIn(), expectLoggedOut(), expectLoginAlert(), fillLoginCredentials(), getEnabledLoginSubmitButton(), loginAs() (+29 more)
+Cohesion: 0.08
+Nodes (30): sendMessage(), drawer, test, loginAs(), expectVoiceParticipantCount(), attachE2EPageDiagnostics(), sendComposerMessage(), openLoggedInPage() (+22 more)
 
 ### Community 45 - "Community 45"
-Cohesion: 0.09
-Nodes (41): fetchChannelMessages(), normalizeMessageContentForSend(), DELETE(), emitPinUpdate(), POST(), RouteContext, GET(), RouteContext (+33 more)
-
-### Community 46 - "Community 46"
 Cohesion: 0.05
 Nodes (44): Auth Helpers, CI Cadence, CI Integration, code:bash (pnpm --filter @wizards/web e2e -- --list), code:bash (pnpm --filter @wizards/web e2e:report), code:bash (pnpm --filter @wizards/web e2e -- --list), code:bash (PLAYWRIGHT_SKIP_WEB_SERVER=1 pnpm --filter @wizards/web e2e:), code:bash (pnpm --filter @wizards/db exec prisma db push --schema prism) (+36 more)
 
-### Community 47 - "Community 47"
+### Community 46 - "Community 46"
 Cohesion: 0.07
-Nodes (16): bo(), Cn(), dr, Fn(), In(), lt(), mn, Mt() (+8 more)
+Nodes (37): clampExpandedServerRailWidth(), clampMainPanelWidth(), clampNotificationPopupTimeoutSeconds(), clampServerRailIconSize(), applyMessageFontToDocument(), getMessageFontFamily(), isMessageFontId(), MESSAGE_FONT_IDS (+29 more)
+
+### Community 47 - "Community 47"
+Cohesion: 0.12
+Nodes (10): Ah, gc(), k0(), l_, mc(), qt, r(), s_ (+2 more)
 
 ### Community 48 - "Community 48"
-Cohesion: 0.06
-Nodes (26): _0, bt(), dx(), fx(), Go(), hx(), ib(), iT() (+18 more)
+Cohesion: 0.15
+Nodes (39): buildDesktopOverlayTestSnapshot(), configureDesktopVoiceShortcuts(), DesktopGameOverlayLayout, DesktopNativeLogRecord, DesktopSupportWebDiagnostics, DesktopSurfaceHealth, DesktopVoiceShortcutAction, DesktopVoiceShortcutConfig (+31 more)
 
 ### Community 49 - "Community 49"
-Cohesion: 0.06
-Nodes (20): BrandLogo(), AuthFooter(), LANGUAGE_OPTIONS, ThemeToggle(), getSystemTheme(), LoginTheme, readStoredTheme(), useLoginTheme() (+12 more)
+Cohesion: 0.07
+Nodes (32): AccountReauthChallengeCleanupDelegate, AccountReauthChallengeCleanupRecord, buildAccountReauthChallengeCleanupWhere(), cleanupAccountReauthChallenges(), getAccountReauthChallengeCleanupCutoff(), shouldDeleteAccountReauthChallenge(), calls, NOW (+24 more)
 
 ### Community 50 - "Community 50"
-Cohesion: 0.08
-Nodes (37): ScreenShareVideo(), toggleElementFullscreen(), VoiceCameraStatus, getSocket(), getSocketUrl(), CameraStatusPill(), getAvatarGlowStyle(), getKrispQualityLabelKey() (+29 more)
+Cohesion: 0.11
+Nodes (32): AppStartupReadyMetric, AppStartupResult, AppStartupRuntime, formatAppStartupMetric(), getAppStartupDurationMs(), getAppStartupRuntime(), isAppStartupMetricsEnabled(), isEnabledValue() (+24 more)
 
 ### Community 51 - "Community 51"
-Cohesion: 0.1
-Nodes (34): headers, renderStartupScreen(), RootLayout(), getDeletedMessageLabel(), getDeletedMessageLabelForLocale(), getDMDisplayName(), createFriendAcceptedNotification(), createFriendRequestNotification() (+26 more)
+Cohesion: 0.12
+Nodes (31): DesktopNativeUpdateNotifier(), NativeUpdate, getWhisprDesktopReleaseRing(), isWhisprDesktopUpdaterEnabled(), canUseDesktopNativeUpdater(), checkDesktopNativeUpdate(), clearDismissedDesktopUpdateVersion(), clearPendingDesktopUpdateVerification() (+23 more)
 
 ### Community 52 - "Community 52"
-Cohesion: 0.06
-Nodes (16): _a, bs(), dt(), es, fa, gs(), ha(), ho (+8 more)
-
-### Community 53 - "Community 53"
-Cohesion: 0.1
-Nodes (33): AppStartupReadyMetric, AppStartupResult, AppStartupRuntime, formatAppStartupMetric(), getAppStartupDurationMs(), getAppStartupRuntime(), isAppStartupMetricsEnabled(), isEnabledValue() (+25 more)
+Cohesion: 0.11
+Nodes (31): anonymizeAccount(), buildDeletedAccountIdentity(), clearAccountRuntimeState(), deleteAccountUploadThingFiles(), extractUploadThingFileKey(), serializeAccountDataExport(), identity, payload (+23 more)
 
 ### Community 54 - "Community 54"
-Cohesion: 0.08
-Nodes (33): useVoiceConnection(), useVoiceParticipants(), useVoiceState(), KrispAvailability, useVoiceConnection(), useVoiceParticipants(), useVoiceState(), ActiveVoiceReminder() (+25 more)
+Cohesion: 0.09
+Nodes (35): recordMessageCreated(), createEmptyThreadSummary(), dmMessageInclude, setDMReaction(), toggleDMReaction(), validateDMReactionEmoji(), normalizeMessageContentForSend(), addMinutes() (+27 more)
 
 ### Community 55 - "Community 55"
-Cohesion: 0.09
-Nodes (29): createDesktopOAuthHandoffToken(), buildDesktopOAuthCompletePath(), buildDesktopOAuthStartPath(), buildDesktopOAuthStartUrl(), getDesktopOAuthGoogleAuthorizationParams(), getSafeAuthRedirectPath(), isSafeAuthRedirectPath(), SAFE_AUTH_REDIRECT_EXACT_PATHS (+21 more)
+Cohesion: 0.11
+Nodes (33): AnalyticsClientInfo, detectBrowser(), detectClientType(), detectDeviceType(), detectOs(), getAnalyticsClientInfo(), getFirstForwardedIp(), getIpAddress() (+25 more)
 
 ### Community 56 - "Community 56"
-Cohesion: 0.07
-Nodes (10): eo, go(), hr, Ht(), Js(), mr(), po, pr() (+2 more)
+Cohesion: 0.08
+Nodes (22): bt(), dx(), fx(), hx(), ib(), iT(), Ka, ll() (+14 more)
 
 ### Community 57 - "Community 57"
-Cohesion: 0.14
-Nodes (8): gc(), k0(), l_, mc(), qt, r(), s_, yt()
-
-### Community 59 - "Community 59"
 Cohesion: 0.07
-Nodes (24): DesktopGameOverlay(), initials(), normalizeOverlayWaveformLevel(), OVERLAY_WAVEFORM_PATTERN, OverlayAudioWaveform(), OverlayAvatar(), ChromeButtonProps, DesktopWindowChrome() (+16 more)
+Nodes (33): appCommandPermissions, buildDesktopCsp(), capabilityUrlPatterns(), child, desktopCsp, desktopRoot, devUrl, extraArgs (+25 more)
 
-### Community 60 - "Community 60"
-Cohesion: 0.11
-Nodes (34): AnalyticsClientInfo, detectBrowser(), detectClientType(), detectDeviceType(), detectOs(), getAnalyticsClientInfo(), getFirstForwardedIp(), getIpAddress() (+26 more)
-
-### Community 61 - "Community 61"
-Cohesion: 0.08
-Nodes (12): Bo(), br(), ds(), fv, gv(), tS(), Ui, vE() (+4 more)
-
-### Community 62 - "Community 62"
-Cohesion: 0.08
-Nodes (32): clampExpandedServerRailWidth(), clampMainPanelWidth(), clampNotificationPopupTimeoutSeconds(), clampServerRailIconSize(), applyMessageFontToDocument(), getMessageFontFamily(), isMessageFontId(), MESSAGE_FONT_IDS (+24 more)
-
-### Community 64 - "Community 64"
+### Community 58 - "Community 58"
 Cohesion: 0.09
 Nodes (30): assert_desktop_main_command_window(), configure_desktop_voice_shortcuts(), configure_desktop_voice_shortcuts_impl(), desktop_voice_shortcut_registry_status(), desktop_voice_shortcut_status(), DesktopActivityStatus, DesktopVoiceShortcutAction, get_desktop_autostart_enabled() (+22 more)
 
-### Community 65 - "Community 65"
-Cohesion: 0.13
-Nodes (32): ChannelPage(), hasAdminAccess(), ALL_PERMISSION_VALUES, ALL_PERMISSIONS, applyOverride(), canUseLockedChannelPermission(), ChannelPermissionOverrideRecord, combinePermissions() (+24 more)
-
-### Community 66 - "Community 66"
-Cohesion: 0.1
-Nodes (27): ao(), at(), B(), be(), ca, co(), Ct, De() (+19 more)
-
-### Community 67 - "Community 67"
+### Community 59 - "Community 59"
 Cohesion: 0.09
-Nodes (21): a0, ac(), cl(), Ec(), el(), fs(), Ih(), ja() (+13 more)
+Nodes (27): DesktopCompanionSurfaceInfo, DesktopCompanionSurfacesStatus, DesktopPlatformCapabilities, DesktopPlatformFeature, DesktopPlatformFeatureStatus, DesktopSupportBundle, DesktopVoiceShortcutStatus, isDesktopCompanionSurfaceReady() (+19 more)
 
-### Community 68 - "Community 68"
+### Community 60 - "Community 60"
+Cohesion: 0.09
+Nodes (27): EmojiPicker(), EmojiPickerProps, EmojiSelection, Picker, GifPicker(), GifPickerProps, GiphyAttachmentResponse, GiphyGif (+19 more)
+
+### Community 62 - "Community 62"
+Cohesion: 0.08
+Nodes (24): AppStartupScreen(), AppStartupScreenExperience, AppStartupScreenProps, AppStartupScreenVariant, DESCRIPTION_LABEL_KEYS, STATUS_LABEL_KEYS, desktopHtml, desktopOverlayHtml (+16 more)
+
+### Community 63 - "Community 63"
+Cohesion: 0.12
+Nodes (31): createAccountDeletionReauthToken(), createAccountDeletionReauthTokenForCredential(), createAccountDeletionReauthTokenForPassword(), createAccountDeletionReauthTokenForVerifiedEmail(), assertEmailReauthEligibleUser(), buildAccountDeletionReauthUrl(), confirmAccountDeletionReauthEmail(), createAccountReauthChallenge() (+23 more)
+
+### Community 64 - "Community 64"
+Cohesion: 0.08
+Nodes (7): Bo(), ds(), fv, tS(), Ui, Ze, ZT()
+
+### Community 65 - "Community 65"
 Cohesion: 0.06
 Nodes (13): ChatMessage, Member, messages, offlineMembers, onlineMembers, ServerItem, serverItems, TextChannel (+5 more)
 
-### Community 69 - "Community 69"
-Cohesion: 0.09
-Nodes (21): PrimaryButton(), SocialAuthButtons(), TextInput, LoginCard(), LoginPage(), getLoginRoleHint(), LoginRole, PROVIDERS (+13 more)
-
-### Community 70 - "Community 70"
-Cohesion: 0.14
-Nodes (31): recordPermissionCacheMetric(), channelPermissionSnapshotKey(), getReadyRedis(), getRevisions(), hydrateSnapshot(), isFreshEnough(), isPermissionCacheEnabled(), memberVersionKey() (+23 more)
-
-### Community 71 - "Community 71"
-Cohesion: 0.15
-Nodes (30): AccountSettingsField, broadcastUserProfileUpdate(), isTrustedAvatarUrl(), mapUserToAccountState(), mapVisiblePresenceStatus(), updateAccountAvatarAction(), UpdateAccountAvatarSchema, updateAccountSettingsAction() (+22 more)
-
-### Community 72 - "Community 72"
+### Community 66 - "Community 66"
 Cohesion: 0.09
 Nodes (27): collectScreenShares(), countActiveScreenShares(), getParticipantCameraState(), getParticipantDeafenState(), getParticipantProfile(), getScreenShareId(), parseParticipantMetadata(), ParticipantMetadata (+19 more)
 
-### Community 73 - "Community 73"
-Cohesion: 0.19
-Nodes (31): listWorkspaceServers(), ChannelUnreadCountRow, createServerCountMap(), createUserCountMap(), emitServerUnreadUpdatesForServer(), emitServerUnreadUpdateToUser(), getActiveServerMemberUserIds(), getServerMentionCount() (+23 more)
-
-### Community 75 - "Community 75"
+### Community 67 - "Community 67"
 Cohesion: 0.11
-Nodes (28): GET(), mapDMParticipant(), readPresence(), friendListUserSelect, friendRequestInclude, FriendRequestRecord, friendUserSelect, listBlockedUsers() (+20 more)
+Nodes (25): ao(), at(), B(), be(), ca, co(), Ct, De() (+17 more)
 
-### Community 76 - "Community 76"
+### Community 68 - "Community 68"
 Cohesion: 0.12
-Nodes (22): POST(), collectVoiceAudioHealthFromSender(), collectVoiceAudioHealthFromStats(), stats, VoiceAudioHealthMetric, VoiceAudioHealthSender, VoiceAudioHealthStatsReport, formatVoicePerformanceMetric() (+14 more)
+Nodes (30): apply_windows_game_overlay_child_click_through(), apply_windows_game_overlay_click_through(), apply_windows_game_overlay_dwm_frame_preferences(), apply_windows_overlay_child_styles(), apply_windows_overlay_ex_styles(), configured_app_origin_url(), desktop_app_url_with_path(), desktop_game_overlay_bottom_offset() (+22 more)
 
-### Community 77 - "Community 77"
+### Community 69 - "Community 69"
+Cohesion: 0.13
+Nodes (28): getResultPreview(), getSearchPanelPosition(), MessageSearchPanel(), MessageSearchPanelProps, SearchMode, SearchPanelPosition, toIsoDateTime(), messageSearchQueryKeys (+20 more)
+
+### Community 70 - "Community 70"
+Cohesion: 0.17
+Nodes (28): AccountSettingsField, broadcastUserProfileUpdate(), isTrustedAvatarUrl(), mapUserToAccountState(), mapVisiblePresenceStatus(), updateAccountAvatarAction(), UpdateAccountAvatarSchema, updateAccountSettingsAction() (+20 more)
+
+### Community 71 - "Community 71"
+Cohesion: 0.07
+Nodes (13): _a, bs(), dt(), es, fa, gs(), la, Nn() (+5 more)
+
+### Community 72 - "Community 72"
+Cohesion: 0.19
+Nodes (25): af(), df, ef(), ff(), Ja(), lf(), mt(), nf() (+17 more)
+
+### Community 73 - "Community 73"
+Cohesion: 0.11
+Nodes (25): normalizeIdleTimeoutMinutes(), PRESENCE_IDLE_TIMEOUT_OPTIONS, PresenceSocket, PresenceStatus, readStoredIdleTimeoutMinutes(), usePresenceActivity(), usePresenceIdleTimeoutPreference(), AccountUpdatedEventPayload (+17 more)
+
+### Community 74 - "Community 74"
 Cohesion: 0.1
 Nodes (26): checkedKeys, error, graceRedis, MemoryRateLimitGraceRedis, redis, CHANNEL_MESSAGE_EDIT_RATE_LIMIT, CHANNEL_MESSAGE_RATE_LIMIT, ChannelMessageRateLimitResult (+18 more)
 
-### Community 78 - "Community 78"
-Cohesion: 0.17
-Nodes (26): clearAccountRuntimeState(), checkPasswordResetRateLimit(), checkVerificationResendRateLimit(), registerAction(), sendVerificationEmailWithRateLimit(), enforceGiphyRateLimit(), logError(), checkRateLimit() (+18 more)
-
-### Community 79 - "Community 79"
+### Community 75 - "Community 75"
 Cohesion: 0.12
 Nodes (27): assertArrayEquals(), assertCondition(), assertDesktopReleaseOpsContract(), assertDesktopVersionContract(), assertPositiveBudget(), assertSemverLike(), contract, DESKTOP_PERFORMANCE_BUDGETS (+19 more)
 
-### Community 80 - "Community 80"
+### Community 76 - "Community 76"
+Cohesion: 0.11
+Nodes (22): getStatusDotClass(), buildMemberGroups(), getGroupPreview(), getMemberRole(), getRoleColorStyle(), getRoleDisplay(), getRoleKind(), getRoleRank() (+14 more)
+
+### Community 77 - "Community 77"
+Cohesion: 0.12
+Nodes (20): headers, RootLayout(), LegacyAppearanceSettingsPage(), EmailVerificationResult, verifyEmailToken(), PageParams, ChannelsPage(), getHeaderLocale() (+12 more)
+
+### Community 78 - "Community 78"
 Cohesion: 0.13
-Nodes (24): DesktopActivityStatus, DesktopVoiceMiniCommand, applyAppBadge(), BadgeNavigator, clampNotificationText(), DESKTOP_NOTIFICATION_TYPES, DESKTOP_SHORTCUT_COMMANDS, DesktopCompanionSurfaceHideReason (+16 more)
+Nodes (25): attachmentDraftByFilename(), imageAttachment, lightbox, message, openServerSettings(), pasteImageIntoComposer(), waitForReadyAttachmentDraft(), AttachmentDraft (+17 more)
+
+### Community 79 - "Community 79"
+Cohesion: 0.12
+Nodes (23): assertUnblockedDMParticipants(), DMParticipantIdentity, FindBlockedUserIdsForUser, getBlockedUserIdsForUser(), assertUnblockedDMParticipants(), checkedCandidateUserIds, { ctx, events }, ALLOWED_PUBLISH_SOURCES (+15 more)
+
+### Community 80 - "Community 80"
+Cohesion: 0.14
+Nodes (22): DesktopActivityStatus, DesktopVoiceMiniCommand, applyAppBadge(), BadgeNavigator, clampNotificationText(), DESKTOP_NOTIFICATION_TYPES, DESKTOP_SHORTCUT_COMMANDS, DesktopCompanionSurfaceHideReason (+14 more)
 
 ### Community 81 - "Community 81"
-Cohesion: 0.12
-Nodes (27): ChannelMentionNotificationsPayloadSchema, ChannelThreadReplyNotificationPayloadSchema, ClaimedOutboxJob, claimOutboxJobs(), DMMessageNotificationsPayloadSchema, drainOutboxJobs(), enqueueChannelMentionNotificationJob(), enqueueChannelThreadReplyNotificationJob() (+19 more)
+Cohesion: 0.11
+Nodes (18): ChromeButtonProps, DesktopWindowChrome(), isChromeLessDesktopPathname(), WindowAction, completeWhisprDesktopBeforeClose(), getWhisprDesktopBeforeCloseRequestId(), isSafeDesktopInternalPath(), promoteWhisprDesktopWindow() (+10 more)
 
 ### Community 82 - "Community 82"
-Cohesion: 0.12
-Nodes (27): begin_desktop_close_request(), complete_desktop_before_close(), complete_desktop_close_request(), current_unix_ms(), desktop_window_state_flags(), DesktopGameOverlaySize, dispatch_desktop_command(), dispatch_desktop_command_with_focus() (+19 more)
+Cohesion: 0.21
+Nodes (25): ChannelUnreadCountRow, createServerCountMap(), createUserCountMap(), getServerMentionCounts(), getServerMentionCountsBatch(), getServerMentionCountsBatchForVisibleChannelGroups(), getServerMentionCountsBatchForVisibleChannels(), getServerMentionCountsForVisibleChannelIds() (+17 more)
 
 ### Community 83 - "Community 83"
-Cohesion: 0.15
-Nodes (19): acceptInviteInBrowserAction(), getInviteDestination(), getInvitePath(), getInviteDestination(), getInviteErrorMessage(), getInvitePath(), InvitePage(), InvitePageProps (+11 more)
+Cohesion: 0.18
+Nodes (22): assertSuccessfulE2EResponse(), expectLoggedIn(), expectLoggedOut(), expectLoginAlert(), fillLoginCredentials(), getEnabledLoginSubmitButton(), loginViaUi(), logout() (+14 more)
 
 ### Community 84 - "Community 84"
-Cohesion: 0.12
-Nodes (21): CheckChannelMessageEditRateLimit, CheckChannelMessageRateLimit, deriveMessageSendFanoutTargets(), checkedUserIds, { ctx, emittedEvents, handlers }, { ctx, events }, handler, ensureChannelMembership() (+13 more)
-
-### Community 85 - "Community 85"
-Cohesion: 0.11
-Nodes (23): assertWebEnvironment(), EnvSource, EnvValidationResult, isBooleanFlag(), isPositiveInteger(), isPresent(), isValidUrl(), OPTIONAL_BOOLEAN_ENV_VARS (+15 more)
-
-### Community 86 - "Community 86"
-Cohesion: 0.15
-Nodes (22): WhisprReleaseNote, SoundEffectsProvider(), SoundEffectsProviderProps, toAudioVolume(), SettingsBootstrapPayload, fetchLayoutSettings(), fetchSettingsBootstrap(), settingsQueryKeys (+14 more)
-
-### Community 87 - "Community 87"
-Cohesion: 0.1
-Nodes (21): expectComposerInputBudget(), expectFitsViewport(), expectInteractionWithinBudget(), expectMobileSurfaceHealthy(), expectNoHorizontalOverflow(), expectVisibleTestIdCountAtMost(), MobileClientPreferenceScenario, MobileQualityViewport (+13 more)
-
-### Community 88 - "Community 88"
 Cohesion: 0.15
 Nodes (23): createMessageSendFanoutMetrics(), createPermissionCacheMetrics(), createUnreadFanoutMetrics(), flushWorkspacePerformanceMetrics(), flushWorkspacePerformanceMetricsForTest(), getFlushIntervalMs(), getWorkspacePerformanceInstanceId(), hasMetricsToFlush() (+15 more)
 
-### Community 89 - "Community 89"
+### Community 85 - "Community 85"
 Cohesion: 0.08
 Nodes (21): capability, desktopRoot, env, execFileAsync, gameOverlayCapability, generatedCapability, generatedConfig, generatedConfigPath (+13 more)
 
-### Community 90 - "Community 90"
+### Community 86 - "Community 86"
+Cohesion: 0.12
+Nodes (22): createDesktopBuildMetadata(), DEFAULT_ARTIFACT_DIR, describeArtifact(), desktopRoot, normalizePlatform(), normalizeRing(), normalizeVersion(), options (+14 more)
+
+### Community 87 - "Community 87"
 Cohesion: 0.14
 Nodes (21): GET(), withTimeout(), defaultRedisCheck(), DependencyStatus, getHealthPayload(), getOperationalProbeResponse(), getReadinessCacheTtlMs(), getReadinessPayload() (+13 more)
 
-### Community 91 - "Community 91"
+### Community 88 - "Community 88"
+Cohesion: 0.1
+Nodes (17): collectVoiceAudioHealthFromSender(), collectVoiceAudioHealthFromStats(), stats, VoiceAudioHealthMetric, VoiceAudioHealthSender, VoiceAudioHealthStatsReport, NoiseFilterTier, formatVoicePerformanceMetric() (+9 more)
+
+### Community 89 - "Community 89"
 Cohesion: 0.14
 Nodes (21): AccountSettingsState, UpdateAccountAvatarResult, E2EUploadOptions, E2EUploadResponse, readFileAsDataUrl(), uploadE2EFile(), useE2EUploadThing, AVATAR_CONTENT_TYPES (+13 more)
 
-### Community 92 - "Community 92"
+### Community 90 - "Community 90"
+Cohesion: 0.17
+Nodes (22): oversizedBody, apiLoginAs(), apiLogout(), assertSuccessfulE2EApiResponse(), addE2EServerMember(), clearE2EVoiceStates(), createIsolatedServerForMembershipTest(), deleteIsolatedE2EServer() (+14 more)
+
+### Community 91 - "Community 91"
 Cohesion: 0.11
-Nodes (18): attachmentDraftByFilename(), imageAttachment, lightbox, message, openServerSettings(), sendMessage(), waitForReadyAttachmentDraft(), AttachmentDraft (+10 more)
+Nodes (20): expectComposerInputBudget(), expectFitsViewport(), expectInteractionWithinBudget(), expectMobileSurfaceHealthy(), expectNoHorizontalOverflow(), expectVisibleTestIdCountAtMost(), MobileClientPreferenceScenario, MobileQualityViewport (+12 more)
 
-### Community 93 - "Community 93"
-Cohesion: 0.12
-Nodes (24): assertCachedChannelPermission(), canUseCachedLockedChannelPermission(), channelOverrideSelect, ChannelPermissionSnapshotChannel, chunkChannelPermissionUserIds(), createChannelPermissionSnapshot(), getChannelPermissionContext(), getPermissionCacheReadOptions() (+16 more)
-
-### Community 94 - "Community 94"
+### Community 92 - "Community 92"
 Cohesion: 0.16
 Nodes (21): assertExistingFile(), assertSemver(), assertSupportedPlatform(), assertWindowsArtifact(), createDesktopUpdateManifest(), createDesktopUpdateManifestFromFiles(), ensureTrailingSlash(), isLoopbackHost() (+13 more)
 
-### Community 95 - "Community 95"
-Cohesion: 0.14
-Nodes (18): AppUpdateNotifier(), fetchLatestVersion(), formatBuildId(), isTranslationKey(), translateUpdateText(), getWhisprReleaseNotes(), getWhisprVersionPayload(), localizeReleaseNoteText() (+10 more)
-
-### Community 96 - "Community 96"
+### Community 93 - "Community 93"
 Cohesion: 0.12
-Nodes (16): AppStartupScreen(), AppStartupScreenExperience, AppStartupScreenProps, AppStartupScreenVariant, DESCRIPTION_LABEL_KEYS, STATUS_LABEL_KEYS, desktopHtml, desktopOverlayHtml (+8 more)
+Nodes (15): fetchSettingsBootstrap(), InAppSettingsOverlay(), InAppSettingsOverlayProps, buildSettingsHref(), isAdvancedAppearancePanel(), PANELS_BY_SECTION, resolveSettingsSelection(), SettingsSection (+7 more)
 
-### Community 97 - "Community 97"
-Cohesion: 0.32
-Nodes (21): af(), df, ef(), ff(), Ja(), lf(), mt(), nf() (+13 more)
+### Community 94 - "Community 94"
+Cohesion: 0.1
+Nodes (16): bc(), fd, gx(), hT(), i(), kT, oA(), Oo() (+8 more)
 
-### Community 98 - "Community 98"
+### Community 95 - "Community 95"
 Cohesion: 0.15
 Nodes (20): assertInstallerMatchesVersion(), assertManifestFilename(), assertNoSensitiveValues(), assertSignatureMatchesInstaller(), createDesktopReleasePublishPlan(), describeInputFile(), ensureTrailingSlash(), FORBIDDEN_SENSITIVE_MARKERS (+12 more)
 
-### Community 99 - "Community 99"
-Cohesion: 0.18
-Nodes (20): configured_app_origin_url(), desktop_app_url_with_path(), desktop_game_overlay_bottom_offset(), desktop_game_overlay_size(), desktop_init_script(), DesktopGameOverlayLayout, dispatch_desktop_surface_ready(), get_desktop_main_window_focused() (+12 more)
+### Community 96 - "Community 96"
+Cohesion: 0.12
+Nodes (20): E2EVoiceProvider(), LiveVoiceProvider(), LiveVoiceProvider(), isLiveKitCloudUrl(), createReconnectTimeoutController(), useVoiceAudioLevels(), createVoiceHeartbeatController(), createVoiceHeartbeatTimerApi() (+12 more)
 
-### Community 100 - "Community 100"
-Cohesion: 0.19
-Nodes (16): AppStartupSessionMarker(), AuthSession, getCurrentUser(), getCurrentUserForSession(), requireAuth(), LocaleSessionSync(), LocaleSessionSyncProps, getVisibleStatus() (+8 more)
-
-### Community 101 - "Community 101"
+### Community 97 - "Community 97"
 Cohesion: 0.15
 Nodes (18): assertTurnstileActionAllowed(), assertTurnstileHostnameAllowed(), isE2ETurnstileBypassEnabled(), getExpectedTurnstileHostnames(), getTurnstileSecret(), mutableEnv, originalEnv, TurnstileAction (+10 more)
 
-### Community 102 - "Community 102"
-Cohesion: 0.11
-Nodes (20): messageByText(), attachE2EPageDiagnostics(), addQuickReaction(), browserDialogs, clickMessageAction(), composer, LoggedInPage, message (+12 more)
+### Community 98 - "Community 98"
+Cohesion: 0.21
+Nodes (16): acceptInviteInBrowserAction(), getInviteDestination(), getInvitePath(), getInviteDestination(), getInviteErrorMessage(), getInvitePath(), InvitePage(), InvitePageProps (+8 more)
 
-### Community 103 - "Community 103"
+### Community 99 - "Community 99"
 Cohesion: 0.09
 Nodes (22): Build Commands, CI Plan, code:powershell (pnpm --filter @wizards/web typecheck), code:text (.github/workflows/desktop-release.yml), code:powershell (pnpm --filter @wizards/desktop release:publish-plan -- `), code:powershell (pnpm --filter @wizards/desktop release:artifacts -- `), code:powershell (pnpm --filter @wizards/desktop build:desktop), code:text (apps/desktop/src-tauri/target/release/bundle/nsis/) (+14 more)
 
-### Community 104 - "Community 104"
+### Community 100 - "Community 100"
+Cohesion: 0.13
+Nodes (9): eo, go(), hr, Ht(), Js(), mr(), po, pr() (+1 more)
+
+### Community 101 - "Community 101"
 Cohesion: 0.19
 Nodes (20): assertExistingFile(), assertPlainObject(), assertRemoteArtifactAvailable(), assertSafeHttpsUrl(), assertSemver(), assertSupportedPlatform(), assertValidDate(), fetchWithTimeout() (+12 more)
 
-### Community 105 - "Community 105"
+### Community 102 - "Community 102"
 Cohesion: 0.17
 Nodes (19): assertStableReleaseGuard(), buildDesktopReleaseTag(), contract, createDesktopReleaseWorkflowContract(), defaultUpdaterBaseUrlForRing(), defaultWebUrlForRing(), ensureTrailingSlash(), isLoopbackHost() (+11 more)
 
-### Community 106 - "Community 106"
+### Community 103 - "Community 103"
+Cohesion: 0.12
+Nodes (21): begin_desktop_close_request(), capture_desktop_main_window_state(), complete_desktop_before_close(), complete_desktop_close_request(), desktop_main_window_state_path(), desktop_saved_state_is_on_screen(), desktop_window_state_flags(), DesktopSavedWindowState (+13 more)
+
+### Community 104 - "Community 104"
 Cohesion: 0.1
 Nodes (16): API_V1_DIR, body, BODYLESS_MUTATING_ROUTE_PATHS, collectRouteFiles(), EXPECTED_RATE_LIMIT_ACTIONS, missingGuards, MUTATING_METHODS, mutatingWithoutJsonParser (+8 more)
+
+### Community 106 - "Community 106"
+Cohesion: 0.13
+Nodes (5): cb, close(), Gy(), Lo, show()
 
 ### Community 107 - "Community 107"
 Cohesion: 0.18
@@ -747,196 +740,192 @@ Cohesion: 0.19
 Nodes (18): attachSecurityHeaders(), buildContentSecurityPolicy(), config, createNonce(), CSRF_PROTECTED_API_PREFIXES, getAllowedRequestOrigins(), getOrigin(), getSessionCookieConfig() (+10 more)
 
 ### Community 109 - "Community 109"
-Cohesion: 0.22
-Nodes (19): searchMessages(), assertChannelSearchAccess(), assertDMSearchAccess(), buildAdvancedFilterSql(), buildSearchFragments(), ChannelSearchRow, decodeCursor(), DMSearchRow (+11 more)
+Cohesion: 0.2
+Nodes (19): SoundEffectsProvider(), SoundEffectsProviderProps, toAudioVolume(), fetchLayoutSettings(), settingsQueryKeys, SettingsPanel(), clampSoundVolume(), DEFAULT_SOUND_PREFERENCES (+11 more)
 
 ### Community 110 - "Community 110"
+Cohesion: 0.12
+Nodes (17): joinServerRoomsForUser(), listServerRoomIdsForUser(), listServerRoomIdsPage(), normalizeServerRoomJoinBatchSize(), getServerRoomIdsCacheKey(), isRedisReady(), parseCachedServerRoomIds(), readCachedServerRoomIds() (+9 more)
+
+### Community 111 - "Community 111"
 Cohesion: 0.19
 Nodes (13): CONTRIBUTOR_NAMES, CORRUPTED_CONTRIBUTOR_NAMES, main(), assertSeedIsAllowed(), ensureCategory(), ensureChannel(), ensureMemberRole(), ensureRole() (+5 more)
 
-### Community 111 - "Community 111"
+### Community 112 - "Community 112"
 Cohesion: 0.1
 Nodes (20): 1. PROJECT STRUCTURE AUDIT, 2. DATABASE SCHEMA AUDIT, 3. AUTHENTICATION AUDIT, 4. LAYOUT & UI AUDIT, 5. API ROUTES AUDIT, 6. DATA FETCHING & STATE AUDIT, 7. TYPESCRIPT & CODE QUALITY AUDIT, 8. PERFORMANCE & BEST PRACTICES AUDIT (+12 more)
 
-### Community 112 - "Community 112"
-Cohesion: 0.14
-Nodes (12): ar(), Bh(), bs(), fl(), id(), Kb(), lc(), md (+4 more)
-
-### Community 114 - "Community 114"
+### Community 113 - "Community 113"
 Cohesion: 0.17
 Nodes (18): getDesktopReleaseOpsContract(), assertExistingFile(), assertNoSensitiveValues(), assertReadyAudit(), buildManualQaSteps(), buildOperatorChecklist(), buildRollbackPlan(), createDesktopReleasePromotionBundle() (+10 more)
 
-### Community 115 - "Community 115"
-Cohesion: 0.23
-Nodes (18): createAccountDeletionReauthToken(), createAccountDeletionReauthTokenForCredential(), createAccountDeletionReauthTokenForPassword(), createAccountDeletionReauthTokenForVerifiedEmail(), getEmailCredentialBinding(), getPasswordCredentialBinding(), getReauthSecret(), isSafeEqual() (+10 more)
-
-### Community 116 - "Community 116"
+### Community 114 - "Community 114"
 Cohesion: 0.13
 Nodes (10): CameraDeviceOption, CameraDevicesState, canEnumerateDevices(), canPreviewCamera(), useCameraDevices(), VoiceCameraRotation, CameraDeviceSelect(), CameraPreferencesPanel() (+2 more)
 
-### Community 117 - "Community 117"
-Cohesion: 0.14
-Nodes (12): buildSettingsHref(), isAdvancedAppearancePanel(), PANELS_BY_SECTION, resolveSettingsSelection(), SettingsSection, SettingsSelection, DEFAULT_OPEN_SETTING_GROUPS, NavItem (+4 more)
+### Community 115 - "Community 115"
+Cohesion: 0.1
+Nodes (5): FloatCardProps, FloatCopy, FloatTone, FloatZone(), TrustCopy
 
-### Community 118 - "Community 118"
+### Community 116 - "Community 116"
 Cohesion: 0.11
 Nodes (17): config, describeFile(), e2eSpecsRoot, expectedSpecs, fullStep, fullStepStart, offenders, packageJson (+9 more)
 
-### Community 119 - "Community 119"
+### Community 117 - "Community 117"
 Cohesion: 0.1
 Nodes (19): Auth And Session, Desktop Diagnostics, Desktop Safety Rules, Install And Launch, Mandatory Desktop Smoke Gates, Navigation, Notifications And Native UX, Overlay And Game Matrix (+11 more)
 
+### Community 118 - "Community 118"
+Cohesion: 0.16
+Nodes (16): KrispAvailability, ENHANCED_NOISE_FILTER_MODES, isKrispNoiseFilterTier(), DESKTOP_GAME_OVERLAY_ANCHORS, DESKTOP_GAME_OVERLAY_GAME_LABELS, DESKTOP_GAME_OVERLAY_SIZES, formatShortcutFromKeyboardEvent(), resolveCleanVoiceStatus() (+8 more)
+
 ### Community 120 - "Community 120"
 Cohesion: 0.14
-Nodes (14): consumeDesktopOAuthHandoffToken(), DesktopOAuthHandoffOptions, DesktopOAuthHandoffPayload, DesktopOAuthHandoffRedis, DesktopOAuthHandoffUser, getDesktopOAuthHandoffKey(), hashDesktopOAuthHandoffToken(), parseDesktopOAuthHandoffPayload() (+6 more)
+Nodes (17): configured_app_url(), current_unix_ms(), desktop_app_info_exposes_runtime_version_metadata(), desktop_config_value(), desktop_native_log_path(), desktop_release_ring(), desktop_support_app_info(), desktop_updater_enabled() (+9 more)
 
 ### Community 121 - "Community 121"
+Cohesion: 0.2
+Nodes (17): useAppStore, useVoiceConnection(), useVoiceParticipants(), useVoiceState(), useVoiceConnection(), useVoiceParticipants(), useVoiceState(), ChannelSidebar() (+9 more)
+
+### Community 122 - "Community 122"
 Cohesion: 0.18
-Nodes (13): LegacyAppearanceSettingsPage(), EmailVerificationResult, verifyEmailToken(), PageParams, ChannelsPage(), getServerTranslator(), ChannelsMePage(), getToken() (+5 more)
+Nodes (16): buildVerificationUrl(), EmailVerificationError, EmailVerificationErrorCode, EmailVerificationUser, escapeHtml(), GeneratedEmailVerificationToken, generateEmailVerificationToken(), getAppUrl() (+8 more)
 
 ### Community 123 - "Community 123"
-Cohesion: 0.14
-Nodes (14): authBodyFont, authDisplayFont, bodyFont, displayFont, messageInterFont, messageJetBrainsMonoFont, messageOpenSansFont, messageOutfitFont (+6 more)
+Cohesion: 0.18
+Nodes (11): Bh(), el(), hc(), hs(), jv, ni(), sc(), vA (+3 more)
 
 ### Community 124 - "Community 124"
-Cohesion: 0.16
-Nodes (12): createDMMessageNotifications(), DMNotificationAttachment, DMNotificationParticipant, getDMAttachmentLabelKey(), getDMConversationPreview(), Restore, restores, UnknownRecord (+4 more)
-
-### Community 125 - "Community 125"
-Cohesion: 0.22
-Nodes (15): assertEmailReauthEligibleUser(), buildAccountDeletionReauthUrl(), confirmAccountDeletionReauthEmail(), createAccountReauthChallenge(), EmailReauthUser, escapeHtml(), getAppUrl(), getFirstRequiredEnv() (+7 more)
-
-### Community 126 - "Community 126"
 Cohesion: 0.21
 Nodes (13): DotGrid(), cloneDotGridTheme(), DARK_DOT_GRID_THEME, DotGridThemeValues, LIGHT_DOT_GRID_THEME, buildDots(), DotGridPoint, getGridSpacing() (+5 more)
 
+### Community 125 - "Community 125"
+Cohesion: 0.18
+Nodes (13): DEFAULT_VOICE_CAMERA_PREFERENCES, VoiceCameraPreferences, buildAudioCaptureOptions(), buildCameraCaptureOptions(), getAudioCaptureRestartSignature(), getMicrophonePermissionState(), isCameraSupported(), supportsMediaConstraint() (+5 more)
+
+### Community 128 - "Community 128"
+Cohesion: 0.22
+Nodes (12): boundDiagnosticText(), E2EDiagnosticEntry, formatE2EDiagnosticEntries(), pushBoundedE2EDiagnosticEntry(), redactE2EDiagnosticText(), entries, formatted, redacted (+4 more)
+
 ### Community 129 - "Community 129"
-Cohesion: 0.21
-Nodes (13): createDesktopBuildMetadata(), DEFAULT_ARTIFACT_DIR, describeArtifact(), normalizePlatform(), normalizeRing(), normalizeVersion(), options, parseBoolean() (+5 more)
+Cohesion: 0.14
+Nodes (13): messageByText(), browserDialogs, composer, LoggedInPage, message, messageByText(), messageList, picker (+5 more)
 
 ### Community 130 - "Community 130"
-Cohesion: 0.15
-Nodes (15): configured_app_url(), desktop_app_info_exposes_runtime_version_metadata(), desktop_config_value(), desktop_native_log_path(), desktop_release_ring(), desktop_support_app_info(), desktop_updater_enabled(), DesktopSupportWebDiagnostics (+7 more)
-
-### Community 131 - "Community 131"
-Cohesion: 0.22
-Nodes (15): buildVerificationUrl(), EmailVerificationErrorCode, EmailVerificationUser, escapeHtml(), GeneratedEmailVerificationToken, generateEmailVerificationToken(), getAppUrl(), getFirstRequiredEnv() (+7 more)
-
-### Community 132 - "Community 132"
-Cohesion: 0.19
-Nodes (12): cacheRevocationValue(), DurableSessionRevocationLookup, getSessionRevocationKey(), isUserSessionRevoked(), revokeUserSessions(), SessionRevocationRedis, SessionRevocationResult, shouldCheckSessionRevocation() (+4 more)
-
-### Community 133 - "Community 133"
-Cohesion: 0.23
-Nodes (14): canOAuthUserSignIn(), fetchVerifiedPrimaryGitHubEmail(), findVerifiedPrimaryGitHubEmail(), getOAuthAccessToken(), getOAuthProfileEmail(), GitHubEmailFetch, GitHubEmailRow, hasExplicitlyUnverifiedOAuthEmail() (+6 more)
-
-### Community 134 - "Community 134"
-Cohesion: 0.25
-Nodes (11): boundDiagnosticText(), E2EDiagnosticEntry, formatE2EDiagnosticEntries(), pushBoundedE2EDiagnosticEntry(), redactE2EDiagnosticText(), entries, formatted, redacted (+3 more)
-
-### Community 135 - "Community 135"
 Cohesion: 0.12
 Nodes (14): VoiceMiniConnectionQuality, VoiceMiniConnectionQualitySchema, VoiceMiniParticipant, VoiceMiniParticipantSchema, VoiceMiniSnapshot, VoiceMiniSnapshotPrivacyMode, VoiceMiniSnapshotPrivacyModeSchema, VoiceMiniSnapshotSchema (+6 more)
 
-### Community 137 - "Community 137"
+### Community 133 - "Community 133"
+Cohesion: 0.18
+Nodes (11): cacheRevocationValue(), DurableSessionRevocationLookup, getSessionRevocationKey(), isUserSessionRevoked(), SessionRevocationRedis, SessionRevocationResult, shouldCheckSessionRevocation(), MemoryRevocationRedis (+3 more)
+
+### Community 134 - "Community 134"
 Cohesion: 0.14
 Nodes (14): Architecture, code:powershell (pnpm install), code:powershell (pnpm --filter @wizards/desktop dev), code:powershell ($env:TAURI_DEV_WEB_URL="http://localhost:3001"), code:powershell (pnpm --filter @wizards/desktop build:desktop), code:powershell ($env:TAURI_WEB_URL="https://uat.whispr.team"), code:powershell (pnpm --filter @wizards/desktop release:ops), code:powershell ($env:WHISPR_DESKTOP_UPDATER_ENABLED="true") (+6 more)
 
+### Community 135 - "Community 135"
+Cohesion: 0.23
+Nodes (13): DesktopGameOverlaySize, dispatch_desktop_command(), dispatch_desktop_command_with_focus(), dispatch_desktop_command_without_focus(), dispatch_desktop_voice_mini_command(), dispatch_voice_shortcut_event(), handle_desktop_deep_links(), prepare_desktop_start_window() (+5 more)
+
+### Community 136 - "Community 136"
+Cohesion: 0.23
+Nodes (12): recordDesktopShortcutLatency(), DesktopMetricOperation, DesktopMetricResult, DesktopMetricRuntime, DesktopPerformanceMetric, formatDesktopPerformanceMetric(), isDesktopMetricsEnabled(), isEnabledValue() (+4 more)
+
+### Community 137 - "Community 137"
+Cohesion: 0.26
+Nodes (12): canOAuthUserSignIn(), fetchVerifiedPrimaryGitHubEmail(), findVerifiedPrimaryGitHubEmail(), getOAuthAccessToken(), getOAuthProfileEmail(), GitHubEmailFetch, GitHubEmailRow, hasExplicitlyUnverifiedOAuthEmail() (+4 more)
+
 ### Community 138 - "Community 138"
-Cohesion: 0.24
-Nodes (9): AccountReauthChallengeCleanupDelegate, AccountReauthChallengeCleanupRecord, buildAccountReauthChallengeCleanupWhere(), cleanupAccountReauthChallenges(), getAccountReauthChallengeCleanupCutoff(), shouldDeleteAccountReauthChallenge(), calls, NOW (+1 more)
+Cohesion: 0.21
+Nodes (9): GET(), getUnreadCount(), listNotifications(), NotificationRow, UserRow, VISIBLE_NOTIFICATION_TYPES, VisibleNotificationType, NotificationIdParamsSchema (+1 more)
 
 ### Community 139 - "Community 139"
-Cohesion: 0.28
-Nodes (10): FriendPresenceUpdateDto, SocketContext, SocketProvider(), createHandlerContext(), ClientToServerEvents, InterServerEvents, ServerToClientEvents, SocketData (+2 more)
-
-### Community 140 - "Community 140"
 Cohesion: 0.15
 Nodes (11): AsyncMethod, banBatchSizes, banDelegate, batchUserIds, calls, channelDelegate, memberBatchSizes, memberDelegate (+3 more)
 
 ### Community 141 - "Community 141"
-Cohesion: 0.18
-Nodes (8): CachedChannelPermissionSnapshot, readCachedChannelPermissionSnapshot(), setPermissionCacheRedisForTest(), MemoryRedis, redis, restoreEnv(), withPermissionCacheEnabled(), writeCachedChannelPermissionSnapshot()
+Cohesion: 0.19
+Nodes (5): fs(), o0(), pr(), S2, Xa()
 
 ### Community 142 - "Community 142"
+Cohesion: 0.21
+Nodes (7): DesktopGameOverlay(), initials(), normalizeOverlayWaveformLevel(), OVERLAY_WAVEFORM_PATTERN, OverlayAudioWaveform(), OverlayAvatar(), DEFAULT_DESKTOP_GAME_OVERLAY_PREFERENCES
+
+### Community 143 - "Community 143"
 Cohesion: 0.2
 Nodes (9): createVoicePageExitHandler(), calls, cleanup, handler, notifyFinished, room, VoicePageExitHandlerOptions, VoicePageExitRoom (+1 more)
 
-### Community 143 - "Community 143"
+### Community 144 - "Community 144"
+Cohesion: 0.26
+Nodes (10): canPublishDesktopRichPresence(), DESKTOP_STREAMING_EXECUTABLE_NAMES, DESKTOP_STREAMING_EXECUTABLE_WHITELIST, DesktopRichPresenceAudience, DesktopStreamerModeReason, DesktopStreamerModeResolution, isWhitelistedDesktopStreamingExecutable(), normalizeDesktopProcessBasename() (+2 more)
+
+### Community 145 - "Community 145"
 Cohesion: 0.26
 Nodes (10): getAutomatedSuitesForCadence(), getRiskCoverage(), getSuitesForCadence(), getUncoveredRiskAreas(), ProductRiskArea, preMergeCommands, preMergeSuiteIds, TestCadence (+2 more)
 
-### Community 144 - "Community 144"
-Cohesion: 0.33
-Nodes (8): AuthSessionCookieWriter, expireAuthSessionCookies(), getAuthSessionCookieNamesToClear(), getAuthSessionCookieOptions(), shouldClearDesktopSessionOnClose(), writes, getAuthSecret(), POST()
-
-### Community 145 - "Community 145"
-Cohesion: 0.2
-Nodes (6): i(), kT, pS(), Uo(), vs(), xv()
-
 ### Community 146 - "Community 146"
+Cohesion: 0.29
+Nodes (10): DIRECT_DATABASE_PROTOCOLS, ensurePrismaClientRuntime(), findGeneratedClientIndexPath(), hasNativeEngineArtifact(), isDirectDatabaseUrl(), isPrismaProxyUrl(), loadEnvFile(), loadWorkspaceEnv() (+2 more)
+
+### Community 147 - "Community 147"
 Cohesion: 0.2
 Nodes (8): desktop_companion_surface_info(), desktop_companion_surface_queued_info(), desktop_companion_surfaces_queued_status(), desktop_companion_surfaces_status(), desktop_windows_game_overlay_surface_info(), DesktopCompanionSurfaceState, get_desktop_companion_surfaces_status(), schedule_desktop_companion_surface_task()
 
-### Community 147 - "Community 147"
+### Community 148 - "Community 148"
 Cohesion: 0.18
 Nodes (7): nextConfig, packageJson, securityHeaders, whisprCommitId, whisprDeployId, whisprGeneratedBuildId, withBundleAnalyzer
 
-### Community 148 - "Community 148"
+### Community 149 - "Community 149"
 Cohesion: 0.25
 Nodes (9): generateMetadata(), getLineKind(), isLegalDocumentId(), LEGAL_DOCUMENTS, LegalDocumentId, LegalDocumentPage(), LegalDocumentPageProps, readLegalDocument() (+1 more)
 
-### Community 149 - "Community 149"
+### Community 150 - "Community 150"
+Cohesion: 0.36
+Nodes (9): APP_ICON_OPTIONS, AppIconId, getAppIconById(), isAppIconId(), AppIconProvider(), applyAppIcon(), applyAttributes(), ensureOwnedIconLink() (+1 more)
+
+### Community 151 - "Community 151"
 Cohesion: 0.22
 Nodes (8): RegistrationRollbackLogger, RegistrationRollbackUserDelegate, rollbackUnverifiedUser(), RollbackUnverifiedUserResult, calls, error, logger(), logs
 
-### Community 150 - "Community 150"
+### Community 152 - "Community 152"
 Cohesion: 0.33
 Nodes (9): createLoginProof(), getLoginProofSecret(), isSafeEqual(), LoginProofOptions, normalizeLoginProofEmail(), signLoginProof(), env, proof (+1 more)
-
-### Community 151 - "Community 151"
-Cohesion: 0.27
-Nodes (9): DESKTOP_STREAMING_EXECUTABLE_NAMES, DESKTOP_STREAMING_EXECUTABLE_WHITELIST, DesktopRichPresenceAudience, DesktopStreamerModeReason, DesktopStreamerModeResolution, isWhitelistedDesktopStreamingExecutable(), normalizeDesktopProcessBasename(), resolveDesktopStreamerMode() (+1 more)
-
-### Community 152 - "Community 152"
-Cohesion: 0.29
-Nodes (9): isActiveAuthUser(), createVoiceInvite(), getVoiceInviteKey(), parseStoredVoiceInvite(), StoredVoiceInvite, toVisiblePresenceStatus(), VoiceInviteInput, VoiceInvitePayload (+1 more)
 
 ### Community 153 - "Community 153"
 Cohesion: 0.18
 Nodes (10): code:env (WORKSPACE_PERFORMANCE_METRICS=true), code:text ([workspace-performance]), code:env (WORKSPACE_PERFORMANCE_METRICS=false), code:env (PERMISSION_CACHE_DISABLED=true), Healthy UAT Shape, Log Signal, Rollback, UAT Env (+2 more)
 
 ### Community 154 - "Community 154"
-Cohesion: 0.25
-Nodes (9): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: keyboard.type: Test timeout of 30000ms exceeded.), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info (+1 more)
+Cohesion: 0.22
+Nodes (8): as(), Bn, En(), is(), os(), St(), Ve, yn()
 
 ### Community 155 - "Community 155"
+Cohesion: 0.2
+Nodes (4): b0, eE, Fo(), z_()
+
+### Community 156 - "Community 156"
 Cohesion: 0.25
 Nodes (9): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: expect(page).toHaveURL(expected) failed), code:yaml (- generic [ref=e1]:), code:ts (3   |), Error details, Instructions, Page snapshot, Test info (+1 more)
 
-### Community 156 - "Community 156"
-Cohesion: 0.36
-Nodes (9): assertLocalDevelopmentRedis(), getPatterns(), getScopes(), isScope(), LOCAL_REDIS_HOSTS, main(), parseArgs(), scanKeys() (+1 more)
-
 ### Community 157 - "Community 157"
-Cohesion: 0.36
-Nodes (8): DesktopSessionFetch, DesktopStartResolution, getLoginDestination(), hasAuthenticatedSession(), resolveDesktopStartDestination(), resolveDesktopStartDestinationFromSession(), fetcher(), seenRequests
+Cohesion: 0.25
+Nodes (9): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: keyboard.type: Test timeout of 30000ms exceeded.), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info (+1 more)
 
 ### Community 158 - "Community 158"
 Cohesion: 0.36
-Nodes (8): getVoiceParticipantRoomName(), getVoiceStateViewerRoomName(), joinVoiceStateViewerRoomsForServer(), leaveVoiceStateViewerRoomsForServer(), joinedRooms, leftRooms, socket, VoiceStateViewerSocket
+Nodes (9): assertLocalDevelopmentRedis(), getPatterns(), getScopes(), isScope(), LOCAL_REDIS_HOSTS, main(), parseArgs(), scanKeys() (+1 more)
 
 ### Community 159 - "Community 159"
-Cohesion: 0.2
-Nodes (9): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: keyboard.type: Test timeout of 30000ms exceeded.), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info (+1 more)
+Cohesion: 0.36
+Nodes (8): DesktopSessionFetch, DesktopStartResolution, getLoginDestination(), hasAuthenticatedSession(), resolveDesktopStartDestination(), resolveDesktopStartDestinationFromSession(), fetcher(), seenRequests
 
 ### Community 160 - "Community 160"
 Cohesion: 0.2
-Nodes (9): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: expect(page).toHaveURL(expected) failed), code:yaml (- generic [ref=e1]:), code:ts (3   |), Error details, Instructions, Page snapshot, Test info (+1 more)
+Nodes (9): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: keyboard.type: Test timeout of 30000ms exceeded.), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info (+1 more)
 
 ### Community 161 - "Community 161"
 Cohesion: 0.2
-Nodes (9): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [active] [ref=e1]:), code:ts (149 |     await expect(page.getByTestId("voice-participant-c), Error details, Instructions, Page snapshot, Test info (+1 more)
+Nodes (9): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: expect(page).toHaveURL(expected) failed), code:yaml (- generic [ref=e1]:), code:ts (3   |), Error details, Instructions, Page snapshot, Test info (+1 more)
 
 ### Community 162 - "Community 162"
 Cohesion: 0.2
@@ -944,35 +933,35 @@ Nodes (9): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: 
 
 ### Community 163 - "Community 163"
 Cohesion: 0.2
-Nodes (9): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info (+1 more)
+Nodes (9): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [active] [ref=e1]:), code:ts (149 |     await expect(page.getByTestId("voice-participant-c), Error details, Instructions, Page snapshot, Test info (+1 more)
 
 ### Community 164 - "Community 164"
 Cohesion: 0.2
 Nodes (9): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info (+1 more)
 
 ### Community 165 - "Community 165"
-Cohesion: 0.25
-Nodes (9): apply_windows_game_overlay_child_click_through(), apply_windows_game_overlay_click_through(), apply_windows_game_overlay_dwm_frame_preferences(), apply_windows_overlay_child_styles(), apply_windows_overlay_ex_styles(), park_desktop_game_overlay_window(), show_desktop_game_overlay_window(), windows_foreground_monitor_for_overlay() (+1 more)
+Cohesion: 0.2
+Nodes (9): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info (+1 more)
 
 ### Community 166 - "Community 166"
-Cohesion: 0.25
-Nodes (8): capture_desktop_main_window_state(), desktop_main_window_state_path(), desktop_saved_state_is_on_screen(), DesktopSavedWindowState, monitor_intersects_window_state(), read_desktop_main_window_state(), restore_desktop_main_window_state(), write_desktop_main_window_state()
-
-### Community 167 - "Community 167"
-Cohesion: 0.33
-Nodes (7): ATTACHMENT_REDIRECT_STATUSES, AttachmentHttpResponse, getHeader(), isRedirectStatus(), openPublicAttachmentDownload(), requestPublicAttachmentUrl(), LinkPreviewFetchOptions
-
-### Community 168 - "Community 168"
 Cohesion: 0.28
 Nodes (7): getProfileCompletionSummary(), hasText(), ProfileCompletionInput, ProfileCompletionItem, ProfileCompletionSignal, ProfileCompletionSummary, summary
 
+### Community 167 - "Community 167"
+Cohesion: 0.31
+Nodes (7): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [active] [ref=e1]:), Error details, Instructions, Page snapshot, Test info, Test source
+
+### Community 168 - "Community 168"
+Cohesion: 0.22
+Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [ref=e1]:), code:ts (274 |     await expect(page.getByTestId("voice-clean-voice-s), Error details, Instructions, Page snapshot, Test info, Test source
+
 ### Community 169 - "Community 169"
 Cohesion: 0.22
-Nodes (6): deleted, file, image, shared, summary, video
+Nodes (8): code:block1 (Error: expect(locator).toHaveAttribute(expected) failed), code:yaml (- generic [active] [ref=e1]:), code:ts (477 |), Error details, Instructions, Page snapshot, Test info, Test source
 
 ### Community 170 - "Community 170"
-Cohesion: 0.5
-Nodes (7): formatErrorLog(), formatWarningLog(), logWarning(), redactText(), redactValue(), stringifyStructuredLog(), payload
+Cohesion: 0.22
+Nodes (8): code:block1 (Error: expect(locator).toHaveAttribute(expected) failed), code:yaml (- generic [active] [ref=e1]:), code:ts (477 |), Error details, Instructions, Page snapshot, Test info, Test source
 
 ### Community 171 - "Community 171"
 Cohesion: 0.22
@@ -980,83 +969,83 @@ Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml 
 
 ### Community 172 - "Community 172"
 Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(locator).toHaveAttribute(expected) failed), code:yaml (- generic [active] [ref=e1]:), code:ts (477 |), Error details, Instructions, Page snapshot, Test info, Test source
+Nodes (8): code:block1 (Error: expect(page).toHaveURL(expected) failed), code:yaml (- generic [ref=e1]:), code:ts (338 |       "true",), Error details, Instructions, Page snapshot, Test info, Test source
 
 ### Community 173 - "Community 173"
 Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(locator).toHaveAttribute(expected) failed), code:yaml (- generic [active] [ref=e1]:), code:ts (477 |), Error details, Instructions, Page snapshot, Test info, Test source
+Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [ref=e1]:), code:ts (221 |     await alice.page.close({ runBeforeUnload: true });), Error details, Instructions, Page snapshot, Test info, Test source
 
 ### Community 174 - "Community 174"
 Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [ref=e1]:), code:ts (274 |     await expect(page.getByTestId("voice-clean-voice-s), Error details, Instructions, Page snapshot, Test info, Test source
+Nodes (8): code:block1 (Error: expect(received).toBe(expected) // Object.is equality), code:yaml (- generic [active] [ref=e1]:), code:ts (149 |   });), Error details, Instructions, Page snapshot, Test info, Test source
 
 ### Community 175 - "Community 175"
 Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(page).toHaveURL(expected) failed), code:yaml (- generic [ref=e1]:), code:ts (338 |       "true",), Error details, Instructions, Page snapshot, Test info, Test source
+Nodes (8): code:block1 (Error: expect(received).toBe(expected) // Object.is equality), code:yaml (- generic [active] [ref=e1]:), code:ts (149 |   });), Error details, Instructions, Page snapshot, Test info, Test source
 
 ### Community 176 - "Community 176"
 Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [ref=e1]:), code:ts (221 |     await alice.page.close({ runBeforeUnload: true });), Error details, Instructions, Page snapshot, Test info, Test source
+Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [active] [ref=e1]:), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
 
 ### Community 177 - "Community 177"
 Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(received).toBe(expected) // Object.is equality), code:yaml (- generic [active] [ref=e1]:), code:ts (149 |   });), Error details, Instructions, Page snapshot, Test info, Test source
+Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [active] [ref=e1]:), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
 
 ### Community 178 - "Community 178"
 Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(received).toBe(expected) // Object.is equality), code:yaml (- generic [active] [ref=e1]:), code:ts (149 |   });), Error details, Instructions, Page snapshot, Test info, Test source
+Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
 
 ### Community 179 - "Community 179"
 Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [active] [ref=e1]:), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
+Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
 
 ### Community 180 - "Community 180"
 Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [active] [ref=e1]:), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
+Nodes (8): code:block1 (Error: expect(page).toHaveURL(expected) failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
 
 ### Community 181 - "Community 181"
-Cohesion: 0.31
-Nodes (7): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [active] [ref=e1]:), Error details, Instructions, Page snapshot, Test info, Test source
+Cohesion: 0.22
+Nodes (8): code:block1 (Error: expect(page).toHaveURL(expected) failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
 
 ### Community 182 - "Community 182"
 Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
+Nodes (8): code:block1 (Error: expect(page).toHaveURL(expected) failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
 
 ### Community 183 - "Community 183"
 Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
+Nodes (8): code:block1 (Error: expect(page).toHaveURL(expected) failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
 
 ### Community 184 - "Community 184"
 Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(page).toHaveURL(expected) failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
+Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
 
 ### Community 185 - "Community 185"
 Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(page).toHaveURL(expected) failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
+Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
 
 ### Community 186 - "Community 186"
-Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(page).toHaveURL(expected) failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
-
-### Community 187 - "Community 187"
-Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(page).toHaveURL(expected) failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
-
-### Community 188 - "Community 188"
-Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
-
-### Community 189 - "Community 189"
-Cohesion: 0.22
-Nodes (8): code:block1 (Error: expect(locator).toBeVisible() failed), code:yaml (- generic [ref=e1]:), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Page snapshot, Test info, Test source
-
-### Community 190 - "Community 190"
 Cohesion: 0.25
 Nodes (5): result, scriptDir, srcRoot, testFiles, webRoot
 
-### Community 191 - "Community 191"
+### Community 187 - "Community 187"
 Cohesion: 0.25
 Nodes (7): Current Production Path, Hardware Encode Reality, LiveKit Custom Track Spike, Platform Matrix, Privacy Rules, Spike Acceptance Gates, Whispr Desktop Native Media Research
+
+### Community 189 - "Community 189"
+Cohesion: 0.36
+Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
+
+### Community 190 - "Community 190"
+Cohesion: 0.36
+Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
+
+### Community 191 - "Community 191"
+Cohesion: 0.36
+Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
+
+### Community 192 - "Community 192"
+Cohesion: 0.36
+Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
 
 ### Community 193 - "Community 193"
 Cohesion: 0.36
@@ -1111,44 +1100,44 @@ Cohesion: 0.36
 Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
 
 ### Community 206 - "Community 206"
-Cohesion: 0.36
-Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
+Cohesion: 0.25
+Nodes (7): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: expect(locator).toBeVisible() failed), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
 
 ### Community 207 - "Community 207"
-Cohesion: 0.36
-Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
+Cohesion: 0.25
+Nodes (7): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: page.goto: net::ERR_ABORTED; maybe frame was detached), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
 
 ### Community 208 - "Community 208"
-Cohesion: 0.36
-Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
+Cohesion: 0.25
+Nodes (7): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: page.goto: net::ERR_ABORTED; maybe frame was detached), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
 
 ### Community 209 - "Community 209"
-Cohesion: 0.36
-Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
+Cohesion: 0.25
+Nodes (7): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: expect(locator).toBeVisible() failed), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
 
 ### Community 210 - "Community 210"
-Cohesion: 0.25
-Nodes (7): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: expect(locator).toBeVisible() failed), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
+Cohesion: 0.38
+Nodes (3): DesktopVoiceMini(), initials(), MiniAvatar()
 
 ### Community 211 - "Community 211"
-Cohesion: 0.25
-Nodes (7): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: page.goto: net::ERR_ABORTED; maybe frame was detached), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
-
-### Community 212 - "Community 212"
-Cohesion: 0.25
-Nodes (7): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: page.goto: net::ERR_ABORTED; maybe frame was detached), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
-
-### Community 213 - "Community 213"
-Cohesion: 0.25
-Nodes (7): code:block1 (Test timeout of 30000ms exceeded.), code:block2 (Error: expect(locator).toBeVisible() failed), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
-
-### Community 214 - "Community 214"
-Cohesion: 0.67
-Nodes (6): getAppIconById(), AppIconProvider(), applyAppIcon(), applyAttributes(), ensureOwnedIconLink(), updateIconLink()
-
-### Community 215 - "Community 215"
 Cohesion: 0.48
 Nodes (5): cs(), ki, ls(), pi, Re
+
+### Community 212 - "Community 212"
+Cohesion: 0.29
+Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [active] [ref=e1]:), Error details, Instructions, Page snapshot, Test info
+
+### Community 213 - "Community 213"
+Cohesion: 0.29
+Nodes (6): code:block1 (Error: expect(locator).toHaveCount(expected) failed), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
+
+### Community 214 - "Community 214"
+Cohesion: 0.29
+Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [ref=e2]:), Error details, Instructions, Page snapshot, Test info
+
+### Community 215 - "Community 215"
+Cohesion: 0.29
+Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [active] [ref=e1]:), Error details, Instructions, Page snapshot, Test info
 
 ### Community 216 - "Community 216"
 Cohesion: 0.29
@@ -1156,19 +1145,19 @@ Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic
 
 ### Community 217 - "Community 217"
 Cohesion: 0.29
-Nodes (6): code:block1 (Error: expect(locator).toHaveCount(expected) failed), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
+Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [active] [ref=e1]:), Error details, Instructions, Page snapshot, Test info
 
 ### Community 218 - "Community 218"
 Cohesion: 0.29
-Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [ref=e2]:), Error details, Instructions, Page snapshot, Test info
+Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [active] [ref=e1]:), Error details, Instructions, Page snapshot, Test info
 
 ### Community 219 - "Community 219"
 Cohesion: 0.29
-Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [active] [ref=e1]:), Error details, Instructions, Page snapshot, Test info
+Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [ref=e2]:), Error details, Instructions, Page snapshot, Test info
 
 ### Community 220 - "Community 220"
 Cohesion: 0.29
-Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [active] [ref=e1]:), Error details, Instructions, Page snapshot, Test info
+Nodes (6): code:block1 (Error: expect(locator).toHaveCount(expected) failed), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
 
 ### Community 221 - "Community 221"
 Cohesion: 0.29
@@ -1180,11 +1169,11 @@ Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic
 
 ### Community 223 - "Community 223"
 Cohesion: 0.29
-Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [ref=e2]:), Error details, Instructions, Page snapshot, Test info
+Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [active] [ref=e1]:), Error details, Instructions, Page snapshot, Test info
 
 ### Community 224 - "Community 224"
 Cohesion: 0.29
-Nodes (6): code:block1 (Error: expect(locator).toHaveCount(expected) failed), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
+Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [active] [ref=e1]:), Error details, Instructions, Page snapshot, Test info
 
 ### Community 225 - "Community 225"
 Cohesion: 0.29
@@ -1192,7 +1181,7 @@ Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic
 
 ### Community 226 - "Community 226"
 Cohesion: 0.29
-Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [active] [ref=e1]:), Error details, Instructions, Page snapshot, Test info
+Nodes (6): code:block1 (Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
 
 ### Community 227 - "Community 227"
 Cohesion: 0.29
@@ -1200,7 +1189,7 @@ Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic
 
 ### Community 228 - "Community 228"
 Cohesion: 0.29
-Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [active] [ref=e1]:), Error details, Instructions, Page snapshot, Test info
+Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [ref=e2]:), Error details, Instructions, Page snapshot, Test info
 
 ### Community 229 - "Community 229"
 Cohesion: 0.29
@@ -1208,7 +1197,7 @@ Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic
 
 ### Community 230 - "Community 230"
 Cohesion: 0.29
-Nodes (6): code:block1 (Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
+Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [active] [ref=e1]:), Error details, Instructions, Page snapshot, Test info
 
 ### Community 231 - "Community 231"
 Cohesion: 0.29
@@ -1216,19 +1205,19 @@ Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic
 
 ### Community 232 - "Community 232"
 Cohesion: 0.29
-Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [ref=e2]:), Error details, Instructions, Page snapshot, Test info
+Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
 
 ### Community 233 - "Community 233"
 Cohesion: 0.29
-Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [active] [ref=e1]:), Error details, Instructions, Page snapshot, Test info
+Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
 
 ### Community 234 - "Community 234"
 Cohesion: 0.29
-Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [active] [ref=e1]:), Error details, Instructions, Page snapshot, Test info
+Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
 
 ### Community 235 - "Community 235"
 Cohesion: 0.29
-Nodes (6): code:block1 (Test timeout of 30000ms exceeded.), code:yaml (- generic [active] [ref=e1]:), Error details, Instructions, Page snapshot, Test info
+Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
 
 ### Community 236 - "Community 236"
 Cohesion: 0.29
@@ -1280,87 +1269,71 @@ Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.
 
 ### Community 248 - "Community 248"
 Cohesion: 0.29
-Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
+Nodes (6): code:block1 (Error: apiRequestContext.post: read ECONNRESET), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
 
 ### Community 249 - "Community 249"
 Cohesion: 0.29
-Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
+Nodes (6): code:block1 (Error: apiRequestContext.post: read ECONNRESET), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
 
 ### Community 250 - "Community 250"
-Cohesion: 0.29
-Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
-
-### Community 251 - "Community 251"
-Cohesion: 0.29
-Nodes (6): code:block1 (Error: apiRequestContext.post: connect ECONNREFUSED 127.0.0.), code:ts (1   | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
-
-### Community 252 - "Community 252"
-Cohesion: 0.29
-Nodes (6): code:block1 (Error: apiRequestContext.post: read ECONNRESET), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
-
-### Community 253 - "Community 253"
-Cohesion: 0.29
-Nodes (6): code:block1 (Error: apiRequestContext.post: read ECONNRESET), code:ts (1  | import type { Page } from "@playwright/test";), Error details, Instructions, Test info, Test source
-
-### Community 254 - "Community 254"
 Cohesion: 0.33
 Nodes (5): localAliasPlugin, resolveTypeScriptModule(), srcRoot, webRoot, workspaceRoot
 
-### Community 258 - "Community 258"
+### Community 253 - "Community 253"
 Cohesion: 0.4
 Nodes (4): compat, __dirname, eslintConfig, __filename
 
-### Community 259 - "Community 259"
+### Community 254 - "Community 254"
 Cohesion: 0.4
 Nodes (4): turnstileTestSecretKey, turnstileTestSiteKey, webRoot, webServerEnv
 
-### Community 260 - "Community 260"
+### Community 255 - "Community 255"
 Cohesion: 0.4
 Nodes (4): liveVoiceProviderAst, liveVoiceProviderPath, liveVoiceProviderSource, staticKrispImports
 
-### Community 261 - "Community 261"
+### Community 256 - "Community 256"
 Cohesion: 0.4
 Nodes (4): Failure Recovery, Platform Matrix, Privacy Contract, Whispr Game Overlay MVP
 
-### Community 263 - "Community 263"
+### Community 259 - "Community 259"
 Cohesion: 0.4
 Nodes (4): code:block1 (Test timeout of 30000ms exceeded.), Error details, Instructions, Test info
 
-### Community 264 - "Community 264"
+### Community 260 - "Community 260"
 Cohesion: 0.4
 Nodes (4): code:block1 (Test timeout of 30000ms exceeded.), Error details, Instructions, Test info
 
-### Community 265 - "Community 265"
+### Community 261 - "Community 261"
 Cohesion: 0.4
 Nodes (4): code:block1 (Test timeout of 30000ms exceeded.), Error details, Instructions, Test info
 
-### Community 266 - "Community 266"
+### Community 262 - "Community 262"
 Cohesion: 0.67
 Nodes (3): getToken(), ResetPasswordPage(), ResetPasswordPageProps
 
-### Community 267 - "Community 267"
+### Community 263 - "Community 263"
 Cohesion: 0.5
 Nodes (3): Coverage Ratchet Policy, Ratchet Rule, Review Checklist
 
 ## Knowledge Gaps
-- **1657 isolated node(s):** `SUPPORTED_PLATFORMS`, `options`, `[[platform, entry]]`, `outputPath`, `written` (+1652 more)
+- **1665 isolated node(s):** `SUPPORTED_PLATFORMS`, `options`, `[[platform, entry]]`, `outputPath`, `written` (+1660 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **25 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **23 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `f` connect `Community 67` to `Community 97`, `Community 8`, `Community 9`, `Community 78`, `Community 48`?**
-  _High betweenness centrality (0.149) - this node is a cross-community bridge._
-- **Why does `useI18n()` connect `Community 12` to `Community 1`, `Community 5`, `Community 6`, `Community 7`, `Community 13`, `Community 14`, `Community 15`, `Community 16`, `Community 17`, `Community 18`, `Community 21`, `Community 29`, `Community 30`, `Community 31`, `Community 33`, `Community 34`, `Community 41`, `Community 49`, `Community 50`, `Community 54`, `Community 59`, `Community 69`, `Community 80`, `Community 91`, `Community 95`, `Community 96`, `Community 100`, `Community 101`, `Community 116`, `Community 117`, `Community 121`, `Community 123`?**
-  _High betweenness centrality (0.054) - this node is a cross-community bridge._
-- **Why does `mt()` connect `Community 97` to `Community 0`, `Community 128`, `Community 66`, `Community 67`, `Community 4`, `Community 8`, `Community 9`, `Community 48`, `Community 112`, `Community 52`, `Community 215`, `Community 57`, `Community 26`, `Community 61`?**
-  _High betweenness centrality (0.043) - this node is a cross-community bridge._
+- **Why does `f` connect `Community 72` to `Community 0`, `Community 9`, `Community 13`, `Community 141`, `Community 52`, `Community 56`, `Community 123`?**
+  _High betweenness centrality (0.144) - this node is a cross-community bridge._
+- **Why does `useI18n()` connect `Community 5` to `Community 3`, `Community 4`, `Community 7`, `Community 10`, `Community 142`, `Community 15`, `Community 16`, `Community 17`, `Community 23`, `Community 24`, `Community 26`, `Community 29`, `Community 30`, `Community 37`, `Community 39`, `Community 40`, `Community 51`, `Community 59`, `Community 60`, `Community 62`, `Community 69`, `Community 73`, `Community 76`, `Community 77`, `Community 80`, `Community 210`, `Community 89`, `Community 93`, `Community 96`, `Community 97`, `Community 109`, `Community 114`, `Community 115`, `Community 118`, `Community 121`?**
+  _High betweenness centrality (0.050) - this node is a cross-community bridge._
+- **Why does `mt()` connect `Community 72` to `Community 0`, `Community 33`, `Community 64`, `Community 67`, `Community 6`, `Community 9`, `Community 13`, `Community 47`, `Community 211`, `Community 56`, `Community 154`, `Community 123`, `Community 126`?**
+  _High betweenness centrality (0.046) - this node is a cross-community bridge._
 - **What connects `SUPPORTED_PLATFORMS`, `options`, `[[platform, entry]]` to the rest of the system?**
-  _1657 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1665 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
   _Cohesion score 0.03 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
-  _Cohesion score 0.03 - nodes in this community are weakly interconnected._
-- **Should `Community 2` be split into smaller, more focused modules?**
   _Cohesion score 0.04 - nodes in this community are weakly interconnected._
+- **Should `Community 2` be split into smaller, more focused modules?**
+  _Cohesion score 0.05 - nodes in this community are weakly interconnected._

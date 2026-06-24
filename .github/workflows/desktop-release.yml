@@ -307,11 +307,13 @@ jobs:
       - name: Create desktop build metadata
         shell: pwsh
         run: |
+          $artifactDir = Join-Path $env:GITHUB_WORKSPACE "apps\desktop\src-tauri\target\release\bundle\nsis"
+
           pnpm --filter @wizards/desktop release:artifacts -- `
             --version "${{ needs.release-contract.outputs.version }}" `
             --ring "${{ needs.release-contract.outputs.release_ring }}" `
             --updater-enabled "${{ needs.release-contract.outputs.publish_r2 }}" `
-            --artifact-dir "apps\desktop\src-tauri\target\release\bundle\nsis" `
+            --artifact-dir "$artifactDir" `
             --out "$env:RUNNER_TEMP\desktop-build-metadata.json"
 
       - name: Generate and validate updater manifest evidence
@@ -320,7 +322,7 @@ jobs:
         run: |
           $metadataPath = Join-Path $env:RUNNER_TEMP "desktop-build-metadata.json"
           $metadata = Get-Content $metadataPath -Raw | ConvertFrom-Json
-          $artifactDir = "apps\desktop\src-tauri\target\release\bundle\nsis"
+          $artifactDir = Join-Path $env:GITHUB_WORKSPACE "apps\desktop\src-tauri\target\release\bundle\nsis"
           $evidenceDir = Join-Path $env:RUNNER_TEMP "desktop-release-evidence"
           New-Item -ItemType Directory -Force -Path $evidenceDir | Out-Null
 

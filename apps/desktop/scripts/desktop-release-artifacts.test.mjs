@@ -3,13 +3,17 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   createDesktopBuildMetadata,
   parseDesktopBuildArtifactCliArgs,
+  resolveDesktopArtifactDir,
 } from "./desktop-release-artifacts.mjs";
 import { getDesktopVersionContract } from "./release-ops.mjs";
 
 const desktopVersion = getDesktopVersionContract().desktopNativeVersion;
+const scriptPath = fileURLToPath(import.meta.url);
+const desktopRoot = path.resolve(path.dirname(scriptPath), "..");
 
 describe("desktop release artifact metadata", () => {
   it("describes a Windows installer and signature for updater builds", async () => {
@@ -150,6 +154,25 @@ describe("desktop release artifact metadata", () => {
 
     assert.throws(() => parseDesktopBuildArtifactCliArgs(["unexpected"]), /Unexpected positional/);
     assert.throws(() => parseDesktopBuildArtifactCliArgs(["--wat", "1"]), /Unknown option/);
+  });
+
+  it("resolves artifact directories from package-relative, repo-relative, and absolute paths", async () => {
+    const packageRelative = path.join("src-tauri", "target", "release", "bundle", "nsis");
+    const repoRelative = path.join(
+      "apps",
+      "desktop",
+      "src-tauri",
+      "target",
+      "release",
+      "bundle",
+      "nsis",
+    );
+    const absolute = path.join(desktopRoot, packageRelative);
+
+    assert.equal(resolveDesktopArtifactDir(packageRelative), absolute);
+    assert.equal(resolveDesktopArtifactDir(repoRelative), absolute);
+    assert.equal(resolveDesktopArtifactDir(absolute), absolute);
+    assert.equal(resolveDesktopArtifactDir(), absolute);
   });
 });
 

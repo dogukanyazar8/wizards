@@ -2,13 +2,15 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { access, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { DESKTOP_RELEASE_WORKFLOW_RINGS } from "./desktop-release-workflow.mjs";
 
+const scriptPath = fileURLToPath(import.meta.url);
+const desktopRoot = path.resolve(path.dirname(scriptPath), "..");
+const repoRoot = path.resolve(desktopRoot, "..", "..");
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
-const DEFAULT_ARTIFACT_DIR = path.resolve(
-  "apps",
-  "desktop",
+const DEFAULT_ARTIFACT_DIR = path.join(
+  desktopRoot,
   "src-tauri",
   "target",
   "release",
@@ -17,7 +19,7 @@ const DEFAULT_ARTIFACT_DIR = path.resolve(
 );
 
 export async function createDesktopBuildMetadata(options = {}) {
-  const artifactDir = path.resolve(options.artifactDir || DEFAULT_ARTIFACT_DIR);
+  const artifactDir = resolveDesktopArtifactDir(options.artifactDir);
   const version = normalizeVersion(options.version);
   const releaseRing = normalizeRing(options.ring || "uat");
   const updaterEnabled = parseBoolean(options.updaterEnabled, false, "updater-enabled");
@@ -63,6 +65,23 @@ export async function createDesktopBuildMetadata(options = {}) {
     updaterEnabled,
     version,
   };
+}
+
+export function resolveDesktopArtifactDir(value) {
+  if (!value) {
+    return DEFAULT_ARTIFACT_DIR;
+  }
+
+  if (path.isAbsolute(value)) {
+    return path.resolve(value);
+  }
+
+  const normalized = value.replaceAll("\\", "/");
+  if (normalized === "apps/desktop" || normalized.startsWith("apps/desktop/")) {
+    return path.resolve(repoRoot, normalized);
+  }
+
+  return path.resolve(value);
 }
 
 export function parseDesktopBuildArtifactCliArgs(argv) {
