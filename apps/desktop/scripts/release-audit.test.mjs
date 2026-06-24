@@ -134,6 +134,7 @@ describe("desktop release audit", () => {
   it("parses audit CLI options safely", () => {
     assert.deepEqual(
       parseReleaseAuditCliArgs([
+        "--",
         "--ring=uat",
         "--manifest",
         "latest.json",

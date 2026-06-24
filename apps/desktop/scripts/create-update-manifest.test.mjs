@@ -142,6 +142,7 @@ describe("desktop update manifest generation", () => {
   it("parses CLI options in explicit long-form and inline forms", () => {
     assert.deepEqual(
       parseManifestCliArgs([
+        "--",
         "--artifact",
         "dist/Whispr_0.8.14_x64-setup.exe",
         "--signature=dist/Whispr_0.8.14_x64-setup.exe.sig",

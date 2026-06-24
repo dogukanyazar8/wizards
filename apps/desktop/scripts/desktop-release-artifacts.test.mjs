@@ -127,6 +127,7 @@ describe("desktop release artifact metadata", () => {
   it("parses CLI arguments for CI usage", () => {
     assert.deepEqual(
       parseDesktopBuildArtifactCliArgs([
+        "--",
         "--artifact-dir",
         "bundle/nsis",
         "--version",

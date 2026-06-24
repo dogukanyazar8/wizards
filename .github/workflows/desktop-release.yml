@@ -90,17 +90,23 @@ jobs:
         id: contract
         shell: bash
         run: |
-          pnpm --filter @wizards/desktop release:workflow -- \
-            --ring "${{ inputs.ring }}" \
-            --version "${{ inputs.version }}" \
-            --web-url "${{ inputs.web_url }}" \
-            --publish-github-release "${{ inputs.publish_github_release }}" \
-            --publish-r2 "${{ inputs.publish_r2 }}" \
-            --updater-base-url "${{ inputs.updater_base_url }}" \
-            --confirm-stable-release "${{ inputs.confirm_stable_release }}" \
-            --ref-name "${{ github.ref_name }}" \
-            --release-sequence "${{ github.run_number }}" \
+          args=(
+            --ring "${{ inputs.ring }}"
+            --version "${{ inputs.version }}"
+            --web-url "${{ inputs.web_url }}"
+            --publish-github-release "${{ inputs.publish_github_release }}"
+            --publish-r2 "${{ inputs.publish_r2 }}"
+            --confirm-stable-release "${{ inputs.confirm_stable_release }}"
+            --ref-name "${{ github.ref_name }}"
+            --release-sequence "${{ github.run_number }}"
             --out "$RUNNER_TEMP/desktop-release-contract.json"
+          )
+
+          if [[ -n "${{ inputs.updater_base_url }}" ]]; then
+            args+=(--updater-base-url "${{ inputs.updater_base_url }}")
+          fi
+
+          pnpm --filter @wizards/desktop release:workflow -- "${args[@]}"
 
       - name: Validate desktop release operations contract
         run: pnpm --filter @wizards/desktop release:ops
