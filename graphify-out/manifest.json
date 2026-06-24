@@ -24,12 +24,12 @@
     "hash": "c05e576c3fae839b745beb38308a61ce"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\desktop-release-workflow.mjs": {
-    "mtime": 1782306850.8191693,
-    "hash": "0f1976041ce8dfc6bc8633ea30cdf2c5"
+    "mtime": 1782307054.107272,
+    "hash": "b3177758dd6e85cce921fd9b0373b24f"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\desktop-release-workflow.test.mjs": {
-    "mtime": 1782306883.0787635,
-    "hash": "3b597f683c6b986df3bc9e562b9e7b6e"
+    "mtime": 1782307054.1082754,
+    "hash": "080f79dbdfc0f268b528200285ca3356"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\release-audit.mjs": {
     "mtime": 1782271769.1334958,
@@ -1236,8 +1236,8 @@
     "hash": "3b76e9183e3dc50fa3645aba8a382d87"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\app-version.ts": {
-    "mtime": 1781866807.3956075,
-    "hash": "5ae69d06e9b2eb7c8784058301124318"
+    "mtime": 1782309769.6432023,
+    "hash": "e88b6e7e386b59b02a54e9db9b23cfec"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\appearance.ts": {
     "mtime": 1781862284.894395,
@@ -1260,8 +1260,8 @@
     "hash": "ed4c1891806d4be32d4c84b4e467abc9"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale.test.ts": {
-    "mtime": 1779089172.2051558,
-    "hash": "0eb021251290cac1d1717628d28baacf"
+    "mtime": 1782309829.5680003,
+    "hash": "0662ab6ba2cfc378362b38b61de94b8a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale.ts": {
     "mtime": 1781862284.91102,
@@ -1824,12 +1824,12 @@
     "hash": "1ef944a244e3589cd73cd4374255fea7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale\\messages\\en.ts": {
-    "mtime": 1782288124.6207998,
-    "hash": "042546b4c0cd12512b3a1f7b330c0fe4"
+    "mtime": 1782309806.3514314,
+    "hash": "bdf335de7e7a1a2ecd5b92e89dc93e66"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\locale\\messages\\tr.ts": {
-    "mtime": 1782288124.6217997,
-    "hash": "9299fa74be66a1b4389b7f3127af3936"
+    "mtime": 1782309806.3504329,
+    "hash": "c5b57982933705151a444f94fff94e5e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\messages\\attachment-rules.ts": {
     "mtime": 1778004488.0175958,

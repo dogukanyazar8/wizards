@@ -234,6 +234,18 @@ export const EN_MESSAGES = {
     "app.update.notes.desktopReleaseRuntime.title": "Reliable UAT desktop launch",
     "app.update.notes.desktopReleaseRuntime.description":
       "Installed desktop builds now embed the selected web origin, release ring, and updater state at build time, so UAT installers open without machine-wide environment variables while signed updater configuration stays gated.",
+    "app.update.notes.releaseAutomation.title": "Signed desktop release pipeline",
+    "app.update.notes.releaseAutomation.description":
+      "Desktop release builds now run through a guarded GitHub workflow, produce signed updater artifacts, publish UAT evidence, and keep latest.json separate from immutable installers.",
+    "app.update.notes.dmMobileExperience.title": "Sharper DM and mobile experience",
+    "app.update.notes.dmMobileExperience.description":
+      "Direct messages, mobile navigation, chat surfaces, popups, and side panels were tightened for smaller screens without introducing demo data or changing realtime contracts.",
+    "app.update.notes.voiceRealtimeQuality.title": "More reliable voice and realtime",
+    "app.update.notes.voiceRealtimeQuality.description":
+      "Voice and realtime flows now have stronger cleanup, participant sync, screen share coverage, and responsive voice layouts for multi-user and small viewport scenarios.",
+    "app.update.notes.qualityGate.title": "Stronger release quality gate",
+    "app.update.notes.qualityGate.description":
+      "The test matrix now covers mobile, DM, realtime, voice, desktop release checks, Playwright diagnostics, and local/CI parity before UAT promotion.",
 
     "validation.category.pattern":
       "Category names can use letters, numbers, spaces, hyphens, or underscores.",

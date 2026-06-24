@@ -12,6 +12,8 @@ describe("locale dictionaries", () => {
   });
 
   it("keeps update release notes localizable and fallback-safe", () => {
+    assert.equal(WHISPR_RELEASE_NOTES.length, 4);
+
     for (const note of WHISPR_RELEASE_NOTES) {
       assert.ok(note.fallbackCategory?.trim());
       assert.ok(note.fallbackDescription?.trim());

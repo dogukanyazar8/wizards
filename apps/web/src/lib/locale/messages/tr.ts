@@ -235,6 +235,18 @@ export const TR_MESSAGES = {
     "app.update.notes.desktopReleaseRuntime.title": "Güvenilir UAT masaüstü açılışı",
     "app.update.notes.desktopReleaseRuntime.description":
       "Kurulu masaüstü build'leri artık seçilen web origin'i, release halkasını ve updater durumunu build sırasında içine alır; böylece UAT installer'ları makine genelinde environment değişkeni beklemeden açılır ve imzalı updater yapılandırması kapalı kalır.",
+    "app.update.notes.releaseAutomation.title": "İmzalı masaüstü release hattı",
+    "app.update.notes.releaseAutomation.description":
+      "Masaüstü release build'leri artık kontrollü GitHub workflow'u üzerinden ilerler, imzalı updater artifact'leri üretir, UAT kanıtlarını yayınlar ve latest.json akışını immutable installer dosyalarından ayırır.",
+    "app.update.notes.dmMobileExperience.title": "Daha net DM ve mobil deneyim",
+    "app.update.notes.dmMobileExperience.description":
+      "Direkt mesajlar, mobil navigasyon, sohbet yüzeyleri, popup'lar ve yan paneller küçük ekranlarda daha sıkı çalışacak şekilde yenilendi; demo veri eklenmedi ve realtime kontratlar korunuyor.",
+    "app.update.notes.voiceRealtimeQuality.title": "Daha güvenilir ses ve realtime",
+    "app.update.notes.voiceRealtimeQuality.description":
+      "Ses ve realtime akışlarında cleanup, katılımcı senkronu, ekran paylaşımı kapsamı ve çoklu kullanıcı/küçük viewport ses görünümleri güçlendirildi.",
+    "app.update.notes.qualityGate.title": "Daha güçlü release kalite kapısı",
+    "app.update.notes.qualityGate.description":
+      "Test matrisi artık UAT öncesinde mobil, DM, realtime, ses, masaüstü release kontrolleri, Playwright tanıları ve lokal/CI uyumunu kapsıyor.",
 
     "validation.category.pattern":
       "Kategori adları harf, sayı, boşluk, tire veya alt çizgi içerebilir.",
