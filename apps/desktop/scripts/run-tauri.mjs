@@ -34,6 +34,7 @@ const webUrl =
     ? devUrl
     : parseProductionUrl(process.env.TAURI_WEB_URL || defaultProductionWebUrl);
 const updaterConfig = resolveUpdaterConfig(command);
+const desktopBuildTime = resolveDesktopBuildTime();
 const capabilityUrls =
   command === "dev"
     ? Array.from(
@@ -100,6 +101,7 @@ const tauriEnv = {
   ...process.env,
   PATH: withRustupPath(process.env.PATH),
   WHISPR_DESKTOP_APP_NAME: appName,
+  WHISPR_DESKTOP_BUILD_TIME: desktopBuildTime,
   WHISPR_DESKTOP_RELEASE_RING: updaterConfig.releaseRing,
   WHISPR_DESKTOP_UPDATER_ENABLED: updaterConfig.enabled ? "true" : "false",
   WHISPR_DESKTOP_WEB_URL: webUrl.href,
@@ -284,6 +286,23 @@ function resolveUpdaterConfig(mode) {
     publicKey,
     releaseRing,
   };
+}
+
+function resolveDesktopBuildTime() {
+  const explicitBuildTime = process.env.WHISPR_DESKTOP_BUILD_TIME?.trim();
+
+  if (explicitBuildTime) {
+    const parsedBuildTime = new Date(explicitBuildTime);
+
+    if (Number.isNaN(parsedBuildTime.getTime())) {
+      console.error("WHISPR_DESKTOP_BUILD_TIME must be a valid ISO-8601 timestamp.");
+      process.exit(1);
+    }
+
+    return parsedBuildTime.toISOString();
+  }
+
+  return new Date().toISOString();
 }
 
 function buildUpdaterBundleConfig(signingConfig) {

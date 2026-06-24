@@ -154,6 +154,9 @@ fn desktop_config_value(name: &str, fallback: &str) -> String {
         "WHISPR_DESKTOP_WEB_URL" => option_env!("WHISPR_DESKTOP_WEB_URL")
             .unwrap_or(fallback)
             .to_string(),
+        "WHISPR_DESKTOP_BUILD_TIME" => option_env!("WHISPR_DESKTOP_BUILD_TIME")
+            .unwrap_or(fallback)
+            .to_string(),
         "WHISPR_DESKTOP_RELEASE_RING" => option_env!("WHISPR_DESKTOP_RELEASE_RING")
             .unwrap_or(fallback)
             .to_string(),
@@ -262,6 +265,7 @@ impl DesktopSupportWebDiagnostics {
 #[serde(rename_all = "camelCase")]
 struct DesktopSupportAppInfo {
     app_version: &'static str,
+    build_time: String,
     release_ring: String,
     tauri_version: &'static str,
     updater_enabled: bool,
@@ -271,6 +275,7 @@ struct DesktopSupportAppInfo {
 fn desktop_support_app_info() -> DesktopSupportAppInfo {
     DesktopSupportAppInfo {
         app_version: env!("CARGO_PKG_VERSION"),
+        build_time: desktop_config_value("WHISPR_DESKTOP_BUILD_TIME", ""),
         release_ring: desktop_release_ring(),
         tauri_version: tauri::VERSION,
         updater_enabled: desktop_updater_enabled(),

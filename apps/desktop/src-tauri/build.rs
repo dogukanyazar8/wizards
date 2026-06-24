@@ -1,5 +1,6 @@
 fn main() {
     println!("cargo:rerun-if-env-changed=WHISPR_DESKTOP_WEB_URL");
+    println!("cargo:rerun-if-env-changed=WHISPR_DESKTOP_BUILD_TIME");
     println!("cargo:rerun-if-env-changed=WHISPR_DESKTOP_RELEASE_RING");
     println!("cargo:rerun-if-env-changed=WHISPR_DESKTOP_UPDATER_ENABLED");
 

@@ -74,6 +74,7 @@ export interface DesktopCompanionSurfacesStatus {
 
 export interface DesktopAppInfo {
   appVersion: string;
+  buildTime: string;
   releaseRing: string;
   tauriVersion: string;
   updaterEnabled: boolean;

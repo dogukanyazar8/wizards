@@ -17,6 +17,7 @@ export type DesktopNativeUpdateStatus =
   | "installing"
   | "ready"
   | "restarting"
+  | "verified"
   | "unavailable";
 
 export interface DesktopNativeUpdateInfo {

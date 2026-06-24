@@ -24,6 +24,7 @@ const isolatedDesktopEnvKeys = [
   "TAURI_WEB_URL",
   "WINDOWS_CERTIFICATE_PASSWORD",
   "WINDOWS_CERTIFICATE_PFX_BASE64",
+  "WHISPR_DESKTOP_BUILD_TIME",
   "WHISPR_DESKTOP_RELEASE_RING",
   "WHISPR_DESKTOP_UPDATER_ENABLED",
   "WHISPR_DESKTOP_UPDATER_ENDPOINT",
@@ -305,6 +306,11 @@ describe("desktop Tauri config generation", () => {
     );
     assert.match(
       rustSource,
+      /option_env!\("WHISPR_DESKTOP_BUILD_TIME"\)/,
+      "Installed release builds must preserve the build-time desktop timestamp.",
+    );
+    assert.match(
+      rustSource,
       /option_env!\("WHISPR_DESKTOP_RELEASE_RING"\)/,
       "Installed release builds must preserve the build-time release ring.",
     );
@@ -317,6 +323,11 @@ describe("desktop Tauri config generation", () => {
       buildScript,
       /cargo:rerun-if-env-changed=WHISPR_DESKTOP_WEB_URL/,
       "Cargo must rebuild the desktop binary when the target web origin changes.",
+    );
+    assert.match(
+      buildScript,
+      /cargo:rerun-if-env-changed=WHISPR_DESKTOP_BUILD_TIME/,
+      "Cargo must rebuild the desktop binary when the desktop build timestamp changes.",
     );
     assert.match(
       buildScript,
@@ -339,6 +350,18 @@ describe("desktop Tauri config generation", () => {
         }),
       }),
       /TAURI_WEB_URL must be an HTTPS origin/,
+    );
+  });
+
+  it("rejects invalid desktop build timestamps", async () => {
+    await assert.rejects(
+      execFileAsync(process.execPath, [runTauriScript, "build", "--write-config-only"], {
+        cwd: desktopRoot,
+        env: testDesktopEnv({
+          WHISPR_DESKTOP_BUILD_TIME: "not-a-date",
+        }),
+      }),
+      /WHISPR_DESKTOP_BUILD_TIME must be a valid ISO-8601 timestamp/,
     );
   });
 

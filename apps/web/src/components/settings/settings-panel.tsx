@@ -454,6 +454,19 @@ function getLocaleDisplayName(locale: "en" | "tr") {
   return locale === "tr" ? "T\u00fcrk\u00e7e" : "English";
 }
 
+function formatSettingsBuildTime(value: string | null | undefined, locale: "en" | "tr") {
+  const parsed = value ? new Date(value) : null;
+
+  if (!parsed || Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(parsed);
+}
+
 function copyAccountValue(value: string) {
   if (typeof navigator === "undefined" || !navigator.clipboard) {
     return;
@@ -2140,6 +2153,7 @@ export function SettingsPanel({
       : buildInfo.contributors;
     const unknownBuildValue = t("settings.about.buildInfo.unknown");
     const desktopVersion = formatNativeVersion(desktopAppInfo?.appVersion) ?? unknownBuildValue;
+    const desktopBuildTime = formatSettingsBuildTime(desktopAppInfo?.buildTime, locale);
     const desktopReleaseRing = desktopAppInfo?.releaseRing?.trim() || unknownBuildValue;
     const desktopUpdaterState = desktopAppInfo
       ? t(
@@ -2214,9 +2228,15 @@ export function SettingsPanel({
                   </>
                 ) : null}
                 <InfoPill
-                  label={t("settings.about.buildInfo.buildTime")}
+                  label={t("settings.about.buildInfo.webBuildTime")}
                   value={buildInfo.buildTime || t("settings.about.buildInfo.developmentBuild")}
                 />
+                {isDesktopRuntime ? (
+                  <InfoPill
+                    label={t("settings.about.buildInfo.desktopBuildTime")}
+                    value={desktopBuildTime || t("settings.about.buildInfo.developmentBuild")}
+                  />
+                ) : null}
               </div>
 
               <div className="app-panel-soft inline-flex max-w-full flex-wrap items-center gap-2 rounded-[16px] border px-3 py-2 text-[11px] font-semibold text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.05)]">

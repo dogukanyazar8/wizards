@@ -74,14 +74,24 @@ export const TR_MESSAGES = {
     "desktop.update.verifyUnavailable":
       "Güncelleme doğrulanamadı. Beklenen v{expected} sürümünü kontrol etmek için masaüstü runtime bilgisi okunamadı.",
     "desktop.update.pillReady": "Güncelleme mevcut",
+    "desktop.update.pillInstalled": "Güncellendi",
+    "desktop.update.successBadge": "Güncelleme tamamlandı",
+    "desktop.update.successTitle": "Whispr Desktop güncellendi",
+    "desktop.update.successDescription":
+      "v{latest} sürümü {ring} halkasından başarıyla kuruldu ve doğrulandı.",
     "desktop.update.versionLabel": "Sürüm",
     "desktop.update.versionLine": "v{current} -> v{latest}",
     "desktop.update.ringLabel": "Halka",
     "desktop.update.securityNote":
       "Whispr imzalı güncelleme paketlerini indirir ve kurmadan önce doğrular.",
+    "desktop.update.successSecurityNote":
+      "Çalışan masaüstü runtime sürümü doğrulandı. Bir sonraki güncelleme aynı imzalı kanal üzerinden denetlenecek.",
     "desktop.update.progressLabel": "İndirme",
     "desktop.update.progressValue": "%{progress}",
+    "desktop.update.progressUnknown": "Hazırlanıyor",
     "desktop.update.checkAgain": "Tekrar kontrol et",
+    "desktop.update.closePanel": "Paneli kapat",
+    "desktop.update.done": "Tamam",
     "app.update.category.devices": "Cihazlar",
     "app.update.category.design": "Tasarım",
     "app.update.category.security": "Güvenlik",
@@ -1486,6 +1496,8 @@ export const TR_MESSAGES = {
     "settings.about.buildInfo.lastUpdate": "Son güncelleme",
     "settings.about.buildInfo.buildId": "Build ID",
     "settings.about.buildInfo.buildTime": "Build zamanı",
+    "settings.about.buildInfo.webBuildTime": "Web build zamanı",
+    "settings.about.buildInfo.desktopBuildTime": "Masaüstü build zamanı",
     "settings.about.buildInfo.releaseChannel": "Yayın kanalı",
     "settings.about.buildInfo.developmentBuild": "Geliştirme build'i",
     "settings.about.whatsNew.title": "Neler Yeni",

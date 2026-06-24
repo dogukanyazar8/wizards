@@ -14,10 +14,8 @@ import { useI18n } from "@/components/providers/locale-provider";
 import {
   canUseDesktopNativeUpdater,
   checkDesktopNativeUpdate,
-  dismissDesktopUpdateVersion,
   downloadInstallAndRelaunchDesktopUpdate,
   getDesktopNativeUpdateInfo,
-  getDismissedDesktopUpdateVersion,
   type DesktopNativeUpdateDownloadState,
   type DesktopNativeUpdateInfo,
   type DesktopNativeUpdateStatus,
@@ -26,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const DESKTOP_UPDATE_RECHECK_MS = 6 * 60 * 60 * 1000;
+const DESKTOP_UPDATE_VERIFIED_VISIBLE_MS = 10_000;
 
 type NativeUpdate = Awaited<ReturnType<typeof checkDesktopNativeUpdate>>;
 
@@ -74,11 +73,6 @@ export function DesktopNativeUpdateNotifier() {
 
         const nextInfo = getDesktopNativeUpdateInfo(update);
 
-        if (getDismissedDesktopUpdateVersion() === nextInfo.version) {
-          setStatus("idle");
-          return;
-        }
-
         setUpdateInfo(nextInfo);
         setStatus("ready");
 
@@ -126,6 +120,19 @@ export function DesktopNativeUpdateNotifier() {
                 expected: verification.expectedVersion,
               }),
         );
+        return;
+      }
+
+      if (verification?.status === "matched") {
+        updateRef.current = null;
+        setDownloadState(null);
+        setUpdateInfo({
+          currentVersion: verification.currentVersion ?? verification.expectedVersion,
+          releaseRing: verification.releaseRing,
+          version: verification.expectedVersion,
+        });
+        setStatus("verified");
+        setPanelOpen(false);
         return;
       }
 
@@ -192,12 +199,32 @@ export function DesktopNativeUpdateNotifier() {
 
   const progress = useMemo(() => formatDownloadProgress(downloadState), [downloadState]);
 
+  useEffect(() => {
+    if (status !== "verified") {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setPanelOpen(false);
+      setDownloadState(null);
+      setUpdateInfo(null);
+      setStatus("idle");
+    }, DESKTOP_UPDATE_VERIFIED_VISIBLE_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [status]);
+
   if (!canUseUpdater || !updateInfo || status === "idle") {
     return null;
   }
 
-  const dismiss = () => {
-    dismissDesktopUpdateVersion(updateInfo.version);
+  const closePanel = () => {
+    setPanelOpen(false);
+  };
+
+  const clearNotice = () => {
     setPanelOpen(false);
     setDownloadState(null);
     setUpdateInfo(null);
@@ -227,6 +254,30 @@ export function DesktopNativeUpdateNotifier() {
   const isBusy = status === "downloading" || status === "installing" || status === "restarting";
   const isChecking = status === "checking";
   const isError = status === "error";
+  const isVerified = status === "verified";
+  const isIndeterminateProgress = isBusy && progress === null;
+  const pillLabel = isBusy
+    ? t("desktop.update.installing")
+    : isVerified
+      ? t("desktop.update.pillInstalled")
+      : isError
+        ? t("desktop.update.errorShort")
+        : t("desktop.update.pillReady");
+  const panelTitle = isVerified
+    ? t("desktop.update.successTitle")
+    : isError
+      ? t("desktop.update.errorShort")
+      : t("desktop.update.title");
+  const panelDescription = isVerified
+    ? t("desktop.update.successDescription", {
+        latest: updateInfo.version,
+        ring: updateInfo.releaseRing,
+      })
+    : t("desktop.update.description", {
+        current: updateInfo.currentVersion,
+        latest: updateInfo.version,
+        ring: updateInfo.releaseRing,
+      });
 
   return (
     <div ref={rootRef} className="relative flex h-full items-center">
@@ -238,6 +289,8 @@ export function DesktopNativeUpdateNotifier() {
           "group inline-flex h-7 max-w-[190px] items-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
           isError
             ? "border-rose-300/70 bg-rose-50 text-rose-700 hover:bg-rose-100"
+            : isVerified
+              ? "border-emerald-300/70 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
             : "border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] shadow-[0_8px_22px_hsl(var(--primary)/0.08)] hover:border-[hsl(var(--primary)/0.42)] hover:bg-[hsl(var(--primary)/0.14)]",
         )}
         onClick={() => {
@@ -250,18 +303,22 @@ export function DesktopNativeUpdateNotifier() {
           aria-hidden="true"
           className={cn(
             "grid h-4 w-4 shrink-0 place-items-center rounded-md",
-            isError ? "bg-rose-100 text-rose-600" : "bg-white/72 text-[hsl(var(--primary))]",
+            isError
+              ? "bg-rose-100 text-rose-600"
+              : isVerified
+                ? "bg-emerald-100 text-emerald-600"
+                : "bg-white/72 text-[hsl(var(--primary))]",
           )}
         >
-          {isError ? <AlertTriangle className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
+          {isError ? (
+            <AlertTriangle className="h-3 w-3" />
+          ) : isVerified ? (
+            <ShieldCheck className="h-3 w-3" />
+          ) : (
+            <Sparkles className="h-3 w-3" />
+          )}
         </span>
-        <span className="truncate">
-          {isBusy
-            ? t("desktop.update.installing")
-            : isError
-              ? t("desktop.update.errorShort")
-              : t("desktop.update.pillReady")}
-        </span>
+        <span className="truncate">{pillLabel}</span>
         <ChevronDown
           aria-hidden="true"
           className={cn("h-3 w-3 shrink-0 transition", panelOpen && "rotate-180")}
@@ -281,35 +338,33 @@ export function DesktopNativeUpdateNotifier() {
                 "grid h-9 w-9 shrink-0 place-items-center rounded-xl border",
                 isError
                   ? "border-rose-200 bg-rose-50 text-rose-600"
+                  : isVerified
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-600"
                   : "border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]",
               )}
             >
               {isError ? (
                 <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+              ) : isVerified ? (
+                <ShieldCheck className="h-4 w-4" aria-hidden="true" />
               ) : (
                 <ShieldCheck className="h-4 w-4" aria-hidden="true" />
               )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[hsl(var(--primary))]">
-                {t("desktop.update.badge")}
+                {t(isVerified ? "desktop.update.successBadge" : "desktop.update.badge")}
               </p>
               <h2 className="mt-1 text-[13px] font-black leading-5 text-app-foreground">
-                {t("desktop.update.title")}
+                {panelTitle}
               </h2>
-              <p className="mt-1 text-[11px] leading-4 text-app-muted">
-                {t("desktop.update.description", {
-                  current: updateInfo.currentVersion,
-                  latest: updateInfo.version,
-                  ring: updateInfo.releaseRing,
-                })}
-              </p>
+              <p className="mt-1 text-[11px] leading-4 text-app-muted">{panelDescription}</p>
             </div>
             <button
-              aria-label={t("desktop.update.later")}
+              aria-label={t(isVerified ? "common.close" : "desktop.update.closePanel")}
               className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.78)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-              onClick={dismiss}
-              title={t("desktop.update.later")}
+              onClick={isVerified ? clearNotice : closePanel}
+              title={t(isVerified ? "common.close" : "desktop.update.closePanel")}
               type="button"
             >
               <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -340,7 +395,9 @@ export function DesktopNativeUpdateNotifier() {
                 aria-hidden="true"
                 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[hsl(var(--primary))]"
               />
-              <span>{t("desktop.update.securityNote")}</span>
+              <span>
+                {t(isVerified ? "desktop.update.successSecurityNote" : "desktop.update.securityNote")}
+              </span>
             </div>
 
             {error ? (
@@ -349,51 +406,68 @@ export function DesktopNativeUpdateNotifier() {
               </p>
             ) : null}
 
-            {progress !== null ? (
+            {progress !== null || isIndeterminateProgress ? (
               <div className="mt-3">
                 <div className="mb-1 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.18em] text-app-muted">
                   <span>{t("desktop.update.progressLabel")}</span>
-                  <span>{t("desktop.update.progressValue", { progress })}</span>
+                  <span>
+                    {progress !== null
+                      ? t("desktop.update.progressValue", { progress })
+                      : t("desktop.update.progressUnknown")}
+                  </span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-[hsl(var(--surface-soft))]">
                   <div
-                    className="h-full rounded-full bg-[linear-gradient(90deg,hsl(var(--primary)),hsl(var(--accent)))] transition-[width]"
-                    style={{ width: `${progress}%` }}
+                    className={cn(
+                      "h-full rounded-full bg-[linear-gradient(90deg,hsl(var(--primary)),hsl(var(--accent)))] transition-[width]",
+                      isIndeterminateProgress && "w-1/2 animate-pulse",
+                    )}
+                    style={progress !== null ? { width: `${progress}%` } : undefined}
                   />
                 </div>
               </div>
             ) : null}
 
-            <div className="mt-3 flex items-center gap-2">
+            {isVerified ? (
               <button
-                className="inline-flex min-h-9 flex-1 items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-3 text-[11px] font-black text-white shadow-[0_12px_28px_hsl(var(--primary)/0.2)] transition hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-65"
-                disabled={isBusy || isChecking || !updateRef.current}
-                onClick={installUpdate}
+                className="mt-3 inline-flex min-h-9 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 text-[11px] font-black text-white shadow-[0_12px_28px_rgba(16,185,129,0.2)] transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                onClick={clearNotice}
                 type="button"
               >
-                {isBusy ? (
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                ) : (
-                  <Download className="h-3.5 w-3.5" aria-hidden="true" />
-                )}
-                {isBusy ? t("desktop.update.installing") : t("desktop.update.install")}
+                {t("desktop.update.done")}
               </button>
-              <button
-                aria-label={t("desktop.update.checkAgain")}
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[hsl(var(--border)/0.72)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.76)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-65"
-                disabled={isBusy || isChecking}
-                onClick={() => {
-                  void checkForUpdate({ reveal: true });
-                }}
-                title={t("desktop.update.checkAgain")}
-                type="button"
-              >
-                <RefreshCw
-                  className={cn("h-3.5 w-3.5", isChecking && "animate-spin")}
-                  aria-hidden="true"
-                />
-              </button>
-            </div>
+            ) : (
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  className="inline-flex min-h-9 flex-1 items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-3 text-[11px] font-black text-white shadow-[0_12px_28px_hsl(var(--primary)/0.2)] transition hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-65"
+                  disabled={isBusy || isChecking || !updateRef.current}
+                  onClick={installUpdate}
+                  type="button"
+                >
+                  {isBusy ? (
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  {isBusy ? t("desktop.update.installing") : t("desktop.update.install")}
+                </button>
+                <button
+                  aria-label={t("desktop.update.checkAgain")}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[hsl(var(--border)/0.72)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.76)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-65"
+                  disabled={isBusy || isChecking}
+                  onClick={() => {
+                    void checkForUpdate({ reveal: true });
+                  }}
+                  title={t("desktop.update.checkAgain")}
+                  type="button"
+                >
+                  <RefreshCw
+                    className={cn("h-3.5 w-3.5", isChecking && "animate-spin")}
+                    aria-hidden="true"
+                  />
+                </button>
+              </div>
+            )}
           </div>
         </section>
       ) : null}

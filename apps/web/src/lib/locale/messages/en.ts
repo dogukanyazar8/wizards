@@ -73,14 +73,24 @@ export const EN_MESSAGES = {
     "desktop.update.verifyUnavailable":
       "The update could not be verified. Whispr could not read the desktop runtime version expected to be v{expected}.",
     "desktop.update.pillReady": "Update available",
+    "desktop.update.pillInstalled": "Updated",
+    "desktop.update.successBadge": "Update complete",
+    "desktop.update.successTitle": "Whispr Desktop is up to date",
+    "desktop.update.successDescription":
+      "Version v{latest} was installed and verified from the {ring} ring.",
     "desktop.update.versionLabel": "Version",
     "desktop.update.versionLine": "v{current} -> v{latest}",
     "desktop.update.ringLabel": "Ring",
     "desktop.update.securityNote":
       "Whispr downloads signed update artifacts and verifies them before installing.",
+    "desktop.update.successSecurityNote":
+      "The running desktop runtime version was verified. Future updates will continue through the same signed channel.",
     "desktop.update.progressLabel": "Download",
     "desktop.update.progressValue": "{progress}%",
+    "desktop.update.progressUnknown": "Preparing",
     "desktop.update.checkAgain": "Check again",
+    "desktop.update.closePanel": "Close panel",
+    "desktop.update.done": "Done",
     "app.update.category.devices": "Devices",
     "app.update.category.design": "Design",
     "app.update.category.security": "Security",
@@ -1481,6 +1491,8 @@ export const EN_MESSAGES = {
     "settings.about.buildInfo.lastUpdate": "Last update",
     "settings.about.buildInfo.buildId": "Build ID",
     "settings.about.buildInfo.buildTime": "Build time",
+    "settings.about.buildInfo.webBuildTime": "Web build time",
+    "settings.about.buildInfo.desktopBuildTime": "Desktop build time",
     "settings.about.buildInfo.releaseChannel": "Release channel",
     "settings.about.buildInfo.developmentBuild": "Development build",
     "settings.about.whatsNew.title": "What’s New",
