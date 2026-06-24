@@ -21,6 +21,11 @@ on:
         description: HTTPS Whispr web origin embedded into the desktop build
         required: true
         type: string
+      enable_updater:
+        default: true
+        description: Build with signed updater support and local manifest evidence, even when R2 publishing is disabled
+        required: true
+        type: boolean
       publish_github_release:
         default: false
         description: Publish a GitHub Release after R2 updater evidence is produced
@@ -56,6 +61,7 @@ jobs:
     timeout-minutes: 15
     environment: desktop-${{ inputs.ring }}
     outputs:
+      enable_updater: ${{ steps.contract.outputs.enable_updater }}
       is_prerelease: ${{ steps.contract.outputs.is_prerelease }}
       publish_github_release: ${{ steps.contract.outputs.publish_github_release }}
       publish_r2: ${{ steps.contract.outputs.publish_r2 }}
@@ -94,6 +100,7 @@ jobs:
             --ring "${{ inputs.ring }}"
             --version "${{ inputs.version }}"
             --web-url "${{ inputs.web_url }}"
+            --enable-updater "${{ inputs.enable_updater }}"
             --publish-github-release "${{ inputs.publish_github_release }}"
             --publish-r2 "${{ inputs.publish_r2 }}"
             --confirm-stable-release "${{ inputs.confirm_stable_release }}"
@@ -134,6 +141,7 @@ jobs:
             echo "| Version | \`${{ steps.contract.outputs.version }}\` |"
             echo "| Planned tag | \`${{ steps.contract.outputs.release_tag }}\` |"
             echo "| Web URL | \`${{ steps.contract.outputs.web_url }}\` |"
+            echo "| Updater enabled | \`${{ steps.contract.outputs.enable_updater }}\` |"
             echo "| GitHub Release publish requested | \`${{ steps.contract.outputs.publish_github_release }}\` |"
             echo "| R2 publish requested | \`${{ steps.contract.outputs.publish_r2 }}\` |"
             echo "| Updater base URL | \`${{ steps.contract.outputs.updater_base_url || 'not requested' }}\` |"
@@ -158,11 +166,11 @@ jobs:
       WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
       WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
       WHISPR_DESKTOP_RELEASE_RING: ${{ needs.release-contract.outputs.release_ring }}
-      WHISPR_DESKTOP_UPDATER_ENABLED: ${{ needs.release-contract.outputs.publish_r2 == 'true' && 'true' || 'false' }}
+      WHISPR_DESKTOP_UPDATER_ENABLED: ${{ needs.release-contract.outputs.enable_updater }}
       WHISPR_DESKTOP_UPDATER_ENDPOINTS: ${{ needs.release-contract.outputs.updater_manifest_url }}
       WHISPR_DESKTOP_UPDATER_PUBLIC_KEY: ${{ vars.WHISPR_DESKTOP_UPDATER_PUBLIC_KEY }}
       WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND: ${{ vars.WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND }}
-      WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED: ${{ (needs.release-contract.outputs.release_ring == 'stable' || needs.release-contract.outputs.publish_r2 == 'true') && 'true' || 'false' }}
+      WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED: ${{ (needs.release-contract.outputs.release_ring == 'stable' || needs.release-contract.outputs.enable_updater == 'true') && 'true' || 'false' }}
 
     steps:
       - name: Checkout
@@ -212,7 +220,7 @@ jobs:
           }
 
       - name: Require updater signing configuration when updater artifacts are requested
-        if: needs.release-contract.outputs.publish_r2 == 'true'
+        if: needs.release-contract.outputs.enable_updater == 'true'
         shell: pwsh
         run: |
           $missing = @()
@@ -267,7 +275,7 @@ jobs:
         run: pnpm --filter @wizards/desktop build:desktop
 
       - name: Sign stable desktop artifacts without updater bundle signing
-        if: needs.release-contract.outputs.release_ring == 'stable' && needs.release-contract.outputs.publish_r2 != 'true'
+        if: needs.release-contract.outputs.release_ring == 'stable' && needs.release-contract.outputs.enable_updater != 'true'
         shell: pwsh
         run: |
           $certificatePath = Join-Path $env:RUNNER_TEMP "whispr-codesign.pfx"
@@ -312,12 +320,12 @@ jobs:
           pnpm --filter @wizards/desktop release:artifacts -- `
             --version "${{ needs.release-contract.outputs.version }}" `
             --ring "${{ needs.release-contract.outputs.release_ring }}" `
-            --updater-enabled "${{ needs.release-contract.outputs.publish_r2 }}" `
+            --updater-enabled "${{ needs.release-contract.outputs.enable_updater }}" `
             --artifact-dir "$artifactDir" `
             --out "$env:RUNNER_TEMP\desktop-build-metadata.json"
 
       - name: Generate and validate updater manifest evidence
-        if: needs.release-contract.outputs.publish_r2 == 'true'
+        if: needs.release-contract.outputs.enable_updater == 'true'
         shell: pwsh
         run: |
           $metadataPath = Join-Path $env:RUNNER_TEMP "desktop-build-metadata.json"

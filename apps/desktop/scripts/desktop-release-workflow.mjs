@@ -23,12 +23,17 @@ export function createDesktopReleaseWorkflowContract(options = {}) {
     "publish_github_release",
   );
   const publishR2 = parseBoolean(options.publishR2, false, "publish_r2");
+  const enableUpdater = parseBoolean(
+    options.enableUpdater,
+    publishR2 || publishGithubRelease,
+    "enable_updater",
+  );
   const confirmStableRelease = parseBoolean(
     options.confirmStableRelease,
     false,
     "confirm_stable_release",
   );
-  const updaterBaseUrl = publishR2
+  const updaterBaseUrl = enableUpdater
     ? normalizeUpdaterBaseUrl(options.updaterBaseUrl || defaultUpdaterBaseUrlForRing(ring), ring)
     : null;
   const refName = String(options.refName || "").trim();
@@ -50,8 +55,16 @@ export function createDesktopReleaseWorkflowContract(options = {}) {
     });
   }
 
+  if (publishR2 && !enableUpdater) {
+    throw new Error("Desktop R2 publishing requires enable_updater=true so signed manifest evidence exists.");
+  }
+
   if (publishGithubRelease && !publishR2) {
-    throw new Error("Desktop GitHub Release publishing requires publish_r2=true so manifest evidence exists.");
+    throw new Error("Desktop GitHub Release publishing requires publish_r2=true so remote updater evidence exists.");
+  }
+
+  if (publishGithubRelease && !enableUpdater) {
+    throw new Error("Desktop GitHub Release publishing requires enable_updater=true so signed manifest evidence exists.");
   }
 
   const tagName = buildDesktopReleaseTag({
@@ -77,6 +90,7 @@ export function createDesktopReleaseWorkflowContract(options = {}) {
       requiredRef: ring === "stable" ? "main" : null,
     },
     updater: {
+      enabled: enableUpdater,
       artifactBaseUrl: updaterBaseUrl ? updaterBaseUrl.href : null,
       manifestUrl: updaterBaseUrl
         ? new URL("latest.json", ensureTrailingSlash(updaterBaseUrl.href)).href
@@ -92,6 +106,7 @@ export function parseDesktopReleaseWorkflowCliArgs(argv) {
   const values = new Map();
   const allowed = new Set([
     "confirm-stable-release",
+    "enable-updater",
     "out",
     "project-root",
     "publish-github-release",
@@ -138,6 +153,7 @@ export function parseDesktopReleaseWorkflowCliArgs(argv) {
 
   return {
     confirmStableRelease: values.get("confirm-stable-release"),
+    enableUpdater: values.get("enable-updater"),
     outputPath: values.get("out"),
     projectRoot: values.get("project-root")
       ? path.resolve(values.get("project-root"))
@@ -331,6 +347,7 @@ async function writeGithubOutputs(contract) {
 
   const outputs = [
     ["is_prerelease", String(contract.prerelease)],
+    ["enable_updater", String(contract.updater.enabled)],
     ["publish_github_release", String(contract.publish.githubRelease)],
     ["publish_r2", String(contract.publish.r2)],
     ["release_ring", contract.releaseRing],

@@ -28,12 +28,36 @@ describe("desktop release workflow contract", () => {
     assert.equal(contract.webUrl, "https://wizardsweb-uat.up.railway.app/");
     assert.equal(contract.publish.githubRelease, false);
     assert.equal(contract.publish.r2, false);
+    assert.equal(contract.updater.enabled, false);
     assert.equal(contract.updater.artifactBaseUrl, null);
     assert.equal(contract.updater.manifestUrl, null);
   });
 
-  it("validates updater artifact URLs when R2 publishing is requested", () => {
+  it("supports updater-enabled baseline builds without publishing to R2", () => {
     const contract = createDesktopReleaseWorkflowContract({
+      enableUpdater: "true",
+      publishGithubRelease: "false",
+      publishR2: "false",
+      refName: "codex/desktop-0.8.13-baseline",
+      releaseSequence: "108",
+      ring: "uat",
+      version: desktopVersion,
+      webUrl: "https://wizardsweb-uat.up.railway.app/",
+    });
+
+    assert.equal(contract.publish.githubRelease, false);
+    assert.equal(contract.publish.r2, false);
+    assert.equal(contract.updater.enabled, true);
+    assert.equal(contract.updater.artifactBaseUrl, "https://updates.whispr.team/desktop/uat/");
+    assert.equal(
+      contract.updater.manifestUrl,
+      "https://updates.whispr.team/desktop/uat/latest.json",
+    );
+  });
+
+  it("validates updater artifact URLs when updater publishing is requested", () => {
+    const contract = createDesktopReleaseWorkflowContract({
+      enableUpdater: "true",
       publishGithubRelease: "false",
       publishR2: "true",
       refName: "uat",
@@ -52,6 +76,7 @@ describe("desktop release workflow contract", () => {
     assert.throws(
       () =>
         createDesktopReleaseWorkflowContract({
+          enableUpdater: "true",
           publishR2: "true",
           refName: "uat",
           releaseSequence: "108",
@@ -66,6 +91,7 @@ describe("desktop release workflow contract", () => {
     assert.throws(
       () =>
         createDesktopReleaseWorkflowContract({
+          enableUpdater: "true",
           publishR2: "true",
           refName: "uat",
           releaseSequence: "108",
@@ -78,10 +104,11 @@ describe("desktop release workflow contract", () => {
     );
   });
 
-  it("requires manifest evidence when GitHub Release publishing is requested", () => {
+  it("requires remote updater evidence when GitHub Release publishing is requested", () => {
     assert.throws(
       () =>
         createDesktopReleaseWorkflowContract({
+          enableUpdater: "true",
           publishGithubRelease: "true",
           publishR2: "false",
           refName: "uat",
@@ -91,6 +118,23 @@ describe("desktop release workflow contract", () => {
           webUrl: "https://wizardsweb-uat.up.railway.app/",
         }),
       /requires publish_r2=true/i,
+    );
+  });
+
+  it("rejects publishing updater artifacts when updater support is disabled", () => {
+    assert.throws(
+      () =>
+        createDesktopReleaseWorkflowContract({
+          enableUpdater: "false",
+          publishGithubRelease: "false",
+          publishR2: "true",
+          refName: "uat",
+          releaseSequence: "108",
+          ring: "uat",
+          version: desktopVersion,
+          webUrl: "https://wizardsweb-uat.up.railway.app/",
+        }),
+      /requires enable_updater=true/i,
     );
   });
 
@@ -226,6 +270,7 @@ describe("desktop release workflow contract", () => {
         desktopVersion,
         "--web-url",
         "https://wizardsweb-uat.up.railway.app/",
+        "--enable-updater=true",
         "--publish-github-release=false",
         "--publish-r2",
         "true",
@@ -234,6 +279,7 @@ describe("desktop release workflow contract", () => {
       ]),
       {
         confirmStableRelease: undefined,
+        enableUpdater: "true",
         outputPath: undefined,
         projectRoot: undefined,
         publishGithubRelease: "false",
