@@ -916,7 +916,7 @@ export const MessageItem = React.memo(
       <>
         <div
           className={cn(
-            "group relative px-0 py-[1px] transition",
+            "group relative min-w-0 overflow-x-hidden px-0 py-[1px] transition",
             "data-[jump-highlight=true]:rounded-3xl data-[jump-highlight=true]:bg-[hsl(var(--primary)/0.12)] data-[jump-highlight=true]:ring-2 data-[jump-highlight=true]:ring-[hsl(var(--primary)/0.28)]",
             isOptimistic && !isFailed && "opacity-70",
             isFailed && "opacity-95",
@@ -959,8 +959,10 @@ export const MessageItem = React.memo(
 
           <div
             className={cn(
-              "grid grid-cols-[2.35rem_minmax(0,1fr)] items-start gap-3 rounded-[18px] px-2 transition hover:bg-[hsl(var(--surface-card)/0.44)] sm:grid-cols-[2.5rem_minmax(0,1fr)] sm:px-3",
+              "grid min-w-0 items-start gap-2.5 rounded-[16px] px-1.5 transition sm:gap-3 sm:rounded-[18px] sm:px-3",
+              "grid-cols-[2.05rem_minmax(0,1fr)] sm:grid-cols-[2.5rem_minmax(0,1fr)]",
               isGrouped ? "py-0.5" : "py-2",
+              "hover:bg-[hsl(var(--surface-card)/0.44)]",
             )}
           >
             <div className="flex justify-center">
@@ -980,7 +982,7 @@ export const MessageItem = React.memo(
                     <Avatar
                       src={message.author.avatarUrl}
                       alt={message.author.displayName}
-                      className="h-9 w-9 flex-shrink-0 rounded-full shadow-[0_6px_16px_hsl(var(--shadow-color)/0.055)]"
+                      className="h-8 w-8 flex-shrink-0 rounded-full shadow-[0_6px_16px_hsl(var(--shadow-color)/0.055)] sm:h-9 sm:w-9"
                       fallback={message.author.displayName[0] || "?"}
                     />
                   </span>
@@ -988,10 +990,12 @@ export const MessageItem = React.memo(
               )}
             </div>
 
-            <div className="relative min-w-0 pr-9 md:pr-0">
+            <div
+              className="relative min-w-0 pr-9 md:pr-0"
+            >
               {!isGrouped && (
-                <div className="flex items-center gap-1.5 pr-2 leading-5">
-                  <span className="truncate text-[15px] font-bold text-app-foreground">
+                <div className="flex min-w-0 items-center gap-1.5 pr-2 leading-5">
+                  <span className="min-w-0 truncate text-[15px] font-bold text-app-foreground">
                     {message.author.displayName}
                   </span>
                   <span className="shrink-0 text-xs text-app-muted">{formattedTime}</span>
@@ -1042,7 +1046,9 @@ export const MessageItem = React.memo(
                 />
               ) : hasRenderableMessageBody ? (
                 <div className="message-font-scope max-w-full break-words text-sm leading-relaxed text-app-foreground [overflow-wrap:anywhere]">
-                  <div className="relative inline-block max-w-full align-top md:max-w-[calc(100%-10rem)] 2xl:max-w-[76rem] [&_a]:text-[hsl(var(--primary))] [&_code]:break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto">
+                  <div
+                    className="relative inline-block max-w-full align-top md:max-w-[calc(100%-10rem)] 2xl:max-w-[76rem] [&_a]:text-[hsl(var(--primary))] [&_code]:break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto"
+                  >
                     {markdownContent.trim().length > 0 ? (
                       <ReactMarkdown
                         components={markdownComponents}
@@ -1210,7 +1216,7 @@ export const MessageItem = React.memo(
                 <button
                   aria-expanded={actionsOpen}
                   aria-label={t("chat.message.moreActions")}
-                  className="app-panel-soft absolute right-0 top-0 z-10 flex h-8 w-8 items-center justify-center rounded-full border text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.1)] transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:hidden"
+                  className="app-panel-soft absolute right-0 top-0 z-10 flex h-9 w-9 items-center justify-center rounded-full border text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.1)] transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:hidden"
                   data-testid="message-mobile-actions"
                   onClick={(event) => {
                     event.stopPropagation();
@@ -1225,7 +1231,7 @@ export const MessageItem = React.memo(
 
               {!isEditing && !isOptimistic && actionsOpen ? (
                 <div
-                  className="absolute right-0 top-9 z-30 flex justify-end md:right-3 md:top-7"
+                  className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[90] flex justify-center md:absolute md:inset-x-auto md:bottom-auto md:right-3 md:top-7 md:z-30 md:justify-end"
                   onClick={(event) => event.stopPropagation()}
                   ref={actionsRef}
                 >

@@ -11,7 +11,7 @@ Minimal Tauri shell for the existing Whispr web app.
 - Tauri IPC is limited to native notification permission/dispatch and minimal window controls required for the custom desktop titlebar.
 - Off-origin navigation opens in the system browser by default. During an active Auth.js OAuth redirect only, the WebView allows the known provider origins needed to return the session cookie to Whispr.
 - The tray menu exposes Show, Settings, Desktop Diagnostics, mute/deafen commands, and Quit.
-- Signed auto-update support is flag-gated. When enabled for a release build, it requires an HTTPS manifest, an embedded Ed25519 public key, CI-held signing private key material, and an explicit user click on "Download and restart".
+- Signed auto-update support is flag-gated. When enabled for a release build, it requires an HTTPS manifest, an embedded Ed25519 public key, CI-held signing private key material, and an explicit user click on the title-bar "Download and restart" update action.
 - Desktop notifications are driven by the existing authenticated socket and settings flows. Message previews are disabled by default and can be enabled locally from notification settings.
 - Desktop deep links use the `whispr://` scheme and are restricted to safe internal routes such as `/channels`, `/settings`, and `/invite`.
 - A single-instance guard focuses the existing window instead of launching duplicate desktop sessions.
@@ -76,6 +76,11 @@ Desktop release operations are guarded by a small machine-readable contract in `
 
 ```powershell
 pnpm --filter @wizards/desktop release:ops
+pnpm --filter @wizards/desktop release:workflow -- --ring uat --version <version> --web-url <https-url> --publish-github-release false --publish-r2 true --updater-base-url https://updates.whispr.team/desktop/uat/ --confirm-stable-release false --ref-name uat --release-sequence <run-number>
+pnpm --filter @wizards/desktop release:artifacts -- --version <version> --ring uat --updater-enabled true --artifact-dir .\src-tauri\target\release\bundle\nsis --out .\src-tauri\target\release\bundle\nsis\desktop-build-metadata.json
+pnpm --filter @wizards/desktop release:audit -- --ring uat --require-manifest --manifest <latest.json> --expected-version <version>
+pnpm --filter @wizards/desktop release:promotion -- --ring uat --web-url <https-url> --manifest <latest.json> --artifact <installer.exe> --signature <installer.exe.sig> --expected-version <version>
+pnpm --filter @wizards/desktop release:publish-plan -- --ring uat --version <version> --release-tag v<version>-uat.<run-number> --web-url <https-url> --updater-base-url https://updates.whispr.team/desktop/uat/ --publish-r2 true --publish-github-release true --artifact <installer.exe> --manifest <latest.json> --signature <installer.exe.sig> --metadata <desktop-build-metadata.json> --audit <audit.json> --promotion-json <promotion.json> --promotion-md <promotion.md>
 pnpm --filter @wizards/desktop test
 ```
 
@@ -94,6 +99,9 @@ Mandatory desktop smoke gates:
 - `auth-restore`
 - `close-to-tray`
 - `updater-check-mock`
+- `updater-feed-preflight`
+- `release-audit-report`
+- `release-promotion-bundle`
 - `shortcut-registration`
 - `overlay-show-hide`
 
@@ -132,3 +140,16 @@ pnpm --filter @wizards/desktop build:desktop
 ```
 
 Do not use local or HTTP endpoints for updater manifests. Do not commit Ed25519 updater private keys, Windows certificate material, generated updater artifacts, or manifest drafts.
+
+The `desktop-release.yml` workflow builds Windows artifacts from the validated release contract. When `publish_r2=true`, CI enables updater artifact generation and fails closed unless the HTTPS updater artifact directory, Ed25519 signing key pair, and Windows signing configuration are present. UAT can use a self-signed Windows PFX for updater smoke tests; `stable` requires `WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND=OV` or `EV` plus the real certificate secrets before artifacts can be produced. CI generates `latest.json`, validates it locally against the installer and `.sig`, then writes redacted audit and promotion evidence into the GitHub artifact.
+
+When publishing is enabled, the same workflow uploads the installer, `latest.json`, and `.sig` to Cloudflare R2 under `desktop/<ring>/`. R2 is the canonical public updater/download source. GitHub Releases are optional evidence and convenience bundles; because the repository is private, release asset access remains limited to users who can access the repository.
+
+Required publishing secrets:
+
+- `CLOUDFLARE_ACCOUNT_ID`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_BUCKET`
+
+The publish job validates the remote `latest.json` after upload and fails if the manifest cannot be reached or if the installer URL inside the manifest is inaccessible. Rollback is manifest-based: re-publish the previous signed `latest.json` to the same `desktop/<ring>/latest.json` key without mutating already-installed clients.

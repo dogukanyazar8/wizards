@@ -1,12 +1,18 @@
-import type { Browser, BrowserContext, Locator, Page } from "@playwright/test";
+import type { Browser, BrowserContext, Locator, Page, TestInfo } from "@playwright/test";
 import { test, expect } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
+import {
+  attachE2EPageDiagnostics,
+  type E2EPageDiagnosticsHandle,
+} from "../../helpers/diagnostics";
 import { getE2EDMConversationId, getE2EServerRoute } from "../../helpers/db";
 import { sendComposerMessage } from "../../helpers/messages";
+import { gotoDmConversationRoute, gotoTextChannelRoute } from "../../helpers/navigation";
 import { e2eUsers, type E2EUserKey } from "../../helpers/test-data";
 
 type LoggedInPage = {
   context: BrowserContext;
+  diagnostics: E2EPageDiagnosticsHandle;
   page: Page;
 };
 
@@ -16,17 +22,26 @@ const reactionEmoji = {
   thumbsUp: "\u{1F44D}",
 } as const;
 
-async function openLoggedInPage(browser: Browser, userKey: E2EUserKey): Promise<LoggedInPage> {
+async function openLoggedInPage(
+  browser: Browser,
+  userKey: E2EUserKey,
+  testInfo: TestInfo,
+): Promise<LoggedInPage> {
   const context = await browser.newContext();
   const page = await context.newPage();
+  const diagnostics = attachE2EPageDiagnostics(page, testInfo, userKey);
 
   await loginAs(page, userKey);
 
-  return { context, page };
+  return { context, diagnostics, page };
 }
 
 async function closeLoggedInPages(pages: LoggedInPage[]): Promise<void> {
-  await Promise.all(pages.map(({ context }) => context.close()));
+  await Promise.allSettled(pages.map(({ diagnostics }) => diagnostics.attachIfFailed()));
+  await Promise.allSettled(pages.map(({ context }) => context.close()));
+  for (const { diagnostics } of pages) {
+    diagnostics.dispose();
+  }
 }
 
 async function sendMessage(page: Page, content: string): Promise<void> {
@@ -56,6 +71,18 @@ async function waitForActionableMessage(page: Page, content: string): Promise<Lo
   return message;
 }
 
+async function clickMessageAction(message: Locator, actionTestId: string): Promise<void> {
+  const visibleAction = message.locator(`[data-testid="${actionTestId}"]:visible`).first();
+
+  if ((await visibleAction.count()) === 0) {
+    await message.locator('[data-testid="message-action-more"]:visible').first().click();
+  }
+
+  await expect(visibleAction).toBeVisible({ timeout: 10_000 });
+  await expect(visibleAction).toBeEnabled({ timeout: 10_000 });
+  await visibleAction.click();
+}
+
 async function openReactionPicker(page: Page, message: Locator): Promise<void> {
   await message.hover();
   await message.getByTestId("message-action-react").first().click();
@@ -75,7 +102,7 @@ test.describe("message interactions", () => {
     const { serverId, textChannelId } = await getE2EServerRoute();
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await gotoTextChannelRoute(page, serverId, textChannelId);
 
     const messageList = page.getByTestId("message-list");
     await expect(messageList).toBeVisible({ timeout: 10_000 });
@@ -87,7 +114,7 @@ test.describe("message interactions", () => {
     const { serverId, textChannelId } = await getE2EServerRoute();
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await gotoTextChannelRoute(page, serverId, textChannelId);
     await page.getByTestId("message-search-open").click();
 
     const searchPanel = page.getByTestId("message-search-panel");
@@ -104,11 +131,11 @@ test.describe("message interactions", () => {
     const content = `Thread accessibility target ${Date.now()}`;
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await gotoTextChannelRoute(page, serverId, textChannelId);
     await sendMessage(page, content);
 
     const message = await waitForActionableMessage(page, content);
-    await message.getByTestId("message-action-thread").first().click();
+    await clickMessageAction(message, "message-action-thread");
 
     const threadPanel = page.getByTestId("thread-panel");
     await expect(threadPanel).toBeVisible({ timeout: 10_000 });
@@ -124,7 +151,7 @@ test.describe("message interactions", () => {
     const content = `Server reaction target ${Date.now()}`;
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await gotoTextChannelRoute(page, serverId, textChannelId);
     await sendMessage(page, content);
 
     const message = await waitForActionableMessage(page, content);
@@ -142,7 +169,7 @@ test.describe("message interactions", () => {
     const content = `DM reaction target ${Date.now()}`;
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/@me/${conversationId}`);
+    await gotoDmConversationRoute(page, conversationId);
     await sendMessage(page, content);
 
     const message = await waitForActionableMessage(page, content);
@@ -161,7 +188,7 @@ test.describe("message interactions", () => {
     const edited = `${original} updated`;
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await gotoTextChannelRoute(page, serverId, textChannelId);
     await sendMessage(page, original);
 
     const message = await waitForActionableMessage(page, original);
@@ -184,11 +211,11 @@ test.describe("message interactions", () => {
     });
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await gotoTextChannelRoute(page, serverId, textChannelId);
     await sendMessage(page, content);
 
     const message = await waitForActionableMessage(page, content);
-    await message.getByTestId("message-action-delete").first().click();
+    await clickMessageAction(message, "message-action-delete");
 
     await expect(page.getByTestId("message-delete-dialog")).toBeVisible();
     expect(browserDialogs).toHaveLength(0);
@@ -206,7 +233,7 @@ test.describe("message interactions", () => {
     const reply = `Reply response ${Date.now()}`;
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await gotoTextChannelRoute(page, serverId, textChannelId);
     await sendMessage(page, original);
 
     const message = await waitForActionableMessage(page, original);
@@ -219,17 +246,20 @@ test.describe("message interactions", () => {
     await expect(replyMessage).toContainText(original);
   });
 
-  test("user profile popup opens and closes from a message avatar", async ({ browser }) => {
+  test("user profile popup opens and closes from a message avatar", async (
+    { browser },
+    testInfo,
+  ) => {
     const { serverId, textChannelId } = await getE2EServerRoute();
-    const alice = await openLoggedInPage(browser, "alice");
-    const bob = await openLoggedInPage(browser, "bob");
+    const alice = await openLoggedInPage(browser, "alice", testInfo);
+    const bob = await openLoggedInPage(browser, "bob", testInfo);
     const separator = `Profile separator ${Date.now()}`;
     const content = `Profile popup target ${Date.now()}`;
 
     try {
       await Promise.all([
-        alice.page.goto(`/channels/${serverId}/${textChannelId}`),
-        bob.page.goto(`/channels/${serverId}/${textChannelId}`),
+        gotoTextChannelRoute(alice.page, serverId, textChannelId),
+        gotoTextChannelRoute(bob.page, serverId, textChannelId),
       ]);
 
       await sendMessage(alice.page, separator);
@@ -257,7 +287,7 @@ test.describe("message interactions", () => {
     const { serverId, textChannelId } = await getE2EServerRoute();
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await gotoTextChannelRoute(page, serverId, textChannelId);
     await page.getByTestId("emoji-picker-button").click();
 
     const picker = page.getByTestId("emoji-picker");
@@ -284,12 +314,12 @@ test.describe("message interactions", () => {
     const content = `Stable reaction picker target ${Date.now()}`;
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await gotoTextChannelRoute(page, serverId, textChannelId);
     await sendMessage(page, content);
 
     const message = await waitForActionableMessage(page, content);
     await openReactionPicker(page, message);
-    await page.waitForTimeout(600);
+    await page.mouse.move(0, 0);
     await expect(page.getByTestId("reaction-picker")).toBeVisible();
     await page.getByTestId("reaction-option").filter({ hasText: reactionEmoji.party }).click();
 

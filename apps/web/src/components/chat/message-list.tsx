@@ -373,7 +373,7 @@ export function MessageList({
     <div
       ref={listRef}
       onScroll={handleScroll}
-      className="relative flex-1 space-y-0 overflow-y-auto overscroll-contain bg-transparent px-3 py-1 sm:px-4 md:px-5 md:py-2"
+      className="relative min-w-0 flex-1 space-y-0 overflow-y-auto overflow-x-hidden overscroll-contain scroll-pb-[max(7.5rem,calc(env(safe-area-inset-bottom)+6.75rem))] bg-transparent px-2.5 py-1 sm:px-4 md:px-5 md:py-2"
       aria-label={t("chat.list.ariaLabel")}
       aria-live="polite"
       aria-relevant="additions text"
@@ -415,7 +415,7 @@ export function MessageList({
 
       {!error && allMessages.length === 0 && !isLoading ? (
         <div className="flex h-full items-center justify-center px-4 text-app-muted">
-          <div className="max-w-sm rounded-[26px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.72)] px-6 py-5 text-center shadow-[0_18px_42px_hsl(var(--shadow-color)/0.06)] backdrop-blur-xl">
+          <div className="max-w-[18rem] rounded-[22px] bg-[hsl(var(--surface-card)/0.74)] px-5 py-4 text-center shadow-[0_14px_32px_hsl(var(--shadow-color)/0.045)] backdrop-blur-xl">
             <p className="text-sm font-bold text-app-foreground">{t("chat.list.emptyTitle")}</p>
             <p className="mt-1 text-xs leading-5 text-app-muted">
               {t("chat.list.emptyDescription")}

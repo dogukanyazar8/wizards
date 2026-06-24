@@ -24,7 +24,7 @@ import {
 import type { NotificationDTO } from "@/lib/notifications/types";
 import { cn } from "@/lib/utils";
 
-const COMPACT_NOTIFICATION_LIMIT = 8;
+const COMPACT_NOTIFICATION_LIMIT = 6;
 const NOTIFICATION_POPUP_WIDTH = 304;
 
 function formatNotificationDate(locale: string, createdAt: string) {
@@ -381,12 +381,15 @@ export function NotificationBell({
                   className={cn(
                     "fixed z-[80] overflow-hidden border border-[hsl(var(--border)/0.66)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.98),hsl(var(--surface-soft)/0.9))] shadow-[0_18px_46px_hsl(var(--shadow-color)/0.14)] backdrop-blur-xl",
                     isMobileViewport
-                      ? "inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] max-h-[min(30rem,calc(100dvh-1rem))] rounded-[22px]"
+                      ? "inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-h-[min(28rem,calc(100dvh-1.5rem))] rounded-[22px]"
                       : "w-[min(19rem,calc(100vw-1.25rem))] rounded-[22px]",
                   )}
+                  aria-label={t("notifications.bell.title")}
                   data-notification-popup="true"
+                  data-testid="notification-popup"
                   exit={{ opacity: 0, scale: 0.97, y: -10 }}
                   initial={{ opacity: 0, scale: 0.97, y: -10 }}
+                  role="dialog"
                   style={
                     isMobileViewport
                       ? {}
@@ -427,7 +430,7 @@ export function NotificationBell({
                     </div>
                   </div>
 
-                  <div className="max-h-[min(19rem,calc(100dvh-10rem))] overflow-y-auto p-2 sm:max-h-[22rem]">
+                  <div className="max-h-[min(16rem,calc(100dvh-9rem))] overflow-y-auto overscroll-contain p-2 [scrollbar-width:none] sm:max-h-[22rem] [&::-webkit-scrollbar]:hidden">
                     {listQuery.isLoading ? (
                       <div className="space-y-2">
                         {Array.from({ length: 4 }).map((_, index) => (

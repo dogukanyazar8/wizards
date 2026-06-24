@@ -325,6 +325,7 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
     null;
 
   return {
+    alreadyMember: Boolean(existingMember),
     channelId: targetChannel,
     serverId: invite.server.id,
   };

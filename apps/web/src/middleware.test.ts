@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { isMutatingApiRequestAllowed } from "./middleware";
+import { buildContentSecurityPolicy, isMutatingApiRequestAllowed } from "./middleware";
 
 describe("API CSRF guard", () => {
   const requestOrigin = "https://whispr.team";
@@ -55,5 +55,35 @@ describe("API CSRF guard", () => {
       }),
       true,
     );
+  });
+});
+
+describe("Content Security Policy", () => {
+  it("allows Next development inline scripts without carrying invalid sources", () => {
+    const csp = buildContentSecurityPolicy("test-nonce", {
+      APP_URL: "http://127.0.0.1:3000",
+      AUTH_URL: "http://127.0.0.1:3000",
+      NEXTAUTH_URL: "http://127.0.0.1:3000",
+      NODE_ENV: "test",
+    });
+
+    assert.match(csp, /script-src[^;]*'unsafe-inline'/);
+    assert.match(csp, /script-src[^;]*'unsafe-eval'/);
+    assert.doesNotMatch(csp, /script-src[^;]*nonce-test-nonce/);
+    assert.doesNotMatch(csp, /media\*\.giphy\.com/);
+  });
+
+  it("keeps production scripts nonce-bound and strict", () => {
+    const csp = buildContentSecurityPolicy("production-nonce", {
+      APP_URL: "https://whispr.team",
+      AUTH_URL: "https://whispr.team",
+      NEXTAUTH_URL: "https://whispr.team",
+      NODE_ENV: "production",
+    });
+
+    assert.match(csp, /script-src[^;]*'nonce-production-nonce'/);
+    assert.match(csp, /script-src[^;]*'strict-dynamic'/);
+    assert.doesNotMatch(csp, /script-src[^;]*'unsafe-inline'/);
+    assert.match(csp, /upgrade-insecure-requests/);
   });
 });

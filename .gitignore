@@ -9,6 +9,8 @@ test-results
 blob-report
 .env
 .env.local
+.secrets/
+**/.secrets/
 .DS_Store
 *.log
 .claude/

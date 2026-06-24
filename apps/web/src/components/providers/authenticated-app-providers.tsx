@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import { AppUpdateNotifier } from "@/components/app/app-update-notifier";
 import { DesktopExperience } from "@/components/desktop/desktop-experience";
-import { DesktopNativeUpdateNotifier } from "@/components/desktop/desktop-native-update-notifier";
 import { SocketProvider } from "@/components/providers/socket-provider";
 import { SoundEffectsProvider } from "@/components/providers/sound-effects-provider";
 import { VoiceProvider } from "@/components/providers/voice-provider";
@@ -29,7 +28,6 @@ export function AuthenticatedAppProviders({
   const content = (
     <>
       <AppUpdateNotifier />
-      <DesktopNativeUpdateNotifier />
       {children}
     </>
   );

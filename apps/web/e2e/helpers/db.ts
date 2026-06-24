@@ -251,6 +251,15 @@ export async function expectVoiceParticipantCount(
     .toBe(count);
 }
 
+export async function expectVoiceParticipantCountAtLeast(
+  channelId: string,
+  count: number,
+): Promise<void> {
+  await expect
+    .poll(() => getVoiceParticipantCount(channelId), { timeout: 10_000 })
+    .toBeGreaterThanOrEqual(count);
+}
+
 export async function getE2EDMConversationId(): Promise<string> {
   return withE2EDatabase(async (prisma) => {
     const [alice, bob] = await Promise.all([
@@ -457,6 +466,30 @@ export async function createIsolatedServerForMembershipTest(
       textChannelId: textChannel.id,
       voiceChannelId: voiceChannel.id,
     };
+  });
+}
+
+export async function deleteIsolatedE2EServer(serverId: string): Promise<void> {
+  await withE2EDatabase(async (prisma) => {
+    const server = await prisma.server.findUnique({
+      where: { id: serverId },
+      select: { features: true, id: true, name: true },
+    });
+
+    const isDisposableMembershipServer =
+      server?.name.startsWith("Whispr E2E Membership ") &&
+      server.features.includes("E2E_TEST");
+
+    if (!server || !isDisposableMembershipServer) {
+      return;
+    }
+
+    await prisma.voiceState.deleteMany({
+      where: { serverId: server.id },
+    });
+    await prisma.server.delete({
+      where: { id: server.id },
+    });
   });
 }
 

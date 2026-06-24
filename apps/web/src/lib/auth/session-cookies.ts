@@ -11,7 +11,7 @@ type AuthSessionCookieWriter = {
       httpOnly: boolean;
       maxAge: number;
       path: string;
-      sameSite: "strict";
+      sameSite: "lax";
       secure: boolean;
     },
   ) => void;
@@ -30,7 +30,7 @@ export function getAuthSessionCookieOptions() {
   return {
     httpOnly: true,
     path: "/",
-    sameSite: "strict" as const,
+    sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
   };
 }

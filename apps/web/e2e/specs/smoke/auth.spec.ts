@@ -1,7 +1,9 @@
 import { test, expect } from "../../fixtures/test";
 import {
+  expectLoginAlert,
   expectLoggedIn,
   expectLoggedOut,
+  fillLoginCredentials,
   loginAs,
   loginViaUi,
   logout,
@@ -22,13 +24,16 @@ test.describe("auth smoke", () => {
 
   test("wrong password fails without entering the app", async ({ page }) => {
     await gotoAppRoute(page, "/login");
-    await page.locator('input[name="email"]').fill(e2eUsers.alice.email);
-    await page.locator('input[name="password"]').fill(`${e2eUserPassword}-wrong`);
+    await fillLoginCredentials(page, {
+      email: e2eUsers.alice.email,
+      password: `${e2eUserPassword}-wrong`,
+    });
     await submitLoginForm(page);
 
     await expect(page).toHaveURL(/\/login/);
-    await expect(page.getByTestId("login-form").getByRole("alert")).toContainText(
-      /invalid|email|password|hatal|gecersiz|geçersiz/i,
+    await expectLoginAlert(
+      page,
+      /invalid|email|password|hatal|gecersiz|geçersiz|sifre|şifre/i,
     );
   });
 

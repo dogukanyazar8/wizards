@@ -1,6 +1,10 @@
-import { resetAndSeedE2EData } from "./e2e-database";
+import { assertE2EEnvironmentReady } from "../../src/lib/e2e/environment";
 
-resetAndSeedE2EData()
+assertE2EEnvironmentReady();
+
+const { resetAndSeedE2EData } = await import("./e2e-database");
+
+void resetAndSeedE2EData()
   .then(() => {
     console.info("E2E database reset and seed completed.");
   })

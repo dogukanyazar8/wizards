@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import dynamic from "next/dynamic";
 import { Smile, X } from "lucide-react";
 import { useI18n } from "@/components/providers/locale-provider";
+import {
+  announceOverlayOpen,
+  getOverlayOpenDetail,
+  WHISPR_OVERLAY_OPEN_EVENT,
+} from "@/lib/ui/overlay-coordinator";
 
 const Picker = dynamic(
   () =>
@@ -31,7 +36,23 @@ type EmojiSelection = {
 
 export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   const { t } = useI18n();
+  const overlayId = useId();
   const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    announceOverlayOpen("composer-picker", overlayId);
+
+    const handleOverlayOpen = (event: Event) => {
+      const detail = getOverlayOpenDetail(event);
+
+      if (detail?.group === "composer-picker" && detail.id !== overlayId) {
+        onClose();
+      }
+    };
+
+    window.addEventListener(WHISPR_OVERLAY_OPEN_EVENT, handleOverlayOpen);
+    return () => window.removeEventListener(WHISPR_OVERLAY_OPEN_EVENT, handleOverlayOpen);
+  }, [onClose, overlayId]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -47,12 +68,12 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   return (
     <div
       ref={pickerRef}
-      className="app-emoji-picker fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-[90] max-h-[70dvh] overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.76)] bg-[hsl(var(--surface-overlay)/0.98)] p-3 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.24)] backdrop-blur-2xl md:absolute md:inset-x-auto md:bottom-full md:left-0 md:mb-3 md:max-h-none md:w-[min(23rem,calc(100vw-2rem))]"
+      className="app-emoji-picker fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-[90] max-h-[min(64dvh,28rem)] overflow-hidden rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-overlay)/0.98)] p-2.5 shadow-[0_24px_62px_hsl(var(--shadow-color)/0.2)] backdrop-blur-2xl md:absolute md:inset-x-auto md:bottom-full md:left-0 md:mb-3 md:max-h-none md:w-[min(23rem,calc(100vw-2rem))]"
       data-testid="emoji-picker"
     >
-      <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="mb-2.5 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-2xl border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
+          <span className="flex h-8 w-8 items-center justify-center rounded-2xl border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
             <Smile className="h-4 w-4" />
           </span>
           <div className="min-w-0">
@@ -70,7 +91,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
           <X className="h-4 w-4" />
         </button>
       </div>
-      <div className="max-h-[56dvh] overflow-hidden rounded-[22px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.86)] md:max-h-none">
+      <div className="max-h-[50dvh] overflow-hidden rounded-[20px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.86)] md:max-h-none">
         <Picker
           dynamicWidth
           onEmojiSelect={(emoji: EmojiSelection) => onSelect(emoji.native)}

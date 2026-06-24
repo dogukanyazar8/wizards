@@ -20,6 +20,7 @@ import { canStartDirectMessage } from "@/lib/privacy-policy";
 import type {
   DMConversationsPageResponse,
   DMMessagesResponse,
+  DMMutualServerSummary,
 } from "./types";
 
 export const dmAuthorSelect = {
@@ -76,6 +77,7 @@ const dmConversationInclude = {
     select: {
       userId: true,
       unreadCount: true,
+      muted: true,
       hiddenAt: true,
       user: { select: dmParticipantUserSelect },
     },
@@ -358,6 +360,7 @@ function mapDMParticipantWithPresence(
     displayName: participant.user.displayName,
     avatarUrl: participant.user.avatarUrl,
     unreadCount: participant.unreadCount,
+    muted: participant.muted,
     status: presence.status,
     customStatus: presence.customStatus,
     presence,
@@ -783,6 +786,61 @@ export async function getDirectMessageConversationForUser(
   return mapDMConversationDTO(conversation, userId, deletedMessageLabel);
 }
 
+export async function listDirectMessageMutualServers(
+  requesterId: string,
+  targetUserId: string,
+  options: {
+    limit?: number;
+  } = {},
+): Promise<DMMutualServerSummary[]> {
+  if (!targetUserId || requesterId === targetUserId) {
+    return [];
+  }
+
+  const limit = Math.min(Math.max(options.limit ?? 6, 1), 12);
+  const memberships = await prisma.serverMember.findMany({
+    where: {
+      pending: false,
+      userId: requesterId,
+      server: {
+        members: {
+          some: {
+            pending: false,
+            userId: targetUserId,
+          },
+        },
+      },
+    },
+    orderBy: {
+      joinedAt: "desc",
+    },
+    select: {
+      server: {
+        select: {
+          _count: {
+            select: {
+              members: true,
+            },
+          },
+          iconUrl: true,
+          id: true,
+          name: true,
+          shortName: true,
+        },
+      },
+    },
+    take: limit,
+  });
+
+  return memberships.map(({ server }) => ({
+    iconUrl: server.iconUrl,
+    id: server.id,
+    memberCount: server._count.members,
+    name: server.name,
+    shortName: server.shortName,
+  }));
+}
+
 export async function getDirectMessageConversationRealtimeViews(
   conversationId: string,
   userIds: string[],
@@ -998,6 +1056,43 @@ export async function markDirectMessageRead(userId: string, conversationId: stri
     data: {
       lastReadAt: new Date(),
       unreadCount: 0,
+    },
+  });
+}
+
+export async function markDirectMessageUnread(userId: string, conversationId: string) {
+  await requireDMParticipant(userId, conversationId);
+
+  await prisma.dMParticipant.update({
+    where: {
+      conversationId_userId: {
+        conversationId,
+        userId,
+      },
+    },
+    data: {
+      lastReadAt: null,
+      unreadCount: 1,
+    },
+  });
+}
+
+export async function setDirectMessageMuted(
+  userId: string,
+  conversationId: string,
+  muted: boolean,
+) {
+  await requireDMParticipant(userId, conversationId);
+
+  await prisma.dMParticipant.update({
+    where: {
+      conversationId_userId: {
+        conversationId,
+        userId,
+      },
+    },
+    data: {
+      muted,
     },
   });
 }

@@ -13,8 +13,12 @@ import {
   flattenDMConversationPages,
   hideDMConversationRequest,
   markDMConversationAsReadInPageData,
+  markDMConversationAsUnreadInPageData,
   markDMConversationReadRequest,
+  markDMConversationUnreadRequest,
   removeDMConversationFromPageData,
+  setDMConversationMutedInPageData,
+  setDMConversationMutedRequest,
 } from "@/lib/dm/client";
 import {
   appendMessage,
@@ -150,6 +154,25 @@ export function useDMConversations(
     },
   });
 
+  const markAsUnreadMutation = useMutation({
+    mutationFn: (conversationId: string) => markDMConversationUnreadRequest(conversationId),
+    onSuccess: (_result, conversationId) => {
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
+        markDMConversationAsUnreadInPageData(current, conversationId, currentUserId),
+      );
+    },
+  });
+
+  const setMutedMutation = useMutation({
+    mutationFn: ({ conversationId, muted }: { conversationId: string; muted: boolean }) =>
+      setDMConversationMutedRequest(conversationId, muted),
+    onSuccess: (_result, { conversationId, muted }) => {
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
+        setDMConversationMutedInPageData(current, conversationId, currentUserId, muted),
+      );
+    },
+  });
+
   const hideConversation = useCallback(
     async (conversationId: string) => {
       await hideMutation.mutateAsync(conversationId);
@@ -167,12 +190,36 @@ export function useDMConversations(
     [currentUserId, markAsReadMutation, queryClient],
   );
 
+  const markAsUnread = useCallback(
+    async (conversationId: string) => {
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
+        markDMConversationAsUnreadInPageData(current, conversationId, currentUserId),
+      );
+      await markAsUnreadMutation.mutateAsync(conversationId);
+    },
+    [currentUserId, markAsUnreadMutation, queryClient],
+  );
+
+  const setMuted = useCallback(
+    async (conversationId: string, muted: boolean) => {
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
+        setDMConversationMutedInPageData(current, conversationId, currentUserId, muted),
+      );
+      await setMutedMutation.mutateAsync({ conversationId, muted });
+    },
+    [currentUserId, queryClient, setMutedMutation],
+  );
+
   return {
     ...query,
     conversations: query.data ? flattenDMConversationPages(query.data) : EMPTY_CONVERSATIONS,
     hideConversation,
     isHidingConversation: hideMutation.isPending,
     isMarkingAsRead: markAsReadMutation.isPending,
+    isMarkingAsUnread: markAsUnreadMutation.isPending,
+    isUpdatingMuted: setMutedMutation.isPending,
     markAsRead,
+    markAsUnread,
+    setMuted,
   };
 }

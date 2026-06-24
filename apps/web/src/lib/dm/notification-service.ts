@@ -13,6 +13,7 @@ export type DMNotificationAttachment =
   | undefined;
 
 export type DMNotificationParticipant = {
+  muted: boolean;
   userId: string;
   user: {
     locale: string | null;
@@ -53,7 +54,7 @@ export async function createDMMessageNotifications(args: {
   senderName: string;
 }) {
   const recipients = args.participants.filter(
-    (participant) => participant.userId !== args.senderId,
+    (participant) => participant.userId !== args.senderId && !participant.muted,
   );
   if (recipients.length === 0) {
     return;

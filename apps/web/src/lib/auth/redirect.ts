@@ -1,6 +1,7 @@
 export const DEFAULT_AUTH_REDIRECT_PATH = "/channels";
 
 const SAFE_AUTH_REDIRECT_PREFIXES = ["/channels", "/settings", "/invite"] as const;
+const SAFE_AUTH_REDIRECT_EXACT_PATHS = ["/desktop/oauth/complete"] as const;
 const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 
 export function getSafeAuthRedirectPath(
@@ -40,6 +41,11 @@ export function getSafeAuthRedirectPath(
 }
 
 function isSafeAuthRedirectPath(pathname: string): boolean {
+  const exactPath = pathname as (typeof SAFE_AUTH_REDIRECT_EXACT_PATHS)[number];
+  if (SAFE_AUTH_REDIRECT_EXACT_PATHS.includes(exactPath)) {
+    return true;
+  }
+
   return SAFE_AUTH_REDIRECT_PREFIXES.some((prefix) => {
     return pathname === prefix || pathname.startsWith(`${prefix}/`);
   });

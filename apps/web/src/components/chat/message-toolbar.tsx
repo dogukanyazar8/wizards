@@ -1,6 +1,13 @@
 "use client";
 
-import { type CSSProperties, type Ref, useEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type Ref,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   Copy,
@@ -16,6 +23,11 @@ import {
   Trash2,
 } from "lucide-react";
 import { useI18n } from "@/components/providers/locale-provider";
+import {
+  announceOverlayOpen,
+  getOverlayOpenDetail,
+  WHISPR_OVERLAY_OPEN_EVENT,
+} from "@/lib/ui/overlay-coordinator";
 import { cn } from "@/lib/utils";
 
 const QUICK_REACTIONS = [
@@ -71,6 +83,7 @@ export function MessageToolbar({
   moreButtonRef,
 }: MessageToolbarProps) {
   const { t } = useI18n();
+  const reactionOverlayId = useId();
   const [showReactionMenu, setShowReactionMenu] = useState(false);
   const [reactionMenuStyle, setReactionMenuStyle] = useState<CSSProperties>({});
   const reactionRootRef = useRef<HTMLDivElement>(null);
@@ -81,6 +94,8 @@ export function MessageToolbar({
     if (!showReactionMenu) {
       return;
     }
+
+    announceOverlayOpen("message-reaction-picker", reactionOverlayId);
 
     const positionReactionMenu = () => {
       const button = reactionButtonRef.current;
@@ -140,13 +155,26 @@ export function MessageToolbar({
       window.removeEventListener("resize", positionReactionMenu);
       window.removeEventListener("scroll", positionReactionMenu, true);
     };
-  }, [showReactionMenu]);
+  }, [reactionOverlayId, showReactionMenu]);
+
+  useEffect(() => {
+    const handleOverlayOpen = (event: Event) => {
+      const detail = getOverlayOpenDetail(event);
+
+      if (detail?.group === "message-reaction-picker" && detail.id !== reactionOverlayId) {
+        setShowReactionMenu(false);
+      }
+    };
+
+    window.addEventListener(WHISPR_OVERLAY_OPEN_EVENT, handleOverlayOpen);
+    return () => window.removeEventListener(WHISPR_OVERLAY_OPEN_EVENT, handleOverlayOpen);
+  }, [reactionOverlayId]);
 
   const reactionMenu =
     showReactionMenu && typeof document !== "undefined"
       ? createPortal(
           <div
-            className="app-panel fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-[90] flex items-center justify-center gap-1 rounded-[24px] border px-2 py-2 shadow-[0_14px_32px_hsl(var(--shadow-color)/0.18)] md:inset-x-auto md:bottom-auto md:rounded-full md:py-1"
+            className="app-panel fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[90] mx-auto flex max-w-[min(22rem,calc(100vw-1.5rem))] items-center justify-center gap-1 rounded-[22px] border px-2 py-2 shadow-[0_14px_32px_hsl(var(--shadow-color)/0.18)] md:inset-x-auto md:bottom-auto md:mx-0 md:rounded-full md:py-1"
             aria-label={t("chat.message.reactionMenu")}
             data-testid="reaction-picker"
             onPointerDown={(event) => event.stopPropagation()}

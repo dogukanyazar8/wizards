@@ -1,0 +1,694 @@
+name: Desktop Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      ring:
+        default: uat
+        description: Desktop release ring to validate
+        options:
+          - uat
+          - canary
+          - stable
+        required: true
+        type: choice
+      version:
+        description: Desktop native version, without a leading v
+        required: true
+        type: string
+      web_url:
+        default: https://wizardsweb-uat.up.railway.app/
+        description: HTTPS Whispr web origin embedded into the desktop build
+        required: true
+        type: string
+      publish_github_release:
+        default: false
+        description: Publish a GitHub Release after R2 updater evidence is produced
+        required: true
+        type: boolean
+      publish_r2:
+        default: false
+        description: Publish updater artifacts to Cloudflare R2 after build evidence is produced
+        required: true
+        type: boolean
+      updater_base_url:
+        default: ""
+        description: Optional HTTPS updater artifact directory. Defaults to https://updates.whispr.team/desktop/<ring>/ when R2 publishing is requested
+        required: false
+        type: string
+      confirm_stable_release:
+        default: false
+        description: Required extra guard for stable ring dispatches from main
+        required: true
+        type: boolean
+
+concurrency:
+  group: desktop-release-${{ inputs.ring }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release-contract:
+    name: Validate desktop release contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: desktop-${{ inputs.ring }}
+    outputs:
+      is_prerelease: ${{ steps.contract.outputs.is_prerelease }}
+      publish_github_release: ${{ steps.contract.outputs.publish_github_release }}
+      publish_r2: ${{ steps.contract.outputs.publish_r2 }}
+      release_ring: ${{ steps.contract.outputs.release_ring }}
+      release_tag: ${{ steps.contract.outputs.release_tag }}
+      updater_base_url: ${{ steps.contract.outputs.updater_base_url }}
+      updater_manifest_url: ${{ steps.contract.outputs.updater_manifest_url }}
+      version: ${{ steps.contract.outputs.version }}
+      web_url: ${{ steps.contract.outputs.web_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate desktop release dispatch contract
+        id: contract
+        shell: bash
+        run: |
+          pnpm --filter @wizards/desktop release:workflow -- \
+            --ring "${{ inputs.ring }}" \
+            --version "${{ inputs.version }}" \
+            --web-url "${{ inputs.web_url }}" \
+            --publish-github-release "${{ inputs.publish_github_release }}" \
+            --publish-r2 "${{ inputs.publish_r2 }}" \
+            --updater-base-url "${{ inputs.updater_base_url }}" \
+            --confirm-stable-release "${{ inputs.confirm_stable_release }}" \
+            --ref-name "${{ github.ref_name }}" \
+            --release-sequence "${{ github.run_number }}" \
+            --out "$RUNNER_TEMP/desktop-release-contract.json"
+
+      - name: Validate desktop release operations contract
+        run: pnpm --filter @wizards/desktop release:ops
+
+      - name: Run desktop release script tests
+        run: pnpm --filter @wizards/desktop test
+
+      - name: Upload release contract evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          if-no-files-found: error
+          name: desktop-release-contract-${{ steps.contract.outputs.release_ring }}-${{ steps.contract.outputs.version }}
+          path: ${{ runner.temp }}/desktop-release-contract.json
+          retention-days: 14
+
+      - name: Write release contract summary
+        shell: bash
+        run: |
+          {
+            echo "### Desktop release contract"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Ring | \`${{ steps.contract.outputs.release_ring }}\` |"
+            echo "| Version | \`${{ steps.contract.outputs.version }}\` |"
+            echo "| Planned tag | \`${{ steps.contract.outputs.release_tag }}\` |"
+            echo "| Web URL | \`${{ steps.contract.outputs.web_url }}\` |"
+            echo "| GitHub Release publish requested | \`${{ steps.contract.outputs.publish_github_release }}\` |"
+            echo "| R2 publish requested | \`${{ steps.contract.outputs.publish_r2 }}\` |"
+            echo "| Updater base URL | \`${{ steps.contract.outputs.updater_base_url || 'not requested' }}\` |"
+            echo "| Updater manifest URL | \`${{ steps.contract.outputs.updater_manifest_url || 'not requested' }}\` |"
+            echo "| Pre-release | \`${{ steps.contract.outputs.is_prerelease }}\` |"
+            echo ""
+            echo "This job validates the release contract. The Windows job builds signed desktop artifacts from the same contract."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build-windows:
+    name: Build signed Windows desktop artifacts
+    runs-on: windows-latest
+    needs: release-contract
+    timeout-minutes: 60
+    environment: desktop-${{ needs.release-contract.outputs.release_ring }}
+
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      TAURI_WEB_URL: ${{ needs.release-contract.outputs.web_url }}
+      TURBO_TELEMETRY_DISABLED: "1"
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+      WHISPR_DESKTOP_RELEASE_RING: ${{ needs.release-contract.outputs.release_ring }}
+      WHISPR_DESKTOP_UPDATER_ENABLED: ${{ needs.release-contract.outputs.publish_r2 == 'true' && 'true' || 'false' }}
+      WHISPR_DESKTOP_UPDATER_ENDPOINTS: ${{ needs.release-contract.outputs.updater_manifest_url }}
+      WHISPR_DESKTOP_UPDATER_PUBLIC_KEY: ${{ vars.WHISPR_DESKTOP_UPDATER_PUBLIC_KEY }}
+      WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND: ${{ vars.WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND }}
+      WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED: ${{ (needs.release-contract.outputs.release_ring == 'stable' || needs.release-contract.outputs.publish_r2 == 'true') && 'true' || 'false' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          workspaces: apps/desktop/src-tauri
+          cache-on-failure: true
+
+      - name: Require stable Windows code signing configuration
+        if: needs.release-contract.outputs.release_ring == 'stable'
+        shell: pwsh
+        run: |
+          $missing = @()
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX_BASE64)) { $missing += "WINDOWS_CERTIFICATE_PFX_BASE64" }
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) { $missing += "WINDOWS_CERTIFICATE_PASSWORD" }
+          if ([string]::IsNullOrWhiteSpace($env:WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND)) { $missing += "WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND" }
+
+          $certificateKind = $env:WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND.Trim().ToUpperInvariant()
+          if ($certificateKind -and $certificateKind -notin @("OV", "EV")) {
+            $missing += "WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND=OV|EV"
+          }
+
+          if ($missing.Count -gt 0) {
+            Write-Error "Stable desktop releases require a real OV/EV Windows signing configuration before artifacts can be produced: $($missing -join ', ')."
+            exit 1
+          }
+
+      - name: Require updater signing configuration when updater artifacts are requested
+        if: needs.release-contract.outputs.publish_r2 == 'true'
+        shell: pwsh
+        run: |
+          $missing = @()
+          if ([string]::IsNullOrWhiteSpace($env:WHISPR_DESKTOP_UPDATER_ENDPOINTS)) { $missing += "WHISPR_DESKTOP_UPDATER_ENDPOINTS" }
+          if ([string]::IsNullOrWhiteSpace($env:WHISPR_DESKTOP_UPDATER_PUBLIC_KEY)) { $missing += "WHISPR_DESKTOP_UPDATER_PUBLIC_KEY" }
+          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)) { $missing += "TAURI_SIGNING_PRIVATE_KEY" }
+          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD)) { $missing += "TAURI_SIGNING_PRIVATE_KEY_PASSWORD" }
+          if ($env:WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED -ne "true") { $missing += "WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED" }
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX_BASE64)) { $missing += "WINDOWS_CERTIFICATE_PFX_BASE64" }
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) { $missing += "WINDOWS_CERTIFICATE_PASSWORD" }
+
+          if ($missing.Count -gt 0) {
+            Write-Error "Updater artifacts require Ed25519 signing, an HTTPS updater endpoint, and Windows signing config. A self-signed PFX is acceptable for UAT, but missing config is not: $($missing -join ', ')."
+            exit 1
+          }
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+
+      - name: Generate desktop production config
+        run: pnpm --filter @wizards/desktop build:desktop:config
+
+      - name: Validate generated desktop config and release operations
+        run: pnpm --filter @wizards/desktop release:ops
+
+      - name: Run desktop release script tests
+        run: pnpm --filter @wizards/desktop test
+
+      - name: Audit Rust dependencies
+        shell: pwsh
+        working-directory: apps/desktop/src-tauri
+        env:
+          CARGO_AUDIT_VERSION: 0.22.1
+        run: |
+          $expectedVersion = "cargo-audit $env:CARGO_AUDIT_VERSION"
+          $currentVersion = ""
+
+          if (Get-Command cargo-audit -ErrorAction SilentlyContinue) {
+            $currentVersion = (cargo audit --version).Trim()
+          }
+
+          if ($currentVersion -ne $expectedVersion) {
+            cargo install cargo-audit --version $env:CARGO_AUDIT_VERSION --locked --force
+          }
+
+          cargo audit
+
+      - name: Build desktop app
+        run: pnpm --filter @wizards/desktop build:desktop
+
+      - name: Sign stable desktop artifacts without updater bundle signing
+        if: needs.release-contract.outputs.release_ring == 'stable' && needs.release-contract.outputs.publish_r2 != 'true'
+        shell: pwsh
+        run: |
+          $certificatePath = Join-Path $env:RUNNER_TEMP "whispr-codesign.pfx"
+          try {
+            [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_PFX_BASE64))
+
+            $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+              Where-Object { $_.FullName -match "\\x64\\signtool.exe$" } |
+              Sort-Object FullName -Descending |
+              Select-Object -First 1
+
+            if (-not $signtool) {
+              throw "signtool.exe was not found on the Windows runner."
+            }
+
+            $artifacts = @(
+              Get-ChildItem "apps\desktop\src-tauri\target\release" -Filter "*.exe" -File -ErrorAction SilentlyContinue
+              Get-ChildItem "apps\desktop\src-tauri\target\release\bundle" -Include "*.exe", "*.msi" -Recurse -File -ErrorAction SilentlyContinue
+            )
+
+            if ($artifacts.Count -eq 0) {
+              throw "No desktop artifacts were found to sign."
+            }
+
+            foreach ($artifact in $artifacts) {
+              & $signtool.FullName sign /f $certificatePath /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $artifact.FullName
+              if ($LASTEXITCODE -ne 0) {
+                throw "signtool failed for $($artifact.FullName) with exit code $LASTEXITCODE."
+              }
+            }
+          } finally {
+            if (Test-Path $certificatePath) {
+              Remove-Item $certificatePath -Force
+            }
+          }
+
+      - name: Create desktop build metadata
+        shell: pwsh
+        run: |
+          pnpm --filter @wizards/desktop release:artifacts -- `
+            --version "${{ needs.release-contract.outputs.version }}" `
+            --ring "${{ needs.release-contract.outputs.release_ring }}" `
+            --updater-enabled "${{ needs.release-contract.outputs.publish_r2 }}" `
+            --artifact-dir "apps\desktop\src-tauri\target\release\bundle\nsis" `
+            --out "$env:RUNNER_TEMP\desktop-build-metadata.json"
+
+      - name: Generate and validate updater manifest evidence
+        if: needs.release-contract.outputs.publish_r2 == 'true'
+        shell: pwsh
+        run: |
+          $metadataPath = Join-Path $env:RUNNER_TEMP "desktop-build-metadata.json"
+          $metadata = Get-Content $metadataPath -Raw | ConvertFrom-Json
+          $artifactDir = "apps\desktop\src-tauri\target\release\bundle\nsis"
+          $evidenceDir = Join-Path $env:RUNNER_TEMP "desktop-release-evidence"
+          New-Item -ItemType Directory -Force -Path $evidenceDir | Out-Null
+
+          $installerPath = Join-Path $artifactDir $metadata.artifacts.installer.filename
+          if (-not $metadata.artifacts.signature -or [string]::IsNullOrWhiteSpace($metadata.artifacts.signature.filename)) {
+            Write-Error "Updater release evidence requires a generated .sig file."
+            exit 1
+          }
+
+          $signaturePath = Join-Path $artifactDir $metadata.artifacts.signature.filename
+          $manifestPath = Join-Path $artifactDir "latest.json"
+          $notes = "Whispr Desktop ${{ needs.release-contract.outputs.release_ring }} release ${{ needs.release-contract.outputs.version }}."
+
+          pnpm --filter @wizards/desktop release:manifest -- `
+            --artifact "$installerPath" `
+            --signature "$signaturePath" `
+            --base-url "${{ needs.release-contract.outputs.updater_base_url }}" `
+            --version "${{ needs.release-contract.outputs.version }}" `
+            --notes "$notes" `
+            --out "$manifestPath"
+
+          pnpm --filter @wizards/desktop release:validate-manifest -- `
+            --manifest "$manifestPath" `
+            --artifact "$installerPath" `
+            --signature "$signaturePath" `
+            --expected-version "${{ needs.release-contract.outputs.version }}"
+
+          $auditPath = Join-Path $evidenceDir "desktop-release-audit-${{ needs.release-contract.outputs.version }}-${{ needs.release-contract.outputs.release_ring }}.json"
+
+          pnpm --filter @wizards/desktop release:audit -- `
+            --ring "${{ needs.release-contract.outputs.release_ring }}" `
+            --web-url "${{ needs.release-contract.outputs.web_url }}" `
+            --manifest "$manifestPath" `
+            --manifest-url "${{ needs.release-contract.outputs.updater_manifest_url }}" `
+            --artifact "$installerPath" `
+            --signature "$signaturePath" `
+            --expected-version "${{ needs.release-contract.outputs.version }}" `
+            --require-manifest `
+            --out "$auditPath"
+
+          pnpm --filter @wizards/desktop release:promotion -- `
+            --ring "${{ needs.release-contract.outputs.release_ring }}" `
+            --web-url "${{ needs.release-contract.outputs.web_url }}" `
+            --manifest "$manifestPath" `
+            --manifest-url "${{ needs.release-contract.outputs.updater_manifest_url }}" `
+            --artifact "$installerPath" `
+            --signature "$signaturePath" `
+            --expected-version "${{ needs.release-contract.outputs.version }}" `
+            --out-dir "$evidenceDir"
+
+      - name: Upload desktop build artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          if-no-files-found: error
+          name: desktop-build-${{ needs.release-contract.outputs.release_ring }}-${{ needs.release-contract.outputs.version }}-windows
+          path: |
+            ${{ runner.temp }}/desktop-build-metadata.json
+            ${{ runner.temp }}/desktop-release-evidence/**
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.sig
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.json
+          retention-days: 14
+
+      - name: Write desktop build summary
+        shell: pwsh
+        run: |
+          $metadataPath = Join-Path $env:RUNNER_TEMP "desktop-build-metadata.json"
+          $metadata = Get-Content $metadataPath -Raw | ConvertFrom-Json
+          $signatureFile = if ($metadata.artifacts.signature) { $metadata.artifacts.signature.filename } else { "not generated" }
+          $manifestUrl = "${{ needs.release-contract.outputs.updater_manifest_url }}"
+          if ([string]::IsNullOrWhiteSpace($manifestUrl)) {
+            $manifestUrl = "not requested"
+          }
+
+          @"
+          ### Desktop Windows build
+
+          | Field | Value |
+          | --- | --- |
+          | Ring | ``$($metadata.releaseRing)`` |
+          | Version | ``$($metadata.version)`` |
+          | Platform | ``$($metadata.platform)`` |
+          | Updater artifacts | ``$($metadata.updaterEnabled)`` |
+          | Installer | ``$($metadata.artifacts.installer.filename)`` |
+          | Installer SHA-256 | ``$($metadata.artifacts.installer.sha256)`` |
+          | Signature | ``$signatureFile`` |
+          | Manifest URL | ``$manifestUrl`` |
+          "@ >> $env:GITHUB_STEP_SUMMARY
+
+  publish-release:
+    name: Publish desktop release artifacts
+    runs-on: ubuntu-latest
+    needs:
+      - release-contract
+      - build-windows
+    if: needs.release-contract.outputs.publish_r2 == 'true' || needs.release-contract.outputs.publish_github_release == 'true'
+    timeout-minutes: 25
+    environment: desktop-${{ needs.release-contract.outputs.release_ring }}
+    permissions:
+      contents: write
+
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download desktop build artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: desktop-build-${{ needs.release-contract.outputs.release_ring }}-${{ needs.release-contract.outputs.version }}-windows
+          path: ${{ runner.temp }}/desktop-build
+
+      - name: Locate publish assets
+        id: assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          root="$RUNNER_TEMP/desktop-build"
+          version="${{ needs.release-contract.outputs.version }}"
+          ring="${{ needs.release-contract.outputs.release_ring }}"
+
+          find_one() {
+            local pattern="$1"
+            local label="$2"
+            local result
+            result="$(find "$root" -type f -name "$pattern" | sort | head -n 1)"
+            if [[ -z "$result" ]]; then
+              echo "::error::Missing desktop publish asset: $label ($pattern)"
+              exit 1
+            fi
+            printf '%s' "$result"
+          }
+
+          installer="$(find_one "Whispr_${version}_*setup.exe" "installer")"
+          installer_name="$(basename "$installer")"
+          signature="$(find_one "${installer_name}.sig" "signature")"
+          manifest="$(find_one "latest.json" "manifest")"
+          metadata="$(find_one "desktop-build-metadata.json" "build metadata")"
+          audit="$(find_one "desktop-release-audit-${version}-${ring}.json" "release audit")"
+          promotion_json="$(find_one "desktop-release-promotion-${version}-${ring}.json" "promotion JSON")"
+          promotion_md="$(find_one "desktop-release-promotion-${version}-${ring}.md" "promotion Markdown")"
+
+          {
+            echo "installer=$installer"
+            echo "signature=$signature"
+            echo "manifest=$manifest"
+            echo "metadata=$metadata"
+            echo "audit=$audit"
+            echo "promotion_json=$promotion_json"
+            echo "promotion_md=$promotion_md"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create desktop publish plan
+        id: publish_plan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          output_path="$RUNNER_TEMP/desktop-publish-plan.json"
+
+          pnpm --filter @wizards/desktop release:publish-plan -- \
+            --ring "${{ needs.release-contract.outputs.release_ring }}" \
+            --version "${{ needs.release-contract.outputs.version }}" \
+            --release-tag "${{ needs.release-contract.outputs.release_tag }}" \
+            --web-url "${{ needs.release-contract.outputs.web_url }}" \
+            --updater-base-url "${{ needs.release-contract.outputs.updater_base_url }}" \
+            --publish-r2 "${{ needs.release-contract.outputs.publish_r2 }}" \
+            --publish-github-release "${{ needs.release-contract.outputs.publish_github_release }}" \
+            --artifact "${{ steps.assets.outputs.installer }}" \
+            --manifest "${{ steps.assets.outputs.manifest }}" \
+            --signature "${{ steps.assets.outputs.signature }}" \
+            --metadata "${{ steps.assets.outputs.metadata }}" \
+            --audit "${{ steps.assets.outputs.audit }}" \
+            --promotion-json "${{ steps.assets.outputs.promotion_json }}" \
+            --promotion-md "${{ steps.assets.outputs.promotion_md }}" \
+            --out "$output_path"
+
+          echo "path=$output_path" >> "$GITHUB_OUTPUT"
+
+      - name: Require R2 publishing secrets
+        if: needs.release-contract.outputs.publish_r2 == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]] || missing+=("CLOUDFLARE_ACCOUNT_ID")
+          [[ -n "${R2_ACCESS_KEY_ID:-}" ]] || missing+=("R2_ACCESS_KEY_ID")
+          [[ -n "${R2_SECRET_ACCESS_KEY:-}" ]] || missing+=("R2_SECRET_ACCESS_KEY")
+          [[ -n "${R2_BUCKET:-}" ]] || missing+=("R2_BUCKET")
+
+          if (( ${#missing[@]} > 0 )); then
+            printf '::error::R2 publishing is enabled but required secrets are missing: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - name: Install AWS CLI for R2 upload
+        if: needs.release-contract.outputs.publish_r2 == 'true'
+        shell: bash
+        run: |
+          python -m pip install --user awscli
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Publish updater artifacts to Cloudflare R2
+        if: needs.release-contract.outputs.publish_r2 == 'true'
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_DEFAULT_REGION: auto
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+
+          endpoint_url="https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          ring="${{ needs.release-contract.outputs.release_ring }}"
+          installer="${{ steps.assets.outputs.installer }}"
+          signature="${{ steps.assets.outputs.signature }}"
+          manifest="${{ steps.assets.outputs.manifest }}"
+          installer_name="$(basename "$installer")"
+          signature_name="$(basename "$signature")"
+
+          aws --endpoint-url "$endpoint_url" s3 cp "$installer" "s3://${R2_BUCKET}/desktop/${ring}/${installer_name}" \
+            --content-type "application/vnd.microsoft.portable-executable" \
+            --cache-control "public, max-age=31536000, immutable" \
+            --no-progress
+
+          aws --endpoint-url "$endpoint_url" s3 cp "$signature" "s3://${R2_BUCKET}/desktop/${ring}/${signature_name}" \
+            --content-type "text/plain; charset=utf-8" \
+            --cache-control "public, max-age=31536000, immutable" \
+            --no-progress
+
+          aws --endpoint-url "$endpoint_url" s3 cp "$manifest" "s3://${R2_BUCKET}/desktop/${ring}/latest.json" \
+            --content-type "application/json" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --no-progress
+
+      - name: Validate remote updater feed
+        if: needs.release-contract.outputs.publish_r2 == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in 1 2 3 4 5; do
+            if pnpm --filter @wizards/desktop release:validate-manifest -- \
+              --manifest "${{ needs.release-contract.outputs.updater_manifest_url }}" \
+              --artifact "${{ steps.assets.outputs.installer }}" \
+              --signature "${{ steps.assets.outputs.signature }}" \
+              --expected-version "${{ needs.release-contract.outputs.version }}" \
+              --check-artifact-url; then
+              exit 0
+            fi
+
+            if [[ "$attempt" == "5" ]]; then
+              echo "::error::Remote updater feed validation failed after $attempt attempts."
+              exit 1
+            fi
+
+            sleep $((attempt * 5))
+          done
+
+      - name: Publish GitHub Release
+        if: needs.release-contract.outputs.publish_github_release == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          tag="${{ needs.release-contract.outputs.release_tag }}"
+          title="Whispr Desktop ${{ needs.release-contract.outputs.version }}"
+          if [[ "${{ needs.release-contract.outputs.release_ring }}" != "stable" ]]; then
+            title="$title ${{ needs.release-contract.outputs.release_ring }}"
+          fi
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "::error::GitHub Release already exists for $tag. Delete it manually or use a new release tag."
+            exit 1
+          fi
+
+          args=(
+            "$tag"
+            "${{ steps.assets.outputs.installer }}"
+            "${{ steps.assets.outputs.manifest }}"
+            "${{ steps.assets.outputs.signature }}"
+            "${{ steps.assets.outputs.metadata }}"
+            "${{ steps.assets.outputs.audit }}"
+            "${{ steps.assets.outputs.promotion_json }}"
+            "${{ steps.assets.outputs.promotion_md }}"
+            "${{ steps.publish_plan.outputs.path }}"
+            --target "$GITHUB_SHA"
+            --title "$title"
+            --notes-file "${{ steps.assets.outputs.promotion_md }}"
+          )
+
+          if [[ "${{ needs.release-contract.outputs.is_prerelease }}" == "true" ]]; then
+            args+=(--prerelease)
+          fi
+
+          gh release create "${args[@]}"
+
+      - name: Upload desktop publish evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          if-no-files-found: error
+          name: desktop-publish-evidence-${{ needs.release-contract.outputs.release_ring }}-${{ needs.release-contract.outputs.version }}
+          path: ${{ steps.publish_plan.outputs.path }}
+          retention-days: 30
+
+      - name: Write publish summary
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          artifact_name="$(basename "${{ steps.assets.outputs.installer }}")"
+          artifact_url="${{ needs.release-contract.outputs.updater_base_url }}${artifact_name}"
+          artifact_sha="$(node -e "const fs = require('fs'); const metadata = JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); console.log(metadata.artifacts.installer.sha256);" "${{ steps.assets.outputs.metadata }}")"
+          artifact_size="$(node -e "const fs = require('fs'); const metadata = JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); console.log(metadata.artifacts.installer.sizeBytes);" "${{ steps.assets.outputs.metadata }}")"
+
+          {
+            echo "### Desktop release publishing"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Ring | \`${{ needs.release-contract.outputs.release_ring }}\` |"
+            echo "| Version | \`${{ needs.release-contract.outputs.version }}\` |"
+            echo "| Tag | \`${{ needs.release-contract.outputs.release_tag }}\` |"
+            echo "| R2 | \`${{ needs.release-contract.outputs.publish_r2 }}\` |"
+            echo "| GitHub Release | \`${{ needs.release-contract.outputs.publish_github_release }}\` |"
+            echo "| Manifest | \`${{ needs.release-contract.outputs.updater_manifest_url }}\` |"
+            echo "| Artifact URL | \`$artifact_url\` |"
+            echo "| Artifact SHA-256 | \`$artifact_sha\` |"
+            echo "| Artifact size | \`$artifact_size bytes\` |"
+            echo ""
+            echo "#### Manual QA next steps"
+            echo ""
+            echo "- Install the previous desktop version for \`${{ needs.release-contract.outputs.release_ring }}\`."
+            echo "- Confirm the updater card sees \`${{ needs.release-contract.outputs.version }}\` from \`${{ needs.release-contract.outputs.updater_manifest_url }}\`."
+            echo "- Click Download and restart, then confirm Settings -> About reports the new desktop runtime version."
+            echo "- Run launch, auth restore, close-to-tray, voice, overlay, notification, and shortcut smoke checks."
+            echo ""
+            echo "#### Performance evidence"
+            echo ""
+            echo "- [ ] \`warm-start\` <= 2000ms"
+            echo "- [ ] \`idle-memory\` <= 220MB"
+            echo "- [ ] \`updater-check-install\` succeeds"
+            echo "- [ ] \`overlay-cpu\` <= 3% average"
+            echo "- [ ] \`shortcut-latency\` <= 50ms p95"
+            echo ""
+            echo "#### Rollback"
+            echo ""
+            echo "Rollback remains manifest-based. Restore the previous signed manifest with:"
+            echo ""
+            echo "\`\`\`bash"
+            echo "aws --endpoint-url <r2-endpoint> s3 cp <previous-latest.json> s3://<R2_BUCKET>/desktop/${{ needs.release-contract.outputs.release_ring }}/latest.json --content-type application/json --cache-control \"no-cache, no-store, must-revalidate\""
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"

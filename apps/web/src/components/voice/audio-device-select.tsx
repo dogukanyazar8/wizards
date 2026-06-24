@@ -19,6 +19,11 @@ import {
   DEFAULT_COMMUNICATIONS_DEVICE_ID,
   resolveAudioDeviceFallback,
 } from "@/lib/voice/audio-device-fallback";
+import {
+  announceOverlayOpen,
+  getOverlayOpenDetail,
+  WHISPR_OVERLAY_OPEN_EVENT,
+} from "@/lib/ui/overlay-coordinator";
 import { cn } from "@/lib/utils";
 import { DEFAULT_AUDIO_DEVICE_ID } from "@/store/voice-store";
 
@@ -104,6 +109,7 @@ export function AudioDeviceSelect({
 }: AudioDeviceSelectProps) {
   const { t } = useI18n();
   const listboxId = useId();
+  const overlayId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
@@ -184,8 +190,22 @@ export function AudioDeviceSelect({
   useEffect(() => {
     if (isOpen) {
       setActiveIndex(selectedIndex);
+      announceOverlayOpen("compact-control-select", overlayId);
     }
-  }, [isOpen, selectedIndex]);
+  }, [isOpen, overlayId, selectedIndex]);
+
+  useEffect(() => {
+    const handleOverlayOpen = (event: Event) => {
+      const detail = getOverlayOpenDetail(event);
+
+      if (detail?.group === "compact-control-select" && detail.id !== overlayId) {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener(WHISPR_OVERLAY_OPEN_EVENT, handleOverlayOpen);
+    return () => window.removeEventListener(WHISPR_OVERLAY_OPEN_EVENT, handleOverlayOpen);
+  }, [overlayId]);
 
   useEffect(() => {
     if (!isOpen || !rootRef.current) {
@@ -275,10 +295,11 @@ export function AudioDeviceSelect({
   const renderMenu = (position: "compact" | "panel") => (
     <div
       className={cn(
-        "absolute z-[95] overflow-hidden rounded-[16px] border border-[hsl(var(--border)/0.52)] bg-[linear-gradient(180deg,hsl(var(--surface-overlay)/0.98),hsl(var(--surface-panel)/0.94))] p-1 shadow-[0_16px_44px_hsl(var(--shadow-color)/0.13)] backdrop-blur-xl",
+        "z-[95] overflow-hidden rounded-[16px] border border-[hsl(var(--border)/0.52)] bg-[linear-gradient(180deg,hsl(var(--surface-overlay)/0.98),hsl(var(--surface-panel)/0.94))] p-1 shadow-[0_16px_44px_hsl(var(--shadow-color)/0.13)] backdrop-blur-xl",
         position === "compact" &&
-          "bottom-[calc(100%+0.45rem)] left-auto right-0 w-[min(18rem,calc(100vw-1.5rem))]",
-        position === "panel" && "left-auto right-0 top-[calc(100%+0.75rem)] w-[min(20rem,100%)]",
+          "fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-h-[min(22rem,62dvh)] md:absolute md:inset-x-auto md:bottom-[calc(100%+0.45rem)] md:left-auto md:right-0 md:w-[min(18rem,calc(100vw-1.5rem))]",
+        position === "panel" &&
+          "absolute left-auto right-0 top-[calc(100%+0.75rem)] w-[min(20rem,calc(100vw-1.5rem))] max-w-full",
       )}
       data-testid={`audio-device-select-${kind}-menu`}
     >
@@ -311,7 +332,7 @@ export function AudioDeviceSelect({
       <div
         aria-label={label}
         aria-activedescendant={`${listboxId}-${options[activeIndex]?.deviceId ?? "none"}`}
-        className="mt-1 max-h-[min(18rem,60vh)] overflow-y-auto pr-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="mt-1 max-h-[min(14rem,44dvh)] overflow-y-auto overscroll-contain pr-0.5 [scrollbar-width:none] md:max-h-[min(18rem,60vh)] [&::-webkit-scrollbar]:hidden"
         id={listboxId}
         role="listbox"
       >

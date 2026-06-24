@@ -9,8 +9,6 @@ import {
   ChevronDown,
   Hash,
   Lock,
-  MonitorUp,
-  Phone,
   Pin,
   Search,
   Users,
@@ -31,7 +29,11 @@ import { ThreadPanel } from "./thread-panel";
 import { TypingIndicator } from "./typing-indicator";
 import { DMScreenSharePanel, IncomingDMScreenShareModal } from "./dm-screen-share";
 import { ServerMemberPanel } from "@/components/shell/server-member-panel";
-import { Avatar } from "@/components/ui/avatar";
+import {
+  DmComposer,
+  DmConversationHeader,
+  DmMessageSurface,
+} from "@/components/dm/dm-conversation";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
   appendMessage,
@@ -41,6 +43,7 @@ import {
 } from "@/hooks/use-messages";
 import { useSocket } from "@/hooks/use-socket";
 import { useDMScreenShare } from "@/hooks/use-dm-screen-share";
+import { useBodyScrollLock, useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTyping } from "@/hooks/use-typing";
 import {
   fetchChannelNotificationSettings,
@@ -49,6 +52,8 @@ import {
   updateChannelNotificationSettings,
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
+import { useAppStore } from "@/lib/store";
+import { RESPONSIVE_SHELL_SIZES } from "@/lib/responsive";
 
 interface ChatAreaProps {
   conversationId: string;
@@ -62,43 +67,13 @@ interface ChatAreaProps {
   currentUserDisplayName: string;
   currentUserUsername: string;
   canModerate: boolean;
+  directMessageSearchRequestId?: number;
   directMessageParticipant?: DMParticipantDTO | null;
   initialUnreadMessageId?: string | null;
   messageCharacterLimit?: number | null;
+  onOpenDirectMessageDetails?: (() => void) | undefined;
   serverId?: string;
   uploadthingEnabled: boolean;
-}
-
-function getStatusDotClass(status: DMParticipantDTO["status"] | undefined) {
-  if (status === "ONLINE") {
-    return "bg-[hsl(var(--success))]";
-  }
-
-  if (status === "IDLE") {
-    return "bg-[hsl(42_96%_56%)]";
-  }
-
-  if (status === "DND") {
-    return "bg-[hsl(var(--danger))]";
-  }
-
-  return "bg-[hsl(var(--text-soft))]";
-}
-
-function getStatusKey(status: DMParticipantDTO["status"] | undefined) {
-  if (status === "ONLINE") {
-    return "friends.status.online";
-  }
-
-  if (status === "IDLE") {
-    return "friends.status.idle";
-  }
-
-  if (status === "DND") {
-    return "friends.status.dnd";
-  }
-
-  return "friends.status.offline";
 }
 
 function buildOptimisticMessage(input: {
@@ -193,15 +168,19 @@ export function ChatArea({
   currentUserDisplayName,
   currentUserUsername,
   canModerate,
+  directMessageSearchRequestId = 0,
   directMessageParticipant = null,
   initialUnreadMessageId = null,
   messageCharacterLimit = 2000,
+  onOpenDirectMessageDetails,
   serverId,
   uploadthingEnabled,
 }: ChatAreaProps) {
   const { t } = useI18n();
   const socket = useSocket();
   const queryClient = useQueryClient();
+  const responsiveLayout = useResponsiveLayout();
+  const setMobileSidebarOpen = useAppStore((state) => state.setMobileSidebarOpen);
   const serverMembersQuery = useQuery({
     enabled: mode === "channel" && Boolean(serverId),
     queryFn: () => fetchWorkspaceServer(serverId!),
@@ -256,6 +235,12 @@ export function ChatArea({
     useState<FloatingPanelPosition | null>(null);
   const channelTitle = channelName?.trim() || conversationId;
   const channelDescription = channelTopic?.trim() || null;
+  const shouldShowInfoDrawer =
+    showMembersDrawer &&
+    mode === "channel" &&
+    responsiveLayout.shouldMountInfoDrawer &&
+    Boolean(serverMembersQuery.data);
+  useBodyScrollLock(shouldShowInfoDrawer);
 
   const queryKey = useMemo(() => getMessagesQueryKey(mode, conversationId), [conversationId, mode]);
   const handleReply = useCallback((id: string, authorName: string, content: string) => {
@@ -269,6 +254,14 @@ export function ChatArea({
     setShowMembersDrawer(false);
     setShowNotificationMenu(false);
   }, [conversationId, mode]);
+
+  useEffect(() => {
+    if (mode !== "dm" || directMessageSearchRequestId <= 0) {
+      return;
+    }
+
+    setShowSearch(true);
+  }, [directMessageSearchRequestId, mode]);
 
   const updateNotificationMenuPosition = useCallback(() => {
     setNotificationMenuPosition(getFloatingPanelPosition(notificationButtonRef.current));
@@ -307,7 +300,7 @@ export function ChatArea({
   }, [showNotificationMenu]);
 
   useEffect(() => {
-    if (!showMembersDrawer) {
+    if (!shouldShowInfoDrawer) {
       return;
     }
 
@@ -320,7 +313,13 @@ export function ChatArea({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showMembersDrawer]);
+  }, [shouldShowInfoDrawer]);
+
+  useEffect(() => {
+    if (showMembersDrawer && !responsiveLayout.shouldMountInfoDrawer) {
+      setShowMembersDrawer(false);
+    }
+  }, [responsiveLayout.shouldMountInfoDrawer, showMembersDrawer]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -640,11 +639,6 @@ export function ChatArea({
     [conversationId, markOptimisticMessageSending, mode, removeOptimisticMessage, socket],
   );
 
-  const directMessageDisplayName =
-    directMessageParticipant?.displayName ?? directMessageParticipant?.username ?? null;
-  const directMessageStatusLabel = directMessageParticipant
-    ? (directMessageParticipant.customStatus ?? t(getStatusKey(directMessageParticipant.status)))
-    : t("dm.header.directMessage");
   const isChannelReadOnly = mode === "channel" && channelLocked && !canModerate;
   const pinnedMessages = (pinnedMessagesQuery.data ?? []).filter((message) => !message.deletedAt);
   const hasPinnedMessages = mode === "channel" && pinnedMessages.length > 0;
@@ -684,6 +678,81 @@ export function ChatArea({
       mainComposerInput?.focus({ preventScroll: true });
     });
   }, []);
+
+  const openInfoDrawer = useCallback(() => {
+    setMobileSidebarOpen(false);
+    setShowPinnedMessages(false);
+    setShowSearch(false);
+    setShowNotificationMenu(false);
+    setShowMembersDrawer(true);
+  }, [setMobileSidebarOpen]);
+
+  const messageConversationContent = (
+    <>
+      <MessageList
+        conversationId={conversationId}
+        mode={mode}
+        currentUserId={currentUserId}
+        canModerate={canModerate}
+        initialUnreadMessageId={initialUnreadMessageId}
+        onRemoveOptimistic={removeOptimisticMessage}
+        onReply={handleReply}
+        onRetry={retryOptimisticMessage}
+        onThread={setSelectedThread}
+      />
+      <TypingIndicator typingUsers={typingUsers} />
+      {mode === "dm" ? (
+        <DmComposer>
+          <MessageInput
+            conversationId={conversationId}
+            mode={mode}
+            disabled={isChannelReadOnly}
+            disabledReason={isChannelReadOnly ? t("chat.channel.readOnlyComposer") : undefined}
+            replyTo={replyTo}
+            onSend={handleSend}
+            onCancelReply={() => setReplyTo(null)}
+            allowFileUploads
+            allowGifs
+            maxLength={2000}
+            mentionMembers={[]}
+            uploadthingEnabled={uploadthingEnabled}
+          />
+        </DmComposer>
+      ) : (
+        <MessageInput
+          conversationId={conversationId}
+          mode={mode}
+          disabled={isChannelReadOnly}
+          disabledReason={isChannelReadOnly ? t("chat.channel.readOnlyComposer") : undefined}
+          replyTo={replyTo}
+          onSend={handleSend}
+          onCancelReply={() => setReplyTo(null)}
+          allowFileUploads={allowFileUploads}
+          allowGifs={allowGifs}
+          maxLength={messageCharacterLimit}
+          mentionMembers={serverMembersQuery.data?.members ?? []}
+          uploadthingEnabled={uploadthingEnabled}
+        />
+      )}
+      {selectedThread ? (
+        <ThreadPanel
+          allowFileUploads={mode === "channel" ? allowFileUploads : true}
+          allowGifs={mode === "channel" ? allowGifs : true}
+          canModerate={canModerate}
+          conversationId={conversationId}
+          currentUserId={currentUserId}
+          disabled={isChannelReadOnly}
+          disabledReason={isChannelReadOnly ? t("chat.channel.readOnlyComposer") : undefined}
+          mentionMembers={mode === "channel" ? (serverMembersQuery.data?.members ?? []) : []}
+          messageCharacterLimit={mode === "channel" ? messageCharacterLimit : 2000}
+          mode={mode}
+          onClose={closeThreadPanel}
+          parentMessage={selectedThread}
+          uploadthingEnabled={uploadthingEnabled}
+        />
+      ) : null}
+    </>
+  );
 
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-transparent">
@@ -735,21 +804,24 @@ export function ChatArea({
           )
         : null}
       {mode === "channel" &&
-      showMembersDrawer &&
+      shouldShowInfoDrawer &&
       serverMembersQuery.data &&
       typeof document !== "undefined"
         ? createPortal(
-            <div className="fixed inset-0 z-[90] xl:hidden">
+            <div className="fixed inset-0 z-[90] xl:hidden" data-testid="mobile-info-drawer-root">
               <div
                 className="absolute inset-0 bg-[hsl(var(--backdrop)/0.5)] backdrop-blur-sm"
+                data-testid="mobile-info-drawer-backdrop"
                 onClick={() => setShowMembersDrawer(false)}
                 role="presentation"
               />
               <div
                 aria-label={t("shell.channelSidebar.memberView")}
                 aria-modal="true"
-                className="absolute inset-y-0 right-0 w-[min(88vw,23rem)] overflow-hidden rounded-l-[30px] shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)]"
+                className="absolute inset-y-0 right-0 max-w-full overflow-hidden rounded-l-[30px] shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)] transition-transform duration-200 ease-out motion-reduce:transition-none"
+                data-testid="mobile-info-drawer"
                 role="dialog"
+                style={{ width: RESPONSIVE_SHELL_SIZES.infoDrawerWidth }}
               >
                 <ServerMemberPanel
                   detail={serverMembersQuery.data}
@@ -762,68 +834,44 @@ export function ChatArea({
           )
         : null}
       {mode === "dm" && directMessageParticipant ? (
-        <div className="sticky top-0 z-20 border-b border-[hsl(var(--border)/0.4)] px-3 py-2 backdrop-blur-xl md:px-4 md:py-3">
-          <div className="flex items-center justify-between gap-3 rounded-[20px] bg-[hsl(var(--surface-card)/0.34)] p-2 md:p-2.5">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="relative">
-              <Avatar
-                alt={directMessageDisplayName ?? t("dm.sidebar.unknownUser")}
-                className="h-10 w-10 text-sm md:h-11 md:w-11"
-                fallback={directMessageDisplayName ?? t("dm.sidebar.unknownUser")}
-                src={directMessageParticipant.avatarUrl}
-              />
-              <span
-                aria-hidden="true"
-                className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-[hsl(var(--surface-card))] ${getStatusDotClass(directMessageParticipant.status)}`}
-              />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-app-foreground">
-                {directMessageDisplayName ?? t("dm.sidebar.unknownUser")}
-              </p>
-              <p className="truncate text-xs text-app-muted">{directMessageStatusLabel}</p>
-            </div>
-          </div>
-
-            <div className="flex shrink-0 items-center gap-2">
-            <button
-              aria-label={t("dm.screenShare.share")}
-              className="flex h-11 w-11 items-center justify-center rounded-2xl text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.48)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60 md:h-auto md:w-auto md:p-2.5"
-              disabled={dmScreenShare.isStarting}
-              onClick={() => {
-                void dmScreenShare.startShare();
+        <DmConversationHeader
+          onOpenDetails={onOpenDirectMessageDetails}
+          onOpenSearch={() => setShowSearch(true)}
+          onStartScreenShare={() => {
+            void dmScreenShare.startShare();
+          }}
+          participant={directMessageParticipant}
+          screenShareStarting={dmScreenShare.isStarting}
+          searchButtonRef={searchButtonRef}
+          searchOpen={showSearch}
+        >
+          {showSearch ? (
+            <MessageSearchPanel
+              anchorRef={searchButtonRef}
+              conversationId={conversationId}
+              mode={mode}
+              onClose={() => setShowSearch(false)}
+              onJumpToMessage={(messageId) => {
+                setShowSearch(false);
+                jumpToMessage(messageId);
               }}
-              title={t("dm.screenShare.share")}
-              type="button"
-            >
-              <MonitorUp className="h-4 w-4" />
-            </button>
-            <button
-              aria-label={t("dm.header.voiceCall")}
-              className="flex h-11 w-11 items-center justify-center rounded-2xl text-app-muted transition disabled:cursor-not-allowed disabled:opacity-60 md:h-auto md:w-auto md:p-2.5"
-              disabled
-              title={t("dm.header.voiceComingSoon")}
-              type="button"
-            >
-              <Phone className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-        </div>
+            />
+          ) : null}
+        </DmConversationHeader>
       ) : null}
 
       {mode === "channel" ? (
         <div
-          className="sticky top-0 z-30 px-3 py-1.5 pl-16 backdrop-blur-xl md:px-4 md:py-2 md:pl-4"
+          className="sticky top-0 z-30 min-w-0 px-2 py-1 backdrop-blur-xl md:px-4 md:py-2"
           data-testid="chat-channel-header"
         >
-          <div className="flex min-h-12 items-center gap-3 p-1 md:p-1.5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
-              <Hash className="h-5 w-5" />
+          <div className="flex min-h-11 min-w-0 items-center gap-2 p-1 md:min-h-12 md:gap-3 md:p-1.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] md:h-10 md:w-10 md:rounded-[16px]">
+              <Hash className="h-4 w-4 md:h-5 md:w-5" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex min-w-0 items-center gap-2">
-                <h1 className="truncate text-base font-bold text-app-foreground md:text-lg">
+                <h1 className="truncate text-sm font-bold text-app-foreground sm:text-base md:text-lg">
                   {channelTitle}
                 </h1>
                 {channelLocked ? (
@@ -831,19 +879,19 @@ export function ChatArea({
                 ) : null}
               </div>
               {channelDescription ? (
-                <p className="mt-0.5 hidden truncate text-xs font-medium text-app-muted sm:block">
+                <p className="mt-0.5 hidden truncate text-[11px] font-medium text-app-muted min-[420px]:block sm:text-xs">
                   {channelDescription}
                 </p>
               ) : null}
             </div>
 
-            <div className="flex shrink-0 items-center gap-1 rounded-[18px] bg-[hsl(var(--surface-soft)/0.34)] p-1 backdrop-blur-md">
+            <div className="flex max-w-[calc(100vw-12rem)] shrink-0 items-center gap-0.5 overflow-x-auto rounded-[16px] bg-[hsl(var(--surface-soft)/0.34)] p-0.5 backdrop-blur-md [-ms-overflow-style:none] [scrollbar-width:none] sm:max-w-none sm:gap-1 sm:p-1 [&::-webkit-scrollbar]:hidden">
               {hasPinnedMessages ? (
                 <div className="relative">
                   <button
                     aria-expanded={showPinnedMessages}
                     aria-label={t("chat.pins.title", { count: pinnedMessages.length })}
-                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                    className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-2xl px-2 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] sm:px-3"
                     data-testid="channel-pins-toggle"
                     onClick={() => setShowPinnedMessages((current) => !current)}
                     type="button"
@@ -913,7 +961,7 @@ export function ChatArea({
                   aria-expanded={showNotificationMenu}
                   aria-haspopup="menu"
                   aria-label={t("chat.notifications.openSettings")}
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                  className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-2xl px-2 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] sm:px-3"
                   data-testid="channel-notification-settings-open"
                   onClick={() => setShowNotificationMenu((current) => !current)}
                   ref={notificationButtonRef}
@@ -928,10 +976,10 @@ export function ChatArea({
               <button
                 aria-expanded={showMembersDrawer}
                 aria-label={t("shell.channelSidebar.memberView")}
-                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-2xl px-3 py-1.5 text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-60 md:min-h-10 md:min-w-10 xl:hidden"
+                className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-2xl px-2 py-1.5 text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-60 sm:px-3 xl:hidden"
                 data-testid="members-drawer-open"
                 disabled={!serverMembersQuery.data}
-                onClick={() => setShowMembersDrawer(true)}
+                onClick={openInfoDrawer}
                 type="button"
               >
                 <Users className="h-3.5 w-3.5" />
@@ -939,7 +987,7 @@ export function ChatArea({
               <button
                 aria-expanded={showSearch}
                 aria-label={t("chat.search.open")}
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-2xl px-2 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] sm:px-3"
                 data-testid="message-search-open"
                 onClick={() => setShowSearch(true)}
                 ref={searchButtonRef}
@@ -963,7 +1011,7 @@ export function ChatArea({
         </div>
       ) : null}
 
-      {mode !== "channel" ? (
+      {mode !== "channel" && !directMessageParticipant ? (
         <div className="relative z-20 bg-transparent px-3 py-1 md:px-4" data-testid="chat-toolbar">
           <div className="flex items-center justify-between gap-3">
             <div className="relative min-w-0 flex-1">
@@ -1111,52 +1159,10 @@ export function ChatArea({
             void dmScreenShare.stopViewing();
           }}
         />
+      ) : mode === "dm" ? (
+        <DmMessageSurface>{messageConversationContent}</DmMessageSurface>
       ) : (
-        <>
-          <MessageList
-            conversationId={conversationId}
-            mode={mode}
-            currentUserId={currentUserId}
-            canModerate={canModerate}
-            initialUnreadMessageId={initialUnreadMessageId}
-            onRemoveOptimistic={removeOptimisticMessage}
-            onReply={handleReply}
-            onRetry={retryOptimisticMessage}
-            onThread={setSelectedThread}
-          />
-          <TypingIndicator typingUsers={typingUsers} />
-          <MessageInput
-            conversationId={conversationId}
-            mode={mode}
-            disabled={isChannelReadOnly}
-            disabledReason={isChannelReadOnly ? t("chat.channel.readOnlyComposer") : undefined}
-            replyTo={replyTo}
-            onSend={handleSend}
-            onCancelReply={() => setReplyTo(null)}
-            allowFileUploads={mode === "channel" ? allowFileUploads : true}
-            allowGifs={mode === "channel" ? allowGifs : true}
-            maxLength={mode === "channel" ? messageCharacterLimit : 2000}
-            mentionMembers={mode === "channel" ? (serverMembersQuery.data?.members ?? []) : []}
-            uploadthingEnabled={uploadthingEnabled}
-          />
-          {selectedThread ? (
-            <ThreadPanel
-              allowFileUploads={mode === "channel" ? allowFileUploads : true}
-              allowGifs={mode === "channel" ? allowGifs : true}
-              canModerate={canModerate}
-              conversationId={conversationId}
-              currentUserId={currentUserId}
-              disabled={isChannelReadOnly}
-              disabledReason={isChannelReadOnly ? t("chat.channel.readOnlyComposer") : undefined}
-              mentionMembers={mode === "channel" ? (serverMembersQuery.data?.members ?? []) : []}
-              messageCharacterLimit={mode === "channel" ? messageCharacterLimit : 2000}
-              mode={mode}
-              onClose={closeThreadPanel}
-              parentMessage={selectedThread}
-              uploadthingEnabled={uploadthingEnabled}
-            />
-          ) : null}
-        </>
+        messageConversationContent
       )}
     </div>
   );

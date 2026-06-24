@@ -91,7 +91,11 @@ export function MainChannelPanel({
 
   return (
     <section className="app-main-gradient relative flex min-h-0 flex-1 flex-col overflow-hidden">
-      {leading ? <div className="absolute left-3 top-3 z-50 md:hidden">{leading}</div> : null}
+      {leading ? (
+        <div className="relative z-50 shrink-0 border-b border-[hsl(var(--border)/0.32)] bg-[hsl(var(--background)/0.76)] px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur-xl md:hidden">
+          {leading}
+        </div>
+      ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-0 pb-0 pt-0">
         <div

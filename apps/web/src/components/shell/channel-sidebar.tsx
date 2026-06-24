@@ -66,6 +66,7 @@ import {
   usePresenceIdleTimeoutPreference,
 } from "@/hooks/use-presence-activity";
 import { useAppStore } from "@/lib/store";
+import { announceOverlayOpen } from "@/lib/ui/overlay-coordinator";
 import { updatePresenceStatusAction } from "@/lib/account/actions";
 import { logoutAction } from "@/lib/auth/actions";
 import type { VoiceChannelStateDTO } from "@/lib/voice/types";
@@ -319,6 +320,19 @@ export function UserProfileFooter({
   const isQuickMenuOpen = activeUserPopup === "quick";
   const isStatusMenuOpen = activeUserPopup === "status";
 
+  const closeUserPopups = useCallback(() => {
+    setIsIdleTimeoutMenuOpen(false);
+    setActiveUserPopup(null);
+  }, []);
+
+  const toggleUserPopup = useCallback(
+    (popup: "notifications" | "quick" | "status") => {
+      setIsIdleTimeoutMenuOpen(false);
+      setActiveUserPopup((current) => (current === popup ? null : popup));
+    },
+    [],
+  );
+
   useEffect(() => {
     setStatus(user.status);
   }, [user.status]);
@@ -332,7 +346,7 @@ export function UserProfileFooter({
   };
 
   const handleStatusChange = (nextStatus: PresenceStatus) => {
-    setActiveUserPopup(null);
+    closeUserPopups();
     const previousStatus = status;
     setStatus(nextStatus);
     onStatusChange(nextStatus);
@@ -442,10 +456,7 @@ export function UserProfileFooter({
               aria-label={t("shell.user.status")}
               className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-transparent p-0 text-left text-[10.5px] font-semibold text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
               disabled={isUpdatingStatus}
-              onClick={() => {
-                setIsIdleTimeoutMenuOpen(false);
-                setActiveUserPopup((current) => (current === "status" ? null : "status"));
-              }}
+              onClick={() => toggleUserPopup("status")}
               title={t("shell.user.statusTitle")}
               type="button"
             >
@@ -458,7 +469,7 @@ export function UserProfileFooter({
 
             {isStatusMenuOpen ? (
               <div
-                className="absolute bottom-[calc(100%+0.45rem)] left-0 z-50 w-44 rounded-[18px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.98)] p-1.5 shadow-[0_18px_48px_hsl(var(--shadow-color)/0.18)] backdrop-blur-2xl"
+                className="absolute bottom-[calc(100%+0.45rem)] left-0 z-50 max-h-[min(14rem,50dvh)] w-44 overflow-y-auto overscroll-contain rounded-[18px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.98)] p-1.5 shadow-[0_18px_48px_hsl(var(--shadow-color)/0.18)] backdrop-blur-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 role="listbox"
               >
                 {USER_STATUS_OPTIONS.map((option) => {
@@ -529,14 +540,13 @@ export function UserProfileFooter({
             <NotificationBell
               className="h-8 w-8 rounded-full hover:bg-transparent"
               onOpenChange={(nextOpen) => {
-                setIsIdleTimeoutMenuOpen(false);
-                setActiveUserPopup((current) => {
-                  if (nextOpen) {
-                    return "notifications";
-                  }
+                if (nextOpen) {
+                  setIsIdleTimeoutMenuOpen(false);
+                  setActiveUserPopup("notifications");
+                  return;
+                }
 
-                  return current === "notifications" ? null : current;
-                });
+                setActiveUserPopup((current) => (current === "notifications" ? null : current));
               }}
               open={isNotificationPopupOpen}
             />
@@ -549,12 +559,7 @@ export function UserProfileFooter({
               isQuickMenuOpen && "bg-[hsl(var(--primary)/0.18)]",
             )}
             data-testid="user-settings-button"
-            onClick={() => {
-              setIsIdleTimeoutMenuOpen(false);
-              setActiveUserPopup((current) => {
-                return current === "quick" ? null : "quick";
-              });
-            }}
+            onClick={() => toggleUserPopup("quick")}
             title={t("shell.user.appearanceSettingsTitle")}
             type="button"
           >
@@ -565,7 +570,7 @@ export function UserProfileFooter({
         {isQuickMenuOpen ? (
           <div
             aria-label={t("shell.user.quickMenu")}
-            className="absolute bottom-[calc(100%+0.55rem)] left-1 right-1 z-40 max-h-[min(28rem,calc(100dvh-7rem))] overflow-visible rounded-[20px] border border-[hsl(var(--border)/0.58)] bg-[linear-gradient(180deg,hsl(var(--surface-overlay)/0.98),hsl(var(--surface-panel)/0.9))] p-2.5 shadow-[0_18px_54px_hsl(var(--shadow-color)/0.14)] backdrop-blur-xl sm:left-auto sm:right-0 sm:w-[min(19rem,calc(100vw-1.25rem))]"
+            className="absolute bottom-[calc(100%+0.55rem)] left-0 right-0 z-40 max-h-[min(27rem,calc(100dvh-6.5rem))] overflow-y-auto overflow-x-hidden overscroll-contain rounded-[20px] border border-[hsl(var(--border)/0.58)] bg-[linear-gradient(180deg,hsl(var(--surface-overlay)/0.98),hsl(var(--surface-panel)/0.9))] p-2.5 shadow-[0_18px_54px_hsl(var(--shadow-color)/0.14)] backdrop-blur-xl [scrollbar-width:none] sm:left-auto sm:right-0 sm:w-[min(19rem,calc(100vw-1.25rem))] [&::-webkit-scrollbar]:hidden"
             data-testid="user-quick-menu"
             role="dialog"
           >
@@ -599,7 +604,17 @@ export function UserProfileFooter({
                       "border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.1)] shadow-[0_10px_28px_hsl(var(--primary)/0.1)]",
                   )}
                   id="user-presence-idle-timeout"
-                  onClick={() => setIsIdleTimeoutMenuOpen((open) => !open)}
+                  onClick={() =>
+                    setIsIdleTimeoutMenuOpen((open) => {
+                      const nextOpen = !open;
+
+                      if (nextOpen) {
+                        announceOverlayOpen("compact-control-select", "idle-duration");
+                      }
+
+                      return nextOpen;
+                    })
+                  }
                   onKeyDown={(event) => {
                     if (
                       event.key === "ArrowDown" ||
@@ -607,6 +622,7 @@ export function UserProfileFooter({
                       event.key === " "
                     ) {
                       event.preventDefault();
+                      announceOverlayOpen("compact-control-select", "idle-duration");
                       setIsIdleTimeoutMenuOpen(true);
                       return;
                     }
@@ -631,7 +647,7 @@ export function UserProfileFooter({
 
                 {isIdleTimeoutMenuOpen ? (
                   <div
-                    className="absolute right-0 top-[calc(100%+0.35rem)] z-[95] w-full overflow-hidden rounded-[16px] border border-[hsl(var(--border)/0.52)] bg-[linear-gradient(180deg,hsl(var(--surface-overlay)/0.98),hsl(var(--surface-panel)/0.94))] p-1.5 shadow-[0_16px_44px_hsl(var(--shadow-color)/0.14)] backdrop-blur-xl"
+                    className="absolute right-0 top-[calc(100%+0.35rem)] z-[95] max-h-[min(14rem,48dvh)] w-full overflow-y-auto overscroll-contain rounded-[16px] border border-[hsl(var(--border)/0.52)] bg-[linear-gradient(180deg,hsl(var(--surface-overlay)/0.98),hsl(var(--surface-panel)/0.94))] p-1.5 shadow-[0_16px_44px_hsl(var(--shadow-color)/0.14)] backdrop-blur-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                     id="user-presence-idle-timeout-menu"
                     role="listbox"
                   >
@@ -712,7 +728,7 @@ export function UserProfileFooter({
               className="grid w-full grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-[16px] px-1 py-1 text-left transition hover:bg-[hsl(var(--surface-soft)/0.44)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
               data-testid="user-appearance-settings-button"
               onClick={() => {
-                setActiveUserPopup(null);
+                closeUserPopups();
                 onOpenAppearanceSettings();
               }}
               type="button"

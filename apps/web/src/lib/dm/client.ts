@@ -11,8 +11,10 @@ import {
   DMConversationsResponseSchema,
   DMMessagesResponseSchema,
   DMThreadMessagesResponseSchema,
+  DMMutualServersResponseSchema,
   type DMConversationsPageResponse,
   type DMMessagesResponse,
+  type DMMutualServersResponse,
   type DMThreadMessagesResponse,
 } from "@/lib/dm/types";
 import {
@@ -38,6 +40,7 @@ type RequestOptions = Omit<RequestInit, "body"> & {
 export const dmQueryKeys = {
   conversation: (conversationId: string) => ["dm", "conversation", conversationId] as const,
   list: ["dm", "conversations"] as const,
+  mutualServers: (userId: string) => ["dm", "mutual-servers", userId] as const,
   root: ["dm"] as const,
 };
 
@@ -91,6 +94,24 @@ function withUnreadCount(
         ? {
             ...participant,
             unreadCount,
+          }
+        : participant,
+    ),
+  };
+}
+
+function withMuted(
+  conversation: DMConversationDTO,
+  currentUserId: string,
+  muted: boolean,
+): DMConversationDTO {
+  return {
+    ...conversation,
+    participants: conversation.participants.map((participant) =>
+      participant.userId === currentUserId
+        ? {
+            ...participant,
+            muted,
           }
         : participant,
     ),
@@ -206,6 +227,51 @@ export function markDMConversationAsReadInPageData(
   };
 }
 
+export function markDMConversationAsUnreadInPageData(
+  data: DMConversationsInfiniteData | undefined,
+  conversationId: string,
+  currentUserId: string,
+): DMConversationsInfiniteData | undefined {
+  if (!data) {
+    return data;
+  }
+
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      conversations: page.conversations.map((conversation) =>
+        conversation.id === conversationId
+          ? withUnreadCount(conversation, currentUserId, 1)
+          : conversation,
+      ),
+    })),
+  };
+}
+
+export function setDMConversationMutedInPageData(
+  data: DMConversationsInfiniteData | undefined,
+  conversationId: string,
+  currentUserId: string,
+  muted: boolean,
+): DMConversationsInfiniteData | undefined {
+  if (!data) {
+    return data;
+  }
+
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      conversations: page.conversations.map((conversation) =>
+        conversation.id === conversationId
+          ? withMuted(conversation, currentUserId, muted)
+          : conversation,
+      ),
+    })),
+  };
+}
+
 export function applyDMConversationUpdateToPageData(
   data: DMConversationsInfiniteData | undefined,
   conversation: DMConversationDTO,
@@ -275,6 +341,22 @@ export function markDMConversationAsReadInCache(
   return conversations.map((conversation) =>
     conversation.id === conversationId
       ? withUnreadCount(conversation, currentUserId, 0)
+      : conversation,
+  );
+}
+
+export function markDMConversationAsUnreadInCache(
+  conversations: DMConversationDTO[] | undefined,
+  conversationId: string,
+  currentUserId: string,
+) {
+  if (!conversations) {
+    return conversations;
+  }
+
+  return conversations.map((conversation) =>
+    conversation.id === conversationId
+      ? withUnreadCount(conversation, currentUserId, 1)
       : conversation,
   );
 }
@@ -380,6 +462,13 @@ export async function fetchDMConversation(conversationId: string) {
   return DMConversationDTOSchema.parse(payload);
 }
 
+export async function fetchDMMutualServers(userId: string): Promise<DMMutualServersResponse> {
+  const payload = await requestJson<unknown>(
+    `/api/v1/dm/users/${encodeURIComponent(userId)}/mutual-servers`,
+  );
+  return DMMutualServersResponseSchema.parse(payload);
+}
+
 export async function createDMConversationRequest(userId: string) {
   const payload = await requestJson<unknown>("/api/v1/dm", {
     method: "POST",
@@ -398,6 +487,22 @@ export async function hideDMConversationRequest(conversationId: string) {
 export async function markDMConversationReadRequest(conversationId: string) {
   return requestJson<{ success: true }>(`/api/v1/dm/${conversationId}/read`, {
     method: "PATCH",
+  });
+}
+
+export async function markDMConversationUnreadRequest(conversationId: string) {
+  return requestJson<{ success: true }>(`/api/v1/dm/${conversationId}/unread`, {
+    method: "PATCH",
+  });
+}
+
+export async function setDMConversationMutedRequest(
+  conversationId: string,
+  muted: boolean,
+) {
+  return requestJson<{ success: true }>(`/api/v1/dm/${conversationId}/mute`, {
+    method: "PATCH",
+    body: { muted },
   });
 }
 

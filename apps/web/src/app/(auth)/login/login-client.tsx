@@ -2,8 +2,20 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoginSchema, type LoginInput } from "@wizards/types";
-import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, UserPlus } from "lucide-react";
+import {
+  ArrowRight,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Loader2,
+  LockKeyhole,
+  Mail,
+  ShieldCheck,
+  UserPlus,
+  X,
+} from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -15,6 +27,7 @@ import { SocialLogin } from "@/components/auth/social-login";
 import { TurnstileWidget } from "@/components/auth/turnstile-widget";
 import { useI18n } from "@/components/providers/locale-provider";
 import { loginAction } from "@/lib/auth/actions";
+import { buildDesktopOAuthStartUrl } from "@/lib/auth/desktop-oauth-start";
 import { LOGIN_FAILED_MESSAGE_KEY } from "@/lib/auth/login-errors";
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 
@@ -45,8 +58,93 @@ interface LoginClientProps {
   callbackUrl: string;
 }
 
+interface DesktopOAuthPendingDialogProps {
+  onCancel: () => void;
+  onRetry: () => void;
+}
+
+function DesktopOAuthPendingDialog({ onCancel, onRetry }: DesktopOAuthPendingDialogProps) {
+  const { t } = useI18n();
+
+  return (
+    <div
+      aria-labelledby="desktop-oauth-pending-title"
+      aria-describedby="desktop-oauth-pending-description"
+      aria-modal="true"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-[hsl(var(--background)/0.62)] px-5 py-8 backdrop-blur-xl"
+      role="dialog"
+    >
+      <section className="relative w-full max-w-[420px] overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.75)] bg-[linear-gradient(145deg,hsl(var(--background))_0%,hsl(var(--card))_58%,hsl(var(--primary)/0.08)_100%)] p-6 text-center shadow-[0_28px_90px_hsl(var(--shadow-color)/0.18)]">
+        <button
+          aria-label={t("common.close")}
+          className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-2xl text-[hsl(var(--muted-foreground))] transition hover:bg-[hsl(var(--muted)/0.72)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.45)]"
+          onClick={onCancel}
+          type="button"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
+
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))] shadow-[0_16px_44px_hsl(var(--primary)/0.18)]">
+          <Loader2 className="h-6 w-6 motion-safe:animate-spin" aria-hidden="true" />
+        </div>
+
+        <p className="mt-5 text-xs font-bold uppercase tracking-[0.22em] text-[hsl(var(--primary))]">
+          {t("auth.desktopOAuth.badge")}
+        </p>
+        <h2
+          id="desktop-oauth-pending-title"
+          className="mt-2 text-xl font-bold tracking-tight text-[hsl(var(--foreground))]"
+        >
+          {t("auth.desktopOAuth.pendingTitle")}
+        </h2>
+        <p
+          id="desktop-oauth-pending-description"
+          className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[hsl(var(--muted-foreground))]"
+        >
+          {t("auth.desktopOAuth.pendingDescription")}
+        </p>
+
+        <div className="mt-5 rounded-2xl border border-[hsl(var(--primary)/0.16)] bg-[hsl(var(--primary)/0.07)] px-4 py-3 text-left">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
+              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[hsl(var(--foreground))]">
+                {t("auth.desktopOAuth.pendingBrowser")}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">
+                {t("auth.desktopOAuth.pendingSecurity")}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto]">
+          <button
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-4 py-2.5 text-sm font-bold text-[hsl(var(--primary-foreground))] shadow-[0_16px_38px_hsl(var(--primary)/0.22)] transition hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.45)] motion-reduce:hover:translate-y-0"
+            onClick={onRetry}
+            type="button"
+          >
+            <ExternalLink className="h-4 w-4" aria-hidden="true" />
+            {t("auth.desktopOAuth.pendingRetry")}
+          </button>
+          <button
+            className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.75)] bg-[hsl(var(--background)/0.72)] px-4 py-2.5 text-sm font-bold text-[hsl(var(--muted-foreground))] transition hover:bg-[hsl(var(--muted)/0.72)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.35)]"
+            onClick={onCancel}
+            type="button"
+          >
+            {t("auth.desktopOAuth.pendingCancel")}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function LoginClient({ authError = null, callbackUrl }: LoginClientProps) {
   const { locale, t } = useI18n();
+  const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(() =>
     getAuthErrorMessage(authError),
   );
@@ -54,6 +152,7 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [selectedRole, setSelectedRole] = useState<LoginRole>("business");
   const [socialNotice, setSocialNotice] = useState<string | null>(null);
+  const [showDesktopOAuthPending, setShowDesktopOAuthPending] = useState(false);
   const [showDesktopStartup, setShowDesktopStartup] = useState(false);
 
   useEffect(() => {
@@ -113,19 +212,41 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
     if (!result.success) {
       setShowDesktopStartup(false);
       setServerError(result.error ?? "auth.login.alertUnavailable");
+      return;
     }
+
+    router.replace(callbackUrl);
   };
+
+  const openDesktopOAuthBrowser = useCallback(() => {
+    window.open(
+      buildDesktopOAuthStartUrl(callbackUrl, window.location.origin),
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }, [callbackUrl]);
 
   const handleOAuthSignIn = async (provider: OAuthProvider) => {
     setServerError(null);
     setSocialNotice(null);
     setOauthLoading(provider);
-    setShowDesktopStartup(isWhisprDesktopRuntime());
+    const isDesktopRuntime = isWhisprDesktopRuntime();
+
+    if (isDesktopRuntime) {
+      setShowDesktopStartup(false);
+      setShowDesktopOAuthPending(true);
+      openDesktopOAuthBrowser();
+      setOauthLoading(null);
+      return;
+    }
+
+    setShowDesktopStartup(false);
 
     try {
       await signIn(provider, { callbackUrl });
     } catch {
       setShowDesktopStartup(false);
+      setShowDesktopOAuthPending(false);
       setServerError("auth.login.oauthError");
       setOauthLoading(null);
     }
@@ -140,6 +261,15 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
     <LoginPage>
       {showDesktopStartup ? (
         <AppStartupScreen experience="desktop" status="session" variant="overlay" />
+      ) : null}
+      {showDesktopOAuthPending ? (
+        <DesktopOAuthPendingDialog
+          onCancel={() => {
+            setShowDesktopOAuthPending(false);
+            setOauthLoading(null);
+          }}
+          onRetry={openDesktopOAuthBrowser}
+        />
       ) : null}
 
       <LoginCard>
@@ -251,7 +381,7 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
         </div>
 
         <SocialLogin
-          disabled={oauthLoading !== null}
+          disabled={oauthLoading !== null || showDesktopOAuthPending}
           onGoogle={() => handleOAuthSignIn("google")}
           onUnavailable={handleUnavailableProvider}
         />

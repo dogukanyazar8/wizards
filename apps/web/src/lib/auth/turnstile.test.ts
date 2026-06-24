@@ -81,6 +81,34 @@ describe("Turnstile E2E bypass", () => {
     );
   });
 
+  it("uses the public E2E env without a dynamic env argument", () => {
+    const mutableEnv = process.env as Record<string, string | undefined>;
+    const originalEnv = {
+      NEXT_PUBLIC_E2E_TEST_MODE: mutableEnv.NEXT_PUBLIC_E2E_TEST_MODE,
+      NODE_ENV: mutableEnv.NODE_ENV,
+    };
+
+    try {
+      mutableEnv.NEXT_PUBLIC_E2E_TEST_MODE = "true";
+      mutableEnv.NODE_ENV = "test";
+      assert.equal(isE2ETurnstileBypassEnabled(), true);
+
+      mutableEnv.NODE_ENV = "production";
+      assert.equal(isE2ETurnstileBypassEnabled(), false);
+    } finally {
+      if (originalEnv.NEXT_PUBLIC_E2E_TEST_MODE === undefined) {
+        delete mutableEnv.NEXT_PUBLIC_E2E_TEST_MODE;
+      } else {
+        mutableEnv.NEXT_PUBLIC_E2E_TEST_MODE = originalEnv.NEXT_PUBLIC_E2E_TEST_MODE;
+      }
+      if (originalEnv.NODE_ENV === undefined) {
+        delete mutableEnv.NODE_ENV;
+      } else {
+        mutableEnv.NODE_ENV = originalEnv.NODE_ENV;
+      }
+    }
+  });
+
   it("accepts the deterministic E2E token without calling Cloudflare", async () => {
     const mutableEnv = process.env as Record<string, string | undefined>;
     const originalEnv = {

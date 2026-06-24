@@ -17,6 +17,9 @@ These smoke gates are release blockers on Windows and staged signal checks on ma
 - `auth-restore`: remember-me/session restore works after quitting and reopening.
 - `close-to-tray`: close button keeps the app alive in tray when configured, tray Show restores the window, and Quit exits.
 - `updater-check-mock`: a mocked signed HTTPS `latest.json` check succeeds; invalid signatures fail closed.
+- `updater-feed-preflight`: local and remote `latest.json` manifests validate against the expected version, platform entry, artifact URL, and signature before promotion.
+- `release-audit-report`: a redacted audit report is generated with ring, version, artifact hash, updater feed, and safety contract checks before promotion.
+- `release-promotion-bundle`: redacted JSON and Markdown promotion evidence is generated before a signed build moves between release rings.
 - `shortcut-registration`: desktop voice shortcuts register, trigger, unregister, and reject unsafe duplicates.
 - `overlay-show-hide`: mini window and game overlay show, hide, repair, and panic-disable without locking the main window.
 
@@ -24,12 +27,25 @@ These smoke gates are release blockers on Windows and staged signal checks on ma
 
 Capture these budgets on a warm Windows profile after the app has been idle for at least 60 seconds:
 
-- Warm start <= 2000 ms from process launch to interactive main shell.
-- Memory <= 220 MB warm idle for the desktop process family.
-- Overlay CPU <= 3% average while visible over a 60 second window.
-- Shortcut latency <= 50 ms p95 from key press to visible/audio state change.
+- `warm-start`: warm start <= 2000 ms from process launch to interactive main shell.
+- `idle-memory`: memory <= 220 MB warm idle for the desktop process family.
+- `updater-check-install`: update check, download, install, relaunch, and Settings -> About runtime version reporting succeeds.
+- `overlay-cpu`: overlay CPU <= 3% average while visible over a 60 second window.
+- `shortcut-latency`: shortcut latency <= 50 ms p95 from key press to visible/audio state change.
 
 If a budget regresses, attach the diagnostics export and the exact build ring before promotion beyond `uat`.
+
+## Ring Promotion Rules
+
+- `uat`: rollout is manual QA users only. Enter after release contract, Windows build, local manifest validation, R2 upload, and remote manifest validation pass. Exit only after the manual QA checklist and updater smoke from the previous installed version pass with no blocker diagnostics, crash, voice, overlay, or auth regressions.
+- `canary`: rollout is a small monitored production cohort. Enter after UAT evidence is attached, rollback manifest is ready, and a support owner is assigned. Exit only when canary update health, crash, install failure, and support feedback are clean.
+- `stable`: rollout is a broad production release. Enter after canary health is clean, the stable dispatch guard is confirmed from `main`, and real OV/EV Windows signing configuration is present. Keep the rollback window open until stable update metrics remain healthy.
+
+## Rollback Evidence
+
+- Keep the previous signed `latest.json`, installer, and `.sig` available for the active ring.
+- Rollback command shape: `aws --endpoint-url <r2-endpoint> s3 cp <previous-latest.json> s3://<R2_BUCKET>/desktop/<ring>/latest.json --content-type application/json --cache-control "no-cache, no-store, must-revalidate"`.
+- After rollback, run remote manifest validation with `--check-artifact-url` and confirm the app no longer offers the bad release to users who have not updated yet.
 
 ## Desktop Safety Rules
 
@@ -142,9 +158,14 @@ Overlay must remain click-through, show only sanitized voice participant data, a
 
 ## Signed Updates
 
-- Build once with `WHISPR_DESKTOP_UPDATER_ENABLED=false` and confirm no native update prompt appears.
+- Build once with `WHISPR_DESKTOP_UPDATER_ENABLED=false` and confirm no title-bar update indicator appears.
 - Build a UAT ring artifact with `WHISPR_DESKTOP_UPDATER_ENABLED=true`, a HTTPS `latest.json` endpoint, the matching Ed25519 public key, and Windows code signing enabled.
-- Host a signed newer UAT manifest and confirm Whispr shows "Download and restart" instead of installing silently.
+- Run `pnpm --filter @wizards/desktop release:validate-manifest` against the local generated `latest.json`, installer, and `.sig` before upload.
+- Run `pnpm --filter @wizards/desktop release:validate-manifest -- --manifest https://updates.whispr.team/desktop/uat/latest.json --expected-version <version> --check-artifact-url` after upload.
+- Run `pnpm --filter @wizards/desktop release:audit` with `--require-manifest` before promotion and archive the generated report with internal release notes or CI artifacts.
+- Run `pnpm --filter @wizards/desktop release:promotion` before promotion and archive the generated JSON/Markdown evidence with the release handoff.
+- Host a signed newer UAT manifest and confirm the desktop title bar shows the compact update indicator beside the window controls.
+- Open the update indicator and confirm the signed-update popover shows current version, latest version, release ring, and the security note.
 - Click "Later" and confirm the app keeps running without downloading or installing anything.
 - Click "Download and restart" and confirm download progress advances, the signature is accepted, the installer runs with basic UI, and Whispr relaunches.
 - Serve a manifest with a bad signature and confirm the update is rejected and the currently installed version remains unchanged.

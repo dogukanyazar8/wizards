@@ -59,6 +59,7 @@ export interface DMParticipantDTO extends DMPresence {
   displayName: string | null;
   avatarUrl: string | null;
   unreadCount: number;
+  muted: boolean;
   presence: DMPresence;
 }
 
@@ -126,6 +127,7 @@ export const DMParticipantDTOSchema: z.ZodType<DMParticipantDTO> = z.object({
   displayName: z.string().nullable(),
   avatarUrl: z.string().nullable(),
   unreadCount: z.number().int().nonnegative(),
+  muted: z.boolean(),
   status: DMPresenceStatusSchema,
   customStatus: z.string().nullable(),
   presence: DMPresenceSchema,

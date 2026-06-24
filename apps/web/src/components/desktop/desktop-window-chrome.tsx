@@ -5,11 +5,13 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Copy, Minus, Square, X } from "lucide-react";
 import type { Window as TauriWindow } from "@tauri-apps/api/window";
+import { DesktopNativeUpdateNotifier } from "@/components/desktop/desktop-native-update-notifier";
 import {
   WHISPR_DESKTOP_BEFORE_CLOSE_EVENT,
   completeWhisprDesktopBeforeClose,
   getWhisprDesktopBeforeCloseRequestId,
   isWhisprDesktopRuntime,
+  promoteWhisprDesktopWindow,
 } from "@/lib/desktop/runtime";
 import { clearDesktopTransientAuthSession } from "@/lib/desktop/session";
 import { cn } from "@/lib/utils";
@@ -125,6 +127,14 @@ export function DesktopWindowChrome() {
   }, [isChromeLessDesktopRoute, isDesktop]);
 
   useEffect(() => {
+    if (!isDesktop || isChromeLessDesktopRoute) {
+      return;
+    }
+
+    void promoteWhisprDesktopWindow();
+  }, [isChromeLessDesktopRoute, isDesktop]);
+
+  useEffect(() => {
     if (!isDesktop) {
       return;
     }
@@ -167,7 +177,7 @@ export function DesktopWindowChrome() {
 
   return (
     <div
-      className="desktop-window-chrome flex h-[var(--desktop-titlebar-height)] select-none items-center border-b border-[hsl(var(--border)/0.52)] bg-[hsl(var(--surface-card)/0.86)] text-app-foreground shadow-[0_1px_0_hsl(var(--foreground)/0.04)] backdrop-blur-xl supports-[backdrop-filter]:bg-[hsl(var(--surface-card)/0.72)]"
+      className="desktop-window-chrome relative z-[220] flex h-[var(--desktop-titlebar-height)] select-none items-center border-b border-[hsl(var(--border)/0.52)] bg-[hsl(var(--surface-card)/0.86)] text-app-foreground shadow-[0_1px_0_hsl(var(--foreground)/0.04)] backdrop-blur-xl supports-[backdrop-filter]:bg-[hsl(var(--surface-card)/0.72)]"
       data-testid="desktop-window-chrome"
     >
       <div className="flex h-full min-w-0 flex-1 items-center gap-2 px-2.5" data-tauri-drag-region>
@@ -197,6 +207,7 @@ export function DesktopWindowChrome() {
       </div>
 
       <div className="flex h-full shrink-0 items-center gap-1 px-1.5">
+        <DesktopNativeUpdateNotifier />
         <ChromeButton
           aria-label="Minimize window"
           icon={<Minus className="h-3.5 w-3.5" />}

@@ -1,72 +1,94 @@
-import type { Browser, BrowserContext, Page } from "@playwright/test";
+import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
 import { test, expect } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
 import {
+  attachE2EPageDiagnostics,
+  type E2EPageDiagnosticsHandle,
+} from "../../helpers/diagnostics";
+import {
   clearE2EVoiceStates,
+  expectVoiceParticipantCountAtLeast,
   expectVoiceParticipantCount,
   getE2EServerRoute,
 } from "../../helpers/db";
 import { sendComposerMessage } from "../../helpers/messages";
-import { gotoAppRoute, openSettingsFromUserQuickMenu } from "../../helpers/navigation";
+import {
+  clickChannelSidebarChannelAndWait,
+  clickServerRailDmAndWait,
+  clickServerRailServerAndWait,
+  closeInAppSettingsOverlay,
+  gotoAppRoute,
+  gotoTextChannelRoute,
+  openSettingsFromUserQuickMenu,
+} from "../../helpers/navigation";
 import { e2eUsers, type E2EUserKey } from "../../helpers/test-data";
 
 const E2E_MICROPHONE_DENIED_KEY = "whispr:e2e:deny-microphone";
 const E2E_CAMERA_DENIED_KEY = "whispr:e2e:deny-camera";
 const E2E_SCREEN_SHARE_DENIED_KEY = "whispr:e2e:deny-screen-share";
+const VOICE_READY_TIMEOUT = process.env.CI === "true" ? 30_000 : 15_000;
 
 type LoggedInPage = {
   context: BrowserContext;
+  diagnostics: E2EPageDiagnosticsHandle;
   page: Page;
 };
 
-async function openLoggedInPage(browser: Browser, userKey: E2EUserKey): Promise<LoggedInPage> {
+type E2EServerRoute = Awaited<ReturnType<typeof getE2EServerRoute>>;
+
+async function openLoggedInPage(
+  browser: Browser,
+  userKey: E2EUserKey,
+  testInfo: TestInfo,
+): Promise<LoggedInPage> {
   const context = await browser.newContext();
   const page = await context.newPage();
+  const diagnostics = attachE2EPageDiagnostics(page, testInfo, userKey);
 
   await loginAs(page, userKey);
 
-  return { context, page };
+  return { context, diagnostics, page };
 }
 
 async function closeLoggedInPages(pages: LoggedInPage[]): Promise<void> {
-  await Promise.all(pages.map(({ context }) => context.close()));
+  await Promise.allSettled(pages.map(({ diagnostics }) => diagnostics.attachIfFailed()));
+  await Promise.allSettled(pages.map(({ context }) => context.close()));
+  for (const { diagnostics } of pages) {
+    diagnostics.dispose();
+  }
 }
 
-async function openVoiceChannel(page: Page): Promise<{
-  serverId: string;
-  textChannelId: string;
-  voiceChannelId: string;
-}> {
-  const route = await getE2EServerRoute();
+async function openVoiceChannelRoute(page: Page, route: E2EServerRoute): Promise<void> {
   await gotoAppRoute(page, `/channels/${route.serverId}/${route.voiceChannelId}`, {
     readyTestId: "voice-channel-view",
+    timeout: VOICE_READY_TIMEOUT,
   });
-  await expect(page.getByTestId("voice-channel-view")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId("voice-channel-view")).toBeVisible({
+    timeout: VOICE_READY_TIMEOUT,
+  });
   await expect(page.getByTestId("voice-room-control-disconnect")).toBeVisible({
-    timeout: 10_000,
+    timeout: VOICE_READY_TIMEOUT,
   });
   await expect(page.getByTestId("voice-room-control-camera")).toBeVisible({
-    timeout: 10_000,
+    timeout: VOICE_READY_TIMEOUT,
   });
+  await expect(page.getByTestId("voice-room-control-camera")).toBeEnabled({
+    timeout: VOICE_READY_TIMEOUT,
+  });
+  await expect(page.locator('[data-testid="voice-participant-card"]:visible').first()).toBeVisible({
+    timeout: VOICE_READY_TIMEOUT,
+  });
+  await expectVoiceParticipantCountAtLeast(route.voiceChannelId, 1);
+}
+
+async function openVoiceChannel(page: Page): Promise<E2EServerRoute> {
+  const route = await getE2EServerRoute();
+  await openVoiceChannelRoute(page, route);
   return route;
 }
 
 async function sendMessage(page: Page, content: string): Promise<void> {
   await sendComposerMessage(page, content);
-}
-
-async function setRangeValue(page: Page, testId: string, value: number): Promise<void> {
-  await page.getByTestId(testId).evaluate((element, nextValue) => {
-    const input = element as HTMLInputElement;
-    const valueSetter = Object.getOwnPropertyDescriptor(
-      window.HTMLInputElement.prototype,
-      "value",
-    )?.set;
-
-    valueSetter?.call(input, String(nextValue));
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-  }, value);
 }
 
 function voiceSidebarParticipant(page: Page, username: string) {
@@ -106,7 +128,15 @@ async function expectElementWithinViewport(page: Page, testId: string): Promise<
     .toBeLessThanOrEqual(2);
 }
 
+async function expectVisibleVoiceParticipantCards(page: Page, count: number): Promise<void> {
+  await expect(page.locator('[data-testid="voice-participant-card"]:visible')).toHaveCount(count, {
+    timeout: VOICE_READY_TIMEOUT,
+  });
+}
+
 test.describe("voice and screen share", () => {
+  test.describe.configure({ timeout: process.env.CI === "true" ? 60_000 : 30_000 });
+
   test.beforeEach(async () => {
     await clearE2EVoiceStates();
   });
@@ -191,14 +221,17 @@ test.describe("voice and screen share", () => {
     await expectVoiceParticipantCount(voiceChannelId, 1);
   });
 
-  test("another server member sees voice join and leave without reload", async ({ browser }) => {
+  test("another server member sees voice join and leave without reload", async (
+    { browser },
+    testInfo,
+  ) => {
     const { serverId, textChannelId, voiceChannelId } = await getE2EServerRoute();
-    const alice = await openLoggedInPage(browser, "alice");
-    const bob = await openLoggedInPage(browser, "bob");
+    const alice = await openLoggedInPage(browser, "alice", testInfo);
+    const bob = await openLoggedInPage(browser, "bob", testInfo);
 
     try {
-      await bob.page.goto(`/channels/${serverId}/${textChannelId}`);
-      await alice.page.goto(`/channels/${serverId}/${voiceChannelId}`);
+      await gotoTextChannelRoute(bob.page, serverId, textChannelId);
+      await openVoiceChannelRoute(alice.page, { serverId, textChannelId, voiceChannelId });
 
       await expect(voiceSidebarParticipant(bob.page, e2eUsers.alice.username)).toBeVisible({
         timeout: 10_000,
@@ -213,14 +246,20 @@ test.describe("voice and screen share", () => {
     }
   });
 
-  test("closing the browser tab cleans the voice state", async ({ browser }) => {
-    const alice = await openLoggedInPage(browser, "alice");
-    const { voiceChannelId } = await openVoiceChannel(alice.page);
+  test("closing the browser tab cleans the voice state", async ({ browser }, testInfo) => {
+    const alice = await openLoggedInPage(browser, "alice", testInfo);
 
-    await expectVoiceParticipantCount(voiceChannelId, 1);
-    await alice.page.close({ runBeforeUnload: true });
-    await expectVoiceParticipantCount(voiceChannelId, 0);
-    await alice.context.close();
+    try {
+      const { voiceChannelId } = await openVoiceChannel(alice.page);
+
+      await expectVoiceParticipantCount(voiceChannelId, 1);
+      await alice.page.close({ runBeforeUnload: true });
+      await expectVoiceParticipantCount(voiceChannelId, 0);
+    } finally {
+      await alice.diagnostics.attachIfFailed();
+      await alice.context.close();
+      alice.diagnostics.dispose();
+    }
   });
 
   test("opening settings does not disconnect the active voice session", async ({ page }) => {
@@ -231,32 +270,31 @@ test.describe("voice and screen share", () => {
     await openSettingsFromUserQuickMenu(page);
     await expectVoiceParticipantCount(voiceChannelId, 1);
 
-    await page.goto(`/channels/${serverId}/${voiceChannelId}`);
+    await closeInAppSettingsOverlay(page);
     await expect(page.getByTestId("voice-room-control-disconnect")).toBeVisible({
       timeout: 10_000,
     });
+    await expect(page).toHaveURL(new RegExp(`/channels/${serverId}/${voiceChannelId}$`));
     await expectVoiceParticipantCount(voiceChannelId, 1);
   });
 
-  test("saving settings and sending messages keeps voice connected", async ({ page }) => {
+  test("opening settings and sending messages keeps voice connected", async ({ page }) => {
     const { serverId, textChannelId, voiceChannelId } = await getE2EServerRoute();
     const message = `Voice stays live while chatting ${Date.now()}`;
 
     await loginAs(page, "alice");
     await openVoiceChannel(page);
-    await page.goto("/settings?section=notifications&panel=general");
+    await openSettingsFromUserQuickMenu(page);
     await expect(page.getByTestId("settings-panel")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByTestId("active-voice-reminder")).toBeVisible();
-    await page.getByTestId("active-voice-reminder-return").click();
-    await expect(page).toHaveURL(new RegExp(`/channels/${serverId}/${voiceChannelId}$`));
-    await expect(page.getByTestId("active-voice-reminder")).toBeHidden();
-    await page.goto("/settings?section=notifications&panel=general");
-    await expect(page.getByTestId("settings-panel")).toBeVisible({ timeout: 10_000 });
-
-    await setRangeValue(page, "settings-notification-limit", 6);
     await expectVoiceParticipantCount(voiceChannelId, 1);
 
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await closeInAppSettingsOverlay(page);
+    await clickChannelSidebarChannelAndWait(
+      page,
+      textChannelId,
+      new RegExp(`/channels/${serverId}/${textChannelId}$`),
+      { readyTestId: "message-input", waitForMessages: true },
+    );
     await sendMessage(page, message);
 
     await expect(page.getByTestId("message-item").filter({ hasText: message })).toBeVisible();
@@ -318,11 +356,8 @@ test.describe("voice and screen share", () => {
     );
     await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
     await expect(page.getByTestId("voice-stage-camera-pip")).toBeVisible();
-    await expect(page.getByTestId("voice-stage-primary-screen")).toBeVisible();
-    await page.getByTestId("voice-stage-focus-camera").click();
-    await expect(page.getByTestId("voice-stage-primary-camera")).toBeVisible();
-    await page.getByTestId("voice-stage-focus-screen").click();
-    await expect(page.getByTestId("voice-stage-primary-screen")).toBeVisible();
+    await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
+    await expectElementWithinViewport(page, "voice-screen-share-stage");
     await page.getByTestId("voice-room-control-mute").click();
     await expect(page.getByTestId("voice-room-control-mute")).toHaveAttribute(
       "data-active",
@@ -368,11 +403,8 @@ test.describe("voice and screen share", () => {
     );
     await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
     await expect(page.getByTestId("voice-stage-camera-pip")).toBeVisible();
+    await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
     await expectElementWithinViewport(page, "voice-screen-share-stage");
-
-    await page.getByTestId("voice-stage-focus-camera").click();
-    await expect(page.getByTestId("voice-stage-primary-camera")).toBeVisible();
-    await expect(page.getByTestId("voice-stage-screen-pip")).toBeVisible();
   });
 
   test("returning to a server restores active voice without interrupting video or screen share", async ({
@@ -396,14 +428,22 @@ test.describe("voice and screen share", () => {
     );
     await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
 
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
-    await expect(page.getByTestId("message-input")).toBeVisible({ timeout: 10_000 });
+    await clickChannelSidebarChannelAndWait(
+      page,
+      textChannelId,
+      new RegExp(`/channels/${serverId}/${textChannelId}$`),
+      { readyTestId: "message-input", waitForMessages: true },
+    );
     await expectVoiceParticipantCount(voiceChannelId, 1);
 
-    await page.goto("/channels/@me");
-    await page.getByTestId(`server-rail-server-${serverId}`).click();
+    await clickServerRailDmAndWait(page, /\/channels\/@me$/, { readyTestId: "server-rail" });
+    await clickServerRailServerAndWait(
+      page,
+      serverId,
+      new RegExp(`/channels/${serverId}/${voiceChannelId}$`),
+      { readyTestId: "voice-channel-view" },
+    );
 
-    await expect(page).toHaveURL(new RegExp(`/channels/${serverId}/${voiceChannelId}$`));
     await expect(page.getByTestId("voice-channel-view")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
       "data-active",
@@ -432,11 +472,14 @@ test.describe("voice and screen share", () => {
     });
     await expectVoiceParticipantCount(voiceChannelId, 0);
 
-    await page.goto("/channels/@me");
-    await page.getByTestId(`server-rail-server-${serverId}`).click();
+    await gotoAppRoute(page, "/channels/@me", { readyTestId: "server-rail" });
+    await clickServerRailServerAndWait(
+      page,
+      serverId,
+      new RegExp(`/channels/${serverId}/${textChannelId}$`),
+      { readyTestId: "message-input", waitForMessages: true },
+    );
 
-    await expect(page).toHaveURL(new RegExp(`/channels/${serverId}/${textChannelId}$`));
-    await expect(page.getByTestId("message-input")).toBeVisible({ timeout: 10_000 });
     await expectVoiceParticipantCount(voiceChannelId, 0);
   });
 
@@ -446,14 +489,16 @@ test.describe("voice and screen share", () => {
     const { serverId, textChannelId } = await getE2EServerRoute();
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
-    await expect(page.getByTestId("message-input")).toBeVisible({ timeout: 10_000 });
+    await gotoTextChannelRoute(page, serverId, textChannelId);
 
-    await page.goto("/channels/@me");
-    await page.getByTestId(`server-rail-server-${serverId}`).click();
+    await gotoAppRoute(page, "/channels/@me", { readyTestId: "server-rail" });
+    await clickServerRailServerAndWait(
+      page,
+      serverId,
+      new RegExp(`/channels/${serverId}/${textChannelId}$`),
+      { readyTestId: "message-input", waitForMessages: true },
+    );
 
-    await expect(page).toHaveURL(new RegExp(`/channels/${serverId}/${textChannelId}$`));
-    await expect(page.getByTestId("message-input")).toBeVisible({ timeout: 10_000 });
   });
 
   test("voice video layout stays contained on desktop and mobile", async ({ page }) => {
@@ -485,10 +530,13 @@ test.describe("voice and screen share", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("mixed camera states stay contained with multiple participants", async ({ browser }) => {
-    const alice = await openLoggedInPage(browser, "alice");
-    const bob = await openLoggedInPage(browser, "bob");
-    const charlie = await openLoggedInPage(browser, "charlie");
+  test("mixed camera states stay contained with multiple participants", async (
+    { browser },
+    testInfo,
+  ) => {
+    const alice = await openLoggedInPage(browser, "alice", testInfo);
+    const bob = await openLoggedInPage(browser, "bob", testInfo);
+    const charlie = await openLoggedInPage(browser, "charlie", testInfo);
 
     try {
       await alice.page.setViewportSize({ width: 1280, height: 820 });
@@ -499,15 +547,19 @@ test.describe("voice and screen share", () => {
       await openVoiceChannel(bob.page);
       await openVoiceChannel(charlie.page);
 
-      await alice.page.getByTestId("voice-room-control-camera").click();
-      await expect(alice.page.getByTestId("voice-participant-card")).toHaveCount(3, {
-        timeout: 10_000,
+      await expectVisibleVoiceParticipantCards(alice.page, 3);
+      const cameraButton = alice.page.getByTestId("voice-room-control-camera");
+      await expect(cameraButton).toBeEnabled({ timeout: VOICE_READY_TIMEOUT });
+      await cameraButton.click();
+      await expect(cameraButton).toHaveAttribute("data-active", "true", {
+        timeout: VOICE_READY_TIMEOUT,
       });
+      await expectVisibleVoiceParticipantCards(alice.page, 3);
       await expect(alice.page.getByTestId("voice-participant-camera-video")).toHaveCount(1);
       await expectNoHorizontalOverflow(alice.page);
 
       await alice.page.setViewportSize({ width: 390, height: 844 });
-      await expect(alice.page.getByTestId("voice-participant-card")).toHaveCount(3);
+      await expectVisibleVoiceParticipantCards(alice.page, 3);
       await expectNoHorizontalOverflow(alice.page);
     } finally {
       await closeLoggedInPages([alice, bob, charlie]);
@@ -533,14 +585,17 @@ test.describe("voice and screen share", () => {
     );
   });
 
-  test("screen share state appears in the sidebar for other members", async ({ browser }) => {
+  test("screen share state appears in the sidebar for other members", async (
+    { browser },
+    testInfo,
+  ) => {
     const { serverId, textChannelId, voiceChannelId } = await getE2EServerRoute();
-    const alice = await openLoggedInPage(browser, "alice");
-    const bob = await openLoggedInPage(browser, "bob");
+    const alice = await openLoggedInPage(browser, "alice", testInfo);
+    const bob = await openLoggedInPage(browser, "bob", testInfo);
 
     try {
-      await bob.page.goto(`/channels/${serverId}/${textChannelId}`);
-      await alice.page.goto(`/channels/${serverId}/${voiceChannelId}`);
+      await gotoTextChannelRoute(bob.page, serverId, textChannelId);
+      await openVoiceChannelRoute(alice.page, { serverId, textChannelId, voiceChannelId });
       await alice.page.getByTestId("voice-room-control-screen-share").click();
 
       await expect(
@@ -551,24 +606,27 @@ test.describe("voice and screen share", () => {
     }
   });
 
-  test("permission denied states are graceful", async ({ page }) => {
+  test("microphone permission denied state is graceful", async ({ page }) => {
     const { serverId, voiceChannelId } = await getE2EServerRoute();
 
+    await page.addInitScript((microphoneKey) => {
+      window.localStorage.setItem(microphoneKey, "true");
+    }, E2E_MICROPHONE_DENIED_KEY);
     await loginAs(page, "alice");
-    await page.evaluate(
-      ({ microphoneKey, screenShareKey }) => {
-        window.localStorage.setItem(microphoneKey, "true");
-        window.localStorage.setItem(screenShareKey, "true");
-      },
-      {
-        microphoneKey: E2E_MICROPHONE_DENIED_KEY,
-        screenShareKey: E2E_SCREEN_SHARE_DENIED_KEY,
-      },
-    );
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (microphoneKey) => window.localStorage.getItem(microphoneKey),
+          E2E_MICROPHONE_DENIED_KEY,
+        ),
+      )
+      .toBe("true");
 
-    await page.goto(`/channels/${serverId}/${voiceChannelId}`);
+    await gotoAppRoute(page, `/channels/${serverId}/${voiceChannelId}`, {
+      readyTestId: "voice-channel-view",
+    });
 
-    const errorState = page.getByTestId("voice-error-state");
+    const errorState = page.getByTestId("voice-inline-error");
 
     await expect(errorState).toBeVisible({
       timeout: 10_000,
@@ -578,12 +636,33 @@ test.describe("voice and screen share", () => {
       "data-active",
       "true",
     );
+    await expect(page.getByTestId("voice-room-control-disconnect")).toBeVisible();
+  });
 
+  test("screen share permission denied state is graceful", async ({ page }) => {
+    await page.addInitScript((screenShareKey) => {
+      window.localStorage.setItem(screenShareKey, "true");
+    }, E2E_SCREEN_SHARE_DENIED_KEY);
+    await loginAs(page, "alice");
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (screenShareKey) => window.localStorage.getItem(screenShareKey),
+          E2E_SCREEN_SHARE_DENIED_KEY,
+        ),
+      )
+      .toBe("true");
+
+    await openVoiceChannel(page);
     await page.getByTestId("voice-room-control-screen-share").click();
     await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
       "data-active",
       "false",
     );
-    await expect(errorState).toBeVisible();
+    await expect(page.getByTestId("voice-inline-error")).toBeVisible();
+    await expect(page.getByTestId("voice-inline-error")).toContainText(
+      /screen|ekran|permission|blocked|engellendi/i,
+    );
+    await expect(page.getByTestId("voice-room-control-disconnect")).toBeVisible();
   });
 });

@@ -33,6 +33,8 @@ import {
   getAuthSessionCookieOptions,
 } from "@/lib/auth/session-cookies";
 import { isUserSessionRevoked, shouldCheckSessionRevocation } from "@/lib/auth/session-revocation";
+import { consumeDesktopOAuthHandoffToken } from "@/lib/auth/desktop-oauth-handoff";
+import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
 
 function getAuthEnvCandidates() {
   return [
@@ -539,6 +541,8 @@ const authConfig = {
     Credentials({
       name: "Credentials",
       credentials: {
+        desktopOAuthCallbackUrl: { label: "Desktop OAuth callback", type: "text" },
+        desktopOAuthHandoffToken: { label: "Desktop OAuth handoff", type: "text" },
         email: { label: "Email", type: "email" },
         loginProof: { label: "Login proof", type: "text" },
         password: { label: "Password", type: "password" },
@@ -549,6 +553,40 @@ const authConfig = {
           credentials && typeof credentials === "object"
             ? (credentials as Record<string, unknown>)
             : null;
+
+        const desktopOAuthHandoffToken =
+          typeof credentialRecord?.desktopOAuthHandoffToken === "string"
+            ? credentialRecord.desktopOAuthHandoffToken
+            : "";
+        if (desktopOAuthHandoffToken) {
+          const user = await consumeDesktopOAuthHandoffToken(desktopOAuthHandoffToken, {
+            expectedCallbackUrl: getSafeAuthRedirectPath(
+              typeof credentialRecord?.desktopOAuthCallbackUrl === "string"
+                ? credentialRecord.desktopOAuthCallbackUrl
+                : "",
+            ),
+          });
+
+          if (!user) {
+            return null;
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.displayName ?? user.username,
+            image: user.avatarUrl ?? null,
+            authEmailVerified: Boolean(user.emailVerified),
+            deletedAt: user.deletedAt,
+            username: user.username,
+            displayName: user.displayName,
+            avatarUrl: user.avatarUrl,
+            isBanned: user.isBanned,
+            locale: normalizeAppLocale(user.locale),
+            rememberMe: true,
+            theme: normalizeWizardsThemeId(user.theme),
+          };
+        }
 
         const parsedCredentials = LoginCredentialsSchema.safeParse({
           email: normalizeAuthEmail(credentialRecord?.email),

@@ -135,8 +135,8 @@ export function LocaleProvider({
       setLocale: (nextLocale) => {
         const normalizedLocale = normalizeAppLocale(nextLocale);
         writeLocalePersistence(normalizedLocale);
+        setLocaleState(normalizedLocale);
         if (messagesByLocale[normalizedLocale]) {
-          setLocaleState(normalizedLocale);
           return;
         }
 
@@ -146,7 +146,6 @@ export function LocaleProvider({
               ...currentMessages,
               [normalizedLocale]: messages,
             }));
-            setLocaleState(normalizedLocale);
           })
           .catch(() => {
             setLocaleState(normalizedLocale);

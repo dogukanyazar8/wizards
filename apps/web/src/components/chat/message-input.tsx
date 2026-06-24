@@ -207,8 +207,8 @@ function ComposerActionSheet({
         onClick={onClose}
         type="button"
       />
-      <div className="absolute inset-x-2 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-[28px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.98)] p-3 shadow-[0_24px_60px_hsl(var(--shadow-color)/0.18)]">
-        <div className="mb-3 flex items-center justify-between gap-3 px-1">
+      <div className="absolute inset-x-2 bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-h-[min(70dvh,28rem)] overflow-y-auto rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.98)] p-2.5 shadow-[0_24px_60px_hsl(var(--shadow-color)/0.18)]">
+        <div className="mb-2 flex items-center justify-between gap-3 px-1">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-app-soft">{title}</p>
           <button
             aria-label={title}
@@ -219,7 +219,7 @@ function ComposerActionSheet({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="grid grid-cols-4 gap-2">{children}</div>
+        <div className="grid grid-cols-4 gap-1.5">{children}</div>
       </div>
     </div>
   );
@@ -239,7 +239,7 @@ const AutoResizeTextarea = forwardRef<HTMLTextAreaElement, AutoResizeTextareaPro
       <textarea
         ref={ref}
         className={cn(
-          "message-font-scope max-h-[35dvh] min-h-11 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2.5 text-[15px] leading-6 text-app-foreground shadow-none placeholder-app-muted focus-visible:outline-none focus-visible:ring-0 md:max-h-40 md:px-3 md:py-2.5",
+          "message-font-scope max-h-[32dvh] min-h-11 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-[15px] leading-6 text-app-foreground shadow-none placeholder-app-muted focus-visible:outline-none focus-visible:ring-0 md:max-h-40 md:px-3 md:py-2.5",
           formattingOpen ? "rounded-b-[22px] rounded-t-none" : "rounded-[22px]",
           isThreadComposer ? "max-h-[8.5rem]" : "",
           className,
@@ -1075,7 +1075,7 @@ export function ChatComposer({
   };
 
   const actionSheetButtonClass =
-    "flex min-h-16 flex-col items-center justify-center gap-1 rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.94)] px-2 py-2 text-center text-[11px] font-bold text-app-muted shadow-[0_8px_18px_hsl(var(--shadow-color)/0.045)] transition hover:border-[hsl(var(--primary)/0.26)] hover:bg-[hsl(var(--primary)/0.08)] hover:text-[hsl(var(--primary))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-not-allowed disabled:opacity-55";
+    "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-2 text-center text-[10px] font-bold leading-tight text-app-muted shadow-[0_8px_18px_hsl(var(--shadow-color)/0.045)] transition hover:border-[hsl(var(--primary)/0.26)] hover:bg-[hsl(var(--primary)/0.08)] hover:text-[hsl(var(--primary))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-not-allowed disabled:opacity-55";
 
   return (
     <div
@@ -1083,7 +1083,7 @@ export function ChatComposer({
         "sticky bottom-0 z-20 bg-transparent backdrop-blur-xl md:static",
         isThreadComposer
           ? "space-y-2 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:p-3"
-          : "space-y-2 p-2 pb-[max(0.65rem,env(safe-area-inset-bottom))] md:px-3 md:pb-3 md:pt-1.5",
+          : "space-y-1.5 p-2 pb-[max(0.65rem,env(safe-area-inset-bottom))] md:px-3 md:pb-3 md:pt-1.5",
       )}
       data-testid="message-composer"
       data-composer-variant={isThreadComposer ? "thread" : "default"}
@@ -1099,7 +1099,7 @@ export function ChatComposer({
           "relative border border-[hsl(var(--border)/0.44)] bg-[hsl(var(--surface-card)/0.94)] shadow-[0_10px_30px_hsl(var(--shadow-color)/0.055),inset_0_1px_0_hsl(var(--background)/0.5)] transition-colors duration-150",
           isFocused &&
             "border-[hsl(var(--primary)/0.38)] shadow-[0_14px_38px_hsl(var(--primary)/0.095),inset_0_1px_0_hsl(var(--background)/0.62)]",
-          isThreadComposer ? "rounded-[18px] p-2" : "rounded-[20px] p-2.5 md:rounded-[22px] md:p-3",
+          isThreadComposer ? "rounded-[18px] p-2" : "rounded-[20px] p-2 md:rounded-[22px] md:p-3",
         )}
       >
         {disabled ? (
@@ -1125,7 +1125,7 @@ export function ChatComposer({
           </div>
         ) : null}
         {attachmentDrafts.length > 0 ? (
-          <div className="mb-3 grid max-h-[38dvh] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 md:max-h-none md:grid-cols-5 md:overflow-visible md:pr-0">
+          <div className="mb-2 grid max-h-[34dvh] grid-cols-2 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-3 md:max-h-none md:grid-cols-5 md:gap-2 md:overflow-visible md:pr-0">
             {attachmentDrafts.map((draft) => (
               <div
                 className="group/attachment relative aspect-square overflow-hidden rounded-[20px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.42)]"
@@ -1370,10 +1370,10 @@ export function ChatComposer({
               }
               placeholder={placeholder}
               disabled={disabled}
-              data-testid="message-input"
+              data-testid={isThreadComposer ? "thread-message-input" : "message-input"}
               className={cn(
                 "bg-[hsl(var(--surface-soft)/0.24)] pr-4 focus-visible:bg-[hsl(var(--surface-soft)/0.34)]",
-                isThreadComposer ? "min-h-[4.25rem]" : "min-h-[3.75rem] md:min-h-[4rem]",
+                isThreadComposer ? "min-h-[4.25rem]" : "min-h-[3.25rem] md:min-h-[4rem]",
               )}
               formattingOpen={showFormattingToolbar}
               isThreadComposer={isThreadComposer}
@@ -1433,11 +1433,11 @@ export function ChatComposer({
 
             <div
               className={cn(
-                "mt-2 flex flex-wrap items-center justify-between gap-2.5 px-0 pt-1.5",
+                "mt-1.5 flex flex-wrap items-center justify-between gap-2 px-0 pt-1",
                 isThreadComposer ? "gap-2" : "md:gap-3 md:px-2",
               )}
             >
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5 md:gap-2">
                 <input
                   accept={MESSAGE_ATTACHMENT_ACCEPT}
                   className="hidden"
@@ -1452,10 +1452,10 @@ export function ChatComposer({
                 <ComposerButton
                   aria-expanded={isActionSheetOpen}
                   className={cn(
-                    isThreadComposer ? "h-10 min-h-10 min-w-10 rounded-xl" : "h-11 w-11",
+                    isThreadComposer ? "h-10 min-h-10 min-w-10 rounded-xl" : "h-10 w-10 md:h-11 md:w-11",
                   )}
                   data-testid="message-file-button"
-                  disabled={disabled}
+                  disabled={disabled || !allowFileUploads}
                   icon={Plus}
                   label={t("chat.attachments.attachFile")}
                   onClick={() => {
@@ -1574,7 +1574,7 @@ export function ChatComposer({
 
               <div
                 className={cn(
-                  "ml-auto flex min-w-0 items-center gap-2 md:gap-3",
+                  "ml-auto flex min-w-0 items-center gap-1.5 md:gap-3",
                   isThreadComposer ? "w-full justify-between" : "",
                 )}
               >
@@ -1592,7 +1592,7 @@ export function ChatComposer({
 
                 <ComposerButton
                   className={cn(
-                    isThreadComposer ? "h-10 min-h-10 min-w-10 rounded-xl" : "h-11 w-11",
+                    isThreadComposer ? "h-10 min-h-10 min-w-10 rounded-xl" : "h-10 w-10 md:h-11 md:w-11",
                   )}
                   disabled={disabled || !onStartVoiceMessage}
                   icon={Mic}
@@ -1611,7 +1611,7 @@ export function ChatComposer({
                   className={cn(
                     isThreadComposer
                       ? "h-10 min-h-10 min-w-10 rounded-xl"
-                      : "h-11 w-11 md:h-12 md:w-12",
+                      : "h-10 w-10 md:h-12 md:w-12",
                   )}
                   data-testid="message-send-button"
                   disabled={!canSend}

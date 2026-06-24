@@ -8,6 +8,11 @@ import {
   setE2EServerMediaSettings,
 } from "../../helpers/db";
 import { sendComposerMessage } from "../../helpers/messages";
+import {
+  gotoDmConversationRoute,
+  gotoTextChannelRoute,
+  visibleTestId,
+} from "../../helpers/navigation";
 
 const ONE_BY_ONE_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
@@ -32,8 +37,10 @@ async function waitForReadyAttachmentDraft(page: Page, filename: string): Promis
 }
 
 async function pasteImageIntoComposer(page: Page, filename: string): Promise<void> {
-  await page.getByTestId("message-input").focus();
-  await page.getByTestId("message-input").evaluate(
+  const input = visibleTestId(page, "message-input");
+
+  await input.focus();
+  await input.evaluate(
     (element, payload) => {
       const binary = window.atob(payload.base64);
       const bytes = new Uint8Array(binary.length);
@@ -60,6 +67,7 @@ async function pasteImageIntoComposer(page: Page, filename: string): Promise<voi
 
 async function openServerSettings(page: Page, serverId: string): Promise<void> {
   await page.getByTestId(`server-rail-server-${serverId}`).click({ button: "right" });
+  await expect(page.getByTestId("server-context-settings")).toBeVisible({ timeout: 10_000 });
   await page.getByTestId("server-context-settings").click();
   await expect(page.getByTestId("server-settings-overlay")).toBeVisible({ timeout: 10_000 });
 }
@@ -77,19 +85,17 @@ test.describe("uploads, GIFs, and attachments", () => {
     const content = `Pasted image attachment ${Date.now()}`;
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await gotoTextChannelRoute(page, serverId, textChannelId);
     await pasteImageIntoComposer(page, filename);
     await waitForReadyAttachmentDraft(page, filename);
     await sendMessage(page, content);
 
     const message = messageByText(page, content);
     await expect(message).toBeVisible({ timeout: 10_000 });
-    await expect(message.getByTestId("message-image-attachment").first()).toBeVisible({
-      timeout: 10_000,
-    });
-    await page.waitForTimeout(500);
+    const imageAttachment = message.getByTestId("message-image-attachment").first();
+    await expect(imageAttachment).toBeVisible({ timeout: 10_000 });
 
-    await message.getByTestId("message-image-attachment").first().click();
+    await imageAttachment.click();
     const lightbox = page.getByTestId("image-lightbox");
     await expect(lightbox).toBeVisible({ timeout: 10_000 });
     await expect(lightbox.getByTestId("image-lightbox-zoom-in")).toBeVisible({
@@ -106,7 +112,7 @@ test.describe("uploads, GIFs, and attachments", () => {
     const content = `DM file attachment ${Date.now()}`;
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/@me/${conversationId}`);
+    await gotoDmConversationRoute(page, conversationId);
     await page.getByTestId("message-file-input").setInputFiles({
       buffer: Buffer.from("Whispr E2E file attachment"),
       mimeType: "text/plain",
@@ -127,7 +133,7 @@ test.describe("uploads, GIFs, and attachments", () => {
     const content = `GIF attachment ${Date.now()}`;
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await gotoTextChannelRoute(page, serverId, textChannelId);
     await page.getByTestId("gif-picker-button").click();
     await expect(page.getByTestId("gif-picker")).toBeVisible({ timeout: 10_000 });
     await page.getByTestId("gif-option").first().click();
@@ -151,7 +157,7 @@ test.describe("uploads, GIFs, and attachments", () => {
     const { serverId, textChannelId } = await getE2EServerRoute();
 
     await loginAs(page, "alice");
-    await page.goto(`/channels/${serverId}/${textChannelId}`);
+    await gotoTextChannelRoute(page, serverId, textChannelId);
     await expect(page.getByTestId("gif-picker-button")).toBeEnabled();
     await expect(page.getByTestId("message-file-button")).toBeEnabled();
 
