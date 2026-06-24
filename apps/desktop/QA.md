@@ -161,7 +161,8 @@ Overlay must remain click-through, show only sanitized voice participant data, a
 - Build once with `WHISPR_DESKTOP_UPDATER_ENABLED=false` and confirm no title-bar update indicator appears.
 - Build a UAT ring artifact with `WHISPR_DESKTOP_UPDATER_ENABLED=true`, a HTTPS `latest.json` endpoint, the matching Ed25519 public key, and Windows code signing enabled.
 - Run `pnpm --filter @wizards/desktop release:validate-manifest` against the local generated `latest.json`, installer, and `.sig` before upload.
-- Run `pnpm --filter @wizards/desktop release:validate-manifest -- --manifest https://updates.whispr.team/desktop/uat/latest.json --expected-version <version> --check-artifact-url` after upload.
+- Confirm `latest.json` points to an immutable `desktop/<ring>/releases/<release-tag>/<installer>` URL and not a mutable ring-root installer URL.
+- Run `pnpm --filter @wizards/desktop release:validate-manifest -- --manifest https://updates.whispr.team/desktop/uat/latest.json --expected-version <version> --ring uat --release-tag <release-tag> --check-artifact-url` after upload.
 - Run `pnpm --filter @wizards/desktop release:audit` with `--require-manifest` before promotion and archive the generated report with internal release notes or CI artifacts.
 - Run `pnpm --filter @wizards/desktop release:promotion` before promotion and archive the generated JSON/Markdown evidence with the release handoff.
 - Host a signed newer UAT manifest and confirm the desktop title bar shows the compact update indicator beside the window controls.

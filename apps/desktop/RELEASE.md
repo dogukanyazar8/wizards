@@ -68,7 +68,7 @@ Generate the updater manifest from the signed installer and its `.sig` file inst
 pnpm --filter @wizards/desktop release:manifest -- `
   --artifact .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe `
   --signature .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe.sig `
-  --base-url https://updates.whispr.team/desktop/uat/ `
+  --base-url https://updates.whispr.team/desktop/uat/releases/v0.8.14-uat.1/ `
   --version 0.8.14 `
   --notes "Whispr Desktop UAT updater smoke test." `
   --out .\src-tauri\target\release\bundle\nsis\latest.json
@@ -79,11 +79,12 @@ The manifest generator enforces:
 - HTTPS artifact URLs only.
 - No localhost, `127.0.0.1`, or `whispr.invalid` update origins.
 - A directory-style `--base-url`; do not pass the `latest.json` endpoint as the base URL.
+- R2/CDN artifact URLs must be immutable release paths such as `desktop/<ring>/releases/<release-tag>/<installer>`, never overwritten ring-root installer paths.
 - `windows-x86_64` updater artifacts must be NSIS `.exe` installers.
 - Manifest versions are semver-like and do not include a leading `v`.
 - The updater signature is read from the `.sig` file verbatim and is not base64-encoded a second time.
 
-Upload the generated `latest.json` and the matching installer to the same release-ring prefix. Uploading the `.sig` file is optional for audit/debugging; the app reads the public signature embedded in `latest.json`. Never upload private updater keys, signing passwords, PFX files, or temporary key material.
+Upload the generated `latest.json` to `desktop/<ring>/latest.json`, and upload the matching installer plus `.sig` to `desktop/<ring>/releases/<release-tag>/`. The app reads only the public signature embedded in `latest.json`; the `.sig` object is retained for audit/debugging. Never upload private updater keys, signing passwords, PFX files, or temporary key material.
 
 Validate the generated manifest before uploading it:
 
@@ -92,6 +93,8 @@ pnpm --filter @wizards/desktop release:validate-manifest -- `
   --manifest .\src-tauri\target\release\bundle\nsis\latest.json `
   --artifact .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe `
   --signature .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe.sig `
+  --ring uat `
+  --release-tag v0.8.14-uat.1 `
   --expected-version 0.8.14
 ```
 
@@ -101,6 +104,8 @@ Validate the remote update feed after uploading to R2 or the release CDN:
 pnpm --filter @wizards/desktop release:validate-manifest -- `
   --manifest https://updates.whispr.team/desktop/uat/latest.json `
   --expected-version 0.8.14 `
+  --ring uat `
+  --release-tag v0.8.14-uat.1 `
   --check-artifact-url
 ```
 
@@ -262,7 +267,7 @@ pnpm --filter @wizards/desktop release:publish-plan -- `
   --version 0.8.14 `
   --release-tag v0.8.14-uat.123 `
   --web-url https://wizardsweb-uat.up.railway.app/ `
-  --updater-base-url https://updates.whispr.team/desktop/uat/ `
+  --updater-base-url https://updates.whispr.team/desktop/uat/releases/v0.8.14-uat.123/ `
   --publish-r2 true `
   --publish-github-release true `
   --artifact .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe `
@@ -276,11 +281,11 @@ pnpm --filter @wizards/desktop release:publish-plan -- `
 
 R2 publishing uses these keys:
 
-- `desktop/<ring>/Whispr_<version>_x64-setup.exe`
-- `desktop/<ring>/Whispr_<version>_x64-setup.exe.sig`
+- `desktop/<ring>/releases/<release-tag>/Whispr_<version>_x64-setup.exe`
+- `desktop/<ring>/releases/<release-tag>/Whispr_<version>_x64-setup.exe.sig`
 - `desktop/<ring>/latest.json`
 
-The installer and `.sig` are uploaded with immutable cache headers. `latest.json` is uploaded with no-cache headers because rollback is manifest-based. To roll back a bad release, publish the previously validated signed `latest.json` back to the same `desktop/<ring>/latest.json` key. Do not mutate or delete already-distributed installer objects during rollback.
+The installer and `.sig` are uploaded with immutable cache headers and never overwritten by later releases. `latest.json` is uploaded with no-cache headers because rollback is manifest-based. To roll back a bad release, publish the previously validated signed `latest.json` back to the same `desktop/<ring>/latest.json` key. Do not mutate or delete already-distributed installer objects during rollback.
 
 R2 is the canonical public download and updater source. GitHub Release publishing is optional and attaches the installer, manifest, `.sig`, build metadata, release audit, promotion evidence, and publish plan. UAT and canary releases are created as GitHub pre-releases; stable releases are normal releases. Because the repository is private, GitHub Release assets are not a public distribution channel.
 

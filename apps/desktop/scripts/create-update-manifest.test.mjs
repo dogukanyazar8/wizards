@@ -14,13 +14,14 @@ import {
 
 const signatureText =
   "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRRFJ2OXJMYkFlR29v";
+const uatReleaseBaseUrl = "https://updates.whispr.team/desktop/uat/releases/v0.8.14-uat.108/";
 
 describe("desktop update manifest generation", () => {
   it("creates a Tauri updater latest.json manifest from the signed installer artifact", async () => {
     await withTempReleaseFiles(async ({ artifactPath, signaturePath }) => {
       const manifest = await createDesktopUpdateManifestFromFiles({
         artifactPath,
-        baseUrl: "https://updates.whispr.team/desktop/uat/",
+        baseUrl: uatReleaseBaseUrl,
         notes: "UAT updater smoke.",
         pubDate: "2026-06-22T10:00:00.000Z",
         signaturePath,
@@ -34,7 +35,7 @@ describe("desktop update manifest generation", () => {
         platforms: {
           "windows-x86_64": {
             signature: signatureText,
-            url: "https://updates.whispr.team/desktop/uat/Whispr_0.8.14_x64-setup.exe",
+            url: `${uatReleaseBaseUrl}Whispr_0.8.14_x64-setup.exe`,
           },
         },
       });
@@ -46,7 +47,7 @@ describe("desktop update manifest generation", () => {
       const outputPath = path.join(dir, "latest.json");
       const result = await writeDesktopUpdateManifest({
         artifactPath,
-        baseUrl: "https://updates.whispr.team/desktop/uat",
+        baseUrl: uatReleaseBaseUrl,
         outputPath,
         signaturePath,
         version: "0.8.14",
@@ -89,7 +90,7 @@ describe("desktop update manifest generation", () => {
         () =>
           createDesktopUpdateManifest({
             artifactPath,
-            baseUrl: "https://updates.whispr.team/desktop/uat/",
+            baseUrl: uatReleaseBaseUrl,
             platform: "darwin-aarch64",
             signature: signatureText,
             signaturePath,
@@ -104,7 +105,7 @@ describe("desktop update manifest generation", () => {
         () =>
           createDesktopUpdateManifest({
             artifactPath: zipPath,
-            baseUrl: "https://updates.whispr.team/desktop/uat/",
+            baseUrl: uatReleaseBaseUrl,
             signature: signatureText,
             signaturePath,
             version: "0.8.14",
@@ -121,7 +122,7 @@ describe("desktop update manifest generation", () => {
           () =>
             createDesktopUpdateManifest({
               artifactPath,
-              baseUrl: "https://updates.whispr.team/desktop/uat/",
+              baseUrl: uatReleaseBaseUrl,
               signature: signatureText,
               signaturePath,
               version,
@@ -134,7 +135,7 @@ describe("desktop update manifest generation", () => {
 
   it("rejects unsafe artifact filenames before producing URLs", () => {
     assert.throws(
-      () => resolveArtifactUrl("https://updates.whispr.team/desktop/uat/", "Whispr 0.8.14 setup.exe"),
+      () => resolveArtifactUrl(uatReleaseBaseUrl, "Whispr 0.8.14 setup.exe"),
       /Artifact filename/,
     );
   });
@@ -147,13 +148,13 @@ describe("desktop update manifest generation", () => {
         "dist/Whispr_0.8.14_x64-setup.exe",
         "--signature=dist/Whispr_0.8.14_x64-setup.exe.sig",
         "--base-url",
-        "https://updates.whispr.team/desktop/uat/",
+        uatReleaseBaseUrl,
         "--version",
         "0.8.14",
       ]),
       {
         artifactPath: "dist/Whispr_0.8.14_x64-setup.exe",
-        baseUrl: "https://updates.whispr.team/desktop/uat/",
+        baseUrl: uatReleaseBaseUrl,
         notes: undefined,
         outputPath: undefined,
         platform: undefined,

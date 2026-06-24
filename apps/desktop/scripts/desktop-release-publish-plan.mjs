@@ -44,13 +44,15 @@ export function createDesktopReleasePublishPlan(options = {}) {
   const promotionJson = describeInputFile(options.promotionJsonPath, "promotion JSON");
   const promotionMarkdown = describeInputFile(options.promotionMarkdownPath, "promotion Markdown");
   const updaterBaseUrl = normalizeUpdaterBaseUrl(options.updaterBaseUrl, ring);
-  const updaterManifestUrl = new URL("latest.json", ensureTrailingSlash(updaterBaseUrl.href)).href;
 
   assertInstallerMatchesVersion(installer.filename, version);
   assertManifestFilename(manifest.filename);
   assertSignatureMatchesInstaller(signature.filename, installer.filename);
+  assertReleaseArtifactBaseUrl(updaterBaseUrl, { releaseTag, ring });
 
   const r2Prefix = `desktop/${ring}`;
+  const r2ReleasePrefix = `${r2Prefix}/releases/${releaseTag}`;
+  const updaterManifestUrl = resolveUpdaterManifestUrl(updaterBaseUrl, { ring }).href;
   const githubAssets = [
     installer,
     manifest,
@@ -75,12 +77,13 @@ export function createDesktopReleasePublishPlan(options = {}) {
       ? {
           endpoint: updaterBaseUrl.origin,
           manifestUrl: updaterManifestUrl,
+          releasePrefix: r2ReleasePrefix,
           uploads: [
             {
               cacheControl: "public, max-age=31536000, immutable",
               contentType: "application/vnd.microsoft.portable-executable",
               fileName: installer.filename,
-              key: `${r2Prefix}/${installer.filename}`,
+              key: `${r2ReleasePrefix}/${installer.filename}`,
             },
             {
               cacheControl: "no-cache, no-store, must-revalidate",
@@ -92,7 +95,7 @@ export function createDesktopReleasePublishPlan(options = {}) {
               cacheControl: "public, max-age=31536000, immutable",
               contentType: "text/plain; charset=utf-8",
               fileName: signature.filename,
-              key: `${r2Prefix}/${signature.filename}`,
+              key: `${r2ReleasePrefix}/${signature.filename}`,
             },
           ],
         }
@@ -281,6 +284,35 @@ function normalizeUpdaterBaseUrl(value, ring) {
   url.search = "";
 
   return new URL(ensureTrailingSlash(url.href));
+}
+
+function assertReleaseArtifactBaseUrl(url, { releaseTag, ring }) {
+  const segments = url.pathname.split("/").filter(Boolean);
+  const desktopIndex = segments.findIndex((segment) => segment === "desktop");
+
+  if (
+    desktopIndex === -1 ||
+    segments[desktopIndex + 1] !== ring ||
+    segments[desktopIndex + 2] !== "releases" ||
+    segments[desktopIndex + 3] !== releaseTag ||
+    segments.length !== desktopIndex + 4
+  ) {
+    throw new Error(
+      `Desktop publish updater base URL must point to desktop/${ring}/releases/${releaseTag}/ for immutable R2 artifacts.`,
+    );
+  }
+}
+
+function resolveUpdaterManifestUrl(artifactBaseUrl, { ring }) {
+  const segments = artifactBaseUrl.pathname.split("/").filter(Boolean);
+  const desktopIndex = segments.findIndex((segment) => segment === "desktop");
+
+  if (desktopIndex === -1 || segments[desktopIndex + 1] !== ring) {
+    throw new Error(`Desktop publish updater base URL path must include desktop/${ring}.`);
+  }
+
+  const feedPath = `/${segments.slice(0, desktopIndex + 2).join("/")}/latest.json`;
+  return new URL(feedPath, artifactBaseUrl.origin);
 }
 
 function normalizeWebUrl(value) {

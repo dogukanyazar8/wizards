@@ -11,19 +11,23 @@ import {
 } from "./validate-update-manifest.mjs";
 
 const signatureText = "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVR";
+const uatReleaseTag = "v0.8.14-uat.108";
+const uatReleaseBaseUrl = `https://updates.whispr.team/desktop/uat/releases/${uatReleaseTag}/`;
 
 describe("desktop update manifest validation", () => {
   it("accepts a safe manifest that matches the expected artifact and signature", async () => {
     await withTempManifestFiles(async ({ artifactPath, manifestPath, signaturePath }) => {
       const result = await validateDesktopUpdateManifestSource({
         artifactPath,
+        expectedReleaseTag: uatReleaseTag,
+        expectedRing: "uat",
         expectedVersion: "0.8.14",
         manifestSource: manifestPath,
         signaturePath,
       });
 
       assert.deepEqual(result, {
-        artifactUrl: "https://updates.whispr.team/desktop/uat/Whispr_0.8.14_x64-setup.exe",
+        artifactUrl: `${uatReleaseBaseUrl}Whispr_0.8.14_x64-setup.exe`,
         platform: "windows-x86_64",
         signature: signatureText,
         source: manifestPath,
@@ -65,7 +69,7 @@ describe("desktop update manifest validation", () => {
               platforms: {
                 "windows-x86_64": {
                   ...manifest.platforms["windows-x86_64"],
-                  url: "https://updates.whispr.team/desktop/uat/Whispr_0.8.15_x64-setup.exe",
+                  url: `${uatReleaseBaseUrl}Whispr_0.8.15_x64-setup.exe`,
                 },
               },
             },
@@ -116,6 +120,28 @@ describe("desktop update manifest validation", () => {
           platform: "darwin-aarch64",
         }),
       /Unsupported updater platform/,
+    );
+  });
+
+  it("rejects mutable ring-root artifact URLs that would be overwritten in R2", () => {
+    const manifest = {
+      ...buildManifest(),
+      platforms: {
+        "windows-x86_64": {
+          ...buildManifest().platforms["windows-x86_64"],
+          url: "https://updates.whispr.team/desktop/uat/Whispr_0.8.14_x64-setup.exe",
+        },
+      },
+    };
+
+    assert.throws(
+      () =>
+        validateDesktopUpdateManifest(manifest, {
+          expectedReleaseTag: uatReleaseTag,
+          expectedRing: "uat",
+          expectedVersion: "0.8.14",
+        }),
+      /immutable release path/i,
     );
   });
 
@@ -172,7 +198,7 @@ describe("desktop update manifest validation", () => {
       assert.equal(readManifest.version, "0.8.14");
       assert.equal(
         readManifest.platforms["windows-x86_64"].url,
-        "https://updates.whispr.team/desktop/uat/Whispr_0.8.14_x64-setup.exe",
+        `${uatReleaseBaseUrl}Whispr_0.8.14_x64-setup.exe`,
       );
     });
   });
@@ -188,11 +214,17 @@ describe("desktop update manifest validation", () => {
         "Whispr_0.8.14_x64-setup.exe.sig",
         "--expected-version",
         "0.8.14",
+        "--ring",
+        "uat",
+        "--release-tag",
+        uatReleaseTag,
         "--check-artifact-url",
       ]),
       {
         artifactPath: "Whispr_0.8.14_x64-setup.exe",
         checkArtifactUrl: true,
+        expectedReleaseTag: uatReleaseTag,
+        expectedRing: "uat",
         expectedVersion: "0.8.14",
         manifestSource: "latest.json",
         platform: undefined,
@@ -213,7 +245,7 @@ function buildManifest(overrides = {}) {
     platforms: {
       "windows-x86_64": {
         signature: signatureText,
-        url: "https://updates.whispr.team/desktop/uat/Whispr_0.8.14_x64-setup.exe",
+        url: `${uatReleaseBaseUrl}Whispr_0.8.14_x64-setup.exe`,
       },
     },
     ...overrides,

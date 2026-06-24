@@ -7,10 +7,14 @@ import { getDesktopVersionContract } from "./release-ops.mjs";
 const SUPPORTED_PLATFORMS = Object.freeze(["windows-x86_64"]);
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
 const DEFAULT_REMOTE_TIMEOUT_MS = 8_000;
+const DESKTOP_RELEASE_RINGS = Object.freeze(["uat", "canary", "stable"]);
+const DESKTOP_RELEASE_RING_SET = new Set(DESKTOP_RELEASE_RINGS);
 
 export function validateDesktopUpdateManifest(manifest, options = {}) {
   const platform = options.platform || "windows-x86_64";
   const expectedVersion = options.expectedVersion || getDesktopVersionContract().desktopNativeVersion;
+  const expectedReleaseTag = options.expectedReleaseTag;
+  const expectedRing = options.expectedRing;
   const expectedSignature = options.expectedSignature;
   const expectedArtifactPath = options.artifactPath ? assertExistingFile(options.artifactPath, "artifact") : null;
 
@@ -44,6 +48,11 @@ export function validateDesktopUpdateManifest(manifest, options = {}) {
   if (platform === "windows-x86_64" && !artifactUrl.pathname.endsWith(".exe")) {
     throw new Error("windows-x86_64 updater artifact URL must point to an NSIS .exe installer.");
   }
+
+  assertImmutableReleaseArtifactUrl(artifactUrl, {
+    expectedReleaseTag,
+    expectedRing,
+  });
 
   if (expectedArtifactPath) {
     const artifactName = path.basename(expectedArtifactPath);
@@ -111,6 +120,8 @@ export async function validateDesktopUpdateManifestSource(options) {
       : await readFile(assertExistingFile(options.signaturePath, "signature"), "utf8");
   const result = validateDesktopUpdateManifest(manifest, {
     artifactPath: options.artifactPath,
+    expectedReleaseTag: options.expectedReleaseTag,
+    expectedRing: options.expectedRing,
     expectedSignature,
     expectedVersion: options.expectedVersion,
     platform: options.platform,
@@ -134,6 +145,8 @@ export function parseValidationCliArgs(argv) {
     "expected-version",
     "manifest",
     "platform",
+    "release-tag",
+    "ring",
     "signature",
   ]);
 
@@ -181,6 +194,8 @@ export function parseValidationCliArgs(argv) {
   return {
     artifactPath: values.get("artifact"),
     checkArtifactUrl: values.get("check-artifact-url") === "true",
+    expectedReleaseTag: values.get("release-tag"),
+    expectedRing: values.get("ring"),
     expectedVersion: values.get("expected-version"),
     manifestSource: values.get("manifest"),
     platform: values.get("platform"),
@@ -288,6 +303,67 @@ function assertSafeHttpsUrl(value, label) {
   }
 
   return url;
+}
+
+function assertImmutableReleaseArtifactUrl(url, options = {}) {
+  const segments = url.pathname.split("/").filter(Boolean).map((segment) => decodeURIComponent(segment));
+  const filename = segments.at(-1) || "";
+  const desktopIndex = segments.findIndex(
+    (segment, index) => segment === "desktop" && DESKTOP_RELEASE_RING_SET.has(segments[index + 1]),
+  );
+  const expectedRing = options.expectedRing ? normalizeReleaseRing(options.expectedRing) : null;
+  const expectedReleaseTag = options.expectedReleaseTag ? normalizeReleaseTag(options.expectedReleaseTag) : null;
+
+  if (desktopIndex === -1) {
+    if (expectedRing || expectedReleaseTag) {
+      throw new Error("Updater artifact URL must include desktop/<ring>/releases/<release-tag>/ path segments.");
+    }
+
+    return;
+  }
+
+  const ring = segments[desktopIndex + 1];
+  const releasesSegment = segments[desktopIndex + 2];
+  const releaseTag = segments[desktopIndex + 3];
+  const releaseFilename = segments[desktopIndex + 4];
+
+  if (expectedRing && ring !== expectedRing) {
+    throw new Error(`Updater artifact URL release ring (${ring}) does not match expected ${expectedRing}.`);
+  }
+
+  if (releasesSegment !== "releases" || !releaseTag) {
+    throw new Error(
+      "Updater artifact URL must use an immutable release path: desktop/<ring>/releases/<release-tag>/<installer>.",
+    );
+  }
+
+  if (expectedReleaseTag && releaseTag !== expectedReleaseTag) {
+    throw new Error(`Updater artifact URL release tag (${releaseTag}) does not match expected ${expectedReleaseTag}.`);
+  }
+
+  if (releaseFilename !== filename || segments.length !== desktopIndex + 5) {
+    throw new Error("Updater artifact URL must place the installer directly under its immutable release tag directory.");
+  }
+}
+
+function normalizeReleaseRing(value) {
+  const ring = String(value || "").trim();
+
+  if (!DESKTOP_RELEASE_RING_SET.has(ring)) {
+    throw new Error(`Updater artifact release ring must be one of: ${DESKTOP_RELEASE_RINGS.join(", ")}.`);
+  }
+
+  return ring;
+}
+
+function normalizeReleaseTag(value) {
+  const releaseTag = String(value || "").trim();
+
+  if (!/^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?(?:-(?:uat|canary)\.[1-9]\d*)?$/.test(releaseTag)) {
+    throw new Error("Updater artifact release tag must be a valid desktop release tag.");
+  }
+
+  return releaseTag;
 }
 
 function isLoopbackHost(hostname) {

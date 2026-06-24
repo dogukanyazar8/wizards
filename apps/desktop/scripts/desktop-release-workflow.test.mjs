@@ -48,7 +48,11 @@ describe("desktop release workflow contract", () => {
     assert.equal(contract.publish.githubRelease, false);
     assert.equal(contract.publish.r2, false);
     assert.equal(contract.updater.enabled, true);
-    assert.equal(contract.updater.artifactBaseUrl, "https://updates.whispr.team/desktop/uat/");
+    assert.equal(
+      contract.updater.artifactBaseUrl,
+      `https://updates.whispr.team/desktop/uat/releases/v${desktopVersion}-uat.108/`,
+    );
+    assert.equal(contract.updater.feedBaseUrl, "https://updates.whispr.team/desktop/uat/");
     assert.equal(
       contract.updater.manifestUrl,
       "https://updates.whispr.team/desktop/uat/latest.json",
@@ -67,7 +71,11 @@ describe("desktop release workflow contract", () => {
       webUrl: "https://wizardsweb-uat.up.railway.app/",
     });
 
-    assert.equal(contract.updater.artifactBaseUrl, "https://updates.whispr.team/desktop/uat/");
+    assert.equal(
+      contract.updater.artifactBaseUrl,
+      `https://updates.whispr.team/desktop/uat/releases/v${desktopVersion}-uat.108/`,
+    );
+    assert.equal(contract.updater.feedBaseUrl, "https://updates.whispr.team/desktop/uat/");
     assert.equal(
       contract.updater.manifestUrl,
       "https://updates.whispr.team/desktop/uat/latest.json",

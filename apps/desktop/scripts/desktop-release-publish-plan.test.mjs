@@ -20,19 +20,20 @@ describe("desktop release publish plan", () => {
         publishR2: "true",
         releaseTag: `v${desktopVersion}-uat.108`,
         ring: "uat",
-        updaterBaseUrl: "https://updates.whispr.team/desktop/uat/",
+        updaterBaseUrl: `https://updates.whispr.team/desktop/uat/releases/v${desktopVersion}-uat.108/`,
         version: desktopVersion,
         webUrl: "https://wizardsweb-uat.up.railway.app/",
       });
 
       assert.equal(plan.release.ring, "uat");
       assert.equal(plan.r2.manifestUrl, "https://updates.whispr.team/desktop/uat/latest.json");
+      assert.equal(plan.r2.releasePrefix, `desktop/uat/releases/v${desktopVersion}-uat.108`);
       assert.deepEqual(
         plan.r2.uploads.map((upload) => upload.key),
         [
-          `desktop/uat/Whispr_${desktopVersion}_x64-setup.exe`,
+          `desktop/uat/releases/v${desktopVersion}-uat.108/Whispr_${desktopVersion}_x64-setup.exe`,
           "desktop/uat/latest.json",
-          `desktop/uat/Whispr_${desktopVersion}_x64-setup.exe.sig`,
+          `desktop/uat/releases/v${desktopVersion}-uat.108/Whispr_${desktopVersion}_x64-setup.exe.sig`,
         ],
       );
       assert.equal(plan.githubRelease.prerelease, true);
@@ -53,14 +54,17 @@ describe("desktop release publish plan", () => {
         publishR2: "true",
         releaseTag: `v${desktopVersion}`,
         ring: "stable",
-        updaterBaseUrl: "https://updates.whispr.team/desktop/stable/",
+        updaterBaseUrl: `https://updates.whispr.team/desktop/stable/releases/v${desktopVersion}/`,
         version: desktopVersion,
         webUrl: "https://whispr.team/",
       });
 
       assert.equal(plan.githubRelease.prerelease, false);
       assert.equal(plan.githubRelease.releaseTag, `v${desktopVersion}`);
-      assert.equal(plan.r2.uploads[0].key, `desktop/stable/Whispr_${desktopVersion}_x64-setup.exe`);
+      assert.equal(
+        plan.r2.uploads[0].key,
+        `desktop/stable/releases/v${desktopVersion}/Whispr_${desktopVersion}_x64-setup.exe`,
+      );
     });
   });
 
@@ -74,7 +78,7 @@ describe("desktop release publish plan", () => {
             publishR2: "false",
             releaseTag: `v${desktopVersion}-uat.108`,
             ring: "uat",
-            updaterBaseUrl: "https://updates.whispr.team/desktop/uat/",
+            updaterBaseUrl: `https://updates.whispr.team/desktop/uat/releases/v${desktopVersion}-uat.108/`,
             version: desktopVersion,
           }),
         /requires publish_r2=true/i,
@@ -88,7 +92,7 @@ describe("desktop release publish plan", () => {
             publishR2: "true",
             releaseTag: `v${desktopVersion}-uat.108`,
             ring: "uat",
-            updaterBaseUrl: "https://updates.whispr.team/desktop/stable/",
+            updaterBaseUrl: `https://updates.whispr.team/desktop/stable/releases/v${desktopVersion}-uat.108/`,
             version: desktopVersion,
           }),
         /release ring segment/i,
@@ -102,7 +106,7 @@ describe("desktop release publish plan", () => {
             publishR2: "true",
             releaseTag: `v${desktopVersion}`,
             ring: "uat",
-            updaterBaseUrl: "https://updates.whispr.team/desktop/uat/",
+            updaterBaseUrl: `https://updates.whispr.team/desktop/uat/releases/v${desktopVersion}/`,
             version: desktopVersion,
           }),
         /must start with/i,
@@ -117,7 +121,7 @@ describe("desktop release publish plan", () => {
             publishR2: "true",
             releaseTag: `v${desktopVersion}-uat.108`,
             ring: "uat",
-            updaterBaseUrl: "https://updates.whispr.team/desktop/uat/",
+            updaterBaseUrl: `https://updates.whispr.team/desktop/uat/releases/v${desktopVersion}-uat.108/`,
             version: desktopVersion,
           }),
         /manifest filename must be latest\.json/i,
@@ -145,6 +149,20 @@ describe("desktop release publish plan", () => {
             publishR2: "true",
             releaseTag: `v${desktopVersion}-uat.108`,
             ring: "uat",
+            updaterBaseUrl: "https://updates.whispr.team/desktop/uat/",
+            version: desktopVersion,
+          }),
+        /immutable R2 artifacts/i,
+      );
+
+      assert.throws(
+        () =>
+          createDesktopReleasePublishPlan({
+            ...files,
+            publishGithubRelease: "false",
+            publishR2: "true",
+            releaseTag: `v${desktopVersion}-uat.108`,
+            ring: "uat",
             updaterBaseUrl: "https://updates.whispr.team/desktop/uat/latest.json",
             version: desktopVersion,
           }),
@@ -160,7 +178,7 @@ describe("desktop release publish plan", () => {
             releaseTag: `v${desktopVersion}-uat.108`,
             ring: "uat",
             signaturePath: files.auditPath,
-            updaterBaseUrl: "https://updates.whispr.team/desktop/uat/",
+            updaterBaseUrl: `https://updates.whispr.team/desktop/uat/releases/v${desktopVersion}-uat.108/`,
             version: desktopVersion,
           }),
         /signature filename must match/i,
@@ -179,7 +197,7 @@ describe("desktop release publish plan", () => {
         "--release-tag",
         `v${desktopVersion}-uat.108`,
         "--updater-base-url",
-        "https://updates.whispr.team/desktop/uat/",
+        `https://updates.whispr.team/desktop/uat/releases/v${desktopVersion}-uat.108/`,
         "--publish-r2",
         "true",
         "--publish-github-release",
@@ -214,7 +232,7 @@ describe("desktop release publish plan", () => {
         releaseTag: `v${desktopVersion}-uat.108`,
         ring: "uat",
         signaturePath: "Whispr_0.8.14_x64-setup.exe.sig",
-        updaterBaseUrl: "https://updates.whispr.team/desktop/uat/",
+        updaterBaseUrl: `https://updates.whispr.team/desktop/uat/releases/v${desktopVersion}-uat.108/`,
         version: desktopVersion,
         webUrl: undefined,
       },

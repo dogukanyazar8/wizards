@@ -33,12 +33,20 @@ export function createDesktopReleaseWorkflowContract(options = {}) {
     false,
     "confirm_stable_release",
   );
-  const updaterBaseUrl = enableUpdater
-    ? normalizeUpdaterBaseUrl(options.updaterBaseUrl || defaultUpdaterBaseUrlForRing(ring), ring)
-    : null;
   const refName = String(options.refName || "").trim();
   const releaseSequence = normalizeReleaseSequence(options.releaseSequence, ring);
   const versionContract = assertDesktopVersionContract(getDesktopVersionContract(options.projectRoot));
+  const tagName = buildDesktopReleaseTag({
+    releaseSequence,
+    ring,
+    version,
+  });
+  const updaterFeedBaseUrl = enableUpdater
+    ? normalizeUpdaterBaseUrl(options.updaterBaseUrl || defaultUpdaterFeedBaseUrlForRing(ring), ring)
+    : null;
+  const updaterArtifactBaseUrl = updaterFeedBaseUrl
+    ? buildReleaseArtifactBaseUrl(updaterFeedBaseUrl, tagName)
+    : null;
 
   if (version !== versionContract.desktopNativeVersion) {
     throw new Error(
@@ -67,12 +75,6 @@ export function createDesktopReleaseWorkflowContract(options = {}) {
     throw new Error("Desktop GitHub Release publishing requires enable_updater=true so signed manifest evidence exists.");
   }
 
-  const tagName = buildDesktopReleaseTag({
-    releaseSequence,
-    ring,
-    version,
-  });
-
   return {
     github: {
       refName,
@@ -91,9 +93,10 @@ export function createDesktopReleaseWorkflowContract(options = {}) {
     },
     updater: {
       enabled: enableUpdater,
-      artifactBaseUrl: updaterBaseUrl ? updaterBaseUrl.href : null,
-      manifestUrl: updaterBaseUrl
-        ? new URL("latest.json", ensureTrailingSlash(updaterBaseUrl.href)).href
+      artifactBaseUrl: updaterArtifactBaseUrl ? updaterArtifactBaseUrl.href : null,
+      feedBaseUrl: updaterFeedBaseUrl ? updaterFeedBaseUrl.href : null,
+      manifestUrl: updaterFeedBaseUrl
+        ? new URL("latest.json", ensureTrailingSlash(updaterFeedBaseUrl.href)).href
         : null,
     },
     version,
@@ -248,7 +251,7 @@ function normalizeUpdaterBaseUrl(value, ring) {
   }
 
   if (url.pathname.endsWith(".json")) {
-    throw new Error("Desktop updater_base_url must be an artifact directory, not latest.json.");
+    throw new Error("Desktop updater_base_url must be the updater feed directory, not latest.json.");
   }
 
   const pathSegments = url.pathname.split("/").filter(Boolean);
@@ -319,8 +322,12 @@ function defaultWebUrlForRing(ring) {
   return ring === "stable" ? STABLE_WEB_URL : DEFAULT_UAT_WEB_URL;
 }
 
-function defaultUpdaterBaseUrlForRing(ring) {
+function defaultUpdaterFeedBaseUrlForRing(ring) {
   return `${DEFAULT_UPDATER_BASE_ORIGIN}/desktop/${ring}/`;
+}
+
+function buildReleaseArtifactBaseUrl(feedBaseUrl, releaseTag) {
+  return new URL(`releases/${releaseTag}/`, ensureTrailingSlash(feedBaseUrl.href));
 }
 
 function releaseStrategyForRing(ring) {

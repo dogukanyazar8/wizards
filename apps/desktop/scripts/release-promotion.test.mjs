@@ -10,6 +10,8 @@ import {
 } from "./release-promotion.mjs";
 
 const signatureText = "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVR";
+const uatReleaseTag = "v0.8.14-uat.108";
+const uatReleaseBaseUrl = `https://updates.whispr.team/desktop/uat/releases/${uatReleaseTag}/`;
 
 describe("desktop release promotion bundle", () => {
   it("creates a ready promotion bundle without leaking signatures or local paths", async () => {
@@ -19,6 +21,7 @@ describe("desktop release promotion bundle", () => {
         expectedVersion: "0.8.14",
         manifestSource: manifestPath,
         manifestUrl: "https://updates.whispr.team/desktop/uat/latest.json",
+        releaseTag: uatReleaseTag,
         ring: "uat",
         signaturePath,
         webUrl: "https://wizardsweb-uat.up.railway.app/",
@@ -136,6 +139,8 @@ describe("desktop release promotion bundle", () => {
         "Whispr_0.8.14_x64-setup.exe.sig",
         "--expected-version",
         "0.8.14",
+        "--release-tag",
+        uatReleaseTag,
         "--check-artifact-url",
         "--web-url",
         "https://wizardsweb-uat.up.railway.app/",
@@ -150,6 +155,7 @@ describe("desktop release promotion bundle", () => {
         manifestUrl: "https://updates.whispr.team/desktop/uat/latest.json",
         outputDir: "release-evidence",
         platform: undefined,
+        releaseTag: uatReleaseTag,
         ring: "uat",
         signaturePath: "Whispr_0.8.14_x64-setup.exe.sig",
         webUrl: "https://wizardsweb-uat.up.railway.app/",
@@ -170,7 +176,7 @@ function buildManifest() {
     platforms: {
       "windows-x86_64": {
         signature: signatureText,
-        url: "https://updates.whispr.team/desktop/uat/Whispr_0.8.14_x64-setup.exe",
+        url: `${uatReleaseBaseUrl}Whispr_0.8.14_x64-setup.exe`,
       },
     },
   };

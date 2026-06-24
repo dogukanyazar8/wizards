@@ -11,6 +11,8 @@ import {
 } from "./release-audit.mjs";
 
 const signatureText = "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVR";
+const uatReleaseTag = "v0.8.14-uat.108";
+const uatReleaseBaseUrl = `https://updates.whispr.team/desktop/uat/releases/${uatReleaseTag}/`;
 
 describe("desktop release audit", () => {
   it("creates a redacted release audit report for a signed UAT updater artifact", async () => {
@@ -20,6 +22,7 @@ describe("desktop release audit", () => {
         expectedVersion: "0.8.14",
         manifestSource: manifestPath,
         manifestUrl: "https://updates.whispr.team/desktop/uat/latest.json",
+        releaseTag: uatReleaseTag,
         ring: "uat",
         signaturePath,
         webUrl: "https://wizardsweb-uat.up.railway.app/",
@@ -44,7 +47,7 @@ describe("desktop release audit", () => {
         sizeBytes: artifactBytes.length,
       });
       assert.deepEqual(report.updaterFeed, {
-        artifactUrl: "https://updates.whispr.team/desktop/uat/Whispr_0.8.14_x64-setup.exe",
+        artifactUrl: `${uatReleaseBaseUrl}Whispr_0.8.14_x64-setup.exe`,
         manifestUrl: "https://updates.whispr.team/desktop/uat/latest.json",
         platform: "windows-x86_64",
         signatureVerified: true,
@@ -146,6 +149,8 @@ describe("desktop release audit", () => {
         "Whispr_0.8.14_x64-setup.exe.sig",
         "--expected-version",
         "0.8.14",
+        "--release-tag",
+        uatReleaseTag,
         "--check-artifact-url",
         "--require-manifest",
         "--web-url",
@@ -161,6 +166,7 @@ describe("desktop release audit", () => {
         manifestUrl: "https://updates.whispr.team/desktop/uat/latest.json",
         outputPath: "release-audit.json",
         platform: undefined,
+        releaseTag: uatReleaseTag,
         requireManifest: true,
         ring: "uat",
         signaturePath: "Whispr_0.8.14_x64-setup.exe.sig",
@@ -181,7 +187,7 @@ function buildManifest() {
     platforms: {
       "windows-x86_64": {
         signature: signatureText,
-        url: "https://updates.whispr.team/desktop/uat/Whispr_0.8.14_x64-setup.exe",
+        url: `${uatReleaseBaseUrl}Whispr_0.8.14_x64-setup.exe`,
       },
     },
   };

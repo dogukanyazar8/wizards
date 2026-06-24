@@ -38,7 +38,7 @@ on:
         type: boolean
       updater_base_url:
         default: ""
-        description: Optional HTTPS updater artifact directory. Defaults to https://updates.whispr.team/desktop/<ring>/ when R2 publishing is requested
+        description: Optional HTTPS updater feed directory. Artifacts are published below releases/<tag>/ and latest.json stays at the feed root. Defaults to https://updates.whispr.team/desktop/<ring>/
         required: false
         type: string
       confirm_stable_release:
@@ -144,7 +144,7 @@ jobs:
             echo "| Updater enabled | \`${{ steps.contract.outputs.enable_updater }}\` |"
             echo "| GitHub Release publish requested | \`${{ steps.contract.outputs.publish_github_release }}\` |"
             echo "| R2 publish requested | \`${{ steps.contract.outputs.publish_r2 }}\` |"
-            echo "| Updater base URL | \`${{ steps.contract.outputs.updater_base_url || 'not requested' }}\` |"
+            echo "| Updater artifact base URL | \`${{ steps.contract.outputs.updater_base_url || 'not requested' }}\` |"
             echo "| Updater manifest URL | \`${{ steps.contract.outputs.updater_manifest_url || 'not requested' }}\` |"
             echo "| Pre-release | \`${{ steps.contract.outputs.is_prerelease }}\` |"
             echo ""
@@ -356,6 +356,8 @@ jobs:
             --manifest "$manifestPath" `
             --artifact "$installerPath" `
             --signature "$signaturePath" `
+            --ring "${{ needs.release-contract.outputs.release_ring }}" `
+            --release-tag "${{ needs.release-contract.outputs.release_tag }}" `
             --expected-version "${{ needs.release-contract.outputs.version }}"
 
           $auditPath = Join-Path $evidenceDir "desktop-release-audit-${{ needs.release-contract.outputs.version }}-${{ needs.release-contract.outputs.release_ring }}.json"
@@ -367,6 +369,7 @@ jobs:
             --manifest-url "${{ needs.release-contract.outputs.updater_manifest_url }}" `
             --artifact "$installerPath" `
             --signature "$signaturePath" `
+            --release-tag "${{ needs.release-contract.outputs.release_tag }}" `
             --expected-version "${{ needs.release-contract.outputs.version }}" `
             --require-manifest `
             --out "$auditPath"
@@ -378,6 +381,7 @@ jobs:
             --manifest-url "${{ needs.release-contract.outputs.updater_manifest_url }}" `
             --artifact "$installerPath" `
             --signature "$signaturePath" `
+            --release-tag "${{ needs.release-contract.outputs.release_tag }}" `
             --expected-version "${{ needs.release-contract.outputs.version }}" `
             --out-dir "$evidenceDir"
 
@@ -567,18 +571,20 @@ jobs:
 
           endpoint_url="https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
           ring="${{ needs.release-contract.outputs.release_ring }}"
+          release_tag="${{ needs.release-contract.outputs.release_tag }}"
           installer="${{ steps.assets.outputs.installer }}"
           signature="${{ steps.assets.outputs.signature }}"
           manifest="${{ steps.assets.outputs.manifest }}"
           installer_name="$(basename "$installer")"
           signature_name="$(basename "$signature")"
+          release_prefix="desktop/${ring}/releases/${release_tag}"
 
-          aws --endpoint-url "$endpoint_url" s3 cp "$installer" "s3://${R2_BUCKET}/desktop/${ring}/${installer_name}" \
+          aws --endpoint-url "$endpoint_url" s3 cp "$installer" "s3://${R2_BUCKET}/${release_prefix}/${installer_name}" \
             --content-type "application/vnd.microsoft.portable-executable" \
             --cache-control "public, max-age=31536000, immutable" \
             --no-progress
 
-          aws --endpoint-url "$endpoint_url" s3 cp "$signature" "s3://${R2_BUCKET}/desktop/${ring}/${signature_name}" \
+          aws --endpoint-url "$endpoint_url" s3 cp "$signature" "s3://${R2_BUCKET}/${release_prefix}/${signature_name}" \
             --content-type "text/plain; charset=utf-8" \
             --cache-control "public, max-age=31536000, immutable" \
             --no-progress
@@ -599,6 +605,8 @@ jobs:
               --manifest "${{ needs.release-contract.outputs.updater_manifest_url }}" \
               --artifact "${{ steps.assets.outputs.installer }}" \
               --signature "${{ steps.assets.outputs.signature }}" \
+              --ring "${{ needs.release-contract.outputs.release_ring }}" \
+              --release-tag "${{ needs.release-contract.outputs.release_tag }}" \
               --expected-version "${{ needs.release-contract.outputs.version }}" \
               --check-artifact-url; then
               exit 0
