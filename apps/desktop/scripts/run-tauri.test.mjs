@@ -16,16 +16,30 @@ const generatedConfigPath = path.join(
   "generated",
   "tauri.conf.generated.json",
 );
+const isolatedDesktopEnvKeys = [
+  "TAURI_APP_NAME",
+  "TAURI_DEV_WEB_URL",
+  "TAURI_SIGNING_PRIVATE_KEY",
+  "TAURI_SIGNING_PRIVATE_KEY_PASSWORD",
+  "TAURI_WEB_URL",
+  "WINDOWS_CERTIFICATE_PASSWORD",
+  "WINDOWS_CERTIFICATE_PFX_BASE64",
+  "WHISPR_DESKTOP_RELEASE_RING",
+  "WHISPR_DESKTOP_UPDATER_ENABLED",
+  "WHISPR_DESKTOP_UPDATER_ENDPOINT",
+  "WHISPR_DESKTOP_UPDATER_ENDPOINTS",
+  "WHISPR_DESKTOP_UPDATER_PUBLIC_KEY",
+  "WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND",
+  "WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED",
+];
 
 describe("desktop Tauri config generation", () => {
   it("defaults production builds to the canonical Whispr web origin", async () => {
     const productionUrl = "https://whispr.team";
-    const env = { ...process.env };
-    delete env.TAURI_WEB_URL;
 
     await execFileAsync(process.execPath, [runTauriScript, "build", "--write-config-only"], {
       cwd: desktopRoot,
-      env,
+      env: testDesktopEnv(),
     });
 
     const generatedConfig = JSON.parse(await readFile(generatedConfigPath, "utf8"));
@@ -119,10 +133,9 @@ describe("desktop Tauri config generation", () => {
 
     await execFileAsync(process.execPath, [runTauriScript, "build", "--write-config-only"], {
       cwd: desktopRoot,
-      env: {
-        ...process.env,
+      env: testDesktopEnv({
         TAURI_WEB_URL: productionUrl,
-      },
+      }),
     });
 
     const generatedConfig = JSON.parse(await readFile(generatedConfigPath, "utf8"));
@@ -148,8 +161,7 @@ describe("desktop Tauri config generation", () => {
 
     await execFileAsync(process.execPath, [runTauriScript, "build", "--write-config-only"], {
       cwd: desktopRoot,
-      env: {
-        ...process.env,
+      env: testDesktopEnv({
         TAURI_WEB_URL: productionUrl,
         WHISPR_DESKTOP_RELEASE_RING: "uat",
         WHISPR_DESKTOP_UPDATER_ENABLED: "true",
@@ -158,7 +170,7 @@ describe("desktop Tauri config generation", () => {
         WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED: "true",
         WINDOWS_CERTIFICATE_PASSWORD: "test-certificate-password",
         WINDOWS_CERTIFICATE_PFX_BASE64: "dGVzdC1jZXJ0aWZpY2F0ZQ==",
-      },
+      }),
     });
 
     const generatedConfig = JSON.parse(await readFile(generatedConfigPath, "utf8"));
@@ -206,12 +218,9 @@ describe("desktop Tauri config generation", () => {
   });
 
   it("keeps generated desktop permissions aligned with the main window capability", async () => {
-    const env = { ...process.env };
-    delete env.TAURI_WEB_URL;
-
     await execFileAsync(process.execPath, [runTauriScript, "build", "--write-config-only"], {
       cwd: desktopRoot,
-      env,
+      env: testDesktopEnv(),
     });
 
     const generatedConfig = JSON.parse(await readFile(generatedConfigPath, "utf8"));
@@ -325,10 +334,9 @@ describe("desktop Tauri config generation", () => {
     await assert.rejects(
       execFileAsync(process.execPath, [runTauriScript, "build", "--write-config-only"], {
         cwd: desktopRoot,
-        env: {
-          ...process.env,
+        env: testDesktopEnv({
           TAURI_WEB_URL: "http://prod.whispr.example",
-        },
+        }),
       }),
       /TAURI_WEB_URL must be an HTTPS origin/,
     );
@@ -338,11 +346,10 @@ describe("desktop Tauri config generation", () => {
     await assert.rejects(
       execFileAsync(process.execPath, [runTauriScript, "build", "--write-config-only"], {
         cwd: desktopRoot,
-        env: {
-          ...process.env,
+        env: testDesktopEnv({
           WHISPR_DESKTOP_UPDATER_ENABLED: "true",
           WHISPR_DESKTOP_UPDATER_ENDPOINTS: "https://updates.whispr.team/desktop/uat/latest.json",
-        },
+        }),
       }),
       /WHISPR_DESKTOP_UPDATER_PUBLIC_KEY is required/,
     );
@@ -350,12 +357,11 @@ describe("desktop Tauri config generation", () => {
     await assert.rejects(
       execFileAsync(process.execPath, [runTauriScript, "build", "--write-config-only"], {
         cwd: desktopRoot,
-        env: {
-          ...process.env,
+        env: testDesktopEnv({
           WHISPR_DESKTOP_UPDATER_ENABLED: "true",
           WHISPR_DESKTOP_UPDATER_ENDPOINTS: "https://updates.whispr.team/desktop/uat/latest.json",
           WHISPR_DESKTOP_UPDATER_PUBLIC_KEY: "trusted-ed25519-public-key",
-        },
+        }),
       }),
       /WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED=true is required/,
     );
@@ -363,15 +369,14 @@ describe("desktop Tauri config generation", () => {
     await assert.rejects(
       execFileAsync(process.execPath, [runTauriScript, "build", "--write-config-only"], {
         cwd: desktopRoot,
-        env: {
-          ...process.env,
+        env: testDesktopEnv({
           WHISPR_DESKTOP_UPDATER_ENABLED: "true",
           WHISPR_DESKTOP_UPDATER_ENDPOINTS: "http://localhost:3000/latest.json",
           WHISPR_DESKTOP_UPDATER_PUBLIC_KEY: "trusted-ed25519-public-key",
           WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED: "true",
           WINDOWS_CERTIFICATE_PASSWORD: "test-certificate-password",
           WINDOWS_CERTIFICATE_PFX_BASE64: "dGVzdC1jZXJ0aWZpY2F0ZQ==",
-        },
+        }),
       }),
       /TAURI_WEB_URL must be an HTTPS origin|Desktop updater endpoints must not point/,
     );
@@ -379,18 +384,30 @@ describe("desktop Tauri config generation", () => {
     await assert.rejects(
       execFileAsync(process.execPath, [runTauriScript, "build", "--write-config-only"], {
         cwd: desktopRoot,
-        env: {
-          ...process.env,
+        env: testDesktopEnv({
           WHISPR_DESKTOP_RELEASE_RING: "nightly",
           WHISPR_DESKTOP_UPDATER_ENABLED: "true",
           WHISPR_DESKTOP_UPDATER_ENDPOINTS: "https://updates.whispr.team/desktop/uat/latest.json",
           WHISPR_DESKTOP_UPDATER_PUBLIC_KEY: "trusted-ed25519-public-key",
-        },
+        }),
       }),
       /WHISPR_DESKTOP_RELEASE_RING must be one of/,
     );
   });
 });
+
+function testDesktopEnv(overrides = {}) {
+  const env = { ...process.env };
+
+  for (const key of isolatedDesktopEnvKeys) {
+    delete env[key];
+  }
+
+  return {
+    ...env,
+    ...overrides,
+  };
+}
 
 function getCspDirective(csp, directiveName) {
   const directive = csp

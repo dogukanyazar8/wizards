@@ -1,43 +1,43 @@
 {
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\create-update-manifest.mjs": {
-    "mtime": 1782271412.616407,
-    "hash": "a497bfd2380f421fbf5ab981cd1251b2"
+    "mtime": 1782271769.128965,
+    "hash": "edbd129ae29b2ee3b10859d2d2d42e79"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\create-update-manifest.test.mjs": {
-    "mtime": 1782271489.184726,
-    "hash": "fbbd199025024992776fb42b7ccc7d78"
+    "mtime": 1782271769.128965,
+    "hash": "76fe93ea25dc5e3f02aa66d5265f1ee6"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\desktop-release-artifacts.mjs": {
-    "mtime": 1782271412.6174083,
-    "hash": "9e358dc614063e33ddd3603cb3f1cea7"
+    "mtime": 1782271769.1299648,
+    "hash": "646dc8b35c815f61453654a334476158"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\desktop-release-artifacts.test.mjs": {
-    "mtime": 1782271489.184726,
-    "hash": "31bdb0c73b129542d844cd9758f17271"
+    "mtime": 1782271769.1304905,
+    "hash": "5634f310d0324708c890746dd9931785"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\desktop-release-publish-plan.mjs": {
-    "mtime": 1782271412.6174083,
-    "hash": "2cac824411bfa9fe0c2d229910a2f836"
+    "mtime": 1782271769.1314955,
+    "hash": "8763df73f4b80809953b0f686a6de013"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\desktop-release-publish-plan.test.mjs": {
-    "mtime": 1782271489.1857257,
-    "hash": "c6f88034a34f2628f10a8d26041a431f"
+    "mtime": 1782271769.1314955,
+    "hash": "c05e576c3fae839b745beb38308a61ce"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\desktop-release-workflow.mjs": {
-    "mtime": 1782271412.6184125,
-    "hash": "50b08ec7b3226195fa5ea13af9b97161"
+    "mtime": 1782271769.1324954,
+    "hash": "66e92de4d62907c7379bbd27b0c1fd9d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\desktop-release-workflow.test.mjs": {
-    "mtime": 1782271489.1867282,
-    "hash": "773e630ed421a0d31bbe64c557783fb6"
+    "mtime": 1782271769.1324954,
+    "hash": "84eb7a9d9daa9f551644fefe670ed278"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\release-audit.mjs": {
-    "mtime": 1782271412.6184125,
-    "hash": "47ba8d955d4fafdbde98cb9d2d03887c"
+    "mtime": 1782271769.1334958,
+    "hash": "b261b2febf97f6fccac2301f1b054f86"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\release-audit.test.mjs": {
-    "mtime": 1782271489.1867282,
-    "hash": "634ffbbd232e8c5d1fb8e566f43e17a9"
+    "mtime": 1782271769.134,
+    "hash": "5ac7748e8ec2b45f7803a169ede3a7e0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\release-ops.mjs": {
     "mtime": 1782270909.3642194,
@@ -48,32 +48,32 @@
     "hash": "ba375eecfade0a8ff12cc2dc81cf664d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\release-promotion.mjs": {
-    "mtime": 1782271412.6194098,
-    "hash": "7fbd709a6353c15338d9eacf81088731"
+    "mtime": 1782271769.134,
+    "hash": "2e1eb10485ba9ef5c733860d013d781d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\release-promotion.test.mjs": {
-    "mtime": 1782271489.1877263,
-    "hash": "9100804732b7e6b65d848bf71b9e76af"
+    "mtime": 1782271769.1350055,
+    "hash": "f716b0977020151922c772818dcac299"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\run-tauri.mjs": {
     "mtime": 1782270909.3652203,
     "hash": "3e41cfd1d0d5b234a25f447f31ff2a62"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\run-tauri.test.mjs": {
-    "mtime": 1782270909.3662202,
-    "hash": "7fc882688bea8682abf149c38488ea6c"
+    "mtime": 1782272601.9210346,
+    "hash": "bc6797dd5f24a149cd51000dcf145bb5"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\sign-windows-artifact.ps1": {
     "mtime": 1781862284.8273516,
     "hash": "57c865852fe5173e99a8c1c07309073e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\validate-update-manifest.mjs": {
-    "mtime": 1782271412.6194098,
-    "hash": "0b89ef84f9b57fe0836772080181f2c1"
+    "mtime": 1782271769.1350055,
+    "hash": "2aa426d6a7ce517dc53ece1202a694fc"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\validate-update-manifest.test.mjs": {
-    "mtime": 1782271489.1887264,
-    "hash": "5167d63a82e174349a52cf68b4a7413b"
+    "mtime": 1782271769.1360097,
+    "hash": "8249f7d90a91cc2d011c64ed7cd00c67"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\src-tauri\\build.rs": {
     "mtime": 1782270909.3672197,
