@@ -49,15 +49,23 @@ test("creates timing report with job, important step, slowest step, and budgets"
         [
           step("Setup Rust", "2026-06-25T09:04:00Z", "2026-06-25T09:04:30Z"),
           step("Cache Rust dependencies", "2026-06-25T09:04:30Z", "2026-06-25T09:05:30Z"),
-          step("Generate Prisma Client", "2026-06-25T09:05:30Z", "2026-06-25T09:06:00Z"),
-          step("Install cargo-audit", "2026-06-25T09:06:00Z", "2026-06-25T09:09:00Z"),
-          step("Run cargo audit and summarize", "2026-06-25T09:09:00Z", "2026-06-25T09:10:00Z"),
-          step("Build desktop app", "2026-06-25T09:10:00Z", "2026-06-25T09:23:00Z"),
+          step("Resolve sccache directories", "2026-06-25T09:05:30Z", "2026-06-25T09:05:35Z"),
+          step("Cache sccache compiler outputs", "2026-06-25T09:05:35Z", "2026-06-25T09:05:55Z"),
+          step("Install and configure sccache", "2026-06-25T09:05:55Z", "2026-06-25T09:06:20Z"),
+          step("Generate Prisma Client", "2026-06-25T09:06:20Z", "2026-06-25T09:06:50Z"),
+          step("Resolve cargo-audit cache directory", "2026-06-25T09:06:50Z", "2026-06-25T09:07:00Z"),
+          step("Cache cargo-audit binary", "2026-06-25T09:07:00Z", "2026-06-25T09:07:30Z"),
+          step("Add cargo-audit to PATH", "2026-06-25T09:07:30Z", "2026-06-25T09:07:35Z"),
+          step("Install cargo-audit", "2026-06-25T09:07:35Z", "2026-06-25T09:10:35Z"),
+          step("Verify cargo-audit", "2026-06-25T09:10:35Z", "2026-06-25T09:10:50Z"),
+          step("Run cargo audit and summarize", "2026-06-25T09:10:50Z", "2026-06-25T09:11:50Z"),
+          step("Build desktop app", "2026-06-25T09:11:50Z", "2026-06-25T09:22:50Z"),
           step(
             "Generate and validate updater manifest evidence",
-            "2026-06-25T09:23:00Z",
-            "2026-06-25T09:24:00Z",
+            "2026-06-25T09:22:50Z",
+            "2026-06-25T09:23:50Z",
           ),
+          step("Capture sccache stats", "2026-06-25T09:23:50Z", "2026-06-25T09:24:00Z"),
         ],
       ),
       job(
@@ -81,17 +89,26 @@ test("creates timing report with job, important step, slowest step, and budgets"
   assert.equal(report.topSlowSteps[0].name, "Build desktop app");
   assert.deepEqual(
     report.categoryRows
+      .filter((row) => row.category === "sccache setup/cache")
+      .map((row) => [row.category, row.durationMs]),
+    [["sccache setup/cache", 60 * 1000]],
+  );
+  assert.deepEqual(
+    report.categoryRows
       .filter((row) => row.category.startsWith("cargo-audit"))
       .map((row) => [row.category, row.durationMs]),
     [
       ["cargo-audit install", 3 * 60 * 1000],
+      ["cargo-audit cache/verify", 60 * 1000],
       ["cargo-audit run/summarize", 60 * 1000],
     ],
   );
   assert.match(report.markdown, /Desktop release timing/);
   assert.match(report.markdown, /Category totals/);
   assert.match(report.markdown, /Tauri build step/);
+  assert.match(report.markdown, /sccache setup\/cache/);
   assert.match(report.markdown, /cargo-audit total/);
+  assert.match(report.markdown, /cargo-audit cache\/verify/);
   assert.match(report.markdown, /cargo-audit install/);
   assert.match(report.markdown, /Cache Rust dependencies/);
   assert.match(report.markdown, /cache hit\/miss is not exposed/);

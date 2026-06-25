@@ -14,9 +14,11 @@ const IMPORTANT_STEP_CATEGORIES = Object.freeze([
   "checkout",
   "pnpm setup/install",
   "Rust setup/cache restore",
+  "sccache setup/cache",
   "Prisma generate",
   "desktop config generation",
   "release ops/tests",
+  "cargo-audit cache/verify",
   "cargo-audit install",
   "cargo-audit run/summarize",
   "cargo-audit install/run",
@@ -227,6 +229,10 @@ function categorizeStep(name) {
     return "Rust setup/cache restore";
   }
 
+  if (normalized.includes("sccache")) {
+    return "sccache setup/cache";
+  }
+
   if (normalized.includes("generate prisma")) {
     return "Prisma generate";
   }
@@ -241,6 +247,15 @@ function categorizeStep(name) {
     normalized.includes("release dispatch contract")
   ) {
     return "release ops/tests";
+  }
+
+  if (
+    normalized.includes("resolve cargo-audit") ||
+    normalized.includes("cache cargo-audit") ||
+    normalized.includes("add cargo-audit") ||
+    normalized.includes("verify cargo-audit")
+  ) {
+    return "cargo-audit cache/verify";
   }
 
   if (normalized.includes("install cargo-audit")) {
