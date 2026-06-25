@@ -528,6 +528,13 @@ jobs:
           if (Get-Command sccache -ErrorAction SilentlyContinue) {
             sccache --show-stats | Tee-Object -FilePath $statsPath
             sccache --stop-server
+            if ($LASTEXITCODE -ne 0) {
+              $message = "sccache stop-server returned exit code $LASTEXITCODE. This is non-fatal when no compiler server was started."
+              Write-Warning $message
+              Add-Content -Path $statsPath -Value ""
+              Add-Content -Path $statsPath -Value $message
+              $global:LASTEXITCODE = 0
+            }
           } else {
             "sccache was not available on PATH." | Tee-Object -FilePath $statsPath
           }
