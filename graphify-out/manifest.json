@@ -376,8 +376,8 @@
     "hash": "2fb98a7414f57b1abe823676a73841cb"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\route-contract.test.ts": {
-    "mtime": 1782270909.3792202,
-    "hash": "8a453fcbb58719d3d5a65e93627ccdd3"
+    "mtime": 1782417400.2864842,
+    "hash": "621dbef364a139ba511d3378d6a7a621"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\admin\\dashboard\\route.ts": {
     "mtime": 1779082192.427892,
@@ -470,6 +470,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\channels\\[channelId]\\read\\route.ts": {
     "mtime": 1778571008.1042597,
     "hash": "52790430527a304e14d62fe5d77290fb"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\desktop\\download\\route.ts": {
+    "mtime": 1782417244.561581,
+    "hash": "92eadb7ddd03148e97a3dea3100c8189"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\dm\\route.ts": {
     "mtime": 1779082192.4394002,
@@ -716,8 +720,8 @@
     "hash": "20e2b15600336ffc111cd7b5e308dff0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\invite\\[code]\\page.tsx": {
-    "mtime": 1782270909.3832202,
-    "hash": "8ff86786957f62187b789d1082b8f425"
+    "mtime": 1782417265.8754873,
+    "hash": "46153e62c7bd0ee34f0a8cc31e0cd425"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\settings\\layout.tsx": {
     "mtime": 1781862284.8610027,
@@ -1252,12 +1256,20 @@
     "hash": "3b76e9183e3dc50fa3645aba8a382d87"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\app-version.ts": {
-    "mtime": 1782397652.648336,
-    "hash": "2200669c7896c0d4cf30a7b466af943b"
+    "mtime": 1782417210.193287,
+    "hash": "7c0a11d07889b3b1fc5875018fc240b1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\appearance.ts": {
     "mtime": 1781862284.894395,
     "hash": "1540c4ceb467b7c261dfccdb4985282b"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\desktop-download.test.ts": {
+    "mtime": 1782417310.2444878,
+    "hash": "c16079777baa8a2a93fb33b1d26844c1"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\desktop-download.ts": {
+    "mtime": 1782417183.3975053,
+    "hash": "4769bdf7d5672c464c0671614571104e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\env.test.ts": {
     "mtime": 1781862284.906517,

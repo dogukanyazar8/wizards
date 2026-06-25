@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const API_V1_DIR = fileURLToPath(new URL(".", import.meta.url));
 
-const PUBLIC_ROUTE_PATHS = new Set(["app/version"]);
+const PUBLIC_ROUTE_PATHS = new Set(["app/version", "desktop/download"]);
 
 const BODYLESS_MUTATING_ROUTE_PATHS = new Set([
   "admin/notification-campaigns/[campaignId]/send",

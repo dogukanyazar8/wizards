@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { DesktopInvitePrompt } from "@/components/invite/desktop-invite-prompt";
 import { acceptInviteInBrowserAction } from "@/app/invite/[code]/actions";
+import { WHISPR_DESKTOP_DOWNLOAD_URL } from "@/lib/app-version";
 import {
   buildDesktopInviteUrl,
   normalizeInviteCodeForDesktop,
@@ -184,7 +185,7 @@ export default async function InvitePage({ params, searchParams }: InvitePagePro
     <DesktopInvitePrompt
       acceptAction={acceptInviteInBrowserAction.bind(null, code)}
       desktopInviteUrl={buildDesktopInviteUrl(code)}
-      downloadUrl={process.env.NEXT_PUBLIC_WHISPR_DESKTOP_DOWNLOAD_URL ?? null}
+      downloadUrl={WHISPR_DESKTOP_DOWNLOAD_URL}
       labels={{
         badge: t("invite.desktop.badge"),
         browserAction: t("invite.desktop.browserAction"),
