@@ -52,6 +52,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -716,3 +717,45 @@ jobs:
             echo "aws --endpoint-url <r2-endpoint> s3 cp <previous-latest.json> s3://<R2_BUCKET>/desktop/${{ needs.release-contract.outputs.release_ring }}/latest.json --content-type application/json --cache-control \"no-cache, no-store, must-revalidate\""
             echo "\`\`\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  timing-summary:
+    name: Summarize desktop release timing
+    runs-on: ubuntu-latest
+    needs:
+      - release-contract
+      - build-windows
+      - publish-release
+    if: always()
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Generate desktop release timing summary
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node apps/desktop/scripts/desktop-release-timing-summary.mjs \
+            --repo "${{ github.repository }}" \
+            --run-id "${{ github.run_id }}" \
+            --ring "${{ needs.release-contract.outputs.release_ring || inputs.ring }}" \
+            --out "$RUNNER_TEMP/desktop-release-timing.json"
+
+      - name: Upload desktop release timing evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          if-no-files-found: warn
+          name: desktop-release-timing-${{ needs.release-contract.outputs.release_ring || inputs.ring }}-${{ needs.release-contract.outputs.version || inputs.version }}
+          path: ${{ runner.temp }}/desktop-release-timing.json
+          retention-days: 30
