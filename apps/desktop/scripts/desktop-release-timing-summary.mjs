@@ -17,6 +17,8 @@ const IMPORTANT_STEP_CATEGORIES = Object.freeze([
   "Prisma generate",
   "desktop config generation",
   "release ops/tests",
+  "cargo-audit install",
+  "cargo-audit run/summarize",
   "cargo-audit install/run",
   "Tauri build",
   "signing",
@@ -129,6 +131,10 @@ export function createDesktopReleaseTimingReport({ jobs, ring, now = new Date() 
     runStartedAt && runCompletedAt
       ? Math.max(0, runCompletedAt.getTime() - runStartedAt.getTime())
       : null;
+  const timedCategoryRows = buildCategoryRows({
+    importantSteps,
+    totalMs,
+  });
 
   const budgetRows = buildBudgetRows({
     importantSteps,
@@ -140,12 +146,14 @@ export function createDesktopReleaseTimingReport({ jobs, ring, now = new Date() 
   return {
     budgets: budgetRows,
     cacheSteps,
+    categoryRows: timedCategoryRows,
     generatedAt: now.toISOString(),
     importantSteps,
     jobRows,
     markdown: renderTimingMarkdown({
       budgetRows,
       cacheSteps,
+      categoryRows: timedCategoryRows,
       generatedAt: now.toISOString(),
       importantSteps,
       jobRows,
@@ -235,6 +243,14 @@ function categorizeStep(name) {
     return "release ops/tests";
   }
 
+  if (normalized.includes("install cargo-audit")) {
+    return "cargo-audit install";
+  }
+
+  if (normalized.includes("run cargo audit")) {
+    return "cargo-audit run/summarize";
+  }
+
   if (normalized.includes("audit rust")) {
     return "cargo-audit install/run";
   }
@@ -283,7 +299,12 @@ function buildBudgetRows({ importantSteps, jobRows, ring, totalMs }) {
   const windowsJob = jobRows.find((job) => job.name === "Build signed Windows desktop artifacts");
   const publishJob = jobRows.find((job) => job.name === "Publish desktop release artifacts");
   const tauriBuild = importantSteps.find((step) => step.category === "Tauri build");
-  const cargoAudit = importantSteps.find((step) => step.category === "cargo-audit install/run");
+  const cargoAuditMs = importantSteps
+    .filter((step) => step.category.startsWith("cargo-audit"))
+    .reduce((total, step) => total + (Number.isFinite(step.durationMs) ? step.durationMs : 0), 0);
+  const hasCargoAuditTiming = importantSteps.some(
+    (step) => step.category.startsWith("cargo-audit") && Number.isFinite(step.durationMs),
+  );
   const targetTotalMs = ring === "stable" ? DEFAULT_BUDGETS.stableTotalMs : DEFAULT_BUDGETS.uatTotalMs;
 
   return [
@@ -303,9 +324,9 @@ function buildBudgetRows({ importantSteps, jobRows, ring, totalMs }) {
       label: "Tauri build step",
     },
     {
-      actualMs: cargoAudit?.durationMs ?? null,
+      actualMs: hasCargoAuditTiming ? cargoAuditMs : null,
       budgetMs: DEFAULT_BUDGETS.cargoAuditMs,
-      label: "cargo-audit step",
+      label: "cargo-audit total",
     },
     {
       actualMs: publishJob?.durationMs ?? null,
@@ -323,9 +344,36 @@ function buildBudgetRows({ importantSteps, jobRows, ring, totalMs }) {
   }));
 }
 
+function buildCategoryRows({ importantSteps, totalMs }) {
+  const totals = new Map();
+  const measuredImportantTotalMs = importantSteps.reduce(
+    (total, step) => total + (Number.isFinite(step.durationMs) ? step.durationMs : 0),
+    0,
+  );
+
+  for (const step of importantSteps) {
+    if (!Number.isFinite(step.durationMs)) {
+      continue;
+    }
+
+    totals.set(step.category, (totals.get(step.category) || 0) + step.durationMs);
+  }
+
+  return [...totals.entries()]
+    .map(([category, durationMs]) => ({
+      category,
+      durationMs,
+      importantShare:
+        measuredImportantTotalMs > 0 ? Number(((durationMs / measuredImportantTotalMs) * 100).toFixed(1)) : null,
+      wallShare: Number.isFinite(totalMs) && totalMs > 0 ? Number(((durationMs / totalMs) * 100).toFixed(1)) : null,
+    }))
+    .sort((left, right) => right.durationMs - left.durationMs);
+}
+
 function renderTimingMarkdown({
   budgetRows,
   cacheSteps,
+  categoryRows,
   generatedAt,
   importantSteps,
   jobRows,
@@ -347,6 +395,15 @@ function renderTimingMarkdown({
     ...budgetRows.map(
       (row) =>
         `| ${escapeTable(row.label)} | \`${formatDuration(row.budgetMs)}\` | \`${formatDuration(row.actualMs)}\` | \`${row.status}\` |`,
+    ),
+    "",
+    "#### Category totals",
+    "",
+    "| Category | Duration | Wall share | Important-step share |",
+    "| --- | ---: | ---: | ---: |",
+    ...categoryRows.map(
+      (row) =>
+        `| ${escapeTable(row.category)} | \`${formatDuration(row.durationMs)}\` | \`${formatPercent(row.wallShare)}\` | \`${formatPercent(row.importantShare)}\` |`,
     ),
     "",
     "#### Job timings",
@@ -459,6 +516,10 @@ function formatDuration(ms) {
   }
 
   return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
+}
+
+function formatPercent(value) {
+  return Number.isFinite(value) ? `${value.toFixed(1)}%` : "not measured";
 }
 
 function escapeTable(value) {

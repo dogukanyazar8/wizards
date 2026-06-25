@@ -16,9 +16,10 @@ const uatReleaseBaseUrl = `https://updates.whispr.team/desktop/uat/releases/${ua
 
 describe("desktop release audit", () => {
   it("creates a redacted release audit report for a signed UAT updater artifact", async () => {
-    await withTempAuditFiles(async ({ artifactBytes, artifactPath, manifestPath, signaturePath }) => {
+    await withTempAuditFiles(async ({ artifactBytes, dependencyAuditPath, manifestPath, signaturePath, artifactPath }) => {
       const report = await createDesktopReleaseAudit({
         artifactPath,
+        dependencyAuditPath,
         expectedVersion: "0.8.14",
         manifestSource: manifestPath,
         manifestUrl: "https://updates.whispr.team/desktop/uat/latest.json",
@@ -39,6 +40,7 @@ describe("desktop release audit", () => {
           ["release_ops_contract", "passed"],
           ["artifact_hash", "passed"],
           ["updater_feed_preflight", "passed"],
+          ["dependency_audit", "passed"],
         ],
       );
       assert.deepEqual(report.artifact, {
@@ -54,6 +56,8 @@ describe("desktop release audit", () => {
         source: "latest.json",
         version: "0.8.14",
       });
+      assert.equal(report.dependencyAudit.vulnerabilities.count, 0);
+      assert.equal(report.dependencyAudit.warnings.count, 2);
 
       const serialized = JSON.stringify(report);
       assert.doesNotMatch(serialized, new RegExp(signatureText));
@@ -63,10 +67,11 @@ describe("desktop release audit", () => {
   });
 
   it("can write the audit report without leaking updater signatures", async () => {
-    await withTempAuditFiles(async ({ artifactPath, dir, manifestPath, signaturePath }) => {
+    await withTempAuditFiles(async ({ artifactPath, dependencyAuditPath, dir, manifestPath, signaturePath }) => {
       const outputPath = path.join(dir, "release-audit.json");
       const result = await writeDesktopReleaseAudit({
         artifactPath,
+        dependencyAuditPath,
         expectedVersion: "0.8.14",
         manifestSource: manifestPath,
         outputPath,
@@ -77,8 +82,55 @@ describe("desktop release audit", () => {
 
       assert.equal(result.outputPath, outputPath);
       assert.match(written, /"updater_feed_preflight"/);
+      assert.match(written, /"dependencyAudit"/);
       assert.doesNotMatch(written, new RegExp(signatureText));
     });
+  });
+
+  it("records dependency audit blockers when cargo-audit finds vulnerabilities", async () => {
+    await withTempAuditFiles(
+      async ({ artifactPath, dependencyAuditPath, manifestPath, signaturePath }) => {
+        const report = await createDesktopReleaseAudit({
+          artifactPath,
+          dependencyAuditPath,
+          expectedVersion: "0.8.14",
+          manifestSource: manifestPath,
+          releaseTag: uatReleaseTag,
+          ring: "uat",
+          signaturePath,
+        });
+
+        assert.deepEqual(
+          report.checks.find((check) => check.id === "dependency_audit"),
+          {
+            detail: "cargo-audit found 1 vulnerability finding(s).",
+            id: "dependency_audit",
+            status: "failed",
+          },
+        );
+      },
+      {
+        dependencyAudit: buildDependencyAuditSummary({
+          vulnerabilities: {
+            found: true,
+            count: 1,
+            advisories: [
+              {
+                advisoryId: "RUSTSEC-2099-0001",
+                crate: "danger",
+                title: "Example vulnerability",
+                url: "https://rustsec.org/advisories/RUSTSEC-2099-0001.html",
+                version: "1.0.0",
+              },
+            ],
+          },
+          policy: {
+            releaseBlocker: true,
+            warningPolicy: "test",
+          },
+        }),
+      },
+    );
   });
 
   it("fails closed when a release requires an updater manifest but none is provided", async () => {
@@ -102,7 +154,7 @@ describe("desktop release audit", () => {
     assert.equal(report.updaterFeed, null);
     assert.deepEqual(
       report.checks.filter((check) => check.status === "skipped").map((check) => check.id),
-      ["artifact_hash", "updater_feed_preflight"],
+      ["artifact_hash", "updater_feed_preflight", "dependency_audit"],
     );
   });
 
@@ -145,6 +197,8 @@ describe("desktop release audit", () => {
         "https://updates.whispr.team/desktop/uat/latest.json",
         "--artifact",
         "Whispr_0.8.14_x64-setup.exe",
+        "--dependency-audit",
+        "desktop-cargo-audit-summary.json",
         "--signature",
         "Whispr_0.8.14_x64-setup.exe.sig",
         "--expected-version",
@@ -161,6 +215,7 @@ describe("desktop release audit", () => {
       {
         artifactPath: "Whispr_0.8.14_x64-setup.exe",
         checkArtifactUrl: true,
+        dependencyAuditPath: "desktop-cargo-audit-summary.json",
         expectedVersion: "0.8.14",
         manifestSource: "latest.json",
         manifestUrl: "https://updates.whispr.team/desktop/uat/latest.json",
@@ -193,18 +248,81 @@ function buildManifest() {
   };
 }
 
-async function withTempAuditFiles(callback) {
+function buildDependencyAuditSummary(overrides = {}) {
+  return {
+    schemaVersion: 1,
+    tool: "cargo-audit",
+    advisoryDatabase: {
+      advisoryCount: 1138,
+      lastUpdated: "2026-06-23T13:22:47+02:00",
+    },
+    lockfile: {
+      dependencyCount: 558,
+    },
+    vulnerabilities: {
+      found: false,
+      count: 0,
+      advisories: [],
+    },
+    warnings: {
+      count: 2,
+      groups: [
+        {
+          kind: "unmaintained",
+          count: 1,
+          advisories: [
+            {
+              advisoryId: "RUSTSEC-2024-0415",
+              crate: "gtk",
+              informational: "unmaintained",
+              title: "gtk-rs GTK3 bindings - no longer maintained",
+              url: "https://rustsec.org/advisories/RUSTSEC-2024-0415.html",
+              version: "0.18.2",
+            },
+          ],
+        },
+        {
+          kind: "unsound",
+          count: 1,
+          advisories: [
+            {
+              advisoryId: "RUSTSEC-2024-0429",
+              crate: "glib",
+              informational: "unsound",
+              title: "Unsoundness in glib iterator impls",
+              url: "https://rustsec.org/advisories/RUSTSEC-2024-0429.html",
+              version: "0.18.5",
+            },
+          ],
+        },
+      ],
+    },
+    policy: {
+      releaseBlocker: false,
+      warningPolicy: "informational warnings are tracked separately",
+    },
+    ...overrides,
+  };
+}
+
+async function withTempAuditFiles(callback, options = {}) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "whispr-release-audit-"));
   const artifactPath = path.join(dir, "Whispr_0.8.14_x64-setup.exe");
   const signaturePath = `${artifactPath}.sig`;
   const manifestPath = path.join(dir, "latest.json");
+  const dependencyAuditPath = path.join(dir, "desktop-cargo-audit-summary.json");
   const artifactBytes = Buffer.from("installer bytes");
 
   try {
     await writeFile(artifactPath, artifactBytes);
     await writeFile(signaturePath, `${signatureText}\n`, "utf8");
     await writeFile(manifestPath, `${JSON.stringify(buildManifest(), null, 2)}\n`, "utf8");
-    await callback({ artifactBytes, artifactPath, dir, manifestPath, signaturePath });
+    await writeFile(
+      dependencyAuditPath,
+      `${JSON.stringify(options.dependencyAudit || buildDependencyAuditSummary(), null, 2)}\n`,
+      "utf8",
+    );
+    await callback({ artifactBytes, artifactPath, dependencyAuditPath, dir, manifestPath, signaturePath });
   } finally {
     await rm(dir, { force: true, recursive: true });
   }

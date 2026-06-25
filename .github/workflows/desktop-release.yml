@@ -253,7 +253,7 @@ jobs:
       - name: Run desktop release script tests
         run: pnpm --filter @wizards/desktop test
 
-      - name: Audit Rust dependencies
+      - name: Install cargo-audit
         shell: pwsh
         working-directory: apps/desktop/src-tauri
         env:
@@ -270,7 +270,27 @@ jobs:
             cargo install cargo-audit --version $env:CARGO_AUDIT_VERSION --locked --force
           }
 
-          cargo audit
+      - name: Run cargo audit and summarize
+        shell: pwsh
+        working-directory: apps/desktop/src-tauri
+        run: |
+          $cargoAuditJson = Join-Path $env:RUNNER_TEMP "desktop-cargo-audit.json"
+          $cargoAuditSummary = Join-Path $env:RUNNER_TEMP "desktop-cargo-audit-summary.json"
+
+          cargo audit --json | Out-File -FilePath $cargoAuditJson -Encoding utf8
+          $auditExitCode = $LASTEXITCODE
+
+          $srcTauriPath = Get-Location
+          Set-Location $env:GITHUB_WORKSPACE
+          pnpm --filter @wizards/desktop release:cargo-audit-summary -- `
+            --input "$cargoAuditJson" `
+            --out "$cargoAuditSummary"
+          Set-Location $srcTauriPath
+
+          if ($auditExitCode -ne 0) {
+            Write-Error "cargo audit reported vulnerability findings. See desktop-cargo-audit-summary.json in release artifacts."
+            exit $auditExitCode
+          }
 
       - name: Build desktop app
         run: pnpm --filter @wizards/desktop build:desktop
@@ -332,6 +352,7 @@ jobs:
           $metadataPath = Join-Path $env:RUNNER_TEMP "desktop-build-metadata.json"
           $metadata = Get-Content $metadataPath -Raw | ConvertFrom-Json
           $artifactDir = Join-Path $env:GITHUB_WORKSPACE "apps\desktop\src-tauri\target\release\bundle\nsis"
+          $dependencyAuditPath = Join-Path $env:RUNNER_TEMP "desktop-cargo-audit-summary.json"
           $evidenceDir = Join-Path $env:RUNNER_TEMP "desktop-release-evidence"
           New-Item -ItemType Directory -Force -Path $evidenceDir | Out-Null
 
@@ -369,6 +390,7 @@ jobs:
             --manifest "$manifestPath" `
             --manifest-url "${{ needs.release-contract.outputs.updater_manifest_url }}" `
             --artifact "$installerPath" `
+            --dependency-audit "$dependencyAuditPath" `
             --signature "$signaturePath" `
             --release-tag "${{ needs.release-contract.outputs.release_tag }}" `
             --expected-version "${{ needs.release-contract.outputs.version }}" `
@@ -381,6 +403,7 @@ jobs:
             --manifest "$manifestPath" `
             --manifest-url "${{ needs.release-contract.outputs.updater_manifest_url }}" `
             --artifact "$installerPath" `
+            --dependency-audit "$dependencyAuditPath" `
             --signature "$signaturePath" `
             --release-tag "${{ needs.release-contract.outputs.release_tag }}" `
             --expected-version "${{ needs.release-contract.outputs.version }}" `
@@ -393,6 +416,7 @@ jobs:
           name: desktop-build-${{ needs.release-contract.outputs.release_ring }}-${{ needs.release-contract.outputs.version }}-windows
           path: |
             ${{ runner.temp }}/desktop-build-metadata.json
+            ${{ runner.temp }}/desktop-cargo-audit-summary.json
             ${{ runner.temp }}/desktop-release-evidence/**
             apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
             apps/desktop/src-tauri/target/release/bundle/nsis/*.sig
@@ -404,6 +428,14 @@ jobs:
         run: |
           $metadataPath = Join-Path $env:RUNNER_TEMP "desktop-build-metadata.json"
           $metadata = Get-Content $metadataPath -Raw | ConvertFrom-Json
+          $dependencyAuditPath = Join-Path $env:RUNNER_TEMP "desktop-cargo-audit-summary.json"
+          $dependencyAudit = if (Test-Path $dependencyAuditPath) {
+            Get-Content $dependencyAuditPath -Raw | ConvertFrom-Json
+          } else {
+            $null
+          }
+          $dependencyVulnerabilities = if ($dependencyAudit) { $dependencyAudit.vulnerabilities.count } else { "not recorded" }
+          $dependencyWarnings = if ($dependencyAudit) { $dependencyAudit.warnings.count } else { "not recorded" }
           $signatureFile = if ($metadata.artifacts.signature) { $metadata.artifacts.signature.filename } else { "not generated" }
           $manifestUrl = "${{ needs.release-contract.outputs.updater_manifest_url }}"
           if ([string]::IsNullOrWhiteSpace($manifestUrl)) {
@@ -423,6 +455,8 @@ jobs:
           | Installer SHA-256 | ``$($metadata.artifacts.installer.sha256)`` |
           | Signature | ``$signatureFile`` |
           | Manifest URL | ``$manifestUrl`` |
+          | Dependency vulnerabilities | ``$dependencyVulnerabilities`` |
+          | Dependency warnings | ``$dependencyWarnings`` |
           "@ >> $env:GITHUB_STEP_SUMMARY
 
   publish-release:
@@ -497,6 +531,7 @@ jobs:
           manifest="$(find_one "latest.json" "manifest")"
           metadata="$(find_one "desktop-build-metadata.json" "build metadata")"
           audit="$(find_one "desktop-release-audit-${version}-${ring}.json" "release audit")"
+          dependency_audit="$(find_one "desktop-cargo-audit-summary.json" "dependency audit")"
           promotion_json="$(find_one "desktop-release-promotion-${version}-${ring}.json" "promotion JSON")"
           promotion_md="$(find_one "desktop-release-promotion-${version}-${ring}.md" "promotion Markdown")"
 
@@ -506,6 +541,7 @@ jobs:
             echo "manifest=$manifest"
             echo "metadata=$metadata"
             echo "audit=$audit"
+            echo "dependency_audit=$dependency_audit"
             echo "promotion_json=$promotion_json"
             echo "promotion_md=$promotion_md"
           } >> "$GITHUB_OUTPUT"
@@ -647,6 +683,7 @@ jobs:
             "${{ steps.assets.outputs.signature }}"
             "${{ steps.assets.outputs.metadata }}"
             "${{ steps.assets.outputs.audit }}"
+            "${{ steps.assets.outputs.dependency_audit }}"
             "${{ steps.assets.outputs.promotion_json }}"
             "${{ steps.assets.outputs.promotion_md }}"
             "${{ steps.publish_plan.outputs.path }}"

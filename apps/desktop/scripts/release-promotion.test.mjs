@@ -15,9 +15,10 @@ const uatReleaseBaseUrl = `https://updates.whispr.team/desktop/uat/releases/${ua
 
 describe("desktop release promotion bundle", () => {
   it("creates a ready promotion bundle without leaking signatures or local paths", async () => {
-    await withTempPromotionFiles(async ({ artifactPath, manifestPath, signaturePath }) => {
+    await withTempPromotionFiles(async ({ artifactPath, dependencyAuditPath, manifestPath, signaturePath }) => {
       const bundle = await createDesktopReleasePromotionBundle({
         artifactPath,
+        dependencyAuditPath,
         expectedVersion: "0.8.14",
         manifestSource: manifestPath,
         manifestUrl: "https://updates.whispr.team/desktop/uat/latest.json",
@@ -41,6 +42,8 @@ describe("desktop release promotion bundle", () => {
       assert.ok(bundle.performanceEvidence.some((item) => item.id === "updater-check-install"));
       assert.ok(bundle.promotionRules.some((rule) => rule.ring === "stable"));
       assert.ok(bundle.rollbackPlan.some((item) => /aws --endpoint-url/.test(item)));
+      assert.equal(bundle.dependencyAudit.vulnerabilities.count, 0);
+      assert.equal(bundle.dependencyAudit.warnings.count, 2);
 
       const serialized = JSON.stringify(bundle);
       assert.doesNotMatch(serialized, new RegExp(signatureText));
@@ -50,10 +53,11 @@ describe("desktop release promotion bundle", () => {
   });
 
   it("writes JSON and Markdown evidence for release operators", async () => {
-    await withTempPromotionFiles(async ({ artifactPath, dir, manifestPath, signaturePath }) => {
+    await withTempPromotionFiles(async ({ artifactPath, dependencyAuditPath, dir, manifestPath, signaturePath }) => {
       const outputDir = path.join(dir, "evidence");
       const result = await writeDesktopReleasePromotionBundle({
         artifactPath,
+        dependencyAuditPath,
         expectedVersion: "0.8.14",
         manifestSource: manifestPath,
         outputDir,
@@ -71,6 +75,8 @@ describe("desktop release promotion bundle", () => {
       assert.match(markdown, /Mandatory Smoke Tests/);
       assert.match(markdown, /Manual QA Steps/);
       assert.match(markdown, /Performance Evidence/);
+      assert.match(markdown, /Dependency Audit/);
+      assert.match(markdown, /Vulnerabilities: `0`/);
       assert.match(markdown, /Ring Promotion Rules/);
       assert.match(markdown, /aws --endpoint-url/);
       assert.doesNotMatch(json, new RegExp(signatureText));
@@ -135,6 +141,8 @@ describe("desktop release promotion bundle", () => {
         "https://updates.whispr.team/desktop/uat/latest.json",
         "--artifact",
         "Whispr_0.8.14_x64-setup.exe",
+        "--dependency-audit",
+        "desktop-cargo-audit-summary.json",
         "--signature",
         "Whispr_0.8.14_x64-setup.exe.sig",
         "--expected-version",
@@ -150,6 +158,7 @@ describe("desktop release promotion bundle", () => {
       {
         artifactPath: "Whispr_0.8.14_x64-setup.exe",
         checkArtifactUrl: true,
+        dependencyAuditPath: "desktop-cargo-audit-summary.json",
         expectedVersion: "0.8.14",
         manifestSource: "latest.json",
         manifestUrl: "https://updates.whispr.team/desktop/uat/latest.json",
@@ -187,13 +196,53 @@ async function withTempPromotionFiles(callback) {
   const artifactPath = path.join(dir, "Whispr_0.8.14_x64-setup.exe");
   const signaturePath = `${artifactPath}.sig`;
   const manifestPath = path.join(dir, "latest.json");
+  const dependencyAuditPath = path.join(dir, "desktop-cargo-audit-summary.json");
 
   try {
     await writeFile(artifactPath, Buffer.from("installer bytes"));
     await writeFile(signaturePath, `${signatureText}\n`, "utf8");
     await writeFile(manifestPath, `${JSON.stringify(buildManifest(), null, 2)}\n`, "utf8");
-    await callback({ artifactPath, dir, manifestPath, signaturePath });
+    await writeFile(dependencyAuditPath, `${JSON.stringify(buildDependencyAuditSummary(), null, 2)}\n`, "utf8");
+    await callback({ artifactPath, dependencyAuditPath, dir, manifestPath, signaturePath });
   } finally {
     await rm(dir, { force: true, recursive: true });
   }
+}
+
+function buildDependencyAuditSummary() {
+  return {
+    schemaVersion: 1,
+    tool: "cargo-audit",
+    advisoryDatabase: {
+      advisoryCount: 1138,
+      lastUpdated: "2026-06-23T13:22:47+02:00",
+    },
+    lockfile: {
+      dependencyCount: 558,
+    },
+    vulnerabilities: {
+      found: false,
+      count: 0,
+      advisories: [],
+    },
+    warnings: {
+      count: 2,
+      groups: [
+        {
+          kind: "unmaintained",
+          count: 1,
+          advisories: [],
+        },
+        {
+          kind: "unsound",
+          count: 1,
+          advisories: [],
+        },
+      ],
+    },
+    policy: {
+      releaseBlocker: false,
+      warningPolicy: "informational warnings are tracked separately",
+    },
+  };
 }

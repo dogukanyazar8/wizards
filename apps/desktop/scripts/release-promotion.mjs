@@ -30,6 +30,7 @@ export async function createDesktopReleasePromotionBundle(options = {}) {
   const audit = await createDesktopReleaseAudit({
     artifactPath,
     checkArtifactUrl: Boolean(options.checkArtifactUrl),
+    dependencyAuditPath: options.dependencyAuditPath,
     expectedVersion: options.expectedVersion,
     manifestSource: options.manifestSource,
     manifestUrl: options.manifestUrl,
@@ -59,6 +60,13 @@ export async function createDesktopReleasePromotionBundle(options = {}) {
       updaterManifestSource: audit.updaterFeed.source,
     },
     checks: audit.checks,
+    dependencyAudit: audit.dependencyAudit
+      ? {
+          vulnerabilities: audit.dependencyAudit.vulnerabilities,
+          warnings: audit.dependencyAudit.warnings,
+          policy: audit.dependencyAudit.policy,
+        }
+      : null,
     requiredSmokeTests: DESKTOP_REQUIRED_SMOKE_TESTS.map((test) => ({ ...test })),
     performanceBudgets: { ...DESKTOP_PERFORMANCE_BUDGETS },
     performanceEvidence: DESKTOP_RELEASE_PERFORMANCE_EVIDENCE.map((item) => ({ ...item })),
@@ -105,6 +113,7 @@ export function parseReleasePromotionCliArgs(argv) {
   const allowed = new Set([
     "artifact",
     "check-artifact-url",
+    "dependency-audit",
     "expected-version",
     "manifest",
     "manifest-url",
@@ -162,6 +171,7 @@ export function parseReleasePromotionCliArgs(argv) {
   return {
     artifactPath: values.get("artifact"),
     checkArtifactUrl: values.get("check-artifact-url") === "true",
+    dependencyAuditPath: values.get("dependency-audit"),
     expectedVersion: values.get("expected-version"),
     manifestSource: values.get("manifest"),
     manifestUrl: values.get("manifest-url"),
@@ -257,6 +267,16 @@ function renderPromotionMarkdown(bundle) {
     "## Automated Checks",
     "",
     ...bundle.checks.map((check) => `- [x] \`${check.id}\` - ${check.detail}`),
+    "",
+    "## Dependency Audit",
+    "",
+    ...(bundle.dependencyAudit
+      ? [
+          `- Vulnerabilities: \`${bundle.dependencyAudit.vulnerabilities.count}\``,
+          `- Informational warnings: \`${bundle.dependencyAudit.warnings.count}\``,
+          `- Policy: ${bundle.dependencyAudit.policy.warningPolicy}`,
+        ]
+      : ["- Not recorded for this release bundle."]),
     "",
     "## Ring Promotion Rules",
     "",

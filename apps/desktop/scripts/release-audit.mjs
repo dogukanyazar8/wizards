@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createReadStream, existsSync, statSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -67,6 +67,29 @@ export async function createDesktopReleaseAudit(options = {}) {
     checks.push(skipCheck("updater_feed_preflight", "No updater manifest was provided."));
   }
 
+  const dependencyAudit = options.dependencyAuditPath
+    ? await collectDependencyAudit(options.dependencyAuditPath)
+    : null;
+  if (dependencyAudit) {
+    if (dependencyAudit.vulnerabilities.count > 0) {
+      checks.push(
+        failCheck(
+          "dependency_audit",
+          `cargo-audit found ${dependencyAudit.vulnerabilities.count} vulnerability finding(s).`,
+        ),
+      );
+    } else {
+      checks.push(
+        passCheck(
+          "dependency_audit",
+          `cargo-audit found 0 vulnerabilities and ${dependencyAudit.warnings.count} informational warning(s).`,
+        ),
+      );
+    }
+  } else {
+    checks.push(skipCheck("dependency_audit", "No cargo-audit summary was provided."));
+  }
+
   const report = {
     generatedAt: new Date().toISOString(),
     ring,
@@ -75,6 +98,7 @@ export async function createDesktopReleaseAudit(options = {}) {
     versionContract,
     platformMatrix: releaseOpsContract.platformMatrix,
     checks,
+    dependencyAudit,
     artifact,
     updaterFeed,
   };
@@ -103,6 +127,7 @@ export function parseReleaseAuditCliArgs(argv) {
   const allowed = new Set([
     "artifact",
     "check-artifact-url",
+    "dependency-audit",
     "expected-version",
     "manifest",
     "manifest-url",
@@ -155,6 +180,7 @@ export function parseReleaseAuditCliArgs(argv) {
   return {
     artifactPath: values.get("artifact"),
     checkArtifactUrl: values.get("check-artifact-url") === "true",
+    dependencyAuditPath: values.get("dependency-audit"),
     expectedVersion: values.get("expected-version"),
     manifestSource: values.get("manifest"),
     manifestUrl: values.get("manifest-url"),
@@ -165,6 +191,63 @@ export function parseReleaseAuditCliArgs(argv) {
     ring: values.get("ring"),
     signaturePath: values.get("signature"),
     webUrl: values.get("web-url"),
+  };
+}
+
+async function collectDependencyAudit(filePath) {
+  const resolvedPath = assertExistingFile(filePath, "dependency audit");
+  const summary = JSON.parse((await readFile(resolvedPath, "utf8")).replace(/^\uFEFF/, ""));
+
+  if (summary.schemaVersion !== 1 || summary.tool !== "cargo-audit") {
+    throw new Error("Desktop release dependency audit must be a whitelisted cargo-audit summary.");
+  }
+
+  const vulnerabilityCount = Number(summary.vulnerabilities?.count ?? 0);
+  const warningCount = Number(summary.warnings?.count ?? 0);
+
+  return {
+    source: path.basename(resolvedPath),
+    advisoryDatabase: {
+      advisoryCount: summary.advisoryDatabase?.advisoryCount ?? null,
+      lastUpdated: summary.advisoryDatabase?.lastUpdated ?? null,
+    },
+    lockfile: {
+      dependencyCount: summary.lockfile?.dependencyCount ?? null,
+    },
+    vulnerabilities: {
+      count: vulnerabilityCount,
+      found: Boolean(summary.vulnerabilities?.found || vulnerabilityCount > 0),
+      advisories: Array.isArray(summary.vulnerabilities?.advisories)
+        ? summary.vulnerabilities.advisories.map(normalizeAdvisorySummary)
+        : [],
+    },
+    warnings: {
+      count: warningCount,
+      groups: Array.isArray(summary.warnings?.groups)
+        ? summary.warnings.groups.map((group) => ({
+            kind: String(group.kind || "unknown"),
+            count: Number(group.count ?? 0),
+            advisories: Array.isArray(group.advisories)
+              ? group.advisories.map(normalizeAdvisorySummary)
+              : [],
+          }))
+        : [],
+    },
+    policy: {
+      releaseBlocker: Boolean(summary.policy?.releaseBlocker || vulnerabilityCount > 0),
+      warningPolicy: String(summary.policy?.warningPolicy || "informational warnings are tracked separately"),
+    },
+  };
+}
+
+function normalizeAdvisorySummary(value) {
+  return {
+    advisoryId: value?.advisoryId ?? null,
+    crate: value?.crate ?? null,
+    informational: value?.informational ?? null,
+    title: value?.title ?? null,
+    url: value?.url ?? null,
+    version: value?.version ?? null,
   };
 }
 
@@ -244,6 +327,14 @@ function passCheck(id, detail) {
   return {
     id,
     status: "passed",
+    detail,
+  };
+}
+
+function failCheck(id, detail) {
+  return {
+    id,
+    status: "failed",
     detail,
   };
 }
