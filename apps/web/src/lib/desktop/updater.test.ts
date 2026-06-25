@@ -5,6 +5,7 @@ import {
   dismissDesktopUpdateVersion,
   getDismissedDesktopUpdateVersion,
   normalizeDesktopVersion,
+  serializeDesktopUpdateFailureError,
 } from "./updater";
 
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
@@ -41,6 +42,20 @@ describe("desktop updater helpers", () => {
 
     clearDismissedDesktopUpdateVersion("0.8.14");
     assert.equal(getDismissedDesktopUpdateVersion(), null);
+  });
+
+  it("redacts sensitive updater failure diagnostics before native logging", () => {
+    const error = new Error(
+      "Updater failed for doguk@example.com with Bearer secret-access-token and cookie=session-id",
+    );
+
+    const serialized = serializeDesktopUpdateFailureError(error);
+
+    assert.equal(serialized.errorName, "Error");
+    assert.match(serialized.errorMessage ?? "", /\[redacted-email\]/);
+    assert.doesNotMatch(serialized.errorMessage ?? "", /doguk@example\.com/);
+    assert.doesNotMatch(serialized.errorMessage ?? "", /secret-access-token/);
+    assert.doesNotMatch(serialized.errorMessage ?? "", /session-id/);
   });
 });
 

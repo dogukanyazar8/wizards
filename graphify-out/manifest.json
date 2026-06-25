@@ -56,12 +56,12 @@
     "hash": "ee7f7bbb921e32d7a0ed773e09694abc"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\run-tauri.mjs": {
-    "mtime": 1782287961.6819773,
-    "hash": "61e5dffc048165f6d6cb05c695636440"
+    "mtime": 1782376940.988182,
+    "hash": "d0a11d8adc0fdd797c133607c2d534cb"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\run-tauri.test.mjs": {
-    "mtime": 1782288157.8922029,
-    "hash": "a4d540241e9334bd2001aff7ab3625ac"
+    "mtime": 1782377133.5475235,
+    "hash": "8d9443bb27c4839b9dfdbc4521b222bb"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\scripts\\sign-windows-artifact.ps1": {
     "mtime": 1781862284.8273516,
@@ -76,12 +76,12 @@
     "hash": "a03fbcf7cec3a9030cf4df755faf110c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\src-tauri\\build.rs": {
-    "mtime": 1782287839.5876274,
-    "hash": "2557ff240e52603eee5dad9352f4d739"
+    "mtime": 1782376916.9309022,
+    "hash": "0e521270004e272718e5c67962fb9328"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\src-tauri\\src\\lib.rs": {
-    "mtime": 1782287938.3052504,
-    "hash": "ae0d15c6ca450e07d2c14bf91fe05130"
+    "mtime": 1782376899.5080385,
+    "hash": "24167ab597783d1deff40484a4417790"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\src-tauri\\src\\main.rs": {
     "mtime": 1777980040.2752805,
@@ -1648,12 +1648,12 @@
     "hash": "955275cb1ee1d15898a1d5a6445db7bc"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\desktop\\updater.test.ts": {
-    "mtime": 1782270909.4012198,
-    "hash": "6585d172b00afb2e3dc2c41ed1361cb6"
+    "mtime": 1782377098.5129774,
+    "hash": "3febc69190733d76a711639ad6a238de"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\desktop\\updater.ts": {
-    "mtime": 1782286168.2762635,
-    "hash": "5f6691e5746ba5814b6db1c00501e8a5"
+    "mtime": 1782377077.172085,
+    "hash": "cd8460eb20a043d313eac80527199651"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\desktop\\voice-mini.test.ts": {
     "mtime": 1781862284.9055166,

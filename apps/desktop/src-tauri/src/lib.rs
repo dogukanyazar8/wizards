@@ -109,6 +109,8 @@ const MAX_DESKTOP_VOICE_MINI_SNAPSHOT_BYTES: usize = 16_384;
 const DESKTOP_NATIVE_LOG_FILENAME: &str = "desktop-diagnostics.log";
 const DESKTOP_NATIVE_LOG_MAX_BYTES: u64 = 256 * 1024;
 const DESKTOP_NATIVE_LOG_MAX_LINES: usize = 200;
+const DESKTOP_UPDATE_FAILURE_LOG_FILENAME: &str = "desktop-updater-failures.txt";
+const DESKTOP_UPDATE_FAILURE_LOG_MAX_BYTES: u64 = 512 * 1024;
 const DESKTOP_DIAGNOSTIC_TEXT_MAX_CHARS: usize = 512;
 const DESKTOP_SUPPORT_BUNDLE_VERSION: u8 = 2;
 
@@ -289,6 +291,31 @@ struct DesktopSupportPlatformInfo {
     arch: &'static str,
     family: &'static str,
     os: &'static str,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopUpdateFailureReport {
+    artifact_url: Option<String>,
+    current_version: Option<String>,
+    downloaded_bytes: Option<u64>,
+    error_message: Option<String>,
+    error_name: Option<String>,
+    error_stack: Option<String>,
+    manifest_url: Option<String>,
+    phase: String,
+    release_ring: Option<String>,
+    status: Option<String>,
+    target_version: Option<String>,
+    total_bytes: Option<u64>,
+    updater_enabled: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopUpdateFailureLogResult {
+    path: String,
+    timestamp_ms: u64,
 }
 
 #[derive(Debug, Serialize)]
@@ -586,6 +613,7 @@ pub fn run() {
             get_desktop_voice_shortcut_status,
             publish_desktop_game_overlay_snapshot,
             publish_desktop_voice_mini_snapshot,
+            record_desktop_update_failure,
             refresh_desktop_companion_surfaces,
             set_desktop_activity_status,
             set_desktop_game_overlay_visible,
@@ -827,6 +855,25 @@ fn export_desktop_diagnostics_bundle(
         shortcuts: desktop_voice_shortcut_registry_status(registry.inner()),
         web: web.sanitized(),
     })
+}
+
+#[tauri::command]
+fn record_desktop_update_failure(
+    window: WebviewWindow,
+    app: AppHandle,
+    report: DesktopUpdateFailureReport,
+) -> Result<DesktopUpdateFailureLogResult, String> {
+    assert_desktop_main_command_window(&window)?;
+
+    let result = write_desktop_update_failure_log(&app, report)?;
+    record_desktop_native_log(
+        &app,
+        "error",
+        "desktop_update_failure",
+        "Desktop updater failure report was written.",
+    );
+
+    Ok(result)
 }
 
 #[tauri::command]
@@ -1290,6 +1337,161 @@ fn sanitize_diagnostic_text(value: &str) -> String {
         .chars()
         .take(DESKTOP_DIAGNOSTIC_TEXT_MAX_CHARS)
         .collect()
+}
+
+fn sanitize_optional_diagnostic_text(value: Option<String>) -> Option<String> {
+    value
+        .as_deref()
+        .map(sanitize_diagnostic_text)
+        .filter(|value| !value.is_empty())
+}
+
+fn sanitize_optional_diagnostic_url(value: Option<String>) -> Option<String> {
+    let value = value?;
+
+    if let Ok(mut url) = Url::parse(&value) {
+        let _ = url.set_username("");
+        let _ = url.set_password(None);
+        url.set_query(None);
+        url.set_fragment(None);
+        return Some(sanitize_diagnostic_text(url.as_str()));
+    }
+
+    Some(sanitize_diagnostic_text(&value))
+}
+
+fn desktop_update_failure_log_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let log_dir = app
+        .path()
+        .app_log_dir()
+        .map_err(|error| format!("Unable to resolve desktop updater log directory: {error}"))?;
+
+    fs::create_dir_all(&log_dir)
+        .map_err(|error| format!("Unable to create desktop updater log directory: {error}"))?;
+
+    Ok(log_dir.join(DESKTOP_UPDATE_FAILURE_LOG_FILENAME))
+}
+
+fn rotate_desktop_update_failure_log(path: &PathBuf) {
+    if !fs::metadata(path)
+        .map(|metadata| metadata.len() > DESKTOP_UPDATE_FAILURE_LOG_MAX_BYTES)
+        .unwrap_or(false)
+    {
+        return;
+    }
+
+    let rotated_path = path.with_extension("txt.old");
+    let _ = fs::remove_file(&rotated_path);
+    if fs::rename(path, &rotated_path).is_err() {
+        let _ = fs::write(path, "");
+    }
+}
+
+fn append_desktop_update_log_field(lines: &mut Vec<String>, label: &str, value: Option<String>) {
+    if let Some(value) = value {
+        lines.push(format!("{label}: {value}"));
+    }
+}
+
+fn write_desktop_update_failure_log(
+    app: &AppHandle,
+    report: DesktopUpdateFailureReport,
+) -> Result<DesktopUpdateFailureLogResult, String> {
+    let timestamp_ms = current_unix_ms();
+    let path = desktop_update_failure_log_path(app)?;
+    rotate_desktop_update_failure_log(&path);
+
+    let app_info = desktop_support_app_info();
+    let mut lines = vec![
+        "----- Whispr Desktop updater failure -----".to_string(),
+        format!("timestampMs: {timestamp_ms}"),
+        format!("phase: {}", sanitize_diagnostic_text(&report.phase)),
+        format!("desktopAppVersion: {}", app_info.app_version),
+        format!("desktopBuildTime: {}", sanitize_diagnostic_text(&app_info.build_time)),
+        format!(
+            "desktopReleaseRing: {}",
+            sanitize_diagnostic_text(&app_info.release_ring)
+        ),
+        format!("desktopUpdaterEnabled: {}", app_info.updater_enabled),
+        format!("tauriVersion: {}", app_info.tauri_version),
+        format!(
+            "webviewVersion: {}",
+            sanitize_diagnostic_text(&app_info.webview_version)
+        ),
+        format!("platformFamily: {}", std::env::consts::FAMILY),
+        format!("platformOs: {}", std::env::consts::OS),
+        format!("platformArch: {}", std::env::consts::ARCH),
+    ];
+
+    append_desktop_update_log_field(
+        &mut lines,
+        "currentVersion",
+        sanitize_optional_diagnostic_text(report.current_version),
+    );
+    append_desktop_update_log_field(
+        &mut lines,
+        "targetVersion",
+        sanitize_optional_diagnostic_text(report.target_version),
+    );
+    append_desktop_update_log_field(
+        &mut lines,
+        "releaseRing",
+        sanitize_optional_diagnostic_text(report.release_ring),
+    );
+    append_desktop_update_log_field(
+        &mut lines,
+        "status",
+        sanitize_optional_diagnostic_text(report.status),
+    );
+    append_desktop_update_log_field(
+        &mut lines,
+        "manifestUrl",
+        sanitize_optional_diagnostic_url(report.manifest_url),
+    );
+    append_desktop_update_log_field(
+        &mut lines,
+        "artifactUrl",
+        sanitize_optional_diagnostic_url(report.artifact_url),
+    );
+    if let Some(value) = report.downloaded_bytes {
+        lines.push(format!("downloadedBytes: {value}"));
+    }
+    if let Some(value) = report.total_bytes {
+        lines.push(format!("totalBytes: {value}"));
+    }
+    if let Some(value) = report.updater_enabled {
+        lines.push(format!("reportedUpdaterEnabled: {value}"));
+    }
+    append_desktop_update_log_field(
+        &mut lines,
+        "errorName",
+        sanitize_optional_diagnostic_text(report.error_name),
+    );
+    append_desktop_update_log_field(
+        &mut lines,
+        "errorMessage",
+        sanitize_optional_diagnostic_text(report.error_message),
+    );
+    append_desktop_update_log_field(
+        &mut lines,
+        "errorStack",
+        sanitize_optional_diagnostic_text(report.error_stack),
+    );
+    lines.push(String::new());
+
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .map_err(|error| format!("Unable to open desktop updater failure log: {error}"))?;
+    file.write_all(lines.join("\n").as_bytes())
+        .and_then(|_| file.write_all(b"\n"))
+        .map_err(|error| format!("Unable to write desktop updater failure log: {error}"))?;
+
+    Ok(DesktopUpdateFailureLogResult {
+        path: path.to_string_lossy().to_string(),
+        timestamp_ms,
+    })
 }
 
 fn desktop_native_log_path(app: &AppHandle) -> Option<PathBuf> {

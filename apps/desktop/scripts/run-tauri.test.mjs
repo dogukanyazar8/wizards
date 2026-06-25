@@ -100,6 +100,10 @@ describe("desktop Tauri config generation", () => {
       "Expected explicit app command permissions on the main window capability.",
     );
     assert.ok(
+      capability.permissions.includes("allow-record-desktop-update-failure"),
+      "Expected updater failure logs to be available only through the main window capability.",
+    );
+    assert.ok(
       !voiceMiniCapability.permissions.some((permission) => permission.startsWith("allow-")),
       "The voice mini window must not receive custom app command permissions.",
     );
@@ -210,6 +214,7 @@ describe("desktop Tauri config generation", () => {
     assert.ok(mainCapability.permissions.includes("updater:allow-check"));
     assert.ok(mainCapability.permissions.includes("updater:allow-download-and-install"));
     assert.ok(mainCapability.permissions.includes("process:allow-restart"));
+    assert.ok(mainCapability.permissions.includes("allow-record-desktop-update-failure"));
     assert.ok(!mainCapability.permissions.includes("process:allow-exit"));
     assert.ok(!voiceMiniCapability.permissions.some((permission) => permission.startsWith("updater:")));
     assert.ok(!voiceMiniCapability.permissions.some((permission) => permission.startsWith("process:")));

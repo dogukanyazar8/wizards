@@ -60,6 +60,7 @@ const appCommandPermissions = [
   "allow-promote-desktop-main-window",
   "allow-publish-desktop-game-overlay-snapshot",
   "allow-publish-desktop-voice-mini-snapshot",
+  "allow-record-desktop-update-failure",
   "allow-refresh-desktop-companion-surfaces",
   "allow-set-desktop-activity-status",
   "allow-set-desktop-autostart-enabled",

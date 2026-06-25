@@ -7,7 +7,11 @@ import {
   setDesktopQuitOnCloseEnabled,
 } from "@/lib/desktop/controls";
 import { recordDesktopPerformanceMetric } from "@/lib/desktop/performance";
-import { getWhisprDesktopReleaseRing, isWhisprDesktopUpdaterEnabled } from "@/lib/desktop/runtime";
+import {
+  getWhisprDesktopReleaseRing,
+  isWhisprDesktopRuntime,
+  isWhisprDesktopUpdaterEnabled,
+} from "@/lib/desktop/runtime";
 
 export type DesktopNativeUpdateStatus =
   | "checking"
@@ -53,9 +57,39 @@ type NativeUpdate = TauriUpdate;
 
 const DESKTOP_UPDATE_CHECK_TIMEOUT_MS = 12_000;
 const DESKTOP_UPDATE_DOWNLOAD_TIMEOUT_MS = 120_000;
+const DESKTOP_UPDATE_FAILURE_LOG_TIMEOUT_MS = 4_000;
 export const DISMISSED_DESKTOP_UPDATE_STORAGE_KEY = "whispr.dismissedDesktopUpdateVersion";
 const PENDING_DESKTOP_UPDATE_VERIFICATION_STORAGE_KEY =
   "whispr.pendingDesktopUpdateVerification";
+
+export type DesktopUpdateFailurePhase =
+  | "check"
+  | "download"
+  | "install"
+  | "relaunch"
+  | "signature_verification"
+  | "verify";
+
+export interface DesktopUpdateFailureLogReport {
+  artifactUrl?: string | null;
+  currentVersion?: string | null;
+  downloadedBytes?: number | null;
+  errorMessage?: string | null;
+  errorName?: string | null;
+  errorStack?: string | null;
+  manifestUrl?: string | null;
+  phase: DesktopUpdateFailurePhase;
+  releaseRing?: string | null;
+  status?: string | null;
+  targetVersion?: string | null;
+  totalBytes?: number | null;
+  updaterEnabled?: boolean | null;
+}
+
+export interface DesktopUpdateFailureLogResult {
+  path: string;
+  timestampMs: number;
+}
 
 function now() {
   return typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -63,6 +97,84 @@ function now() {
 
 function durationSince(startedAt: number) {
   return now() - startedAt;
+}
+
+function redactDesktopUpdateFailureText(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const redacted = value
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted-email]")
+    .replace(
+      /\b(authorization|bearer|cookie|password|secret|session|token)\b\s*[:=]?\s*\S*/gi,
+      "$1=[redacted]",
+    )
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]+/g, " ")
+    .trim();
+
+  return redacted.length > 0 ? redacted.slice(0, 4_000) : null;
+}
+
+export function serializeDesktopUpdateFailureError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      errorMessage: redactDesktopUpdateFailureText(error.message),
+      errorName: redactDesktopUpdateFailureText(error.name),
+      errorStack: redactDesktopUpdateFailureText(error.stack),
+    };
+  }
+
+  return {
+    errorMessage: redactDesktopUpdateFailureText(String(error ?? "Unknown updater failure")),
+    errorName: null,
+    errorStack: null,
+  };
+}
+
+function withDesktopUpdateFailureLogTimeout<T>(promise: Promise<T>) {
+  let timeoutId: number | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      reject(new Error("Desktop updater failure log timed out."));
+    }, DESKTOP_UPDATE_FAILURE_LOG_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+    }
+  });
+}
+
+export async function recordDesktopUpdateFailureLog(
+  report: DesktopUpdateFailureLogReport,
+): Promise<DesktopUpdateFailureLogResult | null> {
+  if (!isWhisprDesktopRuntime()) {
+    return null;
+  }
+
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    return await withDesktopUpdateFailureLogTimeout(
+      invoke<DesktopUpdateFailureLogResult>("record_desktop_update_failure", {
+        report: {
+          ...report,
+          artifactUrl: redactDesktopUpdateFailureText(report.artifactUrl),
+          currentVersion: redactDesktopUpdateFailureText(report.currentVersion),
+          errorMessage: redactDesktopUpdateFailureText(report.errorMessage),
+          errorName: redactDesktopUpdateFailureText(report.errorName),
+          errorStack: redactDesktopUpdateFailureText(report.errorStack),
+          manifestUrl: redactDesktopUpdateFailureText(report.manifestUrl),
+          releaseRing: redactDesktopUpdateFailureText(report.releaseRing),
+          status: redactDesktopUpdateFailureText(report.status),
+          targetVersion: redactDesktopUpdateFailureText(report.targetVersion),
+        },
+      }),
+    );
+  } catch {
+    return null;
+  }
 }
 
 function getDesktopUpdateStorage() {
@@ -207,6 +319,17 @@ export async function verifyPendingDesktopUpdateInstallation(): Promise<DesktopN
       operation: "desktop_update_verify",
       result: "failure",
     });
+    void recordDesktopUpdateFailureLog({
+      ...serializeDesktopUpdateFailureError(
+        new Error("Desktop runtime version could not be read after update relaunch."),
+      ),
+      currentVersion: null,
+      phase: "verify",
+      releaseRing: pending.releaseRing,
+      status: "unavailable",
+      targetVersion: pending.expectedVersion,
+      updaterEnabled: canUseDesktopNativeUpdater(),
+    });
     return {
       currentVersion: null,
       expectedVersion: pending.expectedVersion,
@@ -233,6 +356,19 @@ export async function verifyPendingDesktopUpdateInstallation(): Promise<DesktopN
   recordDesktopPerformanceMetric({
     operation: "desktop_update_verify",
     result: "failure",
+  });
+  void recordDesktopUpdateFailureLog({
+    ...serializeDesktopUpdateFailureError(
+      new Error(
+        `Desktop update verification mismatch. Expected ${pending.expectedVersion}, got ${currentVersion}.`,
+      ),
+    ),
+    currentVersion,
+    phase: "verify",
+    releaseRing: pending.releaseRing,
+    status: "mismatched",
+    targetVersion: pending.expectedVersion,
+    updaterEnabled: canUseDesktopNativeUpdater(),
   });
 
   return {
@@ -284,6 +420,13 @@ export async function checkDesktopNativeUpdate() {
       durationMs: durationSince(startedAt),
       operation: "desktop_update_check",
       result: isSignatureFailure(error) ? "signature_failure" : "failure",
+    });
+    void recordDesktopUpdateFailureLog({
+      ...serializeDesktopUpdateFailureError(error),
+      phase: isSignatureFailure(error) ? "signature_verification" : "check",
+      releaseRing: getWhisprDesktopReleaseRing(),
+      status: "failed",
+      updaterEnabled: canUseDesktopNativeUpdater(),
     });
     throw error;
   }
@@ -341,14 +484,31 @@ export async function downloadInstallAndRelaunchDesktopUpdate(
     });
     rememberPendingDesktopUpdateVerification(toUpdateInfo(update));
   } catch (error) {
+    const failurePhase: DesktopUpdateFailurePhase = isSignatureFailure(error)
+      ? "signature_verification"
+      : downloadFinished
+        ? "install"
+        : "download";
+
     recordDesktopPerformanceMetric({
       durationMs: durationSince(downloadStartedAt),
-      operation: isSignatureFailure(error)
+      operation: failurePhase === "signature_verification"
         ? "desktop_update_signature_verification"
         : downloadFinished
           ? "desktop_update_install"
           : "desktop_update_download",
       result: isSignatureFailure(error) ? "signature_failure" : "failure",
+    });
+    void recordDesktopUpdateFailureLog({
+      ...serializeDesktopUpdateFailureError(error),
+      currentVersion: update.currentVersion,
+      downloadedBytes,
+      phase: failurePhase,
+      releaseRing: getWhisprDesktopReleaseRing(),
+      status: "failed",
+      targetVersion: update.version,
+      totalBytes,
+      updaterEnabled: canUseDesktopNativeUpdater(),
     });
 
     if (quitOnCloseOverridden && previousQuitOnClose !== null) {
@@ -373,6 +533,15 @@ export async function downloadInstallAndRelaunchDesktopUpdate(
       durationMs: durationSince(relaunchStartedAt),
       operation: "desktop_update_relaunch",
       result: "failure",
+    });
+    void recordDesktopUpdateFailureLog({
+      ...serializeDesktopUpdateFailureError(error),
+      currentVersion: update.currentVersion,
+      phase: "relaunch",
+      releaseRing: getWhisprDesktopReleaseRing(),
+      status: "failed",
+      targetVersion: update.version,
+      updaterEnabled: canUseDesktopNativeUpdater(),
     });
     throw error;
   }
