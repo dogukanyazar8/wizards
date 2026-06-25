@@ -356,21 +356,29 @@ jobs:
         shell: pwsh
         working-directory: apps/desktop/src-tauri
         run: |
-          $expectedVersion = "cargo-audit $env:CARGO_AUDIT_VERSION"
+          $expectedBinDir = [IO.Path]::GetFullPath("${{ steps.cargo_audit_paths.outputs.bin_dir }}")
           $cargoAudit = Get-Command cargo-audit -ErrorAction SilentlyContinue
           if (-not $cargoAudit) {
             Write-Error "cargo-audit was not found after cache restore/install."
             exit 1
           }
 
-          $currentVersion = (cargo audit --version).Trim()
-          if ($currentVersion -ne $expectedVersion) {
-            Write-Error "Unexpected cargo-audit version: expected '$expectedVersion', got '$currentVersion'."
+          $cargoAuditPath = [IO.Path]::GetFullPath($cargoAudit.Source)
+          if (-not $cargoAuditPath.StartsWith($expectedBinDir, [StringComparison]::OrdinalIgnoreCase)) {
+            Write-Error "cargo-audit resolved from an unexpected path. Expected under '$expectedBinDir', got '$cargoAuditPath'."
+            exit 1
+          }
+
+          $currentVersion = (& $cargoAuditPath --version).Trim()
+          $expectedVersionPattern = "(^|\s)$([regex]::Escape($env:CARGO_AUDIT_VERSION))(\s|$)"
+          if ($currentVersion -notmatch $expectedVersionPattern) {
+            Write-Error "Unexpected cargo-audit version: expected version token '$env:CARGO_AUDIT_VERSION', got '$currentVersion'."
             exit 1
           }
 
           "cargo-audit cache hit: ${{ steps.cargo_audit_cache.outputs.cache-hit }}"
-          "cargo-audit path: $($cargoAudit.Source)"
+          "cargo-audit version: $currentVersion"
+          "cargo-audit path: $cargoAuditPath"
 
       - name: Run cargo audit and summarize
         shell: pwsh
