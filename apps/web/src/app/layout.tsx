@@ -11,6 +11,7 @@ import {
 } from "next/font/google";
 import "./globals.css";
 import { auth } from "@/auth";
+import { DesktopContextMenuGuard } from "@/components/desktop/desktop-context-menu-guard";
 import { DesktopWindowChrome } from "@/components/desktop/desktop-window-chrome";
 import { AppIconProvider } from "@/components/providers/app-icon-provider";
 import { LocaleProvider } from "@/components/providers/locale-provider";
@@ -99,6 +100,7 @@ export default async function RootLayout({
             <AppIconProvider>
               <QueryProvider>
                 <MessageFontSync />
+                <DesktopContextMenuGuard />
                 <DesktopWindowChrome />
                 {children}
               </QueryProvider>

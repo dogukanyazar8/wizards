@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 import { motion, Reorder } from "framer-motion";
-import { MessageCircleMore, Plus, RotateCcw } from "lucide-react";
+import { MessagesSquare, Plus, RotateCcw } from "lucide-react";
 import type { WorkspaceServerSummary } from "@wizards/types";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -234,12 +235,12 @@ export function ServerRail({
       onContextMenu={handleRailContextMenu}
     >
       <div
-        className="mb-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-[hsl(var(--surface-card)/0.58)] ring-1 ring-[hsl(var(--border)/0.42)]"
+        className="mb-2 flex h-11 w-11 shrink-0 items-center justify-center"
         data-server-rail-item
         title="Whispr"
       >
         <BrandLogo
-          className="[&_.whispr-logo-icon]:h-9 [&_.whispr-logo-icon]:w-9 [&_.whispr-logo-icon]:rounded-[12px] [&_.whispr-logo-wordmark]:hidden"
+          className="[&_.whispr-logo-icon]:h-10 [&_.whispr-logo-icon]:w-10 [&_.whispr-logo-icon]:rounded-[14px] [&_.whispr-logo-icon]:shadow-[0_11px_24px_hsl(var(--primary)/0.17)] [&_.whispr-logo-wordmark]:hidden"
           interactive={false}
         />
       </div>
@@ -248,7 +249,7 @@ export function ServerRail({
           ref={dmBtnRef}
           aria-current={!activeServerId ? "page" : undefined}
           aria-label={t("shell.serverRail.directMessages")}
-          className="group relative mx-auto flex h-11 w-11 items-center justify-center rounded-[18px] outline-none transition-all duration-150 focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.7)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background)/0.72)]"
+          className="group relative mx-auto flex h-11 w-11 items-center justify-center rounded-full outline-none transition-all duration-150 focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.7)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background)/0.72)]"
           data-testid="server-rail-dm"
           onBlur={() => setDmTooltipPos(null)}
           onClick={() => onNavigate("/channels/@me")}
@@ -269,11 +270,20 @@ export function ServerRail({
           <span
             className={
               !activeServerId
-                ? "flex h-9 w-9 items-center justify-center rounded-[15px] bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--ambient-1)))] text-[hsl(var(--primary-foreground))] shadow-[0_14px_30px_hsl(var(--primary)/0.24)] ring-2 ring-[hsl(var(--primary)/0.24)]"
-                : "flex h-9 w-9 items-center justify-center rounded-[15px] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] ring-1 ring-[hsl(var(--primary)/0.16)] transition group-hover:bg-[hsl(var(--primary)/0.14)] group-hover:ring-[hsl(var(--primary)/0.24)]"
+                ? "flex h-10 w-10 items-center justify-center overflow-hidden rounded-full shadow-[0_13px_26px_hsl(var(--primary)/0.22)] brightness-105"
+                : "flex h-10 w-10 items-center justify-center overflow-hidden rounded-full opacity-90 transition duration-150 group-hover:opacity-100 group-hover:brightness-105"
             }
           >
-            <MessageCircleMore aria-hidden="true" className="h-[18px] w-[18px]" />
+            <Image
+              alt=""
+              aria-hidden="true"
+              className="h-full w-full object-cover"
+              draggable={false}
+              height={40}
+              sizes="40px"
+              src="/app-icons/dm-whispr-send-v2.png"
+              width={40}
+            />
           </span>
           {dmUnreadCount > 0 ? (
             <span
@@ -470,7 +480,7 @@ export function MobileDrawerTrigger({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       type="button"
     >
-      <MessageCircleMore className="h-4 w-4" />
+      <MessagesSquare className="h-4 w-4" />
     </button>
   );
 }

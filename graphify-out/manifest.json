@@ -268,8 +268,8 @@
     "hash": "496d7cca09b92db39bfb2c1591393354"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\layout.tsx": {
-    "mtime": 1781862284.8600047,
-    "hash": "df35d803a12eba1b244ea39a945ea3fd"
+    "mtime": 1782476770.8737755,
+    "hash": "7ae0bd4797f0a46912229cb382809e62"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\page.tsx": {
     "mtime": 1777104295.070931,
@@ -376,8 +376,8 @@
     "hash": "2fb98a7414f57b1abe823676a73841cb"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\route-contract.test.ts": {
-    "mtime": 1782417400.2864842,
-    "hash": "621dbef364a139ba511d3378d6a7a621"
+    "mtime": 1782473719.0860448,
+    "hash": "74169c2a0c34995b2a043ba6dfca9a15"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\admin\\dashboard\\route.ts": {
     "mtime": 1779082192.427892,
@@ -472,8 +472,8 @@
     "hash": "52790430527a304e14d62fe5d77290fb"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\desktop\\download\\route.ts": {
-    "mtime": 1782417244.561581,
-    "hash": "92eadb7ddd03148e97a3dea3100c8189"
+    "mtime": 1782473719.0850444,
+    "hash": "af6e60d50bdd710069a04f5616aaec92"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\dm\\route.ts": {
     "mtime": 1779082192.4394002,
@@ -720,8 +720,8 @@
     "hash": "20e2b15600336ffc111cd7b5e308dff0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\invite\\[code]\\page.tsx": {
-    "mtime": 1782417265.8754873,
-    "hash": "46153e62c7bd0ee34f0a8cc31e0cd425"
+    "mtime": 1782473719.0860448,
+    "hash": "f3175c9d79733f66cfb9a3c883b6d590"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\settings\\layout.tsx": {
     "mtime": 1781862284.8610027,
@@ -874,6 +874,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\design\\whispr-chat-preview.tsx": {
     "mtime": 1779116716.3451498,
     "hash": "7867dd2d9a9139fdc9ac5227618f4208"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\desktop\\desktop-context-menu-guard.tsx": {
+    "mtime": 1782476753.2498574,
+    "hash": "52926f377c19bf077188eeab77936756"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\desktop\\desktop-diagnostics-panel.tsx": {
     "mtime": 1781862284.8675172,
@@ -1076,8 +1080,8 @@
     "hash": "031614125b685a7195026d80d79866a8"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\server-rail.tsx": {
-    "mtime": 1781862284.8800285,
-    "hash": "fa8f5177be8e8444f06b3ab482ce8fb1"
+    "mtime": 1782487136.0478249,
+    "hash": "0a1323e8fe58035b9206b578407fa8ea"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\components\\shell\\server-settings-overlay.tsx": {
     "mtime": 1779082192.4604201,
@@ -1256,20 +1260,20 @@
     "hash": "3b76e9183e3dc50fa3645aba8a382d87"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\app-version.ts": {
-    "mtime": 1782417210.193287,
-    "hash": "7c0a11d07889b3b1fc5875018fc240b1"
+    "mtime": 1782473719.0870442,
+    "hash": "f6d2c0ccb97a6c453f58645914aa9ddd"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\appearance.ts": {
     "mtime": 1781862284.894395,
     "hash": "1540c4ceb467b7c261dfccdb4985282b"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\desktop-download.test.ts": {
-    "mtime": 1782417310.2444878,
-    "hash": "c16079777baa8a2a93fb33b1d26844c1"
+    "mtime": 1782473719.0870442,
+    "hash": "80ba120b92397d86d07014c1d872a20c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\desktop-download.ts": {
-    "mtime": 1782417183.3975053,
-    "hash": "4769bdf7d5672c464c0671614571104e"
+    "mtime": 1782473719.0880444,
+    "hash": "0f8cc60bb8cb12c1b2fe68914879f5a0"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\env.test.ts": {
     "mtime": 1781862284.906517,
@@ -1606,6 +1610,14 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\auth\\utils.ts": {
     "mtime": 1781862284.8993957,
     "hash": "0a00e5096cb557be66f76f3e1d5e339f"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\desktop\\context-menu.test.ts": {
+    "mtime": 1782476794.530516,
+    "hash": "3b04375119bd6ad81b1142124278f18c"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\desktop\\context-menu.ts": {
+    "mtime": 1782476733.9692879,
+    "hash": "8895bf5d5d864b1dfa3670704df685e6"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\desktop\\controls.test.ts": {
     "mtime": 1781862284.8993957,
@@ -2626,6 +2638,14 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\src-tauri\\icons\\icon.png": {
     "mtime": 1778571008.089259,
     "hash": "1a25f1fdee07cf2e50a7ea83df0b21f6"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\app-icons\\dm-whispr-send-v2.png": {
+    "mtime": 1782482713.777575,
+    "hash": "19307ef76c02c1f786d5afc61cd5a219"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\app-icons\\dm-whispr.png": {
+    "mtime": 1782482713.777575,
+    "hash": "19307ef76c02c1f786d5afc61cd5a219"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\app-icons\\wave-0.png": {
     "mtime": 1777530216.519421,
