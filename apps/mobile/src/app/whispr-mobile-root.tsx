@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { MobileBootstrapPayload } from "@wizards/types";
+import type { MobileBootstrapPayload, MobileDMMessagesResponse } from "@wizards/types";
 import whisprIcon from "../../assets/whispr-icon.png";
 import {
   Image,
@@ -31,6 +31,7 @@ import {
 } from "../deep-link/mobile-deep-links";
 import { useMobileDeepLinks } from "../deep-link/use-mobile-deep-links";
 import { mobileColors, mobileRadii, mobileSpacing } from "../design/tokens";
+import { fetchMobileDMMessages } from "../dm/mobile-dm-client";
 import { mobileCopy } from "../locale/mobile-copy";
 import {
   createMobileNavigationState,
@@ -93,11 +94,44 @@ type MobileBootstrapViewState =
       summary: null;
     };
 
+type MobileDMMessagesViewState =
+  | {
+      conversationId: null;
+      error: null;
+      payload: null;
+      status: "idle";
+    }
+  | {
+      conversationId: string;
+      error: null;
+      payload: MobileDMMessagesResponse | null;
+      status: "loading";
+    }
+  | {
+      conversationId: string;
+      error: null;
+      payload: MobileDMMessagesResponse;
+      status: "ready";
+    }
+  | {
+      conversationId: string;
+      error: string;
+      payload: null;
+      status: "error";
+    };
+
 const INITIAL_BOOTSTRAP_STATE: MobileBootstrapViewState = {
   error: null,
   payload: null,
   status: "idle",
   summary: null,
+};
+
+const INITIAL_DM_MESSAGES_STATE: MobileDMMessagesViewState = {
+  conversationId: null,
+  error: null,
+  payload: null,
+  status: "idle",
 };
 
 export function WhisprMobileRoot() {
@@ -121,6 +155,12 @@ export function WhisprMobileRoot() {
   const [bootstrapState, setBootstrapState] =
     useState<MobileBootstrapViewState>(INITIAL_BOOTSTRAP_STATE);
   const bootstrapRequestIdRef = useRef(0);
+  const [selectedDMConversationId, setSelectedDMConversationId] = useState<string | null>(
+    null,
+  );
+  const [dmMessagesState, setDMMessagesState] =
+    useState<MobileDMMessagesViewState>(INITIAL_DM_MESSAGES_STATE);
+  const dmMessagesRequestIdRef = useRef(0);
   const [lastDeepLink, setLastDeepLink] = useState<MobileDeepLinkParseResult | null>(null);
   const route = resolveMobileRoute(navigation.currentTab, status);
   const permissionReadiness = useMemo(() => createInitialMobilePermissionReadiness(), []);
@@ -175,15 +215,102 @@ export function WhisprMobileRoot() {
     }
   }, [apiClient, status]);
 
+  const loadDMMessages = useCallback(
+    async (conversationId: string) => {
+      const requestId = dmMessagesRequestIdRef.current + 1;
+      dmMessagesRequestIdRef.current = requestId;
+
+      if (status !== "signed-in") {
+        setDMMessagesState(INITIAL_DM_MESSAGES_STATE);
+        return;
+      }
+
+      setDMMessagesState((current) => ({
+        conversationId,
+        error: null,
+        payload:
+          current.conversationId === conversationId && current.status === "ready"
+            ? current.payload
+            : null,
+        status: "loading",
+      }));
+
+      try {
+        const payload = await fetchMobileDMMessages(apiClient, { conversationId });
+        if (dmMessagesRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        setDMMessagesState({
+          conversationId,
+          error: null,
+          payload,
+          status: "ready",
+        });
+      } catch {
+        if (dmMessagesRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        setDMMessagesState({
+          conversationId,
+          error: copy.dmMessagesLoadFailed,
+          payload: null,
+          status: "error",
+        });
+      }
+    },
+    [apiClient, status],
+  );
+
+  const handleOpenDMConversation = useCallback(
+    (conversationId: string) => {
+      setSelectedDMConversationId(conversationId);
+      void loadDMMessages(conversationId);
+    },
+    [loadDMMessages],
+  );
+
+  const selectedDMConversation = useMemo(() => {
+    if (bootstrapState.status !== "ready" || !selectedDMConversationId) {
+      return null;
+    }
+
+    return (
+      bootstrapState.payload.home.directMessages.recent.find(
+        (conversation) => conversation.id === selectedDMConversationId,
+      ) ?? null
+    );
+  }, [bootstrapState, selectedDMConversationId]);
+
   useEffect(() => {
     if (status !== "signed-in") {
       bootstrapRequestIdRef.current += 1;
+      dmMessagesRequestIdRef.current += 1;
       setBootstrapState(INITIAL_BOOTSTRAP_STATE);
+      setSelectedDMConversationId(null);
+      setDMMessagesState(INITIAL_DM_MESSAGES_STATE);
       return;
     }
 
     void loadBootstrap();
   }, [loadBootstrap, status]);
+
+  useEffect(() => {
+    if (bootstrapState.status !== "ready" || !selectedDMConversationId) {
+      return;
+    }
+
+    const hasSelectedConversation = bootstrapState.payload.home.directMessages.recent.some(
+      (conversation) => conversation.id === selectedDMConversationId,
+    );
+
+    if (!hasSelectedConversation) {
+      dmMessagesRequestIdRef.current += 1;
+      setSelectedDMConversationId(null);
+      setDMMessagesState(INITIAL_DM_MESSAGES_STATE);
+    }
+  }, [bootstrapState, selectedDMConversationId]);
 
   const handleDeepLink = useCallback(
     (result: MobileDeepLinkParseResult) => {
@@ -288,6 +415,7 @@ export function WhisprMobileRoot() {
             <ActiveScreen
               currentTab={route.currentTab}
               bootstrapState={bootstrapState}
+              dmMessagesState={dmMessagesState}
               diagnostics={diagnostics}
               lastDeepLink={lastDeepLink}
               permissionReadiness={permissionReadiness}
@@ -296,9 +424,17 @@ export function WhisprMobileRoot() {
               authStatusLabel={authStatusLabel}
               signedInUserLabel={signedInUserLabel}
               onOpenWebSignIn={() => void openWebSignIn()}
+              onOpenDMConversation={handleOpenDMConversation}
               onRefreshBootstrap={() => void loadBootstrap()}
+              onRefreshDMConversation={() => {
+                if (selectedDMConversationId) {
+                  void loadDMMessages(selectedDMConversationId);
+                }
+              }}
               onRefresh={() => void refreshSessionFromStorage()}
               onSignOut={() => void signOut()}
+              selectedDMConversation={selectedDMConversation}
+              selectedDMConversationId={selectedDMConversationId}
               status={status}
             />
           )}
@@ -340,6 +476,7 @@ interface ActiveScreenProps {
   authStatusLabel: string;
   bootstrapState: MobileBootstrapViewState;
   currentTab: MobileTabId;
+  dmMessagesState: MobileDMMessagesViewState;
   diagnostics: {
     hasRefreshToken: boolean;
     hasSession: boolean;
@@ -347,12 +484,18 @@ interface ActiveScreenProps {
   };
   error: string | null;
   lastDeepLink: MobileDeepLinkParseResult | null;
+  onOpenDMConversation(conversationId: string): void;
   onOpenWebSignIn(): void;
   onRefreshBootstrap(): void;
+  onRefreshDMConversation(): void;
   onRefresh(): void;
   onSignOut(): void;
   permissionReadiness: readonly MobilePermissionReadiness[];
   permissionSummary: MobilePermissionSummary;
+  selectedDMConversation:
+    | MobileBootstrapPayload["home"]["directMessages"]["recent"][number]
+    | null;
+  selectedDMConversationId: string | null;
   signedInUserLabel: string | null;
   status: string;
 }
@@ -361,15 +504,20 @@ function ActiveScreen({
   authStatusLabel,
   bootstrapState,
   currentTab,
+  dmMessagesState,
   diagnostics,
   error,
   lastDeepLink,
+  onOpenDMConversation,
   onOpenWebSignIn,
   onRefreshBootstrap,
+  onRefreshDMConversation,
   onRefresh,
   onSignOut,
   permissionReadiness,
   permissionSummary,
+  selectedDMConversation,
+  selectedDMConversationId,
   signedInUserLabel,
   status,
 }: ActiveScreenProps) {
@@ -385,9 +533,19 @@ function ActiveScreen({
           <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
           {bootstrapState.status === "ready" &&
           bootstrapState.payload.home.directMessages.recent.length > 0 ? (
-            <DirectMessageListCard
-              conversations={bootstrapState.payload.home.directMessages.recent}
-            />
+            <>
+              <DirectMessageListCard
+                conversations={bootstrapState.payload.home.directMessages.recent}
+                selectedConversationId={selectedDMConversationId}
+                onOpenConversation={onOpenDMConversation}
+              />
+              <DMConversationPreviewCard
+                conversation={selectedDMConversation}
+                currentUserId={bootstrapState.payload.user.id}
+                state={dmMessagesState}
+                onRetry={onRefreshDMConversation}
+              />
+            </>
           ) : bootstrapState.status === "idle" ||
             (bootstrapState.status === "ready" &&
               bootstrapState.payload.home.directMessages.recent.length === 0) ? (
@@ -650,8 +808,12 @@ function RecentServersCard({
 
 function DirectMessageListCard({
   conversations,
+  onOpenConversation,
+  selectedConversationId,
 }: {
   conversations: MobileBootstrapPayload["home"]["directMessages"]["recent"];
+  onOpenConversation(conversationId: string): void;
+  selectedConversationId: string | null;
 }) {
   return (
     <View style={styles.contractCard}>
@@ -664,9 +826,24 @@ function DirectMessageListCard({
               .map((participant) => participant.displayName ?? participant.username)
               .join(", ") ??
             copy.directMessageFallback;
+          const isSelected = conversation.id === selectedConversationId;
 
           return (
-            <View key={conversation.id} style={styles.compactListRow}>
+            <Pressable
+              key={conversation.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${copy.openConversationAction}: ${
+                title || copy.directMessageFallback
+              }`}
+              accessibilityState={{ selected: isSelected }}
+              onPress={() => onOpenConversation(conversation.id)}
+              style={({ pressed }) => [
+                styles.compactListRow,
+                styles.compactListRowButton,
+                isSelected && styles.compactListRowSelected,
+                pressed && styles.compactListRowPressed,
+              ]}
+            >
               <AvatarMark label={title} imageUrl={conversation.iconUrl ?? conversation.participants[0]?.avatarUrl ?? null} />
               <View style={styles.compactListText}>
                 <Text style={styles.compactListTitle} numberOfLines={1}>
@@ -680,10 +857,123 @@ function DirectMessageListCard({
                   {conversation.muted ? ` - ${copy.mutedSuffix}` : ""}
                 </Text>
               </View>
-            </View>
+            </Pressable>
           );
         })}
       </View>
+    </View>
+  );
+}
+
+function DMConversationPreviewCard({
+  conversation,
+  currentUserId,
+  onRetry,
+  state,
+}: {
+  conversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number] | null;
+  currentUserId: string;
+  onRetry(): void;
+  state: MobileDMMessagesViewState;
+}) {
+  if (!conversation) {
+    return <EmptyState tone="accent" label={copy.dmSelectConversation} />;
+  }
+
+  const title = getMobileConversationTitle(conversation);
+  const responseConversation = state.payload?.conversation;
+  const participantCount =
+    responseConversation?.participants.length ?? conversation.participantCount;
+
+  return (
+    <View style={styles.dmPreviewCard}>
+      <View style={styles.dmPreviewHeader}>
+        <AvatarMark
+          label={title}
+          imageUrl={conversation.iconUrl ?? conversation.participants[0]?.avatarUrl ?? null}
+        />
+        <View style={styles.dmPreviewTitleBlock}>
+          <Text style={styles.dmPreviewTitle} numberOfLines={1}>
+            {responseConversation?.name ?? title}
+          </Text>
+          <Text style={styles.dmPreviewMeta} numberOfLines={1}>
+            {participantCount} {copy.peopleSuffix}
+            {conversation.unreadCount > 0
+              ? ` - ${conversation.unreadCount} ${copy.unreadSuffix}`
+              : ""}
+          </Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.retryAction}
+          onPress={onRetry}
+          style={({ pressed }) => [
+            styles.dmRefreshButton,
+            pressed && styles.actionButtonPressed,
+          ]}
+        >
+          <Text style={styles.dmRefreshButtonText}>R</Text>
+        </Pressable>
+      </View>
+
+      {state.status === "loading" && !state.payload ? (
+        <Text style={styles.contractDescription}>{copy.dmMessagesLoading}</Text>
+      ) : null}
+      {state.status === "error" ? (
+        <View style={styles.dmErrorRow}>
+          <Text style={styles.errorText}>{state.error}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.retryAction}
+            onPress={onRetry}
+            style={({ pressed }) => [
+              styles.retryButton,
+              pressed && styles.actionButtonPressed,
+            ]}
+          >
+            <Text style={styles.retryButtonText}>{copy.retryAction}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {state.payload && state.payload.messages.length > 0 ? (
+        <View style={styles.dmMessageList}>
+          {state.payload.messages.map((message) => (
+            <View
+              key={message.id}
+              style={[
+                styles.dmMessageRow,
+                message.userId === currentUserId && styles.dmMessageRowOwn,
+              ]}
+            >
+              <View style={styles.dmMessageHeader}>
+                <Text style={styles.dmMessageAuthor} numberOfLines={1}>
+                  {message.author.displayName ?? message.author.username}
+                </Text>
+                <Text style={styles.dmMessageTime}>{formatMobileMessageTime(message.createdAt)}</Text>
+              </View>
+              <Text style={styles.dmMessageBody} numberOfLines={4}>
+                {message.deletedAt
+                  ? copy.dmDeletedMessage
+                  : message.content.trim() || copy.dmAttachmentOnlyMessage}
+              </Text>
+              {message.attachments.length > 0 || message.reactions.length > 0 ? (
+                <Text style={styles.dmMessageMeta} numberOfLines={1}>
+                  {message.attachments.length > 0
+                    ? `${message.attachments.length} ${copy.attachmentsSuffix}`
+                    : ""}
+                  {message.attachments.length > 0 && message.reactions.length > 0 ? " - " : ""}
+                  {message.reactions.length > 0
+                    ? `${message.reactions.length} ${copy.reactionsSuffix}`
+                    : ""}
+                </Text>
+              ) : null}
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {state.status === "ready" && state.payload.messages.length === 0 ? (
+        <Text style={styles.contractDescription}>{copy.dmNoMessages}</Text>
+      ) : null}
     </View>
   );
 }
@@ -879,6 +1169,33 @@ function getDeepLinkStatusLabel(result: MobileDeepLinkParseResult | null) {
         title: copy.deepLinkReady,
       };
   }
+}
+
+function getMobileConversationTitle(
+  conversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number],
+) {
+  const participantNames = conversation.participants
+    .map((participant) => participant.displayName ?? participant.username)
+    .filter(Boolean);
+
+  return (
+    conversation.name ??
+    (participantNames.length > 0
+      ? participantNames.join(", ")
+      : copy.directMessageFallback)
+  );
+}
+
+function formatMobileMessageTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("tr-TR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function DiagnosticPill({ label, value }: { label: string; value: string }) {
@@ -1210,6 +1527,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
+  compactListRowButton: {
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  compactListRowSelected: {
+    borderColor: "#C4B5FD",
+    backgroundColor: "#F5F3FF",
+  },
+  compactListRowPressed: {
+    opacity: 0.86,
+  },
   compactListText: {
     flex: 1,
     minWidth: 0,
@@ -1237,6 +1565,109 @@ const styles = StyleSheet.create({
     color: mobileColors.accentStrong,
     fontSize: 12,
     fontWeight: "900",
+  },
+  dmPreviewCard: {
+    gap: 10,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FFFFFF",
+    padding: 12,
+  },
+  dmPreviewHeader: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  dmPreviewTitleBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  dmPreviewTitle: {
+    color: mobileColors.text,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  dmPreviewMeta: {
+    marginTop: 2,
+    color: mobileColors.muted,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  dmRefreshButton: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#F5F3FF",
+  },
+  dmRefreshButtonText: {
+    color: mobileColors.accentStrong,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  dmErrorRow: {
+    gap: 10,
+    minWidth: 0,
+  },
+  dmMessageList: {
+    gap: 8,
+    minWidth: 0,
+  },
+  dmMessageRow: {
+    alignSelf: "flex-start",
+    maxWidth: "94%",
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: 18,
+    borderBottomLeftRadius: 8,
+    backgroundColor: "#FAFBFF",
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+  },
+  dmMessageRowOwn: {
+    alignSelf: "flex-end",
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 8,
+    borderColor: "#DDD6FE",
+    backgroundColor: "#F5F3FF",
+  },
+  dmMessageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    minWidth: 0,
+  },
+  dmMessageAuthor: {
+    flex: 1,
+    minWidth: 0,
+    color: mobileColors.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  dmMessageTime: {
+    color: mobileColors.mutedSoft,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  dmMessageBody: {
+    marginTop: 5,
+    color: mobileColors.text,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600",
+  },
+  dmMessageMeta: {
+    marginTop: 6,
+    color: mobileColors.accentStrong,
+    fontSize: 11,
+    fontWeight: "800",
   },
   releaseBudgetList: {
     gap: 7,

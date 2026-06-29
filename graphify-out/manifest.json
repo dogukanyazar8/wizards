@@ -131,6 +131,10 @@
     "mtime": 1782727830.1488743,
     "hash": "3b2da7569844188c48a22b6be552c46a"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-dm-client.test.ts": {
+    "mtime": 1782741311.8973553,
+    "hash": "03f7c4706b189298ea5537ae2eba5e25"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-env-contract.test.ts": {
     "mtime": 1782500625.0500886,
     "hash": "83b12b27f8affd35f57c710dcecfe1f4"
@@ -164,8 +168,8 @@
     "hash": "4a2971a0cc1e0f5a23821627f0319604"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\app\\whispr-mobile-root.tsx": {
-    "mtime": 1782740088.2619188,
-    "hash": "fb1805565430f03aebef0f3617a5c811"
+    "mtime": 1782741659.0487013,
+    "hash": "d2da0157b4937c5b3706d89c0b17ec49"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\auth\\expo-secure-session-store.ts": {
     "mtime": 1782503294.8265393,
@@ -207,9 +211,13 @@
     "mtime": 1782505236.8025582,
     "hash": "79fde9b0c9692bb16d152745886310e2"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\dm\\mobile-dm-client.ts": {
+    "mtime": 1782741244.6045537,
+    "hash": "5215058c7727bada93323305c68a9438"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\locale\\mobile-copy.ts": {
-    "mtime": 1782739602.008495,
-    "hash": "0ab9a85c957beb58e4c8c7f3642868f2"
+    "mtime": 1782741685.8367386,
+    "hash": "9089804d5267efdb22c985b544d0cf29"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\navigation\\mobile-navigation.ts": {
     "mtime": 1782504491.8337214,
@@ -698,6 +706,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\mobile\\bootstrap\\route.ts": {
     "mtime": 1782739162.5968013,
     "hash": "bdb3fb7cdea49a20647ac66217fd020b"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\mobile\\dm\\[conversationId]\\messages\\route.ts": {
+    "mtime": 1782741274.3656094,
+    "hash": "454717b73d66e45069f2b33fd5c01206"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\notifications\\route.ts": {
     "mtime": 1777312181.4310608,
@@ -2696,8 +2708,8 @@
     "hash": "ef194d9f60772511164dd760a5c1af1a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\types\\src\\mobile.ts": {
-    "mtime": 1782739074.338799,
-    "hash": "601fde6050219c85590b0c0da2fdbd5b"
+    "mtime": 1782741220.4273553,
+    "hash": "85aa6df8fa6b8d2cce1f4d408dca657a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\types\\src\\socket.ts": {
     "mtime": 1782270909.4342206,

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DMConversationDTOSchema, DMMessagePayloadSchema } from "./socket";
 
 export const MobileBootstrapFeatureStatusSchema = z.enum([
   "available",
@@ -141,6 +142,12 @@ export const MobileBootstrapPayloadSchema = z.object({
   }),
 });
 
+export const MobileDMMessagesResponseSchema = z.object({
+  conversation: DMConversationDTOSchema,
+  messages: z.array(DMMessagePayloadSchema).max(30),
+  nextCursor: z.string().nullable(),
+});
+
 export type MobileBootstrapFeatureStatus = z.infer<
   typeof MobileBootstrapFeatureStatusSchema
 >;
@@ -155,6 +162,7 @@ export type MobileBootstrapDMConversationSummary = z.infer<
   typeof MobileBootstrapDMConversationSummarySchema
 >;
 export type MobileBootstrapPayload = z.infer<typeof MobileBootstrapPayloadSchema>;
+export type MobileDMMessagesResponse = z.infer<typeof MobileDMMessagesResponseSchema>;
 export type MobileAuthExchangeRequest = z.infer<typeof MobileAuthExchangeRequestSchema>;
 export type MobileAuthExchangeResponse = z.infer<typeof MobileAuthExchangeResponseSchema>;
 export type MobileAuthRefreshRequest = z.infer<typeof MobileAuthRefreshRequestSchema>;
