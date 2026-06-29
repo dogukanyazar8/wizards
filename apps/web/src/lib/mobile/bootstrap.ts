@@ -1,6 +1,8 @@
 import {
   MobileBootstrapPayloadSchema,
+  type MobileBootstrapDMConversationSummary,
   type MobileBootstrapPayload,
+  type MobileBootstrapServerSummary,
 } from "@wizards/types";
 import { getWhisprVersionPayload } from "@/lib/app-version";
 import { normalizeAppLocale, type AppLocale } from "@/lib/locale";
@@ -14,12 +16,38 @@ export type MobileBootstrapUser = {
   username: string;
 };
 
+export type MobileBootstrapHomeSummary = {
+  directMessages: {
+    recent: MobileBootstrapDMConversationSummary[];
+    totalCount: number;
+    unreadCount: number;
+  };
+  servers: {
+    recent: MobileBootstrapServerSummary[];
+    totalCount: number;
+  };
+};
+
 export type GetMobileBootstrapPayloadInput = {
+  home?: MobileBootstrapHomeSummary;
   now?: Date;
   user: MobileBootstrapUser;
 };
 
+export const EMPTY_MOBILE_BOOTSTRAP_HOME: MobileBootstrapHomeSummary = {
+  directMessages: {
+    recent: [],
+    totalCount: 0,
+    unreadCount: 0,
+  },
+  servers: {
+    recent: [],
+    totalCount: 0,
+  },
+};
+
 export function getMobileBootstrapPayload({
+  home = EMPTY_MOBILE_BOOTSTRAP_HOME,
   now = new Date(),
   user,
 }: GetMobileBootstrapPayloadInput): MobileBootstrapPayload {
@@ -62,6 +90,7 @@ export function getMobileBootstrapPayload({
         status: "requires-native-permission",
       },
     },
+    home,
     user: {
       avatarUrl: user.avatarUrl,
       displayName: user.displayName,

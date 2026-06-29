@@ -13,8 +13,14 @@ export const mobileCopy = {
       "Token saklama SecureStore uzerinde fail-closed calisir. Web girisi yalnizca tek kullanimlik handoff uretir; kalici token URL'ye yazilmaz.",
     bootstrapDescription:
       "Auth'lu mobil bootstrap endpoint'i app surumu, guvenli kullanici ozeti ve hangi native ozelliklerin server contract bekledigini doner.",
+    bootstrapLoadErrorTitle: "Bootstrap yuklenemedi",
+    bootstrapLoadFailed:
+      "Whispr mobil verileri alinamadi. Oturum korunuyor; baglantini kontrol edip tekrar dene.",
+    bootstrapLoadingDescription: "Whispr mobil verileri guvenli API uzerinden yukleniyor.",
+    bootstrapLoadingTitle: "Mobil veriler yukleniyor",
     bootstrapReady: "Mobil bootstrap sozlesmesi hazir",
     bootstrapTitle: "Backend bootstrap",
+    channelsSuffix: "kanal",
     deepLinkAccepted: "Guvenli baglanti alindi",
     deepLinkAuthPending:
       "Oturum handoff baglantisi alindi. Tek kullanimlik token server'da tuketilip guvenli mobil oturum olusturuluyor.",
@@ -31,9 +37,19 @@ export const mobileCopy = {
     guardrail1: "SecureStore tabanli token saklama",
     guardrail2: "UAT / canary / production profilleri",
     guardrail3: "Token veya PII loglamayan diagnostik",
+    directMessageFallback: "Direkt mesaj",
+    homeDmLabel: "DM",
+    homeNoServers: "Henuz katildigin sunucu yok.",
+    homeRecentDmsTitle: "Son direkt mesajlar",
+    homeRecentServersTitle: "Son sunucular",
+    homeServersLabel: "Sunucu",
+    homeUnreadLabel: "Okunmamis",
+    membersSuffix: "uye",
     messagesDescription:
-      "DM ve kanal listeleri native bootstrap API sozlesmesi tamamlandiginda gercek verilerle acilacak.",
-    messagesEmpty: "Mobil mesajlar icin gercek oturum bekleniyor.",
+      "Son direkt mesajlarin gercek Whispr verisiyle guvenli bootstrap uzerinden listelenir.",
+    messagesEmpty: "Henuz mobilde gosterilecek direkt mesaj yok.",
+    messagesTitle: "Direkt mesajlar",
+    mutedSuffix: "sessiz",
     overviewDescription:
       "Mobil urun omurgasi; session, API client, navigation, ortam ve release sozlesmelerini guvenli bicimde bir araya getirir.",
     permissionCamera: "Kamera",
@@ -44,8 +60,10 @@ export const mobileCopy = {
       "Izinler kullanici aksiyonu olmadan otomatik istenmez. Voice, kamera, dosya ve bildirim akislari guvenli onboarding bekler.",
     permissionTitle: "Izin hazirligi",
     primaryAction: "Whispr web girisini ac",
+    peopleSuffix: "kisi",
     releaseReady: "EAS profilleri, HTTPS endpointleri ve performans butceleri kontrol ediliyor.",
     releaseTitle: "Release kalite kapisi",
+    retryAction: "Tekrar dene",
     secondaryAction: "Oturumu yenile",
     settingsDescription:
       "Ortam, session ve diagnostik bilgileri token veya kisisel veri gostermeden kontrol edilir.",
@@ -58,6 +76,7 @@ export const mobileCopy = {
     voiceDescription:
       "LiveKit ve native cihaz izinleri baglanana kadar ses odasi state'i sahte katilimci uretmeden kapali tutulur.",
     voiceEmpty: "Mobil ses deneyimi guvenli native izin sozlesmesini bekliyor.",
+    unreadSuffix: "okunmamis",
   },
   en: {
     apiContract: "The secure API client is ready with relative paths, timeouts, and bearer headers.",
@@ -70,8 +89,14 @@ export const mobileCopy = {
       "Token storage is fail-closed on SecureStore. Web sign-in only creates a one-time handoff; persistent tokens never travel in URLs.",
     bootstrapDescription:
       "The authenticated mobile bootstrap endpoint returns app version, a safe user summary, and which native features still require real server contracts.",
+    bootstrapLoadErrorTitle: "Bootstrap failed",
+    bootstrapLoadFailed:
+      "Whispr mobile data could not be loaded. Your session is preserved; check your connection and retry.",
+    bootstrapLoadingDescription: "Whispr mobile data is loading through the secure API.",
+    bootstrapLoadingTitle: "Loading mobile data",
     bootstrapReady: "Mobile bootstrap contract is ready",
     bootstrapTitle: "Backend bootstrap",
+    channelsSuffix: "channels",
     deepLinkAccepted: "Safe link received",
     deepLinkAuthPending:
       "A sign-in handoff link was received. The one-time token is being consumed server-side to create a secure mobile session.",
@@ -88,9 +113,19 @@ export const mobileCopy = {
     guardrail1: "SecureStore-based token storage",
     guardrail2: "UAT / canary / production profiles",
     guardrail3: "Diagnostics without tokens or PII",
+    directMessageFallback: "Direct message",
+    homeDmLabel: "DMs",
+    homeNoServers: "You have not joined a server yet.",
+    homeRecentDmsTitle: "Recent direct messages",
+    homeRecentServersTitle: "Recent servers",
+    homeServersLabel: "Servers",
+    homeUnreadLabel: "Unread",
+    membersSuffix: "members",
     messagesDescription:
-      "DMs and channel lists will open with real data once the native bootstrap API contract is complete.",
-    messagesEmpty: "Mobile messaging is waiting for a real session.",
+      "Your recent direct messages are listed from real Whispr data through the secure bootstrap.",
+    messagesEmpty: "There are no direct messages to show on mobile yet.",
+    messagesTitle: "Direct messages",
+    mutedSuffix: "muted",
     overviewDescription:
       "The mobile product shell combines session, API client, navigation, environment, and release contracts safely.",
     permissionCamera: "Camera",
@@ -101,8 +136,10 @@ export const mobileCopy = {
       "Permissions are never requested automatically without a user action. Voice, camera, file, and notification flows wait for safe onboarding.",
     permissionTitle: "Permission readiness",
     primaryAction: "Open Whispr web sign-in",
+    peopleSuffix: "people",
     releaseReady: "EAS profiles, HTTPS endpoints, and performance budgets are checked before promotion.",
     releaseTitle: "Release quality gate",
+    retryAction: "Retry",
     secondaryAction: "Refresh session",
     settingsDescription:
       "Environment, session, and diagnostics are visible without exposing tokens or personal data.",
@@ -115,5 +152,6 @@ export const mobileCopy = {
     voiceDescription:
       "Voice room state stays closed without fake participants until LiveKit and native device permission contracts are connected.",
     voiceEmpty: "Mobile voice is waiting for the secure native permission contract.",
+    unreadSuffix: "unread",
   },
 } as const;

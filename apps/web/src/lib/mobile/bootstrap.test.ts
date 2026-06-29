@@ -22,8 +22,73 @@ describe("mobile bootstrap payload", () => {
     assert.equal(payload.features.messages.status, "available");
     assert.equal(payload.features.pushNotifications.status, "requires-server-contract");
     assert.equal(payload.features.nativeAuthTokenExchange.status, "available");
+    assert.equal(payload.home.servers.totalCount, 0);
+    assert.equal(payload.home.directMessages.unreadCount, 0);
     assert.equal(serialized.includes("email"), false);
     assert.equal(serialized.includes("access_token"), false);
     assert.equal(serialized.includes("refresh_token"), false);
+    assert.equal(serialized.includes("message content"), false);
+  });
+
+  it("accepts bounded real home summaries without message body content", () => {
+    const payload = getMobileBootstrapPayload({
+      home: {
+        directMessages: {
+          recent: [
+            {
+              iconUrl: null,
+              id: "conversation_1",
+              lastMessageAt: "2026-06-26T11:00:00.000Z",
+              muted: false,
+              name: null,
+              participantCount: 2,
+              participants: [
+                {
+                  avatarUrl: null,
+                  displayName: "CodeX",
+                  id: "user_123",
+                  status: "online",
+                  username: "codex",
+                },
+              ],
+              type: "DM",
+              unreadCount: 2,
+            },
+          ],
+          totalCount: 1,
+          unreadCount: 2,
+        },
+        servers: {
+          recent: [
+            {
+              channelCount: 3,
+              iconUrl: null,
+              id: "server_1",
+              joinedAt: "2026-06-25T10:00:00.000Z",
+              memberCount: 12,
+              name: "Whispr UAT",
+              shortName: "WU",
+            },
+          ],
+          totalCount: 1,
+        },
+      },
+      now: new Date("2026-06-26T12:00:00.000Z"),
+      user: {
+        avatarUrl: null,
+        displayName: "CodeX",
+        id: "user_123",
+        locale: "tr",
+        status: "online",
+        username: "codex",
+      },
+    });
+
+    const serialized = JSON.stringify(payload);
+
+    assert.equal(payload.home.servers.totalCount, 1);
+    assert.equal(payload.home.directMessages.totalCount, 1);
+    assert.equal(payload.home.directMessages.recent[0]?.unreadCount, 2);
+    assert.equal(serialized.includes("content"), false);
   });
 });

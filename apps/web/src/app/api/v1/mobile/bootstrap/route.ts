@@ -2,7 +2,10 @@ import { prisma } from "@wizards/db";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { ApiError, jsonError } from "@/lib/api";
 import { requireMobileApiUserId } from "@/lib/auth/api";
-import { getMobileBootstrapPayload } from "@/lib/mobile/bootstrap";
+import {
+  getMobileBootstrapPayload,
+  type MobileBootstrapHomeSummary,
+} from "@/lib/mobile/bootstrap";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,28 +15,179 @@ export async function GET(request: Request) {
     const userId = await requireMobileApiUserId(request);
     await enforceApiRateLimit(userId, "mobile:bootstrap");
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        avatarUrl: true,
-        displayName: true,
-        id: true,
-        locale: true,
-        status: true,
-        username: true,
-      },
-    });
+    const [
+      user,
+      recentServerMemberships,
+      serverTotalCount,
+      recentDMParticipants,
+      dmTotalCount,
+      dmUnreadAggregate,
+    ] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          avatarUrl: true,
+          displayName: true,
+          id: true,
+          locale: true,
+          status: true,
+          username: true,
+        },
+      }),
+      prisma.serverMember.findMany({
+        orderBy: { joinedAt: "desc" },
+        take: 5,
+        where: {
+          pending: false,
+          userId,
+        },
+        select: {
+          joinedAt: true,
+          server: {
+            select: {
+              _count: {
+                select: {
+                  channels: true,
+                  members: true,
+                },
+              },
+              iconUrl: true,
+              id: true,
+              name: true,
+              shortName: true,
+            },
+          },
+        },
+      }),
+      prisma.serverMember.count({
+        where: {
+          pending: false,
+          userId,
+        },
+      }),
+      prisma.dMParticipant.findMany({
+        orderBy: {
+          conversation: {
+            lastMessageAt: "desc",
+          },
+        },
+        take: 5,
+        where: {
+          hiddenAt: null,
+          userId,
+        },
+        select: {
+          muted: true,
+          unreadCount: true,
+          conversation: {
+            select: {
+              iconUrl: true,
+              id: true,
+              lastMessageAt: true,
+              name: true,
+              participants: {
+                orderBy: {
+                  joinedAt: "asc",
+                },
+                select: {
+                  user: {
+                    select: {
+                      avatarUrl: true,
+                      displayName: true,
+                      id: true,
+                      status: true,
+                      username: true,
+                    },
+                  },
+                },
+                take: 4,
+              },
+              type: true,
+              _count: {
+                select: {
+                  participants: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      prisma.dMParticipant.count({
+        where: {
+          hiddenAt: null,
+          userId,
+        },
+      }),
+      prisma.dMParticipant.aggregate({
+        _sum: {
+          unreadCount: true,
+        },
+        where: {
+          hiddenAt: null,
+          userId,
+        },
+      }),
+    ]);
 
     if (!user) {
       throw new ApiError("User not found", 404, "USER_NOT_FOUND");
     }
 
-    return Response.json(getMobileBootstrapPayload({ user }), {
+    const home: MobileBootstrapHomeSummary = {
+      directMessages: {
+        recent: recentDMParticipants.map((participant) => ({
+          iconUrl: normalizeMobileImageUrl(participant.conversation.iconUrl),
+          id: participant.conversation.id,
+          lastMessageAt: participant.conversation.lastMessageAt.toISOString(),
+          muted: participant.muted,
+          name: participant.conversation.name,
+          participantCount: participant.conversation._count.participants,
+          participants: participant.conversation.participants.map(({ user: conversationUser }) => ({
+            avatarUrl: normalizeMobileImageUrl(conversationUser.avatarUrl),
+            displayName: conversationUser.displayName,
+            id: conversationUser.id,
+            status: conversationUser.status,
+            username: conversationUser.username,
+          })),
+          type: participant.conversation.type,
+          unreadCount: Math.max(0, participant.unreadCount),
+        })),
+        totalCount: dmTotalCount,
+        unreadCount: Math.max(0, dmUnreadAggregate._sum.unreadCount ?? 0),
+      },
+      servers: {
+        recent: recentServerMemberships.map((membership) => ({
+          channelCount: membership.server._count.channels,
+          iconUrl: normalizeMobileImageUrl(membership.server.iconUrl),
+          id: membership.server.id,
+          joinedAt: membership.joinedAt.toISOString(),
+          memberCount: membership.server._count.members,
+          name: membership.server.name,
+          shortName: membership.server.shortName,
+        })),
+        totalCount: serverTotalCount,
+      },
+    };
+
+    return Response.json(getMobileBootstrapPayload({ home, user }), {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
       },
     });
   } catch (error) {
     return jsonError(error);
+  }
+}
+
+function normalizeMobileImageUrl(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+  } catch {
+    return null;
   }
 }

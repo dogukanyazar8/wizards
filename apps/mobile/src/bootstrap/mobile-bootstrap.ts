@@ -8,9 +8,12 @@ export const MOBILE_BOOTSTRAP_ENDPOINT = "/api/v1/mobile/bootstrap";
 
 export type MobileBootstrapSummary = {
   disabledFeatureCount: number;
+  directMessageCount: number;
   enabledFeatureCount: number;
   pendingContractCount: number;
   serverTime: string;
+  unreadDirectMessageCount: number;
+  workspaceCount: number;
 };
 
 export async function fetchMobileBootstrap(
@@ -27,6 +30,7 @@ export function summarizeMobileBootstrap(
 
   return {
     disabledFeatureCount: features.filter((feature) => feature.status === "disabled").length,
+    directMessageCount: payload.home.directMessages.totalCount,
     enabledFeatureCount: features.filter((feature) => feature.status === "available").length,
     pendingContractCount: features.filter(
       (feature) =>
@@ -34,5 +38,7 @@ export function summarizeMobileBootstrap(
         feature.status === "requires-native-permission",
     ).length,
     serverTime: payload.app.serverTime,
+    unreadDirectMessageCount: payload.home.directMessages.unreadCount,
+    workspaceCount: payload.home.servers.totalCount,
   };
 }

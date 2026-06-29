@@ -40,6 +40,47 @@ const validPayload = {
       status: "requires-native-permission",
     },
   },
+  home: {
+    directMessages: {
+      recent: [
+        {
+          iconUrl: null,
+          id: "conversation-1",
+          lastMessageAt: "2026-06-26T11:30:00.000Z",
+          muted: false,
+          name: null,
+          participantCount: 2,
+          participants: [
+            {
+              avatarUrl: null,
+              displayName: "Alice",
+              id: "user-2",
+              status: "online",
+              username: "alice",
+            },
+          ],
+          type: "DM",
+          unreadCount: 1,
+        },
+      ],
+      totalCount: 1,
+      unreadCount: 1,
+    },
+    servers: {
+      recent: [
+        {
+          channelCount: 4,
+          iconUrl: null,
+          id: "server-1",
+          joinedAt: "2026-06-25T10:00:00.000Z",
+          memberCount: 8,
+          name: "Whispr UAT",
+          shortName: "WU",
+        },
+      ],
+      totalCount: 1,
+    },
+  },
   user: {
     avatarUrl: null,
     displayName: "CodeX",
@@ -68,6 +109,9 @@ describe("mobile bootstrap contract", () => {
     assert.equal(summary.enabledFeatureCount, 2);
     assert.equal(summary.pendingContractCount, 2);
     assert.equal(summary.disabledFeatureCount, 0);
+    assert.equal(summary.workspaceCount, 1);
+    assert.equal(summary.directMessageCount, 1);
+    assert.equal(summary.unreadDirectMessageCount, 1);
   });
 
   it("rejects malformed bootstrap payloads instead of trusting partial data", async () => {

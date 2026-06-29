@@ -72,6 +72,36 @@ export const MobileAuthRevokeRequestSchema = z.object({
   refreshToken: z.string().min(16).max(8192).regex(/^\S+$/).nullable().optional(),
 });
 
+export const MobileBootstrapServerSummarySchema = z.object({
+  channelCount: z.number().int().nonnegative(),
+  iconUrl: z.string().url().nullable(),
+  id: z.string().min(1),
+  joinedAt: z.string().datetime(),
+  memberCount: z.number().int().nonnegative(),
+  name: z.string().min(1).max(120),
+  shortName: z.string().min(1).max(8).nullable(),
+});
+
+export const MobileBootstrapDMParticipantSchema = z.object({
+  avatarUrl: z.string().url().nullable(),
+  displayName: z.string().min(1).max(120).nullable(),
+  id: z.string().min(1),
+  status: z.string().min(1).max(32).nullable(),
+  username: z.string().min(1).max(80),
+});
+
+export const MobileBootstrapDMConversationSummarySchema = z.object({
+  iconUrl: z.string().url().nullable(),
+  id: z.string().min(1),
+  lastMessageAt: z.string().datetime(),
+  muted: z.boolean(),
+  name: z.string().min(1).max(120).nullable(),
+  participantCount: z.number().int().nonnegative(),
+  participants: z.array(MobileBootstrapDMParticipantSchema).max(4),
+  type: z.enum(["DM", "GROUP_DM"]),
+  unreadCount: z.number().int().nonnegative(),
+});
+
 export const MobileBootstrapPayloadSchema = z.object({
   app: z.object({
     buildId: z.string().min(1),
@@ -90,6 +120,17 @@ export const MobileBootstrapPayloadSchema = z.object({
     pushNotifications: MobileBootstrapFeatureSchema,
     voice: MobileBootstrapFeatureSchema,
   }),
+  home: z.object({
+    directMessages: z.object({
+      recent: z.array(MobileBootstrapDMConversationSummarySchema).max(5),
+      totalCount: z.number().int().nonnegative(),
+      unreadCount: z.number().int().nonnegative(),
+    }),
+    servers: z.object({
+      recent: z.array(MobileBootstrapServerSummarySchema).max(5),
+      totalCount: z.number().int().nonnegative(),
+    }),
+  }),
   user: z.object({
     avatarUrl: z.string().url().nullable(),
     displayName: z.string().min(1).max(120).nullable(),
@@ -104,6 +145,15 @@ export type MobileBootstrapFeatureStatus = z.infer<
   typeof MobileBootstrapFeatureStatusSchema
 >;
 export type MobileBootstrapFeature = z.infer<typeof MobileBootstrapFeatureSchema>;
+export type MobileBootstrapServerSummary = z.infer<
+  typeof MobileBootstrapServerSummarySchema
+>;
+export type MobileBootstrapDMParticipant = z.infer<
+  typeof MobileBootstrapDMParticipantSchema
+>;
+export type MobileBootstrapDMConversationSummary = z.infer<
+  typeof MobileBootstrapDMConversationSummarySchema
+>;
 export type MobileBootstrapPayload = z.infer<typeof MobileBootstrapPayloadSchema>;
 export type MobileAuthExchangeRequest = z.infer<typeof MobileAuthExchangeRequestSchema>;
 export type MobileAuthExchangeResponse = z.infer<typeof MobileAuthExchangeResponseSchema>;

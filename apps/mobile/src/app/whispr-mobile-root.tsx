@@ -1,4 +1,13 @@
-import { useCallback, useMemo, useReducer, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type { MobileBootstrapPayload } from "@wizards/types";
 import whisprIcon from "../../assets/whispr-icon.png";
 import {
   Image,
@@ -10,7 +19,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMobileAuth } from "../auth/mobile-auth-context";
-import { MOBILE_BOOTSTRAP_ENDPOINT } from "../bootstrap/mobile-bootstrap";
+import {
+  fetchMobileBootstrap,
+  MOBILE_BOOTSTRAP_ENDPOINT,
+  summarizeMobileBootstrap,
+  type MobileBootstrapSummary,
+} from "../bootstrap/mobile-bootstrap";
 import { getMobileRuntimeConfig } from "../config/environment";
 import {
   type MobileDeepLinkParseResult,
@@ -59,9 +73,37 @@ const permissionLabels: Record<MobilePermissionIntentId, string> = {
   photoLibrary: copy.permissionPhotoLibrary,
 };
 
+type MobileBootstrapViewState =
+  | {
+      error: null;
+      payload: null;
+      status: "idle" | "loading";
+      summary: null;
+    }
+  | {
+      error: null;
+      payload: MobileBootstrapPayload;
+      status: "ready";
+      summary: MobileBootstrapSummary;
+    }
+  | {
+      error: string;
+      payload: null;
+      status: "error";
+      summary: null;
+    };
+
+const INITIAL_BOOTSTRAP_STATE: MobileBootstrapViewState = {
+  error: null,
+  payload: null,
+  status: "idle",
+  summary: null,
+};
+
 export function WhisprMobileRoot() {
   const insets = useSafeAreaInsets();
   const {
+    apiClient,
     completeAuthHandoff,
     diagnostics,
     error,
@@ -76,6 +118,9 @@ export function WhisprMobileRoot() {
     undefined,
     () => createMobileNavigationState(),
   );
+  const [bootstrapState, setBootstrapState] =
+    useState<MobileBootstrapViewState>(INITIAL_BOOTSTRAP_STATE);
+  const bootstrapRequestIdRef = useRef(0);
   const [lastDeepLink, setLastDeepLink] = useState<MobileDeepLinkParseResult | null>(null);
   const route = resolveMobileRoute(navigation.currentTab, status);
   const permissionReadiness = useMemo(() => createInitialMobilePermissionReadiness(), []);
@@ -83,6 +128,62 @@ export function WhisprMobileRoot() {
     () => summarizeMobilePermissionReadiness(permissionReadiness),
     [permissionReadiness],
   );
+
+  const loadBootstrap = useCallback(async () => {
+    const requestId = bootstrapRequestIdRef.current + 1;
+    bootstrapRequestIdRef.current = requestId;
+
+    if (status !== "signed-in") {
+      setBootstrapState(INITIAL_BOOTSTRAP_STATE);
+      return;
+    }
+
+    setBootstrapState((current) =>
+      current.status === "ready"
+        ? current
+        : {
+            error: null,
+            payload: null,
+            status: "loading",
+            summary: null,
+          },
+    );
+
+    try {
+      const payload = await fetchMobileBootstrap(apiClient);
+      if (bootstrapRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setBootstrapState({
+        error: null,
+        payload,
+        status: "ready",
+        summary: summarizeMobileBootstrap(payload),
+      });
+    } catch {
+      if (bootstrapRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setBootstrapState({
+        error: copy.bootstrapLoadFailed,
+        payload: null,
+        status: "error",
+        summary: null,
+      });
+    }
+  }, [apiClient, status]);
+
+  useEffect(() => {
+    if (status !== "signed-in") {
+      bootstrapRequestIdRef.current += 1;
+      setBootstrapState(INITIAL_BOOTSTRAP_STATE);
+      return;
+    }
+
+    void loadBootstrap();
+  }, [loadBootstrap, status]);
 
   const handleDeepLink = useCallback(
     (result: MobileDeepLinkParseResult) => {
@@ -186,6 +287,7 @@ export function WhisprMobileRoot() {
           ) : (
             <ActiveScreen
               currentTab={route.currentTab}
+              bootstrapState={bootstrapState}
               diagnostics={diagnostics}
               lastDeepLink={lastDeepLink}
               permissionReadiness={permissionReadiness}
@@ -194,6 +296,7 @@ export function WhisprMobileRoot() {
               authStatusLabel={authStatusLabel}
               signedInUserLabel={signedInUserLabel}
               onOpenWebSignIn={() => void openWebSignIn()}
+              onRefreshBootstrap={() => void loadBootstrap()}
               onRefresh={() => void refreshSessionFromStorage()}
               onSignOut={() => void signOut()}
               status={status}
@@ -235,6 +338,7 @@ export function WhisprMobileRoot() {
 
 interface ActiveScreenProps {
   authStatusLabel: string;
+  bootstrapState: MobileBootstrapViewState;
   currentTab: MobileTabId;
   diagnostics: {
     hasRefreshToken: boolean;
@@ -244,6 +348,7 @@ interface ActiveScreenProps {
   error: string | null;
   lastDeepLink: MobileDeepLinkParseResult | null;
   onOpenWebSignIn(): void;
+  onRefreshBootstrap(): void;
   onRefresh(): void;
   onSignOut(): void;
   permissionReadiness: readonly MobilePermissionReadiness[];
@@ -254,11 +359,13 @@ interface ActiveScreenProps {
 
 function ActiveScreen({
   authStatusLabel,
+  bootstrapState,
   currentTab,
   diagnostics,
   error,
   lastDeepLink,
   onOpenWebSignIn,
+  onRefreshBootstrap,
   onRefresh,
   onSignOut,
   permissionReadiness,
@@ -271,16 +378,35 @@ function ActiveScreen({
       return (
         <ScreenShell
           eyebrow={copy.tabMessages}
-          title={copy.messagesEmpty}
+          title={copy.messagesTitle}
           description={copy.messagesDescription}
         >
           <DeepLinkStatusCard result={lastDeepLink} />
-          <EmptyState tone="accent" label={copy.messagesEmpty} />
+          <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
+          {bootstrapState.status === "ready" &&
+          bootstrapState.payload.home.directMessages.recent.length > 0 ? (
+            <DirectMessageListCard
+              conversations={bootstrapState.payload.home.directMessages.recent}
+            />
+          ) : bootstrapState.status === "idle" ||
+            (bootstrapState.status === "ready" &&
+              bootstrapState.payload.home.directMessages.recent.length === 0) ? (
+            <EmptyState tone="accent" label={copy.messagesEmpty} />
+          ) : null}
         </ScreenShell>
       );
     case "voice":
       return (
         <ScreenShell eyebrow={copy.tabVoice} title={copy.voiceEmpty} description={copy.voiceDescription}>
+          {bootstrapState.status === "ready" ? (
+            <FeatureStatusCard
+              label={bootstrapState.payload.features.voice.label}
+              reason={bootstrapState.payload.features.voice.reason ?? copy.voiceDescription}
+              status={bootstrapState.payload.features.voice.status}
+            />
+          ) : (
+            <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
+          )}
           <PermissionReadinessCard
             readiness={permissionReadiness}
             summary={permissionSummary}
@@ -298,6 +424,7 @@ function ActiveScreen({
         >
           <SessionDiagnostics diagnostics={diagnostics} />
           <DeepLinkStatusCard result={lastDeepLink} />
+          <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
           <PermissionReadinessCard readiness={permissionReadiness} summary={permissionSummary} />
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
           <View style={styles.actionRow}>
@@ -318,6 +445,10 @@ function ActiveScreen({
           title={copy.foundation}
           description={copy.overviewDescription}
         >
+          <HomeSummaryCard state={bootstrapState} onRetry={onRefreshBootstrap} />
+          {bootstrapState.status === "ready" ? (
+            <RecentServersCard servers={bootstrapState.payload.home.servers.recent} />
+          ) : null}
           <View style={styles.guardrailList}>
             <Guardrail label={copy.guardrail1} />
             <Guardrail label={copy.guardrail2} />
@@ -412,6 +543,192 @@ function BootstrapContractCard() {
       <Text style={styles.contractEndpoint} numberOfLines={1}>
         {MOBILE_BOOTSTRAP_ENDPOINT}
       </Text>
+    </View>
+  );
+}
+
+function BootstrapStateNotice({
+  onRetry,
+  state,
+}: {
+  onRetry(): void;
+  state: MobileBootstrapViewState;
+}) {
+  if (state.status === "ready" || state.status === "idle") {
+    return null;
+  }
+
+  const isError = state.status === "error";
+
+  return (
+    <View style={[styles.bootstrapNotice, isError && styles.bootstrapNoticeError]}>
+      <View style={styles.bootstrapNoticeText}>
+        <Text style={styles.environmentLabel}>
+          {isError ? copy.bootstrapLoadErrorTitle : copy.bootstrapLoadingTitle}
+        </Text>
+        <Text style={styles.contractDescription}>
+          {isError ? state.error : copy.bootstrapLoadingDescription}
+        </Text>
+      </View>
+      {isError ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.retryAction}
+          onPress={onRetry}
+          style={({ pressed }) => [
+            styles.retryButton,
+            pressed && styles.actionButtonPressed,
+          ]}
+        >
+          <Text style={styles.retryButtonText}>{copy.retryAction}</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function HomeSummaryCard({
+  onRetry,
+  state,
+}: {
+  onRetry(): void;
+  state: MobileBootstrapViewState;
+}) {
+  if (state.status !== "ready") {
+    return <BootstrapStateNotice state={state} onRetry={onRetry} />;
+  }
+
+  return (
+    <View style={styles.homeSummaryCard}>
+      <MetricTile label={copy.homeServersLabel} value={state.summary.workspaceCount} />
+      <MetricTile label={copy.homeDmLabel} value={state.summary.directMessageCount} />
+      <MetricTile label={copy.homeUnreadLabel} value={state.summary.unreadDirectMessageCount} />
+    </View>
+  );
+}
+
+function MetricTile({ label, value }: { label: string; value: number }) {
+  return (
+    <View style={styles.metricTile}>
+      <Text style={styles.metricValue}>{value}</Text>
+      <Text style={styles.metricLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function RecentServersCard({
+  servers,
+}: {
+  servers: MobileBootstrapPayload["home"]["servers"]["recent"];
+}) {
+  return (
+    <View style={styles.contractCard}>
+      <Text style={styles.environmentLabel}>{copy.homeRecentServersTitle}</Text>
+      {servers.length > 0 ? (
+        <View style={styles.compactList}>
+          {servers.map((server) => (
+            <View key={server.id} style={styles.compactListRow}>
+              <AvatarMark label={server.shortName ?? server.name} imageUrl={server.iconUrl} />
+              <View style={styles.compactListText}>
+                <Text style={styles.compactListTitle} numberOfLines={1}>
+                  {server.name}
+                </Text>
+                <Text style={styles.compactListMeta} numberOfLines={1}>
+                  {server.memberCount} {copy.membersSuffix} - {server.channelCount}{" "}
+                  {copy.channelsSuffix}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <Text style={styles.contractDescription}>{copy.homeNoServers}</Text>
+      )}
+    </View>
+  );
+}
+
+function DirectMessageListCard({
+  conversations,
+}: {
+  conversations: MobileBootstrapPayload["home"]["directMessages"]["recent"];
+}) {
+  return (
+    <View style={styles.contractCard}>
+      <Text style={styles.environmentLabel}>{copy.homeRecentDmsTitle}</Text>
+      <View style={styles.compactList}>
+        {conversations.map((conversation) => {
+          const title =
+            conversation.name ??
+            conversation.participants
+              .map((participant) => participant.displayName ?? participant.username)
+              .join(", ") ??
+            copy.directMessageFallback;
+
+          return (
+            <View key={conversation.id} style={styles.compactListRow}>
+              <AvatarMark label={title} imageUrl={conversation.iconUrl ?? conversation.participants[0]?.avatarUrl ?? null} />
+              <View style={styles.compactListText}>
+                <Text style={styles.compactListTitle} numberOfLines={1}>
+                  {title || copy.directMessageFallback}
+                </Text>
+                <Text style={styles.compactListMeta} numberOfLines={1}>
+                  {conversation.participantCount} {copy.peopleSuffix}
+                  {conversation.unreadCount > 0
+                    ? ` - ${conversation.unreadCount} ${copy.unreadSuffix}`
+                    : ""}
+                  {conversation.muted ? ` - ${copy.mutedSuffix}` : ""}
+                </Text>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function FeatureStatusCard({
+  label,
+  reason,
+  status,
+}: {
+  label: string;
+  reason: string;
+  status: MobileBootstrapPayload["features"]["voice"]["status"];
+}) {
+  const isAvailable = status === "available";
+
+  return (
+    <View style={[styles.statusCard, isAvailable && styles.statusCardSuccess]}>
+      <View style={[styles.statusIcon, isAvailable && styles.statusIconSuccess]}>
+        <Text style={styles.statusIconText}>{isAvailable ? "OK" : "!"}</Text>
+      </View>
+      <View style={styles.statusCardText}>
+        <Text style={styles.environmentLabel}>{label}</Text>
+        <Text style={styles.statusCardTitle}>{status}</Text>
+        <Text style={styles.statusCardDescription}>{reason}</Text>
+      </View>
+    </View>
+  );
+}
+
+function AvatarMark({ imageUrl, label }: { imageUrl: string | null; label: string }) {
+  const fallback = label.trim().slice(0, 2).toUpperCase() || "W";
+
+  if (imageUrl) {
+    return (
+      <Image
+        source={{ uri: imageUrl }}
+        style={styles.avatarMark}
+        accessibilityIgnoresInvertColors
+      />
+    );
+  }
+
+  return (
+    <View style={styles.avatarMark}>
+      <Text style={styles.avatarMarkText}>{fallback}</Text>
     </View>
   );
 }
@@ -816,6 +1133,111 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
+  bootstrapNotice: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#F5F3FF",
+    padding: 12,
+  },
+  bootstrapNoticeError: {
+    borderColor: "#FECACA",
+    backgroundColor: "#FEF2F2",
+  },
+  bootstrapNoticeText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  retryButton: {
+    minHeight: 36,
+    justifyContent: "center",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+  },
+  retryButtonText: {
+    color: mobileColors.accentStrong,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  homeSummaryCard: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    minWidth: 0,
+  },
+  metricTile: {
+    flexGrow: 1,
+    flexBasis: 96,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FAFBFF",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  metricValue: {
+    color: mobileColors.text,
+    fontSize: 24,
+    lineHeight: 29,
+    fontWeight: "900",
+  },
+  metricLabel: {
+    marginTop: 2,
+    color: mobileColors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "800",
+  },
+  compactList: {
+    gap: 8,
+    minWidth: 0,
+  },
+  compactListRow: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minWidth: 0,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  compactListText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  compactListTitle: {
+    color: mobileColors.text,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  compactListMeta: {
+    marginTop: 2,
+    color: mobileColors.muted,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  avatarMark: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    backgroundColor: "#EDE9FE",
+  },
+  avatarMarkText: {
+    color: mobileColors.accentStrong,
+    fontSize: 12,
+    fontWeight: "900",
+  },
   releaseBudgetList: {
     gap: 7,
   },
@@ -905,6 +1327,10 @@ const styles = StyleSheet.create({
     borderColor: "#FED7AA",
     backgroundColor: "#FFF7ED",
   },
+  statusCardSuccess: {
+    borderColor: "#BBF7D0",
+    backgroundColor: "#F0FDF4",
+  },
   statusIcon: {
     width: 36,
     height: 36,
@@ -915,6 +1341,9 @@ const styles = StyleSheet.create({
   },
   statusIconWarning: {
     backgroundColor: mobileColors.warning,
+  },
+  statusIconSuccess: {
+    backgroundColor: mobileColors.success,
   },
   statusIconText: {
     color: "#FFFFFF",
