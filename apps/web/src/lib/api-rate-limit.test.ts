@@ -34,6 +34,8 @@ describe("API rate limit configuration", () => {
       "user:delete",
       "notification:mark-read",
       "link-preview",
+      "mobile:auth-exchange",
+      "mobile:bootstrap",
       "server:detail",
       "server:delete",
       "server:update",
@@ -53,6 +55,8 @@ describe("API rate limit configuration", () => {
       "channel:messages:list": { limit: 120, windowSeconds: 60 },
       "server:detail": { limit: 240, windowSeconds: 60 },
       "link-preview": { limit: 30, windowSeconds: 60 },
+      "mobile:auth-exchange": { limit: 20, windowSeconds: 10 * 60 },
+      "mobile:bootstrap": { limit: 120, windowSeconds: 60 },
     } satisfies Partial<
       Record<ApiRateLimitAction, { limit: number; windowSeconds: number }>
     >;

@@ -1,0 +1,1179 @@
+import { useCallback, useMemo, useReducer, useState, type ReactNode } from "react";
+import whisprIcon from "../../assets/whispr-icon.png";
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useMobileAuth } from "../auth/mobile-auth-context";
+import { MOBILE_BOOTSTRAP_ENDPOINT } from "../bootstrap/mobile-bootstrap";
+import { getMobileRuntimeConfig } from "../config/environment";
+import {
+  type MobileDeepLinkParseResult,
+} from "../deep-link/mobile-deep-links";
+import { useMobileDeepLinks } from "../deep-link/use-mobile-deep-links";
+import { mobileColors, mobileRadii, mobileSpacing } from "../design/tokens";
+import { mobileCopy } from "../locale/mobile-copy";
+import {
+  createMobileNavigationState,
+  MOBILE_TABS,
+  mobileNavigationReducer,
+  resolveMobileRoute,
+  type MobileTabId,
+} from "../navigation/mobile-navigation";
+import {
+  createInitialMobilePermissionReadiness,
+  getPermissionReadinessForFeature,
+  summarizeMobilePermissionReadiness,
+  type MobilePermissionIntentId,
+  type MobilePermissionReadiness,
+  type MobilePermissionSummary,
+} from "../permissions/mobile-permission-contract";
+import { MOBILE_RELEASE_BUDGETS } from "../release/mobile-release-contract";
+
+const copy = mobileCopy.tr;
+const runtimeConfig = getMobileRuntimeConfig();
+
+const tabLabels: Record<MobileTabId, string> = {
+  messages: copy.tabMessages,
+  overview: copy.tabOverview,
+  settings: copy.tabSettings,
+  voice: copy.tabVoice,
+};
+
+const tabIcons: Record<MobileTabId, string> = {
+  messages: "D",
+  overview: "W",
+  settings: "A",
+  voice: "V",
+};
+
+const permissionLabels: Record<MobilePermissionIntentId, string> = {
+  camera: copy.permissionCamera,
+  microphone: copy.permissionMicrophone,
+  notifications: copy.permissionNotifications,
+  photoLibrary: copy.permissionPhotoLibrary,
+};
+
+export function WhisprMobileRoot() {
+  const insets = useSafeAreaInsets();
+  const {
+    completeAuthHandoff,
+    diagnostics,
+    error,
+    openWebSignIn,
+    refreshSessionFromStorage,
+    session,
+    signOut,
+    status,
+  } = useMobileAuth();
+  const [navigation, dispatchNavigation] = useReducer(
+    mobileNavigationReducer,
+    undefined,
+    () => createMobileNavigationState(),
+  );
+  const [lastDeepLink, setLastDeepLink] = useState<MobileDeepLinkParseResult | null>(null);
+  const route = resolveMobileRoute(navigation.currentTab, status);
+  const permissionReadiness = useMemo(() => createInitialMobilePermissionReadiness(), []);
+  const permissionSummary = useMemo(
+    () => summarizeMobilePermissionReadiness(permissionReadiness),
+    [permissionReadiness],
+  );
+
+  const handleDeepLink = useCallback(
+    (result: MobileDeepLinkParseResult) => {
+      setLastDeepLink(result);
+
+      if (!result.ok) {
+        return;
+      }
+
+      if (result.intent.type === "auth-handoff") {
+        const callbackPath = result.intent.callbackPath;
+        void completeAuthHandoff({
+          callbackPath,
+          handoffToken: result.intent.token,
+        }).then((completed) => {
+          if (!completed) {
+            dispatchNavigation({ tab: "settings", type: "select" });
+            return;
+          }
+
+          dispatchNavigation({
+            tab: callbackPath.startsWith("/settings") ? "settings" : "messages",
+            type: "select",
+          });
+        });
+        return;
+      }
+
+      if (result.intent.type === "invite" || result.intent.path.startsWith("/channels")) {
+        dispatchNavigation({ tab: "messages", type: "select" });
+        return;
+      }
+
+      if (result.intent.type === "route" && result.intent.path.startsWith("/settings")) {
+        dispatchNavigation({ tab: "settings", type: "select" });
+      }
+    },
+    [completeAuthHandoff],
+  );
+
+  useMobileDeepLinks({
+    onDeepLink: handleDeepLink,
+    runtimeConfig,
+  });
+
+  const authStatusLabel =
+    status === "checking"
+      ? copy.authChecking
+      : status === "signed-in"
+        ? copy.authSignedIn
+        : copy.authSignedOut;
+
+  const signedInUserLabel = useMemo(() => {
+    if (!session) {
+      return null;
+    }
+
+    return session.user.displayName ?? session.user.username;
+  }, [session]);
+
+  const topInset = Math.max(insets.top, 12);
+  const bottomInset = Math.max(insets.bottom, 12);
+
+  return (
+    <View style={[styles.safeArea, { paddingTop: topInset }]}>
+      <View style={styles.shell}>
+        <View style={styles.header}>
+          <Image source={whisprIcon} style={styles.logo} accessibilityIgnoresInvertColors />
+          <View style={styles.headerText}>
+            <Text style={styles.eyebrow}>{copy.status}</Text>
+            <Text style={styles.title}>{copy.appTitle}</Text>
+            <Text style={styles.subtitle} numberOfLines={2}>
+              {copy.appSubtitle}
+            </Text>
+          </View>
+          <View style={styles.statusBadge}>
+            <View
+              style={[
+                styles.authStatusDot,
+                status === "signed-in" && styles.authStatusDotReady,
+                status === "checking" && styles.authStatusDotChecking,
+              ]}
+            />
+            <Text style={styles.statusBadgeText} numberOfLines={1}>
+              {status === "signed-in" ? signedInUserLabel ?? "Aktif" : status}
+            </Text>
+          </View>
+        </View>
+
+        <ScrollView
+          style={styles.contentScroll}
+          contentContainerStyle={[styles.content, { paddingBottom: bottomInset + 4 }]}
+          alwaysBounceVertical={false}
+        >
+          {route.isBlocked ? (
+            <AuthGate
+              reason={route.blockedReason}
+              onOpenWebSignIn={() => void openWebSignIn()}
+              onRefresh={() => void refreshSessionFromStorage()}
+            />
+          ) : (
+            <ActiveScreen
+              currentTab={route.currentTab}
+              diagnostics={diagnostics}
+              lastDeepLink={lastDeepLink}
+              permissionReadiness={permissionReadiness}
+              permissionSummary={permissionSummary}
+              error={error}
+              authStatusLabel={authStatusLabel}
+              signedInUserLabel={signedInUserLabel}
+              onOpenWebSignIn={() => void openWebSignIn()}
+              onRefresh={() => void refreshSessionFromStorage()}
+              onSignOut={() => void signOut()}
+              status={status}
+            />
+          )}
+        </ScrollView>
+
+        <View
+          style={[styles.tabBar, { marginBottom: bottomInset }]}
+          accessibilityRole="tablist"
+        >
+          {MOBILE_TABS.map((tab) => {
+            const isActive = navigation.currentTab === tab.id;
+            return (
+              <Pressable
+                key={tab.id}
+                accessibilityRole="tab"
+                accessibilityLabel={tabLabels[tab.id]}
+                accessibilityState={{ selected: isActive }}
+                onPress={() => dispatchNavigation({ tab: tab.id, type: "select" })}
+                style={({ pressed }) => [
+                  styles.tabButton,
+                  isActive && styles.tabButtonActive,
+                  pressed && styles.tabButtonPressed,
+                ]}
+              >
+                <Text style={styles.tabIcon}>{tabIcons[tab.id]}</Text>
+                <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+                  {tabLabels[tab.id]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+interface ActiveScreenProps {
+  authStatusLabel: string;
+  currentTab: MobileTabId;
+  diagnostics: {
+    hasRefreshToken: boolean;
+    hasSession: boolean;
+    scopeCount: number;
+  };
+  error: string | null;
+  lastDeepLink: MobileDeepLinkParseResult | null;
+  onOpenWebSignIn(): void;
+  onRefresh(): void;
+  onSignOut(): void;
+  permissionReadiness: readonly MobilePermissionReadiness[];
+  permissionSummary: MobilePermissionSummary;
+  signedInUserLabel: string | null;
+  status: string;
+}
+
+function ActiveScreen({
+  authStatusLabel,
+  currentTab,
+  diagnostics,
+  error,
+  lastDeepLink,
+  onOpenWebSignIn,
+  onRefresh,
+  onSignOut,
+  permissionReadiness,
+  permissionSummary,
+  signedInUserLabel,
+  status,
+}: ActiveScreenProps) {
+  switch (currentTab) {
+    case "messages":
+      return (
+        <ScreenShell
+          eyebrow={copy.tabMessages}
+          title={copy.messagesEmpty}
+          description={copy.messagesDescription}
+        >
+          <DeepLinkStatusCard result={lastDeepLink} />
+          <EmptyState tone="accent" label={copy.messagesEmpty} />
+        </ScreenShell>
+      );
+    case "voice":
+      return (
+        <ScreenShell eyebrow={copy.tabVoice} title={copy.voiceEmpty} description={copy.voiceDescription}>
+          <PermissionReadinessCard
+            readiness={permissionReadiness}
+            summary={permissionSummary}
+            compactFeature="voice"
+          />
+          <EmptyState tone="success" label={copy.voiceEmpty} />
+        </ScreenShell>
+      );
+    case "settings":
+      return (
+        <ScreenShell
+          eyebrow={copy.tabSettings}
+          title={authStatusLabel}
+          description={copy.settingsDescription}
+        >
+          <SessionDiagnostics diagnostics={diagnostics} />
+          <DeepLinkStatusCard result={lastDeepLink} />
+          <PermissionReadinessCard readiness={permissionReadiness} summary={permissionSummary} />
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <View style={styles.actionRow}>
+            <ActionButton label={copy.secondaryAction} onPress={onRefresh} variant="secondary" />
+            {status === "signed-in" ? (
+              <ActionButton label={copy.signOutAction} onPress={onSignOut} variant="danger" />
+            ) : (
+              <ActionButton label={copy.primaryAction} onPress={onOpenWebSignIn} variant="primary" />
+            )}
+          </View>
+        </ScreenShell>
+      );
+    case "overview":
+    default:
+      return (
+        <ScreenShell
+          eyebrow={signedInUserLabel ?? copy.tabOverview}
+          title={copy.foundation}
+          description={copy.overviewDescription}
+        >
+          <View style={styles.guardrailList}>
+            <Guardrail label={copy.guardrail1} />
+            <Guardrail label={copy.guardrail2} />
+            <Guardrail label={copy.guardrail3} />
+          </View>
+          <EnvironmentCard />
+          <BootstrapContractCard />
+          <ReleaseReadinessCard />
+          <SessionDiagnostics diagnostics={diagnostics} />
+          <DeepLinkStatusCard result={lastDeepLink} />
+          <PermissionReadinessCard readiness={permissionReadiness} summary={permissionSummary} />
+          {status !== "signed-in" ? (
+            <ActionButton label={copy.primaryAction} onPress={onOpenWebSignIn} variant="primary" />
+          ) : null}
+        </ScreenShell>
+      );
+  }
+}
+
+function AuthGate({
+  onOpenWebSignIn,
+  onRefresh,
+  reason,
+}: {
+  onOpenWebSignIn(): void;
+  onRefresh(): void;
+  reason: "auth-required" | "checking" | null;
+}) {
+  const isChecking = reason === "checking";
+
+  return (
+    <ScreenShell
+      eyebrow={copy.status}
+      title={isChecking ? copy.authChecking : copy.gatedSignedOut}
+      description={isChecking ? copy.gatedChecking : copy.authSummary}
+    >
+      <View style={styles.authGateCard}>
+        <View style={[styles.authGateIcon, isChecking && styles.authGateIconChecking]}>
+          <Text style={styles.authGateIconText}>{isChecking ? "..." : "!"}</Text>
+        </View>
+        <Text style={styles.authSummary}>{isChecking ? copy.gatedChecking : copy.gatedSignedOut}</Text>
+      </View>
+      <View style={styles.actionRow}>
+        <ActionButton label={copy.secondaryAction} onPress={onRefresh} variant="secondary" />
+        {!isChecking ? (
+          <ActionButton label={copy.primaryAction} onPress={onOpenWebSignIn} variant="primary" />
+        ) : null}
+      </View>
+    </ScreenShell>
+  );
+}
+
+function ScreenShell({
+  children,
+  description,
+  eyebrow,
+  title,
+}: {
+  children: ReactNode;
+  description: string;
+  eyebrow: string;
+  title: string;
+}) {
+  return (
+    <View style={styles.screenCard}>
+      <Text style={styles.screenEyebrow}>{eyebrow}</Text>
+      <Text style={styles.screenTitle}>{title}</Text>
+      <Text style={styles.screenDescription}>{description}</Text>
+      <View style={styles.screenBody}>{children}</View>
+    </View>
+  );
+}
+
+function EnvironmentCard() {
+  return (
+    <View style={styles.environmentCard}>
+      <Text style={styles.environmentLabel}>Environment</Text>
+      <Text style={styles.environmentValue}>{runtimeConfig.environment}</Text>
+      <Text style={styles.environmentUrl} numberOfLines={1}>
+        {runtimeConfig.apiUrl}
+      </Text>
+    </View>
+  );
+}
+
+function BootstrapContractCard() {
+  return (
+    <View style={styles.contractCard}>
+      <Text style={styles.environmentLabel}>{copy.bootstrapTitle}</Text>
+      <Text style={styles.contractTitle}>{copy.bootstrapReady}</Text>
+      <Text style={styles.contractDescription}>{copy.bootstrapDescription}</Text>
+      <Text style={styles.contractEndpoint} numberOfLines={1}>
+        {MOBILE_BOOTSTRAP_ENDPOINT}
+      </Text>
+    </View>
+  );
+}
+
+function ReleaseReadinessCard() {
+  return (
+    <View style={styles.contractCard}>
+      <Text style={styles.environmentLabel}>{copy.releaseTitle}</Text>
+      <Text style={styles.contractTitle}>{copy.releaseReady}</Text>
+      <View style={styles.releaseBudgetList}>
+        {MOBILE_RELEASE_BUDGETS.slice(0, 3).map((budget) => (
+          <View key={budget.metric} style={styles.releaseBudgetRow}>
+            <Text style={styles.releaseBudgetMetric}>{budget.metric}</Text>
+            <Text style={styles.releaseBudgetTarget}>{budget.target}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function SessionDiagnostics({
+  diagnostics,
+}: {
+  diagnostics: {
+    hasRefreshToken: boolean;
+    hasSession: boolean;
+    scopeCount: number;
+  };
+}) {
+  return (
+    <View style={styles.diagnosticsRow}>
+      <DiagnosticPill label="Session" value={diagnostics.hasSession ? "var" : "yok"} />
+      <DiagnosticPill label="Scopes" value={String(diagnostics.scopeCount)} />
+      <DiagnosticPill label="Refresh" value={diagnostics.hasRefreshToken ? "hazır" : "yok"} />
+    </View>
+  );
+}
+
+function DeepLinkStatusCard({ result }: { result: MobileDeepLinkParseResult | null }) {
+  const statusLabel = getDeepLinkStatusLabel(result);
+  const isRejected = result?.ok === false;
+
+  return (
+    <View style={[styles.statusCard, isRejected && styles.statusCardWarning]}>
+      <View style={[styles.statusIcon, isRejected && styles.statusIconWarning]}>
+        <Text style={styles.statusIconText}>{isRejected ? "!" : "OK"}</Text>
+      </View>
+      <View style={styles.statusCardText}>
+        <Text style={styles.environmentLabel}>{copy.deepLinkTitle}</Text>
+        <Text style={styles.statusCardTitle}>{statusLabel.title}</Text>
+        <Text style={styles.statusCardDescription}>{statusLabel.description}</Text>
+      </View>
+    </View>
+  );
+}
+
+function PermissionReadinessCard({
+  compactFeature,
+  readiness,
+  summary,
+}: {
+  compactFeature?: "attachments" | "camera" | "messages" | "voice";
+  readiness: readonly MobilePermissionReadiness[];
+  summary: MobilePermissionSummary;
+}) {
+  const visibleReadiness = compactFeature
+    ? getPermissionReadinessForFeature(readiness, compactFeature)
+    : readiness;
+
+  return (
+    <View style={styles.permissionCard}>
+      <View style={styles.permissionHeader}>
+        <View style={styles.permissionHeaderText}>
+          <Text style={styles.environmentLabel}>{copy.permissionTitle}</Text>
+          <Text style={styles.permissionTitle}>{copy.permissionReady}</Text>
+        </View>
+        <View style={styles.permissionCountBadge}>
+          <Text style={styles.permissionCountText}>
+            {summary.granted}/{summary.total}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.permissionChipRow}>
+        {visibleReadiness.map((item) => (
+          <View key={item.intent.id} style={styles.permissionChip}>
+            <View
+              style={[
+                styles.permissionChipDot,
+                item.status === "granted" && styles.permissionChipDotGranted,
+                (item.status === "blocked" || item.status === "denied") &&
+                  styles.permissionChipDotDenied,
+              ]}
+            />
+            <Text style={styles.permissionChipText}>{permissionLabels[item.intent.id]}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function EmptyState({ label, tone }: { label: string; tone: "accent" | "success" }) {
+  return (
+    <View style={styles.emptyState}>
+      <View style={[styles.emptyIcon, tone === "success" && styles.emptyIconSuccess]}>
+        <Text style={styles.emptyIconText}>{tone === "success" ? "OK" : "D"}</Text>
+      </View>
+      <Text style={styles.emptyStateText}>{label}</Text>
+    </View>
+  );
+}
+
+function getDeepLinkStatusLabel(result: MobileDeepLinkParseResult | null) {
+  if (!result) {
+    return {
+      description: copy.deepLinkReady,
+      title: copy.deepLinkReady,
+    };
+  }
+
+  if (!result.ok) {
+    return {
+      description: `${copy.deepLinkRejected}: ${result.reason}`,
+      title: copy.deepLinkRejected,
+    };
+  }
+
+  switch (result.intent.type) {
+    case "auth-handoff":
+      return {
+        description: copy.deepLinkAuthPending,
+        title: copy.deepLinkAccepted,
+      };
+    case "invite":
+      return {
+        description: copy.deepLinkInvitePending,
+        title: copy.deepLinkAccepted,
+      };
+    case "route":
+      return {
+        description: copy.deepLinkRoutePending,
+        title: copy.deepLinkAccepted,
+      };
+    default:
+      return {
+        description: copy.deepLinkReady,
+        title: copy.deepLinkReady,
+      };
+  }
+}
+
+function DiagnosticPill({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.diagnosticPill}>
+      <Text style={styles.diagnosticLabel}>{label}</Text>
+      <Text style={styles.diagnosticValue}>{value}</Text>
+    </View>
+  );
+}
+
+function Guardrail({ label }: { label: string }) {
+  return (
+    <View style={styles.guardrail}>
+      <View style={styles.guardrailDot} />
+      <Text style={styles.guardrailText}>{label}</Text>
+    </View>
+  );
+}
+
+function ActionButton({
+  label,
+  onPress,
+  variant,
+}: {
+  label: string;
+  onPress(): void;
+  variant: "danger" | "primary" | "secondary";
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.actionButton,
+        variant === "primary" && styles.actionButtonPrimary,
+        variant === "danger" && styles.actionButtonDanger,
+        pressed && styles.actionButtonPressed,
+      ]}
+    >
+      <Text
+        style={[
+          styles.actionButtonText,
+          variant === "primary" && styles.actionButtonTextPrimary,
+          variant === "danger" && styles.actionButtonTextDanger,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: mobileColors.background,
+  },
+  shell: {
+    flex: 1,
+    paddingHorizontal: mobileSpacing.page,
+    paddingTop: 8,
+    minWidth: 0,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.card,
+    backgroundColor: mobileColors.card,
+    padding: 14,
+    shadowColor: "#4F46E5",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 22,
+    elevation: 2,
+  },
+  logo: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+  },
+  headerText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  eyebrow: {
+    color: mobileColors.accentStrong,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.8,
+    textTransform: "uppercase",
+  },
+  title: {
+    marginTop: 2,
+    color: mobileColors.text,
+    fontSize: 22,
+    fontWeight: "800",
+  },
+  subtitle: {
+    marginTop: 2,
+    color: mobileColors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
+  },
+  statusBadge: {
+    maxWidth: 92,
+    minWidth: 0,
+    minHeight: 38,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#F5F3FF",
+    paddingHorizontal: 10,
+  },
+  statusBadgeText: {
+    flex: 1,
+    color: mobileColors.text,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  authStatusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.warning,
+  },
+  authStatusDotReady: {
+    backgroundColor: mobileColors.success,
+  },
+  authStatusDotChecking: {
+    backgroundColor: mobileColors.mutedSoft,
+  },
+  contentScroll: {
+    flex: 1,
+    minWidth: 0,
+  },
+  content: {
+    flexGrow: 1,
+    paddingVertical: mobileSpacing.section,
+    minWidth: 0,
+  },
+  screenCard: {
+    flexGrow: 1,
+    gap: 10,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.card,
+    backgroundColor: mobileColors.card,
+    padding: 16,
+    shadowColor: "#4F46E5",
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.1,
+    shadowRadius: 32,
+    elevation: 3,
+  },
+  screenEyebrow: {
+    color: mobileColors.accentStrong,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 2,
+    textTransform: "uppercase",
+  },
+  screenTitle: {
+    color: mobileColors.text,
+    fontSize: 22,
+    lineHeight: 29,
+    fontWeight: "900",
+  },
+  screenDescription: {
+    color: mobileColors.muted,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: "600",
+  },
+  screenBody: {
+    gap: mobileSpacing.row,
+    marginTop: 8,
+    minWidth: 0,
+  },
+  guardrailList: {
+    gap: 9,
+  },
+  guardrail: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#F5F3FF",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  guardrailDot: {
+    width: 9,
+    height: 9,
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.success,
+  },
+  guardrailText: {
+    flex: 1,
+    color: mobileColors.text,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "700",
+  },
+  environmentCard: {
+    gap: 4,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FAFBFF",
+    padding: 14,
+  },
+  contractCard: {
+    gap: 8,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FAFBFF",
+    padding: 14,
+  },
+  contractTitle: {
+    color: mobileColors.text,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  contractDescription: {
+    color: mobileColors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "600",
+  },
+  contractEndpoint: {
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#EEF2FF",
+    color: mobileColors.accentStrong,
+    fontSize: 12,
+    fontWeight: "800",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  releaseBudgetList: {
+    gap: 7,
+  },
+  releaseBudgetRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 10,
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  releaseBudgetMetric: {
+    flexShrink: 1,
+    minWidth: 0,
+    color: mobileColors.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  releaseBudgetTarget: {
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 86,
+    textAlign: "right",
+    color: mobileColors.muted,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  environmentLabel: {
+    color: mobileColors.mutedSoft,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
+  environmentValue: {
+    color: mobileColors.text,
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  environmentUrl: {
+    color: mobileColors.muted,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  diagnosticsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    minWidth: 0,
+  },
+  diagnosticPill: {
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#F5F3FF",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  diagnosticLabel: {
+    color: mobileColors.mutedSoft,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  diagnosticValue: {
+    marginTop: 2,
+    color: mobileColors.text,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  statusCard: {
+    flexDirection: "row",
+    gap: 12,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#F5F3FF",
+    padding: 14,
+  },
+  statusCardWarning: {
+    borderColor: "#FED7AA",
+    backgroundColor: "#FFF7ED",
+  },
+  statusIcon: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.accent,
+  },
+  statusIconWarning: {
+    backgroundColor: mobileColors.warning,
+  },
+  statusIconText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  statusCardText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  statusCardTitle: {
+    color: mobileColors.text,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  statusCardDescription: {
+    color: mobileColors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "600",
+  },
+  permissionCard: {
+    gap: 12,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FAFBFF",
+    padding: 14,
+  },
+  permissionHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  permissionHeaderText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  permissionTitle: {
+    color: mobileColors.text,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "700",
+  },
+  permissionCountBadge: {
+    minWidth: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#EEF2FF",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  permissionCountText: {
+    color: mobileColors.accentStrong,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  permissionChipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    minWidth: 0,
+  },
+  permissionChip: {
+    minHeight: 34,
+    maxWidth: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+  },
+  permissionChipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.mutedSoft,
+  },
+  permissionChipDotGranted: {
+    backgroundColor: mobileColors.success,
+  },
+  permissionChipDotDenied: {
+    backgroundColor: "#EF4444",
+  },
+  permissionChipText: {
+    flexShrink: 1,
+    minWidth: 0,
+    color: mobileColors.text,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  authSummary: {
+    flex: 1,
+    minWidth: 0,
+    color: mobileColors.muted,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: "600",
+  },
+  authGateCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#F5F3FF",
+    padding: 14,
+  },
+  authGateIcon: {
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.accent,
+  },
+  authGateIconChecking: {
+    backgroundColor: mobileColors.warning,
+  },
+  authGateIconText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  emptyState: {
+    minHeight: 190,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.card,
+    backgroundColor: "#FAFBFF",
+    padding: 18,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+    backgroundColor: "#EDE9FE",
+  },
+  emptyIconSuccess: {
+    backgroundColor: "#DFF8EA",
+  },
+  emptyIconText: {
+    color: mobileColors.accentStrong,
+    fontSize: 24,
+    fontWeight: "900",
+  },
+  emptyStateText: {
+    maxWidth: 250,
+    textAlign: "center",
+    color: mobileColors.muted,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: "700",
+  },
+  actionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    minWidth: 0,
+  },
+  actionButton: {
+    minHeight: 46,
+    flexGrow: 1,
+    flexBasis: 136,
+    minWidth: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+  },
+  actionButtonPrimary: {
+    borderColor: mobileColors.accent,
+    backgroundColor: mobileColors.accent,
+  },
+  actionButtonDanger: {
+    borderColor: "#FECACA",
+    backgroundColor: "#FEF2F2",
+  },
+  actionButtonPressed: {
+    opacity: 0.78,
+  },
+  actionButtonText: {
+    textAlign: "center",
+    color: mobileColors.text,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  actionButtonTextPrimary: {
+    color: "#FFFFFF",
+  },
+  actionButtonTextDanger: {
+    color: "#DC2626",
+  },
+  errorText: {
+    color: "#DC2626",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  tabBar: {
+    flexDirection: "row",
+    gap: 8,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.card,
+    backgroundColor: mobileColors.card,
+    padding: 8,
+    shadowColor: "#4F46E5",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 2,
+  },
+  tabButton: {
+    minHeight: 54,
+    flex: 1,
+    minWidth: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    borderWidth: 1,
+    borderColor: "transparent",
+    borderRadius: mobileRadii.control,
+  },
+  tabButtonActive: {
+    borderColor: "#C4B5FD",
+    backgroundColor: "#F5F3FF",
+  },
+  tabButtonPressed: {
+    backgroundColor: "#F8FAFC",
+  },
+  tabIcon: {
+    fontSize: 17,
+  },
+  tabLabel: {
+    maxWidth: "100%",
+    color: mobileColors.muted,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  tabLabelActive: {
+    color: mobileColors.accentStrong,
+  },
+});

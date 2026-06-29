@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const API_V1_DIR = fileURLToPath(new URL(".", import.meta.url));
 
-const PUBLIC_ROUTE_PATHS = new Set(["app/version", "desktop/download"]);
+const PUBLIC_ROUTE_PATHS = new Set(["app/version", "desktop/download", "mobile/auth/exchange"]);
 
 const BODYLESS_MUTATING_ROUTE_PATHS = new Set([
   "admin/notification-campaigns/[campaignId]/send",
@@ -27,7 +27,8 @@ const BODYLESS_MUTATING_ROUTE_PATHS = new Set([
   "servers/[serverId]/members/me",
 ]);
 
-const AUTH_GUARD_CALL_PATTERN = /\b(?:requireApiUserId|requireAdminUser)\s*\(/;
+const AUTH_GUARD_CALL_PATTERN =
+  /\b(?:requireApiUserId|requireMobileApiUserId|requireAdminUser)\s*\(/;
 const EXPORTED_METHOD_PATTERN =
   /export\s+(?:async\s+)?function\s+(GET|POST|PATCH|PUT|DELETE)\b|export\s+const\s+(GET|POST|PATCH|PUT|DELETE)\b/g;
 const MUTATING_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);

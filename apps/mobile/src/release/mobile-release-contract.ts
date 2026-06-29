@@ -1,0 +1,196 @@
+import { MOBILE_ENVIRONMENTS, type MobileEnvironmentName } from "../config/environment";
+
+export const MOBILE_RELEASE_PROFILES = ["development", "uat", "canary", "production"] as const;
+
+export type MobileReleaseProfileName = (typeof MOBILE_RELEASE_PROFILES)[number];
+export type MobileReleasePlatform = "android" | "ios";
+
+export type MobileReleaseBudget = {
+  label: string;
+  metric: string;
+  target: string;
+};
+
+export type MobileReleaseProfileConfig = {
+  autoIncrement?: boolean;
+  channel?: string;
+  developmentClient?: boolean;
+  distribution?: string;
+  env?: Record<string, string>;
+};
+
+export type MobileReleaseContractInput = {
+  easBuildProfiles: Record<string, MobileReleaseProfileConfig | undefined>;
+  packageVersion: string;
+  rootVersion: string;
+};
+
+export type MobileReleaseContractResult = {
+  blockers: string[];
+  budgets: MobileReleaseBudget[];
+  checklist: string[];
+  warnings: string[];
+};
+
+const SEMVER_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+const FORBIDDEN_ENV_KEY_PATTERN = /(SECRET|PASSWORD|TOKEN|PRIVATE|PFX|KEY)$/i;
+
+export const MOBILE_RELEASE_BUDGETS: MobileReleaseBudget[] = [
+  {
+    label: "Cold authenticated launch",
+    metric: "startup",
+    target: "<= 2500ms on recent iOS/Android devices",
+  },
+  {
+    label: "Warm foreground resume",
+    metric: "resume",
+    target: "<= 700ms without refetching unrelated surfaces",
+  },
+  {
+    label: "Chat input latency",
+    metric: "composer",
+    target: "p95 <= 50ms while typing",
+  },
+  {
+    label: "Idle memory",
+    metric: "memory",
+    target: "<= 180MB after 5 minutes idle",
+  },
+];
+
+function isHttpsReleaseUrl(value: string | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+    return (
+      url.protocol === "https:" &&
+      hostname !== "localhost" &&
+      hostname !== "127.0.0.1" &&
+      hostname !== "::1" &&
+      hostname !== "whispr.invalid" &&
+      !hostname.endsWith(".local")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function pushEndpointBlockers(
+  blockers: string[],
+  profileName: MobileReleaseProfileName,
+  profile: MobileReleaseProfileConfig,
+) {
+  const env = profile.env ?? {};
+
+  if (profileName === "development") {
+    return;
+  }
+
+  for (const key of [
+    "EXPO_PUBLIC_WHISPR_API_URL",
+    "EXPO_PUBLIC_WHISPR_SOCKET_URL",
+    "EXPO_PUBLIC_WHISPR_WEB_URL",
+  ]) {
+    if (!isHttpsReleaseUrl(env[key])) {
+      blockers.push(`${profileName} ${key} must be an HTTPS non-local URL.`);
+    }
+  }
+}
+
+function pushSecretBlockers(
+  blockers: string[],
+  profileName: MobileReleaseProfileName,
+  profile: MobileReleaseProfileConfig,
+) {
+  for (const key of Object.keys(profile.env ?? {})) {
+    if (!key.startsWith("EXPO_PUBLIC_") && FORBIDDEN_ENV_KEY_PATTERN.test(key)) {
+      blockers.push(`${profileName} EAS env must not embed secret-like key ${key}.`);
+    }
+  }
+}
+
+export function validateMobileReleaseContract({
+  easBuildProfiles,
+  packageVersion,
+  rootVersion,
+}: MobileReleaseContractInput): MobileReleaseContractResult {
+  const blockers: string[] = [];
+  const warnings: string[] = [];
+
+  if (!SEMVER_PATTERN.test(packageVersion)) {
+    blockers.push(`Mobile package version '${packageVersion}' must be semver.`);
+  }
+
+  if (packageVersion !== rootVersion) {
+    blockers.push(
+      `Mobile package version '${packageVersion}' must match root version '${rootVersion}'.`,
+    );
+  }
+
+  for (const profileName of MOBILE_RELEASE_PROFILES) {
+    const profile = easBuildProfiles[profileName];
+
+    if (!profile) {
+      blockers.push(`Missing EAS build profile '${profileName}'.`);
+      continue;
+    }
+
+    if (profile.channel !== profileName) {
+      blockers.push(`${profileName} profile channel must be '${profileName}'.`);
+    }
+
+    if (profile.env?.WHISPR_MOBILE_ENV !== profileName) {
+      blockers.push(`${profileName} profile must set WHISPR_MOBILE_ENV=${profileName}.`);
+    }
+
+    pushEndpointBlockers(blockers, profileName, profile);
+    pushSecretBlockers(blockers, profileName, profile);
+  }
+
+  const uat = easBuildProfiles.uat;
+  const canary = easBuildProfiles.canary;
+  const production = easBuildProfiles.production;
+
+  if (uat?.distribution !== "internal") {
+    blockers.push("uat profile must use internal distribution.");
+  }
+
+  if (canary?.distribution !== "internal") {
+    blockers.push("canary profile must use internal distribution until store rollout is enabled.");
+  }
+
+  if (production?.distribution !== "store") {
+    blockers.push("production profile must use store distribution.");
+  }
+
+  if (production?.autoIncrement !== true || canary?.autoIncrement !== true) {
+    blockers.push("canary and production profiles must auto-increment native build numbers.");
+  }
+
+  if (uat?.autoIncrement !== false) {
+    warnings.push("uat profile should keep autoIncrement=false for deterministic smoke builds.");
+  }
+
+  return {
+    blockers,
+    budgets: MOBILE_RELEASE_BUDGETS,
+    checklist: [
+      "Run mobile typecheck, tests, and environment validation.",
+      "Confirm no native permission prompt appears before a user action.",
+      "Verify auth handoff never places access, refresh, or OAuth code values in URLs.",
+      "Run iOS and Android smoke builds against the selected release profile.",
+      "Record startup, resume, composer latency, and idle memory evidence before promotion.",
+    ],
+    warnings,
+  };
+}
+
+export function assertKnownMobileEnvironment(value: string): asserts value is MobileEnvironmentName {
+  if (!MOBILE_ENVIRONMENTS.includes(value as MobileEnvironmentName)) {
+    throw new Error(`Unknown mobile environment '${value}'.`);
+  }
+}

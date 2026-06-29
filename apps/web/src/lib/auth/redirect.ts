@@ -1,7 +1,10 @@
 export const DEFAULT_AUTH_REDIRECT_PATH = "/channels";
 
 const SAFE_AUTH_REDIRECT_PREFIXES = ["/channels", "/settings", "/invite"] as const;
-const SAFE_AUTH_REDIRECT_EXACT_PATHS = ["/desktop/oauth/complete"] as const;
+const SAFE_AUTH_REDIRECT_EXACT_PATHS = [
+  "/desktop/oauth/complete",
+  "/mobile/oauth/complete",
+] as const;
 const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 
 export function getSafeAuthRedirectPath(

@@ -1,6 +1,11 @@
 import { auth } from "@/auth";
 import { ApiError } from "@/lib/api";
 import { assertActiveApiUser } from "@/lib/auth/access";
+import {
+  getBearerTokenFromRequest,
+  verifyMobileAccessToken,
+} from "@/lib/mobile/auth";
+import { prisma } from "@wizards/db";
 
 export async function requireApiUserId() {
   const session = await auth();
@@ -19,4 +24,39 @@ export async function requireApiUserId() {
   });
 
   return userId;
+}
+
+export async function requireMobileApiUserId(request: Request) {
+  const token = getBearerTokenFromRequest(request);
+  if (!token) {
+    throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
+  }
+
+  const claims = verifyMobileAccessToken(token);
+  if (!claims?.scopes.includes("mobile:bootstrap")) {
+    throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: claims.userId },
+    select: {
+      deletedAt: true,
+      emailVerified: true,
+      id: true,
+      isBanned: true,
+    },
+  });
+
+  if (!user) {
+    throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
+  }
+
+  assertActiveApiUser({
+    deletedAt: user.deletedAt,
+    emailVerified: Boolean(user.emailVerified),
+    id: claims.userId,
+    isBanned: user.isBanned,
+  });
+
+  return claims.userId;
 }

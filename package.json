@@ -6,19 +6,6 @@
     "node": ">=22 <25"
   },
   "packageManager": "pnpm@10.33.2",
-  "pnpm": {
-    "overrides": {
-      "brace-expansion@5.0.5": "5.0.6",
-      "esbuild": "0.28.1",
-      "effect": "^3.21.2",
-      "js-yaml": "4.2.0",
-      "postcss": "^8.5.13",
-      "svix": "^1.92.2",
-      "ws@7.5.10": "7.5.11",
-      "ws@8.18.3": "8.21.0",
-      "ws@8.20.1": "8.21.0"
-    }
-  },
   "scripts": {
     "dev": "turbo dev",
     "dev:clear-auth-rate-limits": "pnpm --filter @wizards/web dev:clear-auth-rate-limits",

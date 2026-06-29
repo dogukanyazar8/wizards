@@ -50,6 +50,8 @@ export const API_RATE_LIMITS = {
   "member:leave": { limit: 20, windowSeconds: 10 * 60 },
   "member:roles:update": { limit: 40, windowSeconds: 10 * 60 },
   "message:search": { limit: 80, windowSeconds: 60 },
+  "mobile:auth-exchange": { limit: 20, windowSeconds: 10 * 60 },
+  "mobile:bootstrap": { limit: 120, windowSeconds: 60 },
   "notification:clear": { limit: 30, windowSeconds: 60 },
   "notification:mark-read": { limit: 120, windowSeconds: 60 },
   "server:create": { limit: 10, windowSeconds: 60 * 60 },

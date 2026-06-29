@@ -1,0 +1,34 @@
+{
+  "name": "@wizards/mobile",
+  "version": "0.8.15",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "start:clear": "expo start --clear",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "lint": "tsc --noEmit",
+    "release:check": "node --import tsx scripts/validate-mobile-release.ts",
+    "test": "node --test --import tsx scripts/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "validate:env": "node --import tsx scripts/validate-mobile-env.ts"
+  },
+  "dependencies": {
+    "@wizards/types": "workspace:*",
+    "expo": "~56.0.12",
+    "expo-dev-client": "~56.0.20",
+    "expo-secure-store": "~56.0.4",
+    "expo-status-bar": "~56.0.4",
+    "expo-updates": "~56.0.19",
+    "react": "19.2.3",
+    "react-native": "0.85.3",
+    "react-native-safe-area-context": "~5.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.1",
+    "@types/react": "~19.2.2",
+    "tsx": "^4.22.4",
+    "typescript": "~6.0.3"
+  }
+}
