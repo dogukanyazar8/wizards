@@ -60,6 +60,18 @@ export const MobileAuthExchangeResponseSchema = z.object({
   session: MobileSessionSnapshotSchema,
 });
 
+export const MobileAuthRefreshRequestSchema = z.object({
+  refreshToken: z.string().min(16).max(8192).regex(/^\S+$/),
+});
+
+export const MobileAuthRefreshResponseSchema = z.object({
+  session: MobileSessionSnapshotSchema,
+});
+
+export const MobileAuthRevokeRequestSchema = z.object({
+  refreshToken: z.string().min(16).max(8192).regex(/^\S+$/).nullable().optional(),
+});
+
 export const MobileBootstrapPayloadSchema = z.object({
   app: z.object({
     buildId: z.string().min(1),
@@ -95,4 +107,7 @@ export type MobileBootstrapFeature = z.infer<typeof MobileBootstrapFeatureSchema
 export type MobileBootstrapPayload = z.infer<typeof MobileBootstrapPayloadSchema>;
 export type MobileAuthExchangeRequest = z.infer<typeof MobileAuthExchangeRequestSchema>;
 export type MobileAuthExchangeResponse = z.infer<typeof MobileAuthExchangeResponseSchema>;
+export type MobileAuthRefreshRequest = z.infer<typeof MobileAuthRefreshRequestSchema>;
+export type MobileAuthRefreshResponse = z.infer<typeof MobileAuthRefreshResponseSchema>;
+export type MobileAuthRevokeRequest = z.infer<typeof MobileAuthRevokeRequestSchema>;
 export type MobileSessionSnapshotPayload = z.infer<typeof MobileSessionSnapshotSchema>;

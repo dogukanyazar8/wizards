@@ -35,6 +35,8 @@ describe("API rate limit configuration", () => {
       "notification:mark-read",
       "link-preview",
       "mobile:auth-exchange",
+      "mobile:auth-refresh",
+      "mobile:auth-revoke",
       "mobile:bootstrap",
       "server:detail",
       "server:delete",
@@ -56,6 +58,8 @@ describe("API rate limit configuration", () => {
       "server:detail": { limit: 240, windowSeconds: 60 },
       "link-preview": { limit: 30, windowSeconds: 60 },
       "mobile:auth-exchange": { limit: 20, windowSeconds: 10 * 60 },
+      "mobile:auth-refresh": { limit: 30, windowSeconds: 10 * 60 },
+      "mobile:auth-revoke": { limit: 60, windowSeconds: 10 * 60 },
       "mobile:bootstrap": { limit: 120, windowSeconds: 60 },
     } satisfies Partial<
       Record<ApiRateLimitAction, { limit: number; windowSeconds: number }>

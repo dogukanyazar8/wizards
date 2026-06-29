@@ -86,4 +86,18 @@ describe("mobile API client", () => {
       (error) => error instanceof MobileApiError && error.code === "invalid_content_type",
     );
   });
+
+  it("accepts 204 responses for revoke-style endpoints", async () => {
+    const client = createMobileApiClient({
+      baseUrl: "https://whispr.team",
+      fetchImpl: async () => new Response(null, { status: 204 }),
+    });
+
+    const result = await client.requestJson<void>("/api/v1/mobile/auth/revoke", {
+      body: { refreshToken: "refresh-token-1234567890" },
+      method: "POST",
+    });
+
+    assert.equal(result, undefined);
+  });
 });

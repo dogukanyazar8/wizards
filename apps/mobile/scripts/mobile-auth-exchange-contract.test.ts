@@ -8,6 +8,10 @@ import type {
 import {
   exchangeMobileAuthHandoff,
   MOBILE_AUTH_EXCHANGE_ENDPOINT,
+  MOBILE_AUTH_REFRESH_ENDPOINT,
+  MOBILE_AUTH_REVOKE_ENDPOINT,
+  refreshMobileAuthSession,
+  revokeMobileAuthSession,
 } from "../src/auth/mobile-auth-exchange";
 
 const validSession = {
@@ -17,7 +21,7 @@ const validSession = {
     accessToken: "signed-mobile-access-token-1234567890",
     expiresAt: Date.UTC(2026, 5, 29, 13, 0, 0),
     issuedAt: Date.UTC(2026, 5, 29, 12, 0, 0),
-    refreshToken: null,
+    refreshToken: "signed-mobile-refresh-token-1234567890",
     scopes: ["mobile:bootstrap"],
     tokenType: "Bearer",
   },
@@ -60,7 +64,66 @@ describe("mobile auth exchange contract", () => {
       },
     ]);
     assert.equal(session.user.username, "codex");
-    assert.equal(session.tokens.refreshToken, null);
+    assert.equal(session.tokens.refreshToken, "signed-mobile-refresh-token-1234567890");
+  });
+
+  it("refreshes mobile sessions through a single-purpose refresh endpoint", async () => {
+    const requests: Array<{ body: unknown; method: string | undefined; path: string }> = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string, options: MobileApiRequestOptions = {}) {
+        requests.push({
+          body: options.body,
+          method: options.method,
+          path,
+        });
+
+        return { session: validSession } as TResponse;
+      },
+    };
+
+    const session = await refreshMobileAuthSession(client, {
+      refreshToken: "signed-mobile-refresh-token-1234567890",
+    });
+
+    assert.deepEqual(requests, [
+      {
+        body: {
+          refreshToken: "signed-mobile-refresh-token-1234567890",
+        },
+        method: "POST",
+        path: MOBILE_AUTH_REFRESH_ENDPOINT,
+      },
+    ]);
+    assert.equal(session.tokens.refreshToken, "signed-mobile-refresh-token-1234567890");
+  });
+
+  it("revokes mobile sessions without requiring a response body", async () => {
+    const requests: Array<{ body: unknown; method: string | undefined; path: string }> = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string, options: MobileApiRequestOptions = {}) {
+        requests.push({
+          body: options.body,
+          method: options.method,
+          path,
+        });
+
+        return undefined as TResponse;
+      },
+    };
+
+    await revokeMobileAuthSession(client, {
+      refreshToken: "signed-mobile-refresh-token-1234567890",
+    });
+
+    assert.deepEqual(requests, [
+      {
+        body: {
+          refreshToken: "signed-mobile-refresh-token-1234567890",
+        },
+        method: "POST",
+        path: MOBILE_AUTH_REVOKE_ENDPOINT,
+      },
+    ]);
   });
 
   it("rejects malformed exchange responses instead of storing partial sessions", async () => {

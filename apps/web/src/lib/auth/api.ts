@@ -3,6 +3,7 @@ import { ApiError } from "@/lib/api";
 import { assertActiveApiUser } from "@/lib/auth/access";
 import {
   getBearerTokenFromRequest,
+  isMobileAccessSessionActive,
   verifyMobileAccessToken,
 } from "@/lib/mobile/auth";
 import { prisma } from "@wizards/db";
@@ -34,6 +35,10 @@ export async function requireMobileApiUserId(request: Request) {
 
   const claims = verifyMobileAccessToken(token);
   if (!claims?.scopes.includes("mobile:bootstrap")) {
+    throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
+  }
+
+  if (!(await isMobileAccessSessionActive(claims))) {
     throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
   }
 

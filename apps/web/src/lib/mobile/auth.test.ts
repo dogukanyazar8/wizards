@@ -4,7 +4,10 @@ import { describe, it } from "node:test";
 import {
   createMobileAuthHandoffToken,
   exchangeMobileAuthHandoffToken,
+  isMobileAccessSessionActive,
   isMobileAuthHandoffToken,
+  refreshMobileSession,
+  revokeMobileSession,
   verifyMobileAccessToken,
 } from "./auth";
 
@@ -26,9 +29,17 @@ class MemoryRedis {
     return "OK" as const;
   }
 
-  async eval(_script: string, _keyCount: number, key: string) {
+  async eval(script: string, _keyCount: number, key: string, ...args: string[]) {
+    if (script.includes("redis.call('SET'")) {
+      this.values.set(key, args[0] ?? "");
+      return "OK";
+    }
+
     const value = this.values.get(key) ?? null;
-    this.values.delete(key);
+    if (script.includes("redis.call('DEL'")) {
+      this.values.delete(key);
+    }
+
     return value;
   }
 }
@@ -85,16 +96,17 @@ describe("mobile auth handoff", () => {
 
     assert.equal(response?.session.user.id, "user-1");
     assert.equal(response?.session.tokens.tokenType, "Bearer");
-    assert.deepEqual(
-      verifyMobileAccessToken(response?.session.tokens.accessToken ?? "", {
-        env,
-        nowMs: 1_800_000_000_000,
-      }),
-      {
-        scopes: ["mobile:bootstrap"],
-        userId: "user-1",
-      },
-    );
+    const accessClaims = verifyMobileAccessToken(response?.session.tokens.accessToken ?? "", {
+      env,
+      nowMs: 1_800_000_000_000,
+    });
+    assert.ok(accessClaims?.sessionId);
+    assert.deepEqual(accessClaims, {
+      scopes: ["mobile:bootstrap"],
+      sessionId: accessClaims.sessionId,
+      userId: "user-1",
+    });
+    assert.equal(typeof response?.session.tokens.refreshToken, "string");
 
     const replay = await exchangeMobileAuthHandoffToken(
       handoff.token,
@@ -198,6 +210,70 @@ describe("mobile auth handoff", () => {
       verifyMobileAccessToken(accessToken, {
         env: { AUTH_SECRET: "different-secret", NODE_ENV: "test" },
         nowMs: 1_800_000_000_000,
+      }),
+      null,
+    );
+  });
+
+  it("rotates refresh tokens and rejects replayed refresh credentials", async () => {
+    const redis = new MemoryRedis();
+    const handoff = await createMobileAuthHandoffToken(
+      { callbackPath: "/channels", userId: "user-1" },
+      { redis },
+    );
+    const response = await exchangeMobileAuthHandoffToken(
+      handoff.token,
+      { expectedCallbackPath: "/channels" },
+      { env, loadUser, nowMs: 1_800_000_000_000, redis },
+    );
+    const refreshToken = response?.session.tokens.refreshToken;
+    assert.equal(typeof refreshToken, "string");
+
+    const refreshed = await refreshMobileSession(refreshToken ?? "", {
+      env,
+      loadUser,
+      nowMs: 1_800_000_060_000,
+      redis,
+    });
+    assert.equal(refreshed?.session.user.id, "user-1");
+    assert.notEqual(refreshed?.session.tokens.refreshToken, refreshToken);
+    assert.equal(refreshed?.session.tokens.expiresAt, 1_800_000_960_000);
+
+    assert.equal(
+      await refreshMobileSession(refreshToken ?? "", { env, loadUser, redis }),
+      null,
+    );
+  });
+
+  it("revokes mobile sessions server-side", async () => {
+    const redis = new MemoryRedis();
+    const handoff = await createMobileAuthHandoffToken(
+      { callbackPath: "/channels", userId: "user-1" },
+      { redis },
+    );
+    const response = await exchangeMobileAuthHandoffToken(
+      handoff.token,
+      { expectedCallbackPath: "/channels" },
+      { env, loadUser, nowMs: 1_800_000_000_000, redis },
+    );
+    const accessClaims = verifyMobileAccessToken(response?.session.tokens.accessToken ?? "", {
+      env,
+      nowMs: 1_800_000_000_000,
+    });
+    assert.ok(accessClaims);
+    assert.equal(await isMobileAccessSessionActive(accessClaims, { redis }), true);
+
+    await revokeMobileSession(
+      { refreshToken: response?.session.tokens.refreshToken ?? null },
+      { redis },
+    );
+
+    assert.equal(await isMobileAccessSessionActive(accessClaims, { redis }), false);
+    assert.equal(
+      await refreshMobileSession(response?.session.tokens.refreshToken ?? "", {
+        env,
+        loadUser,
+        redis,
       }),
       null,
     );

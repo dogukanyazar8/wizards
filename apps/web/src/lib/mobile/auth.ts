@@ -6,16 +6,23 @@ import {
 } from "node:crypto";
 
 import { prisma } from "@wizards/db";
-import { MobileAuthExchangeResponseSchema } from "@wizards/types";
+import {
+  MobileAuthExchangeResponseSchema,
+  MobileAuthRefreshResponseSchema,
+} from "@wizards/types";
 
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
 import { getRedis } from "@/lib/redis";
 
 export const MOBILE_AUTH_HANDOFF_TTL_SECONDS = 120;
-export const MOBILE_ACCESS_TOKEN_TTL_SECONDS = 12 * 60 * 60;
+export const MOBILE_ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
+export const MOBILE_REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 const MOBILE_AUTH_HANDOFF_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
+const MOBILE_REFRESH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{48,192}$/;
 const MOBILE_AUTH_HANDOFF_KEY_PREFIX = "auth:mobile-handoff:";
+const MOBILE_REFRESH_TOKEN_KEY_PREFIX = "auth:mobile-refresh:";
+const MOBILE_SESSION_KEY_PREFIX = "auth:mobile-session:";
 const MOBILE_ACCESS_TOKEN_ISSUER = "whispr-api";
 const MOBILE_ACCESS_TOKEN_AUDIENCE = "whispr-mobile";
 const MOBILE_ACCESS_TOKEN_TYPE = "whispr-mobile-access";
@@ -24,6 +31,18 @@ const MOBILE_ACCESS_TOKEN_SCOPES = ["mobile:bootstrap"] as const;
 interface MobileAuthHandoffPayload {
   callbackPath: string;
   createdAt: number;
+  userId: string;
+}
+
+interface MobileRefreshTokenPayload {
+  createdAt: number;
+  sessionId: string;
+  userId: string;
+}
+
+interface MobileSessionPayload {
+  createdAt: number;
+  lastRotatedAt: number;
   userId: string;
 }
 
@@ -61,6 +80,7 @@ interface MobileAuthOptions {
 
 interface MobileAccessTokenClaims {
   scopes: string[];
+  sessionId: string;
   userId: string;
 }
 
@@ -70,10 +90,15 @@ interface MobileAccessTokenPayload {
   iat: number;
   iss: string;
   jti: string;
+  sid: string;
   scopes: string[];
   sub: string;
   typ: string;
   v: 1;
+}
+
+function getMobileAuthRedis(options: Pick<MobileAuthOptions, "redis"> = {}) {
+  return (options.redis ?? getRedis()) as MobileAuthRedis;
 }
 
 function hashMobileAuthHandoffToken(token: string) {
@@ -82,6 +107,18 @@ function hashMobileAuthHandoffToken(token: string) {
 
 function getMobileAuthHandoffKey(token: string) {
   return `${MOBILE_AUTH_HANDOFF_KEY_PREFIX}${hashMobileAuthHandoffToken(token)}`;
+}
+
+function hashMobileRefreshToken(token: string) {
+  return createHash("sha256").update(token).digest("base64url");
+}
+
+function getMobileRefreshTokenKey(token: string) {
+  return `${MOBILE_REFRESH_TOKEN_KEY_PREFIX}${hashMobileRefreshToken(token)}`;
+}
+
+function getMobileSessionKey(sessionId: string) {
+  return `${MOBILE_SESSION_KEY_PREFIX}${sessionId}`;
 }
 
 function encodeBase64UrlJson(value: unknown) {
@@ -162,6 +199,62 @@ function parseMobileAuthHandoffPayload(value: unknown): MobileAuthHandoffPayload
   }
 }
 
+function parseMobileRefreshTokenPayload(value: unknown): MobileRefreshTokenPayload | null {
+  if (typeof value !== "string" || !value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Partial<MobileRefreshTokenPayload>;
+    if (
+      typeof parsed.userId !== "string" ||
+      !parsed.userId ||
+      typeof parsed.sessionId !== "string" ||
+      !parsed.sessionId ||
+      typeof parsed.createdAt !== "number" ||
+      !Number.isFinite(parsed.createdAt)
+    ) {
+      return null;
+    }
+
+    return {
+      createdAt: parsed.createdAt,
+      sessionId: parsed.sessionId,
+      userId: parsed.userId,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function parseMobileSessionPayload(value: unknown): MobileSessionPayload | null {
+  if (typeof value !== "string" || !value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Partial<MobileSessionPayload>;
+    if (
+      typeof parsed.userId !== "string" ||
+      !parsed.userId ||
+      typeof parsed.createdAt !== "number" ||
+      !Number.isFinite(parsed.createdAt) ||
+      typeof parsed.lastRotatedAt !== "number" ||
+      !Number.isFinite(parsed.lastRotatedAt)
+    ) {
+      return null;
+    }
+
+    return {
+      createdAt: parsed.createdAt,
+      lastRotatedAt: parsed.lastRotatedAt,
+      userId: parsed.userId,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function normalizeHttpsUrl(value: string | null) {
   if (!value) {
     return null;
@@ -193,6 +286,8 @@ function isMobileAccessTokenPayload(value: unknown): value is MobileAccessTokenP
     payload.aud === MOBILE_ACCESS_TOKEN_AUDIENCE &&
     typeof payload.sub === "string" &&
     payload.sub.length > 0 &&
+    typeof payload.sid === "string" &&
+    payload.sid.length > 0 &&
     typeof payload.jti === "string" &&
     payload.jti.length > 0 &&
     typeof payload.iat === "number" &&
@@ -204,7 +299,13 @@ function isMobileAccessTokenPayload(value: unknown): value is MobileAccessTokenP
   );
 }
 
-function createMobileAccessToken(userId: string, options: MobileAuthOptions = {}) {
+function createMobileAccessToken(
+  input: {
+    sessionId: string;
+    userId: string;
+  },
+  options: MobileAuthOptions = {},
+) {
   const nowMs = Math.trunc(options.nowMs ?? Date.now());
   const issuedAtSeconds = Math.floor(nowMs / 1000);
   const expiresAtSeconds = issuedAtSeconds + MOBILE_ACCESS_TOKEN_TTL_SECONDS;
@@ -214,8 +315,9 @@ function createMobileAccessToken(userId: string, options: MobileAuthOptions = {}
     iat: issuedAtSeconds,
     iss: MOBILE_ACCESS_TOKEN_ISSUER,
     jti: randomBytes(16).toString("base64url"),
+    sid: input.sessionId,
     scopes: [...MOBILE_ACCESS_TOKEN_SCOPES],
-    sub: userId,
+    sub: input.userId,
     typ: MOBILE_ACCESS_TOKEN_TYPE,
     v: 1,
   };
@@ -253,8 +355,137 @@ function isActiveMobileAuthUser(user: MobileAuthUser | null | undefined): user i
   return Boolean(user && !user.deletedAt && !user.isBanned && user.emailVerified);
 }
 
+async function readRedisValue(redis: MobileAuthRedis, key: string) {
+  const rawRedisValue = await redis.eval("return redis.call('GET', KEYS[1])", 1, key);
+
+  return redisValueToString(
+    typeof rawRedisValue === "string" ||
+      typeof rawRedisValue === "number" ||
+      Buffer.isBuffer(rawRedisValue)
+      ? rawRedisValue
+      : null,
+  );
+}
+
+async function takeRedisValue(redis: MobileAuthRedis, key: string) {
+  const rawRedisValue = await redis.eval(
+    "local value = redis.call('GET', KEYS[1]); if value then redis.call('DEL', KEYS[1]); end; return value",
+    1,
+    key,
+  );
+
+  return redisValueToString(
+    typeof rawRedisValue === "string" ||
+      typeof rawRedisValue === "number" ||
+      Buffer.isBuffer(rawRedisValue)
+      ? rawRedisValue
+      : null,
+  );
+}
+
+async function upsertMobileSession(
+  redis: MobileAuthRedis,
+  input: {
+    nowMs: number;
+    sessionId: string;
+    userId: string;
+  },
+) {
+  const sessionPayload: MobileSessionPayload = {
+    createdAt: input.nowMs,
+    lastRotatedAt: input.nowMs,
+    userId: input.userId,
+  };
+
+  await redis.eval(
+    "redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2]); return 'OK'",
+    1,
+    getMobileSessionKey(input.sessionId),
+    JSON.stringify(sessionPayload),
+    String(MOBILE_REFRESH_TOKEN_TTL_SECONDS),
+  );
+}
+
+async function createMobileRefreshToken(
+  redis: MobileAuthRedis,
+  input: {
+    nowMs: number;
+    sessionId: string;
+    userId: string;
+  },
+) {
+  const refreshToken = randomBytes(48).toString("base64url");
+  const payload: MobileRefreshTokenPayload = {
+    createdAt: input.nowMs,
+    sessionId: input.sessionId,
+    userId: input.userId,
+  };
+  const stored = await redis.set(
+    getMobileRefreshTokenKey(refreshToken),
+    JSON.stringify(payload),
+    "EX",
+    MOBILE_REFRESH_TOKEN_TTL_SECONDS,
+    "NX",
+  );
+
+  if (stored !== "OK") {
+    throw new Error("Mobile refresh token could not be created.");
+  }
+
+  return refreshToken;
+}
+
+async function createMobileSessionSnapshot(
+  user: MobileAuthUser,
+  input: {
+    nowMs: number;
+    redis: MobileAuthRedis;
+    sessionId?: string;
+  },
+  options: MobileAuthOptions = {},
+) {
+  const sessionId = input.sessionId ?? randomBytes(24).toString("base64url");
+  await upsertMobileSession(input.redis, {
+    nowMs: input.nowMs,
+    sessionId,
+    userId: user.id,
+  });
+
+  const [accessToken, refreshToken] = await Promise.all([
+    Promise.resolve(createMobileAccessToken({ sessionId, userId: user.id }, options)),
+    createMobileRefreshToken(input.redis, {
+      nowMs: input.nowMs,
+      sessionId,
+      userId: user.id,
+    }),
+  ]);
+
+  return {
+    lastValidatedAt: input.nowMs,
+    schemaVersion: 1,
+    tokens: {
+      accessToken: accessToken.token,
+      expiresAt: accessToken.expiresAt,
+      issuedAt: accessToken.issuedAt,
+      refreshToken,
+      scopes: accessToken.scopes,
+      tokenType: "Bearer",
+    },
+    user: {
+      avatarUrl: normalizeHttpsUrl(user.avatarUrl),
+      displayName: normalizeDisplayName(user.displayName),
+      id: user.id,
+      username: user.username,
+    },
+  };
+}
+
 export function isMobileAuthHandoffToken(value: unknown): value is string {
   return typeof value === "string" && MOBILE_AUTH_HANDOFF_TOKEN_PATTERN.test(value);
+}
+
+export function isMobileRefreshToken(value: unknown): value is string {
+  return typeof value === "string" && MOBILE_REFRESH_TOKEN_PATTERN.test(value);
 }
 
 export async function createMobileAuthHandoffToken(
@@ -272,7 +503,7 @@ export async function createMobileAuthHandoffToken(
     userId: input.userId,
   };
 
-  const redis = options.redis ?? getRedis();
+  const redis = getMobileAuthRedis(options);
   const stored = await redis.set(
     getMobileAuthHandoffKey(token),
     JSON.stringify(payload),
@@ -303,19 +534,8 @@ export async function exchangeMobileAuthHandoffToken(
     return null;
   }
 
-  const redis = options.redis ?? getRedis();
-  const rawRedisValue = await redis.eval(
-    "local value = redis.call('GET', KEYS[1]); if value then redis.call('DEL', KEYS[1]); end; return value",
-    1,
-    getMobileAuthHandoffKey(handoffToken),
-  );
-  const rawPayload = redisValueToString(
-    typeof rawRedisValue === "string" ||
-      typeof rawRedisValue === "number" ||
-      Buffer.isBuffer(rawRedisValue)
-      ? rawRedisValue
-      : null,
-  );
+  const redis = getMobileAuthRedis(options);
+  const rawPayload = await takeRedisValue(redis, getMobileAuthHandoffKey(handoffToken));
   const payload = parseMobileAuthHandoffPayload(rawPayload);
   const expectedCallbackPath = getSafeAuthRedirectPath(
     input.expectedCallbackPath,
@@ -331,27 +551,83 @@ export async function exchangeMobileAuthHandoffToken(
     return null;
   }
 
-  const accessToken = createMobileAccessToken(user.id, options);
+  const nowMs = Math.trunc(options.nowMs ?? Date.now());
   return MobileAuthExchangeResponseSchema.parse({
-    session: {
-      lastValidatedAt: Math.trunc(options.nowMs ?? Date.now()),
-      schemaVersion: 1,
-      tokens: {
-        accessToken: accessToken.token,
-        expiresAt: accessToken.expiresAt,
-        issuedAt: accessToken.issuedAt,
-        refreshToken: null,
-        scopes: accessToken.scopes,
-        tokenType: "Bearer",
-      },
-      user: {
-        avatarUrl: normalizeHttpsUrl(user.avatarUrl),
-        displayName: normalizeDisplayName(user.displayName),
-        id: user.id,
-        username: user.username,
-      },
-    },
+    session: await createMobileSessionSnapshot(user, { nowMs, redis }, options),
   });
+}
+
+export async function refreshMobileSession(
+  refreshToken: string,
+  options: MobileAuthOptions = {},
+) {
+  if (!isMobileRefreshToken(refreshToken)) {
+    return null;
+  }
+
+  const redis = getMobileAuthRedis(options);
+  const rawPayload = await takeRedisValue(redis, getMobileRefreshTokenKey(refreshToken));
+  const payload = parseMobileRefreshTokenPayload(rawPayload);
+  if (!payload) {
+    return null;
+  }
+
+  const rawSession = await readRedisValue(redis, getMobileSessionKey(payload.sessionId));
+  const session = parseMobileSessionPayload(rawSession);
+  if (!session || session.userId !== payload.userId) {
+    return null;
+  }
+
+  const user = await (options.loadUser ?? loadMobileAuthUser)(payload.userId);
+  if (!isActiveMobileAuthUser(user)) {
+    await revokeMobileSession({ sessionId: payload.sessionId }, options);
+    return null;
+  }
+
+  const nowMs = Math.trunc(options.nowMs ?? Date.now());
+  return MobileAuthRefreshResponseSchema.parse({
+    session: await createMobileSessionSnapshot(
+      user,
+      {
+        nowMs,
+        redis,
+        sessionId: payload.sessionId,
+      },
+      options,
+    ),
+  });
+}
+
+export async function revokeMobileSession(
+  input: {
+    refreshToken?: string | null;
+    sessionId?: string | null;
+  },
+  options: Pick<MobileAuthOptions, "redis"> = {},
+) {
+  const redis = getMobileAuthRedis(options);
+  let sessionId = input.sessionId ?? null;
+
+  if (input.refreshToken && isMobileRefreshToken(input.refreshToken)) {
+    const rawPayload = await takeRedisValue(redis, getMobileRefreshTokenKey(input.refreshToken));
+    const payload = parseMobileRefreshTokenPayload(rawPayload);
+    sessionId = payload?.sessionId ?? sessionId;
+  }
+
+  if (sessionId) {
+    await redis.eval("redis.call('DEL', KEYS[1]); return 'OK'", 1, getMobileSessionKey(sessionId));
+  }
+}
+
+export async function isMobileAccessSessionActive(
+  claims: MobileAccessTokenClaims,
+  options: Pick<MobileAuthOptions, "redis"> = {},
+) {
+  const redis = getMobileAuthRedis(options);
+  const rawSession = await readRedisValue(redis, getMobileSessionKey(claims.sessionId));
+  const session = parseMobileSessionPayload(rawSession);
+
+  return Boolean(session && session.userId === claims.userId);
 }
 
 export function verifyMobileAccessToken(
@@ -396,6 +672,7 @@ export function verifyMobileAccessToken(
 
   return {
     scopes: payload.scopes,
+    sessionId: payload.sid,
     userId: payload.sub,
   };
 }

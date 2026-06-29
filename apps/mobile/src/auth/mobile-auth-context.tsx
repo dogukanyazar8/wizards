@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -15,13 +16,22 @@ import {
 } from "../config/environment";
 import { buildMobileWebSignInUrl } from "../deep-link/mobile-deep-links";
 import { mobileSecureSessionRepository } from "./expo-secure-session-store";
-import { exchangeMobileAuthHandoff } from "./mobile-auth-exchange";
+import {
+  exchangeMobileAuthHandoff,
+  refreshMobileAuthSession,
+  revokeMobileAuthSession,
+} from "./mobile-auth-exchange";
 import {
   createMobileAuthState,
   getMobileSessionDiagnostics,
   isMobileSessionExpired,
+  shouldRefreshMobileSession,
 } from "./session-manager";
-import type { MobileAuthState, MobileSessionDiagnostics } from "./session-types";
+import type {
+  MobileAuthState,
+  MobileSessionDiagnostics,
+  MobileSessionSnapshot,
+} from "./session-types";
 import type { MobileSessionRepository } from "./session-store";
 
 interface MobileAuthContextValue extends MobileAuthState {
@@ -47,6 +57,70 @@ export function MobileAuthProvider({
   runtimeConfig = getMobileRuntimeConfig(),
 }: MobileAuthProviderProps) {
   const [state, setState] = useState<MobileAuthState>(() => createMobileAuthState("checking"));
+  const refreshPromiseRef = useRef<Promise<MobileSessionSnapshot | null> | null>(null);
+  const stateRef = useRef(state);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  const createUnauthenticatedClient = useCallback(
+    () =>
+      createMobileApiClient({
+        baseUrl: runtimeConfig.apiUrl,
+      }),
+    [runtimeConfig.apiUrl],
+  );
+
+  const refreshSessionWithServer = useCallback(
+    async (session: MobileSessionSnapshot) => {
+      const refreshToken = session.tokens.refreshToken;
+      if (!refreshToken) {
+        return null;
+      }
+
+      if (!refreshPromiseRef.current) {
+        refreshPromiseRef.current = refreshMobileAuthSession(createUnauthenticatedClient(), {
+          refreshToken,
+        })
+          .then(async (refreshedSession) => {
+            await repository.save(refreshedSession);
+            setState(createMobileAuthState("signed-in", refreshedSession));
+            return refreshedSession;
+          })
+          .catch(async () => {
+            if (isMobileSessionExpired(session)) {
+              await repository.clear();
+              setState(createMobileAuthState("signed-out"));
+            }
+
+            return null;
+          })
+          .finally(() => {
+            refreshPromiseRef.current = null;
+          });
+      }
+
+      return refreshPromiseRef.current;
+    },
+    [createUnauthenticatedClient, repository],
+  );
+
+  const ensureFreshSession = useCallback(
+    async (session: MobileSessionSnapshot | null) => {
+      if (!session) {
+        return null;
+      }
+
+      if (!shouldRefreshMobileSession(session) && !isMobileSessionExpired(session)) {
+        return session;
+      }
+
+      const refreshedSession = await refreshSessionWithServer(session);
+      return refreshedSession ?? (isMobileSessionExpired(session) ? null : session);
+    },
+    [refreshSessionWithServer],
+  );
 
   const refreshSessionFromStorage = useCallback(async () => {
     setState(createMobileAuthState("checking"));
@@ -58,32 +132,41 @@ export function MobileAuthProvider({
         return;
       }
 
-      if (isMobileSessionExpired(session)) {
+      const freshSession = await ensureFreshSession(session);
+      if (!freshSession) {
         await repository.clear();
         setState(createMobileAuthState("signed-out"));
         return;
       }
 
-      setState(createMobileAuthState("signed-in", session));
+      setState(createMobileAuthState("signed-in", freshSession));
     } catch {
-      setState(createMobileAuthState("error", null, "Oturum güvenli şekilde okunamadı."));
+      setState(createMobileAuthState("error", null, "Oturum guvenli sekilde okunamadi."));
     }
-  }, [repository]);
+  }, [ensureFreshSession, repository]);
 
   const signOut = useCallback(async () => {
+    const session = stateRef.current.session ?? (await repository.load());
+    if (session?.tokens.refreshToken) {
+      try {
+        await revokeMobileAuthSession(createUnauthenticatedClient(), {
+          refreshToken: session.tokens.refreshToken,
+        });
+      } catch {
+        // Local sign-out must always complete. The server-side token stays bounded by TTL.
+      }
+    }
+
     await repository.clear();
     setState(createMobileAuthState("signed-out"));
-  }, [repository]);
+  }, [createUnauthenticatedClient, repository]);
 
   const completeAuthHandoff = useCallback(
     async (input: { callbackPath: string; handoffToken: string }) => {
       setState(createMobileAuthState("checking", state.session));
 
       try {
-        const exchangeClient = createMobileApiClient({
-          baseUrl: runtimeConfig.apiUrl,
-        });
-        const session = await exchangeMobileAuthHandoff(exchangeClient, input);
+        const session = await exchangeMobileAuthHandoff(createUnauthenticatedClient(), input);
 
         await repository.save(session);
         setState(createMobileAuthState("signed-in", session));
@@ -98,7 +181,7 @@ export function MobileAuthProvider({
         return false;
       }
     },
-    [repository, runtimeConfig.apiUrl, state.session],
+    [createUnauthenticatedClient, repository, state.session],
   );
 
   const openWebSignIn = useCallback(async () => {
@@ -107,7 +190,7 @@ export function MobileAuthProvider({
     } catch {
       setState((current: MobileAuthState) => ({
         ...current,
-        error: "Whispr web girişi açılamadı. Lütfen bağlantını kontrol et.",
+        error: "Whispr web girisi acilamadi. Lutfen baglantini kontrol et.",
       }));
     }
   }, [runtimeConfig.webUrl]);
@@ -120,9 +203,12 @@ export function MobileAuthProvider({
     () =>
       createMobileApiClient({
         baseUrl: runtimeConfig.apiUrl,
-        getAccessToken: () => state.session?.tokens.accessToken ?? null,
+        getAccessToken: async () => {
+          const session = await ensureFreshSession(stateRef.current.session);
+          return session?.tokens.accessToken ?? null;
+        },
       }),
-    [runtimeConfig.apiUrl, state.session?.tokens.accessToken],
+    [ensureFreshSession, runtimeConfig.apiUrl],
   );
 
   const diagnostics = useMemo(() => getMobileSessionDiagnostics(state), [state]);

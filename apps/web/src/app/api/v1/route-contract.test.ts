@@ -6,7 +6,13 @@ import { fileURLToPath } from "node:url";
 
 const API_V1_DIR = fileURLToPath(new URL(".", import.meta.url));
 
-const PUBLIC_ROUTE_PATHS = new Set(["app/version", "desktop/download", "mobile/auth/exchange"]);
+const UNAUTHENTICATED_ROUTE_PATHS = new Set([
+  "app/version",
+  "desktop/download",
+  "mobile/auth/exchange",
+  "mobile/auth/refresh",
+  "mobile/auth/revoke",
+]);
 
 const BODYLESS_MUTATING_ROUTE_PATHS = new Set([
   "admin/notification-campaigns/[campaignId]/send",
@@ -127,25 +133,25 @@ describe("API v1 route contract", () => {
   const routes = readRoutes();
   const routePaths = new Set(routes.map((route) => route.routePath));
 
-  it("keeps the public route allowlist explicit and minimal", () => {
+  it("keeps the unauthenticated route allowlist explicit and minimal", () => {
     const unguardedRoutes = routes
       .filter((route) => !AUTH_GUARD_CALL_PATTERN.test(route.content))
       .map((route) => route.routePath);
 
-    assert.deepEqual(unguardedRoutes, [...PUBLIC_ROUTE_PATHS]);
+    assert.deepEqual(unguardedRoutes, [...UNAUTHENTICATED_ROUTE_PATHS]);
 
-    for (const routePath of PUBLIC_ROUTE_PATHS) {
+    for (const routePath of UNAUTHENTICATED_ROUTE_PATHS) {
       assert.equal(
         routePaths.has(routePath),
         true,
-        `Public API route allowlist entry does not exist: ${routePath}`,
+        `Unauthenticated API route allowlist entry does not exist: ${routePath}`,
       );
     }
   });
 
-  it("requires every non-public route to call an auth guard", () => {
+  it("requires every authenticated route to call an auth guard", () => {
     const missingGuards = routes
-      .filter((route) => !PUBLIC_ROUTE_PATHS.has(route.routePath))
+      .filter((route) => !UNAUTHENTICATED_ROUTE_PATHS.has(route.routePath))
       .filter((route) => !AUTH_GUARD_CALL_PATTERN.test(route.content))
       .map((route) => route.path);
 
