@@ -78,6 +78,13 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Mobile quality gate
+        run: |
+          pnpm --filter @wizards/mobile test
+          pnpm --filter @wizards/mobile validate:env
+          pnpm --filter @wizards/mobile release:check
+          pnpm --filter @wizards/mobile quality:check
+
       - name: Test with coverage baseline
         run: pnpm test:coverage
 

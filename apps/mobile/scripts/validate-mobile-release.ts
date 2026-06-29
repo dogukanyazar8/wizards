@@ -5,6 +5,7 @@ import {
   validateMobileReleaseContract,
   type MobileReleaseProfileConfig,
 } from "../src/release/mobile-release-contract";
+import { summarizeMobileQualityGate } from "../src/quality/mobile-quality-gate";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -29,6 +30,7 @@ const summary = {
   budgetCount: result.budgets.length,
   checklist: result.checklist,
   profileCount: Object.keys(eas.build).length,
+  quality: summarizeMobileQualityGate(),
   warnings: result.warnings,
 };
 

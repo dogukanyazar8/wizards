@@ -48,10 +48,16 @@ import {
   type MobilePermissionReadiness,
   type MobilePermissionSummary,
 } from "../permissions/mobile-permission-contract";
+import {
+  MOBILE_MANUAL_QA_CHECKS,
+  MOBILE_QA_DEVICE_MATRIX,
+  summarizeMobileQualityGate,
+} from "../quality/mobile-quality-gate";
 import { MOBILE_RELEASE_BUDGETS } from "../release/mobile-release-contract";
 
 const copy = mobileCopy.tr;
 const runtimeConfig = getMobileRuntimeConfig();
+const mobileQualitySummary = summarizeMobileQualityGate();
 
 const tabLabels: Record<MobileTabId, string> = {
   messages: copy.tabMessages,
@@ -618,6 +624,7 @@ function ActiveScreen({
           <SessionDiagnostics diagnostics={diagnostics} />
           <DeepLinkStatusCard result={lastDeepLink} />
           <PermissionReadinessCard readiness={permissionReadiness} summary={permissionSummary} />
+          <MobileQualityGateCard />
           {status !== "signed-in" ? (
             <ActionButton label={copy.primaryAction} onPress={onOpenWebSignIn} variant="primary" />
           ) : null}
@@ -1029,13 +1036,53 @@ function ReleaseReadinessCard() {
       <Text style={styles.environmentLabel}>{copy.releaseTitle}</Text>
       <Text style={styles.contractTitle}>{copy.releaseReady}</Text>
       <View style={styles.releaseBudgetList}>
-        {MOBILE_RELEASE_BUDGETS.slice(0, 3).map((budget) => (
+        {MOBILE_RELEASE_BUDGETS.map((budget) => (
           <View key={budget.metric} style={styles.releaseBudgetRow}>
             <Text style={styles.releaseBudgetMetric}>{budget.metric}</Text>
             <Text style={styles.releaseBudgetTarget}>{budget.target}</Text>
           </View>
         ))}
       </View>
+    </View>
+  );
+}
+
+function MobileQualityGateCard() {
+  const firstTargets = MOBILE_QA_DEVICE_MATRIX.slice(0, 3)
+    .map((target) => target.label)
+    .join(" - ");
+  const criticalChecks = MOBILE_MANUAL_QA_CHECKS.filter(
+    (check) => check.risk === "critical",
+  );
+
+  return (
+    <View style={styles.contractCard}>
+      <Text style={styles.environmentLabel}>{copy.qualityTitle}</Text>
+      <Text style={styles.contractTitle}>{copy.qualityReady}</Text>
+      <Text style={styles.contractDescription}>{copy.qualityDescription}</Text>
+      <View style={styles.qualityGrid}>
+        <MetricTile
+          label={copy.qualityAutomatedLabel}
+          value={mobileQualitySummary.automatedGateCount}
+        />
+        <MetricTile
+          label={copy.qualityManualLabel}
+          value={mobileQualitySummary.manualCheckCount}
+        />
+        <MetricTile
+          label={copy.qualityDeviceLabel}
+          value={mobileQualitySummary.targetCount}
+        />
+      </View>
+      <View style={styles.releaseBudgetRow}>
+        <Text style={styles.releaseBudgetMetric}>{copy.qualityCriticalLabel}</Text>
+        <Text style={styles.releaseBudgetTarget}>
+          {criticalChecks.length} / {mobileQualitySummary.manualCheckCount}
+        </Text>
+      </View>
+      <Text style={styles.contractDescription} numberOfLines={2}>
+        {firstTargets}
+      </Text>
     </View>
   );
 }
@@ -1671,6 +1718,12 @@ const styles = StyleSheet.create({
   },
   releaseBudgetList: {
     gap: 7,
+  },
+  qualityGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    minWidth: 0,
   },
   releaseBudgetRow: {
     flexDirection: "row",

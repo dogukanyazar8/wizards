@@ -21,6 +21,8 @@ Phase 5 turns the mobile foundation into a measurable product contract:
 - Authenticated web bootstrap endpoint contract at `/api/v1/mobile/bootstrap`.
 - Mobile bootstrap client validation that refuses malformed server payloads.
 - EAS release readiness contract with HTTPS endpoint, profile, version, and performance budget checks.
+- Mobile quality gate with automated checks, Android/iOS device matrix, and manual smoke checklist validation.
+- Real mobile DM conversation preview backed by authenticated, bounded mobile API responses.
 
 ## Local development
 
@@ -37,6 +39,7 @@ corepack pnpm --filter @wizards/mobile typecheck
 corepack pnpm --filter @wizards/mobile test
 corepack pnpm --filter @wizards/mobile validate:env
 corepack pnpm --filter @wizards/mobile release:check
+corepack pnpm --filter @wizards/mobile quality:check
 ```
 
 Recommended monorepo gate before promotion:
@@ -47,6 +50,7 @@ corepack pnpm lint
 corepack pnpm --filter @wizards/web test
 corepack pnpm --filter @wizards/desktop test
 corepack pnpm --filter @wizards/mobile test
+corepack pnpm --filter @wizards/mobile quality:check
 ```
 
 ## EAS profiles
@@ -66,6 +70,19 @@ Non-development profiles must use HTTPS, non-local Whispr endpoints. Secret-like
 - Idle memory: `<= 180MB` after 5 minutes.
 
 Record these values during UAT/canary QA before store promotion.
+
+## Manual UAT smoke checklist
+
+- Launch: app opens with the Whispr splash/icon and reaches the tab shell.
+- Navigation: Overview, Chat, Voice, and Settings tabs switch without overlap or jank.
+- Auth: signed-out protected screens show the auth gate and never impersonate a user.
+- Handoff: web sign-in returns to the mobile app with the one-time handoff flow.
+- Deep links: credential-like query values are rejected.
+- Permissions: no camera, microphone, notification, or photo prompt appears before a user action.
+- DM: real DM list opens a real bounded conversation preview without fake messages.
+- Voice: voice surfaces stay honest until native permission and LiveKit contracts are connected.
+- Performance: five minutes idle shows no obvious heating, memory growth, or scroll stutter.
+- Release: the build displays the intended UAT/canary/production environment endpoints.
 
 ## Security notes
 

@@ -9,6 +9,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "lint": "tsc --noEmit",
+    "quality:check": "node --import tsx scripts/validate-mobile-quality.ts",
     "release:check": "node --import tsx scripts/validate-mobile-release.ts",
     "test": "node --test --import tsx scripts/*.test.ts",
     "typecheck": "tsc --noEmit",
