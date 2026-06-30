@@ -9,7 +9,10 @@ export type MobileQualityArea =
   | "permissions"
   | "performance"
   | "release"
-  | "voice";
+  | "store"
+  | "sync"
+  | "voice"
+  | "workspace";
 
 export type MobileQualityRisk = "critical" | "high" | "medium";
 
@@ -120,6 +123,30 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
     risk: "high",
   },
   {
+    area: "dm",
+    id: "dm-send-message",
+    label:
+      "A selected DM sends a real message through the mobile API and updates the conversation without mock content.",
+    required: true,
+    risk: "critical",
+  },
+  {
+    area: "workspace",
+    id: "workspace-channel-read",
+    label:
+      "A real server opens with permission-filtered channels and a bounded text-channel message preview.",
+    required: true,
+    risk: "high",
+  },
+  {
+    area: "sync",
+    id: "foreground-refresh",
+    label:
+      "Returning from background refreshes visible real data after the cooldown without request storms.",
+    required: true,
+    risk: "high",
+  },
+  {
     area: "voice",
     id: "voice-disabled-contract",
     label: "Voice surfaces stay honest until native permission and LiveKit contracts are connected.",
@@ -140,6 +167,22 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
     required: true,
     risk: "high",
   },
+  {
+    area: "release",
+    id: "local-android-uat-build",
+    label:
+      "The local Android UAT script builds, installs, and launches on an emulator before remote EAS usage.",
+    required: true,
+    risk: "high",
+  },
+  {
+    area: "store",
+    id: "store-privacy-disclosures",
+    label:
+      "Store listing, screenshots, and privacy answers match the mobile permission disclosure contract.",
+    required: true,
+    risk: "critical",
+  },
 ];
 
 export const MOBILE_QA_DEVICE_MATRIX: MobileQAMatrixTarget[] = [
@@ -151,7 +194,7 @@ export const MOBILE_QA_DEVICE_MATRIX: MobileQAMatrixTarget[] = [
     sizeClass: "compact",
   },
   {
-    focus: ["dm", "permissions", "performance"],
+    focus: ["dm", "workspace", "sync", "permissions", "performance"],
     id: "android-regular",
     label: "Android regular phone",
     platform: "android",
@@ -165,7 +208,7 @@ export const MOBILE_QA_DEVICE_MATRIX: MobileQAMatrixTarget[] = [
     sizeClass: "compact",
   },
   {
-    focus: ["dm", "voice", "release"],
+    focus: ["dm", "workspace", "sync", "voice", "release", "store"],
     id: "ios-tablet",
     label: "iOS tablet",
     platform: "ios",
@@ -192,7 +235,10 @@ const REQUIRED_MANUAL_AREAS: MobileQualityArea[] = [
   "permissions",
   "performance",
   "release",
+  "store",
+  "sync",
   "voice",
+  "workspace",
 ];
 
 const SENSITIVE_TEXT_PATTERN =

@@ -23,6 +23,9 @@ Phase 5 turns the mobile foundation into a measurable product contract:
 - EAS release readiness contract with HTTPS endpoint, profile, version, and performance budget checks.
 - Mobile quality gate with automated checks, Android/iOS device matrix, and manual smoke checklist validation.
 - Real mobile DM conversation preview backed by authenticated, bounded mobile API responses.
+- Real mobile workspace preview backed by permission-filtered server channels and bounded text-channel message reads.
+- Foreground freshness contract that refreshes visible real data after a cooldown and displays last sync state without claiming fake realtime.
+- Store readiness contract for stable native identifiers, permission disclosures, privacy checklist, and broad-permission prevention.
 
 ## Local development
 
@@ -30,6 +33,20 @@ Phase 5 turns the mobile foundation into a measurable product contract:
 corepack pnpm install
 corepack pnpm --filter @wizards/web dev
 corepack pnpm --filter @wizards/mobile start
+```
+
+For fast Android UAT validation without waiting for the remote EAS queue, start an emulator
+from Android Studio and run:
+
+```powershell
+cd C:\Users\doguk\Desktop\Wizards\apps\mobile
+corepack pnpm run android:uat:local
+```
+
+Use the clean variant only when native caches or generated Android outputs look stale:
+
+```powershell
+corepack pnpm run android:uat:local:clean
 ```
 
 ## Validation
@@ -80,9 +97,13 @@ Record these values during UAT/canary QA before store promotion.
 - Deep links: credential-like query values are rejected.
 - Permissions: no camera, microphone, notification, or photo prompt appears before a user action.
 - DM: real DM list opens a real bounded conversation preview without fake messages.
+- Workspace: a real recent server opens permission-filtered channels and a text-channel message preview.
+- Sync: background the app, reopen it after the cooldown, and confirm visible real data refreshes without duplicate rows or request storms.
 - Voice: voice surfaces stay honest until native permission and LiveKit contracts are connected.
+- Store: App Store and Play Store listing text, screenshots, and privacy answers match the permission disclosure contract.
 - Performance: five minutes idle shows no obvious heating, memory growth, or scroll stutter.
 - Release: the build displays the intended UAT/canary/production environment endpoints.
+- Local Android: `android:uat:local` builds, installs, launches, and reaches the tab shell on the emulator.
 
 ## Security notes
 

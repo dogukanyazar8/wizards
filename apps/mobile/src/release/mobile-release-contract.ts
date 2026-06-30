@@ -1,4 +1,8 @@
 import { MOBILE_ENVIRONMENTS, type MobileEnvironmentName } from "../config/environment";
+import {
+  validateMobileStoreReadiness,
+  type MobileStoreReadinessResult,
+} from "./mobile-store-contract";
 
 export const MOBILE_RELEASE_PROFILES = ["development", "uat", "canary", "production"] as const;
 
@@ -29,6 +33,7 @@ export type MobileReleaseContractResult = {
   blockers: string[];
   budgets: MobileReleaseBudget[];
   checklist: string[];
+  storeReadiness: MobileStoreReadinessResult;
   warnings: string[];
 };
 
@@ -120,6 +125,10 @@ export function validateMobileReleaseContract({
 }: MobileReleaseContractInput): MobileReleaseContractResult {
   const blockers: string[] = [];
   const warnings: string[] = [];
+  const storeReadiness = validateMobileStoreReadiness();
+
+  blockers.push(...storeReadiness.blockers);
+  warnings.push(...storeReadiness.warnings);
 
   if (!SEMVER_PATTERN.test(packageVersion)) {
     blockers.push(`Mobile package version '${packageVersion}' must be semver.`);
@@ -184,7 +193,9 @@ export function validateMobileReleaseContract({
       "Verify auth handoff never places access, refresh, or OAuth code values in URLs.",
       "Run iOS and Android smoke builds against the selected release profile.",
       "Record startup, resume, composer latency, and idle memory evidence before promotion.",
+      ...storeReadiness.checklist,
     ],
+    storeReadiness,
     warnings,
   };
 }

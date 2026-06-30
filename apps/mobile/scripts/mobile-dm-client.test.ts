@@ -1,11 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  buildMobileDMSendMessagePath,
   buildMobileDMMessagesPath,
   fetchMobileDMMessages,
   MOBILE_DM_MESSAGES_LIMIT,
+  sendMobileDMMessage,
 } from "../src/dm/mobile-dm-client";
-import type { MobileApiClient } from "../src/api/mobile-api-client";
+import type {
+  MobileApiClient,
+  MobileApiRequestOptions,
+} from "../src/api/mobile-api-client";
 
 const validResponse = {
   conversation: {
@@ -69,6 +74,13 @@ describe("mobile DM client", () => {
     );
   });
 
+  it("builds an encoded mobile DM send endpoint path without list query state", () => {
+    assert.equal(
+      buildMobileDMSendMessagePath({ conversationId: "dm/conversation 1" }),
+      "/api/v1/mobile/dm/dm%2Fconversation%201/messages",
+    );
+  });
+
   it("loads and validates the mobile DM messages response", async () => {
     const requests: string[] = [];
     const client: MobileApiClient = {
@@ -89,6 +101,37 @@ describe("mobile DM client", () => {
     assert.equal(response.messages[0]?.content, "Hello from Whispr mobile.");
   });
 
+  it("sends a mobile DM message through the bounded POST endpoint", async () => {
+    const requests: Array<{
+      options: MobileApiRequestOptions | undefined;
+      path: string;
+    }> = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string, options?: MobileApiRequestOptions) {
+        requests.push({ options, path });
+        return { message: validResponse.messages[0] } as TResponse;
+      },
+    };
+
+    const response = await sendMobileDMMessage(client, {
+      conversationId: "conversation-1",
+      content: "Hello from mobile composer.",
+    });
+
+    assert.deepEqual(requests, [
+      {
+        path: "/api/v1/mobile/dm/conversation-1/messages",
+        options: {
+          body: {
+            content: "Hello from mobile composer.",
+          },
+          method: "POST",
+        },
+      },
+    ]);
+    assert.equal(response.message.id, "message-1");
+  });
+
   it("rejects malformed message payloads before the UI trusts them", async () => {
     const client: MobileApiClient = {
       async requestJson<TResponse>() {
@@ -106,6 +149,28 @@ describe("mobile DM client", () => {
 
     await assert.rejects(
       () => fetchMobileDMMessages(client, { conversationId: "conversation-1" }),
+      /Expected array/,
+    );
+  });
+
+  it("rejects malformed send responses before the UI trusts them", async () => {
+    const client: MobileApiClient = {
+      async requestJson<TResponse>() {
+        return {
+          message: {
+            ...validResponse.messages[0],
+            reactions: "not-an-array",
+          },
+        } as TResponse;
+      },
+    };
+
+    await assert.rejects(
+      () =>
+        sendMobileDMMessage(client, {
+          conversationId: "conversation-1",
+          content: "Hello",
+        }),
       /Expected array/,
     );
   });

@@ -1,32 +1,19 @@
-import type { UploadedAttachmentInput } from "@wizards/types";
-
 import { Prisma, prisma } from "@wizards/db";
 
 import { ApiError } from "@/lib/api";
 import { assertUnblockedDMParticipants } from "@/lib/dm/blocking";
 import { isDMParticipant } from "@/lib/dm/participant-service";
+import { sendDirectMessage } from "@/lib/dm/message-send-service";
 import {
   dmMessageInclude,
-  dmNotificationUserSelect,
   getDMDisplayName,
-  mapDMMessagePayload,
   mapDMMessagePayloadWithReactions,
   setDMReaction,
 } from "@/lib/dm/service";
-import {
-  createRealtimeDMMessage,
-  getDMConversationRealtimeUpdates,
-} from "@/lib/dm/realtime-service";
-import { getDMAttachmentLabelKey, getDMConversationPreview } from "@/lib/dm/notification-service";
 import { logError } from "@/lib/logger";
-import {
-  normalizeMessageContentForSend,
-  parseUploadedAttachmentInputs,
-} from "@/lib/messages/attachments";
 import type { HandlerContext } from "@/lib/socket/context";
 import { createDMErrorEmitter, createSafeDMErrorEmitter } from "@/lib/socket/errors";
 import { checkDMMessageRateLimits, shouldLogRateLimitUnavailable } from "@/lib/socket/rate-limits";
-import { enqueueDMMessageNotificationJob } from "@/lib/outbox/service";
 import {
   parseSocketPayload,
   SocketConversationPayloadSchema,
@@ -256,121 +243,34 @@ export function registerDMHandlers(
         }
       }
 
-      let attachmentInputs: UploadedAttachmentInput[];
-      let content: string;
       try {
-        attachmentInputs = parseUploadedAttachmentInputs(data.attachments);
-        content = normalizeMessageContentForSend(data.content, attachmentInputs);
+        await sendDirectMessage({
+          attachments: data.attachments,
+          content: data.content,
+          conversationId: data.conversationId,
+          io,
+          replyToId: data.replyToId ?? null,
+          senderName: getDMDisplayName({
+            username: socket.data.username,
+            displayName: socket.data.displayName,
+          }),
+          threadParentId: data.threadParentId ?? null,
+          userId,
+        });
       } catch (validationError) {
         emitDMError(
-          "VALIDATION_ERROR",
-          validationError instanceof Error ? validationError.message : "Invalid message payload.",
+          validationError instanceof ApiError &&
+            (validationError.code === "FORBIDDEN" ||
+              validationError.code === "BLOCKED" ||
+              validationError.code === "NOT_FOUND")
+            ? validationError.code
+            : "VALIDATION_ERROR",
+          validationError instanceof Error
+            ? validationError.message
+            : "Invalid message payload.",
         );
         return;
       }
-
-      const participants = await prisma.dMParticipant.findMany({
-        where: { conversationId: data.conversationId },
-        select: {
-          muted: true,
-          userId: true,
-          user: {
-            select: dmNotificationUserSelect,
-          },
-        },
-      });
-
-      if (!participants.some((participant) => participant.userId === userId)) {
-        emitDMError("FORBIDDEN", "You are not a participant in this DM");
-        return;
-      }
-
-      await assertUnblockedDMParticipants({ currentUserId: userId, participants });
-
-      if (data.replyToId) {
-        const replyToMessage = await prisma.dMMessage.findFirst({
-          where: {
-            id: data.replyToId,
-            conversationId: data.conversationId,
-            deletedAt: null,
-            placeholderRemovedAt: null,
-          },
-          select: { id: true },
-        });
-
-        if (!replyToMessage) {
-          emitDMError("NOT_FOUND", "Reply target was not found.");
-          return;
-        }
-      }
-
-      if (data.threadParentId) {
-        const threadParentMessage = await prisma.dMMessage.findFirst({
-          where: {
-            id: data.threadParentId,
-            conversationId: data.conversationId,
-            deletedAt: null,
-            placeholderRemovedAt: null,
-            threadParentId: null,
-          },
-          select: { id: true },
-        });
-
-        if (!threadParentMessage) {
-          emitDMError("NOT_FOUND", "Thread parent message was not found.");
-          return;
-        }
-      }
-
-      const createdMessage = await createRealtimeDMMessage({
-        attachmentInputs,
-        content,
-        conversationId: data.conversationId,
-        participants,
-        replyToId: data.replyToId ?? null,
-        threadParentId: data.threadParentId ?? null,
-        userId,
-      });
-
-      const messagePayload = mapDMMessagePayload(createdMessage);
-      io.to(`dm:${data.conversationId}`).emit("dm:message:new", messagePayload);
-
-      const firstAttachment = createdMessage.attachments[0];
-      const attachmentLabelKey = getDMAttachmentLabelKey(firstAttachment);
-      const preview = getDMConversationPreview(content, firstAttachment);
-      const lastMessageAt = createdMessage.createdAt.toISOString();
-
-      const conversationUpdates = await getDMConversationRealtimeUpdates(
-        data.conversationId,
-        participants,
-      );
-
-      for (const update of conversationUpdates) {
-        io.to(`user:${update.participantId}`).emit("dm:conversation:updated", {
-          conversationId: data.conversationId,
-          lastMessageAt,
-          preview,
-          hiddenAt: null,
-          unreadCount: update.unreadCount,
-          conversation: update.conversation,
-        });
-      }
-
-      const senderName = getDMDisplayName({
-        username: socket.data.username,
-        displayName: socket.data.displayName,
-      });
-      void enqueueDMMessageNotificationJob({
-        attachmentLabelKey,
-        content,
-        conversationId: data.conversationId,
-        messageId: createdMessage.id,
-        participants,
-        senderId: userId,
-        senderName,
-      }).catch((error) => {
-        logError("[socket] DM notification enqueue failed", error);
-      });
 
       await options.stopDMTyping?.(data.conversationId);
     } catch (error) {

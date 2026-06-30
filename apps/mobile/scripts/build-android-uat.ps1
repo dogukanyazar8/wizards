@@ -411,6 +411,9 @@ $env:WHISPR_MOBILE_ENV = "uat"
 $env:EXPO_PUBLIC_WHISPR_API_URL = $UatUrl
 $env:EXPO_PUBLIC_WHISPR_SOCKET_URL = $UatUrl
 $env:EXPO_PUBLIC_WHISPR_WEB_URL = $UatUrl
+if (-not $env:NODE_ENV) {
+  $env:NODE_ENV = "development"
+}
 $env:Path = "$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:ANDROID_HOME\emulator;$env:ANDROID_HOME\cmdline-tools\latest\bin;$env:Path"
 
 Write-Step "Validating local Android toolchain"

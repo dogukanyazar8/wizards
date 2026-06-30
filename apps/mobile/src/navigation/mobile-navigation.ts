@@ -1,6 +1,6 @@
 import type { MobileAuthStatus } from "../auth/session-types";
 
-export const MOBILE_TAB_IDS = ["overview", "messages", "voice", "settings"] as const;
+export const MOBILE_TAB_IDS = ["messages", "overview", "voice", "settings"] as const;
 
 export type MobileTabId = (typeof MOBILE_TAB_IDS)[number];
 
@@ -30,11 +30,11 @@ export interface MobileRouteResolution {
   readonly requiresSession: boolean;
 }
 
-export const DEFAULT_MOBILE_TAB_ID: MobileTabId = "overview";
+export const DEFAULT_MOBILE_TAB_ID: MobileTabId = "messages";
 
 export const MOBILE_TABS: readonly MobileTabDescriptor[] = [
-  { id: "overview", requiresSession: false },
   { id: "messages", requiresSession: true },
+  { id: "overview", requiresSession: true },
   { id: "voice", requiresSession: true },
   { id: "settings", requiresSession: false },
 ] as const;

@@ -7,17 +7,24 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { MobileBootstrapPayload, MobileDMMessagesResponse } from "@wizards/types";
-import whisprIcon from "../../assets/whispr-icon.png";
+import type {
+  ChatMessage,
+  MobileBootstrapPayload,
+  MobileChannelMessagesResponse,
+  MobileDMMessagesResponse,
+  MobileWorkspaceChannelSummary,
+  MobileWorkspaceServerDetailResponse,
+} from "@wizards/types";
 import {
+  AppState,
   Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
+  type AppStateStatus,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import {
   fetchMobileBootstrap,
@@ -29,13 +36,17 @@ import { getMobileRuntimeConfig } from "../config/environment";
 import {
   type MobileDeepLinkParseResult,
 } from "../deep-link/mobile-deep-links";
+import type { MobileSessionDiagnostics } from "../auth/session-types";
 import { useMobileDeepLinks } from "../deep-link/use-mobile-deep-links";
 import { mobileColors, mobileRadii, mobileSpacing } from "../design/tokens";
-import { fetchMobileDMMessages } from "../dm/mobile-dm-client";
+import {
+  fetchMobileDMMessages,
+  MOBILE_DM_MESSAGES_LIMIT,
+  sendMobileDMMessage,
+} from "../dm/mobile-dm-client";
 import { mobileCopy } from "../locale/mobile-copy";
 import {
   createMobileNavigationState,
-  MOBILE_TABS,
   mobileNavigationReducer,
   resolveMobileRoute,
   type MobileTabId,
@@ -54,30 +65,68 @@ import {
   summarizeMobileQualityGate,
 } from "../quality/mobile-quality-gate";
 import { MOBILE_RELEASE_BUDGETS } from "../release/mobile-release-contract";
+import {
+  createInitialMobileSyncSnapshot,
+  formatMobileSyncAge,
+  isMobileSyncStale,
+  markMobileSyncFailed,
+  markMobileSyncStarted,
+  markMobileSyncSucceeded,
+  shouldRefreshOnForeground,
+  type MobileSyncSnapshot,
+} from "../sync/mobile-sync-contract";
+import { validateMobileStoreReadiness } from "../release/mobile-store-contract";
+import {
+  fetchMobileChannelMessages,
+  fetchMobileWorkspaceServer,
+} from "../workspace/mobile-workspace-client";
+import {
+  findInitialMobileWorkspaceChannel,
+  formatMobileDisplayTime,
+  getMobileChannelPriority,
+  getMobileConversationActiveCount,
+  getMobileConversationAvatarUrl,
+  getMobileConversationInitialsLabel,
+  getMobileConversationTitle,
+  getMobileMessageBodyPreview,
+  getMobileMessageEngagementCounts,
+  getMobileWorkspaceChannels,
+} from "./mobile-display-model";
+import {
+  getMobileFeatureEvidence,
+  getMobilePermissionEvidence,
+  getMobileReleaseEvidence,
+  getMobileSessionEvidence,
+  getMobileStoreEvidence,
+  summarizeMobileFeatureReadiness,
+  type MobileSettingsEvidenceItem,
+} from "./mobile-settings-model";
+import { MobileAppShell } from "./mobile-app-shell";
 
 const copy = mobileCopy.tr;
 const runtimeConfig = getMobileRuntimeConfig();
 const mobileQualitySummary = summarizeMobileQualityGate();
-
-const tabLabels: Record<MobileTabId, string> = {
-  messages: copy.tabMessages,
-  overview: copy.tabOverview,
-  settings: copy.tabSettings,
-  voice: copy.tabVoice,
-};
-
-const tabIcons: Record<MobileTabId, string> = {
-  messages: "D",
-  overview: "W",
-  settings: "A",
-  voice: "V",
-};
+const mobileStoreReadiness = validateMobileStoreReadiness();
 
 const permissionLabels: Record<MobilePermissionIntentId, string> = {
   camera: copy.permissionCamera,
   microphone: copy.permissionMicrophone,
   notifications: copy.permissionNotifications,
   photoLibrary: copy.permissionPhotoLibrary,
+};
+
+const settingsEvidenceLabels = {
+  available: copy.settingsFeatureAvailable,
+  blocked: copy.settingsBlockedLabel,
+  disabled: copy.settingsFeatureDisabled,
+  missing: copy.settingsMissingLabel,
+  pending: copy.settingsPendingLabel,
+  ready: copy.settingsReadyLabel,
+  refreshToken: copy.settingsRefreshTokenLabel,
+  scopeCount: copy.settingsScopeCountLabel,
+  session: copy.settingsSessionLabel,
+  storeBlockers: copy.settingsStoreBlockersLabel,
+  storeWarnings: copy.settingsStoreWarningsLabel,
 };
 
 type MobileBootstrapViewState =
@@ -126,6 +175,64 @@ type MobileDMMessagesViewState =
       status: "error";
     };
 
+type MobileDMSendViewState = {
+  conversationId: string | null;
+  error: string | null;
+  status: "idle" | "sending" | "error";
+};
+
+type MobileWorkspaceServerViewState =
+  | {
+      error: null;
+      payload: null;
+      serverId: null;
+      status: "idle";
+    }
+  | {
+      error: null;
+      payload: MobileWorkspaceServerDetailResponse;
+      serverId: string;
+      status: "ready";
+    }
+  | {
+      error: null;
+      payload: MobileWorkspaceServerDetailResponse | null;
+      serverId: string;
+      status: "loading";
+    }
+  | {
+      error: string;
+      payload: null;
+      serverId: string;
+      status: "error";
+    };
+
+type MobileChannelMessagesViewState =
+  | {
+      channelId: null;
+      error: null;
+      payload: null;
+      status: "idle";
+    }
+  | {
+      channelId: string;
+      error: null;
+      payload: MobileChannelMessagesResponse | null;
+      status: "loading";
+    }
+  | {
+      channelId: string;
+      error: null;
+      payload: MobileChannelMessagesResponse;
+      status: "ready";
+    }
+  | {
+      channelId: string;
+      error: string;
+      payload: null;
+      status: "error";
+    };
+
 const INITIAL_BOOTSTRAP_STATE: MobileBootstrapViewState = {
   error: null,
   payload: null,
@@ -140,8 +247,32 @@ const INITIAL_DM_MESSAGES_STATE: MobileDMMessagesViewState = {
   status: "idle",
 };
 
+const INITIAL_DM_SEND_STATE: MobileDMSendViewState = {
+  conversationId: null,
+  error: null,
+  status: "idle",
+};
+
+const INITIAL_WORKSPACE_SERVER_STATE: MobileWorkspaceServerViewState = {
+  error: null,
+  payload: null,
+  serverId: null,
+  status: "idle",
+};
+
+const INITIAL_CHANNEL_MESSAGES_STATE: MobileChannelMessagesViewState = {
+  channelId: null,
+  error: null,
+  payload: null,
+  status: "idle",
+};
+
+const INITIAL_BOOTSTRAP_SYNC_STATE = createInitialMobileSyncSnapshot("bootstrap");
+const INITIAL_DM_SYNC_STATE = createInitialMobileSyncSnapshot("dm");
+const INITIAL_WORKSPACE_SYNC_STATE = createInitialMobileSyncSnapshot("workspace");
+const INITIAL_CHANNEL_SYNC_STATE = createInitialMobileSyncSnapshot("channel");
+
 export function WhisprMobileRoot() {
-  const insets = useSafeAreaInsets();
   const {
     apiClient,
     completeAuthHandoff,
@@ -160,13 +291,39 @@ export function WhisprMobileRoot() {
   );
   const [bootstrapState, setBootstrapState] =
     useState<MobileBootstrapViewState>(INITIAL_BOOTSTRAP_STATE);
+  const [bootstrapSyncState, setBootstrapSyncState] = useState<MobileSyncSnapshot>(
+    INITIAL_BOOTSTRAP_SYNC_STATE,
+  );
   const bootstrapRequestIdRef = useRef(0);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const [selectedDMConversationId, setSelectedDMConversationId] = useState<string | null>(
     null,
   );
   const [dmMessagesState, setDMMessagesState] =
     useState<MobileDMMessagesViewState>(INITIAL_DM_MESSAGES_STATE);
+  const [dmSyncState, setDMSyncState] =
+    useState<MobileSyncSnapshot>(INITIAL_DM_SYNC_STATE);
+  const [dmSendState, setDMSendState] =
+    useState<MobileDMSendViewState>(INITIAL_DM_SEND_STATE);
   const dmMessagesRequestIdRef = useRef(0);
+  const [selectedWorkspaceServerId, setSelectedWorkspaceServerId] = useState<string | null>(
+    null,
+  );
+  const [selectedWorkspaceChannelId, setSelectedWorkspaceChannelId] = useState<string | null>(
+    null,
+  );
+  const [workspaceServerState, setWorkspaceServerState] =
+    useState<MobileWorkspaceServerViewState>(INITIAL_WORKSPACE_SERVER_STATE);
+  const [channelMessagesState, setChannelMessagesState] =
+    useState<MobileChannelMessagesViewState>(INITIAL_CHANNEL_MESSAGES_STATE);
+  const [workspaceSyncState, setWorkspaceSyncState] = useState<MobileSyncSnapshot>(
+    INITIAL_WORKSPACE_SYNC_STATE,
+  );
+  const [channelSyncState, setChannelSyncState] = useState<MobileSyncSnapshot>(
+    INITIAL_CHANNEL_SYNC_STATE,
+  );
+  const workspaceServerRequestIdRef = useRef(0);
+  const channelMessagesRequestIdRef = useRef(0);
   const [lastDeepLink, setLastDeepLink] = useState<MobileDeepLinkParseResult | null>(null);
   const route = resolveMobileRoute(navigation.currentTab, status);
   const permissionReadiness = useMemo(() => createInitialMobilePermissionReadiness(), []);
@@ -181,9 +338,11 @@ export function WhisprMobileRoot() {
 
     if (status !== "signed-in") {
       setBootstrapState(INITIAL_BOOTSTRAP_STATE);
+      setBootstrapSyncState(INITIAL_BOOTSTRAP_SYNC_STATE);
       return;
     }
 
+    setBootstrapSyncState(markMobileSyncStarted);
     setBootstrapState((current) =>
       current.status === "ready"
         ? current
@@ -207,11 +366,13 @@ export function WhisprMobileRoot() {
         status: "ready",
         summary: summarizeMobileBootstrap(payload),
       });
+      setBootstrapSyncState(markMobileSyncSucceeded);
     } catch {
       if (bootstrapRequestIdRef.current !== requestId) {
         return;
       }
 
+      setBootstrapSyncState(markMobileSyncFailed);
       setBootstrapState({
         error: copy.bootstrapLoadFailed,
         payload: null,
@@ -228,9 +389,11 @@ export function WhisprMobileRoot() {
 
       if (status !== "signed-in") {
         setDMMessagesState(INITIAL_DM_MESSAGES_STATE);
+        setDMSyncState(INITIAL_DM_SYNC_STATE);
         return;
       }
 
+      setDMSyncState(markMobileSyncStarted);
       setDMMessagesState((current) => ({
         conversationId,
         error: null,
@@ -253,11 +416,13 @@ export function WhisprMobileRoot() {
           payload,
           status: "ready",
         });
+        setDMSyncState(markMobileSyncSucceeded);
       } catch {
         if (dmMessagesRequestIdRef.current !== requestId) {
           return;
         }
 
+        setDMSyncState(markMobileSyncFailed);
         setDMMessagesState({
           conversationId,
           error: copy.dmMessagesLoadFailed,
@@ -269,12 +434,227 @@ export function WhisprMobileRoot() {
     [apiClient, status],
   );
 
+  const handleSendDMMessage = useCallback(
+    async (content: string): Promise<boolean> => {
+      const conversationId = selectedDMConversationId;
+      const trimmedContent = content.trim();
+
+      if (status !== "signed-in" || !conversationId || trimmedContent.length === 0) {
+        return false;
+      }
+
+      setDMSendState({
+        conversationId,
+        error: null,
+        status: "sending",
+      });
+
+      try {
+        const response = await sendMobileDMMessage(apiClient, {
+          conversationId,
+          content: trimmedContent,
+        });
+
+        setDMMessagesState((current) => {
+          if (current.conversationId !== conversationId || !current.payload) {
+            return current;
+          }
+
+          const hasMessage = current.payload.messages.some(
+            (message) => message.id === response.message.id,
+          );
+          const messages = hasMessage
+            ? current.payload.messages
+            : [...current.payload.messages, response.message].slice(-MOBILE_DM_MESSAGES_LIMIT);
+
+          return {
+            conversationId,
+            error: null,
+            payload: {
+              ...current.payload,
+              messages,
+            },
+            status: "ready",
+          };
+        });
+
+        setDMSendState({
+          conversationId,
+          error: null,
+          status: "idle",
+        });
+        setDMSyncState(markMobileSyncSucceeded);
+        void loadBootstrap();
+        return true;
+      } catch {
+        setDMSendState({
+          conversationId,
+          error: copy.dmSendFailed,
+          status: "error",
+        });
+        return false;
+      }
+    },
+    [apiClient, loadBootstrap, selectedDMConversationId, status],
+  );
+
+  const loadChannelMessages = useCallback(
+    async (channelId: string) => {
+      const requestId = channelMessagesRequestIdRef.current + 1;
+      channelMessagesRequestIdRef.current = requestId;
+
+      if (status !== "signed-in") {
+        setChannelMessagesState(INITIAL_CHANNEL_MESSAGES_STATE);
+        setChannelSyncState(INITIAL_CHANNEL_SYNC_STATE);
+        return;
+      }
+
+      setChannelSyncState(markMobileSyncStarted);
+      setChannelMessagesState((current) => ({
+        channelId,
+        error: null,
+        payload:
+          current.channelId === channelId && current.status === "ready"
+            ? current.payload
+            : null,
+        status: "loading",
+      }));
+
+      try {
+        const payload = await fetchMobileChannelMessages(apiClient, { channelId });
+        if (channelMessagesRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        setChannelMessagesState({
+          channelId,
+          error: null,
+          payload,
+          status: "ready",
+        });
+        setChannelSyncState(markMobileSyncSucceeded);
+      } catch {
+        if (channelMessagesRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        setChannelSyncState(markMobileSyncFailed);
+        setChannelMessagesState({
+          channelId,
+          error: copy.workspaceChannelLoadFailed,
+          payload: null,
+          status: "error",
+        });
+      }
+    },
+    [apiClient, status],
+  );
+
+  const loadWorkspaceServer = useCallback(
+    async (serverId: string, preferredChannelId?: string | null) => {
+      const requestId = workspaceServerRequestIdRef.current + 1;
+      workspaceServerRequestIdRef.current = requestId;
+
+      if (status !== "signed-in") {
+        setWorkspaceServerState(INITIAL_WORKSPACE_SERVER_STATE);
+        setWorkspaceSyncState(INITIAL_WORKSPACE_SYNC_STATE);
+        setSelectedWorkspaceServerId(null);
+        setSelectedWorkspaceChannelId(null);
+        setChannelMessagesState(INITIAL_CHANNEL_MESSAGES_STATE);
+        setChannelSyncState(INITIAL_CHANNEL_SYNC_STATE);
+        return;
+      }
+
+      setSelectedWorkspaceServerId(serverId);
+      setWorkspaceSyncState(markMobileSyncStarted);
+      setWorkspaceServerState((current) => ({
+        serverId,
+        error: null,
+        payload:
+          current.serverId === serverId && current.status === "ready"
+            ? current.payload
+            : null,
+        status: "loading",
+      }));
+
+      try {
+        const payload = await fetchMobileWorkspaceServer(apiClient, { serverId });
+        if (workspaceServerRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        setWorkspaceServerState({
+          serverId,
+          error: null,
+          payload,
+          status: "ready",
+        });
+        setWorkspaceSyncState(markMobileSyncSucceeded);
+
+        const selectedChannel = findInitialMobileWorkspaceChannel(
+          payload.detail,
+          preferredChannelId,
+        );
+        setSelectedWorkspaceChannelId(selectedChannel?.id ?? null);
+
+        if (selectedChannel?.type === "TEXT") {
+          void loadChannelMessages(selectedChannel.id);
+        } else {
+          channelMessagesRequestIdRef.current += 1;
+          setChannelMessagesState(INITIAL_CHANNEL_MESSAGES_STATE);
+          setChannelSyncState(INITIAL_CHANNEL_SYNC_STATE);
+        }
+      } catch {
+        if (workspaceServerRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        setWorkspaceSyncState(markMobileSyncFailed);
+        setWorkspaceServerState({
+          serverId,
+          error: copy.workspaceLoadFailed,
+          payload: null,
+          status: "error",
+        });
+        setSelectedWorkspaceChannelId(null);
+        channelMessagesRequestIdRef.current += 1;
+        setChannelMessagesState(INITIAL_CHANNEL_MESSAGES_STATE);
+        setChannelSyncState(INITIAL_CHANNEL_SYNC_STATE);
+      }
+    },
+    [apiClient, loadChannelMessages, status],
+  );
+
   const handleOpenDMConversation = useCallback(
     (conversationId: string) => {
       setSelectedDMConversationId(conversationId);
+      setDMSendState(INITIAL_DM_SEND_STATE);
       void loadDMMessages(conversationId);
     },
     [loadDMMessages],
+  );
+
+  const handleOpenWorkspaceServer = useCallback(
+    (serverId: string) => {
+      void loadWorkspaceServer(serverId);
+    },
+    [loadWorkspaceServer],
+  );
+
+  const handleOpenWorkspaceChannel = useCallback(
+    (channel: MobileWorkspaceChannelSummary) => {
+      setSelectedWorkspaceChannelId(channel.id);
+
+      if (channel.type !== "TEXT") {
+        channelMessagesRequestIdRef.current += 1;
+        setChannelMessagesState(INITIAL_CHANNEL_MESSAGES_STATE);
+        setChannelSyncState(INITIAL_CHANNEL_SYNC_STATE);
+        return;
+      }
+
+      void loadChannelMessages(channel.id);
+    },
+    [loadChannelMessages],
   );
 
   const selectedDMConversation = useMemo(() => {
@@ -289,13 +669,93 @@ export function WhisprMobileRoot() {
     );
   }, [bootstrapState, selectedDMConversationId]);
 
+  const refreshVisibleMobileData = useCallback(() => {
+    if (status !== "signed-in") {
+      return;
+    }
+
+    void loadBootstrap();
+
+    if (selectedDMConversationId) {
+      void loadDMMessages(selectedDMConversationId);
+    }
+
+    if (selectedWorkspaceServerId) {
+      void loadWorkspaceServer(selectedWorkspaceServerId, selectedWorkspaceChannelId);
+      return;
+    }
+
+    if (selectedWorkspaceChannelId) {
+      void loadChannelMessages(selectedWorkspaceChannelId);
+    }
+  }, [
+    loadBootstrap,
+    loadChannelMessages,
+    loadDMMessages,
+    loadWorkspaceServer,
+    selectedDMConversationId,
+    selectedWorkspaceChannelId,
+    selectedWorkspaceServerId,
+    status,
+  ]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      const previousState = appStateRef.current;
+      appStateRef.current = nextState;
+
+      const returnedToForeground =
+        nextState === "active" &&
+        (previousState === "background" || previousState === "inactive");
+
+      if (!returnedToForeground || status !== "signed-in") {
+        return;
+      }
+
+      const shouldRefresh =
+        shouldRefreshOnForeground(bootstrapSyncState) ||
+        (selectedDMConversationId ? shouldRefreshOnForeground(dmSyncState) : false) ||
+        (selectedWorkspaceServerId
+          ? shouldRefreshOnForeground(workspaceSyncState)
+          : false) ||
+        (selectedWorkspaceChannelId ? shouldRefreshOnForeground(channelSyncState) : false);
+
+      if (shouldRefresh) {
+        refreshVisibleMobileData();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [
+    bootstrapSyncState,
+    channelSyncState,
+    dmSyncState,
+    refreshVisibleMobileData,
+    selectedDMConversationId,
+    selectedWorkspaceChannelId,
+    selectedWorkspaceServerId,
+    status,
+    workspaceSyncState,
+  ]);
+
   useEffect(() => {
     if (status !== "signed-in") {
       bootstrapRequestIdRef.current += 1;
       dmMessagesRequestIdRef.current += 1;
       setBootstrapState(INITIAL_BOOTSTRAP_STATE);
+      setBootstrapSyncState(INITIAL_BOOTSTRAP_SYNC_STATE);
       setSelectedDMConversationId(null);
       setDMMessagesState(INITIAL_DM_MESSAGES_STATE);
+      setDMSyncState(INITIAL_DM_SYNC_STATE);
+      setDMSendState(INITIAL_DM_SEND_STATE);
+      workspaceServerRequestIdRef.current += 1;
+      channelMessagesRequestIdRef.current += 1;
+      setSelectedWorkspaceServerId(null);
+      setSelectedWorkspaceChannelId(null);
+      setWorkspaceServerState(INITIAL_WORKSPACE_SERVER_STATE);
+      setChannelMessagesState(INITIAL_CHANNEL_MESSAGES_STATE);
+      setWorkspaceSyncState(INITIAL_WORKSPACE_SYNC_STATE);
+      setChannelSyncState(INITIAL_CHANNEL_SYNC_STATE);
       return;
     }
 
@@ -315,6 +775,7 @@ export function WhisprMobileRoot() {
       dmMessagesRequestIdRef.current += 1;
       setSelectedDMConversationId(null);
       setDMMessagesState(INITIAL_DM_MESSAGES_STATE);
+      setDMSendState(INITIAL_DM_SEND_STATE);
     }
   }, [bootstrapState, selectedDMConversationId]);
 
@@ -345,7 +806,19 @@ export function WhisprMobileRoot() {
         return;
       }
 
-      if (result.intent.type === "invite" || result.intent.path.startsWith("/channels")) {
+      if (result.intent.type === "invite") {
+        dispatchNavigation({ tab: "messages", type: "select" });
+        return;
+      }
+
+      if (result.intent.path.startsWith("/channels")) {
+        const target = parseMobileChannelsRoute(result.intent.path);
+        if (target?.serverId && target.serverId !== "@me") {
+          dispatchNavigation({ tab: "messages", type: "select" });
+          void loadWorkspaceServer(target.serverId, target.channelId);
+          return;
+        }
+
         dispatchNavigation({ tab: "messages", type: "select" });
         return;
       }
@@ -354,7 +827,7 @@ export function WhisprMobileRoot() {
         dispatchNavigation({ tab: "settings", type: "select" });
       }
     },
-    [completeAuthHandoff],
+    [completeAuthHandoff, loadWorkspaceServer],
   );
 
   useMobileDeepLinks({
@@ -377,124 +850,95 @@ export function WhisprMobileRoot() {
     return session.user.displayName ?? session.user.username;
   }, [session]);
 
-  const topInset = Math.max(insets.top, 12);
-  const bottomInset = Math.max(insets.bottom, 12);
-
   return (
-    <View style={[styles.safeArea, { paddingTop: topInset }]}>
-      <View style={styles.shell}>
-        <View style={styles.header}>
-          <Image source={whisprIcon} style={styles.logo} accessibilityIgnoresInvertColors />
-          <View style={styles.headerText}>
-            <Text style={styles.eyebrow}>{copy.status}</Text>
-            <Text style={styles.title}>{copy.appTitle}</Text>
-            <Text style={styles.subtitle} numberOfLines={2}>
-              {copy.appSubtitle}
-            </Text>
-          </View>
-          <View style={styles.statusBadge}>
-            <View
-              style={[
-                styles.authStatusDot,
-                status === "signed-in" && styles.authStatusDotReady,
-                status === "checking" && styles.authStatusDotChecking,
-              ]}
-            />
-            <Text style={styles.statusBadgeText} numberOfLines={1}>
-              {status === "signed-in" ? signedInUserLabel ?? "Aktif" : status}
-            </Text>
-          </View>
-        </View>
-
-        <ScrollView
-          style={styles.contentScroll}
-          contentContainerStyle={[styles.content, { paddingBottom: bottomInset + 4 }]}
-          alwaysBounceVertical={false}
-        >
-          {route.isBlocked ? (
-            <AuthGate
-              reason={route.blockedReason}
-              onOpenWebSignIn={() => void openWebSignIn()}
-              onRefresh={() => void refreshSessionFromStorage()}
-            />
-          ) : (
-            <ActiveScreen
-              currentTab={route.currentTab}
-              bootstrapState={bootstrapState}
-              dmMessagesState={dmMessagesState}
-              diagnostics={diagnostics}
-              lastDeepLink={lastDeepLink}
-              permissionReadiness={permissionReadiness}
-              permissionSummary={permissionSummary}
-              error={error}
-              authStatusLabel={authStatusLabel}
-              signedInUserLabel={signedInUserLabel}
-              onOpenWebSignIn={() => void openWebSignIn()}
-              onOpenDMConversation={handleOpenDMConversation}
-              onRefreshBootstrap={() => void loadBootstrap()}
-              onRefreshDMConversation={() => {
-                if (selectedDMConversationId) {
-                  void loadDMMessages(selectedDMConversationId);
-                }
-              }}
-              onRefresh={() => void refreshSessionFromStorage()}
-              onSignOut={() => void signOut()}
-              selectedDMConversation={selectedDMConversation}
-              selectedDMConversationId={selectedDMConversationId}
-              status={status}
-            />
-          )}
-        </ScrollView>
-
-        <View
-          style={[styles.tabBar, { marginBottom: bottomInset }]}
-          accessibilityRole="tablist"
-        >
-          {MOBILE_TABS.map((tab) => {
-            const isActive = navigation.currentTab === tab.id;
-            return (
-              <Pressable
-                key={tab.id}
-                accessibilityRole="tab"
-                accessibilityLabel={tabLabels[tab.id]}
-                accessibilityState={{ selected: isActive }}
-                onPress={() => dispatchNavigation({ tab: tab.id, type: "select" })}
-                style={({ pressed }) => [
-                  styles.tabButton,
-                  isActive && styles.tabButtonActive,
-                  pressed && styles.tabButtonPressed,
-                ]}
-              >
-                <Text style={styles.tabIcon}>{tabIcons[tab.id]}</Text>
-                <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
-                  {tabLabels[tab.id]}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-    </View>
+    <MobileAppShell
+      authStatus={status}
+      currentTab={navigation.currentTab}
+      onSelectTab={(tab) => dispatchNavigation({ tab, type: "select" })}
+      signedInUserLabel={signedInUserLabel}
+    >
+      {route.isBlocked ? (
+        <AuthGate
+          reason={route.blockedReason}
+          onOpenWebSignIn={() => void openWebSignIn()}
+          onRefresh={() => void refreshSessionFromStorage()}
+        />
+      ) : (
+        <ActiveScreen
+          currentTab={route.currentTab}
+          bootstrapState={bootstrapState}
+          bootstrapSyncState={bootstrapSyncState}
+          dmMessagesState={dmMessagesState}
+          dmSyncState={dmSyncState}
+          dmSendState={dmSendState}
+          diagnostics={diagnostics}
+          lastDeepLink={lastDeepLink}
+          permissionReadiness={permissionReadiness}
+          permissionSummary={permissionSummary}
+          error={error}
+          authStatusLabel={authStatusLabel}
+          channelMessagesState={channelMessagesState}
+          channelSyncState={channelSyncState}
+          signedInUserLabel={signedInUserLabel}
+          onOpenWebSignIn={() => void openWebSignIn()}
+          onOpenDMConversation={handleOpenDMConversation}
+          onOpenWorkspaceChannel={handleOpenWorkspaceChannel}
+          onOpenWorkspaceServer={handleOpenWorkspaceServer}
+          onRefreshBootstrap={() => void loadBootstrap()}
+          onRefreshChannelMessages={() => {
+            if (selectedWorkspaceChannelId) {
+              void loadChannelMessages(selectedWorkspaceChannelId);
+            }
+          }}
+          onRefreshDMConversation={() => {
+            if (selectedDMConversationId) {
+              void loadDMMessages(selectedDMConversationId);
+            }
+          }}
+          onRefreshWorkspaceServer={() => {
+            if (selectedWorkspaceServerId) {
+              void loadWorkspaceServer(selectedWorkspaceServerId, selectedWorkspaceChannelId);
+            }
+          }}
+          onRefresh={() => void refreshSessionFromStorage()}
+          onSendDMMessage={handleSendDMMessage}
+          onSignOut={() => void signOut()}
+          selectedDMConversation={selectedDMConversation}
+          selectedDMConversationId={selectedDMConversationId}
+          selectedWorkspaceChannelId={selectedWorkspaceChannelId}
+          selectedWorkspaceServerId={selectedWorkspaceServerId}
+          status={status}
+          workspaceSyncState={workspaceSyncState}
+          workspaceServerState={workspaceServerState}
+        />
+      )}
+    </MobileAppShell>
   );
 }
 
 interface ActiveScreenProps {
   authStatusLabel: string;
   bootstrapState: MobileBootstrapViewState;
+  bootstrapSyncState: MobileSyncSnapshot;
+  channelMessagesState: MobileChannelMessagesViewState;
+  channelSyncState: MobileSyncSnapshot;
   currentTab: MobileTabId;
   dmMessagesState: MobileDMMessagesViewState;
-  diagnostics: {
-    hasRefreshToken: boolean;
-    hasSession: boolean;
-    scopeCount: number;
-  };
+  dmSendState: MobileDMSendViewState;
+  dmSyncState: MobileSyncSnapshot;
+  diagnostics: MobileSessionDiagnostics;
   error: string | null;
   lastDeepLink: MobileDeepLinkParseResult | null;
   onOpenDMConversation(conversationId: string): void;
   onOpenWebSignIn(): void;
+  onOpenWorkspaceChannel(channel: MobileWorkspaceChannelSummary): void;
+  onOpenWorkspaceServer(serverId: string): void;
   onRefreshBootstrap(): void;
+  onRefreshChannelMessages(): void;
   onRefreshDMConversation(): void;
+  onRefreshWorkspaceServer(): void;
   onRefresh(): void;
+  onSendDMMessage(content: string): Promise<boolean>;
   onSignOut(): void;
   permissionReadiness: readonly MobilePermissionReadiness[];
   permissionSummary: MobilePermissionSummary;
@@ -502,30 +946,48 @@ interface ActiveScreenProps {
     | MobileBootstrapPayload["home"]["directMessages"]["recent"][number]
     | null;
   selectedDMConversationId: string | null;
+  selectedWorkspaceChannelId: string | null;
+  selectedWorkspaceServerId: string | null;
   signedInUserLabel: string | null;
   status: string;
+  workspaceServerState: MobileWorkspaceServerViewState;
+  workspaceSyncState: MobileSyncSnapshot;
 }
 
 function ActiveScreen({
   authStatusLabel,
   bootstrapState,
+  bootstrapSyncState,
+  channelMessagesState,
+  channelSyncState,
   currentTab,
   dmMessagesState,
+  dmSendState,
+  dmSyncState,
   diagnostics,
   error,
   lastDeepLink,
   onOpenDMConversation,
   onOpenWebSignIn,
+  onOpenWorkspaceChannel,
+  onOpenWorkspaceServer,
   onRefreshBootstrap,
+  onRefreshChannelMessages,
   onRefreshDMConversation,
+  onRefreshWorkspaceServer,
   onRefresh,
+  onSendDMMessage,
   onSignOut,
   permissionReadiness,
   permissionSummary,
   selectedDMConversation,
   selectedDMConversationId,
+  selectedWorkspaceChannelId,
+  selectedWorkspaceServerId,
   signedInUserLabel,
   status,
+  workspaceServerState,
+  workspaceSyncState,
 }: ActiveScreenProps) {
   switch (currentTab) {
     case "messages":
@@ -535,21 +997,30 @@ function ActiveScreen({
           title={copy.messagesTitle}
           description={copy.messagesDescription}
         >
-          <DeepLinkStatusCard result={lastDeepLink} />
           <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
           {bootstrapState.status === "ready" &&
           bootstrapState.payload.home.directMessages.recent.length > 0 ? (
             <>
+              <MobileSyncStatusCard
+                items={[
+                  { label: copy.syncBootstrapLabel, snapshot: bootstrapSyncState },
+                  { label: copy.syncDmLabel, snapshot: dmSyncState },
+                ]}
+              />
               <DirectMessageListCard
                 conversations={bootstrapState.payload.home.directMessages.recent}
+                totalCount={bootstrapState.payload.home.directMessages.totalCount}
+                unreadCount={bootstrapState.payload.home.directMessages.unreadCount}
                 selectedConversationId={selectedDMConversationId}
                 onOpenConversation={onOpenDMConversation}
               />
               <DMConversationPreviewCard
                 conversation={selectedDMConversation}
                 currentUserId={bootstrapState.payload.user.id}
+                sendState={dmSendState}
                 state={dmMessagesState}
                 onRetry={onRefreshDMConversation}
+                onSendMessage={onSendDMMessage}
               />
             </>
           ) : bootstrapState.status === "idle" ||
@@ -562,6 +1033,9 @@ function ActiveScreen({
     case "voice":
       return (
         <ScreenShell eyebrow={copy.tabVoice} title={copy.voiceEmpty} description={copy.voiceDescription}>
+          <MobileSyncStatusCard
+            items={[{ label: copy.syncBootstrapLabel, snapshot: bootstrapSyncState }]}
+          />
           {bootstrapState.status === "ready" ? (
             <FeatureStatusCard
               label={bootstrapState.payload.features.voice.label}
@@ -586,10 +1060,19 @@ function ActiveScreen({
           title={authStatusLabel}
           description={copy.settingsDescription}
         >
-          <SessionDiagnostics diagnostics={diagnostics} />
-          <DeepLinkStatusCard result={lastDeepLink} />
           <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
+          <SettingsAccountCard
+            authStatusLabel={authStatusLabel}
+            bootstrapState={bootstrapState}
+            signedInUserLabel={signedInUserLabel}
+            status={status}
+          />
+          <SettingsSecurityCard diagnostics={diagnostics} lastDeepLink={lastDeepLink} />
+          {bootstrapState.status === "ready" ? (
+            <SettingsFeatureReadinessCard features={bootstrapState.payload.features} />
+          ) : null}
           <PermissionReadinessCard readiness={permissionReadiness} summary={permissionSummary} />
+          <SettingsPermissionEvidenceCard summary={permissionSummary} />
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
           <View style={styles.actionRow}>
             <ActionButton label={copy.secondaryAction} onPress={onRefresh} variant="secondary" />
@@ -599,6 +1082,9 @@ function ActiveScreen({
               <ActionButton label={copy.primaryAction} onPress={onOpenWebSignIn} variant="primary" />
             )}
           </View>
+          <DeveloperDiagnosticsCard
+            bootstrapSyncState={bootstrapSyncState}
+          />
         </ScreenShell>
       );
     case "overview":
@@ -606,28 +1092,22 @@ function ActiveScreen({
       return (
         <ScreenShell
           eyebrow={signedInUserLabel ?? copy.tabOverview}
-          title={copy.foundation}
+          title={copy.overviewTitle}
           description={copy.overviewDescription}
         >
+          <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
           <HomeSummaryCard state={bootstrapState} onRetry={onRefreshBootstrap} />
-          {bootstrapState.status === "ready" ? (
-            <RecentServersCard servers={bootstrapState.payload.home.servers.recent} />
-          ) : null}
-          <View style={styles.guardrailList}>
-            <Guardrail label={copy.guardrail1} />
-            <Guardrail label={copy.guardrail2} />
-            <Guardrail label={copy.guardrail3} />
-          </View>
-          <EnvironmentCard />
-          <BootstrapContractCard />
-          <ReleaseReadinessCard />
-          <SessionDiagnostics diagnostics={diagnostics} />
-          <DeepLinkStatusCard result={lastDeepLink} />
-          <PermissionReadinessCard readiness={permissionReadiness} summary={permissionSummary} />
-          <MobileQualityGateCard />
-          {status !== "signed-in" ? (
-            <ActionButton label={copy.primaryAction} onPress={onOpenWebSignIn} variant="primary" />
-          ) : null}
+          <WorkspacePreviewCard
+            bootstrapState={bootstrapState}
+            channelMessagesState={channelMessagesState}
+            selectedChannelId={selectedWorkspaceChannelId}
+            selectedServerId={selectedWorkspaceServerId}
+            serverState={workspaceServerState}
+            onOpenChannel={onOpenWorkspaceChannel}
+            onOpenServer={onOpenWorkspaceServer}
+            onRefreshChannel={onRefreshChannelMessages}
+            onRefreshServer={onRefreshWorkspaceServer}
+          />
         </ScreenShell>
       );
   }
@@ -683,6 +1163,145 @@ function ScreenShell({
       <Text style={styles.screenTitle}>{title}</Text>
       <Text style={styles.screenDescription}>{description}</Text>
       <View style={styles.screenBody}>{children}</View>
+    </View>
+  );
+}
+
+function SettingsAccountCard({
+  authStatusLabel,
+  bootstrapState,
+  signedInUserLabel,
+  status,
+}: {
+  authStatusLabel: string;
+  bootstrapState: MobileBootstrapViewState;
+  signedInUserLabel: string | null;
+  status: string;
+}) {
+  const user =
+    bootstrapState.status === "ready"
+      ? bootstrapState.payload.user
+      : null;
+  const displayName =
+    user?.displayName ?? signedInUserLabel ?? user?.username ?? copy.settingsAccountSignedOut;
+  const releaseLabel =
+    bootstrapState.status === "ready"
+      ? `${bootstrapState.payload.app.version} / ${bootstrapState.payload.app.releaseChannel}`
+      : runtimeConfig.environment;
+
+  return (
+    <View style={styles.settingsHeroCard}>
+      <AvatarMark
+        imageUrl={user?.avatarUrl ?? null}
+        label={displayName}
+        size="large"
+        status={status === "signed-in" ? "active" : "idle"}
+      />
+      <View style={styles.settingsHeroText}>
+        <Text style={styles.environmentLabel}>{copy.settingsAccountTitle}</Text>
+        <Text style={styles.settingsHeroTitle} numberOfLines={1}>
+          {displayName}
+        </Text>
+        <Text style={styles.settingsHeroMeta} numberOfLines={2}>
+          {authStatusLabel}
+        </Text>
+      </View>
+      <View style={styles.settingsHeroBadge}>
+        <Text style={styles.settingsHeroBadgeText}>{releaseLabel}</Text>
+      </View>
+    </View>
+  );
+}
+
+function SettingsSecurityCard({
+  diagnostics,
+  lastDeepLink,
+}: {
+  diagnostics: MobileSessionDiagnostics;
+  lastDeepLink: MobileDeepLinkParseResult | null;
+}) {
+  const evidence = getMobileSessionEvidence(diagnostics, settingsEvidenceLabels);
+
+  return (
+    <SettingsSection
+      description={copy.settingsSecurityDescription}
+      title={copy.settingsSecurityTitle}
+    >
+      <SettingsEvidenceGrid items={evidence} />
+      <DeepLinkStatusCard result={lastDeepLink} />
+      <Text style={styles.settingsFootnote}>{copy.settingsNoSensitiveData}</Text>
+    </SettingsSection>
+  );
+}
+
+function SettingsFeatureReadinessCard({
+  features,
+}: {
+  features: MobileBootstrapPayload["features"];
+}) {
+  const summary = summarizeMobileFeatureReadiness(features);
+  const evidence = getMobileFeatureEvidence(features, settingsEvidenceLabels);
+
+  return (
+    <SettingsSection
+      description={copy.settingsFeatureDescription}
+      title={copy.settingsFeatureTitle}
+    >
+      <View style={styles.settingsSummaryRow}>
+        <MetricMiniPill label={copy.settingsFeatureAvailable} value={summary.available} />
+        <MetricMiniPill label={copy.settingsPendingLabel} value={summary.pending} />
+        <MetricMiniPill label={copy.settingsFeatureDisabled} value={summary.disabled} />
+      </View>
+      <SettingsEvidenceList items={evidence} />
+    </SettingsSection>
+  );
+}
+
+function SettingsPermissionEvidenceCard({
+  summary,
+}: {
+  summary: MobilePermissionSummary;
+}) {
+  const evidence = getMobilePermissionEvidence(summary, settingsEvidenceLabels);
+
+  return (
+    <SettingsSection
+      description={copy.settingsPermissionEvidenceDescription}
+      title={copy.settingsPermissionEvidenceTitle}
+    >
+      <SettingsEvidenceGrid items={evidence} />
+    </SettingsSection>
+  );
+}
+
+function DeveloperDiagnosticsCard({
+  bootstrapSyncState,
+}: {
+  bootstrapSyncState: MobileSyncSnapshot;
+}) {
+  const storeEvidence = getMobileStoreEvidence(mobileStoreReadiness, settingsEvidenceLabels);
+  const releaseEvidence = getMobileReleaseEvidence({
+    budgetCount: MOBILE_RELEASE_BUDGETS.length,
+    qualitySummary: mobileQualitySummary,
+    releaseBudgets: MOBILE_RELEASE_BUDGETS,
+  });
+
+  return (
+    <View style={styles.developerSection}>
+      <View style={styles.developerSectionHeader}>
+        <Text style={styles.environmentLabel}>{copy.settingsDeveloperTitle}</Text>
+        <Text style={styles.contractDescription}>{copy.settingsDeveloperDescription}</Text>
+      </View>
+      <MobileSyncStatusCard
+        items={[{ label: copy.syncBootstrapLabel, snapshot: bootstrapSyncState }]}
+      />
+      <EnvironmentCard />
+      <BootstrapContractCard />
+      <SettingsEvidenceList items={releaseEvidence} />
+      <SettingsEvidenceList items={storeEvidence} />
+      <ReleaseReadinessCard />
+      <StoreReadinessCard />
+      <MobileQualityGateCard />
     </View>
   );
 }
@@ -752,6 +1371,97 @@ function BootstrapStateNotice({
   );
 }
 
+type MobileSyncStatusItem = {
+  label: string;
+  snapshot: MobileSyncSnapshot;
+  visible?: boolean;
+};
+
+function MobileSyncStatusCard({ items }: { items: MobileSyncStatusItem[] }) {
+  const visibleItems = items.filter((item) => item.visible !== false);
+
+  if (visibleItems.length === 0) {
+    return null;
+  }
+
+  return (
+    <View style={styles.syncCard}>
+      <View style={styles.syncHeader}>
+        <Text style={styles.environmentLabel}>{copy.syncStatusTitle}</Text>
+        <Text style={styles.syncDescription}>{copy.syncStatusDescription}</Text>
+      </View>
+      <View style={styles.syncChipRow}>
+        {visibleItems.map((item) => {
+          const tone = getMobileSyncTone(item.snapshot);
+          const statusLabel = getMobileSyncStatusLabel(item.snapshot);
+
+          return (
+            <View
+              key={`${item.snapshot.source}-${item.label}`}
+              style={[
+                styles.syncChip,
+                tone === "fresh" && styles.syncChipFresh,
+                tone === "stale" && styles.syncChipStale,
+                tone === "error" && styles.syncChipError,
+              ]}
+            >
+              <View
+                style={[
+                  styles.syncDot,
+                  tone === "fresh" && styles.syncDotFresh,
+                  tone === "stale" && styles.syncDotStale,
+                  tone === "error" && styles.syncDotError,
+                ]}
+              />
+              <View style={styles.syncChipText}>
+                <Text style={styles.syncChipLabel}>{item.label}</Text>
+                <Text style={styles.syncChipValue}>{statusLabel}</Text>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function getMobileSyncTone(snapshot: MobileSyncSnapshot) {
+  if (snapshot.status === "error") {
+    return "error";
+  }
+
+  if (isMobileSyncStale(snapshot)) {
+    return "stale";
+  }
+
+  return "fresh";
+}
+
+function getMobileSyncStatusLabel(snapshot: MobileSyncSnapshot) {
+  if (snapshot.status === "syncing") {
+    return copy.syncRefreshing;
+  }
+
+  if (snapshot.status === "error") {
+    return `${copy.syncFailed} (${snapshot.failureCount})`;
+  }
+
+  const age = formatMobileSyncAge(snapshot.lastCompletedAt);
+
+  switch (age.kind) {
+    case "never":
+      return copy.syncNever;
+    case "now":
+      return copy.syncFreshNow;
+    case "seconds":
+      return `${copy.syncFresh} - ${age.value} ${copy.syncSecondsAgo}`;
+    case "minutes":
+      return `${copy.syncFresh} - ${age.value} ${copy.syncMinutesAgo}`;
+    default:
+      return copy.syncFresh;
+  }
+}
+
 function HomeSummaryCard({
   onRetry,
   state,
@@ -782,8 +1492,12 @@ function MetricTile({ label, value }: { label: string; value: number }) {
 }
 
 function RecentServersCard({
+  onOpenServer,
+  selectedServerId,
   servers,
 }: {
+  onOpenServer?(serverId: string): void;
+  selectedServerId?: string | null;
   servers: MobileBootstrapPayload["home"]["servers"]["recent"];
 }) {
   return (
@@ -792,7 +1506,24 @@ function RecentServersCard({
       {servers.length > 0 ? (
         <View style={styles.compactList}>
           {servers.map((server) => (
-            <View key={server.id} style={styles.compactListRow}>
+            <Pressable
+              key={server.id}
+              accessibilityRole={onOpenServer ? "button" : undefined}
+              accessibilityLabel={
+                onOpenServer
+                  ? `${copy.openWorkspaceServerAction}: ${server.name}`
+                  : server.name
+              }
+              accessibilityState={{ selected: server.id === selectedServerId }}
+              disabled={!onOpenServer}
+              onPress={() => onOpenServer?.(server.id)}
+              style={({ pressed }) => [
+                styles.compactListRow,
+                onOpenServer && styles.compactListRowButton,
+                server.id === selectedServerId && styles.compactListRowSelected,
+                pressed && styles.compactListRowPressed,
+              ]}
+            >
               <AvatarMark label={server.shortName ?? server.name} imageUrl={server.iconUrl} />
               <View style={styles.compactListText}>
                 <Text style={styles.compactListTitle} numberOfLines={1}>
@@ -803,7 +1534,7 @@ function RecentServersCard({
                   {copy.channelsSuffix}
                 </Text>
               </View>
-            </View>
+            </Pressable>
           ))}
         </View>
       ) : (
@@ -813,27 +1544,369 @@ function RecentServersCard({
   );
 }
 
+function WorkspacePreviewCard({
+  bootstrapState,
+  channelMessagesState,
+  onOpenChannel,
+  onOpenServer,
+  onRefreshChannel,
+  onRefreshServer,
+  selectedChannelId,
+  selectedServerId,
+  serverState,
+}: {
+  bootstrapState: MobileBootstrapViewState;
+  channelMessagesState: MobileChannelMessagesViewState;
+  onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
+  onOpenServer(serverId: string): void;
+  onRefreshChannel(): void;
+  onRefreshServer(): void;
+  selectedChannelId: string | null;
+  selectedServerId: string | null;
+  serverState: MobileWorkspaceServerViewState;
+}) {
+  if (bootstrapState.status !== "ready") {
+    return null;
+  }
+
+  const selectedChannel =
+    serverState.status === "ready" && selectedChannelId
+      ? getMobileWorkspaceChannels(serverState.payload.detail).find(
+          (channel) => channel.id === selectedChannelId,
+        ) ?? null
+      : null;
+
+  return (
+    <View style={styles.workspaceCard}>
+      <View style={styles.workspaceHeader}>
+        <View style={styles.workspaceHeaderText}>
+          <Text style={styles.environmentLabel}>{copy.workspaceTitle}</Text>
+          <Text style={styles.contractDescription}>{copy.workspaceDescription}</Text>
+        </View>
+        {serverState.status === "ready" ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.retryAction}
+            onPress={onRefreshServer}
+            style={({ pressed }) => [
+              styles.dmRefreshButton,
+              pressed && styles.actionButtonPressed,
+            ]}
+          >
+            <Text style={styles.dmRefreshButtonText}>{copy.refreshShortAction}</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      <RecentServersCard
+        servers={bootstrapState.payload.home.servers.recent}
+        selectedServerId={selectedServerId}
+        onOpenServer={onOpenServer}
+      />
+
+      {serverState.status === "loading" && !serverState.payload ? (
+        <Text style={styles.contractDescription}>{copy.workspaceLoading}</Text>
+      ) : null}
+
+      {serverState.status === "error" ? (
+        <View style={styles.dmErrorRow}>
+          <Text style={styles.errorText}>{serverState.error}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.retryAction}
+            onPress={onRefreshServer}
+            style={({ pressed }) => [
+              styles.retryButton,
+              pressed && styles.actionButtonPressed,
+            ]}
+          >
+            <Text style={styles.retryButtonText}>{copy.retryAction}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {serverState.status === "idle" ? (
+        <Text style={styles.contractDescription}>{copy.workspaceSelectServer}</Text>
+      ) : null}
+
+      {serverState.status === "ready" ? (
+        <>
+          <View style={styles.workspaceSelectedServer}>
+            <AvatarMark
+              label={serverState.payload.detail.server.shortName ?? serverState.payload.detail.server.name}
+              imageUrl={serverState.payload.detail.server.iconUrl}
+              size="large"
+            />
+            <View style={styles.compactListText}>
+              <Text style={styles.compactListTitle} numberOfLines={1}>
+                {serverState.payload.detail.server.name}
+              </Text>
+              <View style={styles.dmMetaRow}>
+                <StatusChip
+                  label={`${serverState.payload.detail.server.memberCount} ${copy.membersSuffix}`}
+                  tone="muted"
+                />
+                <StatusChip
+                  label={`${serverState.payload.detail.server.visibleChannelCount} ${copy.channelsSuffix}`}
+                  tone="muted"
+                />
+                {serverState.payload.detail.server.unreadCount > 0 ? (
+                  <StatusChip
+                    label={`${serverState.payload.detail.server.unreadCount} ${copy.unreadSuffix}`}
+                    tone="accent"
+                  />
+                ) : null}
+              </View>
+            </View>
+          </View>
+          <WorkspaceChannelList
+            channels={getMobileWorkspaceChannels(serverState.payload.detail)}
+            selectedChannelId={selectedChannelId}
+            onOpenChannel={onOpenChannel}
+          />
+          {serverState.payload.detail.hasMoreChannels ? (
+            <Text style={styles.workspaceHint}>{copy.workspaceMoreChannelsHidden}</Text>
+          ) : null}
+          {selectedChannel?.type === "VOICE" ? (
+            <EmptyState tone="success" label={copy.workspaceVoiceUnavailable} />
+          ) : selectedChannel?.type === "TEXT" ? (
+            <ChannelMessagesPreviewCard
+              channel={selectedChannel}
+              state={channelMessagesState}
+              onRetry={onRefreshChannel}
+            />
+          ) : (
+            <Text style={styles.contractDescription}>{copy.workspaceSelectChannel}</Text>
+          )}
+        </>
+      ) : null}
+    </View>
+  );
+}
+
+function WorkspaceChannelList({
+  channels,
+  onOpenChannel,
+  selectedChannelId,
+}: {
+  channels: MobileWorkspaceChannelSummary[];
+  onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
+  selectedChannelId: string | null;
+}) {
+  if (channels.length === 0) {
+    return <Text style={styles.contractDescription}>{copy.workspaceNoChannels}</Text>;
+  }
+
+  return (
+    <View style={styles.workspaceChannelList}>
+      {channels.map((channel) => {
+        const isSelected = channel.id === selectedChannelId;
+        const typeLabel =
+          channel.type === "TEXT" ? copy.workspaceTextChannel : copy.workspaceVoiceChannel;
+        const priority = getMobileChannelPriority(channel);
+
+        return (
+          <Pressable
+            key={channel.id}
+            accessibilityRole="button"
+            accessibilityLabel={`${copy.openWorkspaceChannelAction}: ${channel.name}`}
+            accessibilityState={{ selected: isSelected }}
+            onPress={() => onOpenChannel(channel)}
+            style={({ pressed }) => [
+              styles.workspaceChannelRow,
+              isSelected && styles.compactListRowSelected,
+              pressed && styles.compactListRowPressed,
+            ]}
+          >
+            <Text style={styles.workspaceChannelIcon}>
+              {channel.type === "TEXT" ? "#" : "V"}
+            </Text>
+            <View style={styles.compactListText}>
+              <View style={styles.compactListTitleRow}>
+                <Text style={styles.compactListTitle} numberOfLines={1}>
+                  {channel.name}
+                </Text>
+                {priority.hasMentions ? (
+                  <Text style={styles.channelMentionBadge}>{channel.mentionCount}</Text>
+                ) : null}
+              </View>
+              <View style={styles.dmMetaRow}>
+                <StatusChip label={typeLabel} tone={channel.type === "VOICE" ? "success" : "muted"} />
+                {channel.categoryName ? (
+                  <StatusChip label={channel.categoryName} tone="muted" />
+                ) : null}
+                {priority.hasUnread ? (
+                  <StatusChip label={`${channel.unreadCount} ${copy.unreadSuffix}`} tone="accent" />
+                ) : null}
+                {priority.isLocked ? (
+                  <StatusChip label={copy.workspaceLockedLabel} tone="muted" />
+                ) : null}
+                {priority.isReadOnly ? (
+                  <StatusChip label={copy.workspaceReadOnlyLabel} tone="muted" />
+                ) : null}
+              </View>
+            </View>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function ChannelMessagesPreviewCard({
+  channel,
+  onRetry,
+  state,
+}: {
+  channel: MobileWorkspaceChannelSummary;
+  onRetry(): void;
+  state: MobileChannelMessagesViewState;
+}) {
+  return (
+    <View style={styles.dmPreviewCard}>
+      <View style={styles.dmPreviewHeader}>
+        <Text style={styles.workspaceChannelIconLarge}>#</Text>
+        <View style={styles.dmPreviewTitleBlock}>
+          <Text style={styles.dmPreviewTitle} numberOfLines={1}>
+            {state.payload?.channel.name ?? channel.name}
+          </Text>
+          <View style={styles.dmMetaRow}>
+            <StatusChip label={copy.workspaceTextChannel} tone="muted" />
+            {channel.unreadCount > 0 ? (
+              <StatusChip label={`${channel.unreadCount} ${copy.unreadSuffix}`} tone="accent" />
+            ) : null}
+          </View>
+          {channel.topic ? (
+            <Text style={styles.dmPreviewMeta} numberOfLines={2}>
+              {channel.topic}
+            </Text>
+          ) : null}
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.retryAction}
+          onPress={onRetry}
+          style={({ pressed }) => [
+            styles.dmRefreshButton,
+            pressed && styles.actionButtonPressed,
+          ]}
+        >
+          <Text style={styles.dmRefreshButtonText}>{copy.refreshShortAction}</Text>
+        </Pressable>
+      </View>
+
+      {state.status === "loading" && !state.payload ? (
+        <Text style={styles.contractDescription}>{copy.workspaceMessagesLoading}</Text>
+      ) : null}
+      {state.status === "error" ? (
+        <View style={styles.dmErrorRow}>
+          <Text style={styles.errorText}>{state.error}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.retryAction}
+            onPress={onRetry}
+            style={({ pressed }) => [
+              styles.retryButton,
+              pressed && styles.actionButtonPressed,
+            ]}
+          >
+            <Text style={styles.retryButtonText}>{copy.retryAction}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {state.payload && state.payload.messages.length > 0 ? (
+        <View style={styles.dmMessageList}>
+          {state.payload.messages.map((message) => (
+            <MessagePreviewRow key={message.id} message={message} />
+          ))}
+        </View>
+      ) : null}
+      {state.status === "ready" && state.payload.messages.length === 0 ? (
+        <Text style={styles.contractDescription}>{copy.workspaceNoMessages}</Text>
+      ) : null}
+    </View>
+  );
+}
+
+function MessagePreviewRow({
+  message,
+  own = false,
+}: {
+  message: ChatMessage | MobileDMMessagesResponse["messages"][number];
+  own?: boolean;
+}) {
+  const body = getMobileMessageBodyPreview(message, {
+    attachmentOnly: copy.dmAttachmentOnlyMessage,
+    deleted: copy.dmDeletedMessage,
+  });
+  const { attachmentCount, reactionCount } = getMobileMessageEngagementCounts(message);
+
+  return (
+    <View style={[styles.messagePreviewRow, own && styles.messagePreviewRowOwn]}>
+      {!own ? (
+        <AvatarMark
+          label={message.author.displayName ?? message.author.username}
+          imageUrl={message.author.avatarUrl}
+          size="small"
+          status={message.author.status === "ONLINE" ? "active" : "idle"}
+        />
+      ) : null}
+      <View style={[styles.messagePreviewBubble, own && styles.messagePreviewBubbleOwn]}>
+        <View style={styles.dmMessageHeader}>
+          <Text style={styles.dmMessageAuthor} numberOfLines={1}>
+            {own ? copy.messageYouLabel : message.author.displayName ?? message.author.username}
+          </Text>
+          <Text style={styles.dmMessageTime}>{formatMobileDisplayTime(message.createdAt)}</Text>
+        </View>
+        <Text style={styles.dmMessageBody} numberOfLines={4}>
+          {body}
+        </Text>
+        {attachmentCount > 0 || reactionCount > 0 ? (
+          <Text style={styles.dmMessageMeta} numberOfLines={1}>
+            {attachmentCount > 0 ? `${attachmentCount} ${copy.attachmentsSuffix}` : ""}
+            {attachmentCount > 0 && reactionCount > 0 ? " - " : ""}
+            {reactionCount > 0 ? `${reactionCount} ${copy.reactionsSuffix}` : ""}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 function DirectMessageListCard({
   conversations,
   onOpenConversation,
   selectedConversationId,
+  totalCount,
+  unreadCount,
 }: {
   conversations: MobileBootstrapPayload["home"]["directMessages"]["recent"];
   onOpenConversation(conversationId: string): void;
   selectedConversationId: string | null;
+  totalCount: number;
+  unreadCount: number;
 }) {
   return (
-    <View style={styles.contractCard}>
-      <Text style={styles.environmentLabel}>{copy.homeRecentDmsTitle}</Text>
+    <View style={styles.dmListCard}>
+      <View style={styles.cardHeaderRow}>
+        <View style={styles.cardHeaderText}>
+          <Text style={styles.environmentLabel}>{copy.homeRecentDmsTitle}</Text>
+          <Text style={styles.contractDescription}>{copy.messagesDescription}</Text>
+        </View>
+        <View style={styles.dmListMetricStack}>
+          <MetricMiniPill label={copy.homeDmLabel} value={totalCount} />
+          <MetricMiniPill label={copy.homeUnreadLabel} value={unreadCount} />
+        </View>
+      </View>
       <View style={styles.compactList}>
         {conversations.map((conversation) => {
-          const title =
-            conversation.name ??
-            conversation.participants
-              .map((participant) => participant.displayName ?? participant.username)
-              .join(", ") ??
-            copy.directMessageFallback;
+          const title = getMobileConversationTitle(
+            conversation,
+            copy.directMessageFallback,
+          );
           const isSelected = conversation.id === selectedConversationId;
+          const activeCount = getMobileConversationActiveCount(conversation);
+          const lastActivity = formatMobileDisplayTime(conversation.lastMessageAt);
 
           return (
             <Pressable
@@ -851,18 +1924,38 @@ function DirectMessageListCard({
                 pressed && styles.compactListRowPressed,
               ]}
             >
-              <AvatarMark label={title} imageUrl={conversation.iconUrl ?? conversation.participants[0]?.avatarUrl ?? null} />
+              <AvatarMark
+                label={getMobileConversationInitialsLabel(
+                  conversation,
+                  copy.directMessageFallback,
+                )}
+                imageUrl={getMobileConversationAvatarUrl(conversation)}
+                status={activeCount > 0 ? "active" : "idle"}
+              />
               <View style={styles.compactListText}>
-                <Text style={styles.compactListTitle} numberOfLines={1}>
-                  {title || copy.directMessageFallback}
-                </Text>
-                <Text style={styles.compactListMeta} numberOfLines={1}>
-                  {conversation.participantCount} {copy.peopleSuffix}
-                  {conversation.unreadCount > 0
-                    ? ` - ${conversation.unreadCount} ${copy.unreadSuffix}`
-                    : ""}
-                  {conversation.muted ? ` - ${copy.mutedSuffix}` : ""}
-                </Text>
+                <View style={styles.compactListTitleRow}>
+                  <Text style={styles.compactListTitle} numberOfLines={1}>
+                    {title || copy.directMessageFallback}
+                  </Text>
+                  {lastActivity ? (
+                    <Text style={styles.compactListTime}>{lastActivity}</Text>
+                  ) : null}
+                </View>
+                <View style={styles.dmMetaRow}>
+                  <StatusChip
+                    label={`${activeCount}/${conversation.participantCount} ${copy.activePeopleSuffix}`}
+                    tone={activeCount > 0 ? "success" : "muted"}
+                  />
+                  {conversation.unreadCount > 0 ? (
+                    <StatusChip
+                      label={`${conversation.unreadCount} ${copy.unreadSuffix}`}
+                      tone="accent"
+                    />
+                  ) : null}
+                  {conversation.muted ? (
+                    <StatusChip label={copy.mutedSuffix} tone="muted" />
+                  ) : null}
+                </View>
               </View>
             </Pressable>
           );
@@ -876,39 +1969,54 @@ function DMConversationPreviewCard({
   conversation,
   currentUserId,
   onRetry,
+  onSendMessage,
+  sendState,
   state,
 }: {
   conversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number] | null;
   currentUserId: string;
   onRetry(): void;
+  onSendMessage(content: string): Promise<boolean>;
+  sendState: MobileDMSendViewState;
   state: MobileDMMessagesViewState;
 }) {
   if (!conversation) {
     return <EmptyState tone="accent" label={copy.dmSelectConversation} />;
   }
 
-  const title = getMobileConversationTitle(conversation);
+  const title = getMobileConversationTitle(conversation, copy.directMessageFallback);
   const responseConversation = state.payload?.conversation;
   const participantCount =
     responseConversation?.participants.length ?? conversation.participantCount;
+  const activeCount = getMobileConversationActiveCount(conversation);
+  const conversationSendState =
+    sendState.conversationId === conversation.id ? sendState : INITIAL_DM_SEND_STATE;
 
   return (
     <View style={styles.dmPreviewCard}>
       <View style={styles.dmPreviewHeader}>
         <AvatarMark
           label={title}
-          imageUrl={conversation.iconUrl ?? conversation.participants[0]?.avatarUrl ?? null}
+          imageUrl={getMobileConversationAvatarUrl(conversation)}
+          size="large"
+          status={activeCount > 0 ? "active" : "idle"}
         />
         <View style={styles.dmPreviewTitleBlock}>
           <Text style={styles.dmPreviewTitle} numberOfLines={1}>
             {responseConversation?.name ?? title}
           </Text>
-          <Text style={styles.dmPreviewMeta} numberOfLines={1}>
-            {participantCount} {copy.peopleSuffix}
-            {conversation.unreadCount > 0
-              ? ` - ${conversation.unreadCount} ${copy.unreadSuffix}`
-              : ""}
-          </Text>
+          <View style={styles.dmMetaRow}>
+            <StatusChip
+              label={`${activeCount}/${participantCount} ${copy.activePeopleSuffix}`}
+              tone={activeCount > 0 ? "success" : "muted"}
+            />
+            {conversation.unreadCount > 0 ? (
+              <StatusChip
+                label={`${conversation.unreadCount} ${copy.unreadSuffix}`}
+                tone="accent"
+              />
+            ) : null}
+          </View>
         </View>
         <Pressable
           accessibilityRole="button"
@@ -919,7 +2027,7 @@ function DMConversationPreviewCard({
             pressed && styles.actionButtonPressed,
           ]}
         >
-          <Text style={styles.dmRefreshButtonText}>R</Text>
+          <Text style={styles.dmRefreshButtonText}>{copy.refreshShortAction}</Text>
         </Pressable>
       </View>
 
@@ -945,42 +2053,199 @@ function DMConversationPreviewCard({
       {state.payload && state.payload.messages.length > 0 ? (
         <View style={styles.dmMessageList}>
           {state.payload.messages.map((message) => (
-            <View
+            <MessagePreviewRow
               key={message.id}
-              style={[
-                styles.dmMessageRow,
-                message.userId === currentUserId && styles.dmMessageRowOwn,
-              ]}
-            >
-              <View style={styles.dmMessageHeader}>
-                <Text style={styles.dmMessageAuthor} numberOfLines={1}>
-                  {message.author.displayName ?? message.author.username}
-                </Text>
-                <Text style={styles.dmMessageTime}>{formatMobileMessageTime(message.createdAt)}</Text>
-              </View>
-              <Text style={styles.dmMessageBody} numberOfLines={4}>
-                {message.deletedAt
-                  ? copy.dmDeletedMessage
-                  : message.content.trim() || copy.dmAttachmentOnlyMessage}
-              </Text>
-              {message.attachments.length > 0 || message.reactions.length > 0 ? (
-                <Text style={styles.dmMessageMeta} numberOfLines={1}>
-                  {message.attachments.length > 0
-                    ? `${message.attachments.length} ${copy.attachmentsSuffix}`
-                    : ""}
-                  {message.attachments.length > 0 && message.reactions.length > 0 ? " - " : ""}
-                  {message.reactions.length > 0
-                    ? `${message.reactions.length} ${copy.reactionsSuffix}`
-                    : ""}
-                </Text>
-              ) : null}
-            </View>
+              message={message}
+              own={message.userId === currentUserId}
+            />
           ))}
         </View>
       ) : null}
       {state.status === "ready" && state.payload.messages.length === 0 ? (
         <Text style={styles.contractDescription}>{copy.dmNoMessages}</Text>
       ) : null}
+      {state.status === "ready" ? (
+        <DMComposer sendState={conversationSendState} onSend={onSendMessage} />
+      ) : null}
+    </View>
+  );
+}
+
+function DMComposer({
+  onSend,
+  sendState,
+}: {
+  onSend(content: string): Promise<boolean>;
+  sendState: MobileDMSendViewState;
+}) {
+  const [draft, setDraft] = useState("");
+  const trimmedDraft = draft.trim();
+  const isSending = sendState.status === "sending";
+  const isDisabled = isSending || trimmedDraft.length === 0;
+
+  const handleSend = useCallback(async () => {
+    if (isDisabled) {
+      return;
+    }
+
+    const didSend = await onSend(trimmedDraft);
+    if (didSend) {
+      setDraft("");
+    }
+  }, [isDisabled, onSend, trimmedDraft]);
+
+  return (
+    <View style={styles.dmComposer}>
+      <TextInput
+        accessibilityLabel={copy.dmComposerPlaceholder}
+        maxLength={2000}
+        multiline
+        onChangeText={setDraft}
+        placeholder={copy.dmComposerPlaceholder}
+        placeholderTextColor={mobileColors.mutedSoft}
+        style={styles.dmComposerInput}
+        value={draft}
+      />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={isSending ? copy.dmSendingAction : copy.dmSendAction}
+        accessibilityState={{ disabled: isDisabled }}
+        disabled={isDisabled}
+        onPress={() => void handleSend()}
+        style={({ pressed }) => [
+          styles.dmSendButton,
+          isDisabled && styles.dmSendButtonDisabled,
+          pressed && !isDisabled && styles.actionButtonPressed,
+        ]}
+      >
+        <Text style={styles.dmSendButtonText}>
+          {isSending ? copy.dmSendingAction : copy.dmSendAction}
+        </Text>
+      </Pressable>
+      {sendState.status === "error" && sendState.error ? (
+        <Text style={styles.dmSendErrorText}>{sendState.error}</Text>
+      ) : null}
+    </View>
+  );
+}
+
+function MetricMiniPill({ label, value }: { label: string; value: number }) {
+  return (
+    <View style={styles.metricMiniPill}>
+      <Text style={styles.metricMiniValue}>{value}</Text>
+      <Text style={styles.metricMiniLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function StatusChip({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: "accent" | "muted" | "success";
+}) {
+  return (
+    <View
+      style={[
+        styles.statusChip,
+        tone === "accent" && styles.statusChipAccent,
+        tone === "success" && styles.statusChipSuccess,
+      ]}
+    >
+      <View
+        style={[
+          styles.statusChipDot,
+          tone === "accent" && styles.statusChipDotAccent,
+          tone === "success" && styles.statusChipDotSuccess,
+        ]}
+      />
+      <Text style={styles.statusChipText} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function SettingsSection({
+  children,
+  description,
+  title,
+}: {
+  children: ReactNode;
+  description: string;
+  title: string;
+}) {
+  return (
+    <View style={styles.settingsSection}>
+      <View style={styles.settingsSectionHeader}>
+        <Text style={styles.environmentLabel}>{title}</Text>
+        <Text style={styles.contractDescription}>{description}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+function SettingsEvidenceGrid({ items }: { items: readonly MobileSettingsEvidenceItem[] }) {
+  return (
+    <View style={styles.settingsEvidenceGrid}>
+      {items.map((item) => (
+        <View
+          key={item.id}
+          style={[
+            styles.settingsEvidenceTile,
+            item.tone === "success" && styles.settingsEvidenceTileSuccess,
+            item.tone === "warning" && styles.settingsEvidenceTileWarning,
+            item.tone === "danger" && styles.settingsEvidenceTileDanger,
+          ]}
+        >
+          <Text style={styles.settingsEvidenceLabel}>{item.label}</Text>
+          <Text style={styles.settingsEvidenceValue} numberOfLines={1}>
+            {item.value}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function SettingsEvidenceList({ items }: { items: readonly MobileSettingsEvidenceItem[] }) {
+  return (
+    <View style={styles.settingsEvidenceList}>
+      {items.map((item) => (
+        <View key={item.id} style={styles.settingsEvidenceRow}>
+          <View
+            style={[
+              styles.settingsEvidenceDot,
+              item.tone === "success" && styles.settingsEvidenceDotSuccess,
+              item.tone === "warning" && styles.settingsEvidenceDotWarning,
+              item.tone === "danger" && styles.settingsEvidenceDotDanger,
+            ]}
+          />
+          <View style={styles.settingsEvidenceRowText}>
+            <Text style={styles.settingsEvidenceRowTitle} numberOfLines={1}>
+              {item.label}
+            </Text>
+            {item.description ? (
+              <Text style={styles.settingsEvidenceDescription} numberOfLines={2}>
+                {item.description}
+              </Text>
+            ) : null}
+          </View>
+          <Text
+            style={[
+              styles.settingsEvidenceRowValue,
+              item.tone === "success" && styles.settingsEvidenceRowValueSuccess,
+              item.tone === "warning" && styles.settingsEvidenceRowValueWarning,
+              item.tone === "danger" && styles.settingsEvidenceRowValueDanger,
+            ]}
+            numberOfLines={1}
+          >
+            {item.value}
+          </Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -1010,22 +2275,50 @@ function FeatureStatusCard({
   );
 }
 
-function AvatarMark({ imageUrl, label }: { imageUrl: string | null; label: string }) {
+function AvatarMark({
+  imageUrl,
+  label,
+  size = "regular",
+  status,
+}: {
+  imageUrl: string | null;
+  label: string;
+  size?: "large" | "regular" | "small";
+  status?: "active" | "idle";
+}) {
   const fallback = label.trim().slice(0, 2).toUpperCase() || "W";
+  const avatarStyles = [
+    styles.avatarMark,
+    size === "large" && styles.avatarMarkLarge,
+    size === "small" && styles.avatarMarkSmall,
+  ];
+  const avatarShellStyles = [
+    styles.avatarShell,
+    size === "large" && styles.avatarShellLarge,
+    size === "small" && styles.avatarShellSmall,
+  ];
 
   if (imageUrl) {
     return (
-      <Image
-        source={{ uri: imageUrl }}
-        style={styles.avatarMark}
-        accessibilityIgnoresInvertColors
-      />
+      <View style={avatarShellStyles}>
+        <Image
+          source={{ uri: imageUrl }}
+          style={avatarStyles}
+          accessibilityIgnoresInvertColors
+        />
+        {status ? <View style={[styles.avatarStatus, status === "active" && styles.avatarStatusActive]} /> : null}
+      </View>
     );
   }
 
   return (
-    <View style={styles.avatarMark}>
-      <Text style={styles.avatarMarkText}>{fallback}</Text>
+    <View style={avatarShellStyles}>
+      <View style={avatarStyles}>
+        <Text style={[styles.avatarMarkText, size === "small" && styles.avatarMarkTextSmall]}>
+          {fallback}
+        </Text>
+      </View>
+      {status ? <View style={[styles.avatarStatus, status === "active" && styles.avatarStatusActive]} /> : null}
     </View>
   );
 }
@@ -1042,6 +2335,32 @@ function ReleaseReadinessCard() {
             <Text style={styles.releaseBudgetTarget}>{budget.target}</Text>
           </View>
         ))}
+      </View>
+    </View>
+  );
+}
+
+function StoreReadinessCard() {
+  const isReady = mobileStoreReadiness.blockers.length === 0;
+
+  return (
+    <View style={[styles.contractCard, isReady && styles.storeReadyCard]}>
+      <Text style={styles.environmentLabel}>{copy.storeTitle}</Text>
+      <Text style={styles.contractTitle}>
+        {isReady ? copy.storeReady : copy.storeNeedsReview}
+      </Text>
+      <Text style={styles.contractDescription}>{copy.storeDescription}</Text>
+      <View style={styles.releaseBudgetRow}>
+        <Text style={styles.releaseBudgetMetric}>{copy.storePermissionsLabel}</Text>
+        <Text style={styles.releaseBudgetTarget}>
+          {mobileStoreReadiness.permissionCount}
+        </Text>
+      </View>
+      <View style={styles.releaseBudgetRow}>
+        <Text style={styles.releaseBudgetMetric}>{copy.storePrivacyLabel}</Text>
+        <Text style={styles.releaseBudgetTarget}>
+          {mobileStoreReadiness.privacyRequirementCount}
+        </Text>
       </View>
     </View>
   );
@@ -1090,11 +2409,7 @@ function MobileQualityGateCard() {
 function SessionDiagnostics({
   diagnostics,
 }: {
-  diagnostics: {
-    hasRefreshToken: boolean;
-    hasSession: boolean;
-    scopeCount: number;
-  };
+  diagnostics: MobileSessionDiagnostics;
 }) {
   return (
     <View style={styles.diagnosticsRow}>
@@ -1218,31 +2533,29 @@ function getDeepLinkStatusLabel(result: MobileDeepLinkParseResult | null) {
   }
 }
 
-function getMobileConversationTitle(
-  conversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number],
-) {
-  const participantNames = conversation.participants
-    .map((participant) => participant.displayName ?? participant.username)
-    .filter(Boolean);
+function parseMobileChannelsRoute(
+  path: string,
+): { channelId: string | null; serverId: string } | null {
+  const pathname = path.split(/[?#]/, 1)[0] ?? "";
+  const segments = pathname
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => {
+      try {
+        return decodeURIComponent(segment);
+      } catch {
+        return segment;
+      }
+    });
 
-  return (
-    conversation.name ??
-    (participantNames.length > 0
-      ? participantNames.join(", ")
-      : copy.directMessageFallback)
-  );
-}
-
-function formatMobileMessageTime(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "";
+  if (segments[0] !== "channels" || !segments[1]) {
+    return null;
   }
 
-  return new Intl.DateTimeFormat("tr-TR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return {
+    channelId: segments[2] ?? null,
+    serverId: segments[1],
+  };
 }
 
 function DiagnosticPill({ label, value }: { label: string; value: string }) {
@@ -1250,15 +2563,6 @@ function DiagnosticPill({ label, value }: { label: string; value: string }) {
     <View style={styles.diagnosticPill}>
       <Text style={styles.diagnosticLabel}>{label}</Text>
       <Text style={styles.diagnosticValue}>{value}</Text>
-    </View>
-  );
-}
-
-function Guardrail({ label }: { label: string }) {
-  return (
-    <View style={styles.guardrail}>
-      <View style={styles.guardrailDot} />
-      <Text style={styles.guardrailText}>{label}</Text>
     </View>
   );
 }
@@ -1298,101 +2602,6 @@ function ActionButton({
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: mobileColors.background,
-  },
-  shell: {
-    flex: 1,
-    paddingHorizontal: mobileSpacing.page,
-    paddingTop: 8,
-    minWidth: 0,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    minWidth: 0,
-    borderWidth: 1,
-    borderColor: mobileColors.border,
-    borderRadius: mobileRadii.card,
-    backgroundColor: mobileColors.card,
-    padding: 14,
-    shadowColor: "#4F46E5",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 22,
-    elevation: 2,
-  },
-  logo: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-  },
-  headerText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  eyebrow: {
-    color: mobileColors.accentStrong,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.8,
-    textTransform: "uppercase",
-  },
-  title: {
-    marginTop: 2,
-    color: mobileColors.text,
-    fontSize: 22,
-    fontWeight: "800",
-  },
-  subtitle: {
-    marginTop: 2,
-    color: mobileColors.muted,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "600",
-  },
-  statusBadge: {
-    maxWidth: 92,
-    minWidth: 0,
-    minHeight: 38,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    borderWidth: 1,
-    borderColor: "#DDD6FE",
-    borderRadius: mobileRadii.pill,
-    backgroundColor: "#F5F3FF",
-    paddingHorizontal: 10,
-  },
-  statusBadgeText: {
-    flex: 1,
-    color: mobileColors.text,
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  authStatusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: mobileRadii.pill,
-    backgroundColor: mobileColors.warning,
-  },
-  authStatusDotReady: {
-    backgroundColor: mobileColors.success,
-  },
-  authStatusDotChecking: {
-    backgroundColor: mobileColors.mutedSoft,
-  },
-  contentScroll: {
-    flex: 1,
-    minWidth: 0,
-  },
-  content: {
-    flexGrow: 1,
-    paddingVertical: mobileSpacing.section,
-    minWidth: 0,
-  },
   screenCard: {
     flexGrow: 1,
     gap: 10,
@@ -1432,30 +2641,188 @@ const styles = StyleSheet.create({
     marginTop: 8,
     minWidth: 0,
   },
-  guardrailList: {
-    gap: 9,
-  },
-  guardrail: {
+  settingsHeroCard: {
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
     borderRadius: mobileRadii.control,
-    backgroundColor: "#F5F3FF",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    backgroundColor: "#F8FAFF",
+    padding: 12,
   },
-  guardrailDot: {
+  settingsHeroText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  settingsHeroTitle: {
+    color: mobileColors.text,
+    fontSize: 17,
+    fontWeight: "900",
+  },
+  settingsHeroMeta: {
+    color: mobileColors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
+  },
+  settingsHeroBadge: {
+    maxWidth: 128,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  settingsHeroBadgeText: {
+    color: mobileColors.accentStrong,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  settingsSection: {
+    gap: 10,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FAFBFF",
+    padding: 12,
+  },
+  settingsSectionHeader: {
+    gap: 4,
+    minWidth: 0,
+  },
+  settingsSummaryRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    minWidth: 0,
+  },
+  settingsEvidenceGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    minWidth: 0,
+  },
+  settingsEvidenceTile: {
+    flexGrow: 1,
+    flexBasis: 92,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  settingsEvidenceTileSuccess: {
+    borderColor: "#BBF7D0",
+    backgroundColor: "#F0FDF4",
+  },
+  settingsEvidenceTileWarning: {
+    borderColor: "#FED7AA",
+    backgroundColor: "#FFF7ED",
+  },
+  settingsEvidenceTileDanger: {
+    borderColor: "#FECACA",
+    backgroundColor: "#FEF2F2",
+  },
+  settingsEvidenceLabel: {
+    color: mobileColors.mutedSoft,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
+  },
+  settingsEvidenceValue: {
+    marginTop: 4,
+    color: mobileColors.text,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  settingsEvidenceList: {
+    gap: 7,
+    minWidth: 0,
+  },
+  settingsEvidenceRow: {
+    minHeight: 46,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  settingsEvidenceDot: {
     width: 9,
     height: 9,
     borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.mutedSoft,
+  },
+  settingsEvidenceDotSuccess: {
     backgroundColor: mobileColors.success,
   },
-  guardrailText: {
+  settingsEvidenceDotWarning: {
+    backgroundColor: mobileColors.warning,
+  },
+  settingsEvidenceDotDanger: {
+    backgroundColor: "#EF4444",
+  },
+  settingsEvidenceRowText: {
     flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  settingsEvidenceRowTitle: {
     color: mobileColors.text,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  settingsEvidenceDescription: {
+    color: mobileColors.muted,
+    fontSize: 11,
+    lineHeight: 15,
     fontWeight: "700",
+  },
+  settingsEvidenceRowValue: {
+    maxWidth: 92,
+    color: mobileColors.muted,
+    fontSize: 12,
+    fontWeight: "900",
+    textAlign: "right",
+  },
+  settingsEvidenceRowValueSuccess: {
+    color: "#047857",
+  },
+  settingsEvidenceRowValueWarning: {
+    color: "#B45309",
+  },
+  settingsEvidenceRowValueDanger: {
+    color: "#B91C1C",
+  },
+  settingsFootnote: {
+    color: mobileColors.mutedSoft,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "700",
+  },
+  developerSection: {
+    gap: 10,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.card,
+    backgroundColor: "#FAFBFF",
+    padding: 12,
+  },
+  developerSectionHeader: {
+    gap: 4,
+    minWidth: 0,
   },
   environmentCard: {
     gap: 4,
@@ -1474,6 +2841,217 @@ const styles = StyleSheet.create({
     borderRadius: mobileRadii.control,
     backgroundColor: "#FAFBFF",
     padding: 14,
+  },
+  dmListCard: {
+    gap: 10,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FAFBFF",
+    padding: 12,
+  },
+  cardHeaderRow: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  cardHeaderText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  dmListMetricStack: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    gap: 6,
+    maxWidth: 128,
+  },
+  metricMiniPill: {
+    minWidth: 52,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+  },
+  metricMiniValue: {
+    color: mobileColors.text,
+    fontSize: 16,
+    lineHeight: 18,
+    fontWeight: "900",
+  },
+  metricMiniLabel: {
+    marginTop: 2,
+    color: mobileColors.mutedSoft,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
+  },
+  storeReadyCard: {
+    borderColor: "#BBF7D0",
+    backgroundColor: "#F8FFFB",
+  },
+  syncCard: {
+    gap: 10,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FFFFFF",
+    padding: 12,
+  },
+  syncHeader: {
+    gap: 3,
+    minWidth: 0,
+  },
+  syncDescription: {
+    color: mobileColors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
+  },
+  syncChipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    minWidth: 0,
+  },
+  syncChip: {
+    minHeight: 44,
+    minWidth: 118,
+    flexGrow: 1,
+    flexBasis: "47%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  syncChipFresh: {
+    borderColor: "#BBF7D0",
+    backgroundColor: "#F0FDF4",
+  },
+  syncChipStale: {
+    borderColor: "#FED7AA",
+    backgroundColor: "#FFF7ED",
+  },
+  syncChipError: {
+    borderColor: "#FECACA",
+    backgroundColor: "#FEF2F2",
+  },
+  syncDot: {
+    width: 9,
+    height: 9,
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.mutedSoft,
+  },
+  syncDotFresh: {
+    backgroundColor: mobileColors.success,
+  },
+  syncDotStale: {
+    backgroundColor: mobileColors.warning,
+  },
+  syncDotError: {
+    backgroundColor: "#EF4444",
+  },
+  syncChipText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  syncChipLabel: {
+    color: mobileColors.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  syncChipValue: {
+    color: mobileColors.muted,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "700",
+  },
+  workspaceCard: {
+    gap: 10,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.card,
+    backgroundColor: "#FAFBFF",
+    padding: 12,
+  },
+  workspaceHeader: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  workspaceHeaderText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  workspaceSelectedServer: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#F5F3FF",
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  workspaceHint: {
+    color: mobileColors.mutedSoft,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
+  },
+  workspaceChannelList: {
+    gap: 7,
+    minWidth: 0,
+  },
+  workspaceChannelRow: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "transparent",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  workspaceChannelIcon: {
+    width: 28,
+    color: mobileColors.accentStrong,
+    fontSize: 15,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  workspaceChannelIconLarge: {
+    width: 34,
+    height: 34,
+    borderRadius: 13,
+    overflow: "hidden",
+    backgroundColor: "#EEF2FF",
+    color: mobileColors.accentStrong,
+    fontSize: 18,
+    fontWeight: "900",
+    lineHeight: 34,
+    textAlign: "center",
   },
   contractTitle: {
     color: mobileColors.text,
@@ -1589,9 +3167,22 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  compactListTitleRow: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   compactListTitle: {
+    flex: 1,
+    minWidth: 0,
     color: mobileColors.text,
     fontSize: 14,
+    fontWeight: "900",
+  },
+  compactListTime: {
+    color: mobileColors.mutedSoft,
+    fontSize: 11,
     fontWeight: "900",
   },
   compactListMeta: {
@@ -1599,6 +3190,76 @@ const styles = StyleSheet.create({
     color: mobileColors.muted,
     fontSize: 12,
     fontWeight: "700",
+  },
+  dmMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 6,
+    minWidth: 0,
+  },
+  statusChip: {
+    minHeight: 24,
+    maxWidth: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 8,
+  },
+  statusChipAccent: {
+    borderColor: "#C4B5FD",
+    backgroundColor: "#F5F3FF",
+  },
+  statusChipSuccess: {
+    borderColor: "#BBF7D0",
+    backgroundColor: "#F0FDF4",
+  },
+  statusChipDot: {
+    width: 6,
+    height: 6,
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.mutedSoft,
+  },
+  statusChipDotAccent: {
+    backgroundColor: mobileColors.accentStrong,
+  },
+  statusChipDotSuccess: {
+    backgroundColor: mobileColors.success,
+  },
+  statusChipText: {
+    flexShrink: 1,
+    color: mobileColors.muted,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  channelMentionBadge: {
+    minWidth: 24,
+    overflow: "hidden",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.accentStrong,
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "900",
+    lineHeight: 22,
+    textAlign: "center",
+    paddingHorizontal: 7,
+  },
+  avatarShell: {
+    position: "relative",
+    width: 38,
+    height: 38,
+  },
+  avatarShellLarge: {
+    width: 44,
+    height: 44,
+  },
+  avatarShellSmall: {
+    width: 28,
+    height: 28,
   },
   avatarMark: {
     width: 38,
@@ -1608,10 +3269,37 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: "#EDE9FE",
   },
+  avatarMarkLarge: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+  },
+  avatarMarkSmall: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+  },
   avatarMarkText: {
     color: mobileColors.accentStrong,
     fontSize: 12,
     fontWeight: "900",
+  },
+  avatarMarkTextSmall: {
+    fontSize: 10,
+  },
+  avatarStatus: {
+    position: "absolute",
+    right: -1,
+    bottom: -1,
+    width: 12,
+    height: 12,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.mutedSoft,
+  },
+  avatarStatusActive: {
+    backgroundColor: mobileColors.success,
   },
   dmPreviewCard: {
     gap: 10,
@@ -1644,7 +3332,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   dmRefreshButton: {
-    width: 38,
+    minWidth: 54,
     height: 38,
     alignItems: "center",
     justifyContent: "center",
@@ -1652,6 +3340,7 @@ const styles = StyleSheet.create({
     borderColor: "#DDD6FE",
     borderRadius: mobileRadii.pill,
     backgroundColor: "#F5F3FF",
+    paddingHorizontal: 10,
   },
   dmRefreshButtonText: {
     color: mobileColors.accentStrong,
@@ -1665,6 +3354,34 @@ const styles = StyleSheet.create({
   dmMessageList: {
     gap: 8,
     minWidth: 0,
+  },
+  messagePreviewRow: {
+    width: "100%",
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 9,
+  },
+  messagePreviewRowOwn: {
+    justifyContent: "flex-end",
+  },
+  messagePreviewBubble: {
+    flexShrink: 1,
+    maxWidth: "86%",
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: 18,
+    borderBottomLeftRadius: 8,
+    backgroundColor: "#FAFBFF",
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+  },
+  messagePreviewBubbleOwn: {
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 8,
+    borderColor: "#DDD6FE",
+    backgroundColor: "#F5F3FF",
   },
   dmMessageRow: {
     alignSelf: "flex-start",
@@ -1684,6 +3401,15 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 8,
     borderColor: "#DDD6FE",
     backgroundColor: "#F5F3FF",
+  },
+  channelMessageRow: {
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: 16,
+    backgroundColor: "#FAFBFF",
+    paddingHorizontal: 11,
+    paddingVertical: 9,
   },
   dmMessageHeader: {
     flexDirection: "row",
@@ -1715,6 +3441,51 @@ const styles = StyleSheet.create({
     color: mobileColors.accentStrong,
     fontSize: 11,
     fontWeight: "800",
+  },
+  dmComposer: {
+    gap: 8,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FAFBFF",
+    padding: 8,
+  },
+  dmComposerInput: {
+    minHeight: 44,
+    maxHeight: 112,
+    minWidth: 0,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    color: mobileColors.text,
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    textAlignVertical: "top",
+  },
+  dmSendButton: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.accentStrong,
+    paddingHorizontal: 14,
+  },
+  dmSendButtonDisabled: {
+    backgroundColor: "#C7D2FE",
+  },
+  dmSendButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  dmSendErrorText: {
+    color: "#EF4444",
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17,
   },
   releaseBudgetList: {
     gap: 7,

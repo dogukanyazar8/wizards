@@ -1,11 +1,7 @@
 import type { ConfigContext, ExpoConfig } from "expo/config";
 import pkg from "./package.json";
+import storeContractData from "./src/release/mobile-store-contract-data.json";
 
-const APP_NAME = "Whispr";
-const APP_SLUG = "whispr-mobile";
-const APP_SCHEME = "whispr";
-const BUNDLE_IDENTIFIER = "team.whispr.mobile";
-const ANDROID_PACKAGE = "team.whispr.mobile";
 const EAS_PROJECT_ID = "3b8b3f68-dd6c-4c9c-84e7-10ed8f4b2aad";
 const MOBILE_ENVIRONMENTS = ["development", "uat", "canary", "production"] as const;
 
@@ -18,6 +14,25 @@ type MobilePublicConfig = {
   socketUrl: string;
   webUrl: string;
 };
+
+const WHISPR_MOBILE_APP_IDENTITY = storeContractData.appIdentity;
+const WHISPR_MOBILE_ICON = storeContractData.icon;
+
+function getWhisprMobileAndroidPermissions(): string[] {
+  return storeContractData.permissionDisclosures.flatMap((disclosure) =>
+    disclosure.androidPermission ? [disclosure.androidPermission] : [],
+  );
+}
+
+function getWhisprMobileIosInfoPlistUsageDescriptions(): Record<string, string> {
+  return Object.fromEntries(
+    storeContractData.permissionDisclosures.flatMap((disclosure) =>
+      disclosure.iosInfoPlistKey
+        ? [[disclosure.iosInfoPlistKey, disclosure.usageDescription]]
+        : [],
+    ),
+  );
+}
 
 const DEFAULT_PUBLIC_ENV: Record<
   MobileEnvironmentName,
@@ -125,34 +140,27 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   return {
     ...config,
-    name: APP_NAME,
-    slug: APP_SLUG,
+    name: WHISPR_MOBILE_APP_IDENTITY.name,
+    slug: WHISPR_MOBILE_APP_IDENTITY.slug,
     version: pkg.version,
     orientation: "portrait",
-    icon: "./assets/whispr-icon.png",
-    scheme: APP_SCHEME,
+    icon: WHISPR_MOBILE_ICON.icon,
+    scheme: WHISPR_MOBILE_APP_IDENTITY.scheme,
     userInterfaceStyle: "automatic",
     ios: {
       ...config.ios,
-      bundleIdentifier: BUNDLE_IDENTIFIER,
+      bundleIdentifier: WHISPR_MOBILE_APP_IDENTITY.iosBundleIdentifier,
       supportsTablet: true,
-      infoPlist: {
-        NSCameraUsageDescription:
-          "Whispr uses the camera only when you choose to join video calls or share video.",
-        NSMicrophoneUsageDescription:
-          "Whispr uses the microphone only when you join voice channels or calls.",
-        NSPhotoLibraryUsageDescription:
-          "Whispr uses your photo library only when you choose media to upload.",
-      },
+      infoPlist: getWhisprMobileIosInfoPlistUsageDescriptions(),
     },
     android: {
       ...config.android,
-      package: ANDROID_PACKAGE,
+      package: WHISPR_MOBILE_APP_IDENTITY.androidPackage,
       adaptiveIcon: {
-        backgroundColor: "#EEF2FF",
-        foregroundImage: "./assets/whispr-icon.png",
+        backgroundColor: WHISPR_MOBILE_ICON.adaptiveBackgroundColor,
+        foregroundImage: WHISPR_MOBILE_ICON.adaptiveForegroundImage,
       },
-      permissions: ["CAMERA", "RECORD_AUDIO", "POST_NOTIFICATIONS"],
+      permissions: getWhisprMobileAndroidPermissions(),
       predictiveBackGestureEnabled: true,
     },
     extra: {
@@ -162,7 +170,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     web: {
       ...config.web,
-      favicon: "./assets/favicon.png",
+      favicon: WHISPR_MOBILE_ICON.webFavicon,
     },
   };
 };

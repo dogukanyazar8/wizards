@@ -31,6 +31,10 @@ const summary = {
   checklist: result.checklist,
   profileCount: Object.keys(eas.build).length,
   quality: summarizeMobileQualityGate(),
+  storeReadiness: {
+    permissionCount: result.storeReadiness.permissionCount,
+    privacyRequirementCount: result.storeReadiness.privacyRequirementCount,
+  },
   warnings: result.warnings,
 };
 

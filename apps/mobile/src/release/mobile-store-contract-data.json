@@ -1,0 +1,59 @@
+{
+  "appIdentity": {
+    "androidPackage": "team.whispr.mobile",
+    "iosBundleIdentifier": "team.whispr.mobile",
+    "name": "Whispr",
+    "scheme": "whispr",
+    "slug": "whispr-mobile"
+  },
+  "forbiddenAndroidPermissions": [
+    "ACCESS_BACKGROUND_LOCATION",
+    "ACCESS_FINE_LOCATION",
+    "CALL_PHONE",
+    "READ_CALENDAR",
+    "READ_CONTACTS",
+    "READ_SMS",
+    "RECEIVE_SMS",
+    "SEND_SMS"
+  ],
+  "icon": {
+    "adaptiveBackgroundColor": "#EEF2FF",
+    "adaptiveForegroundImage": "./assets/whispr-icon.png",
+    "icon": "./assets/whispr-icon.png",
+    "webFavicon": "./assets/favicon.png"
+  },
+  "permissionDisclosures": [
+    {
+      "androidPermission": "CAMERA",
+      "id": "camera",
+      "iosInfoPlistKey": "NSCameraUsageDescription",
+      "usageDescription": "Whispr uses the camera only when you choose to join video calls or share video.",
+      "userActionRequired": true
+    },
+    {
+      "androidPermission": "RECORD_AUDIO",
+      "id": "microphone",
+      "iosInfoPlistKey": "NSMicrophoneUsageDescription",
+      "usageDescription": "Whispr uses the microphone only when you join voice channels or calls.",
+      "userActionRequired": true
+    },
+    {
+      "id": "photoLibrary",
+      "iosInfoPlistKey": "NSPhotoLibraryUsageDescription",
+      "usageDescription": "Whispr uses your photo library only when you choose media to upload.",
+      "userActionRequired": true
+    },
+    {
+      "androidPermission": "POST_NOTIFICATIONS",
+      "id": "notifications",
+      "usageDescription": "Whispr sends notifications only for account, message, and server activity you can control.",
+      "userActionRequired": true
+    }
+  ],
+  "privacyRequirements": [
+    "No access token, refresh token, OAuth code, email, or message content in diagnostics.",
+    "No native permission prompt appears before a user action.",
+    "Deep links carrying credential-like query values are rejected.",
+    "Store privacy answers must match the permission disclosures in this contract."
+  ]
+}

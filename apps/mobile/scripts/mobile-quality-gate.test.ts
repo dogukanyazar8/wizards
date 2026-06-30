@@ -18,7 +18,10 @@ const expectedAreas: MobileQualityArea[] = [
   "permissions",
   "performance",
   "release",
+  "store",
+  "sync",
   "voice",
+  "workspace",
 ];
 
 describe("mobile quality gate", () => {

@@ -1,4 +1,7 @@
-import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
+import { redirect } from "next/navigation";
+
+import { auth } from "@/auth";
+import { resolveLoginRedirect } from "@/lib/auth/login-redirect";
 import { LoginClient } from "./login-client";
 
 interface LoginPageProps {
@@ -6,16 +9,21 @@ interface LoginPageProps {
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const params = await searchParams;
-  const callbackParam = Array.isArray(params?.callbackUrl)
-    ? params.callbackUrl[0]
-    : params?.callbackUrl;
-  const errorParam = Array.isArray(params?.error) ? params.error[0] : params?.error;
+  const [params, session] = await Promise.all([searchParams, auth()]);
+  const resolution = resolveLoginRedirect({
+    callbackUrl: params?.callbackUrl,
+    error: params?.error,
+    hasSession: Boolean(session?.user?.id),
+  });
+
+  if (resolution.redirectTo) {
+    redirect(resolution.redirectTo);
+  }
 
   return (
     <LoginClient
-      authError={typeof errorParam === "string" ? errorParam : null}
-      callbackUrl={getSafeAuthRedirectPath(callbackParam)}
+      authError={resolution.authError}
+      callbackUrl={resolution.callbackUrl}
     />
   );
 }

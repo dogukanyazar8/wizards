@@ -31,6 +31,8 @@ describe("mobile release contract", () => {
     assert.deepEqual(result.blockers, []);
     assert.equal(result.budgets.length >= 4, true);
     assert.equal(result.checklist.some((item) => item.includes("permission")), true);
+    assert.equal(result.storeReadiness.permissionCount >= 4, true);
+    assert.equal(result.checklist.some((item) => item.includes("Store")), true);
   });
 
   it("blocks production-like profiles that point to HTTP or local hosts", () => {

@@ -27,6 +27,7 @@ describe("API rate limit configuration", () => {
       "dm:conversations:list",
       "dm:conversation:read",
       "dm:messages:list",
+      "dm:messages:send",
       "dm:mark-read",
       "channel:messages:list",
       "user:profile",
@@ -38,6 +39,8 @@ describe("API rate limit configuration", () => {
       "mobile:auth-refresh",
       "mobile:auth-revoke",
       "mobile:bootstrap",
+      "mobile:channel:messages:list",
+      "mobile:server:detail",
       "server:detail",
       "server:delete",
       "server:update",
@@ -51,6 +54,7 @@ describe("API rate limit configuration", () => {
   it("keeps read-heavy endpoint limits aligned with expected request patterns", () => {
     const expectedConfigs = {
       "dm:messages:list": { limit: 30, windowSeconds: 60 },
+      "dm:messages:send": { limit: 120, windowSeconds: 60 },
       "user:profile": { limit: 60, windowSeconds: 60 },
       "voice:states:list": { limit: 30, windowSeconds: 60 },
       "dm:mark-read": { limit: 180, windowSeconds: 60 },
@@ -61,6 +65,8 @@ describe("API rate limit configuration", () => {
       "mobile:auth-refresh": { limit: 30, windowSeconds: 10 * 60 },
       "mobile:auth-revoke": { limit: 60, windowSeconds: 10 * 60 },
       "mobile:bootstrap": { limit: 120, windowSeconds: 60 },
+      "mobile:channel:messages:list": { limit: 60, windowSeconds: 60 },
+      "mobile:server:detail": { limit: 120, windowSeconds: 60 },
     } satisfies Partial<
       Record<ApiRateLimitAction, { limit: number; windowSeconds: number }>
     >;
