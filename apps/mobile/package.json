@@ -6,8 +6,11 @@
   "scripts": {
     "start": "expo start",
     "start:clear": "expo start --clear",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "android:uat:local": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-uat.ps1",
+    "android:uat:local:clean": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-uat.ps1 -CleanAndroidCaches",
+    "android:uat:local:apk": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-uat.ps1 -SkipInstall -NoStartMetro",
+    "ios": "expo run:ios",
     "lint": "tsc --noEmit",
     "quality:check": "node --import tsx scripts/validate-mobile-quality.ts",
     "release:check": "node --import tsx scripts/validate-mobile-release.ts",

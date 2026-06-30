@@ -115,6 +115,34 @@
     "mtime": 1782500332.3489082,
     "hash": "33caa6d28d87fc7e637c033d0d7124b1"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\build.gradle": {
+    "mtime": 1782745503.4987292,
+    "hash": "55cec08c744fbe7b1f1294009fe3f65d"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\gradlew": {
+    "mtime": 1782745502.5084817,
+    "hash": "780b1d3e23a3b82154795f73df943a14"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\settings.gradle": {
+    "mtime": 1782745503.4987292,
+    "hash": "bae47ba88dcc6eb9f591ca4e5a5dc351"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\build.gradle": {
+    "mtime": 1782745503.499728,
+    "hash": "a8aa5468fe3e72402107632d5baa9409"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\java\\team\\whispr\\mobile\\MainActivity.kt": {
+    "mtime": 1782745502.7114346,
+    "hash": "af04fce242737d95ae10470402856f08"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\java\\team\\whispr\\mobile\\MainApplication.kt": {
+    "mtime": 1782745502.7104347,
+    "hash": "f5d711c283837446882a484612ac7ef1"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\build-android-uat.ps1": {
+    "mtime": 1782813390.894616,
+    "hash": "6d231ffc07145e27b34020f0de634536"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-api-client.test.ts": {
     "mtime": 1782735719.9400659,
     "hash": "78119bb6d20e524d6be03f57c612a571"
@@ -2842,6 +2870,86 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\src-tauri\\icons\\icon.png": {
     "mtime": 1778571008.089259,
     "hash": "1a25f1fdee07cf2e50a7ea83df0b21f6"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\drawable-hdpi\\splashscreen_logo.png": {
+    "mtime": 1782745502.5234818,
+    "hash": "ade4f271d920c553479f8359126fe71c"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\drawable-mdpi\\splashscreen_logo.png": {
+    "mtime": 1782745502.5244813,
+    "hash": "456a586f33d48e02adee03680b872073"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\drawable-xhdpi\\splashscreen_logo.png": {
+    "mtime": 1782745502.5254815,
+    "hash": "b151f30998a8eb180038294d96108ad3"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\drawable-xxhdpi\\splashscreen_logo.png": {
+    "mtime": 1782745502.5264843,
+    "hash": "456fa27f2c9de9a9bf0d8951a9609ea4"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\drawable-xxxhdpi\\splashscreen_logo.png": {
+    "mtime": 1782745502.5274823,
+    "hash": "8724a45c38b0f973ac9713ff270a40cb"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher.webp": {
+    "mtime": 1782745503.0055046,
+    "hash": "32fcda7c62b13e49513d9bbce37bec14"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher_foreground.webp": {
+    "mtime": 1782745503.448713,
+    "hash": "f3138cb4c53013038ff8d7c57673a885"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher_round.webp": {
+    "mtime": 1782745503.2175908,
+    "hash": "dc2f60e5e63119d4e6b63424f3fd549a"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher.webp": {
+    "mtime": 1782745503.0055046,
+    "hash": "4e85a97a1ba38fe04d3ff1ba825ecc5d"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher_foreground.webp": {
+    "mtime": 1782745503.4477115,
+    "hash": "77b911a5c6ea37936e065151caf8a8ab"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher_round.webp": {
+    "mtime": 1782745503.2035909,
+    "hash": "f2a02a3b98de54c57d31ec6ab4ebf685"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher.webp": {
+    "mtime": 1782745503.0065053,
+    "hash": "66ad784e5643b470cb291da851a464b4"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher_foreground.webp": {
+    "mtime": 1782745503.448713,
+    "hash": "ccd1e2ce09c4bcd642979c1648034e2a"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher_round.webp": {
+    "mtime": 1782745503.2035909,
+    "hash": "9389ad70815918b1fb5913628100e5c7"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher.webp": {
+    "mtime": 1782745503.0065053,
+    "hash": "7fcd5290276b04c1333f427123d4307d"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher_foreground.webp": {
+    "mtime": 1782745503.448713,
+    "hash": "7a6007293fcf3a5b8491c868c21e0457"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher_round.webp": {
+    "mtime": 1782745503.2035909,
+    "hash": "537bd747885237c69164500c6206a6ed"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher.webp": {
+    "mtime": 1782745503.0055046,
+    "hash": "7f42f70ffa98b79d14824652870db51a"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher_foreground.webp": {
+    "mtime": 1782745503.448713,
+    "hash": "008cccb762c7a45b4483e560d390c2cb"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher_round.webp": {
+    "mtime": 1782745503.2175908,
+    "hash": "49b3e88acba906708f67bd53ac8de873"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\assets\\favicon.png": {
     "mtime": 1782500332.3454044,
