@@ -90,6 +90,13 @@ export const mobileCopy = {
     gatedChecking: "Oturum dogrulanirken bu ekran hazirlaniyor.",
     gatedSignedOut: "Bu mobil alan gercek Whispr oturumu gerektirir.",
     directMessageFallback: "Direkt mesaj",
+    directMessageFilterActive: "Cevrimici",
+    directMessageFilterAll: "Tumu",
+    directMessageFilterUnread: "Okunmamis",
+    directMessageFilteredEmpty: "Bu filtreyle eslesen direkt mesaj yok.",
+    directMessageResultCount: "sonuc",
+    directMessageSearchLabel: "Ara",
+    directMessageSearchPlaceholder: "Mesajlarda ara",
     dmAttachmentOnlyMessage: "Ek paylasildi.",
     dmComposerPlaceholder: "Bir mesaj gonder...",
     dmDeletedMessage: "Bu mesaj silindi.",
@@ -102,7 +109,19 @@ export const mobileCopy = {
       "Mesaj gonderilemedi. Yetki, baglanti veya rate-limit durumunu kontrol edip tekrar dene.",
     dmSendingAction: "Gonderiliyor",
     dmSelectConversation: "Mesajlari gormek icin bir direkt mesaj sec.",
+    errorBoundaryDescription:
+      "Bu ekran beklenmedik sekilde yuklenemedi. Oturumun korunur; gizli veri veya mesaj icerigi burada gosterilmez.",
+    errorBoundaryFootnote:
+      "Sorun devam ederse uygulamayi yeniden acip tekrar deneyebilirsin.",
+    errorBoundaryRetryAction: "Tekrar yukle",
+    errorBoundaryTitle: "Whispr toparlanmaya calisiyor",
     homeDmLabel: "DM",
+    homeContinueDescription:
+      "En onemli sohbet, sunucu ve ses durumuna tek dokunusla ulas.",
+    homeContinueEmpty: "Devam edilecek gercek mobil veri henuz yok.",
+    homeContinueLatestDirectMessage: "Son konusma",
+    homeContinueLatestServer: "Son sunucu",
+    homeContinueTitle: "Kaldigin yerden devam et",
     homeNoServers: "Henuz katildigin sunucu yok.",
     homeRecentDmsTitle: "Son direkt mesajlar",
     homeRecentServersTitle: "Son sunucular",
@@ -154,15 +173,40 @@ export const mobileCopy = {
     settingsDeveloperTitle: "Gelistirici ve kalite",
     settingsDiagnosticsHideAction: "Tanilamayi gizle",
     settingsDiagnosticsShowAction: "Tanilama",
+    settingsAutomationLabel: "Otomasyon",
     settingsFeatureAvailable: "Hazir",
     settingsFeatureDescription:
       "Mobil ozellikler yalnizca backend contract veya native izin gercekten hazirsa aktif gosterilir.",
     settingsFeatureDisabled: "Kapali",
     settingsFeatureTitle: "Ozellik hazirligi",
+    settingsManualQaLabel: "Manuel QA",
     settingsMissingLabel: "Yok",
+    settingsMobileDeepLinkTitle: "Guvenli baglantilar",
+    settingsMobileMessagingDescription:
+      "Sohbetler gercek Whispr oturumun ve yetkilerinle yuklenir.",
+    settingsMobileMessagingTitle: "Sohbetler",
+    settingsMobileNotificationsTitle: "Bildirimler",
+    settingsMobileOverviewDescription:
+      "Oturum, sohbet, bildirim ve ses hazirligini tek yerde takip et.",
+    settingsMobileOverviewTitle: "Mobil durum",
+    settingsMobilePermissionDescription:
+      "Bu izin yalnizca ilgili ozelligi kullandiginda istenir.",
+    settingsMobilePermissionNeedsActionSuffix: "izin kullanici aksiyonu bekliyor",
+    settingsMobilePermissionsDescription:
+      "Whispr izinleri otomatik istemez; mikrofon, kamera, bildirim ve dosya izinleri kullanim aninda sorulur.",
+    settingsMobilePermissionsTitle: "Izinler ve gizlilik",
+    settingsMobileSessionActionRequired:
+      "Giris yaparak veya oturumu yenileyerek devam et.",
+    settingsMobileSessionHealthy:
+      "Oturum guvenli depoda ve mobil API cagirilari icin hazir.",
+    settingsMobileSessionTitle: "Guvenli oturum",
+    settingsMobileVoiceDescription:
+      "Mobil ses deneyimi native izin ve backend hazirligina gore acilir.",
+    settingsMobileVoiceTitle: "Ses",
     settingsNoSensitiveData:
       "Bu ekran token, e-posta, mesaj icerigi veya gizli oturum degeri gostermez.",
     settingsPendingLabel: "Bekliyor",
+    settingsPerformanceLabel: "Performans",
     settingsPermissionEvidenceDescription:
       "Izin durumu kullanici aksiyonu olmadan otomatik isteme yapmadan takip edilir.",
     settingsPermissionEvidenceTitle: "Gizlilik ve izin kaniti",
@@ -173,6 +217,9 @@ export const mobileCopy = {
       "Oturum sagligi, deep link ve token saklama sinirlari PII gostermeden izlenir.",
     settingsSecurityTitle: "Guvenli oturum",
     settingsSessionLabel: "Oturum",
+    settingsReleaseQualityDescription:
+      "Otomasyon, manuel QA, performans ve store gizlilik kanitlari tek yerde; gizli veri gosterilmez.",
+    settingsReleaseQualityTitle: "Release ve kalite",
     settingsStoreBlockersLabel: "Store blokaj",
     settingsStoreWarningsLabel: "Store uyari",
     settingsTitle: "Ayarlar",
@@ -193,13 +240,19 @@ export const mobileCopy = {
       "Uygulama one done geldiginde gorunen gercek veri cooldown ile tazelenir.",
     syncFresh: "Guncel",
     syncFreshNow: "Simdi guncel",
+    syncHealthErrorDescription:
+      "Gorunen veri yenilenemedi. Oturum korunuyor; baglantini kontrol edip tekrar deneyebilirsin.",
+    syncHealthErrorTitle: "Baglanti toparlanamadi",
+    syncHealthRefreshingDescription:
+      "Whispr son sohbet ve sunucu bilgisini sessizce tazeliyor.",
+    syncHealthRefreshingTitle: "Gorunen veri yenileniyor",
     syncMinutesAgo: "dk once",
     syncNever: "Henuz yok",
     syncRefreshing: "Yenileniyor",
     syncSecondsAgo: "sn once",
     syncStale: "Yenilenmeli",
     syncStatusDescription:
-      "Bu kart son basarili yenilemeyi gosterir; sahte realtime veya fake veri uretmez.",
+      "Bu kart son basarili yenilemeyi gosterir; uretilmis realtime veya yapay veri sunmaz.",
     syncStatusTitle: "Veri tazeligi",
     syncWorkspaceLabel: "Sunucu",
     tabMessages: "Sohbet",
@@ -321,6 +374,13 @@ export const mobileCopy = {
     gatedChecking: "This screen is preparing while the session is verified.",
     gatedSignedOut: "This mobile area requires a real Whispr session.",
     directMessageFallback: "Direct message",
+    directMessageFilterActive: "Online",
+    directMessageFilterAll: "All",
+    directMessageFilterUnread: "Unread",
+    directMessageFilteredEmpty: "No direct messages match this filter.",
+    directMessageResultCount: "results",
+    directMessageSearchLabel: "Search",
+    directMessageSearchPlaceholder: "Search messages",
     dmAttachmentOnlyMessage: "Attachment shared.",
     dmComposerPlaceholder: "Send a message...",
     dmDeletedMessage: "This message was deleted.",
@@ -333,7 +393,19 @@ export const mobileCopy = {
       "Message could not be sent. Check permissions, connectivity, or rate limits and try again.",
     dmSendingAction: "Sending",
     dmSelectConversation: "Select a direct message to view its messages.",
+    errorBoundaryDescription:
+      "This screen could not load safely. Your session stays preserved; secrets and message content are not shown here.",
+    errorBoundaryFootnote:
+      "If the problem continues, restart the app and try again.",
+    errorBoundaryRetryAction: "Reload",
+    errorBoundaryTitle: "Whispr is recovering",
     homeDmLabel: "DMs",
+    homeContinueDescription:
+      "Reach the most relevant chat, server, and voice status with one tap.",
+    homeContinueEmpty: "There is no real mobile data to continue from yet.",
+    homeContinueLatestDirectMessage: "Latest conversation",
+    homeContinueLatestServer: "Latest server",
+    homeContinueTitle: "Continue where you left off",
     homeNoServers: "You have not joined a server yet.",
     homeRecentDmsTitle: "Recent direct messages",
     homeRecentServersTitle: "Recent servers",
@@ -385,15 +457,40 @@ export const mobileCopy = {
     settingsDeveloperTitle: "Developer and quality",
     settingsDiagnosticsHideAction: "Hide diagnostics",
     settingsDiagnosticsShowAction: "Diagnostics",
+    settingsAutomationLabel: "Automation",
     settingsFeatureAvailable: "Ready",
     settingsFeatureDescription:
       "Mobile features only appear active when the backend contract or native permission is truly ready.",
     settingsFeatureDisabled: "Disabled",
     settingsFeatureTitle: "Feature readiness",
+    settingsManualQaLabel: "Manual QA",
     settingsMissingLabel: "Missing",
+    settingsMobileDeepLinkTitle: "Safe links",
+    settingsMobileMessagingDescription:
+      "Chats load through your real Whispr session and permissions.",
+    settingsMobileMessagingTitle: "Chats",
+    settingsMobileNotificationsTitle: "Notifications",
+    settingsMobileOverviewDescription:
+      "Track session, chat, notification, and voice readiness in one place.",
+    settingsMobileOverviewTitle: "Mobile status",
+    settingsMobilePermissionDescription:
+      "This permission is requested only when you use the related feature.",
+    settingsMobilePermissionNeedsActionSuffix: "permissions waiting for user action",
+    settingsMobilePermissionsDescription:
+      "Whispr never asks permissions automatically. Microphone, camera, notification, and file permissions are requested at the moment of use.",
+    settingsMobilePermissionsTitle: "Permissions and privacy",
+    settingsMobileSessionActionRequired:
+      "Sign in or refresh the session to continue.",
+    settingsMobileSessionHealthy:
+      "Your session is in secure storage and ready for mobile API calls.",
+    settingsMobileSessionTitle: "Secure session",
+    settingsMobileVoiceDescription:
+      "Mobile voice opens as native permissions and backend readiness allow it.",
+    settingsMobileVoiceTitle: "Voice",
     settingsNoSensitiveData:
       "This screen does not expose tokens, email, message content, or secret session values.",
     settingsPendingLabel: "Pending",
+    settingsPerformanceLabel: "Performance",
     settingsPermissionEvidenceDescription:
       "Permission state is tracked without requesting prompts automatically before user action.",
     settingsPermissionEvidenceTitle: "Privacy and permission evidence",
@@ -404,6 +501,9 @@ export const mobileCopy = {
       "Session health, deep links, and token storage boundaries are shown without exposing PII.",
     settingsSecurityTitle: "Secure session",
     settingsSessionLabel: "Session",
+    settingsReleaseQualityDescription:
+      "Automation, manual QA, performance, and store privacy evidence stay in one place without exposing secret data.",
+    settingsReleaseQualityTitle: "Release and quality",
     settingsStoreBlockersLabel: "Store blockers",
     settingsStoreWarningsLabel: "Store warnings",
     settingsTitle: "Settings",
@@ -424,13 +524,19 @@ export const mobileCopy = {
       "Visible real data refreshes with a cooldown when the app returns to foreground.",
     syncFresh: "Fresh",
     syncFreshNow: "Fresh now",
+    syncHealthErrorDescription:
+      "Visible data could not refresh. Your session is preserved; check your connection and retry.",
+    syncHealthErrorTitle: "Connection needs attention",
+    syncHealthRefreshingDescription:
+      "Whispr is quietly refreshing the latest chat and server information.",
+    syncHealthRefreshingTitle: "Refreshing visible data",
     syncMinutesAgo: "min ago",
     syncNever: "Not yet",
     syncRefreshing: "Refreshing",
     syncSecondsAgo: "sec ago",
     syncStale: "Needs refresh",
     syncStatusDescription:
-      "This card shows the last successful refresh; it does not fake realtime or mock data.",
+      "This card shows the last successful refresh; it does not fabricate realtime or synthetic data.",
     syncStatusTitle: "Data freshness",
     syncWorkspaceLabel: "Server",
     tabMessages: "Chat",

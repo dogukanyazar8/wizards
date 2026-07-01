@@ -4,6 +4,7 @@ export const MOBILE_SYNC_FOREGROUND_REFRESH_MS = 30_000;
 export type MobileSyncSource = "bootstrap" | "channel" | "dm" | "workspace";
 
 export type MobileSyncStatus = "error" | "idle" | "ready" | "syncing";
+export type MobileSyncHealthStatus = "error" | "healthy" | "refreshing";
 
 export type MobileSyncSnapshot = {
   failureCount: number;
@@ -19,6 +20,13 @@ export type MobileSyncAge =
   | { kind: "never"; value: null }
   | { kind: "now"; value: 0 }
   | { kind: "seconds"; value: number };
+
+export type MobileSyncHealthSummary = {
+  failedSources: readonly MobileSyncSource[];
+  failureCount: number;
+  isRefreshing: boolean;
+  status: MobileSyncHealthStatus;
+};
 
 export function createInitialMobileSyncSnapshot(
   source: MobileSyncSource,
@@ -82,6 +90,38 @@ export function isMobileSyncStale(
   }
 
   return now - snapshot.lastCompletedAt >= staleMs;
+}
+
+export function isMobileSyncRefreshing(snapshot: MobileSyncSnapshot): boolean {
+  return snapshot.status === "syncing";
+}
+
+export function summarizeMobileSyncHealth(
+  snapshots: readonly MobileSyncSnapshot[],
+): MobileSyncHealthSummary {
+  const failedSources = snapshots
+    .filter((snapshot) => snapshot.status === "error")
+    .map((snapshot) => snapshot.source);
+  const failureCount = snapshots.reduce(
+    (total, snapshot) =>
+      snapshot.status === "error" ? total + snapshot.failureCount : total,
+    0,
+  );
+  const isRefreshing = snapshots.some(isMobileSyncRefreshing);
+  const hasCompletedData = snapshots.some((snapshot) => snapshot.lastCompletedAt !== null);
+  const status =
+    failedSources.length > 0
+      ? "error"
+      : isRefreshing && hasCompletedData
+        ? "refreshing"
+        : "healthy";
+
+  return {
+    failedSources,
+    failureCount,
+    isRefreshing,
+    status,
+  };
 }
 
 export function shouldRefreshOnForeground(

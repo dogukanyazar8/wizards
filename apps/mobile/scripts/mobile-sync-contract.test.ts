@@ -5,11 +5,13 @@ import {
   MOBILE_SYNC_STALE_MS,
   createInitialMobileSyncSnapshot,
   formatMobileSyncAge,
+  isMobileSyncRefreshing,
   isMobileSyncStale,
   markMobileSyncFailed,
   markMobileSyncStarted,
   markMobileSyncSucceeded,
   shouldRefreshOnForeground,
+  summarizeMobileSyncHealth,
 } from "../src/sync/mobile-sync-contract";
 
 describe("mobile sync contract", () => {
@@ -28,6 +30,8 @@ describe("mobile sync contract", () => {
 
     assert.equal(started.status, "syncing");
     assert.equal(succeeded.status, "ready");
+    assert.equal(isMobileSyncRefreshing(started), true);
+    assert.equal(isMobileSyncRefreshing(succeeded), false);
     assert.equal(succeeded.failureCount, 0);
     assert.equal(succeeded.lastCompletedAt, 12_000);
     assert.deepEqual(Object.keys(succeeded).sort(), [
@@ -98,5 +102,44 @@ describe("mobile sync contract", () => {
 
     assert.equal(isMobileSyncStale(snapshot, 10_000 + MOBILE_SYNC_STALE_MS - 1), false);
     assert.equal(isMobileSyncStale(snapshot, 10_000 + MOBILE_SYNC_STALE_MS), true);
+  });
+
+  it("summarizes visible sync health without exposing payload data", () => {
+    const bootstrap = markMobileSyncSucceeded(
+      createInitialMobileSyncSnapshot("bootstrap"),
+      10_000,
+    );
+    const refreshing = markMobileSyncStarted(bootstrap, 15_000);
+    const failed = markMobileSyncFailed(
+      markMobileSyncStarted(createInitialMobileSyncSnapshot("dm"), 20_000),
+      21_000,
+    );
+
+    assert.deepEqual(summarizeMobileSyncHealth([refreshing]), {
+      failedSources: [],
+      failureCount: 0,
+      isRefreshing: true,
+      status: "refreshing",
+    });
+    assert.deepEqual(summarizeMobileSyncHealth([refreshing, failed]), {
+      failedSources: ["dm"],
+      failureCount: 1,
+      isRefreshing: true,
+      status: "error",
+    });
+  });
+
+  it("keeps first-load syncing out of user-facing recovery banners", () => {
+    const firstLoad = markMobileSyncStarted(
+      createInitialMobileSyncSnapshot("bootstrap"),
+      5_000,
+    );
+
+    assert.deepEqual(summarizeMobileSyncHealth([firstLoad]), {
+      failedSources: [],
+      failureCount: 0,
+      isRefreshing: true,
+      status: "healthy",
+    });
   });
 });

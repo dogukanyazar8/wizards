@@ -28,10 +28,13 @@ export type MobileFeatureReadinessSummary = {
 
 export type MobileSettingsTextLabels = {
   available: string;
+  automation: string;
   blocked: string;
   disabled: string;
+  manualQa: string;
   missing: string;
   pending: string;
+  performance: string;
   ready: string;
   refreshToken: string;
   scopeCount: string;
@@ -166,25 +169,26 @@ export function getMobileStoreEvidence(
 
 export function getMobileReleaseEvidence(input: {
   budgetCount: number;
+  labels: Pick<MobileSettingsTextLabels, "automation" | "manualQa" | "performance">;
   qualitySummary: MobileQualityGateSummary;
   releaseBudgets: readonly MobileReleaseBudget[];
 }): MobileSettingsEvidenceItem[] {
   return [
     {
       id: "quality-automation",
-      label: "Automation",
+      label: input.labels.automation,
       tone: input.qualitySummary.automatedGateCount > 0 ? "success" : "warning",
       value: String(input.qualitySummary.automatedGateCount),
     },
     {
       id: "quality-manual",
-      label: "Manual QA",
+      label: input.labels.manualQa,
       tone: input.qualitySummary.criticalManualCount > 0 ? "success" : "warning",
       value: `${input.qualitySummary.criticalManualCount}/${input.qualitySummary.manualCheckCount}`,
     },
     {
       id: "performance-budgets",
-      label: "Performance",
+      label: input.labels.performance,
       tone: input.budgetCount === input.releaseBudgets.length ? "success" : "warning",
       value: String(input.budgetCount),
     },

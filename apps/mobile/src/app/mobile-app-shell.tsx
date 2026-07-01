@@ -1,6 +1,14 @@
 import type { ReactNode } from "react";
 import whisprIcon from "../../assets/whispr-icon.png";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Image,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { mobileColors, mobileRadii, mobileSpacing } from "../design/tokens";
 import { mobileCopy } from "../locale/mobile-copy";
@@ -26,6 +34,8 @@ interface MobileAppShellProps {
   authStatus: "checking" | "error" | "signed-in" | "signed-out";
   children: ReactNode;
   currentTab: MobileTabId;
+  isRefreshing?: boolean;
+  onRefresh?: () => void;
   onSelectTab(tab: MobileTabId): void;
   signedInUserLabel: string | null;
 }
@@ -34,6 +44,8 @@ export function MobileAppShell({
   authStatus,
   children,
   currentTab,
+  isRefreshing = false,
+  onRefresh,
   onSelectTab,
   signedInUserLabel,
 }: MobileAppShellProps) {
@@ -52,7 +64,18 @@ export function MobileAppShell({
         <ScrollView
           style={styles.contentScroll}
           contentContainerStyle={[styles.content, { paddingBottom: bottomInset + 4 }]}
-          alwaysBounceVertical={false}
+          alwaysBounceVertical={Boolean(onRefresh)}
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl
+                colors={[mobileColors.accentStrong]}
+                progressBackgroundColor={mobileColors.card}
+                refreshing={isRefreshing}
+                tintColor={mobileColors.accentStrong}
+                onRefresh={onRefresh}
+              />
+            ) : undefined
+          }
         >
           {children}
         </ScrollView>

@@ -6,12 +6,15 @@ import type {
   MobileWorkspaceServerDetailResponse,
 } from "@wizards/types";
 import {
+  filterMobileConversations,
   findInitialMobileWorkspaceChannel,
   formatMobileDisplayTime,
   getMobileChannelPriority,
   getMobileConversationActiveCount,
   getMobileConversationAvatarUrl,
+  getMobileConversationSearchText,
   getMobileConversationTitle,
+  getMobileHomeQuickActions,
   getMobileMessageBodyPreview,
   getMobileMessageEngagementCounts,
   getMobileWorkspaceChannels,
@@ -121,6 +124,69 @@ const workspaceDetail: MobileWorkspaceServerDetailResponse["detail"] = {
   ],
 };
 
+const bootstrapPayload: MobileBootstrapPayload = {
+  app: {
+    buildId: "build-1",
+    name: "Whispr",
+    releaseChannel: "uat",
+    serverTime: "2026-06-30T09:10:00.000Z",
+    version: "0.8.15",
+  },
+  contracts: {
+    deepLinks: ["auth-handoff", "invite", "route"],
+    permissions: ["camera", "microphone", "notifications", "photoLibrary"],
+  },
+  features: {
+    messages: {
+      label: "Messages",
+      status: "available",
+    },
+    nativeAuthTokenExchange: {
+      label: "Native auth",
+      status: "available",
+    },
+    pushNotifications: {
+      label: "Push",
+      reason: "Requires notification permission",
+      status: "requires-native-permission",
+    },
+    voice: {
+      label: "Voice",
+      reason: "Native voice contract is not ready",
+      status: "requires-server-contract",
+    },
+  },
+  home: {
+    directMessages: {
+      recent: [conversation],
+      totalCount: 1,
+      unreadCount: 2,
+    },
+    servers: {
+      recent: [
+        {
+          channelCount: 3,
+          iconUrl: null,
+          id: "server-1",
+          joinedAt: "2026-06-30T08:00:00.000Z",
+          memberCount: 5,
+          name: "Whispr",
+          shortName: "WH",
+        },
+      ],
+      totalCount: 1,
+    },
+  },
+  user: {
+    avatarUrl: null,
+    displayName: "Mobile User",
+    id: "user-1",
+    locale: "tr",
+    status: "ONLINE",
+    username: "mobile_user",
+  },
+};
+
 const message: ChatMessage = {
   attachments: [],
   author: {
@@ -153,6 +219,55 @@ describe("mobile display model", () => {
     assert.equal(getMobileConversationActiveCount(conversation), 2);
     assert.equal(isMobilePresenceActive("DND"), true);
     assert.equal(isMobilePresenceActive("OFFLINE"), false);
+  });
+
+  it("filters conversation inbox using only real unread, presence, and participant data", () => {
+    const quietConversation: Conversation = {
+      ...conversation,
+      id: "conversation-2",
+      muted: false,
+      name: "Project room",
+      participants: [
+        {
+          avatarUrl: null,
+          displayName: "Dora",
+          id: "user-5",
+          status: "OFFLINE",
+          username: "dora",
+        },
+      ],
+      unreadCount: 0,
+    };
+    const conversations = [conversation, quietConversation];
+
+    assert.match(
+      getMobileConversationSearchText(conversation, "Direct message"),
+      /alice bob carol/,
+    );
+    assert.deepEqual(
+      filterMobileConversations(conversations, {
+        fallback: "Direct message",
+        filter: "unread",
+        query: "",
+      }).map((item) => item.id),
+      ["conversation-1"],
+    );
+    assert.deepEqual(
+      filterMobileConversations(conversations, {
+        fallback: "Direct message",
+        filter: "active",
+        query: "",
+      }).map((item) => item.id),
+      ["conversation-1"],
+    );
+    assert.deepEqual(
+      filterMobileConversations(conversations, {
+        fallback: "Direct message",
+        filter: "all",
+        query: "project",
+      }).map((item) => item.id),
+      ["conversation-2"],
+    );
   });
 
   it("formats messages without inventing content", () => {
@@ -224,5 +339,26 @@ describe("mobile display model", () => {
   it("formats stable compact message times", () => {
     assert.match(formatMobileDisplayTime("2026-06-30T09:15:00.000Z"), /\d{2}:\d{2}/);
     assert.equal(formatMobileDisplayTime("not-a-date"), "");
+  });
+
+  it("builds bounded home quick actions from real bootstrap state", () => {
+    const actions = getMobileHomeQuickActions(bootstrapPayload, {
+      channelsSuffix: "channels",
+      directMessageFallback: "Direct message",
+      latestDirectMessage: "Latest conversation",
+      latestServer: "Latest server",
+      membersSuffix: "members",
+      unreadSuffix: "unread",
+    });
+
+    assert.deepEqual(
+      actions.map((action) => action.kind),
+      ["direct-message", "server", "voice"],
+    );
+    assert.equal(actions[0]?.targetId, "conversation-1");
+    assert.equal(actions[0]?.badge, 2);
+    assert.equal(actions[1]?.targetId, "server-1");
+    assert.equal(actions[1]?.subtitle, "5 members - 3 channels");
+    assert.equal(actions[2]?.isEnabled, false);
   });
 });

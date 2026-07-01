@@ -16,6 +16,7 @@ import type {
   MobileWorkspaceServerDetailResponse,
 } from "@wizards/types";
 import {
+  ActivityIndicator,
   AppState,
   Image,
   Pressable,
@@ -68,11 +69,14 @@ import { MOBILE_RELEASE_BUDGETS } from "../release/mobile-release-contract";
 import {
   createInitialMobileSyncSnapshot,
   formatMobileSyncAge,
+  isMobileSyncRefreshing,
   isMobileSyncStale,
   markMobileSyncFailed,
   markMobileSyncStarted,
   markMobileSyncSucceeded,
   shouldRefreshOnForeground,
+  summarizeMobileSyncHealth,
+  type MobileSyncHealthSummary,
   type MobileSyncSnapshot,
 } from "../sync/mobile-sync-contract";
 import { validateMobileStoreReadiness } from "../release/mobile-store-contract";
@@ -81,6 +85,7 @@ import {
   fetchMobileWorkspaceServer,
 } from "../workspace/mobile-workspace-client";
 import {
+  filterMobileConversations,
   findInitialMobileWorkspaceChannel,
   formatMobileDisplayTime,
   getMobileChannelPriority,
@@ -88,9 +93,12 @@ import {
   getMobileConversationAvatarUrl,
   getMobileConversationInitialsLabel,
   getMobileConversationTitle,
+  getMobileHomeQuickActions,
   getMobileMessageBodyPreview,
   getMobileMessageEngagementCounts,
   getMobileWorkspaceChannels,
+  type MobileConversationFilter,
+  type MobileHomeQuickAction,
 } from "./mobile-display-model";
 import {
   getMobileFeatureEvidence,
@@ -117,10 +125,13 @@ const permissionLabels: Record<MobilePermissionIntentId, string> = {
 
 const settingsEvidenceLabels = {
   available: copy.settingsFeatureAvailable,
+  automation: copy.settingsAutomationLabel,
   blocked: copy.settingsBlockedLabel,
   disabled: copy.settingsFeatureDisabled,
+  manualQa: copy.settingsManualQaLabel,
   missing: copy.settingsMissingLabel,
   pending: copy.settingsPendingLabel,
+  performance: copy.settingsPerformanceLabel,
   ready: copy.settingsReadyLabel,
   refreshToken: copy.settingsRefreshTokenLabel,
   scopeCount: copy.settingsScopeCountLabel,
@@ -791,6 +802,50 @@ export function WhisprMobileRoot() {
     }
   }, [bootstrapState, selectedDMConversationId]);
 
+  useEffect(() => {
+    if (
+      status !== "signed-in" ||
+      navigation.currentTab !== "messages" ||
+      bootstrapState.status !== "ready" ||
+      selectedDMConversationId
+    ) {
+      return;
+    }
+
+    const firstConversation = bootstrapState.payload.home.directMessages.recent[0];
+    if (firstConversation) {
+      handleOpenDMConversation(firstConversation.id);
+    }
+  }, [
+    bootstrapState,
+    handleOpenDMConversation,
+    navigation.currentTab,
+    selectedDMConversationId,
+    status,
+  ]);
+
+  useEffect(() => {
+    if (
+      status !== "signed-in" ||
+      navigation.currentTab !== "overview" ||
+      bootstrapState.status !== "ready" ||
+      selectedWorkspaceServerId
+    ) {
+      return;
+    }
+
+    const firstServer = bootstrapState.payload.home.servers.recent[0];
+    if (firstServer) {
+      handleOpenWorkspaceServer(firstServer.id);
+    }
+  }, [
+    bootstrapState,
+    handleOpenWorkspaceServer,
+    navigation.currentTab,
+    selectedWorkspaceServerId,
+    status,
+  ]);
+
   const handleDeepLink = useCallback(
     (result: MobileDeepLinkParseResult) => {
       setLastDeepLink(result);
@@ -862,10 +917,30 @@ export function WhisprMobileRoot() {
     return session.user.displayName ?? session.user.username;
   }, [session]);
 
+  const isShellRefreshing =
+    status === "checking" ||
+    isMobileSyncRefreshing(bootstrapSyncState) ||
+    (navigation.currentTab === "messages" && isMobileSyncRefreshing(dmSyncState)) ||
+    (navigation.currentTab === "overview" &&
+      (isMobileSyncRefreshing(workspaceSyncState) ||
+        isMobileSyncRefreshing(channelSyncState))) ||
+    (navigation.currentTab === "voice" && isMobileSyncRefreshing(workspaceSyncState));
+
+  const handleShellRefresh = useCallback(() => {
+    if (route.isBlocked) {
+      void refreshSessionFromStorage();
+      return;
+    }
+
+    refreshVisibleMobileData();
+  }, [refreshSessionFromStorage, refreshVisibleMobileData, route.isBlocked]);
+
   return (
     <MobileAppShell
       authStatus={status}
       currentTab={navigation.currentTab}
+      isRefreshing={isShellRefreshing}
+      onRefresh={handleShellRefresh}
       onSelectTab={(tab) => dispatchNavigation({ tab, type: "select" })}
       signedInUserLabel={signedInUserLabel}
     >
@@ -885,8 +960,10 @@ export function WhisprMobileRoot() {
           currentTab={route.currentTab}
           bootstrapState={bootstrapState}
           bootstrapSyncState={bootstrapSyncState}
+          channelSyncState={channelSyncState}
           dmMessagesState={dmMessagesState}
           dmSendState={dmSendState}
+          dmSyncState={dmSyncState}
           diagnostics={diagnostics}
           lastDeepLink={lastDeepLink}
           permissionReadiness={permissionReadiness}
@@ -917,6 +994,8 @@ export function WhisprMobileRoot() {
             }
           }}
           onRefresh={() => void refreshSessionFromStorage()}
+          onRefreshVisibleData={refreshVisibleMobileData}
+          onSelectTab={(tab) => dispatchNavigation({ tab, type: "select" })}
           onSendDMMessage={handleSendDMMessage}
           onSignOut={() => void signOut()}
           selectedDMConversation={selectedDMConversation}
@@ -925,6 +1004,7 @@ export function WhisprMobileRoot() {
           selectedWorkspaceServerId={selectedWorkspaceServerId}
           status={status}
           workspaceServerState={workspaceServerState}
+          workspaceSyncState={workspaceSyncState}
         />
       )}
     </MobileAppShell>
@@ -936,9 +1016,11 @@ interface ActiveScreenProps {
   bootstrapState: MobileBootstrapViewState;
   bootstrapSyncState: MobileSyncSnapshot;
   channelMessagesState: MobileChannelMessagesViewState;
+  channelSyncState: MobileSyncSnapshot;
   currentTab: MobileTabId;
   dmMessagesState: MobileDMMessagesViewState;
   dmSendState: MobileDMSendViewState;
+  dmSyncState: MobileSyncSnapshot;
   diagnostics: MobileSessionDiagnostics;
   error: string | null;
   lastDeepLink: MobileDeepLinkParseResult | null;
@@ -952,6 +1034,8 @@ interface ActiveScreenProps {
   onRefreshDMConversation(): void;
   onRefreshWorkspaceServer(): void;
   onRefresh(): void;
+  onRefreshVisibleData(): void;
+  onSelectTab(tab: MobileTabId): void;
   onSendDMMessage(content: string): Promise<boolean>;
   onSignOut(): void;
   permissionReadiness: readonly MobilePermissionReadiness[];
@@ -965,6 +1049,7 @@ interface ActiveScreenProps {
   signedInUserLabel: string | null;
   status: string;
   workspaceServerState: MobileWorkspaceServerViewState;
+  workspaceSyncState: MobileSyncSnapshot;
 }
 
 function ActiveScreen({
@@ -972,9 +1057,11 @@ function ActiveScreen({
   bootstrapState,
   bootstrapSyncState,
   channelMessagesState,
+  channelSyncState,
   currentTab,
   dmMessagesState,
   dmSendState,
+  dmSyncState,
   diagnostics,
   error,
   lastDeepLink,
@@ -988,6 +1075,8 @@ function ActiveScreen({
   onRefreshDMConversation,
   onRefreshWorkspaceServer,
   onRefresh,
+  onRefreshVisibleData,
+  onSelectTab,
   onSendDMMessage,
   onSignOut,
   permissionReadiness,
@@ -999,8 +1088,19 @@ function ActiveScreen({
   signedInUserLabel,
   status,
   workspaceServerState,
+  workspaceSyncState,
 }: ActiveScreenProps) {
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const syncHealth = getVisibleMobileSyncHealth({
+    bootstrapSyncState,
+    channelSyncState,
+    currentTab,
+    dmSyncState,
+    selectedDMConversationId,
+    selectedWorkspaceChannelId,
+    selectedWorkspaceServerId,
+    workspaceSyncState,
+  });
 
   switch (currentTab) {
     case "messages":
@@ -1010,6 +1110,7 @@ function ActiveScreen({
           title={copy.messagesTitle}
           description={copy.messagesDescription}
         >
+          <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
           <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
           {bootstrapState.status === "ready" &&
           bootstrapState.payload.home.directMessages.recent.length > 0 ? (
@@ -1040,6 +1141,7 @@ function ActiveScreen({
     case "voice":
       return (
         <ScreenShell eyebrow={copy.tabVoice} title={copy.voiceTitle} description={copy.voiceDescription}>
+          <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
           {bootstrapState.status === "ready" ? (
             <FeatureStatusCard
               label={bootstrapState.payload.features.voice.label}
@@ -1049,6 +1151,11 @@ function ActiveScreen({
           ) : (
             <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
           )}
+          <PermissionReadinessCard
+            compactFeature="voice"
+            readiness={permissionReadiness}
+            summary={permissionSummary}
+          />
           <EmptyState tone="success" label={copy.voiceEmpty} />
         </ScreenShell>
       );
@@ -1059,12 +1166,23 @@ function ActiveScreen({
           title={copy.settingsTitle}
           description={copy.settingsDescription}
         >
+          <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
           <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
           <SettingsAccountCard
             authStatusLabel={authStatusLabel}
             bootstrapState={bootstrapState}
             signedInUserLabel={signedInUserLabel}
             status={status}
+          />
+          <SettingsMobileOverviewCard
+            bootstrapState={bootstrapState}
+            diagnostics={diagnostics}
+            lastDeepLink={lastDeepLink}
+            permissionSummary={permissionSummary}
+          />
+          <SettingsNativePermissionCard
+            readiness={permissionReadiness}
+            summary={permissionSummary}
           />
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
           <View style={styles.actionRow}>
@@ -1103,6 +1221,7 @@ function ActiveScreen({
               ) : null}
               <PermissionReadinessCard readiness={permissionReadiness} summary={permissionSummary} />
               <SettingsPermissionEvidenceCard summary={permissionSummary} />
+              <SettingsReleaseQualityCard />
               <DeveloperDiagnosticsCard bootstrapSyncState={bootstrapSyncState} />
             </>
           ) : null}
@@ -1116,8 +1235,15 @@ function ActiveScreen({
           title={copy.overviewTitle}
           description={copy.overviewDescription}
         >
+          <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
           <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
           <HomeSummaryCard state={bootstrapState} onRetry={onRefreshBootstrap} />
+          <HomeQuickActionsCard
+            state={bootstrapState}
+            onOpenConversation={onOpenDMConversation}
+            onOpenServer={onOpenWorkspaceServer}
+            onOpenTab={onSelectTab}
+          />
           <WorkspacePreviewCard
             bootstrapState={bootstrapState}
             channelMessagesState={channelMessagesState}
@@ -1639,6 +1765,220 @@ function SettingsAccountCard({
   );
 }
 
+function SettingsMobileOverviewCard({
+  bootstrapState,
+  diagnostics,
+  lastDeepLink,
+  permissionSummary,
+}: {
+  bootstrapState: MobileBootstrapViewState;
+  diagnostics: MobileSessionDiagnostics;
+  lastDeepLink: MobileDeepLinkParseResult | null;
+  permissionSummary: MobilePermissionSummary;
+}) {
+  const hasHealthySession = diagnostics.hasSession && !diagnostics.isExpired;
+  const messagesFeature =
+    bootstrapState.status === "ready" ? bootstrapState.payload.features.messages : null;
+  const notificationsFeature =
+    bootstrapState.status === "ready" ? bootstrapState.payload.features.pushNotifications : null;
+  const voiceFeature =
+    bootstrapState.status === "ready" ? bootstrapState.payload.features.voice : null;
+  const deepLinkStatus = getDeepLinkStatusLabel(lastDeepLink);
+  const rows: NativeSettingsRowItem[] = [
+    {
+      description: hasHealthySession
+        ? copy.settingsMobileSessionHealthy
+        : copy.settingsMobileSessionActionRequired,
+      id: "session",
+      label: copy.settingsMobileSessionTitle,
+      tone: hasHealthySession ? "success" : "warning",
+      value: hasHealthySession ? copy.settingsReadyLabel : copy.settingsMissingLabel,
+    },
+    {
+      description: messagesFeature?.reason ?? copy.settingsMobileMessagingDescription,
+      id: "messages",
+      label: copy.settingsMobileMessagingTitle,
+      tone: getFeatureStatusTone(messagesFeature?.status),
+      value: getFeatureStatusLabel(messagesFeature?.status),
+    },
+    {
+      description:
+        notificationsFeature?.reason ??
+        `${permissionSummary.needsUserAction} ${copy.settingsMobilePermissionNeedsActionSuffix}`,
+      id: "notifications",
+      label: copy.settingsMobileNotificationsTitle,
+      tone: getFeatureStatusTone(notificationsFeature?.status),
+      value: getFeatureStatusLabel(notificationsFeature?.status),
+    },
+    {
+      description: voiceFeature?.reason ?? copy.settingsMobileVoiceDescription,
+      id: "voice",
+      label: copy.settingsMobileVoiceTitle,
+      tone: getFeatureStatusTone(voiceFeature?.status),
+      value: getFeatureStatusLabel(voiceFeature?.status),
+    },
+    {
+      description: deepLinkStatus.description,
+      id: "deep-link",
+      label: copy.settingsMobileDeepLinkTitle,
+      tone: lastDeepLink?.ok === false ? "warning" : "success",
+      value: lastDeepLink?.ok === false ? copy.settingsPendingLabel : copy.settingsReadyLabel,
+    },
+  ];
+
+  return (
+    <SettingsSection
+      description={copy.settingsMobileOverviewDescription}
+      title={copy.settingsMobileOverviewTitle}
+    >
+      <NativeSettingsList rows={rows} />
+    </SettingsSection>
+  );
+}
+
+function SettingsNativePermissionCard({
+  readiness,
+  summary,
+}: {
+  readiness: readonly MobilePermissionReadiness[];
+  summary: MobilePermissionSummary;
+}) {
+  const rows: NativeSettingsRowItem[] = readiness.map((item) => ({
+    description: copy.settingsMobilePermissionDescription,
+    id: item.intent.id,
+    label: permissionLabels[item.intent.id],
+    tone: getPermissionStatusTone(item.status),
+    value: getPermissionStatusLabel(item.status),
+  }));
+
+  return (
+    <SettingsSection
+      description={copy.settingsMobilePermissionsDescription}
+      title={copy.settingsMobilePermissionsTitle}
+    >
+      <View style={styles.settingsSummaryRow}>
+        <MetricMiniPill label={copy.settingsReadyLabel} value={summary.granted} />
+        <MetricMiniPill label={copy.settingsPendingLabel} value={summary.needsUserAction} />
+        <MetricMiniPill
+          label={copy.settingsBlockedLabel}
+          value={summary.blocked + summary.denied}
+        />
+      </View>
+      <NativeSettingsList rows={rows} />
+    </SettingsSection>
+  );
+}
+
+type NativeSettingsRowTone = "danger" | "neutral" | "success" | "warning";
+
+type NativeSettingsRowItem = {
+  description: string;
+  id: string;
+  label: string;
+  tone: NativeSettingsRowTone;
+  value: string;
+};
+
+function NativeSettingsList({ rows }: { rows: readonly NativeSettingsRowItem[] }) {
+  return (
+    <View style={styles.nativeSettingsList}>
+      {rows.map((row) => (
+        <View key={row.id} style={styles.nativeSettingsRow}>
+          <View
+            style={[
+              styles.nativeSettingsDot,
+              row.tone === "success" && styles.nativeSettingsDotSuccess,
+              row.tone === "warning" && styles.nativeSettingsDotWarning,
+              row.tone === "danger" && styles.nativeSettingsDotDanger,
+            ]}
+          />
+          <View style={styles.nativeSettingsRowText}>
+            <Text style={styles.nativeSettingsRowTitle} numberOfLines={1}>
+              {row.label}
+            </Text>
+            <Text style={styles.nativeSettingsRowDescription} numberOfLines={2}>
+              {row.description}
+            </Text>
+          </View>
+          <Text
+            style={[
+              styles.nativeSettingsRowValue,
+              row.tone === "success" && styles.nativeSettingsRowValueSuccess,
+              row.tone === "warning" && styles.nativeSettingsRowValueWarning,
+              row.tone === "danger" && styles.nativeSettingsRowValueDanger,
+            ]}
+            numberOfLines={1}
+          >
+            {row.value}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function getFeatureStatusLabel(
+  status: MobileBootstrapPayload["features"]["messages"]["status"] | undefined,
+) {
+  switch (status) {
+    case "available":
+      return copy.settingsFeatureAvailable;
+    case "disabled":
+      return copy.settingsFeatureDisabled;
+    case "requires-native-permission":
+    case "requires-server-contract":
+      return copy.settingsPendingLabel;
+    default:
+      return copy.settingsPendingLabel;
+  }
+}
+
+function getFeatureStatusTone(
+  status: MobileBootstrapPayload["features"]["messages"]["status"] | undefined,
+): NativeSettingsRowTone {
+  switch (status) {
+    case "available":
+      return "success";
+    case "disabled":
+      return "neutral";
+    case "requires-native-permission":
+    case "requires-server-contract":
+    default:
+      return "warning";
+  }
+}
+
+function getPermissionStatusLabel(status: MobilePermissionReadiness["status"]) {
+  switch (status) {
+    case "granted":
+      return copy.settingsReadyLabel;
+    case "blocked":
+      return copy.settingsBlockedLabel;
+    case "denied":
+      return copy.settingsFeatureDisabled;
+    case "not-requested":
+    case "unknown":
+    default:
+      return copy.settingsPendingLabel;
+  }
+}
+
+function getPermissionStatusTone(
+  status: MobilePermissionReadiness["status"],
+): NativeSettingsRowTone {
+  switch (status) {
+    case "granted":
+      return "success";
+    case "blocked":
+    case "denied":
+      return "danger";
+    case "not-requested":
+    case "unknown":
+    default:
+      return "warning";
+  }
+}
+
 function SettingsSecurityCard({
   diagnostics,
   lastDeepLink,
@@ -1705,13 +2045,6 @@ function DeveloperDiagnosticsCard({
 }: {
   bootstrapSyncState: MobileSyncSnapshot;
 }) {
-  const storeEvidence = getMobileStoreEvidence(mobileStoreReadiness, settingsEvidenceLabels);
-  const releaseEvidence = getMobileReleaseEvidence({
-    budgetCount: MOBILE_RELEASE_BUDGETS.length,
-    qualitySummary: mobileQualitySummary,
-    releaseBudgets: MOBILE_RELEASE_BUDGETS,
-  });
-
   return (
     <View style={styles.developerSection}>
       <View style={styles.developerSectionHeader}>
@@ -1723,12 +2056,43 @@ function DeveloperDiagnosticsCard({
       />
       <EnvironmentCard />
       <BootstrapContractCard />
-      <SettingsEvidenceList items={releaseEvidence} />
-      <SettingsEvidenceList items={storeEvidence} />
       <ReleaseReadinessCard />
       <StoreReadinessCard />
       <MobileQualityGateCard />
     </View>
+  );
+}
+
+function SettingsReleaseQualityCard() {
+  const storeEvidence = getMobileStoreEvidence(mobileStoreReadiness, settingsEvidenceLabels);
+  const releaseEvidence = getMobileReleaseEvidence({
+    budgetCount: MOBILE_RELEASE_BUDGETS.length,
+    labels: settingsEvidenceLabels,
+    qualitySummary: mobileQualitySummary,
+    releaseBudgets: MOBILE_RELEASE_BUDGETS,
+  });
+
+  return (
+    <SettingsSection
+      description={copy.settingsReleaseQualityDescription}
+      title={copy.settingsReleaseQualityTitle}
+    >
+      <View style={styles.settingsSummaryRow}>
+        <MetricMiniPill
+          label={copy.qualityAutomatedLabel}
+          value={mobileQualitySummary.automatedGateCount}
+        />
+        <MetricMiniPill
+          label={copy.qualityManualLabel}
+          value={mobileQualitySummary.manualCheckCount}
+        />
+        <MetricMiniPill
+          label={copy.qualityDeviceLabel}
+          value={mobileQualitySummary.targetCount}
+        />
+      </View>
+      <SettingsEvidenceList items={[...releaseEvidence, ...storeEvidence]} />
+    </SettingsSection>
   );
 }
 
@@ -1791,6 +2155,105 @@ function BootstrapStateNotice({
           ]}
         >
           <Text style={styles.retryButtonText}>{copy.retryAction}</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function getVisibleMobileSyncHealth({
+  bootstrapSyncState,
+  channelSyncState,
+  currentTab,
+  dmSyncState,
+  selectedDMConversationId,
+  selectedWorkspaceChannelId,
+  selectedWorkspaceServerId,
+  workspaceSyncState,
+}: {
+  bootstrapSyncState: MobileSyncSnapshot;
+  channelSyncState: MobileSyncSnapshot;
+  currentTab: MobileTabId;
+  dmSyncState: MobileSyncSnapshot;
+  selectedDMConversationId: string | null;
+  selectedWorkspaceChannelId: string | null;
+  selectedWorkspaceServerId: string | null;
+  workspaceSyncState: MobileSyncSnapshot;
+}): MobileSyncHealthSummary {
+  const snapshots = [bootstrapSyncState];
+
+  if (currentTab === "messages" && selectedDMConversationId) {
+    snapshots.push(dmSyncState);
+  }
+
+  if (currentTab === "overview") {
+    if (selectedWorkspaceServerId) {
+      snapshots.push(workspaceSyncState);
+    }
+
+    if (selectedWorkspaceChannelId) {
+      snapshots.push(channelSyncState);
+    }
+  }
+
+  if (currentTab === "voice" && selectedWorkspaceServerId) {
+    snapshots.push(workspaceSyncState);
+  }
+
+  return summarizeMobileSyncHealth(snapshots);
+}
+
+function MobileSyncHealthBanner({
+  health,
+  onRetry,
+}: {
+  health: MobileSyncHealthSummary;
+  onRetry(): void;
+}) {
+  if (health.status === "healthy") {
+    return null;
+  }
+
+  const isError = health.status === "error";
+
+  return (
+    <View
+      accessibilityLiveRegion="polite"
+      style={[styles.syncHealthBanner, isError && styles.syncHealthBannerError]}
+    >
+      <View
+        style={[
+          styles.syncHealthIcon,
+          isError ? styles.syncHealthIconError : styles.syncHealthIconRefreshing,
+        ]}
+      >
+        {isError ? (
+          <Text style={styles.syncHealthIconText}>!</Text>
+        ) : (
+          <ActivityIndicator color={mobileColors.accentStrong} size="small" />
+        )}
+      </View>
+      <View style={styles.syncHealthText}>
+        <Text style={styles.syncHealthTitle}>
+          {isError ? copy.syncHealthErrorTitle : copy.syncHealthRefreshingTitle}
+        </Text>
+        <Text style={styles.syncHealthDescription} numberOfLines={2}>
+          {isError
+            ? copy.syncHealthErrorDescription
+            : copy.syncHealthRefreshingDescription}
+        </Text>
+      </View>
+      {isError ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.retryAction}
+          onPress={onRetry}
+          style={({ pressed }) => [
+            styles.syncHealthRetryButton,
+            pressed && styles.actionButtonPressed,
+          ]}
+        >
+          <Text style={styles.syncHealthRetryText}>{copy.retryAction}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -1913,6 +2376,109 @@ function MetricTile({ label, value }: { label: string; value: number }) {
     <View style={styles.metricTile}>
       <Text style={styles.metricValue}>{value}</Text>
       <Text style={styles.metricLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function HomeQuickActionsCard({
+  onOpenConversation,
+  onOpenServer,
+  onOpenTab,
+  state,
+}: {
+  onOpenConversation(conversationId: string): void;
+  onOpenServer(serverId: string): void;
+  onOpenTab(tab: MobileTabId): void;
+  state: MobileBootstrapViewState;
+}) {
+  if (state.status !== "ready") {
+    return null;
+  }
+
+  const actions = getMobileHomeQuickActions(state.payload, {
+    channelsSuffix: copy.channelsSuffix,
+    directMessageFallback: copy.directMessageFallback,
+    latestDirectMessage: copy.homeContinueLatestDirectMessage,
+    latestServer: copy.homeContinueLatestServer,
+    membersSuffix: copy.membersSuffix,
+    unreadSuffix: copy.unreadSuffix,
+  });
+
+  const handlePress = (action: MobileHomeQuickAction) => {
+    if (!action.isEnabled) {
+      return;
+    }
+
+    if (action.kind === "direct-message" && action.targetId) {
+      onOpenConversation(action.targetId);
+      onOpenTab("messages");
+      return;
+    }
+
+    if (action.kind === "server" && action.targetId) {
+      onOpenServer(action.targetId);
+      return;
+    }
+
+    if (action.kind === "voice") {
+      onOpenTab("voice");
+    }
+  };
+
+  return (
+    <View style={styles.continueCard}>
+      <View style={styles.cardHeaderText}>
+        <Text style={styles.environmentLabel}>{copy.homeContinueTitle}</Text>
+        <Text style={styles.contractDescription}>{copy.homeContinueDescription}</Text>
+      </View>
+      {actions.length > 0 ? (
+        <View style={styles.continueActionList}>
+          {actions.map((action) => (
+            <Pressable
+              key={action.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${action.title}: ${action.subtitle}`}
+              accessibilityState={{ disabled: !action.isEnabled }}
+              disabled={!action.isEnabled}
+              onPress={() => handlePress(action)}
+              style={({ pressed }) => [
+                styles.continueActionRow,
+                !action.isEnabled && styles.continueActionRowDisabled,
+                pressed && styles.compactListRowPressed,
+              ]}
+            >
+              <View
+                style={[
+                  styles.continueActionIcon,
+                  action.kind === "server" && styles.continueActionIconServer,
+                  action.kind === "voice" && styles.continueActionIconVoice,
+                ]}
+              >
+                <Text style={styles.continueActionIconText}>
+                  {action.kind === "direct-message"
+                    ? "DM"
+                    : action.kind === "server"
+                      ? "#"
+                      : "VO"}
+                </Text>
+              </View>
+              <View style={styles.continueActionText}>
+                <Text style={styles.compactListTitle} numberOfLines={1}>
+                  {action.title}
+                </Text>
+                <Text style={styles.compactListMeta} numberOfLines={1}>
+                  {action.subtitle}
+                </Text>
+              </View>
+              {action.badge !== null ? (
+                <Text style={styles.continueActionBadge}>{action.badge}</Text>
+              ) : null}
+            </Pressable>
+          ))}
+        </View>
+      ) : (
+        <Text style={styles.contractDescription}>{copy.homeContinueEmpty}</Text>
+      )}
     </View>
   );
 }
@@ -2312,6 +2878,23 @@ function DirectMessageListCard({
   totalCount: number;
   unreadCount: number;
 }) {
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<MobileConversationFilter>("all");
+  const filteredConversations = useMemo(
+    () =>
+      filterMobileConversations(conversations, {
+        fallback: copy.directMessageFallback,
+        filter,
+        query,
+      }),
+    [conversations, filter, query],
+  );
+  const filters: Array<{ id: MobileConversationFilter; label: string }> = [
+    { id: "all", label: copy.directMessageFilterAll },
+    { id: "unread", label: copy.directMessageFilterUnread },
+    { id: "active", label: copy.directMessageFilterActive },
+  ];
+
   return (
     <View style={styles.dmListCard}>
       <View style={styles.cardHeaderRow}>
@@ -2324,8 +2907,55 @@ function DirectMessageListCard({
           <MetricMiniPill label={copy.homeUnreadLabel} value={unreadCount} />
         </View>
       </View>
+      <View style={styles.inboxSearchShell}>
+        <Text style={styles.inboxSearchIcon}>{copy.directMessageSearchLabel}</Text>
+        <TextInput
+          accessibilityLabel={copy.directMessageSearchPlaceholder}
+          autoCapitalize="none"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+          onChangeText={setQuery}
+          placeholder={copy.directMessageSearchPlaceholder}
+          placeholderTextColor={mobileColors.mutedSoft}
+          returnKeyType="search"
+          style={styles.inboxSearchInput}
+          value={query}
+        />
+      </View>
+      <View style={styles.inboxFilterRow}>
+        {filters.map((item) => {
+          const isActive = item.id === filter;
+
+          return (
+            <Pressable
+              key={item.id}
+              accessibilityRole="button"
+              accessibilityLabel={item.label}
+              accessibilityState={{ selected: isActive }}
+              onPress={() => setFilter(item.id)}
+              style={({ pressed }) => [
+                styles.inboxFilterButton,
+                isActive && styles.inboxFilterButtonActive,
+                pressed && styles.actionButtonPressed,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.inboxFilterButtonText,
+                  isActive && styles.inboxFilterButtonTextActive,
+                ]}
+              >
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Text style={styles.inboxResultText}>
+        {filteredConversations.length} {copy.directMessageResultCount}
+      </Text>
       <View style={styles.compactList}>
-        {conversations.map((conversation) => {
+        {filteredConversations.map((conversation) => {
           const title = getMobileConversationTitle(
             conversation,
             copy.directMessageFallback,
@@ -2387,6 +3017,9 @@ function DirectMessageListCard({
           );
         })}
       </View>
+      {filteredConversations.length === 0 ? (
+        <Text style={styles.contractDescription}>{copy.directMessageFilteredEmpty}</Text>
+      ) : null}
     </View>
   );
 }
@@ -3127,6 +3760,68 @@ const styles = StyleSheet.create({
     gap: 8,
     minWidth: 0,
   },
+  nativeSettingsList: {
+    gap: 7,
+    minWidth: 0,
+  },
+  nativeSettingsRow: {
+    minHeight: 56,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  nativeSettingsDot: {
+    width: 10,
+    height: 10,
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.mutedSoft,
+  },
+  nativeSettingsDotSuccess: {
+    backgroundColor: mobileColors.success,
+  },
+  nativeSettingsDotWarning: {
+    backgroundColor: mobileColors.warning,
+  },
+  nativeSettingsDotDanger: {
+    backgroundColor: "#EF4444",
+  },
+  nativeSettingsRowText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  nativeSettingsRowTitle: {
+    color: mobileColors.text,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  nativeSettingsRowDescription: {
+    color: mobileColors.muted,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "700",
+  },
+  nativeSettingsRowValue: {
+    maxWidth: 92,
+    color: mobileColors.muted,
+    fontSize: 11,
+    fontWeight: "900",
+    textAlign: "right",
+  },
+  nativeSettingsRowValueSuccess: {
+    color: "#047857",
+  },
+  nativeSettingsRowValueWarning: {
+    color: "#B45309",
+  },
+  nativeSettingsRowValueDanger: {
+    color: "#B91C1C",
+  },
   settingsEvidenceGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -3294,6 +3989,67 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     gap: 6,
     maxWidth: 128,
+  },
+  inboxSearchShell: {
+    minHeight: 46,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+  },
+  inboxSearchIcon: {
+    color: mobileColors.accentStrong,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
+  },
+  inboxSearchInput: {
+    minHeight: 44,
+    flex: 1,
+    minWidth: 0,
+    color: mobileColors.text,
+    fontSize: 14,
+    fontWeight: "700",
+    paddingVertical: 0,
+  },
+  inboxFilterRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+    minWidth: 0,
+  },
+  inboxFilterButton: {
+    minHeight: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+  },
+  inboxFilterButtonActive: {
+    borderColor: "#C4B5FD",
+    backgroundColor: "#F5F3FF",
+  },
+  inboxFilterButtonText: {
+    color: mobileColors.muted,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  inboxFilterButtonTextActive: {
+    color: mobileColors.accentStrong,
+  },
+  inboxResultText: {
+    color: mobileColors.mutedSoft,
+    fontSize: 11,
+    fontWeight: "800",
   },
   metricMiniPill: {
     minWidth: 52,
@@ -3533,6 +4289,71 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
   },
+  syncHealthBanner: {
+    minWidth: 0,
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#EEF2FF",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  syncHealthBannerError: {
+    borderColor: "#FECACA",
+    backgroundColor: "#FEF2F2",
+  },
+  syncHealthIcon: {
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: mobileRadii.pill,
+  },
+  syncHealthIconRefreshing: {
+    backgroundColor: "#FFFFFF",
+  },
+  syncHealthIconError: {
+    backgroundColor: "#FEE2E2",
+  },
+  syncHealthIconText: {
+    color: "#DC2626",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  syncHealthText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  syncHealthTitle: {
+    color: mobileColors.text,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  syncHealthDescription: {
+    color: mobileColors.muted,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "700",
+  },
+  syncHealthRetryButton: {
+    minHeight: 38,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+  },
+  syncHealthRetryText: {
+    color: mobileColors.accentStrong,
+    fontSize: 12,
+    fontWeight: "900",
+  },
   homeSummaryCard: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -3562,6 +4383,70 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     fontWeight: "800",
+  },
+  continueCard: {
+    gap: 10,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.card,
+    backgroundColor: "#FFFFFF",
+    padding: 12,
+  },
+  continueActionList: {
+    gap: 8,
+    minWidth: 0,
+  },
+  continueActionRow: {
+    minHeight: 54,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "#E5E7FF",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FAFBFF",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  continueActionRowDisabled: {
+    opacity: 0.66,
+  },
+  continueActionIcon: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#EEF2FF",
+  },
+  continueActionIconServer: {
+    backgroundColor: "#F0FDF4",
+  },
+  continueActionIconVoice: {
+    backgroundColor: "#FFF7ED",
+  },
+  continueActionIconText: {
+    color: mobileColors.accentStrong,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  continueActionText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  continueActionBadge: {
+    minWidth: 24,
+    overflow: "hidden",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.accentStrong,
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "900",
+    lineHeight: 22,
+    textAlign: "center",
+    paddingHorizontal: 7,
   },
   compactList: {
     gap: 8,

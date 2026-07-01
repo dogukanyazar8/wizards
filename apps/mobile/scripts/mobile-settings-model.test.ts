@@ -5,6 +5,7 @@ import type { MobileSessionDiagnostics } from "../src/auth/session-types";
 import {
   getMobileFeatureEvidence,
   getMobilePermissionEvidence,
+  getMobileReleaseEvidence,
   getMobileSessionEvidence,
   getMobileStoreEvidence,
   mobileSettingsEvidenceContainsSensitiveText,
@@ -15,10 +16,13 @@ import type { MobileStoreReadinessResult } from "../src/release/mobile-store-con
 
 const labels = {
   available: "Ready",
+  automation: "Automation",
   blocked: "Blocked",
   disabled: "Disabled",
+  manualQa: "Manual QA",
   missing: "Missing",
   pending: "Pending",
+  performance: "Performance",
   ready: "Ready",
   refreshToken: "Refresh",
   scopeCount: "Scopes",
@@ -111,6 +115,38 @@ describe("mobile settings display model", () => {
     assert.deepEqual(
       evidence.map((item) => item.value),
       ["Ready", "Ready"],
+    );
+    assert.equal(mobileSettingsEvidenceContainsSensitiveText(evidence), false);
+  });
+
+  it("summarizes release evidence with localized labels and bounded values", () => {
+    const evidence = getMobileReleaseEvidence({
+      budgetCount: 4,
+      labels,
+      qualitySummary: {
+        automatedGateCount: 5,
+        budgetCount: 4,
+        criticalManualCount: 7,
+        manualCheckCount: 15,
+        platformCount: 2,
+        requiredAreas: ["auth", "dm", "permissions"],
+        targetCount: 4,
+      },
+      releaseBudgets: [
+        { label: "Startup", metric: "startup", target: "<= 2500ms" },
+        { label: "Resume", metric: "resume", target: "<= 700ms" },
+        { label: "Composer", metric: "composer", target: "p95 <= 50ms" },
+        { label: "Memory", metric: "memory", target: "<= 180MB" },
+      ],
+    });
+
+    assert.deepEqual(
+      evidence.map((item) => item.label),
+      ["Automation", "Manual QA", "Performance"],
+    );
+    assert.deepEqual(
+      evidence.map((item) => item.value),
+      ["5", "7/15", "4"],
     );
     assert.equal(mobileSettingsEvidenceContainsSensitiveText(evidence), false);
   });

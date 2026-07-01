@@ -118,7 +118,7 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
   {
     area: "dm",
     id: "dm-bootstrap-and-preview",
-    label: "Real DM list opens a real bounded conversation preview without fake messages.",
+    label: "Real DM list opens a real bounded conversation preview without fabricated messages.",
     required: true,
     risk: "high",
   },
