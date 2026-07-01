@@ -14,12 +14,19 @@ import {
   getMobileRuntimeConfig,
   type MobileEnvironmentConfig,
 } from "../config/environment";
-import { buildMobileWebSignInUrl } from "../deep-link/mobile-deep-links";
+import {
+  buildMobileWebRegisterUrl,
+  buildMobileWebSignInUrl,
+} from "../deep-link/mobile-deep-links";
 import { mobileSecureSessionRepository } from "./expo-secure-session-store";
 import {
   exchangeMobileAuthHandoff,
   refreshMobileAuthSession,
+  registerMobileWithPassword,
+  requestMobilePasswordReset,
+  requestMobileVerificationEmail,
   revokeMobileAuthSession,
+  signInMobileWithPassword,
 } from "./mobile-auth-exchange";
 import {
   createMobileAuthState,
@@ -38,8 +45,25 @@ interface MobileAuthContextValue extends MobileAuthState {
   apiClient: MobileApiClient;
   completeAuthHandoff(input: { callbackPath: string; handoffToken: string }): Promise<boolean>;
   diagnostics: MobileSessionDiagnostics;
+  openWebRegister(): Promise<void>;
   openWebSignIn(): Promise<void>;
+  registerWithPassword(input: {
+    confirmPassword: string;
+    email: string;
+    password: string;
+    username: string;
+  }): Promise<{ email: string; ok: true } | { message: string; ok: false }>;
+  requestPasswordReset(input: {
+    email: string;
+  }): Promise<{ email: string; ok: true } | { message: string; ok: false }>;
+  requestVerificationEmail(input: {
+    email: string;
+  }): Promise<{ email: string; ok: true } | { message: string; ok: false }>;
   refreshSessionFromStorage(): Promise<void>;
+  signInWithPassword(input: {
+    email: string;
+    password: string;
+  }): Promise<{ ok: true } | { message: string; ok: false }>;
   signOut(): Promise<void>;
 }
 
@@ -184,6 +208,102 @@ export function MobileAuthProvider({
     [createUnauthenticatedClient, repository, state.session],
   );
 
+  const signInWithPassword = useCallback(
+    async (input: { email: string; password: string }) => {
+      try {
+        const session = await signInMobileWithPassword(createUnauthenticatedClient(), input);
+        await repository.save(session);
+        setState(createMobileAuthState("signed-in", session));
+        return { ok: true } as const;
+      } catch {
+        setState(createMobileAuthState("signed-out", null, "Giris tamamlanamadi."));
+        return {
+          message: "E-posta veya sifre hatali ya da hesap dogrulanmamis olabilir.",
+          ok: false,
+        } as const;
+      }
+    },
+    [createUnauthenticatedClient, repository],
+  );
+
+  const registerWithPassword = useCallback(
+    async (input: {
+      confirmPassword: string;
+      email: string;
+      password: string;
+      username: string;
+    }) => {
+      try {
+        const response = await registerMobileWithPassword(createUnauthenticatedClient(), {
+          ...input,
+          locale: "tr",
+        });
+        setState(createMobileAuthState("signed-out"));
+        return {
+          email: response.email,
+          ok: true,
+        } as const;
+      } catch {
+        setState(createMobileAuthState("signed-out", null, "Hesap olusturulamadi."));
+        return {
+          message:
+            "Hesap olusturulamadi. Bilgileri, kullanici adini ve e-posta durumunu kontrol et.",
+          ok: false,
+        } as const;
+      }
+    },
+    [createUnauthenticatedClient],
+  );
+
+  const requestPasswordReset = useCallback(
+    async (input: { email: string }) => {
+      try {
+        const response = await requestMobilePasswordReset(createUnauthenticatedClient(), {
+          ...input,
+          locale: "tr",
+        });
+        setState(createMobileAuthState("signed-out"));
+        return {
+          email: response.email,
+          ok: true,
+        } as const;
+      } catch {
+        setState(createMobileAuthState("signed-out", null, "Sifre sifirlama baslatilamadi."));
+        return {
+          message: "Sifre sifirlama su anda baslatilamadi. Biraz sonra tekrar dene.",
+          ok: false,
+        } as const;
+      }
+    },
+    [createUnauthenticatedClient],
+  );
+
+  const requestVerificationEmail = useCallback(
+    async (input: { email: string }) => {
+      try {
+        const response = await requestMobileVerificationEmail(
+          createUnauthenticatedClient(),
+          {
+            ...input,
+            locale: "tr",
+          },
+        );
+        setState(createMobileAuthState("signed-out"));
+        return {
+          email: response.email,
+          ok: true,
+        } as const;
+      } catch {
+        setState(createMobileAuthState("signed-out", null, "Dogrulama e-postasi gonderilemedi."));
+        return {
+          message: "Dogrulama e-postasi su anda gonderilemedi. Biraz sonra tekrar dene.",
+          ok: false,
+        } as const;
+      }
+    },
+    [createUnauthenticatedClient],
+  );
+
   const openWebSignIn = useCallback(async () => {
     try {
       await Linking.openURL(buildMobileWebSignInUrl(runtimeConfig.webUrl));
@@ -191,6 +311,17 @@ export function MobileAuthProvider({
       setState((current: MobileAuthState) => ({
         ...current,
         error: "Whispr web girisi acilamadi. Lutfen baglantini kontrol et.",
+      }));
+    }
+  }, [runtimeConfig.webUrl]);
+
+  const openWebRegister = useCallback(async () => {
+    try {
+      await Linking.openURL(buildMobileWebRegisterUrl(runtimeConfig.webUrl));
+    } catch {
+      setState((current: MobileAuthState) => ({
+        ...current,
+        error: "Whispr kayit ekrani acilamadi. Lutfen baglantini kontrol et.",
       }));
     }
   }, [runtimeConfig.webUrl]);
@@ -219,16 +350,26 @@ export function MobileAuthProvider({
       apiClient,
       completeAuthHandoff,
       diagnostics,
+      openWebRegister,
       openWebSignIn,
+      registerWithPassword,
+      requestPasswordReset,
+      requestVerificationEmail,
       refreshSessionFromStorage,
+      signInWithPassword,
       signOut,
     }),
     [
       apiClient,
       completeAuthHandoff,
       diagnostics,
+      openWebRegister,
       openWebSignIn,
+      registerWithPassword,
+      requestPasswordReset,
+      requestVerificationEmail,
       refreshSessionFromStorage,
+      signInWithPassword,
       signOut,
       state,
     ],

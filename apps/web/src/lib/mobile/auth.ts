@@ -5,13 +5,32 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 
-import { prisma } from "@wizards/db";
+import { Prisma, prisma } from "@wizards/db";
 import {
   MobileAuthExchangeResponseSchema,
+  MobileAuthForgotPasswordResponseSchema,
+  MobileAuthPasswordLoginResponseSchema,
+  MobileAuthRegisterResponseSchema,
   MobileAuthRefreshResponseSchema,
+  MobileAuthVerificationEmailResponseSchema,
 } from "@wizards/types";
+import bcrypt from "bcryptjs";
 
+import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
+import {
+  EmailVerificationError,
+  sendVerificationEmail,
+} from "@/lib/auth/email-verification";
+import {
+  PasswordResetError,
+  sendPasswordResetEmail,
+  type PasswordResetUser,
+} from "@/lib/auth/password-reset";
+import { rollbackUnverifiedUser } from "@/lib/auth/registration-compensation";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
+import { normalizeAppLocale } from "@/lib/locale";
+import { persistUserLocale } from "@/lib/locale/persistence";
+import { logError } from "@/lib/logger";
 import { getRedis } from "@/lib/redis";
 
 export const MOBILE_AUTH_HANDOFF_TTL_SECONDS = 120;
@@ -76,6 +95,44 @@ interface MobileAuthOptions {
   loadUser?: (userId: string) => Promise<MobileAuthUser | null>;
   nowMs?: number;
   redis?: MobileAuthRedis;
+}
+
+interface MobilePasswordAuthUser extends MobileAuthUser {
+  email: string;
+  locale: string | null;
+  passwordHash: string | null;
+}
+
+interface MobileNativeAuthOptions extends MobileAuthOptions {
+  comparePassword?: (password: string, passwordHash: string) => Promise<boolean>;
+  loadUserByEmail?: (email: string) => Promise<MobilePasswordAuthUser | null>;
+}
+
+interface MobileVerificationEmailUser {
+  deletedAt: Date | null;
+  displayName: string | null;
+  email: string;
+  emailVerified: boolean;
+  id: string;
+  isBanned: boolean;
+  locale: string | null;
+  username: string;
+}
+
+interface MobileVerificationEmailOptions {
+  loadUserByEmail?: (email: string) => Promise<MobileVerificationEmailUser | null>;
+  sendVerification?: typeof sendVerificationEmail;
+}
+
+export class MobileNativeAuthError extends Error {
+  constructor(
+    public readonly code: string,
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "MobileNativeAuthError";
+  }
 }
 
 interface MobileAccessTokenClaims {
@@ -351,6 +408,54 @@ async function loadMobileAuthUser(userId: string) {
   });
 }
 
+async function loadMobilePasswordAuthUser(email: string) {
+  return prisma.user.findUnique({
+    where: { email },
+    select: {
+      avatarUrl: true,
+      deletedAt: true,
+      displayName: true,
+      email: true,
+      emailVerified: true,
+      id: true,
+      isBanned: true,
+      locale: true,
+      passwordHash: true,
+      username: true,
+    },
+  });
+}
+
+async function loadMobileVerificationEmailUser(email: string) {
+  return prisma.user.findUnique({
+    where: { email },
+    select: {
+      deletedAt: true,
+      displayName: true,
+      email: true,
+      emailVerified: true,
+      id: true,
+      isBanned: true,
+      locale: true,
+      username: true,
+    },
+  });
+}
+
+function normalizeMobileAuthEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function mapMobileEmailSendError(error: unknown, fallbackCode: string) {
+  if (error instanceof EmailVerificationError || error instanceof PasswordResetError) {
+    if (error.code === "CONFIGURATION_ERROR" || error.code === "SENDER_RESTRICTED") {
+      return new MobileNativeAuthError(fallbackCode, 503, "Mobile auth email is unavailable.");
+    }
+  }
+
+  return new MobileNativeAuthError(fallbackCode, 503, "Mobile auth email could not be sent.");
+}
+
 function isActiveMobileAuthUser(user: MobileAuthUser | null | undefined): user is MobileAuthUser {
   return Boolean(user && !user.deletedAt && !user.isBanned && user.emailVerified);
 }
@@ -555,6 +660,248 @@ export async function exchangeMobileAuthHandoffToken(
   return MobileAuthExchangeResponseSchema.parse({
     session: await createMobileSessionSnapshot(user, { nowMs, redis }, options),
   });
+}
+
+export async function createMobilePasswordSession(
+  input: {
+    email: string;
+    password: string;
+  },
+  options: MobileNativeAuthOptions = {},
+) {
+  const email = normalizeMobileAuthEmail(input.email);
+  const user = await (options.loadUserByEmail ?? loadMobilePasswordAuthUser)(email);
+  const comparePassword = options.comparePassword ?? bcrypt.compare;
+
+  if (!user?.passwordHash) {
+    return null;
+  }
+
+  const isPasswordValid = await comparePassword(input.password, user.passwordHash);
+  if (!isPasswordValid || !isActiveMobileAuthUser(user)) {
+    return null;
+  }
+
+  const redis = getMobileAuthRedis(options);
+  const nowMs = Math.trunc(options.nowMs ?? Date.now());
+
+  return MobileAuthPasswordLoginResponseSchema.parse({
+    session: await createMobileSessionSnapshot(user, { nowMs, redis }, options),
+  });
+}
+
+export async function registerMobilePasswordAccount(input: {
+  confirmPassword: string;
+  email: string;
+  locale?: "en" | "tr" | undefined;
+  password: string;
+  username: string;
+}) {
+  const email = normalizeMobileAuthEmail(input.email);
+  const locale = normalizeAppLocale(input.locale);
+  const username = input.username.trim();
+  if (input.password !== input.confirmPassword) {
+    throw new MobileNativeAuthError(
+      "PASSWORD_MISMATCH",
+      400,
+      "Password confirmation does not match.",
+    );
+  }
+
+  const [existingEmail, existingUsername] = await Promise.all([
+    prisma.user.findUnique({
+      where: { email },
+      select: {
+        displayName: true,
+        email: true,
+        emailVerified: true,
+        id: true,
+        locale: true,
+        username: true,
+      },
+    }),
+    prisma.user.findUnique({
+      where: { username },
+      select: { id: true },
+    }),
+  ]);
+
+  if (existingEmail) {
+    if (existingEmail.emailVerified) {
+      throw new MobileNativeAuthError(
+        "EMAIL_TAKEN",
+        409,
+        "An account with this email already exists.",
+      );
+    }
+
+    try {
+      await sendVerificationEmail(existingEmail, existingEmail.locale ?? locale);
+    } catch (error) {
+      throw mapMobileEmailSendError(error, "VERIFICATION_EMAIL_UNAVAILABLE");
+    }
+
+    return MobileAuthRegisterResponseSchema.parse({
+      email,
+      message: "verification_email_sent",
+      status: "verification-required",
+    });
+  }
+
+  if (existingUsername) {
+    throw new MobileNativeAuthError(
+      "USERNAME_TAKEN",
+      409,
+      "This username is already taken.",
+    );
+  }
+
+  const passwordHash = await bcrypt.hash(input.password, 12);
+
+  try {
+    const createdUser = await prisma.$transaction(async (tx) =>
+      tx.user.create({
+        data: {
+          displayName: username,
+          email,
+          emailVerified: false,
+          emailVerifiedAt: null,
+          locale,
+          notificationSettings: { create: {} },
+          passwordHash,
+          settings: { create: {} },
+          status: "ONLINE",
+          theme: DEFAULT_WIZARDS_THEME,
+          username,
+        },
+        select: {
+          displayName: true,
+          email: true,
+          id: true,
+          locale: true,
+          username: true,
+        },
+      }),
+    );
+
+    await persistUserLocale(createdUser.id, locale);
+
+    try {
+      await sendVerificationEmail(createdUser, locale);
+    } catch (error) {
+      await rollbackUnverifiedUser({
+        email,
+        userId: createdUser.id,
+      });
+      throw mapMobileEmailSendError(error, "VERIFICATION_EMAIL_UNAVAILABLE");
+    }
+
+    return MobileAuthRegisterResponseSchema.parse({
+      email,
+      message: "verification_email_sent",
+      status: "verification-required",
+    });
+  } catch (error) {
+    if (error instanceof MobileNativeAuthError) {
+      throw error;
+    }
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new MobileNativeAuthError(
+        "REGISTRATION_CONFLICT",
+        409,
+        "This email or username is already in use.",
+      );
+    }
+
+    throw error;
+  }
+}
+
+export async function requestMobilePasswordReset(input: {
+  email: string;
+  locale?: "en" | "tr" | undefined;
+}) {
+  const email = normalizeMobileAuthEmail(input.email);
+  const locale = normalizeAppLocale(input.locale);
+  const genericResponse = MobileAuthForgotPasswordResponseSchema.parse({
+    email,
+    message: "password_reset_if_available",
+    status: "accepted",
+  });
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: {
+      displayName: true,
+      email: true,
+      id: true,
+      isBanned: true,
+      locale: true,
+      passwordHash: true,
+      username: true,
+    },
+  });
+
+  if (!user || user.isBanned || !user.passwordHash) {
+    return genericResponse;
+  }
+
+  try {
+    await sendPasswordResetEmail(
+      {
+        displayName: user.displayName,
+        email: user.email,
+        id: user.id,
+        locale: user.locale,
+        passwordHash: user.passwordHash,
+        username: user.username,
+      } satisfies PasswordResetUser,
+      normalizeAppLocale(user.locale ?? locale),
+    );
+  } catch (error) {
+    throw mapMobileEmailSendError(error, "PASSWORD_RESET_EMAIL_UNAVAILABLE");
+  }
+
+  return genericResponse;
+}
+
+export async function requestMobileVerificationEmail(
+  input: {
+    email: string;
+    locale?: "en" | "tr" | undefined;
+  },
+  options: MobileVerificationEmailOptions = {},
+) {
+  const email = normalizeMobileAuthEmail(input.email);
+  const locale = normalizeAppLocale(input.locale);
+  const genericResponse = MobileAuthVerificationEmailResponseSchema.parse({
+    email,
+    message: "verification_email_if_available",
+    status: "accepted",
+  });
+
+  const user = await (options.loadUserByEmail ?? loadMobileVerificationEmailUser)(email);
+  if (!user || user.deletedAt || user.isBanned || user.emailVerified) {
+    return genericResponse;
+  }
+
+  try {
+    await (options.sendVerification ?? sendVerificationEmail)(
+      {
+        displayName: user.displayName,
+        email: user.email,
+        id: user.id,
+        locale: user.locale,
+        username: user.username,
+      },
+      user.locale ?? locale,
+    );
+  } catch (error) {
+    logError("[mobile-auth] Verification email resend failed", error);
+  }
+
+  return genericResponse;
 }
 
 export async function refreshMobileSession(

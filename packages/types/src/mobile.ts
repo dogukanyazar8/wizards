@@ -80,6 +80,67 @@ export const MobileAuthRevokeRequestSchema = z.object({
   refreshToken: z.string().min(16).max(8192).regex(/^\S+$/).nullable().optional(),
 });
 
+const MobileAuthEmailSchema = z.string().email("validation.email.invalid").max(254);
+const MobileAuthPasswordSchema = z
+  .string()
+  .min(8, "validation.password.min")
+  .max(100, "validation.password.max");
+const MobileAuthLocaleSchema = z.enum(["tr", "en"]).optional();
+
+export const MobileAuthPasswordLoginRequestSchema = z.object({
+  email: MobileAuthEmailSchema,
+  password: MobileAuthPasswordSchema,
+});
+
+export const MobileAuthPasswordLoginResponseSchema = z.object({
+  session: MobileSessionSnapshotSchema,
+});
+
+export const MobileAuthRegisterRequestSchema = z
+  .object({
+    confirmPassword: z.string().max(100, "validation.password.max"),
+    email: MobileAuthEmailSchema,
+    locale: MobileAuthLocaleSchema,
+    password: MobileAuthPasswordSchema,
+    username: z
+      .string()
+      .min(2, "validation.username.min")
+      .max(32, "validation.username.max")
+      .regex(/^[a-zA-Z0-9_]+$/, "validation.username.pattern"),
+  })
+  .refine((data) => data.confirmPassword === data.password, {
+    message: "validation.password.confirmMismatch",
+    path: ["confirmPassword"],
+  });
+
+export const MobileAuthRegisterResponseSchema = z.object({
+  email: MobileAuthEmailSchema,
+  message: z.string().min(1).max(160),
+  status: z.literal("verification-required"),
+});
+
+export const MobileAuthForgotPasswordRequestSchema = z.object({
+  email: MobileAuthEmailSchema,
+  locale: MobileAuthLocaleSchema,
+});
+
+export const MobileAuthForgotPasswordResponseSchema = z.object({
+  email: MobileAuthEmailSchema,
+  message: z.string().min(1).max(160),
+  status: z.literal("accepted"),
+});
+
+export const MobileAuthVerificationEmailRequestSchema = z.object({
+  email: MobileAuthEmailSchema,
+  locale: MobileAuthLocaleSchema,
+});
+
+export const MobileAuthVerificationEmailResponseSchema = z.object({
+  email: MobileAuthEmailSchema,
+  message: z.string().min(1).max(160),
+  status: z.literal("accepted"),
+});
+
 export const MobileBootstrapServerSummarySchema = z.object({
   channelCount: z.number().int().nonnegative(),
   iconUrl: z.string().url().nullable(),
@@ -259,4 +320,24 @@ export type MobileAuthExchangeResponse = z.infer<typeof MobileAuthExchangeRespon
 export type MobileAuthRefreshRequest = z.infer<typeof MobileAuthRefreshRequestSchema>;
 export type MobileAuthRefreshResponse = z.infer<typeof MobileAuthRefreshResponseSchema>;
 export type MobileAuthRevokeRequest = z.infer<typeof MobileAuthRevokeRequestSchema>;
+export type MobileAuthPasswordLoginRequest = z.infer<
+  typeof MobileAuthPasswordLoginRequestSchema
+>;
+export type MobileAuthPasswordLoginResponse = z.infer<
+  typeof MobileAuthPasswordLoginResponseSchema
+>;
+export type MobileAuthRegisterRequest = z.infer<typeof MobileAuthRegisterRequestSchema>;
+export type MobileAuthRegisterResponse = z.infer<typeof MobileAuthRegisterResponseSchema>;
+export type MobileAuthForgotPasswordRequest = z.infer<
+  typeof MobileAuthForgotPasswordRequestSchema
+>;
+export type MobileAuthForgotPasswordResponse = z.infer<
+  typeof MobileAuthForgotPasswordResponseSchema
+>;
+export type MobileAuthVerificationEmailRequest = z.infer<
+  typeof MobileAuthVerificationEmailRequestSchema
+>;
+export type MobileAuthVerificationEmailResponse = z.infer<
+  typeof MobileAuthVerificationEmailResponseSchema
+>;
 export type MobileSessionSnapshotPayload = z.infer<typeof MobileSessionSnapshotSchema>;

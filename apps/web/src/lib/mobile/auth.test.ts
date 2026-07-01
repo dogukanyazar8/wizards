@@ -3,10 +3,14 @@ import { describe, it } from "node:test";
 
 import {
   createMobileAuthHandoffToken,
+  createMobilePasswordSession,
   exchangeMobileAuthHandoffToken,
   isMobileAccessSessionActive,
   isMobileAuthHandoffToken,
+  MobileNativeAuthError,
   refreshMobileSession,
+  registerMobilePasswordAccount,
+  requestMobileVerificationEmail,
   revokeMobileSession,
   verifyMobileAccessToken,
 } from "./auth";
@@ -48,9 +52,12 @@ interface TestMobileAuthUser {
   avatarUrl: string | null;
   deletedAt: Date | null;
   displayName: string | null;
+  email?: string;
   emailVerified: boolean;
   id: string;
   isBanned: boolean;
+  locale?: string | null;
+  passwordHash?: string | null;
   username: string;
 }
 
@@ -72,11 +79,186 @@ function buildVerifiedUser(overrides: Partial<TestMobileAuthUser> = {}): TestMob
   };
 }
 
+function buildPasswordUser(
+  overrides: Partial<Omit<TestMobileAuthUser, "email" | "locale" | "passwordHash">> & {
+    email?: string;
+    locale?: "en" | "tr";
+    passwordHash?: string;
+  } = {},
+): TestMobileAuthUser & { email: string; locale: "en" | "tr"; passwordHash: string } {
+  return {
+    ...buildVerifiedUser(),
+    email: "ada@example.com",
+    locale: "tr",
+    passwordHash: "stored-hash",
+    ...overrides,
+  };
+}
+
 async function loadUser() {
   return buildVerifiedUser();
 }
 
 describe("mobile auth handoff", () => {
+  it("creates native password mobile sessions only for verified active users", async () => {
+    const redis = new MemoryRedis();
+    const passwordUser = buildPasswordUser();
+
+    const response = await createMobilePasswordSession(
+      {
+        email: " Ada@Example.COM ",
+        password: "correct-horse-battery",
+      },
+      {
+        comparePassword: async (password, hash) =>
+          password === "correct-horse-battery" && hash === "stored-hash",
+        env,
+        loadUserByEmail: async (email) => {
+          assert.equal(email, "ada@example.com");
+          return passwordUser;
+        },
+        nowMs: 1_800_000_000_000,
+        redis,
+      },
+    );
+
+    assert.equal(response?.session.user.id, "user-1");
+    assert.equal(response?.session.tokens.tokenType, "Bearer");
+    assert.equal(typeof response?.session.tokens.refreshToken, "string");
+  });
+
+  it("fails native password mobile sessions closed for wrong passwords and inactive users", async () => {
+    const redis = new MemoryRedis();
+    const passwordUser = buildPasswordUser();
+
+    assert.equal(
+      await createMobilePasswordSession(
+        {
+          email: "ada@example.com",
+          password: "wrong-password",
+        },
+        {
+          comparePassword: async () => false,
+          env,
+          loadUserByEmail: async () => passwordUser,
+          redis,
+        },
+      ),
+      null,
+    );
+
+    for (const inactiveUser of [
+      buildPasswordUser({
+        emailVerified: false,
+      }),
+      buildPasswordUser({
+        deletedAt: new Date("2026-01-01T00:00:00.000Z"),
+      }),
+      buildPasswordUser({
+        isBanned: true,
+      }),
+    ]) {
+      assert.equal(
+        await createMobilePasswordSession(
+          {
+            email: "ada@example.com",
+            password: "correct-horse-battery",
+          },
+          {
+            comparePassword: async () => true,
+            env,
+            loadUserByEmail: async () => inactiveUser,
+            redis,
+          },
+        ),
+        null,
+      );
+    }
+  });
+
+  it("rejects native registration when password confirmation does not match", async () => {
+    await assert.rejects(
+      () =>
+        registerMobilePasswordAccount({
+          confirmPassword: "different-password",
+          email: "ada@example.com",
+          password: "correct-horse-battery",
+          username: "ada_lovelace",
+        }),
+      (error) =>
+        error instanceof MobileNativeAuthError &&
+        error.code === "PASSWORD_MISMATCH" &&
+        error.status === 400,
+    );
+  });
+
+  it("resends mobile verification emails only for active unverified accounts", async () => {
+    const sentEmails: Array<{ email: string; locale: string | null | undefined }> = [];
+    const response = await requestMobileVerificationEmail(
+      {
+        email: " Ada@Example.COM ",
+        locale: "tr",
+      },
+      {
+        loadUserByEmail: async (email) => {
+          assert.equal(email, "ada@example.com");
+          return buildPasswordUser({
+            emailVerified: false,
+          });
+        },
+        sendVerification: async (user, locale) => {
+          sentEmails.push({ email: user.email, locale });
+          return { expiresAt: new Date("2026-01-01T00:00:00.000Z") };
+        },
+      },
+    );
+
+    assert.deepEqual(response, {
+      email: "ada@example.com",
+      message: "verification_email_if_available",
+      status: "accepted",
+    });
+    assert.deepEqual(sentEmails, [{ email: "ada@example.com", locale: "tr" }]);
+  });
+
+  it("does not reveal whether mobile verification email resend targets exist", async () => {
+    const verifiedResponse = await requestMobileVerificationEmail(
+      {
+        email: "verified@example.com",
+        locale: "en",
+      },
+      {
+        loadUserByEmail: async () => buildPasswordUser(),
+        sendVerification: async () => {
+          throw new Error("verified accounts must not receive verification emails");
+        },
+      },
+    );
+    const missingResponse = await requestMobileVerificationEmail(
+      {
+        email: "missing@example.com",
+        locale: "en",
+      },
+      {
+        loadUserByEmail: async () => null,
+        sendVerification: async () => {
+          throw new Error("missing accounts must not receive verification emails");
+        },
+      },
+    );
+
+    assert.deepEqual(verifiedResponse, {
+      email: "verified@example.com",
+      message: "verification_email_if_available",
+      status: "accepted",
+    });
+    assert.deepEqual(missingResponse, {
+      email: "missing@example.com",
+      message: "verification_email_if_available",
+      status: "accepted",
+    });
+  });
+
   it("exchanges a safe single-use handoff for a signed mobile session", async () => {
     const redis = new MemoryRedis();
     const handoff = await createMobileAuthHandoffToken(

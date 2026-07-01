@@ -271,6 +271,13 @@ const INITIAL_BOOTSTRAP_SYNC_STATE = createInitialMobileSyncSnapshot("bootstrap"
 const INITIAL_DM_SYNC_STATE = createInitialMobileSyncSnapshot("dm");
 const INITIAL_WORKSPACE_SYNC_STATE = createInitialMobileSyncSnapshot("workspace");
 const INITIAL_CHANNEL_SYNC_STATE = createInitialMobileSyncSnapshot("channel");
+const MOBILE_AUTH_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MOBILE_AUTH_USERNAME_PATTERN = /^[a-zA-Z0-9_]{2,32}$/;
+const MOBILE_AUTH_MIN_PASSWORD_LENGTH = 8;
+
+function normalizeMobileAuthInputEmail(value: string) {
+  return value.trim().toLowerCase();
+}
 
 export function WhisprMobileRoot() {
   const {
@@ -278,9 +285,14 @@ export function WhisprMobileRoot() {
     completeAuthHandoff,
     diagnostics,
     error,
+    openWebRegister,
     openWebSignIn,
+    registerWithPassword,
+    requestPasswordReset,
+    requestVerificationEmail,
     refreshSessionFromStorage,
     session,
+    signInWithPassword,
     signOut,
     status,
   } = useMobileAuth();
@@ -860,8 +872,13 @@ export function WhisprMobileRoot() {
       {route.isBlocked ? (
         <AuthGate
           reason={route.blockedReason}
+          onOpenWebRegister={() => void openWebRegister()}
           onOpenWebSignIn={() => void openWebSignIn()}
+          onRegisterWithPassword={registerWithPassword}
           onRefresh={() => void refreshSessionFromStorage()}
+          onRequestPasswordReset={requestPasswordReset}
+          onRequestVerificationEmail={requestVerificationEmail}
+          onSignInWithPassword={signInWithPassword}
         />
       ) : (
         <ActiveScreen
@@ -869,7 +886,6 @@ export function WhisprMobileRoot() {
           bootstrapState={bootstrapState}
           bootstrapSyncState={bootstrapSyncState}
           dmMessagesState={dmMessagesState}
-          dmSyncState={dmSyncState}
           dmSendState={dmSendState}
           diagnostics={diagnostics}
           lastDeepLink={lastDeepLink}
@@ -878,7 +894,7 @@ export function WhisprMobileRoot() {
           error={error}
           authStatusLabel={authStatusLabel}
           channelMessagesState={channelMessagesState}
-          channelSyncState={channelSyncState}
+          onOpenWebRegister={() => void openWebRegister()}
           signedInUserLabel={signedInUserLabel}
           onOpenWebSignIn={() => void openWebSignIn()}
           onOpenDMConversation={handleOpenDMConversation}
@@ -908,7 +924,6 @@ export function WhisprMobileRoot() {
           selectedWorkspaceChannelId={selectedWorkspaceChannelId}
           selectedWorkspaceServerId={selectedWorkspaceServerId}
           status={status}
-          workspaceSyncState={workspaceSyncState}
           workspaceServerState={workspaceServerState}
         />
       )}
@@ -921,15 +936,14 @@ interface ActiveScreenProps {
   bootstrapState: MobileBootstrapViewState;
   bootstrapSyncState: MobileSyncSnapshot;
   channelMessagesState: MobileChannelMessagesViewState;
-  channelSyncState: MobileSyncSnapshot;
   currentTab: MobileTabId;
   dmMessagesState: MobileDMMessagesViewState;
   dmSendState: MobileDMSendViewState;
-  dmSyncState: MobileSyncSnapshot;
   diagnostics: MobileSessionDiagnostics;
   error: string | null;
   lastDeepLink: MobileDeepLinkParseResult | null;
   onOpenDMConversation(conversationId: string): void;
+  onOpenWebRegister(): void;
   onOpenWebSignIn(): void;
   onOpenWorkspaceChannel(channel: MobileWorkspaceChannelSummary): void;
   onOpenWorkspaceServer(serverId: string): void;
@@ -951,7 +965,6 @@ interface ActiveScreenProps {
   signedInUserLabel: string | null;
   status: string;
   workspaceServerState: MobileWorkspaceServerViewState;
-  workspaceSyncState: MobileSyncSnapshot;
 }
 
 function ActiveScreen({
@@ -959,15 +972,14 @@ function ActiveScreen({
   bootstrapState,
   bootstrapSyncState,
   channelMessagesState,
-  channelSyncState,
   currentTab,
   dmMessagesState,
   dmSendState,
-  dmSyncState,
   diagnostics,
   error,
   lastDeepLink,
   onOpenDMConversation,
+  onOpenWebRegister,
   onOpenWebSignIn,
   onOpenWorkspaceChannel,
   onOpenWorkspaceServer,
@@ -987,8 +999,9 @@ function ActiveScreen({
   signedInUserLabel,
   status,
   workspaceServerState,
-  workspaceSyncState,
 }: ActiveScreenProps) {
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+
   switch (currentTab) {
     case "messages":
       return (
@@ -1001,12 +1014,6 @@ function ActiveScreen({
           {bootstrapState.status === "ready" &&
           bootstrapState.payload.home.directMessages.recent.length > 0 ? (
             <>
-              <MobileSyncStatusCard
-                items={[
-                  { label: copy.syncBootstrapLabel, snapshot: bootstrapSyncState },
-                  { label: copy.syncDmLabel, snapshot: dmSyncState },
-                ]}
-              />
               <DirectMessageListCard
                 conversations={bootstrapState.payload.home.directMessages.recent}
                 totalCount={bootstrapState.payload.home.directMessages.totalCount}
@@ -1032,10 +1039,7 @@ function ActiveScreen({
       );
     case "voice":
       return (
-        <ScreenShell eyebrow={copy.tabVoice} title={copy.voiceEmpty} description={copy.voiceDescription}>
-          <MobileSyncStatusCard
-            items={[{ label: copy.syncBootstrapLabel, snapshot: bootstrapSyncState }]}
-          />
+        <ScreenShell eyebrow={copy.tabVoice} title={copy.voiceTitle} description={copy.voiceDescription}>
           {bootstrapState.status === "ready" ? (
             <FeatureStatusCard
               label={bootstrapState.payload.features.voice.label}
@@ -1045,11 +1049,6 @@ function ActiveScreen({
           ) : (
             <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
           )}
-          <PermissionReadinessCard
-            readiness={permissionReadiness}
-            summary={permissionSummary}
-            compactFeature="voice"
-          />
           <EmptyState tone="success" label={copy.voiceEmpty} />
         </ScreenShell>
       );
@@ -1057,7 +1056,7 @@ function ActiveScreen({
       return (
         <ScreenShell
           eyebrow={copy.tabSettings}
-          title={authStatusLabel}
+          title={copy.settingsTitle}
           description={copy.settingsDescription}
         >
           <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
@@ -1067,24 +1066,46 @@ function ActiveScreen({
             signedInUserLabel={signedInUserLabel}
             status={status}
           />
-          <SettingsSecurityCard diagnostics={diagnostics} lastDeepLink={lastDeepLink} />
-          {bootstrapState.status === "ready" ? (
-            <SettingsFeatureReadinessCard features={bootstrapState.payload.features} />
-          ) : null}
-          <PermissionReadinessCard readiness={permissionReadiness} summary={permissionSummary} />
-          <SettingsPermissionEvidenceCard summary={permissionSummary} />
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
           <View style={styles.actionRow}>
             <ActionButton label={copy.secondaryAction} onPress={onRefresh} variant="secondary" />
             {status === "signed-in" ? (
               <ActionButton label={copy.signOutAction} onPress={onSignOut} variant="danger" />
             ) : (
-              <ActionButton label={copy.primaryAction} onPress={onOpenWebSignIn} variant="primary" />
+              <>
+                <ActionButton
+                  label={copy.authOpenSignInAction}
+                  onPress={onOpenWebSignIn}
+                  variant="primary"
+                />
+                <ActionButton
+                  label={copy.authOpenRegisterAction}
+                  onPress={onOpenWebRegister}
+                  variant="secondary"
+                />
+              </>
             )}
+            <ActionButton
+              label={
+                showDiagnostics
+                  ? copy.settingsDiagnosticsHideAction
+                  : copy.settingsDiagnosticsShowAction
+              }
+              onPress={() => setShowDiagnostics((value) => !value)}
+              variant="secondary"
+            />
           </View>
-          <DeveloperDiagnosticsCard
-            bootstrapSyncState={bootstrapSyncState}
-          />
+          {showDiagnostics ? (
+            <>
+              <SettingsSecurityCard diagnostics={diagnostics} lastDeepLink={lastDeepLink} />
+              {bootstrapState.status === "ready" ? (
+                <SettingsFeatureReadinessCard features={bootstrapState.payload.features} />
+              ) : null}
+              <PermissionReadinessCard readiness={permissionReadiness} summary={permissionSummary} />
+              <SettingsPermissionEvidenceCard summary={permissionSummary} />
+              <DeveloperDiagnosticsCard bootstrapSyncState={bootstrapSyncState} />
+            </>
+          ) : null}
         </ScreenShell>
       );
     case "overview":
@@ -1114,35 +1135,440 @@ function ActiveScreen({
 }
 
 function AuthGate({
+  onOpenWebRegister,
   onOpenWebSignIn,
+  onRegisterWithPassword,
   onRefresh,
+  onRequestPasswordReset,
+  onRequestVerificationEmail,
+  onSignInWithPassword,
   reason,
 }: {
+  onOpenWebRegister(): void;
   onOpenWebSignIn(): void;
+  onRegisterWithPassword(input: {
+    confirmPassword: string;
+    email: string;
+    password: string;
+    username: string;
+  }): Promise<{ email: string; ok: true } | { message: string; ok: false }>;
   onRefresh(): void;
+  onRequestPasswordReset(input: {
+    email: string;
+  }): Promise<{ email: string; ok: true } | { message: string; ok: false }>;
+  onRequestVerificationEmail(input: {
+    email: string;
+  }): Promise<{ email: string; ok: true } | { message: string; ok: false }>;
+  onSignInWithPassword(input: {
+    email: string;
+    password: string;
+  }): Promise<{ ok: true } | { message: string; ok: false }>;
   reason: "auth-required" | "checking" | null;
 }) {
   const isChecking = reason === "checking";
+  const [mode, setMode] = useState<"forgot" | "register" | "sign-in">("sign-in");
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formNotice, setFormNotice] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isVerificationSubmitting, setIsVerificationSubmitting] = useState(false);
+
+  const modeCopy =
+    mode === "sign-in"
+      ? {
+          action: copy.authNativeSignInAction,
+          description: copy.authSignInDescription,
+          icon: "->",
+          title: copy.authSignInTitle,
+        }
+      : mode === "register"
+        ? {
+            action: copy.authNativeRegisterAction,
+            description: copy.authRegisterDescription,
+            icon: "+",
+            title: copy.authRegisterTitle,
+          }
+        : {
+            action: copy.authNativeForgotAction,
+            description: copy.authForgotDescription,
+            icon: "?",
+            title: copy.authForgotTitle,
+          };
+
+  const selectMode = (nextMode: "forgot" | "register" | "sign-in") => {
+    setMode(nextMode);
+    setFormError(null);
+    setFormNotice(null);
+  };
+
+  const validateEmail = (value: string) => {
+    if (!MOBILE_AUTH_EMAIL_PATTERN.test(value)) {
+      return copy.authNativeInvalidEmail;
+    }
+
+    return null;
+  };
+
+  const validatePassword = (value: string) => {
+    if (value.length < MOBILE_AUTH_MIN_PASSWORD_LENGTH) {
+      return copy.authNativePasswordTooShort;
+    }
+
+    return null;
+  };
+
+  const validateUsername = (value: string) => {
+    if (!MOBILE_AUTH_USERNAME_PATTERN.test(value)) {
+      return copy.authNativeUsernameInvalid;
+    }
+
+    return null;
+  };
+
+  const handleSubmit = async () => {
+    if (isSubmitting) {
+      return;
+    }
+
+    const trimmedEmail = normalizeMobileAuthInputEmail(email);
+    const trimmedUsername = username.trim();
+    setFormError(null);
+    setFormNotice(null);
+
+    if (!trimmedEmail || (mode !== "forgot" && !password)) {
+      setFormError(copy.authNativeMissingFields);
+      return;
+    }
+
+    const emailError = validateEmail(trimmedEmail);
+    if (emailError) {
+      setFormError(emailError);
+      return;
+    }
+
+    if (mode !== "forgot") {
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        setFormError(passwordError);
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      if (mode === "sign-in") {
+        const result = await onSignInWithPassword({
+          email: trimmedEmail,
+          password,
+        });
+        if (!result.ok) {
+          setFormError(result.message || copy.authNativeGenericError);
+        }
+        return;
+      }
+
+      if (mode === "register") {
+        if (!trimmedUsername || !confirmPassword) {
+          setFormError(copy.authNativeMissingFields);
+          return;
+        }
+
+        const usernameError = validateUsername(trimmedUsername);
+        if (usernameError) {
+          setFormError(usernameError);
+          return;
+        }
+
+        if (password !== confirmPassword) {
+          setFormError(copy.authNativePasswordMismatch);
+          return;
+        }
+
+        const result = await onRegisterWithPassword({
+          confirmPassword,
+          email: trimmedEmail,
+          password,
+          username: trimmedUsername,
+        });
+
+        if (result.ok) {
+          setFormNotice(copy.authNativeVerificationNotice.replace("{email}", result.email));
+          setMode("sign-in");
+          setPassword("");
+          setConfirmPassword("");
+        } else {
+          setFormError(result.message || copy.authNativeGenericError);
+        }
+        return;
+      }
+
+      const result = await onRequestPasswordReset({ email: trimmedEmail });
+      if (result.ok) {
+        setFormNotice(copy.authNativeForgotNotice.replace("{email}", result.email));
+        setMode("sign-in");
+      } else {
+        setFormError(result.message || copy.authNativeGenericError);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRequestVerificationEmail = async () => {
+    if (isSubmitting || isVerificationSubmitting) {
+      return;
+    }
+
+    const trimmedEmail = normalizeMobileAuthInputEmail(email);
+    setFormError(null);
+    setFormNotice(null);
+
+    if (!trimmedEmail) {
+      setFormError(copy.authNativeMissingFields);
+      return;
+    }
+
+    const emailError = validateEmail(trimmedEmail);
+    if (emailError) {
+      setFormError(emailError);
+      return;
+    }
+
+    setIsVerificationSubmitting(true);
+    try {
+      const result = await onRequestVerificationEmail({ email: trimmedEmail });
+      if (result.ok) {
+        setFormNotice(
+          copy.authNativeVerificationResendNotice.replace("{email}", result.email),
+        );
+        setMode("sign-in");
+      } else {
+        setFormError(result.message || copy.authNativeGenericError);
+      }
+    } finally {
+      setIsVerificationSubmitting(false);
+    }
+  };
 
   return (
     <ScreenShell
       eyebrow={copy.status}
-      title={isChecking ? copy.authChecking : copy.gatedSignedOut}
-      description={isChecking ? copy.gatedChecking : copy.authSummary}
+      title={isChecking ? copy.authChecking : copy.authWelcomeTitle}
+      description={isChecking ? copy.gatedChecking : copy.authWelcomeDescription}
     >
-      <View style={styles.authGateCard}>
-        <View style={[styles.authGateIcon, isChecking && styles.authGateIconChecking]}>
-          <Text style={styles.authGateIconText}>{isChecking ? "..." : "!"}</Text>
+      {isChecking ? (
+        <View style={styles.authGateCard}>
+          <View style={[styles.authGateIcon, styles.authGateIconChecking]}>
+            <Text style={styles.authGateIconText}>...</Text>
+          </View>
+          <Text style={styles.authSummary}>{copy.gatedChecking}</Text>
         </View>
-        <Text style={styles.authSummary}>{isChecking ? copy.gatedChecking : copy.gatedSignedOut}</Text>
-      </View>
+      ) : (
+        <View style={styles.authGatePanel}>
+          <View style={styles.authModeTabs}>
+            <AuthModeButton
+              active={mode === "sign-in"}
+              label={copy.authModeSignIn}
+              onPress={() => selectMode("sign-in")}
+            />
+            <AuthModeButton
+              active={mode === "register"}
+              label={copy.authModeRegister}
+              onPress={() => selectMode("register")}
+            />
+          </View>
+          <View style={styles.authGateCard}>
+            <View style={styles.authGateIcon}>
+              <Text style={styles.authGateIconText}>{modeCopy.icon}</Text>
+            </View>
+            <View style={styles.authGateText}>
+              <Text style={styles.authGateTitle}>{modeCopy.title}</Text>
+              <Text style={styles.authSummary}>{modeCopy.description}</Text>
+            </View>
+          </View>
+          <View style={styles.authFormCard}>
+            <View style={styles.authField}>
+              <Text style={styles.authLabel}>{copy.authNativeEmailLabel}</Text>
+              <TextInput
+                accessibilityLabel={copy.authNativeEmailLabel}
+                autoCapitalize="none"
+                autoComplete="email"
+                autoCorrect={false}
+                inputMode="email"
+                keyboardType="email-address"
+                onChangeText={setEmail}
+                placeholder={copy.authNativeEmailPlaceholder}
+                placeholderTextColor={mobileColors.muted}
+                returnKeyType={mode === "forgot" ? "done" : "next"}
+                style={styles.authInput}
+                textContentType="emailAddress"
+                value={email}
+              />
+            </View>
+            {mode === "register" ? (
+              <View style={styles.authField}>
+                <Text style={styles.authLabel}>{copy.authNativeUsernameLabel}</Text>
+                <TextInput
+                  accessibilityLabel={copy.authNativeUsernameLabel}
+                  autoCapitalize="none"
+                  autoComplete="username"
+                  autoCorrect={false}
+                  onChangeText={setUsername}
+                  placeholder={copy.authNativeUsernamePlaceholder}
+                  placeholderTextColor={mobileColors.muted}
+                  returnKeyType="next"
+                  style={styles.authInput}
+                  textContentType="username"
+                  value={username}
+                />
+              </View>
+            ) : null}
+            {mode !== "forgot" ? (
+              <View style={styles.authField}>
+                <Text style={styles.authLabel}>{copy.authNativePasswordLabel}</Text>
+                <TextInput
+                  accessibilityLabel={copy.authNativePasswordLabel}
+                  autoCapitalize="none"
+                  autoComplete={mode === "register" ? "new-password" : "password"}
+                  autoCorrect={false}
+                  onChangeText={setPassword}
+                  placeholder={copy.authNativePasswordPlaceholder}
+                  placeholderTextColor={mobileColors.muted}
+                  returnKeyType={mode === "register" ? "next" : "done"}
+                  secureTextEntry
+                  style={styles.authInput}
+                  textContentType={mode === "register" ? "newPassword" : "password"}
+                  value={password}
+                />
+              </View>
+            ) : null}
+            {mode === "register" ? (
+              <View style={styles.authField}>
+                <Text style={styles.authLabel}>{copy.authNativeConfirmPasswordLabel}</Text>
+                <TextInput
+                  accessibilityLabel={copy.authNativeConfirmPasswordLabel}
+                  autoCapitalize="none"
+                  autoComplete="new-password"
+                  autoCorrect={false}
+                  onChangeText={setConfirmPassword}
+                  placeholder={copy.authNativeConfirmPasswordPlaceholder}
+                  placeholderTextColor={mobileColors.muted}
+                  returnKeyType="done"
+                  secureTextEntry
+                  style={styles.authInput}
+                  textContentType="newPassword"
+                  value={confirmPassword}
+                />
+              </View>
+            ) : null}
+            {formError ? <Text style={styles.authFormError}>{formError}</Text> : null}
+            {formNotice ? <Text style={styles.authFormNotice}>{formNotice}</Text> : null}
+            <ActionButton
+              disabled={isSubmitting}
+              label={isSubmitting ? copy.authNativeSubmitting : modeCopy.action}
+              onPress={() => void handleSubmit()}
+              variant="primary"
+            />
+            <View style={styles.authInlineActions}>
+              {mode !== "forgot" ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={copy.authNativeForgotLink}
+                  onPress={() => selectMode("forgot")}
+                  style={({ pressed }) => [
+                    styles.authInlineButton,
+                    pressed && styles.actionButtonPressed,
+                  ]}
+                >
+                  <Text style={styles.authInlineButtonText}>{copy.authNativeForgotLink}</Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={copy.authNativeBackToSignIn}
+                  onPress={() => selectMode("sign-in")}
+                  style={({ pressed }) => [
+                    styles.authInlineButton,
+                    pressed && styles.actionButtonPressed,
+                  ]}
+                >
+                  <Text style={styles.authInlineButtonText}>{copy.authNativeBackToSignIn}</Text>
+                </Pressable>
+              )}
+              {mode !== "forgot" ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={copy.authNativeVerificationResendAction}
+                  disabled={isSubmitting || isVerificationSubmitting}
+                  onPress={() => void handleRequestVerificationEmail()}
+                  style={({ pressed }) => [
+                    styles.authInlineButton,
+                    (pressed || isVerificationSubmitting) && styles.actionButtonPressed,
+                  ]}
+                >
+                  <Text style={styles.authInlineButtonText}>
+                    {isVerificationSubmitting
+                      ? copy.authNativeSubmitting
+                      : copy.authNativeVerificationResendAction}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+          <View style={styles.authBrowserNote}>
+            <Text style={styles.authBrowserNoteTitle}>{copy.authNativeWebFallbackTitle}</Text>
+            <Text style={styles.authBrowserNoteText}>{copy.authSecureBrowserNote}</Text>
+            <View style={styles.authBrowserActions}>
+              <ActionButton
+                label={copy.authNativeWebSignInFallback}
+                onPress={onOpenWebSignIn}
+                variant="secondary"
+              />
+              <ActionButton
+                label={copy.authNativeWebRegisterFallback}
+                onPress={onOpenWebRegister}
+                variant="secondary"
+              />
+            </View>
+          </View>
+        </View>
+      )}
       <View style={styles.actionRow}>
         <ActionButton label={copy.secondaryAction} onPress={onRefresh} variant="secondary" />
-        {!isChecking ? (
-          <ActionButton label={copy.primaryAction} onPress={onOpenWebSignIn} variant="primary" />
-        ) : null}
       </View>
     </ScreenShell>
+  );
+}
+
+function AuthModeButton({
+  active,
+  label,
+  onPress,
+}: {
+  active: boolean;
+  label: string;
+  onPress(): void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.authModeButton,
+        active && styles.authModeButtonActive,
+        pressed && styles.actionButtonPressed,
+      ]}
+    >
+      <Text style={[styles.authModeButtonText, active && styles.authModeButtonTextActive]}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -2568,10 +2994,12 @@ function DiagnosticPill({ label, value }: { label: string; value: string }) {
 }
 
 function ActionButton({
+  disabled = false,
   label,
   onPress,
   variant,
 }: {
+  disabled?: boolean;
   label: string;
   onPress(): void;
   variant: "danger" | "primary" | "secondary";
@@ -2580,12 +3008,15 @@ function ActionButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.actionButton,
         variant === "primary" && styles.actionButtonPrimary,
         variant === "danger" && styles.actionButtonDanger,
-        pressed && styles.actionButtonPressed,
+        disabled && styles.actionButtonDisabled,
+        pressed && !disabled && styles.actionButtonPressed,
       ]}
     >
       <Text
@@ -2593,6 +3024,7 @@ function ActionButton({
           styles.actionButtonText,
           variant === "primary" && styles.actionButtonTextPrimary,
           variant === "danger" && styles.actionButtonTextDanger,
+          disabled && styles.actionButtonTextDisabled,
         ]}
       >
         {label}
@@ -2604,18 +3036,12 @@ function ActionButton({
 const styles = StyleSheet.create({
   screenCard: {
     flexGrow: 1,
-    gap: 10,
+    gap: 8,
     minWidth: 0,
-    borderWidth: 1,
-    borderColor: mobileColors.border,
     borderRadius: mobileRadii.card,
-    backgroundColor: mobileColors.card,
-    padding: 16,
-    shadowColor: "#4F46E5",
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.1,
-    shadowRadius: 32,
-    elevation: 3,
+    backgroundColor: "transparent",
+    paddingHorizontal: 2,
+    paddingVertical: 8,
   },
   screenEyebrow: {
     color: mobileColors.accentStrong,
@@ -2626,8 +3052,8 @@ const styles = StyleSheet.create({
   },
   screenTitle: {
     color: mobileColors.text,
-    fontSize: 22,
-    lineHeight: 29,
+    fontSize: 24,
+    lineHeight: 31,
     fontWeight: "900",
   },
   screenDescription: {
@@ -2638,7 +3064,7 @@ const styles = StyleSheet.create({
   },
   screenBody: {
     gap: mobileSpacing.row,
-    marginTop: 8,
+    marginTop: 6,
     minWidth: 0,
   },
   settingsHeroCard: {
@@ -3706,9 +4132,44 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     fontWeight: "600",
   },
+  authGatePanel: {
+    gap: 10,
+    minWidth: 0,
+  },
+  authModeTabs: {
+    minHeight: 46,
+    flexDirection: "row",
+    gap: 6,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FFFFFF",
+    padding: 4,
+  },
+  authModeButton: {
+    minHeight: 38,
+    flex: 1,
+    minWidth: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: mobileRadii.control - 4,
+    paddingHorizontal: 10,
+  },
+  authModeButtonActive: {
+    backgroundColor: "#F5F3FF",
+  },
+  authModeButtonText: {
+    color: mobileColors.muted,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  authModeButtonTextActive: {
+    color: mobileColors.accentStrong,
+  },
   authGateCard: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 12,
     minWidth: 0,
     borderWidth: 1,
@@ -3731,6 +4192,118 @@ const styles = StyleSheet.create({
   authGateIconText: {
     color: "#FFFFFF",
     fontSize: 18,
+    fontWeight: "900",
+  },
+  authGateText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  authGateTitle: {
+    color: mobileColors.text,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "900",
+  },
+  authBrowserNote: {
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#EEF2FF",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  authBrowserNoteTitle: {
+    color: mobileColors.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  authBrowserActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    minWidth: 0,
+  },
+  authBrowserNoteText: {
+    color: mobileColors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "700",
+  },
+  authFormCard: {
+    minWidth: 0,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FFFFFF",
+    padding: 12,
+  },
+  authField: {
+    gap: 6,
+    minWidth: 0,
+  },
+  authLabel: {
+    color: mobileColors.muted,
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
+  authInput: {
+    minHeight: 46,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FAFBFF",
+    color: mobileColors.text,
+    fontSize: 15,
+    fontWeight: "700",
+    paddingHorizontal: 14,
+  },
+  authFormError: {
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FEF2F2",
+    color: "#B91C1C",
+    fontSize: 12,
+    fontWeight: "800",
+    lineHeight: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  authFormNotice: {
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#F0FDF4",
+    color: "#047857",
+    fontSize: 12,
+    fontWeight: "800",
+    lineHeight: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  authInlineActions: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    justifyContent: "center",
+    minWidth: 0,
+  },
+  authInlineButton: {
+    minHeight: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  authInlineButtonText: {
+    color: mobileColors.accentStrong,
+    fontSize: 13,
     fontWeight: "900",
   },
   emptyState: {
@@ -3795,6 +4368,9 @@ const styles = StyleSheet.create({
     borderColor: "#FECACA",
     backgroundColor: "#FEF2F2",
   },
+  actionButtonDisabled: {
+    opacity: 0.62,
+  },
   actionButtonPressed: {
     opacity: 0.78,
   },
@@ -3809,6 +4385,9 @@ const styles = StyleSheet.create({
   },
   actionButtonTextDanger: {
     color: "#DC2626",
+  },
+  actionButtonTextDisabled: {
+    opacity: 0.86,
   },
   errorText: {
     color: "#DC2626",

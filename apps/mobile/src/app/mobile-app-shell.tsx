@@ -16,10 +16,10 @@ const tabLabels: Record<MobileTabId, string> = {
 };
 
 const tabIcons: Record<MobileTabId, string> = {
-  messages: "C",
-  overview: "S",
-  settings: "A",
-  voice: "V",
+  messages: "DM",
+  overview: "#",
+  settings: "..",
+  voice: "VO",
 };
 
 interface MobileAppShellProps {
@@ -44,7 +44,11 @@ export function MobileAppShell({
   return (
     <View style={[styles.safeArea, { paddingTop: topInset }]}>
       <View style={styles.shell}>
-        <MobileAppHeader authStatus={authStatus} signedInUserLabel={signedInUserLabel} />
+        <MobileAppHeader
+          authStatus={authStatus}
+          currentTab={currentTab}
+          signedInUserLabel={signedInUserLabel}
+        />
         <ScrollView
           style={styles.contentScroll}
           contentContainerStyle={[styles.content, { paddingBottom: bottomInset + 4 }]}
@@ -64,19 +68,20 @@ export function MobileAppShell({
 
 function MobileAppHeader({
   authStatus,
+  currentTab,
   signedInUserLabel,
 }: {
   authStatus: MobileAppShellProps["authStatus"];
+  currentTab: MobileTabId;
   signedInUserLabel: string | null;
 }) {
   return (
     <View style={styles.header}>
       <Image source={whisprIcon} style={styles.logo} accessibilityIgnoresInvertColors />
       <View style={styles.headerText}>
-        <Text style={styles.eyebrow}>{copy.status}</Text>
-        <Text style={styles.title}>{copy.appTitle}</Text>
-        <Text style={styles.subtitle} numberOfLines={2}>
-          {copy.appSubtitle}
+        <Text style={styles.title}>{tabLabels[currentTab]}</Text>
+        <Text style={styles.subtitle} numberOfLines={1}>
+          {getHeaderSubtitle(authStatus, signedInUserLabel)}
         </Text>
       </View>
       <View style={styles.statusBadge}>
@@ -93,6 +98,25 @@ function MobileAppHeader({
       </View>
     </View>
   );
+}
+
+function getHeaderSubtitle(
+  authStatus: MobileAppShellProps["authStatus"],
+  signedInUserLabel: string | null,
+) {
+  if (authStatus === "signed-in") {
+    return signedInUserLabel ? `${copy.appTitle} - ${signedInUserLabel}` : copy.appTitle;
+  }
+
+  if (authStatus === "checking") {
+    return copy.authBadgeChecking;
+  }
+
+  if (authStatus === "error") {
+    return copy.authBadgeError;
+  }
+
+  return copy.authBadgeSignedOut;
 }
 
 function getAuthStatusBadgeLabel(
@@ -165,36 +189,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     minWidth: 0,
-    borderRadius: mobileRadii.card,
-    backgroundColor: "#FFFFFF",
-    padding: 12,
-    shadowColor: "#4F46E5",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 22,
-    elevation: 2,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "rgba(255,255,255,0.72)",
+    paddingHorizontal: 4,
+    paddingVertical: 8,
   },
   logo: {
-    width: 44,
-    height: 44,
-    borderRadius: 15,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
   },
   headerText: {
     flex: 1,
     minWidth: 0,
   },
-  eyebrow: {
-    color: mobileColors.accentStrong,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.8,
-    textTransform: "uppercase",
-  },
   title: {
-    marginTop: 2,
     color: mobileColors.text,
-    fontSize: 20,
-    fontWeight: "800",
+    fontSize: 22,
+    fontWeight: "900",
   },
   subtitle: {
     marginTop: 2,
@@ -204,14 +216,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   statusBadge: {
-    maxWidth: 104,
+    maxWidth: 112,
     minWidth: 0,
-    minHeight: 38,
+    minHeight: 34,
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    borderWidth: 1,
-    borderColor: "#DDD6FE",
     borderRadius: mobileRadii.pill,
     backgroundColor: "#F5F3FF",
     paddingHorizontal: 10,
@@ -245,11 +255,13 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: "row",
-    gap: 8,
+    gap: 6,
     minWidth: 0,
-    borderRadius: mobileRadii.card,
-    backgroundColor: mobileColors.card,
-    padding: 8,
+    borderWidth: 1,
+    borderColor: "rgba(226,232,240,0.9)",
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    padding: 6,
     shadowColor: "#4F46E5",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
@@ -257,25 +269,24 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tabButton: {
-    minHeight: 54,
+    minHeight: 50,
     flex: 1,
     minWidth: 0,
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
-    borderWidth: 1,
-    borderColor: "transparent",
-    borderRadius: mobileRadii.control,
+    gap: 2,
+    borderRadius: 18,
   },
   tabButtonActive: {
-    borderColor: "#C4B5FD",
     backgroundColor: "#F5F3FF",
   },
   tabButtonPressed: {
     backgroundColor: "#F8FAFC",
   },
   tabIcon: {
-    fontSize: 17,
+    color: mobileColors.accentStrong,
+    fontSize: 14,
+    fontWeight: "900",
   },
   tabLabel: {
     maxWidth: "100%",

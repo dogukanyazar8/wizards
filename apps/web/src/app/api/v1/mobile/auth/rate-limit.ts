@@ -18,7 +18,13 @@ export async function enforceMobileAuthRateLimit(
   request: Request,
   action: Extract<
     ApiRateLimitAction,
-    "mobile:auth-exchange" | "mobile:auth-refresh" | "mobile:auth-revoke"
+    | "mobile:auth-exchange"
+    | "mobile:auth-forgot-password"
+    | "mobile:auth-login"
+    | "mobile:auth-refresh"
+    | "mobile:auth-register"
+    | "mobile:auth-revoke"
+    | "mobile:auth-verification-email"
   >,
 ) {
   const config = getApiRateLimitConfig(action);

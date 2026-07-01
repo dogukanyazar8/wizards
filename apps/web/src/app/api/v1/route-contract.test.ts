@@ -10,8 +10,12 @@ const UNAUTHENTICATED_ROUTE_PATHS = new Set([
   "app/version",
   "desktop/download",
   "mobile/auth/exchange",
+  "mobile/auth/forgot-password",
+  "mobile/auth/login",
   "mobile/auth/refresh",
+  "mobile/auth/register",
   "mobile/auth/revoke",
+  "mobile/auth/verification-email",
 ]);
 
 const BODYLESS_MUTATING_ROUTE_PATHS = new Set([

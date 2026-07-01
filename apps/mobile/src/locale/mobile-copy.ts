@@ -17,6 +17,55 @@ export const mobileCopy = {
     authSignedOut: "Mobil oturum icin guvenli web girisi gerekiyor",
     authSummary:
       "Token saklama SecureStore uzerinde fail-closed calisir. Web girisi yalnizca tek kullanimlik handoff uretir; kalici token URL'ye yazilmaz.",
+    authOpenRegisterAction: "Yeni hesap olustur",
+    authOpenSignInAction: "Giris yap",
+    authForgotDescription:
+      "E-postani yaz; hesap uygunsa sifre sifirlama baglantisi guvenli sekilde gonderilir.",
+    authForgotTitle: "Sifreni sifirla",
+    authRegisterDescription:
+      "Whispr hesabini mobilde olustur. Girmeden once e-postani dogrulaman gerekir.",
+    authRegisterTitle: "Whispr'a katil",
+    authSecureBrowserNote:
+      "Google, sosyal veya kurumsal girisler sistem tarayicisinda tamamlanir ve uygulamaya tek kullanimlik baglanti ile donulur.",
+    authSignInDescription:
+      "E-posta ve sifrenle guvenli mobil oturum ac.",
+    authSignInTitle: "Hesabina giris yap",
+    authWelcomeDescription:
+      "Sohbetlerine ve sunucularina devam etmek icin giris yap veya yeni hesap olustur.",
+    authWelcomeTitle: "Whispr'a hos geldin",
+    authModeRegister: "Kayit ol",
+    authModeSignIn: "Giris",
+    authNativeBackToSignIn: "Girise don",
+    authNativeConfirmPasswordLabel: "Sifre tekrar",
+    authNativeConfirmPasswordPlaceholder: "Sifreni tekrar gir",
+    authNativeEmailLabel: "E-posta",
+    authNativeEmailPlaceholder: "ornek@email.com",
+    authNativeForgotAction: "Sifirlama baglantisi gonder",
+    authNativeForgotLink: "Sifremi unuttum",
+    authNativeForgotNotice:
+      "{email} icin uygun bir hesap varsa sifre sifirlama baglantisi gonderildi.",
+    authNativeGenericError: "Islem tamamlanamadi. Biraz sonra tekrar dene.",
+    authNativeInvalidEmail: "Gecerli bir e-posta adresi gir.",
+    authNativeMissingFields: "Devam etmek icin gerekli alanlari doldur.",
+    authNativePasswordLabel: "Sifre",
+    authNativePasswordMismatch: "Sifreler eslesmiyor.",
+    authNativePasswordPlaceholder: "Sifreni gir",
+    authNativePasswordTooShort: "Sifre en az 8 karakter olmali.",
+    authNativeRegisterAction: "Hesap olustur",
+    authNativeSignInAction: "Giris yap",
+    authNativeSubmitting: "Isleniyor...",
+    authNativeUsernameInvalid:
+      "Kullanici adi 2-32 karakter olmali; sadece harf, rakam ve alt cizgi kullan.",
+    authNativeUsernameLabel: "Kullanici adi",
+    authNativeUsernamePlaceholder: "kullanici_adi",
+    authNativeVerificationNotice:
+      "{email} adresine dogrulama e-postasi gonderildi. Dogruladiktan sonra giris yapabilirsin.",
+    authNativeVerificationResendAction: "Dogrulama e-postasini tekrar gonder",
+    authNativeVerificationResendNotice:
+      "{email} icin dogrulanmamis bir hesap varsa dogrulama e-postasi gonderildi.",
+    authNativeWebFallbackTitle: "Diger giris secenekleri",
+    authNativeWebRegisterFallback: "Web ile kayit",
+    authNativeWebSignInFallback: "Web ile giris",
     bootstrapDescription:
       "Auth'lu mobil bootstrap endpoint'i app surumu, guvenli kullanici ozeti ve hangi native ozelliklerin server contract bekledigini doner.",
     bootstrapLoadErrorTitle: "Bootstrap yuklenemedi",
@@ -61,13 +110,13 @@ export const mobileCopy = {
     homeUnreadLabel: "Okunmamis",
     membersSuffix: "uye",
     messagesDescription:
-      "Direkt mesajlarini gercek Whispr verisiyle takip et ve uygun konusmada mesajlasmaya devam et.",
+      "Direkt mesajlarini takip et ve kaldigin yerden devam et.",
     messagesEmpty: "Henuz mobilde gosterilecek direkt mesaj yok.",
     messagesTitle: "Sohbetler",
     messageYouLabel: "Sen",
     mutedSuffix: "sessiz",
     overviewDescription:
-      "Sunucularini, kanallarini ve son etkinligini mobil ekrana sigan temiz bir akista takip et.",
+      "Sunucularini ve kanallarini mobil ekranda hizlica gez.",
     overviewTitle: "Sunucular",
     permissionCamera: "Kamera",
     permissionMicrophone: "Mikrofon",
@@ -96,13 +145,15 @@ export const mobileCopy = {
     retryAction: "Tekrar dene",
     secondaryAction: "Oturumu yenile",
     settingsDescription:
-      "Hesap, izin, guvenli oturum ve uygulama bilgilerini tek yerden yonet.",
+      "Hesabini, oturumunu ve mobil tercihlerini yonet.",
     settingsAccountTitle: "Hesap",
     settingsAccountSignedOut: "Giris gerekli",
     settingsBlockedLabel: "Engelli",
     settingsDeveloperDescription:
       "Release, store, ortam ve kalite kanitlari token veya kisisel veri gostermeden tutulur.",
     settingsDeveloperTitle: "Gelistirici ve kalite",
+    settingsDiagnosticsHideAction: "Tanilamayi gizle",
+    settingsDiagnosticsShowAction: "Tanilama",
     settingsFeatureAvailable: "Hazir",
     settingsFeatureDescription:
       "Mobil ozellikler yalnizca backend contract veya native izin gercekten hazirsa aktif gosterilir.",
@@ -124,6 +175,7 @@ export const mobileCopy = {
     settingsSessionLabel: "Oturum",
     settingsStoreBlockersLabel: "Store blokaj",
     settingsStoreWarningsLabel: "Store uyari",
+    settingsTitle: "Ayarlar",
     signOutAction: "Guvenli cikis yap",
     status: "Whispr",
     storeDescription:
@@ -155,8 +207,9 @@ export const mobileCopy = {
     tabSettings: "Ayarlar",
     tabVoice: "Ses",
     voiceDescription:
-      "LiveKit ve native cihaz izinleri baglanana kadar ses odasi state'i sahte katilimci uretmeden kapali tutulur.",
-    voiceEmpty: "Mobil ses deneyimi guvenli native izin sozlesmesini bekliyor.",
+      "Ses odalarina mobilde guvenli sekilde katilmak icin hazirlik suruyor.",
+    voiceEmpty: "Mobil ses henuz hazir degil.",
+    voiceTitle: "Ses odalari",
     unreadSuffix: "okunmamis",
     workspaceChannelLoadFailed:
       "Bu kanal mesajlari yuklenemedi. Yetki ve baglanti korunuyor; tekrar deneyebilirsin.",
@@ -195,6 +248,55 @@ export const mobileCopy = {
     authSignedOut: "Secure web sign-in is required for a mobile session",
     authSummary:
       "Token storage is fail-closed on SecureStore. Web sign-in only creates a one-time handoff; persistent tokens never travel in URLs.",
+    authOpenRegisterAction: "Create account",
+    authOpenSignInAction: "Sign in",
+    authForgotDescription:
+      "Enter your email. If the account is eligible, a secure reset link will be sent.",
+    authForgotTitle: "Reset your password",
+    authRegisterDescription:
+      "Create your Whispr account on mobile. You must verify your email before signing in.",
+    authRegisterTitle: "Join Whispr",
+    authSecureBrowserNote:
+      "Google, social, and enterprise sign-in complete in the system browser and return through a one-time handoff.",
+    authSignInDescription:
+      "Open a secure mobile session with your email and password.",
+    authSignInTitle: "Sign in to your account",
+    authWelcomeDescription:
+      "Sign in or create an account to continue to your chats and servers.",
+    authWelcomeTitle: "Welcome to Whispr",
+    authModeRegister: "Register",
+    authModeSignIn: "Sign in",
+    authNativeBackToSignIn: "Back to sign in",
+    authNativeConfirmPasswordLabel: "Confirm password",
+    authNativeConfirmPasswordPlaceholder: "Re-enter your password",
+    authNativeEmailLabel: "Email",
+    authNativeEmailPlaceholder: "example@email.com",
+    authNativeForgotAction: "Send reset link",
+    authNativeForgotLink: "Forgot password?",
+    authNativeForgotNotice:
+      "If an eligible account exists for {email}, a password reset link was sent.",
+    authNativeGenericError: "The request could not be completed. Try again shortly.",
+    authNativeInvalidEmail: "Enter a valid email address.",
+    authNativeMissingFields: "Fill in the required fields to continue.",
+    authNativePasswordLabel: "Password",
+    authNativePasswordMismatch: "Passwords do not match.",
+    authNativePasswordPlaceholder: "Enter your password",
+    authNativePasswordTooShort: "Password must be at least 8 characters.",
+    authNativeRegisterAction: "Create account",
+    authNativeSignInAction: "Sign in",
+    authNativeSubmitting: "Working...",
+    authNativeUsernameInvalid:
+      "Username must be 2-32 characters and use only letters, numbers, and underscores.",
+    authNativeUsernameLabel: "Username",
+    authNativeUsernamePlaceholder: "username",
+    authNativeVerificationNotice:
+      "A verification email was sent to {email}. You can sign in after verification.",
+    authNativeVerificationResendAction: "Resend verification email",
+    authNativeVerificationResendNotice:
+      "If an unverified account exists for {email}, a verification email was sent.",
+    authNativeWebFallbackTitle: "Other sign-in options",
+    authNativeWebRegisterFallback: "Register on web",
+    authNativeWebSignInFallback: "Sign in on web",
     bootstrapDescription:
       "The authenticated mobile bootstrap endpoint returns app version, a safe user summary, and which native features still require real server contracts.",
     bootstrapLoadErrorTitle: "Bootstrap failed",
@@ -239,13 +341,13 @@ export const mobileCopy = {
     homeUnreadLabel: "Unread",
     membersSuffix: "members",
     messagesDescription:
-      "Follow your direct messages from real Whispr data and continue the right conversation.",
+      "Follow your direct messages and continue where you left off.",
     messagesEmpty: "There are no direct messages to show on mobile yet.",
     messagesTitle: "Chats",
     messageYouLabel: "You",
     mutedSuffix: "muted",
     overviewDescription:
-      "Track your servers, channels, and recent activity in a clean mobile-first flow.",
+      "Move through your servers and channels quickly on mobile.",
     overviewTitle: "Servers",
     permissionCamera: "Camera",
     permissionMicrophone: "Microphone",
@@ -274,13 +376,15 @@ export const mobileCopy = {
     retryAction: "Retry",
     secondaryAction: "Refresh session",
     settingsDescription:
-      "Manage account, permissions, secure session, and app information in one place.",
+      "Manage your account, session, and mobile preferences.",
     settingsAccountTitle: "Account",
     settingsAccountSignedOut: "Sign-in required",
     settingsBlockedLabel: "Blocked",
     settingsDeveloperDescription:
       "Release, store, environment, and quality evidence stays visible without exposing tokens or personal data.",
     settingsDeveloperTitle: "Developer and quality",
+    settingsDiagnosticsHideAction: "Hide diagnostics",
+    settingsDiagnosticsShowAction: "Diagnostics",
     settingsFeatureAvailable: "Ready",
     settingsFeatureDescription:
       "Mobile features only appear active when the backend contract or native permission is truly ready.",
@@ -302,6 +406,7 @@ export const mobileCopy = {
     settingsSessionLabel: "Session",
     settingsStoreBlockersLabel: "Store blockers",
     settingsStoreWarningsLabel: "Store warnings",
+    settingsTitle: "Settings",
     signOutAction: "Sign out securely",
     status: "Whispr",
     storeDescription:
@@ -333,8 +438,9 @@ export const mobileCopy = {
     tabSettings: "Settings",
     tabVoice: "Voice",
     voiceDescription:
-      "Voice room state stays closed without fake participants until LiveKit and native device permission contracts are connected.",
-    voiceEmpty: "Mobile voice is waiting for the secure native permission contract.",
+      "Mobile voice rooms are being prepared with secure device permissions.",
+    voiceEmpty: "Mobile voice is not ready yet.",
+    voiceTitle: "Voice rooms",
     unreadSuffix: "unread",
     workspaceChannelLoadFailed:
       "This channel could not be loaded. Permission and connectivity protections stay in place; try again.",

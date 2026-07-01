@@ -53,12 +53,24 @@ const SAFE_ROUTE_PREFIXES = ["/channels", "/settings", "/invite"] as const;
 const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 
 export function buildMobileWebSignInUrl(webUrl: string, callbackPath = "/channels/@me"): string {
+  return buildMobileWebAuthUrl(webUrl, "/login", callbackPath);
+}
+
+export function buildMobileWebRegisterUrl(webUrl: string, callbackPath = "/channels/@me"): string {
+  return buildMobileWebAuthUrl(webUrl, "/register", callbackPath);
+}
+
+function buildMobileWebAuthUrl(
+  webUrl: string,
+  pathname: "/login" | "/register",
+  callbackPath = "/channels/@me",
+): string {
   const safeCallbackPath =
     normalizeSafeMobileRoutePath(callbackPath, "/channels/@me") ?? "/channels/@me";
   const mobileCompletePath = `/mobile/oauth/complete?callbackUrl=${encodeURIComponent(
     safeCallbackPath,
   )}`;
-  const url = new URL("/login", webUrl);
+  const url = new URL(pathname, webUrl);
   url.searchParams.set("callbackUrl", mobileCompletePath);
   url.searchParams.set("client", "mobile");
   return url.toString();

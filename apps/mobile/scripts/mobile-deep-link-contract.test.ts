@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  buildMobileWebRegisterUrl,
   buildMobileWebSignInUrl,
   normalizeSafeMobileRoutePath,
   parseMobileDeepLink,
@@ -22,6 +23,20 @@ describe("mobile deep link contract", () => {
     );
     assert.equal(url.searchParams.has("token"), false);
     assert.equal(url.searchParams.has("access_token"), false);
+  });
+
+  it("builds web registration URLs through the same safe mobile handoff contract", () => {
+    const url = new URL(buildMobileWebRegisterUrl(webUrl, "/channels/@me"));
+
+    assert.equal(url.origin, webUrl);
+    assert.equal(url.pathname, "/register");
+    assert.equal(url.searchParams.get("client"), "mobile");
+    assert.equal(
+      url.searchParams.get("callbackUrl"),
+      "/mobile/oauth/complete?callbackUrl=%2Fchannels%2F%40me",
+    );
+    assert.equal(url.searchParams.has("token"), false);
+    assert.equal(url.searchParams.has("password"), false);
   });
 
   it("parses whispr auth handoff links as one-time token intents", () => {

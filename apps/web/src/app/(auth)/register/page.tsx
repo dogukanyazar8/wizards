@@ -13,7 +13,7 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { LoginCard } from "@/components/auth/login-card";
 import { LoginPage } from "@/components/auth/login-page";
@@ -21,6 +21,7 @@ import { RoleTabs, type LoginRole } from "@/components/auth/role-tabs";
 import { TurnstileWidget } from "@/components/auth/turnstile-widget";
 import { useI18n } from "@/components/providers/locale-provider";
 import { registerAction, resendVerificationEmailAction } from "@/lib/auth/actions";
+import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
@@ -83,6 +84,7 @@ export default function RegisterPage() {
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [selectedRole, setSelectedRole] = useState<LoginRole>("business");
+  const [signInHref, setSignInHref] = useState("/login");
 
   const {
     register,
@@ -101,6 +103,16 @@ export default function RegisterPage() {
     },
   });
   const turnstileToken = watch("turnstileToken");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const safeCallbackUrl = getSafeAuthRedirectPath(params.get("callbackUrl"));
+    setSignInHref(
+      safeCallbackUrl === "/channels"
+        ? "/login"
+        : `/login?callbackUrl=${encodeURIComponent(safeCallbackUrl)}`,
+    );
+  }, []);
 
   const handleTurnstileTokenChange = useCallback(
     (token: string) => {
@@ -205,7 +217,7 @@ export default function RegisterPage() {
 
           <p className="modern-login-footer-link">
             {t("auth.register.verifiedPrompt")}{" "}
-            <Link href="/login">{t("auth.register.signIn")}</Link>
+            <Link href={signInHref}>{t("auth.register.signIn")}</Link>
           </p>
         </LoginCard>
       </LoginPage>
@@ -384,7 +396,7 @@ export default function RegisterPage() {
         </form>
 
         <p className="modern-login-footer-link">
-          {t("auth.register.haveAccount")} <Link href="/login">{t("auth.register.signIn")}</Link>
+          {t("auth.register.haveAccount")} <Link href={signInHref}>{t("auth.register.signIn")}</Link>
         </p>
       </LoginCard>
     </LoginPage>

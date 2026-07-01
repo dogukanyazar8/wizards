@@ -12,8 +12,8 @@ export const mobileColors = {
 } as const;
 
 export const mobileRadii = {
-  card: 22,
-  control: 16,
+  card: 18,
+  control: 14,
   pill: 999,
 } as const;
 

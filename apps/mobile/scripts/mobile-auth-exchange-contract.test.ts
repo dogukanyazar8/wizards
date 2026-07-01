@@ -8,10 +8,18 @@ import type {
 import {
   exchangeMobileAuthHandoff,
   MOBILE_AUTH_EXCHANGE_ENDPOINT,
+  MOBILE_AUTH_FORGOT_PASSWORD_ENDPOINT,
+  MOBILE_AUTH_LOGIN_ENDPOINT,
+  MOBILE_AUTH_REGISTER_ENDPOINT,
   MOBILE_AUTH_REFRESH_ENDPOINT,
   MOBILE_AUTH_REVOKE_ENDPOINT,
+  MOBILE_AUTH_VERIFICATION_EMAIL_ENDPOINT,
+  registerMobileWithPassword,
   refreshMobileAuthSession,
+  requestMobilePasswordReset,
+  requestMobileVerificationEmail,
   revokeMobileAuthSession,
+  signInMobileWithPassword,
 } from "../src/auth/mobile-auth-exchange";
 
 const validSession = {
@@ -34,6 +42,152 @@ const validSession = {
 };
 
 describe("mobile auth exchange contract", () => {
+  it("signs in with email and password through the native mobile endpoint", async () => {
+    const requests: Array<{ body: unknown; method: string | undefined; path: string }> = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string, options: MobileApiRequestOptions = {}) {
+        requests.push({
+          body: options.body,
+          method: options.method,
+          path,
+        });
+
+        return { session: validSession } as TResponse;
+      },
+    };
+
+    const session = await signInMobileWithPassword(client, {
+      email: "ada@example.com",
+      password: "correct-horse-battery",
+    });
+
+    assert.deepEqual(requests, [
+      {
+        body: {
+          email: "ada@example.com",
+          password: "correct-horse-battery",
+        },
+        method: "POST",
+        path: MOBILE_AUTH_LOGIN_ENDPOINT,
+      },
+    ]);
+    assert.equal(session.tokens.tokenType, "Bearer");
+  });
+
+  it("registers mobile email/password accounts without creating a session first", async () => {
+    const requests: Array<{ body: unknown; method: string | undefined; path: string }> = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string, options: MobileApiRequestOptions = {}) {
+        requests.push({
+          body: options.body,
+          method: options.method,
+          path,
+        });
+
+        return {
+          email: "ada@example.com",
+          message: "verification_email_sent",
+          status: "verification-required",
+        } as TResponse;
+      },
+    };
+
+    const response = await registerMobileWithPassword(client, {
+      confirmPassword: "correct-horse-battery",
+      email: "ada@example.com",
+      locale: "tr",
+      password: "correct-horse-battery",
+      username: "ada_lovelace",
+    });
+
+    assert.deepEqual(requests, [
+      {
+        body: {
+          confirmPassword: "correct-horse-battery",
+          email: "ada@example.com",
+          locale: "tr",
+          password: "correct-horse-battery",
+          username: "ada_lovelace",
+        },
+        method: "POST",
+        path: MOBILE_AUTH_REGISTER_ENDPOINT,
+      },
+    ]);
+    assert.equal(response.status, "verification-required");
+  });
+
+  it("requests password reset through a generic accepted mobile endpoint", async () => {
+    const requests: Array<{ body: unknown; method: string | undefined; path: string }> = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string, options: MobileApiRequestOptions = {}) {
+        requests.push({
+          body: options.body,
+          method: options.method,
+          path,
+        });
+
+        return {
+          email: "ada@example.com",
+          message: "password_reset_if_available",
+          status: "accepted",
+        } as TResponse;
+      },
+    };
+
+    const response = await requestMobilePasswordReset(client, {
+      email: "ada@example.com",
+      locale: "en",
+    });
+
+    assert.deepEqual(requests, [
+      {
+        body: {
+          email: "ada@example.com",
+          locale: "en",
+        },
+        method: "POST",
+        path: MOBILE_AUTH_FORGOT_PASSWORD_ENDPOINT,
+      },
+    ]);
+    assert.equal(response.status, "accepted");
+  });
+
+  it("requests verification email resend through a generic accepted mobile endpoint", async () => {
+    const requests: Array<{ body: unknown; method: string | undefined; path: string }> = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string, options: MobileApiRequestOptions = {}) {
+        requests.push({
+          body: options.body,
+          method: options.method,
+          path,
+        });
+
+        return {
+          email: "ada@example.com",
+          message: "verification_email_if_available",
+          status: "accepted",
+        } as TResponse;
+      },
+    };
+
+    const response = await requestMobileVerificationEmail(client, {
+      email: "ada@example.com",
+      locale: "tr",
+    });
+
+    assert.deepEqual(requests, [
+      {
+        body: {
+          email: "ada@example.com",
+          locale: "tr",
+        },
+        method: "POST",
+        path: MOBILE_AUTH_VERIFICATION_EMAIL_ENDPOINT,
+      },
+    ]);
+    assert.equal(response.status, "accepted");
+  });
+
   it("exchanges one-time handoff tokens through the authenticated API client contract", async () => {
     const requests: Array<{ body: unknown; method: string | undefined; path: string }> = [];
     const client: MobileApiClient = {
@@ -148,6 +302,31 @@ describe("mobile auth exchange contract", () => {
           handoffToken: "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-",
         }),
       /Invalid literal value/,
+    );
+  });
+
+  it("rejects malformed native sign-in responses instead of storing partial sessions", async () => {
+    const client: MobileApiClient = {
+      async requestJson<TResponse>() {
+        return {
+          session: {
+            ...validSession,
+            user: {
+              ...validSession.user,
+              username: "",
+            },
+          },
+        } as TResponse;
+      },
+    };
+
+    await assert.rejects(
+      () =>
+        signInMobileWithPassword(client, {
+          email: "ada@example.com",
+          password: "correct-horse-battery",
+        }),
+      /String must contain at least 1 character/,
     );
   });
 });

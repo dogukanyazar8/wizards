@@ -6,7 +6,7 @@ param(
   [string]$AndroidHome = "$env:LOCALAPPDATA\Android\Sdk",
   [string]$AndroidArchitectures,
   [string]$PnpmVirtualStoreDir = "C:\p",
-  [int]$WaitForDeviceSeconds = 30,
+  [int]$WaitForDeviceSeconds = 90,
   [switch]$SkipSync,
   [switch]$SkipUninstall,
   [switch]$SkipInstall,
@@ -178,26 +178,48 @@ function Get-AndroidDeviceRows {
 function Get-AndroidDevicePrimaryAbi {
   param([string]$DeviceId)
 
-  $abi = (& adb -s $DeviceId shell getprop ro.product.cpu.abi | Select-Object -First 1).Trim()
-  if ($LASTEXITCODE -ne 0) {
-    throw "Failed to read Android CPU ABI for device $DeviceId."
-  }
-
+  $abi = Get-AndroidDeviceProperty -DeviceId $DeviceId -Property "ro.product.cpu.abi"
   if ($abi) {
     return $abi
   }
 
-  $abiList = (& adb -s $DeviceId shell getprop ro.product.cpu.abilist | Select-Object -First 1).Trim()
-  if ($LASTEXITCODE -ne 0) {
-    throw "Failed to read Android CPU ABI list for device $DeviceId."
-  }
+  $abiList = Get-AndroidDeviceProperty -DeviceId $DeviceId -Property "ro.product.cpu.abilist"
 
-  $firstAbi = ($abiList -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ } | Select-Object -First 1)
+  $firstAbi = (([string]$abiList) -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ } | Select-Object -First 1)
   if (-not $firstAbi) {
-    throw "Device $DeviceId did not report a usable Android CPU ABI."
+    throw "Device $DeviceId did not report a usable Android CPU ABI. The emulator may still be booting. Retry once it is fully on the home screen, or pass -AndroidArchitectures x86_64 for a Pixel emulator."
   }
 
   return $firstAbi
+}
+
+function Get-AndroidDeviceProperty {
+  param(
+    [string]$DeviceId,
+    [string]$Property,
+    [int]$Attempts = 5
+  )
+
+  for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+    $output = @(& adb -s $DeviceId shell getprop $Property 2>$null)
+    $exitCode = $LASTEXITCODE
+    $value = (
+      $output |
+        ForEach-Object { ([string]$_).Replace("`r", "").Trim() } |
+        Where-Object { $_ } |
+        Select-Object -First 1
+    )
+
+    if ($exitCode -eq 0 -and $value) {
+      return $value
+    }
+
+    if ($attempt -lt $Attempts) {
+      Start-Sleep -Seconds 1
+    }
+  }
+
+  return $null
 }
 
 function Resolve-ReactNativeArchitectures {
@@ -275,6 +297,34 @@ function Wait-ForConnectedAndroidDeviceIds {
   } while ((Get-Date) -lt $deadline)
 
   return (New-Object "System.Collections.Generic.List[string]")
+}
+
+function Wait-ForAndroidDeviceBoot {
+  param(
+    [string]$DeviceId,
+    [int]$TimeoutSeconds
+  )
+
+  $deadline = (Get-Date).AddSeconds([Math]::Max(5, $TimeoutSeconds))
+  Write-Host "Waiting for Android boot readiness: $DeviceId" -ForegroundColor DarkGray
+  & adb -s $DeviceId wait-for-device | Out-Null
+
+  do {
+    $bootCompleted = Get-AndroidDeviceProperty -DeviceId $DeviceId -Property "sys.boot_completed" -Attempts 1
+    $abi = Get-AndroidDeviceProperty -DeviceId $DeviceId -Property "ro.product.cpu.abi" -Attempts 1
+    $abiList = Get-AndroidDeviceProperty -DeviceId $DeviceId -Property "ro.product.cpu.abilist" -Attempts 1
+
+    if ($bootCompleted -eq "1" -and ($abi -or $abiList)) {
+      return
+    }
+
+    Write-Host "Device $DeviceId is connected but boot properties are not ready yet." -ForegroundColor DarkGray
+    Start-Sleep -Seconds 2
+  } while ((Get-Date) -lt $deadline)
+
+  $rows = @(Get-AndroidDeviceRows)
+  $details = if ($rows.Count -gt 0) { $rows -join "; " } else { "adb devices returned no devices." }
+  throw "Android device $DeviceId did not finish boot readiness within $TimeoutSeconds seconds. Details: $details"
 }
 
 function Stop-GradleDaemons {
@@ -428,6 +478,10 @@ if ($devices.Count -eq 0) {
 }
 
 Write-Host "Connected Android device(s): $($devices -join ', ')"
+foreach ($device in $devices) {
+  Wait-ForAndroidDeviceBoot -DeviceId $device -TimeoutSeconds $WaitForDeviceSeconds
+}
+
 $reactNativeArchitectures = Resolve-ReactNativeArchitectures -DeviceIds $devices -OverrideArchitectures $AndroidArchitectures
 Write-Host "Target Android architecture(s): $reactNativeArchitectures"
 
