@@ -9,6 +9,7 @@ import {
   filterMobileConversations,
   findInitialMobileWorkspaceChannel,
   formatMobileDisplayTime,
+  getBoundedMobileList,
   getMobileChannelPriority,
   getMobileConversationActiveCount,
   getMobileConversationAvatarUrl,
@@ -17,8 +18,10 @@ import {
   getMobileHomeQuickActions,
   getMobileMessageBodyPreview,
   getMobileMessageEngagementCounts,
+  getMobileMessageStreamItems,
   getMobileWorkspaceChannels,
   isMobilePresenceActive,
+  MOBILE_RENDER_LIMITS,
 } from "../src/app/mobile-display-model";
 
 type Conversation =
@@ -221,7 +224,7 @@ describe("mobile display model", () => {
     assert.equal(isMobilePresenceActive("OFFLINE"), false);
   });
 
-  it("filters conversation inbox using only real unread, presence, and participant data", () => {
+  it("filters conversation inbox using only real unread and group conversation data", () => {
     const quietConversation: Conversation = {
       ...conversation,
       id: "conversation-2",
@@ -236,6 +239,7 @@ describe("mobile display model", () => {
           username: "dora",
         },
       ],
+      type: "DM",
       unreadCount: 0,
     };
     const conversations = [conversation, quietConversation];
@@ -255,7 +259,7 @@ describe("mobile display model", () => {
     assert.deepEqual(
       filterMobileConversations(conversations, {
         fallback: "Direct message",
-        filter: "active",
+        filter: "groups",
         query: "",
       }).map((item) => item.id),
       ["conversation-1"],
@@ -339,6 +343,46 @@ describe("mobile display model", () => {
   it("formats stable compact message times", () => {
     assert.match(formatMobileDisplayTime("2026-06-30T09:15:00.000Z"), /\d{2}:\d{2}/);
     assert.equal(formatMobileDisplayTime("not-a-date"), "");
+  });
+
+  it("bounds mobile list rendering without changing source ordering semantics", () => {
+    const values = ["one", "two", "three", "four"];
+
+    assert.deepEqual(getBoundedMobileList(values, 2), ["one", "two"]);
+    assert.deepEqual(getBoundedMobileList(values, 2, "end"), ["three", "four"]);
+    assert.deepEqual(getBoundedMobileList(values, 0), []);
+    assert.equal(MOBILE_RENDER_LIMITS.messages > 0, true);
+  });
+
+  it("builds message stream rows with real timestamp separators", () => {
+    const firstDayMessage: ChatMessage = {
+      ...message,
+      createdAt: "2026-06-30T09:15:00.000Z",
+      id: "message-day-1",
+    };
+    const secondDayMessage: ChatMessage = {
+      ...message,
+      createdAt: "2026-07-01T09:15:00.000Z",
+      id: "message-day-2",
+    };
+    const streamItems = getMobileMessageStreamItems([
+      firstDayMessage,
+      {
+        ...firstDayMessage,
+        createdAt: "2026-06-30T10:15:00.000Z",
+        id: "message-day-1b",
+      },
+      secondDayMessage,
+    ]);
+
+    assert.deepEqual(
+      streamItems.map((item) => [item.message.id, item.showDateSeparator]),
+      [
+        ["message-day-1", true],
+        ["message-day-1b", false],
+        ["message-day-2", true],
+      ],
+    );
   });
 
   it("builds bounded home quick actions from real bootstrap state", () => {

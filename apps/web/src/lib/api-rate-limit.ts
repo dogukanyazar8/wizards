@@ -60,6 +60,7 @@ export const API_RATE_LIMITS = {
   "mobile:auth-verification-email": { limit: 5, windowSeconds: 60 * 60 },
   "mobile:bootstrap": { limit: 120, windowSeconds: 60 },
   "mobile:channel:messages:list": { limit: 60, windowSeconds: 60 },
+  "mobile:channel:messages:send": { limit: 120, windowSeconds: 60 },
   "mobile:server:detail": { limit: 120, windowSeconds: 60 },
   "notification:clear": { limit: 30, windowSeconds: 60 },
   "notification:mark-read": { limit: 120, windowSeconds: 60 },

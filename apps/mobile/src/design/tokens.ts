@@ -17,6 +17,11 @@ export const mobileRadii = {
   pill: 999,
 } as const;
 
+export const mobileSizing = {
+  maxInlineContentWidth: 520,
+  minTouchTarget: 44,
+} as const;
+
 export const mobileSpacing = {
   page: 20,
   section: 16,

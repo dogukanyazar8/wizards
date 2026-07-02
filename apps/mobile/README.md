@@ -4,7 +4,7 @@ Expo React Native application for the iOS and Android Whispr mobile product.
 
 ## Current phase
 
-Phase 5 turns the mobile foundation into a measurable product contract:
+The current mobile phase turns the Expo foundation into a native Whispr product shell:
 
 - Expo app shell under the existing monorepo.
 - UAT, canary, and production EAS build profiles.
@@ -13,7 +13,7 @@ Phase 5 turns the mobile foundation into a measurable product contract:
 - SecureStore-backed mobile session repository.
 - Fail-closed session normalization and token expiry helpers.
 - Token-safe mobile API client with relative-path validation and timeouts.
-- Typed mobile navigation contract for overview, chat, voice, and settings tabs.
+- Typed mobile navigation contract for the native bottom tabs: Home, DMs, Notifications, Calls, and Profile.
 - Auth-gated mobile screens that avoid fake messages, fake voice participants, or client-only privacy claims.
 - Native deep-link parsing for sign-in handoff, invites, and safe in-app routes.
 - Fail-closed rejection for deep links that include OAuth/session secrets in query strings.
@@ -26,6 +26,14 @@ Phase 5 turns the mobile foundation into a measurable product contract:
 - Real mobile workspace preview backed by permission-filtered server channels and bounded text-channel message reads.
 - Foreground freshness contract that refreshes visible real data after a cooldown and displays last sync state without claiming fake realtime.
 - Store readiness contract for stable native identifiers, permission disclosures, privacy checklist, and broad-permission prevention.
+
+## Product boundaries
+
+- The primary native bottom tabs are Home, DMs, Notifications, Calls, and Profile.
+- Messages and Servers use real authenticated Whispr API data; empty states must not fabricate people, messages, servers, media, or notifications.
+- Notifications currently expose readiness and permission state. Push token registration and native notification delivery remain separate follow-up work.
+- Calls remains a primary navigation surface, while voice readiness stays honest until LiveKit mobile integration connects real join, mute, device, and permission behavior.
+- Foreground refresh keeps visible data reasonably fresh, but mobile realtime sockets are not connected yet.
 
 ## Local development
 
@@ -91,7 +99,7 @@ Record these values during UAT/canary QA before store promotion.
 ## Manual UAT smoke checklist
 
 - Launch: app opens with the Whispr splash/icon and reaches the tab shell.
-- Navigation: Overview, Chat, Voice, and Settings tabs switch without overlap or jank.
+- Navigation: Home, DMs, Notifications, Calls, and Profile bottom tabs switch without overlap or jank.
 - Auth: signed-out protected screens show the auth gate and never impersonate a user.
 - Handoff: web sign-in returns to the mobile app with the one-time handoff flow.
 - Deep links: credential-like query values are rejected.
@@ -99,7 +107,7 @@ Record these values during UAT/canary QA before store promotion.
 - DM: real DM list opens a real bounded conversation preview without fake messages.
 - Workspace: a real recent server opens permission-filtered channels and a text-channel message preview.
 - Sync: background the app, reopen it after the cooldown, and confirm visible real data refreshes without duplicate rows or request storms.
-- Voice: voice surfaces stay honest until native permission and LiveKit contracts are connected.
+- Voice: Calls stays visible as a primary tab, but readiness surfaces stay honest until native permission and LiveKit contracts are connected.
 - Store: App Store and Play Store listing text, screenshots, and privacy answers match the permission disclosure contract.
 - Performance: five minutes idle shows no obvious heating, memory growth, or scroll stutter.
 - Release: the build displays the intended UAT/canary/production environment endpoints.
@@ -115,4 +123,4 @@ Record these values during UAT/canary QA before store promotion.
 - Mobile deep links accept one-time handoff identifiers and invite codes only after strict validation.
 - Access tokens, refresh tokens, OAuth codes, emails, passwords, and session values are rejected if they appear in deep-link query strings.
 - Mobile permissions are never requested automatically on launch; prompts must follow a user action.
-- Native OAuth token exchange, push token persistence, and LiveKit mobile integration remain disabled until their server-side lifecycle, revocation, storage, and permission contracts are complete.
+- Native push token persistence and LiveKit mobile integration remain disabled until their server-side lifecycle, revocation, storage, and permission contracts are complete.

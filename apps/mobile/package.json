@@ -19,6 +19,7 @@
     "validate:env": "node --import tsx scripts/validate-mobile-env.ts"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
     "@wizards/types": "workspace:*",
     "expo": "~56.0.12",
     "expo-dev-client": "~56.0.20",

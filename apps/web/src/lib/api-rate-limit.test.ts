@@ -44,6 +44,7 @@ describe("API rate limit configuration", () => {
       "mobile:auth-verification-email",
       "mobile:bootstrap",
       "mobile:channel:messages:list",
+      "mobile:channel:messages:send",
       "mobile:server:detail",
       "server:detail",
       "server:delete",
@@ -74,6 +75,7 @@ describe("API rate limit configuration", () => {
       "mobile:auth-verification-email": { limit: 5, windowSeconds: 60 * 60 },
       "mobile:bootstrap": { limit: 120, windowSeconds: 60 },
       "mobile:channel:messages:list": { limit: 60, windowSeconds: 60 },
+      "mobile:channel:messages:send": { limit: 120, windowSeconds: 60 },
       "mobile:server:detail": { limit: 120, windowSeconds: 60 },
     } satisfies Partial<
       Record<ApiRateLimitAction, { limit: number; windowSeconds: number }>

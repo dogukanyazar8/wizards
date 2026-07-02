@@ -1,7 +1,10 @@
 import {
   MobileChannelMessagesResponseSchema,
+  MobileChannelSendMessageResponseSchema,
   MobileWorkspaceServerDetailResponseSchema,
   type MobileChannelMessagesResponse,
+  type MobileChannelSendMessageRequest,
+  type MobileChannelSendMessageResponse,
   type MobileWorkspaceServerDetailResponse,
 } from "@wizards/types";
 import type { MobileApiClient } from "../api/mobile-api-client";
@@ -44,4 +47,32 @@ export async function fetchMobileChannelMessages(
 ): Promise<MobileChannelMessagesResponse> {
   const payload = await client.requestJson<unknown>(buildMobileChannelMessagesPath(input));
   return MobileChannelMessagesResponseSchema.parse(payload);
+}
+
+export function buildMobileChannelSendMessagePath(input: { channelId: string }): string {
+  return `/api/v1/mobile/channels/${encodeURIComponent(input.channelId)}/messages`;
+}
+
+export type SendMobileChannelMessageInput = {
+  channelId: string;
+  content: string;
+  attachments?: MobileChannelSendMessageRequest["attachments"];
+  replyToId?: MobileChannelSendMessageRequest["replyToId"];
+  threadParentId?: MobileChannelSendMessageRequest["threadParentId"];
+};
+
+export async function sendMobileChannelMessage(
+  client: MobileApiClient,
+  input: SendMobileChannelMessageInput,
+): Promise<MobileChannelSendMessageResponse> {
+  const { channelId, ...body } = input;
+  const payload = await client.requestJson<unknown>(
+    buildMobileChannelSendMessagePath({ channelId }),
+    {
+      body,
+      method: "POST",
+    },
+  );
+
+  return MobileChannelSendMessageResponseSchema.parse(payload);
 }

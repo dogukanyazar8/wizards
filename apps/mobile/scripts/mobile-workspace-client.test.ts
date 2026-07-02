@@ -2,13 +2,16 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type {
   MobileApiClient,
+  MobileApiRequestOptions,
 } from "../src/api/mobile-api-client";
 import {
   buildMobileChannelMessagesPath,
+  buildMobileChannelSendMessagePath,
   buildMobileWorkspaceServerPath,
   fetchMobileChannelMessages,
   fetchMobileWorkspaceServer,
   MOBILE_CHANNEL_MESSAGES_LIMIT,
+  sendMobileChannelMessage,
 } from "../src/workspace/mobile-workspace-client";
 
 const validServerDetailResponse = {
@@ -107,6 +110,13 @@ describe("mobile workspace client", () => {
     );
   });
 
+  it("builds an encoded mobile channel message send endpoint path", () => {
+    assert.equal(
+      buildMobileChannelSendMessagePath({ channelId: "channel/id 1" }),
+      "/api/v1/mobile/channels/channel%2Fid%201/messages",
+    );
+  });
+
   it("loads and validates a mobile workspace server detail response", async () => {
     const requests: string[] = [];
     const client: MobileApiClient = {
@@ -139,6 +149,40 @@ describe("mobile workspace client", () => {
     ]);
     assert.equal(response.channel.id, "channel-1");
     assert.equal(response.messages[0]?.content, "Hello from a real text channel.");
+  });
+
+  it("sends and validates a mobile channel message through the real POST contract", async () => {
+    const requests: Array<{
+      body: unknown;
+      method: string | undefined;
+      path: string;
+    }> = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string, options: MobileApiRequestOptions = {}) {
+        requests.push({
+          body: options.body,
+          method: options.method,
+          path,
+        });
+        return { message: validChannelMessagesResponse.messages[0] } as TResponse;
+      },
+    };
+
+    const response = await sendMobileChannelMessage(client, {
+      channelId: "channel-1",
+      content: "Hello from mobile.",
+    });
+
+    assert.deepEqual(requests, [
+      {
+        body: {
+          content: "Hello from mobile.",
+        },
+        method: "POST",
+        path: "/api/v1/mobile/channels/channel-1/messages",
+      },
+    ]);
+    assert.equal(response.message.id, "message-1");
   });
 
   it("rejects malformed workspace server payloads before the UI trusts them", async () => {

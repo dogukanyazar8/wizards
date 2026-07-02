@@ -1,11 +1,21 @@
 import {
   MobileChannelMessagesResponseSchema,
+  MobileChannelSendMessageRequestSchema,
+  MobileChannelSendMessageResponseSchema,
   type MobileWorkspaceChannelSummary,
 } from "@wizards/types";
 import { ChannelType, prisma } from "@wizards/db";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
-import { ApiError, jsonError } from "@/lib/api";
+import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
 import { requireMobileApiUserId } from "@/lib/auth/api";
+import { logError } from "@/lib/logger";
+import { getRedisRate } from "@/lib/redis";
+import {
+  checkChannelMessageRateLimit,
+  shouldLogRateLimitUnavailable,
+} from "@/lib/socket/rate-limits";
+import { getSocketServer } from "@/lib/socket/runtime";
+import { sendChannelMessage } from "@/lib/workspace/channel-message-send-service";
 import { getChannelMessages } from "@/lib/workspace/message-service";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
@@ -20,6 +30,36 @@ type RouteContext = {
     channelId: string;
   }>;
 };
+
+async function enforceMobileChannelMessageSendRateLimit(userId: string) {
+  const rateLimitResult = await checkChannelMessageRateLimit({
+    redis: getRedisRate(),
+    userId,
+  });
+
+  if (rateLimitResult.status === "limited") {
+    throw new ApiError("Too many messages. Maximum 30 per minute.", 429, "RATE_LIMITED");
+  }
+
+  if (rateLimitResult.status === "unavailable") {
+    if (shouldLogRateLimitUnavailable("channel-message")) {
+      logError(
+        rateLimitResult.allowDuringGrace
+          ? "[mobile-api] Channel message rate limit unavailable; allowing send during grace window"
+          : "[mobile-api] Channel message rate limit unavailable; blocking send",
+        rateLimitResult.error,
+      );
+    }
+
+    if (!rateLimitResult.allowDuringGrace) {
+      throw new ApiError(
+        "Message controls are temporarily unavailable. Please try again shortly.",
+        503,
+        "RATE_LIMIT_UNAVAILABLE",
+      );
+    }
+  }
+}
 
 export async function GET(request: Request, context: RouteContext) {
   try {
@@ -59,6 +99,36 @@ export async function GET(request: Request, context: RouteContext) {
         },
       },
     );
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function POST(request: Request, context: RouteContext) {
+  try {
+    const userId = await requireMobileApiUserId(request);
+    await enforceApiRateLimit(userId, "mobile:channel:messages:send");
+
+    const { channelId } = await context.params;
+    const body = await parseJsonBody(request, MobileChannelSendMessageRequestSchema);
+
+    await enforceMobileChannelMessageSendRateLimit(userId);
+
+    const message = await sendChannelMessage({
+      attachments: body.attachments,
+      channelId,
+      content: body.content,
+      io: getSocketServer(),
+      replyToId: body.replyToId ?? null,
+      threadParentId: body.threadParentId ?? null,
+      userId,
+    });
+
+    return Response.json(MobileChannelSendMessageResponseSchema.parse({ message }), {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    });
   } catch (error) {
     return jsonError(error);
   }

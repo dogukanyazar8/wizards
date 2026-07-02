@@ -10,6 +10,7 @@ import {
 } from "../src/quality/mobile-quality-gate";
 
 const expectedAreas: MobileQualityArea[] = [
+  "accessibility",
   "auth",
   "deep-link",
   "dm",
@@ -53,6 +54,28 @@ describe("mobile quality gate", () => {
     for (const gate of MOBILE_AUTOMATED_GATES) {
       assert.equal(gate.command.includes("@wizards/mobile"), true);
     }
+  });
+
+  it("tracks the current native mobile product navigation language", () => {
+    const navigationCheck = MOBILE_MANUAL_QA_CHECKS.find(
+      (check) => check.id === "tab-navigation",
+    );
+    assert.ok(navigationCheck);
+    assert.match(navigationCheck.label, /Home, DMs, Notifications, Calls, and Profile/);
+    assert.doesNotMatch(navigationCheck.label, /Overview, Chat, Voice, and Settings/);
+
+    const voiceCheck = MOBILE_MANUAL_QA_CHECKS.find(
+      (check) => check.id === "voice-disabled-contract",
+    );
+    assert.ok(voiceCheck);
+    assert.match(voiceCheck.label, /visible as a primary tab/i);
+
+    const accessibilityCheck = MOBILE_MANUAL_QA_CHECKS.find(
+      (check) => check.id === "native-accessibility-touch-targets",
+    );
+    assert.ok(accessibilityCheck);
+    assert.match(accessibilityCheck.label, /44px/);
+    assert.match(accessibilityCheck.label, /accessibility labels/i);
   });
 
   it("summarizes quality readiness without leaking sensitive strings", () => {

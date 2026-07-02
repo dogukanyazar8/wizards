@@ -1,6 +1,7 @@
 import { MOBILE_RELEASE_BUDGETS } from "../release/mobile-release-contract";
 
 export type MobileQualityArea =
+  | "accessibility"
   | "auth"
   | "deep-link"
   | "dm"
@@ -83,9 +84,18 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
   {
     area: "navigation",
     id: "tab-navigation",
-    label: "Overview, Chat, Voice, and Settings tabs switch without overlap or jank.",
+    label:
+      "Home, DMs, Notifications, Calls, and Profile bottom tabs switch without overlap or jank.",
     required: true,
     risk: "high",
+  },
+  {
+    area: "accessibility",
+    id: "native-accessibility-touch-targets",
+    label:
+      "Icon-only actions expose accessibility labels, selected state, and at least 44px touch targets on compact screens.",
+    required: true,
+    risk: "critical",
   },
   {
     area: "auth",
@@ -149,7 +159,8 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
   {
     area: "voice",
     id: "voice-disabled-contract",
-    label: "Voice surfaces stay honest until native permission and LiveKit contracts are connected.",
+    label:
+      "Calls remains visible as a primary tab while voice readiness stays honest until native permission and LiveKit contracts are connected.",
     required: true,
     risk: "high",
   },
@@ -227,6 +238,7 @@ export type MobileQualityGateSummary = {
 };
 
 const REQUIRED_MANUAL_AREAS: MobileQualityArea[] = [
+  "accessibility",
   "auth",
   "deep-link",
   "dm",

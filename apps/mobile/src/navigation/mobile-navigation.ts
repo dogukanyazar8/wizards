@@ -1,8 +1,24 @@
 import type { MobileAuthStatus } from "../auth/session-types";
 
-export const MOBILE_TAB_IDS = ["messages", "overview", "voice", "settings"] as const;
+export const MOBILE_TAB_IDS = [
+  "overview",
+  "messages",
+  "notifications",
+  "voice",
+  "settings",
+] as const;
 
 export type MobileTabId = (typeof MOBILE_TAB_IDS)[number];
+
+export const MOBILE_BOTTOM_TAB_IDS = [
+  "overview",
+  "messages",
+  "notifications",
+  "voice",
+  "settings",
+] as const satisfies readonly MobileTabId[];
+
+export type MobileBottomTabId = (typeof MOBILE_BOTTOM_TAB_IDS)[number];
 
 export interface MobileTabDescriptor {
   readonly id: MobileTabId;
@@ -30,11 +46,17 @@ export interface MobileRouteResolution {
   readonly requiresSession: boolean;
 }
 
-export const DEFAULT_MOBILE_TAB_ID: MobileTabId = "messages";
+export interface MobileChannelsRouteTarget {
+  readonly channelId: string | null;
+  readonly serverId: string;
+}
+
+export const DEFAULT_MOBILE_TAB_ID: MobileTabId = "overview";
 
 export const MOBILE_TABS: readonly MobileTabDescriptor[] = [
-  { id: "messages", requiresSession: true },
   { id: "overview", requiresSession: true },
+  { id: "messages", requiresSession: true },
+  { id: "notifications", requiresSession: true },
   { id: "voice", requiresSession: true },
   { id: "settings", requiresSession: false },
 ] as const;
@@ -95,4 +117,47 @@ export function resolveMobileRoute(
     isBlocked: blockedReason !== null,
     requiresSession,
   };
+}
+
+export function parseMobileChannelsRoutePath(
+  path: string,
+): MobileChannelsRouteTarget | null {
+  const pathname = path.split(/[?#]/, 1)[0] ?? "";
+  const segments = pathname
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => {
+      try {
+        return decodeURIComponent(segment);
+      } catch {
+        return segment;
+      }
+    });
+
+  if (segments[0] !== "channels" || !segments[1]) {
+    return null;
+  }
+
+  return {
+    channelId: segments[2] ?? null,
+    serverId: segments[1],
+  };
+}
+
+export function getMobileTabForRoutePath(path: string): MobileTabId {
+  const channelRoute = parseMobileChannelsRoutePath(path);
+  if (channelRoute) {
+    return channelRoute.serverId === "@me" ? "messages" : "overview";
+  }
+
+  const pathname = path.split(/[?#]/, 1)[0] ?? "";
+  if (pathname === "/settings" || pathname.startsWith("/settings/")) {
+    return "settings";
+  }
+
+  if (pathname === "/invite" || pathname.startsWith("/invite/")) {
+    return "overview";
+  }
+
+  return DEFAULT_MOBILE_TAB_ID;
 }

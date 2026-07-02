@@ -159,9 +159,13 @@
     "mtime": 1782884067.9430375,
     "hash": "0a1435ea3fd08ebdeb74e6a8bbe0674f"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-design-contract.test.ts": {
+    "mtime": 1782942852.1831274,
+    "hash": "9015bd9eef79c7ba2bc3625077580544"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-display-model.test.ts": {
-    "mtime": 1782896471.7784717,
-    "hash": "44731afabf2efd6cffd612d876b38f9a"
+    "mtime": 1782942828.2652888,
+    "hash": "3e54aba930df06d3f0348f8e94e7ae00"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-dm-client.test.ts": {
     "mtime": 1782820662.501938,
@@ -172,20 +176,32 @@
     "hash": "83b12b27f8affd35f57c710dcecfe1f4"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-navigation-contract.test.ts": {
-    "mtime": 1782831469.1750417,
-    "hash": "56000783fee05d2ea569f52f3e1f2bad"
+    "mtime": 1782937797.0365813,
+    "hash": "028dd301ce0dba38d3555c837a796851"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-permission-contract.test.ts": {
     "mtime": 1782505334.8797314,
     "hash": "4207d47376bc58b2f6d110b215a9fc39"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-quality-gate.test.ts": {
-    "mtime": 1782824617.1866663,
-    "hash": "382d0a78902e6a25d3eb2b5485efff56"
+    "mtime": 1782942797.1748414,
+    "hash": "17109ee6fb88380ebabd31febfb5327d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-release-contract.test.ts": {
     "mtime": 1782824576.2775748,
     "hash": "c5c4b8a32b14797034190125d4627a6c"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-root-boundary.test.ts": {
+    "mtime": 1782911159.7069192,
+    "hash": "70d29466dc15c0d6db225c910d2a450f"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-screen-state.test.ts": {
+    "mtime": 1782909759.9529283,
+    "hash": "9d06e42cfde38be659e468bff423fd90"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-screen-sync.test.ts": {
+    "mtime": 1782910520.2069356,
+    "hash": "b950c55dcbf9fc71261b4565513f083a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-session-contract.test.ts": {
     "mtime": 1782503603.6460073,
@@ -204,8 +220,8 @@
     "hash": "8487db566233abd15ae919bd65ef9bbc"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-workspace-client.test.ts": {
-    "mtime": 1782822815.983096,
-    "hash": "b981d76a2cade0a4536a0e1dd4906490"
+    "mtime": 1782941240.5851214,
+    "hash": "ef1319ae57ba6b12a9f6a854e2533551"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\validate-mobile-env.ts": {
     "mtime": 1782500625.0510867,
@@ -224,24 +240,36 @@
     "hash": "4a2971a0cc1e0f5a23821627f0319604"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\app\\mobile-app-shell.tsx": {
-    "mtime": 1782897291.5476108,
-    "hash": "8bb1e3096aa4ccb6f92b7a341fd0d809"
+    "mtime": 1782967231.868163,
+    "hash": "64fe8044dfeebf5696ba43f2f809945d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\app\\mobile-display-model.ts": {
-    "mtime": 1782896433.2796614,
-    "hash": "797d0808493a3c0b1ab048270f0dbf48"
+    "mtime": 1782942470.5141,
+    "hash": "c1da0c706ea8ea1d2f170a104fcc6cee"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\app\\mobile-error-boundary.tsx": {
     "mtime": 1782898769.7540057,
     "hash": "9ad687ab256778787f61f18537981f86"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\app\\mobile-root-screens.tsx": {
+    "mtime": 1782942742.8602312,
+    "hash": "770608c1e173d8c4eee5db08dc1c3c63"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\app\\mobile-screen-state.ts": {
+    "mtime": 1782939209.6525714,
+    "hash": "bb132e3e1aca3bf1ec9fef467330d3fc"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\app\\mobile-screen-sync.ts": {
+    "mtime": 1782910267.8989434,
+    "hash": "e42cf8a9a77beea4140114bb551574c3"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\app\\mobile-settings-model.ts": {
     "mtime": 1782895507.7527008,
     "hash": "48421cb2db45c22e2406499889d30ac5"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\app\\whispr-mobile-root.tsx": {
-    "mtime": 1782898196.307724,
-    "hash": "3e14be3b7f8c19119f8fb16b3ef1cee6"
+    "mtime": 1782939466.6304867,
+    "hash": "b1d30ab1f1e8e3feaad4c73a44ba8a5e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\auth\\expo-secure-session-store.ts": {
     "mtime": 1782503294.8265393,
@@ -288,20 +316,20 @@
     "hash": "c3fb1c8c22bfda8ba8f0f71240887fe8"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\locale\\mobile-copy.ts": {
-    "mtime": 1782898818.9863107,
-    "hash": "64e539bd95e7d2961ad0ecfafd5e13d0"
+    "mtime": 1782940617.0722592,
+    "hash": "a4e4cb8e5f5c890634c08b0a6aa2c8e4"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\navigation\\mobile-navigation.ts": {
-    "mtime": 1782831216.8544073,
-    "hash": "af5ad87e3e5265313bab2ce04f821171"
+    "mtime": 1782937425.8251936,
+    "hash": "55ff1d4fd1051e1521d8333912c8fd53"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\permissions\\mobile-permission-contract.ts": {
     "mtime": 1782505270.6242628,
     "hash": "a3feb3c26a8eae73322c3e4d778201de"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\quality\\mobile-quality-gate.ts": {
-    "mtime": 1782895801.7479966,
-    "hash": "2f917b7d4cc0334533407771669b8bb1"
+    "mtime": 1782942778.8130622,
+    "hash": "2a0c18a464afd7fbf3d8b02bad94deb4"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\release\\mobile-release-contract.ts": {
     "mtime": 1782824507.9242802,
@@ -320,8 +348,8 @@
     "hash": "7b37e8a96b1f8034c08e51761393a7ec"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\workspace\\mobile-workspace-client.ts": {
-    "mtime": 1782821882.1950047,
-    "hash": "910e0702ecdef604e4ef2b635a57b82b"
+    "mtime": 1782939189.7536194,
+    "hash": "460d5e4588af25d9b963fb46a1201ffc"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\eslint.config.mjs": {
     "mtime": 1781862284.8468878,
@@ -812,8 +840,8 @@
     "hash": "bdb3fb7cdea49a20647ac66217fd020b"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\mobile\\channels\\[channelId]\\messages\\route.ts": {
-    "mtime": 1782821812.3332236,
-    "hash": "c249ea0124add5e00268a39759ac4d20"
+    "mtime": 1782940289.3365269,
+    "hash": "78ccc49cf1f9cff02ecee3c708c5a9bb"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\mobile\\dm\\[conversationId]\\messages\\route.ts": {
     "mtime": 1782819755.1272728,
@@ -1516,12 +1544,12 @@
     "hash": "ed97234042261cf51ed5dc1a04346e0a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\api-rate-limit.test.ts": {
-    "mtime": 1782887512.6563637,
-    "hash": "21b9bb500609933a105523ad584ccdf9"
+    "mtime": 1782941108.2304835,
+    "hash": "b25f2e6f24cde775aca0d1fe194d201d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\api-rate-limit.ts": {
-    "mtime": 1782887490.5863545,
-    "hash": "55b945c4360490f268e4dd3eb3f0a081"
+    "mtime": 1782940309.6881757,
+    "hash": "356e4a901076d27c1ac5764bef611d06"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\api.test.ts": {
     "mtime": 1779082192.4706583,
@@ -2527,6 +2555,10 @@
     "mtime": 1779082192.5203905,
     "hash": "a0cb46687f2ad2281c8421cab0bee713"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\channel-message-send-service.ts": {
+    "mtime": 1782941200.9571016,
+    "hash": "401fa92f01eae6a4a261a84b02c645cc"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\workspace\\channel-permission-logic.ts": {
     "mtime": 1779082192.5203905,
     "hash": "68e977a2f30c86760b3e3268b58801b2"
@@ -2832,8 +2864,8 @@
     "hash": "ef194d9f60772511164dd760a5c1af1a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\types\\src\\mobile.ts": {
-    "mtime": 1782887473.3297615,
-    "hash": "a73f101312e04da45b2a857d1b025f78"
+    "mtime": 1782939166.1571815,
+    "hash": "ed2dc02ae4dfcdc246ae1c0ab12d32d8"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\types\\src\\socket.ts": {
     "mtime": 1782270909.4342206,
@@ -2900,8 +2932,8 @@
     "hash": "0168b78417bf60f34fd1233c69591023"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\README.md": {
-    "mtime": 1782824777.5162983,
-    "hash": "1871955d14bf9d3ab05cbe491e043e1b"
+    "mtime": 1782937986.9644947,
+    "hash": "8ca92ea3141584417ab12a7f279220bc"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\README.md": {
     "mtime": 1782270909.36922,

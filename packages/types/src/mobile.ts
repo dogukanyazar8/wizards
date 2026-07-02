@@ -216,7 +216,7 @@ export const MobileDMMessagesResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 
-export const MobileDMSendMessageRequestSchema = z
+const MobileSendMessageRequestSchema = z
   .object({
     attachments: z.array(UploadedAttachmentInputSchema).max(5).default([]),
     content: z.string().max(MESSAGE_CONTENT_DEFAULT_LIMIT),
@@ -227,6 +227,8 @@ export const MobileDMSendMessageRequestSchema = z
     message: "Message content or attachment is required",
     path: ["content"],
   });
+
+export const MobileDMSendMessageRequestSchema = MobileSendMessageRequestSchema;
 
 export const MobileDMSendMessageResponseSchema = z.object({
   message: DMMessagePayloadSchema,
@@ -282,6 +284,12 @@ export const MobileChannelMessagesResponseSchema = MessagesResponseSchema.extend
   nextCursor: z.string().nullable(),
 });
 
+export const MobileChannelSendMessageRequestSchema = MobileSendMessageRequestSchema;
+
+export const MobileChannelSendMessageResponseSchema = z.object({
+  message: ChatMessageSchema,
+});
+
 export type MobileBootstrapFeatureStatus = z.infer<
   typeof MobileBootstrapFeatureStatusSchema
 >;
@@ -314,6 +322,12 @@ export type MobileWorkspaceServerDetailResponse = z.infer<
 >;
 export type MobileChannelMessagesResponse = z.infer<
   typeof MobileChannelMessagesResponseSchema
+>;
+export type MobileChannelSendMessageRequest = z.infer<
+  typeof MobileChannelSendMessageRequestSchema
+>;
+export type MobileChannelSendMessageResponse = z.infer<
+  typeof MobileChannelSendMessageResponseSchema
 >;
 export type MobileAuthExchangeRequest = z.infer<typeof MobileAuthExchangeRequestSchema>;
 export type MobileAuthExchangeResponse = z.infer<typeof MobileAuthExchangeResponseSchema>;

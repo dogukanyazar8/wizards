@@ -10,8 +10,17 @@ export type MobileConversationSummary =
   MobileBootstrapPayload["home"]["directMessages"]["recent"][number];
 
 export type MobileDisplayMessage = ChatMessage | DMMessagePayload;
-export type MobileConversationFilter = "active" | "all" | "unread";
+export type MobileConversationFilter = "all" | "groups" | "unread";
 export type MobileHomeQuickActionKind = "direct-message" | "server" | "voice";
+
+export const MOBILE_RENDER_LIMITS = {
+  channels: 80,
+  conversations: 50,
+  messages: 60,
+  servers: 50,
+} as const;
+
+export type MobileBoundedListDirection = "end" | "start";
 
 export interface MobileHomeQuickAction {
   readonly badge: number | null;
@@ -24,6 +33,22 @@ export interface MobileHomeQuickAction {
 }
 
 const ACTIVE_PRESENCE_STATUSES = new Set(["ONLINE", "IDLE", "DND"]);
+
+export function getBoundedMobileList<T>(
+  items: readonly T[],
+  limit: number,
+  direction: MobileBoundedListDirection = "start",
+): T[] {
+  if (limit <= 0) {
+    return [];
+  }
+
+  if (items.length <= limit) {
+    return [...items];
+  }
+
+  return direction === "end" ? items.slice(-limit) : items.slice(0, limit);
+}
 
 export function isMobilePresenceActive(status: string | null | undefined): boolean {
   if (!status) {
@@ -94,7 +119,7 @@ export function filterMobileConversations(
       return false;
     }
 
-    if (options.filter === "active" && getMobileConversationActiveCount(conversation) === 0) {
+    if (options.filter === "groups" && conversation.type !== "GROUP_DM") {
       return false;
     }
 
@@ -208,6 +233,42 @@ export function getMobileMessageEngagementCounts(message: MobileDisplayMessage):
     attachmentCount: message.attachments.length,
     reactionCount: message.reactions.length,
   };
+}
+
+export type MobileMessageStreamItem<T extends { readonly createdAt: string; readonly id: string }> = {
+  readonly id: string;
+  readonly message: T;
+  readonly showDateSeparator: boolean;
+};
+
+export function getMobileDisplayMessageDayKey(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
+export function getMobileMessageStreamItems<
+  T extends { readonly createdAt: string; readonly id: string },
+>(
+  messages: readonly T[],
+  limit = MOBILE_RENDER_LIMITS.messages,
+): MobileMessageStreamItem<T>[] {
+  let previousDayKey = "";
+
+  return getBoundedMobileList(messages, limit, "end").map((message) => {
+    const dayKey = getMobileDisplayMessageDayKey(message.createdAt);
+    const showDateSeparator = dayKey !== "" && dayKey !== previousDayKey;
+    previousDayKey = dayKey || previousDayKey;
+
+    return {
+      id: message.id,
+      message,
+      showDateSeparator,
+    };
+  });
 }
 
 export function getMobileWorkspaceChannels(
