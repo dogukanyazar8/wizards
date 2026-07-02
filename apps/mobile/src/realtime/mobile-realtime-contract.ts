@@ -19,6 +19,9 @@ export const MOBILE_REALTIME_SERVER_EVENTS = [
   "presence:update",
   "typing:update",
   "notification:new",
+  "voice:state:update",
+  "voice:screenshare:update",
+  "voice:audio-level:update",
 ] as const;
 
 export type MobileRealtimeServerEventName = (typeof MOBILE_REALTIME_SERVER_EVENTS)[number];
@@ -45,6 +48,7 @@ export type MobileRealtimeEventEnvelope = {
   channelId: string | null;
   conversationId: string | null;
   eventName: MobileRealtimeServerEventName;
+  payload: unknown | null;
   receivedAt: number;
   refreshSources: readonly MobileRealtimeRefreshSource[];
   serverId: string | null;
@@ -92,6 +96,8 @@ const WORKSPACE_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
   "server:membership:added",
   "server:membership:removed",
   "server:settings:updated",
+  "voice:state:update",
+  "voice:screenshare:update",
 ]);
 
 const BOOTSTRAP_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
@@ -145,6 +151,10 @@ export function getMobileRealtimeRefreshSources(
     sources.add("notification");
   }
 
+  if (eventName === "voice:audio-level:update") {
+    sources.add("workspace");
+  }
+
   if (sources.size === 0) {
     sources.add("bootstrap");
   }
@@ -161,6 +171,7 @@ export function createMobileRealtimeEventEnvelope(
     channelId: getStringProperty(payload, "channelId"),
     conversationId: getStringProperty(payload, "conversationId"),
     eventName,
+    payload: eventName.startsWith("voice:") ? payload : null,
     receivedAt: now,
     refreshSources: getMobileRealtimeRefreshSources(eventName),
     serverId: getStringProperty(payload, "serverId"),

@@ -46,7 +46,7 @@ export const MOBILE_NATIVE_CAPABILITIES: readonly MobileNativeCapability[] = [
     feature: "voice",
     id: "voiceChannels",
     permissionIntents: ["microphone", "notifications"],
-    stage: "requires-native-module",
+    stage: "foundation-ready",
     userActionTrigger: "User taps join on a voice channel or call surface.",
   },
   {
@@ -120,10 +120,8 @@ export function validateMobileNativeCapabilityContract(): string[] {
       );
     }
 
-    if (capability.id === "voiceChannels" && capability.stage !== "requires-native-module") {
-      issues.push(
-        "voiceChannels must stay requires-native-module until the native LiveKit room lifecycle exists.",
-      );
+    if (capability.id === "voiceChannels" && capability.stage !== "foundation-ready") {
+      issues.push("voiceChannels must stay foundation-ready after native LiveKit join exists.");
     }
 
     if (

@@ -36,7 +36,7 @@ export async function GET(request: Request) {
       }),
       prisma.serverMember.findMany({
         orderBy: { joinedAt: "desc" },
-        take: 5,
+        take: 50,
         where: {
           pending: false,
           userId,

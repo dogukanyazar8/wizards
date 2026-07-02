@@ -94,4 +94,40 @@ describe("mobile bootstrap payload", () => {
     assert.equal(payload.home.directMessages.recent[0]?.unreadCount, 2);
     assert.equal(serialized.includes("content"), false);
   });
+
+  it("accepts a fuller bounded mobile server rail without changing payload shape", () => {
+    const payload = getMobileBootstrapPayload({
+      home: {
+        directMessages: {
+          recent: [],
+          totalCount: 0,
+          unreadCount: 0,
+        },
+        servers: {
+          recent: Array.from({ length: 12 }, (_, index) => ({
+            channelCount: index + 1,
+            iconUrl: null,
+            id: `server_${index + 1}`,
+            joinedAt: "2026-06-25T10:00:00.000Z",
+            memberCount: 10 + index,
+            name: `Whispr ${index + 1}`,
+            shortName: `W${index + 1}`,
+          })),
+          totalCount: 12,
+        },
+      },
+      now: new Date("2026-06-26T12:00:00.000Z"),
+      user: {
+        avatarUrl: null,
+        displayName: "CodeX",
+        id: "user_123",
+        locale: "tr",
+        status: "online",
+        username: "codex",
+      },
+    });
+
+    assert.equal(payload.home.servers.recent.length, 12);
+    assert.equal(payload.home.servers.totalCount, 12);
+  });
 });

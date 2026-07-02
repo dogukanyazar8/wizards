@@ -54,7 +54,7 @@ describe("mobile API client", () => {
     const client = createMobileApiClient({
       baseUrl: "https://whispr.team",
       fetchImpl: async () =>
-        new Response(JSON.stringify({ token: "access-token-should-not-leak" }), {
+        new Response(JSON.stringify({ code: "UNAUTHORIZED", token: "access-token-should-not-leak" }), {
           headers: { "content-type": "application/json" },
           status: 401,
         }),
@@ -65,7 +65,34 @@ describe("mobile API client", () => {
       () => client.requestJson("/api/v1/mobile/bootstrap"),
       (error) => {
         assert.equal(error instanceof MobileApiError, true);
+        assert.equal((error as MobileApiError).apiPath, "/api/v1/mobile/bootstrap");
+        assert.equal((error as MobileApiError).serverCode, "UNAUTHORIZED");
         assert.equal(String(error).includes("access-token"), false);
+        assert.equal(String(error).includes("/api/v1/mobile/bootstrap"), true);
+        assert.equal(String(error).includes("UNAUTHORIZED"), true);
+        return true;
+      },
+    );
+  });
+
+  it("keeps query values out of HTTP error diagnostics", async () => {
+    const client = createMobileApiClient({
+      baseUrl: "https://whispr.team",
+      fetchImpl: async () =>
+        new Response("<html>not found</html>", {
+          headers: { "content-type": "text/html" },
+          status: 404,
+        }),
+    });
+
+    await assert.rejects(
+      () => client.requestJson("/api/v1/mobile/voice/states?serverId=server-secret-id"),
+      (error) => {
+        assert.equal(error instanceof MobileApiError, true);
+        assert.equal((error as MobileApiError).apiPath, "/api/v1/mobile/voice/states");
+        assert.equal((error as MobileApiError).status, 404);
+        assert.equal(String(error).includes("server-secret-id"), false);
+        assert.equal(String(error).includes("/api/v1/mobile/voice/states"), true);
         return true;
       },
     );

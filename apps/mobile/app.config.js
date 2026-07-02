@@ -149,6 +149,11 @@ module.exports = ({ config }) => {
       permissions: getWhisprMobileAndroidPermissions(),
       predictiveBackGestureEnabled: true,
     },
+    plugins: [
+      ...(config.plugins ?? []),
+      "@livekit/react-native-expo-plugin",
+      "@config-plugins/react-native-webrtc",
+    ],
     extra: {
       ...config.extra,
       whispr: publicConfig,

@@ -11,6 +11,7 @@ export type MobileVoiceRuntimeStatus =
   | "error"
   | "native-module-pending"
   | "not-requested"
+  | "ready"
   | "unavailable";
 
 export interface MobileVoiceRuntimeState {
@@ -65,7 +66,7 @@ export function createMobileVoiceRuntimeStateFromPermission(
         hasMicrophonePermission: true,
         lastAttemptAt: now,
         microphoneStatus,
-        status: "native-module-pending",
+        status: "ready",
       };
     case "blocked":
       return {
@@ -185,10 +186,8 @@ export function validateMobileVoiceContract(): string[] {
   if (!voiceChannels) {
     issues.push("voiceChannels capability must be declared.");
   } else {
-    if (voiceChannels.stage !== "requires-native-module") {
-      issues.push(
-        "voiceChannels must stay requires-native-module until the native LiveKit room lifecycle exists.",
-      );
+    if (voiceChannels.stage !== "foundation-ready") {
+      issues.push("voiceChannels must stay foundation-ready after native LiveKit join exists.");
     }
 
     if (!voiceChannels.permissionIntents.includes("microphone")) {

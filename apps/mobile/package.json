@@ -20,7 +20,11 @@
     "validate:env": "node --import tsx scripts/validate-mobile-env.ts"
   },
   "dependencies": {
+    "@config-plugins/react-native-webrtc": "^15.0.1",
     "@expo/vector-icons": "^15.1.1",
+    "@livekit/react-native": "^2.11.1",
+    "@livekit/react-native-expo-plugin": "^1.0.2",
+    "@livekit/react-native-webrtc": "^144.1.1",
     "@wizards/types": "workspace:*",
     "expo": "~56.0.12",
     "expo-dev-client": "~56.0.20",
@@ -30,6 +34,7 @@
     "expo-secure-store": "~56.0.4",
     "expo-status-bar": "~56.0.4",
     "expo-updates": "~56.0.19",
+    "livekit-client": "^2.19.0",
     "react": "19.2.3",
     "react-native": "0.85.3",
     "react-native-safe-area-context": "~5.7.0",

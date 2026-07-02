@@ -8,6 +8,11 @@ import type {
 
 export type MobileConversationSummary =
   MobileBootstrapPayload["home"]["directMessages"]["recent"][number];
+export type MobileWorkspaceChannelSection = {
+  readonly channels: MobileWorkspaceChannelSummary[];
+  readonly id: string;
+  readonly name: string;
+};
 
 export type MobileDisplayMessage = ChatMessage | DMMessagePayload;
 export type MobileConversationFilter = "all" | "groups" | "unread";
@@ -278,6 +283,76 @@ export function getMobileWorkspaceChannels(
     ...detail.ungroupedChannels,
     ...detail.categories.flatMap((category) => category.channels),
   ];
+}
+
+export function getMobileWorkspaceChannelSections(
+  detail: MobileWorkspaceServerDetailResponse["detail"],
+  labels: {
+    ungrouped: string;
+  },
+): MobileWorkspaceChannelSection[] {
+  const sections: MobileWorkspaceChannelSection[] = [];
+
+  if (detail.ungroupedChannels.length > 0) {
+    sections.push({
+      channels: detail.ungroupedChannels,
+      id: "ungrouped",
+      name: labels.ungrouped,
+    });
+  }
+
+  for (const category of detail.categories) {
+    if (category.channels.length === 0) {
+      continue;
+    }
+
+    sections.push({
+      channels: category.channels,
+      id: category.id,
+      name: category.name,
+    });
+  }
+
+  return sections;
+}
+
+export function filterMobileWorkspaceChannelSections(
+  sections: readonly MobileWorkspaceChannelSection[],
+  query: string,
+): MobileWorkspaceChannelSection[] {
+  const normalizedQuery = query.trim().toLowerCase();
+
+  if (!normalizedQuery) {
+    return sections.map((section) => ({
+      ...section,
+      channels: [...section.channels],
+    }));
+  }
+
+  return sections
+    .map((section) => {
+      const sectionMatches = section.name.toLowerCase().includes(normalizedQuery);
+      const channels = sectionMatches
+        ? section.channels
+        : section.channels.filter((channel) =>
+            [
+              channel.name,
+              channel.topic,
+              channel.categoryName,
+              channel.type,
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase()
+              .includes(normalizedQuery),
+          );
+
+      return {
+        ...section,
+        channels: [...channels],
+      };
+    })
+    .filter((section) => section.channels.length > 0);
 }
 
 export function findInitialMobileWorkspaceChannel(

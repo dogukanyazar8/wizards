@@ -97,7 +97,7 @@ export function getMobileBootstrapPayload({
       voice: {
         label: "Voice",
         reason:
-          "Mobile voice has server-authorized LiveKit token contracts; native room lifecycle validation remains gated before join is enabled.",
+          "Mobile voice channels use explicit microphone permission, server-authorized LiveKit tokens, and bounded voice state heartbeats.",
         status: "requires-native-permission",
       },
     },

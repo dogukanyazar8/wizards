@@ -15,12 +15,14 @@ describe("mobile realtime contract", () => {
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("message:new"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("dm:message:new"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("presence:update"));
+    assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("voice:state:update"));
   });
 
   it("maps active conversation events to the narrowest refresh target", () => {
     assert.deepEqual(getMobileRealtimeRefreshSources("message:new"), ["channel"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:message:new"), ["dm"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:conversation:updated"), ["bootstrap"]);
+    assert.deepEqual(getMobileRealtimeRefreshSources("voice:state:update"), ["workspace"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("presence:update"), [
       "bootstrap",
       "presence",
@@ -42,6 +44,7 @@ describe("mobile realtime contract", () => {
       channelId: null,
       conversationId: "conversation-1",
       eventName: "dm:message:new",
+      payload: null,
       receivedAt: 1_000,
       refreshSources: ["dm"],
       serverId: null,

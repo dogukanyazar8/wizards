@@ -1,11 +1,18 @@
 export class MobileApiError extends Error {
+  readonly apiPath: string | null;
   readonly code: string;
+  readonly serverCode: string | null;
   readonly status: number;
 
-  constructor(message: string, input: { code?: string; status?: number } = {}) {
+  constructor(
+    message: string,
+    input: { apiPath?: string | null; code?: string; serverCode?: string | null; status?: number } = {},
+  ) {
     super(message);
     this.name = "MobileApiError";
+    this.apiPath = input.apiPath ?? null;
     this.code = input.code ?? "mobile_api_error";
+    this.serverCode = input.serverCode ?? null;
     this.status = input.status ?? 0;
   }
 }
@@ -41,9 +48,38 @@ function assertRelativeApiPath(path: string) {
   }
 }
 
+function getSafeErrorPath(path: string) {
+  return path.split("?")[0]?.slice(0, 160) ?? "/";
+}
+
 function buildRequestUrl(baseUrl: string, path: string): string {
   assertRelativeApiPath(path);
   return new URL(path, baseUrl).toString();
+}
+
+async function readSafeServerErrorCode(response: Response): Promise<string | null> {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (!contentType.toLowerCase().includes("application/json")) {
+    return null;
+  }
+
+  try {
+    const payload = (await response.clone().json()) as unknown;
+
+    if (!payload || typeof payload !== "object" || !("code" in payload)) {
+      return null;
+    }
+
+    const code = (payload as { code?: unknown }).code;
+    if (typeof code !== "string" || !/^[A-Z0-9_:-]{1,96}$/i.test(code)) {
+      return null;
+    }
+
+    return code;
+  } catch {
+    return null;
+  }
 }
 
 async function resolveAccessToken(
@@ -88,13 +124,21 @@ export function createMobileApiClient(options: MobileApiClientOptions): MobileAp
           fetchOptions.body = JSON.stringify(requestBody);
         }
 
+        const safeErrorPath = getSafeErrorPath(path);
         const response = await fetchImpl(buildRequestUrl(baseUrl, path), fetchOptions);
 
         if (!response.ok) {
-          throw new MobileApiError(`Whispr API request failed with status ${response.status}.`, {
-            code: "http_error",
-            status: response.status,
-          });
+          const serverCode = await readSafeServerErrorCode(response);
+          const codeSuffix = serverCode ? ` (${serverCode})` : "";
+          throw new MobileApiError(
+            `Whispr API request failed with status ${response.status} at ${safeErrorPath}${codeSuffix}.`,
+            {
+              apiPath: safeErrorPath,
+              code: "http_error",
+              serverCode,
+              status: response.status,
+            },
+          );
         }
 
         if (response.status === 204) {

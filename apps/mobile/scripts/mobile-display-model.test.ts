@@ -7,6 +7,7 @@ import type {
 } from "@wizards/types";
 import {
   filterMobileConversations,
+  filterMobileWorkspaceChannelSections,
   findInitialMobileWorkspaceChannel,
   formatMobileDisplayTime,
   getBoundedMobileList,
@@ -19,6 +20,7 @@ import {
   getMobileMessageBodyPreview,
   getMobileMessageEngagementCounts,
   getMobileMessageStreamItems,
+  getMobileWorkspaceChannelSections,
   getMobileWorkspaceChannels,
   isMobilePresenceActive,
   MOBILE_RENDER_LIMITS,
@@ -353,6 +355,36 @@ describe("mobile display model", () => {
       isLocked: true,
       isReadOnly: true,
     });
+  });
+
+  it("groups and filters workspace channels without inventing mobile data", () => {
+    const sections = getMobileWorkspaceChannelSections(workspaceDetail, {
+      ungrouped: "Other",
+    });
+
+    assert.deepEqual(
+      sections.map((section) => [section.id, section.name, section.channels.length]),
+      [
+        ["ungrouped", "Other", 1],
+        ["category-1", "Lobby", 2],
+      ],
+    );
+
+    assert.deepEqual(
+      filterMobileWorkspaceChannelSections(sections, "alert").map((section) => [
+        section.name,
+        section.channels.map((channel) => channel.id),
+      ]),
+      [["Lobby", ["text-2"]]],
+    );
+
+    assert.deepEqual(
+      filterMobileWorkspaceChannelSections(sections, "lobby").map((section) => [
+        section.name,
+        section.channels.map((channel) => channel.id),
+      ]),
+      [["Lobby", ["voice-1", "text-2"]]],
+    );
   });
 
   it("formats stable compact message times", () => {

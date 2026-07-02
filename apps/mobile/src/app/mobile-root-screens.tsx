@@ -1,4 +1,5 @@
 import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import type {
   ChatMessage,
   MobileBootstrapFeature,
@@ -44,6 +45,8 @@ import {
   summarizeMobileVoiceRuntimeState,
   type MobileVoiceRuntimeState,
 } from "../voice/mobile-voice-contract";
+import { MobileVoiceRoomPanel } from "../voice/mobile-voice-room-panel";
+import type { MobileVoiceRoomState } from "../voice/mobile-voice-room-contract";
 import type {
   MobilePermissionIntentId,
   MobilePermissionReadiness,
@@ -83,11 +86,14 @@ import {
   getMobileMessageBodyPreview,
   getMobileMessageEngagementCounts,
   getMobileMessageStreamItems,
+  filterMobileWorkspaceChannelSections,
+  getMobileWorkspaceChannelSections,
   getMobileWorkspaceChannels,
   MOBILE_RENDER_LIMITS,
   type MobileConversationFilter,
   type MobileHomeQuickAction,
 } from "./mobile-display-model";
+import whisprIcon from "../../assets/whispr-icon.png";
 import {
   getMobileFeatureEvidence,
   getMobilePermissionEvidence,
@@ -166,6 +172,7 @@ interface ActiveScreenProps {
   messageSearchState: MobileMessageSearchViewState;
   notificationState: MobileNotificationRuntimeState;
   voiceState: MobileVoiceRuntimeState;
+  voiceRoomState: MobileVoiceRoomState;
   onOpenDMConversation(conversationId: string): void;
   onCloseDMConversation(): void;
   onOpenWebRegister(): void;
@@ -185,6 +192,9 @@ interface ActiveScreenProps {
   onRequestNotificationPermission(): Promise<void>;
   onRequestPhotoLibraryPermission(): Promise<void>;
   onRequestVoicePermission(): Promise<void>;
+  onLeaveVoiceChannel(): Promise<void>;
+  onToggleVoiceCamera(): Promise<void>;
+  onToggleVoiceMute(): Promise<void>;
   onSelectTab(tab: MobileTabId): void;
   onSendChannelMessage(content: string): Promise<boolean>;
   onSendDMMessage(content: string): Promise<boolean>;
@@ -224,6 +234,7 @@ export function ActiveScreen({
   messageSearchState,
   notificationState,
   voiceState,
+  voiceRoomState,
   onOpenDMConversation,
   onCloseDMConversation,
   onOpenWebRegister,
@@ -241,6 +252,9 @@ export function ActiveScreen({
   onRequestNotificationPermission,
   onRequestPhotoLibraryPermission,
   onRequestVoicePermission,
+  onLeaveVoiceChannel,
+  onToggleVoiceCamera,
+  onToggleVoiceMute,
   onRefresh,
   onRefreshVisibleData,
   onSelectTab,
@@ -302,8 +316,12 @@ export function ActiveScreen({
           permissionReadiness={permissionReadiness}
           permissionSummary={permissionSummary}
           voiceState={voiceState}
+          voiceRoomState={voiceRoomState}
           syncHealth={syncHealth}
+          onLeaveVoiceChannel={onLeaveVoiceChannel}
           onRequestVoicePermission={onRequestVoicePermission}
+          onToggleVoiceCamera={onToggleVoiceCamera}
+          onToggleVoiceMute={onToggleVoiceMute}
           onRefreshBootstrap={onRefreshBootstrap}
           onRefreshVisibleData={onRefreshVisibleData}
         />
@@ -358,14 +376,14 @@ export function ActiveScreen({
           channelSendState={channelSendState}
           selectedWorkspaceChannelId={selectedWorkspaceChannelId}
           selectedWorkspaceServerId={selectedWorkspaceServerId}
-          signedInUserLabel={signedInUserLabel}
           syncHealth={syncHealth}
           workspaceServerState={workspaceServerState}
           mediaState={mediaState}
           messageSearchState={messageSearchState}
+          voiceRoomState={voiceRoomState}
           onClearSelectedMediaAsset={onClearSelectedMediaAsset}
           onClearMessageSearch={onClearMessageSearch}
-          onOpenDMConversation={onOpenDMConversation}
+          onLeaveVoiceChannel={onLeaveVoiceChannel}
           onOpenWorkspaceChannel={onOpenWorkspaceChannel}
           onOpenWorkspaceServer={onOpenWorkspaceServer}
           onRefreshBootstrap={onRefreshBootstrap}
@@ -373,9 +391,11 @@ export function ActiveScreen({
           onRefreshVisibleData={onRefreshVisibleData}
           onRefreshWorkspaceServer={onRefreshWorkspaceServer}
           onRequestDocumentPicker={onRequestDocumentPicker}
+          onRequestVoicePermission={onRequestVoicePermission}
+          onToggleVoiceCamera={onToggleVoiceCamera}
+          onToggleVoiceMute={onToggleVoiceMute}
           onSearchMessages={onSearchMessages}
           onSendChannelMessage={onSendChannelMessage}
-          onSelectTab={onSelectTab}
         />
       );
   }
@@ -601,18 +621,26 @@ function VoiceScreen({
   bootstrapState,
   permissionReadiness,
   permissionSummary,
+  voiceRoomState,
   voiceState,
   syncHealth,
+  onLeaveVoiceChannel,
   onRequestVoicePermission,
+  onToggleVoiceCamera,
+  onToggleVoiceMute,
   onRefreshBootstrap,
   onRefreshVisibleData,
 }: {
   bootstrapState: MobileBootstrapViewState;
   permissionReadiness: readonly MobilePermissionReadiness[];
   permissionSummary: MobilePermissionSummary;
+  voiceRoomState: MobileVoiceRoomState;
   voiceState: MobileVoiceRuntimeState;
   syncHealth: MobileSyncHealthSummary;
+  onLeaveVoiceChannel(): Promise<void>;
   onRequestVoicePermission(): Promise<void>;
+  onToggleVoiceCamera(): Promise<void>;
+  onToggleVoiceMute(): Promise<void>;
   onRefreshBootstrap(): void;
   onRefreshVisibleData(): void;
 }) {
@@ -637,8 +665,14 @@ function VoiceScreen({
         readiness={permissionReadiness}
         summary={permissionSummary}
       />
+      <MobileVoiceRoomPanel
+        room={voiceRoomState}
+        onLeave={() => void onLeaveVoiceChannel()}
+        onRequestPermission={() => void onRequestVoicePermission()}
+        onToggleCamera={() => void onToggleVoiceCamera()}
+        onToggleMute={() => void onToggleVoiceMute()}
+      />
       <VoiceRuntimeCard state={voiceState} onRequestPermission={onRequestVoicePermission} />
-      <EmptyState tone="success" label={copy.voiceEmpty} />
     </ScreenShell>
   );
 }
@@ -701,6 +735,7 @@ function getMobileVoiceRuntimeText(state: MobileVoiceRuntimeState) {
         title: copy.voiceSetupCheckingTitle,
       };
     case "native-module-pending":
+    case "ready":
       return {
         description: copy.voiceSetupNativePendingDescription,
         title: copy.voiceSetupNativePendingTitle,
@@ -1227,14 +1262,14 @@ function OverviewScreen({
   channelSendState,
   mediaState,
   messageSearchState,
+  voiceRoomState,
   selectedWorkspaceChannelId,
   selectedWorkspaceServerId,
-  signedInUserLabel,
   syncHealth,
   workspaceServerState,
   onClearMessageSearch,
   onClearSelectedMediaAsset,
-  onOpenDMConversation,
+  onLeaveVoiceChannel,
   onOpenWorkspaceChannel,
   onOpenWorkspaceServer,
   onRefreshBootstrap,
@@ -1242,23 +1277,25 @@ function OverviewScreen({
   onRefreshVisibleData,
   onRefreshWorkspaceServer,
   onRequestDocumentPicker,
+  onRequestVoicePermission,
+  onToggleVoiceCamera,
+  onToggleVoiceMute,
   onSearchMessages,
   onSendChannelMessage,
-  onSelectTab,
 }: {
   bootstrapState: MobileBootstrapViewState;
   channelMessagesState: MobileChannelMessagesViewState;
   channelSendState: MobileChannelSendViewState;
   mediaState: MobileMediaRuntimeState;
   messageSearchState: MobileMessageSearchViewState;
+  voiceRoomState: MobileVoiceRoomState;
   selectedWorkspaceChannelId: string | null;
   selectedWorkspaceServerId: string | null;
-  signedInUserLabel: string | null;
   syncHealth: MobileSyncHealthSummary;
   workspaceServerState: MobileWorkspaceServerViewState;
   onClearMessageSearch(): void;
   onClearSelectedMediaAsset(): void;
-  onOpenDMConversation(conversationId: string): void;
+  onLeaveVoiceChannel(): Promise<void>;
   onOpenWorkspaceChannel(channel: MobileWorkspaceChannelSummary): void;
   onOpenWorkspaceServer(serverId: string): void;
   onRefreshBootstrap(): void;
@@ -1266,13 +1303,15 @@ function OverviewScreen({
   onRefreshVisibleData(): void;
   onRefreshWorkspaceServer(): void;
   onRequestDocumentPicker(): Promise<void>;
+  onRequestVoicePermission(): Promise<void>;
+  onToggleVoiceCamera(): Promise<void>;
+  onToggleVoiceMute(): Promise<void>;
   onSearchMessages(input: {
     conversationId: string;
     query: string;
     scope: "channel";
   }): Promise<void>;
   onSendChannelMessage(content: string): Promise<boolean>;
-  onSelectTab(tab: MobileTabId): void;
 }) {
   const attachmentsFeature =
     bootstrapState.status === "ready" ? bootstrapState.payload.features.attachments : null;
@@ -1281,29 +1320,10 @@ function OverviewScreen({
 
   return (
     <View style={styles.homeScreen}>
-      <HomeGreetingHeader
-        state={bootstrapState}
-        signedInUserLabel={signedInUserLabel}
-        onOpenNotifications={() => onSelectTab("notifications")}
-      />
       <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
       <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
-      <HomeSummaryCard state={bootstrapState} />
-      <HomeQuickActionsCard
-        state={bootstrapState}
-        onOpenConversation={onOpenDMConversation}
-        onOpenServer={onOpenWorkspaceServer}
-        onOpenTab={onSelectTab}
-      />
       {bootstrapState.status === "ready" ? (
-        <RecentServersCard
-          servers={bootstrapState.payload.home.servers.recent}
-          selectedServerId={selectedWorkspaceServerId}
-          onOpenServer={onOpenWorkspaceServer}
-        />
-      ) : null}
-      {selectedWorkspaceServerId ? (
-        <WorkspacePreviewCard
+        <MobileWorkspaceBrowser
           attachmentsFeature={attachmentsFeature}
           bootstrapState={bootstrapState}
           channelMessagesState={channelMessagesState}
@@ -1311,21 +1331,437 @@ function OverviewScreen({
           mediaState={mediaState}
           messageSearchFeature={messageSearchFeature}
           messageSearchState={messageSearchState}
+          voiceRoomState={voiceRoomState}
           selectedChannelId={selectedWorkspaceChannelId}
           selectedServerId={selectedWorkspaceServerId}
           serverState={workspaceServerState}
           onClearMessageSearch={onClearMessageSearch}
           onClearSelectedMediaAsset={onClearSelectedMediaAsset}
+          onLeaveVoiceChannel={onLeaveVoiceChannel}
           onOpenChannel={onOpenWorkspaceChannel}
           onOpenServer={onOpenWorkspaceServer}
           onRefreshChannel={onRefreshChannelMessages}
           onRefreshServer={onRefreshWorkspaceServer}
           onRequestDocumentPicker={onRequestDocumentPicker}
+          onRequestVoicePermission={onRequestVoicePermission}
+          onToggleVoiceCamera={onToggleVoiceCamera}
+          onToggleVoiceMute={onToggleVoiceMute}
           onSearchMessages={onSearchMessages}
           onSendChannelMessage={onSendChannelMessage}
         />
       ) : null}
     </View>
+  );
+}
+
+function MobileWorkspaceBrowser({
+  attachmentsFeature,
+  bootstrapState,
+  channelMessagesState,
+  channelSendState,
+  mediaState,
+  messageSearchFeature,
+  messageSearchState,
+  voiceRoomState,
+  selectedChannelId,
+  selectedServerId,
+  serverState,
+  onClearMessageSearch,
+  onClearSelectedMediaAsset,
+  onLeaveVoiceChannel,
+  onOpenChannel,
+  onOpenServer,
+  onRefreshChannel,
+  onRefreshServer,
+  onRequestDocumentPicker,
+  onRequestVoicePermission,
+  onToggleVoiceCamera,
+  onToggleVoiceMute,
+  onSearchMessages,
+  onSendChannelMessage,
+}: {
+  attachmentsFeature: MobileBootstrapFeature | null;
+  bootstrapState: MobileBootstrapViewState & {
+    payload: MobileBootstrapPayload;
+    status: "ready";
+  };
+  channelMessagesState: MobileChannelMessagesViewState;
+  channelSendState: MobileChannelSendViewState;
+  mediaState: MobileMediaRuntimeState;
+  messageSearchFeature: MobileBootstrapFeature | null;
+  messageSearchState: MobileMessageSearchViewState;
+  voiceRoomState: MobileVoiceRoomState;
+  selectedChannelId: string | null;
+  selectedServerId: string | null;
+  serverState: MobileWorkspaceServerViewState;
+  onClearMessageSearch(): void;
+  onClearSelectedMediaAsset(): void;
+  onLeaveVoiceChannel(): Promise<void>;
+  onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
+  onOpenServer(serverId: string): void;
+  onRefreshChannel(): void;
+  onRefreshServer(): void;
+  onRequestDocumentPicker(): Promise<void>;
+  onRequestVoicePermission(): Promise<void>;
+  onToggleVoiceCamera(): Promise<void>;
+  onToggleVoiceMute(): Promise<void>;
+  onSearchMessages(input: {
+    conversationId: string;
+    query: string;
+    scope: "channel";
+  }): Promise<void>;
+  onSendChannelMessage(content: string): Promise<boolean>;
+}) {
+  const [channelQuery, setChannelQuery] = useState("");
+  const servers = useMemo(
+    () =>
+      getBoundedMobileList(
+        bootstrapState.payload.home.servers.recent,
+        MOBILE_RENDER_LIMITS.servers,
+      ),
+    [bootstrapState.payload.home.servers.recent],
+  );
+  const activeServerId = selectedServerId ?? servers[0]?.id ?? null;
+  const activeServerSummary =
+    servers.find((server) => server.id === activeServerId) ?? servers[0] ?? null;
+  const workspacePayload =
+    serverState.serverId === activeServerId ? serverState.payload : null;
+  const activeServer = workspacePayload?.detail.server ?? null;
+  const activeServerName =
+    activeServer?.name ?? activeServerSummary?.name ?? copy.overviewTitle;
+  const activeServerShortName =
+    activeServer?.shortName ?? activeServerSummary?.shortName ?? activeServerName;
+  const activeServerIconUrl = activeServer?.iconUrl ?? activeServerSummary?.iconUrl ?? null;
+  const activeMemberCount = activeServer?.memberCount ?? activeServerSummary?.memberCount ?? 0;
+  const activeChannelCount =
+    activeServer?.visibleChannelCount ?? activeServerSummary?.channelCount ?? 0;
+  const selectedChannel =
+    workspacePayload && selectedChannelId
+      ? (getMobileWorkspaceChannels(workspacePayload.detail).find(
+          (channel) => channel.id === selectedChannelId,
+        ) ?? null)
+      : null;
+  const channelSections = useMemo(() => {
+    if (!workspacePayload) {
+      return [];
+    }
+
+    return filterMobileWorkspaceChannelSections(
+      getMobileWorkspaceChannelSections(workspacePayload.detail, {
+        ungrouped: copy.workspaceOtherChannelsLabel,
+      }),
+      channelQuery,
+    );
+  }, [channelQuery, workspacePayload]);
+  const isActiveServerLoading =
+    activeServerId !== null && serverState.serverId === activeServerId && serverState.status === "loading";
+  const isActiveServerError =
+    activeServerId !== null && serverState.serverId === activeServerId && serverState.status === "error";
+
+  const handleServerPress = useCallback(
+    (serverId: string) => {
+      setChannelQuery("");
+      onOpenServer(serverId);
+    },
+    [onOpenServer],
+  );
+
+  return (
+    <View style={styles.workspaceBrowserShell}>
+      <View style={styles.mobileServerRail}>
+        <Image
+          accessibilityIgnoresInvertColors
+          accessibilityLabel={copy.appTitle}
+          source={whisprIcon}
+          style={styles.mobileServerRailLogo}
+        />
+        <View style={styles.mobileServerRailDivider} />
+        <View style={styles.mobileServerRailList}>
+          {servers.map((server) => {
+            const isActive = server.id === activeServerId;
+            const unreadCount =
+              isActive && activeServer ? activeServer.unreadCount : 0;
+
+            return (
+              <Pressable
+                key={server.id}
+                accessibilityRole="button"
+                accessibilityLabel={`${copy.openWorkspaceServerAction}: ${server.name}`}
+                accessibilityState={{ selected: isActive }}
+                onPress={() => handleServerPress(server.id)}
+                style={({ pressed }) => [
+                  styles.mobileServerRailItem,
+                  isActive && styles.mobileServerRailItemActive,
+                  pressed && styles.compactListRowPressed,
+                ]}
+              >
+                <AvatarMark
+                  imageUrl={server.iconUrl}
+                  label={server.shortName ?? server.name}
+                  size="regular"
+                />
+                {unreadCount > 0 ? (
+                  <Text style={styles.mobileServerRailBadge}>
+                    {Math.min(unreadCount, 99)}
+                  </Text>
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.workspaceAddServerAction}
+          accessibilityState={{ disabled: true }}
+          disabled
+          style={styles.mobileServerRailAddButton}
+        >
+          <Ionicons name="add" size={22} color={mobileColors.accentStrong} />
+        </Pressable>
+      </View>
+
+      <View style={styles.mobileWorkspacePanel}>
+        {servers.length === 0 ? (
+          <View style={styles.mobileWorkspaceEmpty}>
+            <Text style={styles.screenEyebrow}>{copy.overviewTitle}</Text>
+            <Text style={styles.screenTitle}>{copy.homeNoServers}</Text>
+            <Text style={styles.screenDescription}>{copy.homePrimaryServerEmpty}</Text>
+          </View>
+        ) : (
+          <>
+            <View style={styles.mobileWorkspaceHeader}>
+              <AvatarMark
+                imageUrl={activeServerIconUrl}
+                label={activeServerShortName}
+                size="large"
+              />
+              <View style={styles.mobileWorkspaceHeaderText}>
+                <Text style={styles.mobileWorkspaceTitle} numberOfLines={1}>
+                  {activeServerName}
+                </Text>
+                <Text style={styles.mobileWorkspaceMeta} numberOfLines={1}>
+                  {activeMemberCount} {copy.membersSuffix} - {activeChannelCount}{" "}
+                  {copy.channelsSuffix}
+                </Text>
+              </View>
+              {isActiveServerLoading ? (
+                <ActivityIndicator color={mobileColors.accentStrong} size="small" />
+              ) : (
+                <Ionicons
+                  name="chevron-down"
+                  size={18}
+                  color={mobileColors.muted}
+                />
+              )}
+            </View>
+
+            <View style={styles.mobileWorkspaceSearchRow}>
+              <View style={styles.mobileWorkspaceSearchBox}>
+                <Ionicons name="search-outline" size={16} color={mobileColors.mutedSoft} />
+                <TextInput
+                  accessibilityLabel={copy.workspaceSearchPlaceholder}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  clearButtonMode="while-editing"
+                  onChangeText={setChannelQuery}
+                  placeholder={copy.workspaceSearchPlaceholder}
+                  placeholderTextColor={mobileColors.mutedSoft}
+                  returnKeyType="search"
+                  style={styles.mobileWorkspaceSearchInput}
+                  value={channelQuery}
+                />
+              </View>
+            </View>
+
+            {isActiveServerError ? (
+              <View style={styles.dmErrorRow}>
+                <Text style={styles.errorText}>{serverState.error}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={copy.retryAction}
+                  onPress={onRefreshServer}
+                  style={({ pressed }) => [
+                    styles.retryButton,
+                    pressed && styles.actionButtonPressed,
+                  ]}
+                >
+                  <Text style={styles.retryButtonText}>{copy.retryAction}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            {!workspacePayload && isActiveServerLoading ? (
+              <Text style={styles.contractDescription}>{copy.workspaceLoading}</Text>
+            ) : null}
+
+            {workspacePayload ? (
+              <>
+                <View style={styles.mobileWorkspaceStats}>
+                  <WorkspaceMetricMiniPill
+                    label={copy.homeServersLabel}
+                    value={bootstrapState.payload.home.servers.totalCount}
+                  />
+                  <WorkspaceMetricMiniPill
+                    label={copy.homeDmLabel}
+                    value={bootstrapState.payload.home.directMessages.totalCount}
+                  />
+                  <WorkspaceMetricMiniPill
+                    label={copy.homeUnreadLabel}
+                    value={activeServer?.unreadCount ?? 0}
+                  />
+                </View>
+                <WorkspaceChannelSectionList
+                  sections={channelSections}
+                  selectedChannelId={selectedChannelId}
+                  onOpenChannel={onOpenChannel}
+                />
+                {channelQuery.trim().length > 0 && channelSections.length === 0 ? (
+                  <Text style={styles.contractDescription}>
+                    {copy.workspaceNoChannelSearchResults}
+                  </Text>
+                ) : null}
+                {workspacePayload.detail.hasMoreChannels ? (
+                  <Text style={styles.workspaceHint}>{copy.workspaceMoreChannelsHidden}</Text>
+                ) : null}
+                {selectedChannel?.type === "VOICE" ? (
+                  <MobileVoiceRoomPanel
+                    room={voiceRoomState}
+                    onLeave={() => void onLeaveVoiceChannel()}
+                    onRequestPermission={() => void onRequestVoicePermission()}
+                    onToggleCamera={() => void onToggleVoiceCamera()}
+                    onToggleMute={() => void onToggleVoiceMute()}
+                  />
+                ) : selectedChannel?.type === "TEXT" ? (
+                  <ChannelMessagesPreviewCard
+                    attachmentsFeature={attachmentsFeature}
+                    channel={selectedChannel}
+                    currentUserId={bootstrapState.payload.user.id}
+                    mediaState={mediaState}
+                    messageSearchFeature={messageSearchFeature}
+                    messageSearchState={messageSearchState}
+                    sendState={channelSendState}
+                    state={channelMessagesState}
+                    onClearMessageSearch={onClearMessageSearch}
+                    onClearSelectedMediaAsset={onClearSelectedMediaAsset}
+                    onRetry={onRefreshChannel}
+                    onRequestDocumentPicker={onRequestDocumentPicker}
+                    onSearchMessages={onSearchMessages}
+                    onSendMessage={onSendChannelMessage}
+                  />
+                ) : null}
+              </>
+            ) : null}
+          </>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function WorkspaceMetricMiniPill({ label, value }: { label: string; value: number }) {
+  return (
+    <View style={styles.mobileWorkspaceStatPill}>
+      <Text style={styles.mobileWorkspaceStatValue}>{value}</Text>
+      <Text style={styles.mobileWorkspaceStatLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function WorkspaceChannelSectionList({
+  onOpenChannel,
+  sections,
+  selectedChannelId,
+}: {
+  onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
+  sections: ReturnType<typeof getMobileWorkspaceChannelSections>;
+  selectedChannelId: string | null;
+}) {
+  if (sections.length === 0) {
+    return <Text style={styles.contractDescription}>{copy.workspaceNoChannels}</Text>;
+  }
+
+  return (
+    <View style={styles.mobileWorkspaceSectionList}>
+      {sections.map((section) => (
+        <View key={section.id} style={styles.mobileWorkspaceSection}>
+          <Text style={styles.mobileWorkspaceSectionTitle}>{section.name}</Text>
+          <View style={styles.mobileWorkspaceChannelList}>
+            {section.channels.map((channel) => (
+              <WorkspaceChannelCompactRow
+                key={channel.id}
+                channel={channel}
+                isSelected={channel.id === selectedChannelId}
+                onOpenChannel={onOpenChannel}
+              />
+            ))}
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function WorkspaceChannelCompactRow({
+  channel,
+  isSelected,
+  onOpenChannel,
+}: {
+  channel: MobileWorkspaceChannelSummary;
+  isSelected: boolean;
+  onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
+}) {
+  const priority = getMobileChannelPriority(channel);
+  const iconName = channel.type === "TEXT" ? "chatbubble-ellipses-outline" : "volume-medium-outline";
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${copy.openWorkspaceChannelAction}: ${channel.name}`}
+      accessibilityState={{ selected: isSelected }}
+      onPress={() => onOpenChannel(channel)}
+      style={({ pressed }) => [
+        styles.mobileWorkspaceChannelRow,
+        isSelected && styles.mobileWorkspaceChannelRowActive,
+        pressed && styles.compactListRowPressed,
+      ]}
+    >
+      <View
+        style={[
+          styles.mobileWorkspaceChannelIcon,
+          channel.type === "VOICE" && styles.mobileWorkspaceChannelIconVoice,
+        ]}
+      >
+        <Ionicons
+          name={iconName}
+          size={15}
+          color={channel.type === "VOICE" ? "#047857" : mobileColors.accentStrong}
+        />
+      </View>
+      <View style={styles.mobileWorkspaceChannelText}>
+        <View style={styles.compactListTitleRow}>
+          <Text style={styles.mobileWorkspaceChannelName} numberOfLines={1}>
+            {channel.name}
+          </Text>
+          {priority.hasMentions ? (
+            <Text style={styles.channelMentionBadge}>{channel.mentionCount}</Text>
+          ) : priority.hasUnread ? (
+            <Text style={styles.mobileWorkspaceUnreadDot}>{channel.unreadCount}</Text>
+          ) : null}
+        </View>
+        {channel.topic ? (
+          <Text style={styles.mobileWorkspaceChannelMeta} numberOfLines={1}>
+            {channel.topic}
+          </Text>
+        ) : null}
+      </View>
+      {priority.isLocked || priority.isReadOnly ? (
+        <Ionicons
+          name={priority.isLocked ? "lock-closed-outline" : "eye-off-outline"}
+          size={14}
+          color={mobileColors.mutedSoft}
+        />
+      ) : null}
+    </Pressable>
   );
 }
 
@@ -4965,6 +5401,258 @@ const styles = StyleSheet.create({
     borderRadius: mobileRadii.card,
     backgroundColor: "#FAFBFF",
     padding: 12,
+  },
+  workspaceBrowserShell: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 10,
+  },
+  mobileServerRail: {
+    width: 58,
+    alignItems: "center",
+    gap: 10,
+    borderRightWidth: 1,
+    borderRightColor: "#E8ECF8",
+    paddingRight: 8,
+    paddingVertical: 2,
+  },
+  mobileServerRailLogo: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+  },
+  mobileServerRailDivider: {
+    width: 28,
+    height: 1,
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#E4E7F4",
+  },
+  mobileServerRailList: {
+    alignItems: "center",
+    gap: 9,
+    minWidth: 0,
+  },
+  mobileServerRailItem: {
+    position: "relative",
+    width: mobileSizing.minTouchTarget,
+    height: mobileSizing.minTouchTarget,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "transparent",
+    borderRadius: 17,
+  },
+  mobileServerRailItemActive: {
+    borderColor: "#C4B5FD",
+    backgroundColor: "#F5F3FF",
+    shadowColor: "#6D5DFB",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 13,
+    elevation: 3,
+  },
+  mobileServerRailBadge: {
+    position: "absolute",
+    right: -2,
+    top: -3,
+    minWidth: 18,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.accentStrong,
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "900",
+    lineHeight: 15,
+    paddingHorizontal: 4,
+    textAlign: "center",
+  },
+  mobileServerRailAddButton: {
+    width: mobileSizing.minTouchTarget,
+    height: mobileSizing.minTouchTarget,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: 17,
+    backgroundColor: "#F8FAFF",
+    opacity: 0.74,
+  },
+  mobileWorkspacePanel: {
+    flex: 1,
+    minWidth: 0,
+    gap: 10,
+  },
+  mobileWorkspaceEmpty: {
+    gap: 8,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "#E5E7FF",
+    borderRadius: mobileRadii.card,
+    backgroundColor: "#FFFFFF",
+    padding: 14,
+  },
+  mobileWorkspaceHeader: {
+    minHeight: 58,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7FF",
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  mobileWorkspaceHeaderText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mobileWorkspaceTitle: {
+    color: mobileColors.text,
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  mobileWorkspaceMeta: {
+    marginTop: 2,
+    color: mobileColors.muted,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  mobileWorkspaceSearchRow: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  mobileWorkspaceSearchBox: {
+    minHeight: mobileSizing.minTouchTarget,
+    minWidth: 0,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: 15,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 11,
+  },
+  mobileWorkspaceSearchInput: {
+    minHeight: mobileSizing.minTouchTarget,
+    flex: 1,
+    minWidth: 0,
+    color: mobileColors.text,
+    fontSize: 13,
+    fontWeight: "700",
+    paddingVertical: 0,
+  },
+  mobileWorkspaceStats: {
+    flexDirection: "row",
+    gap: 7,
+    minWidth: 0,
+  },
+  mobileWorkspaceStatPill: {
+    flex: 1,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: 14,
+    backgroundColor: "#F8FAFF",
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  mobileWorkspaceStatValue: {
+    color: mobileColors.text,
+    fontSize: 18,
+    lineHeight: 21,
+    fontWeight: "900",
+  },
+  mobileWorkspaceStatLabel: {
+    marginTop: 2,
+    color: mobileColors.mutedSoft,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
+  },
+  mobileWorkspaceSectionList: {
+    gap: 13,
+    minWidth: 0,
+  },
+  mobileWorkspaceSection: {
+    gap: 6,
+    minWidth: 0,
+  },
+  mobileWorkspaceSectionTitle: {
+    color: mobileColors.mutedSoft,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+  },
+  mobileWorkspaceChannelList: {
+    gap: 4,
+    minWidth: 0,
+  },
+  mobileWorkspaceChannelRow: {
+    minHeight: mobileSizing.minTouchTarget,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    borderWidth: 1,
+    borderColor: "transparent",
+    borderRadius: 13,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  mobileWorkspaceChannelRowActive: {
+    borderColor: "#DDD6FE",
+    backgroundColor: "#F4F1FF",
+  },
+  mobileWorkspaceChannelIcon: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: "#EEF2FF",
+  },
+  mobileWorkspaceChannelIconVoice: {
+    backgroundColor: "#ECFDF5",
+  },
+  mobileWorkspaceChannelText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mobileWorkspaceChannelName: {
+    flex: 1,
+    minWidth: 0,
+    color: mobileColors.text,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  mobileWorkspaceChannelMeta: {
+    marginTop: 2,
+    color: mobileColors.muted,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  mobileWorkspaceUnreadDot: {
+    minWidth: 20,
+    overflow: "hidden",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#EEF2FF",
+    color: mobileColors.accentStrong,
+    fontSize: 10,
+    fontWeight: "900",
+    lineHeight: 18,
+    paddingHorizontal: 5,
+    textAlign: "center",
   },
   workspaceHeader: {
     minWidth: 0,

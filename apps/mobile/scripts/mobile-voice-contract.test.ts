@@ -32,13 +32,13 @@ describe("mobile voice contract", () => {
     assert.equal(mapNativeMicrophonePermissionStatus("unexpected", true), "unknown");
   });
 
-  it("keeps granted microphone permission behind the native LiveKit room lifecycle", () => {
+  it("keeps granted microphone permission ready for native LiveKit room lifecycle", () => {
     const state = createMobileVoiceRuntimeStateFromPermission("granted", 1_000);
     const summary = summarizeMobileVoiceRuntimeState(state);
 
     assert.equal(state.hasMicrophonePermission, true);
-    assert.equal(state.status, "native-module-pending");
-    assert.equal(summary.requiresNativeModule, true);
+    assert.equal(state.status, "ready");
+    assert.equal(summary.requiresNativeModule, false);
     assert.equal(summary.requiresServerContract, false);
     assert.equal(summary.actionEnabled, true);
   });

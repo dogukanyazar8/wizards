@@ -44,13 +44,13 @@ describe("mobile native capability contract", () => {
     assert.deepEqual(nativeNotifications.permissionIntents, ["notifications"]);
   });
 
-  it("keeps voice channels behind native LiveKit lifecycle after token contracts exist", () => {
+  it("marks voice channels foundation ready after native LiveKit lifecycle exists", () => {
     const voiceChannels = MOBILE_NATIVE_CAPABILITIES.find(
       (capability) => capability.id === "voiceChannels",
     );
 
     assert.ok(voiceChannels);
-    assert.equal(voiceChannels.stage, "requires-native-module");
+    assert.equal(voiceChannels.stage, "foundation-ready");
     assert.deepEqual(voiceChannels.permissionIntents, ["microphone", "notifications"]);
   });
 
@@ -58,8 +58,8 @@ describe("mobile native capability contract", () => {
     const summary = summarizeMobileNativeCapabilities();
 
     assert.equal(summary.total, 5);
-    assert.equal(summary.foundationReady, 2);
-    assert.equal(summary.blockedByNativeModule, 2);
+    assert.equal(summary.foundationReady, 3);
+    assert.equal(summary.blockedByNativeModule, 1);
     assert.equal(summary.blockedByServerContract, 0);
     assert.equal(summary.blockedByResearch, 1);
     assert.deepEqual(validateMobileNativeCapabilityContract(), []);

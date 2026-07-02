@@ -208,6 +208,68 @@ export const MobileVoiceTokenResponseSchema = z.object({
   url: z.string().min(1).max(512),
 });
 
+export const MobileVoiceStateParticipantSchema = z.object({
+  avatarUrl: z.string().url().nullable(),
+  displayName: z.string().min(1).max(120).nullable(),
+  isScreenSharing: z.boolean().default(false),
+  userId: z.string().min(1).max(128),
+  username: z.string().min(1).max(80),
+});
+
+export const MobileVoiceChannelStateSchema = z.object({
+  channelId: z.string().min(1).max(128),
+  participants: z.array(MobileVoiceStateParticipantSchema).max(50),
+});
+
+export const MobileVoiceStatesResponseSchema = z.object({
+  states: z.array(MobileVoiceChannelStateSchema).max(80),
+});
+
+export const MobileVoiceStateUpsertRequestSchema = z
+  .object({
+    channelId: z.string().min(1).max(128),
+    serverId: z.string().min(1).max(128),
+    sessionId: z.string().uuid(),
+  })
+  .strict();
+
+export const MobileVoiceStateDeleteRequestSchema = z
+  .object({
+    sessionId: z.string().uuid().optional(),
+  })
+  .strict();
+
+export const MobileVoiceHeartbeatRequestSchema = z
+  .object({
+    selfStream: z.boolean().optional(),
+    selfVideo: z.boolean().optional(),
+    sessionId: z.string().uuid(),
+  })
+  .strict();
+
+export const MobileVoiceStateMutationResponseSchema = z.object({
+  channelId: z.string().min(1).max(128),
+  participants: z.array(MobileVoiceStateParticipantSchema).max(50),
+  serverId: z.string().min(1).max(128),
+  sessionId: z.string().uuid(),
+});
+
+export const MobileVoiceStateLeaveResponseSchema = z.object({
+  success: z.literal(true),
+});
+
+export const MobileVoiceHeartbeatResponseSchema = z.object({
+  channelId: z.string().min(1).max(128),
+  serverId: z.string().min(1).max(128),
+  success: z.literal(true),
+});
+
+export const MobileVoiceStatesQuerySchema = z
+  .object({
+    serverId: z.string().min(1).max(128),
+  })
+  .strict();
+
 export const MobileBootstrapServerSummarySchema = z.object({
   channelCount: z.number().int().nonnegative(),
   iconUrl: z.string().url().nullable(),
@@ -270,7 +332,7 @@ export const MobileBootstrapPayloadSchema = z.object({
       unreadCount: z.number().int().nonnegative(),
     }),
     servers: z.object({
-      recent: z.array(MobileBootstrapServerSummarySchema).max(5),
+      recent: z.array(MobileBootstrapServerSummarySchema).max(50),
       totalCount: z.number().int().nonnegative(),
     }),
   }),
@@ -443,3 +505,27 @@ export type MobilePushRegistrationRevokeResponse = z.infer<
 export type MobileVoiceTokenProvider = z.infer<typeof MobileVoiceTokenProviderSchema>;
 export type MobileVoiceTokenRequest = z.infer<typeof MobileVoiceTokenRequestSchema>;
 export type MobileVoiceTokenResponse = z.infer<typeof MobileVoiceTokenResponseSchema>;
+export type MobileVoiceStateParticipant = z.infer<
+  typeof MobileVoiceStateParticipantSchema
+>;
+export type MobileVoiceChannelState = z.infer<typeof MobileVoiceChannelStateSchema>;
+export type MobileVoiceStatesResponse = z.infer<typeof MobileVoiceStatesResponseSchema>;
+export type MobileVoiceStateUpsertRequest = z.infer<
+  typeof MobileVoiceStateUpsertRequestSchema
+>;
+export type MobileVoiceStateDeleteRequest = z.infer<
+  typeof MobileVoiceStateDeleteRequestSchema
+>;
+export type MobileVoiceHeartbeatRequest = z.infer<
+  typeof MobileVoiceHeartbeatRequestSchema
+>;
+export type MobileVoiceStateMutationResponse = z.infer<
+  typeof MobileVoiceStateMutationResponseSchema
+>;
+export type MobileVoiceStateLeaveResponse = z.infer<
+  typeof MobileVoiceStateLeaveResponseSchema
+>;
+export type MobileVoiceHeartbeatResponse = z.infer<
+  typeof MobileVoiceHeartbeatResponseSchema
+>;
+export type MobileVoiceStatesQuery = z.infer<typeof MobileVoiceStatesQuerySchema>;

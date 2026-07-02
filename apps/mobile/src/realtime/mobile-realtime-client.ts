@@ -10,6 +10,8 @@ import {
 export type MobileRealtimeClientTargets = {
   channelId: string | null;
   conversationId: string | null;
+  serverId: string | null;
+  voiceChannelId: string | null;
 };
 
 export type MobileRealtimeClient = {
@@ -43,6 +45,8 @@ export function createMobileRealtimeClient(
   let socket: (Socket & MutableSocketAuth) | null = null;
   let activeChannelId: string | null = null;
   let activeConversationId: string | null = null;
+  let activeServerId: string | null = null;
+  let activeVoiceChannelId: string | null = null;
   let disposed = false;
 
   const emitActiveTargetJoins = () => {
@@ -56,6 +60,17 @@ export function createMobileRealtimeClient(
 
     if (activeConversationId) {
       socket.emit("dm:join", activeConversationId);
+    }
+
+    if (activeServerId) {
+      socket.emit("voice:states:watch", activeServerId);
+    }
+
+    if (activeVoiceChannelId && activeServerId) {
+      socket.emit("voice:join", {
+        channelId: activeVoiceChannelId,
+        serverId: activeServerId,
+      });
     }
   };
 
@@ -151,6 +166,16 @@ export function createMobileRealtimeClient(
         if (activeConversationId) {
           socket.emit("dm:leave", activeConversationId);
         }
+
+        if (activeVoiceChannelId) {
+          socket.emit("voice:leave", {
+            channelId: activeVoiceChannelId,
+          });
+        }
+
+        if (activeServerId) {
+          socket.emit("voice:states:unwatch", activeServerId);
+        }
       }
 
       socket.removeAllListeners();
@@ -161,8 +186,12 @@ export function createMobileRealtimeClient(
     setActiveTargets(targets) {
       const previousChannelId = activeChannelId;
       const previousConversationId = activeConversationId;
+      const previousServerId = activeServerId;
+      const previousVoiceChannelId = activeVoiceChannelId;
       activeChannelId = targets.channelId;
       activeConversationId = targets.conversationId;
+      activeServerId = targets.serverId;
+      activeVoiceChannelId = targets.voiceChannelId;
 
       if (!socket?.connected) {
         return;
@@ -176,12 +205,37 @@ export function createMobileRealtimeClient(
         socket.emit("dm:leave", previousConversationId);
       }
 
+      if (previousVoiceChannelId && previousVoiceChannelId !== activeVoiceChannelId) {
+        socket.emit("voice:leave", {
+          channelId: previousVoiceChannelId,
+        });
+      }
+
+      if (previousServerId && previousServerId !== activeServerId) {
+        socket.emit("voice:states:unwatch", previousServerId);
+      }
+
       if (activeChannelId && activeChannelId !== previousChannelId) {
         socket.emit("channel:join", activeChannelId);
       }
 
       if (activeConversationId && activeConversationId !== previousConversationId) {
         socket.emit("dm:join", activeConversationId);
+      }
+
+      if (activeServerId && activeServerId !== previousServerId) {
+        socket.emit("voice:states:watch", activeServerId);
+      }
+
+      if (
+        activeVoiceChannelId &&
+        activeServerId &&
+        (activeVoiceChannelId !== previousVoiceChannelId || activeServerId !== previousServerId)
+      ) {
+        socket.emit("voice:join", {
+          channelId: activeVoiceChannelId,
+          serverId: activeServerId,
+        });
       }
     },
   };
