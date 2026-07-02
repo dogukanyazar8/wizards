@@ -38,7 +38,7 @@ const BODYLESS_MUTATING_ROUTE_PATHS = new Set([
 ]);
 
 const AUTH_GUARD_CALL_PATTERN =
-  /\b(?:requireApiUserId|requireMobileApiUserId|requireAdminUser)\s*\(/;
+  /\b(?:requireApiUserId|requireMobileApiUserId|requireMobileApiSession|requireAdminUser)\s*\(/;
 const EXPORTED_METHOD_PATTERN =
   /export\s+(?:async\s+)?function\s+(GET|POST|PATCH|PUT|DELETE)\b|export\s+const\s+(GET|POST|PATCH|PUT|DELETE)\b/g;
 const MUTATING_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
@@ -62,6 +62,16 @@ const EXPECTED_RATE_LIMIT_ACTIONS = [
     action: "server:delete",
     method: "DELETE",
     routePath: "servers/[serverId]",
+  },
+  {
+    action: "mobile:message:search",
+    method: "GET",
+    routePath: "mobile/channels/[channelId]/messages/search",
+  },
+  {
+    action: "mobile:message:search",
+    method: "GET",
+    routePath: "mobile/dm/[conversationId]/messages/search",
   },
 ] as const;
 

@@ -2,6 +2,7 @@ import type {
   MobileBootstrapPayload,
   MobileChannelMessagesResponse,
   MobileDMMessagesResponse,
+  MessageSearchResponse,
   MobileWorkspaceServerDetailResponse,
 } from "@wizards/types";
 import type { MobileBootstrapSummary } from "../bootstrap/mobile-bootstrap";
@@ -64,6 +65,41 @@ export type MobileChannelSendViewState = {
   error: string | null;
   status: "idle" | "sending" | "error";
 };
+
+export type MobileMessageSearchContext = {
+  conversationId: string;
+  scope: "channel" | "dm";
+};
+
+export type MobileMessageSearchViewState =
+  | {
+      context: null;
+      error: null;
+      payload: null;
+      query: "";
+      status: "idle";
+    }
+  | {
+      context: MobileMessageSearchContext;
+      error: null;
+      payload: MessageSearchResponse | null;
+      query: string;
+      status: "loading";
+    }
+  | {
+      context: MobileMessageSearchContext;
+      error: null;
+      payload: MessageSearchResponse;
+      query: string;
+      status: "ready";
+    }
+  | {
+      context: MobileMessageSearchContext;
+      error: string;
+      payload: null;
+      query: string;
+      status: "error";
+    };
 
 export type MobileWorkspaceServerViewState =
   | {
@@ -154,6 +190,14 @@ export const INITIAL_CHANNEL_MESSAGES_STATE: MobileChannelMessagesViewState = Ob
 export const INITIAL_CHANNEL_SEND_STATE: MobileChannelSendViewState = Object.freeze({
   channelId: null,
   error: null,
+  status: "idle",
+});
+
+export const INITIAL_MESSAGE_SEARCH_STATE: MobileMessageSearchViewState = Object.freeze({
+  context: null,
+  error: null,
+  payload: null,
+  query: "",
   status: "idle",
 });
 

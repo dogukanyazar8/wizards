@@ -18,10 +18,17 @@ The current mobile phase turns the Expo foundation into a native Whispr product 
 - Native deep-link parsing for sign-in handoff, invites, and safe in-app routes.
 - Fail-closed rejection for deep links that include OAuth/session secrets in query strings.
 - Permission readiness contracts for notifications, microphone, camera, and photo library access.
+- Native capability registry for push notifications, voice channels, video calls, media attachments, and screen share readiness.
+- Native notification runtime using Expo Notifications, gated behind a user action and never requested on launch.
+- Native microphone permission runtime using Expo Audio, gated behind the Calls setup action and never requested on launch.
+- Native camera and photo library permission runtime using Expo ImagePicker, gated behind Profile media setup actions and never requested on launch.
+- Native document picker runtime using Expo DocumentPicker, gated behind Profile media setup action and storing only sanitized selected-file metadata.
+- Automated validation that runtime permission intents, store disclosures, Android permissions, and iOS usage descriptions cannot drift apart.
 - Authenticated web bootstrap endpoint contract at `/api/v1/mobile/bootstrap`.
 - Mobile bootstrap client validation that refuses malformed server payloads.
 - EAS release readiness contract with HTTPS endpoint, profile, version, and performance budget checks.
 - Mobile quality gate with automated checks, Android/iOS device matrix, and manual smoke checklist validation.
+- Production readiness contract for UAT, canary, store-candidate, and production promotion evidence.
 - Real mobile DM conversation preview backed by authenticated, bounded mobile API responses.
 - Real mobile workspace preview backed by permission-filtered server channels and bounded text-channel message reads.
 - Foreground freshness contract that refreshes visible real data after a cooldown and displays last sync state without claiming fake realtime.
@@ -31,8 +38,10 @@ The current mobile phase turns the Expo foundation into a native Whispr product 
 
 - The primary native bottom tabs are Home, DMs, Notifications, Calls, and Profile.
 - Messages and Servers use real authenticated Whispr API data; empty states must not fabricate people, messages, servers, media, or notifications.
-- Notifications currently expose readiness and permission state. Push token registration and native notification delivery remain separate follow-up work.
-- Calls remains a primary navigation surface, while voice readiness stays honest until LiveKit mobile integration connects real join, mute, device, and permission behavior.
+- Notifications can request the native device permission from the Notifications screen action. Push token registration and native delivery remain disabled until the server lifecycle contract is complete.
+- Calls can request native microphone permission from the Calls screen action. Real voice join, mute, device switching, and participant state remain disabled until LiveKit mobile integration and server token lifecycle are complete.
+- Profile can request native camera and photo library permissions from explicit media setup actions and can open the native document picker from an explicit user action. Camera launch, upload, and video track publishing remain disabled until the related chat/call contracts are connected.
+- Screen share remains research-gated until Android MediaProjection and iOS Broadcast Upload Extension contracts are designed and tested.
 - Foreground refresh keeps visible data reasonably fresh, but mobile realtime sockets are not connected yet.
 
 ## Local development
@@ -64,6 +73,7 @@ corepack pnpm --filter @wizards/mobile typecheck
 corepack pnpm --filter @wizards/mobile test
 corepack pnpm --filter @wizards/mobile validate:env
 corepack pnpm --filter @wizards/mobile release:check
+corepack pnpm --filter @wizards/mobile release:evidence
 corepack pnpm --filter @wizards/mobile quality:check
 ```
 
@@ -104,6 +114,9 @@ Record these values during UAT/canary QA before store promotion.
 - Handoff: web sign-in returns to the mobile app with the one-time handoff flow.
 - Deep links: credential-like query values are rejected.
 - Permissions: no camera, microphone, notification, or photo prompt appears before a user action.
+- Notifications: tap the Notifications screen setup action, confirm the OS prompt appears only then, and verify the app reports device permission separately from server registration.
+- Voice: tap the Calls screen microphone setup action, confirm the OS prompt appears only then, and verify the app reports microphone permission separately from LiveKit/server readiness.
+- Media: tap the Profile media setup actions, confirm camera/photo prompts appear only then, open the document picker from the explicit file action, and verify no camera, upload, or video call starts automatically.
 - DM: real DM list opens a real bounded conversation preview without fake messages.
 - Workspace: a real recent server opens permission-filtered channels and a text-channel message preview.
 - Sync: background the app, reopen it after the cooldown, and confirm visible real data refreshes without duplicate rows or request storms.
@@ -112,6 +125,7 @@ Record these values during UAT/canary QA before store promotion.
 - Performance: five minutes idle shows no obvious heating, memory growth, or scroll stutter.
 - Release: the build displays the intended UAT/canary/production environment endpoints.
 - Local Android: `android:uat:local` builds, installs, launches, and reaches the tab shell on the emulator.
+- Production readiness: Profile diagnostics show UAT, canary, store-candidate, and production gates without exposing PII or secrets.
 
 ## Security notes
 
@@ -123,4 +137,9 @@ Record these values during UAT/canary QA before store promotion.
 - Mobile deep links accept one-time handoff identifiers and invite codes only after strict validation.
 - Access tokens, refresh tokens, OAuth codes, emails, passwords, and session values are rejected if they appear in deep-link query strings.
 - Mobile permissions are never requested automatically on launch; prompts must follow a user action.
+- Native notification permission is requested only from the Notifications screen setup action; raw push tokens are not displayed or logged.
+- Native microphone permission is requested only from the Calls screen setup action; no audio recording, sampling, or voice connection starts during permission setup.
+- Native camera and photo library permissions are requested only from Profile media setup actions; no camera session, media picker, or upload begins during permission setup.
+- Native document picker opens only after the Profile file action and stores only sanitized file metadata; raw file paths are not shown in diagnostics.
+- Runtime permission intents, native app config permissions, and store disclosure text are validated from the same contract.
 - Native push token persistence and LiveKit mobile integration remain disabled until their server-side lifecycle, revocation, storage, and permission contracts are complete.

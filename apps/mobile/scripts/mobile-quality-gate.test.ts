@@ -18,7 +18,9 @@ const expectedAreas: MobileQualityArea[] = [
   "navigation",
   "permissions",
   "performance",
+  "realtime",
   "release",
+  "search",
   "store",
   "sync",
   "voice",
@@ -76,6 +78,27 @@ describe("mobile quality gate", () => {
     assert.ok(accessibilityCheck);
     assert.match(accessibilityCheck.label, /44px/);
     assert.match(accessibilityCheck.label, /accessibility labels/i);
+
+    const inviteCheck = MOBILE_MANUAL_QA_CHECKS.find(
+      (check) => check.id === "invite-link-contract",
+    );
+    assert.ok(inviteCheck);
+    assert.match(inviteCheck.label, /Safe invite links/);
+    assert.match(inviteCheck.label, /server contract/i);
+
+    const searchCheck = MOBILE_MANUAL_QA_CHECKS.find(
+      (check) => check.id === "message-search-contract",
+    );
+    assert.ok(searchCheck);
+    assert.match(searchCheck.label, /authenticated mobile endpoints/i);
+    assert.match(searchCheck.label, /server-side permission checks/i);
+
+    const searchUiCheck = MOBILE_MANUAL_QA_CHECKS.find(
+      (check) => check.id === "message-search-ui",
+    );
+    assert.ok(searchUiCheck);
+    assert.match(searchUiCheck.label, /bounded real results/i);
+    assert.match(searchUiCheck.label, /selected conversation/i);
   });
 
   it("summarizes quality readiness without leaking sensitive strings", () => {

@@ -3,6 +3,11 @@ import {
   validateMobileStoreReadiness,
   type MobileStoreReadinessResult,
 } from "./mobile-store-contract";
+import {
+  summarizeMobileProductionReadiness,
+  validateMobileProductionReadiness,
+  type MobileProductionReadinessSummary,
+} from "./mobile-production-readiness";
 
 export const MOBILE_RELEASE_PROFILES = ["development", "uat", "canary", "production"] as const;
 
@@ -33,6 +38,7 @@ export type MobileReleaseContractResult = {
   blockers: string[];
   budgets: MobileReleaseBudget[];
   checklist: string[];
+  productionReadiness: MobileProductionReadinessSummary;
   storeReadiness: MobileStoreReadinessResult;
   warnings: string[];
 };
@@ -126,8 +132,10 @@ export function validateMobileReleaseContract({
   const blockers: string[] = [];
   const warnings: string[] = [];
   const storeReadiness = validateMobileStoreReadiness();
+  const productionReadiness = summarizeMobileProductionReadiness();
 
   blockers.push(...storeReadiness.blockers);
+  blockers.push(...validateMobileProductionReadiness());
   warnings.push(...storeReadiness.warnings);
 
   if (!SEMVER_PATTERN.test(packageVersion)) {
@@ -185,7 +193,7 @@ export function validateMobileReleaseContract({
   }
 
   return {
-    blockers,
+    blockers: Array.from(new Set(blockers)),
     budgets: MOBILE_RELEASE_BUDGETS,
     checklist: [
       "Run mobile typecheck, tests, and environment validation.",
@@ -195,12 +203,15 @@ export function validateMobileReleaseContract({
       "Record startup, resume, composer latency, and idle memory evidence before promotion.",
       ...storeReadiness.checklist,
     ],
+    productionReadiness,
     storeReadiness,
-    warnings,
+    warnings: Array.from(new Set(warnings)),
   };
 }
 
-export function assertKnownMobileEnvironment(value: string): asserts value is MobileEnvironmentName {
+export function assertKnownMobileEnvironment(
+  value: string,
+): asserts value is MobileEnvironmentName {
   if (!MOBILE_ENVIRONMENTS.includes(value as MobileEnvironmentName)) {
     throw new Error(`Unknown mobile environment '${value}'.`);
   }

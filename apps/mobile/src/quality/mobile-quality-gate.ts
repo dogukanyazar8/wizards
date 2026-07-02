@@ -1,4 +1,13 @@
 import { MOBILE_RELEASE_BUDGETS } from "../release/mobile-release-contract";
+import { validateMobileNativeCapabilityContract } from "../permissions/mobile-native-capability-contract";
+import { validateMobileNotificationContract } from "../notifications/mobile-notification-contract";
+import { validateMobileRealtimeContract } from "../realtime/mobile-realtime-contract";
+import { validateMobileVoiceContract } from "../voice/mobile-voice-contract";
+import { validateMobileAttachmentUploadContract } from "../media/mobile-attachment-upload-contract";
+import { validateMobileInviteContract } from "../invite/mobile-invite-contract";
+import { validateMobileMediaContract } from "../media/mobile-media-contract";
+import { validateMobileProductionReadiness } from "../release/mobile-production-readiness";
+import { validateMobileMessageSearchContract } from "../search/mobile-message-search-client";
 
 export type MobileQualityArea =
   | "accessibility"
@@ -10,6 +19,8 @@ export type MobileQualityArea =
   | "permissions"
   | "performance"
   | "release"
+  | "realtime"
+  | "search"
   | "store"
   | "sync"
   | "voice"
@@ -66,6 +77,12 @@ export const MOBILE_AUTOMATED_GATES: MobileAutomatedGate[] = [
     required: true,
   },
   {
+    command: "corepack pnpm --filter @wizards/mobile release:evidence",
+    id: "mobile-release-evidence",
+    purpose: "Redacted release evidence for QA, native capability, store, and promotion gates.",
+    required: true,
+  },
+  {
     command: "corepack pnpm --filter @wizards/mobile quality:check",
     id: "mobile-quality-check",
     purpose: "Manual QA matrix, automated gate, and no-secret checklist validation.",
@@ -119,9 +136,41 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
     risk: "critical",
   },
   {
+    area: "deep-link",
+    id: "invite-link-contract",
+    label:
+      "Safe invite links are recognized in-app while native invite acceptance stays blocked until the server contract is available.",
+    required: true,
+    risk: "critical",
+  },
+  {
     area: "permissions",
     id: "permission-prompt-discipline",
     label: "No camera, microphone, notification, or photo prompt appears before a user action.",
+    required: true,
+    risk: "critical",
+  },
+  {
+    area: "permissions",
+    id: "notification-user-action-runtime",
+    label:
+      "Notification permission is requested only from the Notifications screen action and reports server registration as pending.",
+    required: true,
+    risk: "critical",
+  },
+  {
+    area: "voice",
+    id: "voice-microphone-user-action-runtime",
+    label:
+      "Microphone permission is requested only from the Calls setup action and voice join remains blocked until the native LiveKit room lifecycle exists.",
+    required: true,
+    risk: "critical",
+  },
+  {
+    area: "permissions",
+    id: "media-camera-photo-user-action-runtime",
+    label:
+      "Camera and photo library permissions are requested only from the Profile media setup actions; no picker, camera, or upload starts automatically.",
     required: true,
     risk: "critical",
   },
@@ -141,6 +190,22 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
     risk: "critical",
   },
   {
+    area: "search",
+    id: "message-search-contract",
+    label:
+      "Channel and DM search use authenticated mobile endpoints with bounded query length, pagination, and server-side permission checks.",
+    required: true,
+    risk: "high",
+  },
+  {
+    area: "search",
+    id: "message-search-ui",
+    label:
+      "Active channel and DM search forms require at least two characters, show bounded real results, and stay scoped to the selected conversation.",
+    required: true,
+    risk: "high",
+  },
+  {
     area: "workspace",
     id: "workspace-channel-read",
     label:
@@ -155,6 +220,14 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
       "Returning from background refreshes visible real data after the cooldown without request storms.",
     required: true,
     risk: "high",
+  },
+  {
+    area: "realtime",
+    id: "realtime-visible-refresh",
+    label:
+      "Signed-in foreground sessions receive socket updates for active channel/DM views without leaking token or message content in diagnostics.",
+    required: true,
+    risk: "critical",
   },
   {
     area: "voice",
@@ -187,6 +260,14 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
     risk: "high",
   },
   {
+    area: "release",
+    id: "production-readiness-evidence",
+    label:
+      "Profile diagnostics shows UAT, canary, store-candidate, and production readiness gates without exposing PII or secrets.",
+    required: true,
+    risk: "critical",
+  },
+  {
     area: "store",
     id: "store-privacy-disclosures",
     label:
@@ -205,7 +286,7 @@ export const MOBILE_QA_DEVICE_MATRIX: MobileQAMatrixTarget[] = [
     sizeClass: "compact",
   },
   {
-    focus: ["dm", "workspace", "sync", "permissions", "performance"],
+    focus: ["dm", "workspace", "sync", "realtime", "permissions", "performance"],
     id: "android-regular",
     label: "Android regular phone",
     platform: "android",
@@ -246,7 +327,9 @@ const REQUIRED_MANUAL_AREAS: MobileQualityArea[] = [
   "navigation",
   "permissions",
   "performance",
+  "realtime",
   "release",
+  "search",
   "store",
   "sync",
   "voice",
@@ -263,9 +346,8 @@ export function summarizeMobileQualityGate(): MobileQualityGateSummary {
   return {
     automatedGateCount: MOBILE_AUTOMATED_GATES.length,
     budgetCount: MOBILE_RELEASE_BUDGETS.length,
-    criticalManualCount: MOBILE_MANUAL_QA_CHECKS.filter(
-      (check) => check.risk === "critical",
-    ).length,
+    criticalManualCount: MOBILE_MANUAL_QA_CHECKS.filter((check) => check.risk === "critical")
+      .length,
     manualCheckCount: MOBILE_MANUAL_QA_CHECKS.length,
     platformCount: platforms.size,
     requiredAreas: REQUIRED_MANUAL_AREAS.filter((area) => coveredAreas.has(area)),
@@ -274,7 +356,19 @@ export function summarizeMobileQualityGate(): MobileQualityGateSummary {
 }
 
 export function validateMobileQualityGate(): string[] {
-  const issues: string[] = [];
+  const issues: string[] = Array.from(
+    new Set([
+      ...validateMobileNativeCapabilityContract(),
+      ...validateMobileNotificationContract(),
+      ...validateMobileVoiceContract(),
+      ...validateMobileAttachmentUploadContract(),
+      ...validateMobileInviteContract(),
+      ...validateMobileMediaContract(),
+      ...validateMobileMessageSearchContract(),
+      ...validateMobileRealtimeContract(),
+      ...validateMobileProductionReadiness(),
+    ]),
+  );
   const summary = summarizeMobileQualityGate();
 
   if (summary.platformCount < 2) {
@@ -290,9 +384,16 @@ export function validateMobileQualityGate(): string[] {
   }
 
   const coveredAreas = new Set(MOBILE_MANUAL_QA_CHECKS.map((check) => check.area));
+  const coveredCheckIds = new Set(MOBILE_MANUAL_QA_CHECKS.map((check) => check.id));
   for (const area of REQUIRED_MANUAL_AREAS) {
     if (!coveredAreas.has(area)) {
       issues.push(`Mobile manual QA checklist must cover ${area}.`);
+    }
+  }
+
+  for (const requiredCheckId of ["permission-prompt-discipline", "production-readiness-evidence"]) {
+    if (!coveredCheckIds.has(requiredCheckId)) {
+      issues.push(`Mobile manual QA checklist must keep ${requiredCheckId}.`);
     }
   }
 

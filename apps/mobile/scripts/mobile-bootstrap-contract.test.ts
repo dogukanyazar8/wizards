@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { MobileBootstrapPayloadSchema } from "@wizards/types";
 import {
   fetchMobileBootstrap,
   MOBILE_BOOTSTRAP_ENDPOINT,
@@ -20,6 +21,22 @@ const validPayload = {
     permissions: ["notifications", "microphone", "camera", "photoLibrary"],
   },
   features: {
+    attachments: {
+      label: "Attachments",
+      reason:
+        "Mobile file selection is available, but native upload transport still requires the mobile upload provider contract.",
+      status: "requires-server-contract",
+    },
+    invites: {
+      label: "Invites",
+      reason: "Mobile invite acceptance endpoint pending.",
+      status: "requires-server-contract",
+    },
+    messageSearch: {
+      label: "Message search",
+      reason: "Authenticated mobile search endpoints are available.",
+      status: "available",
+    },
     messages: {
       label: "Messages",
       status: "available",
@@ -31,8 +48,8 @@ const validPayload = {
     },
     pushNotifications: {
       label: "Push notifications",
-      reason: "Encrypted storage pending.",
-      status: "requires-server-contract",
+      reason: "Native permission is required before registration.",
+      status: "requires-native-permission",
     },
     voice: {
       label: "Voice",
@@ -106,12 +123,30 @@ describe("mobile bootstrap contract", () => {
 
     assert.deepEqual(requests, [MOBILE_BOOTSTRAP_ENDPOINT]);
     assert.equal(payload.user.username, "codex");
-    assert.equal(summary.enabledFeatureCount, 2);
-    assert.equal(summary.pendingContractCount, 2);
+    assert.equal(summary.enabledFeatureCount, 3);
+    assert.equal(summary.pendingContractCount, 4);
     assert.equal(summary.disabledFeatureCount, 0);
     assert.equal(summary.workspaceCount, 1);
     assert.equal(summary.directMessageCount, 1);
     assert.equal(summary.unreadDirectMessageCount, 1);
+  });
+
+  it("keeps newer feature flags backward-compatible with older bootstrap payloads", () => {
+    const legacyPayload = {
+      ...validPayload,
+      features: {
+        messages: validPayload.features.messages,
+        nativeAuthTokenExchange: validPayload.features.nativeAuthTokenExchange,
+        pushNotifications: validPayload.features.pushNotifications,
+        voice: validPayload.features.voice,
+      },
+    };
+
+    const parsed = MobileBootstrapPayloadSchema.parse(legacyPayload);
+
+    assert.equal(parsed.features.attachments.status, "requires-server-contract");
+    assert.equal(parsed.features.invites.status, "requires-server-contract");
+    assert.equal(parsed.features.messageSearch.status, "requires-server-contract");
   });
 
   it("rejects malformed bootstrap payloads instead of trusting partial data", async () => {

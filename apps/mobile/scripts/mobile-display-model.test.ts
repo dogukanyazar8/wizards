@@ -140,6 +140,21 @@ const bootstrapPayload: MobileBootstrapPayload = {
     permissions: ["camera", "microphone", "notifications", "photoLibrary"],
   },
   features: {
+    attachments: {
+      label: "Attachments",
+      reason: "Mobile upload transport is not ready",
+      status: "requires-server-contract",
+    },
+    invites: {
+      label: "Invites",
+      reason: "Mobile invite acceptance endpoint is not ready",
+      status: "requires-server-contract",
+    },
+    messageSearch: {
+      label: "Message search",
+      reason: "Mobile search endpoints are ready",
+      status: "available",
+    },
     messages: {
       label: "Messages",
       status: "available",

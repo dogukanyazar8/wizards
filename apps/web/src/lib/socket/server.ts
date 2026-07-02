@@ -9,8 +9,12 @@ import {
   logAnalyticsError,
   startAppSession,
 } from "@/lib/analytics/service";
-import { isActiveAuthUser } from "@/lib/auth/access";
 import { logError } from "@/lib/logger";
+import {
+  getBearerTokenFromHeaderValue,
+  isMobileAccessSessionActive,
+  verifyMobileAccessToken,
+} from "@/lib/mobile/auth";
 import { getRedisOp, getRedisPub, getRedisRate, getRedisSub } from "@/lib/redis";
 import { createHandlerContext } from "@/lib/socket/context";
 import { registerSocketHandlers } from "@/lib/socket/handlers";
@@ -84,6 +88,83 @@ function getFirstHeaderValue(value: string | string[] | undefined) {
   }
 
   return value;
+}
+
+function getStringProperty(value: unknown, key: string) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const property = (value as Record<string, unknown>)[key];
+  if (typeof property !== "string") {
+    return null;
+  }
+
+  const trimmed = property.trim();
+  return trimmed.length > 0 && !/\s/.test(trimmed) ? trimmed : null;
+}
+
+export function getSocketMobileBearerToken(input: {
+  authorizationHeader?: string | string[] | undefined;
+  handshakeAuth?: unknown;
+}) {
+  const authToken =
+    getStringProperty(input.handshakeAuth, "token") ??
+    getStringProperty(input.handshakeAuth, "accessToken");
+
+  if (authToken) {
+    return authToken;
+  }
+
+  return getBearerTokenFromHeaderValue(getFirstHeaderValue(input.authorizationHeader));
+}
+
+async function authenticateMobileSocketToken(rawToken: string) {
+  const claims = verifyMobileAccessToken(rawToken);
+  if (!claims?.scopes.includes("mobile:bootstrap")) {
+    return null;
+  }
+
+  if (!(await isMobileAccessSessionActive(claims))) {
+    return null;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: claims.userId },
+    select: {
+      customStatus: true,
+      deletedAt: true,
+      displayName: true,
+      emailVerified: true,
+      id: true,
+      isBanned: true,
+      username: true,
+    },
+  });
+
+  return isActiveSocketAuthUser(user) ? user : null;
+}
+
+type SocketAuthUser = {
+  customStatus: string | null;
+  deletedAt: Date | null;
+  displayName: string | null;
+  emailVerified: Date | boolean | null;
+  id: string;
+  isBanned: boolean;
+  username: string;
+};
+
+function isActiveSocketAuthUser(user: SocketAuthUser | null | undefined): user is SocketAuthUser {
+  return Boolean(user && !user.deletedAt && !user.isBanned && user.emailVerified);
+}
+
+function assignSocketUserData(socket: { data: SocketData }, user: SocketAuthUser) {
+  socket.data.userId = user.id;
+  socket.data.username = user.username;
+  socket.data.displayName = user.displayName ?? user.username;
+  socket.data.presenceCustomStatus = user.customStatus ?? null;
+  socket.data.presenceStatus = "OFFLINE";
 }
 
 function getSocketRequestOrigin(request: IncomingMessage) {
@@ -269,6 +350,22 @@ export function initSocketServer(httpServer: HTTPServer) {
 
   io.use(async (socket, next) => {
     try {
+      const mobileBearerToken = getSocketMobileBearerToken({
+        authorizationHeader: socket.request.headers.authorization,
+        handshakeAuth: socket.handshake.auth,
+      });
+
+      if (mobileBearerToken) {
+        const mobileUser = await authenticateMobileSocketToken(mobileBearerToken);
+        if (!mobileUser) {
+          return next(new Error("Unauthorized"));
+        }
+
+        assignSocketUserData(socket, mobileUser);
+        next();
+        return;
+      }
+
       const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
       if (!secret) {
         return next(new Error("Missing AUTH_SECRET"));
@@ -309,15 +406,11 @@ export function initSocketServer(httpServer: HTTPServer) {
         },
       });
 
-      if (!isActiveAuthUser(user)) {
+      if (!isActiveSocketAuthUser(user)) {
         return next(new Error("Unauthorized"));
       }
 
-      socket.data.userId = user.id;
-      socket.data.username = user.username;
-      socket.data.displayName = user.displayName ?? user.username;
-      socket.data.presenceCustomStatus = user.customStatus ?? null;
-      socket.data.presenceStatus = "OFFLINE";
+      assignSocketUserData(socket, user);
       next();
     } catch {
       next(new Error("Unauthorized"));

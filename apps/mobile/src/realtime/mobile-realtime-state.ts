@@ -1,0 +1,125 @@
+import type {
+  MobileRealtimeConnectionSnapshot,
+  MobileRealtimeEventEnvelope,
+  MobileRealtimeVisibility,
+} from "./mobile-realtime-contract";
+
+export type MobileRealtimeAction =
+  | { now?: number; type: "connect-started" }
+  | { now?: number; type: "connected" }
+  | { code?: string | null; now?: number; type: "connection-error" }
+  | { now?: number; type: "disconnected" }
+  | { event: MobileRealtimeEventEnvelope; type: "event-received" }
+  | { now?: number; type: "reset" }
+  | { now?: number; type: "reconnect-attempt" }
+  | { now?: number; type: "visibility-changed"; visibility: MobileRealtimeVisibility };
+
+export function createInitialMobileRealtimeSnapshot(): MobileRealtimeConnectionSnapshot {
+  return {
+    connectedAt: null,
+    disconnectedAt: null,
+    eventCount: 0,
+    lastErrorCode: null,
+    lastEvent: null,
+    lastSeenAt: null,
+    reconnectAttempt: 0,
+    status: "idle",
+    visibility: "foreground",
+  };
+}
+
+export function mobileRealtimeReducer(
+  state: MobileRealtimeConnectionSnapshot,
+  action: MobileRealtimeAction,
+): MobileRealtimeConnectionSnapshot {
+  const now = "now" in action ? (action.now ?? Date.now()) : Date.now();
+
+  switch (action.type) {
+    case "connect-started":
+      return {
+        ...state,
+        lastErrorCode: null,
+        lastSeenAt: now,
+        status: "connecting",
+      };
+    case "connected":
+      return {
+        ...state,
+        connectedAt: now,
+        disconnectedAt: null,
+        lastErrorCode: null,
+        lastSeenAt: now,
+        reconnectAttempt: 0,
+        status: "connected",
+      };
+    case "connection-error":
+      return {
+        ...state,
+        disconnectedAt: now,
+        lastErrorCode: action.code ?? "connection_error",
+        lastSeenAt: now,
+        status: "error",
+      };
+    case "disconnected":
+      return {
+        ...state,
+        disconnectedAt: now,
+        lastSeenAt: now,
+        status: state.visibility === "background" ? "background" : "disconnected",
+      };
+    case "event-received":
+      return {
+        ...state,
+        eventCount: state.eventCount + 1,
+        lastEvent: action.event,
+        lastSeenAt: action.event.receivedAt,
+      };
+    case "reconnect-attempt":
+      return {
+        ...state,
+        lastSeenAt: now,
+        reconnectAttempt: state.reconnectAttempt + 1,
+      };
+    case "visibility-changed":
+      return {
+        ...state,
+        lastSeenAt: now,
+        status:
+          action.visibility === "background" && state.status !== "idle"
+            ? "background"
+            : state.status === "background"
+              ? "disconnected"
+              : state.status,
+        visibility: action.visibility,
+      };
+    case "reset":
+      return createInitialMobileRealtimeSnapshot();
+    default:
+      return state;
+  }
+}
+
+export function shouldConnectMobileRealtime(input: {
+  authStatus: string;
+  hasSession: boolean;
+  visibility: MobileRealtimeVisibility;
+}) {
+  return (
+    input.authStatus === "signed-in" &&
+    input.hasSession &&
+    input.visibility === "foreground"
+  );
+}
+
+export function summarizeMobileRealtimeConnection(
+  state: MobileRealtimeConnectionSnapshot,
+) {
+  return {
+    eventCount: state.eventCount,
+    hasRecentEvent: state.lastEvent !== null,
+    lastErrorCode: state.lastErrorCode,
+    reconnectAttempt: state.reconnectAttempt,
+    status: state.status,
+    visibility: state.visibility,
+  };
+}

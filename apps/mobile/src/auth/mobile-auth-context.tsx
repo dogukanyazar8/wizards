@@ -10,6 +10,7 @@ import {
 } from "react";
 import { Linking } from "react-native";
 import { createMobileApiClient, type MobileApiClient } from "../api/mobile-api-client";
+import { revokeMobilePushToken } from "../notifications/mobile-notification-client";
 import {
   getMobileRuntimeConfig,
   type MobileEnvironmentConfig,
@@ -45,6 +46,7 @@ interface MobileAuthContextValue extends MobileAuthState {
   apiClient: MobileApiClient;
   completeAuthHandoff(input: { callbackPath: string; handoffToken: string }): Promise<boolean>;
   diagnostics: MobileSessionDiagnostics;
+  getAccessToken(): Promise<string | null>;
   openWebRegister(): Promise<void>;
   openWebSignIn(): Promise<void>;
   registerWithPassword(input: {
@@ -84,6 +86,19 @@ export function MobileAuthProvider({
   const refreshPromiseRef = useRef<Promise<MobileSessionSnapshot | null> | null>(null);
   const stateRef = useRef(state);
 
+  const commitAuthState = useCallback((nextState: MobileAuthState) => {
+    stateRef.current = nextState;
+    setState(nextState);
+  }, []);
+
+  const commitAuthStateFromCurrent = useCallback(
+    (update: (current: MobileAuthState) => MobileAuthState) => {
+      const nextState = update(stateRef.current);
+      commitAuthState(nextState);
+    },
+    [commitAuthState],
+  );
+
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
@@ -109,13 +124,13 @@ export function MobileAuthProvider({
         })
           .then(async (refreshedSession) => {
             await repository.save(refreshedSession);
-            setState(createMobileAuthState("signed-in", refreshedSession));
+            commitAuthState(createMobileAuthState("signed-in", refreshedSession));
             return refreshedSession;
           })
           .catch(async () => {
             if (isMobileSessionExpired(session)) {
               await repository.clear();
-              setState(createMobileAuthState("signed-out"));
+              commitAuthState(createMobileAuthState("signed-out"));
             }
 
             return null;
@@ -147,30 +162,43 @@ export function MobileAuthProvider({
   );
 
   const refreshSessionFromStorage = useCallback(async () => {
-    setState(createMobileAuthState("checking"));
+    commitAuthState(createMobileAuthState("checking"));
 
     try {
       const session = await repository.load();
       if (!session) {
-        setState(createMobileAuthState("signed-out"));
+        commitAuthState(createMobileAuthState("signed-out"));
         return;
       }
 
       const freshSession = await ensureFreshSession(session);
       if (!freshSession) {
         await repository.clear();
-        setState(createMobileAuthState("signed-out"));
+        commitAuthState(createMobileAuthState("signed-out"));
         return;
       }
 
-      setState(createMobileAuthState("signed-in", freshSession));
+      commitAuthState(createMobileAuthState("signed-in", freshSession));
     } catch {
-      setState(createMobileAuthState("error", null, "Oturum guvenli sekilde okunamadi."));
+      commitAuthState(createMobileAuthState("error", null, "Oturum guvenli sekilde okunamadi."));
     }
-  }, [ensureFreshSession, repository]);
+  }, [commitAuthState, ensureFreshSession, repository]);
 
   const signOut = useCallback(async () => {
     const session = stateRef.current.session ?? (await repository.load());
+    if (session?.tokens.accessToken) {
+      try {
+        await revokeMobilePushToken(
+          createMobileApiClient({
+            baseUrl: runtimeConfig.apiUrl,
+            getAccessToken: () => session.tokens.accessToken,
+          }),
+        );
+      } catch {
+        // Notification unregister is best-effort. The server-side token is TTL-bound.
+      }
+    }
+
     if (session?.tokens.refreshToken) {
       try {
         await revokeMobileAuthSession(createUnauthenticatedClient(), {
@@ -182,21 +210,26 @@ export function MobileAuthProvider({
     }
 
     await repository.clear();
-    setState(createMobileAuthState("signed-out"));
-  }, [createUnauthenticatedClient, repository]);
+    commitAuthState(createMobileAuthState("signed-out"));
+  }, [commitAuthState, createUnauthenticatedClient, repository, runtimeConfig.apiUrl]);
+
+  const getAccessToken = useCallback(async () => {
+    const session = await ensureFreshSession(stateRef.current.session);
+    return session?.tokens.accessToken ?? null;
+  }, [ensureFreshSession]);
 
   const completeAuthHandoff = useCallback(
     async (input: { callbackPath: string; handoffToken: string }) => {
-      setState(createMobileAuthState("checking", state.session));
+      commitAuthState(createMobileAuthState("checking", stateRef.current.session));
 
       try {
         const session = await exchangeMobileAuthHandoff(createUnauthenticatedClient(), input);
 
         await repository.save(session);
-        setState(createMobileAuthState("signed-in", session));
+        commitAuthState(createMobileAuthState("signed-in", session));
         return true;
       } catch {
-        setState((current: MobileAuthState) => ({
+        commitAuthStateFromCurrent((current: MobileAuthState) => ({
           ...current,
           error:
             "Mobil giris tamamlanamadi. Baglanti suresi dolmus olabilir; web girisini tekrar ac.",
@@ -205,7 +238,7 @@ export function MobileAuthProvider({
         return false;
       }
     },
-    [createUnauthenticatedClient, repository, state.session],
+    [commitAuthState, commitAuthStateFromCurrent, createUnauthenticatedClient, repository],
   );
 
   const signInWithPassword = useCallback(
@@ -213,17 +246,17 @@ export function MobileAuthProvider({
       try {
         const session = await signInMobileWithPassword(createUnauthenticatedClient(), input);
         await repository.save(session);
-        setState(createMobileAuthState("signed-in", session));
+        commitAuthState(createMobileAuthState("signed-in", session));
         return { ok: true } as const;
       } catch {
-        setState(createMobileAuthState("signed-out", null, "Giris tamamlanamadi."));
+        commitAuthState(createMobileAuthState("signed-out", null, "Giris tamamlanamadi."));
         return {
           message: "E-posta veya sifre hatali ya da hesap dogrulanmamis olabilir.",
           ok: false,
         } as const;
       }
     },
-    [createUnauthenticatedClient, repository],
+    [commitAuthState, createUnauthenticatedClient, repository],
   );
 
   const registerWithPassword = useCallback(
@@ -238,13 +271,13 @@ export function MobileAuthProvider({
           ...input,
           locale: "tr",
         });
-        setState(createMobileAuthState("signed-out"));
+        commitAuthState(createMobileAuthState("signed-out"));
         return {
           email: response.email,
           ok: true,
         } as const;
       } catch {
-        setState(createMobileAuthState("signed-out", null, "Hesap olusturulamadi."));
+        commitAuthState(createMobileAuthState("signed-out", null, "Hesap olusturulamadi."));
         return {
           message:
             "Hesap olusturulamadi. Bilgileri, kullanici adini ve e-posta durumunu kontrol et.",
@@ -252,7 +285,7 @@ export function MobileAuthProvider({
         } as const;
       }
     },
-    [createUnauthenticatedClient],
+    [commitAuthState, createUnauthenticatedClient],
   );
 
   const requestPasswordReset = useCallback(
@@ -262,20 +295,20 @@ export function MobileAuthProvider({
           ...input,
           locale: "tr",
         });
-        setState(createMobileAuthState("signed-out"));
+        commitAuthState(createMobileAuthState("signed-out"));
         return {
           email: response.email,
           ok: true,
         } as const;
       } catch {
-        setState(createMobileAuthState("signed-out", null, "Sifre sifirlama baslatilamadi."));
+        commitAuthState(createMobileAuthState("signed-out", null, "Sifre sifirlama baslatilamadi."));
         return {
           message: "Sifre sifirlama su anda baslatilamadi. Biraz sonra tekrar dene.",
           ok: false,
         } as const;
       }
     },
-    [createUnauthenticatedClient],
+    [commitAuthState, createUnauthenticatedClient],
   );
 
   const requestVerificationEmail = useCallback(
@@ -288,43 +321,45 @@ export function MobileAuthProvider({
             locale: "tr",
           },
         );
-        setState(createMobileAuthState("signed-out"));
+        commitAuthState(createMobileAuthState("signed-out"));
         return {
           email: response.email,
           ok: true,
         } as const;
       } catch {
-        setState(createMobileAuthState("signed-out", null, "Dogrulama e-postasi gonderilemedi."));
+        commitAuthState(
+          createMobileAuthState("signed-out", null, "Dogrulama e-postasi gonderilemedi."),
+        );
         return {
           message: "Dogrulama e-postasi su anda gonderilemedi. Biraz sonra tekrar dene.",
           ok: false,
         } as const;
       }
     },
-    [createUnauthenticatedClient],
+    [commitAuthState, createUnauthenticatedClient],
   );
 
   const openWebSignIn = useCallback(async () => {
     try {
       await Linking.openURL(buildMobileWebSignInUrl(runtimeConfig.webUrl));
     } catch {
-      setState((current: MobileAuthState) => ({
+      commitAuthStateFromCurrent((current: MobileAuthState) => ({
         ...current,
         error: "Whispr web girisi acilamadi. Lutfen baglantini kontrol et.",
       }));
     }
-  }, [runtimeConfig.webUrl]);
+  }, [commitAuthStateFromCurrent, runtimeConfig.webUrl]);
 
   const openWebRegister = useCallback(async () => {
     try {
       await Linking.openURL(buildMobileWebRegisterUrl(runtimeConfig.webUrl));
     } catch {
-      setState((current: MobileAuthState) => ({
+      commitAuthStateFromCurrent((current: MobileAuthState) => ({
         ...current,
         error: "Whispr kayit ekrani acilamadi. Lutfen baglantini kontrol et.",
       }));
     }
-  }, [runtimeConfig.webUrl]);
+  }, [commitAuthStateFromCurrent, runtimeConfig.webUrl]);
 
   useEffect(() => {
     void refreshSessionFromStorage();
@@ -334,12 +369,9 @@ export function MobileAuthProvider({
     () =>
       createMobileApiClient({
         baseUrl: runtimeConfig.apiUrl,
-        getAccessToken: async () => {
-          const session = await ensureFreshSession(stateRef.current.session);
-          return session?.tokens.accessToken ?? null;
-        },
+        getAccessToken,
       }),
-    [ensureFreshSession, runtimeConfig.apiUrl],
+    [getAccessToken, runtimeConfig.apiUrl],
   );
 
   const diagnostics = useMemo(() => getMobileSessionDiagnostics(state), [state]);
@@ -350,6 +382,7 @@ export function MobileAuthProvider({
       apiClient,
       completeAuthHandoff,
       diagnostics,
+      getAccessToken,
       openWebRegister,
       openWebSignIn,
       registerWithPassword,
@@ -363,6 +396,7 @@ export function MobileAuthProvider({
       apiClient,
       completeAuthHandoff,
       diagnostics,
+      getAccessToken,
       openWebRegister,
       openWebSignIn,
       registerWithPassword,

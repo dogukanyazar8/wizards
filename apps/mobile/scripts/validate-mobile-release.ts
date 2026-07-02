@@ -6,6 +6,10 @@ import {
   type MobileReleaseProfileConfig,
 } from "../src/release/mobile-release-contract";
 import { summarizeMobileQualityGate } from "../src/quality/mobile-quality-gate";
+import {
+  buildMobileReleaseEvidence,
+  validateMobileReleaseEvidence,
+} from "../src/release/mobile-release-evidence";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -24,12 +28,26 @@ const result = validateMobileReleaseContract({
   packageVersion: mobilePackage.version,
   rootVersion: rootPackage.version,
 });
+const evidence = buildMobileReleaseEvidence({
+  easBuildProfiles: eas.build,
+  packageVersion: mobilePackage.version,
+  rootVersion: rootPackage.version,
+});
+const evidenceBlockers = validateMobileReleaseEvidence(evidence);
 
 const summary = {
-  blockers: result.blockers,
+  blockers: Array.from(new Set([...result.blockers, ...evidenceBlockers])),
   budgetCount: result.budgets.length,
   checklist: result.checklist,
+  evidence: {
+    automatedGateCount: evidence.automatedGates.length,
+    manualQaChecks: evidence.manualQa.length,
+    nativeCapabilities: evidence.nativeCapabilities.length,
+    redacted: evidence.redacted,
+    schemaVersion: evidence.schemaVersion,
+  },
   profileCount: Object.keys(eas.build).length,
+  productionReadiness: result.productionReadiness,
   quality: summarizeMobileQualityGate(),
   storeReadiness: {
     permissionCount: result.storeReadiness.permissionCount,
@@ -40,6 +58,6 @@ const summary = {
 
 console.log(JSON.stringify(summary, null, 2));
 
-if (result.blockers.length > 0) {
+if (summary.blockers.length > 0) {
   process.exitCode = 1;
 }

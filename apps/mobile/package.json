@@ -14,6 +14,7 @@
     "lint": "tsc --noEmit",
     "quality:check": "node --import tsx scripts/validate-mobile-quality.ts",
     "release:check": "node --import tsx scripts/validate-mobile-release.ts",
+    "release:evidence": "node --import tsx scripts/write-mobile-release-evidence.ts",
     "test": "node --test --import tsx scripts/*.test.ts",
     "typecheck": "tsc --noEmit",
     "validate:env": "node --import tsx scripts/validate-mobile-env.ts"
@@ -23,12 +24,16 @@
     "@wizards/types": "workspace:*",
     "expo": "~56.0.12",
     "expo-dev-client": "~56.0.20",
+    "expo-document-picker": "~56.0.4",
+    "expo-image-picker": "~56.0.19",
+    "expo-notifications": "~56.0.19",
     "expo-secure-store": "~56.0.4",
     "expo-status-bar": "~56.0.4",
     "expo-updates": "~56.0.19",
     "react": "19.2.3",
     "react-native": "0.85.3",
-    "react-native-safe-area-context": "~5.7.0"
+    "react-native-safe-area-context": "~5.7.0",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@types/node": "^22.14.1",

@@ -8,6 +8,7 @@ import {
   INITIAL_DM_MESSAGES_STATE,
   INITIAL_DM_SEND_STATE,
   INITIAL_DM_SYNC_STATE,
+  INITIAL_MESSAGE_SEARCH_STATE,
   INITIAL_WORKSPACE_SERVER_STATE,
   INITIAL_WORKSPACE_SYNC_STATE,
 } from "../src/app/mobile-screen-state";
@@ -43,6 +44,13 @@ describe("mobile screen state", () => {
       payload: null,
       status: "idle",
     });
+    assert.deepEqual(INITIAL_MESSAGE_SEARCH_STATE, {
+      context: null,
+      error: null,
+      payload: null,
+      query: "",
+      status: "idle",
+    });
   });
 
   it("freezes shared initial state objects to prevent accidental mutation leaks", () => {
@@ -52,6 +60,7 @@ describe("mobile screen state", () => {
       INITIAL_DM_SEND_STATE,
       INITIAL_WORKSPACE_SERVER_STATE,
       INITIAL_CHANNEL_MESSAGES_STATE,
+      INITIAL_MESSAGE_SEARCH_STATE,
       INITIAL_BOOTSTRAP_SYNC_STATE,
       INITIAL_DM_SYNC_STATE,
       INITIAL_WORKSPACE_SYNC_STATE,

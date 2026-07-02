@@ -1,22 +1,9 @@
 import type { ComponentProps, ReactNode } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import whisprIcon from "../../assets/whispr-icon.png";
-import {
-  Image,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  mobileColors,
-  mobileRadii,
-  mobileSizing,
-  mobileSpacing,
-} from "../design/tokens";
+import { mobileColors, mobileRadii, mobileSizing, mobileSpacing } from "../design/tokens";
 import { mobileCopy } from "../locale/mobile-copy";
 import {
   MOBILE_BOTTOM_TAB_IDS,
@@ -36,10 +23,7 @@ const tabLabels: Record<MobileTabId, string> = {
 
 type MobileNavIconName = ComponentProps<typeof Ionicons>["name"];
 
-const tabIcons: Record<
-  MobileTabId,
-  { active: MobileNavIconName; inactive: MobileNavIconName }
-> = {
+const tabIcons: Record<MobileTabId, { active: MobileNavIconName; inactive: MobileNavIconName }> = {
   messages: {
     active: "chatbubbles",
     inactive: "chatbubbles-outline",
@@ -282,13 +266,9 @@ function BottomNavButton({
           </View>
         ) : null}
       </View>
-      <Text
-        style={[styles.navLabel, isActive && styles.navLabelActive]}
-        numberOfLines={1}
-      >
+      <Text style={[styles.navLabel, isActive && styles.navLabelActive]} numberOfLines={1}>
         {label}
       </Text>
-      {isActive ? <View style={styles.navActiveIndicator} /> : null}
     </Pressable>
   );
 }
@@ -441,14 +421,6 @@ const styles = StyleSheet.create({
   },
   navLabelActive: {
     color: mobileColors.accentStrong,
-  },
-  navActiveIndicator: {
-    position: "absolute",
-    bottom: 5,
-    width: 18,
-    height: 3,
-    borderRadius: mobileRadii.pill,
-    backgroundColor: mobileColors.accentStrong,
   },
   navBadge: {
     position: "absolute",

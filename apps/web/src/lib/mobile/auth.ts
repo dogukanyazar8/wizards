@@ -1024,8 +1024,8 @@ export function verifyMobileAccessToken(
   };
 }
 
-export function getBearerTokenFromRequest(request: Request) {
-  const authorization = request.headers.get("authorization") ?? "";
+export function getBearerTokenFromHeaderValue(value: string | null | undefined) {
+  const authorization = value ?? "";
   const [scheme, token, extra] = authorization.trim().split(/\s+/);
 
   if (extra || scheme?.toLowerCase() !== "bearer" || !token) {
@@ -1033,4 +1033,8 @@ export function getBearerTokenFromRequest(request: Request) {
   }
 
   return token;
+}
+
+export function getBearerTokenFromRequest(request: Request) {
+  return getBearerTokenFromHeaderValue(request.headers.get("authorization"));
 }

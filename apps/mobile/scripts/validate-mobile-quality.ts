@@ -5,6 +5,7 @@ import {
   summarizeMobileQualityGate,
   validateMobileQualityGate,
 } from "../src/quality/mobile-quality-gate";
+import { summarizeMobileProductionReadiness } from "../src/release/mobile-production-readiness";
 
 const issues = validateMobileQualityGate();
 const summary = summarizeMobileQualityGate();
@@ -15,6 +16,7 @@ console.log(
       automatedGates: MOBILE_AUTOMATED_GATES.map((gate) => gate.id),
       blockers: issues,
       manualChecks: MOBILE_MANUAL_QA_CHECKS.length,
+      productionReadiness: summarizeMobileProductionReadiness(),
       qualitySummary: summary,
       targetMatrix: MOBILE_QA_DEVICE_MATRIX.map((target) => ({
         focus: target.focus,

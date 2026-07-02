@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  getSocketMobileBearerToken,
   joinServerRoomsForUser,
   listServerRoomIdsForUser,
   listServerRoomIdsPage,
@@ -25,6 +26,40 @@ class MemoryServerRoomRedis {
 }
 
 describe("socket server room joins", () => {
+  it("extracts mobile bearer tokens only from explicit socket auth surfaces", () => {
+    assert.equal(
+      getSocketMobileBearerToken({
+        handshakeAuth: { token: "mobile-token" },
+      }),
+      "mobile-token",
+    );
+    assert.equal(
+      getSocketMobileBearerToken({
+        handshakeAuth: { accessToken: "mobile-access-token" },
+      }),
+      "mobile-access-token",
+    );
+    assert.equal(
+      getSocketMobileBearerToken({
+        authorizationHeader: "Bearer header-token",
+      }),
+      "header-token",
+    );
+    assert.equal(
+      getSocketMobileBearerToken({
+        authorizationHeader: "Basic header-token",
+        handshakeAuth: { token: "" },
+      }),
+      null,
+    );
+    assert.equal(
+      getSocketMobileBearerToken({
+        handshakeAuth: { token: "Bearer should-not-include-scheme" },
+      }),
+      null,
+    );
+  });
+
   it("lists server room ids with a bounded cursor page", async () => {
     const calls: unknown[] = [];
     const serverMemberDelegate = {

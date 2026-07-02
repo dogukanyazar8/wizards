@@ -1,4 +1,7 @@
 import {
+  MOBILE_BOOTSTRAP_ATTACHMENTS_FEATURE_DEFAULT,
+  MOBILE_BOOTSTRAP_INVITES_FEATURE_DEFAULT,
+  MOBILE_BOOTSTRAP_MESSAGE_SEARCH_FEATURE_DEFAULT,
   MobileBootstrapPayloadSchema,
   type MobileBootstrapDMConversationSummary,
   type MobileBootstrapPayload,
@@ -67,6 +70,14 @@ export function getMobileBootstrapPayload({
       permissions: ["notifications", "microphone", "camera", "photoLibrary"],
     },
     features: {
+      attachments: MOBILE_BOOTSTRAP_ATTACHMENTS_FEATURE_DEFAULT,
+      invites: MOBILE_BOOTSTRAP_INVITES_FEATURE_DEFAULT,
+      messageSearch: {
+        label: MOBILE_BOOTSTRAP_MESSAGE_SEARCH_FEATURE_DEFAULT.label,
+        reason:
+          "Authenticated mobile channel and direct-message search endpoints are available through bounded API queries.",
+        status: "available",
+      },
       messages: {
         label: "Messages",
         status: "available",
@@ -80,13 +91,13 @@ export function getMobileBootstrapPayload({
       pushNotifications: {
         label: "Push notifications",
         reason:
-          "Push registration is intentionally disabled until encrypted token storage and revocation are implemented server-side.",
-        status: "requires-server-contract",
+          "Push device registration is available after explicit native notification permission. Delivery rollout remains gated by user settings and mobile QA.",
+        status: "requires-native-permission",
       },
       voice: {
         label: "Voice",
         reason:
-          "Mobile voice requires native permission onboarding and LiveKit mobile lifecycle validation before it is enabled.",
+          "Mobile voice has server-authorized LiveKit token contracts; native room lifecycle validation remains gated before join is enabled.",
         status: "requires-native-permission",
       },
     },

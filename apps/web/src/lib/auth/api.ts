@@ -28,6 +28,11 @@ export async function requireApiUserId() {
 }
 
 export async function requireMobileApiUserId(request: Request) {
+  const session = await requireMobileApiSession(request);
+  return session.userId;
+}
+
+export async function requireMobileApiSession(request: Request) {
   const token = getBearerTokenFromRequest(request);
   if (!token) {
     throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
@@ -63,5 +68,8 @@ export async function requireMobileApiUserId(request: Request) {
     isBanned: user.isBanned,
   });
 
-  return claims.userId;
+  return {
+    sessionId: claims.sessionId,
+    userId: claims.userId,
+  };
 }

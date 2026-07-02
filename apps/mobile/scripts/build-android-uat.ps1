@@ -414,7 +414,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $resolvedSourceRoot "pnpm-workspace.
   throw "SourceRoot is not the Wizards workspace root: $resolvedSourceRoot"
 }
 
-if (-not (Test-Path -LiteralPath (Join-Path $resolvedSourceRoot "apps\mobile\app.config.ts"))) {
+if (-not (Test-Path -LiteralPath (Join-Path $resolvedSourceRoot "apps\mobile\app.config.js"))) {
   throw "SourceRoot does not contain the Whispr mobile app: $resolvedSourceRoot"
 }
 

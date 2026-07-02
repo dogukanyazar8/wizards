@@ -1,0 +1,188 @@
+import { io, type Socket } from "socket.io-client";
+import {
+  createMobileRealtimeEventEnvelope,
+  MOBILE_REALTIME_RECONNECT_POLICY,
+  MOBILE_REALTIME_SERVER_EVENTS,
+  type MobileRealtimeEventEnvelope,
+  type MobileRealtimeServerEventName,
+} from "./mobile-realtime-contract";
+
+export type MobileRealtimeClientTargets = {
+  channelId: string | null;
+  conversationId: string | null;
+};
+
+export type MobileRealtimeClient = {
+  connect(): Promise<void>;
+  disconnect(): void;
+  setActiveTargets(targets: MobileRealtimeClientTargets): void;
+};
+
+export type MobileRealtimeClientOptions = {
+  getAccessToken: () => Promise<string | null>;
+  onConnected?: () => void;
+  onDisconnected?: () => void;
+  onError?: (code: string) => void;
+  onEvent: (event: MobileRealtimeEventEnvelope) => void;
+  onReconnectAttempt?: () => void;
+  socketUrl: string;
+};
+
+type MutableSocketAuth = {
+  auth?: { token?: string };
+};
+
+async function resolveSocketAuthToken(getAccessToken: MobileRealtimeClientOptions["getAccessToken"]) {
+  const token = await getAccessToken();
+  return typeof token === "string" && token.length > 0 ? token : null;
+}
+
+export function createMobileRealtimeClient(
+  options: MobileRealtimeClientOptions,
+): MobileRealtimeClient {
+  let socket: (Socket & MutableSocketAuth) | null = null;
+  let activeChannelId: string | null = null;
+  let activeConversationId: string | null = null;
+  let disposed = false;
+
+  const emitActiveTargetJoins = () => {
+    if (!socket?.connected) {
+      return;
+    }
+
+    if (activeChannelId) {
+      socket.emit("channel:join", activeChannelId);
+    }
+
+    if (activeConversationId) {
+      socket.emit("dm:join", activeConversationId);
+    }
+  };
+
+  const bindSocketEvents = (boundSocket: Socket) => {
+    boundSocket.on("connect", () => {
+      options.onConnected?.();
+      emitActiveTargetJoins();
+    });
+
+    boundSocket.on("disconnect", () => {
+      options.onDisconnected?.();
+    });
+
+    boundSocket.on("connect_error", (error) => {
+      options.onError?.(error instanceof Error ? error.message : "connect_error");
+    });
+
+    boundSocket.io.on("reconnect_attempt", () => {
+      options.onReconnectAttempt?.();
+      void resolveSocketAuthToken(options.getAccessToken).then((token) => {
+        if (!socket || !token) {
+          return;
+        }
+
+        socket.auth = { token };
+      });
+    });
+
+    for (const eventName of MOBILE_REALTIME_SERVER_EVENTS) {
+      boundSocket.on(eventName, (payload: unknown) => {
+        options.onEvent(
+          createMobileRealtimeEventEnvelope(
+            eventName as MobileRealtimeServerEventName,
+            payload,
+          ),
+        );
+      });
+    }
+  };
+
+  const ensureSocket = () => {
+    if (socket) {
+      return socket;
+    }
+
+    socket = io(options.socketUrl, {
+      autoConnect: false,
+      reconnection: true,
+      reconnectionAttempts: MOBILE_REALTIME_RECONNECT_POLICY.maxAttempts,
+      reconnectionDelay: MOBILE_REALTIME_RECONNECT_POLICY.initialDelayMs,
+      reconnectionDelayMax: MOBILE_REALTIME_RECONNECT_POLICY.maxDelayMs,
+      timeout: MOBILE_REALTIME_RECONNECT_POLICY.timeoutMs,
+      transports: ["websocket"],
+    }) as Socket & MutableSocketAuth;
+    bindSocketEvents(socket);
+    return socket;
+  };
+
+  return {
+    async connect() {
+      if (disposed) {
+        return;
+      }
+
+      const nextSocket = ensureSocket();
+      if (nextSocket.connected) {
+        emitActiveTargetJoins();
+        return;
+      }
+
+      const token = await resolveSocketAuthToken(options.getAccessToken);
+      if (!token) {
+        options.onError?.("missing_token");
+        return;
+      }
+
+      nextSocket.auth = { token };
+      nextSocket.connect();
+    },
+
+    disconnect() {
+      disposed = true;
+
+      if (!socket) {
+        return;
+      }
+
+      if (socket.connected) {
+        if (activeChannelId) {
+          socket.emit("channel:leave", activeChannelId);
+        }
+
+        if (activeConversationId) {
+          socket.emit("dm:leave", activeConversationId);
+        }
+      }
+
+      socket.removeAllListeners();
+      socket.disconnect();
+      socket = null;
+    },
+
+    setActiveTargets(targets) {
+      const previousChannelId = activeChannelId;
+      const previousConversationId = activeConversationId;
+      activeChannelId = targets.channelId;
+      activeConversationId = targets.conversationId;
+
+      if (!socket?.connected) {
+        return;
+      }
+
+      if (previousChannelId && previousChannelId !== activeChannelId) {
+        socket.emit("channel:leave", previousChannelId);
+      }
+
+      if (previousConversationId && previousConversationId !== activeConversationId) {
+        socket.emit("dm:leave", previousConversationId);
+      }
+
+      if (activeChannelId && activeChannelId !== previousChannelId) {
+        socket.emit("channel:join", activeChannelId);
+      }
+
+      if (activeConversationId && activeConversationId !== previousConversationId) {
+        socket.emit("dm:join", activeConversationId);
+      }
+    },
+  };
+}

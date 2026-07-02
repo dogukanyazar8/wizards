@@ -44,6 +44,9 @@ export type MobileSettingsTextLabels = {
 };
 
 const FEATURE_ORDER = [
+  "attachments",
+  "invites",
+  "messageSearch",
   "messages",
   "nativeAuthTokenExchange",
   "pushNotifications",

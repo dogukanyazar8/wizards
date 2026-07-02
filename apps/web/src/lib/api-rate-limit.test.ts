@@ -45,6 +45,10 @@ describe("API rate limit configuration", () => {
       "mobile:bootstrap",
       "mobile:channel:messages:list",
       "mobile:channel:messages:send",
+      "mobile:message:search",
+      "mobile:notifications:register",
+      "mobile:notifications:revoke",
+      "mobile:voice:token",
       "mobile:server:detail",
       "server:detail",
       "server:delete",
@@ -76,6 +80,10 @@ describe("API rate limit configuration", () => {
       "mobile:bootstrap": { limit: 120, windowSeconds: 60 },
       "mobile:channel:messages:list": { limit: 60, windowSeconds: 60 },
       "mobile:channel:messages:send": { limit: 120, windowSeconds: 60 },
+      "mobile:message:search": { limit: 40, windowSeconds: 60 },
+      "mobile:notifications:register": { limit: 20, windowSeconds: 60 * 60 },
+      "mobile:notifications:revoke": { limit: 60, windowSeconds: 10 * 60 },
+      "mobile:voice:token": { limit: 20, windowSeconds: 60 },
       "mobile:server:detail": { limit: 120, windowSeconds: 60 },
     } satisfies Partial<
       Record<ApiRateLimitAction, { limit: number; windowSeconds: number }>

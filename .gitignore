@@ -25,6 +25,9 @@ graphify-out/cache/
 # TypeScript incremental build output
 *.tsbuildinfo
 
+# Generated mobile release evidence and local build outputs
+apps/mobile/artifacts/
+
 target
 apps/desktop/.tauri
 apps/desktop/src-tauri/gen

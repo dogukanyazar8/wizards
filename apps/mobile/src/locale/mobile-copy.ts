@@ -27,8 +27,7 @@ export const mobileCopy = {
     authRegisterTitle: "Whispr'a katil",
     authSecureBrowserNote:
       "Google, sosyal veya kurumsal girisler sistem tarayicisinda tamamlanir ve uygulamaya tek kullanimlik baglanti ile donulur.",
-    authSignInDescription:
-      "E-posta ve sifrenle guvenli mobil oturum ac.",
+    authSignInDescription: "E-posta ve sifrenle guvenli mobil oturum ac.",
     authSignInTitle: "Hesabina giris yap",
     authWelcomeDescription:
       "Sohbetlerine ve sunucularina devam etmek icin giris yap veya yeni hesap olustur.",
@@ -40,6 +39,8 @@ export const mobileCopy = {
     authNativeConfirmPasswordPlaceholder: "Sifreni tekrar gir",
     authNativeEmailLabel: "E-posta",
     authNativeEmailPlaceholder: "ornek@email.com",
+    authNativeDevCredentialsFilled: "Development giris bilgileri forma dolduruldu.",
+    authNativeDevFillAction: "Dev hesabini doldur",
     authNativeForgotAction: "Sifirlama baglantisi gonder",
     authNativeForgotLink: "Sifremi unuttum",
     authNativeForgotNotice:
@@ -107,6 +108,20 @@ export const mobileCopy = {
     channelSendFailed:
       "Kanal mesaji gonderilemedi. Yetki, baglanti veya rate-limit durumunu kontrol edip tekrar dene.",
     channelSendingAction: "Gonderiliyor",
+    composerAttachAction: "Dosya sec",
+    composerAttachmentChecking: "Kontrol",
+    composerAttachmentClearAction: "Dosya taslagini temizle",
+    composerAttachmentDisabled:
+      "Mobil dosya ekleri bu ortamda kapali. Mesaj gondermek icin taslagi temizle.",
+    composerAttachmentDraftLabel: "Dosya taslagi hazir",
+    composerAttachmentNativePermissionPending:
+      "Dosya secildi, ancak gerekli cihaz izni henuz hazir degil. Mesaj gondermek icin taslagi temizle.",
+    composerAttachmentServerPending:
+      "Dosya secildi, ancak mobil upload server sozlesmesi henuz etkin degil. Mesaj gondermek icin taslagi temizle.",
+    composerAttachmentUnknown:
+      "Dosya secildi, ancak mobil upload durumu dogrulanamadi. Mesaj gondermek icin taslagi temizle.",
+    composerAttachmentUploadPending:
+      "Dosya secildi, ancak mobil upload akisi henuz etkin degil. Mesaj gondermek icin taslagi temizle.",
     dmComposerPlaceholder: "Bir mesaj gonder...",
     dmDeletedMessage: "Bu mesaj silindi.",
     dmMessagesLoadFailed:
@@ -118,17 +133,25 @@ export const mobileCopy = {
       "Mesaj gonderilemedi. Yetki, baglanti veya rate-limit durumunu kontrol edip tekrar dene.",
     dmSendingAction: "Gonderiliyor",
     dmSelectConversation: "Mesajlari gormek icin bir direkt mesaj sec.",
+    messageSearchAction: "Ara",
+    messageSearchClearAction: "Aramayi temizle",
+    messageSearchEmpty: "Eslesen mesaj yok.",
+    messageSearchFailed:
+      "Arama tamamlanamadi. Baglanti, yetki veya rate-limit durumunu kontrol edip tekrar dene.",
+    messageSearchHelper: "En az 2 karakter yaz.",
+    messageSearchLoading: "Araniyor...",
+    messageSearchMoreResults: "Daha fazla sonuc var; ayrintili arama icin sorguyu daralt.",
+    messageSearchPlaceholder: "Bu sohbette ara",
+    messageSearchResultsTitle: "Arama sonuclari",
     errorBoundaryDescription:
       "Bu ekran beklenmedik sekilde yuklenemedi. Oturumun korunur; gizli veri veya mesaj icerigi burada gosterilmez.",
-    errorBoundaryFootnote:
-      "Sorun devam ederse uygulamayi yeniden acip tekrar deneyebilirsin.",
+    errorBoundaryFootnote: "Sorun devam ederse uygulamayi yeniden acip tekrar deneyebilirsin.",
     errorBoundaryRetryAction: "Tekrar yukle",
     errorBoundaryTitle: "Whispr toparlanmaya calisiyor",
     homeDmLabel: "DM",
     homeGreetingTitle: "Merhaba, {name}",
     homeGreetingSubtitle: "Whispr'a hos geldin.",
-    homeContinueDescription:
-      "En onemli sohbet, sunucu ve ses durumuna tek dokunusla ulas.",
+    homeContinueDescription: "En onemli sohbet, sunucu ve ses durumuna tek dokunusla ulas.",
     homeContinueEmpty: "Devam edilecek gercek mobil veri henuz yok.",
     homeContinueLatestDirectMessage: "Son konusma",
     homeContinueLatestServer: "Son sunucu",
@@ -140,14 +163,51 @@ export const mobileCopy = {
     homeServersLabel: "Sunucu",
     homeUnreadLabel: "Okunmamis",
     membersSuffix: "uye",
-    messagesDescription:
-      "Direkt mesajlarini takip et ve kaldigin yerden devam et.",
+    mediaSetupAction: "Medyayi hazirla",
+    mediaSetupBlockedDescription: "Bu izin sistem ayarlarinda kapali. Whispr bunu otomatik acmaz.",
+    mediaSetupBlockedTitle: "Sistem ayari gerekiyor",
+    mediaSetupCameraAction: "Kamerayi hazirla",
+    mediaSetupCameraLabel: "Kamera",
+    mediaSetupCheckingAction: "Kontrol ediliyor",
+    mediaSetupCheckingDescription: "Whispr yalnizca cihaz izin durumunu kontrol ediyor.",
+    mediaSetupCheckingTitle: "Medya izni kontrol ediliyor",
+    mediaSetupDeniedDescription: "Bu izni daha sonra yine Profil ekranindan hazirlayabilirsin.",
+    mediaSetupDeniedTitle: "Izin verilmedi",
+    mediaSetupDescription:
+      "Fotograf arsivi ve kamera izinleri yalnizca sen ilgili aksiyonu secince istenir.",
+    mediaSetupDocumentPickerAction: "Dosya secmeyi dene",
+    mediaSetupDocumentPickerLabel: "Dosya secici",
+    mediaSetupEyebrow: "Native medya",
+    mediaSetupFootnote:
+      "Whispr bu adimda dosya yuklemez; yalnizca cihaz izinlerini ve dosya secici sozlesmesini hazirlar.",
+    mediaSetupPhotoLibraryAction: "Fotograf arsivini hazirla",
+    mediaSetupPhotoLibraryLabel: "Fotograf arsivi",
+    mediaSetupReadyDescription:
+      "Cihaz izni hazir. Gercek ek, kamera veya video akislari ilgili sohbet/call sozlesmesiyle devam eder.",
+    mediaSetupReadyTitle: "Medya izni hazir",
+    mediaSetupSelectedFileLabel: "Secilen dosya",
+    mediaSetupTitle: "Medya deneyimini hazirla",
+    mediaSetupUnknownFileSize: "boyut bilinmiyor",
+    mediaSetupUnknownFileType: "tur bilinmiyor",
+    mediaSetupUnavailableDescription:
+      "Bu derleme medya runtime'ini tamamlayamadi; uygulama guvenli sekilde acik kalir.",
+    mediaSetupUnavailableTitle: "Medya kurulumu tamamlanamadi",
+    messagesDescription: "Direkt mesajlarini takip et ve kaldigin yerden devam et.",
     messagesEmpty: "Henuz mobilde gosterilecek direkt mesaj yok.",
     messagesTitle: "Sohbetler",
     messageYouLabel: "Sen",
     mutedSuffix: "sessiz",
-    overviewDescription:
-      "Sunucularini ve kanallarini mobil ekranda hizlica gez.",
+    inviteReadinessDisabled: "Davet kabul etme bu ortamda kapali.",
+    inviteReadinessIdle:
+      "Son guvenli davet linki yok. Davet linkleri acildiginda burada dogrulanir.",
+    inviteReadinessMissingFeature:
+      "Backend henuz mobil davet sozlesmesini bildirmiyor; uygulama guvenli bekleme modunda.",
+    inviteReadinessReady: "Guvenli davet linki mobil uygulamada kabul edilmeye hazir.",
+    inviteReadinessServerPending:
+      "Davet linki guvenli, fakat mobil uygulama icinden kabul etmek icin server contract bekleniyor.",
+    inviteReadinessUnsafe:
+      "Son davet benzeri link guvenlik kontrolunden gecmedi ve kabul edilmeyecek.",
+    overviewDescription: "Sunucularini ve kanallarini mobil ekranda hizlica gez.",
     overviewTitle: "Sunucular",
     permissionCamera: "Kamera",
     permissionMicrophone: "Mikrofon",
@@ -156,6 +216,14 @@ export const mobileCopy = {
     permissionReady:
       "Izinler kullanici aksiyonu olmadan otomatik istenmez. Voice, kamera, dosya ve bildirim akislari guvenli onboarding bekler.",
     permissionTitle: "Izin hazirligi",
+    productionReadinessAutomationLabel: "Otomasyon",
+    productionReadinessCriticalLabel: "Kritik",
+    productionReadinessDescription:
+      "UAT, canary, store adayi ve production gecisleri ayni kanit sozlesmesiyle izlenir.",
+    productionReadinessGatesLabel: "Kapi",
+    productionReadinessReady: "Production yolu kanitli",
+    productionReadinessStagesLabel: "Asama",
+    productionReadinessTitle: "Production readiness",
     primaryAction: "Whispr web girisini ac",
     peopleSuffix: "kisi",
     openConversationAction: "Konusmayi ac",
@@ -175,8 +243,7 @@ export const mobileCopy = {
     releaseTitle: "Release kalite kapisi",
     retryAction: "Tekrar dene",
     secondaryAction: "Oturumu yenile",
-    settingsDescription:
-      "Hesabini, oturumunu ve mobil tercihlerini yonet.",
+    settingsDescription: "Hesabini, oturumunu ve mobil tercihlerini yonet.",
     settingsAccountTitle: "Hesap",
     settingsAccountSignedOut: "Giris gerekli",
     settingsBlockedLabel: "Engelli",
@@ -194,23 +261,24 @@ export const mobileCopy = {
     settingsManualQaLabel: "Manuel QA",
     settingsMissingLabel: "Yok",
     settingsMobileDeepLinkTitle: "Guvenli baglantilar",
+    settingsMobileInvitesTitle: "Davetler",
     settingsMobileMessagingDescription:
       "Sohbetler gercek Whispr oturumun ve yetkilerinle yuklenir.",
     settingsMobileMessagingTitle: "Sohbetler",
+    settingsMobileSearchDescription:
+      "Kanal ve DM aramalari yetkili mobil oturumunla guvenli sekilde calisir.",
+    settingsMobileSearchTitle: "Arama",
     settingsMobileNotificationsTitle: "Bildirimler",
     settingsMobileOverviewDescription:
       "Oturum, sohbet, bildirim ve ses hazirligini tek yerde takip et.",
     settingsMobileOverviewTitle: "Mobil durum",
-    settingsMobilePermissionDescription:
-      "Bu izin yalnizca ilgili ozelligi kullandiginda istenir.",
+    settingsMobilePermissionDescription: "Bu izin yalnizca ilgili ozelligi kullandiginda istenir.",
     settingsMobilePermissionNeedsActionSuffix: "izin kullanici aksiyonu bekliyor",
     settingsMobilePermissionsDescription:
       "Whispr izinleri otomatik istemez; mikrofon, kamera, bildirim ve dosya izinleri kullanim aninda sorulur.",
     settingsMobilePermissionsTitle: "Izinler ve gizlilik",
-    settingsMobileSessionActionRequired:
-      "Giris yaparak veya oturumu yenileyerek devam et.",
-    settingsMobileSessionHealthy:
-      "Oturum guvenli depoda ve mobil API cagirilari icin hazir.",
+    settingsMobileSessionActionRequired: "Giris yaparak veya oturumu yenileyerek devam et.",
+    settingsMobileSessionHealthy: "Oturum guvenli depoda ve mobil API cagirilari icin hazir.",
     settingsMobileSessionTitle: "Guvenli oturum",
     settingsMobileVoiceDescription:
       "Mobil ses deneyimi native izin ve backend hazirligina gore acilir.",
@@ -255,8 +323,7 @@ export const mobileCopy = {
     syncHealthErrorDescription:
       "Gorunen veri yenilenemedi. Oturum korunuyor; baglantini kontrol edip tekrar deneyebilirsin.",
     syncHealthErrorTitle: "Baglanti toparlanamadi",
-    syncHealthRefreshingDescription:
-      "Whispr son sohbet ve sunucu bilgisini sessizce tazeliyor.",
+    syncHealthRefreshingDescription: "Whispr son sohbet ve sunucu bilgisini sessizce tazeliyor.",
     syncHealthRefreshingTitle: "Gorunen veri yenileniyor",
     syncMinutesAgo: "dk once",
     syncNever: "Henuz yok",
@@ -277,17 +344,69 @@ export const mobileCopy = {
       "Mesaj ve sunucu bildirimleri gercek mobil izin hazirligiyle kontrol edilir.",
     notificationsEmpty: "Henuz gosterilecek bildirim yok.",
     notificationsTitle: "Bildirimler",
-    voiceDescription:
-      "Ses odalarina mobilde guvenli sekilde katilmak icin hazirlik suruyor.",
+    notificationSetupAction: "Bildirimleri ayarla",
+    notificationSetupBlockedDescription:
+      "Bildirim izni sistem ayarlarinda kapali. Whispr bunu otomatik acmaz.",
+    notificationSetupBlockedTitle: "Sistem ayari gerekiyor",
+    notificationSetupCheckingAction: "Kontrol ediliyor",
+    notificationSetupCheckingDescription: "Whispr yalnizca bildirim izin durumunu kontrol ediyor.",
+    notificationSetupCheckingTitle: "Bildirim izni kontrol ediliyor",
+    notificationSetupDeniedDescription:
+      "Bildirimleri daha sonra yine bu ekrandan etkinlestirebilirsin.",
+    notificationSetupDeniedTitle: "Bildirim izni verilmedi",
+    notificationSetupDescription:
+      "Mesaj ve sunucu bildirimleri icin native izin yalnizca sen bu aksiyonu secince istenir.",
+    notificationSetupDeviceLabel: "Cihaz kaydi",
+    notificationSetupEyebrow: "Native bildirim",
+    notificationSetupFootnote: "Token, e-posta veya mesaj icerigi bu ekranda gosterilmez.",
+    notificationSetupReadyLocalDescription:
+      "Cihaz izni hazir. Push kaydini yenilemek icin bildirimi tekrar ayarlayabilirsin.",
+    notificationSetupReadyLocalTitle: "Cihaz izni hazir",
+    notificationSetupRegisteredDescription:
+      "Bu cihaz Whispr bildirimleri icin guvenli sekilde kaydedildi.",
+    notificationSetupRegisteredTitle: "Cihaz kaydedildi",
+    notificationSetupRegistrationFailedDescription:
+      "Izin hazir, fakat cihaz kaydi tamamlanamadi. Biraz sonra tekrar deneyebilirsin.",
+    notificationSetupRegistrationFailedTitle: "Cihaz kaydi tamamlanamadi",
+    notificationSetupServerPendingDescription:
+      "Cihaz izni hazir. Push token kaydi backend sozlesmesi tamamlaninca etkinlesecek.",
+    notificationSetupServerPendingTitle: "Cihaz izni hazir",
+    notificationSetupTitle: "Bildirimleri hazirla",
+    notificationSetupUnavailableDescription:
+      "Bu derleme bildirim runtime'ini tamamlayamadi; uygulama guvenli sekilde acik kalir.",
+    notificationSetupUnavailableTitle: "Bildirim kurulumu tamamlanamadi",
+    voiceDescription: "Ses odalarina mobilde guvenli sekilde katilmak icin hazirlik suruyor.",
     voiceEmpty: "Mobil ses henuz hazir degil.",
+    voiceSetupAction: "Mikrofonu hazirla",
+    voiceSetupBlockedDescription:
+      "Mikrofon izni sistem ayarlarinda kapali. Whispr bunu otomatik acmaz.",
+    voiceSetupBlockedTitle: "Sistem ayari gerekiyor",
+    voiceSetupCheckingAction: "Kontrol ediliyor",
+    voiceSetupCheckingDescription: "Whispr yalnizca mikrofon izin durumunu kontrol ediyor.",
+    voiceSetupCheckingTitle: "Mikrofon izni kontrol ediliyor",
+    voiceSetupDeniedDescription: "Mikrofonu daha sonra yine bu ekrandan etkinlestirebilirsin.",
+    voiceSetupDeniedTitle: "Mikrofon izni verilmedi",
+    voiceSetupDescription:
+      "Ses kanallari icin mikrofon izni yalnizca sen bu aksiyonu secince istenir.",
+    voiceSetupEyebrow: "Native ses",
+    voiceSetupFootnote: "Whispr bu adimda ses kaydi baslatmaz; yalnizca cihaz iznini hazirlar.",
+    voiceSetupNativePendingDescription:
+      "Mikrofon izni hazir. Ses odasina katilma, native LiveKit oda yasam dongusu tamamlaninca etkinlesecek.",
+    voiceSetupNativePendingTitle: "Native ses hazirligi bekleniyor",
+    voiceSetupServerPendingDescription:
+      "Mikrofon izni hazir. Ses kanali baglantisi LiveKit ve backend sozlesmesi tamamlaninca etkinlesecek.",
+    voiceSetupServerPendingTitle: "Mikrofon izni hazir",
+    voiceSetupTitle: "Ses deneyimini hazirla",
+    voiceSetupUnavailableDescription:
+      "Bu derleme mikrofon runtime'ini tamamlayamadi; uygulama guvenli sekilde acik kalir.",
+    voiceSetupUnavailableTitle: "Ses kurulumu tamamlanamadi",
     voiceTitle: "Ses odalari",
     unreadSuffix: "okunmamis",
     workspaceChannelLoadFailed:
       "Bu kanal mesajlari yuklenemedi. Yetki ve baglanti korunuyor; tekrar deneyebilirsin.",
     workspaceDescription:
       "Son sunucularindan gercek kanallari ac, metin kanali gecmisini guvenli ve sinirli sekilde goruntule.",
-    workspaceLoadFailed:
-      "Sunucu bilgileri yuklenemedi. Yetki kontrolu server tarafinda korunuyor.",
+    workspaceLoadFailed: "Sunucu bilgileri yuklenemedi. Yetki kontrolu server tarafinda korunuyor.",
     workspaceLoading: "Sunucu kanallari yukleniyor.",
     workspaceMessagesLoading: "Kanal mesajlari yukleniyor.",
     workspaceMoreChannelsHidden:
@@ -301,11 +420,11 @@ export const mobileCopy = {
     workspaceTextChannel: "Metin kanali",
     workspaceTitle: "Sunucu kanallari",
     workspaceVoiceChannel: "Ses kanali",
-    workspaceVoiceUnavailable:
-      "Mobil ses kanali katilimi henuz native ses sozlesmesini bekliyor.",
+    workspaceVoiceUnavailable: "Mobil ses kanali katilimi henuz native ses sozlesmesini bekliyor.",
   },
   en: {
-    apiContract: "The secure API client is ready with relative paths, timeouts, and bearer headers.",
+    apiContract:
+      "The secure API client is ready with relative paths, timeouts, and bearer headers.",
     activePeopleSuffix: "active",
     appSubtitle: "Reach chats, servers, and voice rooms through a secure mobile app",
     appTitle: "Whispr Mobile",
@@ -329,11 +448,9 @@ export const mobileCopy = {
     authRegisterTitle: "Join Whispr",
     authSecureBrowserNote:
       "Google, social, and enterprise sign-in complete in the system browser and return through a one-time handoff.",
-    authSignInDescription:
-      "Open a secure mobile session with your email and password.",
+    authSignInDescription: "Open a secure mobile session with your email and password.",
     authSignInTitle: "Sign in to your account",
-    authWelcomeDescription:
-      "Sign in or create an account to continue to your chats and servers.",
+    authWelcomeDescription: "Sign in or create an account to continue to your chats and servers.",
     authWelcomeTitle: "Welcome to Whispr",
     authModeRegister: "Register",
     authModeSignIn: "Sign in",
@@ -342,6 +459,8 @@ export const mobileCopy = {
     authNativeConfirmPasswordPlaceholder: "Re-enter your password",
     authNativeEmailLabel: "Email",
     authNativeEmailPlaceholder: "example@email.com",
+    authNativeDevCredentialsFilled: "Development sign-in details were filled into the form.",
+    authNativeDevFillAction: "Fill dev account",
     authNativeForgotAction: "Send reset link",
     authNativeForgotLink: "Forgot password?",
     authNativeForgotNotice:
@@ -409,6 +528,20 @@ export const mobileCopy = {
     channelSendFailed:
       "Channel message could not be sent. Check permissions, connectivity, or rate limits and try again.",
     channelSendingAction: "Sending",
+    composerAttachAction: "Choose file",
+    composerAttachmentChecking: "Checking",
+    composerAttachmentClearAction: "Clear file draft",
+    composerAttachmentDisabled:
+      "Mobile attachments are disabled in this environment. Clear the draft to send a message.",
+    composerAttachmentDraftLabel: "File draft ready",
+    composerAttachmentNativePermissionPending:
+      "A file is selected, but the required device permission is not ready yet. Clear the draft to send a message.",
+    composerAttachmentServerPending:
+      "A file is selected, but the mobile upload server contract is not enabled yet. Clear the draft to send a message.",
+    composerAttachmentUnknown:
+      "A file is selected, but mobile upload readiness could not be verified. Clear the draft to send a message.",
+    composerAttachmentUploadPending:
+      "A file is selected, but mobile upload is not enabled yet. Clear the draft to send a message.",
     dmComposerPlaceholder: "Send a message...",
     dmDeletedMessage: "This message was deleted.",
     dmMessagesLoadFailed:
@@ -420,17 +553,25 @@ export const mobileCopy = {
       "Message could not be sent. Check permissions, connectivity, or rate limits and try again.",
     dmSendingAction: "Sending",
     dmSelectConversation: "Select a direct message to view its messages.",
+    messageSearchAction: "Search",
+    messageSearchClearAction: "Clear search",
+    messageSearchEmpty: "No matching messages.",
+    messageSearchFailed:
+      "Search could not finish. Check connection, permission, or rate-limit state and try again.",
+    messageSearchHelper: "Enter at least 2 characters.",
+    messageSearchLoading: "Searching...",
+    messageSearchMoreResults: "More results are available; narrow the query for detail.",
+    messageSearchPlaceholder: "Search this chat",
+    messageSearchResultsTitle: "Search results",
     errorBoundaryDescription:
       "This screen could not load safely. Your session stays preserved; secrets and message content are not shown here.",
-    errorBoundaryFootnote:
-      "If the problem continues, restart the app and try again.",
+    errorBoundaryFootnote: "If the problem continues, restart the app and try again.",
     errorBoundaryRetryAction: "Reload",
     errorBoundaryTitle: "Whispr is recovering",
     homeDmLabel: "DMs",
     homeGreetingTitle: "Hello, {name}",
     homeGreetingSubtitle: "Welcome back to Whispr.",
-    homeContinueDescription:
-      "Reach the most relevant chat, server, and voice status with one tap.",
+    homeContinueDescription: "Reach the most relevant chat, server, and voice status with one tap.",
     homeContinueEmpty: "There is no real mobile data to continue from yet.",
     homeContinueLatestDirectMessage: "Latest conversation",
     homeContinueLatestServer: "Latest server",
@@ -442,14 +583,51 @@ export const mobileCopy = {
     homeServersLabel: "Servers",
     homeUnreadLabel: "Unread",
     membersSuffix: "members",
-    messagesDescription:
-      "Follow your direct messages and continue where you left off.",
+    mediaSetupAction: "Prepare media",
+    mediaSetupBlockedDescription:
+      "This permission is disabled in system settings. Whispr will not enable it automatically.",
+    mediaSetupBlockedTitle: "System settings required",
+    mediaSetupCameraAction: "Prepare camera",
+    mediaSetupCameraLabel: "Camera",
+    mediaSetupCheckingAction: "Checking",
+    mediaSetupCheckingDescription: "Whispr is only checking device permission state.",
+    mediaSetupCheckingTitle: "Checking media permission",
+    mediaSetupDeniedDescription: "You can prepare this permission later from Profile.",
+    mediaSetupDeniedTitle: "Permission was not granted",
+    mediaSetupDescription:
+      "Photo library and camera permissions are requested only after you choose the related action.",
+    mediaSetupDocumentPickerAction: "Try file picker",
+    mediaSetupDocumentPickerLabel: "File picker",
+    mediaSetupEyebrow: "Native media",
+    mediaSetupFootnote:
+      "Whispr does not upload a file in this step; it only prepares device permissions and the file picker contract.",
+    mediaSetupPhotoLibraryAction: "Prepare photo library",
+    mediaSetupPhotoLibraryLabel: "Photo library",
+    mediaSetupReadyDescription:
+      "Device permission is ready. Real attachment, camera, or video flows continue through the related chat/call contract.",
+    mediaSetupReadyTitle: "Media permission ready",
+    mediaSetupSelectedFileLabel: "Selected file",
+    mediaSetupTitle: "Prepare media experience",
+    mediaSetupUnknownFileSize: "unknown size",
+    mediaSetupUnknownFileType: "unknown type",
+    mediaSetupUnavailableDescription:
+      "This build could not complete media runtime setup; the app stays safely available.",
+    mediaSetupUnavailableTitle: "Media setup could not finish",
+    messagesDescription: "Follow your direct messages and continue where you left off.",
     messagesEmpty: "There are no direct messages to show on mobile yet.",
     messagesTitle: "Chats",
     messageYouLabel: "You",
     mutedSuffix: "muted",
-    overviewDescription:
-      "Move through your servers and channels quickly on mobile.",
+    inviteReadinessDisabled: "Invite acceptance is disabled in this environment.",
+    inviteReadinessIdle: "No recent safe invite link. Invite links are validated here when opened.",
+    inviteReadinessMissingFeature:
+      "The backend is not advertising the mobile invite contract yet; the app stays in safe waiting mode.",
+    inviteReadinessReady: "The safe invite link is ready to be accepted in the mobile app.",
+    inviteReadinessServerPending:
+      "The invite link is safe, but in-app acceptance is waiting for the server contract.",
+    inviteReadinessUnsafe:
+      "The latest invite-like link failed security checks and will not be accepted.",
+    overviewDescription: "Move through your servers and channels quickly on mobile.",
     overviewTitle: "Servers",
     permissionCamera: "Camera",
     permissionMicrophone: "Microphone",
@@ -458,6 +636,14 @@ export const mobileCopy = {
     permissionReady:
       "Permissions are never requested automatically without a user action. Voice, camera, file, and notification flows wait for safe onboarding.",
     permissionTitle: "Permission readiness",
+    productionReadinessAutomationLabel: "Automation",
+    productionReadinessCriticalLabel: "Critical",
+    productionReadinessDescription:
+      "UAT, canary, store-candidate, and production promotion are tracked through one evidence contract.",
+    productionReadinessGatesLabel: "Gates",
+    productionReadinessReady: "Production path is evidenced",
+    productionReadinessStagesLabel: "Stages",
+    productionReadinessTitle: "Production readiness",
     primaryAction: "Open Whispr web sign-in",
     peopleSuffix: "people",
     openConversationAction: "Open conversation",
@@ -473,12 +659,12 @@ export const mobileCopy = {
     qualityTitle: "Mobile quality",
     reactionsSuffix: "reactions",
     refreshShortAction: "Refresh",
-    releaseReady: "EAS profiles, HTTPS endpoints, and performance budgets are checked before promotion.",
+    releaseReady:
+      "EAS profiles, HTTPS endpoints, and performance budgets are checked before promotion.",
     releaseTitle: "Release quality gate",
     retryAction: "Retry",
     secondaryAction: "Refresh session",
-    settingsDescription:
-      "Manage your account, session, and mobile preferences.",
+    settingsDescription: "Manage your account, session, and mobile preferences.",
     settingsAccountTitle: "Account",
     settingsAccountSignedOut: "Sign-in required",
     settingsBlockedLabel: "Blocked",
@@ -496,9 +682,13 @@ export const mobileCopy = {
     settingsManualQaLabel: "Manual QA",
     settingsMissingLabel: "Missing",
     settingsMobileDeepLinkTitle: "Safe links",
+    settingsMobileInvitesTitle: "Invites",
     settingsMobileMessagingDescription:
       "Chats load through your real Whispr session and permissions.",
     settingsMobileMessagingTitle: "Chats",
+    settingsMobileSearchDescription:
+      "Channel and DM search runs safely through your authorized mobile session.",
+    settingsMobileSearchTitle: "Search",
     settingsMobileNotificationsTitle: "Notifications",
     settingsMobileOverviewDescription:
       "Track session, chat, notification, and voice readiness in one place.",
@@ -509,8 +699,7 @@ export const mobileCopy = {
     settingsMobilePermissionsDescription:
       "Whispr never asks permissions automatically. Microphone, camera, notification, and file permissions are requested at the moment of use.",
     settingsMobilePermissionsTitle: "Permissions and privacy",
-    settingsMobileSessionActionRequired:
-      "Sign in or refresh the session to continue.",
+    settingsMobileSessionActionRequired: "Sign in or refresh the session to continue.",
     settingsMobileSessionHealthy:
       "Your session is in secure storage and ready for mobile API calls.",
     settingsMobileSessionTitle: "Secure session",
@@ -579,9 +768,63 @@ export const mobileCopy = {
       "Message and server notifications are controlled by real mobile permission readiness.",
     notificationsEmpty: "There are no notifications to show yet.",
     notificationsTitle: "Notifications",
-    voiceDescription:
-      "Mobile voice rooms are being prepared with secure device permissions.",
+    notificationSetupAction: "Set up notifications",
+    notificationSetupBlockedDescription:
+      "Notification permission is disabled in system settings. Whispr will not enable it automatically.",
+    notificationSetupBlockedTitle: "System settings required",
+    notificationSetupCheckingAction: "Checking",
+    notificationSetupCheckingDescription:
+      "Whispr is only checking the notification permission state.",
+    notificationSetupCheckingTitle: "Checking notification permission",
+    notificationSetupDeniedDescription: "You can enable notifications from this screen later.",
+    notificationSetupDeniedTitle: "Notification permission was not granted",
+    notificationSetupDescription:
+      "Native permission for message and server notifications is requested only after you choose this action.",
+    notificationSetupDeviceLabel: "Device registration",
+    notificationSetupEyebrow: "Native notification",
+    notificationSetupFootnote: "Tokens, email, and message content are not shown on this screen.",
+    notificationSetupReadyLocalDescription:
+      "Device permission is ready. You can retry notification setup to refresh push registration.",
+    notificationSetupReadyLocalTitle: "Device permission ready",
+    notificationSetupRegisteredDescription:
+      "This device is securely registered for Whispr notifications.",
+    notificationSetupRegisteredTitle: "Device registered",
+    notificationSetupRegistrationFailedDescription:
+      "Permission is ready, but device registration could not finish. You can try again shortly.",
+    notificationSetupRegistrationFailedTitle: "Device registration could not finish",
+    notificationSetupServerPendingDescription:
+      "Device permission is ready. Push token registration will activate after the backend contract is complete.",
+    notificationSetupServerPendingTitle: "Device permission ready",
+    notificationSetupTitle: "Prepare notifications",
+    notificationSetupUnavailableDescription:
+      "This build could not complete notification runtime setup; the app stays safely available.",
+    notificationSetupUnavailableTitle: "Notification setup could not finish",
+    voiceDescription: "Mobile voice rooms are being prepared with secure device permissions.",
     voiceEmpty: "Mobile voice is not ready yet.",
+    voiceSetupAction: "Prepare microphone",
+    voiceSetupBlockedDescription:
+      "Microphone permission is disabled in system settings. Whispr will not enable it automatically.",
+    voiceSetupBlockedTitle: "System settings required",
+    voiceSetupCheckingAction: "Checking",
+    voiceSetupCheckingDescription: "Whispr is only checking microphone permission state.",
+    voiceSetupCheckingTitle: "Checking microphone permission",
+    voiceSetupDeniedDescription: "You can enable the microphone from this screen later.",
+    voiceSetupDeniedTitle: "Microphone permission was not granted",
+    voiceSetupDescription:
+      "Microphone permission for voice channels is requested only after you choose this action.",
+    voiceSetupEyebrow: "Native voice",
+    voiceSetupFootnote:
+      "Whispr does not start recording in this step; it only prepares the device permission.",
+    voiceSetupNativePendingDescription:
+      "Microphone permission is ready. Voice room join will activate after the native LiveKit room lifecycle is complete.",
+    voiceSetupNativePendingTitle: "Native voice setup pending",
+    voiceSetupServerPendingDescription:
+      "Microphone permission is ready. Voice channel connection will activate after the LiveKit and backend contracts are complete.",
+    voiceSetupServerPendingTitle: "Microphone permission ready",
+    voiceSetupTitle: "Prepare voice experience",
+    voiceSetupUnavailableDescription:
+      "This build could not complete microphone runtime setup; the app stays safely available.",
+    voiceSetupUnavailableTitle: "Voice setup could not finish",
     voiceTitle: "Voice rooms",
     unreadSuffix: "unread",
     workspaceChannelLoadFailed:

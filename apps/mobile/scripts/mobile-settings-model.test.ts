@@ -32,6 +32,21 @@ const labels = {
 };
 
 const features: MobileBootstrapPayload["features"] = {
+  attachments: {
+    label: "Attachments",
+    reason: "Mobile upload provider contract is pending.",
+    status: "requires-server-contract",
+  },
+  invites: {
+    label: "Invites",
+    reason: "Mobile invite acceptance endpoint is pending.",
+    status: "requires-server-contract",
+  },
+  messageSearch: {
+    label: "Message search",
+    reason: "Mobile search endpoints are available.",
+    status: "available",
+  },
   messages: {
     label: "Messages",
     status: "available",
@@ -59,11 +74,14 @@ describe("mobile settings display model", () => {
     const evidence = getMobileFeatureEvidence(features, labels);
 
     assert.deepEqual(summary, {
-      available: 2,
+      available: 3,
       disabled: 0,
-      pending: 2,
-      total: 4,
+      pending: 4,
+      total: 7,
     });
+    assert.equal(evidence.find((item) => item.id === "attachments")?.value, "Pending");
+    assert.equal(evidence.find((item) => item.id === "invites")?.value, "Pending");
+    assert.equal(evidence.find((item) => item.id === "messageSearch")?.value, "Ready");
     assert.equal(evidence.find((item) => item.id === "voice")?.tone, "warning");
     assert.equal(evidence.find((item) => item.id === "pushNotifications")?.value, "Pending");
   });

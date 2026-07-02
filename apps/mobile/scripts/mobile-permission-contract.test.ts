@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   createInitialMobilePermissionReadiness,
+  getMobilePermissionNativeMetadata,
   getPermissionReadinessForFeature,
   MOBILE_PERMISSION_INTENTS,
   summarizeMobilePermissionReadiness,
+  validateMobilePermissionContract,
 } from "../src/permissions/mobile-permission-contract";
 
 describe("mobile permission contract", () => {
@@ -14,6 +16,7 @@ describe("mobile permission contract", () => {
       MOBILE_PERMISSION_INTENTS.every((intent) => intent.promptPolicy === "after-user-action"),
       true,
     );
+    assert.deepEqual(validateMobilePermissionContract(), []);
   });
 
   it("starts permission readiness as unknown without pretending permissions are granted", () => {
@@ -61,6 +64,25 @@ describe("mobile permission contract", () => {
     assert.deepEqual(
       getPermissionReadinessForFeature(readiness, "attachments").map((item) => item.intent.id),
       ["photoLibrary"],
+    );
+  });
+
+  it("keeps runtime permissions aligned with native store metadata", () => {
+    const metadata = MOBILE_PERMISSION_INTENTS.map((intent) =>
+      getMobilePermissionNativeMetadata(intent.id),
+    );
+
+    assert.deepEqual(
+      metadata.map((item) => item.id),
+      ["notifications", "microphone", "camera", "photoLibrary"],
+    );
+    assert.equal(
+      metadata.every((item) => /only when|you choose|you can control/i.test(item.usageDescription)),
+      true,
+    );
+    assert.equal(
+      metadata.some((item) => item.androidPermission === "ACCESS_FINE_LOCATION"),
+      false,
     );
   });
 });

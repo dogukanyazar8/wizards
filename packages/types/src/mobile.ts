@@ -21,6 +21,27 @@ export const MobileBootstrapFeatureSchema = z.object({
   status: MobileBootstrapFeatureStatusSchema,
 });
 
+export const MOBILE_BOOTSTRAP_ATTACHMENTS_FEATURE_DEFAULT = {
+  label: "Attachments",
+  reason:
+    "Mobile can prepare local file selection, but native binary upload transport is gated until the mobile upload provider contract is complete.",
+  status: "requires-server-contract",
+} as const;
+
+export const MOBILE_BOOTSTRAP_INVITES_FEATURE_DEFAULT = {
+  label: "Invites",
+  reason:
+    "Mobile can validate safe invite deep links, but accepting invites inside the native app remains gated until the mobile invite acceptance endpoint is complete.",
+  status: "requires-server-contract",
+} as const;
+
+export const MOBILE_BOOTSTRAP_MESSAGE_SEARCH_FEATURE_DEFAULT = {
+  label: "Message search",
+  reason:
+    "Mobile message search waits until authenticated channel and direct-message search endpoints are advertised by the backend.",
+  status: "requires-server-contract",
+} as const;
+
 export const MobileBootstrapDeepLinkIntentSchema = z.enum([
   "auth-handoff",
   "invite",
@@ -141,6 +162,52 @@ export const MobileAuthVerificationEmailResponseSchema = z.object({
   status: z.literal("accepted"),
 });
 
+export const MobilePushProviderSchema = z.literal("expo");
+
+export const MobilePushPlatformSchema = z.enum(["android", "ios"]);
+
+const MobileExpoPushTokenSchema = z
+  .string()
+  .trim()
+  .min(16)
+  .max(512)
+  .regex(/^(?:Expo|Exponent)PushToken\[[A-Za-z0-9_-]{10,256}\]$/);
+
+export const MobilePushRegistrationRequestSchema = z
+  .object({
+    platform: MobilePushPlatformSchema,
+    provider: MobilePushProviderSchema,
+    token: MobileExpoPushTokenSchema,
+  })
+  .strict();
+
+export const MobilePushRegistrationResponseSchema = z.object({
+  provider: MobilePushProviderSchema,
+  registered: z.literal(true),
+  registeredAt: z.string().datetime(),
+  tokenFingerprint: z.string().min(32).max(96),
+});
+
+export const MobilePushRegistrationRevokeResponseSchema = z.object({
+  revoked: z.boolean(),
+  revokedAt: z.string().datetime(),
+});
+
+export const MobileVoiceTokenProviderSchema = z.literal("livekit");
+
+export const MobileVoiceTokenRequestSchema = z
+  .object({
+    channelId: z.string().min(1).max(128),
+  })
+  .strict();
+
+export const MobileVoiceTokenResponseSchema = z.object({
+  channelId: z.string().min(1).max(128),
+  provider: MobileVoiceTokenProviderSchema,
+  token: z.string().min(16).max(8192).regex(/^\S+$/),
+  url: z.string().min(1).max(512),
+});
+
 export const MobileBootstrapServerSummarySchema = z.object({
   channelCount: z.number().int().nonnegative(),
   iconUrl: z.string().url().nullable(),
@@ -184,6 +251,13 @@ export const MobileBootstrapPayloadSchema = z.object({
     permissions: z.array(MobileBootstrapPermissionIntentSchema).min(1),
   }),
   features: z.object({
+    attachments: MobileBootstrapFeatureSchema.default(
+      MOBILE_BOOTSTRAP_ATTACHMENTS_FEATURE_DEFAULT,
+    ),
+    invites: MobileBootstrapFeatureSchema.default(MOBILE_BOOTSTRAP_INVITES_FEATURE_DEFAULT),
+    messageSearch: MobileBootstrapFeatureSchema.default(
+      MOBILE_BOOTSTRAP_MESSAGE_SEARCH_FEATURE_DEFAULT,
+    ),
     messages: MobileBootstrapFeatureSchema,
     nativeAuthTokenExchange: MobileBootstrapFeatureSchema,
     pushNotifications: MobileBootstrapFeatureSchema,
@@ -355,3 +429,17 @@ export type MobileAuthVerificationEmailResponse = z.infer<
   typeof MobileAuthVerificationEmailResponseSchema
 >;
 export type MobileSessionSnapshotPayload = z.infer<typeof MobileSessionSnapshotSchema>;
+export type MobilePushProvider = z.infer<typeof MobilePushProviderSchema>;
+export type MobilePushPlatform = z.infer<typeof MobilePushPlatformSchema>;
+export type MobilePushRegistrationRequest = z.infer<
+  typeof MobilePushRegistrationRequestSchema
+>;
+export type MobilePushRegistrationResponse = z.infer<
+  typeof MobilePushRegistrationResponseSchema
+>;
+export type MobilePushRegistrationRevokeResponse = z.infer<
+  typeof MobilePushRegistrationRevokeResponseSchema
+>;
+export type MobileVoiceTokenProvider = z.infer<typeof MobileVoiceTokenProviderSchema>;
+export type MobileVoiceTokenRequest = z.infer<typeof MobileVoiceTokenRequestSchema>;
+export type MobileVoiceTokenResponse = z.infer<typeof MobileVoiceTokenResponseSchema>;

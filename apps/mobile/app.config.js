@@ -1,43 +1,15 @@
-import type { ConfigContext, ExpoConfig } from "expo/config";
-import pkg from "./package.json";
-import storeContractData from "./src/release/mobile-store-contract-data.json";
+"use strict";
+
+const pkg = require("./package.json");
+const storeContractData = require("./src/release/mobile-store-contract-data.json");
 
 const EAS_PROJECT_ID = "3b8b3f68-dd6c-4c9c-84e7-10ed8f4b2aad";
-const MOBILE_ENVIRONMENTS = ["development", "uat", "canary", "production"] as const;
-
-type MobileEnvironmentName = (typeof MOBILE_ENVIRONMENTS)[number];
-
-type MobilePublicConfig = {
-  apiUrl: string;
-  environment: MobileEnvironmentName;
-  releaseChannel: MobileEnvironmentName;
-  socketUrl: string;
-  webUrl: string;
-};
+const MOBILE_ENVIRONMENTS = ["development", "uat", "canary", "production"];
 
 const WHISPR_MOBILE_APP_IDENTITY = storeContractData.appIdentity;
 const WHISPR_MOBILE_ICON = storeContractData.icon;
 
-function getWhisprMobileAndroidPermissions(): string[] {
-  return storeContractData.permissionDisclosures.flatMap((disclosure) =>
-    disclosure.androidPermission ? [disclosure.androidPermission] : [],
-  );
-}
-
-function getWhisprMobileIosInfoPlistUsageDescriptions(): Record<string, string> {
-  return Object.fromEntries(
-    storeContractData.permissionDisclosures.flatMap((disclosure) =>
-      disclosure.iosInfoPlistKey
-        ? [[disclosure.iosInfoPlistKey, disclosure.usageDescription]]
-        : [],
-    ),
-  );
-}
-
-const DEFAULT_PUBLIC_ENV: Record<
-  MobileEnvironmentName,
-  Pick<MobilePublicConfig, "apiUrl" | "socketUrl" | "webUrl">
-> = {
+const DEFAULT_PUBLIC_ENV = {
   development: {
     apiUrl: "http://localhost:3000",
     socketUrl: "http://localhost:3000",
@@ -60,15 +32,27 @@ const DEFAULT_PUBLIC_ENV: Record<
   },
 };
 
-function readEnvironmentName(): MobileEnvironmentName {
-  const value = process.env.WHISPR_MOBILE_ENV;
-
-  return MOBILE_ENVIRONMENTS.includes(value as MobileEnvironmentName)
-    ? (value as MobileEnvironmentName)
-    : "development";
+function getWhisprMobileAndroidPermissions() {
+  return storeContractData.permissionDisclosures.flatMap((disclosure) =>
+    disclosure.androidPermission ? [disclosure.androidPermission] : [],
+  );
 }
 
-function normalizeUrl(value: string | undefined, fieldName: string): string {
+function getWhisprMobileIosInfoPlistUsageDescriptions() {
+  return Object.fromEntries(
+    storeContractData.permissionDisclosures.flatMap((disclosure) =>
+      disclosure.iosInfoPlistKey ? [[disclosure.iosInfoPlistKey, disclosure.usageDescription]] : [],
+    ),
+  );
+}
+
+function readEnvironmentName() {
+  const value = process.env.WHISPR_MOBILE_ENV;
+
+  return MOBILE_ENVIRONMENTS.includes(value) ? value : "development";
+}
+
+function normalizeUrl(value, fieldName) {
   const trimmed = value?.trim();
 
   if (!trimmed) {
@@ -84,7 +68,7 @@ function normalizeUrl(value: string | undefined, fieldName: string): string {
   }
 }
 
-function assertReleaseUrl(value: string, fieldName: string, environment: MobileEnvironmentName) {
+function assertReleaseUrl(value, fieldName, environment) {
   const url = new URL(value);
   const hostname = url.hostname.toLowerCase();
   const isLocalOrInvalid =
@@ -99,11 +83,13 @@ function assertReleaseUrl(value: string, fieldName: string, environment: MobileE
   }
 
   if (isLocalOrInvalid) {
-    throw new Error(`${fieldName} cannot point to local or invalid hosts for ${environment} builds.`);
+    throw new Error(
+      `${fieldName} cannot point to local or invalid hosts for ${environment} builds.`,
+    );
   }
 }
 
-function buildPublicConfig(environment: MobileEnvironmentName): MobilePublicConfig {
+function buildPublicConfig(environment) {
   const defaults = DEFAULT_PUBLIC_ENV[environment];
   const apiUrl = normalizeUrl(
     process.env.EXPO_PUBLIC_WHISPR_API_URL ?? defaults.apiUrl,
@@ -133,7 +119,7 @@ function buildPublicConfig(environment: MobileEnvironmentName): MobilePublicConf
   };
 }
 
-export default ({ config }: ConfigContext): ExpoConfig => {
+module.exports = ({ config }) => {
   const environment = readEnvironmentName();
   const publicConfig = buildPublicConfig(environment);
   const easProjectId = process.env.EXPO_PROJECT_ID ?? EAS_PROJECT_ID;

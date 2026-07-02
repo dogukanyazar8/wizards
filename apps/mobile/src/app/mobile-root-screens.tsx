@@ -1,9 +1,11 @@
 import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
 import type {
   ChatMessage,
+  MobileBootstrapFeature,
   MobileBootstrapPayload,
   MobileChannelMessagesResponse,
   MobileDMMessagesResponse,
+  MessageSearchResult,
   MobileWorkspaceChannelSummary,
 } from "@wizards/types";
 import {
@@ -16,30 +18,51 @@ import {
   View,
 } from "react-native";
 import type { MobileSessionDiagnostics } from "../auth/session-types";
+import { getMobileDevLoginCredentials } from "../auth/mobile-dev-login";
 import { MOBILE_BOOTSTRAP_ENDPOINT } from "../bootstrap/mobile-bootstrap";
 import { getMobileRuntimeConfig } from "../config/environment";
 import type { MobileDeepLinkParseResult } from "../deep-link/mobile-deep-links";
-import {
-  mobileColors,
-  mobileRadii,
-  mobileSizing,
-  mobileSpacing,
-} from "../design/tokens";
+import { mobileColors, mobileRadii, mobileSizing, mobileSpacing } from "../design/tokens";
 import { MOBILE_DM_MESSAGES_LIMIT } from "../dm/mobile-dm-client";
 import { mobileCopy } from "../locale/mobile-copy";
+import {
+  getMobileAttachmentDraftSendGuard,
+  summarizeMobileMediaRuntimeState,
+  type MobileMediaRuntimeState,
+} from "../media/mobile-media-contract";
+import { getMobileAttachmentUploadReadiness } from "../media/mobile-attachment-upload-contract";
+import {
+  getMobileInviteReadiness,
+  type MobileInviteReadiness,
+} from "../invite/mobile-invite-contract";
 import type { MobileTabId } from "../navigation/mobile-navigation";
+import {
+  summarizeMobileNotificationRuntimeState,
+  type MobileNotificationRuntimeState,
+} from "../notifications/mobile-notification-contract";
+import {
+  summarizeMobileVoiceRuntimeState,
+  type MobileVoiceRuntimeState,
+} from "../voice/mobile-voice-contract";
 import type {
   MobilePermissionIntentId,
   MobilePermissionReadiness,
   MobilePermissionSummary,
 } from "../permissions/mobile-permission-contract";
-import { getPermissionReadinessForFeature } from "../permissions/mobile-permission-contract";
+import {
+  getMobilePermissionNativeMetadata,
+  getPermissionReadinessForFeature,
+} from "../permissions/mobile-permission-contract";
 import {
   MOBILE_MANUAL_QA_CHECKS,
   MOBILE_QA_DEVICE_MATRIX,
   summarizeMobileQualityGate,
 } from "../quality/mobile-quality-gate";
 import { MOBILE_RELEASE_BUDGETS } from "../release/mobile-release-contract";
+import {
+  MOBILE_PRODUCTION_READINESS_GATES,
+  summarizeMobileProductionReadiness,
+} from "../release/mobile-production-readiness";
 import { validateMobileStoreReadiness } from "../release/mobile-store-contract";
 import {
   formatMobileSyncAge,
@@ -80,6 +103,7 @@ import type {
   MobileChannelSendViewState,
   MobileDMMessagesViewState,
   MobileDMSendViewState,
+  MobileMessageSearchViewState,
   MobileWorkspaceServerViewState,
 } from "./mobile-screen-state";
 import { INITIAL_CHANNEL_SEND_STATE, INITIAL_DM_SEND_STATE } from "./mobile-screen-state";
@@ -88,6 +112,7 @@ import { getVisibleMobileSyncHealth } from "./mobile-screen-sync";
 const copy = mobileCopy.tr;
 const runtimeConfig = getMobileRuntimeConfig();
 const mobileQualitySummary = summarizeMobileQualityGate();
+const mobileProductionReadinessSummary = summarizeMobileProductionReadiness();
 const mobileStoreReadiness = validateMobileStoreReadiness();
 
 const permissionLabels: Record<MobilePermissionIntentId, string> = {
@@ -117,6 +142,7 @@ const settingsEvidenceLabels = {
 const MOBILE_AUTH_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MOBILE_AUTH_USERNAME_PATTERN = /^[a-zA-Z0-9_]{2,32}$/;
 const MOBILE_AUTH_MIN_PASSWORD_LENGTH = 8;
+const MOBILE_SEARCH_RESULT_RENDER_LIMIT = 6;
 
 function normalizeMobileAuthInputEmail(value: string) {
   return value.trim().toLowerCase();
@@ -136,27 +162,41 @@ interface ActiveScreenProps {
   diagnostics: MobileSessionDiagnostics;
   error: string | null;
   lastDeepLink: MobileDeepLinkParseResult | null;
+  mediaState: MobileMediaRuntimeState;
+  messageSearchState: MobileMessageSearchViewState;
+  notificationState: MobileNotificationRuntimeState;
+  voiceState: MobileVoiceRuntimeState;
   onOpenDMConversation(conversationId: string): void;
   onCloseDMConversation(): void;
   onOpenWebRegister(): void;
   onOpenWebSignIn(): void;
   onOpenWorkspaceChannel(channel: MobileWorkspaceChannelSummary): void;
   onOpenWorkspaceServer(serverId: string): void;
+  onClearMessageSearch(): void;
+  onClearSelectedMediaAsset(): void;
+  onRequestCameraPermission(): Promise<void>;
+  onRequestDocumentPicker(): Promise<void>;
   onRefreshBootstrap(): void;
   onRefreshChannelMessages(): void;
   onRefreshDMConversation(): void;
   onRefreshWorkspaceServer(): void;
   onRefresh(): void;
   onRefreshVisibleData(): void;
+  onRequestNotificationPermission(): Promise<void>;
+  onRequestPhotoLibraryPermission(): Promise<void>;
+  onRequestVoicePermission(): Promise<void>;
   onSelectTab(tab: MobileTabId): void;
   onSendChannelMessage(content: string): Promise<boolean>;
   onSendDMMessage(content: string): Promise<boolean>;
+  onSearchMessages(input: {
+    conversationId: string;
+    query: string;
+    scope: "channel" | "dm";
+  }): Promise<void>;
   onSignOut(): void;
   permissionReadiness: readonly MobilePermissionReadiness[];
   permissionSummary: MobilePermissionSummary;
-  selectedDMConversation:
-    | MobileBootstrapPayload["home"]["directMessages"]["recent"][number]
-    | null;
+  selectedDMConversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number] | null;
   selectedDMConversationId: string | null;
   selectedWorkspaceChannelId: string | null;
   selectedWorkspaceServerId: string | null;
@@ -180,21 +220,33 @@ export function ActiveScreen({
   diagnostics,
   error,
   lastDeepLink,
+  mediaState,
+  messageSearchState,
+  notificationState,
+  voiceState,
   onOpenDMConversation,
   onCloseDMConversation,
   onOpenWebRegister,
   onOpenWebSignIn,
   onOpenWorkspaceChannel,
   onOpenWorkspaceServer,
+  onClearMessageSearch,
+  onClearSelectedMediaAsset,
+  onRequestCameraPermission,
+  onRequestDocumentPicker,
   onRefreshBootstrap,
   onRefreshChannelMessages,
   onRefreshDMConversation,
   onRefreshWorkspaceServer,
+  onRequestNotificationPermission,
+  onRequestPhotoLibraryPermission,
+  onRequestVoicePermission,
   onRefresh,
   onRefreshVisibleData,
   onSelectTab,
   onSendChannelMessage,
   onSendDMMessage,
+  onSearchMessages,
   onSignOut,
   permissionReadiness,
   permissionSummary,
@@ -229,11 +281,17 @@ export function ActiveScreen({
           selectedConversation={selectedDMConversation}
           selectedConversationId={selectedDMConversationId}
           syncHealth={syncHealth}
+          mediaState={mediaState}
+          messageSearchState={messageSearchState}
           onCloseConversation={onCloseDMConversation}
+          onClearMessageSearch={onClearMessageSearch}
+          onClearSelectedMediaAsset={onClearSelectedMediaAsset}
           onOpenConversation={onOpenDMConversation}
           onRefreshBootstrap={onRefreshBootstrap}
           onRefreshConversation={onRefreshDMConversation}
           onRefreshVisibleData={onRefreshVisibleData}
+          onRequestDocumentPicker={onRequestDocumentPicker}
+          onSearchMessages={onSearchMessages}
           onSendMessage={onSendDMMessage}
         />
       );
@@ -243,7 +301,9 @@ export function ActiveScreen({
           bootstrapState={bootstrapState}
           permissionReadiness={permissionReadiness}
           permissionSummary={permissionSummary}
+          voiceState={voiceState}
           syncHealth={syncHealth}
+          onRequestVoicePermission={onRequestVoicePermission}
           onRefreshBootstrap={onRefreshBootstrap}
           onRefreshVisibleData={onRefreshVisibleData}
         />
@@ -252,9 +312,11 @@ export function ActiveScreen({
       return (
         <NotificationsScreen
           bootstrapState={bootstrapState}
+          notificationState={notificationState}
           permissionReadiness={permissionReadiness}
           permissionSummary={permissionSummary}
           syncHealth={syncHealth}
+          onRequestNotificationPermission={onRequestNotificationPermission}
           onRefreshBootstrap={onRefreshBootstrap}
           onRefreshVisibleData={onRefreshVisibleData}
         />
@@ -268,6 +330,7 @@ export function ActiveScreen({
           diagnostics={diagnostics}
           error={error}
           lastDeepLink={lastDeepLink}
+          mediaState={mediaState}
           permissionReadiness={permissionReadiness}
           permissionSummary={permissionSummary}
           showDiagnostics={showDiagnostics}
@@ -279,6 +342,9 @@ export function ActiveScreen({
           onRefresh={onRefresh}
           onRefreshBootstrap={onRefreshBootstrap}
           onRefreshVisibleData={onRefreshVisibleData}
+          onRequestCameraPermission={onRequestCameraPermission}
+          onRequestDocumentPicker={onRequestDocumentPicker}
+          onRequestPhotoLibraryPermission={onRequestPhotoLibraryPermission}
           onSignOut={onSignOut}
           onToggleDiagnostics={() => setShowDiagnostics((value) => !value)}
         />
@@ -295,6 +361,10 @@ export function ActiveScreen({
           signedInUserLabel={signedInUserLabel}
           syncHealth={syncHealth}
           workspaceServerState={workspaceServerState}
+          mediaState={mediaState}
+          messageSearchState={messageSearchState}
+          onClearSelectedMediaAsset={onClearSelectedMediaAsset}
+          onClearMessageSearch={onClearMessageSearch}
           onOpenDMConversation={onOpenDMConversation}
           onOpenWorkspaceChannel={onOpenWorkspaceChannel}
           onOpenWorkspaceServer={onOpenWorkspaceServer}
@@ -302,6 +372,8 @@ export function ActiveScreen({
           onRefreshChannelMessages={onRefreshChannelMessages}
           onRefreshVisibleData={onRefreshVisibleData}
           onRefreshWorkspaceServer={onRefreshWorkspaceServer}
+          onRequestDocumentPicker={onRequestDocumentPicker}
+          onSearchMessages={onSearchMessages}
           onSendChannelMessage={onSendChannelMessage}
           onSelectTab={onSelectTab}
         />
@@ -313,29 +385,39 @@ function MessagesScreen({
   bootstrapState,
   dmMessagesState,
   dmSendState,
+  mediaState,
+  messageSearchState,
   selectedConversation,
   selectedConversationId,
   syncHealth,
+  onClearMessageSearch,
+  onClearSelectedMediaAsset,
   onOpenConversation,
   onCloseConversation,
   onRefreshBootstrap,
   onRefreshConversation,
   onRefreshVisibleData,
+  onRequestDocumentPicker,
+  onSearchMessages,
   onSendMessage,
 }: {
   bootstrapState: MobileBootstrapViewState;
   dmMessagesState: MobileDMMessagesViewState;
   dmSendState: MobileDMSendViewState;
-  selectedConversation:
-    | MobileBootstrapPayload["home"]["directMessages"]["recent"][number]
-    | null;
+  mediaState: MobileMediaRuntimeState;
+  messageSearchState: MobileMessageSearchViewState;
+  selectedConversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number] | null;
   selectedConversationId: string | null;
   syncHealth: MobileSyncHealthSummary;
+  onClearMessageSearch(): void;
+  onClearSelectedMediaAsset(): void;
   onCloseConversation(): void;
   onOpenConversation(conversationId: string): void;
   onRefreshBootstrap(): void;
   onRefreshConversation(): void;
   onRefreshVisibleData(): void;
+  onRequestDocumentPicker(): Promise<void>;
+  onSearchMessages(input: { conversationId: string; query: string; scope: "dm" }): Promise<void>;
   onSendMessage(content: string): Promise<boolean>;
 }) {
   const hasConversations =
@@ -345,18 +427,30 @@ function MessagesScreen({
     bootstrapState.status === "idle" ||
     (bootstrapState.status === "ready" &&
       bootstrapState.payload.home.directMessages.recent.length === 0);
+  const attachmentsFeature =
+    bootstrapState.status === "ready" ? bootstrapState.payload.features.attachments : null;
+  const messageSearchFeature =
+    bootstrapState.status === "ready" ? bootstrapState.payload.features.messageSearch : null;
 
   if (selectedConversation) {
     return (
       <DMConversationScreen
+        attachmentsFeature={attachmentsFeature}
         conversation={selectedConversation}
         currentUserId={bootstrapState.status === "ready" ? bootstrapState.payload.user.id : ""}
         sendState={dmSendState}
         state={dmMessagesState}
         syncHealth={syncHealth}
+        mediaState={mediaState}
+        messageSearchFeature={messageSearchFeature}
         onBack={onCloseConversation}
+        messageSearchState={messageSearchState}
+        onClearMessageSearch={onClearMessageSearch}
+        onClearSelectedMediaAsset={onClearSelectedMediaAsset}
         onRefreshConversation={onRefreshConversation}
         onRefreshVisibleData={onRefreshVisibleData}
+        onRequestDocumentPicker={onRequestDocumentPicker}
+        onSearchMessages={onSearchMessages}
         onSendMessage={onSendMessage}
       />
     );
@@ -394,24 +488,40 @@ function DMInboxHeader() {
 }
 
 function DMConversationScreen({
+  attachmentsFeature,
   conversation,
   currentUserId,
+  mediaState,
+  messageSearchFeature,
+  messageSearchState,
   onBack,
+  onClearMessageSearch,
+  onClearSelectedMediaAsset,
   onRefreshConversation,
   onRefreshVisibleData,
+  onRequestDocumentPicker,
+  onSearchMessages,
   onSendMessage,
   sendState,
   state,
   syncHealth,
 }: {
+  attachmentsFeature: MobileBootstrapFeature | null;
   conversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number];
   currentUserId: string;
+  mediaState: MobileMediaRuntimeState;
+  messageSearchFeature: MobileBootstrapFeature | null;
+  messageSearchState: MobileMessageSearchViewState;
   sendState: MobileDMSendViewState;
   state: MobileDMMessagesViewState;
   syncHealth: MobileSyncHealthSummary;
   onBack(): void;
+  onClearMessageSearch(): void;
+  onClearSelectedMediaAsset(): void;
   onRefreshConversation(): void;
   onRefreshVisibleData(): void;
+  onRequestDocumentPicker(): Promise<void>;
+  onSearchMessages(input: { conversationId: string; query: string; scope: "dm" }): Promise<void>;
   onSendMessage(content: string): Promise<boolean>;
 }) {
   const title = getMobileConversationTitle(conversation, copy.directMessageFallback);
@@ -426,10 +536,7 @@ function DMConversationScreen({
           accessibilityRole="button"
           accessibilityLabel={copy.dmBackAction}
           onPress={onBack}
-          style={({ pressed }) => [
-            styles.dmBackButton,
-            pressed && styles.actionButtonPressed,
-          ]}
+          style={({ pressed }) => [styles.dmBackButton, pressed && styles.actionButtonPressed]}
         >
           <Text style={styles.dmBackButtonText}>{"<"}</Text>
         </Pressable>
@@ -459,21 +566,31 @@ function DMConversationScreen({
           accessibilityRole="button"
           accessibilityLabel={copy.retryAction}
           onPress={onRefreshConversation}
-          style={({ pressed }) => [
-            styles.dmRefreshButton,
-            pressed && styles.actionButtonPressed,
-          ]}
+          style={({ pressed }) => [styles.dmRefreshButton, pressed && styles.actionButtonPressed]}
         >
           <Text style={styles.dmRefreshButtonText}>{copy.refreshShortAction}</Text>
         </Pressable>
       </View>
       <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
+      {messageSearchFeature?.status === "available" ? (
+        <MessageSearchPanel
+          conversationId={conversation.id}
+          scope="dm"
+          state={messageSearchState}
+          onClear={onClearMessageSearch}
+          onSearch={onSearchMessages}
+        />
+      ) : null}
       <DMConversationPreviewCard
+        attachmentsFeature={attachmentsFeature}
         conversation={conversation}
         currentUserId={currentUserId}
         sendState={sendState}
         state={state}
+        mediaState={mediaState}
+        onClearSelectedMediaAsset={onClearSelectedMediaAsset}
         onRetry={onRefreshConversation}
+        onRequestDocumentPicker={onRequestDocumentPicker}
         onSendMessage={onSendMessage}
       />
     </View>
@@ -484,14 +601,18 @@ function VoiceScreen({
   bootstrapState,
   permissionReadiness,
   permissionSummary,
+  voiceState,
   syncHealth,
+  onRequestVoicePermission,
   onRefreshBootstrap,
   onRefreshVisibleData,
 }: {
   bootstrapState: MobileBootstrapViewState;
   permissionReadiness: readonly MobilePermissionReadiness[];
   permissionSummary: MobilePermissionSummary;
+  voiceState: MobileVoiceRuntimeState;
   syncHealth: MobileSyncHealthSummary;
+  onRequestVoicePermission(): Promise<void>;
   onRefreshBootstrap(): void;
   onRefreshVisibleData(): void;
 }) {
@@ -516,23 +637,115 @@ function VoiceScreen({
         readiness={permissionReadiness}
         summary={permissionSummary}
       />
+      <VoiceRuntimeCard state={voiceState} onRequestPermission={onRequestVoicePermission} />
       <EmptyState tone="success" label={copy.voiceEmpty} />
     </ScreenShell>
   );
 }
 
+function VoiceRuntimeCard({
+  onRequestPermission,
+  state,
+}: {
+  state: MobileVoiceRuntimeState;
+  onRequestPermission(): Promise<void>;
+}) {
+  const summary = summarizeMobileVoiceRuntimeState(state);
+  const text = getMobileVoiceRuntimeText(state);
+  const canRequest =
+    summary.actionEnabled &&
+    state.status !== "native-module-pending" &&
+    state.status !== "blocked";
+
+  return (
+    <View
+      style={[
+        styles.notificationRuntimeCard,
+        summary.requiresNativeModule && styles.notificationRuntimeCardReady,
+        summary.isTerminalFailure && styles.notificationRuntimeCardWarning,
+      ]}
+    >
+      <View style={styles.notificationRuntimeHeader}>
+        <View style={styles.notificationRuntimeIcon}>
+          <Text style={styles.notificationRuntimeIconText}>V</Text>
+        </View>
+        <View style={styles.notificationRuntimeText}>
+          <Text style={styles.environmentLabel}>{copy.voiceSetupEyebrow}</Text>
+          <Text style={styles.notificationRuntimeTitle}>{text.title}</Text>
+          <Text style={styles.notificationRuntimeDescription}>{text.description}</Text>
+        </View>
+      </View>
+      {state.errorMessage ? (
+        <Text style={styles.notificationRuntimeError} numberOfLines={2}>
+          {state.errorMessage}
+        </Text>
+      ) : null}
+      <ActionButton
+        disabled={!canRequest}
+        label={state.status === "checking" ? copy.voiceSetupCheckingAction : copy.voiceSetupAction}
+        onPress={() => {
+          void onRequestPermission();
+        }}
+        variant={summary.isTerminalFailure ? "secondary" : "primary"}
+      />
+      <Text style={styles.notificationRuntimeFootnote}>{copy.voiceSetupFootnote}</Text>
+    </View>
+  );
+}
+
+function getMobileVoiceRuntimeText(state: MobileVoiceRuntimeState) {
+  switch (state.status) {
+    case "checking":
+      return {
+        description: copy.voiceSetupCheckingDescription,
+        title: copy.voiceSetupCheckingTitle,
+      };
+    case "native-module-pending":
+      return {
+        description: copy.voiceSetupNativePendingDescription,
+        title: copy.voiceSetupNativePendingTitle,
+      };
+    case "denied":
+      return {
+        description: copy.voiceSetupDeniedDescription,
+        title: copy.voiceSetupDeniedTitle,
+      };
+    case "blocked":
+      return {
+        description: copy.voiceSetupBlockedDescription,
+        title: copy.voiceSetupBlockedTitle,
+      };
+    case "error":
+    case "unavailable":
+      return {
+        description: copy.voiceSetupUnavailableDescription,
+        title: copy.voiceSetupUnavailableTitle,
+      };
+    case "not-requested":
+    default:
+      return {
+        description: copy.voiceSetupDescription,
+        title: copy.voiceSetupTitle,
+      };
+  }
+}
+
 function NotificationsScreen({
   bootstrapState,
+  notificationState,
   permissionReadiness,
   permissionSummary,
   syncHealth,
+  onRequestNotificationPermission,
   onRefreshBootstrap,
   onRefreshVisibleData,
 }: {
   bootstrapState: MobileBootstrapViewState;
+  notificationState: MobileNotificationRuntimeState;
   permissionReadiness: readonly MobilePermissionReadiness[];
   permissionSummary: MobilePermissionSummary;
   syncHealth: MobileSyncHealthSummary;
+  onRequestNotificationPermission(): Promise<void>;
   onRefreshBootstrap(): void;
   onRefreshVisibleData(): void;
 }) {
@@ -560,9 +773,331 @@ function NotificationsScreen({
         readiness={permissionReadiness}
         summary={permissionSummary}
       />
+      <NotificationRuntimeCard
+        state={notificationState}
+        onRequestPermission={onRequestNotificationPermission}
+      />
       <EmptyState tone="accent" label={copy.notificationsEmpty} />
     </ScreenShell>
   );
+}
+
+function NotificationRuntimeCard({
+  onRequestPermission,
+  state,
+}: {
+  state: MobileNotificationRuntimeState;
+  onRequestPermission(): Promise<void>;
+}) {
+  const summary = summarizeMobileNotificationRuntimeState(state);
+  const text = getMobileNotificationRuntimeText(state);
+  const canRequest =
+    summary.actionEnabled &&
+    state.status !== "registered" &&
+    state.status !== "server-contract-pending" &&
+    state.status !== "blocked";
+
+  return (
+    <View
+      style={[
+        styles.notificationRuntimeCard,
+        summary.isRegistered && styles.notificationRuntimeCardReady,
+        summary.isTerminalFailure && styles.notificationRuntimeCardWarning,
+      ]}
+    >
+      <View style={styles.notificationRuntimeHeader}>
+        <View style={styles.notificationRuntimeIcon}>
+          <Text style={styles.notificationRuntimeIconText}>N</Text>
+        </View>
+        <View style={styles.notificationRuntimeText}>
+          <Text style={styles.environmentLabel}>{copy.notificationSetupEyebrow}</Text>
+          <Text style={styles.notificationRuntimeTitle}>{text.title}</Text>
+          <Text style={styles.notificationRuntimeDescription}>{text.description}</Text>
+        </View>
+      </View>
+      {state.errorMessage ? (
+        <Text style={styles.notificationRuntimeError} numberOfLines={2}>
+          {state.errorMessage}
+        </Text>
+      ) : null}
+      {state.tokenFingerprint ? (
+        <Text style={styles.notificationRuntimeFootnote} numberOfLines={1}>
+          {copy.notificationSetupDeviceLabel}: {state.tokenFingerprint.slice(0, 12)}
+        </Text>
+      ) : null}
+      <ActionButton
+        disabled={!canRequest}
+        label={
+          state.status === "checking"
+            ? copy.notificationSetupCheckingAction
+            : copy.notificationSetupAction
+        }
+        onPress={() => {
+          void onRequestPermission();
+        }}
+        variant={summary.isTerminalFailure ? "secondary" : "primary"}
+      />
+      <Text style={styles.notificationRuntimeFootnote}>{copy.notificationSetupFootnote}</Text>
+    </View>
+  );
+}
+
+function getMobileNotificationRuntimeText(state: MobileNotificationRuntimeState) {
+  switch (state.status) {
+    case "checking":
+      return {
+        description: copy.notificationSetupCheckingDescription,
+        title: copy.notificationSetupCheckingTitle,
+      };
+    case "server-contract-pending":
+      return {
+        description: copy.notificationSetupServerPendingDescription,
+        title: copy.notificationSetupServerPendingTitle,
+      };
+    case "registered":
+      return {
+        description: copy.notificationSetupRegisteredDescription,
+        title: copy.notificationSetupRegisteredTitle,
+      };
+    case "registration-failed":
+      return {
+        description: copy.notificationSetupRegistrationFailedDescription,
+        title: copy.notificationSetupRegistrationFailedTitle,
+      };
+    case "denied":
+      return {
+        description: copy.notificationSetupDeniedDescription,
+        title: copy.notificationSetupDeniedTitle,
+      };
+    case "blocked":
+      return {
+        description: copy.notificationSetupBlockedDescription,
+        title: copy.notificationSetupBlockedTitle,
+      };
+    case "error":
+    case "unavailable":
+      return {
+        description: copy.notificationSetupUnavailableDescription,
+        title: copy.notificationSetupUnavailableTitle,
+      };
+    case "ready-local":
+      return {
+        description: copy.notificationSetupReadyLocalDescription,
+        title: copy.notificationSetupReadyLocalTitle,
+      };
+    case "not-requested":
+    default:
+      return {
+        description: copy.notificationSetupDescription,
+        title: copy.notificationSetupTitle,
+      };
+  }
+}
+
+function MediaRuntimeCard({
+  onRequestCameraPermission,
+  onRequestDocumentPicker,
+  onRequestPhotoLibraryPermission,
+  state,
+}: {
+  state: MobileMediaRuntimeState;
+  onRequestCameraPermission(): Promise<void>;
+  onRequestDocumentPicker(): Promise<void>;
+  onRequestPhotoLibraryPermission(): Promise<void>;
+}) {
+  const summary = summarizeMobileMediaRuntimeState(state);
+  const text = getMobileMediaRuntimeText(state);
+  const canRequestCamera =
+    summary.actionEnabled && state.cameraStatus !== "granted" && state.cameraStatus !== "blocked";
+  const canRequestPhotoLibrary =
+    summary.actionEnabled &&
+    state.photoLibraryStatus !== "granted" &&
+    state.photoLibraryStatus !== "blocked";
+  const canRequestDocumentPicker = summary.actionEnabled;
+
+  return (
+    <View
+      style={[
+        styles.notificationRuntimeCard,
+        (summary.localCameraReady || summary.localPhotoLibraryReady) &&
+          styles.notificationRuntimeCardReady,
+        summary.isTerminalFailure && styles.notificationRuntimeCardWarning,
+      ]}
+    >
+      <View style={styles.notificationRuntimeHeader}>
+        <View style={styles.notificationRuntimeIcon}>
+          <Text style={styles.notificationRuntimeIconText}>M</Text>
+        </View>
+        <View style={styles.notificationRuntimeText}>
+          <Text style={styles.environmentLabel}>{copy.mediaSetupEyebrow}</Text>
+          <Text style={styles.notificationRuntimeTitle}>{text.title}</Text>
+          <Text style={styles.notificationRuntimeDescription}>{text.description}</Text>
+        </View>
+      </View>
+      <View style={styles.mediaRuntimeStatusRow}>
+        <MediaRuntimeStatusPill label={copy.mediaSetupCameraLabel} status={state.cameraStatus} />
+        <MediaRuntimeStatusPill
+          label={copy.mediaSetupPhotoLibraryLabel}
+          status={state.photoLibraryStatus}
+        />
+        <MediaRuntimeStatusPill
+          label={copy.mediaSetupDocumentPickerLabel}
+          status={state.hasDocumentPickerAccess ? "granted" : "unknown"}
+        />
+      </View>
+      {state.selectedAsset ? (
+        <View style={styles.mediaSelectedAssetCard}>
+          <Text style={styles.mediaSelectedAssetLabel}>{copy.mediaSetupSelectedFileLabel}</Text>
+          <Text style={styles.mediaSelectedAssetName} numberOfLines={1}>
+            {state.selectedAsset.name}
+          </Text>
+          <Text style={styles.mediaSelectedAssetMeta} numberOfLines={1}>
+            {formatMobileMediaAssetMeta(state.selectedAsset)}
+          </Text>
+        </View>
+      ) : null}
+      {state.errorMessage ? (
+        <Text style={styles.notificationRuntimeError} numberOfLines={2}>
+          {state.errorMessage}
+        </Text>
+      ) : null}
+      <View style={styles.actionRow}>
+        <ActionButton
+          disabled={!canRequestPhotoLibrary}
+          label={
+            state.status === "checking-photo-library"
+              ? copy.mediaSetupCheckingAction
+              : copy.mediaSetupPhotoLibraryAction
+          }
+          onPress={() => {
+            void onRequestPhotoLibraryPermission();
+          }}
+          variant={summary.isTerminalFailure ? "secondary" : "primary"}
+        />
+        <ActionButton
+          disabled={!canRequestCamera}
+          label={
+            state.status === "checking-camera"
+              ? copy.mediaSetupCheckingAction
+              : copy.mediaSetupCameraAction
+          }
+          onPress={() => {
+            void onRequestCameraPermission();
+          }}
+          variant="secondary"
+        />
+        <ActionButton
+          disabled={!canRequestDocumentPicker}
+          label={
+            state.status === "checking-document-picker"
+              ? copy.mediaSetupCheckingAction
+              : copy.mediaSetupDocumentPickerAction
+          }
+          onPress={() => {
+            void onRequestDocumentPicker();
+          }}
+          variant="secondary"
+        />
+      </View>
+      <Text style={styles.notificationRuntimeFootnote}>{copy.mediaSetupFootnote}</Text>
+    </View>
+  );
+}
+
+function MediaRuntimeStatusPill({
+  label,
+  status,
+}: {
+  label: string;
+  status: MobilePermissionReadiness["status"];
+}) {
+  const tone = getPermissionStatusTone(status);
+
+  return (
+    <View style={styles.mediaRuntimeStatusPill}>
+      <View
+        style={[
+          styles.nativeSettingsDot,
+          tone === "success" && styles.nativeSettingsDotSuccess,
+          tone === "warning" && styles.nativeSettingsDotWarning,
+          tone === "danger" && styles.nativeSettingsDotDanger,
+        ]}
+      />
+      <View style={styles.mediaRuntimeStatusText}>
+        <Text style={styles.mediaRuntimeStatusLabel} numberOfLines={1}>
+          {label}
+        </Text>
+        <Text style={styles.mediaRuntimeStatusValue} numberOfLines={1}>
+          {getPermissionStatusLabel(status)}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function getMobileMediaRuntimeText(state: MobileMediaRuntimeState) {
+  switch (state.status) {
+    case "checking-camera":
+    case "checking-document-picker":
+    case "checking-photo-library":
+      return {
+        description: copy.mediaSetupCheckingDescription,
+        title: copy.mediaSetupCheckingTitle,
+      };
+    case "ready-local":
+      return {
+        description: copy.mediaSetupReadyDescription,
+        title: copy.mediaSetupReadyTitle,
+      };
+    case "denied":
+      return {
+        description: copy.mediaSetupDeniedDescription,
+        title: copy.mediaSetupDeniedTitle,
+      };
+    case "blocked":
+      return {
+        description: copy.mediaSetupBlockedDescription,
+        title: copy.mediaSetupBlockedTitle,
+      };
+    case "error":
+    case "unavailable":
+      return {
+        description: copy.mediaSetupUnavailableDescription,
+        title: copy.mediaSetupUnavailableTitle,
+      };
+    case "not-requested":
+    default:
+      return {
+        description: copy.mediaSetupDescription,
+        title: copy.mediaSetupTitle,
+      };
+  }
+}
+
+function formatMobileMediaAssetMeta(asset: MobileMediaRuntimeState["selectedAsset"]) {
+  if (!asset) {
+    return "";
+  }
+
+  const size =
+    asset.sizeBytes === null ? copy.mediaSetupUnknownFileSize : formatBytes(asset.sizeBytes);
+  const type = asset.mimeType ?? copy.mediaSetupUnknownFileType;
+
+  return `${type} - ${size}`;
+}
+
+function formatBytes(value: number) {
+  if (value < 1024) {
+    return `${value} B`;
+  }
+
+  const kilobytes = value / 1024;
+  if (kilobytes < 1024) {
+    return `${kilobytes.toFixed(kilobytes >= 10 ? 0 : 1)} KB`;
+  }
+
+  const megabytes = kilobytes / 1024;
+  return `${megabytes.toFixed(megabytes >= 10 ? 0 : 1)} MB`;
 }
 
 function ProfileSettingsScreen({
@@ -572,6 +1107,7 @@ function ProfileSettingsScreen({
   diagnostics,
   error,
   lastDeepLink,
+  mediaState,
   permissionReadiness,
   permissionSummary,
   showDiagnostics,
@@ -583,6 +1119,9 @@ function ProfileSettingsScreen({
   onRefresh,
   onRefreshBootstrap,
   onRefreshVisibleData,
+  onRequestCameraPermission,
+  onRequestDocumentPicker,
+  onRequestPhotoLibraryPermission,
   onSignOut,
   onToggleDiagnostics,
 }: {
@@ -592,6 +1131,7 @@ function ProfileSettingsScreen({
   diagnostics: MobileSessionDiagnostics;
   error: string | null;
   lastDeepLink: MobileDeepLinkParseResult | null;
+  mediaState: MobileMediaRuntimeState;
   permissionReadiness: readonly MobilePermissionReadiness[];
   permissionSummary: MobilePermissionSummary;
   showDiagnostics: boolean;
@@ -603,6 +1143,9 @@ function ProfileSettingsScreen({
   onRefresh(): void;
   onRefreshBootstrap(): void;
   onRefreshVisibleData(): void;
+  onRequestCameraPermission(): Promise<void>;
+  onRequestDocumentPicker(): Promise<void>;
+  onRequestPhotoLibraryPermission(): Promise<void>;
   onSignOut(): void;
   onToggleDiagnostics(): void;
 }) {
@@ -626,9 +1169,12 @@ function ProfileSettingsScreen({
         lastDeepLink={lastDeepLink}
         permissionSummary={permissionSummary}
       />
-      <SettingsNativePermissionCard
-        readiness={permissionReadiness}
-        summary={permissionSummary}
+      <SettingsNativePermissionCard readiness={permissionReadiness} summary={permissionSummary} />
+      <MediaRuntimeCard
+        state={mediaState}
+        onRequestCameraPermission={onRequestCameraPermission}
+        onRequestDocumentPicker={onRequestDocumentPicker}
+        onRequestPhotoLibraryPermission={onRequestPhotoLibraryPermission}
       />
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
       <View style={styles.actionRow}>
@@ -679,11 +1225,15 @@ function OverviewScreen({
   bootstrapState,
   channelMessagesState,
   channelSendState,
+  mediaState,
+  messageSearchState,
   selectedWorkspaceChannelId,
   selectedWorkspaceServerId,
   signedInUserLabel,
   syncHealth,
   workspaceServerState,
+  onClearMessageSearch,
+  onClearSelectedMediaAsset,
   onOpenDMConversation,
   onOpenWorkspaceChannel,
   onOpenWorkspaceServer,
@@ -691,17 +1241,23 @@ function OverviewScreen({
   onRefreshChannelMessages,
   onRefreshVisibleData,
   onRefreshWorkspaceServer,
+  onRequestDocumentPicker,
+  onSearchMessages,
   onSendChannelMessage,
   onSelectTab,
 }: {
   bootstrapState: MobileBootstrapViewState;
   channelMessagesState: MobileChannelMessagesViewState;
   channelSendState: MobileChannelSendViewState;
+  mediaState: MobileMediaRuntimeState;
+  messageSearchState: MobileMessageSearchViewState;
   selectedWorkspaceChannelId: string | null;
   selectedWorkspaceServerId: string | null;
   signedInUserLabel: string | null;
   syncHealth: MobileSyncHealthSummary;
   workspaceServerState: MobileWorkspaceServerViewState;
+  onClearMessageSearch(): void;
+  onClearSelectedMediaAsset(): void;
   onOpenDMConversation(conversationId: string): void;
   onOpenWorkspaceChannel(channel: MobileWorkspaceChannelSummary): void;
   onOpenWorkspaceServer(serverId: string): void;
@@ -709,9 +1265,20 @@ function OverviewScreen({
   onRefreshChannelMessages(): void;
   onRefreshVisibleData(): void;
   onRefreshWorkspaceServer(): void;
+  onRequestDocumentPicker(): Promise<void>;
+  onSearchMessages(input: {
+    conversationId: string;
+    query: string;
+    scope: "channel";
+  }): Promise<void>;
   onSendChannelMessage(content: string): Promise<boolean>;
   onSelectTab(tab: MobileTabId): void;
 }) {
+  const attachmentsFeature =
+    bootstrapState.status === "ready" ? bootstrapState.payload.features.attachments : null;
+  const messageSearchFeature =
+    bootstrapState.status === "ready" ? bootstrapState.payload.features.messageSearch : null;
+
   return (
     <View style={styles.homeScreen}>
       <HomeGreetingHeader
@@ -737,16 +1304,24 @@ function OverviewScreen({
       ) : null}
       {selectedWorkspaceServerId ? (
         <WorkspacePreviewCard
+          attachmentsFeature={attachmentsFeature}
           bootstrapState={bootstrapState}
           channelMessagesState={channelMessagesState}
           channelSendState={channelSendState}
+          mediaState={mediaState}
+          messageSearchFeature={messageSearchFeature}
+          messageSearchState={messageSearchState}
           selectedChannelId={selectedWorkspaceChannelId}
           selectedServerId={selectedWorkspaceServerId}
           serverState={workspaceServerState}
+          onClearMessageSearch={onClearMessageSearch}
+          onClearSelectedMediaAsset={onClearSelectedMediaAsset}
           onOpenChannel={onOpenWorkspaceChannel}
           onOpenServer={onOpenWorkspaceServer}
           onRefreshChannel={onRefreshChannelMessages}
           onRefreshServer={onRefreshWorkspaceServer}
+          onRequestDocumentPicker={onRequestDocumentPicker}
+          onSearchMessages={onSearchMessages}
           onSendChannelMessage={onSendChannelMessage}
         />
       ) : null}
@@ -795,6 +1370,7 @@ export function AuthGate({
   const [formNotice, setFormNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isVerificationSubmitting, setIsVerificationSubmitting] = useState(false);
+  const devLoginCredentials = getMobileDevLoginCredentials();
 
   const modeCopy =
     mode === "sign-in"
@@ -962,9 +1538,7 @@ export function AuthGate({
     try {
       const result = await onRequestVerificationEmail({ email: trimmedEmail });
       if (result.ok) {
-        setFormNotice(
-          copy.authNativeVerificationResendNotice.replace("{email}", result.email),
-        );
+        setFormNotice(copy.authNativeVerificationResendNotice.replace("{email}", result.email));
         setMode("sign-in");
       } else {
         setFormError(result.message || copy.authNativeGenericError);
@@ -972,6 +1546,20 @@ export function AuthGate({
     } finally {
       setIsVerificationSubmitting(false);
     }
+  };
+
+  const handleFillDevCredentials = () => {
+    if (!devLoginCredentials || isSubmitting) {
+      return;
+    }
+
+    setMode("sign-in");
+    setEmail(devLoginCredentials.email);
+    setPassword(devLoginCredentials.password);
+    setConfirmPassword("");
+    setUsername("");
+    setFormError(null);
+    setFormNotice(copy.authNativeDevCredentialsFilled);
   };
 
   return (
@@ -1087,6 +1675,22 @@ export function AuthGate({
             ) : null}
             {formError ? <Text style={styles.authFormError}>{formError}</Text> : null}
             {formNotice ? <Text style={styles.authFormNotice}>{formNotice}</Text> : null}
+            {devLoginCredentials && mode === "sign-in" ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={copy.authNativeDevFillAction}
+                disabled={isSubmitting}
+                onPress={handleFillDevCredentials}
+                style={({ pressed }) => [
+                  styles.authDevFillButton,
+                  (pressed || isSubmitting) && styles.actionButtonPressed,
+                ]}
+              >
+                <Text style={styles.authDevFillButtonText}>
+                  {copy.authNativeDevFillAction}
+                </Text>
+              </Pressable>
+            ) : null}
             <ActionButton
               disabled={isSubmitting}
               label={isSubmitting ? copy.authNativeSubmitting : modeCopy.action}
@@ -1224,10 +1828,7 @@ function SettingsAccountCard({
   signedInUserLabel: string | null;
   status: string;
 }) {
-  const user =
-    bootstrapState.status === "ready"
-      ? bootstrapState.payload.user
-      : null;
+  const user = bootstrapState.status === "ready" ? bootstrapState.payload.user : null;
   const displayName =
     user?.displayName ?? signedInUserLabel ?? user?.username ?? copy.settingsAccountSignedOut;
   const releaseLabel =
@@ -1273,11 +1874,19 @@ function SettingsMobileOverviewCard({
   const hasHealthySession = diagnostics.hasSession && !diagnostics.isExpired;
   const messagesFeature =
     bootstrapState.status === "ready" ? bootstrapState.payload.features.messages : null;
+  const messageSearchFeature =
+    bootstrapState.status === "ready" ? bootstrapState.payload.features.messageSearch : null;
   const notificationsFeature =
     bootstrapState.status === "ready" ? bootstrapState.payload.features.pushNotifications : null;
   const voiceFeature =
     bootstrapState.status === "ready" ? bootstrapState.payload.features.voice : null;
+  const invitesFeature =
+    bootstrapState.status === "ready" ? bootstrapState.payload.features.invites : null;
   const deepLinkStatus = getDeepLinkStatusLabel(lastDeepLink);
+  const inviteReadiness = getMobileInviteReadiness({
+    invitesFeature,
+    lastDeepLink,
+  });
   const rows: NativeSettingsRowItem[] = [
     {
       description: hasHealthySession
@@ -1297,6 +1906,14 @@ function SettingsMobileOverviewCard({
     },
     {
       description:
+        messageSearchFeature?.reason ?? copy.settingsMobileSearchDescription,
+      id: "message-search",
+      label: copy.settingsMobileSearchTitle,
+      tone: getFeatureStatusTone(messageSearchFeature?.status),
+      value: getFeatureStatusLabel(messageSearchFeature?.status),
+    },
+    {
+      description:
         notificationsFeature?.reason ??
         `${permissionSummary.needsUserAction} ${copy.settingsMobilePermissionNeedsActionSuffix}`,
       id: "notifications",
@@ -1310,6 +1927,13 @@ function SettingsMobileOverviewCard({
       label: copy.settingsMobileVoiceTitle,
       tone: getFeatureStatusTone(voiceFeature?.status),
       value: getFeatureStatusLabel(voiceFeature?.status),
+    },
+    {
+      description: getInviteReadinessDescription(inviteReadiness),
+      id: "invites",
+      label: copy.settingsMobileInvitesTitle,
+      tone: getInviteReadinessTone(inviteReadiness),
+      value: getInviteReadinessValue(inviteReadiness),
     },
     {
       description: deepLinkStatus.description,
@@ -1337,13 +1961,17 @@ function SettingsNativePermissionCard({
   readiness: readonly MobilePermissionReadiness[];
   summary: MobilePermissionSummary;
 }) {
-  const rows: NativeSettingsRowItem[] = readiness.map((item) => ({
-    description: copy.settingsMobilePermissionDescription,
-    id: item.intent.id,
-    label: permissionLabels[item.intent.id],
-    tone: getPermissionStatusTone(item.status),
-    value: getPermissionStatusLabel(item.status),
-  }));
+  const rows: NativeSettingsRowItem[] = readiness.map((item) => {
+    const metadata = getMobilePermissionNativeMetadata(item.intent.id);
+
+    return {
+      description: metadata.usageDescription,
+      id: item.intent.id,
+      label: permissionLabels[item.intent.id],
+      tone: getPermissionStatusTone(item.status),
+      value: getPermissionStatusLabel(item.status),
+    };
+  });
 
   return (
     <SettingsSection
@@ -1517,11 +2145,7 @@ function SettingsFeatureReadinessCard({
   );
 }
 
-function SettingsPermissionEvidenceCard({
-  summary,
-}: {
-  summary: MobilePermissionSummary;
-}) {
+function SettingsPermissionEvidenceCard({ summary }: { summary: MobilePermissionSummary }) {
   const evidence = getMobilePermissionEvidence(summary, settingsEvidenceLabels);
 
   return (
@@ -1552,6 +2176,7 @@ function DeveloperDiagnosticsCard({
       <BootstrapContractCard />
       <ReleaseReadinessCard />
       <StoreReadinessCard />
+      <ProductionReadinessCard />
       <MobileQualityGateCard />
     </View>
   );
@@ -1580,10 +2205,7 @@ function SettingsReleaseQualityCard() {
           label={copy.qualityManualLabel}
           value={mobileQualitySummary.manualCheckCount}
         />
-        <MetricMiniPill
-          label={copy.qualityDeviceLabel}
-          value={mobileQualitySummary.targetCount}
-        />
+        <MetricMiniPill label={copy.qualityDeviceLabel} value={mobileQualitySummary.targetCount} />
       </View>
       <SettingsEvidenceList items={[...releaseEvidence, ...storeEvidence]} />
     </SettingsSection>
@@ -1643,10 +2265,7 @@ function BootstrapStateNotice({
           accessibilityRole="button"
           accessibilityLabel={copy.retryAction}
           onPress={onRetry}
-          style={({ pressed }) => [
-            styles.retryButton,
-            pressed && styles.actionButtonPressed,
-          ]}
+          style={({ pressed }) => [styles.retryButton, pressed && styles.actionButtonPressed]}
         >
           <Text style={styles.retryButtonText}>{copy.retryAction}</Text>
         </Pressable>
@@ -1690,9 +2309,7 @@ function MobileSyncHealthBanner({
           {isError ? copy.syncHealthErrorTitle : copy.syncHealthRefreshingTitle}
         </Text>
         <Text style={styles.syncHealthDescription} numberOfLines={2}>
-          {isError
-            ? copy.syncHealthErrorDescription
-            : copy.syncHealthRefreshingDescription}
+          {isError ? copy.syncHealthErrorDescription : copy.syncHealthRefreshingDescription}
         </Text>
       </View>
       {isError ? (
@@ -1977,11 +2594,7 @@ function HomeQuickActionsCard({
                 ]}
               >
                 <Text style={styles.continueActionIconText}>
-                  {action.kind === "direct-message"
-                    ? "DM"
-                    : action.kind === "server"
-                      ? "#"
-                      : "VO"}
+                  {action.kind === "direct-message" ? "DM" : action.kind === "server" ? "#" : "VO"}
                 </Text>
               </View>
               <View style={styles.continueActionText}>
@@ -2029,9 +2642,7 @@ function RecentServersCard({
               key={server.id}
               accessibilityRole={onOpenServer ? "button" : undefined}
               accessibilityLabel={
-                onOpenServer
-                  ? `${copy.openWorkspaceServerAction}: ${server.name}`
-                  : server.name
+                onOpenServer ? `${copy.openWorkspaceServerAction}: ${server.name}` : server.name
               }
               accessibilityState={{ selected: server.id === selectedServerId }}
               disabled={!onOpenServer}
@@ -2064,25 +2675,45 @@ function RecentServersCard({
 }
 
 function WorkspacePreviewCard({
+  attachmentsFeature,
   bootstrapState,
   channelMessagesState,
   channelSendState,
+  mediaState,
+  messageSearchFeature,
+  messageSearchState,
+  onClearMessageSearch,
+  onClearSelectedMediaAsset,
   onOpenChannel,
   onOpenServer,
   onRefreshChannel,
   onRefreshServer,
+  onRequestDocumentPicker,
+  onSearchMessages,
   onSendChannelMessage,
   selectedChannelId,
   selectedServerId,
   serverState,
 }: {
+  attachmentsFeature: MobileBootstrapFeature | null;
   bootstrapState: MobileBootstrapViewState;
   channelMessagesState: MobileChannelMessagesViewState;
   channelSendState: MobileChannelSendViewState;
+  mediaState: MobileMediaRuntimeState;
+  messageSearchFeature: MobileBootstrapFeature | null;
+  messageSearchState: MobileMessageSearchViewState;
+  onClearMessageSearch(): void;
+  onClearSelectedMediaAsset(): void;
   onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
   onOpenServer(serverId: string): void;
   onRefreshChannel(): void;
   onRefreshServer(): void;
+  onRequestDocumentPicker(): Promise<void>;
+  onSearchMessages(input: {
+    conversationId: string;
+    query: string;
+    scope: "channel";
+  }): Promise<void>;
   onSendChannelMessage(content: string): Promise<boolean>;
   selectedChannelId: string | null;
   selectedServerId: string | null;
@@ -2094,9 +2725,9 @@ function WorkspacePreviewCard({
 
   const selectedChannel =
     serverState.status === "ready" && selectedChannelId
-      ? getMobileWorkspaceChannels(serverState.payload.detail).find(
+      ? (getMobileWorkspaceChannels(serverState.payload.detail).find(
           (channel) => channel.id === selectedChannelId,
-        ) ?? null
+        ) ?? null)
       : null;
 
   return (
@@ -2111,10 +2742,7 @@ function WorkspacePreviewCard({
             accessibilityRole="button"
             accessibilityLabel={copy.retryAction}
             onPress={onRefreshServer}
-            style={({ pressed }) => [
-              styles.dmRefreshButton,
-              pressed && styles.actionButtonPressed,
-            ]}
+            style={({ pressed }) => [styles.dmRefreshButton, pressed && styles.actionButtonPressed]}
           >
             <Text style={styles.dmRefreshButtonText}>{copy.refreshShortAction}</Text>
           </Pressable>
@@ -2138,10 +2766,7 @@ function WorkspacePreviewCard({
             accessibilityRole="button"
             accessibilityLabel={copy.retryAction}
             onPress={onRefreshServer}
-            style={({ pressed }) => [
-              styles.retryButton,
-              pressed && styles.actionButtonPressed,
-            ]}
+            style={({ pressed }) => [styles.retryButton, pressed && styles.actionButtonPressed]}
           >
             <Text style={styles.retryButtonText}>{copy.retryAction}</Text>
           </Pressable>
@@ -2156,7 +2781,10 @@ function WorkspacePreviewCard({
         <>
           <View style={styles.workspaceSelectedServer}>
             <AvatarMark
-              label={serverState.payload.detail.server.shortName ?? serverState.payload.detail.server.name}
+              label={
+                serverState.payload.detail.server.shortName ??
+                serverState.payload.detail.server.name
+              }
               imageUrl={serverState.payload.detail.server.iconUrl}
               size="large"
             />
@@ -2194,11 +2822,19 @@ function WorkspacePreviewCard({
             <EmptyState tone="success" label={copy.workspaceVoiceUnavailable} />
           ) : selectedChannel?.type === "TEXT" ? (
             <ChannelMessagesPreviewCard
+              attachmentsFeature={attachmentsFeature}
               channel={selectedChannel}
               currentUserId={bootstrapState.payload.user.id}
+              mediaState={mediaState}
+              messageSearchFeature={messageSearchFeature}
+              messageSearchState={messageSearchState}
               sendState={channelSendState}
               state={channelMessagesState}
+              onClearMessageSearch={onClearMessageSearch}
+              onClearSelectedMediaAsset={onClearSelectedMediaAsset}
               onRetry={onRefreshChannel}
+              onRequestDocumentPicker={onRequestDocumentPicker}
+              onSearchMessages={onSearchMessages}
               onSendMessage={onSendChannelMessage}
             />
           ) : (
@@ -2223,10 +2859,7 @@ function WorkspaceChannelList({
     return <Text style={styles.contractDescription}>{copy.workspaceNoChannels}</Text>;
   }
 
-  const visibleChannels = getBoundedMobileList(
-    channels,
-    MOBILE_RENDER_LIMITS.channels,
-  );
+  const visibleChannels = getBoundedMobileList(channels, MOBILE_RENDER_LIMITS.channels);
 
   return (
     <View style={styles.workspaceChannelList}>
@@ -2249,9 +2882,7 @@ function WorkspaceChannelList({
               pressed && styles.compactListRowPressed,
             ]}
           >
-            <Text style={styles.workspaceChannelIcon}>
-              {channel.type === "TEXT" ? "#" : "V"}
-            </Text>
+            <Text style={styles.workspaceChannelIcon}>{channel.type === "TEXT" ? "#" : "V"}</Text>
             <View style={styles.compactListText}>
               <View style={styles.compactListTitleRow}>
                 <Text style={styles.compactListTitle} numberOfLines={1}>
@@ -2262,7 +2893,10 @@ function WorkspaceChannelList({
                 ) : null}
               </View>
               <View style={styles.dmMetaRow}>
-                <StatusChip label={typeLabel} tone={channel.type === "VOICE" ? "success" : "muted"} />
+                <StatusChip
+                  label={typeLabel}
+                  tone={channel.type === "VOICE" ? "success" : "muted"}
+                />
                 {channel.categoryName ? (
                   <StatusChip label={channel.categoryName} tone="muted" />
                 ) : null}
@@ -2285,16 +2919,36 @@ function WorkspaceChannelList({
 }
 
 function ChannelMessagesPreviewCard({
+  attachmentsFeature,
   channel,
   currentUserId,
+  mediaState,
+  messageSearchFeature,
+  messageSearchState,
+  onClearMessageSearch,
+  onClearSelectedMediaAsset,
   onRetry,
+  onRequestDocumentPicker,
+  onSearchMessages,
   onSendMessage,
   sendState,
   state,
 }: {
+  attachmentsFeature: MobileBootstrapFeature | null;
   channel: MobileWorkspaceChannelSummary;
   currentUserId: string;
+  mediaState: MobileMediaRuntimeState;
+  messageSearchFeature: MobileBootstrapFeature | null;
+  messageSearchState: MobileMessageSearchViewState;
+  onClearMessageSearch(): void;
+  onClearSelectedMediaAsset(): void;
   onRetry(): void;
+  onRequestDocumentPicker(): Promise<void>;
+  onSearchMessages(input: {
+    conversationId: string;
+    query: string;
+    scope: "channel";
+  }): Promise<void>;
   onSendMessage(content: string): Promise<boolean>;
   sendState: MobileChannelSendViewState;
   state: MobileChannelMessagesViewState;
@@ -2326,14 +2980,21 @@ function ChannelMessagesPreviewCard({
           accessibilityRole="button"
           accessibilityLabel={copy.retryAction}
           onPress={onRetry}
-          style={({ pressed }) => [
-            styles.dmRefreshButton,
-            pressed && styles.actionButtonPressed,
-          ]}
+          style={({ pressed }) => [styles.dmRefreshButton, pressed && styles.actionButtonPressed]}
         >
           <Text style={styles.dmRefreshButtonText}>{copy.refreshShortAction}</Text>
         </Pressable>
       </View>
+
+      {messageSearchFeature?.status === "available" ? (
+        <MessageSearchPanel
+          conversationId={channel.id}
+          scope="channel"
+          state={messageSearchState}
+          onClear={onClearMessageSearch}
+          onSearch={onSearchMessages}
+        />
+      ) : null}
 
       {state.status === "loading" && !state.payload ? (
         <Text style={styles.contractDescription}>{copy.workspaceMessagesLoading}</Text>
@@ -2345,30 +3006,28 @@ function ChannelMessagesPreviewCard({
             accessibilityRole="button"
             accessibilityLabel={copy.retryAction}
             onPress={onRetry}
-            style={({ pressed }) => [
-              styles.retryButton,
-              pressed && styles.actionButtonPressed,
-            ]}
+            style={({ pressed }) => [styles.retryButton, pressed && styles.actionButtonPressed]}
           >
             <Text style={styles.retryButtonText}>{copy.retryAction}</Text>
           </Pressable>
         </View>
       ) : null}
       {state.payload && state.payload.messages.length > 0 ? (
-        <MessageStream
-          currentUserId={currentUserId}
-          messages={state.payload.messages}
-        />
+        <MessageStream currentUserId={currentUserId} messages={state.payload.messages} />
       ) : null}
       {state.status === "ready" && state.payload.messages.length === 0 ? (
         <Text style={styles.contractDescription}>{copy.workspaceNoMessages}</Text>
       ) : null}
       {state.status === "ready" ? (
         <DMComposer
+          attachmentsFeature={attachmentsFeature}
           placeholder={copy.channelComposerPlaceholder}
           sendActionLabel={copy.channelSendAction}
           sendState={channelSendState}
           sendingActionLabel={copy.channelSendingAction}
+          mediaState={mediaState}
+          onClearSelectedMediaAsset={onClearSelectedMediaAsset}
+          onRequestDocumentPicker={onRequestDocumentPicker}
           onSend={onSendMessage}
         />
       ) : null}
@@ -2376,9 +3035,181 @@ function ChannelMessagesPreviewCard({
   );
 }
 
-type MobileRenderableMessage =
-  | ChatMessage
-  | MobileDMMessagesResponse["messages"][number];
+function isMessageSearchStateForContext(
+  state: MobileMessageSearchViewState,
+  scope: "channel" | "dm",
+  conversationId: string,
+) {
+  return state.context?.scope === scope && state.context.conversationId === conversationId;
+}
+
+function MessageSearchPanel({
+  conversationId,
+  onClear,
+  onSearch,
+  scope,
+  state,
+}: {
+  conversationId: string;
+  onClear(): void;
+  onSearch(input: {
+    conversationId: string;
+    query: string;
+    scope: "channel" | "dm";
+  }): Promise<void>;
+  scope: "channel" | "dm";
+  state: MobileMessageSearchViewState;
+}) {
+  const [draft, setDraft] = useState("");
+  const normalizedDraft = draft.trim().replace(/\s+/g, " ");
+  const isActiveContext = isMessageSearchStateForContext(state, scope, conversationId);
+  const canSearch = normalizedDraft.length >= 2;
+
+  const handleSearch = useCallback(() => {
+    if (!canSearch) {
+      return;
+    }
+
+    void onSearch({
+      conversationId,
+      query: normalizedDraft,
+      scope,
+    });
+  }, [canSearch, conversationId, normalizedDraft, onSearch, scope]);
+
+  const handleClear = useCallback(() => {
+    setDraft("");
+    onClear();
+  }, [onClear]);
+
+  return (
+    <View style={styles.messageSearchCard}>
+      <View style={styles.messageSearchInputShell}>
+        <Text style={styles.messageSearchIcon}>{copy.directMessageSearchLabel}</Text>
+        <TextInput
+          accessibilityLabel={copy.messageSearchPlaceholder}
+          autoCapitalize="none"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+          onChangeText={setDraft}
+          onSubmitEditing={handleSearch}
+          placeholder={copy.messageSearchPlaceholder}
+          placeholderTextColor={mobileColors.mutedSoft}
+          returnKeyType="search"
+          style={styles.messageSearchInput}
+          value={draft}
+        />
+        {draft.length > 0 || isActiveContext ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.messageSearchClearAction}
+            onPress={handleClear}
+            style={({ pressed }) => [
+              styles.messageSearchClearButton,
+              pressed && styles.actionButtonPressed,
+            ]}
+          >
+            <Text style={styles.messageSearchClearText}>x</Text>
+          </Pressable>
+        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.messageSearchAction}
+          accessibilityState={{ disabled: !canSearch }}
+          disabled={!canSearch}
+          onPress={handleSearch}
+          style={({ pressed }) => [
+            styles.messageSearchButton,
+            !canSearch && styles.messageSearchButtonDisabled,
+            pressed && canSearch && styles.actionButtonPressed,
+          ]}
+        >
+          <Text style={styles.messageSearchButtonText}>{copy.messageSearchAction}</Text>
+        </Pressable>
+      </View>
+      {!canSearch && draft.trim().length > 0 ? (
+        <Text style={styles.messageSearchHelperText}>{copy.messageSearchHelper}</Text>
+      ) : null}
+      {isActiveContext ? <MessageSearchResults state={state} /> : null}
+    </View>
+  );
+}
+
+function MessageSearchResults({ state }: { state: MobileMessageSearchViewState }) {
+  if (state.status === "loading" && !state.payload) {
+    return (
+      <View style={styles.messageSearchStatusRow}>
+        <ActivityIndicator color={mobileColors.accentStrong} size="small" />
+        <Text style={styles.messageSearchStatusText}>{copy.messageSearchLoading}</Text>
+      </View>
+    );
+  }
+
+  if (state.status === "error") {
+    return <Text style={styles.messageSearchErrorText}>{state.error}</Text>;
+  }
+
+  if ((state.status !== "ready" && state.status !== "loading") || !state.payload) {
+    return null;
+  }
+
+  const visibleResults = state.payload.results.slice(0, MOBILE_SEARCH_RESULT_RENDER_LIMIT);
+
+  return (
+    <View style={styles.messageSearchResults}>
+      <View style={styles.messageSearchResultsHeader}>
+        <Text style={styles.messageSearchResultsTitle}>{copy.messageSearchResultsTitle}</Text>
+        <Text style={styles.messageSearchResultCount}>{state.payload.results.length}</Text>
+      </View>
+      {visibleResults.length > 0 ? (
+        <View style={styles.messageSearchResultList}>
+          {visibleResults.map((result) => (
+            <MessageSearchResultRow key={result.id} result={result} />
+          ))}
+        </View>
+      ) : (
+        <Text style={styles.messageSearchHelperText}>{copy.messageSearchEmpty}</Text>
+      )}
+      {state.payload.nextCursor ? (
+        <Text style={styles.messageSearchHelperText}>{copy.messageSearchMoreResults}</Text>
+      ) : null}
+    </View>
+  );
+}
+
+function MessageSearchResultRow({ result }: { result: MessageSearchResult }) {
+  const authorLabel = result.author.displayName ?? result.author.username;
+  const body = result.content.trim() || copy.dmAttachmentOnlyMessage;
+
+  return (
+    <View style={styles.messageSearchResultRow}>
+      <AvatarMark
+        label={authorLabel}
+        imageUrl={result.author.avatarUrl}
+        size="small"
+        status={result.author.status === "ONLINE" ? "active" : "idle"}
+      />
+      <View style={styles.messageSearchResultText}>
+        <View style={styles.dmMessageHeader}>
+          <Text style={styles.dmMessageAuthor} numberOfLines={1}>
+            {authorLabel}
+          </Text>
+          <Text style={styles.dmMessageTime}>{formatMobileDisplayTime(result.createdAt)}</Text>
+        </View>
+        <Text style={styles.messageSearchResultBody} numberOfLines={3}>
+          {body}
+        </Text>
+        {result.channelName ? (
+          <Text style={styles.messageSearchResultMeta} numberOfLines={1}>
+            # {result.channelName}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+type MobileRenderableMessage = ChatMessage | MobileDMMessagesResponse["messages"][number];
 
 type MobileRenderableAttachment = MobileRenderableMessage["attachments"][number];
 
@@ -2489,11 +3320,7 @@ function MessageAttachmentList({
   );
 }
 
-function MessageReactionList({
-  reactions,
-}: {
-  reactions: MobileRenderableMessage["reactions"];
-}) {
+function MessageReactionList({ reactions }: { reactions: MobileRenderableMessage["reactions"] }) {
   if (reactions.length === 0) {
     return null;
   }
@@ -2562,7 +3389,7 @@ function MessagePreviewRow({
       <View style={[styles.messagePreviewBubble, own && styles.messagePreviewBubbleOwn]}>
         <View style={styles.dmMessageHeader}>
           <Text style={styles.dmMessageAuthor} numberOfLines={1}>
-            {own ? copy.messageYouLabel : message.author.displayName ?? message.author.username}
+            {own ? copy.messageYouLabel : (message.author.displayName ?? message.author.username)}
           </Text>
           <Text style={styles.dmMessageTime}>{formatMobileDisplayTime(message.createdAt)}</Text>
         </View>
@@ -2603,11 +3430,7 @@ function DirectMessageListCard({
     [conversations, filter, query],
   );
   const visibleConversations = useMemo(
-    () =>
-      getBoundedMobileList(
-        filteredConversations,
-        MOBILE_RENDER_LIMITS.conversations,
-      ),
+    () => getBoundedMobileList(filteredConversations, MOBILE_RENDER_LIMITS.conversations),
     [filteredConversations],
   );
   const filters: Array<{
@@ -2696,10 +3519,7 @@ function DirectMessageListCard({
       </Text>
       <View style={styles.compactList}>
         {visibleConversations.map((conversation) => {
-          const title = getMobileConversationTitle(
-            conversation,
-            copy.directMessageFallback,
-          );
+          const title = getMobileConversationTitle(conversation, copy.directMessageFallback);
           const isSelected = conversation.id === selectedConversationId;
           const activeCount = getMobileConversationActiveCount(conversation);
           const lastActivity = formatMobileDisplayTime(conversation.lastMessageAt);
@@ -2721,10 +3541,7 @@ function DirectMessageListCard({
               ]}
             >
               <AvatarMark
-                label={getMobileConversationInitialsLabel(
-                  conversation,
-                  copy.directMessageFallback,
-                )}
+                label={getMobileConversationInitialsLabel(conversation, copy.directMessageFallback)}
                 imageUrl={getMobileConversationAvatarUrl(conversation)}
                 status={activeCount > 0 ? "active" : "idle"}
               />
@@ -2733,9 +3550,7 @@ function DirectMessageListCard({
                   <Text style={styles.compactListTitle} numberOfLines={1}>
                     {title || copy.directMessageFallback}
                   </Text>
-                  {lastActivity ? (
-                    <Text style={styles.compactListTime}>{lastActivity}</Text>
-                  ) : null}
+                  {lastActivity ? <Text style={styles.compactListTime}>{lastActivity}</Text> : null}
                 </View>
                 <View style={styles.dmMetaRow}>
                   <StatusChip
@@ -2748,9 +3563,7 @@ function DirectMessageListCard({
                       tone="accent"
                     />
                   ) : null}
-                  {conversation.muted ? (
-                    <StatusChip label={copy.mutedSuffix} tone="muted" />
-                  ) : null}
+                  {conversation.muted ? <StatusChip label={copy.mutedSuffix} tone="muted" /> : null}
                 </View>
               </View>
             </Pressable>
@@ -2765,16 +3578,24 @@ function DirectMessageListCard({
 }
 
 function DMConversationPreviewCard({
+  attachmentsFeature,
   conversation,
   currentUserId,
+  mediaState,
+  onClearSelectedMediaAsset,
   onRetry,
+  onRequestDocumentPicker,
   onSendMessage,
   sendState,
   state,
 }: {
+  attachmentsFeature: MobileBootstrapFeature | null;
   conversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number] | null;
   currentUserId: string;
+  mediaState: MobileMediaRuntimeState;
+  onClearSelectedMediaAsset(): void;
   onRetry(): void;
+  onRequestDocumentPicker(): Promise<void>;
   onSendMessage(content: string): Promise<boolean>;
   sendState: MobileDMSendViewState;
   state: MobileDMMessagesViewState;
@@ -2821,10 +3642,7 @@ function DMConversationPreviewCard({
           accessibilityRole="button"
           accessibilityLabel={copy.retryAction}
           onPress={onRetry}
-          style={({ pressed }) => [
-            styles.dmRefreshButton,
-            pressed && styles.actionButtonPressed,
-          ]}
+          style={({ pressed }) => [styles.dmRefreshButton, pressed && styles.actionButtonPressed]}
         >
           <Text style={styles.dmRefreshButtonText}>{copy.refreshShortAction}</Text>
         </Pressable>
@@ -2840,10 +3658,7 @@ function DMConversationPreviewCard({
             accessibilityRole="button"
             accessibilityLabel={copy.retryAction}
             onPress={onRetry}
-            style={({ pressed }) => [
-              styles.retryButton,
-              pressed && styles.actionButtonPressed,
-            ]}
+            style={({ pressed }) => [styles.retryButton, pressed && styles.actionButtonPressed]}
           >
             <Text style={styles.retryButtonText}>{copy.retryAction}</Text>
           </Pressable>
@@ -2856,19 +3671,34 @@ function DMConversationPreviewCard({
         <Text style={styles.contractDescription}>{copy.dmNoMessages}</Text>
       ) : null}
       {state.status === "ready" ? (
-        <DMComposer sendState={conversationSendState} onSend={onSendMessage} />
+        <DMComposer
+          attachmentsFeature={attachmentsFeature}
+          sendState={conversationSendState}
+          mediaState={mediaState}
+          onClearSelectedMediaAsset={onClearSelectedMediaAsset}
+          onRequestDocumentPicker={onRequestDocumentPicker}
+          onSend={onSendMessage}
+        />
       ) : null}
     </View>
   );
 }
 
 function DMComposer({
+  attachmentsFeature,
+  mediaState,
+  onClearSelectedMediaAsset,
+  onRequestDocumentPicker,
   onSend,
   placeholder = copy.dmComposerPlaceholder,
   sendActionLabel = copy.dmSendAction,
   sendState,
   sendingActionLabel = copy.dmSendingAction,
 }: {
+  attachmentsFeature?: MobileBootstrapFeature | null;
+  mediaState?: MobileMediaRuntimeState;
+  onClearSelectedMediaAsset?: () => void;
+  onRequestDocumentPicker?: () => Promise<void>;
   onSend(content: string): Promise<boolean>;
   placeholder?: string;
   sendActionLabel?: string;
@@ -2877,8 +3707,21 @@ function DMComposer({
 }) {
   const [draft, setDraft] = useState("");
   const trimmedDraft = draft.trim();
+  const selectedAsset = mediaState?.selectedAsset ?? null;
+  const isPickingDocument = mediaState?.status === "checking-document-picker";
+  const attachmentUploadReadiness = getMobileAttachmentUploadReadiness({
+    attachmentsFeature: attachmentsFeature ?? null,
+    selectedAsset,
+  });
+  const sendGuard = getMobileAttachmentDraftSendGuard({
+    content: trimmedDraft,
+    selectedAsset,
+  });
   const isSending = sendState.status === "sending";
-  const isDisabled = isSending || trimmedDraft.length === 0;
+  const isDisabled = isSending || !sendGuard.canSend;
+  const sendBlockText = getAttachmentDraftBlockText(sendGuard.reason, sendGuard.canSend, {
+    reason: attachmentUploadReadiness.reason,
+  });
 
   const handleSend = useCallback(async () => {
     if (isDisabled) {
@@ -2893,6 +3736,54 @@ function DMComposer({
 
   return (
     <View style={styles.dmComposer}>
+      <View style={styles.dmComposerToolbar}>
+        {onRequestDocumentPicker ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.composerAttachAction}
+            accessibilityState={{ disabled: isPickingDocument }}
+            disabled={isPickingDocument}
+            onPress={() => void onRequestDocumentPicker()}
+            style={({ pressed }) => [
+              styles.dmAttachButton,
+              isPickingDocument && styles.dmAttachButtonDisabled,
+              pressed && !isPickingDocument && styles.actionButtonPressed,
+            ]}
+          >
+            <Text style={styles.dmAttachButtonText}>
+              {isPickingDocument ? copy.composerAttachmentChecking : "+"}
+            </Text>
+          </Pressable>
+        ) : null}
+        <Text style={styles.dmComposerToolbarText} numberOfLines={1}>
+          {selectedAsset ? copy.composerAttachmentDraftLabel : placeholder}
+        </Text>
+      </View>
+      {selectedAsset ? (
+        <View style={styles.dmComposerAttachmentCard}>
+          <View style={styles.dmComposerAttachmentText}>
+            <Text style={styles.dmComposerAttachmentTitle} numberOfLines={1}>
+              {selectedAsset.name}
+            </Text>
+            <Text style={styles.dmComposerAttachmentMeta} numberOfLines={1}>
+              {formatMobileMediaAssetMeta(selectedAsset)}
+            </Text>
+          </View>
+          {onClearSelectedMediaAsset ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={copy.composerAttachmentClearAction}
+              onPress={onClearSelectedMediaAsset}
+              style={({ pressed }) => [
+                styles.dmComposerAttachmentClear,
+                pressed && styles.actionButtonPressed,
+              ]}
+            >
+              <Text style={styles.dmComposerAttachmentClearText}>x</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
       <TextInput
         accessibilityLabel={placeholder}
         maxLength={2000}
@@ -2919,11 +3810,38 @@ function DMComposer({
           {isSending ? sendingActionLabel : sendActionLabel}
         </Text>
       </Pressable>
+      {sendBlockText ? <Text style={styles.dmComposerAttachmentNotice}>{sendBlockText}</Text> : null}
       {sendState.status === "error" && sendState.error ? (
         <Text style={styles.dmSendErrorText}>{sendState.error}</Text>
       ) : null}
     </View>
   );
+}
+
+function getAttachmentDraftBlockText(
+  guardReason: ReturnType<typeof getMobileAttachmentDraftSendGuard>["reason"],
+  canSend: boolean,
+  uploadReadiness: Pick<ReturnType<typeof getMobileAttachmentUploadReadiness>, "reason">,
+) {
+  if (canSend || guardReason === null || guardReason === "empty-message") {
+    return null;
+  }
+
+  switch (uploadReadiness.reason) {
+    case "disabled":
+      return copy.composerAttachmentDisabled;
+    case "missing-feature":
+      return copy.composerAttachmentUnknown;
+    case "native-permission-required":
+      return copy.composerAttachmentNativePermissionPending;
+    case "server-contract-required":
+      return copy.composerAttachmentServerPending;
+    case "no-selected-asset":
+    case "ready":
+      return copy.composerAttachmentUploadPending;
+    default:
+      return copy.composerAttachmentUploadPending;
+  }
 }
 
 function MetricMiniPill({ label, value }: { label: string; value: number }) {
@@ -2935,13 +3853,7 @@ function MetricMiniPill({ label, value }: { label: string; value: number }) {
   );
 }
 
-function StatusChip({
-  label,
-  tone,
-}: {
-  label: string;
-  tone: "accent" | "muted" | "success";
-}) {
+function StatusChip({ label, tone }: { label: string; tone: "accent" | "muted" | "success" }) {
   return (
     <View
       style={[
@@ -3109,24 +4021,23 @@ function AvatarMark({
           accessibilityIgnoresInvertColors
           importantForAccessibility="no"
         />
-        {status ? <View style={[styles.avatarStatus, status === "active" && styles.avatarStatusActive]} /> : null}
+        {status ? (
+          <View style={[styles.avatarStatus, status === "active" && styles.avatarStatusActive]} />
+        ) : null}
       </View>
     );
   }
 
   return (
-    <View
-      accessible
-      accessibilityLabel={label}
-      accessibilityRole="image"
-      style={avatarShellStyles}
-    >
+    <View accessible accessibilityLabel={label} accessibilityRole="image" style={avatarShellStyles}>
       <View style={avatarStyles}>
         <Text style={[styles.avatarMarkText, size === "small" && styles.avatarMarkTextSmall]}>
           {fallback}
         </Text>
       </View>
-      {status ? <View style={[styles.avatarStatus, status === "active" && styles.avatarStatusActive]} /> : null}
+      {status ? (
+        <View style={[styles.avatarStatus, status === "active" && styles.avatarStatusActive]} />
+      ) : null}
     </View>
   );
 }
@@ -3154,15 +4065,11 @@ function StoreReadinessCard() {
   return (
     <View style={[styles.contractCard, isReady && styles.storeReadyCard]}>
       <Text style={styles.environmentLabel}>{copy.storeTitle}</Text>
-      <Text style={styles.contractTitle}>
-        {isReady ? copy.storeReady : copy.storeNeedsReview}
-      </Text>
+      <Text style={styles.contractTitle}>{isReady ? copy.storeReady : copy.storeNeedsReview}</Text>
       <Text style={styles.contractDescription}>{copy.storeDescription}</Text>
       <View style={styles.releaseBudgetRow}>
         <Text style={styles.releaseBudgetMetric}>{copy.storePermissionsLabel}</Text>
-        <Text style={styles.releaseBudgetTarget}>
-          {mobileStoreReadiness.permissionCount}
-        </Text>
+        <Text style={styles.releaseBudgetTarget}>{mobileStoreReadiness.permissionCount}</Text>
       </View>
       <View style={styles.releaseBudgetRow}>
         <Text style={styles.releaseBudgetMetric}>{copy.storePrivacyLabel}</Text>
@@ -3174,13 +4081,48 @@ function StoreReadinessCard() {
   );
 }
 
+function ProductionReadinessCard() {
+  const firstGates = MOBILE_PRODUCTION_READINESS_GATES.slice(0, 4)
+    .map((gate) => gate.id)
+    .join(" - ");
+
+  return (
+    <View style={styles.contractCard}>
+      <Text style={styles.environmentLabel}>{copy.productionReadinessTitle}</Text>
+      <Text style={styles.contractTitle}>{copy.productionReadinessReady}</Text>
+      <Text style={styles.contractDescription}>{copy.productionReadinessDescription}</Text>
+      <View style={styles.qualityGrid}>
+        <MetricTile
+          label={copy.productionReadinessStagesLabel}
+          value={mobileProductionReadinessSummary.stageCount}
+        />
+        <MetricTile
+          label={copy.productionReadinessGatesLabel}
+          value={mobileProductionReadinessSummary.totalGateCount}
+        />
+        <MetricTile
+          label={copy.productionReadinessCriticalLabel}
+          value={mobileProductionReadinessSummary.criticalGateCount}
+        />
+      </View>
+      <View style={styles.releaseBudgetRow}>
+        <Text style={styles.releaseBudgetMetric}>{copy.productionReadinessAutomationLabel}</Text>
+        <Text style={styles.releaseBudgetTarget}>
+          {mobileProductionReadinessSummary.automatedGateCount}
+        </Text>
+      </View>
+      <Text style={styles.contractDescription} numberOfLines={2}>
+        {firstGates}
+      </Text>
+    </View>
+  );
+}
+
 function MobileQualityGateCard() {
   const firstTargets = MOBILE_QA_DEVICE_MATRIX.slice(0, 3)
     .map((target) => target.label)
     .join(" - ");
-  const criticalChecks = MOBILE_MANUAL_QA_CHECKS.filter(
-    (check) => check.risk === "critical",
-  );
+  const criticalChecks = MOBILE_MANUAL_QA_CHECKS.filter((check) => check.risk === "critical");
 
   return (
     <View style={styles.contractCard}>
@@ -3192,14 +4134,8 @@ function MobileQualityGateCard() {
           label={copy.qualityAutomatedLabel}
           value={mobileQualitySummary.automatedGateCount}
         />
-        <MetricTile
-          label={copy.qualityManualLabel}
-          value={mobileQualitySummary.manualCheckCount}
-        />
-        <MetricTile
-          label={copy.qualityDeviceLabel}
-          value={mobileQualitySummary.targetCount}
-        />
+        <MetricTile label={copy.qualityManualLabel} value={mobileQualitySummary.manualCheckCount} />
+        <MetricTile label={copy.qualityDeviceLabel} value={mobileQualitySummary.targetCount} />
       </View>
       <View style={styles.releaseBudgetRow}>
         <Text style={styles.releaseBudgetMetric}>{copy.qualityCriticalLabel}</Text>
@@ -3214,11 +4150,7 @@ function MobileQualityGateCard() {
   );
 }
 
-function SessionDiagnostics({
-  diagnostics,
-}: {
-  diagnostics: MobileSessionDiagnostics;
-}) {
+function SessionDiagnostics({ diagnostics }: { diagnostics: MobileSessionDiagnostics }) {
   return (
     <View style={styles.diagnosticsRow}>
       <DiagnosticPill label="Session" value={diagnostics.hasSession ? "var" : "yok"} />
@@ -3300,6 +4232,59 @@ function EmptyState({ label, tone }: { label: string; tone: "accent" | "success"
       <Text style={styles.emptyStateText}>{label}</Text>
     </View>
   );
+}
+
+function getInviteReadinessDescription(readiness: MobileInviteReadiness): string {
+  switch (readiness.reason) {
+    case "ready":
+      return copy.inviteReadinessReady;
+    case "disabled":
+      return copy.inviteReadinessDisabled;
+    case "missing-feature":
+      return copy.inviteReadinessMissingFeature;
+    case "server-contract-required":
+      return copy.inviteReadinessServerPending;
+    case "unsafe-link":
+      return copy.inviteReadinessUnsafe;
+    case "not-an-invite":
+    default:
+      return copy.inviteReadinessIdle;
+  }
+}
+
+function getInviteReadinessTone(readiness: MobileInviteReadiness): NativeSettingsRowItem["tone"] {
+  if (readiness.reason === "ready") {
+    return "success";
+  }
+
+  if (readiness.reason === "unsafe-link") {
+    return "danger";
+  }
+
+  if (
+    readiness.reason === "server-contract-required" ||
+    readiness.reason === "missing-feature"
+  ) {
+    return "warning";
+  }
+
+  return "neutral";
+}
+
+function getInviteReadinessValue(readiness: MobileInviteReadiness): string {
+  if (readiness.reason === "ready") {
+    return copy.settingsReadyLabel;
+  }
+
+  if (readiness.reason === "not-an-invite") {
+    return copy.settingsMissingLabel;
+  }
+
+  if (readiness.reason === "disabled") {
+    return copy.settingsFeatureDisabled;
+  }
+
+  return copy.settingsPendingLabel;
 }
 
 function getDeepLinkStatusLabel(result: MobileDeepLinkParseResult | null) {
@@ -4165,6 +5150,140 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
   },
+  notificationRuntimeCard: {
+    gap: 12,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FFFFFF",
+    padding: 12,
+  },
+  notificationRuntimeCardReady: {
+    borderColor: "#BBF7D0",
+    backgroundColor: "#F8FFFB",
+  },
+  notificationRuntimeCardWarning: {
+    borderColor: "#FED7AA",
+    backgroundColor: "#FFF7ED",
+  },
+  notificationRuntimeHeader: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  notificationRuntimeIcon: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    backgroundColor: "#EEF2FF",
+  },
+  notificationRuntimeIconText: {
+    color: mobileColors.accentStrong,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  notificationRuntimeText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  notificationRuntimeTitle: {
+    color: mobileColors.text,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  notificationRuntimeDescription: {
+    color: mobileColors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
+  },
+  notificationRuntimeError: {
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FEF2F2",
+    color: "#B91C1C",
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "800",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  notificationRuntimeFootnote: {
+    color: mobileColors.mutedSoft,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "700",
+  },
+  mediaRuntimeStatusRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    minWidth: 0,
+  },
+  mediaRuntimeStatusPill: {
+    minHeight: 46,
+    flexGrow: 1,
+    flexBasis: 138,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#F8FAFF",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  mediaRuntimeStatusText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mediaRuntimeStatusLabel: {
+    color: mobileColors.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  mediaRuntimeStatusValue: {
+    marginTop: 2,
+    color: mobileColors.muted,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  mediaSelectedAssetCard: {
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+  },
+  mediaSelectedAssetLabel: {
+    color: mobileColors.mutedSoft,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  mediaSelectedAssetName: {
+    marginTop: 3,
+    color: mobileColors.text,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  mediaSelectedAssetMeta: {
+    marginTop: 2,
+    color: mobileColors.muted,
+    fontSize: 11,
+    fontWeight: "700",
+  },
   homeSummaryCard: {
     gap: 12,
     minWidth: 0,
@@ -4555,6 +5674,162 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
   },
+  messageSearchCard: {
+    gap: 8,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "#E5E7FF",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FAFBFF",
+    padding: 10,
+  },
+  messageSearchInputShell: {
+    minHeight: 46,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  messageSearchIcon: {
+    color: mobileColors.accentStrong,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
+  },
+  messageSearchInput: {
+    minHeight: mobileSizing.minTouchTarget,
+    flex: 1,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    color: mobileColors.text,
+    fontSize: 13,
+    fontWeight: "700",
+    paddingHorizontal: 11,
+    paddingVertical: 0,
+  },
+  messageSearchClearButton: {
+    width: mobileSizing.minTouchTarget,
+    height: mobileSizing.minTouchTarget,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: mobileColors.border,
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#FFFFFF",
+  },
+  messageSearchClearText: {
+    color: mobileColors.muted,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  messageSearchButton: {
+    minHeight: mobileSizing.minTouchTarget,
+    justifyContent: "center",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.accentStrong,
+    paddingHorizontal: 12,
+  },
+  messageSearchButtonDisabled: {
+    opacity: 0.52,
+  },
+  messageSearchButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  messageSearchHelperText: {
+    color: mobileColors.muted,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "700",
+  },
+  messageSearchStatusRow: {
+    minHeight: 42,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    minWidth: 0,
+  },
+  messageSearchStatusText: {
+    color: mobileColors.muted,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  messageSearchErrorText: {
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: 14,
+    backgroundColor: "#FEF2F2",
+    color: "#B91C1C",
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "800",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  messageSearchResults: {
+    gap: 8,
+    minWidth: 0,
+  },
+  messageSearchResultsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    minWidth: 0,
+  },
+  messageSearchResultsTitle: {
+    flex: 1,
+    minWidth: 0,
+    color: mobileColors.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  messageSearchResultCount: {
+    minWidth: 28,
+    overflow: "hidden",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#EEF2FF",
+    color: mobileColors.accentStrong,
+    fontSize: 11,
+    fontWeight: "900",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    textAlign: "center",
+  },
+  messageSearchResultList: {
+    gap: 7,
+    minWidth: 0,
+  },
+  messageSearchResultRow: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 9,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    padding: 9,
+  },
+  messageSearchResultText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  messageSearchResultBody: {
+    marginTop: 4,
+    color: mobileColors.text,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
+  },
+  messageSearchResultMeta: {
+    marginTop: 4,
+    color: mobileColors.accentStrong,
+    fontSize: 11,
+    fontWeight: "900",
+  },
   dmErrorRow: {
     gap: 10,
     minWidth: 0,
@@ -4753,6 +6028,84 @@ const styles = StyleSheet.create({
     borderRadius: mobileRadii.control,
     backgroundColor: "#FAFBFF",
     padding: 8,
+  },
+  dmComposerToolbar: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  dmAttachButton: {
+    minWidth: 38,
+    minHeight: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+  },
+  dmAttachButtonDisabled: {
+    opacity: 0.68,
+  },
+  dmAttachButtonText: {
+    color: mobileColors.accentStrong,
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  dmComposerToolbarText: {
+    flex: 1,
+    minWidth: 0,
+    color: mobileColors.muted,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  dmComposerAttachmentCard: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  dmComposerAttachmentText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  dmComposerAttachmentTitle: {
+    color: mobileColors.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  dmComposerAttachmentMeta: {
+    marginTop: 2,
+    color: mobileColors.muted,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  dmComposerAttachmentClear: {
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#F5F3FF",
+  },
+  dmComposerAttachmentClearText: {
+    color: mobileColors.accentStrong,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  dmComposerAttachmentNotice: {
+    color: mobileColors.muted,
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 16,
   },
   dmComposerInput: {
     minHeight: 44,
@@ -5163,6 +6516,21 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     paddingHorizontal: 10,
     paddingVertical: 8,
+  },
+  authDevFillButton: {
+    minHeight: mobileSizing.minTouchTarget,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#F5F3FF",
+    paddingHorizontal: 12,
+  },
+  authDevFillButtonText: {
+    color: mobileColors.accentStrong,
+    fontSize: 13,
+    fontWeight: "900",
   },
   authInlineActions: {
     alignItems: "center",
