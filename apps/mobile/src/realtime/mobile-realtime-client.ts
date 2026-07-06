@@ -17,6 +17,11 @@ export type MobileRealtimeClientTargets = {
 export type MobileRealtimeClient = {
   connect(): Promise<void>;
   disconnect(): void;
+  emitChannelTypingStart(channelId: string): void;
+  emitChannelTypingStop(channelId: string): void;
+  emitVoiceInviteAccept(input: { channelId: string; inviteId: string; serverId: string }): void;
+  emitVoiceInviteDecline(input: { channelId: string; inviteId: string; serverId: string }): void;
+  emitVoiceInviteSend(input: { channelId: string; serverId: string; targetUserId: string }): void;
   setActiveTargets(targets: MobileRealtimeClientTargets): void;
 };
 
@@ -167,9 +172,10 @@ export function createMobileRealtimeClient(
           socket.emit("dm:leave", activeConversationId);
         }
 
-        if (activeVoiceChannelId) {
+        if (activeVoiceChannelId && activeServerId) {
           socket.emit("voice:leave", {
             channelId: activeVoiceChannelId,
+            serverId: activeServerId,
           });
         }
 
@@ -181,6 +187,46 @@ export function createMobileRealtimeClient(
       socket.removeAllListeners();
       socket.disconnect();
       socket = null;
+    },
+
+    emitChannelTypingStart(channelId) {
+      if (!socket?.connected || channelId.trim().length === 0) {
+        return;
+      }
+
+      socket.emit("typing:start", channelId);
+    },
+
+    emitChannelTypingStop(channelId) {
+      if (!socket?.connected || channelId.trim().length === 0) {
+        return;
+      }
+
+      socket.emit("typing:stop", channelId);
+    },
+
+    emitVoiceInviteAccept(input) {
+      if (!socket?.connected) {
+        return;
+      }
+
+      socket.emit("voice:invite:accept", input);
+    },
+
+    emitVoiceInviteDecline(input) {
+      if (!socket?.connected) {
+        return;
+      }
+
+      socket.emit("voice:invite:decline", input);
+    },
+
+    emitVoiceInviteSend(input) {
+      if (!socket?.connected) {
+        return;
+      }
+
+      socket.emit("voice:invite:send", input);
     },
 
     setActiveTargets(targets) {
@@ -205,9 +251,14 @@ export function createMobileRealtimeClient(
         socket.emit("dm:leave", previousConversationId);
       }
 
-      if (previousVoiceChannelId && previousVoiceChannelId !== activeVoiceChannelId) {
+      if (
+        previousVoiceChannelId &&
+        previousVoiceChannelId !== activeVoiceChannelId &&
+        previousServerId
+      ) {
         socket.emit("voice:leave", {
           channelId: previousVoiceChannelId,
+          serverId: previousServerId,
         });
       }
 

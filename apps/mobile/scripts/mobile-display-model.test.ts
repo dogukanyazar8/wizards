@@ -11,7 +11,9 @@ import {
   findInitialMobileWorkspaceChannel,
   formatMobileDisplayTime,
   getBoundedMobileList,
+  getMobileChannelChatSearchVisibility,
   getMobileChannelPriority,
+  getMobileChannelChatHeaderModel,
   getMobileConversationActiveCount,
   getMobileConversationAvatarUrl,
   getMobileConversationSearchText,
@@ -19,9 +21,13 @@ import {
   getMobileHomeQuickActions,
   getMobileMessageBodyPreview,
   getMobileMessageEngagementCounts,
+  getMobileMessageListPerformanceConfig,
   getMobileMessageStreamItems,
+  getMobileVoiceChannelScreenModel,
+  getMobileWorkspaceChannelSurface,
   getMobileWorkspaceChannelSections,
   getMobileWorkspaceChannels,
+  getVisibleMobileWorkspaceChannelSections,
   isMobilePresenceActive,
   MOBILE_RENDER_LIMITS,
 } from "../src/app/mobile-display-model";
@@ -100,6 +106,19 @@ const workspaceDetail: MobileWorkspaceServerDetailResponse["detail"] = {
     },
   ],
   hasMoreChannels: false,
+  members: [
+    {
+      accessLevel: "MEMBER",
+      avatarUrl: null,
+      customStatus: null,
+      displayName: "Alice",
+      id: "member-1",
+      roles: [],
+      status: "ONLINE",
+      userId: "user-2",
+      username: "alice",
+    },
+  ],
   server: {
     defaultChannelId: "voice-1",
     description: null,
@@ -230,6 +249,81 @@ const message: ChatMessage = {
 };
 
 describe("mobile display model", () => {
+  it("opens voice channels as a dedicated voice room surface when explicitly selected", () => {
+    const voiceChannel = getMobileWorkspaceChannels(workspaceDetail).find(
+      (channel) => channel.id === "voice-1",
+    );
+
+    assert.equal(
+      getMobileWorkspaceChannelSurface(voiceChannel ?? null, {
+        isExplicitlyOpened: true,
+      }),
+      "voice-room",
+    );
+  });
+
+  it("builds a bounded voice channel screen model from real room participants", () => {
+    const model = getMobileVoiceChannelScreenModel(
+      {
+        channelId: "voice-1",
+        channelName: "live-room",
+        errorMessage: null,
+        participants: [
+          {
+            audioLevel: 0.72,
+            avatarUrl: null,
+            displayName: "Dogukan",
+            isCameraEnabled: false,
+            isMuted: false,
+            isScreenSharing: false,
+            isSelf: true,
+            isSpeaking: true,
+            userId: "user-1",
+            username: "dogukanyazar",
+          },
+          {
+            audioLevel: 0,
+            avatarUrl: null,
+            displayName: "Mehmet",
+            isCameraEnabled: false,
+            isMuted: true,
+            isScreenSharing: false,
+            isSelf: false,
+            isSpeaking: false,
+            userId: "user-2",
+            username: "mehmet",
+          },
+        ],
+        screenShareStatus: "unsupported",
+        selfAudioOutput: "default",
+        selfCameraEnabled: false,
+        selfMuted: false,
+        serverId: "server-1",
+        sessionId: "session-1",
+        status: "connected",
+        updatedAt: 1,
+      },
+      {
+        channelName: "live-room",
+        memberCount: 5,
+        serverName: "UAT ENV",
+        serverShortName: "UA",
+      },
+    );
+
+    assert.equal(model.title, "Canli ses odasi");
+    assert.equal(model.serverName, "UAT ENV");
+    assert.equal(model.channelName, "live-room");
+    assert.equal(model.speakingParticipants.length, 1);
+    assert.equal(model.listeningParticipants.length, 1);
+    assert.equal(model.shouldSplitParticipantsBySpeakingState, false);
+    assert.equal(model.participantCountLabel, "2");
+    assert.equal(model.canLeave, true);
+    assert.equal(model.canToggleMicrophone, true);
+    assert.equal(model.canShareScreen, false);
+    assert.equal(model.canOpenSettings, false);
+  });
+
   it("derives conversation display fields from real bootstrap data", () => {
     assert.equal(getMobileConversationTitle(conversation, "Direct message"), "Alice, bob, Carol");
     assert.equal(
@@ -357,6 +451,110 @@ describe("mobile display model", () => {
     });
   });
 
+  it("opens only explicitly entered text channels as a dedicated mobile chat screen", () => {
+    const channels = getMobileWorkspaceChannels(workspaceDetail);
+
+    assert.equal(
+      getMobileWorkspaceChannelSurface(channels[0]!, { isExplicitlyOpened: false }),
+      "workspace-browser",
+    );
+    assert.equal(
+      getMobileWorkspaceChannelSurface(channels[0]!, { isExplicitlyOpened: true }),
+      "channel-chat",
+    );
+    assert.equal(
+      getMobileWorkspaceChannelSurface(channels[1]!, { isExplicitlyOpened: true }),
+      "voice-room",
+    );
+    assert.equal(
+      getMobileWorkspaceChannelSurface(null, { isExplicitlyOpened: true }),
+      "workspace-browser",
+    );
+  });
+
+  it("builds a bounded channel chat header model from real workspace data", () => {
+    const channels = getMobileWorkspaceChannels(workspaceDetail);
+
+    assert.deepEqual(
+      getMobileChannelChatHeaderModel(channels[2]!, {
+        fallbackChannelName: "channel",
+        memberCount: 5,
+        membersSuffix: "members",
+        serverName: "Whispr Product",
+      }),
+      {
+        accessibilityLabel: "alerts, Whispr Product, 5 members",
+        channelName: "alerts",
+        memberCountLabel: "5 members",
+        serverName: "Whispr Product",
+        topic: null,
+      },
+    );
+    assert.equal(
+      getMobileChannelChatHeaderModel(
+        {
+          ...channels[0]!,
+          name: "a".repeat(90),
+          topic: "b".repeat(180),
+        },
+        {
+          fallbackChannelName: "channel",
+          memberCount: 123,
+          membersSuffix: "members",
+          serverName: "c".repeat(90),
+        },
+      ).accessibilityLabel.length <= 160,
+      true,
+    );
+  });
+
+  it("keeps channel search lazy and tied to the real message search contract", () => {
+    assert.deepEqual(
+      getMobileChannelChatSearchVisibility({
+        closeLabel: "Close search",
+        featureStatus: "available",
+        hasActiveSearchContext: false,
+        isSearchPanelOpen: false,
+        openLabel: "Search channel",
+      }),
+      {
+        isSearchAvailable: true,
+        shouldRenderSearchPanel: false,
+        toggleAccessibilityLabel: "Search channel",
+      },
+    );
+
+    assert.deepEqual(
+      getMobileChannelChatSearchVisibility({
+        closeLabel: "Close search",
+        featureStatus: "available",
+        hasActiveSearchContext: true,
+        isSearchPanelOpen: false,
+        openLabel: "Search channel",
+      }),
+      {
+        isSearchAvailable: true,
+        shouldRenderSearchPanel: true,
+        toggleAccessibilityLabel: "Close search",
+      },
+    );
+
+    assert.deepEqual(
+      getMobileChannelChatSearchVisibility({
+        closeLabel: "Close search",
+        featureStatus: "requires-server-contract",
+        hasActiveSearchContext: true,
+        isSearchPanelOpen: true,
+        openLabel: "Search channel",
+      }),
+      {
+        isSearchAvailable: false,
+        shouldRenderSearchPanel: false,
+        toggleAccessibilityLabel: "Search channel",
+      },
+    );
+  });
+
   it("groups and filters workspace channels without inventing mobile data", () => {
     const sections = getMobileWorkspaceChannelSections(workspaceDetail, {
       ungrouped: "Other",
@@ -384,6 +582,30 @@ describe("mobile display model", () => {
         section.channels.map((channel) => channel.id),
       ]),
       [["Lobby", ["voice-1", "text-2"]]],
+    );
+  });
+
+  it("hides channels for collapsed workspace sections without losing section headers", () => {
+    const sections = getMobileWorkspaceChannelSections(workspaceDetail, {
+      ungrouped: "Other",
+    });
+
+    const visibleSections = getVisibleMobileWorkspaceChannelSections(sections, {
+      "category-1": true,
+    });
+
+    assert.deepEqual(
+      visibleSections.map((section) => [
+        section.id,
+        section.name,
+        section.isCollapsed,
+        section.channels.map((channel) => channel.id),
+        section.totalChannelCount,
+      ]),
+      [
+        ["ungrouped", "Other", false, ["text-1"], 1],
+        ["category-1", "Lobby", true, [], 2],
+      ],
     );
   });
 
@@ -430,6 +652,24 @@ describe("mobile display model", () => {
         ["message-day-2", true],
       ],
     );
+  });
+
+  it("keeps channel message list virtualization bounded", () => {
+    assert.deepEqual(getMobileMessageListPerformanceConfig(0), {
+      initialNumToRender: 8,
+      maxToRenderPerBatch: 8,
+      windowSize: 5,
+    });
+    assert.deepEqual(getMobileMessageListPerformanceConfig(24), {
+      initialNumToRender: 12,
+      maxToRenderPerBatch: 10,
+      windowSize: 7,
+    });
+    assert.deepEqual(getMobileMessageListPerformanceConfig(600), {
+      initialNumToRender: 12,
+      maxToRenderPerBatch: 10,
+      windowSize: 7,
+    });
   });
 
   it("builds bounded home quick actions from real bootstrap state", () => {

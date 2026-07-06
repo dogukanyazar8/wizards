@@ -99,6 +99,13 @@ describe("mobile quality gate", () => {
     assert.ok(searchUiCheck);
     assert.match(searchUiCheck.label, /bounded real results/i);
     assert.match(searchUiCheck.label, /selected conversation/i);
+
+    const dedicatedChannelCheck = MOBILE_MANUAL_QA_CHECKS.find(
+      (check) => check.id === "workspace-dedicated-channel-chat",
+    );
+    assert.ok(dedicatedChannelCheck);
+    assert.match(dedicatedChannelCheck.label, /dedicated channel chat screen/i);
+    assert.match(dedicatedChannelCheck.label, /safe-area/i);
   });
 
   it("summarizes quality readiness without leaking sensitive strings", () => {

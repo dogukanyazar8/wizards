@@ -5,6 +5,8 @@ param(
   [string]$JavaHome = "C:\Program Files\Java\jdk-17",
   [string]$AndroidHome = "$env:LOCALAPPDATA\Android\Sdk",
   [string]$AndroidArchitectures,
+  [ValidateSet("debug", "release")]
+  [string]$BuildType = "debug",
   [string]$PnpmVirtualStoreDir = "C:\p",
   [int]$WaitForDeviceSeconds = 90,
   [switch]$SkipSync,
@@ -446,7 +448,8 @@ if (-not $SkipSync -and -not $sourceEqualsBuild) {
 $mobileRoot = Join-Path $resolvedBuildRoot "apps\mobile"
 $androidRoot = Join-Path $mobileRoot "android"
 $gradlew = Join-Path $androidRoot "gradlew.bat"
-$apkPath = Join-Path $androidRoot "app\build\outputs\apk\debug\app-debug.apk"
+$gradleBuildTask = if ($BuildType -eq "release") { "app:assembleRelease" } else { "app:assembleDebug" }
+$apkPath = Join-Path $androidRoot "app\build\outputs\apk\$BuildType\app-$BuildType.apk"
 
 Resolve-ExistingPath $mobileRoot "Mobile root" | Out-Null
 Resolve-ExistingPath $androidRoot "Android root" | Out-Null
@@ -461,7 +464,9 @@ $env:WHISPR_MOBILE_ENV = "uat"
 $env:EXPO_PUBLIC_WHISPR_API_URL = $UatUrl
 $env:EXPO_PUBLIC_WHISPR_SOCKET_URL = $UatUrl
 $env:EXPO_PUBLIC_WHISPR_WEB_URL = $UatUrl
-if (-not $env:NODE_ENV) {
+if ($BuildType -eq "release") {
+  $env:NODE_ENV = "production"
+} elseif (-not $env:NODE_ENV) {
   $env:NODE_ENV = "development"
 }
 $env:Path = "$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:ANDROID_HOME\emulator;$env:ANDROID_HOME\cmdline-tools\latest\bin;$env:Path"
@@ -509,9 +514,9 @@ if ($CleanAndroidCaches) {
   Clear-MobileNativeDependencyBuildCaches -VirtualStoreDir $PnpmVirtualStoreDir
 }
 
-Write-Step "Building UAT debug APK"
+Write-Step "Building UAT $BuildType APK"
 $gradleBuildArguments = @(
-  "app:assembleDebug",
+  $gradleBuildTask,
   "-x",
   "lint",
   "-x",
@@ -528,13 +533,17 @@ New-Item -ItemType Directory -Force -Path $ApkOutputDir | Out-Null
 
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $version = (Get-Content -Raw -LiteralPath (Join-Path $mobileRoot "package.json") | ConvertFrom-Json).version
-$archiveApkPath = Join-Path $ApkOutputDir "Whispr-Mobile-UAT-$version-$timestamp-debug.apk"
-$latestApkPath = Join-Path $ApkOutputDir "Whispr-Mobile-UAT-debug-latest.apk"
+$architectureSlug = $reactNativeArchitectures.Replace(",", "-")
+$archiveApkPath = Join-Path $ApkOutputDir "Whispr-Mobile-UAT-$version-$timestamp-$architectureSlug-$BuildType.apk"
+$latestApkPath = Join-Path $ApkOutputDir "Whispr-Mobile-UAT-$BuildType-latest.apk"
+$architectureLatestApkPath = Join-Path $ApkOutputDir "Whispr-Mobile-UAT-$architectureSlug-$BuildType-latest.apk"
 Copy-Item -LiteralPath $apkPath -Destination $archiveApkPath -Force
 Copy-Item -LiteralPath $apkPath -Destination $latestApkPath -Force
+Copy-Item -LiteralPath $apkPath -Destination $architectureLatestApkPath -Force
 
 Write-Host "APK archived: $archiveApkPath" -ForegroundColor Green
 Write-Host "APK latest  : $latestApkPath" -ForegroundColor Green
+Write-Host "APK ABI latest: $architectureLatestApkPath" -ForegroundColor Green
 
 if (-not $SkipUninstall) {
   Write-Step "Removing existing Whispr mobile package from device if present"

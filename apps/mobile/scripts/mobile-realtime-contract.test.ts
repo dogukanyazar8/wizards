@@ -16,6 +16,10 @@ describe("mobile realtime contract", () => {
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("dm:message:new"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("presence:update"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("voice:state:update"));
+    assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("voice:invite:received"));
+    assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("voice:invite:sent"));
+    assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("voice:invite:status"));
+    assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("voice:invite:error"));
   });
 
   it("maps active conversation events to the narrowest refresh target", () => {
@@ -23,10 +27,44 @@ describe("mobile realtime contract", () => {
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:message:new"), ["dm"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:conversation:updated"), ["bootstrap"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("voice:state:update"), ["workspace"]);
+    assert.deepEqual(getMobileRealtimeRefreshSources("voice:audio-level:update"), []);
+    assert.deepEqual(getMobileRealtimeRefreshSources("voice:invite:received"), []);
+    assert.deepEqual(getMobileRealtimeRefreshSources("voice:invite:sent"), []);
+    assert.deepEqual(getMobileRealtimeRefreshSources("voice:invite:status"), []);
+    assert.deepEqual(getMobileRealtimeRefreshSources("voice:invite:error"), []);
+    assert.deepEqual(getMobileRealtimeRefreshSources("typing:update"), []);
+    assert.deepEqual(getMobileRealtimeRefreshSources("dm:typing:update"), []);
     assert.deepEqual(getMobileRealtimeRefreshSources("presence:update"), [
       "bootstrap",
       "presence",
     ]);
+  });
+
+  it("preserves voice invite payloads without scheduling a data refresh", () => {
+    const event = createMobileRealtimeEventEnvelope(
+      "voice:invite:received",
+      {
+        channelId: "voice-1",
+        channelName: "Live room",
+        createdAt: "2026-07-06T10:00:00.000Z",
+        expiresAt: "2026-07-06T10:01:00.000Z",
+        fromUser: {
+          avatarUrl: null,
+          displayName: "Dogukan",
+          id: "user-1",
+          username: "dogukan",
+        },
+        id: "invite-1",
+        serverId: "server-1",
+        serverName: "UAT",
+      },
+      3_000,
+    );
+
+    assert.equal(event.channelId, "voice-1");
+    assert.equal(event.serverId, "server-1");
+    assert.deepEqual(event.refreshSources, []);
+    assert.equal((event.payload as { id: string }).id, "invite-1");
   });
 
   it("redacts payload body while preserving safe routing metadata", () => {
@@ -50,6 +88,48 @@ describe("mobile realtime contract", () => {
       serverId: null,
     });
     assert.equal(JSON.stringify(event).includes("must not be copied"), false);
+  });
+
+  it("preserves active channel message payloads for silent local UI updates", () => {
+    const payload = {
+      attachments: [],
+      author: {
+        avatarUrl: null,
+        displayName: "Dogukan",
+        id: "user-1",
+        username: "dogukan",
+      },
+      channelId: "channel-1",
+      content: "active channel content",
+      createdAt: "2026-07-06T10:00:00.000Z",
+      deletedAt: null,
+      editedAt: null,
+      id: "message-1",
+      reactions: [],
+      type: "DEFAULT",
+    };
+    const event = createMobileRealtimeEventEnvelope("message:new", payload, 1_500);
+
+    assert.equal(event.channelId, "channel-1");
+    assert.deepEqual(event.refreshSources, ["channel"]);
+    assert.equal((event.payload as { content: string }).content, "active channel content");
+  });
+
+  it("preserves local-only typing payload without triggering data refresh", () => {
+    const event = createMobileRealtimeEventEnvelope(
+      "typing:update",
+      {
+        channelId: "channel-1",
+        users: ["Mehmet"],
+      },
+      2_000,
+    );
+
+    assert.deepEqual(event.payload, {
+      channelId: "channel-1",
+      users: ["Mehmet"],
+    });
+    assert.deepEqual(event.refreshSources, []);
   });
 
   it("keeps reconnect behavior bounded for mobile battery safety", () => {

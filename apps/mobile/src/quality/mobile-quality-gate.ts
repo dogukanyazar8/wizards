@@ -209,7 +209,15 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
     area: "workspace",
     id: "workspace-channel-read",
     label:
-      "A real server opens with permission-filtered channels and a bounded text-channel message preview.",
+      "A real server opens with permission-filtered channels and compact category navigation.",
+    required: true,
+    risk: "high",
+  },
+  {
+    area: "workspace",
+    id: "workspace-dedicated-channel-chat",
+    label:
+      "Text channels open as a dedicated channel chat screen with safe-area composer behavior and real bounded messages.",
     required: true,
     risk: "high",
   },

@@ -1,4 +1,4 @@
-import type { MobileVoiceStateParticipant } from "@wizards/types";
+import type { MobileVoiceStateParticipant, WorkspaceMember } from "@wizards/types";
 
 import type { MobileSessionUser } from "../auth/session-types";
 
@@ -12,6 +12,67 @@ export type MobileVoiceRoomConnectionStatus =
   | "permission-denied";
 
 export type MobileVoiceScreenShareStatus = "off" | "unsupported";
+export type MobileVoiceAudioOutputMode = "default" | "speaker";
+export type MobileVoiceInviteStatus = "accepted" | "declined" | "failed" | "sending" | "sent";
+
+export type MobileVoiceInviteMember = Pick<
+  WorkspaceMember,
+  "avatarUrl" | "displayName" | "status" | "userId" | "username"
+>;
+
+export interface MobileVoiceInviteCandidate {
+  readonly avatarUrl: string | null;
+  readonly label: string;
+  readonly status: MobileVoiceInviteMember["status"];
+  readonly userId: string;
+  readonly username: string;
+}
+
+export interface MobileVoiceInviteReceived {
+  readonly channelId: string;
+  readonly channelName: string;
+  readonly createdAt: string;
+  readonly expiresAt: string;
+  readonly fromUser: {
+    readonly avatarUrl: string | null;
+    readonly displayName: string;
+    readonly id: string;
+    readonly username: string;
+  };
+  readonly id: string;
+  readonly serverId: string;
+  readonly serverName: string;
+}
+
+export interface MobileVoiceInviteSendResult {
+  readonly channelId: string;
+  readonly expiresAt: string;
+  readonly inviteId: string;
+  readonly targetUserId: string;
+}
+
+export interface MobileVoiceInviteStatusUpdate {
+  readonly channelId: string;
+  readonly inviteId: string;
+  readonly serverId: string;
+  readonly status: "accepted" | "declined";
+  readonly targetUserId: string;
+}
+
+export interface MobileVoiceInviteError {
+  readonly channelId: string | null;
+  readonly code: string;
+  readonly inviteId: string | null;
+  readonly message: string;
+  readonly targetUserId: string | null;
+}
+
+export interface MobileVoiceInviteSendState {
+  readonly errorMessage: string | null;
+  readonly expiresAt: string | null;
+  readonly inviteId: string | null;
+  readonly status: MobileVoiceInviteStatus;
+}
 
 export interface MobileVoiceRoomParticipant {
   readonly audioLevel: number;
@@ -32,6 +93,7 @@ export interface MobileVoiceRoomState {
   readonly errorMessage: string | null;
   readonly participants: readonly MobileVoiceRoomParticipant[];
   readonly screenShareStatus: MobileVoiceScreenShareStatus;
+  readonly selfAudioOutput: MobileVoiceAudioOutputMode;
   readonly selfCameraEnabled: boolean;
   readonly selfMuted: boolean;
   readonly serverId: string | null;
@@ -42,6 +104,7 @@ export interface MobileVoiceRoomState {
 
 const SENSITIVE_VOICE_ROOM_ERROR_PATTERN =
   /(access[_-]?token|refresh[_-]?token|oauth[_-]?code|password|secret|bearer\s+[a-z0-9._-]+|wss?:\/\/[^\s]+)/i;
+const ACTIVE_VOICE_INVITE_STATUSES = new Set(["ONLINE", "IDLE", "DND"]);
 
 export function createInitialMobileVoiceRoomState(): MobileVoiceRoomState {
   return {
@@ -50,6 +113,7 @@ export function createInitialMobileVoiceRoomState(): MobileVoiceRoomState {
     errorMessage: null,
     participants: [],
     screenShareStatus: "unsupported",
+    selfAudioOutput: "default",
     selfCameraEnabled: false,
     selfMuted: false,
     serverId: null,
@@ -85,6 +149,177 @@ export function createMobileVoiceSessionId(): string {
     const value = token === "x" ? randomValue : (randomValue & 0x3) | 0x8;
     return value.toString(16);
   });
+}
+
+function getSafeStringProperty(payload: unknown, key: string): string | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const value = (payload as Record<string, unknown>)[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function getSafeObjectProperty(payload: unknown, key: string): Record<string, unknown> | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const value = (payload as Record<string, unknown>)[key];
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function sanitizeVoiceInviteNullableString(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value.slice(0, 240) : null;
+}
+
+export function getMobileVoiceInviteCandidates({
+  currentUserId,
+  limit = 24,
+  members,
+  participants,
+}: {
+  currentUserId: string | null;
+  limit?: number;
+  members: readonly MobileVoiceInviteMember[];
+  participants: readonly MobileVoiceRoomParticipant[];
+}): MobileVoiceInviteCandidate[] {
+  const participantIds = new Set(participants.map((participant) => participant.userId));
+
+  return members
+    .filter((member) => {
+      if (!member.userId || member.userId === currentUserId) {
+        return false;
+      }
+
+      if (participantIds.has(member.userId)) {
+        return false;
+      }
+
+      return ACTIVE_VOICE_INVITE_STATUSES.has(member.status);
+    })
+    .slice(0, Math.max(0, limit))
+    .map((member) => ({
+      avatarUrl: member.avatarUrl,
+      label: member.displayName || member.username,
+      status: member.status,
+      userId: member.userId,
+      username: member.username,
+    }));
+}
+
+export function getMobileVoiceInviteReceivedPayload(
+  payload: unknown,
+): MobileVoiceInviteReceived | null {
+  const fromUser = getSafeObjectProperty(payload, "fromUser");
+  const channelId = getSafeStringProperty(payload, "channelId");
+  const channelName = getSafeStringProperty(payload, "channelName");
+  const createdAt = getSafeStringProperty(payload, "createdAt");
+  const expiresAt = getSafeStringProperty(payload, "expiresAt");
+  const id = getSafeStringProperty(payload, "id");
+  const serverId = getSafeStringProperty(payload, "serverId");
+  const serverName = getSafeStringProperty(payload, "serverName");
+  const fromUserId = getSafeStringProperty(fromUser, "id");
+  const fromUsername = getSafeStringProperty(fromUser, "username");
+
+  if (
+    !channelId ||
+    !channelName ||
+    !createdAt ||
+    !expiresAt ||
+    !id ||
+    !serverId ||
+    !serverName ||
+    !fromUserId ||
+    !fromUsername
+  ) {
+    return null;
+  }
+
+  return {
+    channelId,
+    channelName,
+    createdAt,
+    expiresAt,
+    fromUser: {
+      avatarUrl: sanitizeVoiceInviteNullableString(fromUser?.avatarUrl),
+      displayName: getSafeStringProperty(fromUser, "displayName") ?? fromUsername,
+      id: fromUserId,
+      username: fromUsername,
+    },
+    id,
+    serverId,
+    serverName,
+  };
+}
+
+export function getMobileVoiceInviteSendResultPayload(
+  payload: unknown,
+): MobileVoiceInviteSendResult | null {
+  const channelId = getSafeStringProperty(payload, "channelId");
+  const expiresAt = getSafeStringProperty(payload, "expiresAt");
+  const inviteId = getSafeStringProperty(payload, "inviteId");
+  const targetUserId = getSafeStringProperty(payload, "targetUserId");
+
+  if (!channelId || !expiresAt || !inviteId || !targetUserId) {
+    return null;
+  }
+
+  return {
+    channelId,
+    expiresAt,
+    inviteId,
+    targetUserId,
+  };
+}
+
+export function getMobileVoiceInviteStatusPayload(
+  payload: unknown,
+): MobileVoiceInviteStatusUpdate | null {
+  const channelId = getSafeStringProperty(payload, "channelId");
+  const inviteId = getSafeStringProperty(payload, "inviteId");
+  const serverId = getSafeStringProperty(payload, "serverId");
+  const status = getSafeStringProperty(payload, "status");
+  const targetUserId = getSafeStringProperty(payload, "targetUserId");
+
+  if (
+    !channelId ||
+    !inviteId ||
+    !serverId ||
+    !targetUserId ||
+    (status !== "accepted" && status !== "declined")
+  ) {
+    return null;
+  }
+
+  return {
+    channelId,
+    inviteId,
+    serverId,
+    status,
+    targetUserId,
+  };
+}
+
+export function getMobileVoiceInviteErrorPayload(
+  payload: unknown,
+): MobileVoiceInviteError | null {
+  const code = getSafeStringProperty(payload, "code");
+  const message = getSafeStringProperty(payload, "message");
+
+  if (!code || !message) {
+    return null;
+  }
+
+  return {
+    channelId: getSafeStringProperty(payload, "channelId"),
+    code,
+    inviteId: getSafeStringProperty(payload, "inviteId"),
+    message: redactMobileVoiceRoomError(message),
+    targetUserId: getSafeStringProperty(payload, "targetUserId"),
+  };
 }
 
 export function createSelfVoiceRoomParticipant(
@@ -137,10 +372,12 @@ export function mergeMobileVoiceRoomParticipants(
     byUserId.set(participant.userId, {
       ...previous,
       ...participant,
-      audioLevel: participant.audioLevel || previous?.audioLevel || 0,
-      isCameraEnabled: participant.isCameraEnabled || previous?.isCameraEnabled || false,
-      isMuted: participant.isMuted || previous?.isMuted || false,
-      isSpeaking: participant.isSpeaking || previous?.isSpeaking || false,
+      audioLevel: Number.isFinite(participant.audioLevel)
+        ? participant.audioLevel
+        : (previous?.audioLevel ?? 0),
+      isCameraEnabled: participant.isCameraEnabled,
+      isMuted: participant.isMuted,
+      isSpeaking: participant.isSpeaking,
     });
   }
 

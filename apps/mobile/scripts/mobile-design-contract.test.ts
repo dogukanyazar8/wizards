@@ -4,7 +4,10 @@ import {
   mobileRadii,
   mobileSizing,
   mobileSpacing,
+  mobileTypography,
 } from "../src/design/tokens";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 describe("mobile design contract", () => {
   it("keeps native touch targets and compact surfaces production-safe", () => {
@@ -18,5 +21,20 @@ describe("mobile design contract", () => {
   it("keeps inline mobile content bounded for compact phones", () => {
     assert.equal(mobileSizing.maxInlineContentWidth >= 360, true);
     assert.equal(mobileSizing.maxInlineContentWidth <= 640, true);
+  });
+
+  it("uses Outfit as the app-wide mobile font contract", () => {
+    const packageJson = JSON.parse(
+      readFileSync(join(process.cwd(), "package.json"), "utf8"),
+    ) as { dependencies?: Record<string, string> };
+    const rootSource = readFileSync(
+      join(process.cwd(), "src", "app", "whispr-mobile-root.tsx"),
+      "utf8",
+    );
+
+    assert.equal(mobileTypography.fontFamily, "Outfit");
+    assert.ok(packageJson.dependencies?.["@expo-google-fonts/outfit"]);
+    assert.ok(packageJson.dependencies?.["expo-font"]);
+    assert.match(rootSource, /useOutfitFonts/);
   });
 });

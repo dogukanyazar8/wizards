@@ -14,6 +14,7 @@ export const revalidate = 0;
 
 const MOBILE_SERVER_CATEGORY_LIMIT = 20;
 const MOBILE_SERVER_CHANNEL_LIMIT = 80;
+const MOBILE_SERVER_MEMBER_LIMIT = 80;
 
 type RouteContext = {
   params: Promise<{
@@ -96,6 +97,10 @@ function toMobileWorkspaceServerDetail(
   return {
     categories,
     hasMoreChannels: returnedChannelCount < visibleChannelCount,
+    members: detail.members.slice(0, MOBILE_SERVER_MEMBER_LIMIT).map((member) => ({
+      ...member,
+      avatarUrl: normalizeMobileImageUrl(member.avatarUrl),
+    })),
     server: {
       defaultChannelId,
       description: detail.server.description,

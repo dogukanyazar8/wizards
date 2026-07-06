@@ -27,3 +27,10 @@ export const mobileSpacing = {
   section: 16,
   row: 12,
 } as const;
+
+export const mobileTypography = {
+  fontFamily: "Outfit",
+  fontFamilyBold: "Outfit_700Bold",
+  fontFamilyMedium: "Outfit_500Medium",
+  fontFamilySemiBold: "Outfit_600SemiBold",
+} as const;

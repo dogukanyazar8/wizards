@@ -108,13 +108,7 @@ export function summarizeMobileSyncHealth(
     0,
   );
   const isRefreshing = snapshots.some(isMobileSyncRefreshing);
-  const hasCompletedData = snapshots.some((snapshot) => snapshot.lastCompletedAt !== null);
-  const status =
-    failedSources.length > 0
-      ? "error"
-      : isRefreshing && hasCompletedData
-        ? "refreshing"
-        : "healthy";
+  const status = failedSources.length > 0 ? "error" : "healthy";
 
   return {
     failedSources,

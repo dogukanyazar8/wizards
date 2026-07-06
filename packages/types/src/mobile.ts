@@ -6,7 +6,7 @@ import {
   UploadedAttachmentInputSchema,
 } from "./messages";
 import { DMConversationDTOSchema, DMMessagePayloadSchema } from "./socket";
-import { WorkspaceChannelSchema } from "./workspace";
+import { WorkspaceChannelSchema, WorkspaceMemberSchema } from "./workspace";
 
 export const MobileBootstrapFeatureStatusSchema = z.enum([
   "available",
@@ -395,6 +395,7 @@ export const MobileWorkspaceCategorySummarySchema = z.object({
 export const MobileWorkspaceServerDetailSchema = z.object({
   categories: z.array(MobileWorkspaceCategorySummarySchema).max(20),
   hasMoreChannels: z.boolean(),
+  members: z.array(WorkspaceMemberSchema).max(80).default([]),
   server: z.object({
     defaultChannelId: z.string().min(1).nullable(),
     description: z.string().max(240).nullable(),

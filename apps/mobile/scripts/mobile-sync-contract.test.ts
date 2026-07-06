@@ -104,7 +104,7 @@ describe("mobile sync contract", () => {
     assert.equal(isMobileSyncStale(snapshot, 10_000 + MOBILE_SYNC_STALE_MS), true);
   });
 
-  it("summarizes visible sync health without exposing payload data", () => {
+  it("keeps successful background refreshes silent while exposing failures", () => {
     const bootstrap = markMobileSyncSucceeded(
       createInitialMobileSyncSnapshot("bootstrap"),
       10_000,
@@ -119,7 +119,7 @@ describe("mobile sync contract", () => {
       failedSources: [],
       failureCount: 0,
       isRefreshing: true,
-      status: "refreshing",
+      status: "healthy",
     });
     assert.deepEqual(summarizeMobileSyncHealth([refreshing, failed]), {
       failedSources: ["dm"],

@@ -33,6 +33,7 @@ import {
   createCheckingMobileMediaRuntimeState,
   createInitialMobileMediaRuntimeState,
 } from "../media/mobile-media-contract";
+import { installMobileFontDefaults, useOutfitFonts } from "../design/mobile-fonts";
 import {
   requestMobileCameraPermissionAfterUserAction,
   requestMobileDocumentPickerAfterUserAction,
@@ -57,7 +58,14 @@ import {
   shouldConnectMobileRealtime,
 } from "../realtime/mobile-realtime-state";
 import {
-  isMobileSyncRefreshing,
+  createInitialMobileChannelTypingState,
+  getVisibleMobileChannelTypingUsers,
+  replaceMobileChannelTypingUsers,
+  formatMobileChannelTypingLabel,
+  pruneMobileChannelTypingState,
+  type MobileChannelTypingState,
+} from "../realtime/mobile-typing-state";
+import {
   markMobileSyncFailed,
   markMobileSyncStarted,
   markMobileSyncSucceeded,
@@ -76,8 +84,20 @@ import {
   MOBILE_CHANNEL_MESSAGES_LIMIT,
   sendMobileChannelMessage,
 } from "../workspace/mobile-workspace-client";
+import { applyMobileRealtimeChannelMessageEvent } from "../workspace/mobile-channel-message-state";
 import { useMobileVoiceRoom } from "../voice/use-mobile-voice-room";
-import { findInitialMobileWorkspaceChannel } from "./mobile-display-model";
+import {
+  getMobileVoiceInviteErrorPayload,
+  getMobileVoiceInviteReceivedPayload,
+  getMobileVoiceInviteSendResultPayload,
+  getMobileVoiceInviteStatusPayload,
+  type MobileVoiceInviteReceived,
+  type MobileVoiceInviteSendState,
+} from "../voice/mobile-voice-room-contract";
+import {
+  findInitialMobileWorkspaceChannel,
+  getMobileWorkspaceChannels,
+} from "./mobile-display-model";
 import { MobileAppShell } from "./mobile-app-shell";
 import {
   INITIAL_BOOTSTRAP_STATE,
@@ -103,6 +123,9 @@ import { ActiveScreen, AuthGate } from "./mobile-root-screens";
 
 const copy = mobileCopy.tr;
 const runtimeConfig = getMobileRuntimeConfig();
+const MOBILE_CHANNEL_TYPING_STOP_DELAY_MS = 3_000;
+const MOBILE_CHANNEL_TYPING_START_THROTTLE_MS = 1_500;
+const MOBILE_VOICE_INVITE_LIMIT = 3;
 
 function getMobileVoiceStateUpdatePayload(payload: unknown): {
   channelId: string;
@@ -151,7 +174,64 @@ function getMobileVoiceStateUpdatePayload(payload: unknown): {
   };
 }
 
+type MobileVoiceInviteEntry = MobileVoiceInviteReceived & {
+  readonly errorMessage: string | null;
+  readonly isAccepting: boolean;
+};
+
+function getMobileChannelTypingUpdatePayload(payload: unknown): {
+  channelId: string;
+  users: string[];
+} | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  if (typeof record.channelId !== "string" || !Array.isArray(record.users)) {
+    return null;
+  }
+
+  const users = record.users.filter((user): user is string => typeof user === "string");
+  return {
+    channelId: record.channelId,
+    users,
+  };
+}
+
+function getMobileVoiceAudioLevelUpdatePayload(payload: unknown): {
+  audioLevel: number;
+  channelId: string;
+  isMuted: boolean;
+  isSpeaking: boolean;
+  userId: string;
+} | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  if (
+    typeof record.audioLevel !== "number" ||
+    typeof record.channelId !== "string" ||
+    typeof record.isMuted !== "boolean" ||
+    typeof record.isSpeaking !== "boolean" ||
+    typeof record.userId !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    audioLevel: record.audioLevel,
+    channelId: record.channelId,
+    isMuted: record.isMuted,
+    isSpeaking: record.isSpeaking,
+    userId: record.userId,
+  };
+}
+
 export function WhisprMobileRoot() {
+  const [fontsLoaded] = useOutfitFonts();
   const {
     apiClient,
     completeAuthHandoff,
@@ -194,10 +274,16 @@ export function WhisprMobileRoot() {
   const realtimeRefreshTimersRef = useRef<
     Partial<Record<MobileRealtimeRefreshSource, ReturnType<typeof setTimeout>>>
   >({});
+  const channelTypingStopTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const channelTypingLastStartAtRef = useRef<Record<string, number>>({});
+  const channelTypingPruneTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [realtimeState, dispatchRealtime] = useReducer(
     mobileRealtimeReducer,
     undefined,
     createInitialMobileRealtimeSnapshot,
+  );
+  const [channelTypingState, setChannelTypingState] = useState<MobileChannelTypingState>(
+    createInitialMobileChannelTypingState,
   );
   const [selectedDMConversationId, setSelectedDMConversationId] = useState<string | null>(null);
   const [dmMessagesState, setDMMessagesState] =
@@ -207,12 +293,17 @@ export function WhisprMobileRoot() {
   const dmMessagesRequestIdRef = useRef(0);
   const [selectedWorkspaceServerId, setSelectedWorkspaceServerId] = useState<string | null>(null);
   const [selectedWorkspaceChannelId, setSelectedWorkspaceChannelId] = useState<string | null>(null);
+  const [activeWorkspaceTextChannelId, setActiveWorkspaceTextChannelId] =
+    useState<string | null>(null);
+  const [activeWorkspaceVoiceChannelId, setActiveWorkspaceVoiceChannelId] =
+    useState<string | null>(null);
   const [workspaceServerState, setWorkspaceServerState] = useState<MobileWorkspaceServerViewState>(
     INITIAL_WORKSPACE_SERVER_STATE,
   );
   const [channelMessagesState, setChannelMessagesState] = useState<MobileChannelMessagesViewState>(
     INITIAL_CHANNEL_MESSAGES_STATE,
   );
+  const channelMessagesStateRef = useRef<MobileChannelMessagesViewState>(channelMessagesState);
   const [channelSendState, setChannelSendState] = useState<MobileChannelSendViewState>(
     INITIAL_CHANNEL_SEND_STATE,
   );
@@ -238,6 +329,8 @@ export function WhisprMobileRoot() {
     permissionState: voiceState,
     requestMicrophonePermission,
     roomState: voiceRoomState,
+    selectAudioOutput: selectVoiceAudioOutput,
+    syncParticipantAudioLevelFromServer,
     syncParticipantsFromServer,
     toggleCamera: toggleVoiceCamera,
     toggleMute: toggleVoiceMute,
@@ -246,6 +339,10 @@ export function WhisprMobileRoot() {
     currentUser: session?.user ?? null,
   });
   const activeVoiceChannelId = voiceRoomState.channelId;
+  const [voiceInviteEntries, setVoiceInviteEntries] = useState<MobileVoiceInviteEntry[]>([]);
+  const [voiceInviteSendStates, setVoiceInviteSendStates] = useState<
+    Record<string, MobileVoiceInviteSendState>
+  >({});
   const [mediaState, setMediaState] = useState(createInitialMobileMediaRuntimeState);
   const mediaStateRef = useRef(mediaState);
   const basePermissionReadiness = useMemo(() => createInitialMobilePermissionReadiness(), []);
@@ -284,8 +381,18 @@ export function WhisprMobileRoot() {
   );
 
   useEffect(() => {
+    if (fontsLoaded) {
+      installMobileFontDefaults();
+    }
+  }, [fontsLoaded]);
+
+  useEffect(() => {
     mediaStateRef.current = mediaState;
   }, [mediaState]);
+
+  useEffect(() => {
+    channelMessagesStateRef.current = channelMessagesState;
+  }, [channelMessagesState]);
 
   const handleRequestNotificationPermission = useCallback(async () => {
     setNotificationState((current) => createCheckingMobileNotificationRuntimeState(current));
@@ -320,6 +427,64 @@ export function WhisprMobileRoot() {
   const handleClearSelectedMediaAsset = useCallback(() => {
     setMediaState(clearMobileMediaSelectedAsset);
   }, []);
+
+  const scheduleChannelTypingPrune = useCallback((channelId: string) => {
+    if (channelTypingPruneTimersRef.current[channelId]) {
+      return;
+    }
+
+    channelTypingPruneTimersRef.current[channelId] = setTimeout(() => {
+      delete channelTypingPruneTimersRef.current[channelId];
+      setChannelTypingState((current) => pruneMobileChannelTypingState(current));
+    }, MOBILE_CHANNEL_TYPING_STOP_DELAY_MS + 750);
+  }, []);
+
+  const stopChannelTyping = useCallback((channelId: string) => {
+    const normalizedChannelId = channelId.trim();
+    if (normalizedChannelId.length === 0) {
+      return;
+    }
+
+    const stopTimer = channelTypingStopTimersRef.current[normalizedChannelId];
+    if (stopTimer) {
+      clearTimeout(stopTimer);
+      delete channelTypingStopTimersRef.current[normalizedChannelId];
+    }
+
+    delete channelTypingLastStartAtRef.current[normalizedChannelId];
+    realtimeClientRef.current?.emitChannelTypingStop(normalizedChannelId);
+  }, []);
+
+  const handleChannelDraftChange = useCallback(
+    (content: string) => {
+      const channelId = selectedWorkspaceChannelId;
+      if (status !== "signed-in" || !channelId) {
+        return;
+      }
+
+      if (content.trim().length === 0) {
+        stopChannelTyping(channelId);
+        return;
+      }
+
+      const now = Date.now();
+      const lastStartedAt = channelTypingLastStartAtRef.current[channelId] ?? 0;
+      if (now - lastStartedAt >= MOBILE_CHANNEL_TYPING_START_THROTTLE_MS) {
+        realtimeClientRef.current?.emitChannelTypingStart(channelId);
+        channelTypingLastStartAtRef.current[channelId] = now;
+      }
+
+      const stopTimer = channelTypingStopTimersRef.current[channelId];
+      if (stopTimer) {
+        clearTimeout(stopTimer);
+      }
+
+      channelTypingStopTimersRef.current[channelId] = setTimeout(() => {
+        stopChannelTyping(channelId);
+      }, MOBILE_CHANNEL_TYPING_STOP_DELAY_MS);
+    },
+    [selectedWorkspaceChannelId, status, stopChannelTyping],
+  );
 
   const loadBootstrap = useCallback(async () => {
     const requestId = bootstrapRequestIdRef.current + 1;
@@ -632,6 +797,7 @@ export function WhisprMobileRoot() {
         error: null,
         status: "sending",
       });
+      stopChannelTyping(channelId);
 
       try {
         const response = await sendMobileChannelMessage(apiClient, {
@@ -679,7 +845,7 @@ export function WhisprMobileRoot() {
         return false;
       }
     },
-    [apiClient, loadBootstrap, selectedWorkspaceChannelId, status],
+    [apiClient, loadBootstrap, selectedWorkspaceChannelId, status, stopChannelTyping],
   );
 
   const loadWorkspaceServer = useCallback(
@@ -692,6 +858,7 @@ export function WhisprMobileRoot() {
         setWorkspaceSyncState(INITIAL_WORKSPACE_SYNC_STATE);
         setSelectedWorkspaceServerId(null);
         setSelectedWorkspaceChannelId(null);
+        setActiveWorkspaceTextChannelId(null);
         setChannelMessagesState(INITIAL_CHANNEL_MESSAGES_STATE);
         setChannelSendState(INITIAL_CHANNEL_SEND_STATE);
         setChannelSyncState(INITIAL_CHANNEL_SYNC_STATE);
@@ -726,7 +893,18 @@ export function WhisprMobileRoot() {
           payload.detail,
           preferredChannelId,
         );
+        const channels = getMobileWorkspaceChannels(payload.detail);
         setSelectedWorkspaceChannelId(selectedChannel?.id ?? null);
+        setActiveWorkspaceTextChannelId((currentChannelId) => {
+          if (!currentChannelId) {
+            return null;
+          }
+
+          const currentChannel = channels.find(
+            (channel) => channel.id === currentChannelId,
+          );
+          return currentChannel?.type === "TEXT" ? currentChannel.id : null;
+        });
 
         if (selectedChannel?.type === "TEXT") {
           void loadChannelMessages(selectedChannel.id);
@@ -749,6 +927,8 @@ export function WhisprMobileRoot() {
           status: "error",
         });
         setSelectedWorkspaceChannelId(null);
+        setActiveWorkspaceTextChannelId(null);
+        setActiveWorkspaceVoiceChannelId(null);
         channelMessagesRequestIdRef.current += 1;
         setChannelMessagesState(INITIAL_CHANNEL_MESSAGES_STATE);
         setChannelSendState(INITIAL_CHANNEL_SEND_STATE);
@@ -780,17 +960,45 @@ export function WhisprMobileRoot() {
   const handleOpenWorkspaceServer = useCallback(
     (serverId: string) => {
       clearMessageSearch();
+      if (selectedWorkspaceChannelId) {
+        stopChannelTyping(selectedWorkspaceChannelId);
+      }
+      setActiveWorkspaceTextChannelId(null);
+      setActiveWorkspaceVoiceChannelId(null);
       void loadWorkspaceServer(serverId);
     },
-    [clearMessageSearch, loadWorkspaceServer],
+    [clearMessageSearch, loadWorkspaceServer, selectedWorkspaceChannelId, stopChannelTyping],
   );
+
+  const handleCloseWorkspaceChannel = useCallback(() => {
+    clearMessageSearch();
+    if (selectedWorkspaceChannelId) {
+      stopChannelTyping(selectedWorkspaceChannelId);
+    }
+    setActiveWorkspaceTextChannelId(null);
+  }, [clearMessageSearch, selectedWorkspaceChannelId, stopChannelTyping]);
+
+  const handleCloseWorkspaceVoiceChannel = useCallback(() => {
+    clearMessageSearch();
+    setActiveWorkspaceVoiceChannelId(null);
+  }, [clearMessageSearch]);
+
+  const handleLeaveWorkspaceVoiceChannel = useCallback(async () => {
+    await leaveVoiceChannel();
+    setActiveWorkspaceVoiceChannelId(null);
+  }, [leaveVoiceChannel]);
 
   const handleOpenWorkspaceChannel = useCallback(
     (channel: MobileWorkspaceChannelSummary) => {
       clearMessageSearch();
+      if (selectedWorkspaceChannelId && selectedWorkspaceChannelId !== channel.id) {
+        stopChannelTyping(selectedWorkspaceChannelId);
+      }
       setSelectedWorkspaceChannelId(channel.id);
 
       if (channel.type === "VOICE") {
+        setActiveWorkspaceTextChannelId(null);
+        setActiveWorkspaceVoiceChannelId(channel.id);
         channelMessagesRequestIdRef.current += 1;
         setChannelMessagesState(INITIAL_CHANNEL_MESSAGES_STATE);
         setChannelSendState(INITIAL_CHANNEL_SEND_STATE);
@@ -806,6 +1014,8 @@ export function WhisprMobileRoot() {
       }
 
       if (channel.type !== "TEXT") {
+        setActiveWorkspaceTextChannelId(null);
+        setActiveWorkspaceVoiceChannelId(null);
         channelMessagesRequestIdRef.current += 1;
         setChannelMessagesState(INITIAL_CHANNEL_MESSAGES_STATE);
         setChannelSendState(INITIAL_CHANNEL_SEND_STATE);
@@ -813,10 +1023,123 @@ export function WhisprMobileRoot() {
         return;
       }
 
+      setActiveWorkspaceTextChannelId(channel.id);
+      setActiveWorkspaceVoiceChannelId(null);
       setChannelSendState(INITIAL_CHANNEL_SEND_STATE);
       void loadChannelMessages(channel.id);
     },
-    [clearMessageSearch, joinVoiceChannel, loadChannelMessages, selectedWorkspaceServerId],
+    [
+      clearMessageSearch,
+      joinVoiceChannel,
+      loadChannelMessages,
+      selectedWorkspaceChannelId,
+      selectedWorkspaceServerId,
+      stopChannelTyping,
+    ],
+  );
+
+  const handleSendVoiceInvite = useCallback(
+    (targetUserId: string) => {
+      const channelId = voiceRoomState.channelId;
+      const serverId = voiceRoomState.serverId;
+      const normalizedTargetUserId = targetUserId.trim();
+
+      if (!channelId || !serverId || !normalizedTargetUserId) {
+        setVoiceInviteSendStates((current) => ({
+          ...current,
+          [normalizedTargetUserId]: {
+            errorMessage: copy.voiceInviteRealtimeUnavailable,
+            expiresAt: null,
+            inviteId: null,
+            status: "failed",
+          },
+        }));
+        return;
+      }
+
+      setVoiceInviteSendStates((current) => ({
+        ...current,
+        [normalizedTargetUserId]: {
+          errorMessage: null,
+          expiresAt: null,
+          inviteId: null,
+          status: "sending",
+        },
+      }));
+
+      realtimeClientRef.current?.emitVoiceInviteSend({
+        channelId,
+        serverId,
+        targetUserId: normalizedTargetUserId,
+      });
+    },
+    [voiceRoomState.channelId, voiceRoomState.serverId],
+  );
+
+  const handleAcceptVoiceInvite = useCallback(
+    (inviteId: string) => {
+      const invite = voiceInviteEntries.find((entry) => entry.id === inviteId);
+
+      if (!invite) {
+        return;
+      }
+
+      setVoiceInviteEntries((current) =>
+        current.map((entry) =>
+          entry.id === inviteId ? { ...entry, errorMessage: null, isAccepting: true } : entry,
+        ),
+      );
+
+      realtimeClientRef.current?.emitVoiceInviteAccept({
+        channelId: invite.channelId,
+        inviteId: invite.id,
+        serverId: invite.serverId,
+      });
+      dispatchNavigation({ tab: "overview", type: "select" });
+      setActiveWorkspaceTextChannelId(null);
+      setActiveWorkspaceVoiceChannelId(invite.channelId);
+      void loadWorkspaceServer(invite.serverId, invite.channelId);
+      void joinVoiceChannel({
+        channelId: invite.channelId,
+        channelName: invite.channelName,
+        serverId: invite.serverId,
+      }).then((joined) => {
+        if (joined) {
+          setVoiceInviteEntries((current) =>
+            current.filter((entry) => entry.id !== invite.id),
+          );
+          return;
+        }
+
+        setVoiceInviteEntries((current) =>
+          current.map((entry) =>
+            entry.id === invite.id
+              ? { ...entry, errorMessage: copy.voiceRoomError, isAccepting: false }
+              : entry,
+          ),
+        );
+      });
+    },
+    [joinVoiceChannel, loadWorkspaceServer, voiceInviteEntries],
+  );
+
+  const handleDeclineVoiceInvite = useCallback(
+    (inviteId: string) => {
+      const invite = voiceInviteEntries.find((entry) => entry.id === inviteId);
+
+      if (invite) {
+        realtimeClientRef.current?.emitVoiceInviteDecline({
+          channelId: invite.channelId,
+          inviteId: invite.id,
+          serverId: invite.serverId,
+        });
+      }
+
+      setVoiceInviteEntries((current) =>
+        current.filter((entry) => entry.id !== inviteId),
+      );
+    },
+    [voiceInviteEntries],
   );
 
   const selectedDMConversation = useMemo(() => {
@@ -923,9 +1246,137 @@ export function WhisprMobileRoot() {
         event.eventName === "voice:state:update"
           ? getMobileVoiceStateUpdatePayload(event.payload)
           : null;
+      const voiceAudioPayload =
+        event.eventName === "voice:audio-level:update"
+          ? getMobileVoiceAudioLevelUpdatePayload(event.payload)
+          : null;
+      const typingPayload =
+        event.eventName === "typing:update"
+          ? getMobileChannelTypingUpdatePayload(event.payload)
+          : null;
+      const voiceInviteReceivedPayload =
+        event.eventName === "voice:invite:received"
+          ? getMobileVoiceInviteReceivedPayload(event.payload)
+          : null;
+      const voiceInviteSentPayload =
+        event.eventName === "voice:invite:sent"
+          ? getMobileVoiceInviteSendResultPayload(event.payload)
+          : null;
+      const voiceInviteStatusPayload =
+        event.eventName === "voice:invite:status" ||
+        event.eventName === "voice:invite:accepted"
+          ? getMobileVoiceInviteStatusPayload(event.payload)
+          : null;
+      const voiceInviteErrorPayload =
+        event.eventName === "voice:invite:error"
+          ? getMobileVoiceInviteErrorPayload(event.payload)
+          : null;
+      const channelMessageApplyResult = applyMobileRealtimeChannelMessageEvent({
+        eventName: event.eventName,
+        payload: event.payload,
+        state: channelMessagesStateRef.current,
+      });
+
+      if (channelMessageApplyResult.handled) {
+        channelMessagesStateRef.current = channelMessageApplyResult.state;
+        setChannelMessagesState(channelMessageApplyResult.state);
+        setChannelSyncState(markMobileSyncSucceeded);
+      }
 
       if (voicePayload) {
         syncParticipantsFromServer(voicePayload);
+      }
+
+      if (voiceAudioPayload) {
+        syncParticipantAudioLevelFromServer(voiceAudioPayload);
+      }
+
+      if (typingPayload) {
+        const currentUserNames = [
+          session?.user.displayName ?? "",
+          session?.user.username ?? "",
+        ].filter((name) => name.trim().length > 0);
+        setChannelTypingState((current) =>
+          replaceMobileChannelTypingUsers(current, {
+            channelId: typingPayload.channelId,
+            currentUserNames,
+            now: event.receivedAt,
+            usernames: typingPayload.users,
+          }),
+        );
+        scheduleChannelTypingPrune(typingPayload.channelId);
+      }
+
+      if (voiceInviteReceivedPayload) {
+        const expiresAtMs = Date.parse(voiceInviteReceivedPayload.expiresAt);
+        if (Number.isNaN(expiresAtMs) || expiresAtMs > Date.now()) {
+          setVoiceInviteEntries((current) => {
+            const nextEntry: MobileVoiceInviteEntry = {
+              ...voiceInviteReceivedPayload,
+              errorMessage: null,
+              isAccepting: false,
+            };
+            const withoutDuplicate = current.filter(
+              (entry) => entry.id !== voiceInviteReceivedPayload.id,
+            );
+            return [nextEntry, ...withoutDuplicate].slice(0, MOBILE_VOICE_INVITE_LIMIT);
+          });
+        }
+      }
+
+      if (voiceInviteSentPayload) {
+        setVoiceInviteSendStates((current) => ({
+          ...current,
+          [voiceInviteSentPayload.targetUserId]: {
+            errorMessage: null,
+            expiresAt: voiceInviteSentPayload.expiresAt,
+            inviteId: voiceInviteSentPayload.inviteId,
+            status: "sent",
+          },
+        }));
+      }
+
+      if (voiceInviteStatusPayload) {
+        setVoiceInviteSendStates((current) => ({
+          ...current,
+          [voiceInviteStatusPayload.targetUserId]: {
+            errorMessage: null,
+            expiresAt: null,
+            inviteId: voiceInviteStatusPayload.inviteId,
+            status: voiceInviteStatusPayload.status,
+          },
+        }));
+        setVoiceInviteEntries((current) =>
+          current.filter((entry) => entry.id !== voiceInviteStatusPayload.inviteId),
+        );
+      }
+
+      if (voiceInviteErrorPayload) {
+        if (voiceInviteErrorPayload.targetUserId) {
+          setVoiceInviteSendStates((current) => ({
+            ...current,
+            [voiceInviteErrorPayload.targetUserId as string]: {
+              errorMessage: voiceInviteErrorPayload.message,
+              expiresAt: null,
+              inviteId: voiceInviteErrorPayload.inviteId,
+              status: "failed",
+            },
+          }));
+        }
+
+        if (voiceInviteErrorPayload.inviteId) {
+          setVoiceInviteEntries((current) =>
+            current.map((entry) =>
+              entry.id === voiceInviteErrorPayload.inviteId
+                ? {
+                    ...entry,
+                    errorMessage: voiceInviteErrorPayload.message,
+                    isAccepting: false,
+                  }
+                : entry,
+            ),
+          );
+        }
       }
 
       for (const source of event.refreshSources) {
@@ -956,7 +1407,7 @@ export function WhisprMobileRoot() {
             targets.channelId &&
             (!event.channelId || event.channelId === targets.channelId);
 
-          if (shouldRefreshChannel) {
+          if (shouldRefreshChannel && !channelMessageApplyResult.handled) {
             scheduleRealtimeRefresh("channel", () => {
               if (realtimeTargetsRef.current.channelId) {
                 void loadChannelMessages(realtimeTargetsRef.current.channelId);
@@ -993,6 +1444,10 @@ export function WhisprMobileRoot() {
       loadDMMessages,
       loadWorkspaceServer,
       scheduleRealtimeRefresh,
+      scheduleChannelTypingPrune,
+      session?.user.displayName,
+      session?.user.username,
+      syncParticipantAudioLevelFromServer,
       syncParticipantsFromServer,
     ],
   );
@@ -1006,6 +1461,23 @@ export function WhisprMobileRoot() {
       }
 
       realtimeRefreshTimersRef.current = {};
+    },
+    [],
+  );
+
+  useEffect(
+    () => () => {
+      for (const timer of Object.values(channelTypingStopTimersRef.current)) {
+        clearTimeout(timer);
+      }
+
+      for (const timer of Object.values(channelTypingPruneTimersRef.current)) {
+        clearTimeout(timer);
+      }
+
+      channelTypingStopTimersRef.current = {};
+      channelTypingLastStartAtRef.current = {};
+      channelTypingPruneTimersRef.current = {};
     },
     [],
   );
@@ -1141,6 +1613,8 @@ export function WhisprMobileRoot() {
       setWorkspaceServerState(INITIAL_WORKSPACE_SERVER_STATE);
       setChannelMessagesState(INITIAL_CHANNEL_MESSAGES_STATE);
       setChannelSendState(INITIAL_CHANNEL_SEND_STATE);
+      setActiveWorkspaceTextChannelId(null);
+      setActiveWorkspaceVoiceChannelId(null);
       setWorkspaceSyncState(INITIAL_WORKSPACE_SYNC_STATE);
       setChannelSyncState(INITIAL_CHANNEL_SYNC_STATE);
       void leaveVoiceChannel();
@@ -1247,13 +1721,20 @@ export function WhisprMobileRoot() {
   const mobileShellUnreadCount =
     bootstrapState.status === "ready" ? bootstrapState.payload.home.directMessages.unreadCount : 0;
 
-  const isShellRefreshing =
-    status === "checking" ||
-    isMobileSyncRefreshing(bootstrapSyncState) ||
-    (navigation.currentTab === "messages" && isMobileSyncRefreshing(dmSyncState)) ||
-    (navigation.currentTab === "overview" &&
-      (isMobileSyncRefreshing(workspaceSyncState) || isMobileSyncRefreshing(channelSyncState))) ||
-    (navigation.currentTab === "voice" && isMobileSyncRefreshing(workspaceSyncState));
+  const channelTypingLabel = useMemo(
+    () =>
+      formatMobileChannelTypingLabel(
+        getVisibleMobileChannelTypingUsers(channelTypingState, selectedWorkspaceChannelId),
+      ),
+    [channelTypingState, selectedWorkspaceChannelId],
+  );
+
+  const isShellRefreshing = status === "checking";
+  const contentUsesOwnScroll =
+    status === "signed-in" &&
+    !route.isBlocked &&
+    navigation.currentTab === "overview" &&
+    (activeWorkspaceTextChannelId !== null || activeWorkspaceVoiceChannelId !== null);
 
   const handleShellRefresh = useCallback(() => {
     if (route.isBlocked) {
@@ -1264,9 +1745,14 @@ export function WhisprMobileRoot() {
     refreshVisibleMobileData();
   }, [refreshSessionFromStorage, refreshVisibleMobileData, route.isBlocked]);
 
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <MobileAppShell
       authStatus={status}
+      contentUsesOwnScroll={contentUsesOwnScroll}
       currentTab={navigation.currentTab}
       directMessageUnreadCount={mobileShellUnreadCount}
       isRefreshing={isShellRefreshing}
@@ -1301,16 +1787,21 @@ export function WhisprMobileRoot() {
           notificationState={notificationState}
           voiceState={voiceState}
           voiceRoomState={voiceRoomState}
+          voiceInvites={voiceInviteEntries}
+          voiceInviteSendStates={voiceInviteSendStates}
           permissionReadiness={permissionReadiness}
           permissionSummary={permissionSummary}
           error={error}
           authStatusLabel={authStatusLabel}
           channelMessagesState={channelMessagesState}
           channelSendState={channelSendState}
+          channelTypingLabel={channelTypingLabel}
           onOpenWebRegister={() => void openWebRegister()}
           signedInUserLabel={signedInUserLabel}
           onOpenWebSignIn={() => void openWebSignIn()}
           onCloseDMConversation={handleCloseDMConversation}
+          onCloseWorkspaceChannel={handleCloseWorkspaceChannel}
+          onCloseWorkspaceVoiceChannel={handleCloseWorkspaceVoiceChannel}
           onOpenDMConversation={handleOpenDMConversation}
           onOpenWorkspaceChannel={handleOpenWorkspaceChannel}
           onOpenWorkspaceServer={handleOpenWorkspaceServer}
@@ -1322,8 +1813,11 @@ export function WhisprMobileRoot() {
           onRequestNotificationPermission={handleRequestNotificationPermission}
           onRequestVoicePermission={handleRequestVoicePermission}
           onLeaveVoiceChannel={leaveVoiceChannel}
+          onLeaveWorkspaceVoiceChannel={handleLeaveWorkspaceVoiceChannel}
+          onSelectVoiceAudioOutput={selectVoiceAudioOutput}
           onToggleVoiceCamera={toggleVoiceCamera}
           onToggleVoiceMute={toggleVoiceMute}
+          onAcceptVoiceInvite={handleAcceptVoiceInvite}
           onRefreshBootstrap={() => void loadBootstrap()}
           onRefreshChannelMessages={() => {
             if (selectedWorkspaceChannelId) {
@@ -1342,13 +1836,18 @@ export function WhisprMobileRoot() {
           }}
           onRefresh={() => void refreshSessionFromStorage()}
           onRefreshVisibleData={refreshVisibleMobileData}
+          onChannelDraftChange={handleChannelDraftChange}
           onSelectTab={(tab) => dispatchNavigation({ tab, type: "select" })}
           onSendChannelMessage={handleSendChannelMessage}
           onSendDMMessage={handleSendDMMessage}
           onSearchMessages={handleSearchMessages}
+          onDeclineVoiceInvite={handleDeclineVoiceInvite}
+          onSendVoiceInvite={handleSendVoiceInvite}
           onSignOut={() => void signOut()}
           selectedDMConversation={selectedDMConversation}
           selectedDMConversationId={selectedDMConversationId}
+          activeWorkspaceTextChannelId={activeWorkspaceTextChannelId}
+          activeWorkspaceVoiceChannelId={activeWorkspaceVoiceChannelId}
           selectedWorkspaceChannelId={selectedWorkspaceChannelId}
           selectedWorkspaceServerId={selectedWorkspaceServerId}
           status={status}

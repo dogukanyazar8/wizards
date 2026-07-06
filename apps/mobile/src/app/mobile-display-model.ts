@@ -5,6 +5,10 @@ import type {
   MobileWorkspaceChannelSummary,
   MobileWorkspaceServerDetailResponse,
 } from "@wizards/types";
+import type {
+  MobileVoiceRoomParticipant,
+  MobileVoiceRoomState,
+} from "../voice/mobile-voice-room-contract";
 
 export type MobileConversationSummary =
   MobileBootstrapPayload["home"]["directMessages"]["recent"][number];
@@ -13,16 +17,59 @@ export type MobileWorkspaceChannelSection = {
   readonly id: string;
   readonly name: string;
 };
+export type MobileVisibleWorkspaceChannelSection = MobileWorkspaceChannelSection & {
+  readonly isCollapsed: boolean;
+  readonly totalChannelCount: number;
+};
 
 export type MobileDisplayMessage = ChatMessage | DMMessagePayload;
 export type MobileConversationFilter = "all" | "groups" | "unread";
 export type MobileHomeQuickActionKind = "direct-message" | "server" | "voice";
+export type MobileWorkspaceChannelSurface =
+  | "channel-chat"
+  | "voice-room"
+  | "workspace-browser";
+export interface MobileChannelChatHeaderModel {
+  readonly accessibilityLabel: string;
+  readonly channelName: string;
+  readonly memberCountLabel: string;
+  readonly serverName: string;
+  readonly topic: string | null;
+}
+export interface MobileChannelChatSearchVisibility {
+  readonly isSearchAvailable: boolean;
+  readonly shouldRenderSearchPanel: boolean;
+  readonly toggleAccessibilityLabel: string;
+}
+export interface MobileVoiceChannelScreenModel {
+  readonly allParticipants: MobileVoiceRoomParticipant[];
+  readonly canLeave: boolean;
+  readonly canOpenSettings: boolean;
+  readonly canSelectDefaultAudio: boolean;
+  readonly canSelectSpeaker: boolean;
+  readonly canShareScreen: boolean;
+  readonly canToggleMicrophone: boolean;
+  readonly channelName: string;
+  readonly isConnected: boolean;
+  readonly krispLabel: string;
+  readonly listeningParticipants: MobileVoiceRoomParticipant[];
+  readonly memberCountLabel: string;
+  readonly participantCountLabel: string;
+  readonly qualityLabel: string;
+  readonly serverName: string;
+  readonly serverShortName: string;
+  readonly shouldSplitParticipantsBySpeakingState: boolean;
+  readonly signalLabel: string;
+  readonly speakingParticipants: MobileVoiceRoomParticipant[];
+  readonly title: string;
+}
 
 export const MOBILE_RENDER_LIMITS = {
   channels: 80,
   conversations: 50,
   messages: 60,
   servers: 50,
+  voiceParticipants: 40,
 } as const;
 
 export type MobileBoundedListDirection = "end" | "start";
@@ -38,6 +85,31 @@ export interface MobileHomeQuickAction {
 }
 
 const ACTIVE_PRESENCE_STATUSES = new Set(["ONLINE", "IDLE", "DND"]);
+
+const MOBILE_CHANNEL_CHAT_LABEL_LIMITS = {
+  accessibilityLabel: 160,
+  channelName: 48,
+  serverName: 48,
+  topic: 96,
+} as const;
+
+function normalizeMobileDisplayText(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function truncateMobileDisplayText(value: string, limit: number): string {
+  const normalized = normalizeMobileDisplayText(value);
+
+  if (normalized.length <= limit) {
+    return normalized;
+  }
+
+  if (limit <= 3) {
+    return normalized.slice(0, Math.max(0, limit));
+  }
+
+  return `${normalized.slice(0, limit - 3).trimEnd()}...`;
+}
 
 export function getBoundedMobileList<T>(
   items: readonly T[],
@@ -246,6 +318,12 @@ export type MobileMessageStreamItem<T extends { readonly createdAt: string; read
   readonly showDateSeparator: boolean;
 };
 
+export interface MobileMessageListPerformanceConfig {
+  readonly initialNumToRender: number;
+  readonly maxToRenderPerBatch: number;
+  readonly windowSize: number;
+}
+
 export function getMobileDisplayMessageDayKey(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -276,6 +354,26 @@ export function getMobileMessageStreamItems<
   });
 }
 
+export function getMobileMessageListPerformanceConfig(
+  messageCount: number,
+): MobileMessageListPerformanceConfig {
+  const boundedCount = Math.max(0, Math.min(messageCount, MOBILE_RENDER_LIMITS.messages));
+
+  if (boundedCount <= 12) {
+    return {
+      initialNumToRender: 8,
+      maxToRenderPerBatch: 8,
+      windowSize: 5,
+    };
+  }
+
+  return {
+    initialNumToRender: 12,
+    maxToRenderPerBatch: 10,
+    windowSize: 7,
+  };
+}
+
 export function getMobileWorkspaceChannels(
   detail: MobileWorkspaceServerDetailResponse["detail"],
 ): MobileWorkspaceChannelSummary[] {
@@ -283,6 +381,118 @@ export function getMobileWorkspaceChannels(
     ...detail.ungroupedChannels,
     ...detail.categories.flatMap((category) => category.channels),
   ];
+}
+
+export function getMobileWorkspaceChannelSurface(
+  channel: MobileWorkspaceChannelSummary | null,
+  options: {
+    isExplicitlyOpened: boolean;
+  },
+): MobileWorkspaceChannelSurface {
+  if (!channel || !options.isExplicitlyOpened) {
+    return "workspace-browser";
+  }
+
+  return channel.type === "VOICE" ? "voice-room" : "channel-chat";
+}
+
+export function getMobileVoiceChannelScreenModel(
+  room: MobileVoiceRoomState,
+  options: {
+    channelName: string;
+    memberCount: number;
+    serverName: string;
+    serverShortName: string;
+  },
+): MobileVoiceChannelScreenModel {
+  const allParticipants = getBoundedMobileList(
+    room.participants,
+    MOBILE_RENDER_LIMITS.voiceParticipants,
+  );
+  const speakingParticipants = allParticipants.filter(
+    (participant) => participant.isSpeaking && !participant.isMuted,
+  );
+  const speakerIds = new Set(speakingParticipants.map((participant) => participant.userId));
+  const listeningParticipants = allParticipants.filter(
+    (participant) => !speakerIds.has(participant.userId),
+  );
+  const isConnected = room.status === "connected";
+
+  return {
+    allParticipants,
+    canLeave: room.status !== "idle",
+    canOpenSettings: false,
+    canSelectDefaultAudio: isConnected,
+    canSelectSpeaker: isConnected,
+    canShareScreen: false,
+    canToggleMicrophone: isConnected,
+    channelName: room.channelName ?? options.channelName,
+    isConnected,
+    krispLabel: "Krisp pasif",
+    listeningParticipants,
+    memberCountLabel: String(Math.max(0, options.memberCount)),
+    participantCountLabel: String(allParticipants.length),
+    qualityLabel: isConnected ? "Ses bagli" : "Hazirlaniyor",
+    serverName: options.serverName,
+    serverShortName: options.serverShortName,
+    shouldSplitParticipantsBySpeakingState: false,
+    signalLabel: isConnected ? "Baglanti aktif" : "Baglaniyor",
+    speakingParticipants,
+    title: "Canli ses odasi",
+  };
+}
+
+export function getMobileChannelChatHeaderModel(
+  channel: MobileWorkspaceChannelSummary,
+  options: {
+    fallbackChannelName: string;
+    memberCount: number;
+    membersSuffix: string;
+    serverName: string;
+  },
+): MobileChannelChatHeaderModel {
+  const channelName = truncateMobileDisplayText(
+    channel.name || options.fallbackChannelName,
+    MOBILE_CHANNEL_CHAT_LABEL_LIMITS.channelName,
+  );
+  const serverName = truncateMobileDisplayText(
+    options.serverName,
+    MOBILE_CHANNEL_CHAT_LABEL_LIMITS.serverName,
+  );
+  const memberCountLabel = `${Math.max(0, options.memberCount)} ${options.membersSuffix}`;
+  const topic = channel.topic
+    ? truncateMobileDisplayText(channel.topic, MOBILE_CHANNEL_CHAT_LABEL_LIMITS.topic)
+    : null;
+  const accessibilityLabel = truncateMobileDisplayText(
+    [channelName, serverName, memberCountLabel].filter(Boolean).join(", "),
+    MOBILE_CHANNEL_CHAT_LABEL_LIMITS.accessibilityLabel,
+  );
+
+  return {
+    accessibilityLabel,
+    channelName,
+    memberCountLabel,
+    serverName,
+    topic,
+  };
+}
+
+export function getMobileChannelChatSearchVisibility(options: {
+  closeLabel: string;
+  featureStatus: MobileBootstrapPayload["features"]["messageSearch"]["status"] | null | undefined;
+  hasActiveSearchContext: boolean;
+  isSearchPanelOpen: boolean;
+  openLabel: string;
+}): MobileChannelChatSearchVisibility {
+  const isSearchAvailable = options.featureStatus === "available";
+  const shouldRenderSearchPanel =
+    isSearchAvailable && (options.isSearchPanelOpen || options.hasActiveSearchContext);
+
+  return {
+    isSearchAvailable,
+    shouldRenderSearchPanel,
+    toggleAccessibilityLabel: shouldRenderSearchPanel ? options.closeLabel : options.openLabel,
+  };
 }
 
 export function getMobileWorkspaceChannelSections(
@@ -353,6 +563,22 @@ export function filterMobileWorkspaceChannelSections(
       };
     })
     .filter((section) => section.channels.length > 0);
+}
+
+export function getVisibleMobileWorkspaceChannelSections(
+  sections: readonly MobileWorkspaceChannelSection[],
+  collapsedSections: Readonly<Record<string, boolean>>,
+): MobileVisibleWorkspaceChannelSection[] {
+  return sections.map((section) => {
+    const isCollapsed = collapsedSections[section.id] === true;
+
+    return {
+      ...section,
+      channels: isCollapsed ? [] : [...section.channels],
+      isCollapsed,
+      totalChannelCount: section.channels.length,
+    };
+  });
 }
 
 export function findInitialMobileWorkspaceChannel(

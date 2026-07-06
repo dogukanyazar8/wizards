@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { mobileColors, mobileRadii, mobileSpacing } from "../design/tokens";
+import { mobileColors } from "../design/tokens";
 import { mobileCopy } from "../locale/mobile-copy";
 import type {
   MobileVoiceRoomParticipant,
@@ -70,7 +70,7 @@ function SpeakingWave({ active, level }: { active: boolean; level: number }) {
           style={[
             styles.waveBar,
             active && styles.waveBarActive,
-            { height: 8 + 18 * normalizedLevel * bar },
+            { height: 6 + 16 * normalizedLevel * bar },
           ]}
         />
       ))}
@@ -134,6 +134,7 @@ function VoiceControlButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.controlButton,
+        tone === "primary" && styles.controlButtonElevated,
         tone === "primary" && styles.controlButtonPrimary,
         tone === "danger" && styles.controlButtonDanger,
         disabled && styles.controlButtonDisabled,
@@ -302,39 +303,39 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     color: mobileColors.accentStrong,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "800",
   },
   avatarWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(124,92,255,0.12)",
   },
   card: {
-    gap: mobileSpacing.section,
-    padding: mobileSpacing.section,
-    borderRadius: mobileRadii.card,
+    gap: 12,
+    padding: 14,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: "rgba(124,92,255,0.18)",
     backgroundColor: "#ffffff",
     shadowColor: "#4f46e5",
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
   },
   controlButton: {
-    minHeight: 46,
-    minWidth: 76,
+    minHeight: 44,
+    minWidth: 0,
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    borderRadius: 18,
+    gap: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 7,
+    borderRadius: 15,
     borderWidth: 1,
     borderColor: "rgba(100,116,139,0.18)",
     backgroundColor: "#f8fafc",
@@ -346,6 +347,12 @@ const styles = StyleSheet.create({
   controlButtonDisabled: {
     opacity: 0.56,
   },
+  controlButtonElevated: {
+    shadowColor: mobileColors.accentStrong,
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+  },
   controlButtonPressed: {
     transform: [{ scale: 0.98 }],
   },
@@ -355,8 +362,9 @@ const styles = StyleSheet.create({
   },
   controlLabel: {
     color: mobileColors.text,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
+    textAlign: "center",
   },
   controlLabelDanger: {
     color: "#dc2626",
@@ -369,8 +377,7 @@ const styles = StyleSheet.create({
   },
   controls: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
+    gap: 7,
   },
   countBadge: {
     overflow: "hidden",
@@ -384,25 +391,25 @@ const styles = StyleSheet.create({
   },
   description: {
     color: mobileColors.muted,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
-    lineHeight: 18,
+    lineHeight: 16,
   },
   emptyParticipants: {
-    minHeight: 112,
+    minHeight: 82,
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    borderRadius: 18,
+    borderRadius: 16,
     backgroundColor: "#f8fafc",
   },
   emptyText: {
     color: mobileColors.muted,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
   },
   errorText: {
-    padding: 12,
+    padding: 10,
     borderRadius: 14,
     overflow: "hidden",
     backgroundColor: "#fff1f2",
@@ -413,7 +420,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     color: mobileColors.accentStrong,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "900",
     letterSpacing: 2,
     textTransform: "uppercase",
@@ -422,12 +429,12 @@ const styles = StyleSheet.create({
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 9,
   },
   headerIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 17,
+    width: 38,
+    height: 38,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(124,92,255,0.12)",
@@ -438,27 +445,27 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   participantList: {
-    gap: 8,
+    gap: 7,
   },
   participantMeta: {
     color: mobileColors.muted,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
   },
   participantName: {
     flexShrink: 1,
     color: mobileColors.text,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "900",
   },
   participantRow: {
-    minHeight: 54,
+    minHeight: 48,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 18,
+    gap: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    borderRadius: 16,
     backgroundColor: "#f8fafc",
   },
   participantRowSpeaking: {
@@ -491,7 +498,7 @@ const styles = StyleSheet.create({
   },
   selfBadge: {
     overflow: "hidden",
-    paddingHorizontal: 7,
+    paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 999,
     backgroundColor: "rgba(124,92,255,0.12)",
@@ -501,19 +508,19 @@ const styles = StyleSheet.create({
   },
   title: {
     color: mobileColors.text,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "900",
   },
   wave: {
-    width: 32,
-    height: 28,
+    width: 27,
+    height: 24,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
+    gap: 2,
   },
   waveBar: {
-    width: 4,
+    width: 3,
     borderRadius: 999,
     backgroundColor: "rgba(100,116,139,0.25)",
   },

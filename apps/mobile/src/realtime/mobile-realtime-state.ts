@@ -3,6 +3,7 @@ import type {
   MobileRealtimeEventEnvelope,
   MobileRealtimeVisibility,
 } from "./mobile-realtime-contract";
+import { isMobileRealtimeChannelMessagePayloadEvent } from "./mobile-realtime-contract";
 
 export type MobileRealtimeAction =
   | { now?: number; type: "connect-started" }
@@ -25,6 +26,19 @@ export function createInitialMobileRealtimeSnapshot(): MobileRealtimeConnectionS
     reconnectAttempt: 0,
     status: "idle",
     visibility: "foreground",
+  };
+}
+
+export function redactMobileRealtimeEventForSnapshot(
+  event: MobileRealtimeEventEnvelope,
+): MobileRealtimeEventEnvelope {
+  if (!isMobileRealtimeChannelMessagePayloadEvent(event.eventName)) {
+    return event;
+  }
+
+  return {
+    ...event,
+    payload: null,
   };
 }
 
@@ -71,7 +85,7 @@ export function mobileRealtimeReducer(
       return {
         ...state,
         eventCount: state.eventCount + 1,
-        lastEvent: action.event,
+        lastEvent: redactMobileRealtimeEventForSnapshot(action.event),
         lastSeenAt: action.event.receivedAt,
       };
     case "reconnect-attempt":

@@ -1,4 +1,13 @@
-import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type {
   ChatMessage,
@@ -11,8 +20,13 @@ import type {
 } from "@wizards/types";
 import {
   ActivityIndicator,
+  FlatList,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -46,7 +60,15 @@ import {
   type MobileVoiceRuntimeState,
 } from "../voice/mobile-voice-contract";
 import { MobileVoiceRoomPanel } from "../voice/mobile-voice-room-panel";
-import type { MobileVoiceRoomState } from "../voice/mobile-voice-room-contract";
+import type {
+  MobileVoiceAudioOutputMode,
+  MobileVoiceInviteCandidate,
+  MobileVoiceInviteReceived,
+  MobileVoiceInviteSendState,
+  MobileVoiceRoomParticipant,
+  MobileVoiceRoomState,
+} from "../voice/mobile-voice-room-contract";
+import { getMobileVoiceInviteCandidates } from "../voice/mobile-voice-room-contract";
 import type {
   MobilePermissionIntentId,
   MobilePermissionReadiness,
@@ -77,6 +99,8 @@ import {
   filterMobileConversations,
   formatMobileDisplayTime,
   getBoundedMobileList,
+  getMobileChannelChatHeaderModel,
+  getMobileChannelChatSearchVisibility,
   getMobileChannelPriority,
   getMobileConversationActiveCount,
   getMobileConversationAvatarUrl,
@@ -85,13 +109,19 @@ import {
   getMobileHomeQuickActions,
   getMobileMessageBodyPreview,
   getMobileMessageEngagementCounts,
+  getMobileMessageListPerformanceConfig,
   getMobileMessageStreamItems,
+  getMobileVoiceChannelScreenModel,
   filterMobileWorkspaceChannelSections,
+  getMobileWorkspaceChannelSurface,
   getMobileWorkspaceChannelSections,
   getMobileWorkspaceChannels,
+  getVisibleMobileWorkspaceChannelSections,
   MOBILE_RENDER_LIMITS,
   type MobileConversationFilter,
   type MobileHomeQuickAction,
+  type MobileMessageStreamItem,
+  type MobileVisibleWorkspaceChannelSection,
 } from "./mobile-display-model";
 import whisprIcon from "../../assets/whispr-icon.png";
 import {
@@ -120,6 +150,7 @@ const runtimeConfig = getMobileRuntimeConfig();
 const mobileQualitySummary = summarizeMobileQualityGate();
 const mobileProductionReadinessSummary = summarizeMobileProductionReadiness();
 const mobileStoreReadiness = validateMobileStoreReadiness();
+type MobileIoniconName = ComponentProps<typeof Ionicons>["name"];
 
 const permissionLabels: Record<MobilePermissionIntentId, string> = {
   camera: copy.permissionCamera,
@@ -154,12 +185,17 @@ function normalizeMobileAuthInputEmail(value: string) {
   return value.trim().toLowerCase();
 }
 
+type MobileVoiceInviteOverlayEntry = MobileVoiceInviteReceived & {
+  readonly errorMessage?: string | null;
+};
+
 interface ActiveScreenProps {
   authStatusLabel: string;
   bootstrapState: MobileBootstrapViewState;
   bootstrapSyncState: MobileSyncSnapshot;
   channelMessagesState: MobileChannelMessagesViewState;
   channelSendState: MobileChannelSendViewState;
+  channelTypingLabel: string | null;
   channelSyncState: MobileSyncSnapshot;
   currentTab: MobileTabId;
   dmMessagesState: MobileDMMessagesViewState;
@@ -173,8 +209,15 @@ interface ActiveScreenProps {
   notificationState: MobileNotificationRuntimeState;
   voiceState: MobileVoiceRuntimeState;
   voiceRoomState: MobileVoiceRoomState;
+  voiceInvites: readonly MobileVoiceInviteOverlayEntry[];
+  voiceInviteSendStates: Readonly<Record<string, MobileVoiceInviteSendState>>;
+  activeWorkspaceTextChannelId: string | null;
+  activeWorkspaceVoiceChannelId: string | null;
+  onAcceptVoiceInvite(inviteId: string): void;
   onOpenDMConversation(conversationId: string): void;
   onCloseDMConversation(): void;
+  onCloseWorkspaceChannel(): void;
+  onCloseWorkspaceVoiceChannel(): void;
   onOpenWebRegister(): void;
   onOpenWebSignIn(): void;
   onOpenWorkspaceChannel(channel: MobileWorkspaceChannelSummary): void;
@@ -193,11 +236,16 @@ interface ActiveScreenProps {
   onRequestPhotoLibraryPermission(): Promise<void>;
   onRequestVoicePermission(): Promise<void>;
   onLeaveVoiceChannel(): Promise<void>;
+  onLeaveWorkspaceVoiceChannel(): Promise<void>;
+  onSelectVoiceAudioOutput(mode: MobileVoiceAudioOutputMode): Promise<void>;
   onToggleVoiceCamera(): Promise<void>;
   onToggleVoiceMute(): Promise<void>;
+  onDeclineVoiceInvite(inviteId: string): void;
+  onChannelDraftChange(content: string): void;
   onSelectTab(tab: MobileTabId): void;
   onSendChannelMessage(content: string): Promise<boolean>;
   onSendDMMessage(content: string): Promise<boolean>;
+  onSendVoiceInvite(targetUserId: string): void;
   onSearchMessages(input: {
     conversationId: string;
     query: string;
@@ -222,6 +270,7 @@ export function ActiveScreen({
   bootstrapSyncState,
   channelMessagesState,
   channelSendState,
+  channelTypingLabel,
   channelSyncState,
   currentTab,
   dmMessagesState,
@@ -235,8 +284,15 @@ export function ActiveScreen({
   notificationState,
   voiceState,
   voiceRoomState,
+  voiceInvites,
+  voiceInviteSendStates,
+  activeWorkspaceTextChannelId,
+  activeWorkspaceVoiceChannelId,
+  onAcceptVoiceInvite,
   onOpenDMConversation,
   onCloseDMConversation,
+  onCloseWorkspaceChannel,
+  onCloseWorkspaceVoiceChannel,
   onOpenWebRegister,
   onOpenWebSignIn,
   onOpenWorkspaceChannel,
@@ -253,13 +309,18 @@ export function ActiveScreen({
   onRequestPhotoLibraryPermission,
   onRequestVoicePermission,
   onLeaveVoiceChannel,
+  onLeaveWorkspaceVoiceChannel,
+  onSelectVoiceAudioOutput,
   onToggleVoiceCamera,
   onToggleVoiceMute,
+  onDeclineVoiceInvite,
+  onChannelDraftChange,
   onRefresh,
   onRefreshVisibleData,
   onSelectTab,
   onSendChannelMessage,
   onSendDMMessage,
+  onSendVoiceInvite,
   onSearchMessages,
   onSignOut,
   permissionReadiness,
@@ -284,10 +345,20 @@ export function ActiveScreen({
     selectedWorkspaceServerId,
     workspaceSyncState,
   });
+  const renderWithVoiceInviteOverlay = (content: ReactNode) => (
+    <View style={styles.activeScreenFrame}>
+      {content}
+      <MobileVoiceInviteOverlay
+        invites={voiceInvites}
+        onAccept={onAcceptVoiceInvite}
+        onDecline={onDeclineVoiceInvite}
+      />
+    </View>
+  );
 
   switch (currentTab) {
     case "messages":
-      return (
+      return renderWithVoiceInviteOverlay(
         <MessagesScreen
           bootstrapState={bootstrapState}
           dmMessagesState={dmMessagesState}
@@ -310,7 +381,7 @@ export function ActiveScreen({
         />
       );
     case "voice":
-      return (
+      return renderWithVoiceInviteOverlay(
         <VoiceScreen
           bootstrapState={bootstrapState}
           permissionReadiness={permissionReadiness}
@@ -327,7 +398,7 @@ export function ActiveScreen({
         />
       );
     case "notifications":
-      return (
+      return renderWithVoiceInviteOverlay(
         <NotificationsScreen
           bootstrapState={bootstrapState}
           notificationState={notificationState}
@@ -340,7 +411,7 @@ export function ActiveScreen({
         />
       );
     case "settings":
-      return (
+      return renderWithVoiceInviteOverlay(
         <ProfileSettingsScreen
           authStatusLabel={authStatusLabel}
           bootstrapState={bootstrapState}
@@ -369,11 +440,14 @@ export function ActiveScreen({
       );
     case "overview":
     default:
-      return (
+      return renderWithVoiceInviteOverlay(
         <OverviewScreen
           bootstrapState={bootstrapState}
           channelMessagesState={channelMessagesState}
           channelSendState={channelSendState}
+          channelTypingLabel={channelTypingLabel}
+          activeWorkspaceTextChannelId={activeWorkspaceTextChannelId}
+          activeWorkspaceVoiceChannelId={activeWorkspaceVoiceChannelId}
           selectedWorkspaceChannelId={selectedWorkspaceChannelId}
           selectedWorkspaceServerId={selectedWorkspaceServerId}
           syncHealth={syncHealth}
@@ -383,7 +457,9 @@ export function ActiveScreen({
           voiceRoomState={voiceRoomState}
           onClearSelectedMediaAsset={onClearSelectedMediaAsset}
           onClearMessageSearch={onClearMessageSearch}
-          onLeaveVoiceChannel={onLeaveVoiceChannel}
+          onCloseWorkspaceChannel={onCloseWorkspaceChannel}
+          onCloseWorkspaceVoiceChannel={onCloseWorkspaceVoiceChannel}
+          onLeaveWorkspaceVoiceChannel={onLeaveWorkspaceVoiceChannel}
           onOpenWorkspaceChannel={onOpenWorkspaceChannel}
           onOpenWorkspaceServer={onOpenWorkspaceServer}
           onRefreshBootstrap={onRefreshBootstrap}
@@ -391,11 +467,13 @@ export function ActiveScreen({
           onRefreshVisibleData={onRefreshVisibleData}
           onRefreshWorkspaceServer={onRefreshWorkspaceServer}
           onRequestDocumentPicker={onRequestDocumentPicker}
-          onRequestVoicePermission={onRequestVoicePermission}
-          onToggleVoiceCamera={onToggleVoiceCamera}
+          onSelectVoiceAudioOutput={onSelectVoiceAudioOutput}
           onToggleVoiceMute={onToggleVoiceMute}
+          voiceInviteSendStates={voiceInviteSendStates}
+          onChannelDraftChange={onChannelDraftChange}
           onSearchMessages={onSearchMessages}
           onSendChannelMessage={onSendChannelMessage}
+          onSendVoiceInvite={onSendVoiceInvite}
         />
       );
   }
@@ -1260,16 +1338,21 @@ function OverviewScreen({
   bootstrapState,
   channelMessagesState,
   channelSendState,
+  channelTypingLabel,
   mediaState,
   messageSearchState,
   voiceRoomState,
+  activeWorkspaceTextChannelId,
+  activeWorkspaceVoiceChannelId,
   selectedWorkspaceChannelId,
   selectedWorkspaceServerId,
   syncHealth,
   workspaceServerState,
   onClearMessageSearch,
   onClearSelectedMediaAsset,
-  onLeaveVoiceChannel,
+  onCloseWorkspaceChannel,
+  onCloseWorkspaceVoiceChannel,
+  onLeaveWorkspaceVoiceChannel,
   onOpenWorkspaceChannel,
   onOpenWorkspaceServer,
   onRefreshBootstrap,
@@ -1277,25 +1360,32 @@ function OverviewScreen({
   onRefreshVisibleData,
   onRefreshWorkspaceServer,
   onRequestDocumentPicker,
-  onRequestVoicePermission,
-  onToggleVoiceCamera,
+  onSelectVoiceAudioOutput,
   onToggleVoiceMute,
+  voiceInviteSendStates,
+  onChannelDraftChange,
   onSearchMessages,
   onSendChannelMessage,
+  onSendVoiceInvite,
 }: {
   bootstrapState: MobileBootstrapViewState;
   channelMessagesState: MobileChannelMessagesViewState;
   channelSendState: MobileChannelSendViewState;
+  channelTypingLabel: string | null;
   mediaState: MobileMediaRuntimeState;
   messageSearchState: MobileMessageSearchViewState;
   voiceRoomState: MobileVoiceRoomState;
+  activeWorkspaceTextChannelId: string | null;
+  activeWorkspaceVoiceChannelId: string | null;
   selectedWorkspaceChannelId: string | null;
   selectedWorkspaceServerId: string | null;
   syncHealth: MobileSyncHealthSummary;
   workspaceServerState: MobileWorkspaceServerViewState;
   onClearMessageSearch(): void;
   onClearSelectedMediaAsset(): void;
-  onLeaveVoiceChannel(): Promise<void>;
+  onCloseWorkspaceChannel(): void;
+  onCloseWorkspaceVoiceChannel(): void;
+  onLeaveWorkspaceVoiceChannel(): Promise<void>;
   onOpenWorkspaceChannel(channel: MobileWorkspaceChannelSummary): void;
   onOpenWorkspaceServer(serverId: string): void;
   onRefreshBootstrap(): void;
@@ -1303,15 +1393,17 @@ function OverviewScreen({
   onRefreshVisibleData(): void;
   onRefreshWorkspaceServer(): void;
   onRequestDocumentPicker(): Promise<void>;
-  onRequestVoicePermission(): Promise<void>;
-  onToggleVoiceCamera(): Promise<void>;
+  onSelectVoiceAudioOutput(mode: MobileVoiceAudioOutputMode): Promise<void>;
   onToggleVoiceMute(): Promise<void>;
+  voiceInviteSendStates: Readonly<Record<string, MobileVoiceInviteSendState>>;
+  onChannelDraftChange(content: string): void;
   onSearchMessages(input: {
     conversationId: string;
     query: string;
     scope: "channel";
   }): Promise<void>;
   onSendChannelMessage(content: string): Promise<boolean>;
+  onSendVoiceInvite(targetUserId: string): void;
 }) {
   const attachmentsFeature =
     bootstrapState.status === "ready" ? bootstrapState.payload.features.attachments : null;
@@ -1328,26 +1420,33 @@ function OverviewScreen({
           bootstrapState={bootstrapState}
           channelMessagesState={channelMessagesState}
           channelSendState={channelSendState}
+          channelTypingLabel={channelTypingLabel}
           mediaState={mediaState}
           messageSearchFeature={messageSearchFeature}
           messageSearchState={messageSearchState}
           voiceRoomState={voiceRoomState}
+          activeWorkspaceTextChannelId={activeWorkspaceTextChannelId}
+          activeWorkspaceVoiceChannelId={activeWorkspaceVoiceChannelId}
           selectedChannelId={selectedWorkspaceChannelId}
           selectedServerId={selectedWorkspaceServerId}
           serverState={workspaceServerState}
           onClearMessageSearch={onClearMessageSearch}
           onClearSelectedMediaAsset={onClearSelectedMediaAsset}
-          onLeaveVoiceChannel={onLeaveVoiceChannel}
+          onCloseWorkspaceChannel={onCloseWorkspaceChannel}
+          onCloseWorkspaceVoiceChannel={onCloseWorkspaceVoiceChannel}
+          onLeaveWorkspaceVoiceChannel={onLeaveWorkspaceVoiceChannel}
           onOpenChannel={onOpenWorkspaceChannel}
           onOpenServer={onOpenWorkspaceServer}
           onRefreshChannel={onRefreshChannelMessages}
           onRefreshServer={onRefreshWorkspaceServer}
           onRequestDocumentPicker={onRequestDocumentPicker}
-          onRequestVoicePermission={onRequestVoicePermission}
-          onToggleVoiceCamera={onToggleVoiceCamera}
+          onSelectVoiceAudioOutput={onSelectVoiceAudioOutput}
           onToggleVoiceMute={onToggleVoiceMute}
+          voiceInviteSendStates={voiceInviteSendStates}
+          onChannelDraftChange={onChannelDraftChange}
           onSearchMessages={onSearchMessages}
           onSendChannelMessage={onSendChannelMessage}
+          onSendVoiceInvite={onSendVoiceInvite}
         />
       ) : null}
     </View>
@@ -1359,26 +1458,33 @@ function MobileWorkspaceBrowser({
   bootstrapState,
   channelMessagesState,
   channelSendState,
+  channelTypingLabel,
   mediaState,
   messageSearchFeature,
   messageSearchState,
   voiceRoomState,
+  activeWorkspaceTextChannelId,
+  activeWorkspaceVoiceChannelId,
   selectedChannelId,
   selectedServerId,
   serverState,
   onClearMessageSearch,
   onClearSelectedMediaAsset,
-  onLeaveVoiceChannel,
+  onCloseWorkspaceChannel,
+  onCloseWorkspaceVoiceChannel,
+  onLeaveWorkspaceVoiceChannel,
   onOpenChannel,
   onOpenServer,
   onRefreshChannel,
   onRefreshServer,
   onRequestDocumentPicker,
-  onRequestVoicePermission,
-  onToggleVoiceCamera,
+  onSelectVoiceAudioOutput,
   onToggleVoiceMute,
+  voiceInviteSendStates,
+  onChannelDraftChange,
   onSearchMessages,
   onSendChannelMessage,
+  onSendVoiceInvite,
 }: {
   attachmentsFeature: MobileBootstrapFeature | null;
   bootstrapState: MobileBootstrapViewState & {
@@ -1387,32 +1493,40 @@ function MobileWorkspaceBrowser({
   };
   channelMessagesState: MobileChannelMessagesViewState;
   channelSendState: MobileChannelSendViewState;
+  channelTypingLabel: string | null;
   mediaState: MobileMediaRuntimeState;
   messageSearchFeature: MobileBootstrapFeature | null;
   messageSearchState: MobileMessageSearchViewState;
   voiceRoomState: MobileVoiceRoomState;
+  activeWorkspaceTextChannelId: string | null;
+  activeWorkspaceVoiceChannelId: string | null;
   selectedChannelId: string | null;
   selectedServerId: string | null;
   serverState: MobileWorkspaceServerViewState;
   onClearMessageSearch(): void;
   onClearSelectedMediaAsset(): void;
-  onLeaveVoiceChannel(): Promise<void>;
+  onCloseWorkspaceChannel(): void;
+  onCloseWorkspaceVoiceChannel(): void;
+  onLeaveWorkspaceVoiceChannel(): Promise<void>;
   onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
   onOpenServer(serverId: string): void;
   onRefreshChannel(): void;
   onRefreshServer(): void;
   onRequestDocumentPicker(): Promise<void>;
-  onRequestVoicePermission(): Promise<void>;
-  onToggleVoiceCamera(): Promise<void>;
+  onSelectVoiceAudioOutput(mode: MobileVoiceAudioOutputMode): Promise<void>;
   onToggleVoiceMute(): Promise<void>;
+  voiceInviteSendStates: Readonly<Record<string, MobileVoiceInviteSendState>>;
+  onChannelDraftChange(content: string): void;
   onSearchMessages(input: {
     conversationId: string;
     query: string;
     scope: "channel";
   }): Promise<void>;
   onSendChannelMessage(content: string): Promise<boolean>;
+  onSendVoiceInvite(targetUserId: string): void;
 }) {
   const [channelQuery, setChannelQuery] = useState("");
+  const [collapsedSectionIds, setCollapsedSectionIds] = useState<Record<string, boolean>>({});
   const servers = useMemo(
     () =>
       getBoundedMobileList(
@@ -1435,12 +1549,35 @@ function MobileWorkspaceBrowser({
   const activeMemberCount = activeServer?.memberCount ?? activeServerSummary?.memberCount ?? 0;
   const activeChannelCount =
     activeServer?.visibleChannelCount ?? activeServerSummary?.channelCount ?? 0;
-  const selectedChannel =
-    workspacePayload && selectedChannelId
+  const activeTextChannel =
+    workspacePayload && activeWorkspaceTextChannelId
       ? (getMobileWorkspaceChannels(workspacePayload.detail).find(
-          (channel) => channel.id === selectedChannelId,
+          (channel) => channel.id === activeWorkspaceTextChannelId && channel.type === "TEXT",
         ) ?? null)
       : null;
+  const activeVoiceChannel =
+    workspacePayload && activeWorkspaceVoiceChannelId
+      ? (getMobileWorkspaceChannels(workspacePayload.detail).find(
+          (channel) => channel.id === activeWorkspaceVoiceChannelId && channel.type === "VOICE",
+        ) ?? null)
+      : null;
+  const activeChannelSurface = getMobileWorkspaceChannelSurface(activeTextChannel, {
+    isExplicitlyOpened: activeTextChannel?.id === activeWorkspaceTextChannelId,
+  });
+  const activeVoiceChannelSurface = getMobileWorkspaceChannelSurface(activeVoiceChannel, {
+    isExplicitlyOpened: activeVoiceChannel?.id === activeWorkspaceVoiceChannelId,
+  });
+  const voiceInviteCandidates = useMemo(() => {
+    if (!workspacePayload) {
+      return [];
+    }
+
+    return getMobileVoiceInviteCandidates({
+      currentUserId: bootstrapState.payload.user.id,
+      members: workspacePayload.detail.members,
+      participants: voiceRoomState.participants,
+    });
+  }, [bootstrapState.payload.user.id, voiceRoomState.participants, workspacePayload]);
   const channelSections = useMemo(() => {
     if (!workspacePayload) {
       return [];
@@ -1453,6 +1590,19 @@ function MobileWorkspaceBrowser({
       channelQuery,
     );
   }, [channelQuery, workspacePayload]);
+  const isSearchingChannels = channelQuery.trim().length > 0;
+  const visibleChannelSections = useMemo(() => {
+    const collapsedMap = Object.fromEntries(
+      channelSections.map((section) => [
+        section.id,
+        isSearchingChannels
+          ? false
+          : collapsedSectionIds[`${activeServerId}:${section.id}`] === true,
+      ]),
+    );
+
+    return getVisibleMobileWorkspaceChannelSections(channelSections, collapsedMap);
+  }, [activeServerId, channelSections, collapsedSectionIds, isSearchingChannels]);
   const isActiveServerLoading =
     activeServerId !== null && serverState.serverId === activeServerId && serverState.status === "loading";
   const isActiveServerError =
@@ -1465,6 +1615,66 @@ function MobileWorkspaceBrowser({
     },
     [onOpenServer],
   );
+  const handleToggleSection = useCallback(
+    (sectionId: string) => {
+      if (!activeServerId || isSearchingChannels) {
+        return;
+      }
+
+      const sectionKey = `${activeServerId}:${sectionId}`;
+      setCollapsedSectionIds((current) => ({
+        ...current,
+        [sectionKey]: current[sectionKey] !== true,
+      }));
+    },
+    [activeServerId, isSearchingChannels],
+  );
+
+  if (activeChannelSurface === "channel-chat" && activeTextChannel) {
+    return (
+      <MobileChannelChatScreen
+        attachmentsFeature={attachmentsFeature}
+        channel={activeTextChannel}
+        currentUserId={bootstrapState.payload.user.id}
+        mediaState={mediaState}
+        memberCount={activeMemberCount}
+        messageSearchFeature={messageSearchFeature}
+        messageSearchState={messageSearchState}
+        sendState={channelSendState}
+        serverName={activeServerName}
+        state={channelMessagesState}
+        typingLabel={channelTypingLabel}
+        onBack={onCloseWorkspaceChannel}
+        onClearMessageSearch={onClearMessageSearch}
+        onClearSelectedMediaAsset={onClearSelectedMediaAsset}
+        onDraftChange={onChannelDraftChange}
+        onRefresh={onRefreshChannel}
+        onRequestDocumentPicker={onRequestDocumentPicker}
+        onSearchMessages={onSearchMessages}
+        onSendMessage={onSendChannelMessage}
+      />
+    );
+  }
+
+  if (activeVoiceChannelSurface === "voice-room" && activeVoiceChannel) {
+    return (
+      <MobileVoiceChannelScreen
+        channel={activeVoiceChannel}
+        memberCount={activeMemberCount}
+        room={voiceRoomState}
+        serverIconUrl={activeServerIconUrl}
+        serverName={activeServerName}
+        serverShortName={activeServerShortName}
+        inviteCandidates={voiceInviteCandidates}
+        inviteSendStates={voiceInviteSendStates}
+        onBack={onCloseWorkspaceVoiceChannel}
+        onLeave={onLeaveWorkspaceVoiceChannel}
+        onSelectAudioOutput={onSelectVoiceAudioOutput}
+        onSendInvite={onSendVoiceInvite}
+        onToggleMute={onToggleVoiceMute}
+      />
+    );
+  }
 
   return (
     <View style={styles.workspaceBrowserShell}>
@@ -1596,24 +1806,12 @@ function MobileWorkspaceBrowser({
 
             {workspacePayload ? (
               <>
-                <View style={styles.mobileWorkspaceStats}>
-                  <WorkspaceMetricMiniPill
-                    label={copy.homeServersLabel}
-                    value={bootstrapState.payload.home.servers.totalCount}
-                  />
-                  <WorkspaceMetricMiniPill
-                    label={copy.homeDmLabel}
-                    value={bootstrapState.payload.home.directMessages.totalCount}
-                  />
-                  <WorkspaceMetricMiniPill
-                    label={copy.homeUnreadLabel}
-                    value={activeServer?.unreadCount ?? 0}
-                  />
-                </View>
                 <WorkspaceChannelSectionList
-                  sections={channelSections}
+                  sections={visibleChannelSections}
                   selectedChannelId={selectedChannelId}
+                  isCollapseDisabled={isSearchingChannels}
                   onOpenChannel={onOpenChannel}
+                  onToggleSection={handleToggleSection}
                 />
                 {channelQuery.trim().length > 0 && channelSections.length === 0 ? (
                   <Text style={styles.contractDescription}>
@@ -1622,32 +1820,6 @@ function MobileWorkspaceBrowser({
                 ) : null}
                 {workspacePayload.detail.hasMoreChannels ? (
                   <Text style={styles.workspaceHint}>{copy.workspaceMoreChannelsHidden}</Text>
-                ) : null}
-                {selectedChannel?.type === "VOICE" ? (
-                  <MobileVoiceRoomPanel
-                    room={voiceRoomState}
-                    onLeave={() => void onLeaveVoiceChannel()}
-                    onRequestPermission={() => void onRequestVoicePermission()}
-                    onToggleCamera={() => void onToggleVoiceCamera()}
-                    onToggleMute={() => void onToggleVoiceMute()}
-                  />
-                ) : selectedChannel?.type === "TEXT" ? (
-                  <ChannelMessagesPreviewCard
-                    attachmentsFeature={attachmentsFeature}
-                    channel={selectedChannel}
-                    currentUserId={bootstrapState.payload.user.id}
-                    mediaState={mediaState}
-                    messageSearchFeature={messageSearchFeature}
-                    messageSearchState={messageSearchState}
-                    sendState={channelSendState}
-                    state={channelMessagesState}
-                    onClearMessageSearch={onClearMessageSearch}
-                    onClearSelectedMediaAsset={onClearSelectedMediaAsset}
-                    onRetry={onRefreshChannel}
-                    onRequestDocumentPicker={onRequestDocumentPicker}
-                    onSearchMessages={onSearchMessages}
-                    onSendMessage={onSendChannelMessage}
-                  />
                 ) : null}
               </>
             ) : null}
@@ -1658,22 +1830,17 @@ function MobileWorkspaceBrowser({
   );
 }
 
-function WorkspaceMetricMiniPill({ label, value }: { label: string; value: number }) {
-  return (
-    <View style={styles.mobileWorkspaceStatPill}>
-      <Text style={styles.mobileWorkspaceStatValue}>{value}</Text>
-      <Text style={styles.mobileWorkspaceStatLabel}>{label}</Text>
-    </View>
-  );
-}
-
 function WorkspaceChannelSectionList({
+  isCollapseDisabled,
   onOpenChannel,
+  onToggleSection,
   sections,
   selectedChannelId,
 }: {
+  isCollapseDisabled: boolean;
   onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
-  sections: ReturnType<typeof getMobileWorkspaceChannelSections>;
+  onToggleSection(sectionId: string): void;
+  sections: MobileVisibleWorkspaceChannelSection[];
   selectedChannelId: string | null;
 }) {
   if (sections.length === 0) {
@@ -1684,17 +1851,39 @@ function WorkspaceChannelSectionList({
     <View style={styles.mobileWorkspaceSectionList}>
       {sections.map((section) => (
         <View key={section.id} style={styles.mobileWorkspaceSection}>
-          <Text style={styles.mobileWorkspaceSectionTitle}>{section.name}</Text>
-          <View style={styles.mobileWorkspaceChannelList}>
-            {section.channels.map((channel) => (
-              <WorkspaceChannelCompactRow
-                key={channel.id}
-                channel={channel}
-                isSelected={channel.id === selectedChannelId}
-                onOpenChannel={onOpenChannel}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${section.name} ${section.isCollapsed ? "ac" : "kapat"}`}
+            accessibilityState={{ disabled: isCollapseDisabled, expanded: !section.isCollapsed }}
+            disabled={isCollapseDisabled}
+            onPress={() => onToggleSection(section.id)}
+            style={({ pressed }) => [
+              styles.mobileWorkspaceSectionHeader,
+              pressed && styles.compactListRowPressed,
+            ]}
+          >
+            <Text style={styles.mobileWorkspaceSectionTitle}>{section.name}</Text>
+            <View style={styles.mobileWorkspaceSectionMeta}>
+              <Text style={styles.mobileWorkspaceSectionCount}>{section.totalChannelCount}</Text>
+              <Ionicons
+                name={section.isCollapsed ? "chevron-forward" : "chevron-down"}
+                size={14}
+                color={mobileColors.mutedSoft}
               />
-            ))}
-          </View>
+            </View>
+          </Pressable>
+          {!section.isCollapsed ? (
+            <View style={styles.mobileWorkspaceChannelList}>
+              {section.channels.map((channel) => (
+                <WorkspaceChannelCompactRow
+                  key={channel.id}
+                  channel={channel}
+                  isSelected={channel.id === selectedChannelId}
+                  onOpenChannel={onOpenChannel}
+                />
+              ))}
+            </View>
+          ) : null}
         </View>
       ))}
     </View>
@@ -3354,6 +3543,927 @@ function WorkspaceChannelList({
   );
 }
 
+function getVoiceRoomScreenStatus(room: MobileVoiceRoomState): string {
+  switch (room.status) {
+    case "checking-permission":
+      return copy.voiceRoomCheckingPermission;
+    case "connected":
+      return copy.voiceRoomConnected;
+    case "connecting":
+      return copy.voiceRoomConnecting;
+    case "error":
+      return copy.voiceRoomError;
+    case "leaving":
+      return copy.voiceRoomLeaving;
+    case "permission-denied":
+      return copy.voiceRoomPermissionDenied;
+    case "idle":
+    default:
+      return copy.voiceRoomIdle;
+  }
+}
+
+function getVoiceParticipantName(participant: MobileVoiceRoomParticipant): string {
+  return participant.displayName ?? participant.username;
+}
+
+function VoiceLevelBars({ participant }: { participant: MobileVoiceRoomParticipant }) {
+  const level = participant.isMuted ? 0 : Math.max(0, Math.min(1, participant.audioLevel));
+  const barHeights = [0.42, 0.7, 1, 0.62].map((multiplier) =>
+    Math.max(6, Math.round(8 + level * 18 * multiplier)),
+  );
+
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+      style={styles.mobileVoiceLevelBars}
+    >
+      {barHeights.map((height, index) => (
+        <View
+          key={`${participant.userId}:${index}`}
+          style={[
+            styles.mobileVoiceLevelBar,
+            {
+              height,
+              opacity: participant.isSpeaking && !participant.isMuted ? 1 : 0.34,
+            },
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
+function MobileVoiceParticipantRow({
+  participant,
+}: {
+  participant: MobileVoiceRoomParticipant;
+}) {
+  const title = getVoiceParticipantName(participant);
+  const subtitle = participant.isMuted
+    ? copy.voiceRoomMuted
+    : participant.isSpeaking
+      ? copy.voiceRoomSpeaking
+      : copy.voiceRoomListening;
+
+  return (
+    <View
+      style={[
+        styles.mobileVoiceParticipantRow,
+        participant.isSpeaking && !participant.isMuted && styles.mobileVoiceParticipantRowSpeaking,
+      ]}
+    >
+      <AvatarMark
+        imageUrl={participant.avatarUrl}
+        label={title}
+        size="regular"
+        status={participant.isSpeaking && !participant.isMuted ? "active" : "idle"}
+      />
+      <View style={styles.mobileVoiceParticipantText}>
+        <View style={styles.mobileVoiceParticipantTitleRow}>
+          <Text style={styles.mobileVoiceParticipantTitle} numberOfLines={1}>
+            {title}
+          </Text>
+          {participant.isSelf ? (
+            <Text style={styles.mobileVoiceSelfBadge}>{copy.voiceRoomSelfLabel}</Text>
+          ) : null}
+        </View>
+        <Text style={styles.mobileVoiceParticipantSubtitle} numberOfLines={1}>
+          {subtitle}
+        </Text>
+      </View>
+      {participant.isMuted ? (
+        <Ionicons name="mic-off-outline" size={18} color={mobileColors.mutedSoft} />
+      ) : (
+        <VoiceLevelBars participant={participant} />
+      )}
+    </View>
+  );
+}
+
+function MobileVoiceParticipantGroup({
+  emptyLabel,
+  participants,
+  title,
+}: {
+  emptyLabel: string;
+  participants: readonly MobileVoiceRoomParticipant[];
+  title: string;
+}) {
+  return (
+    <View style={styles.mobileVoiceSectionCard}>
+      <View style={styles.mobileVoiceSectionHeader}>
+        <Text style={styles.mobileVoiceSectionTitle}>{title}</Text>
+        <Text style={styles.mobileVoiceSectionCount}>{participants.length}</Text>
+      </View>
+      {participants.length > 0 ? (
+        <View style={styles.mobileVoiceParticipantList}>
+          {participants.map((participant) => (
+            <MobileVoiceParticipantRow
+              key={`${title}:${participant.userId}`}
+              participant={participant}
+            />
+          ))}
+        </View>
+      ) : (
+        <Text style={styles.mobileVoiceEmptyText}>{emptyLabel}</Text>
+      )}
+    </View>
+  );
+}
+
+function getMobileVoiceInviteSendLabel(state: MobileVoiceInviteSendState | undefined) {
+  if (!state) {
+    return copy.voiceInviteAction;
+  }
+
+  if (state.status === "sending") {
+    return copy.voiceInviteSending;
+  }
+
+  if (state.status === "sent") {
+    return copy.voiceInviteSent;
+  }
+
+  if (state.status === "accepted") {
+    return copy.voiceInviteAccepted;
+  }
+
+  if (state.status === "declined") {
+    return copy.voiceInviteDeclined;
+  }
+
+  return copy.voiceInviteRetry;
+}
+
+function isMobileVoiceInviteSendDisabled(state: MobileVoiceInviteSendState | undefined) {
+  return (
+    state?.status === "sending" ||
+    state?.status === "sent" ||
+    state?.status === "accepted"
+  );
+}
+
+function MobileVoiceInviteCandidateList({
+  candidates,
+  onSendInvite,
+  sendStates,
+}: {
+  candidates: readonly MobileVoiceInviteCandidate[];
+  onSendInvite(targetUserId: string): void;
+  sendStates: Readonly<Record<string, MobileVoiceInviteSendState>>;
+}) {
+  return (
+    <View style={styles.mobileVoiceSectionCard}>
+      <View style={styles.mobileVoiceSectionHeader}>
+        <Text style={styles.mobileVoiceSectionTitle}>{copy.voiceInviteTitle}</Text>
+        <Text style={styles.mobileVoiceSectionCount}>{candidates.length}</Text>
+      </View>
+      {candidates.length > 0 ? (
+        <View style={styles.mobileVoiceInviteCandidateList}>
+          {candidates.map((candidate) => {
+            const sendState = sendStates[candidate.userId];
+            const disabled = isMobileVoiceInviteSendDisabled(sendState);
+
+            return (
+              <View key={candidate.userId} style={styles.mobileVoiceInviteCandidateRow}>
+                <AvatarMark
+                  imageUrl={candidate.avatarUrl}
+                  label={candidate.label}
+                  size="small"
+                  status={candidate.status === "ONLINE" ? "active" : "idle"}
+                />
+                <View style={styles.mobileVoiceInviteCandidateText}>
+                  <Text style={styles.mobileVoiceInviteCandidateTitle} numberOfLines={1}>
+                    {candidate.label}
+                  </Text>
+                  <Text style={styles.mobileVoiceInviteCandidateSubtitle} numberOfLines={1}>
+                    @{candidate.username}
+                  </Text>
+                  {sendState?.errorMessage ? (
+                    <Text style={styles.mobileVoiceInviteCandidateError} numberOfLines={1}>
+                      {sendState.errorMessage}
+                    </Text>
+                  ) : null}
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${copy.voiceInviteAction}: ${candidate.label}`}
+                  accessibilityState={{ disabled }}
+                  disabled={disabled}
+                  onPress={() => onSendInvite(candidate.userId)}
+                  style={({ pressed }) => [
+                    styles.mobileVoiceInviteButton,
+                    disabled && styles.mobileVoiceInviteButtonDisabled,
+                    pressed && !disabled && styles.actionButtonPressed,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.mobileVoiceInviteButtonText,
+                      disabled && styles.mobileVoiceInviteButtonTextDisabled,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {getMobileVoiceInviteSendLabel(sendState)}
+                  </Text>
+                </Pressable>
+              </View>
+            );
+          })}
+        </View>
+      ) : (
+        <Text style={styles.mobileVoiceInviteEmpty}>{copy.voiceInviteEmpty}</Text>
+      )}
+    </View>
+  );
+}
+
+function MobileVoiceInviteOverlay({
+  invites,
+  onAccept,
+  onDecline,
+}: {
+  invites: readonly MobileVoiceInviteOverlayEntry[];
+  onAccept(inviteId: string): void;
+  onDecline(inviteId: string): void;
+}) {
+  const invite = invites[0];
+
+  if (!invite) {
+    return null;
+  }
+
+  const inviterName = invite.fromUser.displayName ?? invite.fromUser.username;
+  const description = copy.voiceInviteIncomingDescription
+    .replace("{name}", inviterName)
+    .replace("{server}", invite.serverName)
+    .replace("{channel}", invite.channelName);
+
+  return (
+    <View pointerEvents="box-none" style={styles.mobileVoiceInviteOverlay}>
+      <View style={styles.mobileVoiceInviteOverlayCard}>
+        <View style={styles.mobileVoiceInviteOverlayIcon}>
+          <Ionicons name="call" size={18} color={mobileColors.accent} />
+        </View>
+        <View style={styles.mobileVoiceInviteOverlayText}>
+          <Text style={styles.mobileVoiceInviteOverlayTitle}>{copy.voiceInviteIncomingTitle}</Text>
+          <Text style={styles.mobileVoiceInviteOverlayDescription} numberOfLines={2}>
+            {description}
+          </Text>
+          {"errorMessage" in invite && invite.errorMessage ? (
+            <Text style={styles.mobileVoiceInviteCandidateError} numberOfLines={1}>
+              {invite.errorMessage}
+            </Text>
+          ) : null}
+        </View>
+        <View style={styles.mobileVoiceInviteOverlayActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.voiceInviteDeclineAction}
+            onPress={() => onDecline(invite.id)}
+            style={({ pressed }) => [
+              styles.mobileVoiceInviteOverlayGhostButton,
+              pressed && styles.actionButtonPressed,
+            ]}
+          >
+            <Text style={styles.mobileVoiceInviteOverlayGhostText}>
+              {copy.voiceInviteDeclineAction}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.voiceInviteAcceptAction}
+            onPress={() => onAccept(invite.id)}
+            style={({ pressed }) => [
+              styles.mobileVoiceInviteOverlayPrimaryButton,
+              pressed && styles.actionButtonPressed,
+            ]}
+          >
+            <Text style={styles.mobileVoiceInviteOverlayPrimaryText}>
+              {copy.voiceInviteAcceptAction}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function MobileVoiceInfoRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: MobileIoniconName;
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.mobileVoiceInfoRow}>
+      <Ionicons name={icon} size={18} color={mobileColors.muted} />
+      <Text style={styles.mobileVoiceInfoLabel}>{label}</Text>
+      <Text style={styles.mobileVoiceInfoValue} numberOfLines={1}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function MobileVoiceControlButton({
+  disabled = false,
+  icon,
+  isActive = false,
+  label,
+  onPress,
+  tone = "neutral",
+}: {
+  disabled?: boolean;
+  icon: MobileIoniconName;
+  isActive?: boolean;
+  label: string;
+  onPress(): void;
+  tone?: "danger" | "neutral" | "primary";
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled, selected: isActive }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.mobileVoiceControlButton,
+        tone === "primary" && styles.mobileVoiceControlButtonPrimary,
+        tone === "danger" && styles.mobileVoiceControlButtonDanger,
+        isActive && styles.mobileVoiceControlButtonActive,
+        disabled && styles.mobileVoiceControlButtonDisabled,
+        pressed && !disabled && styles.actionButtonPressed,
+      ]}
+    >
+      <Ionicons
+        name={icon}
+        size={21}
+        color={
+          tone === "primary"
+            ? "#FFFFFF"
+            : tone === "danger"
+              ? "#DC2626"
+              : mobileColors.text
+        }
+      />
+      <Text
+        style={[
+          styles.mobileVoiceControlLabel,
+          tone === "primary" && styles.mobileVoiceControlLabelPrimary,
+          tone === "danger" && styles.mobileVoiceControlLabelDanger,
+          disabled && styles.mobileVoiceControlLabelDisabled,
+        ]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function MobileVoiceChannelScreen({
+  channel,
+  inviteCandidates,
+  inviteSendStates,
+  memberCount,
+  onBack,
+  onLeave,
+  onSelectAudioOutput,
+  onSendInvite,
+  onToggleMute,
+  room,
+  serverIconUrl,
+  serverName,
+  serverShortName,
+}: {
+  channel: MobileWorkspaceChannelSummary;
+  inviteCandidates: readonly MobileVoiceInviteCandidate[];
+  inviteSendStates: Readonly<Record<string, MobileVoiceInviteSendState>>;
+  memberCount: number;
+  onBack(): void;
+  onLeave(): Promise<void>;
+  onSelectAudioOutput(mode: MobileVoiceAudioOutputMode): Promise<void>;
+  onSendInvite(targetUserId: string): void;
+  onToggleMute(): Promise<void>;
+  room: MobileVoiceRoomState;
+  serverIconUrl: string | null;
+  serverName: string;
+  serverShortName: string;
+}) {
+  const model = useMemo(
+    () =>
+      getMobileVoiceChannelScreenModel(room, {
+        channelName: channel.name,
+        memberCount,
+        serverName,
+        serverShortName,
+      }),
+    [channel.name, memberCount, room, serverName, serverShortName],
+  );
+  const statusText = getVoiceRoomScreenStatus(room);
+  const createdValue = copy.voiceRoomUnknownInfo;
+
+  return (
+    <View style={styles.mobileVoiceChannelScreen}>
+      <View style={styles.mobileVoiceChannelHeader}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.openWorkspaceServerAction}
+          onPress={onBack}
+          style={({ pressed }) => [
+            styles.mobileChannelChatIconButton,
+            pressed && styles.actionButtonPressed,
+          ]}
+        >
+          <Ionicons name="chevron-back" size={20} color={mobileColors.text} />
+        </Pressable>
+        <AvatarMark
+          imageUrl={serverIconUrl}
+          label={model.serverShortName}
+          size="large"
+          status={model.isConnected ? "active" : "idle"}
+        />
+        <View style={styles.mobileVoiceChannelHeaderText}>
+          <Text style={styles.mobileVoiceChannelTitle} numberOfLines={1}>
+            {model.title}
+          </Text>
+          <View style={styles.mobileChannelChatMetaRow}>
+            <Text style={styles.mobileChannelChatServerName} numberOfLines={1}>
+              {model.serverName}
+            </Text>
+            <Text style={styles.mobileChannelChatDot}>-</Text>
+            <Text style={styles.mobileChannelChatMemberCount}>
+              {model.memberCountLabel} {copy.membersSuffix}
+            </Text>
+          </View>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.voiceSettingsAction}
+          accessibilityState={{ disabled: true }}
+          disabled
+          style={[styles.mobileChannelChatIconButton, styles.mobileVoiceHeaderDisabledButton]}
+        >
+          <Ionicons name="ellipsis-horizontal" size={18} color={mobileColors.mutedSoft} />
+        </Pressable>
+      </View>
+
+      <View style={styles.mobileVoiceStatusRow}>
+        <StatusChip label={model.krispLabel} tone="success" />
+        <StatusChip label={model.qualityLabel} tone="accent" />
+        <StatusChip label={model.signalLabel} tone={model.isConnected ? "success" : "muted"} />
+      </View>
+
+      {room.errorMessage ? <Text style={styles.mobileVoiceError}>{room.errorMessage}</Text> : null}
+
+      <ScrollView
+        contentContainerStyle={styles.mobileVoiceChannelContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.mobileVoiceStatusText}>{statusText}</Text>
+        <MobileVoiceParticipantGroup
+          emptyLabel={copy.voiceRoomNoParticipants}
+          participants={model.allParticipants}
+          title={copy.voiceRoomParticipantsTitle}
+        />
+        <MobileVoiceInviteCandidateList
+          candidates={inviteCandidates}
+          sendStates={inviteSendStates}
+          onSendInvite={onSendInvite}
+        />
+        <View style={styles.mobileVoiceSectionCard}>
+          <Text style={styles.mobileVoiceSectionTitle}>{copy.voiceRoomInfoTitle}</Text>
+          <MobileVoiceInfoRow
+            icon="radio-outline"
+            label={copy.voiceRoomChannelInfoLabel}
+            value={model.channelName}
+          />
+          <MobileVoiceInfoRow
+            icon="pulse-outline"
+            label={copy.voiceRoomQualityInfoLabel}
+            value={model.qualityLabel}
+          />
+          <MobileVoiceInfoRow
+            icon="people-outline"
+            label={copy.voiceRoomParticipantLimitLabel}
+            value={copy.voiceRoomUnknownInfo}
+          />
+          <MobileVoiceInfoRow
+            icon="time-outline"
+            label={copy.voiceRoomCreatedInfoLabel}
+            value={createdValue}
+          />
+        </View>
+      </ScrollView>
+
+      <View style={styles.mobileVoiceControlBar}>
+        <MobileVoiceControlButton
+          icon={room.selfMuted ? "mic-off-outline" : "mic-outline"}
+          label={room.selfMuted ? copy.voiceUnmuteAction : copy.voiceMuteAction}
+          disabled={!model.canToggleMicrophone}
+          onPress={() => void onToggleMute()}
+          tone={room.selfMuted ? "neutral" : "primary"}
+        />
+        <MobileVoiceControlButton
+          icon="headset-outline"
+          label={copy.voiceHeadphonesAction}
+          disabled={!model.canSelectDefaultAudio}
+          isActive={room.selfAudioOutput === "default"}
+          onPress={() => void onSelectAudioOutput("default")}
+        />
+        <MobileVoiceControlButton
+          icon="volume-high-outline"
+          label={copy.voiceSpeakerAction}
+          disabled={!model.canSelectSpeaker}
+          isActive={room.selfAudioOutput === "speaker"}
+          onPress={() => void onSelectAudioOutput("speaker")}
+        />
+        <MobileVoiceControlButton
+          icon="desktop-outline"
+          label={copy.voiceScreenShareAction}
+          disabled={!model.canShareScreen}
+          onPress={() => undefined}
+        />
+        <MobileVoiceControlButton
+          icon="settings-outline"
+          label={copy.voiceSettingsAction}
+          disabled={!model.canOpenSettings}
+          onPress={() => undefined}
+        />
+        <MobileVoiceControlButton
+          icon="exit-outline"
+          label={copy.voiceLeaveAction}
+          disabled={!model.canLeave}
+          onPress={() => void onLeave()}
+          tone="danger"
+        />
+      </View>
+    </View>
+  );
+}
+
+function MobileChannelChatScreen({
+  attachmentsFeature,
+  channel,
+  currentUserId,
+  mediaState,
+  memberCount,
+  messageSearchFeature,
+  messageSearchState,
+  onBack,
+  onClearMessageSearch,
+  onClearSelectedMediaAsset,
+  onDraftChange,
+  onRefresh,
+  onRequestDocumentPicker,
+  onSearchMessages,
+  onSendMessage,
+  sendState,
+  serverName,
+  state,
+  typingLabel,
+}: {
+  attachmentsFeature: MobileBootstrapFeature | null;
+  channel: MobileWorkspaceChannelSummary;
+  currentUserId: string;
+  mediaState: MobileMediaRuntimeState;
+  memberCount: number;
+  messageSearchFeature: MobileBootstrapFeature | null;
+  messageSearchState: MobileMessageSearchViewState;
+  onBack(): void;
+  onClearMessageSearch(): void;
+  onClearSelectedMediaAsset(): void;
+  onDraftChange(content: string): void;
+  onRefresh(): void;
+  onRequestDocumentPicker(): Promise<void>;
+  onSearchMessages(input: {
+    conversationId: string;
+    query: string;
+    scope: "channel";
+  }): Promise<void>;
+  onSendMessage(content: string): Promise<boolean>;
+  sendState: MobileChannelSendViewState;
+  serverName: string;
+  state: MobileChannelMessagesViewState;
+  typingLabel: string | null;
+}) {
+  const channelSendState =
+    sendState.channelId === channel.id ? sendState : INITIAL_CHANNEL_SEND_STATE;
+  const [isSearchPanelOpen, setSearchPanelOpen] = useState(false);
+  const isChannelSearchContextActive = isMessageSearchStateForContext(
+    messageSearchState,
+    "channel",
+    channel.id,
+  );
+  const headerModel = useMemo(
+    () =>
+      getMobileChannelChatHeaderModel(
+        state.payload?.channel
+          ? {
+              ...channel,
+              name: state.payload.channel.name,
+            }
+          : channel,
+        {
+          fallbackChannelName: copy.workspaceTextChannel,
+          memberCount,
+          membersSuffix: copy.membersSuffix,
+          serverName,
+        },
+      ),
+    [channel, memberCount, serverName, state.payload?.channel],
+  );
+  const searchVisibility = getMobileChannelChatSearchVisibility({
+    closeLabel: copy.channelSearchCloseAction,
+    featureStatus: messageSearchFeature?.status,
+    hasActiveSearchContext: isChannelSearchContextActive,
+    isSearchPanelOpen,
+    openLabel: copy.channelSearchAction,
+  });
+
+  useEffect(() => {
+    setSearchPanelOpen(false);
+  }, [channel.id]);
+
+  const handleToggleSearch = useCallback(() => {
+    if (!searchVisibility.isSearchAvailable) {
+      return;
+    }
+
+    if (searchVisibility.shouldRenderSearchPanel) {
+      setSearchPanelOpen(false);
+      if (isChannelSearchContextActive) {
+        onClearMessageSearch();
+      }
+      return;
+    }
+
+    setSearchPanelOpen(true);
+  }, [
+    isChannelSearchContextActive,
+    onClearMessageSearch,
+    searchVisibility.isSearchAvailable,
+    searchVisibility.shouldRenderSearchPanel,
+  ]);
+
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
+      style={styles.mobileChannelChatKeyboard}
+    >
+      <View
+        accessibilityLabel={headerModel.accessibilityLabel}
+        style={styles.mobileChannelChatScreen}
+      >
+        <View style={styles.mobileChannelChatHeader}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.openWorkspaceServerAction}
+            onPress={onBack}
+            style={({ pressed }) => [
+              styles.mobileChannelChatIconButton,
+              pressed && styles.actionButtonPressed,
+            ]}
+          >
+            <Ionicons name="chevron-back" size={20} color={mobileColors.text} />
+          </Pressable>
+          <View style={styles.mobileChannelChatHash}>
+            <Text style={styles.mobileChannelChatHashText}>#</Text>
+          </View>
+          <View style={styles.mobileChannelChatHeaderText}>
+            <Text style={styles.mobileChannelChatTitle} numberOfLines={1}>
+              {headerModel.channelName}
+            </Text>
+            <View style={styles.mobileChannelChatMetaRow}>
+              <Text style={styles.mobileChannelChatServerName} numberOfLines={1}>
+                {headerModel.serverName}
+              </Text>
+              <Text style={styles.mobileChannelChatDot}>•</Text>
+              <Text style={styles.mobileChannelChatMemberCount}>
+                {headerModel.memberCountLabel}
+              </Text>
+            </View>
+            {headerModel.topic ? (
+              <Text style={styles.mobileChannelChatTopic} numberOfLines={1}>
+                {headerModel.topic}
+              </Text>
+            ) : null}
+          </View>
+          {searchVisibility.isSearchAvailable ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={searchVisibility.toggleAccessibilityLabel}
+              accessibilityState={{ expanded: searchVisibility.shouldRenderSearchPanel }}
+              onPress={handleToggleSearch}
+              style={({ pressed }) => [
+                styles.mobileChannelChatIconButton,
+                searchVisibility.shouldRenderSearchPanel &&
+                  styles.mobileChannelChatIconButtonActive,
+                pressed && styles.actionButtonPressed,
+              ]}
+            >
+              <Ionicons
+                name={searchVisibility.shouldRenderSearchPanel ? "close" : "search"}
+                size={18}
+                color={
+                  searchVisibility.shouldRenderSearchPanel
+                    ? mobileColors.accentStrong
+                    : mobileColors.muted
+                }
+              />
+            </Pressable>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.retryAction}
+            onPress={onRefresh}
+            style={({ pressed }) => [
+              styles.mobileChannelChatIconButton,
+              pressed && styles.actionButtonPressed,
+            ]}
+          >
+            <Ionicons name="refresh" size={18} color={mobileColors.muted} />
+          </Pressable>
+        </View>
+
+        {searchVisibility.shouldRenderSearchPanel ? (
+          <MessageSearchPanel
+            conversationId={channel.id}
+            scope="channel"
+            state={messageSearchState}
+            onClear={onClearMessageSearch}
+            onSearch={onSearchMessages}
+          />
+        ) : null}
+
+        <ChannelMessageList
+          currentUserId={currentUserId}
+          onRefresh={onRefresh}
+          state={state}
+        />
+
+        {state.status === "ready" ? (
+          <>
+            <ChannelTypingIndicator label={typingLabel} />
+            <DMComposer
+              attachmentsFeature={attachmentsFeature}
+              placeholder={copy.channelComposerPlaceholder}
+              sendActionLabel={copy.channelSendAction}
+              sendState={channelSendState}
+              sendingActionLabel={copy.channelSendingAction}
+              mediaState={mediaState}
+              onClearSelectedMediaAsset={onClearSelectedMediaAsset}
+              onDraftChange={onDraftChange}
+              onRequestDocumentPicker={onRequestDocumentPicker}
+              onSend={onSendMessage}
+            />
+          </>
+        ) : null}
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
+function ChannelMessageList({
+  currentUserId,
+  onRefresh,
+  state,
+}: {
+  currentUserId: string;
+  onRefresh(): void;
+  state: MobileChannelMessagesViewState;
+}) {
+  const messages = state.payload?.messages ?? [];
+  const streamItems = useMemo(() => getMobileMessageStreamItems(messages), [messages]);
+  const latestMessageId = messages[messages.length - 1]?.id ?? null;
+  const listRef = useRef<FlatList<MobileMessageStreamItem<MobileRenderableMessage>> | null>(null);
+  const performanceConfig = useMemo(
+    () => getMobileMessageListPerformanceConfig(messages.length),
+    [messages.length],
+  );
+  const scrollToLatestMessage = useCallback(
+    (animated = true) => {
+      if (streamItems.length === 0) {
+        return;
+      }
+
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToEnd({ animated });
+      });
+    },
+    [streamItems.length],
+  );
+
+  useEffect(() => {
+    scrollToLatestMessage(true);
+  }, [latestMessageId, scrollToLatestMessage]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: MobileMessageStreamItem<MobileRenderableMessage> }) => (
+      <View style={styles.messageStreamItem}>
+        {item.showDateSeparator ? (
+          <MessageDateSeparator createdAt={item.message.createdAt} />
+        ) : null}
+        <MemoizedMessagePreviewRow
+          message={item.message}
+          own={item.message.author.id === currentUserId}
+        />
+      </View>
+    ),
+    [currentUserId],
+  );
+
+  const emptyComponent = useMemo(() => {
+    if (state.status === "loading" && !state.payload) {
+      return <Text style={styles.contractDescription}>{copy.workspaceMessagesLoading}</Text>;
+    }
+
+    if (state.status === "error") {
+      return (
+        <View style={styles.dmErrorRow}>
+          <Text style={styles.errorText}>{state.error}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.retryAction}
+            onPress={onRefresh}
+            style={({ pressed }) => [styles.retryButton, pressed && styles.actionButtonPressed]}
+          >
+            <Text style={styles.retryButtonText}>{copy.retryAction}</Text>
+          </Pressable>
+        </View>
+      );
+    }
+
+    if (state.status === "ready" && messages.length === 0) {
+      return <Text style={styles.contractDescription}>{copy.workspaceNoMessages}</Text>;
+    }
+
+    return null;
+  }, [messages.length, onRefresh, state.error, state.payload, state.status]);
+
+  return (
+    <FlatList
+      contentContainerStyle={[
+        styles.mobileChannelChatBodyContent,
+        streamItems.length === 0 && styles.mobileChannelChatBodyEmptyContent,
+      ]}
+      data={streamItems}
+      ref={listRef}
+      initialNumToRender={performanceConfig.initialNumToRender}
+      keyboardShouldPersistTaps="handled"
+      keyExtractor={(item) => item.id}
+      ListEmptyComponent={emptyComponent}
+      maxToRenderPerBatch={performanceConfig.maxToRenderPerBatch}
+      onContentSizeChange={() => scrollToLatestMessage(false)}
+      onLayout={() => scrollToLatestMessage(false)}
+      removeClippedSubviews={Platform.OS === "android"}
+      renderItem={renderItem}
+      refreshControl={
+        <RefreshControl
+          colors={[mobileColors.accentStrong]}
+          progressBackgroundColor={mobileColors.card}
+          refreshing={state.status === "loading"}
+          tintColor={mobileColors.accentStrong}
+          onRefresh={onRefresh}
+        />
+      }
+      style={styles.mobileChannelChatBody}
+      windowSize={performanceConfig.windowSize}
+    />
+  );
+}
+
+function ChannelTypingIndicator({ label }: { label: string | null }) {
+  if (!label) {
+    return null;
+  }
+
+  return (
+    <View
+      accessibilityRole="text"
+      accessibilityLabel={label}
+      style={styles.mobileChannelTypingIndicator}
+    >
+      <Text style={styles.mobileChannelTypingText} numberOfLines={1}>
+        {label}
+      </Text>
+      <View style={styles.mobileChannelTypingDots} accessibilityElementsHidden>
+        <View style={styles.mobileChannelTypingDot} />
+        <View style={styles.mobileChannelTypingDot} />
+        <View style={styles.mobileChannelTypingDot} />
+      </View>
+    </View>
+  );
+}
+
 function ChannelMessagesPreviewCard({
   attachmentsFeature,
   channel,
@@ -4124,6 +5234,7 @@ function DMComposer({
   attachmentsFeature,
   mediaState,
   onClearSelectedMediaAsset,
+  onDraftChange,
   onRequestDocumentPicker,
   onSend,
   placeholder = copy.dmComposerPlaceholder,
@@ -4134,6 +5245,7 @@ function DMComposer({
   attachmentsFeature?: MobileBootstrapFeature | null;
   mediaState?: MobileMediaRuntimeState;
   onClearSelectedMediaAsset?: () => void;
+  onDraftChange?: (content: string) => void;
   onRequestDocumentPicker?: () => Promise<void>;
   onSend(content: string): Promise<boolean>;
   placeholder?: string;
@@ -4167,8 +5279,17 @@ function DMComposer({
     const didSend = await onSend(trimmedDraft);
     if (didSend) {
       setDraft("");
+      onDraftChange?.("");
     }
-  }, [isDisabled, onSend, trimmedDraft]);
+  }, [isDisabled, onDraftChange, onSend, trimmedDraft]);
+
+  const handleDraftChange = useCallback(
+    (content: string) => {
+      setDraft(content);
+      onDraftChange?.(content);
+    },
+    [onDraftChange],
+  );
 
   return (
     <View style={styles.dmComposer}>
@@ -4224,7 +5345,7 @@ function DMComposer({
         accessibilityLabel={placeholder}
         maxLength={2000}
         multiline
-        onChangeText={setDraft}
+        onChangeText={handleDraftChange}
         placeholder={placeholder}
         placeholderTextColor={mobileColors.mutedSoft}
         style={styles.dmComposerInput}
@@ -5164,6 +6285,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     padding: 12,
   },
+  activeScreenFrame: {
+    flex: 1,
+    minWidth: 0,
+  },
   dmListCard: {
     gap: 10,
     minWidth: 0,
@@ -5406,15 +6531,15 @@ const styles = StyleSheet.create({
     minWidth: 0,
     flexDirection: "row",
     alignItems: "stretch",
-    gap: 10,
+    gap: 8,
   },
   mobileServerRail: {
-    width: 58,
+    width: 56,
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     borderRightWidth: 1,
     borderRightColor: "#E8ECF8",
-    paddingRight: 8,
+    paddingRight: 7,
     paddingVertical: 2,
   },
   mobileServerRailLogo: {
@@ -5430,7 +6555,7 @@ const styles = StyleSheet.create({
   },
   mobileServerRailList: {
     alignItems: "center",
-    gap: 9,
+    gap: 7,
     minWidth: 0,
   },
   mobileServerRailItem: {
@@ -5483,7 +6608,530 @@ const styles = StyleSheet.create({
   mobileWorkspacePanel: {
     flex: 1,
     minWidth: 0,
+    gap: 8,
+  },
+  mobileChannelChatKeyboard: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mobileChannelChatScreen: {
+    flex: 1,
+    minWidth: 0,
     gap: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7FF",
+    borderRadius: mobileRadii.card,
+    backgroundColor: "#FFFFFF",
+    padding: 10,
+  },
+  mobileChannelChatHeader: {
+    minHeight: 50,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEF2FF",
+    paddingBottom: 8,
+  },
+  mobileChannelChatIconButton: {
+    width: mobileSizing.minTouchTarget,
+    height: mobileSizing.minTouchTarget,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7FF",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#FFFFFF",
+  },
+  mobileChannelChatIconButtonActive: {
+    borderColor: "#C4B5FD",
+    backgroundColor: "#F5F3FF",
+  },
+  mobileChannelChatHash: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    backgroundColor: "#EEF2FF",
+  },
+  mobileChannelChatHashText: {
+    color: mobileColors.accentStrong,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  mobileChannelChatHeaderText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mobileChannelChatTitle: {
+    color: mobileColors.text,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  mobileChannelChatMetaRow: {
+    marginTop: 3,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  mobileChannelChatServerName: {
+    maxWidth: "62%",
+    color: mobileColors.muted,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  mobileChannelChatDot: {
+    color: mobileColors.success,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  mobileChannelChatMemberCount: {
+    color: mobileColors.success,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  mobileChannelChatTopic: {
+    marginTop: 3,
+    color: mobileColors.muted,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  mobileChannelChatBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mobileChannelChatBodyContent: {
+    flexGrow: 1,
+    minHeight: 180,
+    minWidth: 0,
+    gap: 10,
+  },
+  mobileChannelChatBodyEmptyContent: {
+    justifyContent: "center",
+  },
+  mobileChannelTypingIndicator: {
+    minHeight: 22,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 6,
+  },
+  mobileChannelTypingText: {
+    minWidth: 0,
+    flexShrink: 1,
+    color: mobileColors.muted,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  mobileChannelTypingDots: {
+    flexDirection: "row",
+    gap: 3,
+  },
+  mobileChannelTypingDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: mobileColors.mutedSoft,
+  },
+  mobileVoiceChannelScreen: {
+    flex: 1,
+    minWidth: 0,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7FF",
+    borderRadius: mobileRadii.card,
+    backgroundColor: "#FFFFFF",
+    padding: 10,
+  },
+  mobileVoiceChannelHeader: {
+    minHeight: 54,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEF2FF",
+    paddingBottom: 9,
+  },
+  mobileVoiceHeaderDisabledButton: {
+    opacity: 0.56,
+  },
+  mobileVoiceChannelHeaderText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mobileVoiceChannelTitle: {
+    color: mobileColors.text,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  mobileVoiceStatusRow: {
+    minWidth: 0,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+  },
+  mobileVoiceError: {
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: mobileRadii.control,
+    backgroundColor: "#FEF2F2",
+    color: "#B91C1C",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "800",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  mobileVoiceChannelContent: {
+    gap: 10,
+    minWidth: 0,
+    paddingBottom: 6,
+  },
+  mobileVoiceStatusText: {
+    color: mobileColors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "800",
+  },
+  mobileVoiceSectionCard: {
+    gap: 10,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: "#E5E7FF",
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    padding: 12,
+  },
+  mobileVoiceSectionHeader: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  mobileVoiceSectionTitle: {
+    flex: 1,
+    minWidth: 0,
+    color: mobileColors.muted,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 2,
+    textTransform: "uppercase",
+  },
+  mobileVoiceSectionCount: {
+    minWidth: 24,
+    overflow: "hidden",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#F4F1FF",
+    color: mobileColors.accentStrong,
+    fontSize: 11,
+    fontWeight: "900",
+    lineHeight: 21,
+    paddingHorizontal: 7,
+    textAlign: "center",
+  },
+  mobileVoiceParticipantList: {
+    gap: 7,
+    minWidth: 0,
+  },
+  mobileVoiceParticipantRow: {
+    minHeight: 58,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#EEF2FF",
+    borderRadius: 15,
+    backgroundColor: "#F8FAFF",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  mobileVoiceParticipantRowSpeaking: {
+    borderColor: "#BBF7D0",
+    backgroundColor: "#F0FDF4",
+  },
+  mobileVoiceParticipantText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mobileVoiceParticipantTitleRow: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  mobileVoiceParticipantTitle: {
+    minWidth: 0,
+    color: mobileColors.text,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  mobileVoiceSelfBadge: {
+    overflow: "hidden",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#EDE9FE",
+    color: mobileColors.accentStrong,
+    fontSize: 10,
+    fontWeight: "900",
+    lineHeight: 18,
+    paddingHorizontal: 7,
+  },
+  mobileVoiceParticipantSubtitle: {
+    marginTop: 2,
+    color: mobileColors.muted,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  mobileVoiceLevelBars: {
+    width: 34,
+    minHeight: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 3,
+  },
+  mobileVoiceLevelBar: {
+    width: 4,
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.success,
+  },
+  mobileVoiceEmptyText: {
+    color: mobileColors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "800",
+  },
+  mobileVoiceInviteCandidateList: {
+    gap: 7,
+    minWidth: 0,
+  },
+  mobileVoiceInviteCandidateRow: {
+    minHeight: 56,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    borderWidth: 1,
+    borderColor: "#EEF2FF",
+    borderRadius: 18,
+    backgroundColor: "#FAFBFF",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  mobileVoiceInviteCandidateText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mobileVoiceInviteCandidateTitle: {
+    color: mobileColors.text,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  mobileVoiceInviteCandidateSubtitle: {
+    marginTop: 1,
+    color: mobileColors.muted,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  mobileVoiceInviteCandidateError: {
+    marginTop: 3,
+    color: "#DC2626",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  mobileVoiceInviteEmpty: {
+    color: mobileColors.muted,
+    fontSize: 12,
+    fontWeight: "800",
+    lineHeight: 17,
+  },
+  mobileVoiceInviteButton: {
+    minHeight: 34,
+    minWidth: 78,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.accentStrong,
+    paddingHorizontal: 12,
+  },
+  mobileVoiceInviteButtonDisabled: {
+    backgroundColor: "#EEF2FF",
+  },
+  mobileVoiceInviteButtonText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  mobileVoiceInviteButtonTextDisabled: {
+    color: mobileColors.accentStrong,
+  },
+  mobileVoiceInviteOverlay: {
+    position: "absolute",
+    top: 10,
+    left: 8,
+    right: 8,
+    zIndex: 30,
+  },
+  mobileVoiceInviteOverlayCard: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    borderWidth: 1,
+    borderColor: "#C4B5FD",
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    padding: 10,
+    shadowColor: "#6D5DFB",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  mobileVoiceInviteOverlayIcon: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 15,
+    backgroundColor: "#F5F3FF",
+  },
+  mobileVoiceInviteOverlayText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mobileVoiceInviteOverlayTitle: {
+    color: mobileColors.text,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  mobileVoiceInviteOverlayDescription: {
+    marginTop: 2,
+    color: mobileColors.muted,
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 15,
+  },
+  mobileVoiceInviteOverlayActions: {
+    gap: 6,
+    alignItems: "stretch",
+  },
+  mobileVoiceInviteOverlayGhostButton: {
+    minHeight: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#F8FAFF",
+    paddingHorizontal: 10,
+  },
+  mobileVoiceInviteOverlayGhostText: {
+    color: mobileColors.muted,
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  mobileVoiceInviteOverlayPrimaryButton: {
+    minHeight: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.accentStrong,
+    paddingHorizontal: 12,
+  },
+  mobileVoiceInviteOverlayPrimaryText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  mobileVoiceInfoRow: {
+    minHeight: 38,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#EEF2FF",
+    paddingTop: 9,
+  },
+  mobileVoiceInfoLabel: {
+    flex: 1,
+    minWidth: 0,
+    color: mobileColors.muted,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  mobileVoiceInfoValue: {
+    maxWidth: "48%",
+    color: mobileColors.text,
+    fontSize: 12,
+    fontWeight: "900",
+    textAlign: "right",
+  },
+  mobileVoiceControlBar: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "stretch",
+    justifyContent: "space-between",
+    gap: 5,
+    borderWidth: 1,
+    borderColor: "#E5E7FF",
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    padding: 7,
+    shadowColor: "#6D5DFB",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  mobileVoiceControlButton: {
+    width: 49,
+    minHeight: 58,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    borderWidth: 1,
+    borderColor: "#E5E7FF",
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 3,
+    paddingVertical: 6,
+  },
+  mobileVoiceControlButtonPrimary: {
+    borderColor: mobileColors.accentStrong,
+    backgroundColor: mobileColors.accentStrong,
+  },
+  mobileVoiceControlButtonDanger: {
+    borderColor: "#FECACA",
+    backgroundColor: "#FEF2F2",
+  },
+  mobileVoiceControlButtonActive: {
+    borderColor: "#C4B5FD",
+    backgroundColor: "#F5F3FF",
+  },
+  mobileVoiceControlButtonDisabled: {
+    opacity: 0.48,
+  },
+  mobileVoiceControlLabel: {
+    color: mobileColors.muted,
+    fontSize: 9,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  mobileVoiceControlLabelPrimary: {
+    color: "#FFFFFF",
+  },
+  mobileVoiceControlLabelDanger: {
+    color: "#DC2626",
+  },
+  mobileVoiceControlLabelDisabled: {
+    color: mobileColors.mutedSoft,
   },
   mobileWorkspaceEmpty: {
     gap: 8,
@@ -5495,17 +7143,17 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   mobileWorkspaceHeader: {
-    minHeight: 58,
+    minHeight: 50,
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 9,
     borderWidth: 1,
     borderColor: "#E5E7FF",
-    borderRadius: 18,
+    borderRadius: 16,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
   },
   mobileWorkspaceHeaderText: {
     flex: 1,
@@ -5513,13 +7161,13 @@ const styles = StyleSheet.create({
   },
   mobileWorkspaceTitle: {
     color: mobileColors.text,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "900",
   },
   mobileWorkspaceMeta: {
     marginTop: 2,
     color: mobileColors.muted,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "800",
   },
   mobileWorkspaceSearchRow: {
@@ -5529,20 +7177,20 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   mobileWorkspaceSearchBox: {
-    minHeight: mobileSizing.minTouchTarget,
+    minHeight: 40,
     minWidth: 0,
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 7,
     borderWidth: 1,
     borderColor: mobileColors.border,
-    borderRadius: 15,
+    borderRadius: 13,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 11,
+    paddingHorizontal: 10,
   },
   mobileWorkspaceSearchInput: {
-    minHeight: mobileSizing.minTouchTarget,
+    minHeight: 40,
     flex: 1,
     minWidth: 0,
     color: mobileColors.text,
@@ -5550,76 +7198,76 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     paddingVertical: 0,
   },
-  mobileWorkspaceStats: {
-    flexDirection: "row",
-    gap: 7,
-    minWidth: 0,
-  },
-  mobileWorkspaceStatPill: {
-    flex: 1,
-    minWidth: 0,
-    borderWidth: 1,
-    borderColor: "#DDD6FE",
-    borderRadius: 14,
-    backgroundColor: "#F8FAFF",
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-  },
-  mobileWorkspaceStatValue: {
-    color: mobileColors.text,
-    fontSize: 18,
-    lineHeight: 21,
-    fontWeight: "900",
-  },
-  mobileWorkspaceStatLabel: {
-    marginTop: 2,
-    color: mobileColors.mutedSoft,
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 0.7,
-    textTransform: "uppercase",
-  },
   mobileWorkspaceSectionList: {
-    gap: 13,
+    gap: 8,
     minWidth: 0,
   },
   mobileWorkspaceSection: {
-    gap: 6,
+    gap: 3,
     minWidth: 0,
   },
+  mobileWorkspaceSectionHeader: {
+    minHeight: 28,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderRadius: 10,
+    paddingHorizontal: 1,
+    paddingVertical: 3,
+  },
   mobileWorkspaceSectionTitle: {
+    flex: 1,
+    minWidth: 0,
     color: mobileColors.mutedSoft,
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 1.6,
     textTransform: "uppercase",
   },
-  mobileWorkspaceChannelList: {
+  mobileWorkspaceSectionMeta: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
+  },
+  mobileWorkspaceSectionCount: {
+    minWidth: 18,
+    overflow: "hidden",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "#F4F1FF",
+    color: mobileColors.accentStrong,
+    fontSize: 10,
+    fontWeight: "900",
+    lineHeight: 17,
+    paddingHorizontal: 5,
+    textAlign: "center",
+  },
+  mobileWorkspaceChannelList: {
+    gap: 2,
     minWidth: 0,
   },
   mobileWorkspaceChannelRow: {
-    minHeight: mobileSizing.minTouchTarget,
+    minHeight: 40,
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: 9,
+    gap: 8,
     borderWidth: 1,
     borderColor: "transparent",
-    borderRadius: 13,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    borderRadius: 12,
+    paddingHorizontal: 7,
+    paddingVertical: 5,
   },
   mobileWorkspaceChannelRowActive: {
     borderColor: "#DDD6FE",
     backgroundColor: "#F4F1FF",
   },
   mobileWorkspaceChannelIcon: {
-    width: 30,
-    height: 30,
+    width: 28,
+    height: 28,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 12,
+    borderRadius: 11,
     backgroundColor: "#EEF2FF",
   },
   mobileWorkspaceChannelIconVoice: {
@@ -5633,13 +7281,13 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     color: mobileColors.text,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "900",
   },
   mobileWorkspaceChannelMeta: {
-    marginTop: 2,
+    marginTop: 1,
     color: mobileColors.muted,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
   },
   mobileWorkspaceUnreadDot: {

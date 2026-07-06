@@ -21,6 +21,11 @@ export const MOBILE_REALTIME_SERVER_EVENTS = [
   "notification:new",
   "voice:state:update",
   "voice:screenshare:update",
+  "voice:invite:accepted",
+  "voice:invite:error",
+  "voice:invite:received",
+  "voice:invite:sent",
+  "voice:invite:status",
   "voice:audio-level:update",
 ] as const;
 
@@ -80,7 +85,6 @@ const CHANNEL_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
   "message:removed",
   "message:history_cleared",
   "message:reaction_updated",
-  "typing:update",
 ]);
 
 const DM_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
@@ -89,7 +93,6 @@ const DM_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
   "dm:message:deleted",
   "dm:message:removed",
   "dm:message:reaction_updated",
-  "dm:typing:update",
 ]);
 
 const WORKSPACE_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
@@ -125,6 +128,19 @@ function getStringProperty(payload: unknown, key: string): string | null {
 export function getMobileRealtimeRefreshSources(
   eventName: MobileRealtimeServerEventName,
 ): readonly MobileRealtimeRefreshSource[] {
+  if (
+    eventName === "voice:audio-level:update" ||
+    eventName === "voice:invite:accepted" ||
+    eventName === "voice:invite:error" ||
+    eventName === "voice:invite:received" ||
+    eventName === "voice:invite:sent" ||
+    eventName === "voice:invite:status" ||
+    eventName === "typing:update" ||
+    eventName === "dm:typing:update"
+  ) {
+    return [];
+  }
+
   const sources = new Set<MobileRealtimeRefreshSource>();
 
   if (BOOTSTRAP_REFRESH_EVENTS.has(eventName)) {
@@ -151,15 +167,17 @@ export function getMobileRealtimeRefreshSources(
     sources.add("notification");
   }
 
-  if (eventName === "voice:audio-level:update") {
-    sources.add("workspace");
-  }
-
   if (sources.size === 0) {
     sources.add("bootstrap");
   }
 
   return [...sources];
+}
+
+export function isMobileRealtimeChannelMessagePayloadEvent(
+  eventName: MobileRealtimeServerEventName,
+): boolean {
+  return CHANNEL_REFRESH_EVENTS.has(eventName);
 }
 
 export function createMobileRealtimeEventEnvelope(
@@ -171,7 +189,13 @@ export function createMobileRealtimeEventEnvelope(
     channelId: getStringProperty(payload, "channelId"),
     conversationId: getStringProperty(payload, "conversationId"),
     eventName,
-    payload: eventName.startsWith("voice:") ? payload : null,
+    payload:
+      eventName.startsWith("voice:") ||
+      isMobileRealtimeChannelMessagePayloadEvent(eventName) ||
+      eventName === "typing:update" ||
+      eventName === "dm:typing:update"
+        ? payload
+        : null,
     receivedAt: now,
     refreshSources: getMobileRealtimeRefreshSources(eventName),
     serverId: getStringProperty(payload, "serverId"),
@@ -192,7 +216,17 @@ export function validateMobileRealtimeContract(): string[] {
     }
 
     const sources = getMobileRealtimeRefreshSources(eventName);
-    if (sources.length === 0) {
+    const isLocalOnlyEvent =
+      eventName === "voice:audio-level:update" ||
+      eventName === "voice:invite:accepted" ||
+      eventName === "voice:invite:error" ||
+      eventName === "voice:invite:received" ||
+      eventName === "voice:invite:sent" ||
+      eventName === "voice:invite:status" ||
+      eventName === "typing:update" ||
+      eventName === "dm:typing:update";
+
+    if (sources.length === 0 && !isLocalOnlyEvent) {
       issues.push(`Mobile realtime event ${eventName} must map to at least one refresh source.`);
     }
   }

@@ -49,6 +49,7 @@ const tabIcons: Record<MobileTabId, { active: MobileNavIconName; inactive: Mobil
 interface MobileAppShellProps {
   authStatus: "checking" | "error" | "signed-in" | "signed-out";
   children: ReactNode;
+  contentUsesOwnScroll?: boolean;
   currentTab: MobileTabId;
   directMessageUnreadCount?: number;
   isRefreshing?: boolean;
@@ -60,6 +61,7 @@ interface MobileAppShellProps {
 export function MobileAppShell({
   authStatus,
   children,
+  contentUsesOwnScroll = false,
   currentTab,
   directMessageUnreadCount = 0,
   isRefreshing = false,
@@ -71,6 +73,12 @@ export function MobileAppShell({
   const topInset = Math.max(insets.top, 12);
   const bottomInset = Math.max(insets.bottom, 12);
   const isSignedIn = authStatus === "signed-in";
+  const contentContainerStyle = [
+    styles.content,
+    isSignedIn && styles.contentSignedIn,
+    contentUsesOwnScroll && styles.contentOwnScroll,
+    !isSignedIn && { paddingBottom: bottomInset + 12 },
+  ];
 
   return (
     <View style={[styles.safeArea, { paddingTop: topInset }]}>
@@ -82,28 +90,28 @@ export function MobileAppShell({
             signedInUserLabel={signedInUserLabel}
           />
         ) : null}
-        <ScrollView
-          style={styles.contentScroll}
-          contentContainerStyle={[
-            styles.content,
-            isSignedIn && styles.contentSignedIn,
-            !isSignedIn && { paddingBottom: bottomInset + 12 },
-          ]}
-          alwaysBounceVertical={Boolean(onRefresh)}
-          refreshControl={
-            onRefresh ? (
-              <RefreshControl
-                colors={[mobileColors.accentStrong]}
-                progressBackgroundColor={mobileColors.card}
-                refreshing={isRefreshing}
-                tintColor={mobileColors.accentStrong}
-                onRefresh={onRefresh}
-              />
-            ) : undefined
-          }
-        >
-          {children}
-        </ScrollView>
+        {contentUsesOwnScroll ? (
+          <View style={[styles.contentScroll, ...contentContainerStyle]}>{children}</View>
+        ) : (
+          <ScrollView
+            style={styles.contentScroll}
+            contentContainerStyle={contentContainerStyle}
+            alwaysBounceVertical={Boolean(onRefresh)}
+            refreshControl={
+              onRefresh ? (
+                <RefreshControl
+                  colors={[mobileColors.accentStrong]}
+                  progressBackgroundColor={mobileColors.card}
+                  refreshing={isRefreshing}
+                  tintColor={mobileColors.accentStrong}
+                  onRefresh={onRefresh}
+                />
+              ) : undefined
+            }
+          >
+            {children}
+          </ScrollView>
+        )}
         {isSignedIn ? (
           <MobileBottomNavigation
             bottomInset={bottomInset}
@@ -361,6 +369,9 @@ const styles = StyleSheet.create({
   contentSignedIn: {
     paddingTop: 6,
     paddingBottom: 98,
+  },
+  contentOwnScroll: {
+    flex: 1,
   },
   bottomNavOuter: {
     position: "absolute",

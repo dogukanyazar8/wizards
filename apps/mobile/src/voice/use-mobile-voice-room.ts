@@ -30,6 +30,7 @@ import {
   mapServerVoiceParticipantToRoomParticipant,
   mergeMobileVoiceRoomParticipants,
   redactMobileVoiceRoomError,
+  type MobileVoiceAudioOutputMode,
   type MobileVoiceRoomParticipant,
   type MobileVoiceRoomState,
 } from "./mobile-voice-room-contract";
@@ -37,6 +38,8 @@ import { requestMobileVoicePermissionAfterUserAction } from "./mobile-voice-runt
 import type { MobileVoiceStateParticipant } from "@wizards/types";
 
 const MOBILE_VOICE_HEARTBEAT_INTERVAL_MS = 25_000;
+const MOBILE_VOICE_LEVEL_INTERVAL_MS = 90;
+const MOBILE_VOICE_LEVEL_CHANGE_THRESHOLD = 0.025;
 
 type JoinVoiceChannelInput = {
   channelId: string;
@@ -50,6 +53,14 @@ type SyncServerVoiceParticipantsInput = {
   serverId: string;
 };
 
+type SyncServerVoiceAudioLevelInput = {
+  audioLevel: number;
+  channelId: string;
+  isMuted: boolean;
+  isSpeaking: boolean;
+  userId: string;
+};
+
 function toBoundedAudioLevel(value: number | undefined): number {
   if (!Number.isFinite(value)) {
     return 0;
@@ -60,6 +71,37 @@ function toBoundedAudioLevel(value: number | undefined): number {
 
 function participantIdentityToUserId(identity: string): string {
   return identity.replace(/^user:/, "");
+}
+
+function voiceParticipantsChanged(
+  current: readonly MobileVoiceRoomParticipant[],
+  next: readonly MobileVoiceRoomParticipant[],
+): boolean {
+  if (current.length !== next.length) {
+    return true;
+  }
+
+  const currentByUserId = new Map(current.map((participant) => [participant.userId, participant]));
+
+  for (const participant of next) {
+    const previous = currentByUserId.get(participant.userId);
+    if (!previous) {
+      return true;
+    }
+
+    if (
+      previous.isCameraEnabled !== participant.isCameraEnabled ||
+      previous.isMuted !== participant.isMuted ||
+      previous.isScreenSharing !== participant.isScreenSharing ||
+      previous.isSpeaking !== participant.isSpeaking ||
+      Math.abs(previous.audioLevel - participant.audioLevel) >=
+        MOBILE_VOICE_LEVEL_CHANGE_THRESHOLD
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function mapLiveKitParticipantToRoomParticipant(
@@ -129,6 +171,7 @@ export function useMobileVoiceRoom({
   );
   const roomRef = useRef<Room | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const levelTickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const currentUserRef = useRef<MobileSessionUser | null>(currentUser);
 
@@ -145,6 +188,15 @@ export function useMobileVoiceRoom({
     heartbeatRef.current = null;
   }, []);
 
+  const clearLevelTicker = useCallback(() => {
+    if (!levelTickerRef.current) {
+      return;
+    }
+
+    clearInterval(levelTickerRef.current);
+    levelTickerRef.current = null;
+  }, []);
+
   const updateParticipantsFromRoom = useCallback(() => {
     const user = currentUserRef.current;
     const room = roomRef.current;
@@ -153,13 +205,27 @@ export function useMobileVoiceRoom({
       return;
     }
 
-    setRoomState((current) => ({
-      ...current,
-      participants: mergeLiveKitParticipants(user, current.participants, room),
-      selfCameraEnabled: room.localParticipant.isCameraEnabled,
-      selfMuted: !room.localParticipant.isMicrophoneEnabled,
-      updatedAt: Date.now(),
-    }));
+    setRoomState((current) => {
+      const participants = mergeLiveKitParticipants(user, current.participants, room);
+      const selfCameraEnabled = room.localParticipant.isCameraEnabled;
+      const selfMuted = !room.localParticipant.isMicrophoneEnabled;
+
+      if (
+        current.selfCameraEnabled === selfCameraEnabled &&
+        current.selfMuted === selfMuted &&
+        !voiceParticipantsChanged(current.participants, participants)
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        participants,
+        selfCameraEnabled,
+        selfMuted,
+        updatedAt: Date.now(),
+      };
+    });
   }, []);
 
   const requestMicrophonePermission = useCallback(async () => {
@@ -174,6 +240,7 @@ export function useMobileVoiceRoom({
     const room = roomRef.current;
 
     clearHeartbeat();
+    clearLevelTicker();
     setRoomState((current) =>
       current.status === "idle"
         ? current
@@ -207,7 +274,14 @@ export function useMobileVoiceRoom({
 
     sessionIdRef.current = null;
     setRoomState(createInitialMobileVoiceRoomState());
-  }, [apiClient, clearHeartbeat]);
+  }, [apiClient, clearHeartbeat, clearLevelTicker]);
+
+  const startLevelTicker = useCallback(() => {
+    clearLevelTicker();
+    levelTickerRef.current = setInterval(() => {
+      updateParticipantsFromRoom();
+    }, MOBILE_VOICE_LEVEL_INTERVAL_MS);
+  }, [clearLevelTicker, updateParticipantsFromRoom]);
 
   const startHeartbeat = useCallback(
     (sessionId: string) => {
@@ -345,6 +419,7 @@ export function useMobileVoiceRoom({
         });
         await room.localParticipant.setMicrophoneEnabled(true);
         startHeartbeat(sessionId);
+        startLevelTicker();
 
         setRoomState((current) => ({
           ...current,
@@ -395,6 +470,7 @@ export function useMobileVoiceRoom({
       roomState.channelId,
       roomState.status,
       startHeartbeat,
+      startLevelTicker,
     ],
   );
 
@@ -434,6 +510,31 @@ export function useMobileVoiceRoom({
     }
   }, [apiClient, roomState.status, updateParticipantsFromRoom]);
 
+  const selectAudioOutput = useCallback(
+    async (mode: MobileVoiceAudioOutputMode) => {
+      if (roomState.status !== "connected") {
+        return;
+      }
+
+      try {
+        await AudioSession.selectAudioOutput(mode === "speaker" ? "force_speaker" : "default");
+        setRoomState((current) => ({
+          ...current,
+          errorMessage: null,
+          selfAudioOutput: mode,
+          updatedAt: Date.now(),
+        }));
+      } catch (error) {
+        setRoomState((current) => ({
+          ...current,
+          errorMessage: redactMobileVoiceRoomError(error),
+          updatedAt: Date.now(),
+        }));
+      }
+    },
+    [roomState.status],
+  );
+
   const syncParticipantsFromServer = useCallback(
     ({ channelId, participants, serverId }: SyncServerVoiceParticipantsInput) => {
       const user = currentUserRef.current;
@@ -456,9 +557,57 @@ export function useMobileVoiceRoom({
     [],
   );
 
+  const syncParticipantAudioLevelFromServer = useCallback(
+    ({ audioLevel, channelId, isMuted, isSpeaking, userId }: SyncServerVoiceAudioLevelInput) => {
+      const level = toBoundedAudioLevel(audioLevel);
+
+      setRoomState((current) => {
+        if (current.channelId !== channelId || current.participants.length === 0) {
+          return current;
+        }
+
+        let changed = false;
+        const participants = current.participants.map((participant) => {
+          if (participant.userId !== userId) {
+            return participant;
+          }
+
+          const nextSpeaking = isMuted ? false : isSpeaking;
+          if (
+            participant.isMuted === isMuted &&
+            participant.isSpeaking === nextSpeaking &&
+            Math.abs(participant.audioLevel - level) < MOBILE_VOICE_LEVEL_CHANGE_THRESHOLD
+          ) {
+            return participant;
+          }
+
+          changed = true;
+          return {
+            ...participant,
+            audioLevel: isMuted ? 0 : level,
+            isMuted,
+            isSpeaking: nextSpeaking,
+          };
+        });
+
+        if (!changed) {
+          return current;
+        }
+
+        return {
+          ...current,
+          participants,
+          updatedAt: Date.now(),
+        };
+      });
+    },
+    [],
+  );
+
   useEffect(
     () => () => {
       clearHeartbeat();
+      clearLevelTicker();
       try {
         roomRef.current?.disconnect(true);
       } catch {
@@ -467,7 +616,7 @@ export function useMobileVoiceRoom({
       roomRef.current = null;
       void AudioSession.stopAudioSession().catch(() => undefined);
     },
-    [clearHeartbeat],
+    [clearHeartbeat, clearLevelTicker],
   );
 
   return {
@@ -476,6 +625,8 @@ export function useMobileVoiceRoom({
     permissionState,
     requestMicrophonePermission,
     roomState,
+    selectAudioOutput,
+    syncParticipantAudioLevelFromServer,
     syncParticipantsFromServer,
     toggleCamera,
     toggleMute,
