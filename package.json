@@ -26,8 +26,8 @@
     "contributors:sync": "pnpm --filter @wizards/db contributors:sync"
   },
   "devDependencies": {
-    "prettier": "^3.5.3",
-    "turbo": "^2.9.14",
+    "prettier": "^3.9.4",
+    "turbo": "^2.10.3",
     "typescript": "^5.8.3"
   }
 }
