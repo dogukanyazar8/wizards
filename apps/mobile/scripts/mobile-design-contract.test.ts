@@ -28,6 +28,13 @@ function readMobileScreenImplementationSource() {
   );
 }
 
+function readMobileAuthImplementationSource() {
+  return readFileSync(
+    join(process.cwd(), "src", "app", "screens", "auth-gate.tsx"),
+    "utf8",
+  );
+}
+
 describe("mobile design contract", () => {
   it("keeps native touch targets and compact surfaces production-safe", () => {
     assert.equal(mobileSizing.minTouchTarget >= 44, true);
@@ -109,7 +116,7 @@ describe("mobile design contract", () => {
   });
 
   it("renders the mobile auth screens through reusable premium auth components", () => {
-    const screenSource = readMobileScreenImplementationSource();
+    const screenSource = readMobileAuthImplementationSource();
 
     for (const componentName of [
       "AuthScreenLayout",

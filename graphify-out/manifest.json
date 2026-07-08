@@ -176,8 +176,8 @@
     "hash": "0a1435ea3fd08ebdeb74e6a8bbe0674f"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-design-contract.test.ts": {
-    "mtime": 1783489950.9333625,
-    "hash": "4a7fc2528943b3f00ae81b574671a977"
+    "mtime": 1783500300.6156898,
+    "hash": "85eb522030ec2e5ea757ed3ab5d4eef2"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-dev-login.test.ts": {
     "mtime": 1783001519.1951528,
@@ -260,8 +260,8 @@
     "hash": "5a825f6706f6e1bb17e88f0c3299c4f7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-root-boundary.test.ts": {
-    "mtime": 1783497019.6154327,
-    "hash": "018f51c963556377b124ca48a45490e7"
+    "mtime": 1783500614.1061175,
+    "hash": "da2d0c5f04bdac5e4aaf04144e084fe6"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-screen-state.test.ts": {
     "mtime": 1782998208.8424041,
@@ -344,12 +344,12 @@
     "hash": "2ab4f1f15bfd748f82252af76d460e7a"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\app\\mobile-root-screens-legacy.tsx": {
-    "mtime": 1783496465.484908,
-    "hash": "24766be10cde110d16321cfee37390a8"
+    "mtime": 1783500584.6739147,
+    "hash": "7626c4a29dfb9cdef5b2160be4d8c976"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\app\\mobile-root-screens.tsx": {
-    "mtime": 1783495748.5574045,
-    "hash": "76306f998bf9676fcf57382f2895e1c7"
+    "mtime": 1783500584.6719136,
+    "hash": "1eae40a1a3c04240215076d9753e93db"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\app\\mobile-screen-state.ts": {
     "mtime": 1782997449.46647,
@@ -370,6 +370,14 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\app\\composer\\mobile-composer.tsx": {
     "mtime": 1783497091.6641717,
     "hash": "0a4da45c14941309249f42085add0a3f"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\app\\overlays\\mobile-voice-invite-overlay.tsx": {
+    "mtime": 1783500553.764616,
+    "hash": "19b3a60b761d2b2b7a6bf53749b0cab2"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\app\\screens\\auth-gate.tsx": {
+    "mtime": 1783499997.6431081,
+    "hash": "bca0ba0d89d9525cfa71fca1fc08acbb"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\app\\screens\\channel-screen.tsx": {
     "mtime": 1783497091.662173,

@@ -29,7 +29,7 @@ describe("mobile root boundary", () => {
     );
 
     assert.match(screenSource, /export function ActiveScreen\(/);
-    assert.match(screenSource, /export \{ AuthGate \} from "\.\/mobile-root-screens-legacy";/);
+    assert.match(screenSource, /export \{ AuthGate \} from "\.\/screens\/auth-gate";/);
     assert.doesNotMatch(screenSource, /function MessagesScreen\(/);
     assert.doesNotMatch(screenSource, /function OverviewScreen\(/);
     assert.doesNotMatch(screenSource, /function ProfileSettingsScreen\(/);
@@ -37,8 +37,30 @@ describe("mobile root boundary", () => {
     assert.doesNotMatch(screenSource, /function MobileVoiceChannelScreen\(/);
     assert.match(screenSource, /from "\.\/screens\/home-screen"/);
     assert.match(screenSource, /from "\.\/screens\/dm-screen"/);
+    assert.match(screenSource, /from "\.\/screens\/auth-gate"/);
     assert.match(screenSource, /from "\.\/screens\/settings-screen"/);
     assert.match(screenSource, /from "\.\/screens\/notifications-screen"/);
+
+    const legacySource = readFileSync(
+      join(appRoot, "mobile-root-screens-legacy.tsx"),
+      "utf8",
+    );
+    assert.doesNotMatch(legacySource, /export function ActiveScreen\(/);
+  });
+
+  it("keeps mobile auth UI outside the legacy screen module", () => {
+    const authSource = readFileSync(join(appRoot, "screens", "auth-gate.tsx"), "utf8");
+    const legacySource = readFileSync(
+      join(appRoot, "mobile-root-screens-legacy.tsx"),
+      "utf8",
+    );
+
+    assert.match(authSource, /export function AuthGate\(/);
+    assert.match(authSource, /getMobileDevLoginCredentials/);
+    assert.match(authSource, /MOBILE_AUTH_EMAIL_PATTERN/);
+    assert.doesNotMatch(legacySource, /export function AuthGate\(/);
+    assert.doesNotMatch(legacySource, /getMobileDevLoginCredentials/);
+    assert.doesNotMatch(legacySource, /MOBILE_AUTH_EMAIL_PATTERN/);
   });
 
   it("keeps route and composer modules split by mobile surface", () => {
@@ -49,6 +71,8 @@ describe("mobile root boundary", () => {
       join(appRoot, "screens", "voice-screen.tsx"),
       join(appRoot, "screens", "settings-screen.tsx"),
       join(appRoot, "screens", "notifications-screen.tsx"),
+      join(appRoot, "screens", "auth-gate.tsx"),
+      join(appRoot, "overlays", "mobile-voice-invite-overlay.tsx"),
       join(appRoot, "composer", "mobile-composer.tsx"),
     ];
 
@@ -84,8 +108,16 @@ describe("mobile root boundary", () => {
         path: join(appRoot, "screens", "notifications-screen.tsx"),
       },
       {
+        exports: ["AuthGate"],
+        path: join(appRoot, "screens", "auth-gate.tsx"),
+      },
+      {
         exports: ["DMComposer"],
         path: join(appRoot, "composer", "mobile-composer.tsx"),
+      },
+      {
+        exports: ["MobileVoiceInviteOverlay"],
+        path: join(appRoot, "overlays", "mobile-voice-invite-overlay.tsx"),
       },
     ];
 
@@ -166,6 +198,11 @@ describe("mobile root boundary", () => {
     assert.match(voiceScreenSource, /MobileVoiceChannelScreen/);
     assert.match(screenSource, /onCloseWorkspaceVoiceChannel/);
     assert.match(screenSource, /onLeaveWorkspaceVoiceChannel/);
+    assert.match(screenSource, /from "\.\/overlays\/mobile-voice-invite-overlay"/);
+    assert.doesNotMatch(
+      readFileSync(join(appRoot, "mobile-root-screens-legacy.tsx"), "utf8"),
+      /export function MobileVoiceInviteOverlay\(/,
+    );
   });
 
   it("keeps voice room participants in a single mobile section", () => {

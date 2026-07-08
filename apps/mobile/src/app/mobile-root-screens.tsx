@@ -2,18 +2,15 @@ import type { ReactNode } from "react";
 import { View } from "react-native";
 
 import { getVisibleMobileSyncHealth } from "./mobile-screen-sync";
-import {
-  MobileVoiceInviteOverlay,
-  styles,
-  type ActiveScreenProps,
-} from "./mobile-root-screens-legacy";
+import { styles, type ActiveScreenProps } from "./mobile-root-screens-legacy";
+import { MobileVoiceInviteOverlay } from "./overlays/mobile-voice-invite-overlay";
 import { MessagesScreen } from "./screens/dm-screen";
 import { OverviewScreen } from "./screens/home-screen";
 import { NotificationsScreen } from "./screens/notifications-screen";
 import { ProfileSettingsScreen } from "./screens/settings-screen";
 import { VoiceScreen } from "./screens/voice-screen";
 
-export { AuthGate } from "./mobile-root-screens-legacy";
+export { AuthGate } from "./screens/auth-gate";
 export type { ActiveScreenProps } from "./mobile-root-screens-legacy";
 
 export function ActiveScreen({
