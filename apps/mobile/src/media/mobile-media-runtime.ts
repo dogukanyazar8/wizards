@@ -1,6 +1,7 @@
 import {
   createErroredMobileMediaRuntimeState,
   createMobileMediaRuntimeStateFromDocumentPickerResult,
+  createMobileMediaRuntimeStateFromPhotoLibraryResult,
   createMobileMediaRuntimeStateFromPermission,
   createUnavailableMobileMediaRuntimeState,
   createSafeMobileMediaAssetSummary,
@@ -42,6 +43,72 @@ export async function requestMobilePhotoLibraryPermissionAfterUserAction(
       requestedStatus,
       now,
     );
+  } catch (error) {
+    const message =
+      error instanceof Error && /native module|not available|unavailable/i.test(error.message)
+        ? error.message
+        : null;
+
+    if (message) {
+      return createUnavailableMobileMediaRuntimeState(current, "photoLibrary", message, now);
+    }
+
+    return createErroredMobileMediaRuntimeState(current, "photoLibrary", error, now);
+  }
+}
+
+export async function requestMobilePhotoLibraryPickerAfterUserAction(
+  current: MobileMediaRuntimeState,
+  now = Date.now(),
+): Promise<MobileMediaRuntimeState> {
+  try {
+    const ImagePicker = await import("expo-image-picker");
+
+    const currentPermissions = await ImagePicker.getMediaLibraryPermissionsAsync();
+    let permissionStatus = mapExpoImagePickerPermissionStatus(
+      currentPermissions.status,
+      currentPermissions.canAskAgain,
+    );
+
+    if (permissionStatus !== "granted" && permissionStatus !== "blocked") {
+      const requestedPermissions = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      permissionStatus = mapExpoImagePickerPermissionStatus(
+        requestedPermissions.status,
+        requestedPermissions.canAskAgain,
+      );
+    }
+
+    if (permissionStatus !== "granted") {
+      return createMobileMediaRuntimeStateFromPermission(
+        current,
+        "photoLibrary",
+        permissionStatus,
+        now,
+      );
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: false,
+      allowsMultipleSelection: false,
+      mediaTypes: ["images"],
+      quality: 0.92,
+    });
+
+    if (result.canceled) {
+      return createMobileMediaRuntimeStateFromPhotoLibraryResult(current, null, now);
+    }
+
+    const selectedAsset = result.assets[0];
+    const asset = selectedAsset
+      ? createSafeMobileMediaAssetSummary({
+          mimeType: selectedAsset.mimeType ?? null,
+          name: selectedAsset.fileName ?? "Selected image",
+          size: selectedAsset.fileSize ?? null,
+          source: "photoLibrary",
+        })
+      : null;
+
+    return createMobileMediaRuntimeStateFromPhotoLibraryResult(current, asset, now);
   } catch (error) {
     const message =
       error instanceof Error && /native module|not available|unavailable/i.test(error.message)

@@ -70,7 +70,8 @@ describe("mobile quality gate", () => {
       (check) => check.id === "voice-disabled-contract",
     );
     assert.ok(voiceCheck);
-    assert.match(voiceCheck.label, /visible as a primary tab/i);
+    assert.match(voiceCheck.label, /LiveKit join/i);
+    assert.match(voiceCheck.label, /heartbeat cleanup/i);
 
     const accessibilityCheck = MOBILE_MANUAL_QA_CHECKS.find(
       (check) => check.id === "native-accessibility-touch-targets",

@@ -1,14 +1,14 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { mobileColors } from "../design/tokens";
-import { mobileCopy } from "../locale/mobile-copy";
+import { mobileColors, mobileElevation, mobileTypography } from "../design/tokens";
+import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import type {
   MobileVoiceRoomParticipant,
   MobileVoiceRoomState,
 } from "./mobile-voice-room-contract";
 
-const copy = mobileCopy.tr;
+const copy = activeMobileCopy;
 
 function getVoiceRoomStatusLabel(state: MobileVoiceRoomState): string {
   switch (state.status) {
@@ -146,10 +146,10 @@ function VoiceControlButton({
         size={18}
         color={
           tone === "danger"
-            ? "#dc2626"
+            ? mobileColors.danger
             : tone === "primary"
-              ? "#ffffff"
-              : mobileColors.text
+              ? mobileColors.primaryForeground
+              : mobileColors.textPrimary
         }
       />
       <Text
@@ -294,17 +294,16 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#94a3b8",
+    backgroundColor: mobileColors.textSoft,
     borderWidth: 2,
-    borderColor: "#ffffff",
+    borderColor: mobileColors.surfaceCard,
   },
   avatarStatusDotSpeaking: {
-    backgroundColor: "#22c55e",
+    backgroundColor: mobileColors.success,
   },
   avatarText: {
-    color: mobileColors.accentStrong,
-    fontSize: 12,
-    fontWeight: "800",
+    ...mobileTypography.label,
+    color: mobileColors.primary,
   },
   avatarWrap: {
     width: 34,
@@ -312,19 +311,16 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(124,92,255,0.12)",
+    backgroundColor: mobileColors.primarySoft,
   },
   card: {
     gap: 12,
     padding: 14,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: "rgba(124,92,255,0.18)",
-    backgroundColor: "#ffffff",
-    shadowColor: "#4f46e5",
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
+    borderColor: mobileColors.borderSubtle,
+    backgroundColor: mobileColors.surfaceCard,
+    ...mobileElevation.card,
   },
   controlButton: {
     minHeight: 44,
@@ -337,43 +333,39 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: "rgba(100,116,139,0.18)",
-    backgroundColor: "#f8fafc",
+    borderColor: mobileColors.borderSubtle,
+    backgroundColor: mobileColors.input,
   },
   controlButtonDanger: {
-    backgroundColor: "#fff1f2",
-    borderColor: "rgba(220,38,38,0.18)",
+    backgroundColor: mobileColors.dangerSoft,
+    borderColor: "rgba(239,68,68,0.22)",
   },
   controlButtonDisabled: {
     opacity: 0.56,
   },
   controlButtonElevated: {
-    shadowColor: mobileColors.accentStrong,
-    shadowOpacity: 0.14,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
+    ...mobileElevation.soft,
   },
   controlButtonPressed: {
     transform: [{ scale: 0.98 }],
   },
   controlButtonPrimary: {
-    backgroundColor: mobileColors.accentStrong,
-    borderColor: mobileColors.accentStrong,
+    backgroundColor: mobileColors.primary,
+    borderColor: mobileColors.primary,
   },
   controlLabel: {
-    color: mobileColors.text,
-    fontSize: 10,
-    fontWeight: "800",
+    ...mobileTypography.caption,
+    color: mobileColors.textPrimary,
     textAlign: "center",
   },
   controlLabelDanger: {
-    color: "#dc2626",
+    color: mobileColors.danger,
   },
   controlLabelDisabled: {
-    color: mobileColors.muted,
+    color: mobileColors.textMuted,
   },
   controlLabelPrimary: {
-    color: "#ffffff",
+    color: mobileColors.primaryForeground,
   },
   controls: {
     flexDirection: "row",
@@ -384,16 +376,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 3,
     borderRadius: 999,
-    backgroundColor: "rgba(124,92,255,0.12)",
-    color: mobileColors.accentStrong,
-    fontSize: 11,
-    fontWeight: "900",
+    backgroundColor: mobileColors.primarySoft,
+    color: mobileColors.primary,
+    ...mobileTypography.caption,
+    fontFamily: mobileTypography.fontFamilyBold,
   },
   description: {
-    color: mobileColors.muted,
-    fontSize: 12,
-    fontWeight: "700",
-    lineHeight: 16,
+    ...mobileTypography.label,
+    color: mobileColors.textMuted,
   },
   emptyParticipants: {
     minHeight: 82,
@@ -401,27 +391,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     borderRadius: 16,
-    backgroundColor: "#f8fafc",
+    backgroundColor: mobileColors.input,
   },
   emptyText: {
-    color: mobileColors.muted,
-    fontSize: 12,
-    fontWeight: "700",
+    ...mobileTypography.label,
+    color: mobileColors.textMuted,
   },
   errorText: {
     padding: 10,
     borderRadius: 14,
     overflow: "hidden",
-    backgroundColor: "#fff1f2",
+    backgroundColor: mobileColors.dangerSoft,
     color: "#b91c1c",
-    fontSize: 12,
-    fontWeight: "800",
-    lineHeight: 17,
+    ...mobileTypography.label,
   },
   eyebrow: {
-    color: mobileColors.accentStrong,
-    fontSize: 10,
-    fontWeight: "900",
+    ...mobileTypography.caption,
+    color: mobileColors.primary,
+    fontFamily: mobileTypography.fontFamilyBold,
     letterSpacing: 2,
     textTransform: "uppercase",
   },
@@ -437,7 +424,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(124,92,255,0.12)",
+    backgroundColor: mobileColors.primarySoft,
   },
   headerText: {
     flex: 1,
@@ -448,15 +435,13 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   participantMeta: {
-    color: mobileColors.muted,
-    fontSize: 11,
-    fontWeight: "700",
+    ...mobileTypography.caption,
+    color: mobileColors.textMuted,
   },
   participantName: {
     flexShrink: 1,
-    color: mobileColors.text,
-    fontSize: 13,
-    fontWeight: "900",
+    ...mobileTypography.bodyStrong,
+    color: mobileColors.textPrimary,
   },
   participantRow: {
     minHeight: 48,
@@ -466,12 +451,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 7,
     borderRadius: 16,
-    backgroundColor: "#f8fafc",
+    backgroundColor: mobileColors.input,
   },
   participantRowSpeaking: {
-    backgroundColor: "rgba(34,197,94,0.08)",
+    backgroundColor: "rgba(23,201,100,0.08)",
     borderWidth: 1,
-    borderColor: "rgba(34,197,94,0.24)",
+    borderColor: "rgba(23,201,100,0.24)",
   },
   participantText: {
     flex: 1,
@@ -490,9 +475,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   sectionTitle: {
-    color: mobileColors.muted,
-    fontSize: 11,
-    fontWeight: "900",
+    ...mobileTypography.caption,
+    color: mobileColors.textMuted,
+    fontFamily: mobileTypography.fontFamilyBold,
     letterSpacing: 2,
     textTransform: "uppercase",
   },
@@ -501,15 +486,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 999,
-    backgroundColor: "rgba(124,92,255,0.12)",
-    color: mobileColors.accentStrong,
-    fontSize: 10,
-    fontWeight: "900",
+    backgroundColor: mobileColors.primarySoft,
+    color: mobileColors.primary,
+    ...mobileTypography.caption,
+    fontFamily: mobileTypography.fontFamilyBold,
   },
   title: {
-    color: mobileColors.text,
+    ...mobileTypography.headline,
+    color: mobileColors.textPrimary,
     fontSize: 18,
-    fontWeight: "900",
+    lineHeight: 22,
   },
   wave: {
     width: 27,
@@ -525,6 +511,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(100,116,139,0.25)",
   },
   waveBarActive: {
-    backgroundColor: "#22c55e",
+    backgroundColor: mobileColors.success,
   },
 });

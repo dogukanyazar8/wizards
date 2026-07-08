@@ -1,9 +1,19 @@
 import type {
   MobileRealtimeConnectionSnapshot,
   MobileRealtimeEventEnvelope,
+  MobileRealtimeRefreshSource,
   MobileRealtimeVisibility,
 } from "./mobile-realtime-contract";
 import { isMobileRealtimeChannelMessagePayloadEvent } from "./mobile-realtime-contract";
+
+export const MOBILE_REALTIME_FOREGROUND_BACKFILL_GAP_MS = 10_000;
+
+export type MobileRealtimeActiveTargets = {
+  channelId: string | null;
+  conversationId: string | null;
+  serverId: string | null;
+  voiceChannelId: string | null;
+};
 
 export type MobileRealtimeAction =
   | { now?: number; type: "connect-started" }
@@ -123,6 +133,54 @@ export function shouldConnectMobileRealtime(input: {
     input.hasSession &&
     input.visibility === "foreground"
   );
+}
+
+export function getMobileRealtimeVisibilityFromAppState(
+  appState: string,
+): MobileRealtimeVisibility {
+  return appState === "active" ? "foreground" : "background";
+}
+
+export function getMobileRealtimeForegroundBackfillSources(input: {
+  authStatus: string;
+  minGapMs?: number;
+  nextVisibility: MobileRealtimeVisibility;
+  now?: number;
+  previousVisibility: MobileRealtimeVisibility;
+  realtime: MobileRealtimeConnectionSnapshot;
+  targets: MobileRealtimeActiveTargets;
+}): readonly MobileRealtimeRefreshSource[] {
+  if (
+    input.authStatus !== "signed-in" ||
+    input.previousVisibility !== "background" ||
+    input.nextVisibility !== "foreground"
+  ) {
+    return [];
+  }
+
+  const now = input.now ?? Date.now();
+  const lastSeenAt = input.realtime.lastSeenAt;
+  const minGapMs = input.minGapMs ?? MOBILE_REALTIME_FOREGROUND_BACKFILL_GAP_MS;
+
+  if (lastSeenAt !== null && now - lastSeenAt < minGapMs) {
+    return [];
+  }
+
+  const sources: MobileRealtimeRefreshSource[] = ["bootstrap"];
+
+  if (input.targets.conversationId) {
+    sources.push("dm");
+  }
+
+  if (input.targets.serverId) {
+    sources.push("workspace");
+  }
+
+  if (input.targets.channelId) {
+    sources.push("channel");
+  }
+
+  return sources;
 }
 
 export function summarizeMobileRealtimeConnection(

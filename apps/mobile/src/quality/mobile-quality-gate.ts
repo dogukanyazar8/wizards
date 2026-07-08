@@ -8,6 +8,8 @@ import { validateMobileInviteContract } from "../invite/mobile-invite-contract";
 import { validateMobileMediaContract } from "../media/mobile-media-contract";
 import { validateMobileProductionReadiness } from "../release/mobile-production-readiness";
 import { validateMobileMessageSearchContract } from "../search/mobile-message-search-client";
+import { validateMobileNotificationLifecycleContract } from "../notifications/mobile-notification-lifecycle-contract";
+import { validateMobileVoiceLifecycleContract } from "../voice/mobile-voice-lifecycle-contract";
 
 export type MobileQualityArea =
   | "accessibility"
@@ -162,7 +164,7 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
     area: "voice",
     id: "voice-microphone-user-action-runtime",
     label:
-      "Microphone permission is requested only from the Calls setup action and voice join remains blocked until the native LiveKit room lifecycle exists.",
+      "Microphone permission is requested only from a voice join action; denied permissions fail closed before LiveKit starts.",
     required: true,
     risk: "critical",
   },
@@ -241,7 +243,7 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
     area: "voice",
     id: "voice-disabled-contract",
     label:
-      "Calls remains visible as a primary tab while voice readiness stays honest until native permission and LiveKit contracts are connected.",
+      "Calls validates native LiveKit join, mute, camera, audio output, disconnect cleanup, and heartbeat cleanup before release promotion.",
     required: true,
     risk: "high",
   },
@@ -368,12 +370,14 @@ export function validateMobileQualityGate(): string[] {
     new Set([
       ...validateMobileNativeCapabilityContract(),
       ...validateMobileNotificationContract(),
+      ...validateMobileNotificationLifecycleContract(),
       ...validateMobileVoiceContract(),
       ...validateMobileAttachmentUploadContract(),
       ...validateMobileInviteContract(),
       ...validateMobileMediaContract(),
       ...validateMobileMessageSearchContract(),
       ...validateMobileRealtimeContract(),
+      ...validateMobileVoiceLifecycleContract(),
       ...validateMobileProductionReadiness(),
     ]),
   );

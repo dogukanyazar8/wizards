@@ -3,23 +3,37 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import whisprIcon from "../../assets/whispr-icon.png";
 import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { mobileColors, mobileRadii, mobileSizing, mobileSpacing } from "../design/tokens";
-import { mobileCopy } from "../locale/mobile-copy";
+import {
+  mobileColors,
+  mobileElevation,
+  mobileRadii,
+  mobileSizing,
+  mobileSpacing,
+  mobileTypography,
+} from "../design/tokens";
+import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import {
   MOBILE_BOTTOM_TAB_IDS,
   type MobileBottomTabId,
   type MobileTabId,
 } from "../navigation/mobile-navigation";
 
-const copy = mobileCopy.tr;
+const copy = activeMobileCopy;
 
-const tabLabels: Record<MobileTabId, string> = {
-  messages: copy.tabMessages,
-  notifications: copy.tabNotifications,
-  overview: copy.tabOverview,
-  settings: copy.tabProfile,
-  voice: copy.tabVoice,
-};
+function getMobileTabLabel(tabId: MobileTabId): string {
+  switch (tabId) {
+    case "messages":
+      return copy.tabMessages;
+    case "notifications":
+      return copy.tabNotifications;
+    case "overview":
+      return copy.tabOverview;
+    case "settings":
+      return copy.tabProfile;
+    case "voice":
+      return copy.tabVoice;
+  }
+}
 
 type MobileNavIconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -83,13 +97,6 @@ export function MobileAppShell({
   return (
     <View style={[styles.safeArea, { paddingTop: topInset }]}>
       <View style={[styles.shell, isSignedIn && styles.shellSignedIn]}>
-        {!isSignedIn ? (
-          <MobileAppHeader
-            authStatus={authStatus}
-            currentTab={currentTab}
-            signedInUserLabel={signedInUserLabel}
-          />
-        ) : null}
         {contentUsesOwnScroll ? (
           <View style={[styles.contentScroll, ...contentContainerStyle]}>{children}</View>
         ) : (
@@ -100,10 +107,10 @@ export function MobileAppShell({
             refreshControl={
               onRefresh ? (
                 <RefreshControl
-                  colors={[mobileColors.accentStrong]}
-                  progressBackgroundColor={mobileColors.card}
+                  colors={[mobileColors.primary]}
+                  progressBackgroundColor={mobileColors.surfaceCard}
                   refreshing={isRefreshing}
-                  tintColor={mobileColors.accentStrong}
+                  tintColor={mobileColors.primary}
                   onRefresh={onRefresh}
                 />
               ) : undefined
@@ -144,7 +151,7 @@ function MobileAppHeader({
       />
       <View style={styles.headerText}>
         <Text style={styles.title} numberOfLines={1}>
-          {tabLabels[currentTab]}
+          {getMobileTabLabel(currentTab)}
         </Text>
         <Text style={styles.subtitle} numberOfLines={1}>
           {getHeaderSubtitle(authStatus, signedInUserLabel)}
@@ -215,18 +222,21 @@ function MobileBottomNavigation({
 }) {
   return (
     <View style={[styles.bottomNavOuter, { paddingBottom: bottomInset }]}>
-      <View style={styles.bottomNav} accessibilityRole="tablist">
-        {MOBILE_BOTTOM_TAB_IDS.map((tabId) => (
-          <BottomNavButton
-            key={tabId}
-            badge={tabId === "messages" ? directMessageUnreadCount : 0}
-            icon={tabIcons[tabId]}
-            isActive={currentTab === tabId}
-            label={tabLabels[tabId]}
-            onPress={() => onSelectTab(tabId)}
-            tabId={tabId}
-          />
-        ))}
+      <View style={styles.bottomNavShadow}>
+        <View style={styles.bottomNavSurface} accessibilityRole="tablist">
+          <View style={styles.bottomNavSheen} pointerEvents="none" />
+          {MOBILE_BOTTOM_TAB_IDS.map((tabId) => (
+            <BottomNavButton
+              key={tabId}
+              badge={tabId === "messages" ? directMessageUnreadCount : 0}
+              icon={tabIcons[tabId]}
+              isActive={currentTab === tabId}
+              label={getMobileTabLabel(tabId)}
+              onPress={() => onSelectTab(tabId)}
+              tabId={tabId}
+            />
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -262,12 +272,15 @@ function BottomNavButton({
         pressed && styles.navButtonPressed,
       ]}
     >
-      <View style={[styles.navIconShell, isActive && styles.navIconShellActive]}>
-        <Ionicons
-          name={isActive ? icon.active : icon.inactive}
-          size={20}
-          color={isActive ? "#FFFFFF" : mobileColors.muted}
-        />
+      <View style={styles.navVisualWrap}>
+        {isActive ? <View style={styles.navActiveGlow} pointerEvents="none" /> : null}
+        <View style={[styles.navIconHalo, isActive && styles.navIconHaloActive]}>
+          <Ionicons
+            name={isActive ? icon.active : icon.inactive}
+            size={isActive ? 21 : 20}
+            color={isActive ? mobileColors.primaryForeground : mobileColors.textMuted}
+          />
+        </View>
         {showBadge ? (
           <View style={styles.navBadge}>
             <Text style={styles.navBadgeText}>{Math.min(badge, 99)}</Text>
@@ -284,7 +297,7 @@ function BottomNavButton({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: mobileColors.background,
+    backgroundColor: mobileColors.surfaceBase,
   },
   shell: {
     flex: 1,
@@ -303,7 +316,7 @@ const styles = StyleSheet.create({
     gap: 10,
     minWidth: 0,
     borderRadius: mobileRadii.control,
-    backgroundColor: "rgba(255,255,255,0.76)",
+    backgroundColor: mobileColors.surfaceOverlay,
     paddingHorizontal: 9,
     paddingVertical: 8,
   },
@@ -317,16 +330,13 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   title: {
-    color: mobileColors.text,
-    fontSize: 20,
-    fontWeight: "900",
+    ...mobileTypography.title,
+    color: mobileColors.textPrimary,
   },
   subtitle: {
+    ...mobileTypography.caption,
     marginTop: 2,
-    color: mobileColors.muted,
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: "600",
+    color: mobileColors.textMuted,
   },
   statusBadge: {
     maxWidth: 112,
@@ -336,14 +346,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 7,
     borderRadius: mobileRadii.pill,
-    backgroundColor: "#F5F3FF",
+    backgroundColor: mobileColors.primarySoft,
     paddingHorizontal: 10,
   },
   statusBadgeText: {
+    ...mobileTypography.label,
     flex: 1,
-    color: mobileColors.text,
-    fontSize: 12,
-    fontWeight: "800",
+    color: mobileColors.textPrimary,
   },
   authStatusDot: {
     width: 10,
@@ -355,7 +364,7 @@ const styles = StyleSheet.create({
     backgroundColor: mobileColors.success,
   },
   authStatusDotChecking: {
-    backgroundColor: mobileColors.mutedSoft,
+    backgroundColor: mobileColors.textSoft,
   },
   contentScroll: {
     flex: 1,
@@ -368,86 +377,112 @@ const styles = StyleSheet.create({
   },
   contentSignedIn: {
     paddingTop: 6,
-    paddingBottom: 98,
+    paddingBottom: 106,
   },
   contentOwnScroll: {
     flex: 1,
   },
   bottomNavOuter: {
     position: "absolute",
-    right: 14,
+    right: 12,
     bottom: 0,
-    left: 14,
-    paddingTop: 6,
+    left: 12,
+    paddingTop: 10,
   },
-  bottomNav: {
-    minHeight: 66,
+  bottomNavShadow: {
+    borderRadius: 30,
+    ...mobileElevation.floating,
+  },
+  bottomNavSurface: {
+    minHeight: 70,
     flexDirection: "row",
-    gap: 4,
+    gap: 3,
     minWidth: 0,
     borderWidth: 1,
-    borderColor: "rgba(221,214,254,0.96)",
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.97)",
-    padding: 6,
-    shadowColor: "#4F46E5",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 3,
+    borderColor: mobileColors.borderSubtle,
+    borderRadius: 30,
+    backgroundColor: mobileColors.surfaceElevated,
+    paddingHorizontal: 7,
+    paddingVertical: 7,
+    overflow: "hidden",
+  },
+  bottomNavSheen: {
+    position: "absolute",
+    top: 1,
+    right: 18,
+    left: 18,
+    height: 1,
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.surfaceOverlay,
   },
   navButton: {
-    minHeight: mobileSizing.minTouchTarget + 10,
+    minHeight: mobileSizing.minTouchTarget + 12,
     flex: 1,
     minWidth: 0,
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
-    borderRadius: 18,
+    gap: 4,
+    borderRadius: 22,
     position: "relative",
   },
   navButtonActive: {
-    backgroundColor: "#F5F3FF",
+    backgroundColor: mobileColors.primarySoft,
   },
   navButtonPressed: {
-    opacity: 0.82,
+    transform: [{ scale: 0.97 }],
   },
-  navIconShell: {
-    width: 31,
-    height: 28,
+  navVisualWrap: {
+    width: 40,
+    height: 34,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 12,
-    backgroundColor: "transparent",
     position: "relative",
   },
-  navIconShellActive: {
-    backgroundColor: mobileColors.accentStrong,
+  navActiveGlow: {
+    position: "absolute",
+    width: 42,
+    height: 42,
+    borderRadius: mobileRadii.pill,
+    backgroundColor: mobileColors.ambientPrimary,
+  },
+  navIconHalo: {
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: mobileRadii.pill,
+    backgroundColor: "transparent",
+  },
+  navIconHaloActive: {
+    backgroundColor: mobileColors.primary,
+    ...mobileElevation.soft,
   },
   navLabel: {
+    ...mobileTypography.caption,
     maxWidth: "100%",
-    color: mobileColors.muted,
-    fontSize: 10,
-    fontWeight: "800",
+    color: mobileColors.textMuted,
+    fontSize: 10.5,
+    lineHeight: 13,
   },
   navLabelActive: {
-    color: mobileColors.accentStrong,
+    color: mobileColors.primary,
+    fontFamily: mobileTypography.fontFamilyBold,
   },
   navBadge: {
     position: "absolute",
-    top: -5,
-    right: -7,
+    top: -2,
+    right: -3,
     minWidth: 17,
     height: 17,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: mobileRadii.pill,
-    backgroundColor: mobileColors.accentStrong,
+    backgroundColor: mobileColors.primary,
     paddingHorizontal: 4,
   },
   navBadgeText: {
-    color: "#FFFFFF",
+    color: mobileColors.primaryForeground,
     fontSize: 9,
-    fontWeight: "900",
+    fontFamily: mobileTypography.fontFamilyBold,
   },
 });

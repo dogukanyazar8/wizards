@@ -2,9 +2,9 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { mobileColors, mobileRadii, mobileSpacing } from "../design/tokens";
-import { mobileCopy } from "../locale/mobile-copy";
+import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 
-const copy = mobileCopy.tr;
+const copy = activeMobileCopy;
 
 interface MobileErrorBoundaryProps {
   children: ReactNode;

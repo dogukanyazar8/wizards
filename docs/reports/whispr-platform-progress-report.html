@@ -1,0 +1,1472 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Whispr Platform Gelişim ve Kalite Raporu</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f8fb;
+        --surface: #ffffff;
+        --surface-2: #eef3f8;
+        --text: #172033;
+        --muted: #65728a;
+        --line: #d8e0ea;
+        --blue: #2457c5;
+        --green: #198754;
+        --amber: #b76a00;
+        --red: #b3261e;
+        --teal: #087f8c;
+        --shadow: 0 18px 50px rgba(23, 32, 51, 0.1);
+        --radius: 8px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        line-height: 1.5;
+      }
+
+      a {
+        color: var(--blue);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .layout {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr);
+      }
+
+      aside {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        padding: 24px 18px;
+        border-right: 1px solid var(--line);
+        background: #101827;
+        color: #f7f9fc;
+        overflow: auto;
+      }
+
+      aside h1 {
+        margin: 0 0 8px;
+        font-size: 22px;
+        line-height: 1.15;
+      }
+
+      aside p {
+        margin: 0 0 20px;
+        color: #b9c3d3;
+        font-size: 13px;
+      }
+
+      .nav-group {
+        margin: 22px 0;
+      }
+
+      .nav-title {
+        margin-bottom: 8px;
+        color: #91a1ba;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .tab-button,
+      .filter-button {
+        width: 100%;
+        margin: 4px 0;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.06);
+        color: #f7f9fc;
+        cursor: pointer;
+        font: inherit;
+        font-size: 14px;
+        text-align: left;
+        padding: 10px 12px;
+      }
+
+      .tab-button[aria-selected="true"],
+      .filter-button[aria-pressed="true"] {
+        background: #f7f9fc;
+        color: #101827;
+      }
+
+      .search {
+        width: 100%;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.08);
+        color: #f7f9fc;
+        padding: 10px 12px;
+        font: inherit;
+      }
+
+      .search::placeholder {
+        color: #a9b6c9;
+      }
+
+      main {
+        min-width: 0;
+        padding: 32px;
+      }
+
+      .report-header {
+        max-width: 1180px;
+        margin: 0 auto 24px;
+        display: grid;
+        gap: 18px;
+      }
+
+      .kicker {
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .title-row {
+        display: grid;
+        gap: 10px;
+      }
+
+      h2,
+      h3,
+      h4 {
+        margin: 0;
+      }
+
+      .report-header h2 {
+        font-size: clamp(28px, 4vw, 48px);
+        line-height: 1.05;
+      }
+
+      .lead {
+        max-width: 900px;
+        color: var(--muted);
+        font-size: 17px;
+      }
+
+      .meta-grid,
+      .score-grid,
+      .metric-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .meta-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .score-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .card,
+      .metric,
+      .score-card,
+      .finding,
+      .roadmap-row,
+      .source-card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+        box-shadow: 0 1px 0 rgba(23, 32, 51, 0.02);
+      }
+
+      .card,
+      .score-card,
+      .finding,
+      .roadmap-row,
+      .source-card {
+        padding: 18px;
+      }
+
+      .metric {
+        padding: 14px;
+      }
+
+      .metric span,
+      .score-label,
+      .small-label {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .metric strong {
+        display: block;
+        margin-top: 4px;
+        font-size: 22px;
+      }
+
+      .score-card {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .score-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .score-number {
+        font-size: 36px;
+        font-weight: 900;
+        letter-spacing: 0;
+      }
+
+      .grade {
+        border-radius: 999px;
+        background: var(--surface-2);
+        padding: 4px 10px;
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .bar {
+        height: 9px;
+        margin: 14px 0 10px;
+        border-radius: 999px;
+        background: #e6ecf4;
+        overflow: hidden;
+      }
+
+      .bar > span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--blue);
+      }
+
+      .score-card[data-tone="green"] .bar > span {
+        background: var(--green);
+      }
+
+      .score-card[data-tone="amber"] .bar > span {
+        background: var(--amber);
+      }
+
+      .score-card[data-tone="teal"] .bar > span {
+        background: var(--teal);
+      }
+
+      .section {
+        max-width: 1180px;
+        margin: 0 auto 24px;
+      }
+
+      .section-title {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 16px;
+        margin: 30px 0 12px;
+      }
+
+      .section-title h3 {
+        font-size: 22px;
+      }
+
+      .section-title p {
+        max-width: 680px;
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 14px;
+      }
+
+      .verdict {
+        border-left: 4px solid var(--blue);
+      }
+
+      .platform-panel {
+        display: none;
+      }
+
+      .platform-panel.active {
+        display: block;
+      }
+
+      .two-col {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .three-col {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .finding {
+        display: grid;
+        gap: 9px;
+      }
+
+      .finding.hidden {
+        display: none;
+      }
+
+      .finding-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .tag-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .tag {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--surface-2);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        padding: 3px 8px;
+      }
+
+      .tag.done {
+        border-color: rgba(25, 135, 84, 0.28);
+        background: rgba(25, 135, 84, 0.1);
+        color: var(--green);
+      }
+
+      .tag.risk {
+        border-color: rgba(179, 38, 30, 0.28);
+        background: rgba(179, 38, 30, 0.08);
+        color: var(--red);
+      }
+
+      .tag.next {
+        border-color: rgba(183, 106, 0, 0.28);
+        background: rgba(183, 106, 0, 0.1);
+        color: var(--amber);
+      }
+
+      .finding h4 {
+        font-size: 17px;
+      }
+
+      .finding p,
+      .card p,
+      .source-card p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .finding ul,
+      .card ul {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+      }
+
+      .finding li + li,
+      .card li + li {
+        margin-top: 6px;
+      }
+
+      .platform-score-table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+
+      .platform-score-table th,
+      .platform-score-table td {
+        padding: 11px 12px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+      }
+
+      .platform-score-table th {
+        background: var(--surface-2);
+        color: var(--muted);
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .platform-score-table tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .roadmap {
+        display: grid;
+        gap: 12px;
+      }
+
+      .roadmap-row {
+        display: grid;
+        grid-template-columns: 110px minmax(0, 1fr) 180px;
+        gap: 14px;
+        align-items: start;
+      }
+
+      .roadmap-row strong {
+        display: block;
+      }
+
+      .status-pill {
+        justify-self: start;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .status-pill.now {
+        background: rgba(179, 106, 0, 0.12);
+        color: var(--amber);
+      }
+
+      .status-pill.next {
+        background: rgba(36, 87, 197, 0.1);
+        color: var(--blue);
+      }
+
+      .status-pill.later {
+        background: rgba(8, 127, 140, 0.1);
+        color: var(--teal);
+      }
+
+      .source-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .print-note {
+        margin-top: 22px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      @media (max-width: 980px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        aside {
+          position: static;
+          height: auto;
+        }
+
+        main {
+          padding: 22px;
+        }
+
+        .meta-grid,
+        .metric-grid,
+        .score-grid,
+        .summary-grid,
+        .two-col,
+        .three-col,
+        .source-grid,
+        .roadmap-row {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media print {
+        aside {
+          display: none;
+        }
+
+        .layout {
+          display: block;
+        }
+
+        body {
+          background: #fff;
+        }
+
+        .platform-panel {
+          display: block;
+        }
+
+        .card,
+        .metric,
+        .score-card,
+        .finding,
+        .roadmap-row,
+        .source-card {
+          break-inside: avoid;
+          box-shadow: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside>
+        <h1>Whispr raporu</h1>
+        <p>
+          Web, desktop ve mobile ilerleme, kalite, performans, güvenlik ve ürün olgunluğu takibi.
+          Kod tabanı Graphify haritası ve proje dosyaları üzerinden hazırlanmıştır.
+        </p>
+
+        <div class="nav-group">
+          <div class="nav-title">Platform</div>
+          <button class="tab-button" type="button" data-tab-target="overview" aria-selected="true">
+            Genel görünüm
+          </button>
+          <button class="tab-button" type="button" data-tab-target="web" aria-selected="false">
+            Web
+          </button>
+          <button class="tab-button" type="button" data-tab-target="desktop" aria-selected="false">
+            Desktop
+          </button>
+          <button class="tab-button" type="button" data-tab-target="mobile" aria-selected="false">
+            Mobile
+          </button>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-title">Filtre</div>
+          <button class="filter-button" type="button" data-filter="all" aria-pressed="true">
+            Tüm maddeler
+          </button>
+          <button class="filter-button" type="button" data-filter="done" aria-pressed="false">
+            Yapılanlar
+          </button>
+          <button class="filter-button" type="button" data-filter="risk" aria-pressed="false">
+            Riskler
+          </button>
+          <button class="filter-button" type="button" data-filter="next" aria-pressed="false">
+            Aksiyonlar
+          </button>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-title">Arama</div>
+          <input class="search" type="search" placeholder="Örn. Expo, CI, voice" data-search />
+        </div>
+      </aside>
+
+      <main>
+        <header class="report-header">
+          <div class="title-row">
+            <div class="kicker">Durum raporu - 08 Temmuz 2026</div>
+            <h2>Whispr platform ilerleme ve kalite raporu</h2>
+            <p class="lead">
+              Sonuç: Expo mobil geliştirmeyi tek başına yavaşlatan ana neden değil. Asıl
+              yavaşlatıcılar mobil ürün kabuğunun merkezileşmesi, native özelliklerin gerçek cihaz
+              kanıtlarının sınırlı kalması, web E2E istikrarsızlığı ve release süreçlerinin bazı
+              platformlarda henüz tam otomatik güvenceye bağlanmamış olmasıdır.
+            </p>
+          </div>
+
+          <div class="meta-grid">
+            <div class="metric">
+              <span>Graphify kapsamı</span>
+              <strong>792 dosya</strong>
+            </div>
+            <div class="metric">
+              <span>Graph node/edge</span>
+              <strong>8.749 / 23.405</strong>
+            </div>
+            <div class="metric">
+              <span>Web API route dosyası</span>
+              <strong>99</strong>
+            </div>
+            <div class="metric">
+              <span>Mobile test scripti</span>
+              <strong>40</strong>
+            </div>
+          </div>
+        </header>
+
+        <section class="section platform-panel active" id="overview">
+          <div class="section-title">
+            <div>
+              <span class="kicker">Genel karar</span>
+              <h3>Platform skorları</h3>
+            </div>
+            <p>
+              Skorlar ürün olgunluğu, kalite güvencesi, performans kanıtı, güvenlik sınırları ve
+              operasyonel release hazırlığına göre verilmiştir.
+            </p>
+          </div>
+
+          <div class="score-grid">
+            <article class="score-card" data-tone="green">
+              <div class="score-top">
+                <div>
+                  <span class="score-label">Web</span>
+                  <div class="score-number">81</div>
+                </div>
+                <span class="grade">B+</span>
+              </div>
+              <div class="bar"><span style="width: 81%"></span></div>
+              <p>
+                En olgun platform. Auth, API, socket, DM, workspace, voice ve E2E kapsamı güçlü. Ana
+                risk CI stabilitesi, kaynak tüketimi ve dış servislerin gerçek ortam testi.
+              </p>
+            </article>
+
+            <article class="score-card" data-tone="teal">
+              <div class="score-top">
+                <div>
+                  <span class="score-label">Desktop</span>
+                  <div class="score-number">74</div>
+                </div>
+                <span class="grade">B</span>
+              </div>
+              <div class="bar"><span style="width: 74%"></span></div>
+              <p>
+                Release, updater, imzalama ve Tauri izin modeli iyi tasarlanmış. Ürün yüzeyi web'e
+                bağımlı; Windows dışında kanıt ve installer tabanlı smoke henüz zayıf.
+              </p>
+            </article>
+
+            <article class="score-card" data-tone="amber">
+              <div class="score-top">
+                <div>
+                  <span class="score-label">Mobile</span>
+                  <div class="score-number">67</div>
+                </div>
+                <span class="grade">C+</span>
+              </div>
+              <div class="bar"><span style="width: 67%"></span></div>
+              <p>
+                Modern Expo/RN temeli, güvenli env ve contract testleri var. Discord benzeri native
+                kalite için realtime, voice, push, media ve cihaz otomasyonu daha fazla ürün kanıtı
+                istiyor.
+              </p>
+            </article>
+          </div>
+
+          <div class="section-title">
+            <div>
+              <span class="kicker">Expo kararı</span>
+              <h3>Expo bizi yavaşlatıyor mu?</h3>
+            </div>
+          </div>
+
+          <div class="summary-grid">
+            <article
+              class="card verdict finding"
+              data-status="done"
+              data-keywords="expo react native mobile karar"
+            >
+              <div class="finding-head">
+                <h4>Kısa cevap: şu aşamada Expo'da kalınmalı</h4>
+                <span class="tag done">karar</span>
+              </div>
+              <p>
+                Expo SDK 56, React Native 0.85 ve React 19.2 çizgisinde modern bir yığın veriyor.
+                Projede `expo-dev-client`, `@livekit/react-native`, `react-native-webrtc`, bildirim,
+                secure-store, image/document picker ve EAS profilleri zaten var. Bu, ürün hedefleri
+                için Expo Go sınırını aşan doğru yoldur.
+              </p>
+            </article>
+
+            <article
+              class="card finding"
+              data-status="risk"
+              data-keywords="expo native risk development build"
+            >
+              <div class="finding-head">
+                <h4>Yavaşlatan nokta framework değil, ispat yükü</h4>
+                <span class="tag risk">risk</span>
+              </div>
+              <p>
+                Mobilde yavaşlık daha çok şuradan geliyor: tek dosyada büyüyen ürün kabuğu, native
+                özelliklerin kullanıcı akışına tam bağlanması, cihaz matrisi, performans ölçümü,
+                push/voice/media lifecycle ve release evidence eksikleri. Bunlar bare RN veya
+                Swift/Kotlin'e geçince otomatik çözülmez.
+              </p>
+            </article>
+          </div>
+
+          <div class="section-title">
+            <div>
+              <span class="kicker">Skor kırılımı</span>
+              <h3>Platform bazlı derecelendirme</h3>
+            </div>
+          </div>
+
+          <table class="platform-score-table">
+            <thead>
+              <tr>
+                <th>Alan</th>
+                <th>Web</th>
+                <th>Desktop</th>
+                <th>Mobile</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Ürün olgunluğu</td>
+                <td>84 - core mesajlaşma, DM, voice, ayarlar kapsamlı</td>
+                <td>68 - web shell güçlü, native yüzeyler sınırlı</td>
+                <td>58 - temel ekranlar var, native ürün akışları tamamlanmalı</td>
+              </tr>
+              <tr>
+                <td>Kalite güvencesi</td>
+                <td>78 - 13 E2E spec, API/smoke/realtime ayrımı var</td>
+                <td>76 - release script testleri güçlü, gerçek installer smoke eksik</td>
+                <td>72 - 40 contract/script testi var, cihaz E2E zayıf</td>
+              </tr>
+              <tr>
+                <td>Performans kanıtı</td>
+                <td>70 - readiness ve smoke var, CI OOM geçmişi risk</td>
+                <td>62 - bütçeler tanımlı, düzenli ölçüm kanıtı sınırlı</td>
+                <td>61 - bütçeler tanımlı, sürekli cihaz ölçümü yok</td>
+              </tr>
+              <tr>
+                <td>Güvenlik</td>
+                <td>86 - CSP, CSRF, auth guard, rate limit ve JSON limit iyi</td>
+                <td>84 - Tauri capability sınırları ve updater güvenliği iyi</td>
+                <td>82 - HTTPS/env guard, SecureStore ve permission boundary iyi</td>
+              </tr>
+              <tr>
+                <td>Release/operasyon</td>
+                <td>79 - CI kapsamlı, maliyet ve flaky smoke problemi var</td>
+                <td>82 - release contract güçlü, platform kapsamı sınırlı</td>
+                <td>70 - EAS profilleri var, store ve UAT kanıtları tamamlanmalı</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="section-title">
+            <div>
+              <span class="kicker">90 günlük aksiyon</span>
+              <h3>Önerilen ilerleme planı</h3>
+            </div>
+          </div>
+
+          <div class="roadmap">
+            <div
+              class="roadmap-row finding"
+              data-status="next"
+              data-keywords="30 gün ci smoke mobile root cihaz"
+            >
+              <span class="status-pill now">0-30 gün</span>
+              <div>
+                <strong>Stabilite ve görünürlük</strong>
+                <p>
+                  Web smoke CI'ı prod build ile sabitle, memory profilini çıkar, mobil root ekranı
+                  bölümlere ayır, desktop release doküman versiyon driftini düzelt, en az bir
+                  Android UAT cihaz smoke akışını zorunlu kanıt yap.
+                </p>
+              </div>
+              <span class="small-label">Öncelik: yüksek</span>
+            </div>
+
+            <div
+              class="roadmap-row finding"
+              data-status="next"
+              data-keywords="60 gün realtime push voice upload"
+            >
+              <span class="status-pill next">31-60 gün</span>
+              <div>
+                <strong>Mobil ürün akışlarını gerçek veriye bağla</strong>
+                <p>
+                  Mobile realtime reconnect/backfill, push token registration/delivery, LiveKit
+                  voice join/mute/camera, attachment upload ve foreground refresh akışlarını cihaz
+                  üstünde regresyon testlerine bağla.
+                </p>
+              </div>
+              <span class="small-label">Öncelik: yüksek</span>
+            </div>
+
+            <div
+              class="roadmap-row finding"
+              data-status="next"
+              data-keywords="90 gün load visual accessibility desktop release"
+            >
+              <span class="status-pill later">61-90 gün</span>
+              <div>
+                <strong>Endüstri seviyesi regresyon paketi</strong>
+                <p>
+                  Web için a11y, visual regression, Firefox/WebKit smoke; desktop için installer
+                  smoke ve update smoke; mobile için Detox/Maestro benzeri device E2E, performance
+                  budget ve store release checklist kanıtlarını otomatikleştir.
+                </p>
+              </div>
+              <span class="small-label">Öncelik: orta</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="section platform-panel" id="web">
+          <div class="section-title">
+            <div>
+              <span class="kicker">Web platformu</span>
+              <h3>Durum: B+ / 81</h3>
+            </div>
+            <p>
+              Web Whispr'ın ana ürün motoru. Graphify merkezleri auth, API, socket, locale, voice,
+              DM ve workspace servislerinin yüksek fan-out taşıdığını gösteriyor.
+            </p>
+          </div>
+
+          <div class="metric-grid">
+            <div class="metric">
+              <span>API route dosyası</span>
+              <strong>99</strong>
+            </div>
+            <div class="metric">
+              <span>E2E spec dosyası</span>
+              <strong>13</strong>
+            </div>
+            <div class="metric">
+              <span>Next.js</span>
+              <strong>15.5</strong>
+            </div>
+            <div class="metric">
+              <span>React</span>
+              <strong>19.1</strong>
+            </div>
+            <div class="metric">
+              <span>Realtime</span>
+              <strong>Socket.IO</strong>
+            </div>
+          </div>
+
+          <div class="two-col">
+            <article
+              class="finding"
+              data-status="done"
+              data-keywords="web done security api csrf csp auth rate limit"
+            >
+              <div class="finding-head">
+                <h4>Yapılanlar</h4>
+                <span class="tag done">done</span>
+              </div>
+              <ul>
+                <li>Mutating API isteklerinde CSRF origin/referer/sec-fetch-site kontrolü var.</li>
+                <li>
+                  CSP, frame-ancestors none, object-src none ve prod upgrade-insecure-requests
+                  kullanılıyor.
+                </li>
+                <li>JSON body 1 MB ile sınırlı ve non-JSON mutating body reddediliyor.</li>
+                <li>Redis tabanlı Lua rate limit atomic çalışıyor.</li>
+                <li>
+                  Aktif kullanıcı kontrolü banned, deleted ve email verified durumlarını ayırıyor.
+                </li>
+                <li>Health/readiness DB ve Redis'i 1 saniye timeout ile kontrol ediyor.</li>
+              </ul>
+            </article>
+
+            <article
+              class="finding"
+              data-status="risk"
+              data-keywords="web risk ci playwright oom flaky smoke memory"
+            >
+              <div class="finding-head">
+                <h4>Başlıca riskler</h4>
+                <span class="tag risk">risk</span>
+              </div>
+              <ul>
+                <li>
+                  Playwright smoke geçmişinde login, settings, messaging ve server create akışları
+                  flaky.
+                </li>
+                <li>
+                  CI loglarında web server Node heap OOM ve ECONNRESET görüldü; bu performans ve
+                  güvenilirlik riski.
+                </li>
+                <li>
+                  Coverage threshold'ları düşük tutulmuş; kritik modüller için gerçek kalite sinyali
+                  sınırlı.
+                </li>
+                <li>
+                  Gerçek Google OAuth, Resend, Turnstile, UploadThing, GIPHY ve LiveKit staging
+                  testleri otomatik değil.
+                </li>
+              </ul>
+            </article>
+
+            <article
+              class="finding"
+              data-status="next"
+              data-keywords="web next e2e prod build accessibility visual regression"
+            >
+              <div class="finding-head">
+                <h4>Önerilen aksiyonlar</h4>
+                <span class="tag next">next</span>
+              </div>
+              <ul>
+                <li>
+                  E2E web server'ı mümkünse `next build && next start` profiline taşı; `pnpm dev`
+                  kaynak tüketimini CI smoke için kullanma.
+                </li>
+                <li>
+                  Smoke testlerde UI login ile API session bootstrap ayrımını netleştir;
+                  Turnstile/security proof bekleyen testler ayrı suite olmalı.
+                </li>
+                <li>
+                  Auth, messaging, socket ve upload için negatif testleri artır; sadece happy path
+                  smoke yeterli değil.
+                </li>
+                <li>
+                  Axe accessibility smoke ve Playwright screenshot/visual regression suite ekle.
+                </li>
+                <li>
+                  Firefox/WebKit için küçük bir smoke matrisi kur; tam suite Chromium'da kalabilir.
+                </li>
+              </ul>
+            </article>
+
+            <article
+              class="finding"
+              data-status="next"
+              data-keywords="web performance railway memory redis prisma socket"
+            >
+              <div class="finding-head">
+                <h4>Performans ve kaynak tüketimi</h4>
+                <span class="tag next">next</span>
+              </div>
+              <ul>
+                <li>
+                  Railway maliyeti için ilk ölçüm noktası web process heap, socket connection count,
+                  Prisma query süreleri ve Redis memory olmalı.
+                </li>
+                <li>
+                  Readiness cache iyi bir başlangıç; pahalı endpointlerde benzer cache/backpressure
+                  politikası gözden geçirilmeli.
+                </li>
+                <li>
+                  Socket event fan-out ve unread/presence broadcast akışları yük testiyle
+                  doğrulanmalı.
+                </li>
+                <li>
+                  Mesaj, DM, reaction ve attachment query path'lerinde N+1 ve geniş include riskleri
+                  düzenli profil edilmeli.
+                </li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="section platform-panel" id="desktop">
+          <div class="section-title">
+            <div>
+              <span class="kicker">Desktop platformu</span>
+              <h3>Durum: B / 74</h3>
+            </div>
+            <p>
+              Desktop Tauri shell yaklaşımıyla web ürününü taşır. Güvenlik ve release kontratları
+              iyi, fakat native yüzeylerin gerçek installer ve update akışıyla kanıtlanması gerekir.
+            </p>
+          </div>
+
+          <div class="metric-grid">
+            <div class="metric">
+              <span>Tauri</span>
+              <strong>2.11</strong>
+            </div>
+            <div class="metric">
+              <span>Native sürüm</span>
+              <strong>0.8.15</strong>
+            </div>
+            <div class="metric">
+              <span>Desktop script</span>
+              <strong>23</strong>
+            </div>
+            <div class="metric">
+              <span>Release doc</span>
+              <strong>372 satır</strong>
+            </div>
+            <div class="metric">
+              <span>Windows target</span>
+              <strong>NSIS</strong>
+            </div>
+          </div>
+
+          <div class="two-col">
+            <article
+              class="finding"
+              data-status="done"
+              data-keywords="desktop done tauri capability updater signing release"
+            >
+              <div class="finding-head">
+                <h4>Yapılanlar</h4>
+                <span class="tag done">done</span>
+              </div>
+              <ul>
+                <li>`withGlobalTauri: false` ve scoped capabilities kullanılıyor.</li>
+                <li>
+                  Main, voice-mini ve game-overlay izinleri ayrılmış; game overlay komut izni
+                  almıyor.
+                </li>
+                <li>
+                  NSIS installer, imzalama, updater manifest ve R2 yayın akışı için release contract
+                  var.
+                </li>
+                <li>
+                  Release audit, promotion, manifest validation ve publish-plan script testleri
+                  mevcut.
+                </li>
+                <li>
+                  Updater güvenliği HTTPS manifest, Ed25519 imza ve rollback/promotion kanıtları ile
+                  tasarlanmış.
+                </li>
+              </ul>
+            </article>
+
+            <article
+              class="finding"
+              data-status="risk"
+              data-keywords="desktop risk windows mac linux installer smoke version drift"
+            >
+              <div class="finding-head">
+                <h4>Başlıca riskler</h4>
+                <span class="tag risk">risk</span>
+              </div>
+              <ul>
+                <li>Windows ana hedef; macOS ve Linux release kanıtı henüz ikincil seviyede.</li>
+                <li>
+                  Installer, updater, tray, deep link, shortcut ve overlay smoke testleri gerçek OS
+                  üzerinde daha güçlü kanıt ister.
+                </li>
+                <li>
+                  `apps/desktop/RELEASE.md` mevcut sürümü `0.8.14` gösterirken package ve Tauri
+                  config `0.8.15` gösteriyor.
+                </li>
+                <li>
+                  Desktop performans bütçeleri tanımlı, fakat sürekli ölçüm ve regresyon eşiği
+                  release gate olarak daha görünür olmalı.
+                </li>
+              </ul>
+            </article>
+
+            <article
+              class="finding"
+              data-status="next"
+              data-keywords="desktop next release installer update smoke qa"
+            >
+              <div class="finding-head">
+                <h4>Önerilen aksiyonlar</h4>
+                <span class="tag next">next</span>
+              </div>
+              <ul>
+                <li>
+                  Release dokümanındaki 0.8.14 örneklerini 0.8.15 veya placeholder değişkenlerle
+                  güncelle.
+                </li>
+                <li>
+                  Windows installer smoke için temiz VM akışı kur: install, launch, login, update
+                  check, uninstall.
+                </li>
+                <li>
+                  Desktop update smoke'u önceki sürümden yeni sürüme gerçek manifest ile zorunlu UAT
+                  kapısı yap.
+                </li>
+                <li>
+                  Overlay/voice-mini izin sınırlarını otomatik capability diff testiyle release
+                  öncesi doğrula.
+                </li>
+              </ul>
+            </article>
+
+            <article
+              class="finding"
+              data-status="next"
+              data-keywords="desktop performance security native logs diagnostics"
+            >
+              <div class="finding-head">
+                <h4>Performans ve güvenlik</h4>
+                <span class="tag next">next</span>
+              </div>
+              <ul>
+                <li>
+                  Warm start, idle memory, overlay CPU ve shortcut latency bütçeleri release
+                  raporunda ölçüm çıktısı olarak saklanmalı.
+                </li>
+                <li>
+                  Native log ve diagnostics redaction mevcut; yeni log alanları bu kırmızı çizgiye
+                  göre review edilmeli.
+                </li>
+                <li>
+                  Remote URL allowlist içinde prod, invalid ve local hostlar var; release profilinde
+                  local izinlerin etkisiz kaldığı doğrulanmalı.
+                </li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="section platform-panel" id="mobile">
+          <div class="section-title">
+            <div>
+              <span class="kicker">Mobile platformu</span>
+              <h3>Durum: C+ / 67</h3>
+            </div>
+            <p>
+              Mobil uygulama Expo ile doğru yönde ilerliyor, fakat modern Discord/Slack düzeyi için
+              native akışların ürün kanıtı, cihaz otomasyonu ve mimari modülerlik artmalı.
+            </p>
+          </div>
+
+          <div class="metric-grid">
+            <div class="metric">
+              <span>Expo SDK</span>
+              <strong>56</strong>
+            </div>
+            <div class="metric">
+              <span>React Native</span>
+              <strong>0.85.3</strong>
+            </div>
+            <div class="metric">
+              <span>React</span>
+              <strong>19.2.3</strong>
+            </div>
+            <div class="metric">
+              <span>Mobile test scripti</span>
+              <strong>40</strong>
+            </div>
+            <div class="metric">
+              <span>Root screen dosyası</span>
+              <strong>11.183 satır</strong>
+            </div>
+          </div>
+
+          <div class="two-col">
+            <article
+              class="finding"
+              data-status="done"
+              data-keywords="mobile done expo eas securestore auth bootstrap realtime voice"
+            >
+              <div class="finding-head">
+                <h4>Yapılanlar</h4>
+                <span class="tag done">done</span>
+              </div>
+              <ul>
+                <li>
+                  Expo SDK 56, Expo Dev Client, EAS build profilleri ve native modül temeli
+                  kurulmuş.
+                </li>
+                <li>
+                  Mobile env release URL guard'ları HTTP/local/invalid hostları non-dev profillerde
+                  reddediyor.
+                </li>
+                <li>
+                  API client relative path, timeout, JSON content-type ve bearer token akışını
+                  güvenli sınırlıyor.
+                </li>
+                <li>
+                  Bootstrap gerçek `/api/v1/mobile/bootstrap` payload'unu Zod schema ile doğruluyor.
+                </li>
+                <li>
+                  Realtime client `socket.io-client` ile channel, DM, voice, typing ve notification
+                  eventlerini dinliyor.
+                </li>
+                <li>
+                  LiveKit mobile voice hook'u join, mute, camera, audio output, heartbeat ve
+                  participant merge akışlarını içeriyor.
+                </li>
+                <li>
+                  Bildirim, mikrofon, kamera, fotoğraf ve document picker permission istekleri
+                  kullanıcı aksiyonundan sonra çalışıyor.
+                </li>
+              </ul>
+            </article>
+
+            <article
+              class="finding"
+              data-status="risk"
+              data-keywords="mobile risk root screens architecture expo slow"
+            >
+              <div class="finding-head">
+                <h4>Expo değil, mimari merkezileşme yavaşlatıyor</h4>
+                <span class="tag risk">risk</span>
+              </div>
+              <ul>
+                <li>
+                  `mobile-root-screens.tsx` 11.183 satır; bu hız, review, regression ve ownership
+                  açısından ana darboğaz.
+                </li>
+                <li>
+                  Tek dosyada navigation, state orchestration, realtime timers, voice, DM ve
+                  workspace akışları birleşiyor.
+                </li>
+                <li>
+                  Bu yapı yeni özellik eklemeyi riskli hale getirir; küçük UI değişikliği bile geniş
+                  regression alanı yaratır.
+                </li>
+                <li>
+                  Expo'dan çıkmak yerine feature slice ve hook/component ayrıştırması daha yüksek
+                  getiri sağlar.
+                </li>
+              </ul>
+            </article>
+
+            <article
+              class="finding"
+              data-status="risk"
+              data-keywords="mobile risk device testing push store voice livekit upload"
+            >
+              <div class="finding-head">
+                <h4>Eksik ürün kanıtları</h4>
+                <span class="tag risk">risk</span>
+              </div>
+              <ul>
+                <li>
+                  Contract test sayısı iyi, fakat gerçek iOS/Android cihaz E2E ve store-grade UAT
+                  kanıtı yetersiz.
+                </li>
+                <li>
+                  Push token registration kodu var; delivery, revoke, logout cleanup ve server
+                  lifecycle için uçtan uca kanıt gereklidir.
+                </li>
+                <li>
+                  Voice join/mute/camera kodu var; düşük ağ, background, izin reddi, reconnect ve
+                  battery davranışı test edilmeli.
+                </li>
+                <li>
+                  Document picker ve media permission runtime var; upload pipeline ve mesaj composer
+                  entegrasyonu tamamlanmalı.
+                </li>
+                <li>
+                  Screen share mobilde unsupported; ürün vaadi buna göre açık ve dürüst kalmalı.
+                </li>
+              </ul>
+            </article>
+
+            <article
+              class="finding"
+              data-status="next"
+              data-keywords="mobile next modularize screen realtime voice push upload performance"
+            >
+              <div class="finding-head">
+                <h4>Önerilen aksiyonlar</h4>
+                <span class="tag next">next</span>
+              </div>
+              <ul>
+                <li>
+                  `mobile-root-screens.tsx` dosyasını route/screen bazlı parçalara böl: home, DM,
+                  channel, voice, settings, composer.
+                </li>
+                <li>
+                  Realtime client için AppState foreground/background, reconnect, missed-event
+                  backfill ve bounded timers testlerini cihazda koştur.
+                </li>
+                <li>
+                  Voice için LiveKit UAT matrisi kur: izin reddi, join, mute, camera, audio output,
+                  disconnect, heartbeat cleanup.
+                </li>
+                <li>
+                  Push için token registration, logout/revoke cleanup ve server delivery
+                  contract'ını tamamla.
+                </li>
+                <li>
+                  Composer'a attachment upload, image picker/document picker ve hata durumlarını web
+                  parity ile bağla.
+                </li>
+                <li>
+                  Startup, resume, composer latency ve idle memory bütçelerini EAS artifact olarak
+                  sakla.
+                </li>
+              </ul>
+            </article>
+          </div>
+
+          <div class="section-title">
+            <div>
+              <span class="kicker">Mobil hedef</span>
+              <h3>Modern üst düzey mobil uygulama için gerekliler</h3>
+            </div>
+          </div>
+
+          <div class="three-col">
+            <article
+              class="finding"
+              data-status="next"
+              data-keywords="mobile ux chat composer polish"
+            >
+              <div class="finding-head">
+                <h4>UX ve ürün hissi</h4>
+                <span class="tag next">next</span>
+              </div>
+              <p>
+                Chat composer, reaction, unread, typing, invite, profile avatar, empty states,
+                offline state ve loading skeleton davranışları cihaz üstünde polish edilmelidir.
+              </p>
+            </article>
+
+            <article
+              class="finding"
+              data-status="next"
+              data-keywords="mobile performance appstate memory latency battery"
+            >
+              <div class="finding-head">
+                <h4>Performans</h4>
+                <span class="tag next">next</span>
+              </div>
+              <p>
+                List virtualization, memoization, large chat history, image cache, socket timer
+                cleanup ve background battery etkisi sürekli ölçülmelidir.
+              </p>
+            </article>
+
+            <article
+              class="finding"
+              data-status="next"
+              data-keywords="mobile security privacy permissions pii"
+            >
+              <div class="finding-head">
+                <h4>Güvenlik ve gizlilik</h4>
+                <span class="tag next">next</span>
+              </div>
+              <p>
+                Token saklama, PII redaction, permission prompt disiplini, deep-link input doğrulama
+                ve store privacy disclosure eşleşmesi release blocker olmalıdır.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-title">
+            <div>
+              <span class="kicker">Kanıt ve kaynaklar</span>
+              <h3>İncelenen ana kaynaklar</h3>
+            </div>
+          </div>
+
+          <div class="source-grid">
+            <article class="source-card">
+              <h4>Yerel proje kanıtları</h4>
+              <p>
+                `graphify-out/GRAPH_REPORT.md`, `package.json`, `turbo.json`,
+                `apps/web/package.json`, `apps/web/e2e/README.md`, `apps/mobile/package.json`,
+                `apps/mobile/README.md`, `apps/mobile/src/quality/mobile-quality-gate.ts`,
+                `apps/mobile/src/release/mobile-release-contract.ts`,
+                `apps/mobile/src/realtime/mobile-realtime-client.ts`,
+                `apps/mobile/src/voice/use-mobile-voice-room.ts`, `apps/desktop/RELEASE.md`,
+                `apps/desktop/src-tauri/tauri.conf.json`, `.github/workflows/ci.yml`,
+                `.github/workflows/desktop-release.yml`.
+              </p>
+            </article>
+
+            <article class="source-card">
+              <h4>Harici referanslar</h4>
+              <p>
+                Expo SDK 56 sürüm bilgisi için
+                <a href="https://docs.expo.dev/versions/latest/">Expo SDK reference</a>, native
+                kütüphanelerle geliştirme için
+                <a href="https://docs.expo.dev/develop/development-builds/introduction/"
+                  >Expo Development Builds</a
+                >, build ve internal distribution için
+                <a href="https://docs.expo.dev/build/introduction/">EAS Build documentation</a>.
+              </p>
+            </article>
+          </div>
+
+          <p class="print-note">
+            Not: Bu rapor kaynak incelemesine dayalıdır. Kapasite, kullanıcı sayısı veya gerçek
+            performans iddiası için load test, profiler ve prod telemetry gerekir. Bu dosya ilerleme
+            takip dokümanı olarak güncellenebilir.
+          </p>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const tabButtons = Array.from(document.querySelectorAll("[data-tab-target]"));
+      const panels = Array.from(document.querySelectorAll(".platform-panel"));
+      const filterButtons = Array.from(document.querySelectorAll("[data-filter]"));
+      const searchInput = document.querySelector("[data-search]");
+      let activeFilter = "all";
+
+      function setActivePanel(id) {
+        for (const button of tabButtons) {
+          button.setAttribute("aria-selected", String(button.dataset.tabTarget === id));
+        }
+
+        for (const panel of panels) {
+          panel.classList.toggle("active", panel.id === id);
+        }
+
+        applyFilters();
+      }
+
+      function setFilter(filter) {
+        activeFilter = filter;
+        for (const button of filterButtons) {
+          button.setAttribute("aria-pressed", String(button.dataset.filter === filter));
+        }
+        applyFilters();
+      }
+
+      function getVisibleScope() {
+        return document.querySelector(".platform-panel.active") || document;
+      }
+
+      function applyFilters() {
+        const query = (searchInput?.value || "").trim().toLowerCase();
+        const scope = getVisibleScope();
+        const cards = Array.from(scope.querySelectorAll(".finding"));
+
+        for (const card of cards) {
+          const status = card.dataset.status || "";
+          const text = `${card.textContent || ""} ${card.dataset.keywords || ""}`.toLowerCase();
+          const statusMatches = activeFilter === "all" || status === activeFilter;
+          const searchMatches = query.length === 0 || text.includes(query);
+          card.classList.toggle("hidden", !(statusMatches && searchMatches));
+        }
+      }
+
+      for (const button of tabButtons) {
+        button.addEventListener("click", () => setActivePanel(button.dataset.tabTarget));
+      }
+
+      for (const button of filterButtons) {
+        button.addEventListener("click", () => setFilter(button.dataset.filter));
+      }
+
+      searchInput?.addEventListener("input", applyFilters);
+      applyFilters();
+    </script>
+  </body>
+</html>

@@ -6,13 +6,15 @@ import type { MobilePermissionStatus } from "../permissions/mobile-permission-co
 
 export type MobileMediaPermissionTarget = "camera" | "documentPicker" | "photoLibrary";
 
-export type MobileMediaSelectedAssetKind = "document" | "image" | "unknown";
+export type MobileMediaSelectedAssetKind = "document" | "image" | "unknown" | "video";
+export type MobileMediaSelectedAssetSource = "documentPicker" | "photoLibrary";
 
 export interface MobileMediaSelectedAssetSummary {
   readonly kind: MobileMediaSelectedAssetKind;
   readonly mimeType: string | null;
   readonly name: string;
   readonly sizeBytes: number | null;
+  readonly source: MobileMediaSelectedAssetSource;
 }
 
 export type MobileMediaRuntimeStatus =
@@ -143,6 +145,23 @@ export function createMobileMediaRuntimeStateFromDocumentPickerResult(
   };
 }
 
+export function createMobileMediaRuntimeStateFromPhotoLibraryResult(
+  current: MobileMediaRuntimeState,
+  asset: MobileMediaSelectedAssetSummary | null,
+  now = Date.now(),
+): MobileMediaRuntimeState {
+  return {
+    ...current,
+    errorMessage: null,
+    hasPhotoLibraryPermission: true,
+    lastAttemptAt: now,
+    lastRequestedTarget: "photoLibrary",
+    photoLibraryStatus: "granted",
+    selectedAsset: asset,
+    status: "ready-local",
+  };
+}
+
 export function clearMobileMediaSelectedAsset(
   current: MobileMediaRuntimeState,
 ): MobileMediaRuntimeState {
@@ -268,8 +287,9 @@ export function createSafeMobileMediaAssetSummary(input: {
   readonly mimeType?: string | null;
   readonly name?: string | null;
   readonly size?: number | null;
+  readonly source?: MobileMediaSelectedAssetSource;
 }): MobileMediaSelectedAssetSummary {
-  const name = sanitizeMediaText(input.name, "Selected file", MAX_SAFE_ASSET_NAME_LENGTH);
+  const name = sanitizeMediaAssetName(input.name, "Selected file");
   const mimeType =
     typeof input.mimeType === "string" && input.mimeType.trim()
       ? sanitizeMimeType(input.mimeType)
@@ -284,6 +304,7 @@ export function createSafeMobileMediaAssetSummary(input: {
     mimeType,
     name,
     sizeBytes,
+    source: input.source ?? "documentPicker",
   };
 }
 
@@ -365,6 +386,16 @@ function sanitizeMediaText(value: string | null | undefined, fallback: string, m
   return safeValue.slice(0, maxLength);
 }
 
+function sanitizeMediaAssetName(value: string | null | undefined, fallback: string) {
+  const rawValue = String(value ?? "").trim();
+  const withoutQuery = rawValue.split(/[?#]/u)[0] ?? "";
+  const segments = withoutQuery.split(/[\\/]+/u).filter(Boolean);
+  const leafName = segments.length > 0 ? (segments[segments.length - 1] ?? "") : withoutQuery;
+  const withoutScheme = leafName.replace(/^[a-z][a-z0-9+.-]*:+/iu, "");
+
+  return sanitizeMediaText(withoutScheme || fallback, fallback, MAX_SAFE_ASSET_NAME_LENGTH);
+}
+
 function sanitizeMimeType(value: string) {
   const normalized = value
     .replace(/[\u0000-\u001F\u007F\s]+/g, "")
@@ -382,6 +413,10 @@ function resolveSelectedAssetKind(mimeType: string | null): MobileMediaSelectedA
 
   if (mimeType.toLowerCase().startsWith("image/")) {
     return "image";
+  }
+
+  if (mimeType.toLowerCase().startsWith("video/")) {
+    return "video";
   }
 
   return "document";

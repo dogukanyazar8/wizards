@@ -47,6 +47,18 @@ export type MobileRealtimeRefreshSource =
   | "presence"
   | "workspace";
 
+export const MOBILE_REALTIME_REFRESH_DEBOUNCE_MS = 350;
+
+export const MOBILE_REALTIME_REFRESH_TIMER_SOURCES = [
+  "bootstrap",
+  "channel",
+  "dm",
+  "workspace",
+] as const;
+
+export type MobileRealtimeRefreshTimerSource =
+  (typeof MOBILE_REALTIME_REFRESH_TIMER_SOURCES)[number];
+
 export type MobileRealtimeVisibility = "background" | "foreground";
 
 export type MobileRealtimeEventEnvelope = {
@@ -174,6 +186,16 @@ export function getMobileRealtimeRefreshSources(
   return [...sources];
 }
 
+export function getMobileRealtimeRefreshTimerSource(
+  source: MobileRealtimeRefreshSource,
+): MobileRealtimeRefreshTimerSource {
+  if (source === "presence" || source === "notification") {
+    return "bootstrap";
+  }
+
+  return source;
+}
+
 export function isMobileRealtimeChannelMessagePayloadEvent(
   eventName: MobileRealtimeServerEventName,
 ): boolean {
@@ -237,6 +259,22 @@ export function validateMobileRealtimeContract(): string[] {
 
   if (MOBILE_REALTIME_RECONNECT_POLICY.maxAttempts > 12) {
     issues.push("Mobile realtime reconnect attempts must remain bounded for battery safety.");
+  }
+
+  const uniqueTimerSources = new Set(MOBILE_REALTIME_REFRESH_TIMER_SOURCES);
+  if (uniqueTimerSources.size !== MOBILE_REALTIME_REFRESH_TIMER_SOURCES.length) {
+    issues.push("Mobile realtime refresh timer sources must be unique.");
+  }
+
+  if (MOBILE_REALTIME_REFRESH_TIMER_SOURCES.length > 4) {
+    issues.push("Mobile realtime refresh timer sources must remain bounded.");
+  }
+
+  if (
+    MOBILE_REALTIME_REFRESH_DEBOUNCE_MS < 250 ||
+    MOBILE_REALTIME_REFRESH_DEBOUNCE_MS > 1_000
+  ) {
+    issues.push("Mobile realtime refresh debounce must stay within mobile-safe bounds.");
   }
 
   return issues;

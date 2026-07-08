@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 import { createMobileRealtimeEventEnvelope } from "../src/realtime/mobile-realtime-contract";
 import {
   createInitialMobileRealtimeSnapshot,
+  getMobileRealtimeForegroundBackfillSources,
+  getMobileRealtimeVisibilityFromAppState,
   mobileRealtimeReducer,
   shouldConnectMobileRealtime,
   summarizeMobileRealtimeConnection,
@@ -81,6 +83,77 @@ describe("mobile realtime state", () => {
         visibility: "foreground",
       }),
       false,
+    );
+  });
+
+  it("maps native AppState values into a narrow realtime visibility contract", () => {
+    assert.equal(getMobileRealtimeVisibilityFromAppState("active"), "foreground");
+    assert.equal(getMobileRealtimeVisibilityFromAppState("background"), "background");
+    assert.equal(getMobileRealtimeVisibilityFromAppState("inactive"), "background");
+    assert.equal(getMobileRealtimeVisibilityFromAppState("extension"), "background");
+  });
+
+  it("plans bounded visible-data backfill after a foreground resume gap", () => {
+    const realtime = mobileRealtimeReducer(createInitialMobileRealtimeSnapshot(), {
+      now: 1_000,
+      type: "connected",
+    });
+
+    assert.deepEqual(
+      getMobileRealtimeForegroundBackfillSources({
+        authStatus: "signed-in",
+        nextVisibility: "foreground",
+        now: 20_000,
+        previousVisibility: "background",
+        realtime,
+        targets: {
+          channelId: "channel-1",
+          conversationId: null,
+          serverId: "server-1",
+          voiceChannelId: null,
+        },
+      }),
+      ["bootstrap", "workspace", "channel"],
+    );
+  });
+
+  it("does not backfill for signed-out users or short foreground bounces", () => {
+    const realtime = mobileRealtimeReducer(createInitialMobileRealtimeSnapshot(), {
+      now: 10_000,
+      type: "connected",
+    });
+
+    assert.deepEqual(
+      getMobileRealtimeForegroundBackfillSources({
+        authStatus: "signed-out",
+        nextVisibility: "foreground",
+        now: 30_000,
+        previousVisibility: "background",
+        realtime,
+        targets: {
+          channelId: "channel-1",
+          conversationId: "dm-1",
+          serverId: "server-1",
+          voiceChannelId: "voice-1",
+        },
+      }),
+      [],
+    );
+    assert.deepEqual(
+      getMobileRealtimeForegroundBackfillSources({
+        authStatus: "signed-in",
+        nextVisibility: "foreground",
+        now: 10_500,
+        previousVisibility: "background",
+        realtime,
+        targets: {
+          channelId: "channel-1",
+          conversationId: null,
+          serverId: "server-1",
+          voiceChannelId: null,
+        },
+      }),
+      [],
     );
   });
 

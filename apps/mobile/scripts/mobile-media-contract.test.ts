@@ -4,6 +4,7 @@ import {
   clearMobileMediaSelectedAsset,
   createInitialMobileMediaRuntimeState,
   createMobileMediaRuntimeStateFromDocumentPickerResult,
+  createMobileMediaRuntimeStateFromPhotoLibraryResult,
   createMobileMediaRuntimeStateFromPermission,
   createSafeMobileMediaAssetSummary,
   getMobileAttachmentDraftSendGuard,
@@ -81,10 +82,32 @@ describe("mobile media contract", () => {
     assert.equal(documentReady.hasDocumentPickerAccess, true);
     assert.equal(documentReady.lastRequestedTarget, "documentPicker");
     assert.equal(documentReady.status, "ready-local");
-    assert.equal(documentReady.selectedAsset?.name, "notes private quarterly-plan.pdf");
+    assert.equal(documentReady.selectedAsset?.name, "quarterly-plan.pdf");
+    assert.equal(documentReady.selectedAsset?.name.includes("private"), false);
     assert.equal(documentReady.selectedAsset?.mimeType, "application/pdf");
     assert.equal(documentReady.selectedAsset?.sizeBytes, 1_500_100);
     assert.equal(summary.localDocumentPickerReady, true);
+  });
+
+  it("tracks photo library image drafts without storing raw file paths", () => {
+    const initial = createInitialMobileMediaRuntimeState();
+    const asset = createSafeMobileMediaAssetSummary({
+      mimeType: "image/png",
+      name: "content://media/external/images/avatar.png",
+      size: 892_100,
+      source: "photoLibrary",
+    });
+    const photoReady = createMobileMediaRuntimeStateFromPhotoLibraryResult(initial, asset, 1_003);
+    const summary = summarizeMobileMediaRuntimeState(photoReady);
+
+    assert.equal(photoReady.hasPhotoLibraryPermission, true);
+    assert.equal(photoReady.photoLibraryStatus, "granted");
+    assert.equal(photoReady.lastRequestedTarget, "photoLibrary");
+    assert.equal(photoReady.status, "ready-local");
+    assert.equal(photoReady.selectedAsset?.kind, "image");
+    assert.equal(photoReady.selectedAsset?.name.includes("content:"), false);
+    assert.equal(photoReady.selectedAsset?.source, "photoLibrary");
+    assert.equal(summary.localPhotoLibraryReady, true);
   });
 
   it("clears local attachment drafts without revoking picker access", () => {

@@ -4,7 +4,10 @@ import {
   createMobileRealtimeEventEnvelope,
   getMobileRealtimeRefreshSources,
   MOBILE_REALTIME_RECONNECT_POLICY,
+  MOBILE_REALTIME_REFRESH_DEBOUNCE_MS,
+  MOBILE_REALTIME_REFRESH_TIMER_SOURCES,
   MOBILE_REALTIME_SERVER_EVENTS,
+  getMobileRealtimeRefreshTimerSource,
   validateMobileRealtimeContract,
 } from "../src/realtime/mobile-realtime-contract";
 
@@ -139,5 +142,20 @@ describe("mobile realtime contract", () => {
       MOBILE_REALTIME_RECONNECT_POLICY.initialDelayMs < MOBILE_REALTIME_RECONNECT_POLICY.maxDelayMs,
       true,
     );
+  });
+
+  it("keeps realtime refresh timers bounded to visible data groups", () => {
+    assert.deepEqual(MOBILE_REALTIME_REFRESH_TIMER_SOURCES, [
+      "bootstrap",
+      "channel",
+      "dm",
+      "workspace",
+    ]);
+    assert.equal(MOBILE_REALTIME_REFRESH_DEBOUNCE_MS >= 250, true);
+    assert.equal(MOBILE_REALTIME_REFRESH_DEBOUNCE_MS <= 1_000, true);
+    assert.equal(getMobileRealtimeRefreshTimerSource("presence"), "bootstrap");
+    assert.equal(getMobileRealtimeRefreshTimerSource("notification"), "bootstrap");
+    assert.equal(getMobileRealtimeRefreshTimerSource("channel"), "channel");
+    assert.equal(getMobileRealtimeRefreshTimerSource("workspace"), "workspace");
   });
 });

@@ -34,12 +34,14 @@ import {
   type MobileVoiceRoomParticipant,
   type MobileVoiceRoomState,
 } from "./mobile-voice-room-contract";
+import {
+  MOBILE_VOICE_DISCONNECTED_MESSAGE,
+  MOBILE_VOICE_HEARTBEAT_INTERVAL_MS,
+  MOBILE_VOICE_LEVEL_CHANGE_THRESHOLD,
+  MOBILE_VOICE_LEVEL_INTERVAL_MS,
+} from "./mobile-voice-lifecycle-contract";
 import { requestMobileVoicePermissionAfterUserAction } from "./mobile-voice-runtime";
 import type { MobileVoiceStateParticipant } from "@wizards/types";
-
-const MOBILE_VOICE_HEARTBEAT_INTERVAL_MS = 25_000;
-const MOBILE_VOICE_LEVEL_INTERVAL_MS = 90;
-const MOBILE_VOICE_LEVEL_CHANGE_THRESHOLD = 0.025;
 
 type JoinVoiceChannelInput = {
   channelId: string;
@@ -174,6 +176,8 @@ export function useMobileVoiceRoom({
   const levelTickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const currentUserRef = useRef<MobileSessionUser | null>(currentUser);
+  const isIntentionalLeaveRef = useRef(false);
+  const intentionallyDisconnectedRoomsRef = useRef<WeakSet<Room>>(new WeakSet());
 
   useEffect(() => {
     currentUserRef.current = currentUser;
@@ -238,6 +242,10 @@ export function useMobileVoiceRoom({
   const leaveVoiceChannel = useCallback(async () => {
     const sessionId = sessionIdRef.current;
     const room = roomRef.current;
+    isIntentionalLeaveRef.current = true;
+    if (room) {
+      intentionallyDisconnectedRoomsRef.current.add(room);
+    }
 
     clearHeartbeat();
     clearLevelTicker();
@@ -251,29 +259,33 @@ export function useMobileVoiceRoom({
     );
 
     try {
-      room?.disconnect(true);
-    } catch {
-      // Room disconnect is best-effort; server state cleanup is still attempted.
-    } finally {
-      roomRef.current = null;
-    }
-
-    try {
-      await AudioSession.stopAudioSession();
-    } catch {
-      // Audio session cleanup must not block server-side voice state cleanup.
-    }
-
-    if (sessionId) {
       try {
-        await leaveMobileVoiceState(apiClient, { sessionId });
+        room?.disconnect(true);
       } catch {
-        // Stale server state is bounded by the heartbeat timeout.
+        // Room disconnect is best-effort; server state cleanup is still attempted.
+      } finally {
+        roomRef.current = null;
       }
-    }
 
-    sessionIdRef.current = null;
-    setRoomState(createInitialMobileVoiceRoomState());
+      try {
+        await AudioSession.stopAudioSession();
+      } catch {
+        // Audio session cleanup must not block server-side voice state cleanup.
+      }
+
+      if (sessionId) {
+        try {
+          await leaveMobileVoiceState(apiClient, { sessionId });
+        } catch {
+          // Stale server state is bounded by the heartbeat timeout.
+        }
+      }
+
+      sessionIdRef.current = null;
+      setRoomState(createInitialMobileVoiceRoomState());
+    } finally {
+      isIntentionalLeaveRef.current = false;
+    }
   }, [apiClient, clearHeartbeat, clearLevelTicker]);
 
   const startLevelTicker = useCallback(() => {
@@ -302,10 +314,57 @@ export function useMobileVoiceRoom({
     [apiClient, clearHeartbeat],
   );
 
+  const cleanupDisconnectedRoom = useCallback(
+    (room: Room) => {
+      clearHeartbeat();
+      clearLevelTicker();
+
+      if (roomRef.current === room) {
+        roomRef.current = null;
+      }
+
+      void AudioSession.stopAudioSession().catch(() => undefined);
+
+      if (
+        isIntentionalLeaveRef.current ||
+        intentionallyDisconnectedRoomsRef.current.has(room)
+      ) {
+        return;
+      }
+
+      const sessionId = sessionIdRef.current;
+      sessionIdRef.current = null;
+
+      if (sessionId) {
+        // Unexpected LiveKit disconnects perform server-leave cleanup to avoid stale mobile voice state.
+        void leaveMobileVoiceState(apiClient, { sessionId }).catch(() => undefined);
+      }
+
+      setRoomState((current) => {
+        if (current.status === "idle" || current.status === "leaving") {
+          return current;
+        }
+
+        return {
+          ...current,
+          errorMessage: MOBILE_VOICE_DISCONNECTED_MESSAGE,
+          sessionId: null,
+          status: "error",
+          updatedAt: Date.now(),
+        };
+      });
+    },
+    [apiClient, clearHeartbeat, clearLevelTicker],
+  );
+
   const bindRoomEvents = useCallback(
     (room: Room) => {
       const refresh = () => updateParticipantsFromRoom();
       const refreshOnParticipant = (_participant: RemoteParticipant) => refresh();
+      const handleDisconnected = () => {
+        refresh();
+        cleanupDisconnectedRoom(room);
+      };
 
       room.on(RoomEvent.ActiveSpeakersChanged, refresh);
       room.on(RoomEvent.ParticipantConnected, refreshOnParticipant);
@@ -318,7 +377,7 @@ export function useMobileVoiceRoom({
       room.on(RoomEvent.TrackUnsubscribed, refresh);
       room.on(RoomEvent.LocalTrackPublished, refresh);
       room.on(RoomEvent.LocalTrackUnpublished, refresh);
-      room.on(RoomEvent.Disconnected, refresh);
+      room.on(RoomEvent.Disconnected, handleDisconnected);
 
       return () => {
         room.off(RoomEvent.ActiveSpeakersChanged, refresh);
@@ -332,10 +391,10 @@ export function useMobileVoiceRoom({
         room.off(RoomEvent.TrackUnsubscribed, refresh);
         room.off(RoomEvent.LocalTrackPublished, refresh);
         room.off(RoomEvent.LocalTrackUnpublished, refresh);
-        room.off(RoomEvent.Disconnected, refresh);
+        room.off(RoomEvent.Disconnected, handleDisconnected);
       };
     },
-    [updateParticipantsFromRoom],
+    [cleanupDisconnectedRoom, updateParticipantsFromRoom],
   );
 
   const joinVoiceChannel = useCallback(
@@ -440,9 +499,7 @@ export function useMobileVoiceRoom({
           updatedAt: Date.now(),
         }));
 
-        room.once(RoomEvent.Disconnected, () => {
-          unbindRoomEvents();
-        });
+        room.once(RoomEvent.Disconnected, unbindRoomEvents);
 
         return true;
       } catch (error) {
@@ -608,15 +665,26 @@ export function useMobileVoiceRoom({
     () => () => {
       clearHeartbeat();
       clearLevelTicker();
+      isIntentionalLeaveRef.current = true;
+      const room = roomRef.current;
+      if (room) {
+        intentionallyDisconnectedRoomsRef.current.add(room);
+      }
       try {
-        roomRef.current?.disconnect(true);
+        room?.disconnect(true);
       } catch {
         // Best-effort cleanup on unmount.
+      }
+      if (sessionIdRef.current) {
+        void leaveMobileVoiceState(apiClient, { sessionId: sessionIdRef.current }).catch(
+          () => undefined,
+        );
+        sessionIdRef.current = null;
       }
       roomRef.current = null;
       void AudioSession.stopAudioSession().catch(() => undefined);
     },
-    [clearHeartbeat, clearLevelTicker],
+    [apiClient, clearHeartbeat, clearLevelTicker],
   );
 
   return {
