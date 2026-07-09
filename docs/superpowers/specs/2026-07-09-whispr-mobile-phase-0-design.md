@@ -35,6 +35,7 @@ Modernize the `apps/mobile` UI foundation without redesigning the product or cha
   - `corepack pnpm --filter @wizards/mobile test:components`
   - `corepack pnpm --filter @wizards/mobile quality:check`
   - Evidence that existing `.maestro` test IDs still render
+  - Android device/emulator Maestro evidence for channel, DM, invite, settings, and hardware-back navigation after the navigation migration
   - A clean `npx expo install --check` result run from `apps/mobile`
 - Major implementation milestones are committed separately with short English messages matching repository history.
 
@@ -275,6 +276,7 @@ Use test-driven migration for each logic module and screen boundary:
   - `npx expo install --check` exits successfully with clean output
   - React Navigation Android stack back behavior is verified before any fragment-factory decision
   - Predictive back is disabled for Phase 0 and explicitly tracked for post-Phase-0 re-enablement
+  - Channel, DM, invite, settings, and hardware-back flows pass on an Android device/emulator through Maestro, with command output and artifacts retained
 
 ## Migration Sequence
 
@@ -299,6 +301,7 @@ Create `apps/mobile/MIGRATION_PHASE_0.md` containing:
 - Sign-out/cache-reset behavior
 - Explicit statement that query persistence/offline cache is not enabled
 - Maestro testID compatibility evidence
+- Android device/emulator Maestro results and artifact paths for channel, DM, invite, settings, and hardware back
 - `npx expo install --check` result
 - Known limitations and handoff points for the design-system and P0 messaging-parity phases
 - The required predictive-back follow-up:
@@ -326,5 +329,6 @@ Create `apps/mobile/MIGRATION_PHASE_0.md` containing:
 - Every milestone's typecheck and contract tests pass.
 - Final component tests and quality check pass.
 - Maestro testID render evidence is reported.
+- Android Maestro navigation/back evidence is reported for channel, DM, invite, settings, and hardware back.
 - `apps/mobile/MIGRATION_PHASE_0.md` is complete.
 - No query persistence, offline message cache, token cache, PII query key, or sensitive log is introduced.

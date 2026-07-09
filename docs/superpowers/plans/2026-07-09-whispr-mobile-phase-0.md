@@ -18,6 +18,7 @@
 - Keep the user's existing uncommitted Jest/Maestro/package/lock/quality changes intact and stage only files or hunks introduced by this plan.
 - After every task run `corepack pnpm --filter @wizards/mobile typecheck` and `corepack pnpm --filter @wizards/mobile test`; both must pass before committing.
 - At completion also run `corepack pnpm --filter @wizards/mobile test:components`, `corepack pnpm --filter @wizards/mobile quality:check`, and `npx expo install --check` from `apps/mobile`.
+- Task 7 is blocked from completion until channel, DM, invite, settings, and Android hardware-back navigation pass through Maestro on a connected Android device/emulator with command output and artifacts retained.
 - Do not add a manual Reanimated/Worklets Babel plugin under Expo SDK 56.
 - Verify `super.onCreate(null)` behavior before any fragment-factory decision. If insufficient, stop and request approval before a native activity or config-plugin patch.
 - Temporarily set predictive back to false and record the exact post-Phase-0 re-enable instruction in `apps/mobile/MIGRATION_PHASE_0.md`.
@@ -548,7 +549,11 @@ Replace `ActiveScreen` dispatch from the root with `MobileNavigator`. Keep pure 
 
 Run component tests, navigation/linking Node tests, typecheck, and full mobile tests. Expected: PASS.
 
-- [ ] **Step 8: Commit the navigation/screen migration**
+- [ ] **Step 8: Run Android Maestro navigation and back evidence**
+
+On a connected Android device/emulator, run the repository's Maestro flows for channel navigation, DM navigation, invite deep links, settings deep links, and hardware back. Update or add only the flow steps required by the new navigation runtime while preserving existing test IDs. Save the exact commands, exit results, and Maestro artifact paths for `apps/mobile/MIGRATION_PHASE_0.md`. Any failed or unexecuted scenario blocks this task.
+
+- [ ] **Step 9: Commit the navigation/screen migration**
 
 ```powershell
 git commit -m "refactor: migrate mobile screens to navigation"
