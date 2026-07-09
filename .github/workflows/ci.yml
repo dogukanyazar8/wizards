@@ -86,6 +86,8 @@ jobs:
           pnpm --filter @wizards/mobile quality:check
 
       - name: Test with coverage baseline
+        env:
+          WEB_COVERAGE_API_E2E: "0"
         run: pnpm test:coverage
 
       - name: Build

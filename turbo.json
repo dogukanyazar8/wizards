@@ -71,6 +71,22 @@
     },
     "test:coverage": {
       "cache": false,
+      "env": [
+        "APP_URL",
+        "AUTH_SECRET",
+        "AUTH_URL",
+        "DATABASE_URL",
+        "E2E_BASE_URL",
+        "E2E_DATABASE_URL",
+        "E2E_TEST_MODE",
+        "E2E_TEST_PASSWORD",
+        "NEXT_PUBLIC_E2E_TEST_MODE",
+        "NEXTAUTH_SECRET",
+        "NEXTAUTH_URL",
+        "REDIS_URL",
+        "WEB_COVERAGE_API_E2E",
+        "WEB_COVERAGE_REQUIRE_API_E2E"
+      ],
       "outputs": []
     },
     "typecheck": {
