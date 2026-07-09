@@ -18,6 +18,7 @@ import {
 
 const scriptPath = fileURLToPath(import.meta.url);
 const desktopRoot = path.resolve(path.dirname(scriptPath), "..");
+const repoRoot = path.resolve(desktopRoot, "../..");
 
 describe("desktop release operations contract", () => {
   it("keeps release rings explicit and ordered from safest to broadest", () => {
@@ -101,6 +102,22 @@ describe("desktop release operations contract", () => {
       contract.versionContract.webRuntimeVersion,
       contract.versionContract.webPackageVersion,
     );
+  });
+
+  it("keeps desktop operations CI mandatory on every runner", async () => {
+    const contract = assertDesktopReleaseOpsContract(getDesktopReleaseOpsContract());
+    const workflow = await readFile(path.join(repoRoot, ".github/workflows/ci.yml"), "utf8");
+
+    assert.deepEqual(contract.platformMatrix, {
+      windows: "mandatory",
+      macos: "mandatory",
+      linux: "mandatory",
+    });
+    assert.doesNotMatch(workflow, /continue-on-error:/);
+
+    for (const os of ["windows-latest", "macos-latest", "ubuntu-latest"]) {
+      assert.match(workflow, new RegExp(`- os: ${os}\\r?\\n\\s+staged: false`));
+    }
   });
 
   it("documents release rings, smoke gates, budgets, promotion rules, and safety rules", async () => {

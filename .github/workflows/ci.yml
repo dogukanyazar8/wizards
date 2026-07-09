@@ -209,7 +209,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: verify
     timeout-minutes: 20
-    continue-on-error: ${{ matrix.staged }}
 
     strategy:
       fail-fast: false
@@ -218,9 +217,9 @@ jobs:
           - os: windows-latest
             staged: false
           - os: macos-latest
-            staged: true
+            staged: false
           - os: ubuntu-latest
-            staged: true
+            staged: false
 
     env:
       TAURI_WEB_URL: https://whispr.team

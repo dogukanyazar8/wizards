@@ -186,7 +186,7 @@ macOS and Linux bundle targets are not enabled in Phase 5. Before enabling them,
 
 The GitHub Actions workflow has three desktop layers:
 
-- `desktop-ops` runs on Windows, macOS, and Linux. Windows is mandatory; macOS and Linux are staged `continue-on-error` targets until platform signing and packaging mature.
+- `desktop-ops` runs as a mandatory gate on Windows, macOS, and Linux. It validates release operations, scripts, and generated production config on every runner; native packaging remains Windows-only until the platform-specific signing and packaging work above is complete.
 - `desktop-ops` runs `pnpm --filter @wizards/desktop release:ops`, `pnpm --filter @wizards/desktop test`, and `pnpm --filter @wizards/desktop build:desktop:config`.
 - `desktop-build` runs on `windows-latest`, installs Rust stable, audits Rust dependencies, generates the production config, builds the Tauri app, signs tagged release artifacts when certificate secrets exist, and uploads Windows bundles for release tags.
 - `desktop-release.yml` is the release-operator workflow. It validates the requested ring/version/web URL contract, builds a Windows NSIS installer from that contract, optionally publishes the updater feed to R2, and optionally creates a GitHub Release with the installer plus redacted evidence.
