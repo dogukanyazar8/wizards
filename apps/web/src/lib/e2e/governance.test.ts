@@ -138,6 +138,20 @@ describe("Playwright E2E governance", () => {
     assert.match(workflow, /pnpm --filter @wizards\/web e2e:check-env/);
   });
 
+  it("grants the secret scanner least-privilege pull request access", () => {
+    const workflow = readWorkspaceFile(join(workspaceRoot, ".github", "workflows", "ci.yml"));
+    const permissionsStart = workflow.indexOf("\npermissions:");
+    const jobsStart = workflow.indexOf("\njobs:");
+
+    assert.notEqual(permissionsStart, -1);
+    assert.notEqual(jobsStart, -1);
+
+    const permissions = workflow.slice(permissionsStart, jobsStart);
+    assert.match(permissions, /contents:\s+read/);
+    assert.match(permissions, /pull-requests:\s+read/);
+    assert.doesNotMatch(permissions, /:\s+write/);
+  });
+
   it("keeps expensive Playwright suites in post-merge or scheduled gates", () => {
     const workflow = readWorkspaceFile(join(workspaceRoot, ".github", "workflows", "ci.yml"));
     const realtimeStepStart = workflow.indexOf("- name: Run Playwright realtime and voice tests");
