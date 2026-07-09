@@ -147,12 +147,13 @@ module.exports = ({ config }) => {
         foregroundImage: WHISPR_MOBILE_ICON.adaptiveForegroundImage,
       },
       permissions: getWhisprMobileAndroidPermissions(),
-      predictiveBackGestureEnabled: true,
+      predictiveBackGestureEnabled: false,
     },
     plugins: [
       ...(config.plugins ?? []),
       "@livekit/react-native-expo-plugin",
       "@config-plugins/react-native-webrtc",
+      "expo-image",
       "./plugins/withScreenShare",
     ],
     extra: {
