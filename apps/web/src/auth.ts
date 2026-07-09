@@ -224,10 +224,14 @@ function clearJwtUserState(token: {
   avatarUrl?: string | null;
   deletedAt?: string | null;
   displayName?: string | null;
+  email?: string | null;
   emailVerified?: boolean;
   id?: string;
+  image?: string | null;
   isBanned?: boolean;
   locale?: string | null;
+  name?: string | null;
+  picture?: string | null;
   profileHydrated?: boolean;
   revoked?: boolean;
   sub?: string;
@@ -237,6 +241,10 @@ function clearJwtUserState(token: {
   token.revoked = true;
   token.id = "";
   token.sub = "";
+  token.email = null;
+  token.name = null;
+  token.image = null;
+  token.picture = null;
   token.username = null;
   token.displayName = null;
   token.avatarUrl = null;
@@ -873,7 +881,24 @@ const authConfig = {
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = stringOrEmpty(token.id) || stringOrEmpty(token.sub);
+        const sessionUserId = stringOrEmpty(token.id) || stringOrEmpty(token.sub);
+        if (token.revoked === true || !sessionUserId) {
+          session.user.id = "";
+          session.user.name = null;
+          session.user.email = "";
+          session.user.image = null;
+          session.user.username = null;
+          session.user.displayName = null;
+          session.user.avatarUrl = null;
+          session.user.deletedAt = null;
+          session.user.authEmailVerified = false;
+          session.user.isBanned = true;
+          session.user.locale = null;
+          session.user.theme = null;
+          return session;
+        }
+
+        session.user.id = sessionUserId;
         session.user.username = stringOrNull(token.username);
         session.user.displayName = stringOrNull(token.displayName);
         session.user.avatarUrl = stringOrNull(token.avatarUrl);

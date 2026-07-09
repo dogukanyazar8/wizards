@@ -52,7 +52,9 @@ async function getSessionEmail(request: APIRequestContext) {
   expect(response.status()).toBe(200);
 
   const session = (await response.json()) as { user?: { email?: unknown } } | null;
-  return typeof session?.user?.email === "string" ? session.user.email : null;
+  return typeof session?.user?.email === "string" && session.user.email.length > 0
+    ? session.user.email
+    : null;
 }
 
 function getSessionRevocationKey(userId: string) {
@@ -191,8 +193,10 @@ test.describe("Auth.js upgrade regression safety net", () => {
 
     expect(response.status()).toBe(200);
     const html = await response.text();
-    expect(html).toContain("whispr://oauth/");
-    expect(html).not.toContain(e2eUsers.alice.email);
+    const handoffUrl = html.match(/href="(whispr:\/\/oauth\/[^"]+)"/)?.[1] ?? "";
+
+    expect(handoffUrl).toMatch(/^whispr:\/\/oauth\/[A-Za-z0-9_-]+\?callbackUrl=%2Fchannels$/);
+    expect(handoffUrl).not.toContain(e2eUsers.alice.email);
   });
 
   test("Google OAuth remains tied to verified provider email", async () => {
