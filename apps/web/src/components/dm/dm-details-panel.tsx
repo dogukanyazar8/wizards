@@ -425,6 +425,10 @@ function EmptyPanelMessage({ icon, text }: { icon: ReactNode; text: string }) {
 
 function SharedMediaTile({ item, locale }: { item: DmSharedAttachment; locale: string }) {
   const attachment = item.attachment;
+  if (!attachment.url) {
+    return null;
+  }
+
   const isImage = isMessageImageContentType(attachment.contentType);
   const isVideo = isMessageVideoContentType(attachment.contentType);
   const previewUrl = attachment.thumbnailUrl ?? attachment.url;
@@ -461,6 +465,10 @@ function SharedMediaTile({ item, locale }: { item: DmSharedAttachment; locale: s
 
 function SharedFileRow({ item, locale }: { item: DmSharedAttachment; locale: string }) {
   const attachment = item.attachment;
+  if (!attachment.url) {
+    return null;
+  }
+
   const size = formatAttachmentSize(attachment.size);
   const date = formatShortDate(item.messageCreatedAt, locale);
   const meta = [size, date].filter(Boolean).join(" / ");

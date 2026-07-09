@@ -1,4 +1,5 @@
 import type { MobileVoiceStateParticipant, WorkspaceMember } from "@wizards/types";
+import type { Participant, Track, TrackPublication } from "livekit-client";
 
 import type { MobileSessionUser } from "../auth/session-types";
 
@@ -11,7 +12,14 @@ export type MobileVoiceRoomConnectionStatus =
   | "leaving"
   | "permission-denied";
 
-export type MobileVoiceScreenShareStatus = "off" | "unsupported";
+export type MobileVoiceScreenShareStatus =
+  | "error"
+  | "off"
+  | "on"
+  | "permission-denied"
+  | "starting"
+  | "stopping"
+  | "unsupported";
 export type MobileVoiceAudioOutputMode = "default" | "speaker";
 export type MobileVoiceInviteStatus = "accepted" | "declined" | "failed" | "sending" | "sent";
 
@@ -83,8 +91,15 @@ export interface MobileVoiceRoomParticipant {
   readonly isScreenSharing: boolean;
   readonly isSelf: boolean;
   readonly isSpeaking: boolean;
+  readonly screenShareTrackRef?: MobileScreenShareTrackReference;
   readonly userId: string;
   readonly username: string;
+}
+
+export interface MobileScreenShareTrackReference {
+  readonly participant: Participant;
+  readonly publication: TrackPublication;
+  readonly source: Track.Source;
 }
 
 export interface MobileVoiceRoomState {
@@ -96,6 +111,7 @@ export interface MobileVoiceRoomState {
   readonly selfAudioOutput: MobileVoiceAudioOutputMode;
   readonly selfCameraEnabled: boolean;
   readonly selfMuted: boolean;
+  readonly selfScreenShareEnabled: boolean;
   readonly serverId: string | null;
   readonly sessionId: string | null;
   readonly status: MobileVoiceRoomConnectionStatus;
@@ -112,10 +128,11 @@ export function createInitialMobileVoiceRoomState(): MobileVoiceRoomState {
     channelName: null,
     errorMessage: null,
     participants: [],
-    screenShareStatus: "unsupported",
+    screenShareStatus: "off",
     selfAudioOutput: "default",
     selfCameraEnabled: false,
     selfMuted: false,
+    selfScreenShareEnabled: false,
     serverId: null,
     sessionId: null,
     status: "idle",
@@ -303,9 +320,7 @@ export function getMobileVoiceInviteStatusPayload(
   };
 }
 
-export function getMobileVoiceInviteErrorPayload(
-  payload: unknown,
-): MobileVoiceInviteError | null {
+export function getMobileVoiceInviteErrorPayload(payload: unknown): MobileVoiceInviteError | null {
   const code = getSafeStringProperty(payload, "code");
   const message = getSafeStringProperty(payload, "message");
 
@@ -369,16 +384,29 @@ export function mergeMobileVoiceRoomParticipants(
 
   for (const participant of incoming) {
     const previous = byUserId.get(participant.userId);
-    byUserId.set(participant.userId, {
-      ...previous,
-      ...participant,
+    const { screenShareTrackRef: _previousScreenShareTrackRef, ...previousWithoutTrackRef } =
+      previous ?? {};
+    const { screenShareTrackRef: _participantScreenShareTrackRef, ...participantWithoutTrackRef } =
+      participant;
+    const screenShareTrackRef = participant.isScreenSharing
+      ? (participant.screenShareTrackRef ?? previous?.screenShareTrackRef)
+      : undefined;
+    const merged = {
+      ...previousWithoutTrackRef,
+      ...participantWithoutTrackRef,
       audioLevel: Number.isFinite(participant.audioLevel)
         ? participant.audioLevel
         : (previous?.audioLevel ?? 0),
       isCameraEnabled: participant.isCameraEnabled,
       isMuted: participant.isMuted,
+      isScreenSharing: participant.isScreenSharing,
       isSpeaking: participant.isSpeaking,
-    });
+    };
+
+    byUserId.set(
+      participant.userId,
+      screenShareTrackRef ? { ...merged, screenShareTrackRef } : merged,
+    );
   }
 
   return [...byUserId.values()].sort((first, second) => {

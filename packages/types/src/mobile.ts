@@ -42,17 +42,14 @@ export const MOBILE_BOOTSTRAP_MESSAGE_SEARCH_FEATURE_DEFAULT = {
   status: "requires-server-contract",
 } as const;
 
-export const MobileBootstrapDeepLinkIntentSchema = z.enum([
-  "auth-handoff",
-  "invite",
-  "route",
-]);
+export const MobileBootstrapDeepLinkIntentSchema = z.enum(["auth-handoff", "invite", "route"]);
 
 export const MobileBootstrapPermissionIntentSchema = z.enum([
   "camera",
   "microphone",
   "notifications",
   "photoLibrary",
+  "screenCapture",
 ]);
 
 export const MobileSessionSchemaVersionSchema = z.literal(1);
@@ -241,6 +238,7 @@ export const MobileVoiceStateDeleteRequestSchema = z
 
 export const MobileVoiceHeartbeatRequestSchema = z
   .object({
+    selfScreenShare: z.boolean().optional(),
     selfStream: z.boolean().optional(),
     selfVideo: z.boolean().optional(),
     sessionId: z.string().uuid(),
@@ -313,9 +311,7 @@ export const MobileBootstrapPayloadSchema = z.object({
     permissions: z.array(MobileBootstrapPermissionIntentSchema).min(1),
   }),
   features: z.object({
-    attachments: MobileBootstrapFeatureSchema.default(
-      MOBILE_BOOTSTRAP_ATTACHMENTS_FEATURE_DEFAULT,
-    ),
+    attachments: MobileBootstrapFeatureSchema.default(MOBILE_BOOTSTRAP_ATTACHMENTS_FEATURE_DEFAULT),
     invites: MobileBootstrapFeatureSchema.default(MOBILE_BOOTSTRAP_INVITES_FEATURE_DEFAULT),
     messageSearch: MobileBootstrapFeatureSchema.default(
       MOBILE_BOOTSTRAP_MESSAGE_SEARCH_FEATURE_DEFAULT,
@@ -427,42 +423,24 @@ export const MobileChannelSendMessageResponseSchema = z.object({
   message: ChatMessageSchema,
 });
 
-export type MobileBootstrapFeatureStatus = z.infer<
-  typeof MobileBootstrapFeatureStatusSchema
->;
+export type MobileBootstrapFeatureStatus = z.infer<typeof MobileBootstrapFeatureStatusSchema>;
 export type MobileBootstrapFeature = z.infer<typeof MobileBootstrapFeatureSchema>;
-export type MobileBootstrapServerSummary = z.infer<
-  typeof MobileBootstrapServerSummarySchema
->;
-export type MobileBootstrapDMParticipant = z.infer<
-  typeof MobileBootstrapDMParticipantSchema
->;
+export type MobileBootstrapServerSummary = z.infer<typeof MobileBootstrapServerSummarySchema>;
+export type MobileBootstrapDMParticipant = z.infer<typeof MobileBootstrapDMParticipantSchema>;
 export type MobileBootstrapDMConversationSummary = z.infer<
   typeof MobileBootstrapDMConversationSummarySchema
 >;
 export type MobileBootstrapPayload = z.infer<typeof MobileBootstrapPayloadSchema>;
 export type MobileDMMessagesResponse = z.infer<typeof MobileDMMessagesResponseSchema>;
-export type MobileDMSendMessageRequest = z.infer<
-  typeof MobileDMSendMessageRequestSchema
->;
-export type MobileDMSendMessageResponse = z.infer<
-  typeof MobileDMSendMessageResponseSchema
->;
-export type MobileWorkspaceChannelSummary = z.infer<
-  typeof MobileWorkspaceChannelSummarySchema
->;
-export type MobileWorkspaceServerDetail = z.infer<
-  typeof MobileWorkspaceServerDetailSchema
->;
+export type MobileDMSendMessageRequest = z.infer<typeof MobileDMSendMessageRequestSchema>;
+export type MobileDMSendMessageResponse = z.infer<typeof MobileDMSendMessageResponseSchema>;
+export type MobileWorkspaceChannelSummary = z.infer<typeof MobileWorkspaceChannelSummarySchema>;
+export type MobileWorkspaceServerDetail = z.infer<typeof MobileWorkspaceServerDetailSchema>;
 export type MobileWorkspaceServerDetailResponse = z.infer<
   typeof MobileWorkspaceServerDetailResponseSchema
 >;
-export type MobileChannelMessagesResponse = z.infer<
-  typeof MobileChannelMessagesResponseSchema
->;
-export type MobileChannelSendMessageRequest = z.infer<
-  typeof MobileChannelSendMessageRequestSchema
->;
+export type MobileChannelMessagesResponse = z.infer<typeof MobileChannelMessagesResponseSchema>;
+export type MobileChannelSendMessageRequest = z.infer<typeof MobileChannelSendMessageRequestSchema>;
 export type MobileChannelSendMessageResponse = z.infer<
   typeof MobileChannelSendMessageResponseSchema
 >;
@@ -471,17 +449,11 @@ export type MobileAuthExchangeResponse = z.infer<typeof MobileAuthExchangeRespon
 export type MobileAuthRefreshRequest = z.infer<typeof MobileAuthRefreshRequestSchema>;
 export type MobileAuthRefreshResponse = z.infer<typeof MobileAuthRefreshResponseSchema>;
 export type MobileAuthRevokeRequest = z.infer<typeof MobileAuthRevokeRequestSchema>;
-export type MobileAuthPasswordLoginRequest = z.infer<
-  typeof MobileAuthPasswordLoginRequestSchema
->;
-export type MobileAuthPasswordLoginResponse = z.infer<
-  typeof MobileAuthPasswordLoginResponseSchema
->;
+export type MobileAuthPasswordLoginRequest = z.infer<typeof MobileAuthPasswordLoginRequestSchema>;
+export type MobileAuthPasswordLoginResponse = z.infer<typeof MobileAuthPasswordLoginResponseSchema>;
 export type MobileAuthRegisterRequest = z.infer<typeof MobileAuthRegisterRequestSchema>;
 export type MobileAuthRegisterResponse = z.infer<typeof MobileAuthRegisterResponseSchema>;
-export type MobileAuthForgotPasswordRequest = z.infer<
-  typeof MobileAuthForgotPasswordRequestSchema
->;
+export type MobileAuthForgotPasswordRequest = z.infer<typeof MobileAuthForgotPasswordRequestSchema>;
 export type MobileAuthForgotPasswordResponse = z.infer<
   typeof MobileAuthForgotPasswordResponseSchema
 >;
@@ -494,39 +466,23 @@ export type MobileAuthVerificationEmailResponse = z.infer<
 export type MobileSessionSnapshotPayload = z.infer<typeof MobileSessionSnapshotSchema>;
 export type MobilePushProvider = z.infer<typeof MobilePushProviderSchema>;
 export type MobilePushPlatform = z.infer<typeof MobilePushPlatformSchema>;
-export type MobilePushRegistrationRequest = z.infer<
-  typeof MobilePushRegistrationRequestSchema
->;
-export type MobilePushRegistrationResponse = z.infer<
-  typeof MobilePushRegistrationResponseSchema
->;
+export type MobilePushRegistrationRequest = z.infer<typeof MobilePushRegistrationRequestSchema>;
+export type MobilePushRegistrationResponse = z.infer<typeof MobilePushRegistrationResponseSchema>;
 export type MobilePushRegistrationRevokeResponse = z.infer<
   typeof MobilePushRegistrationRevokeResponseSchema
 >;
 export type MobileVoiceTokenProvider = z.infer<typeof MobileVoiceTokenProviderSchema>;
 export type MobileVoiceTokenRequest = z.infer<typeof MobileVoiceTokenRequestSchema>;
 export type MobileVoiceTokenResponse = z.infer<typeof MobileVoiceTokenResponseSchema>;
-export type MobileVoiceStateParticipant = z.infer<
-  typeof MobileVoiceStateParticipantSchema
->;
+export type MobileVoiceStateParticipant = z.infer<typeof MobileVoiceStateParticipantSchema>;
 export type MobileVoiceChannelState = z.infer<typeof MobileVoiceChannelStateSchema>;
 export type MobileVoiceStatesResponse = z.infer<typeof MobileVoiceStatesResponseSchema>;
-export type MobileVoiceStateUpsertRequest = z.infer<
-  typeof MobileVoiceStateUpsertRequestSchema
->;
-export type MobileVoiceStateDeleteRequest = z.infer<
-  typeof MobileVoiceStateDeleteRequestSchema
->;
-export type MobileVoiceHeartbeatRequest = z.infer<
-  typeof MobileVoiceHeartbeatRequestSchema
->;
+export type MobileVoiceStateUpsertRequest = z.infer<typeof MobileVoiceStateUpsertRequestSchema>;
+export type MobileVoiceStateDeleteRequest = z.infer<typeof MobileVoiceStateDeleteRequestSchema>;
+export type MobileVoiceHeartbeatRequest = z.infer<typeof MobileVoiceHeartbeatRequestSchema>;
 export type MobileVoiceStateMutationResponse = z.infer<
   typeof MobileVoiceStateMutationResponseSchema
 >;
-export type MobileVoiceStateLeaveResponse = z.infer<
-  typeof MobileVoiceStateLeaveResponseSchema
->;
-export type MobileVoiceHeartbeatResponse = z.infer<
-  typeof MobileVoiceHeartbeatResponseSchema
->;
+export type MobileVoiceStateLeaveResponse = z.infer<typeof MobileVoiceStateLeaveResponseSchema>;
+export type MobileVoiceHeartbeatResponse = z.infer<typeof MobileVoiceHeartbeatResponseSchema>;
 export type MobileVoiceStatesQuery = z.infer<typeof MobileVoiceStatesQuerySchema>;

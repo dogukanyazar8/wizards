@@ -9,6 +9,8 @@ describe("structured logger", () => {
         "auth:token",
         {
           password: "secret",
+          recoveryCode: "ABCDE-FGHIJ-KLMNO-PQRST",
+          twoFactorSecret: "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
           token: "eyJaaaaaaaaaaaaaaaaaaaa.eyJbbbbbbbbbbbbbbbbbbbb.cccccccccccccccccccc",
           error: new Error("failed with sk_test_1234567890abcdef"),
         },
@@ -20,6 +22,8 @@ describe("structured logger", () => {
           message: string;
         };
         password: string;
+        recoveryCode: string;
+        twoFactorSecret: string;
         token: string;
       };
       level: string;
@@ -31,6 +35,8 @@ describe("structured logger", () => {
     assert.equal(payload.level, "error");
     assert.equal(payload.scope, "auth:token");
     assert.equal(payload.error.password, "[redacted]");
+    assert.equal(payload.error.recoveryCode, "[redacted]");
+    assert.equal(payload.error.twoFactorSecret, "[redacted]");
     assert.equal(payload.error.token, "[redacted]");
     assert.equal(payload.error.error.message, "failed with [redacted-secret]");
   });

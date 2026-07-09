@@ -5,8 +5,18 @@ import {
   type MobileStorePermissionId,
 } from "../release/mobile-store-contract";
 
-export type MobilePermissionIntentId = "camera" | "microphone" | "notifications" | "photoLibrary";
-export type MobilePermissionFeature = "attachments" | "camera" | "messages" | "voice";
+export type MobilePermissionIntentId =
+  | "camera"
+  | "microphone"
+  | "notifications"
+  | "photoLibrary"
+  | "screenCapture";
+export type MobilePermissionFeature =
+  | "attachments"
+  | "camera"
+  | "messages"
+  | "screenShare"
+  | "voice";
 export type MobilePermissionStatus = "blocked" | "denied" | "granted" | "not-requested" | "unknown";
 export type MobilePermissionPromptPolicy = "after-user-action" | "never-automatically";
 
@@ -62,6 +72,12 @@ export const MOBILE_PERMISSION_INTENTS: readonly MobilePermissionIntent[] = [
     promptPolicy: "after-user-action",
     requiredFor: ["attachments"],
     storeDisclosureId: "photoLibrary",
+  },
+  {
+    id: "screenCapture",
+    promptPolicy: "after-user-action",
+    requiredFor: ["screenShare"],
+    storeDisclosureId: "screenCapture",
   },
 ] as const;
 

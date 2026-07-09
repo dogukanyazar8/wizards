@@ -1,4 +1,5 @@
-const SENSITIVE_KEY_PATTERN = /(api[_-]?key|authorization|cookie|hash|password|secret|token)/i;
+const SENSITIVE_KEY_PATTERN =
+  /(api[_-]?key|authorization|cookie|hash|password|recovery[_-]?code|secret|token)/i;
 const JWT_PATTERN = /\beyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\b/g;
 const LONG_SECRET_PATTERN = /\b(?:sk|pk|ya29|gh[opsu])_[a-zA-Z0-9_-]{16,}\b/g;
 

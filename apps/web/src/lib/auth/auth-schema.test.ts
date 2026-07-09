@@ -48,4 +48,23 @@ describe("auth schemas", () => {
 
     assert.equal(oneTime.rememberMe, false);
   });
+
+  it("accepts an optional two-factor code on login form submissions only", () => {
+    const parsed = LoginSchema.parse({
+      email: "ada@example.test",
+      password: "password123",
+      twoFactorCode: " 123456 ",
+      turnstileToken: "token",
+    });
+
+    assert.equal(parsed.twoFactorCode, "123456");
+    assert.equal(
+      LoginCredentialsSchema.safeParse({
+        email: "ada@example.test",
+        password: "password123",
+        twoFactorCode: "123456",
+      }).success,
+      true,
+    );
+  });
 });

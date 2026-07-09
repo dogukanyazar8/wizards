@@ -328,10 +328,17 @@ export function registerDMHandlers(
           include: dmMessageInclude,
         });
 
-        io.to(`dm:${existingMessage.conversationId}`).emit(
-          "dm:message:updated",
-          await mapDMMessagePayloadWithReactions(updatedMessage),
-        );
+        const participants = await prisma.dMParticipant.findMany({
+          where: { conversationId: existingMessage.conversationId },
+          select: { userId: true },
+        });
+
+        for (const participant of participants) {
+          io.to(`user:${participant.userId}`).emit(
+            "dm:message:updated",
+            await mapDMMessagePayloadWithReactions(updatedMessage, participant.userId),
+          );
+        }
       } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
           emitDMError("NOT_FOUND", "Message not found.");

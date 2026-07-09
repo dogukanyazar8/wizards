@@ -472,7 +472,7 @@ export async function addWorkspaceServerMemberByUsername(
       lastReadMessageId: result.message.id,
       userIds: [userId, ...activeViewerUserIds],
     });
-    const message = await getMessageById(result.message.id);
+    const message = await getMessageById(result.message.id, userId);
     if (message) {
       io?.to(result.message.channelId).emit("message:new", message);
     }

@@ -153,6 +153,7 @@ module.exports = ({ config }) => {
       ...(config.plugins ?? []),
       "@livekit/react-native-expo-plugin",
       "@config-plugins/react-native-webrtc",
+      "./plugins/withScreenShare",
     ],
     extra: {
       ...config.extra,

@@ -1,7 +1,9 @@
 import { z } from "zod";
 import {
+  AttachmentScanStatusSchema,
   MessageReactionSchema,
   MessageThreadSummarySchema,
+  type AttachmentScanStatus,
   type MessageReaction,
   type MessageThreadSummary,
 } from "./messages";
@@ -25,7 +27,7 @@ export interface DMMessageAuthorPayload {
 
 export interface DMMessageAttachmentPayload {
   id: string;
-  url: string;
+  url: string | null;
   filename: string;
   contentType: string;
   size: number;
@@ -33,6 +35,7 @@ export interface DMMessageAttachmentPayload {
   height: number | null;
   duration: number | null;
   thumbnailUrl: string | null;
+  scanStatus?: AttachmentScanStatus | undefined;
 }
 
 export interface DMMessagePayload {
@@ -91,7 +94,7 @@ export const DMMessageAuthorSchema = z.object({
 
 export const DMMessageAttachmentSchema = z.object({
   id: z.string(),
-  url: z.string(),
+  url: z.string().nullable(),
   filename: z.string(),
   contentType: z.string(),
   size: z.number().int().nonnegative(),
@@ -99,6 +102,7 @@ export const DMMessageAttachmentSchema = z.object({
   height: z.number().int().nullable(),
   duration: z.number().positive().nullable(),
   thumbnailUrl: z.string().nullable(),
+  scanStatus: AttachmentScanStatusSchema.optional(),
 });
 
 export const DMMessagePayloadSchema: z.ZodType<DMMessagePayload> = z.lazy(() =>

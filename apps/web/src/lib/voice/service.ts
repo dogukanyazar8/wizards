@@ -10,10 +10,7 @@ import {
 import { getLiveKitRoomServiceClient } from "@/lib/livekit/server";
 import { logError } from "@/lib/logger";
 import { getRedis } from "@/lib/redis";
-import {
-  getVoiceParticipantRoomName,
-  getVoiceStateViewerRoomName,
-} from "@/lib/socket/rooms";
+import { getVoiceParticipantRoomName, getVoiceStateViewerRoomName } from "@/lib/socket/rooms";
 import { getSocketServer } from "@/lib/socket/runtime";
 import {
   filterUserIdsByChannelPermission,
@@ -22,7 +19,10 @@ import {
 } from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
 import { assertVoiceChannelCapacity } from "@/lib/voice/capacity";
-import { getVoiceScreenShareStateKey } from "@/lib/voice/screen-share-state";
+import {
+  getVoiceScreenShareStateKey,
+  VOICE_SCREEN_SHARE_STATE_TTL_SECONDS,
+} from "@/lib/voice/screen-share-state";
 import {
   VOICE_HEARTBEAT_TIMEOUT_MS,
   type HeartbeatVoiceStateBody,
@@ -91,10 +91,7 @@ export function canClearVoiceStateForSession(args: {
   return !args.expectedSessionId || args.sessionId === args.expectedSessionId;
 }
 
-export function buildVoiceStateDeleteWhere(args: {
-  expectedSessionId?: string;
-  id: string;
-}) {
+export function buildVoiceStateDeleteWhere(args: { expectedSessionId?: string; id: string }) {
   return {
     id: args.id,
     ...(args.expectedSessionId ? { sessionId: args.expectedSessionId } : {}),
@@ -106,7 +103,13 @@ export type VoiceJoinRedisClient = RedisLockReleaseClient & {
 };
 
 export type VoiceCleanupRedisClient = RedisLockReleaseClient & {
-  set(key: string, value: string, ttlMode: "EX", ttlSeconds: number, condition: "NX"): Promise<unknown>;
+  set(
+    key: string,
+    value: string,
+    ttlMode: "EX",
+    ttlSeconds: number,
+    condition: "NX",
+  ): Promise<unknown>;
   set(key: string, value: string, ttlMode: "PX", ttlMs: number, condition: "NX"): Promise<unknown>;
   status?: string;
 };
@@ -299,10 +302,7 @@ export async function runBoundedVoiceStateCleanup(args: {
   maxBatches?: number;
 }): Promise<VoiceCleanupResult> {
   const batchSize = normalizeVoiceCleanupLimit(args.batchSize, VOICE_CLEANUP_BATCH_SIZE);
-  const maxBatches = normalizeVoiceCleanupLimit(
-    args.maxBatches,
-    VOICE_CLEANUP_MAX_BATCHES_PER_RUN,
-  );
+  const maxBatches = normalizeVoiceCleanupLimit(args.maxBatches, VOICE_CLEANUP_MAX_BATCHES_PER_RUN);
   let batches = 0;
   let deletedStates = 0;
 
@@ -411,25 +411,13 @@ export async function cleanupStaleVoiceStates() {
   });
 }
 
-export async function acquireVoiceCleanupLock(
-  redis: VoiceCleanupRedisClient,
-  lockToken: string,
-) {
+export async function acquireVoiceCleanupLock(redis: VoiceCleanupRedisClient, lockToken: string) {
   return Boolean(
-    await redis.set(
-      VOICE_CLEANUP_LOCK_KEY,
-      lockToken,
-      "PX",
-      VOICE_CLEANUP_LOCK_TTL_MS,
-      "NX",
-    ),
+    await redis.set(VOICE_CLEANUP_LOCK_KEY, lockToken, "PX", VOICE_CLEANUP_LOCK_TTL_MS, "NX"),
   );
 }
 
-export async function releaseVoiceCleanupLock(
-  redis: RedisLockReleaseClient,
-  lockToken: string,
-) {
+export async function releaseVoiceCleanupLock(redis: RedisLockReleaseClient, lockToken: string) {
   try {
     await releaseRedisLock(redis, VOICE_CLEANUP_LOCK_KEY, lockToken);
   } catch {
@@ -496,10 +484,13 @@ async function maybeCleanupStaleVoiceStates() {
   }
 }
 
-async function requireVoiceMembership(userId: string, input: {
-  channelId: string;
-  serverId: string;
-}) {
+async function requireVoiceMembership(
+  userId: string,
+  input: {
+    channelId: string;
+    serverId: string;
+  },
+) {
   const { channel } = await requireChannelPermissionForUser(
     userId,
     input.channelId,
@@ -541,11 +532,7 @@ export async function buildVoiceStateParticipantsForChannel(
   const screenShareValues =
     states.length > 0
       ? await redis
-          .mget(
-            ...states.map((state) =>
-              getVoiceScreenShareStateKey(channelId, state.user.id),
-            ),
-          )
+          .mget(...states.map((state) => getVoiceScreenShareStateKey(channelId, state.user.id)))
           .catch(() => [])
       : [];
 
@@ -696,10 +683,9 @@ export async function disconnectUnauthorizedVoiceParticipants(channelId: string)
   const roomService = getLiveKitRoomServiceClient();
   await Promise.all(
     unauthorizedStates.flatMap((state) => [
-      redis
-        .del(getVoiceScreenShareStateKey(state.channelId, state.userId))
-        .catch(() => undefined),
-      roomService.removeParticipant(getVoiceRoomName(state.channelId), state.userId)
+      redis.del(getVoiceScreenShareStateKey(state.channelId, state.userId)).catch(() => undefined),
+      roomService
+        .removeParticipant(getVoiceRoomName(state.channelId), state.userId)
         .catch(() => undefined),
     ]),
   );
@@ -737,10 +723,7 @@ export async function listVoiceStatesForServer(
       channelId: { in: visibleVoiceChannelIds },
       serverId,
     },
-    orderBy: [
-      { channelId: "asc" },
-      { joinedAt: "asc" },
-    ],
+    orderBy: [{ channelId: "asc" }, { joinedAt: "asc" }],
     select: {
       channelId: true,
       user: {
@@ -759,9 +742,7 @@ export async function listVoiceStatesForServer(
     states.length > 0
       ? await redis
           .mget(
-            ...states.map((state) =>
-              getVoiceScreenShareStateKey(state.channelId, state.user.id),
-            ),
+            ...states.map((state) => getVoiceScreenShareStateKey(state.channelId, state.user.id)),
           )
           .catch(() => [])
       : [];
@@ -966,10 +947,7 @@ export async function clearVoiceState(
   return existingState;
 }
 
-export async function heartbeatVoiceState(
-  userId: string,
-  input: HeartbeatVoiceStateBody | string,
-) {
+export async function heartbeatVoiceState(userId: string, input: HeartbeatVoiceStateBody | string) {
   await maybeCleanupStaleVoiceStates();
   const sessionId = typeof input === "string" ? input : input.sessionId;
 
@@ -1006,8 +984,22 @@ export async function heartbeatVoiceState(
     });
   }
 
-  if (typeof input !== "string" && input.selfStream !== undefined) {
-    const action = input.selfStream ? startMediaUsageSession : endMediaUsageSession;
+  const selfScreenShare =
+    typeof input !== "string" ? (input.selfScreenShare ?? input.selfStream) : undefined;
+
+  if (selfScreenShare !== undefined) {
+    const redis = getRedis();
+    const screenShareKey = getVoiceScreenShareStateKey(existingState.channelId, userId);
+    const action = selfScreenShare ? startMediaUsageSession : endMediaUsageSession;
+
+    if (selfScreenShare) {
+      await redis
+        .set(screenShareKey, "1", "EX", VOICE_SCREEN_SHARE_STATE_TTL_SECONDS)
+        .catch(() => undefined);
+    } else {
+      await redis.del(screenShareKey).catch(() => undefined);
+    }
+
     await action({
       channelId: existingState.channelId,
       kind: "SCREEN_SHARE",
@@ -1016,6 +1008,14 @@ export async function heartbeatVoiceState(
       userId,
     }).catch((error) => {
       logAnalyticsError("voice screen-share heartbeat", error);
+    });
+
+    await emitVoiceScreenShareUpdate({
+      channelId: existingState.channelId,
+      isScreenSharing: selfScreenShare,
+      userId,
+    }).catch((error) => {
+      logError("[voice] Screen-share heartbeat emit failed", error);
     });
   }
 

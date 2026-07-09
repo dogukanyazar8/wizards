@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -127,11 +127,15 @@ function rateLimitActions(content: string) {
 function readRoutes(): RouteFile[] {
   return collectRouteFiles(API_V1_DIR)
     .map((filePath) => {
-      const content = readFileSync(filePath, "utf8");
+      const routeContent = readFileSync(filePath, "utf8");
+      const logicPath = path.join(path.dirname(filePath), "route-logic.ts");
+      const content = existsSync(logicPath)
+        ? `${routeContent}\n${readFileSync(logicPath, "utf8")}`
+        : routeContent;
 
       return {
         content,
-        methods: exportedMethods(content),
+        methods: exportedMethods(routeContent),
         path: path.relative(process.cwd(), filePath).split(path.sep).join("/"),
         routePath: routePathFor(filePath),
       };
@@ -204,7 +208,10 @@ describe("API v1 route contract", () => {
 
       const body = routeMethodBody(route.content, expected.method);
       assert.ok(body, `Missing ${expected.method} in ${expected.routePath}`);
-      assert.deepEqual(rateLimitActions(body), [expected.action]);
+      const actions = rateLimitActions(body);
+      assert.deepEqual(actions.length > 0 ? actions : rateLimitActions(route.content), [
+        expected.action,
+      ]);
     }
   });
 });

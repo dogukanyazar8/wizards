@@ -22,17 +22,24 @@ function extractFunctionSource(source: string, name: string, nextName: string) {
 }
 
 function readMobileScreenImplementationSource() {
-  return readFileSync(
-    join(process.cwd(), "src", "app", "mobile-root-screens-legacy.tsx"),
-    "utf8",
-  );
+  return [
+    "src/app/mobile-root-screen-shared.ts",
+    "src/app/screens/settings-screen.tsx",
+    "src/app/screens/home-screen.tsx",
+    "src/app/screens/channel-screen.tsx",
+    "src/app/composer/mobile-composer.tsx",
+    "src/app/components/message-primitives.tsx",
+    "src/app/screens/dm-screen.tsx",
+    "src/app/screens/voice-screen.tsx",
+    "src/app/screens/notifications-screen.tsx",
+    "src/app/components/ui-atoms.tsx",
+  ]
+    .map((path) => readFileSync(join(process.cwd(), path), "utf8"))
+    .join("\n");
 }
 
 function readMobileAuthImplementationSource() {
-  return readFileSync(
-    join(process.cwd(), "src", "app", "screens", "auth-gate.tsx"),
-    "utf8",
-  );
+  return readFileSync(join(process.cwd(), "src", "app", "screens", "auth-gate.tsx"), "utf8");
 }
 
 describe("mobile design contract", () => {
@@ -50,9 +57,9 @@ describe("mobile design contract", () => {
   });
 
   it("uses Outfit as the app-wide mobile font contract", () => {
-    const packageJson = JSON.parse(
-      readFileSync(join(process.cwd(), "package.json"), "utf8"),
-    ) as { dependencies?: Record<string, string> };
+    const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
+      dependencies?: Record<string, string>;
+    };
     const rootSource = readFileSync(
       join(process.cwd(), "src", "app", "whispr-mobile-root.tsx"),
       "utf8",
@@ -98,11 +105,7 @@ describe("mobile design contract", () => {
       "button",
       "caption",
     ] as const) {
-      assert.equal(
-        typeof mobileTypography[typographyToken].fontFamily,
-        "string",
-        typographyToken,
-      );
+      assert.equal(typeof mobileTypography[typographyToken].fontFamily, "string", typographyToken);
       assert.equal(typeof mobileTypography[typographyToken].fontSize, "number");
       assert.equal(typeof mobileTypography[typographyToken].lineHeight, "number");
     }

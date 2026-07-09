@@ -58,6 +58,7 @@ export async function POST(request: Request) {
       data: {
         contentType: input.contentType,
         filename: normalizeMessageAttachmentFilename(input.filename),
+        scanStatus: "CLEAN",
         size: input.size,
         url: input.dataUrl,
         userId,
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
         filename: true,
         height: true,
         id: true,
+        scanStatus: true,
         size: true,
         url: true,
         width: true,

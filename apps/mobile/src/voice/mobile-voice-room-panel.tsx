@@ -7,6 +7,7 @@ import type {
   MobileVoiceRoomParticipant,
   MobileVoiceRoomState,
 } from "./mobile-voice-room-contract";
+import type { MobileVoiceInputMode } from "./mobile-voice-ptt-contract";
 
 const copy = activeMobileCopy;
 
@@ -49,10 +50,7 @@ function VoiceAvatar({ participant }: { participant: MobileVoiceRoomParticipant 
         <Text style={styles.avatarText}>{label}</Text>
       )}
       <View
-        style={[
-          styles.avatarStatusDot,
-          participant.isSpeaking && styles.avatarStatusDotSpeaking,
-        ]}
+        style={[styles.avatarStatusDot, participant.isSpeaking && styles.avatarStatusDotSpeaking]}
       />
     </View>
   );
@@ -80,12 +78,7 @@ function SpeakingWave({ active, level }: { active: boolean; level: number }) {
 
 function VoiceParticipantRow({ participant }: { participant: MobileVoiceRoomParticipant }) {
   return (
-    <View
-      style={[
-        styles.participantRow,
-        participant.isSpeaking && styles.participantRowSpeaking,
-      ]}
-    >
+    <View style={[styles.participantRow, participant.isSpeaking && styles.participantRowSpeaking]}>
       <VoiceAvatar participant={participant} />
       <View style={styles.participantText}>
         <View style={styles.participantTitleRow}>
@@ -107,6 +100,9 @@ function VoiceParticipantRow({ participant }: { participant: MobileVoiceRoomPart
       <SpeakingWave active={participant.isSpeaking} level={participant.audioLevel} />
       {participant.isCameraEnabled ? (
         <Ionicons name="videocam" size={15} color={mobileColors.accentStrong} />
+      ) : null}
+      {participant.isScreenSharing ? (
+        <Ionicons name="desktop-outline" size={15} color={mobileColors.success} />
       ) : null}
     </View>
   );
@@ -172,19 +168,24 @@ export function MobileVoiceRoomPanel({
   onRequestPermission,
   onToggleCamera,
   onToggleMute,
+  onToggleScreenShare,
   room,
+  voiceInputMode = "voice-activity",
 }: {
   onLeave(): void;
   onRequestPermission(): void;
   onToggleCamera(): void;
   onToggleMute(): void;
+  onToggleScreenShare(): void;
   room: MobileVoiceRoomState;
+  voiceInputMode?: MobileVoiceInputMode;
 }) {
   const isBusy =
     room.status === "checking-permission" ||
     room.status === "connecting" ||
     room.status === "leaving";
   const isConnected = room.status === "connected";
+  const isPushToTalkMode = voiceInputMode === "push-to-talk";
 
   return (
     <View style={styles.card}>
@@ -231,25 +232,35 @@ export function MobileVoiceRoomPanel({
         {isConnected ? (
           <>
             <VoiceControlButton
-              icon={room.selfMuted ? "mic-off" : "mic"}
-              label={room.selfMuted ? copy.voiceUnmuteAction : copy.voiceMuteAction}
+              disabled={isPushToTalkMode}
+              icon={isPushToTalkMode || room.selfMuted ? "mic-off" : "mic"}
+              label={
+                isPushToTalkMode
+                  ? copy.voiceInputModePushToTalk
+                  : room.selfMuted
+                    ? copy.voiceUnmuteAction
+                    : copy.voiceMuteAction
+              }
               onPress={onToggleMute}
-              tone={room.selfMuted ? "neutral" : "primary"}
+              tone={!isPushToTalkMode && !room.selfMuted ? "primary" : "neutral"}
             />
             <VoiceControlButton
               icon={room.selfCameraEnabled ? "videocam" : "videocam-off"}
-              label={
-                room.selfCameraEnabled
-                  ? copy.voiceCameraOffAction
-                  : copy.voiceCameraOnAction
-              }
+              label={room.selfCameraEnabled ? copy.voiceCameraOffAction : copy.voiceCameraOnAction}
               onPress={onToggleCamera}
             />
             <VoiceControlButton
-              disabled
-              icon="phone-portrait-outline"
-              label={copy.voiceScreenShareUnavailable}
-              onPress={() => undefined}
+              disabled={
+                room.screenShareStatus === "starting" || room.screenShareStatus === "stopping"
+              }
+              icon="desktop-outline"
+              label={
+                room.selfScreenShareEnabled
+                  ? copy.voiceScreenShareStopShortAction
+                  : copy.voiceScreenShareAction
+              }
+              onPress={onToggleScreenShare}
+              tone={room.selfScreenShareEnabled ? "primary" : "neutral"}
             />
             <VoiceControlButton
               icon="call"

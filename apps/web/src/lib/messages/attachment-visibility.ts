@@ -1,0 +1,83 @@
+import type { AttachmentScanStatus, MessageAttachment } from "@wizards/types";
+
+export type AttachmentVisibilityInput = {
+  contentType: string;
+  duration: number | null;
+  filename: string;
+  height: number | null;
+  id: string;
+  scanStatus?: AttachmentScanStatus | null;
+  size: number;
+  thumbnailUrl: string | null;
+  url: string | null;
+  userId: string;
+  width: number | null;
+};
+
+export function canViewAttachmentUrl(
+  attachment: Pick<AttachmentVisibilityInput, "scanStatus"> & { userId?: string | null },
+  viewerId: string | null | undefined,
+) {
+  const scanStatus = attachment.scanStatus ?? "PENDING";
+
+  if (scanStatus === "INFECTED") {
+    return false;
+  }
+
+  return (
+    scanStatus === "CLEAN" || (!!viewerId && !!attachment.userId && attachment.userId === viewerId)
+  );
+}
+
+export function mapAttachmentForViewer(
+  attachment: AttachmentVisibilityInput,
+  viewerId: string | null | undefined,
+): MessageAttachment {
+  const scanStatus = attachment.scanStatus ?? "PENDING";
+  const canViewUrl = canViewAttachmentUrl(attachment, viewerId);
+
+  return {
+    id: attachment.id,
+    url: canViewUrl ? attachment.url : null,
+    filename: attachment.filename,
+    contentType: attachment.contentType,
+    size: attachment.size,
+    ...(attachment.width ? { width: attachment.width } : {}),
+    ...(attachment.height ? { height: attachment.height } : {}),
+    duration: attachment.duration ?? undefined,
+    thumbnailUrl: canViewUrl ? (attachment.thumbnailUrl ?? undefined) : undefined,
+    scanStatus,
+  };
+}
+
+export function mapAttachmentsForViewer(
+  attachments: AttachmentVisibilityInput[],
+  viewerId: string | null | undefined,
+) {
+  return attachments.map((attachment) => mapAttachmentForViewer(attachment, viewerId));
+}
+
+export function redactMessageAttachmentUrlsForViewer<
+  TMessage extends { attachments: MessageAttachment[] },
+>(message: TMessage, viewerId: string | null | undefined): TMessage {
+  return {
+    ...message,
+    attachments: message.attachments.map((attachment) => {
+      const scanStatus = attachment.scanStatus ?? "PENDING";
+      const attachmentWithOwner = attachment as MessageAttachment & { userId?: unknown };
+      const userId =
+        typeof attachmentWithOwner.userId === "string" ? attachmentWithOwner.userId : undefined;
+      const canView = canViewAttachmentUrl(
+        userId ? { scanStatus, userId } : { scanStatus },
+        viewerId,
+      );
+
+      return {
+        ...attachment,
+        url: canView ? attachment.url : null,
+        thumbnailUrl: canView ? attachment.thumbnailUrl : undefined,
+        scanStatus,
+      };
+    }),
+  };
+}

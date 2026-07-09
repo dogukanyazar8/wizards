@@ -1,0 +1,4 @@
+title = "Wizards Gitleaks configuration"
+
+[extend]
+useDefault = true

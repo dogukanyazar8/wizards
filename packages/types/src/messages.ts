@@ -28,9 +28,11 @@ export const MessageReactionSchema = z.object({
     .optional(),
 });
 
+export const AttachmentScanStatusSchema = z.enum(["PENDING", "CLEAN", "INFECTED", "ERROR"]);
+
 export const MessageAttachmentSchema = z.object({
   id: z.string(),
-  url: z.string().url(),
+  url: z.string().url().nullable(),
   filename: z.string(),
   contentType: z.string(),
   size: z.number().int().positive(),
@@ -38,6 +40,7 @@ export const MessageAttachmentSchema = z.object({
   height: z.number().int().optional(),
   duration: z.number().positive().nullable().optional(),
   thumbnailUrl: z.string().url().nullable().optional(),
+  scanStatus: AttachmentScanStatusSchema.optional(),
 });
 
 export const MessageThreadParticipantSchema = z.object({
@@ -137,6 +140,7 @@ export const EditMessageInputSchema = z.object({
 
 export type MessageAuthor = z.infer<typeof MessageAuthorSchema>;
 export type MessageReaction = z.infer<typeof MessageReactionSchema>;
+export type AttachmentScanStatus = z.infer<typeof AttachmentScanStatusSchema>;
 export type MessageAttachment = z.infer<typeof MessageAttachmentSchema>;
 export type MessageThreadParticipant = z.infer<typeof MessageThreadParticipantSchema>;
 export type MessageThreadSummary = z.infer<typeof MessageThreadSummarySchema>;

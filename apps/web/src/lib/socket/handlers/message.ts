@@ -7,6 +7,7 @@ import {
   normalizeMessageContentForSend,
   parseUploadedAttachmentInputs,
 } from "@/lib/messages/attachments";
+import { redactMessageAttachmentUrlsForViewer } from "@/lib/messages/attachment-visibility";
 import { ensureChannelMembership } from "@/lib/socket/channel-membership";
 import type { HandlerContext } from "@/lib/socket/context";
 import {
@@ -252,10 +253,26 @@ export function registerMessageHandlers(
       }
 
       if (activeChannelViewerUserIds.length > 0) {
-        io.to(activeChannelViewerUserIds.map((viewerUserId) => `user:${viewerUserId}`)).emit(
-          "message:new",
-          message,
+        const senderViewerIds = activeChannelViewerUserIds.filter(
+          (viewerUserId) => viewerUserId === userId,
         );
+        const otherViewerIds = activeChannelViewerUserIds.filter(
+          (viewerUserId) => viewerUserId !== userId,
+        );
+
+        if (senderViewerIds.length > 0) {
+          io.to(senderViewerIds.map((viewerUserId) => `user:${viewerUserId}`)).emit(
+            "message:new",
+            message,
+          );
+        }
+
+        if (otherViewerIds.length > 0) {
+          io.to(otherViewerIds.map((viewerUserId) => `user:${viewerUserId}`)).emit(
+            "message:new",
+            redactMessageAttachmentUrlsForViewer(message, null),
+          );
+        }
       }
       const directEmitDurationMs = Date.now() - directEmitStartedAt;
 
@@ -399,7 +416,17 @@ export function registerMessageHandlers(
         canBypassMessageLimit ? null : existing.channel.server.messageCharacterLimit,
         { permissions },
       );
-      await emitToChannelViewers(io, message.channelId, "message:updated", message);
+      const viewerUserIds = await getPermittedChannelViewerUserIds(message.channelId);
+      const ownerViewerIds = viewerUserIds.filter((viewerUserId) => viewerUserId === userId);
+      const otherViewerIds = viewerUserIds.filter((viewerUserId) => viewerUserId !== userId);
+
+      emitToUserRooms(io, ownerViewerIds, "message:updated", message);
+      emitToUserRooms(
+        io,
+        otherViewerIds,
+        "message:updated",
+        redactMessageAttachmentUrlsForViewer(message, null),
+      );
     } catch (error) {
       emitSocketError("MESSAGE_EDIT_ERROR", "Unable to edit message.", error);
     }

@@ -23,6 +23,15 @@ services:
     volumes:
       - redis_data:/data
 
+  clamav:
+    image: clamav/clamav:stable
+    container_name: wizards-clamav
+    restart: unless-stopped
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav_data:/var/lib/clamav
+
   livekit:
     image: livekit/livekit-server:latest
     container_name: wizards-livekit
@@ -36,5 +45,6 @@ services:
       - "7882:7882/udp"
 
 volumes:
+  clamav_data:
   postgres_data:
   redis_data:

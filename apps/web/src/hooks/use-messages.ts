@@ -55,6 +55,7 @@ function mapDMAttachments(message: DMMessagePayload): MessageAttachment[] {
     height: attachment.height ?? undefined,
     duration: attachment.duration ?? undefined,
     thumbnailUrl: attachment.thumbnailUrl ?? undefined,
+    scanStatus: attachment.scanStatus,
   }));
 }
 

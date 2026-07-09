@@ -258,6 +258,7 @@ export const EN_MESSAGES = {
     "validation.password.min": "Password must be at least 8 characters.",
     "validation.role.pattern":
       "Role names can use letters, numbers, spaces, hyphens, or underscores.",
+    "validation.twoFactor.invalid": "Enter a valid two-factor or recovery code.",
     "validation.turnstile.invalid": "Please complete the security check again.",
     "validation.turnstile.required": "Please complete the security check.",
     "validation.username.max": "Username must be 32 characters or fewer.",
@@ -984,6 +985,11 @@ export const EN_MESSAGES = {
     "auth.login.passwordLabel": "Password",
     "auth.login.passwordPlaceholder": "Enter your password",
     "auth.login.rememberMe": "Remember me",
+    "auth.login.twoFactorHelp":
+      "Use a 6-digit authenticator code or one of your saved recovery codes.",
+    "auth.login.twoFactorLabel": "Two-factor or recovery code",
+    "auth.login.twoFactorPlaceholder": "123456 or recovery code",
+    "auth.login.twoFactorUseCode": "Use 2FA or recovery code",
     "auth.login.sharedDemoWorkspace": "Shared demo workspace",
     "auth.login.signInUnavailable": "Unable to log in right now.",
     "auth.login.testAccount": "Test Account",
@@ -1176,10 +1182,10 @@ export const EN_MESSAGES = {
       "Your sign-in email is attached to this account.",
     "settings.account.quickSuggestions.twoFactor.title": "Enable two-factor authentication",
     "settings.account.quickSuggestions.twoFactor.description":
-      "A backend-backed 2FA flow with re-auth and recovery codes is required before activation.",
+      "Protect sign-in with an authenticator app and one-time recovery codes.",
     "settings.account.quickSuggestions.recoveryCodes.title": "View backup codes",
     "settings.account.quickSuggestions.recoveryCodes.description":
-      "Recovery codes will be available after 2FA is safely implemented.",
+      "Recovery codes are generated once when 2FA is enabled.",
     "settings.account.quickSuggestions.securityLink": "View all security settings",
     "settings.account.security.title": "Security center",
     "settings.account.security.description":
@@ -1188,6 +1194,37 @@ export const EN_MESSAGES = {
     "settings.account.security.emailUnverified": "Unverified",
     "settings.account.security.backendRequired":
       "Requires a re-authenticated backend flow before it can be enabled safely.",
+    "settings.account.twoFactor.codeOrRecoveryPlaceholder": "Authenticator or recovery code",
+    "settings.account.twoFactor.codePlaceholder": "6-digit code",
+    "settings.account.twoFactor.confirmCta": "Enable 2FA",
+    "settings.account.twoFactor.confirmLabel": "Confirm authenticator code",
+    "settings.account.twoFactor.disableCta": "Disable 2FA",
+    "settings.account.twoFactor.disableDescription":
+      "Disabling 2FA requires your password plus a valid authenticator or recovery code.",
+    "settings.account.twoFactor.disabled": "Two-factor authentication has been disabled.",
+    "settings.account.twoFactor.enabled":
+      "Two-factor authentication is enabled. Save these recovery codes now.",
+    "settings.account.twoFactor.errors.alreadyEnabled": "Two-factor authentication is already enabled.",
+    "settings.account.twoFactor.errors.invalidCode": "That two-factor code is invalid.",
+    "settings.account.twoFactor.errors.invalidCredentials": "Password or two-factor code is invalid.",
+    "settings.account.twoFactor.errors.notEnabled": "Two-factor authentication is not enabled.",
+    "settings.account.twoFactor.errors.rateLimited":
+      "Too many two-factor attempts for this account.",
+    "settings.account.twoFactor.errors.setupRequired": "Start setup before confirming a code.",
+    "settings.account.twoFactor.errors.unavailable":
+      "Two-factor authentication is unavailable right now.",
+    "settings.account.twoFactor.generated": "Generated",
+    "settings.account.twoFactor.manualKey": "Manual setup key",
+    "settings.account.twoFactor.off": "Off",
+    "settings.account.twoFactor.passwordPlaceholder": "Current password",
+    "settings.account.twoFactor.qrAlt": "Two-factor authenticator QR code",
+    "settings.account.twoFactor.recoveryDescription":
+      "Each recovery code works once. They will not be shown again.",
+    "settings.account.twoFactor.recoveryTitle": "Save your recovery codes",
+    "settings.account.twoFactor.retryAfter": "Try again in {seconds}s.",
+    "settings.account.twoFactor.setupCta": "Set up 2FA",
+    "settings.account.twoFactor.setupReady":
+      "Scan the QR code, then enter the current code to finish setup.",
     "settings.account.security.sessions.title": "Active sessions & devices",
     "settings.account.security.sessions.description":
       "See signed-in devices and revoke sessions from a dedicated device center.",
@@ -2106,6 +2143,9 @@ export const EN_MESSAGES = {
     "chat.attachments.removeAttachment": "Remove attachment",
     "chat.attachments.removeImage": "Remove image",
     "chat.attachments.resetZoom": "Reset zoom",
+    "chat.attachments.scanBlocked": "Blocked",
+    "chat.attachments.scanPending": "Scanning",
+    "chat.attachments.scanUnavailable": "Scan unavailable",
     "chat.attachments.unsupportedAttachmentType":
       "Only GIF, PNG, JPEG, WebP, MP4, WebM, MOV, PDF, text, CSV, Word, Excel, PowerPoint, and RTF files are supported right now.",
     "chat.attachments.unsupportedImageType":

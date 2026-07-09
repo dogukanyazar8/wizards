@@ -18,7 +18,7 @@ const validPayload = {
   },
   contracts: {
     deepLinks: ["auth-handoff", "invite", "route"],
-    permissions: ["notifications", "microphone", "camera", "photoLibrary"],
+    permissions: ["notifications", "microphone", "camera", "photoLibrary", "screenCapture"],
   },
   features: {
     attachments: {

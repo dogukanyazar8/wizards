@@ -25,7 +25,7 @@ function getSocketRegistry() {
   return globalThis as GlobalSocketRegistry;
 }
 
-export function setSocketServer(server: AppSocketServer) {
+export function setSocketServer(server: AppSocketServer | null) {
   socketServer = server;
   getSocketRegistry()[SOCKET_SERVER_GLOBAL_KEY] = server;
 }

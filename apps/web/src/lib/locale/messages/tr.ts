@@ -259,6 +259,7 @@ export const TR_MESSAGES = {
     "validation.password.min": "Şifre en az 8 karakter olmalıdır.",
     "validation.role.pattern":
       "Rol adları harf, rakam, boşluk, kısa çizgi veya alt çizgi içerebilir.",
+    "validation.twoFactor.invalid": "Geçerli bir iki faktörlü kod veya yedek kod girin.",
     "validation.turnstile.invalid": "Lütfen güvenlik doğrulamasını tekrar tamamla.",
     "validation.turnstile.required": "Lütfen güvenlik doğrulamasını tamamla.",
     "validation.username.max": "Kullanıcı adı en fazla 32 karakter olabilir.",
@@ -990,6 +991,11 @@ export const TR_MESSAGES = {
     "auth.login.passwordLabel": "Şifreniz",
     "auth.login.passwordPlaceholder": "Şifrenizi girin",
     "auth.login.rememberMe": "Beni hatırla",
+    "auth.login.twoFactorHelp":
+      "6 haneli authenticator kodunu veya kaydettiğin yedek kodlardan birini kullan.",
+    "auth.login.twoFactorLabel": "İki faktörlü kod veya yedek kod",
+    "auth.login.twoFactorPlaceholder": "123456 veya yedek kod",
+    "auth.login.twoFactorUseCode": "2FA veya yedek kod kullan",
     "auth.login.sharedDemoWorkspace": "Paylaşılan demo alanı",
     "auth.login.signInUnavailable": "Şu anda giriş yapılamıyor.",
     "auth.login.testAccount": "Test Hesap",
@@ -1179,10 +1185,10 @@ export const TR_MESSAGES = {
     "settings.account.quickSuggestions.twoFactor.title":
       "İki faktörlü doğrulamayı etkinleştir",
     "settings.account.quickSuggestions.twoFactor.description":
-      "Etkinleştirme için yeniden doğrulama ve yedek kodları olan backend destekli 2FA akışı gerekir.",
+      "Girişi authenticator uygulaması ve tek kullanımlık yedek kodlarla koru.",
     "settings.account.quickSuggestions.recoveryCodes.title": "Yedek kodları görüntüle",
     "settings.account.quickSuggestions.recoveryCodes.description":
-      "Yedek kodlar güvenli 2FA akışı eklendikten sonra kullanılabilir olacak.",
+      "Yedek kodlar 2FA etkinleştirildiğinde bir kez üretilir.",
     "settings.account.quickSuggestions.securityLink": "Tüm güvenlik ayarlarını görüntüle",
     "settings.account.security.title": "Güvenlik merkezi",
     "settings.account.security.description":
@@ -1191,6 +1197,37 @@ export const TR_MESSAGES = {
     "settings.account.security.emailUnverified": "Doğrulanmadı",
     "settings.account.security.backendRequired":
       "Güvenli şekilde açılmadan önce yeniden doğrulamalı backend akışı gerekir.",
+    "settings.account.twoFactor.codeOrRecoveryPlaceholder": "Authenticator veya yedek kod",
+    "settings.account.twoFactor.codePlaceholder": "6 haneli kod",
+    "settings.account.twoFactor.confirmCta": "2FA'yı etkinleştir",
+    "settings.account.twoFactor.confirmLabel": "Authenticator kodunu doğrula",
+    "settings.account.twoFactor.disableCta": "2FA'yı kapat",
+    "settings.account.twoFactor.disableDescription":
+      "2FA'yı kapatmak için şifren ve geçerli bir authenticator ya da yedek kod gerekir.",
+    "settings.account.twoFactor.disabled": "İki faktörlü doğrulama kapatıldı.",
+    "settings.account.twoFactor.enabled":
+      "İki faktörlü doğrulama etkin. Bu yedek kodları şimdi kaydet.",
+    "settings.account.twoFactor.errors.alreadyEnabled": "İki faktörlü doğrulama zaten etkin.",
+    "settings.account.twoFactor.errors.invalidCode": "Bu iki faktörlü kod geçersiz.",
+    "settings.account.twoFactor.errors.invalidCredentials": "Şifre veya iki faktörlü kod geçersiz.",
+    "settings.account.twoFactor.errors.notEnabled": "İki faktörlü doğrulama etkin değil.",
+    "settings.account.twoFactor.errors.rateLimited":
+      "Bu hesap için çok fazla iki faktörlü deneme yapıldı.",
+    "settings.account.twoFactor.errors.setupRequired": "Kodu doğrulamadan önce kurulumu başlat.",
+    "settings.account.twoFactor.errors.unavailable":
+      "İki faktörlü doğrulama şu anda kullanılamıyor.",
+    "settings.account.twoFactor.generated": "Üretildi",
+    "settings.account.twoFactor.manualKey": "Manuel kurulum anahtarı",
+    "settings.account.twoFactor.off": "Kapalı",
+    "settings.account.twoFactor.passwordPlaceholder": "Mevcut şifre",
+    "settings.account.twoFactor.qrAlt": "İki faktörlü authenticator QR kodu",
+    "settings.account.twoFactor.recoveryDescription":
+      "Her yedek kod yalnızca bir kez çalışır. Tekrar gösterilmeyecekler.",
+    "settings.account.twoFactor.recoveryTitle": "Yedek kodlarını kaydet",
+    "settings.account.twoFactor.retryAfter": "{seconds} sn sonra tekrar dene.",
+    "settings.account.twoFactor.setupCta": "2FA kurulumu yap",
+    "settings.account.twoFactor.setupReady":
+      "QR kodu tara, ardından kurulumu bitirmek için güncel kodu gir.",
     "settings.account.security.sessions.title": "Aktif oturumlar ve cihazlar",
     "settings.account.security.sessions.description":
       "Oturum açmış cihazları gör ve oturumları ayrı bir cihaz merkezinden sonlandır.",
@@ -2110,6 +2147,9 @@ export const TR_MESSAGES = {
     "chat.attachments.removeAttachment": "Eki kaldır",
     "chat.attachments.removeImage": "Görseli kaldır",
     "chat.attachments.resetZoom": "Yakınlaştırmayı sıfırla",
+    "chat.attachments.scanBlocked": "Engellendi",
+    "chat.attachments.scanPending": "Taranıyor",
+    "chat.attachments.scanUnavailable": "Tarama kullanılamıyor",
     "chat.attachments.unsupportedAttachmentType":
       "Şu anda yalnızca GIF, PNG, JPEG, WebP, MP4, WebM, MOV, PDF, metin, CSV, Word, Excel, PowerPoint ve RTF dosyaları destekleniyor.",
     "chat.attachments.unsupportedImageType":

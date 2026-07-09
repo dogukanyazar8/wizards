@@ -2,6 +2,7 @@ import { prisma } from "@wizards/db";
 import { ApiError, jsonError } from "@/lib/api";
 import { openPublicAttachmentDownload } from "@/lib/attachments/download-proxy";
 import { requireApiUserId } from "@/lib/auth/api";
+import { canViewAttachmentUrl } from "@/lib/messages/attachment-visibility";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
 
@@ -73,6 +74,7 @@ export async function GET(_: Request, context: RouteContext) {
           },
         },
         size: true,
+        scanStatus: true,
         url: true,
         userId: true,
       },
@@ -83,6 +85,10 @@ export async function GET(_: Request, context: RouteContext) {
     }
 
     await assertAttachmentAccess(userId, attachment);
+
+    if (!canViewAttachmentUrl(attachment, userId)) {
+      throw new ApiError("Attachment not found.", 404, "ATTACHMENT_NOT_FOUND");
+    }
 
     const upstream = await openPublicAttachmentDownload(attachment.url);
 

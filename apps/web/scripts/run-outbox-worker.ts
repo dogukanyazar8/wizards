@@ -1,5 +1,9 @@
-import { assertWebEnvironment } from "@/lib/env";
-import { startOutboxWorker, stopOutboxWorkerForTests } from "@/lib/outbox/worker";
+import { assertOutboxWorkerEnvironment } from "@/lib/env";
+import { startOutboxWorker, stopOutboxWorker } from "@/lib/outbox/worker";
+import {
+  closeHeadlessSocketServer,
+  initHeadlessSocketServer,
+} from "@/lib/socket/worker-runtime";
 
 try {
   process.loadEnvFile();
@@ -8,20 +12,37 @@ try {
 }
 
 const runtime = process.env.NODE_ENV === "production" ? "production" : "development";
-assertWebEnvironment(process.env, runtime);
+assertOutboxWorkerEnvironment(process.env, runtime);
+
+if (process.env.WHISPR_OUTBOX_WORKER === "false") {
+  console.info("Whispr outbox worker is disabled.");
+  process.exit(0);
+}
+
+const io = initHeadlessSocketServer();
 
 const started = startOutboxWorker({ keepAlive: true });
 
 if (started) {
   console.info("Whispr outbox worker started.");
-} else {
-  console.info("Whispr outbox worker is disabled.");
 }
 
-function shutdown() {
-  stopOutboxWorkerForTests();
+let shuttingDown = false;
+
+async function shutdown() {
+  if (shuttingDown) {
+    return;
+  }
+
+  shuttingDown = true;
+  await stopOutboxWorker();
+  await closeHeadlessSocketServer(io);
   process.exit(0);
 }
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+process.on("SIGINT", () => {
+  void shutdown();
+});
+process.on("SIGTERM", () => {
+  void shutdown();
+});

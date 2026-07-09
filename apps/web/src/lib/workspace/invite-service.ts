@@ -281,7 +281,7 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
         lastReadMessageId: transactionResult.message.id,
         userIds: [userId, ...activeViewerUserIds],
       });
-      const message = await getMessageById(transactionResult.message.id);
+      const message = await getMessageById(transactionResult.message.id, userId);
       if (message) {
         getSocketServer()?.to(transactionResult.message.channelId).emit("message:new", message);
       }

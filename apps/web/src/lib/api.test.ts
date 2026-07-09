@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, describe, it, mock } from "node:test";
 import { z } from "zod";
 
-import { ApiError, parseJsonBody } from "./api";
+import { ApiError, jsonError, parseJsonBody } from "./api";
 
 const TestSchema = z.object({
   name: z.string(),
@@ -44,5 +44,45 @@ describe("parseJsonBody", () => {
         error.status === 415 &&
         error.code === "UNSUPPORTED_MEDIA_TYPE",
     );
+  });
+});
+
+describe("jsonError", () => {
+  afterEach(() => {
+    mock.restoreAll();
+  });
+
+  it("serializes ApiError responses with stable status and code fields", async () => {
+    const response = jsonError(new ApiError("Forbidden", 403, "FORBIDDEN"));
+
+    assert.equal(response.status, 403);
+    assert.deepEqual(await response.json(), {
+      code: "FORBIDDEN",
+      error: "Forbidden",
+    });
+  });
+
+  it("serializes Zod validation errors without leaking schema details", async () => {
+    const parseResult = TestSchema.safeParse({});
+    assert.equal(parseResult.success, false);
+
+    const response = jsonError(parseResult.error);
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), {
+      error: "Required",
+    });
+  });
+
+  it("redacts unexpected errors behind the public 500 envelope and logs once", async () => {
+    const errorLog = mock.method(console, "error", () => undefined);
+
+    const response = jsonError(new Error("database password leaked"));
+
+    assert.equal(response.status, 500);
+    assert.deepEqual(await response.json(), {
+      error: "Internal server error",
+    });
+    assert.equal(errorLog.mock.callCount(), 1);
   });
 });

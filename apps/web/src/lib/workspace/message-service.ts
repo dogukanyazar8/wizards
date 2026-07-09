@@ -15,6 +15,7 @@ import {
   claimUploadedMessageAttachments,
   normalizeMessageContentForSend,
 } from "@/lib/messages/attachments";
+import { mapAttachmentsForViewer } from "@/lib/messages/attachment-visibility";
 import { enqueueMessageCreatedAnalyticsJob } from "@/lib/outbox/service";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
 import { PermissionBits, hasPermission } from "@/lib/workspace/permissions";
@@ -71,6 +72,7 @@ const messageInclude = {
   attachments: {
     select: {
       id: true,
+      userId: true,
       url: true,
       filename: true,
       contentType: true,
@@ -79,6 +81,7 @@ const messageInclude = {
       height: true,
       duration: true,
       thumbnailUrl: true,
+      scanStatus: true,
     },
   },
   reactions: {
@@ -300,18 +303,12 @@ async function getThreadSummaryMap(parentMessageIds: string[]) {
   return summaries;
 }
 
-function mapRawMessage(message: RawMessage, threadSummary?: MessageThreadSummary): ChatMessage {
-  const attachments: MessageAttachment[] = message.attachments.map((a) => ({
-    id: a.id,
-    url: a.url,
-    filename: a.filename,
-    contentType: a.contentType,
-    size: a.size,
-    width: a.width ?? undefined,
-    height: a.height ?? undefined,
-    duration: a.duration ?? undefined,
-    thumbnailUrl: a.thumbnailUrl ?? undefined,
-  }));
+export function mapRawMessage(
+  message: RawMessage,
+  threadSummary?: MessageThreadSummary,
+  viewerId?: string | null,
+): ChatMessage {
+  const attachments: MessageAttachment[] = mapAttachmentsForViewer(message.attachments, viewerId);
 
   const replyTo: ReplyTo | undefined = message.reply
     ? {
@@ -356,7 +353,12 @@ function mapRawMessage(message: RawMessage, threadSummary?: MessageThreadSummary
   };
 }
 
-export async function getChannelMessages(channelId: string, cursor?: string, limit: number = 50) {
+export async function getChannelMessages(
+  channelId: string,
+  cursor?: string,
+  limit: number = 50,
+  viewerId?: string,
+) {
   const queryArgs: Prisma.MessageFindManyArgs = {
     where: {
       channelId,
@@ -380,7 +382,7 @@ export async function getChannelMessages(channelId: string, cursor?: string, lim
   const pageMessages = hasMore ? messages.slice(0, limit) : messages;
   const summaries = await getThreadSummaryMap(pageMessages.map((message) => message.id));
   const formatted = pageMessages.map((message) =>
-    mapRawMessage(message, summaries.get(message.id)),
+    mapRawMessage(message, summaries.get(message.id), viewerId),
   );
   const nextCursor = hasMore ? pageMessages[pageMessages.length - 1]?.id : undefined;
 
@@ -396,6 +398,7 @@ export async function getChannelThreadMessages(
   parentMessageId: string,
   cursor?: string,
   limit: number = 50,
+  viewerId?: string,
 ) {
   const parent = (await prisma.message.findFirst({
     where: {
@@ -434,14 +437,17 @@ export async function getChannelThreadMessages(
   const nextCursor = hasMore ? pageMessages[pageMessages.length - 1]?.id : undefined;
 
   return {
-    parent: mapRawMessage(parent, parentSummary.get(parent.id)),
-    messages: pageMessages.reverse().map((message) => mapRawMessage(message)),
+    parent: mapRawMessage(parent, parentSummary.get(parent.id), viewerId),
+    messages: pageMessages.reverse().map((message) => mapRawMessage(message, undefined, viewerId)),
     hasMore,
     ...(nextCursor && { nextCursor }),
   };
 }
 
-export async function getMessageById(messageId: string): Promise<ChatMessage | null> {
+export async function getMessageById(
+  messageId: string,
+  viewerId?: string | null,
+): Promise<ChatMessage | null> {
   const message = (await prisma.message.findFirst({
     where: { id: messageId, ...visibleMessageWhere() },
     include: messageInclude,
@@ -452,7 +458,7 @@ export async function getMessageById(messageId: string): Promise<ChatMessage | n
   }
 
   const summaries = await getThreadSummaryMap([message.id]);
-  return mapRawMessage(message, summaries.get(message.id));
+  return mapRawMessage(message, summaries.get(message.id), viewerId);
 }
 
 export async function listChannelPinnedMessages(
@@ -484,7 +490,7 @@ export async function listChannelPinnedMessages(
 
   return {
     messages: pinnedMessages.map((pin) =>
-      mapRawMessage(pin.message as RawMessage, threadSummaries.get(pin.message.id)),
+      mapRawMessage(pin.message as RawMessage, threadSummaries.get(pin.message.id), userId),
     ),
   };
 }
@@ -549,7 +555,7 @@ export async function pinChannelMessage(userId: string, channelId: string, messa
   });
 
   const summaries = await getThreadSummaryMap([updated.id]);
-  return mapRawMessage(updated as RawMessage, summaries.get(updated.id));
+  return mapRawMessage(updated as RawMessage, summaries.get(updated.id), userId);
 }
 
 export async function unpinChannelMessage(userId: string, channelId: string, messageId: string) {
@@ -594,7 +600,7 @@ export async function unpinChannelMessage(userId: string, channelId: string, mes
   }
 
   const summaries = await getThreadSummaryMap([updated.id]);
-  return mapRawMessage(updated as RawMessage, summaries.get(updated.id));
+  return mapRawMessage(updated as RawMessage, summaries.get(updated.id), userId);
 }
 
 export async function createMessage(
@@ -716,7 +722,7 @@ async function createTypedMessage(args: {
     }
 
     return {
-      payload: mapRawMessage(message),
+      payload: mapRawMessage(message, undefined, args.userId),
     };
   });
 
@@ -791,7 +797,7 @@ export async function editMessage(
     throw error;
   }
 
-  return mapRawMessage(message);
+  return mapRawMessage(message, undefined, userId);
 }
 
 export type DeleteMessageResult =

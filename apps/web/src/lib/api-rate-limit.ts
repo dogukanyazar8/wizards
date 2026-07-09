@@ -96,12 +96,28 @@ export function getApiRateLimitConfig(action: ApiRateLimitAction) {
   return API_RATE_LIMITS[action];
 }
 
-export async function enforceApiRateLimit(userId: string, action: ApiRateLimitAction) {
+export type ApiRateLimitDependencies = {
+  checkRateLimit: typeof checkRateLimit;
+  getRedisRate: typeof getRedisRate;
+  logError: typeof logError;
+};
+
+const defaultApiRateLimitDependencies: ApiRateLimitDependencies = {
+  checkRateLimit,
+  getRedisRate,
+  logError,
+};
+
+export async function enforceApiRateLimit(
+  userId: string,
+  action: ApiRateLimitAction,
+  dependencies: ApiRateLimitDependencies = defaultApiRateLimitDependencies,
+) {
   const config = getApiRateLimitConfig(action);
 
   try {
-    const isAllowed = await checkRateLimit(
-      getRedisRate(),
+    const isAllowed = await dependencies.checkRateLimit(
+      dependencies.getRedisRate(),
       `rate:api:${action}:${userId}`,
       config.limit,
       config.windowSeconds,
@@ -115,7 +131,7 @@ export async function enforceApiRateLimit(userId: string, action: ApiRateLimitAc
       throw error;
     }
 
-    logError(`[api-rate-limit] ${action} unavailable`, error);
+    dependencies.logError(`[api-rate-limit] ${action} unavailable`, error);
     throw new ApiError(
       "Request checks are temporarily unavailable. Please try again shortly.",
       503,

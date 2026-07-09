@@ -4,7 +4,8 @@ export type MobileStorePermissionId =
   | "camera"
   | "microphone"
   | "notifications"
-  | "photoLibrary";
+  | "photoLibrary"
+  | "screenCapture";
 
 export type MobileStorePermissionDisclosure = {
   androidPermission?: string;
@@ -47,16 +48,14 @@ export const WHISPR_MOBILE_APP_IDENTITY = STORE_CONTRACT.appIdentity;
 
 export const WHISPR_MOBILE_ICON = STORE_CONTRACT.icon;
 
-export const WHISPR_MOBILE_PERMISSION_DISCLOSURES =
-  STORE_CONTRACT.permissionDisclosures;
+export const WHISPR_MOBILE_PERMISSION_DISCLOSURES = STORE_CONTRACT.permissionDisclosures;
 
-export const WHISPR_MOBILE_PRIVACY_REQUIREMENTS =
-  STORE_CONTRACT.privacyRequirements;
+export const WHISPR_MOBILE_PRIVACY_REQUIREMENTS = STORE_CONTRACT.privacyRequirements;
 
 const FORBIDDEN_ANDROID_PERMISSIONS = new Set(STORE_CONTRACT.forbiddenAndroidPermissions);
 
-const EXPECTED_ANDROID_PERMISSIONS = WHISPR_MOBILE_PERMISSION_DISCLOSURES.flatMap(
-  (disclosure) => (disclosure.androidPermission ? [disclosure.androidPermission] : []),
+const EXPECTED_ANDROID_PERMISSIONS = WHISPR_MOBILE_PERMISSION_DISCLOSURES.flatMap((disclosure) =>
+  disclosure.androidPermission ? [disclosure.androidPermission] : [],
 );
 
 export function getWhisprMobileAndroidPermissions(): string[] {
@@ -66,9 +65,7 @@ export function getWhisprMobileAndroidPermissions(): string[] {
 export function getWhisprMobileIosInfoPlistUsageDescriptions(): Record<string, string> {
   return Object.fromEntries(
     WHISPR_MOBILE_PERMISSION_DISCLOSURES.flatMap((disclosure) =>
-      disclosure.iosInfoPlistKey
-        ? [[disclosure.iosInfoPlistKey, disclosure.usageDescription]]
-        : [],
+      disclosure.iosInfoPlistKey ? [[disclosure.iosInfoPlistKey, disclosure.usageDescription]] : [],
     ),
   );
 }
@@ -115,9 +112,7 @@ export function validateMobileStoreReadiness(): MobileStoreReadinessResult {
     }
 
     if (!/only when|you choose|you can control/i.test(disclosure.usageDescription)) {
-      warnings.push(
-        `${disclosure.id} permission disclosure should make user control explicit.`,
-      );
+      warnings.push(`${disclosure.id} permission disclosure should make user control explicit.`);
     }
   }
 

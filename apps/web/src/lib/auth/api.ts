@@ -8,8 +8,31 @@ import {
 } from "@/lib/mobile/auth";
 import { prisma } from "@wizards/db";
 
-export async function requireApiUserId() {
-  const session = await auth();
+type ApiAuthSessionUser = {
+  authEmailVerified?: boolean | null;
+  deletedAt?: Date | string | null;
+  id?: string | null;
+  isBanned?: boolean;
+};
+
+type ApiAuthSession = {
+  user?: ApiAuthSessionUser | null;
+} | null;
+
+export type RequireApiUserIdDependencies = {
+  assertActiveApiUser: typeof assertActiveApiUser;
+  auth: () => Promise<ApiAuthSession>;
+};
+
+const defaultRequireApiUserIdDependencies: RequireApiUserIdDependencies = {
+  assertActiveApiUser,
+  auth,
+};
+
+export async function requireApiUserId(
+  dependencies: RequireApiUserIdDependencies = defaultRequireApiUserIdDependencies,
+) {
+  const session = await dependencies.auth();
   const user = session?.user;
   const userId = user?.id;
 
@@ -17,11 +40,11 @@ export async function requireApiUserId() {
     throw new ApiError("Unauthorized", 401);
   }
 
-  assertActiveApiUser({
-    deletedAt: user.deletedAt,
-    emailVerified: user.authEmailVerified,
+  dependencies.assertActiveApiUser({
+    ...(user.deletedAt === undefined ? {} : { deletedAt: user.deletedAt }),
+    emailVerified: Boolean(user.authEmailVerified),
     id: userId,
-    isBanned: user.isBanned,
+    isBanned: Boolean(user.isBanned),
   });
 
   return userId;

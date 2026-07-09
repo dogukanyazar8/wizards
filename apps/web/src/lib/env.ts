@@ -15,6 +15,8 @@ const REQUIRED_PRODUCTION_ENV_VARS = [
   "SOCKET_ALLOWED_ORIGINS",
 ] as const;
 
+const REQUIRED_OUTBOX_WORKER_PRODUCTION_ENV_VARS = ["DATABASE_URL", "REDIS_URL"] as const;
+
 const REQUIRED_URL_ENV_VARS = [
   "APP_URL",
   "AUTH_URL",
@@ -34,9 +36,13 @@ const OPTIONAL_BOOLEAN_ENV_VARS = [
 ] as const;
 
 const OPTIONAL_POSITIVE_INTEGER_ENV_VARS = [
+  "ATTACHMENT_SCAN_MAX_BYTES",
+  "ATTACHMENT_SCAN_TIMEOUT_MS",
+  "CLAMAV_PORT",
   "WHISPR_ADMIN_DASHBOARD_CACHE_MS",
   "WHISPR_OUTBOX_BATCH_SIZE",
   "WHISPR_OUTBOX_INTERVAL_MS",
+  "WHISPR_OUTBOX_SHUTDOWN_TIMEOUT_MS",
   "WHISPR_READY_CACHE_MS",
   "WORKSPACE_PERFORMANCE_METRICS_INTERVAL_MS",
 ] as const;
@@ -141,5 +147,71 @@ export function assertWebEnvironment(
     ].filter(Boolean);
 
     throw new Error(`Invalid Whispr web environment (${parts.join("; ")}).`);
+  }
+}
+
+export function validateOutboxWorkerEnvironment(
+  env: EnvSource,
+  runtime: WebRuntimeEnvironment = env.NODE_ENV === "production"
+    ? "production"
+    : env.NODE_ENV === "test"
+      ? "test"
+      : "development",
+): EnvValidationResult {
+  const missing: string[] = [];
+  const invalid: string[] = [];
+
+  if (runtime === "production") {
+    for (const key of REQUIRED_OUTBOX_WORKER_PRODUCTION_ENV_VARS) {
+      if (!isPresent(env[key])) {
+        missing.push(key);
+      }
+    }
+  }
+
+  for (const key of REQUIRED_OUTBOX_WORKER_PRODUCTION_ENV_VARS) {
+    const value = env[key];
+    if (isPresent(value) && !isValidUrl(value)) {
+      invalid.push(key);
+    }
+  }
+
+  for (const key of OPTIONAL_BOOLEAN_ENV_VARS) {
+    const value = env[key];
+    if (isPresent(value) && !isBooleanFlag(value)) {
+      invalid.push(key);
+    }
+  }
+
+  for (const key of OPTIONAL_POSITIVE_INTEGER_ENV_VARS) {
+    const value = env[key];
+    if (isPresent(value) && !isPositiveInteger(value)) {
+      invalid.push(key);
+    }
+  }
+
+  return {
+    invalid: Array.from(new Set(invalid)),
+    missing: Array.from(new Set(missing)),
+  };
+}
+
+export function assertOutboxWorkerEnvironment(
+  env: EnvSource = process.env,
+  runtime?: WebRuntimeEnvironment,
+) {
+  const result = validateOutboxWorkerEnvironment(env, runtime);
+
+  if (result.missing.length > 0 || result.invalid.length > 0) {
+    const parts = [
+      result.missing.length > 0
+        ? `missing: ${result.missing.join(", ")}`
+        : null,
+      result.invalid.length > 0
+        ? `invalid: ${result.invalid.join(", ")}`
+        : null,
+    ].filter(Boolean);
+
+    throw new Error(`Invalid Whispr outbox worker environment (${parts.join("; ")}).`);
   }
 }

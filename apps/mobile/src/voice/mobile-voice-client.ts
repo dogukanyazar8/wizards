@@ -71,7 +71,12 @@ export async function leaveMobileVoiceState(
 
 export async function sendMobileVoiceHeartbeat(
   client: MobileApiClient,
-  input: { selfStream?: boolean; selfVideo?: boolean; sessionId: string },
+  input: {
+    selfScreenShare?: boolean;
+    selfStream?: boolean;
+    selfVideo?: boolean;
+    sessionId: string;
+  },
 ): Promise<MobileVoiceHeartbeatResponse> {
   const payload = await client.requestJson<unknown>(MOBILE_VOICE_HEARTBEAT_ENDPOINT, {
     body: input,

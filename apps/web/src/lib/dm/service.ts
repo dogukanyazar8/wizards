@@ -15,6 +15,7 @@ import {
 } from "@/lib/friends/helpers";
 import { getRedis } from "@/lib/redis";
 import { normalizeAppLocale, translate } from "@/lib/locale";
+import { mapAttachmentsForViewer } from "@/lib/messages/attachment-visibility";
 import { readPresenceMap, type PresenceFields } from "@/lib/presence";
 import { canStartDirectMessage } from "@/lib/privacy-policy";
 import type {
@@ -44,6 +45,7 @@ export const dmNotificationUserSelect = {
 
 export const dmAttachmentSelect = {
   id: true,
+  userId: true,
   url: true,
   filename: true,
   contentType: true,
@@ -52,6 +54,7 @@ export const dmAttachmentSelect = {
   height: true,
   duration: true,
   thumbnailUrl: true,
+  scanStatus: true,
 } as const;
 
 const dmReplyInclude = {
@@ -112,6 +115,7 @@ type DMMessageNode = {
   };
   attachments: Array<{
     id: string;
+    userId: string;
     url: string;
     filename: string;
     contentType: string;
@@ -120,6 +124,7 @@ type DMMessageNode = {
     height: number | null;
     duration: number | null;
     thumbnailUrl: string | null;
+    scanStatus: "PENDING" | "CLEAN" | "INFECTED" | "ERROR";
   }>;
   reactions?: Array<{
     emoji: string;
@@ -372,6 +377,7 @@ function mapDMReply(
   depth: number,
   reactionsByMessageId: Map<string, DMReactionRow[]> = new Map(),
   threadSummaryByMessageId: Map<string, MessageThreadSummary> = new Map(),
+  viewerId?: string | null,
 ): DMMessagePayload | null {
   if (!message) {
     return null;
@@ -384,6 +390,7 @@ function mapDMReply(
           depth - 1,
           reactionsByMessageId,
           threadSummaryByMessageId,
+          viewerId,
         )
       : null;
 
@@ -412,16 +419,12 @@ function mapDMReply(
           : "OFFLINE",
       customStatus: message.author.customStatus,
     },
-    attachments: message.attachments.map((attachment) => ({
-      id: attachment.id,
-      url: attachment.url,
-      filename: attachment.filename,
-      contentType: attachment.contentType,
-      size: attachment.size,
-      width: attachment.width,
-      height: attachment.height,
-      duration: attachment.duration,
-      thumbnailUrl: attachment.thumbnailUrl,
+    attachments: mapAttachmentsForViewer(message.attachments, viewerId).map((attachment) => ({
+      ...attachment,
+      width: attachment.width ?? null,
+      height: attachment.height ?? null,
+      duration: attachment.duration ?? null,
+      thumbnailUrl: attachment.thumbnailUrl ?? null,
     })),
     reactions: groupDMReactions(
       reactionsByMessageId.get(message.id) ?? message.reactions ?? [],
@@ -434,23 +437,26 @@ export function mapDMMessagePayload(
   message: RawDMMessage,
   reactionsByMessageId?: Map<string, DMReactionRow[]>,
   threadSummaryByMessageId?: Map<string, MessageThreadSummary>,
+  viewerId?: string | null,
 ): DMMessagePayload {
   return mapDMReply(
     message,
     2,
     reactionsByMessageId,
     threadSummaryByMessageId,
+    viewerId,
   ) as DMMessagePayload;
 }
 
 export async function mapDMMessagePayloadWithReactions(
   message: RawDMMessage,
+  viewerId?: string | null,
 ): Promise<DMMessagePayload> {
   const [reactionsByMessageId, threadSummaryByMessageId] = await Promise.all([
     getDMReactionMap([message.id]),
     getDMThreadSummaryMap([message.id]),
   ]);
-  return mapDMMessagePayload(message, reactionsByMessageId, threadSummaryByMessageId);
+  return mapDMMessagePayload(message, reactionsByMessageId, threadSummaryByMessageId, viewerId);
 }
 
 function getDeletedMessageLabelForLocale(locale: string | null | undefined) {
@@ -485,6 +491,7 @@ function resolveConversationName(conversation: RawDMConversation, viewerId: stri
 function mapConversationLastMessage(
   conversation: RawDMConversation,
   deletedMessageLabel: string,
+  viewerId: string,
 ) {
   const latestMessage = conversation.messages[0];
 
@@ -492,7 +499,7 @@ function mapConversationLastMessage(
     return null;
   }
 
-  const payload = mapDMMessagePayload(latestMessage);
+  const payload = mapDMMessagePayload(latestMessage, undefined, undefined, viewerId);
 
   if (!payload.deletedAt) {
     return payload;
@@ -535,7 +542,7 @@ function mapDMConversationDTOWithPresence(
         presenceByUserId.get(participant.userId) ?? getPresenceFallback(participant),
       ),
     ),
-    lastMessage: mapConversationLastMessage(conversation, deletedMessageLabel),
+    lastMessage: mapConversationLastMessage(conversation, deletedMessageLabel, viewerId),
   };
 }
 
@@ -960,7 +967,7 @@ export async function listDMMessages(
     messages: [...pageMessages]
       .reverse()
       .map((message) =>
-        mapDMMessagePayload(message, reactionsByMessageId, threadSummaryByMessageId),
+        mapDMMessagePayload(message, reactionsByMessageId, threadSummaryByMessageId, userId),
       ),
     nextCursor,
   };
@@ -1035,10 +1042,10 @@ export async function listDMThreadMessages(
   ]);
 
   return {
-    parent: mapDMMessagePayload(parent, reactionsByMessageId, threadSummaryByMessageId),
+    parent: mapDMMessagePayload(parent, reactionsByMessageId, threadSummaryByMessageId, userId),
     messages: [...pageMessages]
       .reverse()
-      .map((message) => mapDMMessagePayload(message, reactionsByMessageId)),
+      .map((message) => mapDMMessagePayload(message, reactionsByMessageId, undefined, userId)),
     nextCursor,
   };
 }

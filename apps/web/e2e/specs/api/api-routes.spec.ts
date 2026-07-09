@@ -108,6 +108,21 @@ test.describe("API v1 route smoke", () => {
     });
   });
 
+  test("rejects invalid JSON payloads through route-level validation", async ({ request }) => {
+    await apiLoginAs(request, "alice");
+
+    const response = await request.post("/api/v1/servers", {
+      data: {
+        name: "",
+      },
+    });
+
+    expect(response.status()).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.any(String),
+    });
+  });
+
   test("issues account deletion re-auth tokens for valid passwords", async ({ request }) => {
     await apiLoginAs(request, "alice");
 

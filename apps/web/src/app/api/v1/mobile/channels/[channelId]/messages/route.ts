@@ -83,7 +83,7 @@ export async function GET(request: Request, context: RouteContext) {
 
     const [channel, result] = await Promise.all([
       getMobileChannelSummary(channelId),
-      getChannelMessages(channelId, cursor, limit),
+      getChannelMessages(channelId, cursor, limit, userId),
     ]);
 
     return Response.json(

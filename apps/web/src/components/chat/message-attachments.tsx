@@ -18,6 +18,12 @@ type MessageAttachmentsProps = {
   attachments: MessageAttachment[];
 };
 
+type VisibleMessageAttachment = MessageAttachment & { url: string };
+
+function hasAttachmentUrl(attachment: MessageAttachment): attachment is VisibleMessageAttachment {
+  return typeof attachment.url === "string" && attachment.url.length > 0;
+}
+
 function gridClassName(count: number) {
   if (count <= 1) {
     return "grid-cols-1 w-full max-w-full sm:max-w-[26rem]";
@@ -47,25 +53,48 @@ function extensionFromFilename(filename: string) {
   return extension && extension !== filename ? extension.toUpperCase() : "FILE";
 }
 
+function scanStatusLabelKey(attachment: MessageAttachment) {
+  if (attachment.scanStatus === "INFECTED") {
+    return "chat.attachments.scanBlocked";
+  }
+
+  if (attachment.scanStatus === "ERROR") {
+    return "chat.attachments.scanUnavailable";
+  }
+
+  return "chat.attachments.scanPending";
+}
+
 export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
   const { t } = useI18n();
-  const [selectedImage, setSelectedImage] = useState<MessageAttachment | null>(null);
-  const imageAttachments = useMemo(
-    () => attachments.filter((attachment) => isMessageImageContentType(attachment.contentType)),
+  const [selectedImage, setSelectedImage] = useState<VisibleMessageAttachment | null>(null);
+  const visibleAttachments = useMemo(() => attachments.filter(hasAttachmentUrl), [attachments]);
+  const unavailableAttachments = useMemo(
+    () => attachments.filter((attachment) => !hasAttachmentUrl(attachment)),
     [attachments],
+  );
+  const imageAttachments = useMemo(
+    () =>
+      visibleAttachments.filter((attachment) =>
+        isMessageImageContentType(attachment.contentType),
+      ),
+    [visibleAttachments],
   );
   const fileAttachments = useMemo(
     () =>
-      attachments.filter(
+      visibleAttachments.filter(
         (attachment) =>
           !isMessageImageContentType(attachment.contentType) &&
           !isMessageVideoContentType(attachment.contentType),
       ),
-    [attachments],
+    [visibleAttachments],
   );
   const videoAttachments = useMemo(
-    () => attachments.filter((attachment) => isMessageVideoContentType(attachment.contentType)),
-    [attachments],
+    () =>
+      visibleAttachments.filter((attachment) =>
+        isMessageVideoContentType(attachment.contentType),
+      ),
+    [visibleAttachments],
   );
 
   if (attachments.length === 0) {
@@ -191,6 +220,36 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
                 <ExternalLink className="h-3.5 w-3.5" />
               </span>
             </a>
+          ))}
+        </div>
+      ) : null}
+
+      {unavailableAttachments.length > 0 ? (
+        <div className="mt-1 grid w-full max-w-full gap-1.5 sm:max-w-[32rem]">
+          {unavailableAttachments.map((attachment) => (
+            <div
+              className="flex min-w-0 items-center gap-3 rounded-[18px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.34)] px-3 py-2 text-left opacity-85 shadow-[0_12px_26px_hsl(var(--shadow-color)/0.05)]"
+              data-content-type={attachment.contentType}
+              data-filename={attachment.filename}
+              data-testid="message-attachment-unavailable"
+              key={attachment.id}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.7)] bg-white/72 text-app-soft shadow-sm">
+                <FileText className="h-4 w-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-app-foreground">
+                  {attachment.filename}
+                </span>
+                <span className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-app-soft">
+                  <span>{extensionFromFilename(attachment.filename)}</span>
+                  <span aria-hidden="true">/</span>
+                  <span>{formatAttachmentSize(attachment.size)}</span>
+                  <span aria-hidden="true">/</span>
+                  <span>{t(scanStatusLabelKey(attachment))}</span>
+                </span>
+              </span>
+            </div>
           ))}
         </div>
       ) : null}

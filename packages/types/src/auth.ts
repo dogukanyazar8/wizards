@@ -5,6 +5,11 @@ const TurnstileTokenSchema = z
   .min(1, "validation.turnstile.required")
   .max(4096, "validation.turnstile.invalid");
 
+const TwoFactorCodeSchema = z.preprocess(
+  (value) => (typeof value === "string" ? value.trim() : ""),
+  z.string().max(64, "validation.twoFactor.invalid"),
+);
+
 export const LoginCredentialsSchema = z.object({
   email: z.string().email("validation.email.invalid"),
   password: z.string().min(8, "validation.password.min"),
@@ -24,6 +29,7 @@ const RememberMeSchema = z.preprocess((value) => {
 
 export const LoginSchema = LoginCredentialsSchema.extend({
   rememberMe: RememberMeSchema,
+  twoFactorCode: TwoFactorCodeSchema,
   turnstileToken: TurnstileTokenSchema,
 });
 

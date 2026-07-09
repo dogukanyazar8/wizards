@@ -1,6 +1,6 @@
 [deploy]
 preDeployCommand = "pnpm --filter @wizards/db db:migrate:deploy"
-startCommand = "pnpm --filter @wizards/web start"
+startCommand = "WHISPR_OUTBOX_WORKER=false pnpm --filter @wizards/web start"
 healthcheckPath = "/ready"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

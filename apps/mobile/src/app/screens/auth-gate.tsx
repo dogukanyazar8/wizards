@@ -15,7 +15,7 @@ import whisprIcon from "../../../assets/whispr-icon.png";
 import { getMobileDevLoginCredentials } from "../../auth/mobile-dev-login";
 import { mobileColors } from "../../design/tokens";
 import { activeMobileCopy } from "../../locale/mobile-locale-preferences";
-import { styles } from "../mobile-root-screens-legacy";
+import { styles } from "./auth-gate.styles";
 
 const copy = activeMobileCopy;
 type MobileIoniconName = ComponentProps<typeof Ionicons>["name"];
@@ -69,9 +69,7 @@ export function AuthGate({
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [profileType, setProfileType] = useState<"corporate" | "gamer" | "personal">(
-    "personal",
-  );
+  const [profileType, setProfileType] = useState<"corporate" | "gamer" | "personal">("personal");
   const [rememberMe, setRememberMe] = useState(true);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -378,9 +376,7 @@ export function AuthGate({
                     pressed && styles.actionButtonPressed,
                   ]}
                 >
-                  <Text style={styles.premiumAuthTextButtonText}>
-                    {copy.authNativeForgotLink}
-                  </Text>
+                  <Text style={styles.premiumAuthTextButtonText}>{copy.authNativeForgotLink}</Text>
                 </Pressable>
               </View>
             ) : null}
@@ -420,9 +416,7 @@ export function AuthGate({
               </>
             ) : mode === "register" ? (
               <View style={styles.premiumAuthFooterRow}>
-                <Text style={styles.premiumAuthFooterText}>
-                  {copy.authAlreadyHaveAccount}
-                </Text>
+                <Text style={styles.premiumAuthFooterText}>{copy.authAlreadyHaveAccount}</Text>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={copy.authModeSignIn}
@@ -511,13 +505,7 @@ function AuthScreenLayout({ children }: { children: ReactNode }) {
       <View style={styles.premiumAuthGlowBottom} />
       <View style={styles.premiumAuthDotField}>
         {premiumAuthDotPositions.map((position, index) => (
-          <View
-            key={index}
-            style={[
-              styles.premiumAuthDot,
-              position,
-            ]}
-          />
+          <View key={index} style={[styles.premiumAuthDot, position]} />
         ))}
       </View>
       <View style={styles.premiumAuthContent}>{children}</View>
@@ -525,13 +513,7 @@ function AuthScreenLayout({ children }: { children: ReactNode }) {
   );
 }
 
-function AuthHeader({
-  description,
-  title,
-}: {
-  description: string;
-  title: string;
-}) {
+function AuthHeader({ description, title }: { description: string; title: string }) {
   return (
     <View style={styles.premiumAuthHeader}>
       <View style={styles.premiumAuthBrandRow}>
@@ -604,12 +586,7 @@ function ProfileTypeSelector({
               pressed && styles.actionButtonPressed,
             ]}
           >
-            <View
-              style={[
-                styles.premiumAuthProfileIcon,
-                { backgroundColor: `${option.color}18` },
-              ]}
-            >
+            <View style={[styles.premiumAuthProfileIcon, { backgroundColor: `${option.color}18` }]}>
               <Ionicons name={option.icon} size={16} color={option.color} />
             </View>
             <Text style={styles.premiumAuthProfileLabel} numberOfLines={1}>
@@ -689,9 +666,7 @@ function AuthInput({
       {showSecureToggle && onToggleSecure ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={
-            isSecureVisible ? copy.hideSensitiveAction : copy.showSensitiveAction
-          }
+          accessibilityLabel={isSecureVisible ? copy.hideSensitiveAction : copy.showSensitiveAction}
           onPress={onToggleSecure}
           style={({ pressed }) => [
             styles.premiumAuthIconButton,
@@ -870,9 +845,7 @@ function SecurityCard() {
       </View>
       <View style={styles.premiumAuthSecurityText}>
         <Text style={styles.premiumAuthSecurityTitle}>{copy.authSecurityStatus}</Text>
-        <Text style={styles.premiumAuthSecurityDescription}>
-          {copy.authSecurityDescription}
-        </Text>
+        <Text style={styles.premiumAuthSecurityDescription}>{copy.authSecurityDescription}</Text>
       </View>
       <View style={styles.premiumAuthCloudflareBadge}>
         <Ionicons name="cloud" size={18} color="#F97316" />
@@ -891,9 +864,7 @@ function PasswordStrengthBar({
     <View style={styles.premiumAuthStrength}>
       <View style={styles.premiumAuthStrengthHeader}>
         <Ionicons name="shield-checkmark-outline" size={15} color={mobileColors.success} />
-        <Text style={styles.premiumAuthStrengthText}>
-          {copy.authPasswordStrengthHint}
-        </Text>
+        <Text style={styles.premiumAuthStrengthText}>{copy.authPasswordStrengthHint}</Text>
       </View>
       <View style={styles.premiumAuthStrengthTrack}>
         <View

@@ -8,6 +8,7 @@ import {
   normalizeMessageContentForSend,
   parseUploadedAttachmentInputs,
 } from "@/lib/messages/attachments";
+import { redactMessageAttachmentUrlsForViewer } from "@/lib/messages/attachment-visibility";
 import {
   enqueueChannelMentionNotificationJob,
   enqueueChannelThreadReplyNotificationJob,
@@ -161,10 +162,26 @@ async function emitChannelMessageFanout(args: {
   }
 
   if (activeChannelViewerUserIds.length > 0) {
-    args.io.to(activeChannelViewerUserIds.map((viewerUserId) => `user:${viewerUserId}`)).emit(
-      "message:new",
-      args.message,
+    const senderViewerIds = activeChannelViewerUserIds.filter(
+      (viewerUserId) => viewerUserId === args.senderId,
     );
+    const otherViewerIds = activeChannelViewerUserIds.filter(
+      (viewerUserId) => viewerUserId !== args.senderId,
+    );
+
+    if (senderViewerIds.length > 0) {
+      args.io.to(senderViewerIds.map((viewerUserId) => `user:${viewerUserId}`)).emit(
+        "message:new",
+        args.message,
+      );
+    }
+
+    if (otherViewerIds.length > 0) {
+      args.io.to(otherViewerIds.map((viewerUserId) => `user:${viewerUserId}`)).emit(
+        "message:new",
+        redactMessageAttachmentUrlsForViewer(args.message, null),
+      );
+    }
   }
   const directEmitDurationMs = Date.now() - directEmitStartedAt;
 

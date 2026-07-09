@@ -27,7 +27,7 @@ export async function GET(request: Request, context: RouteContext) {
     });
 
     return Response.json(
-      await getChannelThreadMessages(channelId, messageId, cursor, limit),
+      await getChannelThreadMessages(channelId, messageId, cursor, limit, userId),
     );
   } catch (error) {
     return jsonError(error);

@@ -380,6 +380,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     email: normalizeAuthEmail(getFormValue(formData, "email")),
     password: getFormValue(formData, "password"),
     rememberMe: getFormValue(formData, "rememberMe"),
+    twoFactorCode: getFormValue(formData, "twoFactorCode"),
     turnstileToken: getFormValue(formData, "turnstileToken"),
   });
 
@@ -445,6 +446,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
       password,
       rememberMe: rememberMe ? "true" : "false",
       redirectTo,
+      twoFactorCode: validation.data.twoFactorCode,
     });
 
     return { success: true };

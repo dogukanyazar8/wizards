@@ -661,6 +661,14 @@ export function ChatComposer({
           }
 
           const serverData = uploadedFile.serverData;
+          if (!serverData.url) {
+            return {
+              ...draft,
+              error: t("chat.attachments.uploadFailed"),
+              status: "error" as const,
+            };
+          }
+
           const measuredDimensions = dimensions[draftIndex] ?? {};
           const attachment: MessageAttachment = {
             id: serverData.id,
@@ -670,6 +678,7 @@ export function ChatComposer({
             size: serverData.size,
             duration: serverData.duration ?? undefined,
             thumbnailUrl: serverData.thumbnailUrl ?? undefined,
+            scanStatus: serverData.scanStatus,
           };
 
           if (draft.kind === "image") {
@@ -697,11 +706,11 @@ export function ChatComposer({
           };
 
           if (draft.kind === "image") {
-            nextDraft.previewUrl = attachment.url;
+            nextDraft.previewUrl = serverData.url;
           }
 
           if (draft.kind === "video") {
-            nextDraft.previewUrl = attachment.url;
+            nextDraft.previewUrl = serverData.url;
           }
 
           return nextDraft;
@@ -738,6 +747,11 @@ export function ChatComposer({
 
     if (attachmentDrafts.length >= MESSAGE_ATTACHMENT_MAX_COUNT) {
       setAttachmentUploadError(t("chat.attachments.maxAttachments"));
+      return;
+    }
+
+    if (!payload.attachment.url) {
+      setAttachmentUploadError(t("chat.attachments.uploadFailed"));
       return;
     }
 

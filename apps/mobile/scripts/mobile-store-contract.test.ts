@@ -32,6 +32,7 @@ describe("mobile store contract", () => {
       "CAMERA",
       "RECORD_AUDIO",
       "POST_NOTIFICATIONS",
+      "FOREGROUND_SERVICE_MEDIA_PROJECTION",
     ]);
   });
 
@@ -44,6 +45,13 @@ describe("mobile store contract", () => {
       NSPhotoLibraryUsageDescription:
         "Whispr uses your photo library only when you choose media to upload.",
     });
+    assert.equal(
+      Object.hasOwn(
+        getWhisprMobileIosInfoPlistUsageDescriptions(),
+        "NSScreenCaptureUsageDescription",
+      ),
+      false,
+    );
   });
 
   it("summarizes store readiness without secrets or raw identifiers", () => {
@@ -52,7 +60,10 @@ describe("mobile store contract", () => {
     assert.deepEqual(result.blockers, []);
     assert.equal(result.permissionCount, WHISPR_MOBILE_PERMISSION_DISCLOSURES.length);
     assert.equal(result.privacyRequirementCount, WHISPR_MOBILE_PRIVACY_REQUIREMENTS.length);
-    assert.equal(result.checklist.some((item) => item.includes("Store")), true);
+    assert.equal(
+      result.checklist.some((item) => item.includes("Store")),
+      true,
+    );
     assert.equal(
       result.checklist.some((item) => /access[_-]?token|refresh[_-]?token|password/i.test(item)),
       false,

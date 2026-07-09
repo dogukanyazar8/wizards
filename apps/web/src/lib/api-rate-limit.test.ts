@@ -1,10 +1,53 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { ApiError } from "./api";
 import {
   API_RATE_LIMITS,
+  enforceApiRateLimit,
   getApiRateLimitConfig,
   type ApiRateLimitAction,
 } from "./api-rate-limit";
+import type { getRedisRate } from "./redis";
+
+type FakeRedis = ReturnType<typeof getRedisRate>;
+
+function fakeRateLimitDependencies(args: {
+  allowed?: boolean;
+  error?: unknown;
+  logErrors?: unknown[];
+}) {
+  const calls: Array<{
+    key: string;
+    limit: number;
+    windowSeconds: number;
+  }> = [];
+  const redis = {} as FakeRedis;
+
+  return {
+    calls,
+    dependencies: {
+      checkRateLimit: async (
+        client: FakeRedis,
+        key: string,
+        limit: number,
+        windowSeconds: number,
+      ) => {
+        assert.equal(client, redis);
+        calls.push({ key, limit, windowSeconds });
+
+        if (args.error) {
+          throw args.error;
+        }
+
+        return args.allowed ?? true;
+      },
+      getRedisRate: () => redis,
+      logError: (_scope: string, error: unknown) => {
+        args.logErrors?.push(error);
+      },
+    },
+  };
+}
 
 describe("API rate limit configuration", () => {
   it("defines positive limits and windows for every action", () => {
@@ -101,5 +144,51 @@ describe("API rate limit configuration", () => {
         expectedConfig,
       );
     }
+  });
+});
+
+describe("enforceApiRateLimit", () => {
+  it("checks the action-specific Redis key and allows requests inside the limit", async () => {
+    const { calls, dependencies } = fakeRateLimitDependencies({ allowed: true });
+
+    await enforceApiRateLimit("user-1", "server:create", dependencies);
+
+    assert.deepEqual(calls, [
+      {
+        key: "rate:api:server:create:user-1",
+        limit: API_RATE_LIMITS["server:create"].limit,
+        windowSeconds: API_RATE_LIMITS["server:create"].windowSeconds,
+      },
+    ]);
+  });
+
+  it("raises a stable 429 ApiError when the limit is exceeded", async () => {
+    const { dependencies } = fakeRateLimitDependencies({ allowed: false });
+
+    await assert.rejects(
+      () => enforceApiRateLimit("user-1", "dm:messages:send", dependencies),
+      (error) =>
+        error instanceof ApiError &&
+        error.status === 429 &&
+        error.code === "RATE_LIMITED",
+    );
+  });
+
+  it("turns Redis/check failures into the public 503 envelope", async () => {
+    const logErrors: unknown[] = [];
+    const unavailable = new Error("redis password leaked");
+    const { dependencies } = fakeRateLimitDependencies({
+      error: unavailable,
+      logErrors,
+    });
+
+    await assert.rejects(
+      () => enforceApiRateLimit("user-1", "voice:state", dependencies),
+      (error) =>
+        error instanceof ApiError &&
+        error.status === 503 &&
+        error.code === "RATE_LIMIT_UNAVAILABLE",
+    );
+    assert.deepEqual(logErrors, [unavailable]);
   });
 });

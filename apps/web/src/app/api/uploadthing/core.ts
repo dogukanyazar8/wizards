@@ -2,12 +2,7 @@ import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
 import { auth } from "@/auth";
 import { prisma } from "@wizards/db";
-import {
-  getMessageAttachmentMaxBytes,
-  isMessageAttachmentFilenameAllowed,
-  isSupportedMessageAttachmentContentType,
-  normalizeMessageAttachmentFilename,
-} from "@/lib/messages/attachments";
+import { createPendingMessageAttachmentUpload } from "@/lib/attachments/upload-persistence";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRedisRate } from "@/lib/redis";
 import { logError } from "@/lib/logger";
@@ -115,37 +110,7 @@ async function createMessageAttachment({
   };
   metadata: { userId: string };
 }) {
-  const maxBytes = getMessageAttachmentMaxBytes(file.type);
-
-  if (
-    !isSupportedMessageAttachmentContentType(file.type) ||
-    !isMessageAttachmentFilenameAllowed(file.type, file.name) ||
-    file.size <= 0 ||
-    file.size > maxBytes
-  ) {
-    throw new UploadThingError("Unsupported attachment upload");
-  }
-
-  return prisma.attachment.create({
-    data: {
-      userId: metadata.userId,
-      url: file.ufsUrl,
-      filename: normalizeMessageAttachmentFilename(file.name),
-      contentType: file.type,
-      size: file.size,
-    },
-    select: {
-      id: true,
-      url: true,
-      filename: true,
-      contentType: true,
-      size: true,
-      width: true,
-      height: true,
-      duration: true,
-      thumbnailUrl: true,
-    },
-  });
+  return createPendingMessageAttachmentUpload(prisma, file, metadata);
 }
 
 export const uploadRouter: FileRouter = {

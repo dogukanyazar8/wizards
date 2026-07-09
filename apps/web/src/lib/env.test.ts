@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { validateWebEnvironment } from "./env";
+import { validateOutboxWorkerEnvironment, validateWebEnvironment } from "./env";
 
 describe("web environment validation", () => {
   it("fails closed in production when required variables are missing", () => {
@@ -129,5 +129,29 @@ describe("web environment validation", () => {
       "WHISPR_READY_CACHE_MS",
       "WORKSPACE_PERFORMANCE_METRICS_INTERVAL_MS",
     ]);
+  });
+});
+
+describe("outbox worker environment validation", () => {
+  it("requires only database and redis connectivity in production", () => {
+    const result = validateOutboxWorkerEnvironment(
+      {
+        DATABASE_URL: "postgresql://user:pass@localhost:5432/whispr",
+        REDIS_URL: "rediss://default:pass@redis.example.test:6379/0",
+      },
+      "production",
+    );
+
+    assert.deepEqual(result, {
+      invalid: [],
+      missing: [],
+    });
+  });
+
+  it("does not require web-only secrets for the worker", () => {
+    const result = validateOutboxWorkerEnvironment({}, "production");
+
+    assert.deepEqual(result.missing, ["DATABASE_URL", "REDIS_URL"]);
+    assert.doesNotMatch(result.missing.join(","), /AUTH_SECRET|NEXTAUTH_URL|SOCKET_ALLOWED_ORIGINS/);
   });
 });

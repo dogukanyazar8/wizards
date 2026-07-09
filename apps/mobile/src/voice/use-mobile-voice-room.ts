@@ -1,12 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AndroidAudioTypePresets, AudioSession } from "@livekit/react-native";
-import {
-  Room,
-  RoomEvent,
-  Track,
-  type Participant,
-  type RemoteParticipant,
-} from "livekit-client";
+import { AppState } from "react-native";
+import { Room, RoomEvent, Track, type Participant, type RemoteParticipant } from "livekit-client";
 
 import type { MobileApiClient } from "../api/mobile-api-client";
 import type { MobileSessionUser } from "../auth/session-types";
@@ -33,13 +28,34 @@ import {
   type MobileVoiceAudioOutputMode,
   type MobileVoiceRoomParticipant,
   type MobileVoiceRoomState,
+  type MobileVoiceScreenShareStatus,
 } from "./mobile-voice-room-contract";
+import {
+  getMobileScreenShareCaptureOptions,
+  getMobileScreenSharePublishOptions,
+} from "./mobile-screen-share";
+import {
+  MOBILE_SCREEN_SHARE_BACKGROUND_STOP_MESSAGE,
+  buildMobileScreenShareHeartbeatPayload,
+  isMobileScreenSharePermissionDenied,
+  redactMobileScreenShareError,
+} from "./mobile-screen-share-contract";
 import {
   MOBILE_VOICE_DISCONNECTED_MESSAGE,
   MOBILE_VOICE_HEARTBEAT_INTERVAL_MS,
   MOBILE_VOICE_LEVEL_CHANGE_THRESHOLD,
   MOBILE_VOICE_LEVEL_INTERVAL_MS,
 } from "./mobile-voice-lifecycle-contract";
+import {
+  createInitialMobilePushToTalkState,
+  createMobilePushToTalkController,
+  type MobilePushToTalkState,
+  type MobileVoiceInputMode,
+} from "./mobile-voice-ptt-contract";
+import {
+  getMobileMicrophoneCaptureOptions,
+  setMobileMicrophoneEnabledWithNoiseSuppression,
+} from "./mobile-voice-noise-contract";
 import { requestMobileVoicePermissionAfterUserAction } from "./mobile-voice-runtime";
 import type { MobileVoiceStateParticipant } from "@wizards/types";
 
@@ -75,6 +91,15 @@ function participantIdentityToUserId(identity: string): string {
   return identity.replace(/^user:/, "");
 }
 
+function getScreenShareTrackKey(participant: MobileVoiceRoomParticipant): string | null {
+  const publication = participant.screenShareTrackRef?.publication;
+  if (!publication) {
+    return null;
+  }
+
+  return `${publication.trackSid}:${publication.track ? "subscribed" : "pending"}`;
+}
+
 function voiceParticipantsChanged(
   current: readonly MobileVoiceRoomParticipant[],
   next: readonly MobileVoiceRoomParticipant[],
@@ -96,14 +121,29 @@ function voiceParticipantsChanged(
       previous.isMuted !== participant.isMuted ||
       previous.isScreenSharing !== participant.isScreenSharing ||
       previous.isSpeaking !== participant.isSpeaking ||
-      Math.abs(previous.audioLevel - participant.audioLevel) >=
-        MOBILE_VOICE_LEVEL_CHANGE_THRESHOLD
+      getScreenShareTrackKey(previous) !== getScreenShareTrackKey(participant) ||
+      Math.abs(previous.audioLevel - participant.audioLevel) >= MOBILE_VOICE_LEVEL_CHANGE_THRESHOLD
     ) {
       return true;
     }
   }
 
   return false;
+}
+
+function getScreenShareTrackRef(
+  participant: Participant,
+): MobileVoiceRoomParticipant["screenShareTrackRef"] {
+  const publication = participant.getTrackPublication(Track.Source.ScreenShare);
+  if (!publication?.track) {
+    return undefined;
+  }
+
+  return {
+    participant,
+    publication,
+    source: Track.Source.ScreenShare,
+  };
 }
 
 function mapLiveKitParticipantToRoomParticipant(
@@ -115,8 +155,9 @@ function mapLiveKitParticipantToRoomParticipant(
   const microphonePublication = participant.getTrackPublication(Track.Source.Microphone);
   const cameraPublication = participant.getTrackPublication(Track.Source.Camera);
   const screenSharePublication = participant.getTrackPublication(Track.Source.ScreenShare);
+  const screenShareTrackRef = getScreenShareTrackRef(participant);
 
-  return {
+  const roomParticipant = {
     audioLevel: toBoundedAudioLevel(participant.audioLevel),
     avatarUrl: isSelf ? currentUser.avatarUrl : null,
     displayName: isSelf ? currentUser.displayName : null,
@@ -128,6 +169,8 @@ function mapLiveKitParticipantToRoomParticipant(
     userId,
     username: isSelf ? currentUser.username : userId,
   };
+
+  return screenShareTrackRef ? { ...roomParticipant, screenShareTrackRef } : roomParticipant;
 }
 
 function mergeServerParticipants(
@@ -158,18 +201,47 @@ function mergeLiveKitParticipants(
   return mergeMobileVoiceRoomParticipants(current, participants);
 }
 
+function isLocalParticipantScreenSharing(room: Room): boolean {
+  return Boolean(room.localParticipant.getTrackPublication(Track.Source.ScreenShare));
+}
+
+function resolveSelfScreenShareStatus(
+  currentStatus: MobileVoiceScreenShareStatus,
+  isScreenSharing: boolean,
+): MobileVoiceScreenShareStatus {
+  if (isScreenSharing) {
+    return "on";
+  }
+
+  if (
+    currentStatus === "on" ||
+    currentStatus === "starting" ||
+    currentStatus === "stopping" ||
+    currentStatus === "unsupported"
+  ) {
+    return "off";
+  }
+
+  return currentStatus;
+}
+
 export function useMobileVoiceRoom({
   apiClient,
   currentUser,
+  voiceInputMode,
 }: {
   apiClient: MobileApiClient;
   currentUser: MobileSessionUser | null;
+  voiceInputMode: MobileVoiceInputMode;
 }) {
   const [permissionState, setPermissionState] = useState<MobileVoiceRuntimeState>(
     createInitialMobileVoiceRuntimeState,
   );
   const [roomState, setRoomState] = useState<MobileVoiceRoomState>(
     createInitialMobileVoiceRoomState,
+  );
+  const [pushToTalkState, setPushToTalkState] = useState<MobilePushToTalkState>(
+    createInitialMobilePushToTalkState,
   );
   const roomRef = useRef<Room | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -213,10 +285,17 @@ export function useMobileVoiceRoom({
       const participants = mergeLiveKitParticipants(user, current.participants, room);
       const selfCameraEnabled = room.localParticipant.isCameraEnabled;
       const selfMuted = !room.localParticipant.isMicrophoneEnabled;
+      const selfScreenShareEnabled = isLocalParticipantScreenSharing(room);
+      const screenShareStatus = resolveSelfScreenShareStatus(
+        current.screenShareStatus,
+        selfScreenShareEnabled,
+      );
 
       if (
         current.selfCameraEnabled === selfCameraEnabled &&
         current.selfMuted === selfMuted &&
+        current.selfScreenShareEnabled === selfScreenShareEnabled &&
+        current.screenShareStatus === screenShareStatus &&
         !voiceParticipantsChanged(current.participants, participants)
       ) {
         return current;
@@ -225,12 +304,45 @@ export function useMobileVoiceRoom({
       return {
         ...current,
         participants,
+        screenShareStatus,
         selfCameraEnabled,
         selfMuted,
+        selfScreenShareEnabled,
         updatedAt: Date.now(),
       };
     });
   }, []);
+
+  const setMobileMicrophoneEnabled = useCallback(
+    async (enabled: boolean) => {
+      const room = roomRef.current;
+      if (!room) {
+        return;
+      }
+
+      await setMobileMicrophoneEnabledWithNoiseSuppression(
+        room.localParticipant,
+        enabled,
+        getMobileMicrophoneCaptureOptions(),
+      );
+      updateParticipantsFromRoom();
+    },
+    [updateParticipantsFromRoom],
+  );
+
+  const pushToTalkController = useMemo(
+    () =>
+      createMobilePushToTalkController({
+        onStateChange: setPushToTalkState,
+        setMicrophoneEnabled: setMobileMicrophoneEnabled,
+        timers: {
+          clearTimeout,
+          now: () => Date.now(),
+          setTimeout,
+        },
+      }),
+    [setMobileMicrophoneEnabled],
+  );
 
   const requestMicrophonePermission = useCallback(async () => {
     setPermissionState((current) => createCheckingMobileVoiceRuntimeState(current));
@@ -247,6 +359,7 @@ export function useMobileVoiceRoom({
       intentionallyDisconnectedRoomsRef.current.add(room);
     }
 
+    await pushToTalkController.cancel({ closeMicrophone: true });
     clearHeartbeat();
     clearLevelTicker();
     setRoomState((current) =>
@@ -286,7 +399,7 @@ export function useMobileVoiceRoom({
     } finally {
       isIntentionalLeaveRef.current = false;
     }
-  }, [apiClient, clearHeartbeat, clearLevelTicker]);
+  }, [apiClient, clearHeartbeat, clearLevelTicker, pushToTalkController]);
 
   const startLevelTicker = useCallback(() => {
     clearLevelTicker();
@@ -300,12 +413,10 @@ export function useMobileVoiceRoom({
       clearHeartbeat();
       heartbeatRef.current = setInterval(() => {
         const room = roomRef.current;
+        const isScreenSharing = Boolean(room && isLocalParticipantScreenSharing(room));
         void sendMobileVoiceHeartbeat(apiClient, {
-          selfStream: Boolean(
-            room?.localParticipant.getTrackPublication(Track.Source.ScreenShare),
-          ),
+          ...buildMobileScreenShareHeartbeatPayload({ isScreenSharing, sessionId }),
           selfVideo: Boolean(room?.localParticipant.isCameraEnabled),
-          sessionId,
         }).catch(() => {
           // Heartbeat failures are surfaced by reconnect/state refresh paths.
         });
@@ -318,6 +429,7 @@ export function useMobileVoiceRoom({
     (room: Room) => {
       clearHeartbeat();
       clearLevelTicker();
+      void pushToTalkController.cancel({ closeMicrophone: true }).catch(() => undefined);
 
       if (roomRef.current === room) {
         roomRef.current = null;
@@ -325,10 +437,7 @@ export function useMobileVoiceRoom({
 
       void AudioSession.stopAudioSession().catch(() => undefined);
 
-      if (
-        isIntentionalLeaveRef.current ||
-        intentionallyDisconnectedRoomsRef.current.has(room)
-      ) {
+      if (isIntentionalLeaveRef.current || intentionallyDisconnectedRoomsRef.current.has(room)) {
         return;
       }
 
@@ -354,7 +463,7 @@ export function useMobileVoiceRoom({
         };
       });
     },
-    [apiClient, clearHeartbeat, clearLevelTicker],
+    [apiClient, clearHeartbeat, clearLevelTicker, pushToTalkController],
   );
 
   const bindRoomEvents = useCallback(
@@ -476,7 +585,11 @@ export function useMobileVoiceRoom({
         await room.connect(tokenResponse.url, tokenResponse.token, {
           autoSubscribe: true,
         });
-        await room.localParticipant.setMicrophoneEnabled(true);
+        await setMobileMicrophoneEnabledWithNoiseSuppression(
+          room.localParticipant,
+          voiceInputMode === "voice-activity",
+          getMobileMicrophoneCaptureOptions(),
+        );
         startHeartbeat(sessionId);
         startLevelTicker();
 
@@ -490,9 +603,10 @@ export function useMobileVoiceRoom({
             mergeServerParticipants(user, current.participants, serverState.participants),
             room,
           ),
-          screenShareStatus: "unsupported",
+          screenShareStatus: "off",
           selfCameraEnabled: room.localParticipant.isCameraEnabled,
           selfMuted: !room.localParticipant.isMicrophoneEnabled,
+          selfScreenShareEnabled: false,
           serverId,
           sessionId,
           status: "connected",
@@ -528,19 +642,44 @@ export function useMobileVoiceRoom({
       roomState.status,
       startHeartbeat,
       startLevelTicker,
+      voiceInputMode,
     ],
   );
 
   const toggleMute = useCallback(async () => {
     const room = roomRef.current;
-    if (!room || roomState.status !== "connected") {
+    if (!room || roomState.status !== "connected" || voiceInputMode === "push-to-talk") {
       return;
     }
 
     const nextEnabled = !room.localParticipant.isMicrophoneEnabled;
-    await room.localParticipant.setMicrophoneEnabled(nextEnabled);
+    await setMobileMicrophoneEnabledWithNoiseSuppression(
+      room.localParticipant,
+      nextEnabled,
+      getMobileMicrophoneCaptureOptions(),
+    );
     updateParticipantsFromRoom();
-  }, [roomState.status, updateParticipantsFromRoom]);
+  }, [roomState.status, updateParticipantsFromRoom, voiceInputMode]);
+
+  const beginPushToTalk = useCallback(async () => {
+    const room = roomRef.current;
+    if (!room || roomState.status !== "connected" || voiceInputMode !== "push-to-talk") {
+      return;
+    }
+
+    await pushToTalkController.begin({
+      isMicrophoneEnabled: room.localParticipant.isMicrophoneEnabled,
+    });
+    updateParticipantsFromRoom();
+  }, [pushToTalkController, roomState.status, updateParticipantsFromRoom, voiceInputMode]);
+
+  const endPushToTalk = useCallback(() => {
+    if (voiceInputMode !== "push-to-talk") {
+      return;
+    }
+
+    pushToTalkController.end();
+  }, [pushToTalkController, voiceInputMode]);
 
   const toggleCamera = useCallback(async () => {
     const room = roomRef.current;
@@ -566,6 +705,64 @@ export function useMobileVoiceRoom({
       }));
     }
   }, [apiClient, roomState.status, updateParticipantsFromRoom]);
+
+  const sendScreenShareHeartbeat = useCallback(
+    (isScreenSharing: boolean) => {
+      const sessionId = sessionIdRef.current;
+      if (!sessionId) {
+        return;
+      }
+
+      void sendMobileVoiceHeartbeat(
+        apiClient,
+        buildMobileScreenShareHeartbeatPayload({ isScreenSharing, sessionId }),
+      ).catch(() => undefined);
+    },
+    [apiClient],
+  );
+
+  const toggleScreenShare = useCallback(async () => {
+    const room = roomRef.current;
+    if (!room || roomState.status !== "connected") {
+      return;
+    }
+
+    const nextEnabled = !isLocalParticipantScreenSharing(room);
+    setRoomState((current) => ({
+      ...current,
+      errorMessage: null,
+      screenShareStatus: nextEnabled ? "starting" : "stopping",
+      updatedAt: Date.now(),
+    }));
+
+    try {
+      await room.localParticipant.setScreenShareEnabled(
+        nextEnabled,
+        getMobileScreenShareCaptureOptions(),
+        getMobileScreenSharePublishOptions(),
+      );
+      updateParticipantsFromRoom();
+      sendScreenShareHeartbeat(nextEnabled);
+      setRoomState((current) => ({
+        ...current,
+        errorMessage: null,
+        screenShareStatus: nextEnabled ? "on" : "off",
+        selfScreenShareEnabled: nextEnabled,
+        updatedAt: Date.now(),
+      }));
+    } catch (error) {
+      sendScreenShareHeartbeat(false);
+      setRoomState((current) => ({
+        ...current,
+        errorMessage: redactMobileScreenShareError(error),
+        screenShareStatus: isMobileScreenSharePermissionDenied(error)
+          ? "permission-denied"
+          : "error",
+        selfScreenShareEnabled: false,
+        updatedAt: Date.now(),
+      }));
+    }
+  }, [roomState.status, sendScreenShareHeartbeat, updateParticipantsFromRoom]);
 
   const selectAudioOutput = useCallback(
     async (mode: MobileVoiceAudioOutputMode) => {
@@ -661,6 +858,64 @@ export function useMobileVoiceRoom({
     [],
   );
 
+  useEffect(() => {
+    if (voiceInputMode !== "push-to-talk") {
+      void pushToTalkController.cancel().catch(() => undefined);
+      return;
+    }
+
+    if (roomState.status !== "connected") {
+      void pushToTalkController.cancel({ closeMicrophone: true }).catch(() => undefined);
+      return;
+    }
+
+    void pushToTalkController
+      .cancel({ closeMicrophone: true })
+      .catch(() => undefined)
+      .finally(updateParticipantsFromRoom);
+  }, [pushToTalkController, roomState.status, updateParticipantsFromRoom, voiceInputMode]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        return;
+      }
+
+      const room = roomRef.current;
+      if (!room) {
+        return;
+      }
+
+      if (voiceInputMode === "push-to-talk") {
+        void pushToTalkController
+          .cancel({ closeMicrophone: true })
+          .catch(() => undefined)
+          .finally(updateParticipantsFromRoom);
+      }
+
+      if (!isLocalParticipantScreenSharing(room)) {
+        return;
+      }
+
+      void room.localParticipant
+        .setScreenShareEnabled(false)
+        .catch(() => undefined)
+        .finally(() => {
+          sendScreenShareHeartbeat(false);
+          updateParticipantsFromRoom();
+          setRoomState((current) => ({
+            ...current,
+            errorMessage: MOBILE_SCREEN_SHARE_BACKGROUND_STOP_MESSAGE,
+            screenShareStatus: "off",
+            selfScreenShareEnabled: false,
+            updatedAt: Date.now(),
+          }));
+        });
+    });
+
+    return () => subscription.remove();
+  }, [pushToTalkController, sendScreenShareHeartbeat, updateParticipantsFromRoom, voiceInputMode]);
+
   useEffect(
     () => () => {
       clearHeartbeat();
@@ -670,6 +925,7 @@ export function useMobileVoiceRoom({
       if (room) {
         intentionallyDisconnectedRoomsRef.current.add(room);
       }
+      void pushToTalkController.cancel({ closeMicrophone: true }).catch(() => undefined);
       try {
         room?.disconnect(true);
       } catch {
@@ -684,13 +940,16 @@ export function useMobileVoiceRoom({
       roomRef.current = null;
       void AudioSession.stopAudioSession().catch(() => undefined);
     },
-    [apiClient, clearHeartbeat, clearLevelTicker],
+    [apiClient, clearHeartbeat, clearLevelTicker, pushToTalkController],
   );
 
   return {
+    beginPushToTalk,
+    endPushToTalk,
     joinVoiceChannel,
     leaveVoiceChannel,
     permissionState,
+    pushToTalkState,
     requestMicrophonePermission,
     roomState,
     selectAudioOutput,
@@ -698,5 +957,6 @@ export function useMobileVoiceRoom({
     syncParticipantsFromServer,
     toggleCamera,
     toggleMute,
+    toggleScreenShare,
   };
 }

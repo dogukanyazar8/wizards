@@ -2,16 +2,17 @@ import type { ReactNode } from "react";
 import { View } from "react-native";
 
 import { getVisibleMobileSyncHealth } from "./mobile-screen-sync";
-import { styles, type ActiveScreenProps } from "./mobile-root-screens-legacy";
+import type { ActiveScreenProps } from "./mobile-root-screen-types";
 import { MobileVoiceInviteOverlay } from "./overlays/mobile-voice-invite-overlay";
 import { MessagesScreen } from "./screens/dm-screen";
 import { OverviewScreen } from "./screens/home-screen";
 import { NotificationsScreen } from "./screens/notifications-screen";
 import { ProfileSettingsScreen } from "./screens/settings-screen";
 import { VoiceScreen } from "./screens/voice-screen";
+import { styles } from "./mobile-root-screens.styles";
 
 export { AuthGate } from "./screens/auth-gate";
-export type { ActiveScreenProps } from "./mobile-root-screens-legacy";
+export type { ActiveScreenProps } from "./mobile-root-screen-types";
 
 export function ActiveScreen({
   authStatusLabel,
@@ -30,6 +31,8 @@ export function ActiveScreen({
   mediaState,
   messageSearchState,
   notificationState,
+  voiceInputMode,
+  voicePushToTalkPhase,
   voiceState,
   voiceRoomState,
   voiceInvites,
@@ -61,11 +64,15 @@ export function ActiveScreen({
   onRequestNotificationPermission,
   onRequestPhotoLibraryPermission,
   onRequestVoicePermission,
+  onBeginVoicePushToTalk,
+  onEndVoicePushToTalk,
   onLeaveVoiceChannel,
   onLeaveWorkspaceVoiceChannel,
   onSelectVoiceAudioOutput,
+  onSelectVoiceInputMode,
   onToggleVoiceCamera,
   onToggleVoiceMute,
+  onToggleVoiceScreenShare,
   onDeclineVoiceInvite,
   onChannelDraftChange,
   onRefresh,
@@ -140,13 +147,18 @@ export function ActiveScreen({
           bootstrapState={bootstrapState}
           permissionReadiness={permissionReadiness}
           permissionSummary={permissionSummary}
+          voiceInputMode={voiceInputMode}
+          voicePushToTalkPhase={voicePushToTalkPhase}
           voiceState={voiceState}
           voiceRoomState={voiceRoomState}
           syncHealth={syncHealth}
+          onBeginVoicePushToTalk={onBeginVoicePushToTalk}
+          onEndVoicePushToTalk={onEndVoicePushToTalk}
           onLeaveVoiceChannel={onLeaveVoiceChannel}
           onRequestVoicePermission={onRequestVoicePermission}
           onToggleVoiceCamera={onToggleVoiceCamera}
           onToggleVoiceMute={onToggleVoiceMute}
+          onToggleVoiceScreenShare={onToggleVoiceScreenShare}
           onRefreshBootstrap={onRefreshBootstrap}
           onRefreshVisibleData={onRefreshVisibleData}
         />,
@@ -175,6 +187,7 @@ export function ActiveScreen({
           permissionSummary={permissionSummary}
           signedInUserLabel={signedInUserLabel}
           locale={locale}
+          voiceInputMode={voiceInputMode}
           status={status}
           syncHealth={syncHealth}
           onOpenWebRegister={onOpenWebRegister}
@@ -191,6 +204,7 @@ export function ActiveScreen({
           onRequestNotificationPermission={onRequestNotificationPermission}
           onRequestPhotoLibraryPermission={onRequestPhotoLibraryPermission}
           onSelectLocale={onSelectLocale}
+          onSelectVoiceInputMode={onSelectVoiceInputMode}
           onSignOut={onSignOut}
         />,
       );
@@ -208,8 +222,11 @@ export function ActiveScreen({
           selectedWorkspaceServerId={selectedWorkspaceServerId}
           syncHealth={syncHealth}
           workspaceServerState={workspaceServerState}
+          locale={locale}
           mediaState={mediaState}
           messageSearchState={messageSearchState}
+          voiceInputMode={voiceInputMode}
+          voicePushToTalkPhase={voicePushToTalkPhase}
           voiceRoomState={voiceRoomState}
           onClearSelectedMediaAsset={onClearSelectedMediaAsset}
           onClearMessageSearch={onClearMessageSearch}
@@ -224,8 +241,12 @@ export function ActiveScreen({
           onRefreshWorkspaceServer={onRefreshWorkspaceServer}
           onRequestDocumentPicker={onRequestDocumentPicker}
           onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
+          onBeginVoicePushToTalk={onBeginVoicePushToTalk}
+          onEndVoicePushToTalk={onEndVoicePushToTalk}
           onSelectVoiceAudioOutput={onSelectVoiceAudioOutput}
+          onToggleVoiceCamera={onToggleVoiceCamera}
           onToggleVoiceMute={onToggleVoiceMute}
+          onToggleVoiceScreenShare={onToggleVoiceScreenShare}
           voiceInviteSendStates={voiceInviteSendStates}
           onChannelDraftChange={onChannelDraftChange}
           onSearchMessages={onSearchMessages}

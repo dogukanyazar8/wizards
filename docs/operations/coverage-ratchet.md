@@ -5,9 +5,9 @@ Whispr enforces a baseline unit and integration coverage gate through the
 
 Current baseline gate:
 
-- Lines: 20%
-- Branches: 61%
-- Functions: 44%
+- Lines: 23%
+- Branches: 67%
+- Functions: 51%
 
 These numbers are intentionally close to the current repository baseline. They
 exist to prevent regression first, then improve steadily.
@@ -32,3 +32,12 @@ exist to prevent regression first, then improve steadily.
   threshold is raised.
 - Large UI-only additions that lower global coverage include either component
   tests or a documented reason for deferring them.
+
+## Page Layer Scope
+
+Next.js `page.tsx` and `layout.tsx` files are React Server Component and shell
+composition surfaces in this project. The coverage gate should not add a new
+component-test stack solely to execute JSX. Keep page and layout rendering in
+Playwright coverage, and move any data loading, authorization, or formatting
+logic that needs Node-level coverage into `src/lib/**` helpers with direct
+behavior tests.

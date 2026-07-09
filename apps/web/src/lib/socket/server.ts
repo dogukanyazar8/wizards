@@ -1,6 +1,4 @@
 import type { IncomingMessage, Server as HTTPServer } from "http";
-import { Server } from "socket.io";
-import { createAdapter } from "@socket.io/redis-adapter";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@wizards/db";
 import {
@@ -15,21 +13,17 @@ import {
   isMobileAccessSessionActive,
   verifyMobileAccessToken,
 } from "@/lib/mobile/auth";
-import { getRedisOp, getRedisPub, getRedisRate, getRedisSub } from "@/lib/redis";
+import { getRedisOp, getRedisRate } from "@/lib/redis";
 import { createHandlerContext } from "@/lib/socket/context";
 import { registerSocketHandlers } from "@/lib/socket/handlers";
 import { markPresenceSocketActive } from "@/lib/socket/presence-helpers";
+import { createSocketServerWithRedisAdapter } from "@/lib/socket/redis-adapter";
 import {
   readCachedServerRoomIds,
   writeCachedServerRoomIds,
 } from "@/lib/socket/server-room-cache";
 import { setSocketServer } from "@/lib/socket/runtime";
-import type {
-  ClientToServerEvents,
-  InterServerEvents,
-  ServerToClientEvents,
-  SocketData,
-} from "./events";
+import type { SocketData } from "./events";
 
 const SOCKET_MAX_HTTP_BUFFER_SIZE = 1_048_576;
 export const SOCKET_SERVER_ROOM_JOIN_BATCH_SIZE = 500;
@@ -326,9 +320,9 @@ export async function joinServerRoomsForUser(
 
 export function initSocketServer(httpServer: HTTPServer) {
   const allowedSocketOrigins = getSocketAllowedOrigins();
-  const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(
+  const io = createSocketServerWithRedisAdapter({
     httpServer,
-    {
+    options: {
       allowRequest(request, callback) {
         callback(null, isSocketRequestAllowed(request, allowedSocketOrigins));
       },
@@ -345,7 +339,7 @@ export function initSocketServer(httpServer: HTTPServer) {
       },
       maxHttpBufferSize: SOCKET_MAX_HTTP_BUFFER_SIZE,
     },
-  );
+  });
   setSocketServer(io);
 
   io.use(async (socket, next) => {
@@ -419,9 +413,6 @@ export function initSocketServer(httpServer: HTTPServer) {
 
   const redis = getRedisOp();
   const rateRedis = getRedisRate();
-  const redisPub = getRedisPub();
-  const redisSub = getRedisSub();
-  io.adapter(createAdapter(redisPub, redisSub));
 
   io.on("connection", (socket) => {
     const ctx = createHandlerContext({ io, rateRedis, redis, socket });

@@ -154,6 +154,7 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
   const [socialNotice, setSocialNotice] = useState<string | null>(null);
   const [showDesktopOAuthPending, setShowDesktopOAuthPending] = useState(false);
   const [showDesktopStartup, setShowDesktopStartup] = useState(false);
+  const [showTwoFactorPrompt, setShowTwoFactorPrompt] = useState(false);
 
   useEffect(() => {
     setServerError(getAuthErrorMessage(authError));
@@ -171,6 +172,7 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
       email: "",
       password: "",
       rememberMe: false,
+      twoFactorCode: "",
       turnstileToken: "",
     },
   });
@@ -204,6 +206,7 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
     formData.set("email", values.email);
     formData.set("password", values.password);
     formData.set("rememberMe", values.rememberMe ? "true" : "false");
+    formData.set("twoFactorCode", values.twoFactorCode ?? "");
     formData.set("turnstileToken", values.turnstileToken);
     formData.set("callbackUrl", callbackUrl);
 
@@ -211,6 +214,9 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
 
     if (!result.success) {
       setShowDesktopStartup(false);
+      if (result.error === LOGIN_FAILED_MESSAGE_KEY) {
+        setShowTwoFactorPrompt(true);
+      }
       setServerError(result.error ?? "auth.login.alertUnavailable");
       return;
     }
@@ -334,6 +340,40 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
           </div>
 
           <input type="hidden" {...register("turnstileToken")} />
+
+          {showTwoFactorPrompt ? (
+            <div className="modern-login-field">
+              <label htmlFor="twoFactorCode">{t("auth.login.twoFactorLabel")}</label>
+              <div className="modern-login-input-wrap">
+                <ShieldCheck className="modern-login-input-icon" />
+                <input
+                  id="twoFactorCode"
+                  type="text"
+                  autoComplete="one-time-code"
+                  inputMode="text"
+                  placeholder={t("auth.login.twoFactorPlaceholder")}
+                  {...register("twoFactorCode")}
+                />
+              </div>
+              <p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">
+                {t("auth.login.twoFactorHelp")}
+              </p>
+              {errors.twoFactorCode ? (
+                <p className="modern-login-field-error">
+                  {t(errors.twoFactorCode.message ?? "validation.twoFactor.invalid")}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <button
+              className="inline-flex min-h-9 items-center gap-2 self-start rounded-xl px-2.5 text-xs font-bold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.35)]"
+              onClick={() => setShowTwoFactorPrompt(true)}
+              type="button"
+            >
+              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+              {t("auth.login.twoFactorUseCode")}
+            </button>
+          )}
 
           <label className="modern-login-checkbox">
             <input type="checkbox" {...register("rememberMe")} />

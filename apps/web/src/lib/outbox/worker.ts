@@ -5,14 +5,24 @@ import { cleanupOutboxJobs, drainOutboxJobs } from "@/lib/outbox/service";
 const DEFAULT_OUTBOX_WORKER_BATCH_SIZE = 25;
 const DEFAULT_OUTBOX_WORKER_INTERVAL_MS = 5_000;
 const OUTBOX_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+const DEFAULT_OUTBOX_WORKER_SHUTDOWN_TIMEOUT_MS = 10_000;
 
 let workerTimer: ReturnType<typeof setInterval> | null = null;
-let drainInFlight = false;
+let currentDrainPromise: Promise<void> | null = null;
 let lastCleanupAt = 0;
 
 type StartOutboxWorkerOptions = {
+  cleanupJobs?: typeof cleanupOutboxJobs;
+  cleanupReauthChallenges?: typeof cleanupAccountReauthChallenges;
+  drainJobs?: typeof drainOutboxJobs;
+  intervalMs?: number;
   keepAlive?: boolean;
   runImmediately?: boolean;
+  workerId?: string;
+};
+
+type StopOutboxWorkerOptions = {
+  timeoutMs?: number;
 };
 
 function readPositiveIntegerEnv(name: string, fallback: number) {
@@ -21,8 +31,13 @@ function readPositiveIntegerEnv(name: string, fallback: number) {
 }
 
 export function startOutboxWorker({
+  cleanupJobs = cleanupOutboxJobs,
+  cleanupReauthChallenges = cleanupAccountReauthChallenges,
+  drainJobs = drainOutboxJobs,
+  intervalMs,
   keepAlive = false,
   runImmediately = true,
+  workerId: configuredWorkerId,
 }: StartOutboxWorkerOptions = {}) {
   if (workerTimer || process.env.WHISPR_OUTBOX_WORKER === "false") {
     return false;
@@ -32,18 +47,19 @@ export function startOutboxWorker({
     "WHISPR_OUTBOX_BATCH_SIZE",
     DEFAULT_OUTBOX_WORKER_BATCH_SIZE,
   );
-  const intervalMs = readPositiveIntegerEnv(
-    "WHISPR_OUTBOX_INTERVAL_MS",
-    DEFAULT_OUTBOX_WORKER_INTERVAL_MS,
-  );
-  const workerId = `web-${process.pid}`;
+  const configuredIntervalMs =
+    intervalMs ??
+    readPositiveIntegerEnv(
+      "WHISPR_OUTBOX_INTERVAL_MS",
+      DEFAULT_OUTBOX_WORKER_INTERVAL_MS,
+    );
+  const workerId = configuredWorkerId ?? `web-${process.pid}`;
   const drain = () => {
-    if (drainInFlight) {
+    if (currentDrainPromise) {
       return;
     }
 
-    drainInFlight = true;
-    void drainOutboxJobs({ limit: batchSize, workerId })
+    currentDrainPromise = drainJobs({ limit: batchSize, workerId })
       .then(async () => {
         const now = Date.now();
         if (now - lastCleanupAt < OUTBOX_CLEANUP_INTERVAL_MS) {
@@ -52,14 +68,14 @@ export function startOutboxWorker({
 
         lastCleanupAt = now;
         const cleanupNow = new Date(now);
-        await cleanupOutboxJobs(cleanupNow);
-        await cleanupAccountReauthChallenges({ now: cleanupNow });
+        await cleanupJobs(cleanupNow);
+        await cleanupReauthChallenges({ now: cleanupNow });
       })
       .catch((error) => {
         logError("[outbox] Worker drain failed", error);
       })
       .finally(() => {
-        drainInFlight = false;
+        currentDrainPromise = null;
       });
   };
 
@@ -67,7 +83,7 @@ export function startOutboxWorker({
     drain();
   }
 
-  workerTimer = setInterval(drain, intervalMs);
+  workerTimer = setInterval(drain, configuredIntervalMs);
   if (!keepAlive) {
     workerTimer.unref?.();
   }
@@ -75,13 +91,43 @@ export function startOutboxWorker({
   return true;
 }
 
-export function stopOutboxWorkerForTests() {
-  if (!workerTimer) {
-    return;
+function waitForDrainWithTimeout(promise: Promise<void>, timeoutMs: number) {
+  if (timeoutMs <= 0) {
+    return Promise.resolve();
   }
 
-  clearInterval(workerTimer);
-  workerTimer = null;
-  drainInFlight = false;
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<void>((resolve) => {
+    timeout = setTimeout(resolve, timeoutMs);
+    timeout.unref?.();
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  });
+}
+
+export async function stopOutboxWorker({
+  timeoutMs = readPositiveIntegerEnv(
+    "WHISPR_OUTBOX_SHUTDOWN_TIMEOUT_MS",
+    DEFAULT_OUTBOX_WORKER_SHUTDOWN_TIMEOUT_MS,
+  ),
+}: StopOutboxWorkerOptions = {}) {
+  if (workerTimer) {
+    clearInterval(workerTimer);
+    workerTimer = null;
+  }
+
+  const drainPromise = currentDrainPromise;
+  if (drainPromise) {
+    await waitForDrainWithTimeout(drainPromise, timeoutMs);
+  }
+
   lastCleanupAt = 0;
+}
+
+export function stopOutboxWorkerForTests() {
+  return stopOutboxWorker({ timeoutMs: 0 });
 }

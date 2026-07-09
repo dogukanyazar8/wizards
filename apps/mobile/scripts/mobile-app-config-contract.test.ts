@@ -23,6 +23,7 @@ type BuildExpoConfig = (context: { config: Record<string, unknown> }) => {
     infoPlist?: Record<string, string>;
   };
   name?: string;
+  plugins?: unknown[];
   scheme?: string;
   slug?: string;
 };
@@ -52,6 +53,12 @@ describe("mobile app config contract", () => {
     assert.equal(config.ios?.bundleIdentifier, WHISPR_MOBILE_APP_IDENTITY.iosBundleIdentifier);
     assert.deepEqual(config.android?.permissions, getWhisprMobileAndroidPermissions());
     assert.deepEqual(config.ios?.infoPlist, getWhisprMobileIosInfoPlistUsageDescriptions());
+    assert.ok(config.plugins?.includes("./plugins/withScreenShare"));
+    assert.ok(config.android?.permissions?.includes("FOREGROUND_SERVICE_MEDIA_PROJECTION"));
+    assert.equal(
+      Object.hasOwn(config.ios?.infoPlist ?? {}, "NSScreenCaptureUsageDescription"),
+      false,
+    );
     assert.ok(config.extra?.whispr);
     assert.equal(config.extra.whispr.environment, "uat");
     assert.match(config.extra.whispr.apiUrl ?? "", /^https:\/\//);

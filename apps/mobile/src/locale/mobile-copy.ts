@@ -46,10 +46,8 @@ export const mobileCopy = {
     authCreateAccountSecondary: "Hesap Olustur",
     authJoinDescription: "Profilini sec, hesabini olustur ve iletisime katil.",
     authJoinTitle: "Whispr'a katil",
-    authLegalAccepted:
-      "Kullanim Sartlari'ni ve Gizlilik Politikasi'ni okudum, kabul ediyorum.",
-    authPasswordStrengthHint:
-      "Guclu bir sifre: harf, rakam ve ozel karakter icerir.",
+    authLegalAccepted: "Kullanim Sartlari'ni ve Gizlilik Politikasi'ni okudum, kabul ediyorum.",
+    authPasswordStrengthHint: "Guclu bir sifre: harf, rakam ve ozel karakter icerir.",
     authPasswordStrengthWeak: "Zayif",
     authPasswordStrengthMedium: "Orta",
     authPasswordStrengthStrong: "Guclu",
@@ -265,6 +263,7 @@ export const mobileCopy = {
     permissionMicrophone: "Mikrofon",
     permissionNotifications: "Bildirimler",
     permissionPhotoLibrary: "Fotograf arsivi",
+    permissionScreenCapture: "Ekran kaydi",
     permissionReady:
       "Izinler kullanici aksiyonu olmadan otomatik istenmez. Voice, kamera, dosya ve bildirim akislari guvenli onboarding bekler.",
     permissionTitle: "Izin hazirligi",
@@ -323,10 +322,18 @@ export const mobileCopy = {
     settingsThemeLightValue: "Acik",
     settingsNotificationsDescription: "Bildirim izinlerini kullanici aksiyonuyla yonet.",
     settingsNotificationsTitle: "Bildirimler",
-    settingsNotificationPushDescription:
-      "Anlik bildirimler yalnizca izin verdiginde etkinlesir.",
+    settingsNotificationPushDescription: "Anlik bildirimler yalnizca izin verdiginde etkinlesir.",
     settingsNotificationPushTitle: "Mobil bildirimler",
     settingsNotificationPermissionAction: "Bildirimleri hazirla",
+    settingsVoiceDescription: "Ses girisi ve isleme tercihlerini yonet.",
+    settingsVoiceTitle: "Ses",
+    settingsVoiceInputModeControlDescription: "Secimin cihazda guvenli sekilde saklanir.",
+    settingsVoiceInputModeDescription:
+      "Sesle aktif varsayilan moddur; bas-konus yalnizca basili tuttugunda mikrofonu acar.",
+    settingsVoiceInputModeTitle: "Giris modu",
+    settingsVoiceNoiseSuppressionDescription:
+      "Mobil mikrofon LiveKit/WebRTC echo cancellation, noise suppression ve auto gain control ile acilir.",
+    settingsVoiceNoiseSuppressionTitle: "Gurultu bastirma",
     settingsPermissionCameraDescription:
       "Kamera izni yalnizca kamera veya goruntulu gorusme aksiyonunu sectiginde istenir.",
     settingsPermissionDocumentPickerDescription:
@@ -496,10 +503,35 @@ export const mobileCopy = {
     voiceLeaveAction: "Ayril",
     voiceMuteAction: "Sessize al",
     voiceUnmuteAction: "Mikrofonu ac",
+    voiceInputModePushToTalk: "Bas-konus",
+    voiceInputModePushToTalkDescription: "Mikrofon yalnizca basili tuttugunda acilir.",
+    voiceInputModeVoiceActivity: "Sesle aktif",
+    voiceInputModeVoiceActivityDescription: "Mikrofon mevcut ses odasi davranisiyla calisir.",
     voiceHeadphonesAction: "Kulaklik",
     voiceSpeakerAction: "Hoparlor",
     voiceSettingsAction: "Ayarlar",
+    voicePushToTalkAccessibilityLabel: "Bas-konus mikrofonu",
+    voicePushToTalkHoldAction: "Bas ve konus",
+    voicePushToTalkHolding: "Canli",
+    voicePushToTalkReleaseCushion: "Kapatiliyor",
     voiceScreenShareAction: "Ekran paylas",
+    voiceScreenShareActiveDescription:
+      "Tum ekranin, bildirimlerin ve diger uygulamalar katilimcilara gorunebilir.",
+    voiceScreenShareActiveTitle: "Ekran paylasimi acik",
+    voiceScreenShareConsentCancel: "Vazgec",
+    voiceScreenShareConsentConfirm: "Paylasimi baslat",
+    voiceScreenShareConsentDescription:
+      "Devam edersen tum cihaz ekranin, bildirimlerin ve diger uygulamalar ses odasindaki katilimcilara gorunebilir.",
+    voiceScreenShareConsentTitle: "Ekranini paylasmadan once",
+    voiceScreenShareCloseViewerAction: "Izleyiciyi kapat",
+    voiceScreenShareExpandViewerAction: "Ekran paylasimini buyut",
+    voiceScreenShareStartingTitle: "Ekran paylasimi basliyor",
+    voiceScreenShareStopAction: "Paylasimi durdur",
+    voiceScreenShareStopShortAction: "Durdur",
+    voiceScreenShareStoppingTitle: "Ekran paylasimi duruyor",
+    voiceScreenShareViewerLabel: "Ekran paylasimi",
+    voiceScreenShareViewerTitle: "{name} ekranini paylasiyor",
+    voiceScreenShareViewerWaiting: "Video yayini baglaninca burada gorunecek.",
     voiceRoomCheckingPermission: "Mikrofon izni kontrol ediliyor.",
     voiceRoomConnected: "Baglanti kuruldu. Konusanlar anlik olarak guncellenir.",
     voiceRoomConnecting: "Ses odasina baglaniliyor.",
@@ -537,8 +569,7 @@ export const mobileCopy = {
     voiceSetupDescription:
       "Ses kanallari icin mikrofon izni yalnizca sen bu aksiyonu secince istenir.",
     voiceSetupEyebrow: "Native ses",
-    voiceSetupFootnote:
-      "Whispr mikrofonu yalnizca ses kanalina katildiginda etkinlestirir.",
+    voiceSetupFootnote: "Whispr mikrofonu yalnizca ses kanalina katildiginda etkinlestirir.",
     voiceSetupNativePendingDescription:
       "Mikrofon izni hazir. Ses kanalina katildiginda LiveKit baglantisi guvenli sekilde baslar.",
     voiceSetupNativePendingTitle: "Mikrofon hazir",
@@ -619,10 +650,8 @@ export const mobileCopy = {
     authCreateAccountSecondary: "Create account",
     authJoinDescription: "Choose your profile, create your account, and start talking.",
     authJoinTitle: "Join Whispr",
-    authLegalAccepted:
-      "I have read and accept the Terms of Use and Privacy Policy.",
-    authPasswordStrengthHint:
-      "Strong password: includes letters, numbers, and special characters.",
+    authLegalAccepted: "I have read and accept the Terms of Use and Privacy Policy.",
+    authPasswordStrengthHint: "Strong password: includes letters, numbers, and special characters.",
     authPasswordStrengthWeak: "Weak",
     authPasswordStrengthMedium: "Medium",
     authPasswordStrengthStrong: "Strong",
@@ -838,6 +867,7 @@ export const mobileCopy = {
     permissionMicrophone: "Microphone",
     permissionNotifications: "Notifications",
     permissionPhotoLibrary: "Photo library",
+    permissionScreenCapture: "Screen capture",
     permissionReady:
       "Permissions are never requested automatically without a user action. Voice, camera, file, and notification flows wait for safe onboarding.",
     permissionTitle: "Permission readiness",
@@ -900,6 +930,15 @@ export const mobileCopy = {
       "Push notifications are enabled only after you grant permission.",
     settingsNotificationPushTitle: "Mobile notifications",
     settingsNotificationPermissionAction: "Prepare notifications",
+    settingsVoiceDescription: "Manage voice input and processing preferences.",
+    settingsVoiceTitle: "Voice",
+    settingsVoiceInputModeControlDescription: "Your choice is stored safely on this device.",
+    settingsVoiceInputModeDescription:
+      "Voice activity is the default mode; push-to-talk opens the microphone only while held.",
+    settingsVoiceInputModeTitle: "Input mode",
+    settingsVoiceNoiseSuppressionDescription:
+      "The mobile microphone opens with LiveKit/WebRTC echo cancellation, noise suppression, and auto gain control.",
+    settingsVoiceNoiseSuppressionTitle: "Noise suppression",
     settingsPermissionCameraDescription:
       "Camera permission is requested only after you choose camera or video-call actions.",
     settingsPermissionDocumentPickerDescription:
@@ -1072,10 +1111,35 @@ export const mobileCopy = {
     voiceLeaveAction: "Leave",
     voiceMuteAction: "Mute",
     voiceUnmuteAction: "Unmute",
+    voiceInputModePushToTalk: "Push to talk",
+    voiceInputModePushToTalkDescription: "The microphone opens only while the button is held.",
+    voiceInputModeVoiceActivity: "Voice activity",
+    voiceInputModeVoiceActivityDescription: "The microphone uses the existing voice room behavior.",
     voiceHeadphonesAction: "Headphones",
     voiceSpeakerAction: "Speaker",
     voiceSettingsAction: "Settings",
+    voicePushToTalkAccessibilityLabel: "Push-to-talk microphone",
+    voicePushToTalkHoldAction: "Hold to talk",
+    voicePushToTalkHolding: "Live",
+    voicePushToTalkReleaseCushion: "Closing",
     voiceScreenShareAction: "Share",
+    voiceScreenShareActiveDescription:
+      "Your full screen, notifications, and other apps may be visible to participants.",
+    voiceScreenShareActiveTitle: "Screen sharing is on",
+    voiceScreenShareConsentCancel: "Cancel",
+    voiceScreenShareConsentConfirm: "Start sharing",
+    voiceScreenShareConsentDescription:
+      "If you continue, your entire device screen, notifications, and other apps may be visible to participants in the voice room.",
+    voiceScreenShareConsentTitle: "Before sharing your screen",
+    voiceScreenShareCloseViewerAction: "Close viewer",
+    voiceScreenShareExpandViewerAction: "Expand screen share",
+    voiceScreenShareStartingTitle: "Starting screen share",
+    voiceScreenShareStopAction: "Stop sharing",
+    voiceScreenShareStopShortAction: "Stop",
+    voiceScreenShareStoppingTitle: "Stopping screen share",
+    voiceScreenShareViewerLabel: "Screen share",
+    voiceScreenShareViewerTitle: "{name} is sharing their screen",
+    voiceScreenShareViewerWaiting: "The video stream will appear here once it connects.",
     voiceRoomCheckingPermission: "Checking microphone permission.",
     voiceRoomConnected: "Connected. Speaking state updates in real time.",
     voiceRoomConnecting: "Connecting to the voice room.",
@@ -1113,8 +1177,7 @@ export const mobileCopy = {
     voiceSetupDescription:
       "Microphone permission for voice channels is requested only after you choose this action.",
     voiceSetupEyebrow: "Native voice",
-    voiceSetupFootnote:
-      "Whispr enables the microphone only after you join a voice channel.",
+    voiceSetupFootnote: "Whispr enables the microphone only after you join a voice channel.",
     voiceSetupNativePendingDescription:
       "Microphone permission is ready. LiveKit starts securely when you join a voice channel.",
     voiceSetupNativePendingTitle: "Microphone ready",

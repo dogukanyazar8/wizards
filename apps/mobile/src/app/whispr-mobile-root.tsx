@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import type {
-  MobileVoiceStateParticipant,
-  MobileWorkspaceChannelSummary,
-} from "@wizards/types";
+import type { MobileVoiceStateParticipant, MobileWorkspaceChannelSummary } from "@wizards/types";
 import { AppState, Linking, type AppStateStatus } from "react-native";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { fetchMobileBootstrap, summarizeMobileBootstrap } from "../bootstrap/mobile-bootstrap";
@@ -98,6 +95,12 @@ import {
 } from "../workspace/mobile-workspace-client";
 import { applyMobileRealtimeChannelMessageEvent } from "../workspace/mobile-channel-message-state";
 import { useMobileVoiceRoom } from "../voice/use-mobile-voice-room";
+import { mobileVoicePreferenceRepository } from "../voice/expo-mobile-voice-preferences";
+import {
+  DEFAULT_MOBILE_VOICE_INPUT_MODE,
+  sanitizeMobileVoiceInputMode,
+  type MobileVoiceInputMode,
+} from "../voice/mobile-voice-ptt-contract";
 import {
   getMobileVoiceInviteErrorPayload,
   getMobileVoiceInviteReceivedPayload,
@@ -168,10 +171,8 @@ function getMobileVoiceStateUpdatePayload(payload: unknown): {
 
       return [
         {
-          avatarUrl:
-            typeof participant.avatarUrl === "string" ? participant.avatarUrl : null,
-          displayName:
-            typeof participant.displayName === "string" ? participant.displayName : null,
+          avatarUrl: typeof participant.avatarUrl === "string" ? participant.avatarUrl : null,
+          displayName: typeof participant.displayName === "string" ? participant.displayName : null,
           isScreenSharing: participant.isScreenSharing === true,
           userId: participant.userId,
           username: participant.username,
@@ -262,6 +263,9 @@ export function WhisprMobileRoot() {
     status,
   } = useMobileAuth();
   const [mobileLocale, setMobileLocale] = useState<MobileLocale>(DEFAULT_MOBILE_LOCALE);
+  const [voiceInputMode, setVoiceInputMode] = useState<MobileVoiceInputMode>(
+    DEFAULT_MOBILE_VOICE_INPUT_MODE,
+  );
   const [navigation, dispatchNavigation] = useReducer(mobileNavigationReducer, undefined, () =>
     createMobileNavigationState(),
   );
@@ -307,10 +311,12 @@ export function WhisprMobileRoot() {
   const dmMessagesRequestIdRef = useRef(0);
   const [selectedWorkspaceServerId, setSelectedWorkspaceServerId] = useState<string | null>(null);
   const [selectedWorkspaceChannelId, setSelectedWorkspaceChannelId] = useState<string | null>(null);
-  const [activeWorkspaceTextChannelId, setActiveWorkspaceTextChannelId] =
-    useState<string | null>(null);
-  const [activeWorkspaceVoiceChannelId, setActiveWorkspaceVoiceChannelId] =
-    useState<string | null>(null);
+  const [activeWorkspaceTextChannelId, setActiveWorkspaceTextChannelId] = useState<string | null>(
+    null,
+  );
+  const [activeWorkspaceVoiceChannelId, setActiveWorkspaceVoiceChannelId] = useState<string | null>(
+    null,
+  );
   const [workspaceServerState, setWorkspaceServerState] = useState<MobileWorkspaceServerViewState>(
     INITIAL_WORKSPACE_SERVER_STATE,
   );
@@ -329,8 +335,9 @@ export function WhisprMobileRoot() {
   );
   const workspaceServerRequestIdRef = useRef(0);
   const channelMessagesRequestIdRef = useRef(0);
-  const [messageSearchState, setMessageSearchState] =
-    useState<MobileMessageSearchViewState>(INITIAL_MESSAGE_SEARCH_STATE);
+  const [messageSearchState, setMessageSearchState] = useState<MobileMessageSearchViewState>(
+    INITIAL_MESSAGE_SEARCH_STATE,
+  );
   const messageSearchRequestIdRef = useRef(0);
   const [lastDeepLink, setLastDeepLink] = useState<MobileDeepLinkParseResult | null>(null);
   const route = resolveMobileRoute(navigation.currentTab, status);
@@ -338,9 +345,12 @@ export function WhisprMobileRoot() {
     createInitialMobileNotificationRuntimeState,
   );
   const {
+    beginPushToTalk,
+    endPushToTalk,
     joinVoiceChannel,
     leaveVoiceChannel,
     permissionState: voiceState,
+    pushToTalkState: voicePushToTalkState,
     requestMicrophonePermission,
     roomState: voiceRoomState,
     selectAudioOutput: selectVoiceAudioOutput,
@@ -348,9 +358,11 @@ export function WhisprMobileRoot() {
     syncParticipantsFromServer,
     toggleCamera: toggleVoiceCamera,
     toggleMute: toggleVoiceMute,
+    toggleScreenShare: toggleVoiceScreenShare,
   } = useMobileVoiceRoom({
     apiClient,
     currentUser: session?.user ?? null,
+    voiceInputMode,
   });
 
   useEffect(() => {
@@ -373,6 +385,31 @@ export function WhisprMobileRoot() {
 
         setActiveMobileLocale(DEFAULT_MOBILE_LOCALE);
         setMobileLocale(DEFAULT_MOBILE_LOCALE);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    mobileVoicePreferenceRepository
+      .loadInputMode()
+      .then((storedInputMode) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setVoiceInputMode(storedInputMode);
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setVoiceInputMode(DEFAULT_MOBILE_VOICE_INPUT_MODE);
       });
 
     return () => {
@@ -951,9 +988,7 @@ export function WhisprMobileRoot() {
             return null;
           }
 
-          const currentChannel = channels.find(
-            (channel) => channel.id === currentChannelId,
-          );
+          const currentChannel = channels.find((channel) => channel.id === currentChannelId);
           return currentChannel?.type === "TEXT" ? currentChannel.id : null;
         });
 
@@ -1156,9 +1191,7 @@ export function WhisprMobileRoot() {
         serverId: invite.serverId,
       }).then((joined) => {
         if (joined) {
-          setVoiceInviteEntries((current) =>
-            current.filter((entry) => entry.id !== invite.id),
-          );
+          setVoiceInviteEntries((current) => current.filter((entry) => entry.id !== invite.id));
           return;
         }
 
@@ -1186,9 +1219,7 @@ export function WhisprMobileRoot() {
         });
       }
 
-      setVoiceInviteEntries((current) =>
-        current.filter((entry) => entry.id !== inviteId),
-      );
+      setVoiceInviteEntries((current) => current.filter((entry) => entry.id !== inviteId));
     },
     [voiceInviteEntries],
   );
@@ -1231,42 +1262,45 @@ export function WhisprMobileRoot() {
     workspaceServerState.status,
   ]);
 
-  const refreshMobileRealtimeSources = useCallback((sources: readonly MobileRealtimeRefreshSource[]) => {
-    if (status !== "signed-in") {
-      return;
-    }
+  const refreshMobileRealtimeSources = useCallback(
+    (sources: readonly MobileRealtimeRefreshSource[]) => {
+      if (status !== "signed-in") {
+        return;
+      }
 
-    const sourceSet = new Set(sources);
+      const sourceSet = new Set(sources);
 
-    if (
-      sourceSet.has("bootstrap") ||
-      sourceSet.has("presence") ||
-      sourceSet.has("notification")
-    ) {
-      void loadBootstrap();
-    }
+      if (
+        sourceSet.has("bootstrap") ||
+        sourceSet.has("presence") ||
+        sourceSet.has("notification")
+      ) {
+        void loadBootstrap();
+      }
 
-    if (sourceSet.has("dm") && selectedDMConversationId) {
-      void loadDMMessages(selectedDMConversationId);
-    }
+      if (sourceSet.has("dm") && selectedDMConversationId) {
+        void loadDMMessages(selectedDMConversationId);
+      }
 
-    if (sourceSet.has("workspace") && selectedWorkspaceServerId) {
-      void loadWorkspaceServer(selectedWorkspaceServerId, selectedWorkspaceChannelId);
-    }
+      if (sourceSet.has("workspace") && selectedWorkspaceServerId) {
+        void loadWorkspaceServer(selectedWorkspaceServerId, selectedWorkspaceChannelId);
+      }
 
-    if (sourceSet.has("channel") && selectedWorkspaceChannelId) {
-      void loadChannelMessages(selectedWorkspaceChannelId);
-    }
-  }, [
-    loadBootstrap,
-    loadChannelMessages,
-    loadDMMessages,
-    loadWorkspaceServer,
-    selectedDMConversationId,
-    selectedWorkspaceChannelId,
-    selectedWorkspaceServerId,
-    status,
-  ]);
+      if (sourceSet.has("channel") && selectedWorkspaceChannelId) {
+        void loadChannelMessages(selectedWorkspaceChannelId);
+      }
+    },
+    [
+      loadBootstrap,
+      loadChannelMessages,
+      loadDMMessages,
+      loadWorkspaceServer,
+      selectedDMConversationId,
+      selectedWorkspaceChannelId,
+      selectedWorkspaceServerId,
+      status,
+    ],
+  );
 
   const refreshVisibleMobileData = useCallback(() => {
     refreshMobileRealtimeSources(["bootstrap", "dm", "workspace", "channel"]);
@@ -1327,8 +1361,7 @@ export function WhisprMobileRoot() {
           ? getMobileVoiceInviteSendResultPayload(event.payload)
           : null;
       const voiceInviteStatusPayload =
-        event.eventName === "voice:invite:status" ||
-        event.eventName === "voice:invite:accepted"
+        event.eventName === "voice:invite:status" || event.eventName === "voice:invite:accepted"
           ? getMobileVoiceInviteStatusPayload(event.payload)
           : null;
       const voiceInviteErrorPayload =
@@ -1468,8 +1501,7 @@ export function WhisprMobileRoot() {
 
         if (source === "channel") {
           const shouldRefreshChannel =
-            targets.channelId &&
-            (!event.channelId || event.channelId === targets.channelId);
+            targets.channelId && (!event.channelId || event.channelId === targets.channelId);
 
           if (shouldRefreshChannel && !channelMessageApplyResult.handled) {
             scheduleRealtimeRefresh("channel", () => {
@@ -1547,8 +1579,9 @@ export function WhisprMobileRoot() {
   );
 
   useEffect(() => {
-    const visibility: MobileRealtimeVisibility =
-      getMobileRealtimeVisibilityFromAppState(appStateRef.current);
+    const visibility: MobileRealtimeVisibility = getMobileRealtimeVisibilityFromAppState(
+      appStateRef.current,
+    );
 
     if (
       !shouldConnectMobileRealtime({
@@ -1589,13 +1622,7 @@ export function WhisprMobileRoot() {
         realtimeClientRef.current = null;
       }
     };
-  }, [
-    getAccessToken,
-    handleRealtimeEvent,
-    realtimeState.visibility,
-    session?.user.id,
-    status,
-  ]);
+  }, [getAccessToken, handleRealtimeEvent, realtimeState.visibility, session?.user.id, status]);
 
   useEffect(() => {
     const activeTargets = {
@@ -1603,8 +1630,7 @@ export function WhisprMobileRoot() {
         navigation.currentTab === "overview" || navigation.currentTab === "voice"
           ? selectedWorkspaceChannelId
           : null,
-      conversationId:
-        navigation.currentTab === "messages" ? selectedDMConversationId : null,
+      conversationId: navigation.currentTab === "messages" ? selectedDMConversationId : null,
       serverId: selectedWorkspaceServerId,
       voiceChannelId: activeVoiceChannelId,
     };
@@ -1837,6 +1863,12 @@ export function WhisprMobileRoot() {
     void mobileLocalePreferenceRepository.save(normalizedLocale).catch(() => undefined);
   }, []);
 
+  const handleSelectMobileVoiceInputMode = useCallback((mode: MobileVoiceInputMode) => {
+    const normalizedMode = sanitizeMobileVoiceInputMode(mode);
+    setVoiceInputMode(normalizedMode);
+    void mobileVoicePreferenceRepository.saveInputMode(normalizedMode).catch(() => undefined);
+  }, []);
+
   const openTrustedWebPath = useCallback((path: "/cookies" | "/privacy" | "/terms") => {
     const url = new URL(path, runtimeConfig.webUrl);
     void Linking.openURL(url.toString()).catch(() => undefined);
@@ -1900,6 +1932,8 @@ export function WhisprMobileRoot() {
           locale={mobileLocale}
           notificationState={notificationState}
           voiceState={voiceState}
+          voiceInputMode={voiceInputMode}
+          voicePushToTalkPhase={voicePushToTalkState.phase}
           voiceRoomState={voiceRoomState}
           voiceInvites={voiceInviteEntries}
           voiceInviteSendStates={voiceInviteSendStates}
@@ -1934,8 +1968,12 @@ export function WhisprMobileRoot() {
           onLeaveVoiceChannel={leaveVoiceChannel}
           onLeaveWorkspaceVoiceChannel={handleLeaveWorkspaceVoiceChannel}
           onSelectVoiceAudioOutput={selectVoiceAudioOutput}
+          onBeginVoicePushToTalk={beginPushToTalk}
+          onEndVoicePushToTalk={endPushToTalk}
+          onSelectVoiceInputMode={handleSelectMobileVoiceInputMode}
           onToggleVoiceCamera={toggleVoiceCamera}
           onToggleVoiceMute={toggleVoiceMute}
+          onToggleVoiceScreenShare={toggleVoiceScreenShare}
           onAcceptVoiceInvite={handleAcceptVoiceInvite}
           onRefreshBootstrap={() => void loadBootstrap()}
           onRefreshChannelMessages={() => {

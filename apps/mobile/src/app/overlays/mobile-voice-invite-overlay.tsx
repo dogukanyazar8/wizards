@@ -4,7 +4,7 @@ import { Pressable, Text, View } from "react-native";
 import { mobileColors } from "../../design/tokens";
 import { activeMobileCopy } from "../../locale/mobile-locale-preferences";
 import type { MobileVoiceInviteReceived } from "../../voice/mobile-voice-room-contract";
-import { styles } from "../mobile-root-screens-legacy";
+import { styles } from "./mobile-voice-invite-overlay.styles";
 
 const copy = activeMobileCopy;
 

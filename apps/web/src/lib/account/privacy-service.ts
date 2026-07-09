@@ -523,6 +523,7 @@ export async function anonymizeAccount(userId: string) {
       where: { deletedById: userId },
       data: { deletedById: null },
     });
+    await tx.twoFactorRecoveryCode.deleteMany({ where: { userId } });
     await tx.user.update({
       where: { id: userId },
       data: {

@@ -64,10 +64,10 @@ export const MOBILE_NATIVE_CAPABILITIES: readonly MobileNativeCapability[] = [
     userActionTrigger: "User taps attach and chooses media or files.",
   },
   {
-    feature: "voice",
+    feature: "screenShare",
     id: "screenShare",
-    permissionIntents: [],
-    stage: "research-required",
+    permissionIntents: ["screenCapture"],
+    stage: "foundation-ready",
     userActionTrigger: "User explicitly starts screen sharing from a call.",
   },
 ] as const;
@@ -105,16 +105,18 @@ export function validateMobileNativeCapabilityContract(): string[] {
       }
     }
 
-    if (capability.id === "screenShare" && capability.stage !== "research-required") {
-      issues.push(
-        "screenShare must stay research-required until platform capture contracts exist.",
-      );
+    if (capability.id === "screenShare" && capability.stage !== "foundation-ready") {
+      issues.push("screenShare must stay foundation-ready after mobile capture contracts exist.");
     }
 
     if (
-      capability.id === "nativeNotifications" &&
-      capability.stage !== "foundation-ready"
+      capability.id === "screenShare" &&
+      !capability.permissionIntents.includes("screenCapture")
     ) {
+      issues.push("screenShare must declare the screenCapture permission intent.");
+    }
+
+    if (capability.id === "nativeNotifications" && capability.stage !== "foundation-ready") {
       issues.push(
         "nativeNotifications must stay foundation-ready after push token registration exists.",
       );

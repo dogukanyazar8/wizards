@@ -3,6 +3,7 @@ import { Prisma, prisma } from "@wizards/db";
 import { z } from "zod";
 
 import { recordMessageCreated } from "@/lib/analytics/service";
+import { processAttachmentScanJob } from "@/lib/attachments/scanner";
 import { createDMMessageNotifications } from "@/lib/dm/notification-service";
 import { logError } from "@/lib/logger";
 import { getSocketServer } from "@/lib/socket/runtime";
@@ -22,6 +23,7 @@ const OUTBOX_FAILED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const OUTBOX_ENQUEUE_RETRY_DELAYS_MS = [50, 150, 500] as const;
 
 export const OUTBOX_JOB_TYPES = {
+  attachmentScan: "ATTACHMENT_SCAN",
   channelMentionNotifications: "CHANNEL_MENTION_NOTIFICATIONS",
   channelThreadReplyNotification: "CHANNEL_THREAD_REPLY_NOTIFICATION",
   dmMessageNotifications: "DM_MESSAGE_NOTIFICATIONS",
@@ -50,11 +52,36 @@ type ClaimedOutboxJob = {
   type: string;
 };
 
+type OutboxMetricsClient = {
+  outboxJob: {
+    count(args: unknown): Promise<number>;
+    findFirst(args: unknown): Promise<{ createdAt: Date } | null>;
+  };
+};
+
+type OutboxDrainMetricsOptions = {
+  client?: OutboxMetricsClient;
+  logger?: (message: string, payload: OutboxDrainLogPayload) => void;
+  now?: Date;
+  processedJobs: number;
+};
+
+type OutboxDrainLogPayload = {
+  failedJobCount: number;
+  oldestPendingAgeMs: number;
+  processedJobs: number;
+  type: "outbox_drain";
+};
+
 const MessageCreatedAnalyticsPayloadSchema = z.object({
   attachmentCount: z.number().int().min(0).default(0),
   isDm: z.boolean().default(false),
   uploadedBytes: z.string().regex(/^\d+$/).default("0"),
   userId: z.string().min(1),
+});
+
+const AttachmentScanPayloadSchema = z.object({
+  attachmentId: z.string().min(1),
 });
 
 const ChannelMentionNotificationsPayloadSchema = z.object({
@@ -118,6 +145,38 @@ export function getOutboxRetryDelayMs(attempts: number) {
   return Math.min(60_000, 1000 * 2 ** (boundedAttempts - 1));
 }
 
+export async function logOutboxDrainMetrics({
+  client = prisma,
+  logger = console.info,
+  now = new Date(),
+  processedJobs,
+}: OutboxDrainMetricsOptions) {
+  const [oldestPendingJob, failedJobCount] = await Promise.all([
+    client.outboxJob.findFirst({
+      orderBy: { createdAt: "asc" },
+      select: { createdAt: true },
+      where: {
+        availableAt: { lte: now },
+        status: OUTBOX_STATUS_PENDING,
+      },
+    }),
+    client.outboxJob.count({
+      where: {
+        status: OUTBOX_STATUS_FAILED,
+      },
+    }),
+  ]);
+
+  logger("[outbox]", {
+    failedJobCount,
+    oldestPendingAgeMs: oldestPendingJob
+      ? Math.max(0, now.getTime() - oldestPendingJob.createdAt.getTime())
+      : 0,
+    processedJobs,
+    type: "outbox_drain",
+  });
+}
+
 export async function enqueueOutboxJob(client: OutboxClient, input: EnqueueOutboxJobInput) {
   await client.outboxJob.upsert({
     where: { idempotencyKey: input.idempotencyKey },
@@ -166,6 +225,21 @@ export async function enqueueMessageCreatedAnalyticsJob(
       userId: args.userId,
     }),
     type: OUTBOX_JOB_TYPES.messageCreatedAnalytics,
+  });
+}
+
+export async function enqueueAttachmentScanJob(
+  client: OutboxClient,
+  args: {
+    attachmentId: string;
+  },
+) {
+  await enqueueOutboxJob(client, {
+    idempotencyKey: `attachment-scan:${args.attachmentId}`,
+    payload: toJsonValue({
+      attachmentId: args.attachmentId,
+    }),
+    type: OUTBOX_JOB_TYPES.attachmentScan,
   });
 }
 
@@ -346,6 +420,13 @@ async function processNotificationJob(job: ClaimedOutboxJob) {
 }
 
 async function processOutboxJob(job: ClaimedOutboxJob) {
+  if (job.type === OUTBOX_JOB_TYPES.attachmentScan) {
+    const payload = AttachmentScanPayloadSchema.parse(job.payload);
+    await processAttachmentScanJob(payload);
+    await markOutboxJobCompleted(job.id);
+    return;
+  }
+
   if (job.type === OUTBOX_JOB_TYPES.messageCreatedAnalytics) {
     await processMessageCreatedAnalytics(job);
     return;
@@ -376,6 +457,12 @@ export async function drainOutboxJobs(
       });
       await markOutboxJobFailed(job, error);
     }
+  }
+
+  try {
+    await logOutboxDrainMetrics({ processedJobs: jobs.length });
+  } catch (error) {
+    logError("[outbox] Metrics logging failed", error);
   }
 
   return jobs.length;

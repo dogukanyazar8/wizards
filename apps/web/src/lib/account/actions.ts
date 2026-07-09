@@ -4,9 +4,18 @@ import { z } from "zod";
 import { UserStatus, prisma } from "@wizards/db";
 import { auth, normalizeAuthEmail, unstable_update } from "@/auth";
 import {
+  confirmTwoFactorSetup,
+  disableTwoFactor,
+  startTwoFactorSetup,
+  type ConfirmTwoFactorSetupResult,
+  type StartTwoFactorSetupResult,
+  type TwoFactorFailureResult,
+} from "@/lib/auth/two-factor";
+import {
   broadcastPresenceUpdateToFriends,
   persistUserPresence,
 } from "@/lib/friends/service";
+import { logError } from "@/lib/logger";
 import type { FriendPresenceStatus } from "@/lib/friends/types";
 import type { UserProfileUpdatedPayload } from "@/lib/socket/events";
 import { getSocketServer } from "@/lib/socket/runtime";
@@ -61,6 +70,30 @@ export type UpdatePresenceStatusResult = {
   success: boolean;
 };
 
+export type StartTwoFactorSetupActionResult =
+  | StartTwoFactorSetupResult
+  | {
+      error: string;
+      success: false;
+    };
+
+export type ConfirmTwoFactorSetupActionResult =
+  | ConfirmTwoFactorSetupResult
+  | {
+      error: string;
+      success: false;
+    };
+
+export type DisableTwoFactorActionResult =
+  | {
+      success: true;
+    }
+  | {
+      error: string;
+      retryAfterSeconds?: number;
+      success: false;
+    };
+
 function mapUserToAccountState(user: {
   avatarUrl: string | null;
   displayName: string | null;
@@ -94,6 +127,35 @@ function mapVisiblePresenceStatus(status: UserStatus): FriendPresenceStatus {
   }
 
   return "OFFLINE";
+}
+
+function mapTwoFactorError(error: TwoFactorFailureResult["error"]) {
+  switch (error) {
+    case "already_enabled":
+      return "settings.account.twoFactor.errors.alreadyEnabled";
+    case "invalid_code":
+      return "settings.account.twoFactor.errors.invalidCode";
+    case "invalid_credentials":
+      return "settings.account.twoFactor.errors.invalidCredentials";
+    case "not_enabled":
+      return "settings.account.twoFactor.errors.notEnabled";
+    case "not_found":
+      return "settings.account.twoFactor.errors.unavailable";
+    case "rate_limited":
+      return "settings.account.twoFactor.errors.rateLimited";
+    case "setup_required":
+      return "settings.account.twoFactor.errors.setupRequired";
+  }
+}
+
+function mapTwoFactorActionFailure(result: TwoFactorFailureResult) {
+  return {
+    error: mapTwoFactorError(result.error),
+    ...(result.retryAfterSeconds === undefined
+      ? {}
+      : { retryAfterSeconds: result.retryAfterSeconds }),
+    success: false,
+  } as const;
 }
 
 function isTrustedAvatarUrl(value: string | null) {
@@ -348,6 +410,84 @@ export async function updateAccountAvatarAction(
     success: true,
     user: mapUserToAccountState(updatedUser),
   };
+}
+
+export async function startTwoFactorSetupAction(): Promise<StartTwoFactorSetupActionResult> {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return {
+      error: "auth.login.signInUnavailable",
+      success: false,
+    };
+  }
+
+  try {
+    const result = await startTwoFactorSetup(session.user.id);
+    return result.success ? result : mapTwoFactorActionFailure(result);
+  } catch (error) {
+    logError("[account] Two-factor setup failed", error);
+    return {
+      error: "settings.account.twoFactor.errors.unavailable",
+      success: false,
+    };
+  }
+}
+
+export async function confirmTwoFactorSetupAction(
+  code: string,
+): Promise<ConfirmTwoFactorSetupActionResult> {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return {
+      error: "auth.login.signInUnavailable",
+      success: false,
+    };
+  }
+
+  try {
+    const result = await confirmTwoFactorSetup({
+      code,
+      userId: session.user.id,
+    });
+    return result.success ? result : mapTwoFactorActionFailure(result);
+  } catch (error) {
+    logError("[account] Two-factor confirmation failed", error);
+    return {
+      error: "settings.account.twoFactor.errors.unavailable",
+      success: false,
+    };
+  }
+}
+
+export async function disableTwoFactorAction(input: {
+  code: string;
+  password: string;
+}): Promise<DisableTwoFactorActionResult> {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return {
+      error: "auth.login.signInUnavailable",
+      success: false,
+    };
+  }
+
+  try {
+    const result = await disableTwoFactor({
+      code: input.code,
+      password: input.password,
+      userId: session.user.id,
+    });
+    return result.success ? result : mapTwoFactorActionFailure(result);
+  } catch (error) {
+    logError("[account] Two-factor disable failed", error);
+    return {
+      error: "settings.account.twoFactor.errors.unavailable",
+      success: false,
+    };
+  }
 }
 
 export async function updatePresenceStatusAction(

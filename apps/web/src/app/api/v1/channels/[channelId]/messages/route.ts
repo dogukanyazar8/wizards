@@ -29,7 +29,7 @@ export async function GET(request: Request, context: RouteContext) {
     await requireChannelPermissionForUser(userId, channelId, PermissionBits.VIEW_CHANNEL, {
       requiredType: ChannelType.TEXT,
     });
-    const result = await getChannelMessages(channelId, cursor, limit);
+    const result = await getChannelMessages(channelId, cursor, limit, userId);
 
     return Response.json(result);
   } catch (error) {

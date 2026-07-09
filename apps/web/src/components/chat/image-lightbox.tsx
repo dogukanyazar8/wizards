@@ -191,10 +191,10 @@ export function ImageLightbox({ image, onClose }: ImageLightboxProps) {
       )}
       closeLabel={t("chat.attachments.closeImageViewer")}
       onClose={onClose}
-      open={Boolean(image)}
+      open={Boolean(image?.url)}
       title={t("chat.attachments.imageViewer")}
     >
-      {image ? (
+      {image?.url ? (
         <div className="space-y-4" data-testid="image-lightbox">
           <div className="flex flex-col gap-3 rounded-[24px] border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.68)] p-3 shadow-[0_16px_40px_hsl(var(--shadow-color)/0.08)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">

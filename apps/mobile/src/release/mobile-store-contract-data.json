@@ -48,6 +48,12 @@
       "id": "notifications",
       "usageDescription": "Whispr sends notifications only for account, message, and server activity you can control.",
       "userActionRequired": true
+    },
+    {
+      "androidPermission": "FOREGROUND_SERVICE_MEDIA_PROJECTION",
+      "id": "screenCapture",
+      "usageDescription": "Whispr captures your screen only when you choose to share your screen in a voice room. Your entire screen, notifications, and other apps may be visible until you stop sharing.",
+      "userActionRequired": true
     }
   ],
   "privacyRequirements": [

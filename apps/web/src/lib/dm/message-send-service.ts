@@ -137,8 +137,26 @@ export async function sendDirectMessage(input: SendDirectMessageInput) {
     userId: input.userId,
   });
 
-  const messagePayload = mapDMMessagePayload(createdMessage);
-  input.io?.to(`dm:${input.conversationId}`).emit("dm:message:new", messagePayload);
+  const messagePayload = mapDMMessagePayload(
+    createdMessage,
+    undefined,
+    undefined,
+    input.userId,
+  );
+
+  if (input.io) {
+    for (const participant of participants) {
+      input.io.to(`user:${participant.userId}`).emit(
+        "dm:message:new",
+        mapDMMessagePayload(
+          createdMessage,
+          undefined,
+          undefined,
+          participant.userId,
+        ),
+      );
+    }
+  }
 
   const firstAttachment = createdMessage.attachments[0];
   const attachmentLabelKey = getDMAttachmentLabelKey(firstAttachment);

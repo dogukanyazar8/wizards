@@ -129,6 +129,13 @@ enum NotificationCampaignStatus {
   CANCELLED
 }
 
+enum AttachmentScanStatus {
+  PENDING
+  CLEAN
+  INFECTED
+  ERROR
+}
+
 // Sticker animation preferences
 enum AnimateStickers {
   ALWAYS
@@ -267,6 +274,7 @@ model User {
   sessions                Session[]
   emailVerificationTokens EmailVerificationToken[]
   accountReauthChallenges AccountReauthChallenge[]
+  twoFactorRecoveryCodes   TwoFactorRecoveryCode[]
   settings                UserSettings?
   notificationSettings    UserNotificationSettings?
   friendRequestsSent      FriendRequest[]           @relation("FriendRequestSender")
@@ -529,6 +537,18 @@ model AccountReauthChallenge {
 
   @@index([userId, purpose, usedAt])
   @@index([expiresAt])
+}
+
+model TwoFactorRecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String    @unique
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt])
 }
 
 model FriendRequest {
@@ -823,6 +843,7 @@ model Attachment {
   duration     Float?
   waveform     String?
   thumbnailUrl String?
+  scanStatus   AttachmentScanStatus @default(PENDING)
   spoiler      Boolean  @default(false)
   description  String?
   createdAt    DateTime @default(now())
@@ -833,6 +854,7 @@ model Attachment {
 
   @@index([messageId])
   @@index([dmMessageId])
+  @@index([scanStatus])
 }
 
 model MessageMention {

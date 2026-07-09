@@ -61,6 +61,10 @@ import {
 } from "@/lib/message-fonts";
 import {
   type AccountSettingsState,
+  confirmTwoFactorSetupAction,
+  disableTwoFactorAction,
+  startTwoFactorSetupAction,
+  type StartTwoFactorSetupActionResult,
   type UpdateAccountSettingsResult,
   updateAccountSettingsAction,
 } from "@/lib/account/actions";
@@ -747,11 +751,120 @@ function SuggestionRow({
 
 function SecurityCenterCard({
   account,
+  onTwoFactorUpdated,
   t,
 }: {
   account: AccountSettingsState;
+  onTwoFactorUpdated: (enabled: boolean) => void;
   t: (key: string, values?: Record<string, number | string>) => string;
 }) {
+  const [isTwoFactorPending, startTwoFactorTransition] = useTransition();
+  const [setupMaterial, setSetupMaterial] = useState<
+    Extract<StartTwoFactorSetupActionResult, { success: true }> | null
+  >(null);
+  const [setupCode, setSetupCode] = useState("");
+  const [disablePassword, setDisablePassword] = useState("");
+  const [disableCode, setDisableCode] = useState("");
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
+  const [feedback, setFeedback] = useState<{
+    tone: "error" | "success";
+    value: string;
+  } | null>(null);
+
+  const showTwoFactorFailure = (error: string, retryAfterSeconds?: number) => {
+    setFeedback({
+      tone: "error",
+      value:
+        retryAfterSeconds === undefined
+          ? t(error)
+          : `${t(error)} ${t("settings.account.twoFactor.retryAfter", {
+              seconds: retryAfterSeconds,
+            })}`,
+    });
+  };
+
+  const beginTwoFactorSetup = () => {
+    startTwoFactorTransition(() => {
+      void (async () => {
+        setFeedback(null);
+        setRecoveryCodes([]);
+        const result = await startTwoFactorSetupAction();
+
+        if (!result.success) {
+          showTwoFactorFailure(result.error);
+          return;
+        }
+
+        setSetupMaterial(result);
+        setSetupCode("");
+        setFeedback({
+          tone: "success",
+          value: t("settings.account.twoFactor.setupReady"),
+        });
+      })();
+    });
+  };
+
+  const confirmTwoFactor = () => {
+    startTwoFactorTransition(() => {
+      void (async () => {
+        setFeedback(null);
+        const result = await confirmTwoFactorSetupAction(setupCode);
+
+        if (!result.success) {
+          showTwoFactorFailure(
+            result.error,
+            "retryAfterSeconds" in result ? result.retryAfterSeconds : undefined,
+          );
+          return;
+        }
+
+        setRecoveryCodes(result.recoveryCodes);
+        setSetupMaterial(null);
+        setSetupCode("");
+        onTwoFactorUpdated(true);
+        setFeedback({
+          tone: "success",
+          value: t("settings.account.twoFactor.enabled"),
+        });
+      })();
+    });
+  };
+
+  const disableCurrentTwoFactor = () => {
+    startTwoFactorTransition(() => {
+      void (async () => {
+        setFeedback(null);
+        const result = await disableTwoFactorAction({
+          code: disableCode,
+          password: disablePassword,
+        });
+
+        if (!result.success) {
+          showTwoFactorFailure(result.error, result.retryAfterSeconds);
+          return;
+        }
+
+        setDisableCode("");
+        setDisablePassword("");
+        setRecoveryCodes([]);
+        onTwoFactorUpdated(false);
+        setFeedback({
+          tone: "success",
+          value: t("settings.account.twoFactor.disabled"),
+        });
+      })();
+    });
+  };
+
+  const copyRecoveryCodes = () => {
+    if (typeof navigator === "undefined" || !navigator.clipboard || recoveryCodes.length === 0) {
+      return;
+    }
+
+    void navigator.clipboard.writeText(recoveryCodes.join("\n"));
+  };
+
   return (
     <section className="rounded-[20px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface)/0.9)] p-3 shadow-[0_12px_32px_hsl(var(--shadow-color)/0.05)] sm:p-4">
       <div className="flex items-start gap-3">
@@ -783,24 +896,26 @@ function SecurityCenterCard({
         />
         <SuggestionRow
           description={t("settings.account.quickSuggestions.twoFactor.description")}
-          disabled
           icon={LockKeyhole}
-          note={t("settings.account.security.backendRequired")}
           status={
             account.twoFactorEnabled ? (
               <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
             ) : (
-              <Badge tone="muted">{t("settings.account.previewSoon")}</Badge>
+              <Badge tone="muted">{t("settings.account.twoFactor.off")}</Badge>
             )
           }
           title={t("settings.account.quickSuggestions.twoFactor.title")}
         />
         <SuggestionRow
           description={t("settings.account.quickSuggestions.recoveryCodes.description")}
-          disabled
           icon={KeyRound}
-          note={t("settings.account.security.backendRequired")}
-          status={<Badge tone="muted">{t("settings.account.previewSoon")}</Badge>}
+          status={
+            account.twoFactorEnabled ? (
+              <Badge>{t("settings.account.twoFactor.generated")}</Badge>
+            ) : (
+              <Badge tone="muted">{t("settings.account.twoFactor.off")}</Badge>
+            )
+          }
           title={t("settings.account.quickSuggestions.recoveryCodes.title")}
         />
         <SuggestionRow
@@ -821,14 +936,142 @@ function SecurityCenterCard({
         />
       </div>
 
-      <button
-        className="mt-3 inline-flex min-h-8 items-center gap-2 rounded-lg px-2.5 text-xs font-black text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
-        disabled
-        type="button"
-      >
-        {t("settings.account.quickSuggestions.securityLink")}
-        <ExternalLink className="h-4 w-4" />
-      </button>
+      <div className="mt-3 rounded-[16px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--background)/0.46)] p-3">
+        {feedback ? (
+          <div
+            className={cn(
+              "mb-3 rounded-xl border px-3 py-2 text-xs font-semibold",
+              feedback.tone === "success"
+                ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600"
+                : "border-rose-500/25 bg-rose-500/10 text-rose-600",
+            )}
+            role={feedback.tone === "error" ? "alert" : "status"}
+          >
+            {feedback.value}
+          </div>
+        ) : null}
+
+        {recoveryCodes.length > 0 ? (
+          <div className="mb-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black text-app-foreground">
+                  {t("settings.account.twoFactor.recoveryTitle")}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-app-muted">
+                  {t("settings.account.twoFactor.recoveryDescription")}
+                </p>
+              </div>
+              <button
+                className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                onClick={copyRecoveryCodes}
+                type="button"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                {t("common.copy")}
+              </button>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {recoveryCodes.map((code) => (
+                <code
+                  className="rounded-lg bg-[hsl(var(--surface)/0.86)] px-2 py-1.5 text-xs font-black text-app-foreground"
+                  key={code}
+                >
+                  {code}
+                </code>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {!account.twoFactorEnabled ? (
+          setupMaterial ? (
+            <div className="grid gap-3 lg:grid-cols-[132px_1fr]">
+              <Image
+                alt={t("settings.account.twoFactor.qrAlt")}
+                className="rounded-xl border border-[hsl(var(--border)/0.7)] bg-white p-2"
+                height={132}
+                src={setupMaterial.qrCodeDataUrl}
+                unoptimized
+                width={132}
+              />
+              <div className="min-w-0 space-y-3">
+                <div>
+                  <p className="text-xs font-black text-app-foreground">
+                    {t("settings.account.twoFactor.manualKey")}
+                  </p>
+                  <code className="mt-1 block break-all rounded-lg bg-[hsl(var(--surface)/0.86)] px-2 py-1.5 text-xs font-black text-app-foreground">
+                    {setupMaterial.manualEntryKey}
+                  </code>
+                </div>
+                <label className="block text-xs font-bold text-app-muted" htmlFor="two-factor-code">
+                  {t("settings.account.twoFactor.confirmLabel")}
+                </label>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    className="min-h-10 flex-1 rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.84)] px-3 text-sm font-semibold text-app-foreground outline-none transition focus:border-[hsl(var(--primary)/0.45)] focus:ring-2 focus:ring-[hsl(var(--primary)/0.16)]"
+                    id="two-factor-code"
+                    inputMode="numeric"
+                    onChange={(event) => setSetupCode(event.target.value)}
+                    placeholder={t("settings.account.twoFactor.codePlaceholder")}
+                    type="text"
+                    value={setupCode}
+                  />
+                  <button
+                    className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[hsl(var(--primary))] px-3 text-xs font-black text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isTwoFactorPending}
+                    onClick={confirmTwoFactor}
+                    type="button"
+                  >
+                    {t("settings.account.twoFactor.confirmCta")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <button
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-3 text-xs font-black text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isTwoFactorPending}
+              onClick={beginTwoFactorSetup}
+              type="button"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              {t("settings.account.twoFactor.setupCta")}
+            </button>
+          )
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs leading-5 text-app-muted">
+              {t("settings.account.twoFactor.disableDescription")}
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input
+                className="min-h-10 rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.84)] px-3 text-sm font-semibold text-app-foreground outline-none transition focus:border-[hsl(var(--primary)/0.45)] focus:ring-2 focus:ring-[hsl(var(--primary)/0.16)]"
+                onChange={(event) => setDisablePassword(event.target.value)}
+                placeholder={t("settings.account.twoFactor.passwordPlaceholder")}
+                type="password"
+                value={disablePassword}
+              />
+              <input
+                className="min-h-10 rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.84)] px-3 text-sm font-semibold text-app-foreground outline-none transition focus:border-[hsl(var(--primary)/0.45)] focus:ring-2 focus:ring-[hsl(var(--primary)/0.16)]"
+                onChange={(event) => setDisableCode(event.target.value)}
+                placeholder={t("settings.account.twoFactor.codeOrRecoveryPlaceholder")}
+                type="text"
+                value={disableCode}
+              />
+            </div>
+            <button
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-rose-500/30 px-3 text-xs font-black text-rose-600 transition hover:bg-rose-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isTwoFactorPending}
+              onClick={disableCurrentTwoFactor}
+              type="button"
+            >
+              <LockKeyhole className="h-4 w-4" />
+              {t("settings.account.twoFactor.disableCta")}
+            </button>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -1630,7 +1873,16 @@ export function SettingsPanel({
               t={t}
               uploadthingEnabled={uploadthingEnabled}
             />
-            <SecurityCenterCard account={accountState} t={t} />
+            <SecurityCenterCard
+              account={accountState}
+              onTwoFactorUpdated={(enabled) =>
+                setAccountState((current) => ({
+                  ...current,
+                  twoFactorEnabled: enabled,
+                }))
+              }
+              t={t}
+            />
           </div>
         </div>
       </div>

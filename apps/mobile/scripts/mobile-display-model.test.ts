@@ -32,8 +32,7 @@ import {
   MOBILE_RENDER_LIMITS,
 } from "../src/app/mobile-display-model";
 
-type Conversation =
-  MobileBootstrapPayload["home"]["directMessages"]["recent"][number];
+type Conversation = MobileBootstrapPayload["home"]["directMessages"]["recent"][number];
 
 const conversation: Conversation = {
   iconUrl: null,
@@ -158,7 +157,7 @@ const bootstrapPayload: MobileBootstrapPayload = {
   },
   contracts: {
     deepLinks: ["auth-handoff", "invite", "route"],
-    permissions: ["camera", "microphone", "notifications", "photoLibrary"],
+    permissions: ["camera", "microphone", "notifications", "photoLibrary", "screenCapture"],
   },
   features: {
     attachments: {
@@ -298,6 +297,7 @@ describe("mobile display model", () => {
         selfAudioOutput: "default",
         selfCameraEnabled: false,
         selfMuted: false,
+        selfScreenShareEnabled: false,
         serverId: "server-1",
         sessionId: "session-1",
         status: "connected",
@@ -305,6 +305,7 @@ describe("mobile display model", () => {
       },
       {
         channelName: "live-room",
+        locale: "tr",
         memberCount: 5,
         serverName: "UAT ENV",
         serverShortName: "UA",
@@ -319,17 +320,44 @@ describe("mobile display model", () => {
     assert.equal(model.shouldSplitParticipantsBySpeakingState, false);
     assert.equal(model.participantCountLabel, "2");
     assert.equal(model.canLeave, true);
+    assert.equal(model.canToggleCamera, true);
     assert.equal(model.canToggleMicrophone, true);
-    assert.equal(model.canShareScreen, false);
+    assert.equal(model.canShareScreen, true);
     assert.equal(model.canOpenSettings, false);
+  });
+
+  it("localizes the mobile voice noise suppression label", () => {
+    const englishModel = getMobileVoiceChannelScreenModel(
+      {
+        channelId: "voice-1",
+        channelName: "live-room",
+        errorMessage: null,
+        participants: [],
+        screenShareStatus: "off",
+        selfAudioOutput: "default",
+        selfCameraEnabled: false,
+        selfMuted: false,
+        selfScreenShareEnabled: false,
+        serverId: "server-1",
+        sessionId: "session-1",
+        status: "connected",
+        updatedAt: 1,
+      },
+      {
+        channelName: "live-room",
+        locale: "en",
+        memberCount: 5,
+        serverName: "UAT ENV",
+        serverShortName: "UA",
+      },
+    );
+
+    assert.equal(englishModel.noiseSuppressionLabel, "Noise suppression active");
   });
 
   it("derives conversation display fields from real bootstrap data", () => {
     assert.equal(getMobileConversationTitle(conversation, "Direct message"), "Alice, bob, Carol");
-    assert.equal(
-      getMobileConversationAvatarUrl(conversation),
-      "https://cdn.whispr.team/alice.png",
-    );
+    assert.equal(getMobileConversationAvatarUrl(conversation), "https://cdn.whispr.team/alice.png");
     assert.equal(getMobileConversationActiveCount(conversation), 2);
     assert.equal(isMobilePresenceActive("DND"), true);
     assert.equal(isMobilePresenceActive("OFFLINE"), false);

@@ -9,6 +9,8 @@ import type {
   MobileVoiceRoomParticipant,
   MobileVoiceRoomState,
 } from "../voice/mobile-voice-room-contract";
+import { getMobileNoiseSuppressionLabel } from "../voice/mobile-voice-noise-contract";
+import type { MobileLocale } from "../locale/mobile-locale-preferences";
 
 export type MobileConversationSummary =
   MobileBootstrapPayload["home"]["directMessages"]["recent"][number];
@@ -25,10 +27,7 @@ export type MobileVisibleWorkspaceChannelSection = MobileWorkspaceChannelSection
 export type MobileDisplayMessage = ChatMessage | DMMessagePayload;
 export type MobileConversationFilter = "all" | "groups" | "unread";
 export type MobileHomeQuickActionKind = "direct-message" | "server" | "voice";
-export type MobileWorkspaceChannelSurface =
-  | "channel-chat"
-  | "voice-room"
-  | "workspace-browser";
+export type MobileWorkspaceChannelSurface = "channel-chat" | "voice-room" | "workspace-browser";
 export interface MobileChannelChatHeaderModel {
   readonly accessibilityLabel: string;
   readonly channelName: string;
@@ -48,10 +47,11 @@ export interface MobileVoiceChannelScreenModel {
   readonly canSelectDefaultAudio: boolean;
   readonly canSelectSpeaker: boolean;
   readonly canShareScreen: boolean;
+  readonly canToggleCamera: boolean;
   readonly canToggleMicrophone: boolean;
   readonly channelName: string;
   readonly isConnected: boolean;
-  readonly krispLabel: string;
+  readonly noiseSuppressionLabel: string;
   readonly listeningParticipants: MobileVoiceRoomParticipant[];
   readonly memberCountLabel: string;
   readonly participantCountLabel: string;
@@ -144,8 +144,7 @@ export function getMobileConversationTitle(
     .filter(Boolean);
 
   return (
-    conversation.name ??
-    (participantNames.length > 0 ? participantNames.join(", ") : fallback)
+    conversation.name ?? (participantNames.length > 0 ? participantNames.join(", ") : fallback)
   );
 }
 
@@ -155,9 +154,7 @@ export function getMobileConversationAvatarUrl(
   return conversation.iconUrl ?? conversation.participants[0]?.avatarUrl ?? null;
 }
 
-export function getMobileConversationActiveCount(
-  conversation: MobileConversationSummary,
-): number {
+export function getMobileConversationActiveCount(conversation: MobileConversationSummary): number {
   return conversation.participants.filter((participant) =>
     isMobilePresenceActive(participant.status),
   ).length;
@@ -238,10 +235,7 @@ export function getMobileHomeQuickActions(
           ? `${unreadConversation.unreadCount} ${labels.unreadSuffix}`
           : labels.latestDirectMessage,
       targetId: unreadConversation.id,
-      title: getMobileConversationTitle(
-        unreadConversation,
-        labels.directMessageFallback,
-      ),
+      title: getMobileConversationTitle(unreadConversation, labels.directMessageFallback),
     });
   }
 
@@ -264,8 +258,7 @@ export function getMobileHomeQuickActions(
   actions.push({
     badge: null,
     id: "voice:readiness",
-    isEnabled:
-      voice.status === "available" || voice.status === "requires-native-permission",
+    isEnabled: voice.status === "available" || voice.status === "requires-native-permission",
     kind: "voice",
     subtitle: voice.reason ?? voice.status,
     targetId: null,
@@ -312,11 +305,12 @@ export function getMobileMessageEngagementCounts(message: MobileDisplayMessage):
   };
 }
 
-export type MobileMessageStreamItem<T extends { readonly createdAt: string; readonly id: string }> = {
-  readonly id: string;
-  readonly message: T;
-  readonly showDateSeparator: boolean;
-};
+export type MobileMessageStreamItem<T extends { readonly createdAt: string; readonly id: string }> =
+  {
+    readonly id: string;
+    readonly message: T;
+    readonly showDateSeparator: boolean;
+  };
 
 export interface MobileMessageListPerformanceConfig {
   readonly initialNumToRender: number;
@@ -335,10 +329,7 @@ export function getMobileDisplayMessageDayKey(value: string): string {
 
 export function getMobileMessageStreamItems<
   T extends { readonly createdAt: string; readonly id: string },
->(
-  messages: readonly T[],
-  limit = MOBILE_RENDER_LIMITS.messages,
-): MobileMessageStreamItem<T>[] {
+>(messages: readonly T[], limit = MOBILE_RENDER_LIMITS.messages): MobileMessageStreamItem<T>[] {
   let previousDayKey = "";
 
   return getBoundedMobileList(messages, limit, "end").map((message) => {
@@ -400,6 +391,7 @@ export function getMobileVoiceChannelScreenModel(
   room: MobileVoiceRoomState,
   options: {
     channelName: string;
+    locale: MobileLocale;
     memberCount: number;
     serverName: string;
     serverShortName: string;
@@ -424,11 +416,12 @@ export function getMobileVoiceChannelScreenModel(
     canOpenSettings: false,
     canSelectDefaultAudio: isConnected,
     canSelectSpeaker: isConnected,
-    canShareScreen: false,
+    canShareScreen: isConnected,
+    canToggleCamera: isConnected,
     canToggleMicrophone: isConnected,
     channelName: room.channelName ?? options.channelName,
     isConnected,
-    krispLabel: "Krisp pasif",
+    noiseSuppressionLabel: getMobileNoiseSuppressionLabel(options.locale),
     listeningParticipants,
     memberCountLabel: String(Math.max(0, options.memberCount)),
     participantCountLabel: String(allParticipants.length),
@@ -545,12 +538,7 @@ export function filterMobileWorkspaceChannelSections(
       const channels = sectionMatches
         ? section.channels
         : section.channels.filter((channel) =>
-            [
-              channel.name,
-              channel.topic,
-              channel.categoryName,
-              channel.type,
-            ]
+            [channel.name, channel.topic, channel.categoryName, channel.type]
               .filter(Boolean)
               .join(" ")
               .toLowerCase()

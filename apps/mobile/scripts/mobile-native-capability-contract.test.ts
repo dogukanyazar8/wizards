@@ -8,7 +8,13 @@ import {
 
 describe("mobile native capability contract", () => {
   it("keeps native capabilities explicit and user-action scoped", () => {
-    const allowedPermissions = new Set(["camera", "microphone", "notifications", "photoLibrary"]);
+    const allowedPermissions = new Set([
+      "camera",
+      "microphone",
+      "notifications",
+      "photoLibrary",
+      "screenCapture",
+    ]);
 
     assert.deepEqual(
       MOBILE_NATIVE_CAPABILITIES.map((capability) => capability.id),
@@ -24,14 +30,14 @@ describe("mobile native capability contract", () => {
     }
   });
 
-  it("keeps screen sharing behind research until native platform contracts exist", () => {
+  it("marks screen sharing foundation ready after native platform contracts exist", () => {
     const screenShare = MOBILE_NATIVE_CAPABILITIES.find(
       (capability) => capability.id === "screenShare",
     );
 
     assert.ok(screenShare);
-    assert.equal(screenShare.stage, "research-required");
-    assert.deepEqual(screenShare.permissionIntents, []);
+    assert.equal(screenShare.stage, "foundation-ready");
+    assert.deepEqual(screenShare.permissionIntents, ["screenCapture"]);
   });
 
   it("marks push notification registration foundation ready after token lifecycle exists", () => {
@@ -58,10 +64,10 @@ describe("mobile native capability contract", () => {
     const summary = summarizeMobileNativeCapabilities();
 
     assert.equal(summary.total, 5);
-    assert.equal(summary.foundationReady, 3);
+    assert.equal(summary.foundationReady, 4);
     assert.equal(summary.blockedByNativeModule, 1);
     assert.equal(summary.blockedByServerContract, 0);
-    assert.equal(summary.blockedByResearch, 1);
+    assert.equal(summary.blockedByResearch, 0);
     assert.deepEqual(validateMobileNativeCapabilityContract(), []);
   });
 });

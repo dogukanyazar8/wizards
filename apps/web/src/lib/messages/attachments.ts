@@ -117,6 +117,7 @@ export async function claimUploadedMessageAttachments(
       id: true,
       contentType: true,
       size: true,
+      scanStatus: true,
       width: true,
       height: true,
     },
@@ -134,6 +135,7 @@ export async function claimUploadedMessageAttachments(
 
     if (
       !attachment ||
+      attachment.scanStatus === "INFECTED" ||
       !isSupportedMessageAttachmentContentType(attachment.contentType) ||
       attachment.size <= 0 ||
       attachment.size > maxBytes
