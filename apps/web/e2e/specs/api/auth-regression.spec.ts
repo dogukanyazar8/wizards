@@ -5,7 +5,9 @@ import { withE2EDatabase } from "../../helpers/db";
 import { e2eUserPassword, e2eUsers, type E2EUserKey } from "../../helpers/test-data";
 import { createLoginProof } from "../../../src/lib/auth/login-proof";
 import { canOAuthUserSignIn } from "../../../src/lib/auth/oauth-email";
+import { revokeUserSessions } from "../../../src/lib/auth/session-revocation";
 import { generateTotpCode } from "../../../src/lib/auth/totp";
+import { getRedis } from "../../../src/lib/redis";
 
 const E2E_TOTP_SECRET = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
 
@@ -49,8 +51,12 @@ async function getSessionEmail(request: APIRequestContext) {
 
   expect(response.status()).toBe(200);
 
-  const session = (await response.json()) as { user?: { email?: unknown } };
-  return typeof session.user?.email === "string" ? session.user.email : null;
+  const session = (await response.json()) as { user?: { email?: unknown } } | null;
+  return typeof session?.user?.email === "string" ? session.user.email : null;
+}
+
+function getSessionRevocationKey(userId: string) {
+  return `auth:session-revoked-after:${userId}`;
 }
 
 async function resetE2EUserAuthState(userKey: E2EUserKey) {
@@ -64,6 +70,7 @@ async function resetE2EUserAuthState(userKey: E2EUserKey) {
       return;
     }
 
+    await getRedis().del(getSessionRevocationKey(user.id));
     await prisma.twoFactorRecoveryCode.deleteMany({ where: { userId: user.id } });
     await prisma.user.update({
       data: {
@@ -89,14 +96,22 @@ async function enableE2EUserTwoFactor(userKey: E2EUserKey) {
 }
 
 async function revokeE2EUserSessionsAfterIssue(userKey: E2EUserKey) {
-  await withE2EDatabase(async (prisma) => {
-    await prisma.user.update({
+  const revokedAfter = new Date(Date.now() + 2000);
+
+  const userId = await withE2EDatabase(async (prisma) => {
+    const user = await prisma.user.update({
       data: {
-        sessionsRevokedAfter: new Date(Date.now() + 2000),
+        sessionsRevokedAfter: revokedAfter,
       },
       where: { email: e2eUsers[userKey].email },
+      select: { id: true },
     });
+
+    return user.id;
   });
+
+  const revocation = await revokeUserSessions(userId, { now: revokedAfter });
+  expect(revocation.ok).toBe(true);
 }
 
 async function submitDuplicateRegistration(page: Page) {
@@ -176,7 +191,7 @@ test.describe("Auth.js upgrade regression safety net", () => {
 
     expect(response.status()).toBe(200);
     const html = await response.text();
-    expect(html).toContain("whispr://desktop/oauth/claim/");
+    expect(html).toContain("whispr://oauth/");
     expect(html).not.toContain(e2eUsers.alice.email);
   });
 
