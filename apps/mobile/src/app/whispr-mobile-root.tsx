@@ -4,20 +4,12 @@ import { AppState, Linking, type AppStateStatus } from "react-native";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { fetchMobileBootstrap, summarizeMobileBootstrap } from "../bootstrap/mobile-bootstrap";
 import { getMobileRuntimeConfig } from "../config/environment";
-import { type MobileDeepLinkParseResult } from "../deep-link/mobile-deep-links";
-import { useMobileDeepLinks } from "../deep-link/use-mobile-deep-links";
 import {
   fetchMobileDMMessages,
   MOBILE_DM_MESSAGES_LIMIT,
   sendMobileDMMessage,
 } from "../dm/mobile-dm-client";
-import { mobileLocalePreferenceRepository } from "../locale/expo-mobile-locale-preferences";
-import {
-  DEFAULT_MOBILE_LOCALE,
-  activeMobileCopy,
-  setActiveMobileLocale,
-  type MobileLocale,
-} from "../locale/mobile-locale-preferences";
+import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import {
   createMobileNavigationState,
   getMobileTabForRoutePath,
@@ -26,23 +18,7 @@ import {
   resolveMobileRoute,
   type MobileTabId,
 } from "../navigation/mobile-navigation";
-import {
-  createCheckingMobileNotificationRuntimeState,
-  createInitialMobileNotificationRuntimeState,
-} from "../notifications/mobile-notification-contract";
-import { requestMobileNotificationsAfterUserAction } from "../notifications/mobile-notification-runtime";
-import {
-  clearMobileMediaSelectedAsset,
-  createCheckingMobileMediaRuntimeState,
-  createInitialMobileMediaRuntimeState,
-} from "../media/mobile-media-contract";
 import { installMobileFontDefaults, useOutfitFonts } from "../design/mobile-fonts";
-import {
-  requestMobileCameraPermissionAfterUserAction,
-  requestMobileDocumentPickerAfterUserAction,
-  requestMobilePhotoLibraryPickerAfterUserAction,
-  requestMobilePhotoLibraryPermissionAfterUserAction,
-} from "../media/mobile-media-runtime";
 import {
   createInitialMobilePermissionReadiness,
   summarizeMobilePermissionReadiness,
@@ -94,13 +70,6 @@ import {
   sendMobileChannelMessage,
 } from "../workspace/mobile-workspace-client";
 import { applyMobileRealtimeChannelMessageEvent } from "../workspace/mobile-channel-message-state";
-import { useMobileVoiceRoom } from "../voice/use-mobile-voice-room";
-import { mobileVoicePreferenceRepository } from "../voice/expo-mobile-voice-preferences";
-import {
-  DEFAULT_MOBILE_VOICE_INPUT_MODE,
-  sanitizeMobileVoiceInputMode,
-  type MobileVoiceInputMode,
-} from "../voice/mobile-voice-ptt-contract";
 import {
   getMobileVoiceInviteErrorPayload,
   getMobileVoiceInviteReceivedPayload,
@@ -114,6 +83,12 @@ import {
   getMobileWorkspaceChannels,
 } from "./mobile-display-model";
 import { MobileAppShell } from "./mobile-app-shell";
+import { MobileAppProviders } from "./providers/mobile-app-providers";
+import { useMobileDeepLinkRuntime } from "./providers/mobile-deep-link-provider";
+import { useMobileLocaleRuntime } from "./providers/mobile-locale-provider";
+import { useMobileMediaRuntime } from "./providers/mobile-media-provider";
+import { useMobileNotificationRuntime } from "./providers/mobile-notification-provider";
+import { useMobileVoiceRuntime } from "./providers/mobile-voice-provider";
 import {
   INITIAL_BOOTSTRAP_STATE,
   INITIAL_BOOTSTRAP_SYNC_STATE,
@@ -244,10 +219,17 @@ function getMobileVoiceAudioLevelUpdatePayload(payload: unknown): {
 }
 
 export function WhisprMobileRoot() {
+  return (
+    <MobileAppProviders>
+      <WhisprMobileRootContent />
+    </MobileAppProviders>
+  );
+}
+
+function WhisprMobileRootContent() {
   const [fontsLoaded] = useOutfitFonts();
   const {
     apiClient,
-    completeAuthHandoff,
     diagnostics,
     error,
     getAccessToken,
@@ -262,10 +244,36 @@ export function WhisprMobileRoot() {
     signOut,
     status,
   } = useMobileAuth();
-  const [mobileLocale, setMobileLocale] = useState<MobileLocale>(DEFAULT_MOBILE_LOCALE);
-  const [voiceInputMode, setVoiceInputMode] = useState<MobileVoiceInputMode>(
-    DEFAULT_MOBILE_VOICE_INPUT_MODE,
-  );
+  const { locale: mobileLocale, selectLocale: handleSelectMobileLocale } = useMobileLocaleRuntime();
+  const {
+    clearSelectedAsset: handleClearSelectedMediaAsset,
+    requestCameraPermission: handleRequestCameraPermission,
+    requestDocumentPicker: handleRequestDocumentPicker,
+    requestPhotoLibraryPermission: handleRequestPhotoLibraryPermission,
+    requestPhotoLibraryPicker: handleRequestPhotoLibraryPicker,
+    state: mediaState,
+  } = useMobileMediaRuntime();
+  const { requestPermission: handleRequestNotificationPermission, state: notificationState } =
+    useMobileNotificationRuntime();
+  const { lastDeepLink, routeRequest: deepLinkRouteRequest } = useMobileDeepLinkRuntime();
+  const {
+    beginPushToTalk,
+    endPushToTalk,
+    joinVoiceChannel,
+    leaveVoiceChannel,
+    permissionState: voiceState,
+    pushToTalkState: voicePushToTalkState,
+    requestMicrophonePermission: handleRequestVoicePermission,
+    roomState: voiceRoomState,
+    selectAudioOutput: selectVoiceAudioOutput,
+    selectVoiceInputMode: handleSelectMobileVoiceInputMode,
+    syncParticipantAudioLevelFromServer,
+    syncParticipantsFromServer,
+    toggleCamera: toggleVoiceCamera,
+    toggleMute: toggleVoiceMute,
+    toggleScreenShare: toggleVoiceScreenShare,
+    voiceInputMode,
+  } = useMobileVoiceRuntime();
   const [navigation, dispatchNavigation] = useReducer(mobileNavigationReducer, undefined, () =>
     createMobileNavigationState(),
   );
@@ -339,90 +347,12 @@ export function WhisprMobileRoot() {
     INITIAL_MESSAGE_SEARCH_STATE,
   );
   const messageSearchRequestIdRef = useRef(0);
-  const [lastDeepLink, setLastDeepLink] = useState<MobileDeepLinkParseResult | null>(null);
   const route = resolveMobileRoute(navigation.currentTab, status);
-  const [notificationState, setNotificationState] = useState(
-    createInitialMobileNotificationRuntimeState,
-  );
-  const {
-    beginPushToTalk,
-    endPushToTalk,
-    joinVoiceChannel,
-    leaveVoiceChannel,
-    permissionState: voiceState,
-    pushToTalkState: voicePushToTalkState,
-    requestMicrophonePermission,
-    roomState: voiceRoomState,
-    selectAudioOutput: selectVoiceAudioOutput,
-    syncParticipantAudioLevelFromServer,
-    syncParticipantsFromServer,
-    toggleCamera: toggleVoiceCamera,
-    toggleMute: toggleVoiceMute,
-    toggleScreenShare: toggleVoiceScreenShare,
-  } = useMobileVoiceRoom({
-    apiClient,
-    currentUser: session?.user ?? null,
-    voiceInputMode,
-  });
-
-  useEffect(() => {
-    let isMounted = true;
-
-    mobileLocalePreferenceRepository
-      .load()
-      .then((storedLocale) => {
-        if (!isMounted) {
-          return;
-        }
-
-        setActiveMobileLocale(storedLocale);
-        setMobileLocale(storedLocale);
-      })
-      .catch(() => {
-        if (!isMounted) {
-          return;
-        }
-
-        setActiveMobileLocale(DEFAULT_MOBILE_LOCALE);
-        setMobileLocale(DEFAULT_MOBILE_LOCALE);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    mobileVoicePreferenceRepository
-      .loadInputMode()
-      .then((storedInputMode) => {
-        if (!isMounted) {
-          return;
-        }
-
-        setVoiceInputMode(storedInputMode);
-      })
-      .catch(() => {
-        if (!isMounted) {
-          return;
-        }
-
-        setVoiceInputMode(DEFAULT_MOBILE_VOICE_INPUT_MODE);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
   const activeVoiceChannelId = voiceRoomState.channelId;
   const [voiceInviteEntries, setVoiceInviteEntries] = useState<MobileVoiceInviteEntry[]>([]);
   const [voiceInviteSendStates, setVoiceInviteSendStates] = useState<
     Record<string, MobileVoiceInviteSendState>
   >({});
-  const [mediaState, setMediaState] = useState(createInitialMobileMediaRuntimeState);
-  const mediaStateRef = useRef(mediaState);
   const basePermissionReadiness = useMemo(() => createInitialMobilePermissionReadiness(), []);
   const permissionReadiness = useMemo(
     () =>
@@ -465,56 +395,12 @@ export function WhisprMobileRoot() {
   }, [fontsLoaded]);
 
   useEffect(() => {
-    mediaStateRef.current = mediaState;
-  }, [mediaState]);
-
-  useEffect(() => {
     channelMessagesStateRef.current = channelMessagesState;
   }, [channelMessagesState]);
 
   useEffect(() => {
     realtimeStateRef.current = realtimeState;
   }, [realtimeState]);
-
-  const handleRequestNotificationPermission = useCallback(async () => {
-    setNotificationState((current) => createCheckingMobileNotificationRuntimeState(current));
-    const nextState = await requestMobileNotificationsAfterUserAction(apiClient);
-    setNotificationState(nextState);
-  }, [apiClient]);
-
-  const handleRequestVoicePermission = useCallback(async () => {
-    await requestMicrophonePermission();
-  }, [requestMicrophonePermission]);
-
-  const handleRequestPhotoLibraryPermission = useCallback(async () => {
-    setMediaState((current) => createCheckingMobileMediaRuntimeState(current, "photoLibrary"));
-    const nextState = await requestMobilePhotoLibraryPermissionAfterUserAction(
-      mediaStateRef.current,
-    );
-    setMediaState(nextState);
-  }, []);
-
-  const handleRequestPhotoLibraryPicker = useCallback(async () => {
-    setMediaState((current) => createCheckingMobileMediaRuntimeState(current, "photoLibrary"));
-    const nextState = await requestMobilePhotoLibraryPickerAfterUserAction(mediaStateRef.current);
-    setMediaState(nextState);
-  }, []);
-
-  const handleRequestCameraPermission = useCallback(async () => {
-    setMediaState((current) => createCheckingMobileMediaRuntimeState(current, "camera"));
-    const nextState = await requestMobileCameraPermissionAfterUserAction(mediaStateRef.current);
-    setMediaState(nextState);
-  }, []);
-
-  const handleRequestDocumentPicker = useCallback(async () => {
-    setMediaState((current) => createCheckingMobileMediaRuntimeState(current, "documentPicker"));
-    const nextState = await requestMobileDocumentPickerAfterUserAction(mediaStateRef.current);
-    setMediaState(nextState);
-  }, []);
-
-  const handleClearSelectedMediaAsset = useCallback(() => {
-    setMediaState(clearMobileMediaSelectedAsset);
-  }, []);
 
   const scheduleChannelTypingPrune = useCallback((channelId: string) => {
     if (channelTypingPruneTimersRef.current[channelId]) {
@@ -1754,66 +1640,21 @@ export function WhisprMobileRoot() {
     }
   }, [bootstrapState, clearMessageSearch, selectedDMConversationId]);
 
-  const handleDeepLink = useCallback(
-    (result: MobileDeepLinkParseResult) => {
-      setLastDeepLink(result);
+  useEffect(() => {
+    if (!deepLinkRouteRequest) {
+      return;
+    }
 
-      if (!result.ok) {
-        return;
-      }
+    const target = parseMobileChannelsRoutePath(deepLinkRouteRequest.path);
+    dispatchNavigation({
+      tab: getMobileTabForRoutePath(deepLinkRouteRequest.path),
+      type: "select",
+    });
 
-      if (result.intent.type === "auth-handoff") {
-        const callbackPath = result.intent.callbackPath;
-        void completeAuthHandoff({
-          callbackPath,
-          handoffToken: result.intent.token,
-        }).then((completed) => {
-          if (!completed) {
-            dispatchNavigation({ tab: "settings", type: "select" });
-            return;
-          }
-
-          const target = parseMobileChannelsRoutePath(callbackPath);
-          dispatchNavigation({
-            tab: getMobileTabForRoutePath(callbackPath),
-            type: "select",
-          });
-
-          if (target?.serverId && target.serverId !== "@me") {
-            void loadWorkspaceServer(target.serverId, target.channelId);
-          }
-        });
-        return;
-      }
-
-      if (result.intent.type === "invite") {
-        dispatchNavigation({ tab: "overview", type: "select" });
-        return;
-      }
-
-      if (result.intent.path.startsWith("/channels")) {
-        const target = parseMobileChannelsRoutePath(result.intent.path);
-        if (target?.serverId && target.serverId !== "@me") {
-          dispatchNavigation({ tab: "overview", type: "select" });
-          void loadWorkspaceServer(target.serverId, target.channelId);
-          return;
-        }
-
-        dispatchNavigation({ tab: "messages", type: "select" });
-        return;
-      }
-
-      if (result.intent.type === "route" && result.intent.path.startsWith("/settings")) {
-        dispatchNavigation({ tab: "settings", type: "select" });
-      }
-    },
-    [completeAuthHandoff, loadWorkspaceServer],
-  );
-
-  useMobileDeepLinks({
-    onDeepLink: handleDeepLink,
-    runtimeConfig,
-  });
+    if (target?.serverId && target.serverId !== "@me") {
+      void loadWorkspaceServer(target.serverId, target.channelId);
+    }
+  }, [deepLinkRouteRequest, loadWorkspaceServer]);
 
   const authStatusLabel =
     status === "checking"
@@ -1856,18 +1697,6 @@ export function WhisprMobileRoot() {
 
     refreshVisibleMobileData();
   }, [refreshSessionFromStorage, refreshVisibleMobileData, route.isBlocked]);
-
-  const handleSelectMobileLocale = useCallback((locale: MobileLocale) => {
-    const normalizedLocale = setActiveMobileLocale(locale);
-    setMobileLocale(normalizedLocale);
-    void mobileLocalePreferenceRepository.save(normalizedLocale).catch(() => undefined);
-  }, []);
-
-  const handleSelectMobileVoiceInputMode = useCallback((mode: MobileVoiceInputMode) => {
-    const normalizedMode = sanitizeMobileVoiceInputMode(mode);
-    setVoiceInputMode(normalizedMode);
-    void mobileVoicePreferenceRepository.saveInputMode(normalizedMode).catch(() => undefined);
-  }, []);
 
   const openTrustedWebPath = useCallback((path: "/cookies" | "/privacy" | "/terms") => {
     const url = new URL(path, runtimeConfig.webUrl);
