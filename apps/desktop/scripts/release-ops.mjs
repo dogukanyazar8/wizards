@@ -212,8 +212,8 @@ export function getDesktopReleaseOpsContract() {
     versionContract: getDesktopVersionContract(),
     platformMatrix: {
       windows: "mandatory",
-      macos: "staged",
-      linux: "staged",
+      macos: "mandatory",
+      linux: "mandatory",
     },
   };
 }
@@ -276,8 +276,8 @@ export function assertDesktopReleaseOpsContract(contract = getDesktopReleaseOpsC
   }
 
   assertCondition(contract.platformMatrix.windows === "mandatory", "Windows desktop CI must be mandatory.");
-  assertCondition(contract.platformMatrix.macos === "staged", "macOS desktop CI must be staged.");
-  assertCondition(contract.platformMatrix.linux === "staged", "Linux desktop CI must be staged.");
+  assertCondition(contract.platformMatrix.macos === "mandatory", "macOS desktop CI must be mandatory.");
+  assertCondition(contract.platformMatrix.linux === "mandatory", "Linux desktop CI must be mandatory.");
   assertDesktopVersionContract(contract.versionContract);
 
   return contract;
