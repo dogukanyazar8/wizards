@@ -2,3 +2,16 @@ title = "Wizards Gitleaks configuration"
 
 [extend]
 useDefault = true
+
+[allowlist]
+description = "Official RFC 6238 TOTP test vector used only in auth regression tests"
+condition = "AND"
+paths = [
+  '''apps/web/e2e/specs/api/auth-regression\.spec\.ts''',
+  '''apps/web/src/lib/auth/totp\.test\.ts''',
+  '''apps/web/src/lib/auth/two-factor\.test\.ts''',
+  '''apps/web/src/lib/logger\.test\.ts''',
+]
+regexes = [
+  '''GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJ[Q]''',
+]
