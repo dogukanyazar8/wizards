@@ -5,6 +5,10 @@ import { loginAs } from "../../helpers/auth";
 import {
   getE2EDMConversationId,
   getE2EServerRoute,
+  getE2EAttachmentNotification,
+  getLatestE2EAttachmentByFilename,
+  processE2EAttachmentScanWithEicarDetector,
+  setE2EAttachmentScanStatus,
   setE2EServerMediaSettings,
 } from "../../helpers/db";
 import { sendComposerMessage } from "../../helpers/messages";
@@ -16,6 +20,11 @@ import {
 
 const ONE_BY_ONE_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+const EICAR_TEST_FILE = [
+  "X5O!P%@AP[4\\PZX54(P^)7CC)7}$",
+  "EICAR-STANDARD-ANTIVIRUS-TEST-FILE",
+  "!$H+H*",
+].join("");
 
 function messageByText(page: Page, content: string) {
   return page.getByTestId("message-item").filter({ hasText: content }).last();
@@ -27,6 +36,31 @@ async function sendMessage(page: Page, content: string): Promise<void> {
 
 function attachmentDraftByFilename(page: Page, filename: string) {
   return page.locator(`[data-testid="attachment-draft"][data-filename="${filename}"]`);
+}
+
+function fileAttachmentByFilename(page: Page, filename: string) {
+  return page.locator(`[data-testid="message-file-attachment"][data-filename="${filename}"]`);
+}
+
+function unavailableAttachmentByFilename(page: Page, filename: string) {
+  return page.locator(
+    `[data-testid="message-attachment-unavailable"][data-filename="${filename}"]`,
+  );
+}
+
+async function expectAttachmentUrlAbsent(page: Page, attachmentUrl: string): Promise<void> {
+  await expect
+    .poll(() =>
+      page.evaluate((url) => {
+        const nodes = Array.from(document.querySelectorAll("[href], [src]"));
+        return nodes.some((node) => {
+          const href = node.getAttribute("href");
+          const src = node.getAttribute("src");
+          return href === url || src === url;
+        });
+      }, attachmentUrl),
+    )
+    .toBe(false);
 }
 
 async function waitForReadyAttachmentDraft(page: Page, filename: string): Promise<void> {
@@ -123,7 +157,9 @@ test.describe("uploads, GIFs, and attachments", () => {
 
     const message = messageByText(page, content);
     await expect(message).toBeVisible({ timeout: 10_000 });
-    await expect(message.getByTestId("message-file-attachment").filter({ hasText: filename })).toBeVisible({
+    await expect(
+      message.getByTestId("message-file-attachment").filter({ hasText: filename }),
+    ).toBeVisible({
       timeout: 10_000,
     });
   });
@@ -173,5 +209,95 @@ test.describe("uploads, GIFs, and attachments", () => {
     await expect(page.getByTestId("server-settings-overlay")).toBeHidden({ timeout: 10_000 });
     await expect(page.getByTestId("gif-picker-button")).toBeDisabled({ timeout: 10_000 });
     await expect(page.getByTestId("message-file-button")).toBeDisabled({ timeout: 10_000 });
+  });
+
+  test("pending attachment scans keep uploader URLs visible and hide them from other viewers", async ({
+    page,
+  }) => {
+    const { serverId, textChannelId } = await getE2EServerRoute();
+    const filename = `pending-scan-${Date.now()}.txt`;
+    const content = `Pending scan attachment ${Date.now()}`;
+
+    await loginAs(page, "alice");
+    await gotoTextChannelRoute(page, serverId, textChannelId);
+    await page.getByTestId("message-file-input").setInputFiles({
+      buffer: Buffer.from("pending scan e2e attachment"),
+      mimeType: "text/plain",
+      name: filename,
+    });
+    await waitForReadyAttachmentDraft(page, filename);
+    await sendMessage(page, content);
+
+    const attachment = await getLatestE2EAttachmentByFilename(filename);
+    await setE2EAttachmentScanStatus(attachment.id, "PENDING");
+
+    await page.reload();
+    await gotoTextChannelRoute(page, serverId, textChannelId);
+    await expect(messageByText(page, content)).toBeVisible({ timeout: 10_000 });
+    await expect(fileAttachmentByFilename(page, filename)).toBeVisible({ timeout: 10_000 });
+    await expect(fileAttachmentByFilename(page, filename)).toHaveAttribute("href", attachment.url);
+
+    await loginAs(page, "bob");
+    await gotoTextChannelRoute(page, serverId, textChannelId);
+    await expect(messageByText(page, content)).toBeVisible({ timeout: 10_000 });
+    await expect(fileAttachmentByFilename(page, filename)).toHaveCount(0);
+    const unavailableAttachment = unavailableAttachmentByFilename(page, filename);
+    await expect(unavailableAttachment).toBeVisible({ timeout: 10_000 });
+    await expect(unavailableAttachment).toContainText(/Scanning|Taranıyor/i);
+    await expectAttachmentUrlAbsent(page, attachment.url);
+  });
+
+  test("EICAR attachments are marked infected, hidden from everyone, and notify the uploader", async ({
+    page,
+  }) => {
+    const { serverId, textChannelId } = await getE2EServerRoute();
+    const filename = `eicar-${Date.now()}.txt`;
+    const content = `EICAR scan attachment ${Date.now()}`;
+
+    await loginAs(page, "alice");
+    await gotoTextChannelRoute(page, serverId, textChannelId);
+    await page.getByTestId("message-file-input").setInputFiles({
+      buffer: Buffer.from(EICAR_TEST_FILE),
+      mimeType: "text/plain",
+      name: filename,
+    });
+    await waitForReadyAttachmentDraft(page, filename);
+    await sendMessage(page, content);
+
+    const attachment = await getLatestE2EAttachmentByFilename(filename);
+    await setE2EAttachmentScanStatus(attachment.id, "PENDING");
+    await processE2EAttachmentScanWithEicarDetector(attachment.id);
+    await expect
+      .poll(async () => (await getLatestE2EAttachmentByFilename(filename)).scanStatus)
+      .toBe("INFECTED");
+    await expect
+      .poll(() => getE2EAttachmentNotification("alice", attachment.id))
+      .toMatchObject({
+        body: expect.stringContaining(filename),
+        title: "Attachment removed",
+      });
+
+    await page.reload();
+    await gotoTextChannelRoute(page, serverId, textChannelId);
+    await expect(messageByText(page, content)).toBeVisible({ timeout: 10_000 });
+    await expect(fileAttachmentByFilename(page, filename)).toHaveCount(0);
+    const aliceUnavailableAttachment = unavailableAttachmentByFilename(page, filename);
+    await expect(aliceUnavailableAttachment).toBeVisible({ timeout: 10_000 });
+    await expect(aliceUnavailableAttachment).toContainText(/Blocked|Engellendi/i);
+    await expectAttachmentUrlAbsent(page, attachment.url);
+    await page.getByTestId("notification-bell-button").click();
+    await expect(page.getByTestId("notification-popup")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("notification-item").filter({ hasText: filename })).toBeVisible({
+      timeout: 10_000,
+    });
+
+    await loginAs(page, "bob");
+    await gotoTextChannelRoute(page, serverId, textChannelId);
+    await expect(messageByText(page, content)).toBeVisible({ timeout: 10_000 });
+    await expect(fileAttachmentByFilename(page, filename)).toHaveCount(0);
+    const bobUnavailableAttachment = unavailableAttachmentByFilename(page, filename);
+    await expect(bobUnavailableAttachment).toBeVisible({ timeout: 10_000 });
+    await expect(bobUnavailableAttachment).toContainText(/Blocked|Engellendi/i);
+    await expectAttachmentUrlAbsent(page, attachment.url);
   });
 });

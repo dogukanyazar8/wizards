@@ -1,7 +1,10 @@
+import { Buffer } from "node:buffer";
 import { expect } from "../fixtures/test";
-import { ChannelType } from "@wizards/db";
+import { ChannelType, type AttachmentScanStatus } from "@wizards/db";
 import { createE2EPrismaClient } from "../setup/e2e-database";
-import { SERVER_ADMIN_PERMISSIONS } from "../../src/lib/workspace/permissions";
+import { PermissionBits, SERVER_ADMIN_PERMISSIONS } from "../../src/lib/workspace/permissions";
+import { processAttachmentScanJob } from "../../src/lib/attachments/scanner";
+import { getRedisRate } from "../../src/lib/redis";
 import { applyServerMediaSettings } from "../../src/lib/workspace/server-features";
 import { e2eServer, e2eUsers, type E2EUserKey } from "./test-data";
 
@@ -54,6 +57,53 @@ export async function expectUserStatus(
 
 export async function getE2EUserId(userKey: E2EUserKey): Promise<string> {
   return withE2EDatabase((prisma) => findE2EUserId(prisma, userKey));
+}
+
+export async function resetE2EUserTwoFactor(userKey: E2EUserKey): Promise<void> {
+  await withE2EDatabase(async (prisma) => {
+    const userId = await findE2EUserId(prisma, userKey);
+
+    await prisma.$transaction([
+      prisma.twoFactorRecoveryCode.deleteMany({ where: { userId } }),
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          twoFactorEnabled: false,
+          twoFactorSecret: null,
+        },
+      }),
+    ]);
+
+    if (process.env.REDIS_URL) {
+      await getRedisRate().del(`rate:two-factor:account:${userId}`);
+    }
+  });
+}
+
+export async function enableE2EUserTwoFactor(userKey: E2EUserKey, secret: string): Promise<void> {
+  await withE2EDatabase(async (prisma) => {
+    const userId = await findE2EUserId(prisma, userKey);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        twoFactorEnabled: true,
+        twoFactorSecret: secret,
+      },
+    });
+  });
+}
+
+export async function getE2EUserTwoFactorEnabled(userKey: E2EUserKey): Promise<boolean> {
+  return withE2EDatabase(async (prisma) => {
+    const userId = await findE2EUserId(prisma, userKey);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { twoFactorEnabled: true },
+    });
+
+    return user?.twoFactorEnabled ?? false;
+  });
 }
 
 export async function resetE2EUserPreferences(userKey: E2EUserKey): Promise<void> {
@@ -218,12 +268,96 @@ export async function setE2EServerMediaSettings(input: {
   });
 }
 
+export async function getLatestE2EAttachmentByFilename(filename: string): Promise<{
+  id: string;
+  scanStatus: AttachmentScanStatus;
+  url: string;
+}> {
+  return withE2EDatabase(async (prisma) => {
+    const attachment = await prisma.attachment.findFirst({
+      where: { filename },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        scanStatus: true,
+        url: true,
+      },
+    });
+
+    if (!attachment) {
+      throw new Error(`Attachment "${filename}" was not found in E2E data.`);
+    }
+
+    return attachment;
+  });
+}
+
+export async function setE2EAttachmentScanStatus(
+  attachmentId: string,
+  scanStatus: AttachmentScanStatus,
+): Promise<void> {
+  await withE2EDatabase(async (prisma) => {
+    await prisma.attachment.update({
+      where: { id: attachmentId },
+      data: { scanStatus },
+    });
+  });
+}
+
+export async function processE2EAttachmentScanWithEicarDetector(
+  attachmentId: string,
+): Promise<void> {
+  await processAttachmentScanJob(
+    { attachmentId },
+    {
+      async deleteUploadedFile() {
+        return undefined;
+      },
+      logger() {
+        return undefined;
+      },
+      async scanAttachmentUrl(url) {
+        const payload = url.startsWith("data:")
+          ? Buffer.from(url.split(",", 2)[1] ?? "", "base64").toString("utf8")
+          : url;
+
+        return payload.includes("EICAR-STANDARD-ANTIVIRUS-TEST-FILE")
+          ? { signature: "Eicar-Test-Signature", status: "INFECTED" }
+          : { status: "CLEAN" };
+      },
+    },
+  );
+}
+
+export async function getE2EAttachmentNotification(
+  userKey: E2EUserKey,
+  attachmentId: string,
+): Promise<{ body: string; title: string } | null> {
+  return withE2EDatabase(async (prisma) => {
+    const userId = await findE2EUserId(prisma, userKey);
+    const notification = await prisma.notification.findFirst({
+      where: {
+        userId,
+        metadata: {
+          path: ["attachmentId"],
+          equals: attachmentId,
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        body: true,
+        title: true,
+      },
+    });
+
+    return notification;
+  });
+}
+
 export async function clearE2EVoiceStates(): Promise<void> {
   await withE2EDatabase(async (prisma) => {
     const userIds = await Promise.all(
-      (Object.keys(e2eUsers) as E2EUserKey[]).map((userKey) =>
-        findE2EUserId(prisma, userKey),
-      ),
+      (Object.keys(e2eUsers) as E2EUserKey[]).map((userKey) => findE2EUserId(prisma, userKey)),
     );
 
     await prisma.voiceState.deleteMany({
@@ -242,13 +376,8 @@ export async function getVoiceParticipantCount(channelId: string): Promise<numbe
   );
 }
 
-export async function expectVoiceParticipantCount(
-  channelId: string,
-  count: number,
-): Promise<void> {
-  await expect
-    .poll(() => getVoiceParticipantCount(channelId), { timeout: 10_000 })
-    .toBe(count);
+export async function expectVoiceParticipantCount(channelId: string, count: number): Promise<void> {
+  await expect.poll(() => getVoiceParticipantCount(channelId), { timeout: 10_000 }).toBe(count);
 }
 
 export async function expectVoiceParticipantCountAtLeast(
@@ -343,10 +472,7 @@ export async function resetFriendshipBetween(
       prisma.notification.deleteMany({
         where: {
           userId: { in: [leftUserId, rightUserId] },
-          OR: [
-            { type: "FRIEND_REQUEST" },
-            { type: "FRIEND_ACCEPTED" },
-          ],
+          OR: [{ type: "FRIEND_REQUEST" }, { type: "FRIEND_ACCEPTED" }],
         },
       }),
       prisma.friendRequest.deleteMany({
@@ -361,9 +487,7 @@ export async function resetFriendshipBetween(
   });
 }
 
-export async function createIsolatedServerForMembershipTest(
-  ownerUserKey: E2EUserKey,
-): Promise<{
+export async function createIsolatedServerForMembershipTest(ownerUserKey: E2EUserKey): Promise<{
   serverId: string;
   textChannelId: string;
   voiceChannelId: string;
@@ -469,6 +593,112 @@ export async function createIsolatedServerForMembershipTest(
   });
 }
 
+export async function createReadOnlyServerForMessagingTest(
+  ownerUserKey: E2EUserKey,
+  memberUserKey: E2EUserKey,
+): Promise<{
+  serverId: string;
+  textChannelId: string;
+}> {
+  return withE2EDatabase(async (prisma) => {
+    const [ownerId, memberId] = await Promise.all([
+      findE2EUserId(prisma, ownerUserKey),
+      findE2EUserId(prisma, memberUserKey),
+    ]);
+    const stamp = Date.now().toString(36).toUpperCase().slice(-5);
+    const inviteCode = `RO${stamp}`.slice(0, 8).padEnd(8, "X");
+
+    const server = await prisma.server.create({
+      data: {
+        description: "Disposable read-only messaging server used by Playwright.",
+        features: ["E2E_TEST"],
+        inviteCode,
+        name: `Whispr E2E Read Only ${stamp}`,
+        ownerId,
+        shortName: "RO",
+      },
+      select: { id: true },
+    });
+
+    const [adminRole, defaultRole, ownerMember, readOnlyMember, category] = await Promise.all([
+      prisma.role.create({
+        data: {
+          name: "Admin",
+          permissions: SERVER_ADMIN_PERMISSIONS,
+          position: 1,
+          serverId: server.id,
+        },
+        select: { id: true },
+      }),
+      prisma.role.create({
+        data: {
+          isDefault: true,
+          name: "@everyone",
+          permissions: PermissionBits.VIEW_CHANNEL,
+          position: 0,
+          serverId: server.id,
+        },
+        select: { id: true },
+      }),
+      prisma.serverMember.create({
+        data: {
+          serverId: server.id,
+          userId: ownerId,
+        },
+        select: { id: true },
+      }),
+      prisma.serverMember.create({
+        data: {
+          serverId: server.id,
+          userId: memberId,
+        },
+        select: { id: true },
+      }),
+      prisma.channelCategory.create({
+        data: {
+          name: "Read Only",
+          position: 0,
+          serverId: server.id,
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    await prisma.memberRole.createMany({
+      data: [
+        {
+          memberId: ownerMember.id,
+          roleId: adminRole.id,
+        },
+        {
+          memberId: ownerMember.id,
+          roleId: defaultRole.id,
+        },
+        {
+          memberId: readOnlyMember.id,
+          roleId: defaultRole.id,
+        },
+      ],
+    });
+
+    const textChannel = await prisma.channel.create({
+      data: {
+        categoryId: category.id,
+        name: "announcements",
+        position: 0,
+        serverId: server.id,
+        type: ChannelType.TEXT,
+      },
+      select: { id: true },
+    });
+
+    return {
+      serverId: server.id,
+      textChannelId: textChannel.id,
+    };
+  });
+}
+
 export async function deleteIsolatedE2EServer(serverId: string): Promise<void> {
   await withE2EDatabase(async (prisma) => {
     const server = await prisma.server.findUnique({
@@ -477,7 +707,8 @@ export async function deleteIsolatedE2EServer(serverId: string): Promise<void> {
     });
 
     const isDisposableMembershipServer =
-      server?.name.startsWith("Whispr E2E Membership ") &&
+      (server?.name.startsWith("Whispr E2E Membership ") ||
+        server?.name.startsWith("Whispr E2E Read Only ")) &&
       server.features.includes("E2E_TEST");
 
     if (!server || !isDisposableMembershipServer) {
@@ -493,10 +724,7 @@ export async function deleteIsolatedE2EServer(serverId: string): Promise<void> {
   });
 }
 
-export async function addE2EServerMember(
-  serverId: string,
-  userKey: E2EUserKey,
-): Promise<string> {
+export async function addE2EServerMember(serverId: string, userKey: E2EUserKey): Promise<string> {
   return withE2EDatabase(async (prisma) => {
     const userId = await findE2EUserId(prisma, userKey);
     const existingMember = await prisma.serverMember.findUnique({
@@ -547,10 +775,7 @@ export async function setE2EServerMemberNickname(
   });
 }
 
-export async function getServerMemberId(
-  serverId: string,
-  userKey: E2EUserKey,
-): Promise<string> {
+export async function getServerMemberId(serverId: string, userKey: E2EUserKey): Promise<string> {
   return withE2EDatabase(async (prisma) => {
     const userId = await findE2EUserId(prisma, userKey);
     const member = await prisma.serverMember.findUnique({
