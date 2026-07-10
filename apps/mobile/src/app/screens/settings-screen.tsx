@@ -12,7 +12,6 @@ import {
   getMobileReleaseEvidence,
   getMobileSessionEvidence,
   getMobileStoreEvidence,
-  mobileColors,
   mobilePackageJson,
   mobileProductionReadinessSummary,
   mobileQualitySummary,
@@ -55,9 +54,9 @@ import {
   ScreenShell,
 } from "../components/ui-atoms";
 import { formatMobileMediaAssetMeta } from "../components/media-primitives";
-import { useThemePreference } from "../providers/mobile-theme-provider";
+import { useTheme, useThemePreference } from "../providers/mobile-theme-provider";
 import type { MobileThemeMode } from "../../design/mobile-theme-runtime";
-import { styles } from "./settings-screen.styles";
+import { useSettingsScreenStyles } from "./settings-screen.styles";
 
 function getMobilePermissionLabel(intentId: MobilePermissionIntentId): string {
   switch (intentId) {
@@ -104,6 +103,7 @@ export function SettingsAccountCard({
   signedInUserLabel: string | null;
   status: string;
 }) {
+  const styles = useSettingsScreenStyles();
   const user = bootstrapState.status === "ready" ? bootstrapState.payload.user : null;
   const displayName =
     user?.displayName ?? signedInUserLabel ?? user?.username ?? copy.settingsAccountSignedOut;
@@ -149,6 +149,7 @@ export function SettingsSessionActionCard({
   onRefresh(): void;
   onSignOut(): void;
 }) {
+  const styles = useSettingsScreenStyles();
   return (
     <SettingsSection
       description={
@@ -204,6 +205,7 @@ export function SettingsMobileOverviewCard({
   lastDeepLink: MobileDeepLinkParseResult | null;
   permissionSummary: MobilePermissionSummary;
 }) {
+  const styles = useSettingsScreenStyles();
   const hasHealthySession = diagnostics.hasSession && !diagnostics.isExpired;
   const messagesFeature =
     bootstrapState.status === "ready" ? bootstrapState.payload.features.messages : null;
@@ -297,6 +299,7 @@ export function SettingsSupportLegalCard({
   onOpenSupport(): void;
   onOpenTerms(): void;
 }) {
+  const styles = useSettingsScreenStyles();
   return (
     <SettingsSection
       description={copy.settingsSupportLegalDescription}
@@ -349,6 +352,7 @@ export function SettingsNativePermissionCard({
   readiness: readonly MobilePermissionReadiness[];
   summary: MobilePermissionSummary;
 }) {
+  const styles = useSettingsScreenStyles();
   const rows: NativeSettingsRowItem[] = readiness.map((item) => {
     const metadata = getMobilePermissionNativeMetadata(item.intent.id);
 
@@ -414,6 +418,8 @@ export function SettingsPermissionActionList({
   onRequestPhotoLibraryPermission(): Promise<void>;
   readiness: readonly MobilePermissionReadiness[];
 }) {
+  const styles = useSettingsScreenStyles();
+  const theme = useTheme();
   const mediaSummary = summarizeMobileMediaRuntimeState(mediaState);
   const notificationsStatus =
     getPermissionReadinessById(readiness, "notifications")?.status ?? "unknown";
@@ -489,7 +495,7 @@ export function SettingsPermissionActionList({
       ))}
       {mediaState.selectedAsset ? (
         <View style={styles.settingsPermissionAssetCard}>
-          <Ionicons name="document-text-outline" size={18} color={mobileColors.accentStrong} />
+          <Ionicons name="document-text-outline" size={18} color={theme.accent.strong} />
           <View style={styles.settingsPermissionAssetText}>
             <Text style={styles.mediaSelectedAssetLabel}>{copy.mediaSetupSelectedFileLabel}</Text>
             <Text style={styles.mediaSelectedAssetName} numberOfLines={1}>
@@ -512,6 +518,8 @@ export function SettingsPermissionActionList({
 }
 
 export function SettingsPermissionActionRow({ item }: { item: SettingsPermissionActionItem }) {
+  const styles = useSettingsScreenStyles();
+  const theme = useTheme();
   const tone = getPermissionStatusTone(item.status);
 
   return (
@@ -527,7 +535,7 @@ export function SettingsPermissionActionRow({ item }: { item: SettingsPermission
         <Ionicons
           name={item.icon}
           size={18}
-          color={tone === "danger" ? "#B91C1C" : mobileColors.accentStrong}
+          color={tone === "danger" ? theme.status.danger : theme.accent.strong}
         />
       </View>
       <View style={styles.settingsPermissionActionText}>
@@ -591,6 +599,7 @@ type NativeSettingsRowItem = {
 };
 
 export function NativeSettingsList({ rows }: { rows: readonly NativeSettingsRowItem[] }) {
+  const styles = useSettingsScreenStyles();
   return (
     <View style={styles.nativeSettingsList}>
       {rows.map((row) => (
@@ -708,6 +717,7 @@ export function SettingsSecurityCard({
   diagnostics: MobileSessionDiagnostics;
   lastDeepLink: MobileDeepLinkParseResult | null;
 }) {
+  const styles = useSettingsScreenStyles();
   const evidence = getMobileSessionEvidence(diagnostics, getSettingsEvidenceLabels());
 
   return (
@@ -727,6 +737,7 @@ export function SettingsFeatureReadinessCard({
 }: {
   features: MobileBootstrapPayload["features"];
 }) {
+  const styles = useSettingsScreenStyles();
   const summary = summarizeMobileFeatureReadiness(features);
   const evidence = getMobileFeatureEvidence(features, getSettingsEvidenceLabels());
 
@@ -746,6 +757,7 @@ export function SettingsFeatureReadinessCard({
 }
 
 export function SettingsPermissionEvidenceCard({ summary }: { summary: MobilePermissionSummary }) {
+  const styles = useSettingsScreenStyles();
   const evidence = getMobilePermissionEvidence(summary, getSettingsEvidenceLabels());
 
   return (
@@ -763,6 +775,7 @@ export function DeveloperDiagnosticsCard({
 }: {
   bootstrapSyncState: MobileSyncSnapshot;
 }) {
+  const styles = useSettingsScreenStyles();
   return (
     <View style={styles.developerSection}>
       <View style={styles.developerSectionHeader}>
@@ -783,6 +796,7 @@ export function DeveloperDiagnosticsCard({
 }
 
 export function SettingsReleaseQualityCard() {
+  const styles = useSettingsScreenStyles();
   const settingsEvidenceLabels = getSettingsEvidenceLabels();
   const storeEvidence = getMobileStoreEvidence(mobileStoreReadiness, settingsEvidenceLabels);
   const releaseEvidence = getMobileReleaseEvidence({
@@ -814,6 +828,7 @@ export function SettingsReleaseQualityCard() {
 }
 
 export function EnvironmentCard() {
+  const styles = useSettingsScreenStyles();
   return (
     <View style={styles.environmentCard}>
       <Text style={styles.environmentLabel}>Environment</Text>
@@ -826,6 +841,7 @@ export function EnvironmentCard() {
 }
 
 export function BootstrapContractCard() {
+  const styles = useSettingsScreenStyles();
   return (
     <View style={styles.contractCard}>
       <Text style={styles.environmentLabel}>{copy.bootstrapTitle}</Text>
@@ -845,6 +861,7 @@ export function SettingsLocaleSelector({
   locale: MobileLocale;
   onSelectLocale(locale: MobileLocale): void;
 }) {
+  const styles = useSettingsScreenStyles();
   return (
     <View
       accessibilityLabel={copy.settingsLanguageTitle}
@@ -852,7 +869,7 @@ export function SettingsLocaleSelector({
       testID="mobile-settings-language-control"
       style={styles.settingsLocaleControl}
     >
-      <Text style={styles.settingsLocaleDescription}>
+      <Text maxFontSizeMultiplier={1.5} style={styles.settingsLocaleDescription}>
         {copy.settingsLanguageControlDescription}
       </Text>
       <View style={styles.settingsLocaleOptions}>
@@ -873,6 +890,7 @@ export function SettingsLocaleSelector({
               ]}
             >
               <Text
+                maxFontSizeMultiplier={1.3}
                 style={[
                   styles.settingsLocaleShortLabel,
                   isSelected && styles.settingsLocaleShortLabelSelected,
@@ -881,6 +899,7 @@ export function SettingsLocaleSelector({
                 {option.shortLabel}
               </Text>
               <Text
+                maxFontSizeMultiplier={1.4}
                 style={[
                   styles.settingsLocaleOptionLabel,
                   isSelected && styles.settingsLocaleOptionLabelSelected,
@@ -909,6 +928,7 @@ function getSettingsAppearanceOptions(): ReadonlyArray<{
 }
 
 export function SettingsAppearanceSelector() {
+  const styles = useSettingsScreenStyles();
   const { mode, setMode } = useThemePreference();
 
   return (
@@ -918,7 +938,7 @@ export function SettingsAppearanceSelector() {
       testID="mobile-settings-appearance-control"
       style={styles.settingsLocaleControl}
     >
-      <Text style={styles.settingsLocaleDescription}>
+      <Text maxFontSizeMultiplier={1.5} style={styles.settingsLocaleDescription}>
         {copy.settingsThemeControlDescription}
       </Text>
       <View style={styles.settingsLocaleOptions}>
@@ -939,6 +959,7 @@ export function SettingsAppearanceSelector() {
               ]}
             >
               <Text
+                maxFontSizeMultiplier={1.4}
                 style={[
                   styles.settingsLocaleOptionLabel,
                   isSelected && styles.settingsLocaleOptionLabelSelected,
@@ -977,6 +998,7 @@ export function SettingsVoiceInputModeSelector({
   onSelectVoiceInputMode(mode: MobileVoiceInputMode): void;
   voiceInputMode: MobileVoiceInputMode;
 }) {
+  const styles = useSettingsScreenStyles();
   return (
     <View
       accessibilityLabel={copy.settingsVoiceInputModeTitle}
@@ -984,7 +1006,7 @@ export function SettingsVoiceInputModeSelector({
       testID="mobile-settings-voice-input-mode-control"
       style={styles.settingsLocaleControl}
     >
-      <Text style={styles.settingsLocaleDescription}>
+      <Text maxFontSizeMultiplier={1.5} style={styles.settingsLocaleDescription}>
         {copy.settingsVoiceInputModeControlDescription}
       </Text>
       <View style={styles.settingsLocaleOptions}>
@@ -1005,6 +1027,7 @@ export function SettingsVoiceInputModeSelector({
               ]}
             >
               <Text
+                maxFontSizeMultiplier={1.4}
                 style={[
                   styles.settingsLocaleOptionLabel,
                   isSelected && styles.settingsLocaleOptionLabelSelected,
@@ -1032,6 +1055,7 @@ export function SettingsPreferenceSection({
   rows: readonly NativeSettingsRowItem[];
   title: string;
 }) {
+  const styles = useSettingsScreenStyles();
   return (
     <SettingsSection description={description} title={title}>
       <NativeSettingsList rows={rows} />
@@ -1049,6 +1073,7 @@ export function SettingsSection({
   description: string;
   title: string;
 }) {
+  const styles = useSettingsScreenStyles();
   return (
     <View style={styles.settingsSection}>
       <View style={styles.settingsSectionHeader}>
@@ -1061,6 +1086,7 @@ export function SettingsSection({
 }
 
 export function SettingsEvidenceGrid({ items }: { items: readonly MobileSettingsEvidenceItem[] }) {
+  const styles = useSettingsScreenStyles();
   return (
     <View style={styles.settingsEvidenceGrid}>
       {items.map((item) => (
@@ -1084,6 +1110,7 @@ export function SettingsEvidenceGrid({ items }: { items: readonly MobileSettings
 }
 
 export function SettingsEvidenceList({ items }: { items: readonly MobileSettingsEvidenceItem[] }) {
+  const styles = useSettingsScreenStyles();
   return (
     <View style={styles.settingsEvidenceList}>
       {items.map((item) => (
@@ -1124,6 +1151,7 @@ export function SettingsEvidenceList({ items }: { items: readonly MobileSettings
 }
 
 export function ReleaseReadinessCard() {
+  const styles = useSettingsScreenStyles();
   return (
     <View style={styles.contractCard}>
       <Text style={styles.environmentLabel}>{copy.releaseTitle}</Text>
@@ -1141,6 +1169,7 @@ export function ReleaseReadinessCard() {
 }
 
 export function StoreReadinessCard() {
+  const styles = useSettingsScreenStyles();
   const isReady = mobileStoreReadiness.blockers.length === 0;
 
   return (
@@ -1163,6 +1192,7 @@ export function StoreReadinessCard() {
 }
 
 export function ProductionReadinessCard() {
+  const styles = useSettingsScreenStyles();
   const firstGates = MOBILE_PRODUCTION_READINESS_GATES.slice(0, 4)
     .map((gate) => gate.id)
     .join(" - ");
@@ -1200,6 +1230,7 @@ export function ProductionReadinessCard() {
 }
 
 export function MobileQualityGateCard() {
+  const styles = useSettingsScreenStyles();
   const firstTargets = MOBILE_QA_DEVICE_MATRIX.slice(0, 3)
     .map((target) => target.label)
     .join(" - ");
@@ -1232,16 +1263,18 @@ export function MobileQualityGateCard() {
 }
 
 export function SessionDiagnostics({ diagnostics }: { diagnostics: MobileSessionDiagnostics }) {
+  const styles = useSettingsScreenStyles();
   return (
     <View style={styles.diagnosticsRow}>
       <DiagnosticPill label="Session" value={diagnostics.hasSession ? "var" : "yok"} />
       <DiagnosticPill label="Scopes" value={String(diagnostics.scopeCount)} />
-      <DiagnosticPill label="Refresh" value={diagnostics.hasRefreshToken ? "hazır" : "yok"} />
+      <DiagnosticPill label="Refresh" value={diagnostics.hasRefreshToken ? "hazÄ±r" : "yok"} />
     </View>
   );
 }
 
 export function DeepLinkStatusCard({ result }: { result: MobileDeepLinkParseResult | null }) {
+  const styles = useSettingsScreenStyles();
   const statusLabel = getDeepLinkStatusLabel(result);
   const isRejected = result?.ok === false;
 
@@ -1405,6 +1438,7 @@ export function ProfileSettingsScreen({
   onSelectVoiceInputMode(mode: MobileVoiceInputMode): void;
   onSignOut(): void;
 }) {
+  const styles = useSettingsScreenStyles();
   const { mode: themeMode } = useThemePreference();
   const isSignedIn = status === "signed-in";
   const appVersion =

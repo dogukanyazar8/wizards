@@ -13,9 +13,9 @@ import {
 
 import whisprIcon from "../../../assets/whispr-icon.png";
 import { getMobileDevLoginCredentials } from "../../auth/mobile-dev-login";
-import { mobileColors } from "../../design/tokens";
+import { useTheme } from "../providers/mobile-theme-provider";
 import { activeMobileCopy } from "../../locale/mobile-locale-preferences";
-import { styles } from "./auth-gate.styles";
+import { useAuthGateStyles } from "./auth-gate.styles";
 
 const copy = activeMobileCopy;
 type MobileIoniconName = ComponentProps<typeof Ionicons>["name"];
@@ -63,6 +63,8 @@ export function AuthGate({
   }): Promise<{ ok: true } | { message: string; ok: false }>;
   reason: "auth-required" | "checking" | null;
 }) {
+  const styles = useAuthGateStyles();
+  const theme = useTheme();
   const isChecking = reason === "checking";
   const [mode, setMode] = useState<"forgot" | "register" | "sign-in">("sign-in");
   const [email, setEmail] = useState("");
@@ -279,7 +281,7 @@ export function AuthGate({
       {isChecking ? (
         <View style={styles.premiumAuthLoadingCard}>
           <View style={styles.premiumAuthLoadingIcon}>
-            <ActivityIndicator color={mobileColors.accentStrong} />
+            <ActivityIndicator color={theme.accent.strong} />
           </View>
           <Text style={styles.premiumAuthLoadingTitle}>{copy.authChecking}</Text>
           <Text style={styles.premiumAuthSubtitle}>{copy.gatedChecking}</Text>
@@ -451,7 +453,7 @@ export function AuthGate({
 
           <SecurityCard />
           <View style={styles.premiumAuthFooterRow}>
-            <Ionicons name="lock-closed-outline" size={14} color={mobileColors.muted} />
+            <Ionicons name="lock-closed-outline" size={14} color={theme.text.muted} />
             <Text style={styles.premiumAuthFooterText}>{copy.authPrivacyFooter}</Text>
           </View>
         </View>
@@ -471,35 +473,37 @@ function getMobilePasswordStrength(password: string) {
 
   if (score >= 4) {
     return {
-      color: mobileColors.success,
       label: copy.authPasswordStrengthStrong,
       ratio: 1,
       score,
+      tone: "success" as const,
     };
   }
 
   if (score >= 2) {
     return {
-      color: mobileColors.accentStrong,
       label: copy.authPasswordStrengthMedium,
       ratio: 0.66,
       score,
+      tone: "accent" as const,
     };
   }
 
   return {
-    color: "#F97316",
     label: copy.authPasswordStrengthWeak,
     ratio: password.length > 0 ? 0.33 : 0,
     score,
+    tone: "warning" as const,
   };
 }
 
 function AuthScreenLayout({ children }: { children: ReactNode }) {
+  const styles = useAuthGateStyles();
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.premiumAuthScreen}
+      testID="mobile-auth-screen"
     >
       <View style={styles.premiumAuthGlowTop} />
       <View style={styles.premiumAuthGlowBottom} />
@@ -514,6 +518,7 @@ function AuthScreenLayout({ children }: { children: ReactNode }) {
 }
 
 function AuthHeader({ description, title }: { description: string; title: string }) {
+  const styles = useAuthGateStyles();
   return (
     <View style={styles.premiumAuthHeader}>
       <View style={styles.premiumAuthBrandRow}>
@@ -525,8 +530,12 @@ function AuthHeader({ description, title }: { description: string; title: string
         />
         <Text style={styles.premiumAuthBrandText}>Whispr</Text>
       </View>
-      <Text style={styles.premiumAuthTitle}>{title}</Text>
-      <Text style={styles.premiumAuthSubtitle}>{description}</Text>
+      <Text maxFontSizeMultiplier={1.4} style={styles.premiumAuthTitle}>
+        {title}
+      </Text>
+      <Text maxFontSizeMultiplier={1.5} style={styles.premiumAuthSubtitle}>
+        {description}
+      </Text>
     </View>
   );
 }
@@ -538,6 +547,8 @@ function ProfileTypeSelector({
   onChange(nextValue: "corporate" | "gamer" | "personal"): void;
   value: "corporate" | "gamer" | "personal";
 }) {
+  const styles = useAuthGateStyles();
+  const theme = useTheme();
   const options: Array<{
     color: string;
     icon: MobileIoniconName;
@@ -546,21 +557,21 @@ function ProfileTypeSelector({
     value: "corporate" | "gamer" | "personal";
   }> = [
     {
-      color: mobileColors.success,
+      color: theme.status.success,
       icon: "person-outline",
       label: copy.authProfilePersonal,
       preview: false,
       value: "personal",
     },
     {
-      color: "#EC4899",
+      color: theme.accent.default,
       icon: "game-controller-outline",
       label: copy.authProfileGamer,
       preview: true,
       value: "gamer",
     },
     {
-      color: "#3B82F6",
+      color: theme.status.info,
       icon: "briefcase-outline",
       label: copy.authProfileCorporate,
       preview: true,
@@ -586,10 +597,14 @@ function ProfileTypeSelector({
               pressed && styles.actionButtonPressed,
             ]}
           >
-            <View style={[styles.premiumAuthProfileIcon, { backgroundColor: `${option.color}18` }]}>
+            <View style={styles.premiumAuthProfileIcon}>
               <Ionicons name={option.icon} size={16} color={option.color} />
             </View>
-            <Text style={styles.premiumAuthProfileLabel} numberOfLines={1}>
+            <Text
+              maxFontSizeMultiplier={1.3}
+              style={styles.premiumAuthProfileLabel}
+              numberOfLines={1}
+            >
               {option.label}
             </Text>
             {option.preview ? (
@@ -599,7 +614,7 @@ function ProfileTypeSelector({
             ) : null}
             {active ? (
               <View style={styles.premiumAuthProfileCheck}>
-                <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                <Ionicons name="checkmark" size={12} color={theme.text.onPrimary} />
               </View>
             ) : null}
           </Pressable>
@@ -642,11 +657,13 @@ function AuthInput({
   textContentType?: ComponentProps<typeof TextInput>["textContentType"];
   value: string;
 }) {
+  const styles = useAuthGateStyles();
+  const theme = useTheme();
   const isProtected = secureTextEntry && !isSecureVisible;
 
   return (
     <View style={styles.premiumAuthInputShell}>
-      <Ionicons name={iconName} size={19} color={mobileColors.muted} />
+      <Ionicons name={iconName} size={19} color={theme.text.muted} />
       <TextInput
         accessibilityLabel={accessibilityLabel}
         autoCapitalize={autoCapitalize}
@@ -656,7 +673,7 @@ function AuthInput({
         keyboardType={keyboardType}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={theme.text.soft}
         returnKeyType={returnKeyType}
         secureTextEntry={isProtected}
         style={styles.premiumAuthInput}
@@ -676,7 +693,7 @@ function AuthInput({
           <Ionicons
             name={isSecureVisible ? "eye-off-outline" : "eye-outline"}
             size={20}
-            color={mobileColors.muted}
+            color={theme.text.muted}
           />
         </Pressable>
       ) : null}
@@ -693,6 +710,8 @@ function AuthCheckbox({
   label: string;
   onPress(): void;
 }) {
+  const styles = useAuthGateStyles();
+  const theme = useTheme();
   return (
     <Pressable
       accessibilityRole="checkbox"
@@ -705,7 +724,7 @@ function AuthCheckbox({
       ]}
     >
       <View style={[styles.premiumAuthCheckbox, checked && styles.premiumAuthCheckboxChecked]}>
-        {checked ? <Ionicons name="checkmark" size={14} color="#FFFFFF" /> : null}
+        {checked ? <Ionicons name="checkmark" size={14} color={theme.text.onPrimary} /> : null}
       </View>
       <Text style={styles.premiumAuthCheckboxText}>{label}</Text>
     </Pressable>
@@ -721,6 +740,8 @@ function AuthPrimaryButton({
   label: string;
   onPress(): void;
 }) {
+  const styles = useAuthGateStyles();
+  const theme = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
@@ -735,7 +756,7 @@ function AuthPrimaryButton({
       ]}
     >
       <Text style={styles.premiumAuthPrimaryButtonText}>{label}</Text>
-      <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+      <Ionicons name="arrow-forward" size={20} color={theme.text.onPrimary} />
     </Pressable>
   );
 }
@@ -749,6 +770,7 @@ function AuthSecondaryButton({
   label: string;
   onPress(): void;
 }) {
+  const styles = useAuthGateStyles();
   return (
     <Pressable
       accessibilityRole="button"
@@ -768,6 +790,8 @@ function AuthSecondaryButton({
 }
 
 function SocialLoginRow({ onOpenWebSignIn }: { onOpenWebSignIn(): void }) {
+  const styles = useAuthGateStyles();
+  const theme = useTheme();
   const providers: Array<{
     asset?: "whispr";
     color: string;
@@ -776,26 +800,26 @@ function SocialLoginRow({ onOpenWebSignIn }: { onOpenWebSignIn(): void }) {
     testID: string;
   }> = [
     {
-      color: "#EA4335",
+      color: theme.status.danger,
       icon: "logo-google",
       label: copy.authSocialGoogle,
       testID: "mobile-auth-social-google",
     },
     {
-      color: "#00A4EF",
+      color: theme.status.info,
       icon: "logo-microsoft",
       label: copy.authSocialMicrosoft,
       testID: "mobile-auth-social-microsoft",
     },
     {
-      color: "#111827",
+      color: theme.text.primary,
       icon: "logo-apple",
       label: copy.authSocialApple,
       testID: "mobile-auth-social-apple",
     },
     {
       asset: "whispr",
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
       label: copy.authSocialWhisprWeb,
       testID: "mobile-auth-social-whispr",
     },
@@ -838,17 +862,19 @@ function SocialLoginRow({ onOpenWebSignIn }: { onOpenWebSignIn(): void }) {
 }
 
 function SecurityCard() {
+  const styles = useAuthGateStyles();
+  const theme = useTheme();
   return (
     <View style={styles.premiumAuthSecurityCard}>
       <View style={styles.premiumAuthSecurityIcon}>
-        <Ionicons name="shield-checkmark" size={21} color="#FFFFFF" />
+        <Ionicons name="shield-checkmark" size={21} color={theme.text.onPrimary} />
       </View>
       <View style={styles.premiumAuthSecurityText}>
         <Text style={styles.premiumAuthSecurityTitle}>{copy.authSecurityStatus}</Text>
         <Text style={styles.premiumAuthSecurityDescription}>{copy.authSecurityDescription}</Text>
       </View>
       <View style={styles.premiumAuthCloudflareBadge}>
-        <Ionicons name="cloud" size={18} color="#F97316" />
+        <Ionicons name="cloud" size={18} color={theme.status.warning} />
         <Text style={styles.premiumAuthCloudflareText}>{copy.authSecurityBadge}</Text>
       </View>
     </View>
@@ -860,25 +886,34 @@ function PasswordStrengthBar({
 }: {
   strength: ReturnType<typeof getMobilePasswordStrength>;
 }) {
+  const styles = useAuthGateStyles();
+  const theme = useTheme();
+  const strengthFillStyle =
+    strength.tone === "success"
+      ? styles.premiumAuthStrengthFillSuccess
+      : strength.tone === "accent"
+        ? styles.premiumAuthStrengthFillAccent
+        : styles.premiumAuthStrengthFillWarning;
+  const strengthLabelStyle =
+    strength.tone === "success"
+      ? styles.premiumAuthStrengthLabelSuccess
+      : strength.tone === "accent"
+        ? styles.premiumAuthStrengthLabelAccent
+        : styles.premiumAuthStrengthLabelWarning;
   return (
     <View style={styles.premiumAuthStrength}>
       <View style={styles.premiumAuthStrengthHeader}>
-        <Ionicons name="shield-checkmark-outline" size={15} color={mobileColors.success} />
+        <Ionicons name="shield-checkmark-outline" size={15} color={theme.status.success} />
         <Text style={styles.premiumAuthStrengthText}>{copy.authPasswordStrengthHint}</Text>
       </View>
       <View style={styles.premiumAuthStrengthTrack}>
         <View
-          style={[
-            styles.premiumAuthStrengthFill,
-            { backgroundColor: strength.color, flex: strength.ratio },
-          ]}
+          style={[styles.premiumAuthStrengthFill, strengthFillStyle, { flex: strength.ratio }]}
         />
         <View style={{ flex: Math.max(1 - strength.ratio, 0) }} />
       </View>
       {strength.score > 0 ? (
-        <Text style={[styles.premiumAuthStrengthLabel, { color: strength.color }]}>
-          {strength.label}
-        </Text>
+        <Text style={[styles.premiumAuthStrengthLabel, strengthLabelStyle]}>{strength.label}</Text>
       ) : null}
     </View>
   );

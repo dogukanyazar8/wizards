@@ -1,11 +1,12 @@
 import { type ReactNode, useCallback, useMemo } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { NavigationContainer, type NavigationState } from "@react-navigation/native";
+import { DefaultTheme, NavigationContainer, type NavigationState } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Linking } from "react-native";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { getMobileRuntimeConfig } from "../config/environment";
 import { useMobileDeepLinkRuntime } from "../app/providers/mobile-deep-link-provider";
+import { useTheme } from "../app/providers/mobile-theme-provider";
 import { AuthGate } from "../app/screens/auth-gate";
 import {
   ChannelStackScreenContainer,
@@ -35,6 +36,7 @@ export function MobileNavigator({
   directMessageUnreadCount = 0,
   onTabChange,
 }: MobileNavigatorProps) {
+  const theme = useTheme();
   const { handleCommand } = useMobileDeepLinkRuntime();
   const runtimeConfig = getMobileRuntimeConfig();
   const linking = useMemo(
@@ -52,6 +54,22 @@ export function MobileNavigator({
       onTabChange?.(tab);
     }
   }, [onTabChange]);
+  const navigationTheme = useMemo(
+    () => ({
+      ...DefaultTheme,
+      dark: theme.dark,
+      colors: {
+        ...DefaultTheme.colors,
+        background: theme.surface.base,
+        border: theme.border.subtle,
+        card: theme.surface.elevated,
+        notification: theme.status.danger,
+        primary: theme.accent.default,
+        text: theme.text.primary,
+      },
+    }),
+    [theme],
+  );
 
   return (
     <NavigationContainer
@@ -59,6 +77,7 @@ export function MobileNavigator({
       onReady={reportActiveTab}
       onStateChange={reportActiveTab}
       ref={mobileNavigationRef}
+      theme={navigationTheme}
     >
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="MainTabs">

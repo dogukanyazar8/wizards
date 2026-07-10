@@ -308,10 +308,11 @@ describe("mobile design contract", () => {
     assert.match(shellSource, /styles\.bottomNavSurface/);
     assert.match(shellSource, /styles\.navIconHalo/);
     assert.match(shellSource, /styles\.navActiveGlow/);
-    assert.match(shellSource, /mobileElevation\.floating/);
-    assert.match(shellSource, /mobileTypography\.caption/);
-    assert.match(shellSource, /mobileColors\.surfaceElevated/);
-    assert.match(shellSource, /mobileColors\.primaryForeground/);
+    assert.match(shellSource, /useThemedStyles\(createMobileBottomTabBarStyles\)/);
+    assert.match(shellSource, /theme\.elevation\.floating/);
+    assert.match(shellSource, /theme\.typography\.caption/);
+    assert.match(shellSource, /theme\.surface\.elevated/);
+    assert.match(shellSource, /theme\.text\.onPrimary/);
     assert.match(shellSource, /accessibilityRole="tablist"/);
     assert.match(shellSource, /accessibilityRole="tab"/);
     assert.doesNotMatch(shellSource, /navSelectionBar/);

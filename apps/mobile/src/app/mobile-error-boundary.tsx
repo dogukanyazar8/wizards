@@ -1,7 +1,16 @@
-import { Component, type ErrorInfo, type ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Component, useMemo, type ErrorInfo, type ReactNode } from "react";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useColorScheme,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { mobileColors, mobileRadii, mobileSpacing } from "../design/tokens";
+import { getMobileTheme } from "../design/mobile-theme-runtime";
+import type { MobileTheme } from "../design/themes";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 
 const copy = activeMobileCopy;
@@ -56,6 +65,9 @@ export class MobileErrorBoundary extends Component<
 
 function MobileErrorFallback({ onRetry }: { onRetry(): void }) {
   const insets = useSafeAreaInsets();
+  const systemScheme = useColorScheme();
+  const theme = getMobileTheme("system", systemScheme);
+  const styles = useMemo(() => StyleSheet.create(createMobileErrorStyles(theme)), [theme]);
 
   return (
     <View
@@ -73,8 +85,12 @@ function MobileErrorFallback({ onRetry }: { onRetry(): void }) {
         <View style={styles.icon}>
           <Text style={styles.iconText}>!</Text>
         </View>
-        <Text style={styles.title}>{copy.errorBoundaryTitle}</Text>
-        <Text style={styles.description}>{copy.errorBoundaryDescription}</Text>
+        <Text maxFontSizeMultiplier={1.5} style={styles.title}>
+          {copy.errorBoundaryTitle}
+        </Text>
+        <Text maxFontSizeMultiplier={1.5} style={styles.description}>
+          {copy.errorBoundaryDescription}
+        </Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={copy.errorBoundaryRetryAction}
@@ -89,79 +105,76 @@ function MobileErrorFallback({ onRetry }: { onRetry(): void }) {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    justifyContent: "center",
-    backgroundColor: mobileColors.background,
-    paddingHorizontal: mobileSpacing.page,
-  },
-  surface: {
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: mobileColors.border,
-    borderRadius: mobileRadii.card,
-    backgroundColor: mobileColors.card,
-    paddingHorizontal: 22,
-    paddingVertical: 24,
-    shadowColor: "#4F46E5",
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 2,
-  },
-  icon: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: mobileRadii.control,
-    backgroundColor: "#FEF3C7",
-  },
-  iconText: {
-    color: mobileColors.warning,
-    fontSize: 20,
-    fontWeight: "900",
-  },
-  title: {
-    marginTop: 16,
-    color: mobileColors.text,
-    fontSize: 22,
-    fontWeight: "900",
-    textAlign: "center",
-  },
-  description: {
-    marginTop: 8,
-    color: mobileColors.muted,
-    fontSize: 14,
-    fontWeight: "600",
-    lineHeight: 20,
-    textAlign: "center",
-  },
-  retryButton: {
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "stretch",
-    marginTop: 18,
-    borderRadius: mobileRadii.control,
-    backgroundColor: mobileColors.accentStrong,
-    paddingHorizontal: 18,
-  },
-  retryButtonPressed: {
-    opacity: 0.88,
-  },
-  retryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "900",
-  },
-  footnote: {
-    marginTop: 12,
-    color: mobileColors.mutedSoft,
-    fontSize: 12,
-    fontWeight: "700",
-    lineHeight: 17,
-    textAlign: "center",
-  },
-});
+export const createMobileErrorStyles = (theme: MobileTheme) =>
+  ({
+    safeArea: {
+      flex: 1,
+      justifyContent: "center",
+      backgroundColor: theme.surface.base,
+      paddingHorizontal: theme.spacing.page,
+    },
+    surface: {
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: theme.border.subtle,
+      borderRadius: theme.radii.card,
+      backgroundColor: theme.surface.card,
+      paddingHorizontal: 22,
+      paddingVertical: 24,
+      ...theme.elevation.floating,
+    },
+    icon: {
+      width: 44,
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: theme.radii.control,
+      backgroundColor: theme.surface.soft,
+    },
+    iconText: {
+      color: theme.status.warning,
+      fontSize: 20,
+      fontWeight: "900",
+    },
+    title: {
+      marginTop: 16,
+      color: theme.text.primary,
+      fontSize: 22,
+      fontWeight: "900",
+      textAlign: "center",
+    },
+    description: {
+      marginTop: 8,
+      color: theme.text.muted,
+      fontSize: 14,
+      fontWeight: "600",
+      lineHeight: 20,
+      textAlign: "center",
+    },
+    retryButton: {
+      minHeight: 48,
+      alignItems: "center",
+      justifyContent: "center",
+      alignSelf: "stretch",
+      marginTop: 18,
+      borderRadius: theme.radii.control,
+      backgroundColor: theme.accent.default,
+      paddingHorizontal: 18,
+    },
+    retryButtonPressed: {
+      opacity: 0.88,
+    },
+    retryButtonText: {
+      color: theme.text.onPrimary,
+      fontSize: 14,
+      fontWeight: "900",
+    },
+    footnote: {
+      marginTop: 12,
+      color: theme.text.soft,
+      fontSize: 12,
+      fontWeight: "700",
+      lineHeight: 17,
+      textAlign: "center",
+    },
+  }) satisfies Record<string, TextStyle | ViewStyle>;

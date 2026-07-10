@@ -29,6 +29,7 @@ const mockSetItem = AsyncStorage.setItem as jest.MockedFunction<typeof AsyncStor
 
 let mockSystemScheme: ReactNative.ColorSchemeName = "light";
 const renderedStyleReferences: unknown[] = [];
+let themeConsumerMountCount = 0;
 
 const createProbeStyles = (theme: MobileTheme) => ({
   root: { backgroundColor: theme.surface.base },
@@ -40,6 +41,9 @@ function ThemeConsumer() {
   const styles = useThemedStyles(createProbeStyles);
   const [renderCount, setRenderCount] = useState(0);
   renderedStyleReferences.push(styles);
+  React.useEffect(() => {
+    themeConsumerMountCount += 1;
+  }, []);
 
   return (
     <View>
@@ -71,12 +75,11 @@ describe("MobileThemeProvider", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     renderedStyleReferences.length = 0;
+    themeConsumerMountCount = 0;
     mockSystemScheme = "light";
     mockGetItem.mockResolvedValue(null);
     mockSetItem.mockResolvedValue(undefined);
-    jest
-      .spyOn(ReactNative, "useColorScheme")
-      .mockImplementation(() => mockSystemScheme);
+    jest.spyOn(ReactNative, "useColorScheme").mockImplementation(() => mockSystemScheme);
   });
 
   it("paints the system theme immediately and hydrates a stored dark preference", async () => {
@@ -165,6 +168,7 @@ describe("MobileThemeProvider", () => {
     );
 
     expect(view.getByText("system:dark")).toBeTruthy();
+    expect(themeConsumerMountCount).toBe(1);
   });
 
   it("reuses the registered style object across same-theme rerenders", async () => {

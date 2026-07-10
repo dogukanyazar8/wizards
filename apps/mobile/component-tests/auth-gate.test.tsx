@@ -1,9 +1,13 @@
 import React from "react";
-import { fireEvent, render } from "@testing-library/react-native";
-import { describe, expect, it, jest } from "@jest/globals";
+import * as ReactNative from "react-native";
+import { StyleSheet } from "react-native";
+import { fireEvent } from "@testing-library/react-native";
+import { afterEach, describe, expect, it, jest } from "@jest/globals";
 
 import { AuthGate } from "../src/app/screens/auth-gate";
+import { darkTheme, lightTheme } from "../src/design/themes";
 import { activeMobileCopy } from "../src/locale/mobile-locale-preferences";
+import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
 const copy = activeMobileCopy;
 
@@ -23,6 +27,22 @@ async function renderAuthGate() {
 }
 
 describe("mobile auth gate component rendering", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it.each([
+    ["light", lightTheme],
+    ["dark", darkTheme],
+  ] as const)("uses the %s semantic auth background", async (scheme, theme) => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
+    const view = await renderAuthGate();
+
+    expect(
+      StyleSheet.flatten(view.getByTestId("mobile-auth-screen").props.style).backgroundColor,
+    ).toBe(theme.surface.base);
+  });
+
   it("renders the missing-field validation error after a real sign-in submit press", async () => {
     const view = await renderAuthGate();
 
