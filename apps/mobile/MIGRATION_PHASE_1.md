@@ -68,6 +68,9 @@ A future authenticated server preference can connect at the `setMode` repository
 
 The accessible ContextMenu/overlay foundation is ready for Phase 2 product actions. Phase 2 may add anchored positioning, richer action groups, and a separately approved haptics policy; it should retain semantic tokens, menu/menuitem roles, Android back cleanup, reduced motion, and the current overlay ownership boundary.
 
+- `mobile-theme-compat.ts` is a bounded transition layer. Phase 2 must remove compatible legacy accesses from every file it touches instead of extending the layer.
+- Maestro UAT authentication now reads ignored local `.env.maestro` values through `.maestro/helpers/login-uat.yml`. The helper performs exactly one login attempt and never retries a rejected credential.
+
 ## Verification evidence
 
 Final package and static gates:
@@ -75,7 +78,7 @@ Final package and static gates:
 | Gate                                                             | Result                                |
 | ---------------------------------------------------------------- | ------------------------------------- |
 | `pnpm --filter @wizards/mobile typecheck`                        | PASS                                  |
-| `pnpm --filter @wizards/mobile test`                             | PASS - 290/290                        |
+| `pnpm --filter @wizards/mobile test`                             | PASS - 291/291                        |
 | `pnpm --filter @wizards/mobile test:components --runInBand`      | PASS - 51/51                          |
 | `pnpm --filter @wizards/mobile quality:check`                    | PASS - 0 blockers                     |
 | `pnpm --filter @wizards/mobile exec expo install --check`        | PASS - Dependencies are up to date    |
@@ -92,19 +95,18 @@ Android build evidence:
 
 Maestro evidence:
 
-- The initial Phase 1 theme run reached settings and produced `artifacts/mobile/phase1/maestro/dark-mode/report.xml`, but review showed that it did not prove protected product destinations. Its screenshots are retained only as shell/settings visual evidence and are not a promotion gate.
-- The hardened flow now requires a checked theme radio, verifies persistence after navigation, and asserts unique overview, DM, notifications, voice, and settings screen IDs. Its final rerun correctly failed at the protected overview while the device was signed out: `artifacts/mobile/phase1/maestro/dark-mode-final/report.xml`.
-- Focused predictive-back/deep-link flow: PASS, `artifacts/mobile/phase1/predictive-back/focused-maestro-final/report.xml`.
-- The final full Phase 0 flow rerun reached the authenticated-data gate but UAT mobile login rejected the supplied account state. Its failed report is retained at `artifacts/mobile/phase1/maestro/navigation/report.xml`; no credential is stored in committed source or evidence metadata. Re-run this full suite after UAT account access is restored.
+- Authenticated Phase 0 navigation: PASS, `artifacts/mobile/phase1/closure/phase0-navigation.xml` (1 test, 0 failures, 50 seconds). The flow covers channel and DM push/back plus channel, DM, invite, and settings deep links.
+- Phase 1 light/dark mode: PASS, `artifacts/mobile/phase1/closure/phase1-dark-mode.xml` (1 test, 0 failures, 57 seconds). The flow proves dark-mode persistence across all primary tabs and restoration to light mode.
+- Focused predictive-back/deep-link flow: PASS, `artifacts/mobile/phase1/predictive-back/focused-maestro-final/report.xml` (1 test, 0 failures, 16 seconds).
+- Dark overview: `artifacts/mobile/phase1/closure/dark-overview.png`, SHA-256 `4B3A830DA908F04606FE910B54276238194035175B11D37470060697153DCEB8`.
+- Dark settings: `artifacts/mobile/phase1/closure/dark-settings.png`, SHA-256 `E9241BD0960C5D5DAD42202D50E066AA506BAA5AAB3B358F9CEE8454FB0B236A`.
+- Light settings: `artifacts/mobile/phase1/closure/light-settings.png`, SHA-256 `C23BC3C1188CC8612F6E14EC49C1A56591BAAA1B049947A8A3004B021889A21A`.
+- Credentials are read only from ignored `.env.maestro`; reports, screenshots, committed flows, and Git history contain no credential values.
 
-## UAT integration plan
+The Codex execution sandbox blocked direct emulator outbound TCP during closure. The device therefore reached the real UAT upstream through an ignored localhost-only HTTP relay bound to `127.0.0.1` and exposed with `adb reverse`; login, bootstrap, server, channel-message, and DM-message UAT requests returned HTTP 200. No relay, API override, application change, native change, or credential was committed.
 
-No merge into `uat` is executed by this phase task. The main checkout's pre-existing Graphify, `tsbuildinfo`, and root artifact changes remain untouched.
+## UAT integration closure
 
-Before integration:
-
-1. Restore/confirm the UAT mobile test account and rerun `.maestro/phase0-navigation.yml` plus `.maestro/phase1-dark-mode.yml` on the final branch.
-2. Confirm the feature worktree is clean and all final gates above remain green.
-3. Update the feature branch from current `uat`, resolve only Phase 1-owned conflicts, and rerun typecheck, contract, component, quality, Expo install check, and both Maestro suites.
-4. Merge `codex/mobile-phase1-design-system` into `uat` with a non-fast-forward integration commit or an equivalent reviewed PR.
-5. Perform a post-merge Android UAT smoke on system/light/dark, hardware back, channel, DM, invite, and settings deep links before promotion.
+- `codex/mobile-phase1-design-system` was merged from the unchanged `origin/uat` base with non-fast-forward merge commit `8cc8899e`.
+- The isolated `C:\W1P1` worktree was used for merge and verification. The main checkout's pre-existing Graphify, `tsbuildinfo`, lockfile, and root artifact changes were not modified.
+- Final promotion requires the verification table above to remain green and the resulting closure commit to match remote `refs/heads/uat`.
