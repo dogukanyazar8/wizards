@@ -17,6 +17,9 @@ const darkModeFlowPath = path.join(repositoryRoot, ".maestro", "phase1-dark-mode
 const darkModeFlowSource = existsSync(darkModeFlowPath)
   ? readFileSync(darkModeFlowPath, "utf8")
   : "";
+const loginHelperPath = path.join(repositoryRoot, ".maestro", "helpers", "login-uat.yml");
+const loginHelperSource = existsSync(loginHelperPath) ? readFileSync(loginHelperPath, "utf8") : "";
+const rootGitignoreSource = readFileSync(path.join(repositoryRoot, ".gitignore"), "utf8");
 
 const testIdSources: Record<string, { file: string; needle: string }> = {
   "mobile-bottom-tab-messages": {
@@ -54,6 +57,26 @@ const testIdSources: Record<string, { file: string; needle: string }> = {
 };
 
 describe("Phase 0 Maestro testID contract", () => {
+  it("uses one non-retrying UAT login helper with ignored local credentials", () => {
+    assert.match(rootGitignoreSource, /^\.env\.maestro$/m);
+    assert.ok(loginHelperSource, ".maestro/helpers/login-uat.yml must exist");
+    assert.equal(loginHelperSource.match(/\$\{MAESTRO_UAT_EMAIL\}/g)?.length, 1);
+    assert.equal(loginHelperSource.match(/\$\{MAESTRO_UAT_PASSWORD\}/g)?.length, 1);
+    assert.equal(loginHelperSource.match(/tapOn:\s*"Giris yap"/g)?.length, 1);
+    assert.doesNotMatch(loginHelperSource, /retry/i);
+    assert.match(
+      loginHelperSource,
+      /extendedWaitUntil:[\s\S]*id:\s*"mobile-workspace-channel-text"/,
+    );
+
+    for (const source of [flowSource, darkModeFlowSource]) {
+      assert.match(source, /file:\s*"helpers\/login-uat\.yml"/);
+      assert.doesNotMatch(source, /MAESTRO_UAT_(?:EMAIL|PASSWORD)/);
+      assert.doesNotMatch(source, /WHISPR_MOBILE_E2E_(?:EMAIL|PASSWORD)/);
+      assert.doesNotMatch(source, /tapOn:\s*"Giris yap"/);
+    }
+  });
+
   it("binds every navigation-flow testID to a production source", () => {
     const flowIds = [...flowSource.matchAll(/\bid:\s*"([^"]+)"/g)].map((match) => match[1]);
     const uniqueFlowIds = [...new Set(flowIds)].sort();

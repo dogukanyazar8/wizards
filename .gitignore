@@ -9,6 +9,7 @@ test-results
 blob-report
 .env
 .env.local
+.env.maestro
 .secrets/
 **/.secrets/
 .DS_Store

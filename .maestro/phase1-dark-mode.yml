@@ -15,6 +15,13 @@ appId: team.whispr.mobile
 - openLink: "whispr://settings"
 - assertVisible:
     id: "mobile-settings-screen"
+- tapOn:
+    id: "mobile-bottom-tab-overview"
+- runFlow:
+    file: "helpers/login-uat.yml"
+- openLink: "whispr://settings"
+- assertVisible:
+    id: "mobile-settings-screen"
 - scrollUntilVisible:
     element:
       id: "mobile-settings-appearance-control"

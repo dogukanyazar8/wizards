@@ -18,21 +18,7 @@ appId: team.whispr.mobile
 - tapOn:
     id: "mobile-bottom-tab-overview"
 - runFlow:
-    when:
-      visible: "E-posta"
-    commands:
-      - tapOn: "E-posta"
-      - eraseText: 100
-      - inputText: ${WHISPR_MOBILE_E2E_EMAIL}
-      - tapOn: "Sifre"
-      - eraseText: 100
-      - inputText: ${WHISPR_MOBILE_E2E_PASSWORD}
-      - hideKeyboard
-      - tapOn: "Giris yap"
-- extendedWaitUntil:
-    visible:
-      id: "mobile-workspace-channel-text"
-    timeout: 30000
+    file: "helpers/login-uat.yml"
 
 # UI channel push + Android hardware back pop.
 - tapOn:

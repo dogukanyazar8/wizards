@@ -1,0 +1,18 @@
+appId: team.whispr.mobile
+---
+- runFlow:
+    when:
+      visible: "E-posta"
+    commands:
+      - tapOn: "E-posta"
+      - eraseText: 100
+      - inputText: ${MAESTRO_UAT_EMAIL}
+      - tapOn: "Sifre"
+      - eraseText: 100
+      - inputText: ${MAESTRO_UAT_PASSWORD}
+      - hideKeyboard
+      - tapOn: "Giris yap"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-workspace-channel-text"
+    timeout: 30000
