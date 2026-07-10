@@ -47,6 +47,7 @@ import {
   type MobileVoiceInviteReceived,
   type MobileVoiceInviteSendState,
 } from "../voice/mobile-voice-room-contract";
+import { MobileAppLockScreen } from "./components/mobile-app-lock-screen";
 import { MobileDeviceIntegrityWarning } from "./components/mobile-device-integrity-warning";
 import {
   findInitialMobileWorkspaceChannel,
@@ -183,13 +184,18 @@ export function MobileProductApp({
   const [fontsLoaded] = useOutfitFonts();
   const {
     apiClient,
+    appLockAvailability,
+    appLockEnabled,
+    appLockLocked,
     deviceIntegrityWarningVisible,
     dismissDeviceIntegrityWarning,
     error,
     openWebRegister,
     openWebSignIn,
     refreshSessionFromStorage,
+    retryAppLockUnlock,
     session,
+    setAppLockEnabled,
     signOut,
     status,
   } = useMobileAuth();
@@ -1138,6 +1144,8 @@ export function MobileProductApp({
   };
 
   const settingsScreenProps: MobileSettingsScreenProps = {
+    appLockAvailability,
+    appLockEnabled,
     authStatusLabel,
     bootstrapState,
     error,
@@ -1159,6 +1167,7 @@ export function MobileProductApp({
     onSelectLocale: handleSelectMobileLocale,
     onSelectVoiceInputMode: handleSelectMobileVoiceInputMode,
     onSignOut: () => void signOut(),
+    onToggleAppLock: (enabled: boolean) => void setAppLockEnabled(enabled),
     permissionReadiness,
     permissionSummary,
     signedInUserLabel,
@@ -1212,6 +1221,11 @@ export function MobileProductApp({
                       invites={voiceInviteEntries}
                       onAccept={handleAcceptVoiceInvite}
                       onDecline={handleDeclineVoiceInvite}
+                    />
+                    <MobileAppLockScreen
+                      onRetry={() => void retryAppLockUnlock()}
+                      onSignOut={() => void signOut()}
+                      visible={appLockLocked}
                     />
                   </View>
                 </MobileAppShell>

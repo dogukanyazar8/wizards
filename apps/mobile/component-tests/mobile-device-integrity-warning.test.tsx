@@ -57,6 +57,15 @@ function createProviderProps(
   overrides: Partial<MobileAuthProviderProps> = {},
 ): Omit<MobileAuthProviderProps, "children"> {
   return {
+    appLockPreferenceStore: {
+      load: jest.fn(async () => false),
+      save: jest.fn(async () => undefined),
+    },
+    biometricAuthenticator: {
+      authenticate: jest.fn(async () => ({ success: false })),
+      hasHardware: jest.fn(async () => false),
+      isEnrolled: jest.fn(async () => false),
+    },
     deviceIntegrityDetector: createDetector({
       isPhysicalDevice: true,
       rootedResult: false,

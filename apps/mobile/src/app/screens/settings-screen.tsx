@@ -15,6 +15,7 @@ import {
   mobileColors,
   mobilePackageJson,
   mobileProductionReadinessSummary,
+  type MobileAppLockAvailability,
   mobileQualitySummary,
   mobileStoreReadiness,
   MOBILE_BOOTSTRAP_ENDPOINT,
@@ -962,6 +963,64 @@ export function SettingsVoiceInputModeSelector({
   );
 }
 
+export function SettingsAppLockControl({
+  availability,
+  enabled,
+  onToggle,
+}: {
+  availability: MobileAppLockAvailability;
+  enabled: boolean;
+  onToggle(enabled: boolean): void;
+}) {
+  const unavailable = availability === "unavailable";
+  const valueLabel = unavailable
+    ? copy.settingsAppLockUnavailableValue
+    : enabled
+      ? copy.settingsAppLockEnabledValue
+      : copy.settingsAppLockDisabledValue;
+
+  return (
+    <View style={styles.settingsLocaleControl} testID="mobile-settings-app-lock-control">
+      <Text style={styles.settingsLocaleDescription}>
+        {unavailable
+          ? copy.settingsAppLockUnavailableDescription
+          : copy.settingsAppLockControlDescription}
+      </Text>
+      <Pressable
+        accessibilityLabel={copy.settingsAppLockToggleLabel}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: enabled, disabled: unavailable }}
+        disabled={unavailable}
+        onPress={() => onToggle(!enabled)}
+        style={({ pressed }) => [
+          styles.settingsLocaleOption,
+          enabled && !unavailable && styles.settingsLocaleOptionSelected,
+          pressed && styles.actionButtonPressed,
+        ]}
+        testID="mobile-settings-app-lock-toggle"
+      >
+        <Text
+          style={[
+            styles.settingsLocaleOptionLabel,
+            enabled && !unavailable && styles.settingsLocaleOptionLabelSelected,
+          ]}
+          numberOfLines={1}
+        >
+          {copy.settingsAppLockToggleLabel}
+        </Text>
+        <Text
+          style={[
+            styles.settingsLocaleShortLabel,
+            enabled && !unavailable && styles.settingsLocaleShortLabelSelected,
+          ]}
+        >
+          {valueLabel}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export function SettingsPreferenceSection({
   children,
   description,
@@ -1290,6 +1349,8 @@ function getDeepLinkStatusLabel(result: MobileDeepLinkParseResult | null) {
 }
 
 export function ProfileSettingsScreen({
+  appLockAvailability,
+  appLockEnabled,
   authStatusLabel,
   bootstrapState,
   error,
@@ -1317,7 +1378,10 @@ export function ProfileSettingsScreen({
   onSelectLocale,
   onSelectVoiceInputMode,
   onSignOut,
+  onToggleAppLock,
 }: {
+  appLockAvailability: MobileAppLockAvailability;
+  appLockEnabled: boolean;
   authStatusLabel: string;
   bootstrapState: MobileBootstrapViewState;
   error: string | null;
@@ -1345,6 +1409,7 @@ export function ProfileSettingsScreen({
   onSelectLocale(locale: MobileLocale): void;
   onSelectVoiceInputMode(mode: MobileVoiceInputMode): void;
   onSignOut(): void;
+  onToggleAppLock(enabled: boolean): void;
 }) {
   const isSignedIn = status === "signed-in";
   const appVersion =
@@ -1494,6 +1559,17 @@ export function ProfileSettingsScreen({
         rows={privacyRows}
         title={copy.settingsPrivacyTitle}
       />
+      <SettingsPreferenceSection
+        description={copy.settingsAppLockDescription}
+        rows={[]}
+        title={copy.settingsAppLockTitle}
+      >
+        <SettingsAppLockControl
+          availability={appLockAvailability}
+          enabled={appLockEnabled}
+          onToggle={onToggleAppLock}
+        />
+      </SettingsPreferenceSection>
       <SettingsNativePermissionCard
         mediaState={mediaState}
         onRequestCameraPermission={onRequestCameraPermission}
