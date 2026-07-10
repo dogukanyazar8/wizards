@@ -152,6 +152,26 @@ describe("Playwright E2E governance", () => {
     assert.doesNotMatch(permissions, /:\s+write/);
   });
 
+  it("limits secret-scan suppressions to exact test-fixture fingerprints", () => {
+    const ignores = readWorkspaceFile(join(workspaceRoot, ".gitleaksignore"))
+      .split(/\r?\n/)
+      .filter(Boolean);
+    const mobileLinkingFixtureFingerprint =
+      "edeab2d7f9eb4b96a22f0617500fb2a9d1d98e88:apps/mobile/scripts/mobile-linking-config.test.ts:generic-api-key:9";
+
+    assert.ok(ignores.includes(mobileLinkingFixtureFingerprint));
+
+    for (const fingerprint of ignores) {
+      const [commit, path, rule, line, ...extra] = fingerprint.split(":");
+
+      assert.match(commit ?? "", /^[0-9a-f]{40}$/);
+      assert.match(path ?? "", /(?:\.test\.[cm]?[jt]sx?|^apps\/web\/e2e\/)/);
+      assert.match(rule ?? "", /^[a-z0-9-]+$/);
+      assert.match(line ?? "", /^\d+$/);
+      assert.deepEqual(extra, []);
+    }
+  });
+
   it("keeps expensive Playwright suites in post-merge or scheduled gates", () => {
     const workflow = readWorkspaceFile(join(workspaceRoot, ".github", "workflows", "ci.yml"));
     const realtimeStepStart = workflow.indexOf("- name: Run Playwright realtime and voice tests");
