@@ -66,6 +66,31 @@ function readMobileAuthImplementationSource() {
 }
 
 describe("mobile design contract", () => {
+  it("keeps the semantic theme outside crash and product providers", () => {
+    const appSource = readFileSync(join(process.cwd(), "App.tsx"), "utf8");
+    const providerOrder = [
+      "<MobileBootstrapErrorBoundary>",
+      "<MobileQueryProvider>",
+      "<MobileThemeProvider>",
+      "<MobileErrorBoundary>",
+      "<MobileAuthProvider>",
+      "<WhisprMobileRoot />",
+    ].map((marker) => appSource.indexOf(marker));
+
+    assert.ok(
+      providerOrder.every((index) => index >= 0),
+      "required providers must be mounted",
+    );
+    assert.deepEqual(
+      providerOrder,
+      [...providerOrder].sort((left, right) => left - right),
+    );
+    assert.match(
+      appSource,
+      /<MobileErrorBoundary>[\s\S]*<MobileAuthProvider>[\s\S]*<WhisprMobileRoot \/>\s*<\/MobileAuthProvider>\s*<MobileThemeSystemSurfaces \/>\s*<\/MobileErrorBoundary>/,
+    );
+  });
+
   it("keeps presentation sources on semantic colors and UI-thread animation", () => {
     assert.deepEqual(findSourceViolations(RAW_COLOR_PATTERN), []);
     assert.deepEqual(findSourceViolations(LEGACY_COLOR_PATTERN), []);
@@ -259,6 +284,8 @@ describe("mobile design contract", () => {
     );
 
     assert.match(profileSettingsSource, /testID="mobile-settings-screen"/);
+    assert.match(profileSettingsSource, /<ScrollView/);
+    assert.match(profileSettingsSource, /contentContainerStyle=\{styles\.settingsScreenContent\}/);
     assert.match(profileSettingsSource, /SettingsLocaleSelector/);
     assert.match(profileSettingsSource, /onSelectLocale/);
     assert.match(profileSettingsSource, /SettingsPreferenceSection/);

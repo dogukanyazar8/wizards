@@ -149,7 +149,7 @@ export function OverviewScreen({
     bootstrapState.status === "ready" ? bootstrapState.payload.features.messageSearch : null;
 
   return (
-    <View style={styles.homeScreen}>
+    <View style={styles.homeScreen} testID="mobile-overview-screen">
       <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
       <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
       {bootstrapState.status === "ready" ? (

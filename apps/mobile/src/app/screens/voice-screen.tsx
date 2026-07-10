@@ -91,6 +91,7 @@ export function VoiceScreen({
 
   return (
     <ScreenShell
+      testID="mobile-voice-screen"
       eyebrow={copy.tabVoice}
       title={copy.voiceTitle}
       description={copy.voiceDescription}

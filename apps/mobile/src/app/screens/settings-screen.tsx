@@ -1,6 +1,7 @@
 import {
   Ionicons,
   Pressable,
+  ScrollView,
   Text,
   View,
   copy,
@@ -1539,76 +1540,83 @@ export function ProfileSettingsScreen({
   ];
 
   return (
-    <ScreenShell
-      testID="mobile-settings-screen"
-      eyebrow={copy.tabProfile}
-      title={copy.settingsTitle}
-      description={copy.settingsDescription}
+    <ScrollView
+      contentContainerStyle={styles.settingsScreenContent}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      style={styles.settingsScreenScroll}
     >
-      <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
-      <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
-      <SettingsAccountCard
-        authStatusLabel={authStatusLabel}
-        bootstrapState={bootstrapState}
-        signedInUserLabel={signedInUserLabel}
-        status={status}
-      />
-      <SettingsSessionActionCard
-        isSignedIn={isSignedIn}
-        onOpenWebRegister={onOpenWebRegister}
-        onOpenWebSignIn={onOpenWebSignIn}
-        onRefresh={onRefresh}
-        onSignOut={onSignOut}
-      />
-      <SettingsSupportLegalCard
-        onOpenCookies={onOpenCookies}
-        onOpenPrivacyPolicy={onOpenPrivacyPolicy}
-        onOpenSupport={onOpenSupport}
-        onOpenTerms={onOpenTerms}
-      />
-      <SettingsPreferenceSection
-        description={copy.settingsAppearanceDescription}
-        rows={appearanceRows}
-        title={copy.settingsAppearanceTitle}
+      <ScreenShell
+        testID="mobile-settings-screen"
+        eyebrow={copy.tabProfile}
+        title={copy.settingsTitle}
+        description={copy.settingsDescription}
       >
-        <SettingsLocaleSelector locale={locale} onSelectLocale={onSelectLocale} />
-        <SettingsAppearanceSelector />
-      </SettingsPreferenceSection>
-      <SettingsPreferenceSection
-        description={copy.settingsNotificationsDescription}
-        rows={notificationRows}
-        title={copy.settingsNotificationsTitle}
-      />
-      <SettingsPreferenceSection
-        description={copy.settingsVoiceDescription}
-        rows={voiceRows}
-        title={copy.settingsVoiceTitle}
-      >
-        <SettingsVoiceInputModeSelector
-          voiceInputMode={voiceInputMode}
-          onSelectVoiceInputMode={onSelectVoiceInputMode}
+        <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
+        <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
+        <SettingsAccountCard
+          authStatusLabel={authStatusLabel}
+          bootstrapState={bootstrapState}
+          signedInUserLabel={signedInUserLabel}
+          status={status}
         />
-      </SettingsPreferenceSection>
-      <SettingsPreferenceSection
-        description={copy.settingsPrivacyDescription}
-        rows={privacyRows}
-        title={copy.settingsPrivacyTitle}
-      />
-      <SettingsNativePermissionCard
-        mediaState={mediaState}
-        onRequestCameraPermission={onRequestCameraPermission}
-        onRequestDocumentPicker={onRequestDocumentPicker}
-        onRequestNotificationPermission={onRequestNotificationPermission}
-        onRequestPhotoLibraryPermission={onRequestPhotoLibraryPermission}
-        readiness={permissionReadiness}
-        summary={permissionSummary}
-      />
-      <SettingsPreferenceSection
-        description={copy.settingsAboutDescription}
-        rows={aboutRows}
-        title={copy.settingsAboutTitle}
-      />
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
-    </ScreenShell>
+        <SettingsSessionActionCard
+          isSignedIn={isSignedIn}
+          onOpenWebRegister={onOpenWebRegister}
+          onOpenWebSignIn={onOpenWebSignIn}
+          onRefresh={onRefresh}
+          onSignOut={onSignOut}
+        />
+        <SettingsSupportLegalCard
+          onOpenCookies={onOpenCookies}
+          onOpenPrivacyPolicy={onOpenPrivacyPolicy}
+          onOpenSupport={onOpenSupport}
+          onOpenTerms={onOpenTerms}
+        />
+        <SettingsPreferenceSection
+          description={copy.settingsAppearanceDescription}
+          rows={appearanceRows}
+          title={copy.settingsAppearanceTitle}
+        >
+          <SettingsLocaleSelector locale={locale} onSelectLocale={onSelectLocale} />
+          <SettingsAppearanceSelector />
+        </SettingsPreferenceSection>
+        <SettingsPreferenceSection
+          description={copy.settingsNotificationsDescription}
+          rows={notificationRows}
+          title={copy.settingsNotificationsTitle}
+        />
+        <SettingsPreferenceSection
+          description={copy.settingsVoiceDescription}
+          rows={voiceRows}
+          title={copy.settingsVoiceTitle}
+        >
+          <SettingsVoiceInputModeSelector
+            voiceInputMode={voiceInputMode}
+            onSelectVoiceInputMode={onSelectVoiceInputMode}
+          />
+        </SettingsPreferenceSection>
+        <SettingsPreferenceSection
+          description={copy.settingsPrivacyDescription}
+          rows={privacyRows}
+          title={copy.settingsPrivacyTitle}
+        />
+        <SettingsNativePermissionCard
+          mediaState={mediaState}
+          onRequestCameraPermission={onRequestCameraPermission}
+          onRequestDocumentPicker={onRequestDocumentPicker}
+          onRequestNotificationPermission={onRequestNotificationPermission}
+          onRequestPhotoLibraryPermission={onRequestPhotoLibraryPermission}
+          readiness={permissionReadiness}
+          summary={permissionSummary}
+        />
+        <SettingsPreferenceSection
+          description={copy.settingsAboutDescription}
+          rows={aboutRows}
+          title={copy.settingsAboutTitle}
+        />
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      </ScreenShell>
+    </ScrollView>
   );
 }

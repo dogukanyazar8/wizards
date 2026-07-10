@@ -50,6 +50,7 @@ export function NotificationsScreen({
   const styles = useNotificationsScreenStyles();
   return (
     <ScreenShell
+      testID="mobile-notifications-screen"
       eyebrow={copy.tabNotifications}
       title={copy.notificationsTitle}
       description={copy.notificationsDescription}

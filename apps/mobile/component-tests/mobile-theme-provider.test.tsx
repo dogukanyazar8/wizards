@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import * as SystemUI from "expo-system-ui";
 import * as ReactNative from "react-native";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
   __esModule: true,
@@ -21,8 +22,11 @@ import {
   useThemedStyles,
 } from "../src/app/providers/mobile-theme-provider";
 import { MobileThemeSystemSurfaces } from "../src/app/providers/mobile-theme-system-surfaces";
+import { MobileErrorBoundary } from "../src/app/mobile-error-boundary";
+import * as MobileErrorBoundaryModule from "../src/app/mobile-error-boundary";
 import { MOBILE_THEME_PREFERENCE_KEY } from "../src/design/mobile-theme-runtime";
 import { darkTheme, lightTheme, type MobileTheme } from "../src/design/themes";
+import { activeMobileCopy } from "../src/locale/mobile-locale-preferences";
 
 const mockGetItem = AsyncStorage.getItem as jest.MockedFunction<typeof AsyncStorage.getItem>;
 const mockSetItem = AsyncStorage.setItem as jest.MockedFunction<typeof AsyncStorage.setItem>;
@@ -60,6 +64,10 @@ function ThemeConsumer() {
       </Pressable>
     </View>
   );
+}
+
+function ThrowingChild(): React.JSX.Element {
+  throw new Error("render failed");
 }
 
 async function renderProvider() {
@@ -153,6 +161,75 @@ describe("MobileThemeProvider", () => {
     );
     expect(view.getByTestId("mobile-system-status-bar").props.style).toBe("light");
     expect(view.getByTestId("mobile-system-navigation-bar").props.style).toBe("dark");
+  });
+
+  it("keeps the crash fallback on the persisted manual theme", async () => {
+    mockGetItem.mockResolvedValue("dark");
+    const consoleError = jest.spyOn(console, "error").mockImplementation(() => undefined);
+
+    try {
+      const view = await render(
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { height: 800, width: 400, x: 0, y: 0 },
+            insets: { bottom: 0, left: 0, right: 0, top: 0 },
+          }}
+        >
+          <MobileThemeProvider>
+            <MobileErrorBoundary>
+              <ThrowingChild />
+            </MobileErrorBoundary>
+          </MobileThemeProvider>
+        </SafeAreaProvider>,
+      );
+
+      await waitFor(() => expect(mockGetItem).toHaveBeenCalledWith(MOBILE_THEME_PREFERENCE_KEY));
+      await waitFor(() => {
+        const fallback = view.getByText(activeMobileCopy.errorBoundaryTitle).parent?.parent;
+        expect(fallback?.props.accessibilityRole).toBe("alert");
+        expect(StyleSheet.flatten(fallback?.props.style).backgroundColor).toBe(
+          darkTheme.surface.base,
+        );
+      });
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("keeps a system-themed bootstrap fallback outside theme context", async () => {
+    const BootstrapBoundary = (
+      MobileErrorBoundaryModule as unknown as {
+        MobileBootstrapErrorBoundary?: React.ComponentType<{ children: React.ReactNode }>;
+      }
+    ).MobileBootstrapErrorBoundary;
+    expect(BootstrapBoundary).toBeDefined();
+    if (!BootstrapBoundary) {
+      return;
+    }
+
+    const consoleError = jest.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const view = await render(
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { height: 800, width: 400, x: 0, y: 0 },
+            insets: { bottom: 0, left: 0, right: 0, top: 0 },
+          }}
+        >
+          <BootstrapBoundary>
+            <ThrowingChild />
+          </BootstrapBoundary>
+        </SafeAreaProvider>,
+      );
+
+      const fallback = view.getByText(activeMobileCopy.errorBoundaryTitle).parent?.parent;
+      expect(fallback?.props.accessibilityRole).toBe("alert");
+      expect(StyleSheet.flatten(fallback?.props.style).backgroundColor).toBe(
+        lightTheme.surface.base,
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("tracks system-scheme updates without remounting children", async () => {

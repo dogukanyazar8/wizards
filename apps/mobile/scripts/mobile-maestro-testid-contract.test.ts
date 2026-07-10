@@ -83,12 +83,25 @@ describe("Phase 0 Maestro testID contract", () => {
       path.join(process.cwd(), "src/app/screens/settings-screen.tsx"),
       "utf8",
     );
+    const destinationContracts = {
+      "mobile-dm-inbox-screen": "src/app/screens/dm-screen.tsx",
+      "mobile-notifications-screen": "src/app/screens/notifications-screen.tsx",
+      "mobile-overview-screen": "src/app/screens/home-screen.tsx",
+      "mobile-settings-screen": "src/app/screens/settings-screen.tsx",
+      "mobile-voice-screen": "src/app/screens/voice-screen.tsx",
+    } as const;
 
     assert.match(settingsSource, /testID="mobile-settings-appearance-control"/);
     assert.ok(darkModeFlowSource, ".maestro/phase1-dark-mode.yml must exist");
     assert.match(darkModeFlowSource, /id:\s*"mobile-settings-appearance-control"/);
+    assert.match(darkModeFlowSource, /text:\s*"Koyu\|Dark"/);
+    assert.match(darkModeFlowSource, /checked:\s*true/);
     for (const tabId of ["overview", "messages", "notifications", "voice", "settings"]) {
       assert.match(darkModeFlowSource, new RegExp(`id:\\s*"mobile-bottom-tab-${tabId}"`));
+    }
+    for (const [testId, sourcePath] of Object.entries(destinationContracts)) {
+      assert.match(darkModeFlowSource, new RegExp(`id:\\s*"${testId}"`));
+      assert.match(readFileSync(path.join(process.cwd(), sourcePath), "utf8"), new RegExp(testId));
     }
     assert.ok(MOBILE_AUTOMATED_GATES.some((gate) => gate.id === "mobile-maestro-dark-mode"));
   });

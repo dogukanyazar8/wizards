@@ -80,15 +80,19 @@ function assertThemeContrast(theme: MobileTheme): void {
     `${theme.id} border.default on surface.card`,
   );
   assert.ok(
-    contrastRatio(theme.status.info, theme.status.infoSoft) >= 3,
+    contrastRatio(theme.status.danger, theme.status.dangerSoft) >= 4.5,
+    `${theme.id} status.danger on status.dangerSoft`,
+  );
+  assert.ok(
+    contrastRatio(theme.status.info, theme.status.infoSoft) >= 4.5,
     `${theme.id} status.info on status.infoSoft`,
   );
   assert.ok(
-    contrastRatio(theme.status.success, theme.status.successSoft) >= 3,
+    contrastRatio(theme.status.success, theme.status.successSoft) >= 4.5,
     `${theme.id} status.success on status.successSoft`,
   );
   assert.ok(
-    contrastRatio(theme.status.warning, theme.status.warningSoft) >= 3,
+    contrastRatio(theme.status.warning, theme.status.warningSoft) >= 4.5,
     `${theme.id} status.warning on status.warningSoft`,
   );
   assert.ok(

@@ -37,7 +37,7 @@ const neutral = Object.freeze({
 } as const);
 
 const status = Object.freeze({
-  danger: "#DC2626",
+  danger: "#B91C1C",
   dangerDark: "#F87171",
   dangerSoft: "#FEF2F2",
   dangerSoftDark: "#3F1820",

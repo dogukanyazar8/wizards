@@ -1,4 +1,4 @@
-import { Component, useMemo, type ErrorInfo, type ReactNode } from "react";
+import { Component, useMemo, type ComponentType, type ErrorInfo, type ReactNode } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getMobileTheme } from "../design/mobile-theme-runtime";
 import type { MobileTheme } from "../design/themes";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
+import { useThemedStyles } from "./providers/mobile-theme-provider";
 
 const copy = activeMobileCopy;
 
@@ -19,12 +20,16 @@ interface MobileErrorBoundaryProps {
   children: ReactNode;
 }
 
+interface MobileErrorBoundaryCoreProps extends MobileErrorBoundaryProps {
+  FallbackComponent: ComponentType<{ onRetry(): void }>;
+}
+
 interface MobileErrorBoundaryState {
   hasError: boolean;
 }
 
-export class MobileErrorBoundary extends Component<
-  MobileErrorBoundaryProps,
+class MobileErrorBoundaryCore extends Component<
+  MobileErrorBoundaryCoreProps,
   MobileErrorBoundaryState
 > {
   state: MobileErrorBoundaryState = {
@@ -56,18 +61,50 @@ export class MobileErrorBoundary extends Component<
 
   render() {
     if (this.state.hasError) {
-      return <MobileErrorFallback onRetry={this.handleRetry} />;
+      const { FallbackComponent } = this.props;
+      return <FallbackComponent onRetry={this.handleRetry} />;
     }
 
     return this.props.children;
   }
 }
 
-function MobileErrorFallback({ onRetry }: { onRetry(): void }) {
-  const insets = useSafeAreaInsets();
+export function MobileErrorBoundary({ children }: MobileErrorBoundaryProps) {
+  return (
+    <MobileErrorBoundaryCore FallbackComponent={MobileThemedErrorFallback}>
+      {children}
+    </MobileErrorBoundaryCore>
+  );
+}
+
+export function MobileBootstrapErrorBoundary({ children }: MobileErrorBoundaryProps) {
+  return (
+    <MobileErrorBoundaryCore FallbackComponent={MobileBootstrapErrorFallback}>
+      {children}
+    </MobileErrorBoundaryCore>
+  );
+}
+
+function MobileThemedErrorFallback({ onRetry }: { onRetry(): void }) {
+  const styles = useThemedStyles(createMobileErrorStyles);
+  return <MobileErrorFallback onRetry={onRetry} styles={styles} />;
+}
+
+function MobileBootstrapErrorFallback({ onRetry }: { onRetry(): void }) {
   const systemScheme = useColorScheme();
   const theme = getMobileTheme("system", systemScheme);
   const styles = useMemo(() => StyleSheet.create(createMobileErrorStyles(theme)), [theme]);
+  return <MobileErrorFallback onRetry={onRetry} styles={styles} />;
+}
+
+function MobileErrorFallback({
+  onRetry,
+  styles,
+}: {
+  onRetry(): void;
+  styles: ReturnType<typeof createMobileErrorStyles>;
+}) {
+  const insets = useSafeAreaInsets();
 
   return (
     <View

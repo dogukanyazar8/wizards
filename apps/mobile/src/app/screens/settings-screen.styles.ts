@@ -458,6 +458,13 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       gap: 4,
       minWidth: 0,
     },
+    settingsScreenContent: {
+      paddingBottom: 132,
+    },
+    settingsScreenScroll: {
+      flex: 1,
+      minWidth: 0,
+    },
     settingsSessionActionGrid: {
       flexDirection: "row",
       flexWrap: "wrap",
