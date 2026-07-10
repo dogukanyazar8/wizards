@@ -28,6 +28,9 @@ graphify-out/cache/
 # Generated mobile release evidence and local build outputs
 apps/mobile/artifacts/
 
+# Local cross-platform verification evidence
+/artifacts/
+
 target
 apps/desktop/.tauri
 apps/desktop/src-tauri/gen
