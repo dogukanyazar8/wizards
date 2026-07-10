@@ -25,7 +25,7 @@
     "e2e:realtime": "pnpm run e2e:check-env && playwright test --project=chromium e2e/specs/realtime e2e/specs/voice",
     "e2e:seed": "pnpm run e2e:check-env && node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && tsx e2e/setup/reset-and-seed.ts",
     "e2e:smoke": "pnpm run e2e:check-env && playwright test --project=chromium e2e/specs/smoke",
-    "e2e:smoke:cross-browser": "pnpm run e2e:check-env && playwright test --project=firefox --project=webkit e2e/specs/smoke",
+    "e2e:smoke:cross-browser": "pnpm run e2e:check-env && playwright test --project=firefox e2e/specs/smoke && playwright test --project=webkit e2e/specs/smoke",
     "e2e:ui": "pnpm run e2e:check-env && playwright test --project=chromium --ui",
     "e2e:visual": "pnpm run e2e:check-env && playwright test --project=chromium e2e/specs/visual",
     "e2e:web-server": "pnpm run build:server && pnpm start",

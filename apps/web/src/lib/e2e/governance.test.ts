@@ -215,6 +215,11 @@ describe("Playwright E2E governance", () => {
     assert.match(crossBrowserSmoke, /--project=firefox/);
     assert.match(crossBrowserSmoke, /--project=webkit/);
     assert.match(crossBrowserSmoke, /e2e\/specs\/smoke/);
+    assert.match(
+      crossBrowserSmoke,
+      /playwright test --project=firefox e2e\/specs\/smoke\s+&&\s+playwright test --project=webkit e2e\/specs\/smoke/,
+      "cross-browser projects must run in separate Playwright processes so each starts from a clean E2E seed and Redis rate-limit state",
+    );
   });
 
   it("defines Firefox fake media and excludes WebKit voice capture explicitly", () => {
