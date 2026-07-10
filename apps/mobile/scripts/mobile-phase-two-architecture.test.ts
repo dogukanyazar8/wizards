@@ -20,4 +20,18 @@ describe("mobile Phase 2 architecture", () => {
     assert.match(source, /useMobileChannelMessageMutation/);
     assert.match(source, /useMobileDMMessageMutation/);
   });
+
+  it("splits DM inbox and conversation surfaces around their owning features", () => {
+    const dmScreen = join(appRoot, "screens", "dm-screen.tsx");
+    const inbox = join(appRoot, "screens", "dm-inbox.tsx");
+    const conversation = join(appRoot, "screens", "dm-conversation-screen.tsx");
+
+    assert.equal(existsSync(inbox), true, "Expected a dedicated DM inbox surface");
+    assert.equal(existsSync(conversation), true, "Expected a dedicated DM conversation surface");
+
+    const source = readFileSync(dmScreen, "utf8");
+    assert.match(source, /from "\.\/dm-inbox"/);
+    assert.match(source, /from "\.\/dm-conversation-screen"/);
+    assert.ok(source.split(/\r?\n/).length < 220, "DM screen shell must remain focused");
+  });
 });
