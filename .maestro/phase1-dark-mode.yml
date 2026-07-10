@@ -37,7 +37,7 @@ appId: team.whispr.mobile
     id: "mobile-bottom-tab-overview"
 - assertVisible:
     id: "mobile-overview-screen"
-- takeScreenshot: "artifacts/mobile/phase1/dark-overview"
+- takeScreenshot: "artifacts/mobile/phase1/closure/dark-overview"
 - tapOn:
     id: "mobile-bottom-tab-messages"
 - assertVisible:
@@ -62,10 +62,10 @@ appId: team.whispr.mobile
 - assertVisible:
     text: "Koyu|Dark"
     checked: true
-- takeScreenshot: "artifacts/mobile/phase1/dark-settings"
+- takeScreenshot: "artifacts/mobile/phase1/closure/dark-settings"
 - tapOn:
     text: "Acik|Light"
 - assertVisible:
     text: "Acik|Light"
     checked: true
-- takeScreenshot: "artifacts/mobile/phase1/light-settings"
+- takeScreenshot: "artifacts/mobile/phase1/closure/light-settings"

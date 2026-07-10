@@ -119,6 +119,12 @@ describe("Phase 0 Maestro testID contract", () => {
     assert.match(darkModeFlowSource, /id:\s*"mobile-settings-appearance-control"/);
     assert.match(darkModeFlowSource, /text:\s*"Koyu\|Dark"/);
     assert.match(darkModeFlowSource, /checked:\s*true/);
+    for (const screenshot of ["dark-overview", "dark-settings", "light-settings"]) {
+      assert.match(
+        darkModeFlowSource,
+        new RegExp(`takeScreenshot:\\s*"artifacts/mobile/phase1/closure/${screenshot}"`),
+      );
+    }
     for (const tabId of ["overview", "messages", "notifications", "voice", "settings"]) {
       assert.match(darkModeFlowSource, new RegExp(`id:\\s*"mobile-bottom-tab-${tabId}"`));
     }
