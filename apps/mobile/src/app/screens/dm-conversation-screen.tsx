@@ -16,13 +16,12 @@ import {
   type MobileSyncHealthSummary,
 } from "../mobile-root-screen-shared";
 import { DMComposer } from "../composer/mobile-composer";
-import { MessageSearchPanel, MessageStream } from "../components/message-primitives";
 import {
-  AvatarMark,
-  EmptyState,
-  MobileSyncHealthBanner,
-  StatusChip,
-} from "../components/ui-atoms";
+  MessageListSkeleton,
+  MessageSearchPanel,
+  MessageStream,
+} from "../components/message-primitives";
+import { AvatarMark, EmptyState, MobileSyncHealthBanner, StatusChip } from "../components/ui-atoms";
 import { useDmScreenStyles } from "./dm-screen.styles";
 
 export function DMConversationScreen({
@@ -214,9 +213,7 @@ export function DMConversationPreviewCard({
         </Pressable>
       </View>
 
-      {state.status === "loading" && !state.payload ? (
-        <Text style={styles.contractDescription}>{copy.dmMessagesLoading}</Text>
-      ) : null}
+      {state.status === "loading" && !state.payload ? <MessageListSkeleton /> : null}
       {state.status === "error" ? (
         <View style={styles.dmErrorRow}>
           <Text style={styles.errorText}>{state.error}</Text>

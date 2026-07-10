@@ -31,6 +31,7 @@ import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { DMComposer } from "../composer/mobile-composer";
 import {
   MessageDateSeparator,
+  MessageListSkeleton,
   MessageSearchPanel,
   MessageStream,
   MemoizedMessagePreviewRow,
@@ -323,7 +324,7 @@ export function ChannelMessageList({
 
   const emptyComponent = useMemo(() => {
     if (state.status === "loading" && !state.payload) {
-      return <Text style={styles.contractDescription}>{copy.workspaceMessagesLoading}</Text>;
+      return <MessageListSkeleton />;
     }
 
     if (state.status === "error") {
@@ -519,9 +520,7 @@ export function ChannelMessagesPreviewCard({
         />
       ) : null}
 
-      {state.status === "loading" && !state.payload ? (
-        <Text style={styles.contractDescription}>{copy.workspaceMessagesLoading}</Text>
-      ) : null}
+      {state.status === "loading" && !state.payload ? <MessageListSkeleton /> : null}
       {state.status === "error" ? (
         <View style={styles.dmErrorRow}>
           <Text style={styles.errorText}>{state.error}</Text>

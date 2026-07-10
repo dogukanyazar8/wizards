@@ -20,13 +20,45 @@ import {
 import { FlashList } from "@shopify/flash-list";
 import { AvatarMark } from "./ui-atoms";
 import { MobileCachedImage } from "./mobile-cached-image";
-import { Icon } from "./kit";
+import { Icon, Skeleton } from "./kit";
 import { useMessagePrimitiveStyles } from "./message-primitives.styles";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { formatMobileDateSeparator } from "../../locale/mobile-date-separator";
 
 const MOBILE_SEARCH_RESULT_RENDER_LIMIT = 6;
+const MESSAGE_LIST_SKELETON_ROWS = [
+  { bodyWidth: "76%", metadataWidth: "34%" },
+  { bodyWidth: "58%", metadataWidth: "42%" },
+  { bodyWidth: "84%", metadataWidth: "30%" },
+] as const;
+
+export function MessageListSkeleton({
+  testID = "mobile-message-list-skeleton",
+}: {
+  testID?: string;
+}) {
+  const styles = useMessagePrimitiveStyles();
+
+  return (
+    <View style={styles.messageListSkeleton} testID={testID}>
+      {MESSAGE_LIST_SKELETON_ROWS.map(({ bodyWidth, metadataWidth }, index) => (
+        <View key={bodyWidth} style={styles.messageListSkeletonRow}>
+          <Skeleton borderRadius={18} height={36} testID={`${testID}-avatar-${index}`} width={36} />
+          <View style={styles.messageListSkeletonBubble}>
+            <Skeleton borderRadius={6} height={12} width={metadataWidth} />
+            <Skeleton
+              borderRadius={18}
+              height={56}
+              testID={`${testID}-row-${index}`}
+              width={bodyWidth}
+            />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export function isMessageSearchStateForContext(
   state: MobileMessageSearchViewState,
