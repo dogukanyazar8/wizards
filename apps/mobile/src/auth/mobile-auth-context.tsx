@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Linking } from "react-native";
+import { Linking, Platform } from "react-native";
 import { createMobileApiClient, type MobileApiClient } from "../api/mobile-api-client";
 import { revokeMobilePushToken } from "../notifications/mobile-notification-client";
 import {
@@ -19,6 +19,13 @@ import {
   buildMobileWebRegisterUrl,
   buildMobileWebSignInUrl,
 } from "../deep-link/mobile-deep-links";
+import {
+  assessMobileDeviceIntegrity,
+  createMobileDeviceIntegritySignal,
+  type MobileDeviceIntegrityDetector,
+  type MobileDeviceIntegrityStatus,
+  type MobileSecuritySignalLogger,
+} from "../security/mobile-device-integrity";
 import { mobileSecureSessionRepository } from "./expo-secure-session-store";
 import {
   exchangeMobileAuthHandoff,
@@ -45,7 +52,10 @@ import type { MobileSessionRepository } from "./session-store";
 interface MobileAuthContextValue extends MobileAuthState {
   apiClient: MobileApiClient;
   completeAuthHandoff(input: { callbackPath: string; handoffToken: string }): Promise<boolean>;
+  deviceIntegrityStatus: MobileDeviceIntegrityStatus;
+  deviceIntegrityWarningVisible: boolean;
   diagnostics: MobileSessionDiagnostics;
+  dismissDeviceIntegrityWarning(): void;
   getAccessToken(): Promise<string | null>;
   openWebRegister(): Promise<void>;
   openWebSignIn(): Promise<void>;
@@ -71,18 +81,26 @@ interface MobileAuthContextValue extends MobileAuthState {
 
 interface MobileAuthProviderProps {
   children: ReactNode;
+  deviceIntegrityDetector: MobileDeviceIntegrityDetector;
   repository?: MobileSessionRepository;
   runtimeConfig?: MobileEnvironmentConfig;
+  securitySignalLogger: MobileSecuritySignalLogger;
 }
 
 const MobileAuthContext = createContext<MobileAuthContextValue | null>(null);
 
 export function MobileAuthProvider({
   children,
+  deviceIntegrityDetector,
   repository = mobileSecureSessionRepository,
   runtimeConfig = getMobileRuntimeConfig(),
+  securitySignalLogger,
 }: MobileAuthProviderProps) {
   const [state, setState] = useState<MobileAuthState>(() => createMobileAuthState("checking"));
+  const [deviceIntegrityStatus, setDeviceIntegrityStatus] =
+    useState<MobileDeviceIntegrityStatus>("checking");
+  const [deviceIntegrityWarningDismissed, setDeviceIntegrityWarningDismissed] = useState(false);
+  const deviceIntegrityCheckStartedRef = useRef(false);
   const refreshPromiseRef = useRef<Promise<MobileSessionSnapshot | null> | null>(null);
   const stateRef = useRef(state);
 
@@ -102,6 +120,44 @@ export function MobileAuthProvider({
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  const dismissDeviceIntegrityWarning = useCallback(() => {
+    setDeviceIntegrityWarningDismissed(true);
+  }, []);
+
+  useEffect(() => {
+    if (deviceIntegrityCheckStartedRef.current) {
+      return;
+    }
+
+    deviceIntegrityCheckStartedRef.current = true;
+    let active = true;
+
+    void assessMobileDeviceIntegrity(deviceIntegrityDetector).then((result) => {
+      if (!active) {
+        return;
+      }
+
+      setDeviceIntegrityStatus(result.status);
+      const platform = Platform.OS === "android" || Platform.OS === "ios" ? Platform.OS : "other";
+      const signal = createMobileDeviceIntegritySignal(result, platform);
+      if (!signal) {
+        return;
+      }
+
+      try {
+        securitySignalLogger.log(signal);
+      } catch {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[mobile-security] device integrity signal logger unavailable");
+        }
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [deviceIntegrityDetector, securitySignalLogger]);
 
   const createUnauthenticatedClient = useCallback(
     () =>
@@ -375,13 +431,18 @@ export function MobileAuthProvider({
   );
 
   const diagnostics = useMemo(() => getMobileSessionDiagnostics(state), [state]);
+  const deviceIntegrityWarningVisible =
+    deviceIntegrityStatus === "compromised" && !deviceIntegrityWarningDismissed;
 
   const value = useMemo<MobileAuthContextValue>(
     () => ({
       ...state,
       apiClient,
       completeAuthHandoff,
+      deviceIntegrityStatus,
+      deviceIntegrityWarningVisible,
       diagnostics,
+      dismissDeviceIntegrityWarning,
       getAccessToken,
       openWebRegister,
       openWebSignIn,
@@ -395,7 +456,10 @@ export function MobileAuthProvider({
     [
       apiClient,
       completeAuthHandoff,
+      deviceIntegrityStatus,
+      deviceIntegrityWarningVisible,
       diagnostics,
+      dismissDeviceIntegrityWarning,
       getAccessToken,
       openWebRegister,
       openWebSignIn,

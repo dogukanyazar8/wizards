@@ -59,6 +59,18 @@ export async function gotoAppRoute(
       timeout: options.timeout ?? DEFAULT_APP_READY_TIMEOUT,
     });
   }
+
+  if (path.startsWith("/channels")) {
+    await expect(page.getByTestId("app-startup-screen")).toBeHidden({
+      timeout: options.timeout ?? DEFAULT_APP_READY_TIMEOUT,
+    });
+  }
+
+  if (path === "/channels/@me") {
+    await expect(visibleTestId(page, "friends-dashboard")).toHaveAttribute("aria-busy", "false", {
+      timeout: options.timeout ?? DEFAULT_APP_READY_TIMEOUT,
+    });
+  }
 }
 
 export async function gotoTextChannelRoute(
@@ -67,14 +79,10 @@ export async function gotoTextChannelRoute(
   channelId: string,
   options: AppRouteReadyOptions = {},
 ): Promise<void> {
-  await gotoAppRoute(
-    page,
-    `/channels/${appRouteSegment(serverId)}/${appRouteSegment(channelId)}`,
-    {
-      ...options,
-      readyTestId: options.readyTestId ?? "message-input",
-    },
-  );
+  await gotoAppRoute(page, `/channels/${appRouteSegment(serverId)}/${appRouteSegment(channelId)}`, {
+    ...options,
+    readyTestId: options.readyTestId ?? "message-input",
+  });
   await waitForMessageListReady(page, options);
 }
 

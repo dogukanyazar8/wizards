@@ -450,7 +450,7 @@ export function ProfileAvatarField({
         />
 
         <button
-          className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-xl border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.12)] px-3 text-xs font-semibold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-xl border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.12)] px-3 text-xs font-semibold text-[hsl(var(--primary-text-emphasis,var(--primary)))] transition hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
           data-testid="profile-avatar-choose"
           disabled={isBusy || !uploadthingEnabled}
           onClick={() => inputRef.current?.click()}

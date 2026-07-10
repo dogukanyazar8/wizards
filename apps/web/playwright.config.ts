@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const webRoot = dirname(fileURLToPath(import.meta.url));
@@ -9,7 +9,9 @@ const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === "1";
 const turnstileTestSiteKey = ["1x", "0".repeat(20), "AA"].join("");
 const turnstileTestSecretKey = ["1x", "0".repeat(31), "AA"].join("");
 const webServerEnv = Object.fromEntries(
-  Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+  Object.entries(process.env).filter(
+    (entry): entry is [string, string] => typeof entry[1] === "string",
+  ),
 );
 
 webServerEnv.E2E_TEST_MODE = process.env.E2E_TEST_MODE ?? "true";
@@ -24,19 +26,15 @@ webServerEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY =
 webServerEnv.TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY ?? turnstileTestSecretKey;
 webServerEnv.UPLOADTHING_TOKEN = process.env.UPLOADTHING_TOKEN ?? "e2e-uploadthing-token";
 webServerEnv.LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY ?? "e2e-livekit-api-key";
-webServerEnv.LIVEKIT_API_SECRET =
-  process.env.LIVEKIT_API_SECRET ?? "e2e-livekit-api-secret";
+webServerEnv.LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET ?? "e2e-livekit-api-secret";
 webServerEnv.LIVEKIT_URL = process.env.LIVEKIT_URL ?? "ws://127.0.0.1:7880";
 webServerEnv.NEXT_PUBLIC_LIVEKIT_URL =
   process.env.NEXT_PUBLIC_LIVEKIT_URL ?? webServerEnv.LIVEKIT_URL;
-webServerEnv.AUTH_SECRET =
-  process.env.AUTH_SECRET ?? "whispr-e2e-auth-secret-change-me-local-only";
-webServerEnv.NEXTAUTH_SECRET =
-  process.env.NEXTAUTH_SECRET ?? webServerEnv.AUTH_SECRET;
-webServerEnv.NODE_OPTIONS = [
-  process.env.NODE_OPTIONS,
-  "--max-old-space-size=4096",
-].filter(Boolean).join(" ");
+webServerEnv.AUTH_SECRET = process.env.AUTH_SECRET ?? "whispr-e2e-auth-secret-change-me-local-only";
+webServerEnv.NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET ?? webServerEnv.AUTH_SECRET;
+webServerEnv.NODE_OPTIONS = [process.env.NODE_OPTIONS, "--max-old-space-size=4096"]
+  .filter(Boolean)
+  .join(" ");
 if (process.env.NODE_V8_COVERAGE) {
   webServerEnv.NODE_V8_COVERAGE = process.env.NODE_V8_COVERAGE;
 }
@@ -51,6 +49,11 @@ export default defineConfig({
   timeout: 30_000,
   expect: {
     timeout: 10_000,
+    toHaveScreenshot: {
+      animations: "disabled",
+      maxDiffPixelRatio: 0.02,
+      stylePath: join(webRoot, "e2e", "visual-screenshot.css"),
+    },
   },
   outputDir: "test-results",
   reporter: [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],
@@ -68,11 +71,30 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
-          args: [
-            "--use-fake-device-for-media-stream",
-            "--use-fake-ui-for-media-stream",
-          ],
+          args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
         },
+      },
+    },
+    {
+      name: "firefox",
+      use: {
+        ...devices["Desktop Firefox"],
+        launchOptions: {
+          firefoxUserPrefs: {
+            "media.navigator.permission.disabled": true,
+            "media.navigator.streams.fake": true,
+            "permissions.default.camera": 1,
+            "permissions.default.microphone": 1,
+          },
+        },
+      },
+    },
+    {
+      name: "webkit",
+      // Playwright WebKit has no reliable headless fake camera/microphone device contract.
+      testIgnore: "**/voice/voice.spec.ts",
+      use: {
+        ...devices["Desktop Safari"],
       },
     },
   ],

@@ -40,6 +40,7 @@ describe("Playwright E2E governance", () => {
   it("keeps the expected product-critical spec families present", () => {
     const expectedSpecs = [
       "e2e/specs/api/api-routes.spec.ts",
+      "e2e/specs/a11y/a11y.spec.ts",
       "e2e/specs/attachments/attachments.spec.ts",
       "e2e/specs/message-interactions/message-interactions.spec.ts",
       "e2e/specs/mobile/mobile-responsive.spec.ts",
@@ -51,6 +52,7 @@ describe("Playwright E2E governance", () => {
       "e2e/specs/smoke/messaging.spec.ts",
       "e2e/specs/smoke/server.spec.ts",
       "e2e/specs/voice/voice.spec.ts",
+      "e2e/specs/visual/visual.spec.ts",
     ];
 
     for (const expectedSpec of expectedSpecs) {
@@ -103,6 +105,7 @@ describe("Playwright E2E governance", () => {
     };
     const preflightedScripts = [
       "e2e",
+      "e2e:a11y",
       "e2e:api",
       "e2e:headed",
       "e2e:mobile",
@@ -110,6 +113,7 @@ describe("Playwright E2E governance", () => {
       "e2e:seed",
       "e2e:smoke",
       "e2e:ui",
+      "e2e:visual",
     ];
 
     for (const scriptName of preflightedScripts) {
@@ -172,6 +176,50 @@ describe("Playwright E2E governance", () => {
     }
   });
 
+  it("keeps existing Playwright entrypoints Chromium-only and adds cross-browser smoke", () => {
+    const packageJson = JSON.parse(readWorkspaceFile(join(webRoot, "package.json"))) as {
+      scripts: Record<string, string>;
+    };
+    const chromiumScripts = [
+      "e2e",
+      "e2e:a11y",
+      "e2e:api",
+      "e2e:headed",
+      "e2e:mobile",
+      "e2e:realtime",
+      "e2e:smoke",
+      "e2e:ui",
+      "e2e:visual",
+    ];
+
+    for (const scriptName of chromiumScripts) {
+      assert.match(
+        packageJson.scripts[scriptName] ?? "",
+        /--project=chromium/,
+        `${scriptName} must remain scoped to Chromium`,
+      );
+    }
+
+    const crossBrowserSmoke = packageJson.scripts["e2e:smoke:cross-browser"] ?? "";
+    assert.match(crossBrowserSmoke, /e2e:check-env/);
+    assert.match(crossBrowserSmoke, /--project=firefox/);
+    assert.match(crossBrowserSmoke, /--project=webkit/);
+    assert.match(crossBrowserSmoke, /e2e\/specs\/smoke/);
+  });
+
+  it("defines Firefox fake media and excludes WebKit voice capture explicitly", () => {
+    const config = readWorkspaceFile(join(webRoot, "playwright.config.ts"));
+
+    assert.match(config, /name:\s*"firefox"/);
+    assert.match(config, /devices\["Desktop Firefox"\]/);
+    assert.match(config, /"media\.navigator\.streams\.fake":\s*true/);
+    assert.match(config, /"permissions\.default\.microphone":\s*1/);
+    assert.match(config, /"permissions\.default\.camera":\s*1/);
+    assert.match(config, /name:\s*"webkit"/);
+    assert.match(config, /devices\["Desktop Safari"\]/);
+    assert.match(config, /testIgnore:\s*"\*\*\/voice\/voice\.spec\.ts"/);
+  });
+
   it("keeps expensive Playwright suites in post-merge or scheduled gates", () => {
     const workflow = readWorkspaceFile(join(workspaceRoot, ".github", "workflows", "ci.yml"));
     const realtimeStepStart = workflow.indexOf("- name: Run Playwright realtime and voice tests");
@@ -192,5 +240,142 @@ describe("Playwright E2E governance", () => {
 
     assert.match(fullStep, /github\.event_name == 'schedule'/);
     assert.match(fullStep, /inputs\.e2e_scope == 'full'/);
+  });
+
+  it("runs Firefox and WebKit smoke tests in an isolated CI job", () => {
+    const workflow = readWorkspaceFile(join(workspaceRoot, ".github", "workflows", "ci.yml"));
+    const smokeStart = workflow.indexOf("\n  e2e-smoke:");
+    const crossBrowserStart = workflow.indexOf("\n  e2e-cross-browser:");
+    const a11yStart = workflow.indexOf("\n  e2e-a11y:");
+
+    assert.notEqual(smokeStart, -1);
+    assert.notEqual(crossBrowserStart, -1);
+    assert.notEqual(a11yStart, -1);
+
+    const smokeJob = workflow.slice(smokeStart, crossBrowserStart);
+    const crossBrowserJob = workflow.slice(crossBrowserStart, a11yStart);
+    const smokeRuntime = smokeJob.slice(
+      smokeJob.indexOf("    services:"),
+      smokeJob.indexOf("    steps:"),
+    );
+    const crossBrowserRuntime = crossBrowserJob.slice(
+      crossBrowserJob.indexOf("    services:"),
+      crossBrowserJob.indexOf("    steps:"),
+    );
+
+    assert.equal(
+      crossBrowserRuntime.replaceAll("\r\n", "\n"),
+      smokeRuntime.replaceAll("\r\n", "\n"),
+    );
+    assert.match(crossBrowserJob, /name:\s*Playwright Firefox\/WebKit Smoke/);
+    assert.match(crossBrowserJob, /needs:\s*verify/);
+    assert.match(crossBrowserJob, /playwright install --with-deps firefox webkit/);
+    assert.match(crossBrowserJob, /@wizards\/web e2e:smoke:cross-browser/);
+    assert.doesNotMatch(crossBrowserJob, /continue-on-error:/);
+  });
+
+  it("runs the accessibility scan in an isolated, mandatory CI job", () => {
+    const workflow = readWorkspaceFile(join(workspaceRoot, ".github", "workflows", "ci.yml"));
+    const smokeStart = workflow.indexOf("\n  e2e-smoke:");
+    const a11yStart = workflow.indexOf("\n  e2e-a11y:");
+    const visualStart = workflow.indexOf("\n  e2e-visual:");
+
+    assert.notEqual(smokeStart, -1);
+    assert.notEqual(a11yStart, -1);
+    assert.notEqual(visualStart, -1);
+
+    const smokeJob = workflow.slice(smokeStart, workflow.indexOf("\n  e2e-cross-browser:"));
+    const a11yJob = workflow.slice(a11yStart, visualStart);
+    const smokeRuntime = smokeJob.slice(
+      smokeJob.indexOf("    services:"),
+      smokeJob.indexOf("    steps:"),
+    );
+    const a11yRuntime = a11yJob.slice(
+      a11yJob.indexOf("    services:"),
+      a11yJob.indexOf("    steps:"),
+    );
+
+    assert.equal(a11yRuntime.replaceAll("\r\n", "\n"), smokeRuntime.replaceAll("\r\n", "\n"));
+    assert.match(a11yJob, /name:\s*Playwright Accessibility Scan/);
+    assert.match(a11yJob, /needs:\s*verify/);
+    assert.match(a11yJob, /playwright install --with-deps chromium/);
+    assert.match(a11yJob, /@wizards\/web e2e:a11y/);
+    assert.doesNotMatch(a11yJob, /continue-on-error:/);
+  });
+
+  it("scopes the accessibility scan script to Chromium and the a11y spec directory", () => {
+    const packageJson = JSON.parse(readWorkspaceFile(join(webRoot, "package.json"))) as {
+      scripts: Record<string, string>;
+    };
+    const a11yScript = packageJson.scripts["e2e:a11y"] ?? "";
+
+    assert.match(a11yScript, /e2e:check-env/);
+    assert.match(a11yScript, /--project=chromium/);
+    assert.match(a11yScript, /e2e\/specs\/a11y/);
+  });
+
+  it("keeps visual baselines deterministic and Docker-only", () => {
+    const packageJson = JSON.parse(readWorkspaceFile(join(webRoot, "package.json"))) as {
+      scripts: Record<string, string>;
+    };
+    const visualScript = packageJson.scripts["e2e:visual"] ?? "";
+    const config = readWorkspaceFile(join(webRoot, "playwright.config.ts"));
+    const visualSpecPath = join(e2eSpecsRoot, "visual", "visual.spec.ts");
+    const e2eReadme = readWorkspaceFile(join(webRoot, "e2e", "README.md"));
+    const gitignore = readWorkspaceFile(join(workspaceRoot, ".gitignore"));
+
+    assert.match(visualScript, /e2e:check-env/);
+    assert.match(visualScript, /--project=chromium/);
+    assert.match(visualScript, /e2e\/specs\/visual/);
+    assert.match(config, /toHaveScreenshot:\s*\{/);
+    assert.match(config, /maxDiffPixelRatio:\s*0\.02/);
+    assert.match(config, /animations:\s*"disabled"/);
+    assert.match(config, /stylePath:\s*join\(webRoot,\s*"e2e",\s*"visual-screenshot\.css"\)/);
+    assert.match(readWorkspaceFile(join(webRoot, "e2e", "visual-screenshot.css")), /nextjs-portal/);
+    assert.equal(existsSync(visualSpecPath), true);
+
+    const visualSpec = readWorkspaceFile(visualSpecPath);
+    assert.equal(visualSpec.match(/\.toHaveScreenshot\(/g)?.length, 4);
+    assert.match(e2eReadme, /mcr\.microsoft\.com\/playwright:v1\.59\.1-noble/);
+    assert.match(e2eReadme, /baseline snapshots must only be updated inside Docker/i);
+    assert.match(
+      e2eReadme,
+      /pnpm db:generate\s*&&\s*pnpm --filter @wizards\/web e2e:visual --update-snapshots/,
+    );
+    assert.match(e2eReadme, /--update-snapshots/);
+    assert.match(gitignore, /^\*\*\/\*-actual\.png$/m);
+    assert.match(gitignore, /^\*\*\/\*-diff\.png$/m);
+    assert.doesNotMatch(gitignore, /\*-linux\.png/);
+  });
+
+  it("runs visual regression in an isolated staged CI job", () => {
+    const workflow = readWorkspaceFile(join(workspaceRoot, ".github", "workflows", "ci.yml"));
+    const smokeStart = workflow.indexOf("\n  e2e-smoke:");
+    const crossBrowserStart = workflow.indexOf("\n  e2e-cross-browser:");
+    const visualStart = workflow.indexOf("\n  e2e-visual:");
+    const desktopOpsStart = workflow.indexOf("\n  desktop-ops:");
+
+    assert.notEqual(smokeStart, -1);
+    assert.notEqual(crossBrowserStart, -1);
+    assert.notEqual(visualStart, -1);
+    assert.notEqual(desktopOpsStart, -1);
+
+    const smokeJob = workflow.slice(smokeStart, crossBrowserStart);
+    const visualJob = workflow.slice(visualStart, desktopOpsStart);
+    const smokeRuntime = smokeJob.slice(
+      smokeJob.indexOf("    services:"),
+      smokeJob.indexOf("    steps:"),
+    );
+    const visualRuntime = visualJob.slice(
+      visualJob.indexOf("    services:"),
+      visualJob.indexOf("    steps:"),
+    );
+
+    assert.equal(visualRuntime.replaceAll("\r\n", "\n"), smokeRuntime.replaceAll("\r\n", "\n"));
+    assert.match(visualJob, /name:\s*Playwright Visual Regression/);
+    assert.match(visualJob, /needs:\s*verify/);
+    assert.match(visualJob, /continue-on-error:\s*true/);
+    assert.match(visualJob, /playwright install --with-deps chromium/);
+    assert.match(visualJob, /@wizards\/web e2e:visual/);
   });
 });

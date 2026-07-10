@@ -17,6 +17,10 @@ export const mobileCopy = {
     authSignedOut: "Mobil oturum icin guvenli web girisi gerekiyor",
     authSummary:
       "Token saklama SecureStore uzerinde fail-closed calisir. Web girisi yalnizca tek kullanimlik handoff uretir; kalici token URL'ye yazilmaz.",
+    deviceIntegrityWarningTitle: "Cihaz guvenligi uyarisi",
+    deviceIntegrityWarningDescription:
+      "Bu cihazda root veya jailbreak belirtisi algilandi. Oturum guvenligi azalmis olabilir.",
+    deviceIntegrityDismissAction: "Cihaz guvenligi uyarisini kapat",
     authOpenRegisterAction: "Yeni hesap olustur",
     authOpenSignInAction: "Giris yap",
     authForgotDescription:
@@ -622,6 +626,10 @@ export const mobileCopy = {
     authSignedOut: "Secure web sign-in is required for a mobile session",
     authSummary:
       "Token storage is fail-closed on SecureStore. Web sign-in only creates a one-time handoff; persistent tokens never travel in URLs.",
+    deviceIntegrityWarningTitle: "Device security warning",
+    deviceIntegrityWarningDescription:
+      "This device shows signs of root or jailbreak access. Session security may be reduced.",
+    deviceIntegrityDismissAction: "Dismiss device security warning",
     authOpenRegisterAction: "Create account",
     authOpenSignInAction: "Sign in",
     authForgotDescription:
