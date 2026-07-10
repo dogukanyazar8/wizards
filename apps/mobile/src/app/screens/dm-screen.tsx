@@ -27,6 +27,7 @@ import {
   type MobileMessageSearchViewState,
   type MobileSyncHealthSummary,
 } from "../mobile-root-screen-shared";
+import { FlashList } from "@shopify/flash-list";
 import { DMComposer } from "../composer/mobile-composer";
 import { MessageSearchPanel, MessageStream } from "../components/message-primitives";
 import {
@@ -231,11 +232,12 @@ export function DMConversationScreen({
     state.payload?.conversation.participants.length ?? conversation.participantCount;
 
   return (
-    <View style={styles.chatScreen}>
+    <View style={styles.chatScreen} testID="mobile-dm-chat-screen">
       <View style={styles.dmConversationHeader}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={copy.dmBackAction}
+          testID="mobile-dm-back-button"
           onPress={onBack}
           style={({ pressed }) => [styles.dmBackButton, pressed && styles.actionButtonPressed]}
         >
@@ -412,16 +414,21 @@ export function DirectMessageListCard({
           {filteredConversations.length} {copy.directMessageResultCount}
         </Text>
       </View>
-      <View style={styles.dmConversationList}>
-        {visibleConversations.map((conversation) => (
+      <FlashList
+        contentContainerStyle={styles.dmConversationList}
+        data={visibleConversations}
+        keyExtractor={(conversation) => conversation.id}
+        renderItem={({ item: conversation }) => (
           <DirectMessageConversationCard
-            key={conversation.id}
             conversation={conversation}
             selected={conversation.id === selectedConversationId}
             onOpenConversation={onOpenConversation}
           />
-        ))}
-      </View>
+        )}
+        showsVerticalScrollIndicator={false}
+        style={styles.dmConversationListViewport}
+        testID="mobile-dm-conversation-list"
+      />
       {filteredConversations.length === 0 ? (
         <Text style={styles.contractDescription}>{copy.directMessageFilteredEmpty}</Text>
       ) : null}
@@ -449,6 +456,7 @@ export function DirectMessageConversationCard({
       accessibilityRole="button"
       accessibilityLabel={`${copy.openConversationAction}: ${title || copy.directMessageFallback}`}
       accessibilityState={{ selected }}
+      testID="mobile-dm-conversation-row"
       onPress={() => onOpenConversation(conversation.id)}
       style={({ pressed }) => [
         styles.dmConversationCard,

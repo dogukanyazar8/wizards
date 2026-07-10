@@ -10,7 +10,7 @@ describe("mobile dev login helper", () => {
       "utf8",
     );
     const screenSource = readFileSync(
-      resolve(__dirname, "../src/app/mobile-root-screens.tsx"),
+      resolve(__dirname, "../src/app/screens/auth-gate.tsx"),
       "utf8",
     );
 

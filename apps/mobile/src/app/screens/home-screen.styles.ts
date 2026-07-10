@@ -22,6 +22,11 @@ export const homeScreenStyles = StyleSheet.create({
   },
   compactList: {
     gap: 8,
+    paddingVertical: 1,
+  },
+  compactListViewport: {
+    minHeight: 54,
+    maxHeight: 360,
     minWidth: 0,
   },
   compactListMeta: {
@@ -435,6 +440,11 @@ export const homeScreenStyles = StyleSheet.create({
   },
   mobileWorkspaceSectionList: {
     gap: 8,
+    paddingVertical: 1,
+  },
+  mobileWorkspaceSectionListViewport: {
+    minHeight: 120,
+    maxHeight: 520,
     minWidth: 0,
   },
   mobileWorkspaceSectionMeta: {

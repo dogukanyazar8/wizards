@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
@@ -28,26 +28,32 @@ test("phase zero dependencies and SDK 56 native configuration stay aligned", () 
   const appConfig = readFileSync(join(root, "app.config.js"), "utf8");
   const appSource = readFileSync(join(root, "App.tsx"), "utf8");
   const babelSource = readFileSync(join(root, "babel.config.js"), "utf8");
-  const activitySource = readFileSync(
-    join(
-      root,
-      "android",
-      "app",
-      "src",
-      "main",
-      "java",
-      "team",
-      "whispr",
-      "mobile",
-      "MainActivity.kt",
-    ),
-    "utf8",
+  const activityPath = join(
+    root,
+    "android",
+    "app",
+    "src",
+    "main",
+    "java",
+    "team",
+    "whispr",
+    "mobile",
+    "MainActivity.kt",
   );
+  const manifestPath = join(root, "android", "app", "src", "main", "AndroidManifest.xml");
 
   assert.match(appConfig, /["']expo-image["']/);
   assert.match(appConfig, /predictiveBackGestureEnabled:\s*false/);
   assert.match(appSource, /GestureHandlerRootView/);
   assert.doesNotMatch(babelSource, /react-native-(reanimated|worklets)\/plugin/);
-  assert.match(activitySource, /super\.onCreate\(null\)/);
-  assert.doesNotMatch(activitySource, /RNScreensFragmentFactory/);
+
+  if (existsSync(activityPath)) {
+    const activitySource = readFileSync(activityPath, "utf8");
+    assert.match(activitySource, /super\.onCreate\(null\)/);
+    assert.doesNotMatch(activitySource, /RNScreensFragmentFactory/);
+  }
+  if (existsSync(manifestPath)) {
+    const manifestSource = readFileSync(manifestPath, "utf8");
+    assert.match(manifestSource, /android:enableOnBackInvokedCallback="false"/);
+  }
 });

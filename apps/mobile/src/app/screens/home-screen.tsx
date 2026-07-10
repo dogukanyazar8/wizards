@@ -42,6 +42,7 @@ import {
   type MobileWorkspaceChannelSummary,
   type MobileWorkspaceServerViewState,
 } from "../mobile-root-screen-shared";
+import { FlashList } from "@shopify/flash-list";
 import { ChannelMessagesPreviewCard, MobileChannelChatScreen } from "./channel-screen";
 import { MobileVoiceChannelScreen } from "./voice-screen";
 import {
@@ -610,10 +611,33 @@ export function WorkspaceChannelSectionList({
     return <Text style={styles.contractDescription}>{copy.workspaceNoChannels}</Text>;
   }
 
+  const items = sections.flatMap((section) => [
+    { id: `section:${section.id}`, kind: "section" as const, section },
+    ...section.channels.map((channel) => ({
+      channel,
+      id: `channel:${channel.id}`,
+      kind: "channel" as const,
+    })),
+  ]);
+
   return (
-    <View style={styles.mobileWorkspaceSectionList}>
-      {sections.map((section) => (
-        <View key={section.id} style={styles.mobileWorkspaceSection}>
+    <FlashList
+      contentContainerStyle={styles.mobileWorkspaceSectionList}
+      data={items}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => {
+        if (item.kind === "channel") {
+          return (
+            <WorkspaceChannelCompactRow
+              channel={item.channel}
+              isSelected={item.channel.id === selectedChannelId}
+              onOpenChannel={onOpenChannel}
+            />
+          );
+        }
+
+        const { section } = item;
+        return (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`${section.name} ${section.isCollapsed ? "ac" : "kapat"}`}
@@ -635,21 +659,12 @@ export function WorkspaceChannelSectionList({
               />
             </View>
           </Pressable>
-          {!section.isCollapsed ? (
-            <View style={styles.mobileWorkspaceChannelList}>
-              {section.channels.map((channel) => (
-                <WorkspaceChannelCompactRow
-                  key={channel.id}
-                  channel={channel}
-                  isSelected={channel.id === selectedChannelId}
-                  onOpenChannel={onOpenChannel}
-                />
-              ))}
-            </View>
-          ) : null}
-        </View>
-      ))}
-    </View>
+        );
+      }}
+      showsVerticalScrollIndicator={false}
+      style={styles.mobileWorkspaceSectionListViewport}
+      testID="mobile-workspace-channel-list"
+    />
   );
 }
 
@@ -671,6 +686,7 @@ export function WorkspaceChannelCompactRow({
       accessibilityRole="button"
       accessibilityLabel={`${copy.openWorkspaceChannelAction}: ${channel.name}`}
       accessibilityState={{ selected: isSelected }}
+      testID={`mobile-workspace-channel-${channel.type.toLowerCase()}`}
       onPress={() => onOpenChannel(channel)}
       style={({ pressed }) => [
         styles.mobileWorkspaceChannelRow,
@@ -916,15 +932,18 @@ export function RecentServersCard({
     <View style={styles.homeSectionCard}>
       <Text style={styles.environmentLabel}>{copy.homeRecentServersTitle}</Text>
       {servers.length > 0 ? (
-        <View style={styles.compactList}>
-          {visibleServers.map((server) => (
+        <FlashList
+          contentContainerStyle={styles.compactList}
+          data={visibleServers}
+          keyExtractor={(server) => server.id}
+          renderItem={({ item: server }) => (
             <Pressable
-              key={server.id}
               accessibilityRole={onOpenServer ? "button" : undefined}
               accessibilityLabel={
                 onOpenServer ? `${copy.openWorkspaceServerAction}: ${server.name}` : server.name
               }
               accessibilityState={{ selected: server.id === selectedServerId }}
+              testID="mobile-workspace-server-row"
               disabled={!onOpenServer}
               onPress={() => onOpenServer?.(server.id)}
               style={({ pressed }) => [
@@ -945,8 +964,11 @@ export function RecentServersCard({
                 </Text>
               </View>
             </Pressable>
-          ))}
-        </View>
+          )}
+          showsVerticalScrollIndicator={false}
+          style={styles.compactListViewport}
+          testID="mobile-workspace-server-list"
+        />
       ) : (
         <Text style={styles.contractDescription}>{copy.homeNoServers}</Text>
       )}
@@ -1155,6 +1177,7 @@ export function WorkspaceChannelList({
             accessibilityRole="button"
             accessibilityLabel={`${copy.openWorkspaceChannelAction}: ${channel.name}`}
             accessibilityState={{ selected: isSelected }}
+            testID={`mobile-workspace-channel-${channel.type.toLowerCase()}`}
             onPress={() => onOpenChannel(channel)}
             style={({ pressed }) => [
               styles.workspaceChannelRow,

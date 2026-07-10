@@ -41,7 +41,7 @@ export function resolveMobileNavigationIntent(
     return result.intent;
   }
 
-  return resolveMobileRouteIntent(result.intent.path);
+  return resolveMobileRoutePathIntent(result.intent.path);
 }
 
 export function createMobileLinkingOptions({
@@ -102,7 +102,7 @@ export function createMobileLinkingOptions({
   };
 }
 
-function resolveMobileRouteIntent(path: string): MobileNavigationRouteIntent | null {
+export function resolveMobileRoutePathIntent(path: string): MobileNavigationRouteIntent | null {
   const channelRoute = parseMobileChannelsRoutePath(path);
 
   if (channelRoute?.serverId === "@me") {

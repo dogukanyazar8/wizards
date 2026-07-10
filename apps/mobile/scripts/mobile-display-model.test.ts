@@ -30,6 +30,8 @@ import {
   getVisibleMobileWorkspaceChannelSections,
   isMobilePresenceActive,
   MOBILE_RENDER_LIMITS,
+  resolveMobileWorkspaceActiveTextChannelId,
+  resolveMobileTabActiveTextChannelId,
 } from "../src/app/mobile-display-model";
 
 type Conversation = MobileBootstrapPayload["home"]["directMessages"]["recent"][number];
@@ -479,6 +481,33 @@ describe("mobile display model", () => {
     });
   });
 
+  it("activates a valid preferred text channel only for an explicit stack route", () => {
+    assert.equal(
+      resolveMobileWorkspaceActiveTextChannelId(workspaceDetail, {
+        currentChannelId: null,
+        preferredChannelId: "text-2",
+        shouldOpenPreferredChannel: true,
+      }),
+      "text-2",
+    );
+    assert.equal(
+      resolveMobileWorkspaceActiveTextChannelId(workspaceDetail, {
+        currentChannelId: null,
+        preferredChannelId: "text-2",
+        shouldOpenPreferredChannel: false,
+      }),
+      null,
+    );
+    assert.equal(
+      resolveMobileWorkspaceActiveTextChannelId(workspaceDetail, {
+        currentChannelId: "text-1",
+        preferredChannelId: "voice-1",
+        shouldOpenPreferredChannel: true,
+      }),
+      null,
+    );
+  });
+
   it("opens only explicitly entered text channels as a dedicated mobile chat screen", () => {
     const channels = getMobileWorkspaceChannels(workspaceDetail);
 
@@ -719,5 +748,11 @@ describe("mobile display model", () => {
     assert.equal(actions[1]?.targetId, "server-1");
     assert.equal(actions[1]?.subtitle, "5 members - 3 channels");
     assert.equal(actions[2]?.isEnabled, false);
+  });
+
+  it("clears a stale channel surface when navigation leaves the overview tab", () => {
+    assert.equal(resolveMobileTabActiveTextChannelId("overview", "channel-1"), "channel-1");
+    assert.equal(resolveMobileTabActiveTextChannelId("settings", "channel-1"), null);
+    assert.equal(resolveMobileTabActiveTextChannelId("messages", "channel-1"), null);
   });
 });

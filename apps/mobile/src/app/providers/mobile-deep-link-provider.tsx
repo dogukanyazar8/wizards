@@ -4,20 +4,17 @@ import {
   useCallback,
   useContext,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
-import { getMobileRuntimeConfig } from "../../config/environment";
 import type { MobileDeepLinkParseResult } from "../../deep-link/mobile-deep-links";
-import { useMobileDeepLinks } from "../../deep-link/use-mobile-deep-links";
+import { resolveMobileRoutePathIntent } from "../../navigation/mobile-linking";
+import { navigateMobileRouteIntent } from "../../navigation/mobile-navigation-ref";
+import type { MobileNavigationCommandIntent } from "../../navigation/mobile-navigation-types";
 
 interface MobileDeepLinkRuntime {
+  readonly handleCommand: (command: MobileNavigationCommandIntent) => void;
   readonly lastDeepLink: MobileDeepLinkParseResult | null;
-  readonly routeRequest: {
-    readonly id: number;
-    readonly path: string;
-  } | null;
 }
 
 const MobileDeepLinkRuntimeContext = createContext<MobileDeepLinkRuntime | null>(null);
@@ -25,47 +22,34 @@ const MobileDeepLinkRuntimeContext = createContext<MobileDeepLinkRuntime | null>
 export function MobileDeepLinkProvider({ children }: PropsWithChildren) {
   const { completeAuthHandoff } = useMobileAuth();
   const [lastDeepLink, setLastDeepLink] = useState<MobileDeepLinkParseResult | null>(null);
-  const [routeRequest, setRouteRequest] = useState<MobileDeepLinkRuntime["routeRequest"]>(null);
-  const routeRequestIdRef = useRef(0);
-  const runtimeConfig = getMobileRuntimeConfig();
 
-  const publishRoute = useCallback((path: string) => {
-    routeRequestIdRef.current += 1;
-    setRouteRequest({ id: routeRequestIdRef.current, path });
+  const navigatePath = useCallback((path: string) => {
+    const routeIntent = resolveMobileRoutePathIntent(path);
+    if (routeIntent) {
+      navigateMobileRouteIntent(routeIntent);
+    }
   }, []);
 
-  const handleDeepLink = useCallback(
-    (result: MobileDeepLinkParseResult) => {
-      setLastDeepLink(result);
+  const handleCommand = useCallback(
+    (command: MobileNavigationCommandIntent) => {
+      setLastDeepLink({ intent: command, ok: true });
 
-      if (!result.ok) {
+      if (command.type === "invite") {
+        navigatePath("/channels");
         return;
       }
 
-      if (result.intent.type === "auth-handoff") {
-        const { callbackPath, token } = result.intent;
-        void completeAuthHandoff({ callbackPath, handoffToken: token }).then((completed) => {
-          publishRoute(completed ? callbackPath : "/settings");
-        });
-        return;
-      }
-
-      if (result.intent.type === "invite") {
-        publishRoute("/invite");
-        return;
-      }
-
-      publishRoute(result.intent.path);
+      void completeAuthHandoff({
+        callbackPath: command.callbackPath,
+        handoffToken: command.token,
+      }).then((completed) => {
+        navigatePath(completed ? command.callbackPath : "/settings");
+      });
     },
-    [completeAuthHandoff, publishRoute],
+    [completeAuthHandoff, navigatePath],
   );
 
-  useMobileDeepLinks({
-    onDeepLink: handleDeepLink,
-    runtimeConfig,
-  });
-
-  const value = useMemo(() => ({ lastDeepLink, routeRequest }), [lastDeepLink, routeRequest]);
+  const value = useMemo(() => ({ handleCommand, lastDeepLink }), [handleCommand, lastDeepLink]);
 
   return (
     <MobileDeepLinkRuntimeContext.Provider value={value}>

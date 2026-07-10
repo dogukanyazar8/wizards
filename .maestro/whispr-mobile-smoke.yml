@@ -1,0 +1,20 @@
+appId: team.whispr.mobile
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Whispr"
+- tapOn: "E-posta"
+- inputText: ${WHISPR_MOBILE_E2E_EMAIL}
+- tapOn: "Sifre"
+- inputText: ${WHISPR_MOBILE_E2E_PASSWORD}
+- tapOn: "Giris yap"
+- assertVisible: ${WHISPR_MOBILE_E2E_TEXT_CHANNEL}
+- tapOn: ${WHISPR_MOBILE_E2E_TEXT_CHANNEL}
+- tapOn: "Bir mesaj gonder..."
+- inputText: "MB-04 Maestro smoke"
+- tapOn: "Gonder"
+- assertVisible: "MB-04 Maestro smoke"
+- tapOn: "Kanallara don"
+- assertVisible: ${WHISPR_MOBILE_E2E_VOICE_CHANNEL}
+- tapOn: ${WHISPR_MOBILE_E2E_VOICE_CHANNEL}
+- assertVisible: "Baglanti kuruldu. Konusanlar anlik olarak guncellenir."

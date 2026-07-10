@@ -118,6 +118,11 @@ export const dmScreenStyles = StyleSheet.create({
   },
   dmConversationList: {
     gap: 2,
+    paddingVertical: 1,
+  },
+  dmConversationListViewport: {
+    minHeight: 64,
+    maxHeight: 460,
     minWidth: 0,
   },
   dmConversationName: {

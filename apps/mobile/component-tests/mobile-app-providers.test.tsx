@@ -9,12 +9,16 @@ const mockRequestDocument = jest.fn();
 const mockRequestPhotoPicker = jest.fn();
 const mockRequestPhotoPermission = jest.fn();
 const mockRequestMicrophone = jest.fn();
+const mockCompleteAuthHandoff = jest.fn(async () => true);
+const mockGetAccessToken = jest.fn(async () => null);
 
 jest.mock("../src/auth/mobile-auth-context", () => ({
   useMobileAuth: () => ({
     apiClient: {},
-    completeAuthHandoff: jest.fn(async () => true),
+    completeAuthHandoff: mockCompleteAuthHandoff,
+    getAccessToken: mockGetAccessToken,
     session: null,
+    status: "signed-out",
   }),
 }));
 
@@ -95,12 +99,15 @@ import { useMobileDeepLinkRuntime } from "../src/app/providers/mobile-deep-link-
 import { useMobileLocaleRuntime } from "../src/app/providers/mobile-locale-provider";
 import { useMobileMediaRuntime } from "../src/app/providers/mobile-media-provider";
 import { useMobileNotificationRuntime } from "../src/app/providers/mobile-notification-provider";
+import { MobileQueryProvider } from "../src/app/providers/mobile-query-provider";
+import { useMobileRealtimeRuntime } from "../src/app/providers/mobile-realtime-provider";
 import { useMobileVoiceRuntime } from "../src/app/providers/mobile-voice-provider";
 
 function ProviderConsumer() {
   const locale = useMobileLocaleRuntime();
   const media = useMobileMediaRuntime();
   const notifications = useMobileNotificationRuntime();
+  const realtime = useMobileRealtimeRuntime();
   const voice = useMobileVoiceRuntime();
   const deepLink = useMobileDeepLinkRuntime();
 
@@ -109,6 +116,7 @@ function ProviderConsumer() {
       <Text testID="provider-locale">{locale.locale}</Text>
       <Text testID="provider-media">{media.state.status}</Text>
       <Text testID="provider-notifications">{notifications.state.status}</Text>
+      <Text testID="provider-realtime">{realtime.connection.status}</Text>
       <Text testID="provider-voice">{voice.roomState.status}</Text>
       <Text testID="provider-deep-link">{deepLink.lastDeepLink ? "received" : "idle"}</Text>
     </View>
@@ -118,14 +126,17 @@ function ProviderConsumer() {
 describe("mobile app providers", () => {
   it("provides initial lifecycle state without requesting native permissions", async () => {
     const view = await render(
-      <MobileAppProviders>
-        <ProviderConsumer />
-      </MobileAppProviders>,
+      <MobileQueryProvider>
+        <MobileAppProviders>
+          <ProviderConsumer />
+        </MobileAppProviders>
+      </MobileQueryProvider>,
     );
 
     await waitFor(() => expect(view.getByTestId("provider-locale").props.children).toBe("tr"));
     expect(view.getByTestId("provider-media").props.children).toBe("not-requested");
     expect(view.getByTestId("provider-notifications").props.children).toBe("not-requested");
+    expect(view.getByTestId("provider-realtime").props.children).toBe("idle");
     expect(view.getByTestId("provider-voice").props.children).toBe("idle");
     expect(view.getByTestId("provider-deep-link").props.children).toBe("idle");
 

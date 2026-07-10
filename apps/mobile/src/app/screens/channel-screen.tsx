@@ -1,5 +1,4 @@
 import {
-  FlatList,
   Ionicons,
   KeyboardAvoidingView,
   Platform,
@@ -29,6 +28,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "../mobile-root-screen-shared";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { DMComposer } from "../composer/mobile-composer";
 import {
   MessageDateSeparator,
@@ -273,7 +273,9 @@ export function ChannelMessageList({
   const messages = state.payload?.messages ?? [];
   const streamItems = useMemo(() => getMobileMessageStreamItems(messages), [messages]);
   const latestMessageId = messages[messages.length - 1]?.id ?? null;
-  const listRef = useRef<FlatList<MobileMessageStreamItem<MobileRenderableMessage>> | null>(null);
+  const listRef = useRef<FlashListRef<MobileMessageStreamItem<MobileRenderableMessage>> | null>(
+    null,
+  );
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const performanceConfig = useMemo(
     () => getMobileMessageListPerformanceConfig(messages.length),
@@ -347,22 +349,20 @@ export function ChannelMessageList({
 
   return (
     <View style={styles.mobileChannelChatBodyShell}>
-      <FlatList
+      <FlashList
         contentContainerStyle={[
           styles.mobileChannelChatBodyContent,
           streamItems.length === 0 && styles.mobileChannelChatBodyEmptyContent,
         ]}
         data={streamItems}
         ref={listRef}
-        initialNumToRender={performanceConfig.initialNumToRender}
+        drawDistance={performanceConfig.windowSize * 100}
         keyboardShouldPersistTaps="handled"
         keyExtractor={(item) => item.id}
         ListEmptyComponent={emptyComponent}
-        maxToRenderPerBatch={performanceConfig.maxToRenderPerBatch}
         onContentSizeChange={() => scrollToLatestMessage(false)}
         onLayout={() => scrollToLatestMessage(false)}
         onScroll={handleScroll}
-        removeClippedSubviews={Platform.OS === "android"}
         renderItem={renderItem}
         refreshControl={
           <RefreshControl
@@ -377,7 +377,6 @@ export function ChannelMessageList({
         showsVerticalScrollIndicator={false}
         style={styles.mobileChannelChatBody}
         testID="mobile-channel-message-list"
-        windowSize={performanceConfig.windowSize}
       />
       <ChannelScrollToBottomButton
         onPress={() => scrollToLatestMessage(true)}

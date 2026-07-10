@@ -60,15 +60,15 @@ describe("mobile design contract", () => {
     const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
       dependencies?: Record<string, string>;
     };
-    const rootSource = readFileSync(
-      join(process.cwd(), "src", "app", "whispr-mobile-root.tsx"),
+    const productSource = readFileSync(
+      join(process.cwd(), "src", "app", "mobile-product-app.tsx"),
       "utf8",
     );
 
     assert.equal(mobileTypography.fontFamily, "Outfit");
     assert.ok(packageJson.dependencies?.["@expo-google-fonts/outfit"]);
     assert.ok(packageJson.dependencies?.["expo-font"]);
-    assert.match(rootSource, /useOutfitFonts/);
+    assert.match(productSource, /useOutfitFonts/);
   });
 
   it("keeps mobile visual tokens aligned with the Whispr web and desktop system", () => {
@@ -200,12 +200,16 @@ describe("mobile design contract", () => {
 
   it("keeps mobile settings production-facing and free of diagnostics surfaces", () => {
     const screenSource = readMobileScreenImplementationSource();
-    const rootSource = readFileSync(
-      join(process.cwd(), "src", "app", "whispr-mobile-root.tsx"),
+    const productSource = readFileSync(
+      join(process.cwd(), "src", "app", "mobile-product-app.tsx"),
       "utf8",
     );
     const shellSource = readFileSync(
       join(process.cwd(), "src", "app", "mobile-app-shell.tsx"),
+      "utf8",
+    );
+    const bottomTabBarSource = readFileSync(
+      join(process.cwd(), "src", "navigation", "mobile-bottom-tab-bar.tsx"),
       "utf8",
     );
     const errorBoundarySource = readFileSync(
@@ -269,20 +273,20 @@ describe("mobile design contract", () => {
     assert.match(screenSource, /mobile-settings-cookies-action/);
     assert.match(screenSource, /mobile-settings-support-action/);
     assert.match(screenSource, /accessibilityState=\{\{ disabled/);
-    assert.match(rootSource, /Linking\.openURL/);
-    assert.match(rootSource, /new URL\(path, runtimeConfig\.webUrl\)/);
-    assert.match(rootSource, /openTrustedWebPath\("\/privacy"\)/);
-    assert.match(rootSource, /openTrustedWebPath\("\/terms"\)/);
-    assert.match(rootSource, /openTrustedWebPath\("\/cookies"\)/);
-    assert.match(rootSource, /support@whispr\.team/);
-    assert.match(rootSource, /activeMobileCopy/);
+    assert.match(productSource, /Linking\.openURL/);
+    assert.match(productSource, /new URL\(path, runtimeConfig\.webUrl\)/);
+    assert.match(productSource, /openTrustedWebPath\("\/privacy"\)/);
+    assert.match(productSource, /openTrustedWebPath\("\/terms"\)/);
+    assert.match(productSource, /openTrustedWebPath\("\/cookies"\)/);
+    assert.match(productSource, /support@whispr\.team/);
+    assert.match(productSource, /activeMobileCopy/);
     assert.match(screenSource, /activeMobileCopy/);
-    assert.match(shellSource, /activeMobileCopy/);
+    assert.match(bottomTabBarSource, /activeMobileCopy/);
     assert.match(errorBoundarySource, /activeMobileCopy/);
     assert.match(voiceSource, /activeMobileCopy/);
     assert.match(screenSource, /testID="mobile-settings-language-control"/);
     assert.match(screenSource, /accessibilityRole="radiogroup"/);
-    assert.doesNotMatch(rootSource, /mobileCopy\.tr/);
+    assert.doesNotMatch(productSource, /mobileCopy\.tr/);
     assert.doesNotMatch(screenSource, /mobileCopy\.tr/);
     assert.doesNotMatch(shellSource, /mobileCopy\.tr/);
     assert.doesNotMatch(errorBoundarySource, /mobileCopy\.tr/);
@@ -295,11 +299,11 @@ describe("mobile design contract", () => {
 
   it("keeps the bottom navigation on the premium floating capsule contract", () => {
     const shellSource = readFileSync(
-      join(process.cwd(), "src", "app", "mobile-app-shell.tsx"),
+      join(process.cwd(), "src", "navigation", "mobile-bottom-tab-bar.tsx"),
       "utf8",
     );
 
-    assert.match(shellSource, /function MobileBottomNavigation\(/);
+    assert.match(shellSource, /function MobileBottomTabBar\(/);
     assert.match(shellSource, /styles\.bottomNavShadow/);
     assert.match(shellSource, /styles\.bottomNavSurface/);
     assert.match(shellSource, /styles\.navIconHalo/);

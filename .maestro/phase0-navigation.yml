@@ -1,0 +1,78 @@
+appId: team.whispr.mobile
+---
+- launchApp
+- tapOn:
+    text: "http://10.0.2.2:8081"
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+- runFlow:
+    when:
+      visible: "Reload"
+    commands:
+      - pressKey: BACK
+- openLink: "whispr://settings"
+- assertVisible:
+    id: "mobile-settings-screen"
+- tapOn:
+    id: "mobile-bottom-tab-overview"
+- runFlow:
+    when:
+      visible: "E-posta"
+    commands:
+      - tapOn: "E-posta"
+      - eraseText: 100
+      - inputText: ${WHISPR_MOBILE_E2E_EMAIL}
+      - tapOn: "Sifre"
+      - eraseText: 100
+      - inputText: ${WHISPR_MOBILE_E2E_PASSWORD}
+      - hideKeyboard
+      - tapOn: "Giris yap"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-workspace-channel-text"
+    timeout: 30000
+
+# UI channel push + Android hardware back pop.
+- tapOn:
+    id: "mobile-workspace-channel-text"
+    index: 0
+- assertVisible:
+    id: "mobile-channel-chat-screen"
+- pressKey: BACK
+- assertVisible:
+    id: "mobile-workspace-channel-text"
+
+# UI DM push + Android hardware back pop.
+- tapOn:
+    id: "mobile-bottom-tab-messages"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-dm-conversation-row"
+    timeout: 30000
+- tapOn:
+    id: "mobile-dm-conversation-row"
+    index: 0
+- assertVisible:
+    id: "mobile-dm-chat-screen"
+- pressKey: BACK
+- assertVisible:
+    id: "mobile-dm-inbox-screen"
+
+# Validated channel and DM deep links.
+- openLink: "whispr://channels/${WHISPR_MOBILE_E2E_SERVER_ID}/${WHISPR_MOBILE_E2E_CHANNEL_ID}"
+- assertVisible:
+    id: "mobile-channel-chat-screen"
+- pressKey: BACK
+- openLink: "whispr://channels/@me/${WHISPR_MOBILE_E2E_CONVERSATION_ID}"
+- assertVisible:
+    id: "mobile-dm-chat-screen"
+
+# Public settings deep link and invite command intent.
+- openLink: "whispr://settings"
+- assertVisible:
+    id: "mobile-settings-screen"
+- openLink: "whispr://invite/PHASE0_NAVIGATION_PROBE"
+- assertVisible:
+    id: "mobile-workspace-channel-text"

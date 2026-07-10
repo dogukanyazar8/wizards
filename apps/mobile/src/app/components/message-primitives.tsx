@@ -1,6 +1,5 @@
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   Text,
   TextInput,
@@ -19,7 +18,9 @@ import {
   type MobileDMMessagesResponse,
   type MobileMessageSearchViewState,
 } from "../mobile-root-screen-shared";
+import { FlashList } from "@shopify/flash-list";
 import { AvatarMark } from "./ui-atoms";
+import { MobileCachedImage } from "./mobile-cached-image";
 import { styles } from "./message-primitives.styles";
 
 const MOBILE_SEARCH_RESULT_RENDER_LIMIT = 6;
@@ -283,7 +284,7 @@ export function MessageAttachmentList({
             style={styles.messageAttachmentCard}
           >
             {previewUri ? (
-              <Image
+              <MobileCachedImage
                 accessibilityIgnoresInvertColors
                 importantForAccessibility="no"
                 source={{ uri: previewUri }}
@@ -341,19 +342,25 @@ export function MessageStream({
   const streamItems = useMemo(() => getMobileMessageStreamItems(messages), [messages]);
 
   return (
-    <View style={styles.dmMessageList}>
-      {streamItems.map(({ id, message, showDateSeparator }) => {
-        return (
-          <View key={id} style={styles.messageStreamItem}>
-            {showDateSeparator ? <MessageDateSeparator createdAt={message.createdAt} /> : null}
-            <MemoizedMessagePreviewRow
-              message={message}
-              own={message.author.id === currentUserId}
-            />
-          </View>
-        );
-      })}
-    </View>
+    <FlashList
+      contentContainerStyle={styles.dmMessageListContent}
+      data={streamItems}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <View style={styles.messageStreamItem}>
+          {item.showDateSeparator ? (
+            <MessageDateSeparator createdAt={item.message.createdAt} />
+          ) : null}
+          <MemoizedMessagePreviewRow
+            message={item.message}
+            own={item.message.author.id === currentUserId}
+          />
+        </View>
+      )}
+      showsVerticalScrollIndicator={false}
+      style={styles.dmMessageList}
+      testID="mobile-dm-message-list"
+    />
   );
 }
 

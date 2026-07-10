@@ -11,6 +11,7 @@ import type {
 } from "../voice/mobile-voice-room-contract";
 import { getMobileNoiseSuppressionLabel } from "../voice/mobile-voice-noise-contract";
 import type { MobileLocale } from "../locale/mobile-locale-preferences";
+import type { MobileTabId } from "../navigation/mobile-navigation";
 
 export type MobileConversationSummary =
   MobileBootstrapPayload["home"]["directMessages"]["recent"][number];
@@ -592,6 +593,38 @@ export function findInitialMobileWorkspaceChannel(
     channels[0] ??
     null
   );
+}
+
+export function resolveMobileWorkspaceActiveTextChannelId(
+  detail: MobileWorkspaceServerDetailResponse["detail"],
+  options: {
+    readonly currentChannelId: string | null;
+    readonly preferredChannelId: string | null | undefined;
+    readonly shouldOpenPreferredChannel: boolean;
+  },
+): string | null {
+  const channels = getMobileWorkspaceChannels(detail);
+
+  if (options.shouldOpenPreferredChannel) {
+    const preferredChannel = options.preferredChannelId
+      ? channels.find((channel) => channel.id === options.preferredChannelId)
+      : null;
+    return preferredChannel?.type === "TEXT" ? preferredChannel.id : null;
+  }
+
+  if (!options.currentChannelId) {
+    return null;
+  }
+
+  const currentChannel = channels.find((channel) => channel.id === options.currentChannelId);
+  return currentChannel?.type === "TEXT" ? currentChannel.id : null;
+}
+
+export function resolveMobileTabActiveTextChannelId(
+  tab: MobileTabId,
+  channelId: string | null,
+): string | null {
+  return tab === "overview" ? channelId : null;
 }
 
 export function getMobileChannelPriority(channel: MobileWorkspaceChannelSummary): {

@@ -52,6 +52,13 @@ type MobileOptimisticMutationOptions<
 
 let optimisticMessageSequence = 0;
 
+function requireMobileMutationAuthor<T>(author: T | null): T {
+  if (!author) {
+    throw new Error("A signed-in author is required for mobile message mutation.");
+  }
+  return author;
+}
+
 function createMobileOptimisticMessageId(): string {
   optimisticMessageSequence += 1;
   return `client-${Date.now()}-${optimisticMessageSequence}`;
@@ -108,7 +115,7 @@ export function createMobileOptimisticMutationOptions<
 type MobileChannelDraft = Omit<SendMobileChannelMessageInput, "channelId">;
 
 export function useMobileChannelMessageMutation(input: {
-  readonly author: MobileSessionUser;
+  readonly author: MobileSessionUser | null;
   readonly channelId: string;
   readonly client: MobileApiClient;
 }) {
@@ -125,8 +132,10 @@ export function useMobileChannelMessageMutation(input: {
       createOptimisticMessage: (draft, clientId) => ({
         attachments: [],
         author: {
-          ...input.author,
-          displayName: input.author.displayName ?? input.author.username,
+          ...requireMobileMutationAuthor(input.author),
+          displayName:
+            requireMobileMutationAuthor(input.author).displayName ??
+            requireMobileMutationAuthor(input.author).username,
         },
         channelId: input.channelId,
         content: draft.content,
@@ -153,7 +162,7 @@ export function useMobileChannelMessageMutation(input: {
 type MobileDMDraft = Omit<SendMobileDMMessageInput, "conversationId">;
 
 export function useMobileDMMessageMutation(input: {
-  readonly author: DMMessageAuthorPayload;
+  readonly author: DMMessageAuthorPayload | null;
   readonly client: MobileApiClient;
   readonly conversationId: string;
 }) {
@@ -169,7 +178,7 @@ export function useMobileDMMessageMutation(input: {
     >({
       createOptimisticMessage: (draft, clientId) => ({
         attachments: [],
-        author: input.author,
+        author: requireMobileMutationAuthor(input.author),
         content: draft.content,
         conversationId: input.conversationId,
         createdAt: new Date().toISOString(),
@@ -181,7 +190,7 @@ export function useMobileDMMessageMutation(input: {
         replyTo: null,
         replyToId: draft.replyToId ?? null,
         threadParentId: draft.threadParentId ?? null,
-        userId: input.author.id,
+        userId: requireMobileMutationAuthor(input.author).id,
       }),
       getResponseMessage: (response) => response.message,
       invalidateKeys: [mobileQueryKeys.bootstrap(), mobileQueryKeys.dmConversations()],

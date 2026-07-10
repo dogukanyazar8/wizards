@@ -67,6 +67,19 @@ export const MOBILE_AUTOMATED_GATES: MobileAutomatedGate[] = [
     required: true,
   },
   {
+    command: "corepack pnpm --filter @wizards/mobile test:components",
+    id: "mobile-component-tests",
+    purpose: "React Native component render tests for auth, voice, push-to-talk, and screen share UI.",
+    required: true,
+  },
+  {
+    command: "maestro test ../../.maestro/phase0-navigation.yml",
+    id: "mobile-maestro-navigation",
+    purpose:
+      "Android device proof for hardware back plus channel, DM, invite, and settings deep links.",
+    required: true,
+  },
+  {
     command: "corepack pnpm --filter @wizards/mobile validate:env",
     id: "mobile-env-validation",
     purpose: "Build-time endpoint and public environment validation.",
@@ -109,6 +122,14 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
     risk: "high",
   },
   {
+    area: "navigation",
+    id: "android-hardware-back-navigation",
+    label:
+      "Android hardware back pops channel and DM stacks to their parent surfaces without exiting the app.",
+    required: true,
+    risk: "high",
+  },
+  {
     area: "accessibility",
     id: "native-accessibility-touch-targets",
     label:
@@ -144,6 +165,14 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
       "Safe invite links are recognized in-app while native invite acceptance stays blocked until the server contract is available.",
     required: true,
     risk: "critical",
+  },
+  {
+    area: "deep-link",
+    id: "android-navigation-deep-links",
+    label:
+      "Android channel, DM, invite, and settings links resolve to the intended native navigation surfaces.",
+    required: true,
+    risk: "high",
   },
   {
     area: "permissions",
@@ -410,7 +439,7 @@ export function validateMobileQualityGate(): string[] {
   }
 
   for (const gate of MOBILE_AUTOMATED_GATES) {
-    if (!gate.command.includes("@wizards/mobile")) {
+    if (gate.id !== "mobile-maestro-navigation" && !gate.command.includes("@wizards/mobile")) {
       issues.push(`Automated mobile gate ${gate.id} must target @wizards/mobile.`);
     }
   }

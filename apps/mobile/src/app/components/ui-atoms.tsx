@@ -1,6 +1,5 @@
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   Text,
   View,
@@ -18,6 +17,7 @@ import {
   type MobileSyncSnapshot,
   type ReactNode,
 } from "../mobile-root-screen-shared";
+import { MobileCachedImage } from "./mobile-cached-image";
 import { styles } from "./ui-atoms.styles";
 
 function getMobilePermissionLabel(intentId: MobilePermissionIntentId): string {
@@ -353,7 +353,7 @@ export function AvatarMark({
         accessibilityRole="image"
         style={avatarShellStyles}
       >
-        <Image
+        <MobileCachedImage
           source={{ uri: imageUrl }}
           style={avatarStyles}
           accessibilityIgnoresInvertColors

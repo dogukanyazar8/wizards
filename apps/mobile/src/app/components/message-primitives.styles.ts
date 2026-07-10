@@ -24,8 +24,13 @@ export const messagePrimitiveStyles = StyleSheet.create({
     minWidth: 0,
   },
   dmMessageList: {
-    gap: 8,
+    minHeight: 96,
+    maxHeight: 360,
     minWidth: 0,
+  },
+  dmMessageListContent: {
+    gap: 8,
+    paddingVertical: 2,
   },
   dmMessageTime: {
     color: mobileColors.mutedSoft,

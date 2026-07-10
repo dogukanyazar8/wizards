@@ -54,7 +54,10 @@ describe("mobile quality gate", () => {
   it("keeps automated gates scoped to the mobile package", () => {
     assert.equal(MOBILE_AUTOMATED_GATES.length >= 5, true);
     for (const gate of MOBILE_AUTOMATED_GATES) {
-      assert.equal(gate.command.includes("@wizards/mobile"), true);
+      assert.equal(
+        gate.id === "mobile-maestro-navigation" || gate.command.includes("@wizards/mobile"),
+        true,
+      );
     }
   });
 
