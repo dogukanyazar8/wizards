@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { createMemoryAttemptStore } from "../auth/attempt-tracker";
+import { getMobileLoginAttemptKey } from "../auth/mobile-login-attempts";
 import {
   createMobileAuthHandoffToken,
   createMobilePasswordSession,
@@ -99,6 +101,21 @@ async function loadUser() {
   return buildVerifiedUser();
 }
 
+async function getMobileNativeAuthFailure(operation: () => Promise<unknown>) {
+  try {
+    await operation();
+  } catch (error) {
+    assert.ok(error instanceof MobileNativeAuthError);
+    return {
+      code: error.code,
+      message: error.message,
+      status: error.status,
+    };
+  }
+
+  assert.fail("Expected mobile native auth to fail.");
+}
+
 describe("mobile auth handoff", () => {
   it("creates native password mobile sessions only for verified active users", async () => {
     const redis = new MemoryRedis();
@@ -117,6 +134,7 @@ describe("mobile auth handoff", () => {
           assert.equal(email, "ada@example.com");
           return passwordUser;
         },
+        loginAttemptStore: createMemoryAttemptStore(),
         nowMs: 1_800_000_000_000,
         redis,
       },
@@ -141,6 +159,7 @@ describe("mobile auth handoff", () => {
           comparePassword: async () => false,
           env,
           loadUserByEmail: async () => passwordUser,
+          loginAttemptStore: createMemoryAttemptStore(),
           redis,
         },
       ),
@@ -168,12 +187,156 @@ describe("mobile auth handoff", () => {
             comparePassword: async () => true,
             env,
             loadUserByEmail: async () => inactiveUser,
+            loginAttemptStore: createMemoryAttemptStore(),
             redis,
           },
         ),
         null,
       );
     }
+  });
+
+  it("locks existing and unknown mobile login accounts without enumeration differences", async () => {
+    const failures: Array<{ code: string; message: string; status: number }> = [];
+
+    for (const user of [buildPasswordUser(), null]) {
+      const loginAttemptStore = createMemoryAttemptStore();
+      const redis = new MemoryRedis();
+      let loadUserCalls = 0;
+      let nowMs = 90_000;
+      const options = {
+        comparePassword: async () => false,
+        env,
+        loadUserByEmail: async () => {
+          loadUserCalls += 1;
+          return user;
+        },
+        loginAttemptStore,
+        get nowMs() {
+          return nowMs;
+        },
+        redis,
+      };
+
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        assert.equal(
+          await createMobilePasswordSession(
+            { email: " Ada@Example.COM ", password: "wrong-password" },
+            options,
+          ),
+          null,
+        );
+      }
+
+      failures.push(
+        await getMobileNativeAuthFailure(() =>
+          createMobilePasswordSession(
+            { email: " Ada@Example.COM ", password: "wrong-password" },
+            options,
+          ),
+        ),
+      );
+      assert.equal(loadUserCalls, 5);
+
+      await getMobileNativeAuthFailure(() =>
+        createMobilePasswordSession(
+          { email: "ada@example.com", password: "wrong-password" },
+          options,
+        ),
+      );
+      assert.equal(loadUserCalls, 5, "locked accounts must stop before database authentication");
+
+      const key = getMobileLoginAttemptKey(" Ada@Example.COM ");
+      assert.match(key, /^rate:mobile-login:account:[A-Za-z0-9_-]{43}$/);
+      assert.equal(key.includes("ada@example.com"), false);
+      assert.deepEqual(JSON.parse((await loginAttemptStore.get(key)) ?? "null"), {
+        failures: 5,
+        lockedUntilMs: 120_000,
+      });
+
+      nowMs = 120_000;
+      await getMobileNativeAuthFailure(() =>
+        createMobilePasswordSession(
+          { email: "ada@example.com", password: "wrong-password" },
+          options,
+        ),
+      );
+      assert.equal(loadUserCalls, 6);
+      assert.deepEqual(JSON.parse((await loginAttemptStore.get(key)) ?? "null"), {
+        failures: 6,
+        lockedUntilMs: 180_000,
+      });
+    }
+
+    assert.deepEqual(failures, [
+      {
+        code: "RATE_LIMITED",
+        message: "Too many sign-in attempts. Please try again shortly.",
+        status: 429,
+      },
+      {
+        code: "RATE_LIMITED",
+        message: "Too many sign-in attempts. Please try again shortly.",
+        status: 429,
+      },
+    ]);
+  });
+
+  it("resets mobile login account failures after a successful session", async () => {
+    const loginAttemptStore = createMemoryAttemptStore();
+    const redis = new MemoryRedis();
+    const user = buildPasswordUser();
+    let passwordIsValid = false;
+    const options = {
+      comparePassword: async () => passwordIsValid,
+      env,
+      loadUserByEmail: async () => user,
+      loginAttemptStore,
+      nowMs: 90_000,
+      redis,
+    };
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      assert.equal(
+        await createMobilePasswordSession(
+          { email: "ada@example.com", password: "wrong-password" },
+          options,
+        ),
+        null,
+      );
+    }
+
+    passwordIsValid = true;
+    const response = await createMobilePasswordSession(
+      { email: "ada@example.com", password: "correct-horse-battery" },
+      options,
+    );
+    assert.equal(response?.session.user.id, user.id);
+    assert.equal(await loginAttemptStore.get(getMobileLoginAttemptKey(user.email)), null);
+
+    passwordIsValid = false;
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      assert.equal(
+        await createMobilePasswordSession(
+          { email: user.email, password: "wrong-password" },
+          options,
+        ),
+        null,
+      );
+    }
+    assert.deepEqual(
+      await getMobileNativeAuthFailure(() =>
+        createMobilePasswordSession(
+          { email: user.email, password: "wrong-password" },
+          options,
+        ),
+      ),
+      {
+        code: "RATE_LIMITED",
+        message: "Too many sign-in attempts. Please try again shortly.",
+        status: 429,
+      },
+    );
   });
 
   it("rejects native registration when password confirmation does not match", async () => {

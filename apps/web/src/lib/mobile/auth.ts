@@ -28,10 +28,19 @@ import {
 } from "@/lib/auth/password-reset";
 import { rollbackUnverifiedUser } from "@/lib/auth/registration-compensation";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
+import {
+  assertMobileLoginAttemptAllowed,
+  recordMobileLoginAttemptFailure,
+  resetMobileLoginAttemptFailures,
+} from "@/lib/auth/mobile-login-attempts";
+import {
+  createRedisAttemptStore,
+  type AttemptStore,
+} from "@/lib/auth/attempt-tracker";
 import { normalizeAppLocale } from "@/lib/locale";
 import { persistUserLocale } from "@/lib/locale/persistence";
 import { logError } from "@/lib/logger";
-import { getRedis } from "@/lib/redis";
+import { getRedis, getRedisRate } from "@/lib/redis";
 
 export const MOBILE_AUTH_HANDOFF_TTL_SECONDS = 120;
 export const MOBILE_ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
@@ -106,6 +115,7 @@ interface MobilePasswordAuthUser extends MobileAuthUser {
 interface MobileNativeAuthOptions extends MobileAuthOptions {
   comparePassword?: (password: string, passwordHash: string) => Promise<boolean>;
   loadUserByEmail?: (email: string) => Promise<MobilePasswordAuthUser | null>;
+  loginAttemptStore?: AttemptStore;
 }
 
 interface MobileVerificationEmailUser {
@@ -670,24 +680,64 @@ export async function createMobilePasswordSession(
   options: MobileNativeAuthOptions = {},
 ) {
   const email = normalizeMobileAuthEmail(input.email);
+  const nowMs = Math.trunc(options.nowMs ?? Date.now());
+  const loginAttemptStore =
+    options.loginAttemptStore ?? createRedisAttemptStore(getRedisRate());
+  const attemptAllowed = await assertMobileLoginAttemptAllowed({
+    email,
+    nowMs,
+    store: loginAttemptStore,
+  });
+  if (!attemptAllowed.allowed) {
+    throw new MobileNativeAuthError(
+      "RATE_LIMITED",
+      429,
+      "Too many sign-in attempts. Please try again shortly.",
+    );
+  }
+
   const user = await (options.loadUserByEmail ?? loadMobilePasswordAuthUser)(email);
   const comparePassword = options.comparePassword ?? bcrypt.compare;
 
   if (!user?.passwordHash) {
+    const failure = await recordMobileLoginAttemptFailure({
+      email,
+      nowMs,
+      store: loginAttemptStore,
+    });
+    if (failure.locked) {
+      throw new MobileNativeAuthError(
+        "RATE_LIMITED",
+        429,
+        "Too many sign-in attempts. Please try again shortly.",
+      );
+    }
     return null;
   }
 
   const isPasswordValid = await comparePassword(input.password, user.passwordHash);
   if (!isPasswordValid || !isActiveMobileAuthUser(user)) {
+    const failure = await recordMobileLoginAttemptFailure({
+      email,
+      nowMs,
+      store: loginAttemptStore,
+    });
+    if (failure.locked) {
+      throw new MobileNativeAuthError(
+        "RATE_LIMITED",
+        429,
+        "Too many sign-in attempts. Please try again shortly.",
+      );
+    }
     return null;
   }
 
   const redis = getMobileAuthRedis(options);
-  const nowMs = Math.trunc(options.nowMs ?? Date.now());
-
-  return MobileAuthPasswordLoginResponseSchema.parse({
+  const response = MobileAuthPasswordLoginResponseSchema.parse({
     session: await createMobileSessionSnapshot(user, { nowMs, redis }, options),
   });
+  await resetMobileLoginAttemptFailures({ email, store: loginAttemptStore });
+  return response;
 }
 
 export async function registerMobilePasswordAccount(input: {

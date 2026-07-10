@@ -10,6 +10,12 @@ import {
   verifyTotpCode,
   type RecoveryCode,
 } from "./totp";
+import {
+  createAttemptTracker,
+  createMemoryAttemptStore,
+  createRedisAttemptStore,
+  type AttemptStore,
+} from "./attempt-tracker";
 
 const TWO_FACTOR_ISSUER = "Whispr";
 const TWO_FACTOR_RECOVERY_CODE_COUNT = 10;
@@ -17,11 +23,13 @@ const TWO_FACTOR_ATTEMPT_WINDOW_SECONDS = 15 * 60;
 const TWO_FACTOR_FREE_FAILURES = 4;
 const TWO_FACTOR_INITIAL_BACKOFF_MS = 30 * 1000;
 const TWO_FACTOR_MAX_BACKOFF_MS = 15 * 60 * 1000;
-
-type TwoFactorAttemptState = {
-  failures: number;
-  lockedUntilMs: number | null;
-};
+const twoFactorAttemptTracker = createAttemptTracker({
+  freeFailures: TWO_FACTOR_FREE_FAILURES,
+  initialBackoffMs: TWO_FACTOR_INITIAL_BACKOFF_MS,
+  keyPrefix: "rate:two-factor:account",
+  maxBackoffMs: TWO_FACTOR_MAX_BACKOFF_MS,
+  windowSeconds: TWO_FACTOR_ATTEMPT_WINDOW_SECONDS,
+});
 
 export type TwoFactorRecoveryCodeRecord = {
   codeHash: string;
@@ -50,11 +58,7 @@ export type TwoFactorRepository = {
   savePendingSecret: (userId: string, secret: string) => Promise<void>;
 };
 
-export type TwoFactorAttemptStore = {
-  del: (key: string) => Promise<unknown>;
-  get: (key: string) => Promise<string | null>;
-  set: (key: string, value: string, mode: "EX", seconds: number) => Promise<unknown>;
-};
+export type TwoFactorAttemptStore = AttemptStore;
 
 export type TwoFactorServiceDependencies = {
   attemptStore?: TwoFactorAttemptStore;
@@ -101,71 +105,7 @@ export type ConfirmTwoFactorSetupResult =
 export type VerifyTwoFactorCredentialResult = TwoFactorSuccessResult | TwoFactorFailureResult;
 
 export function createMemoryTwoFactorAttemptStore(): TwoFactorAttemptStore {
-  const values = new Map<string, string>();
-
-  return {
-    async del(key) {
-      values.delete(key);
-    },
-    async get(key) {
-      return values.get(key) ?? null;
-    },
-    async set(key, value) {
-      values.set(key, value);
-    },
-  };
-}
-
-function getTwoFactorAttemptKey(userId: string) {
-  return `rate:two-factor:account:${userId}`;
-}
-
-function getTwoFactorBackoffMs(failures: number) {
-  if (failures <= TWO_FACTOR_FREE_FAILURES) {
-    return 0;
-  }
-
-  const exponent = Math.min(failures - TWO_FACTOR_FREE_FAILURES - 1, 8);
-  return Math.min(
-    TWO_FACTOR_INITIAL_BACKOFF_MS * 2 ** exponent,
-    TWO_FACTOR_MAX_BACKOFF_MS,
-  );
-}
-
-function parseAttemptState(rawValue: string | null): TwoFactorAttemptState {
-  if (!rawValue) {
-    return { failures: 0, lockedUntilMs: null };
-  }
-
-  try {
-    const parsed = JSON.parse(rawValue) as Partial<TwoFactorAttemptState>;
-    return {
-      failures: Number.isInteger(parsed.failures) ? Math.max(0, parsed.failures ?? 0) : 0,
-      lockedUntilMs:
-        typeof parsed.lockedUntilMs === "number" && Number.isFinite(parsed.lockedUntilMs)
-          ? parsed.lockedUntilMs
-          : null,
-    };
-  } catch {
-    return { failures: 0, lockedUntilMs: null };
-  }
-}
-
-async function readAttemptState(store: TwoFactorAttemptStore, userId: string) {
-  return parseAttemptState(await store.get(getTwoFactorAttemptKey(userId)));
-}
-
-async function writeAttemptState(
-  store: TwoFactorAttemptStore,
-  userId: string,
-  state: TwoFactorAttemptState,
-) {
-  await store.set(
-    getTwoFactorAttemptKey(userId),
-    JSON.stringify(state),
-    "EX",
-    TWO_FACTOR_ATTEMPT_WINDOW_SECONDS,
-  );
+  return createMemoryAttemptStore();
 }
 
 async function assertAttemptAllowed(args: {
@@ -173,11 +113,15 @@ async function assertAttemptAllowed(args: {
   store: TwoFactorAttemptStore;
   userId: string;
 }): Promise<TwoFactorSuccessResult | TwoFactorFailureResult> {
-  const state = await readAttemptState(args.store, args.userId);
-  if (state.lockedUntilMs && state.lockedUntilMs > args.nowMs) {
+  const result = await twoFactorAttemptTracker.assertAllowed({
+    identifier: args.userId,
+    nowMs: args.nowMs,
+    store: args.store,
+  });
+  if (!result.allowed) {
     return {
       error: "rate_limited",
-      retryAfterSeconds: Math.max(1, Math.ceil((state.lockedUntilMs - args.nowMs) / 1000)),
+      retryAfterSeconds: result.retryAfterSeconds,
       success: false,
     };
   }
@@ -190,20 +134,15 @@ async function recordAttemptFailure(args: {
   store: TwoFactorAttemptStore;
   userId: string;
 }): Promise<TwoFactorFailureResult> {
-  const previous = await readAttemptState(args.store, args.userId);
-  const failures = previous.failures + 1;
-  const backoffMs = getTwoFactorBackoffMs(failures);
-  const lockedUntilMs = backoffMs > 0 ? args.nowMs + backoffMs : null;
-
-  await writeAttemptState(args.store, args.userId, {
-    failures,
-    lockedUntilMs,
+  const result = await twoFactorAttemptTracker.recordFailure({
+    identifier: args.userId,
+    nowMs: args.nowMs,
+    store: args.store,
   });
-
-  if (lockedUntilMs) {
+  if (result.locked) {
     return {
       error: "rate_limited",
-      retryAfterSeconds: Math.ceil(backoffMs / 1000),
+      retryAfterSeconds: result.retryAfterSeconds,
       success: false,
     };
   }
@@ -212,7 +151,7 @@ async function recordAttemptFailure(args: {
 }
 
 async function resetAttemptFailures(store: TwoFactorAttemptStore, userId: string) {
-  await store.del(getTwoFactorAttemptKey(userId));
+  await twoFactorAttemptTracker.resetFailures({ identifier: userId, store });
 }
 
 const defaultTwoFactorRepository: TwoFactorRepository = {
@@ -302,13 +241,7 @@ async function createDefaultQrCodeDataUrl(otpauthUri: string) {
 }
 
 function getDefaultAttemptStore(): TwoFactorAttemptStore {
-  const redis = getRedisRate();
-
-  return {
-    del: (key) => redis.del(key),
-    get: (key) => redis.get(key),
-    set: (key, value, mode, seconds) => redis.set(key, value, mode, seconds),
-  };
+  return createRedisAttemptStore(getRedisRate());
 }
 
 function resolveDependencies(dependencies: TwoFactorServiceDependencies = {}) {
