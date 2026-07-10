@@ -1,5 +1,5 @@
 import { type ComponentType, useCallback, useEffect, useMemo, useState } from "react";
-import type { MobileVoiceStateParticipant, MobileWorkspaceChannelSummary } from "@wizards/types";
+import type { MobileWorkspaceChannelSummary } from "@wizards/types";
 import { Linking, View } from "react-native";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { getMobileRuntimeConfig } from "../config/environment";
@@ -10,20 +10,11 @@ import {
   createInitialMobilePermissionReadiness,
   summarizeMobilePermissionReadiness,
 } from "../permissions/mobile-permission-contract";
-import type { MobileRealtimeEventEnvelope } from "../realtime/mobile-realtime-contract";
 import {
   getVisibleMobileChannelTypingUsers,
   formatMobileChannelTypingLabel,
 } from "../realtime/mobile-typing-state";
 import { useMobileActiveTargetStore } from "../state/mobile-active-target-store";
-import {
-  getMobileVoiceInviteErrorPayload,
-  getMobileVoiceInviteReceivedPayload,
-  getMobileVoiceInviteSendResultPayload,
-  getMobileVoiceInviteStatusPayload,
-  type MobileVoiceInviteReceived,
-  type MobileVoiceInviteSendState,
-} from "../voice/mobile-voice-room-contract";
 import { MobileAppLockScreen } from "./components/mobile-app-lock-screen";
 import { MobileDeviceIntegrityWarning } from "./components/mobile-device-integrity-warning";
 import {
@@ -33,6 +24,7 @@ import {
 } from "./mobile-display-model";
 import { MobileAppShell } from "./mobile-app-shell";
 import { useMobileMessagingFeature } from "./features/use-mobile-messaging-feature";
+import { useMobileVoiceInviteFeature } from "./features/use-mobile-voice-invite-feature";
 import { getVisibleMobileSyncHealth } from "./mobile-screen-sync";
 import { MobileVoiceInviteOverlay } from "./overlays/mobile-voice-invite-overlay";
 import { useMobileLocaleRuntime } from "./providers/mobile-locale-provider";
@@ -56,89 +48,6 @@ import {
 
 const copy = activeMobileCopy;
 const runtimeConfig = getMobileRuntimeConfig();
-const MOBILE_VOICE_INVITE_LIMIT = 3;
-
-function getMobileVoiceStateUpdatePayload(payload: unknown): {
-  channelId: string;
-  participants: MobileVoiceStateParticipant[];
-  serverId: string;
-} | null {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return null;
-  }
-
-  const record = payload as Record<string, unknown>;
-  if (
-    typeof record.channelId !== "string" ||
-    typeof record.serverId !== "string" ||
-    !Array.isArray(record.participants)
-  ) {
-    return null;
-  }
-
-  const participants = record.participants
-    .filter((participant): participant is Record<string, unknown> => {
-      return Boolean(participant) && typeof participant === "object" && !Array.isArray(participant);
-    })
-    .flatMap((participant) => {
-      if (typeof participant.userId !== "string" || typeof participant.username !== "string") {
-        return [];
-      }
-
-      return [
-        {
-          avatarUrl: typeof participant.avatarUrl === "string" ? participant.avatarUrl : null,
-          displayName: typeof participant.displayName === "string" ? participant.displayName : null,
-          isScreenSharing: participant.isScreenSharing === true,
-          userId: participant.userId,
-          username: participant.username,
-        },
-      ];
-    });
-
-  return {
-    channelId: record.channelId,
-    participants,
-    serverId: record.serverId,
-  };
-}
-
-type MobileVoiceInviteEntry = MobileVoiceInviteReceived & {
-  readonly errorMessage: string | null;
-  readonly isAccepting: boolean;
-};
-
-function getMobileVoiceAudioLevelUpdatePayload(payload: unknown): {
-  audioLevel: number;
-  channelId: string;
-  isMuted: boolean;
-  isSpeaking: boolean;
-  userId: string;
-} | null {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return null;
-  }
-
-  const record = payload as Record<string, unknown>;
-  if (
-    typeof record.audioLevel !== "number" ||
-    typeof record.channelId !== "string" ||
-    typeof record.isMuted !== "boolean" ||
-    typeof record.isSpeaking !== "boolean" ||
-    typeof record.userId !== "string"
-  ) {
-    return null;
-  }
-
-  return {
-    audioLevel: record.audioLevel,
-    channelId: record.channelId,
-    isMuted: record.isMuted,
-    isSpeaking: record.isSpeaking,
-    userId: record.userId,
-  };
-}
-
 export function MobileProductApp({
   Navigator,
 }: {
@@ -254,10 +163,38 @@ export function MobileProductApp({
     selectedWorkspaceServerId,
     stopChannelTyping,
   });
-  const [voiceInviteEntries, setVoiceInviteEntries] = useState<MobileVoiceInviteEntry[]>([]);
-  const [voiceInviteSendStates, setVoiceInviteSendStates] = useState<
-    Record<string, MobileVoiceInviteSendState>
-  >({});
+  const handleOpenVoiceInvite = useCallback(
+    ({ channelId, serverId }: { channelId: string; channelName: string; serverId: string }) => {
+      setCurrentTab("overview");
+      setActiveWorkspaceTextChannelId(null);
+      setActiveWorkspaceVoiceChannelId(channelId);
+      setSelectedWorkspaceServerId(serverId);
+      setWorkspaceRouteIntent({
+        channelId,
+        serverId,
+        shouldOpenPreferredChannel: false,
+      });
+    },
+    [],
+  );
+  const {
+    handleAcceptVoiceInvite,
+    handleDeclineVoiceInvite,
+    handleSendVoiceInvite,
+    voiceInviteEntries,
+    voiceInviteSendStates,
+  } = useMobileVoiceInviteFeature({
+    emitVoiceInviteAccept,
+    emitVoiceInviteDecline,
+    emitVoiceInviteSend,
+    joinVoiceChannel,
+    onOpenVoiceInvite: handleOpenVoiceInvite,
+    subscribe: subscribeRealtime,
+    syncParticipantAudioLevelFromServer,
+    syncParticipantsFromServer,
+    voiceChannelId: voiceRoomState.channelId,
+    voiceServerId: voiceRoomState.serverId,
+  });
   const basePermissionReadiness = useMemo(() => createInitialMobilePermissionReadiness(), []);
   const permissionReadiness = useMemo(
     () =>
@@ -444,111 +381,6 @@ export function MobileProductApp({
     ],
   );
 
-  const handleSendVoiceInvite = useCallback(
-    (targetUserId: string) => {
-      const channelId = voiceRoomState.channelId;
-      const serverId = voiceRoomState.serverId;
-      const normalizedTargetUserId = targetUserId.trim();
-
-      if (!channelId || !serverId || !normalizedTargetUserId) {
-        setVoiceInviteSendStates((current) => ({
-          ...current,
-          [normalizedTargetUserId]: {
-            errorMessage: copy.voiceInviteRealtimeUnavailable,
-            expiresAt: null,
-            inviteId: null,
-            status: "failed",
-          },
-        }));
-        return;
-      }
-
-      setVoiceInviteSendStates((current) => ({
-        ...current,
-        [normalizedTargetUserId]: {
-          errorMessage: null,
-          expiresAt: null,
-          inviteId: null,
-          status: "sending",
-        },
-      }));
-
-      emitVoiceInviteSend({
-        channelId,
-        serverId,
-        targetUserId: normalizedTargetUserId,
-      });
-    },
-    [emitVoiceInviteSend, voiceRoomState.channelId, voiceRoomState.serverId],
-  );
-
-  const handleAcceptVoiceInvite = useCallback(
-    (inviteId: string) => {
-      const invite = voiceInviteEntries.find((entry) => entry.id === inviteId);
-
-      if (!invite) {
-        return;
-      }
-
-      setVoiceInviteEntries((current) =>
-        current.map((entry) =>
-          entry.id === inviteId ? { ...entry, errorMessage: null, isAccepting: true } : entry,
-        ),
-      );
-
-      emitVoiceInviteAccept({
-        channelId: invite.channelId,
-        inviteId: invite.id,
-        serverId: invite.serverId,
-      });
-      setCurrentTab("overview");
-      setActiveWorkspaceTextChannelId(null);
-      setActiveWorkspaceVoiceChannelId(invite.channelId);
-      setSelectedWorkspaceServerId(invite.serverId);
-      setWorkspaceRouteIntent({
-        channelId: invite.channelId,
-        serverId: invite.serverId,
-        shouldOpenPreferredChannel: false,
-      });
-      void joinVoiceChannel({
-        channelId: invite.channelId,
-        channelName: invite.channelName,
-        serverId: invite.serverId,
-      }).then((joined) => {
-        if (joined) {
-          setVoiceInviteEntries((current) => current.filter((entry) => entry.id !== invite.id));
-          return;
-        }
-
-        setVoiceInviteEntries((current) =>
-          current.map((entry) =>
-            entry.id === invite.id
-              ? { ...entry, errorMessage: copy.voiceRoomError, isAccepting: false }
-              : entry,
-          ),
-        );
-      });
-    },
-    [emitVoiceInviteAccept, joinVoiceChannel, voiceInviteEntries],
-  );
-
-  const handleDeclineVoiceInvite = useCallback(
-    (inviteId: string) => {
-      const invite = voiceInviteEntries.find((entry) => entry.id === inviteId);
-
-      if (invite) {
-        emitVoiceInviteDecline({
-          channelId: invite.channelId,
-          inviteId: invite.id,
-          serverId: invite.serverId,
-        });
-      }
-
-      setVoiceInviteEntries((current) => current.filter((entry) => entry.id !== inviteId));
-    },
-    [emitVoiceInviteDecline, voiceInviteEntries],
-  );
-
   const selectedDMConversation = useMemo(() => {
     if (bootstrapState.status !== "ready" || !selectedDMConversationId) {
       return null;
@@ -634,120 +466,6 @@ export function MobileProductApp({
     selectedDMConversationId,
     selectedWorkspaceServerId,
   ]);
-
-  const handleLocalRealtimeEvent = useCallback(
-    (event: MobileRealtimeEventEnvelope) => {
-      const voicePayload =
-        event.eventName === "voice:state:update"
-          ? getMobileVoiceStateUpdatePayload(event.payload)
-          : null;
-      const voiceAudioPayload =
-        event.eventName === "voice:audio-level:update"
-          ? getMobileVoiceAudioLevelUpdatePayload(event.payload)
-          : null;
-      const voiceInviteReceivedPayload =
-        event.eventName === "voice:invite:received"
-          ? getMobileVoiceInviteReceivedPayload(event.payload)
-          : null;
-      const voiceInviteSentPayload =
-        event.eventName === "voice:invite:sent"
-          ? getMobileVoiceInviteSendResultPayload(event.payload)
-          : null;
-      const voiceInviteStatusPayload =
-        event.eventName === "voice:invite:status" || event.eventName === "voice:invite:accepted"
-          ? getMobileVoiceInviteStatusPayload(event.payload)
-          : null;
-      const voiceInviteErrorPayload =
-        event.eventName === "voice:invite:error"
-          ? getMobileVoiceInviteErrorPayload(event.payload)
-          : null;
-      if (voicePayload) {
-        syncParticipantsFromServer(voicePayload);
-      }
-
-      if (voiceAudioPayload) {
-        syncParticipantAudioLevelFromServer(voiceAudioPayload);
-      }
-
-      if (voiceInviteReceivedPayload) {
-        const expiresAtMs = Date.parse(voiceInviteReceivedPayload.expiresAt);
-        if (Number.isNaN(expiresAtMs) || expiresAtMs > Date.now()) {
-          setVoiceInviteEntries((current) => {
-            const nextEntry: MobileVoiceInviteEntry = {
-              ...voiceInviteReceivedPayload,
-              errorMessage: null,
-              isAccepting: false,
-            };
-            const withoutDuplicate = current.filter(
-              (entry) => entry.id !== voiceInviteReceivedPayload.id,
-            );
-            return [nextEntry, ...withoutDuplicate].slice(0, MOBILE_VOICE_INVITE_LIMIT);
-          });
-        }
-      }
-
-      if (voiceInviteSentPayload) {
-        setVoiceInviteSendStates((current) => ({
-          ...current,
-          [voiceInviteSentPayload.targetUserId]: {
-            errorMessage: null,
-            expiresAt: voiceInviteSentPayload.expiresAt,
-            inviteId: voiceInviteSentPayload.inviteId,
-            status: "sent",
-          },
-        }));
-      }
-
-      if (voiceInviteStatusPayload) {
-        setVoiceInviteSendStates((current) => ({
-          ...current,
-          [voiceInviteStatusPayload.targetUserId]: {
-            errorMessage: null,
-            expiresAt: null,
-            inviteId: voiceInviteStatusPayload.inviteId,
-            status: voiceInviteStatusPayload.status,
-          },
-        }));
-        setVoiceInviteEntries((current) =>
-          current.filter((entry) => entry.id !== voiceInviteStatusPayload.inviteId),
-        );
-      }
-
-      if (voiceInviteErrorPayload) {
-        if (voiceInviteErrorPayload.targetUserId) {
-          setVoiceInviteSendStates((current) => ({
-            ...current,
-            [voiceInviteErrorPayload.targetUserId as string]: {
-              errorMessage: voiceInviteErrorPayload.message,
-              expiresAt: null,
-              inviteId: voiceInviteErrorPayload.inviteId,
-              status: "failed",
-            },
-          }));
-        }
-
-        if (voiceInviteErrorPayload.inviteId) {
-          setVoiceInviteEntries((current) =>
-            current.map((entry) =>
-              entry.id === voiceInviteErrorPayload.inviteId
-                ? {
-                    ...entry,
-                    errorMessage: voiceInviteErrorPayload.message,
-                    isAccepting: false,
-                  }
-                : entry,
-            ),
-          );
-        }
-      }
-    },
-    [syncParticipantAudioLevelFromServer, syncParticipantsFromServer],
-  );
-
-  useEffect(
-    () => subscribeRealtime(handleLocalRealtimeEvent),
-    [handleLocalRealtimeEvent, subscribeRealtime],
-  );
 
   useEffect(() => {
     if (status !== "signed-in") {

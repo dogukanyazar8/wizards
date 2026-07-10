@@ -47,4 +47,17 @@ describe("mobile Phase 2 architecture", () => {
     assert.match(source, /from "\.\/workspace-browser"/);
     assert.match(source, /from "\.\/workspace-channel-section-list"/);
   });
+
+  it("keeps voice invites and local realtime handling in their own feature hook", () => {
+    const productApp = readFileSync(join(appRoot, "mobile-product-app.tsx"), "utf8");
+    const voiceFeature = join(appRoot, "features", "use-mobile-voice-invite-feature.ts");
+
+    assert.equal(existsSync(voiceFeature), true, "Expected a dedicated voice invite feature hook");
+    assert.match(productApp, /useMobileVoiceInviteFeature/);
+
+    const source = readFileSync(voiceFeature, "utf8");
+    assert.match(source, /voice:invite:received/);
+    assert.match(source, /voice:state:update/);
+    assert.match(source, /subscribe\(handleLocalRealtimeEvent\)/);
+  });
 });
