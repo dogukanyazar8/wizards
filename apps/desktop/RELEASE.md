@@ -13,7 +13,7 @@ Keep these versions aligned for each release:
 - Tauri package version: `apps/desktop/src-tauri/Cargo.toml`
 - Tauri app version: `apps/desktop/src-tauri/tauri.conf.json`
 
-The current desktop version is `0.8.14`.
+The current desktop version is `0.8.15`.
 
 ## Build Commands
 
@@ -66,10 +66,10 @@ Generate the updater manifest from the signed installer and its `.sig` file inst
 
 ```powershell
 pnpm --filter @wizards/desktop release:manifest -- `
-  --artifact .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe `
-  --signature .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe.sig `
-  --base-url https://updates.whispr.team/desktop/uat/releases/v0.8.14-uat.1/ `
-  --version 0.8.14 `
+  --artifact .\src-tauri\target\release\bundle\nsis\Whispr_X.Y.Z_x64-setup.exe `
+  --signature .\src-tauri\target\release\bundle\nsis\Whispr_X.Y.Z_x64-setup.exe.sig `
+  --base-url https://updates.whispr.team/desktop/uat/releases/vX.Y.Z-uat.N/ `
+  --version X.Y.Z `
   --notes "Whispr Desktop UAT updater smoke test." `
   --out .\src-tauri\target\release\bundle\nsis\latest.json
 ```
@@ -91,11 +91,11 @@ Validate the generated manifest before uploading it:
 ```powershell
 pnpm --filter @wizards/desktop release:validate-manifest -- `
   --manifest .\src-tauri\target\release\bundle\nsis\latest.json `
-  --artifact .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe `
-  --signature .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe.sig `
+  --artifact .\src-tauri\target\release\bundle\nsis\Whispr_X.Y.Z_x64-setup.exe `
+  --signature .\src-tauri\target\release\bundle\nsis\Whispr_X.Y.Z_x64-setup.exe.sig `
   --ring uat `
-  --release-tag v0.8.14-uat.1 `
-  --expected-version 0.8.14
+  --release-tag vX.Y.Z-uat.N `
+  --expected-version X.Y.Z
 ```
 
 Validate the remote update feed after uploading to R2 or the release CDN:
@@ -103,9 +103,9 @@ Validate the remote update feed after uploading to R2 or the release CDN:
 ```powershell
 pnpm --filter @wizards/desktop release:validate-manifest -- `
   --manifest https://updates.whispr.team/desktop/uat/latest.json `
-  --expected-version 0.8.14 `
+  --expected-version X.Y.Z `
   --ring uat `
-  --release-tag v0.8.14-uat.1 `
+  --release-tag vX.Y.Z-uat.N `
   --check-artifact-url
 ```
 
@@ -118,11 +118,11 @@ pnpm --filter @wizards/desktop release:audit -- `
   --ring uat `
   --web-url https://wizardsweb-uat.up.railway.app/ `
   --manifest .\src-tauri\target\release\bundle\nsis\latest.json `
-  --artifact .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe `
-  --signature .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe.sig `
-  --expected-version 0.8.14 `
+  --artifact .\src-tauri\target\release\bundle\nsis\Whispr_X.Y.Z_x64-setup.exe `
+  --signature .\src-tauri\target\release\bundle\nsis\Whispr_X.Y.Z_x64-setup.exe.sig `
+  --expected-version X.Y.Z `
   --require-manifest `
-  --out .\src-tauri\target\release\bundle\nsis\release-audit-0.8.14-uat.json
+  --out .\src-tauri\target\release\bundle\nsis\release-audit-X.Y.Z-uat.json
 ```
 
 After upload, run the same audit against the remote feed:
@@ -132,10 +132,10 @@ pnpm --filter @wizards/desktop release:audit -- `
   --ring uat `
   --web-url https://wizardsweb-uat.up.railway.app/ `
   --manifest https://updates.whispr.team/desktop/uat/latest.json `
-  --expected-version 0.8.14 `
+  --expected-version X.Y.Z `
   --require-manifest `
   --check-artifact-url `
-  --out .\src-tauri\target\release\bundle\nsis\release-audit-0.8.14-uat-remote.json
+  --out .\src-tauri\target\release\bundle\nsis\release-audit-X.Y.Z-uat-remote.json
 ```
 
 Treat the audit report as an operational artifact, not an app asset. It can be attached to internal release notes or CI artifacts, but should not be uploaded as an updater file.
@@ -147,9 +147,9 @@ pnpm --filter @wizards/desktop release:promotion -- `
   --ring uat `
   --web-url https://wizardsweb-uat.up.railway.app/ `
   --manifest .\src-tauri\target\release\bundle\nsis\latest.json `
-  --artifact .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe `
-  --signature .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe.sig `
-  --expected-version 0.8.14 `
+  --artifact .\src-tauri\target\release\bundle\nsis\Whispr_X.Y.Z_x64-setup.exe `
+  --signature .\src-tauri\target\release\bundle\nsis\Whispr_X.Y.Z_x64-setup.exe.sig `
+  --expected-version X.Y.Z `
   --out-dir .\src-tauri\target\release\bundle\nsis\release-evidence
 ```
 
@@ -264,19 +264,19 @@ The publish plan can be validated locally with:
 ```powershell
 pnpm --filter @wizards/desktop release:publish-plan -- `
   --ring uat `
-  --version 0.8.14 `
-  --release-tag v0.8.14-uat.123 `
+  --version X.Y.Z `
+  --release-tag vX.Y.Z-uat.N `
   --web-url https://wizardsweb-uat.up.railway.app/ `
-  --updater-base-url https://updates.whispr.team/desktop/uat/releases/v0.8.14-uat.123/ `
+  --updater-base-url https://updates.whispr.team/desktop/uat/releases/vX.Y.Z-uat.N/ `
   --publish-r2 true `
   --publish-github-release true `
-  --artifact .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe `
+  --artifact .\src-tauri\target\release\bundle\nsis\Whispr_X.Y.Z_x64-setup.exe `
   --manifest .\src-tauri\target\release\bundle\nsis\latest.json `
-  --signature .\src-tauri\target\release\bundle\nsis\Whispr_0.8.14_x64-setup.exe.sig `
+  --signature .\src-tauri\target\release\bundle\nsis\Whispr_X.Y.Z_x64-setup.exe.sig `
   --metadata .\src-tauri\target\release\bundle\nsis\desktop-build-metadata.json `
-  --audit .\src-tauri\target\release\bundle\nsis\release-evidence\desktop-release-audit-0.8.14-uat.json `
-  --promotion-json .\src-tauri\target\release\bundle\nsis\release-evidence\desktop-release-promotion-0.8.14-uat.json `
-  --promotion-md .\src-tauri\target\release\bundle\nsis\release-evidence\desktop-release-promotion-0.8.14-uat.md
+  --audit .\src-tauri\target\release\bundle\nsis\release-evidence\desktop-release-audit-X.Y.Z-uat.json `
+  --promotion-json .\src-tauri\target\release\bundle\nsis\release-evidence\desktop-release-promotion-X.Y.Z-uat.json `
+  --promotion-md .\src-tauri\target\release\bundle\nsis\release-evidence\desktop-release-promotion-X.Y.Z-uat.md
 ```
 
 R2 publishing uses these keys:
@@ -300,7 +300,7 @@ The metadata guard can be run locally after a Windows build:
 
 ```powershell
 pnpm --filter @wizards/desktop release:artifacts -- `
-  --version 0.8.14 `
+  --version X.Y.Z `
   --ring uat `
   --updater-enabled true `
   --artifact-dir .\src-tauri\target\release\bundle\nsis `

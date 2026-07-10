@@ -90,6 +90,28 @@ describe("desktop release operations contract", () => {
     assert.equal(contract.desktopPackageVersion, contract.cargoPackageVersion);
   });
 
+  it("keeps the release guide version aligned and command examples version-neutral", async () => {
+    const contract = assertDesktopVersionContract(getDesktopVersionContract());
+    const releaseGuide = await readFile(path.join(desktopRoot, "RELEASE.md"), "utf8");
+    const documentedVersionMatch = releaseGuide.match(
+      /The current desktop version is `([^`]+)`\./,
+    );
+
+    assert.ok(documentedVersionMatch, "Expected an authoritative desktop version statement");
+    assert.equal(documentedVersionMatch[1], contract.desktopPackageVersion);
+
+    const commandExamples = [...releaseGuide.matchAll(/```powershell\r?\n([\s\S]*?)```/g)];
+    assert.ok(commandExamples.length > 0, "Expected PowerShell release command examples");
+
+    for (const [, commandExample] of commandExamples) {
+      assert.doesNotMatch(
+        commandExample,
+        /(^|[^\d.])\d+\.\d+\.\d+(?![\d.])/m,
+        "Release command examples must use version placeholders instead of concrete semver values",
+      );
+    }
+  });
+
   it("includes the version contract in release operations output", () => {
     const contract = assertDesktopReleaseOpsContract(getDesktopReleaseOpsContract());
 
