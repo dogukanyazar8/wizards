@@ -55,6 +55,8 @@ import {
   ScreenShell,
 } from "../components/ui-atoms";
 import { formatMobileMediaAssetMeta } from "../components/media-primitives";
+import { useThemePreference } from "../providers/mobile-theme-provider";
+import type { MobileThemeMode } from "../../design/mobile-theme-runtime";
 import { styles } from "./settings-screen.styles";
 
 function getMobilePermissionLabel(intentId: MobilePermissionIntentId): string {
@@ -895,6 +897,63 @@ export function SettingsLocaleSelector({
   );
 }
 
+function getSettingsAppearanceOptions(): ReadonlyArray<{
+  id: MobileThemeMode;
+  label: string;
+}> {
+  return [
+    { id: "system", label: copy.settingsThemeSystemValue },
+    { id: "light", label: copy.settingsThemeLightValue },
+    { id: "dark", label: copy.settingsThemeDarkValue },
+  ];
+}
+
+export function SettingsAppearanceSelector() {
+  const { mode, setMode } = useThemePreference();
+
+  return (
+    <View
+      accessibilityLabel={copy.settingsThemeTitle}
+      accessibilityRole="radiogroup"
+      testID="mobile-settings-appearance-control"
+      style={styles.settingsLocaleControl}
+    >
+      <Text style={styles.settingsLocaleDescription}>
+        {copy.settingsThemeControlDescription}
+      </Text>
+      <View style={styles.settingsLocaleOptions}>
+        {getSettingsAppearanceOptions().map((option) => {
+          const isSelected = option.id === mode;
+
+          return (
+            <Pressable
+              accessibilityLabel={option.label}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: isSelected }}
+              key={option.id}
+              onPress={() => setMode(option.id)}
+              style={({ pressed }) => [
+                styles.settingsLocaleOption,
+                isSelected && styles.settingsLocaleOptionSelected,
+                pressed && styles.actionButtonPressed,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.settingsLocaleOptionLabel,
+                  isSelected && styles.settingsLocaleOptionLabelSelected,
+                ]}
+              >
+                {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function getMobileVoiceInputModeOptions(): ReadonlyArray<{
   id: MobileVoiceInputMode;
   label: string;
@@ -1346,6 +1405,7 @@ export function ProfileSettingsScreen({
   onSelectVoiceInputMode(mode: MobileVoiceInputMode): void;
   onSignOut(): void;
 }) {
+  const { mode: themeMode } = useThemePreference();
   const isSignedIn = status === "signed-in";
   const appVersion =
     bootstrapState.status === "ready"
@@ -1369,7 +1429,12 @@ export function ProfileSettingsScreen({
       id: "theme",
       label: copy.settingsThemeTitle,
       tone: "success",
-      value: copy.settingsThemeLightValue,
+      value:
+        themeMode === "dark"
+          ? copy.settingsThemeDarkValue
+          : themeMode === "light"
+            ? copy.settingsThemeLightValue
+            : copy.settingsThemeSystemValue,
     },
   ];
   const notificationRows: NativeSettingsRowItem[] = [
@@ -1473,6 +1538,7 @@ export function ProfileSettingsScreen({
         title={copy.settingsAppearanceTitle}
       >
         <SettingsLocaleSelector locale={locale} onSelectLocale={onSelectLocale} />
+        <SettingsAppearanceSelector />
       </SettingsPreferenceSection>
       <SettingsPreferenceSection
         description={copy.settingsNotificationsDescription}

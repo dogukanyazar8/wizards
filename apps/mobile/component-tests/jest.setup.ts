@@ -1,3 +1,11 @@
+jest.mock("@react-native-async-storage/async-storage", () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(async () => null),
+    setItem: jest.fn(async () => undefined),
+  },
+}));
+
 jest.mock("@expo/vector-icons/Ionicons", () => ({
   __esModule: true,
   default: ({ name }: { name: string }) => {
@@ -15,6 +23,28 @@ jest.mock("@livekit/react-native", () => ({
 
     return React.createElement(View, { ...props, testID: "mobile-livekit-video-track" });
   },
+}));
+
+jest.mock("expo-navigation-bar", () => ({
+  NavigationBar: (props: Record<string, unknown>) => {
+    const React = require("react");
+    const { View } = require("react-native");
+
+    return React.createElement(View, { ...props, testID: "mobile-system-navigation-bar" });
+  },
+}));
+
+jest.mock("expo-status-bar", () => ({
+  StatusBar: (props: Record<string, unknown>) => {
+    const React = require("react");
+    const { View } = require("react-native");
+
+    return React.createElement(View, { ...props, testID: "mobile-system-status-bar" });
+  },
+}));
+
+jest.mock("expo-system-ui", () => ({
+  setBackgroundColorAsync: jest.fn(async () => undefined),
 }));
 
 jest.mock("react-native-reanimated", () => {

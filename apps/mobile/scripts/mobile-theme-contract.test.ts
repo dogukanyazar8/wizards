@@ -111,6 +111,7 @@ describe("mobile semantic theme contract", () => {
 
     assert.equal(resolveMobileTheme("system", "dark"), "dark");
     assert.equal(resolveMobileTheme("system", "light"), "light");
+    assert.equal(resolveMobileTheme("system", "unspecified"), "light");
     assert.equal(resolveMobileTheme("system", null), "light");
     assert.equal(resolveMobileTheme("dark", "light"), "dark");
     assert.equal(resolveMobileTheme("light", "dark"), "light");

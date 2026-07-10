@@ -4,7 +4,7 @@ export const MOBILE_THEME_PREFERENCE_KEY = "whispr.mobile.theme-preference";
 
 export type MobileThemeMode = "dark" | "light" | "system";
 export type MobileResolvedTheme = "dark" | "light";
-export type MobileSystemColorScheme = "dark" | "light" | null | undefined;
+export type MobileSystemColorScheme = "dark" | "light" | "unspecified" | null | undefined;
 
 export function normalizeMobileThemeMode(value: unknown): MobileThemeMode {
   return value === "dark" || value === "light" || value === "system" ? value : "system";
