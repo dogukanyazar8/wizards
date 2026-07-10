@@ -140,7 +140,7 @@ Expected: all commands PASS.
 
 ```powershell
 corepack pnpm --filter @wizards/mobile exec expo prebuild --platform android --no-install
-powershell -ExecutionPolicy Bypass -File apps/mobile/scripts/build-android-uat.ps1 -NoStartMetro
+powershell -ExecutionPolicy Bypass -File apps/mobile/scripts/build-android-uat.ps1 -SkipUninstall -NoStartMetro
 maestro test .maestro/phase0-navigation.yml
 ```
 
@@ -1066,7 +1066,7 @@ Add optional English selectors only through conditional flows; do not duplicate 
 
 ```powershell
 corepack pnpm --filter @wizards/mobile exec expo prebuild --platform android --no-install
-powershell -ExecutionPolicy Bypass -File apps/mobile/scripts/build-android-uat.ps1 -NoStartMetro
+powershell -ExecutionPolicy Bypass -File apps/mobile/scripts/build-android-uat.ps1 -SkipUninstall -NoStartMetro
 maestro test .maestro/phase0-navigation.yml
 maestro test .maestro/phase1-dark-mode.yml
 ```

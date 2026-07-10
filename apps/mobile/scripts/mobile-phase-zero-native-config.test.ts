@@ -43,7 +43,7 @@ test("phase zero dependencies and SDK 56 native configuration stay aligned", () 
   const manifestPath = join(root, "android", "app", "src", "main", "AndroidManifest.xml");
 
   assert.match(appConfig, /["']expo-image["']/);
-  assert.match(appConfig, /predictiveBackGestureEnabled:\s*false/);
+  assert.match(appConfig, /predictiveBackGestureEnabled:\s*true/);
   assert.match(appSource, /GestureHandlerRootView/);
   assert.doesNotMatch(babelSource, /react-native-(reanimated|worklets)\/plugin/);
 
@@ -54,6 +54,6 @@ test("phase zero dependencies and SDK 56 native configuration stay aligned", () 
   }
   if (existsSync(manifestPath)) {
     const manifestSource = readFileSync(manifestPath, "utf8");
-    assert.match(manifestSource, /android:enableOnBackInvokedCallback="false"/);
+    assert.match(manifestSource, /android:enableOnBackInvokedCallback="true"/);
   }
 });
