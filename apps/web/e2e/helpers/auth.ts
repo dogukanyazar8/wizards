@@ -57,7 +57,7 @@ export async function loginAs(page: Page, userKey: E2EUserKey): Promise<void> {
   });
 
   await assertSuccessfulE2EResponse(response);
-  await gotoAppRoute(page, "/channels");
+  await gotoAppRoute(page, "/channels/@me");
   await expect(
     page
       .locator(

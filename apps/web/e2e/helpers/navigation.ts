@@ -17,6 +17,7 @@ type ChannelSidebarNavigationOptions = AppRouteReadyOptions & {
 
 const MESSAGE_LIST_LOADING_TEXT = /Loading messages|Mesajlar yükleniyor/i;
 const DEFAULT_APP_READY_TIMEOUT = process.env.CI === "true" ? 30_000 : 15_000;
+const INTERRUPTED_NAVIGATION_PATTERN = /Navigation to .* is interrupted by another navigation to /;
 
 function appRouteSegment(value: string): string {
   return encodeURIComponent(value);
@@ -49,10 +50,30 @@ export async function gotoAppRoute(
   path: string,
   options: AppRouteReadyOptions = {},
 ): Promise<void> {
-  await page.goto(path, {
-    timeout: options.navigationTimeout ?? 45_000,
-    waitUntil: "commit",
-  });
+  const navigationTimeout = options.navigationTimeout ?? 45_000;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await page.goto(path, {
+        timeout: navigationTimeout,
+        waitUntil: "commit",
+      });
+      break;
+    } catch (error) {
+      const interruptedByAppRedirect =
+        error instanceof Error && INTERRUPTED_NAVIGATION_PATTERN.test(error.message);
+
+      if (attempt > 0 || !interruptedByAppRedirect) {
+        throw error;
+      }
+
+      try {
+        await page.waitForLoadState("domcontentloaded", { timeout: navigationTimeout });
+      } catch {
+        throw error;
+      }
+    }
+  }
 
   if (options.readyTestId) {
     await expect(visibleTestId(page, options.readyTestId)).toBeVisible({
@@ -61,7 +82,7 @@ export async function gotoAppRoute(
   }
 
   if (path.startsWith("/channels")) {
-    await expect(page.getByTestId("app-startup-screen")).toBeHidden({
+    await expect(visibleTestId(page, "app-startup-screen")).toBeHidden({
       timeout: options.timeout ?? DEFAULT_APP_READY_TIMEOUT,
     });
   }

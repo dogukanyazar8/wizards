@@ -99,6 +99,16 @@ describe("Playwright E2E governance", () => {
     assert.deepEqual(offenders, []);
   });
 
+  it("settles API-authenticated sessions on the stable DM route before follow-up navigation", () => {
+    const authHelper = readWorkspaceFile(join(webRoot, "e2e", "helpers", "auth.ts"));
+    const loginAsImplementation = authHelper.slice(
+      authHelper.indexOf("export async function loginAs"),
+      authHelper.indexOf("export async function logout"),
+    );
+
+    assert.match(loginAsImplementation, /gotoAppRoute\(page, "\/channels\/@me"\)/);
+  });
+
   it("keeps every Playwright entrypoint behind the environment preflight", () => {
     const packageJson = JSON.parse(readWorkspaceFile(join(webRoot, "package.json"))) as {
       scripts: Record<string, string>;
