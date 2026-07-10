@@ -1,7 +1,11 @@
 import { test, expect } from "../../fixtures/test";
 import { apiLoginAs } from "../../helpers/api-auth";
 import { loginAs } from "../../helpers/auth";
-import { createIsolatedServerForMembershipTest, deleteIsolatedE2EServer } from "../../helpers/db";
+import {
+  addE2EServerMember,
+  createIsolatedServerForMembershipTest,
+  deleteIsolatedE2EServer,
+} from "../../helpers/db";
 import { gotoAppRoute } from "../../helpers/navigation";
 
 test.describe("server smoke", () => {
@@ -56,6 +60,7 @@ test.describe("server smoke", () => {
     const { serverId } = await createIsolatedServerForMembershipTest("alice");
 
     try {
+      await addE2EServerMember(serverId, "bob");
       await apiLoginAs(request, "bob");
       const response = await request.delete(`/api/v1/servers/${serverId}`, {
         data: {
