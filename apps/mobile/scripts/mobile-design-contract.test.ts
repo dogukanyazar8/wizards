@@ -73,7 +73,7 @@ describe("mobile design contract", () => {
       "<MobileQueryProvider>",
       "<MobileThemeProvider>",
       "<MobileErrorBoundary>",
-      "<MobileAuthProvider>",
+      "<MobileAuthProvider",
       "<WhisprMobileRoot />",
     ].map((marker) => appSource.indexOf(marker));
 
@@ -87,7 +87,7 @@ describe("mobile design contract", () => {
     );
     assert.match(
       appSource,
-      /<MobileErrorBoundary>[\s\S]*<MobileAuthProvider>[\s\S]*<WhisprMobileRoot \/>\s*<\/MobileAuthProvider>\s*<MobileThemeSystemSurfaces \/>\s*<\/MobileErrorBoundary>/,
+      /<MobileErrorBoundary>[\s\S]*<MobileAuthProvider[\s\S]*deviceIntegrityDetector=\{expoMobileDeviceIntegrityDetector\}[\s\S]*securitySignalLogger=\{mobileSecuritySignalLogger\}[\s\S]*<WhisprMobileRoot \/>\s*<\/MobileAuthProvider>\s*<MobileThemeSystemSurfaces \/>\s*<\/MobileErrorBoundary>/,
     );
   });
 

@@ -47,6 +47,7 @@ import {
   type MobileVoiceInviteReceived,
   type MobileVoiceInviteSendState,
 } from "../voice/mobile-voice-room-contract";
+import { MobileDeviceIntegrityWarning } from "./components/mobile-device-integrity-warning";
 import {
   findInitialMobileWorkspaceChannel,
   resolveMobileTabActiveTextChannelId,
@@ -182,6 +183,8 @@ export function MobileProductApp({
   const [fontsLoaded] = useOutfitFonts();
   const {
     apiClient,
+    deviceIntegrityWarningVisible,
+    dismissDeviceIntegrityWarning,
     error,
     openWebRegister,
     openWebSignIn,
@@ -1197,6 +1200,10 @@ export function MobileProductApp({
               <MobileVoiceScreenProvider value={voiceScreenProps}>
                 <MobileAppShell authStatus={status}>
                   <View style={{ flex: 1, minWidth: 0 }}>
+                    <MobileDeviceIntegrityWarning
+                      onDismiss={dismissDeviceIntegrityWarning}
+                      visible={deviceIntegrityWarningVisible}
+                    />
                     <Navigator
                       directMessageUnreadCount={mobileShellUnreadCount}
                       onTabChange={setCurrentTab}

@@ -102,7 +102,7 @@ html.theme-dark {
   --surface-tertiary: 220 9% 26%;
   --text-primary: 220 20% 96%;
   --text-secondary: 220 11% 74%;
-  --text-muted: 220 8% 59%;
+  --text-muted: 220 8% 68%;
   --surface-base: 220 8% 19%;
   --surface-rail: 220 8% 20%;
   --surface-panel: 220 8% 20%;
@@ -114,6 +114,8 @@ html.theme-dark {
   --text-soft: 220 8% 59%;
   --ambient-1: 235 88% 70%;
   --ambient-2: 192 82% 66%;
+  --primary-text-emphasis: 235 86% 78%;
+  --success-text-emphasis: 158 64% 52%;
 }
 
 html.theme-onyx,

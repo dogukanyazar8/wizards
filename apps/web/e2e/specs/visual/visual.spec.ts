@@ -1,0 +1,45 @@
+import { test, expect } from "../../fixtures/test";
+import { loginAs } from "../../helpers/auth";
+import { getE2EServerRoute } from "../../helpers/db";
+import {
+  gotoAppRoute,
+  gotoTextChannelRoute,
+  openSettingsFromUserQuickMenu,
+} from "../../helpers/navigation";
+
+test.use({ locale: "en-US", timezoneId: "UTC" });
+
+test.describe("visual regression", () => {
+  test("login screen", async ({ page }) => {
+    await gotoAppRoute(page, "/login", { readyTestId: "login-form" });
+
+    await expect(page).toHaveScreenshot("login.png");
+  });
+
+  test("DM home shell", async ({ page }) => {
+    await loginAs(page, "alice");
+    await gotoAppRoute(page, "/channels/@me", { readyTestId: "server-rail" });
+
+    await expect(page).toHaveScreenshot("dm-home.png");
+  });
+
+  test("server text channel", async ({ page }) => {
+    const { serverId, textChannelId } = await getE2EServerRoute();
+
+    await loginAs(page, "alice");
+    await gotoTextChannelRoute(page, serverId, textChannelId);
+
+    await expect(page).toHaveScreenshot("server-text-channel.png");
+  });
+
+  test("settings overlay", async ({ page }) => {
+    await loginAs(page, "alice");
+    await gotoAppRoute(page, "/channels/@me", { readyTestId: "user-bar" });
+    await openSettingsFromUserQuickMenu(page);
+    await expect(
+      page.locator('[data-testid="settings-panel"][data-client-ready="true"]'),
+    ).toBeVisible({ timeout: 15_000 });
+
+    await expect(page).toHaveScreenshot("settings-overlay.png");
+  });
+});

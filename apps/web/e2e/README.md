@@ -19,9 +19,12 @@ pnpm --filter @wizards/web e2e -- --list
 pnpm --filter @wizards/web e2e:smoke -- --list
 pnpm --filter @wizards/web e2e:realtime -- --list
 pnpm --filter @wizards/web e2e:mobile -- --list
+pnpm --filter @wizards/web e2e:a11y -- --list
+pnpm --filter @wizards/web e2e:visual -- --list
 ```
 
-Browser project: Chromium.
+The full suite remains Chromium-only. Firefox and WebKit run the focused
+cross-browser smoke suite.
 
 This is E2E scenario coverage, not line/branch coverage. Unit/integration percentage coverage is enforced separately by the `test:coverage` script and governed by `docs/operations/coverage-ratchet.md`.
 
@@ -30,14 +33,14 @@ This is E2E scenario coverage, not line/branch coverage. Unit/integration percen
 Whispr is a realtime chat, voice, media, desktop, and identity product. Test level
 selection is risk-based:
 
-| Risk area | Primary gate | Why |
-| --- | --- | --- |
-| Auth/session, permissions, rate limits | Unit, integration, API contract, smoke | Fast feedback and security boundary coverage before merge. |
-| Messaging, DM, attachments, settings | Unit, component where possible, API contract, smoke | Product-critical paths should fail quickly without requiring the full browser matrix. |
-| Realtime fanout, presence, voice lifecycle | Post-merge realtime/voice E2E | Multi-user and media flows are higher cost and more environment-sensitive. |
-| Mobile responsive, popups, drawer navigation | Scheduled/mobile regression plus targeted PR tests | Mobile quality needs viewport matrix coverage without slowing every small PR. |
-| Desktop release, updater, capabilities | Desktop ops contract and release build gates | Native permissions and signed artifacts must be validated before distribution. |
-| Accessibility, performance, load, media QoE | Scheduled/manual regression and production monitoring | Automation helps, but these require artifact review, budgets, and canary telemetry. |
+| Risk area                                    | Primary gate                                          | Why                                                                                   |
+| -------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Auth/session, permissions, rate limits       | Unit, integration, API contract, smoke                | Fast feedback and security boundary coverage before merge.                            |
+| Messaging, DM, attachments, settings         | Unit, component where possible, API contract, smoke   | Product-critical paths should fail quickly without requiring the full browser matrix. |
+| Realtime fanout, presence, voice lifecycle   | Post-merge realtime/voice E2E                         | Multi-user and media flows are higher cost and more environment-sensitive.            |
+| Mobile responsive, popups, drawer navigation | Scheduled/mobile regression plus targeted PR tests    | Mobile quality needs viewport matrix coverage without slowing every small PR.         |
+| Desktop release, updater, capabilities       | Desktop ops contract and release build gates          | Native permissions and signed artifacts must be validated before distribution.        |
+| Accessibility, performance, load, media QoE  | Scheduled/manual regression and production monitoring | Automation helps, but these require artifact review, budgets, and canary telemetry.   |
 
 The source-of-truth strategy contract lives in
 `apps/web/src/lib/e2e/test-strategy.ts` and is covered by Node tests. If a new
@@ -189,6 +192,47 @@ Covered:
 - Mobile settings navigation stays inside viewport.
 - Mobile notification popup fits viewport.
 
+### Accessibility And Visual Regression
+
+Spec folders:
+
+- `apps/web/e2e/specs/a11y`
+- `apps/web/e2e/specs/visual`
+
+The accessibility suite scans the login screen, DM shell, server text channel,
+and settings overlay. The visual suite captures those same four ready states at
+the stable desktop Chromium viewport. Animations are disabled and screenshot
+comparisons allow at most a `0.02` differing-pixel ratio.
+
+Baseline snapshots must only be updated inside Docker with the exact Playwright
+image used for CR-16. Never generate or approve baselines from Windows or macOS.
+From a Linux/WSL checkout with disposable PostgreSQL and Redis services ready,
+the schema applied, and `E2E_TEST_PASSWORD` exported, run from the repository
+root:
+
+```bash
+docker run --rm --network host \
+  -v "$(pwd):/work" \
+  -w /work \
+  -e E2E_TEST_MODE=true \
+  -e E2E_DATABASE_URL=postgresql://wizards:wizards@127.0.0.1:5432/whispr_e2e \
+  -e DATABASE_URL=postgresql://wizards:wizards@127.0.0.1:5432/whispr_e2e \
+  -e REDIS_URL=redis://127.0.0.1:6379 \
+  -e E2E_BASE_URL=http://127.0.0.1:3000 \
+  -e APP_URL=http://127.0.0.1:3000 \
+  -e AUTH_URL=http://127.0.0.1:3000 \
+  -e NEXTAUTH_URL=http://127.0.0.1:3000 \
+  -e AUTH_SECRET=whispr-e2e-auth-secret-change-me-local-only \
+  -e NEXTAUTH_SECRET=whispr-e2e-auth-secret-change-me-local-only \
+  -e E2E_TEST_PASSWORD \
+  -e NODE_ENV=test \
+  mcr.microsoft.com/playwright:v1.59.1-noble \
+  bash -lc "corepack enable && corepack prepare pnpm@10.33.2 --activate && pnpm db:generate && pnpm --filter @wizards/web e2e:visual --update-snapshots"
+```
+
+Commit the generated `*-chromium-linux.png` files. Never commit
+`*-actual.png` or `*-diff.png`; those are failure artifacts.
+
 ## What Is Intentionally Not Automated Yet
 
 These are not blockers for the current E2E foundation, but they are good next steps:
@@ -199,9 +243,6 @@ These are not blockers for the current E2E foundation, but they are good next st
 - Real UploadThing uploads. Current E2E validates Whispr behavior through a safe mock.
 - Real GIPHY API. Current E2E validates Whispr GIF UI through a deterministic mock.
 - Real LiveKit media infrastructure and audio/video quality. Current E2E validates app state and fake media flows.
-- Cross-browser matrix beyond Chromium.
-- Visual regression snapshots.
-- Accessibility scan automation.
 - Percentage-based unit/integration coverage thresholds.
 
 ## Environment
@@ -290,6 +331,13 @@ Run smoke tests:
 
 ```bash
 pnpm --filter @wizards/web e2e:smoke
+```
+
+Run accessibility and visual checks:
+
+```bash
+pnpm --filter @wizards/web e2e:a11y
+pnpm --filter @wizards/web e2e:visual
 ```
 
 Run headed:
@@ -474,6 +522,7 @@ Trace, screenshots, and video are configured in `playwright.config.ts`:
 - Keep every Playwright entrypoint behind `pnpm run e2e:check-env`.
 - Prefer `expect.poll` for realtime state that arrives asynchronously.
 - Keep smoke tests fast.
+- Update visual baselines only with `mcr.microsoft.com/playwright:v1.59.1-noble`.
 - Put expensive multi-user/media tests outside smoke unless they protect a critical regression.
 - Never add production secrets to tests, CI, or docs.
 - Keep the governance tests green before broadening E2E scope; they protect CI signal quality.
@@ -482,9 +531,7 @@ Trace, screenshots, and video are configured in `playwright.config.ts`:
 
 Short term:
 
-- Add a small accessibility smoke layer for auth, chat, settings, and mobile drawer.
-- Add a visual regression baseline for auth pages and main shell.
-- Add a browser matrix for WebKit and Firefox after Chromium is stable.
+- Review initial visual diffs, then promote the staged visual CI job to a mandatory gate.
 
 Medium term:
 

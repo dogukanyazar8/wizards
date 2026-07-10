@@ -88,7 +88,7 @@ export function InAppSettingsOverlay({ onClose, open }: InAppSettingsOverlayProp
 
             {settingsBootstrapQuery.isLoading ? (
               <div className="flex h-full w-full items-center justify-center p-6">
-                <div className="max-w-sm rounded-[22px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface)/0.84)] p-4 text-center shadow-[0_18px_52px_hsl(var(--shadow-color)/0.1)] backdrop-blur-xl">
+                <div className="max-w-sm rounded-[22px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface)/0.97)] p-4 text-center shadow-[0_18px_52px_hsl(var(--shadow-color)/0.1)] backdrop-blur-xl">
                   <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
                     <Settings2 className="h-5 w-5 animate-pulse motion-reduce:animate-none" />
                   </span>
@@ -102,7 +102,7 @@ export function InAppSettingsOverlay({ onClose, open }: InAppSettingsOverlayProp
               </div>
             ) : settingsBootstrapQuery.isError || !settingsBootstrapQuery.data ? (
               <div className="flex h-full w-full items-center justify-center p-6">
-                <div className="max-w-md rounded-[22px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface)/0.84)] p-4 text-center shadow-[0_18px_52px_hsl(var(--shadow-color)/0.1)] backdrop-blur-xl">
+                <div className="max-w-md rounded-[22px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface)/0.97)] p-4 text-center shadow-[0_18px_52px_hsl(var(--shadow-color)/0.1)] backdrop-blur-xl">
                   <h2 className="text-lg font-extrabold text-app-foreground">
                     {t("settings.overlay.error")}
                   </h2>

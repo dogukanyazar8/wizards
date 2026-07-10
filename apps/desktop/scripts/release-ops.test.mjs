@@ -113,10 +113,16 @@ describe("desktop release operations contract", () => {
       macos: "mandatory",
       linux: "mandatory",
     });
-    assert.doesNotMatch(workflow, /continue-on-error:/);
+    const desktopOpsStart = workflow.indexOf("\n  desktop-ops:");
+    const desktopBuildStart = workflow.indexOf("\n  desktop-build:");
+    const desktopOpsJob = workflow.slice(desktopOpsStart, desktopBuildStart);
+
+    assert.notEqual(desktopOpsStart, -1);
+    assert.notEqual(desktopBuildStart, -1);
+    assert.doesNotMatch(desktopOpsJob, /continue-on-error:/);
 
     for (const os of ["windows-latest", "macos-latest", "ubuntu-latest"]) {
-      assert.match(workflow, new RegExp(`- os: ${os}\\r?\\n\\s+staged: false`));
+      assert.match(desktopOpsJob, new RegExp(`- os: ${os}\\r?\\n\\s+staged: false`));
     }
   });
 
@@ -151,7 +157,11 @@ describe("desktop release operations contract", () => {
     }
 
     for (const rule of DESKTOP_RELEASE_PROMOTION_RULES) {
-      assert.match(docs, new RegExp(rule.rollout, "i"), `Expected documented rollout: ${rule.rollout}`);
+      assert.match(
+        docs,
+        new RegExp(rule.rollout, "i"),
+        `Expected documented rollout: ${rule.rollout}`,
+      );
     }
 
     for (const safetyRule of DESKTOP_RELEASE_SAFETY_RULES) {

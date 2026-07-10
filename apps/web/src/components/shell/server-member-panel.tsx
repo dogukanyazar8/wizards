@@ -959,10 +959,13 @@ export function ServerMemberPanel({
       )}
 
       <div
+        aria-label={t("shell.memberPanel.membersTitle")}
         className={cn(
           "mt-4 min-h-0 flex-1 overflow-y-auto",
           isCollapsed ? "space-y-4 px-0.5" : "pr-1",
         )}
+        role="region"
+        tabIndex={0}
       >
         <section
           className={cn(

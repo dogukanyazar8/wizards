@@ -490,7 +490,7 @@ function AccountPageHeader({
 }) {
   return (
     <section className="min-w-0 max-w-4xl px-0.5 py-0.5">
-      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[hsl(var(--primary))]">
+      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[hsl(var(--primary-text-emphasis,var(--primary)))]">
         {eyebrow}
       </p>
       <h2 className="mt-1.5 text-xl font-extrabold tracking-tight text-app-foreground sm:text-2xl">
@@ -577,7 +577,7 @@ function ProfileSummaryCard({
               <h4 className="max-w-full truncate text-lg font-extrabold tracking-tight text-app-foreground">
                 {visibleName}
               </h4>
-              <Badge className="border-emerald-500/25 bg-emerald-500/10 text-emerald-600">
+              <Badge className="border-emerald-500/25 bg-emerald-500/10 text-[hsl(var(--success-text-emphasis,#059669))]">
                 {statusLabel}
               </Badge>
             </div>
@@ -632,7 +632,7 @@ function ProfileSummaryCard({
             label={t("settings.account.fields.emailStatus")}
             value={
               account.emailVerified ? (
-                <span className="inline-flex items-center gap-1.5 text-emerald-600">
+                <span className="inline-flex items-center gap-1.5 text-[hsl(var(--success-text-emphasis,#059669))]">
                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   {t("settings.account.security.emailVerified")}
                 </span>
@@ -649,7 +649,7 @@ function ProfileSummaryCard({
           <p className="text-xs font-extrabold text-app-foreground">
             {t("settings.account.completion.title")}
           </p>
-          <span className="text-xs font-black text-[hsl(var(--primary))]">
+          <span className="text-xs font-black text-[hsl(var(--primary-text-emphasis,var(--primary)))]">
             %{completion.percent}
           </span>
         </div>
@@ -664,7 +664,7 @@ function ProfileSummaryCard({
             {t("settings.account.completion.description")}
           </p>
           <button
-            className="inline-flex min-h-9 items-center justify-center rounded-xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.1)] px-3 text-xs font-black text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            className="inline-flex min-h-9 items-center justify-center rounded-xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.1)] px-3 text-xs font-black text-[hsl(var(--primary-text-emphasis,var(--primary)))] transition hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             onClick={onEdit}
             type="button"
           >
@@ -942,7 +942,7 @@ function SecurityCenterCard({
             className={cn(
               "mb-3 rounded-xl border px-3 py-2 text-xs font-semibold",
               feedback.tone === "success"
-                ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600"
+                ? "border-emerald-500/25 bg-emerald-500/10 text-[hsl(var(--success-text-emphasis,#059669))]"
                 : "border-rose-500/25 bg-rose-500/10 text-rose-600",
             )}
             role={feedback.tone === "error" ? "alert" : "status"}
@@ -1840,7 +1840,7 @@ export function SettingsPanel({
                 className={cn(
                   "rounded-[16px] border p-2.5 text-xs font-semibold shadow-[0_10px_24px_hsl(var(--shadow-color)/0.05)]",
                   accountFeedback.tone === "success"
-                    ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600"
+                    ? "border-emerald-500/25 bg-emerald-500/10 text-[hsl(var(--success-text-emphasis,#059669))]"
                     : "border-rose-500/25 bg-rose-500/10 text-rose-600",
                 )}
               >

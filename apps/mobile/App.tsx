@@ -6,6 +6,8 @@ import { MobileQueryProvider } from "./src/app/providers/mobile-query-provider";
 import { MobileThemeProvider } from "./src/app/providers/mobile-theme-provider";
 import { MobileThemeSystemSurfaces } from "./src/app/providers/mobile-theme-system-surfaces";
 import { WhisprMobileRoot } from "./src/app/whispr-mobile-root";
+import { expoMobileDeviceIntegrityDetector } from "./src/security/expo-mobile-device-integrity";
+import { mobileSecuritySignalLogger } from "./src/security/mobile-security-signal-logger";
 
 export default function App() {
   return (
@@ -15,7 +17,10 @@ export default function App() {
           <MobileQueryProvider>
             <MobileThemeProvider>
               <MobileErrorBoundary>
-                <MobileAuthProvider>
+                <MobileAuthProvider
+                  deviceIntegrityDetector={expoMobileDeviceIntegrityDetector}
+                  securitySignalLogger={mobileSecuritySignalLogger}
+                >
                   <WhisprMobileRoot />
                 </MobileAuthProvider>
                 <MobileThemeSystemSurfaces />

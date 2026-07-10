@@ -1,7 +1,21 @@
 const SENSITIVE_KEY_PATTERN =
   /(api[_-]?key|authorization|cookie|hash|password|recovery[_-]?code|secret|token)/i;
+const PII_KEY_NAMES = new Set(["email", "emailaddress", "ip", "ipaddress", "useragent"]);
+const SAFE_DIAGNOSTIC_HASH_KEY_NAMES = new Set(["ipaddresshash", "useragenthash"]);
 const JWT_PATTERN = /\beyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\b/g;
 const LONG_SECRET_PATTERN = /\b(?:sk|pk|ya29|gh[opsu])_[a-zA-Z0-9_-]{16,}\b/g;
+
+function shouldRedactKey(key: string) {
+  const normalizedKey = key.replace(/[_-]/g, "").toLowerCase();
+
+  // PII uses exact normalized names so emailVerified remains useful. Only known
+  // diagnostic hashes are exempt; password and token hashes stay protected.
+  if (SAFE_DIAGNOSTIC_HASH_KEY_NAMES.has(normalizedKey)) {
+    return false;
+  }
+
+  return PII_KEY_NAMES.has(normalizedKey) || SENSITIVE_KEY_PATTERN.test(key);
+}
 
 function redactText(value: string) {
   return value
@@ -42,7 +56,7 @@ function redactValue(value: unknown, seen = new WeakSet<object>()): unknown {
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>).map(([key, item]) => [
       key,
-      SENSITIVE_KEY_PATTERN.test(key) ? "[redacted]" : redactValue(item, seen),
+      shouldRedactKey(key) ? "[redacted]" : redactValue(item, seen),
     ]),
   );
 }
