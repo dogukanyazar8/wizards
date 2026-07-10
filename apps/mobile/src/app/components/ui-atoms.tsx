@@ -17,7 +17,11 @@ import {
   type MobileSyncSnapshot,
   type ReactNode,
 } from "../mobile-root-screen-shared";
-import { MobileCachedImage } from "./mobile-cached-image";
+import {
+  Avatar as KitAvatar,
+  Button as KitButton,
+  EmptyState as KitEmptyState,
+} from "./kit";
 import { styles } from "./ui-atoms.styles";
 
 function getMobilePermissionLabel(intentId: MobilePermissionIntentId): string {
@@ -333,50 +337,13 @@ export function AvatarMark({
   size?: "large" | "regular" | "small";
   status?: "active" | "idle";
 }) {
-  const fallback = label.trim().slice(0, 2).toUpperCase() || "W";
-  const avatarStyles = [
-    styles.avatarMark,
-    size === "large" && styles.avatarMarkLarge,
-    size === "small" && styles.avatarMarkSmall,
-  ];
-  const avatarShellStyles = [
-    styles.avatarShell,
-    size === "large" && styles.avatarShellLarge,
-    size === "small" && styles.avatarShellSmall,
-  ];
-
-  if (imageUrl) {
-    return (
-      <View
-        accessible
-        accessibilityLabel={label}
-        accessibilityRole="image"
-        style={avatarShellStyles}
-      >
-        <MobileCachedImage
-          source={{ uri: imageUrl }}
-          style={avatarStyles}
-          accessibilityIgnoresInvertColors
-          importantForAccessibility="no"
-        />
-        {status ? (
-          <View style={[styles.avatarStatus, status === "active" && styles.avatarStatusActive]} />
-        ) : null}
-      </View>
-    );
-  }
-
   return (
-    <View accessible accessibilityLabel={label} accessibilityRole="image" style={avatarShellStyles}>
-      <View style={avatarStyles}>
-        <Text style={[styles.avatarMarkText, size === "small" && styles.avatarMarkTextSmall]}>
-          {fallback}
-        </Text>
-      </View>
-      {status ? (
-        <View style={[styles.avatarStatus, status === "active" && styles.avatarStatusActive]} />
-      ) : null}
-    </View>
+    <KitAvatar
+      imageUrl={imageUrl}
+      label={label}
+      size={size === "large" ? "lg" : size === "small" ? "sm" : "md"}
+      {...(status ? { status } : {})}
+    />
   );
 }
 
@@ -429,12 +396,10 @@ export function PermissionReadinessCard({
 
 export function EmptyState({ label, tone }: { label: string; tone: "accent" | "success" }) {
   return (
-    <View style={styles.emptyState}>
-      <View style={[styles.emptyIcon, tone === "success" && styles.emptyIconSuccess]}>
-        <Text style={styles.emptyIconText}>{tone === "success" ? "OK" : "D"}</Text>
-      </View>
-      <Text style={styles.emptyStateText}>{label}</Text>
-    </View>
+    <KitEmptyState
+      icon={tone === "success" ? "checkmark-circle-outline" : "sparkles-outline"}
+      title={label}
+    />
   );
 }
 
@@ -461,31 +426,12 @@ export function ActionButton({
   variant: "danger" | "primary" | "secondary";
 }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
+    <KitButton
       disabled={disabled}
+      label={label}
       onPress={onPress}
       testID={testID}
-      style={({ pressed }) => [
-        styles.actionButton,
-        variant === "primary" && styles.actionButtonPrimary,
-        variant === "danger" && styles.actionButtonDanger,
-        disabled && styles.actionButtonDisabled,
-        pressed && !disabled && styles.actionButtonPressed,
-      ]}
-    >
-      <Text
-        style={[
-          styles.actionButtonText,
-          variant === "primary" && styles.actionButtonTextPrimary,
-          variant === "danger" && styles.actionButtonTextDanger,
-          disabled && styles.actionButtonTextDisabled,
-        ]}
-      >
-        {label}
-      </Text>
-    </Pressable>
+      variant={variant}
+    />
   );
 }

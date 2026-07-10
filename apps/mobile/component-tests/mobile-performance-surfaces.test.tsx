@@ -1,8 +1,8 @@
 import React from "react";
-import { render } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { ChatMessage, MobileBootstrapPayload } from "@wizards/types";
 import type { MobileVisibleWorkspaceChannelSection } from "../src/app/mobile-display-model";
+import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
 const mockFlashListRender = jest.fn();
 const mockExpoImageRender = jest.fn();

@@ -8,11 +8,23 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 
 jest.mock("@expo/vector-icons/Ionicons", () => ({
   __esModule: true,
-  default: ({ name }: { name: string }) => {
+  default: ({
+    accessibilityLabel,
+    name,
+    ...props
+  }: {
+    accessibilityLabel?: string;
+    name: string;
+    [key: string]: unknown;
+  }) => {
     const React = require("react");
     const { Text } = require("react-native");
 
-    return React.createElement(Text, { accessibilityLabel: `icon:${name}` }, name);
+    return React.createElement(
+      Text,
+      { ...props, accessibilityLabel: accessibilityLabel ?? `icon:${name}` },
+      name,
+    );
   },
 }));
 
