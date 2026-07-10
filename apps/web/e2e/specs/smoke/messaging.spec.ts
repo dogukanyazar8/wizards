@@ -64,9 +64,7 @@ test.describe("server messaging smoke", () => {
         readyTestId: "message-input",
       });
 
-      await expect(page.getByText(/^(?:Read-only|Salt okunur)$/i)).toBeVisible({
-        timeout: 10_000,
-      });
+      await expect(page.getByTestId("channel-read-only-banner")).toBeVisible({ timeout: 10_000 });
       await expect(page.getByTestId("message-input")).toBeDisabled();
       await expect(page.getByTestId("message-send-button")).toBeDisabled();
       await expect(page.getByTestId("message-file-button")).toBeDisabled();

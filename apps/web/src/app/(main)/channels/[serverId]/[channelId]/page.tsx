@@ -161,6 +161,7 @@ export default async function ChannelPage({ params }: PageParams) {
       messageCharacterLimit={channel.server?.messageCharacterLimit ?? 2000}
       channelId={channelId}
       channelLocked={channel.locked}
+      channelReadOnly={!hasPermission(channelPermissions, PermissionBits.SEND_MESSAGES)}
       channelName={channel.name}
       channelTopic={channel.topic}
       serverId={normalizedServerId}

@@ -70,7 +70,7 @@ test.describe("server smoke", () => {
 
       expect(response.status()).toBe(403);
       await expect(response.json()).resolves.toMatchObject({
-        code: "FORBIDDEN",
+        error: "Only the server owner can perform this action",
       });
     } finally {
       await deleteIsolatedE2EServer(serverId);

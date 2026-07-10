@@ -61,6 +61,7 @@ interface ChatAreaProps {
   allowFileUploads?: boolean;
   allowGifs?: boolean;
   channelLocked?: boolean;
+  channelReadOnly?: boolean;
   channelName?: string;
   channelTopic?: string | null;
   currentUserId: string;
@@ -162,6 +163,7 @@ export function ChatArea({
   allowFileUploads = true,
   allowGifs = true,
   channelLocked = false,
+  channelReadOnly = false,
   channelName,
   channelTopic,
   currentUserId,
@@ -639,7 +641,8 @@ export function ChatArea({
     [conversationId, markOptimisticMessageSending, mode, removeOptimisticMessage, socket],
   );
 
-  const isChannelReadOnly = mode === "channel" && channelLocked && !canModerate;
+  const isChannelReadOnly =
+    mode === "channel" && (channelReadOnly || (channelLocked && !canModerate));
   const pinnedMessages = (pinnedMessagesQuery.data ?? []).filter((message) => !message.deletedAt);
   const hasPinnedMessages = mode === "channel" && pinnedMessages.length > 0;
   const notificationLevel = notificationSettingsQuery.data?.level ?? "all";
@@ -1115,7 +1118,10 @@ export function ChatArea({
       ) : null}
 
       {isChannelReadOnly ? (
-        <div className="border-b border-[hsl(var(--warning)/0.22)] bg-[hsl(var(--warning)/0.08)] px-3 py-3 backdrop-blur-xl md:px-5">
+        <div
+          className="border-b border-[hsl(var(--warning)/0.22)] bg-[hsl(var(--warning)/0.08)] px-3 py-3 backdrop-blur-xl md:px-5"
+          data-testid="channel-read-only-banner"
+        >
           <div className="flex items-start gap-3 rounded-[22px] border border-[hsl(var(--warning)/0.22)] bg-[hsl(var(--surface-card)/0.72)] px-3 py-3 shadow-[0_14px_36px_hsl(var(--shadow-color)/0.08)]">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--warning)/0.14)] text-[hsl(var(--warning))]">
               <Lock className="h-4 w-4" />

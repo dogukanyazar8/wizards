@@ -17,6 +17,7 @@ interface ChannelConversationPageProps {
   canModerate: boolean;
   channelId: string;
   channelLocked: boolean;
+  channelReadOnly: boolean;
   channelName: string;
   channelTopic: string | null;
   currentUserDisplayName: string;
@@ -33,6 +34,7 @@ export function ChannelConversationPage({
   canModerate,
   channelId,
   channelLocked,
+  channelReadOnly,
   channelName,
   channelTopic,
   currentUserDisplayName,
@@ -114,6 +116,7 @@ export function ChannelConversationPage({
       conversationId={channelId}
       mode="channel"
       channelLocked={channelLocked}
+      channelReadOnly={channelReadOnly}
       channelName={channelName}
       channelTopic={channelTopic}
       currentUserId={currentUserId}
