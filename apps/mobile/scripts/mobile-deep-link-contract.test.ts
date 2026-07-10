@@ -8,7 +8,7 @@ import {
 } from "../src/deep-link/mobile-deep-links";
 
 const webUrl = "https://whispr.team";
-const handoffToken = "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-";
+const handoffToken = "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-"; // gitleaks:allow -- deterministic invalid fixture
 
 describe("mobile deep link contract", () => {
   it("builds web sign-in URLs without embedding native secrets", () => {
@@ -65,19 +65,18 @@ describe("mobile deep link contract", () => {
     );
 
     assert.deepEqual(
-      parseMobileDeepLink(
-        `https://evil.example/mobile/oauth/complete?handoff=${handoffToken}`,
-        { webUrl },
-      ),
+      parseMobileDeepLink(`https://evil.example/mobile/oauth/complete?handoff=${handoffToken}`, {
+        webUrl,
+      }),
       { ok: false, reason: "external-origin" },
     );
   });
 
   it("rejects URLs that carry OAuth or session secrets in query strings", () => {
-    assert.deepEqual(
-      parseMobileDeepLink("whispr://channels/@me?access_token=secret", { webUrl }),
-      { ok: false, reason: "sensitive-query" },
-    );
+    assert.deepEqual(parseMobileDeepLink("whispr://channels/@me?access_token=secret", { webUrl }), {
+      ok: false,
+      reason: "sensitive-query",
+    });
 
     assert.deepEqual(
       parseMobileDeepLink("https://whispr.team/channels?code=oauth-code", { webUrl }),

@@ -24,6 +24,13 @@
   },
   "permissionDisclosures": [
     {
+      "androidPermission": "USE_BIOMETRIC",
+      "id": "biometrics",
+      "iosInfoPlistKey": "NSFaceIDUsageDescription",
+      "usageDescription": "Whispr uses Face ID or device biometrics only when you choose to unlock the app.",
+      "userActionRequired": true
+    },
+    {
       "androidPermission": "CAMERA",
       "id": "camera",
       "iosInfoPlistKey": "NSCameraUsageDescription",

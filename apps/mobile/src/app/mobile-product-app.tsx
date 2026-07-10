@@ -1,10 +1,4 @@
-import {
-  type ComponentType,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { type ComponentType, useCallback, useEffect, useMemo, useState } from "react";
 import type { MobileVoiceStateParticipant, MobileWorkspaceChannelSummary } from "@wizards/types";
 import { Linking, View } from "react-native";
 import { useMobileAuth } from "../auth/mobile-auth-context";
@@ -47,6 +41,7 @@ import {
   type MobileVoiceInviteReceived,
   type MobileVoiceInviteSendState,
 } from "../voice/mobile-voice-room-contract";
+import { MobileAppLockScreen } from "./components/mobile-app-lock-screen";
 import { MobileDeviceIntegrityWarning } from "./components/mobile-device-integrity-warning";
 import {
   findInitialMobileWorkspaceChannel,
@@ -82,10 +77,7 @@ import {
   type MobileSettingsScreenProps,
   type MobileVoiceScreenProps,
 } from "./providers/mobile-product-screen-provider";
-import {
-  type MobileChannelSendViewState,
-  type MobileDMSendViewState,
-} from "./mobile-screen-state";
+import { type MobileChannelSendViewState, type MobileDMSendViewState } from "./mobile-screen-state";
 
 const copy = activeMobileCopy;
 const runtimeConfig = getMobileRuntimeConfig();
@@ -183,13 +175,18 @@ export function MobileProductApp({
   const [fontsLoaded] = useOutfitFonts();
   const {
     apiClient,
+    appLockAvailability,
+    appLockEnabled,
+    appLockLocked,
     deviceIntegrityWarningVisible,
     dismissDeviceIntegrityWarning,
     error,
     openWebRegister,
     openWebSignIn,
     refreshSessionFromStorage,
+    retryAppLockUnlock,
     session,
+    setAppLockEnabled,
     signOut,
     status,
   } = useMobileAuth();
@@ -326,20 +323,12 @@ export function MobileProductApp({
   const channelSendState: MobileChannelSendViewState = {
     channelId: activeWorkspaceTextChannelId,
     error: isChannelSendError ? copy.channelSendFailed : null,
-    status: isChannelSending
-      ? "sending"
-      : isChannelSendError
-        ? "error"
-        : "idle",
+    status: isChannelSending ? "sending" : isChannelSendError ? "error" : "idle",
   };
   const dmSendState: MobileDMSendViewState = {
     conversationId: selectedDMConversationId,
     error: isDMSendError ? copy.dmSendFailed : null,
-    status: isDMSending
-      ? "sending"
-      : isDMSendError
-        ? "error"
-        : "idle",
+    status: isDMSending ? "sending" : isDMSendError ? "error" : "idle",
   };
   const [voiceInviteEntries, setVoiceInviteEntries] = useState<MobileVoiceInviteEntry[]>([]);
   const [voiceInviteSendStates, setVoiceInviteSendStates] = useState<
@@ -939,18 +928,14 @@ export function MobileProductApp({
           );
         }
       }
-
     },
-    [
-      syncParticipantAudioLevelFromServer,
-      syncParticipantsFromServer,
-    ],
+    [syncParticipantAudioLevelFromServer, syncParticipantsFromServer],
   );
 
-  useEffect(() => subscribeRealtime(handleLocalRealtimeEvent), [
-    handleLocalRealtimeEvent,
-    subscribeRealtime,
-  ]);
+  useEffect(
+    () => subscribeRealtime(handleLocalRealtimeEvent),
+    [handleLocalRealtimeEvent, subscribeRealtime],
+  );
 
   useEffect(() => {
     if (status !== "signed-in") {
@@ -1138,6 +1123,8 @@ export function MobileProductApp({
   };
 
   const settingsScreenProps: MobileSettingsScreenProps = {
+    appLockAvailability,
+    appLockEnabled,
     authStatusLabel,
     bootstrapState,
     error,
@@ -1159,6 +1146,7 @@ export function MobileProductApp({
     onSelectLocale: handleSelectMobileLocale,
     onSelectVoiceInputMode: handleSelectMobileVoiceInputMode,
     onSignOut: () => void signOut(),
+    onToggleAppLock: (enabled: boolean) => void setAppLockEnabled(enabled),
     permissionReadiness,
     permissionSummary,
     signedInUserLabel,
@@ -1200,19 +1188,29 @@ export function MobileProductApp({
               <MobileVoiceScreenProvider value={voiceScreenProps}>
                 <MobileAppShell authStatus={status}>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <MobileDeviceIntegrityWarning
-                      onDismiss={dismissDeviceIntegrityWarning}
-                      visible={deviceIntegrityWarningVisible}
-                    />
-                    <Navigator
-                      directMessageUnreadCount={mobileShellUnreadCount}
-                      onTabChange={setCurrentTab}
-                    />
-                    <MobileVoiceInviteOverlay
-                      invites={voiceInviteEntries}
-                      onAccept={handleAcceptVoiceInvite}
-                      onDecline={handleDeclineVoiceInvite}
-                    />
+                    {appLockLocked ? (
+                      <MobileAppLockScreen
+                        onRetry={() => void retryAppLockUnlock()}
+                        onSignOut={() => void signOut()}
+                        visible
+                      />
+                    ) : (
+                      <>
+                        <MobileDeviceIntegrityWarning
+                          onDismiss={dismissDeviceIntegrityWarning}
+                          visible={deviceIntegrityWarningVisible}
+                        />
+                        <Navigator
+                          directMessageUnreadCount={mobileShellUnreadCount}
+                          onTabChange={setCurrentTab}
+                        />
+                        <MobileVoiceInviteOverlay
+                          invites={voiceInviteEntries}
+                          onAccept={handleAcceptVoiceInvite}
+                          onDecline={handleDeclineVoiceInvite}
+                        />
+                      </>
+                    )}
                   </View>
                 </MobileAppShell>
               </MobileVoiceScreenProvider>

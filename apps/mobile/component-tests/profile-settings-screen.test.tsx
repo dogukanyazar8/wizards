@@ -38,10 +38,13 @@ function createProfileSettingsScreenProps(
   const permissionReadiness = createInitialMobilePermissionReadiness();
 
   return {
+    appLockAvailability: "available",
+    appLockEnabled: false,
     authStatusLabel: "signed-in-test-session",
     bootstrapState: INITIAL_BOOTSTRAP_STATE,
     error: null,
     locale: "tr",
+    onToggleAppLock: jest.fn(),
     mediaState: createInitialMobileMediaRuntimeState(),
     permissionReadiness,
     permissionSummary: summarizeMobilePermissionReadiness(permissionReadiness),
@@ -137,6 +140,43 @@ describe("mobile profile settings screen", () => {
     expect(onSelectVoiceInputMode).toHaveBeenCalledWith("push-to-talk");
   });
 
+  it("enables the biometric app lock from the rendered toggle", async () => {
+    const onToggleAppLock = jest.fn();
+    const props = createProfileSettingsScreenProps({
+      appLockAvailability: "available",
+      appLockEnabled: false,
+      onToggleAppLock,
+    });
+    const view = await render(<ProfileSettingsScreen {...props} />);
+
+    const toggle = view.getByLabelText(copy.settingsAppLockToggleLabel);
+    expect(toggle.props.accessibilityState).toEqual(
+      expect.objectContaining({ checked: false, disabled: false }),
+    );
+
+    await fireEvent.press(toggle);
+
+    expect(onToggleAppLock).toHaveBeenCalledWith(true);
+  });
+
+  it("disables the toggle and does not fire it when biometrics are unavailable", async () => {
+    const onToggleAppLock = jest.fn();
+    const props = createProfileSettingsScreenProps({
+      appLockAvailability: "unavailable",
+      appLockEnabled: false,
+      onToggleAppLock,
+    });
+    const view = await render(<ProfileSettingsScreen {...props} />);
+
+    const toggle = view.getByLabelText(copy.settingsAppLockToggleLabel);
+    expect(toggle.props.accessibilityState).toEqual(expect.objectContaining({ disabled: true }));
+    expect(view.getByText(copy.settingsAppLockUnavailableValue)).toBeTruthy();
+
+    await fireEvent.press(toggle);
+
+    expect(onToggleAppLock).not.toHaveBeenCalled();
+  });
+
   it("requests camera and notification permissions and reflects terminal statuses", async () => {
     const onRequestCameraPermission = jest.fn(async () => undefined);
     const onRequestNotificationPermission = jest.fn(async () => undefined);
@@ -179,8 +219,7 @@ describe("mobile profile settings screen", () => {
     const terminalView = await render(<ProfileSettingsScreen {...terminalProps} />);
 
     expect(
-      terminalView.getByTestId("mobile-settings-permission-action-camera").props
-        .accessibilityState,
+      terminalView.getByTestId("mobile-settings-permission-action-camera").props.accessibilityState,
     ).toEqual(expect.objectContaining({ disabled: true }));
     expect(
       terminalView.getByTestId("mobile-settings-permission-action-notifications").props

@@ -81,6 +81,11 @@ export const MOBILE_PERMISSION_INTENTS: readonly MobilePermissionIntent[] = [
   },
 ] as const;
 
+// Biometrics is disclosed in the store/native app config but is intentionally
+// managed by the dedicated app-lock authentication flow. It is not a generic
+// runtime permission that the media/notification permission dispatcher can request.
+const STORE_ONLY_PERMISSION_IDS = new Set<MobileStorePermissionId>(["biometrics"]);
+
 const disclosureById = new Map(
   WHISPR_MOBILE_PERMISSION_DISCLOSURES.map((disclosure) => [disclosure.id, disclosure]),
 );
@@ -168,7 +173,9 @@ export function getMobilePermissionNativeMetadata(
 
 export function validateMobilePermissionContract(): string[] {
   const issues: string[] = [];
-  const intentIds = new Set(MOBILE_PERMISSION_INTENTS.map((intent) => intent.id));
+  const intentIds = new Set<MobileStorePermissionId>(
+    MOBILE_PERMISSION_INTENTS.map((intent) => intent.id),
+  );
   const disclosureIds = new Set(
     WHISPR_MOBILE_PERMISSION_DISCLOSURES.map((disclosure) => disclosure.id),
   );
@@ -190,7 +197,7 @@ export function validateMobilePermissionContract(): string[] {
   }
 
   for (const disclosure of WHISPR_MOBILE_PERMISSION_DISCLOSURES) {
-    if (!intentIds.has(disclosure.id)) {
+    if (!intentIds.has(disclosure.id) && !STORE_ONLY_PERMISSION_IDS.has(disclosure.id)) {
       issues.push(`${disclosure.id} store disclosure is not represented at runtime.`);
     }
 

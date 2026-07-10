@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type {
-  MobileApiClient,
-  MobileApiRequestOptions,
-} from "../src/api/mobile-api-client";
+import type { MobileApiClient, MobileApiRequestOptions } from "../src/api/mobile-api-client";
 import {
   exchangeMobileAuthHandoff,
   MOBILE_AUTH_EXCHANGE_ENDPOINT,
@@ -204,14 +201,14 @@ describe("mobile auth exchange contract", () => {
 
     const session = await exchangeMobileAuthHandoff(client, {
       callbackPath: "/channels/@me",
-      handoffToken: "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-",
+      handoffToken: "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-", // gitleaks:allow -- deterministic invalid fixture
     });
 
     assert.deepEqual(requests, [
       {
         body: {
           callbackPath: "/channels/@me",
-          handoffToken: "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-",
+          handoffToken: "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-", // gitleaks:allow -- deterministic invalid fixture
         },
         method: "POST",
         path: MOBILE_AUTH_EXCHANGE_ENDPOINT,
@@ -299,7 +296,7 @@ describe("mobile auth exchange contract", () => {
       () =>
         exchangeMobileAuthHandoff(client, {
           callbackPath: "/channels",
-          handoffToken: "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-",
+          handoffToken: "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-", // gitleaks:allow -- deterministic invalid fixture
         }),
       /Invalid literal value/,
     );

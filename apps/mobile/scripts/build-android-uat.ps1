@@ -7,7 +7,11 @@ param(
   [string]$AndroidArchitectures,
   [ValidateSet("debug", "release")]
   [string]$BuildType = "debug",
-  [string]$PnpmVirtualStoreDir = "C:\p",
+  # Keep staging dependencies isolated from developer worktrees while retaining
+  # a short path for Windows CMake/Ninja.
+  [string]$PnpmVirtualStoreDir = "C:\wp",
+  [ValidateRange(32, 120)]
+  [int]$PnpmVirtualStoreMaxLength = 40,
   [int]$WaitForDeviceSeconds = 90,
   [switch]$SkipSync,
   [switch]$SkipUninstall,
@@ -118,22 +122,31 @@ function Invoke-RobocopyChecked {
 }
 
 function Ensure-ProjectNpmrc {
-  param([string]$Root, [string]$VirtualStoreDir)
+  param([string]$Root, [string]$VirtualStoreDir, [int]$VirtualStoreMaxLength)
 
   $npmrcPath = Join-Path $Root ".npmrc"
-  $line = "virtual-store-dir=$VirtualStoreDir"
   $content = ""
 
   if (Test-Path -LiteralPath $npmrcPath) {
     $content = Get-Content -Raw -LiteralPath $npmrcPath
   }
 
-  if ($content -notmatch "(?m)^virtual-store-dir\s*=") {
-    Add-Content -LiteralPath $npmrcPath -Value $line -Encoding utf8
-    return
+  $settings = [ordered]@{
+    "virtual-store-dir" = $VirtualStoreDir
+    "virtual-store-dir-max-length" = $VirtualStoreMaxLength
   }
 
-  $updated = $content -replace "(?m)^virtual-store-dir\s*=.*$", $line
+  $updated = $content
+  foreach ($entry in $settings.GetEnumerator()) {
+    $pattern = "(?m)^$([regex]::Escape($entry.Key))\s*=.*$"
+    $line = "$($entry.Key)=$($entry.Value)"
+    if ($updated -match $pattern) {
+      $updated = $updated -replace $pattern, $line
+    } else {
+      $updated = "$($updated.TrimEnd())`r`n$line`r`n"
+    }
+  }
+
   if ($updated -ne $content) {
     Set-Content -LiteralPath $npmrcPath -Value $updated -Encoding utf8
   }
@@ -364,14 +377,17 @@ function Clear-MobileNativeDependencyBuildCaches {
 
   $nativeDependencyBuildDirs = @(
     "expo-modules-core",
+    "react-native-reanimated",
+    "react-native-worklets",
     "react-native-safe-area-context"
   )
 
   foreach ($packageName in $nativeDependencyBuildDirs) {
     Get-ChildItem -LiteralPath $VirtualStoreDir -Directory -Filter "$packageName*" -ErrorAction SilentlyContinue |
       ForEach-Object {
-        $buildDir = Join-Path $_.FullName "node_modules\$packageName\android\build"
-        Remove-DirectoryIfPresent $buildDir
+        $androidDir = Join-Path $_.FullName "node_modules\$packageName\android"
+        Remove-DirectoryIfPresent (Join-Path $androidDir ".cxx")
+        Remove-DirectoryIfPresent (Join-Path $androidDir "build")
       }
   }
 }
@@ -475,25 +491,43 @@ Write-Step "Validating local Android toolchain"
 Invoke-CommandChecked -Command "java" -Arguments @("-version") -WorkingDirectory $resolvedBuildRoot
 Invoke-CommandChecked -Command "adb" -Arguments @("version") -WorkingDirectory $resolvedBuildRoot
 
-$devices = @(Wait-ForConnectedAndroidDeviceIds -TimeoutSeconds $WaitForDeviceSeconds)
-if ($devices.Count -eq 0) {
-  $deviceRows = @(Get-AndroidDeviceRows)
-  $details = if ($deviceRows.Count -gt 0) { $deviceRows -join "; " } else { "adb devices returned no devices." }
-  throw "No ready Android device is connected. Details: $details Enable USB debugging, unlock the phone, approve the USB debugging prompt, then retry."
-}
+$devices = @()
+$requiresConnectedDevice = -not ($SkipInstall -and $SkipUninstall)
+if ($requiresConnectedDevice) {
+  $devices = @(Wait-ForConnectedAndroidDeviceIds -TimeoutSeconds $WaitForDeviceSeconds)
+  if ($devices.Count -eq 0) {
+    $deviceRows = @(Get-AndroidDeviceRows)
+    $details = if ($deviceRows.Count -gt 0) { $deviceRows -join "; " } else { "adb devices returned no devices." }
+    throw "No ready Android device is connected. Details: $details Enable USB debugging, unlock the phone, approve the USB debugging prompt, then retry."
+  }
 
-Write-Host "Connected Android device(s): $($devices -join ', ')"
-foreach ($device in $devices) {
-  Wait-ForAndroidDeviceBoot -DeviceId $device -TimeoutSeconds $WaitForDeviceSeconds
+  Write-Host "Connected Android device(s): $($devices -join ', ')"
+  foreach ($device in $devices) {
+    Wait-ForAndroidDeviceBoot -DeviceId $device -TimeoutSeconds $WaitForDeviceSeconds
+  }
+} else {
+  Write-Host "Build-only mode: connected Android device checks are skipped."
 }
 
 $reactNativeArchitectures = Resolve-ReactNativeArchitectures -DeviceIds $devices -OverrideArchitectures $AndroidArchitectures
 Write-Host "Target Android architecture(s): $reactNativeArchitectures"
 
 Write-Step "Preparing package manager and Android SDK config"
-Ensure-ProjectNpmrc -Root $resolvedBuildRoot -VirtualStoreDir $PnpmVirtualStoreDir
+Ensure-ProjectNpmrc -Root $resolvedBuildRoot -VirtualStoreDir $PnpmVirtualStoreDir -VirtualStoreMaxLength $PnpmVirtualStoreMaxLength
 Ensure-AndroidLocalProperties -MobileRoot $mobileRoot -SdkRoot $AndroidHome
-Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "install", "--frozen-lockfile") -WorkingDirectory $resolvedBuildRoot
+$previousCi = $env:CI
+try {
+  # The short-path settings may require pnpm to replace an existing modules
+  # layout. CI mode makes that deterministic in this intentionally non-interactive script.
+  $env:CI = "true"
+  Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "install", "--frozen-lockfile") -WorkingDirectory $resolvedBuildRoot
+} finally {
+  if ($null -eq $previousCi) {
+    Remove-Item Env:CI -ErrorAction SilentlyContinue
+  } else {
+    $env:CI = $previousCi
+  }
+}
 Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "--filter", "@wizards/mobile", "validate:env") -WorkingDirectory $resolvedBuildRoot
 Stop-GradleDaemons -GradleWrapperPath $gradlew -WorkingDirectory $androidRoot
 

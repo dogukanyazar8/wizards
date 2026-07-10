@@ -8,17 +8,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Linking, Platform } from "react-native";
+import { AppState, Linking, Platform, type AppStateStatus } from "react-native";
 import { createMobileApiClient, type MobileApiClient } from "../api/mobile-api-client";
 import { revokeMobilePushToken } from "../notifications/mobile-notification-client";
-import {
-  getMobileRuntimeConfig,
-  type MobileEnvironmentConfig,
-} from "../config/environment";
-import {
-  buildMobileWebRegisterUrl,
-  buildMobileWebSignInUrl,
-} from "../deep-link/mobile-deep-links";
+import { getMobileRuntimeConfig, type MobileEnvironmentConfig } from "../config/environment";
+import { buildMobileWebRegisterUrl, buildMobileWebSignInUrl } from "../deep-link/mobile-deep-links";
 import {
   assessMobileDeviceIntegrity,
   createMobileDeviceIntegritySignal,
@@ -26,7 +20,17 @@ import {
   type MobileDeviceIntegrityStatus,
   type MobileSecuritySignalLogger,
 } from "../security/mobile-device-integrity";
+import {
+  assessMobileAppLockAvailability,
+  runMobileAppLockAuthentication,
+  shouldArmMobileAppLock,
+  type MobileAppLockAvailability,
+  type MobileAppLockStatus,
+  type MobileBiometricAuthenticator,
+} from "../security/mobile-app-lock";
+import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import { mobileSecureSessionRepository } from "./expo-secure-session-store";
+import type { MobileAppLockPreferenceStore } from "./mobile-app-lock-preference-store";
 import {
   exchangeMobileAuthHandoff,
   refreshMobileAuthSession,
@@ -49,8 +53,23 @@ import type {
 } from "./session-types";
 import type { MobileSessionRepository } from "./session-store";
 
+const appLockCopy = activeMobileCopy;
+
+// disableDeviceFallback stays false so the OS device-passcode fallback is always
+// offered; combined with the on-screen sign-out escape the user can never be trapped.
+const APP_LOCK_PROMPT_OPTIONS = {
+  cancelLabel: appLockCopy.appLockCancelAction,
+  disableDeviceFallback: false,
+  fallbackLabel: "",
+  promptMessage: appLockCopy.appLockScreenTitle,
+} as const;
+
 interface MobileAuthContextValue extends MobileAuthState {
   apiClient: MobileApiClient;
+  appLockAvailability: MobileAppLockAvailability;
+  appLockEnabled: boolean;
+  appLockLocked: boolean;
+  appLockStatus: MobileAppLockStatus;
   completeAuthHandoff(input: { callbackPath: string; handoffToken: string }): Promise<boolean>;
   deviceIntegrityStatus: MobileDeviceIntegrityStatus;
   deviceIntegrityWarningVisible: boolean;
@@ -72,6 +91,8 @@ interface MobileAuthContextValue extends MobileAuthState {
     email: string;
   }): Promise<{ email: string; ok: true } | { message: string; ok: false }>;
   refreshSessionFromStorage(): Promise<void>;
+  retryAppLockUnlock(): Promise<boolean>;
+  setAppLockEnabled(enabled: boolean): Promise<void>;
   signInWithPassword(input: {
     email: string;
     password: string;
@@ -80,6 +101,8 @@ interface MobileAuthContextValue extends MobileAuthState {
 }
 
 interface MobileAuthProviderProps {
+  appLockPreferenceStore: MobileAppLockPreferenceStore;
+  biometricAuthenticator: MobileBiometricAuthenticator;
   children: ReactNode;
   deviceIntegrityDetector: MobileDeviceIntegrityDetector;
   repository?: MobileSessionRepository;
@@ -90,6 +113,8 @@ interface MobileAuthProviderProps {
 const MobileAuthContext = createContext<MobileAuthContextValue | null>(null);
 
 export function MobileAuthProvider({
+  appLockPreferenceStore,
+  biometricAuthenticator,
   children,
   deviceIntegrityDetector,
   repository = mobileSecureSessionRepository,
@@ -100,9 +125,16 @@ export function MobileAuthProvider({
   const [deviceIntegrityStatus, setDeviceIntegrityStatus] =
     useState<MobileDeviceIntegrityStatus>("checking");
   const [deviceIntegrityWarningDismissed, setDeviceIntegrityWarningDismissed] = useState(false);
+  const [appLockStatus, setAppLockStatus] = useState<MobileAppLockStatus>("idle");
+  const [appLockEnabled, setAppLockEnabledState] = useState(false);
+  const [appLockAvailability, setAppLockAvailability] =
+    useState<MobileAppLockAvailability>("unknown");
   const deviceIntegrityCheckStartedRef = useRef(false);
   const refreshPromiseRef = useRef<Promise<MobileSessionSnapshot | null> | null>(null);
   const stateRef = useRef(state);
+  const appLockEnabledRef = useRef(false);
+  const appLockColdArmedRef = useRef(false);
+  const appLockUnlockPromiseRef = useRef<Promise<boolean> | null>(null);
 
   const commitAuthState = useCallback((nextState: MobileAuthState) => {
     stateRef.current = nextState;
@@ -158,6 +190,112 @@ export function MobileAuthProvider({
       active = false;
     };
   }, [deviceIntegrityDetector, securitySignalLogger]);
+
+  useEffect(() => {
+    appLockEnabledRef.current = appLockEnabled;
+  }, [appLockEnabled]);
+
+  useEffect(() => {
+    let active = true;
+    void appLockPreferenceStore.load().then((enabled) => {
+      if (active) {
+        setAppLockEnabledState(enabled);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [appLockPreferenceStore]);
+
+  // Re-evaluates the gate. Availability failures fail OPEN (never "locked") so a
+  // missing or broken biometric sensor can never trap a signed-in user.
+  const armAppLock = useCallback(async () => {
+    if (stateRef.current.status !== "signed-in" || !appLockEnabledRef.current) {
+      setAppLockStatus("idle");
+      return;
+    }
+
+    setAppLockStatus("checking");
+    const availability = await assessMobileAppLockAvailability(biometricAuthenticator);
+    setAppLockAvailability(availability);
+
+    if (stateRef.current.status !== "signed-in" || !appLockEnabledRef.current) {
+      setAppLockStatus("idle");
+      return;
+    }
+
+    setAppLockStatus(
+      shouldArmMobileAppLock({ availability, preferenceEnabled: true, signedIn: true })
+        ? "locked"
+        : "unavailable",
+    );
+  }, [biometricAuthenticator]);
+
+  // Cold-start / post-login trigger. Arms once when the app becomes eligible and
+  // resets when the user is no longer signed in or disables the lock.
+  useEffect(() => {
+    if (state.status === "signed-in" && appLockEnabled) {
+      if (!appLockColdArmedRef.current) {
+        appLockColdArmedRef.current = true;
+        void armAppLock();
+      }
+      return;
+    }
+
+    appLockColdArmedRef.current = false;
+    setAppLockStatus("idle");
+  }, [appLockEnabled, armAppLock, state.status]);
+
+  // Foreground trigger: re-lock when the app returns to the active state, not on
+  // every screen transition.
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (next: AppStateStatus) => {
+      if (next === "active") {
+        void armAppLock();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [armAppLock]);
+
+  const retryAppLockUnlock = useCallback(async () => {
+    if (appLockUnlockPromiseRef.current) {
+      return appLockUnlockPromiseRef.current;
+    }
+
+    const unlockPromise = runMobileAppLockAuthentication(
+      biometricAuthenticator,
+      APP_LOCK_PROMPT_OPTIONS,
+    );
+    appLockUnlockPromiseRef.current = unlockPromise;
+
+    try {
+      const unlocked = await unlockPromise;
+
+      if (unlocked && stateRef.current.status === "signed-in" && appLockEnabledRef.current) {
+        setAppLockStatus("unlocked");
+      }
+
+      return unlocked;
+    } finally {
+      if (appLockUnlockPromiseRef.current === unlockPromise) {
+        appLockUnlockPromiseRef.current = null;
+      }
+    }
+  }, [biometricAuthenticator]);
+
+  const setAppLockEnabled = useCallback(
+    async (enabled: boolean) => {
+      await appLockPreferenceStore.save(enabled);
+      setAppLockEnabledState(enabled);
+      if (!enabled) {
+        appLockColdArmedRef.current = false;
+        setAppLockStatus("idle");
+      }
+    },
+    [appLockPreferenceStore],
+  );
 
   const createUnauthenticatedClient = useCallback(
     () =>
@@ -357,7 +495,9 @@ export function MobileAuthProvider({
           ok: true,
         } as const;
       } catch {
-        commitAuthState(createMobileAuthState("signed-out", null, "Sifre sifirlama baslatilamadi."));
+        commitAuthState(
+          createMobileAuthState("signed-out", null, "Sifre sifirlama baslatilamadi."),
+        );
         return {
           message: "Sifre sifirlama su anda baslatilamadi. Biraz sonra tekrar dene.",
           ok: false,
@@ -370,13 +510,10 @@ export function MobileAuthProvider({
   const requestVerificationEmail = useCallback(
     async (input: { email: string }) => {
       try {
-        const response = await requestMobileVerificationEmail(
-          createUnauthenticatedClient(),
-          {
-            ...input,
-            locale: "tr",
-          },
-        );
+        const response = await requestMobileVerificationEmail(createUnauthenticatedClient(), {
+          ...input,
+          locale: "tr",
+        });
         commitAuthState(createMobileAuthState("signed-out"));
         return {
           email: response.email,
@@ -433,11 +570,16 @@ export function MobileAuthProvider({
   const diagnostics = useMemo(() => getMobileSessionDiagnostics(state), [state]);
   const deviceIntegrityWarningVisible =
     deviceIntegrityStatus === "compromised" && !deviceIntegrityWarningDismissed;
+  const appLockLocked = appLockStatus === "locked";
 
   const value = useMemo<MobileAuthContextValue>(
     () => ({
       ...state,
       apiClient,
+      appLockAvailability,
+      appLockEnabled,
+      appLockLocked,
+      appLockStatus,
       completeAuthHandoff,
       deviceIntegrityStatus,
       deviceIntegrityWarningVisible,
@@ -450,11 +592,17 @@ export function MobileAuthProvider({
       requestPasswordReset,
       requestVerificationEmail,
       refreshSessionFromStorage,
+      retryAppLockUnlock,
+      setAppLockEnabled,
       signInWithPassword,
       signOut,
     }),
     [
       apiClient,
+      appLockAvailability,
+      appLockEnabled,
+      appLockLocked,
+      appLockStatus,
       completeAuthHandoff,
       deviceIntegrityStatus,
       deviceIntegrityWarningVisible,
@@ -467,6 +615,8 @@ export function MobileAuthProvider({
       requestPasswordReset,
       requestVerificationEmail,
       refreshSessionFromStorage,
+      retryAppLockUnlock,
+      setAppLockEnabled,
       signInWithPassword,
       signOut,
       state,

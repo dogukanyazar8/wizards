@@ -6,6 +6,7 @@ import test from "node:test";
 const root = process.cwd();
 const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as {
   dependencies: Record<string, string>;
+  scripts: Record<string, string>;
 };
 
 test("phase zero dependencies and SDK 56 native configuration stay aligned", () => {
@@ -56,4 +57,30 @@ test("phase zero dependencies and SDK 56 native configuration stay aligned", () 
     const manifestSource = readFileSync(manifestPath, "utf8");
     assert.match(manifestSource, /android:enableOnBackInvokedCallback="true"/);
   }
+});
+
+test("build-only Android APK scripts do not require or mutate a connected device", () => {
+  for (const [name, script] of Object.entries(packageJson.scripts).filter(([name]) =>
+    name.startsWith("android:uat:local:apk"),
+  )) {
+    assert.match(script, /-SkipInstall\b/, `${name} must skip device installation.`);
+    assert.match(script, /-SkipUninstall\b/, `${name} must skip device uninstallation.`);
+    assert.match(
+      script,
+      /-AndroidArchitectures\s+\S+/,
+      `${name} must select architectures without querying a device.`,
+    );
+  }
+
+  const buildScript = readFileSync(join(root, "scripts", "build-android-uat.ps1"), "utf8");
+  assert.match(
+    buildScript,
+    /\$requiresConnectedDevice\s*=\s*-not \(\$SkipInstall -and \$SkipUninstall\)/,
+  );
+  assert.match(buildScript, /"react-native-reanimated"/);
+  assert.match(buildScript, /Join-Path \$androidDir "\.cxx"/);
+  assert.match(buildScript, /\[string\]\$PnpmVirtualStoreDir\s*=\s*"C:\\wp"/);
+  assert.match(buildScript, /\[int\]\$PnpmVirtualStoreMaxLength\s*=\s*40/);
+  assert.match(buildScript, /"virtual-store-dir-max-length"\s*=\s*\$VirtualStoreMaxLength/);
+  assert.match(buildScript, /\$env:CI\s*=\s*"true"/);
 });

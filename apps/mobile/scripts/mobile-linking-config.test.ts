@@ -6,7 +6,7 @@ import {
 } from "../src/navigation/mobile-linking";
 
 const webUrl = "https://whispr.team";
-const handoffToken = "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-";
+const handoffToken = "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-"; // gitleaks:allow -- deterministic invalid fixture
 
 describe("mobile linking configuration", () => {
   it("resolves validated channel, DM, and settings routes", () => {

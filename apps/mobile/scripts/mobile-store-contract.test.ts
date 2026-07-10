@@ -29,6 +29,7 @@ describe("mobile store contract", () => {
 
   it("exposes only the Android permissions the product currently needs", () => {
     assert.deepEqual(getWhisprMobileAndroidPermissions(), [
+      "USE_BIOMETRIC",
       "CAMERA",
       "RECORD_AUDIO",
       "POST_NOTIFICATIONS",
@@ -38,6 +39,8 @@ describe("mobile store contract", () => {
 
   it("builds iOS usage descriptions from the same permission contract", () => {
     assert.deepEqual(getWhisprMobileIosInfoPlistUsageDescriptions(), {
+      NSFaceIDUsageDescription:
+        "Whispr uses Face ID or device biometrics only when you choose to unlock the app.",
       NSCameraUsageDescription:
         "Whispr uses the camera only when you choose to join video calls or share video.",
       NSMicrophoneUsageDescription:

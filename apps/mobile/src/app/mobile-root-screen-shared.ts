@@ -43,6 +43,7 @@ export { mobileRadii, mobileSizing, mobileSpacing } from "../design/tokens";
 export { MOBILE_DM_MESSAGES_LIMIT } from "../dm/mobile-dm-client";
 export { MOBILE_LOCALE_OPTIONS } from "../locale/mobile-locale-preferences";
 export type { MobileLocale } from "../locale/mobile-locale-preferences";
+export type { MobileAppLockAvailability } from "../security/mobile-app-lock";
 export {
   getMobileAttachmentDraftSendGuard,
   summarizeMobileMediaRuntimeState,

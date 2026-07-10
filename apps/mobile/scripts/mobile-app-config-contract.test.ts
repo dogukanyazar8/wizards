@@ -55,6 +55,8 @@ describe("mobile app config contract", () => {
     assert.deepEqual(config.ios?.infoPlist, getWhisprMobileIosInfoPlistUsageDescriptions());
     assert.ok(config.plugins?.includes("./plugins/withScreenShare"));
     assert.ok(config.android?.permissions?.includes("FOREGROUND_SERVICE_MEDIA_PROJECTION"));
+    assert.ok(config.android?.permissions?.includes("USE_BIOMETRIC"));
+    assert.match(config.ios?.infoPlist?.NSFaceIDUsageDescription ?? "", /only when you choose/i);
     assert.equal(
       Object.hasOwn(config.ios?.infoPlist ?? {}, "NSScreenCaptureUsageDescription"),
       false,

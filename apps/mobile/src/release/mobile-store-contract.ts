@@ -1,6 +1,7 @@
 import storeContractData from "./mobile-store-contract-data.json";
 
 export type MobileStorePermissionId =
+  | "biometrics"
   | "camera"
   | "microphone"
   | "notifications"

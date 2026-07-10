@@ -21,6 +21,23 @@ export const mobileCopy = {
     deviceIntegrityWarningDescription:
       "Bu cihazda root veya jailbreak belirtisi algilandi. Oturum guvenligi azalmis olabilir.",
     deviceIntegrityDismissAction: "Cihaz guvenligi uyarisini kapat",
+    appLockScreenTitle: "Uygulama kilitli",
+    appLockScreenDescription:
+      "Devam etmek icin biyometrik dogrulama gerekiyor. Sorun yasarsan cihaz parolani kullanabilir ya da oturumu kapatabilirsin.",
+    appLockRetryAction: "Biyometrik dogrulamayi tekrar dene",
+    appLockCancelAction: "Iptal",
+    appLockSignOutAction: "Oturumu kapat",
+    settingsAppLockTitle: "Biyometrik uygulama kilidi",
+    settingsAppLockDescription:
+      "Uygulama one geldiginde Face ID ya da parmak izi iste. Varsayilan kapalidir ve oturum tokenina dokunmaz.",
+    settingsAppLockControlDescription:
+      "Acikken soguk baslangicta ve uygulama arka plandan doninde biyometrik dogrulama istenir; her ekran gecisinde degil.",
+    settingsAppLockToggleLabel: "Biyometrik uygulama kilidi",
+    settingsAppLockEnabledValue: "Acik",
+    settingsAppLockDisabledValue: "Kapali",
+    settingsAppLockUnavailableValue: "Kullanilamiyor",
+    settingsAppLockUnavailableDescription:
+      "Bu cihazda biyometrik donanim ya da kayitli biyometri bulunamadi. Kilit acilsa bile uygulanmaz.",
     authOpenRegisterAction: "Yeni hesap olustur",
     authOpenSignInAction: "Giris yap",
     authForgotDescription:
@@ -632,6 +649,23 @@ export const mobileCopy = {
     deviceIntegrityWarningDescription:
       "This device shows signs of root or jailbreak access. Session security may be reduced.",
     deviceIntegrityDismissAction: "Dismiss device security warning",
+    appLockScreenTitle: "App locked",
+    appLockScreenDescription:
+      "Biometric verification is required to continue. If you run into trouble you can use your device passcode or sign out.",
+    appLockRetryAction: "Try biometric verification again",
+    appLockCancelAction: "Cancel",
+    appLockSignOutAction: "Sign out",
+    settingsAppLockTitle: "Biometric app lock",
+    settingsAppLockDescription:
+      "Require Face ID or fingerprint when the app comes to the foreground. Off by default; it never touches your session token.",
+    settingsAppLockControlDescription:
+      "When enabled, biometric verification is requested on cold start and when the app returns from the background, not on every screen change.",
+    settingsAppLockToggleLabel: "Biometric app lock",
+    settingsAppLockEnabledValue: "On",
+    settingsAppLockDisabledValue: "Off",
+    settingsAppLockUnavailableValue: "Unavailable",
+    settingsAppLockUnavailableDescription:
+      "No biometric hardware or enrolled biometrics were found on this device. The lock is skipped even when enabled.",
     authOpenRegisterAction: "Create account",
     authOpenSignInAction: "Sign in",
     authForgotDescription:
