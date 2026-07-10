@@ -14,7 +14,6 @@ import {
   getMobileConversationTitle,
   INITIAL_DM_SEND_STATE,
   MOBILE_RENDER_LIMITS,
-  mobileColors,
   useMemo,
   useState,
   type MobileBootstrapFeature,
@@ -38,7 +37,8 @@ import {
   MobileSyncHealthBanner,
   StatusChip,
 } from "../components/ui-atoms";
-import { styles } from "./dm-screen.styles";
+import { useDmScreenStyles } from "./dm-screen.styles";
+import { useTheme } from "../providers/mobile-theme-provider";
 
 export function MessagesScreen({
   bootstrapState,
@@ -81,6 +81,7 @@ export function MessagesScreen({
   onSearchMessages(input: { conversationId: string; query: string; scope: "dm" }): Promise<void>;
   onSendMessage(content: string): Promise<boolean>;
 }) {
+  const styles = useDmScreenStyles();
   const hasConversations =
     bootstrapState.status === "ready" &&
     bootstrapState.payload.home.directMessages.recent.length > 0;
@@ -143,6 +144,8 @@ export function MessagesScreen({
 }
 
 export function DMInboxHeader() {
+  const theme = useTheme();
+  const styles = useDmScreenStyles();
   return (
     <View style={styles.dmInboxHeader}>
       <View style={styles.dmInboxHeaderText}>
@@ -157,7 +160,7 @@ export function DMInboxHeader() {
         testID="mobile-dm-compose-button"
         style={styles.dmComposeButton}
       >
-        <Ionicons name="chatbubble-ellipses-outline" size={20} color={mobileColors.accentStrong} />
+        <Ionicons name="chatbubble-ellipses-outline" size={20} color={theme.accent.strong} />
       </Pressable>
     </View>
   );
@@ -170,10 +173,12 @@ export function DirectMessageSummaryCard({
   totalCount: number;
   unreadCount: number;
 }) {
+  const theme = useTheme();
+  const styles = useDmScreenStyles();
   return (
     <View style={styles.dmSummaryCard} testID="mobile-dm-summary-card">
       <View style={styles.dmSummaryIcon}>
-        <Ionicons name="paper-plane" size={18} color={mobileColors.accentStrong} />
+        <Ionicons name="paper-plane" size={18} color={theme.accent.strong} />
       </View>
       <View style={styles.dmSummaryContent}>
         <Text style={styles.dmSummaryTitle}>{copy.homeRecentDmsTitle}</Text>
@@ -226,6 +231,7 @@ export function DMConversationScreen({
   onSearchMessages(input: { conversationId: string; query: string; scope: "dm" }): Promise<void>;
   onSendMessage(content: string): Promise<boolean>;
 }) {
+  const styles = useDmScreenStyles();
   const title = getMobileConversationTitle(conversation, copy.directMessageFallback);
   const activeCount = getMobileConversationActiveCount(conversation);
   const participantCount =
@@ -310,6 +316,8 @@ export function DirectMessageListCard({
   onOpenConversation(conversationId: string): void;
   selectedConversationId: string | null;
 }) {
+  const theme = useTheme();
+  const styles = useDmScreenStyles();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<MobileConversationFilter>("all");
   const filteredConversations = useMemo(
@@ -344,7 +352,7 @@ export function DirectMessageListCard({
     <View style={styles.dmListCard}>
       <View style={styles.dmSearchRow}>
         <View style={styles.dmSearchShell}>
-          <Ionicons name="search" size={19} color={mobileColors.mutedSoft} />
+          <Ionicons name="search" size={19} color={theme.text.soft} />
           <TextInput
             accessibilityLabel={copy.directMessageSearchPlaceholder}
             autoCapitalize="none"
@@ -352,7 +360,7 @@ export function DirectMessageListCard({
             clearButtonMode="while-editing"
             onChangeText={setQuery}
             placeholder={copy.directMessageSearchPlaceholder}
-            placeholderTextColor={mobileColors.mutedSoft}
+            placeholderTextColor={theme.text.soft}
             returnKeyType="search"
             style={styles.inboxSearchInput}
             testID="mobile-dm-search-input"
@@ -366,7 +374,7 @@ export function DirectMessageListCard({
           disabled
           style={styles.dmSearchFilterButton}
         >
-          <Ionicons name="options-outline" size={20} color={mobileColors.accentStrong} />
+          <Ionicons name="options-outline" size={20} color={theme.accent.strong} />
         </Pressable>
       </View>
       <View style={styles.inboxFilterRow} testID="mobile-dm-filter-tabs">
@@ -445,6 +453,8 @@ export function DirectMessageConversationCard({
   onOpenConversation(conversationId: string): void;
   selected: boolean;
 }) {
+  const theme = useTheme();
+  const styles = useDmScreenStyles();
   const title = getMobileConversationTitle(conversation, copy.directMessageFallback);
   const activeCount = getMobileConversationActiveCount(conversation);
   const lastActivity = formatMobileDisplayTime(conversation.lastMessageAt);
@@ -497,7 +507,7 @@ export function DirectMessageConversationCard({
           {conversation.muted ? <StatusChip label={copy.mutedSuffix} tone="muted" /> : null}
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={mobileColors.mutedSoft} />
+      <Ionicons name="chevron-forward" size={18} color={theme.text.soft} />
     </Pressable>
   );
 }
@@ -527,6 +537,7 @@ export function DMConversationPreviewCard({
   sendState: MobileDMSendViewState;
   state: MobileDMMessagesViewState;
 }) {
+  const styles = useDmScreenStyles();
   if (!conversation) {
     return <EmptyState tone="accent" label={copy.dmSelectConversation} />;
   }

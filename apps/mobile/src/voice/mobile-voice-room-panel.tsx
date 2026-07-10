@@ -1,7 +1,17 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  Text,
+  View,
+  type ImageStyle,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
 
-import { mobileColors, mobileElevation, mobileTypography } from "../design/tokens";
+import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
+import type { MobileTheme } from "../design/themes";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import type {
   MobileVoiceRoomParticipant,
@@ -36,6 +46,7 @@ function getParticipantLabel(participant: MobileVoiceRoomParticipant): string {
 }
 
 function VoiceAvatar({ participant }: { participant: MobileVoiceRoomParticipant }) {
+  const styles = useMobileVoiceRoomPanelStyles();
   const label = getParticipantLabel(participant).slice(0, 2).toUpperCase();
 
   return (
@@ -57,6 +68,7 @@ function VoiceAvatar({ participant }: { participant: MobileVoiceRoomParticipant 
 }
 
 function SpeakingWave({ active, level }: { active: boolean; level: number }) {
+  const styles = useMobileVoiceRoomPanelStyles();
   const normalizedLevel = Math.max(0.18, Math.min(1, level || (active ? 0.64 : 0.18)));
   const bars = [0.42, 0.72, 1, 0.66] as const;
 
@@ -77,6 +89,8 @@ function SpeakingWave({ active, level }: { active: boolean; level: number }) {
 }
 
 function VoiceParticipantRow({ participant }: { participant: MobileVoiceRoomParticipant }) {
+  const theme = useTheme();
+  const styles = useMobileVoiceRoomPanelStyles();
   return (
     <View style={[styles.participantRow, participant.isSpeaking && styles.participantRowSpeaking]}>
       <VoiceAvatar participant={participant} />
@@ -99,10 +113,10 @@ function VoiceParticipantRow({ participant }: { participant: MobileVoiceRoomPart
       </View>
       <SpeakingWave active={participant.isSpeaking} level={participant.audioLevel} />
       {participant.isCameraEnabled ? (
-        <Ionicons name="videocam" size={15} color={mobileColors.accentStrong} />
+        <Ionicons name="videocam" size={15} color={theme.accent.strong} />
       ) : null}
       {participant.isScreenSharing ? (
-        <Ionicons name="desktop-outline" size={15} color={mobileColors.success} />
+        <Ionicons name="desktop-outline" size={15} color={theme.status.success} />
       ) : null}
     </View>
   );
@@ -121,6 +135,8 @@ function VoiceControlButton({
   onPress(): void;
   tone?: "danger" | "neutral" | "primary";
 }) {
+  const theme = useTheme();
+  const styles = useMobileVoiceRoomPanelStyles();
   return (
     <Pressable
       accessibilityRole="button"
@@ -142,10 +158,10 @@ function VoiceControlButton({
         size={18}
         color={
           tone === "danger"
-            ? mobileColors.danger
+            ? theme.status.danger
             : tone === "primary"
-              ? mobileColors.primaryForeground
-              : mobileColors.textPrimary
+              ? theme.text.onPrimary
+              : theme.text.primary
         }
       />
       <Text
@@ -180,6 +196,8 @@ export function MobileVoiceRoomPanel({
   room: MobileVoiceRoomState;
   voiceInputMode?: MobileVoiceInputMode;
 }) {
+  const theme = useTheme();
+  const styles = useMobileVoiceRoomPanelStyles();
   const isBusy =
     room.status === "checking-permission" ||
     room.status === "connecting" ||
@@ -191,7 +209,7 @@ export function MobileVoiceRoomPanel({
     <View style={styles.card}>
       <View style={styles.header}>
         <View style={styles.headerIcon}>
-          <Ionicons name="call" size={18} color={mobileColors.accentStrong} />
+          <Ionicons name="call" size={18} color={theme.accent.strong} />
         </View>
         <View style={styles.headerText}>
           <Text style={styles.eyebrow}>{copy.voiceRoomEyebrow}</Text>
@@ -202,7 +220,7 @@ export function MobileVoiceRoomPanel({
             {getVoiceRoomStatusLabel(room)}
           </Text>
         </View>
-        {isBusy ? <ActivityIndicator color={mobileColors.accentStrong} size="small" /> : null}
+        {isBusy ? <ActivityIndicator color={theme.accent.strong} size="small" /> : null}
       </View>
 
       {room.errorMessage ? (
@@ -223,7 +241,7 @@ export function MobileVoiceRoomPanel({
         </View>
       ) : (
         <View style={styles.emptyParticipants}>
-          <Ionicons name="people-outline" size={24} color={mobileColors.muted} />
+          <Ionicons name="people-outline" size={24} color={theme.text.muted} />
           <Text style={styles.emptyText}>{copy.voiceRoomNoParticipants}</Text>
         </View>
       )}
@@ -292,236 +310,239 @@ export function MobileVoiceRoomPanel({
   );
 }
 
-const styles = StyleSheet.create({
-  avatarImage: {
-    height: "100%",
-    width: "100%",
-    borderRadius: 16,
-  },
-  avatarStatusDot: {
-    position: "absolute",
-    right: -1,
-    bottom: -1,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: mobileColors.textSoft,
-    borderWidth: 2,
-    borderColor: mobileColors.surfaceCard,
-  },
-  avatarStatusDotSpeaking: {
-    backgroundColor: mobileColors.success,
-  },
-  avatarText: {
-    ...mobileTypography.label,
-    color: mobileColors.primary,
-  },
-  avatarWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: mobileColors.primarySoft,
-  },
-  card: {
-    gap: 12,
-    padding: 14,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: mobileColors.borderSubtle,
-    backgroundColor: mobileColors.surfaceCard,
-    ...mobileElevation.card,
-  },
-  controlButton: {
-    minHeight: 44,
-    minWidth: 0,
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 3,
-    paddingHorizontal: 4,
-    paddingVertical: 7,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: mobileColors.borderSubtle,
-    backgroundColor: mobileColors.input,
-  },
-  controlButtonDanger: {
-    backgroundColor: mobileColors.dangerSoft,
-    borderColor: "rgba(239,68,68,0.22)",
-  },
-  controlButtonDisabled: {
-    opacity: 0.56,
-  },
-  controlButtonElevated: {
-    ...mobileElevation.soft,
-  },
-  controlButtonPressed: {
-    transform: [{ scale: 0.98 }],
-  },
-  controlButtonPrimary: {
-    backgroundColor: mobileColors.primary,
-    borderColor: mobileColors.primary,
-  },
-  controlLabel: {
-    ...mobileTypography.caption,
-    color: mobileColors.textPrimary,
-    textAlign: "center",
-  },
-  controlLabelDanger: {
-    color: mobileColors.danger,
-  },
-  controlLabelDisabled: {
-    color: mobileColors.textMuted,
-  },
-  controlLabelPrimary: {
-    color: mobileColors.primaryForeground,
-  },
-  controls: {
-    flexDirection: "row",
-    gap: 7,
-  },
-  countBadge: {
-    overflow: "hidden",
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 999,
-    backgroundColor: mobileColors.primarySoft,
-    color: mobileColors.primary,
-    ...mobileTypography.caption,
-    fontFamily: mobileTypography.fontFamilyBold,
-  },
-  description: {
-    ...mobileTypography.label,
-    color: mobileColors.textMuted,
-  },
-  emptyParticipants: {
-    minHeight: 82,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    borderRadius: 16,
-    backgroundColor: mobileColors.input,
-  },
-  emptyText: {
-    ...mobileTypography.label,
-    color: mobileColors.textMuted,
-  },
-  errorText: {
-    padding: 10,
-    borderRadius: 14,
-    overflow: "hidden",
-    backgroundColor: mobileColors.dangerSoft,
-    color: "#b91c1c",
-    ...mobileTypography.label,
-  },
-  eyebrow: {
-    ...mobileTypography.caption,
-    color: mobileColors.primary,
-    fontFamily: mobileTypography.fontFamilyBold,
-    letterSpacing: 2,
-    textTransform: "uppercase",
-  },
-  header: {
-    minWidth: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-  },
-  headerIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: mobileColors.primarySoft,
-  },
-  headerText: {
-    flex: 1,
-    minWidth: 0,
-    gap: 3,
-  },
-  participantList: {
-    gap: 7,
-  },
-  participantMeta: {
-    ...mobileTypography.caption,
-    color: mobileColors.textMuted,
-  },
-  participantName: {
-    flexShrink: 1,
-    ...mobileTypography.bodyStrong,
-    color: mobileColors.textPrimary,
-  },
-  participantRow: {
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 7,
-    borderRadius: 16,
-    backgroundColor: mobileColors.input,
-  },
-  participantRowSpeaking: {
-    backgroundColor: "rgba(23,201,100,0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(23,201,100,0.24)",
-  },
-  participantText: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  participantTitleRow: {
-    minWidth: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  sectionTitle: {
-    ...mobileTypography.caption,
-    color: mobileColors.textMuted,
-    fontFamily: mobileTypography.fontFamilyBold,
-    letterSpacing: 2,
-    textTransform: "uppercase",
-  },
-  selfBadge: {
-    overflow: "hidden",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
-    backgroundColor: mobileColors.primarySoft,
-    color: mobileColors.primary,
-    ...mobileTypography.caption,
-    fontFamily: mobileTypography.fontFamilyBold,
-  },
-  title: {
-    ...mobileTypography.headline,
-    color: mobileColors.textPrimary,
-    fontSize: 18,
-    lineHeight: 22,
-  },
-  wave: {
-    width: 27,
-    height: 24,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 2,
-  },
-  waveBar: {
-    width: 3,
-    borderRadius: 999,
-    backgroundColor: "rgba(100,116,139,0.25)",
-  },
-  waveBarActive: {
-    backgroundColor: mobileColors.success,
-  },
-});
+export const createMobileVoiceRoomPanelStyles = (theme: MobileTheme) =>
+  ({
+    avatarImage: {
+      height: "100%",
+      width: "100%",
+      borderRadius: 16,
+    },
+    avatarStatusDot: {
+      position: "absolute",
+      right: -1,
+      bottom: -1,
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: theme.text.soft,
+      borderWidth: 2,
+      borderColor: theme.surface.card,
+    },
+    avatarStatusDotSpeaking: {
+      backgroundColor: theme.status.success,
+    },
+    avatarText: {
+      ...theme.typography.label,
+      color: theme.accent.default,
+    },
+    avatarWrap: {
+      width: 34,
+      height: 34,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.accent.soft,
+    },
+    card: {
+      gap: 12,
+      padding: 14,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: theme.border.subtle,
+      backgroundColor: theme.surface.card,
+      ...theme.elevation.card,
+    },
+    controlButton: {
+      minHeight: 44,
+      minWidth: 0,
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 3,
+      paddingHorizontal: 4,
+      paddingVertical: 7,
+      borderRadius: 15,
+      borderWidth: 1,
+      borderColor: theme.border.subtle,
+      backgroundColor: theme.surface.soft,
+    },
+    controlButtonDanger: {
+      backgroundColor: theme.status.dangerSoft,
+      borderColor: theme.status.danger,
+    },
+    controlButtonDisabled: {
+      opacity: 0.56,
+    },
+    controlButtonElevated: {
+      ...theme.elevation.soft,
+    },
+    controlButtonPressed: {
+      transform: [{ scale: 0.98 }],
+    },
+    controlButtonPrimary: {
+      backgroundColor: theme.accent.default,
+      borderColor: theme.accent.default,
+    },
+    controlLabel: {
+      ...theme.typography.caption,
+      color: theme.text.primary,
+      textAlign: "center",
+    },
+    controlLabelDanger: {
+      color: theme.status.danger,
+    },
+    controlLabelDisabled: {
+      color: theme.text.muted,
+    },
+    controlLabelPrimary: {
+      color: theme.text.onPrimary,
+    },
+    controls: {
+      flexDirection: "row",
+      gap: 7,
+    },
+    countBadge: {
+      overflow: "hidden",
+      paddingHorizontal: 9,
+      paddingVertical: 3,
+      borderRadius: 999,
+      backgroundColor: theme.accent.soft,
+      color: theme.accent.strong,
+      ...theme.typography.caption,
+      fontFamily: theme.typography.fontFamilyBold,
+    },
+    description: {
+      ...theme.typography.label,
+      color: theme.text.muted,
+    },
+    emptyParticipants: {
+      minHeight: 82,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      borderRadius: 16,
+      backgroundColor: theme.surface.soft,
+    },
+    emptyText: {
+      ...theme.typography.label,
+      color: theme.text.muted,
+    },
+    errorText: {
+      padding: 10,
+      borderRadius: 14,
+      overflow: "hidden",
+      backgroundColor: theme.status.dangerSoft,
+      color: theme.status.danger,
+      ...theme.typography.label,
+    },
+    eyebrow: {
+      ...theme.typography.caption,
+      color: theme.accent.strong,
+      fontFamily: theme.typography.fontFamilyBold,
+      letterSpacing: 2,
+      textTransform: "uppercase",
+    },
+    header: {
+      minWidth: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 9,
+    },
+    headerIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 15,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.accent.soft,
+    },
+    headerText: {
+      flex: 1,
+      minWidth: 0,
+      gap: 3,
+    },
+    participantList: {
+      gap: 7,
+    },
+    participantMeta: {
+      ...theme.typography.caption,
+      color: theme.text.muted,
+    },
+    participantName: {
+      flexShrink: 1,
+      ...theme.typography.bodyStrong,
+      color: theme.text.primary,
+    },
+    participantRow: {
+      minHeight: 48,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 9,
+      paddingVertical: 7,
+      borderRadius: 16,
+      backgroundColor: theme.surface.soft,
+    },
+    participantRowSpeaking: {
+      backgroundColor: theme.status.successSoft,
+      borderWidth: 1,
+      borderColor: theme.status.success,
+    },
+    participantText: {
+      flex: 1,
+      minWidth: 0,
+      gap: 2,
+    },
+    participantTitleRow: {
+      minWidth: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    sectionTitle: {
+      ...theme.typography.caption,
+      color: theme.text.muted,
+      fontFamily: theme.typography.fontFamilyBold,
+      letterSpacing: 2,
+      textTransform: "uppercase",
+    },
+    selfBadge: {
+      overflow: "hidden",
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 999,
+      backgroundColor: theme.accent.soft,
+      color: theme.accent.strong,
+      ...theme.typography.caption,
+      fontFamily: theme.typography.fontFamilyBold,
+    },
+    title: {
+      ...theme.typography.headline,
+      color: theme.text.primary,
+      fontSize: 18,
+      lineHeight: 22,
+    },
+    wave: {
+      width: 27,
+      height: 24,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 2,
+    },
+    waveBar: {
+      width: 3,
+      borderRadius: 999,
+      backgroundColor: theme.border.default,
+    },
+    waveBarActive: {
+      backgroundColor: theme.status.success,
+    },
+  }) satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;
+
+const useMobileVoiceRoomPanelStyles = () => useThemedStyles(createMobileVoiceRoomPanelStyles);

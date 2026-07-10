@@ -17,6 +17,7 @@ export function getMobileThemeCompatibilityColors(theme: MobileTheme) {
     card: theme.surface.card,
     danger: theme.status.danger,
     dangerSoft: theme.status.dangerSoft,
+    infoSoft: theme.status.infoSoft,
     input: theme.surface.soft,
     muted: theme.text.muted,
     mutedSoft: theme.text.soft,
@@ -26,6 +27,7 @@ export function getMobileThemeCompatibilityColors(theme: MobileTheme) {
     ring: theme.border.focus,
     shadow: theme.elevation.card.shadowColor,
     success: theme.status.success,
+    successSoft: theme.status.successSoft,
     surfaceBase: theme.surface.base,
     surfaceCard: theme.surface.card,
     surfaceElevated: theme.surface.elevated,
@@ -39,6 +41,7 @@ export function getMobileThemeCompatibilityColors(theme: MobileTheme) {
     textSecondary: theme.text.secondary,
     textSoft: theme.text.soft,
     warning: theme.status.warning,
+    warningSoft: theme.status.warningSoft,
     white: theme.surface.card,
   } as const;
 }

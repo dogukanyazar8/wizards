@@ -325,10 +325,11 @@ describe("mobile design contract", () => {
       "utf8",
     );
 
-    assert.match(voiceSource, /mobileTypography\.headline/);
-    assert.match(voiceSource, /mobileTypography\.bodyStrong/);
-    assert.match(voiceSource, /mobileElevation\.card/);
-    assert.match(voiceSource, /mobileColors\.surfaceCard/);
-    assert.match(voiceSource, /mobileColors\.dangerSoft/);
+    assert.match(voiceSource, /useThemedStyles\(createMobileVoiceRoomPanelStyles\)/);
+    assert.match(voiceSource, /theme\.typography\.headline/);
+    assert.match(voiceSource, /theme\.typography\.bodyStrong/);
+    assert.match(voiceSource, /theme\.elevation\.card/);
+    assert.match(voiceSource, /theme\.surface\.card/);
+    assert.match(voiceSource, /theme\.status\.dangerSoft/);
   });
 });

@@ -43,10 +43,16 @@ const status = Object.freeze({
   dangerSoftDark: "#3F1820",
   info: "#2563EB",
   infoDark: "#60A5FA",
+  infoSoft: "#EFF6FF",
+  infoSoftDark: "#172554",
   success: "#15803D",
   successDark: "#4ADE80",
+  successSoft: "#F0FDF4",
+  successSoftDark: "#052E16",
   warning: "#B45309",
   warningDark: "#FBBF24",
+  warningSoft: "#FFFBEB",
+  warningSoftDark: "#422006",
 } as const);
 
 const overlay = Object.freeze({

@@ -9,7 +9,6 @@ import {
   getMobileMessageBodyPreview,
   getMobileMessageStreamItems,
   memo,
-  mobileColors,
   useCallback,
   useMemo,
   useState,
@@ -21,7 +20,8 @@ import {
 import { FlashList } from "@shopify/flash-list";
 import { AvatarMark } from "./ui-atoms";
 import { MobileCachedImage } from "./mobile-cached-image";
-import { styles } from "./message-primitives.styles";
+import { useMessagePrimitiveStyles } from "./message-primitives.styles";
+import { useTheme } from "../providers/mobile-theme-provider";
 
 const MOBILE_SEARCH_RESULT_RENDER_LIMIT = 6;
 
@@ -50,6 +50,8 @@ export function MessageSearchPanel({
   scope: "channel" | "dm";
   state: MobileMessageSearchViewState;
 }) {
+  const theme = useTheme();
+  const styles = useMessagePrimitiveStyles();
   const [draft, setDraft] = useState("");
   const normalizedDraft = draft.trim().replace(/\s+/g, " ");
   const isActiveContext = isMessageSearchStateForContext(state, scope, conversationId);
@@ -84,7 +86,7 @@ export function MessageSearchPanel({
           onChangeText={setDraft}
           onSubmitEditing={handleSearch}
           placeholder={copy.messageSearchPlaceholder}
-          placeholderTextColor={mobileColors.mutedSoft}
+          placeholderTextColor={theme.text.soft}
           returnKeyType="search"
           style={styles.messageSearchInput}
           value={draft}
@@ -126,10 +128,12 @@ export function MessageSearchPanel({
 }
 
 export function MessageSearchResults({ state }: { state: MobileMessageSearchViewState }) {
+  const theme = useTheme();
+  const styles = useMessagePrimitiveStyles();
   if (state.status === "loading" && !state.payload) {
     return (
       <View style={styles.messageSearchStatusRow}>
-        <ActivityIndicator color={mobileColors.accentStrong} size="small" />
+        <ActivityIndicator color={theme.accent.strong} size="small" />
         <Text style={styles.messageSearchStatusText}>{copy.messageSearchLoading}</Text>
       </View>
     );
@@ -168,6 +172,7 @@ export function MessageSearchResults({ state }: { state: MobileMessageSearchView
 }
 
 export function MessageSearchResultRow({ result }: { result: MessageSearchResult }) {
+  const styles = useMessagePrimitiveStyles();
   const authorLabel = result.author.displayName ?? result.author.username;
   const body = result.content.trim() || copy.dmAttachmentOnlyMessage;
 
@@ -240,6 +245,7 @@ function getMobileAttachmentPreviewUri(attachment: MobileRenderableAttachment): 
 }
 
 export function MessageDateSeparator({ createdAt }: { createdAt: string }) {
+  const styles = useMessagePrimitiveStyles();
   const label = formatMobileDateSeparator(createdAt);
   if (!label) {
     return null;
@@ -264,6 +270,7 @@ export function MessageAttachmentList({
 }: {
   attachments: readonly MobileRenderableAttachment[];
 }) {
+  const styles = useMessagePrimitiveStyles();
   if (attachments.length === 0) {
     return null;
   }
@@ -315,6 +322,7 @@ export function MessageReactionList({
 }: {
   reactions: MobileRenderableMessage["reactions"];
 }) {
+  const styles = useMessagePrimitiveStyles();
   if (reactions.length === 0) {
     return null;
   }
@@ -339,6 +347,7 @@ export function MessageStream({
   currentUserId: string;
   messages: readonly MobileRenderableMessage[];
 }) {
+  const styles = useMessagePrimitiveStyles();
   const streamItems = useMemo(() => getMobileMessageStreamItems(messages), [messages]);
 
   return (
@@ -373,6 +382,7 @@ export function MessagePreviewRow({
   message: MobileRenderableMessage;
   own?: boolean;
 }) {
+  const styles = useMessagePrimitiveStyles();
   const isChannelMode = mode === "channel";
   const authorLabel = message.author.displayName ?? message.author.username;
   const body = getMobileMessageBodyPreview(message, {

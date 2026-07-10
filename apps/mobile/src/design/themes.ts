@@ -1,9 +1,4 @@
-import {
-  mobileRadii,
-  mobileSizing,
-  mobileSpacing,
-  mobileTypography,
-} from "./tokens";
+import { mobileRadii, mobileSizing, mobileSpacing, mobileTypography } from "./tokens";
 import { mobilePalette } from "./palette";
 
 export type MobileThemeId = "dark" | "light";
@@ -46,6 +41,13 @@ export interface MobileTheme {
     readonly disabled: string;
     readonly pressed: string;
   };
+  readonly media: {
+    readonly border: string;
+    readonly surface: string;
+    readonly surfaceElevated: string;
+    readonly text: string;
+    readonly textMuted: string;
+  };
   readonly radii: typeof mobileRadii;
   readonly sizing: typeof mobileSizing;
   readonly spacing: typeof mobileSpacing;
@@ -53,8 +55,11 @@ export interface MobileTheme {
     readonly danger: string;
     readonly dangerSoft: string;
     readonly info: string;
+    readonly infoSoft: string;
     readonly success: string;
+    readonly successSoft: string;
     readonly warning: string;
+    readonly warningSoft: string;
   };
   readonly surface: {
     readonly base: string;
@@ -135,6 +140,13 @@ export const lightTheme = deepFreeze({
     disabled: mobilePalette.overlay.disabledLight,
     pressed: mobilePalette.overlay.pressedLight,
   },
+  media: {
+    border: mobilePalette.neutral[700],
+    surface: mobilePalette.neutral[950],
+    surfaceElevated: mobilePalette.neutral[900],
+    text: mobilePalette.neutral[50],
+    textMuted: mobilePalette.neutral[300],
+  },
   radii: mobileRadii,
   sizing: mobileSizing,
   spacing: mobileSpacing,
@@ -142,8 +154,11 @@ export const lightTheme = deepFreeze({
     danger: mobilePalette.status.danger,
     dangerSoft: mobilePalette.status.dangerSoft,
     info: mobilePalette.status.info,
+    infoSoft: mobilePalette.status.infoSoft,
     success: mobilePalette.status.success,
+    successSoft: mobilePalette.status.successSoft,
     warning: mobilePalette.status.warning,
+    warningSoft: mobilePalette.status.warningSoft,
   },
   surface: {
     base: mobilePalette.neutral[50],
@@ -213,6 +228,13 @@ export const darkTheme = deepFreeze({
     disabled: mobilePalette.overlay.disabledDark,
     pressed: mobilePalette.overlay.pressedDark,
   },
+  media: {
+    border: mobilePalette.neutral[700],
+    surface: mobilePalette.neutral[950],
+    surfaceElevated: mobilePalette.neutral[900],
+    text: mobilePalette.neutral[50],
+    textMuted: mobilePalette.neutral[300],
+  },
   radii: mobileRadii,
   sizing: mobileSizing,
   spacing: mobileSpacing,
@@ -220,8 +242,11 @@ export const darkTheme = deepFreeze({
     danger: mobilePalette.status.dangerDark,
     dangerSoft: mobilePalette.status.dangerSoftDark,
     info: mobilePalette.status.infoDark,
+    infoSoft: mobilePalette.status.infoSoftDark,
     success: mobilePalette.status.successDark,
+    successSoft: mobilePalette.status.successSoftDark,
     warning: mobilePalette.status.warningDark,
+    warningSoft: mobilePalette.status.warningSoftDark,
   },
   surface: {
     base: mobilePalette.neutral[950],

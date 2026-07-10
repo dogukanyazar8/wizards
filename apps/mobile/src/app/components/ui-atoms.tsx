@@ -7,7 +7,6 @@ import {
   formatMobileSyncAge,
   getPermissionReadinessForFeature,
   isMobileSyncStale,
-  mobileColors,
   type MobileBootstrapPayload,
   type MobileBootstrapViewState,
   type MobilePermissionIntentId,
@@ -17,12 +16,9 @@ import {
   type MobileSyncSnapshot,
   type ReactNode,
 } from "../mobile-root-screen-shared";
-import {
-  Avatar as KitAvatar,
-  Button as KitButton,
-  EmptyState as KitEmptyState,
-} from "./kit";
-import { styles } from "./ui-atoms.styles";
+import { Avatar as KitAvatar, Button as KitButton, EmptyState as KitEmptyState } from "./kit";
+import { useUiAtomStyles } from "./ui-atoms.styles";
+import { useTheme } from "../providers/mobile-theme-provider";
 
 function getMobilePermissionLabel(intentId: MobilePermissionIntentId): string {
   switch (intentId) {
@@ -52,6 +48,7 @@ export function ScreenShell({
   testID?: string;
   title: string;
 }) {
+  const styles = useUiAtomStyles();
   return (
     <View style={styles.screenCard} testID={testID}>
       <Text style={styles.screenEyebrow}>{eyebrow}</Text>
@@ -69,6 +66,7 @@ export function BootstrapStateNotice({
   onRetry(): void;
   state: MobileBootstrapViewState;
 }) {
+  const styles = useUiAtomStyles();
   if (state.status === "ready" || state.status === "idle") {
     return null;
   }
@@ -106,6 +104,8 @@ export function MobileSyncHealthBanner({
   health: MobileSyncHealthSummary;
   onRetry(): void;
 }) {
+  const theme = useTheme();
+  const styles = useUiAtomStyles();
   if (health.status === "healthy") {
     return null;
   }
@@ -126,7 +126,7 @@ export function MobileSyncHealthBanner({
         {isError ? (
           <Text style={styles.syncHealthIconText}>!</Text>
         ) : (
-          <ActivityIndicator color={mobileColors.accentStrong} size="small" />
+          <ActivityIndicator color={theme.accent.strong} size="small" />
         )}
       </View>
       <View style={styles.syncHealthText}>
@@ -161,6 +161,7 @@ type MobileSyncStatusItem = {
 };
 
 export function MobileSyncStatusCard({ items }: { items: MobileSyncStatusItem[] }) {
+  const styles = useUiAtomStyles();
   const visibleItems = items.filter((item) => item.visible !== false);
 
   if (visibleItems.length === 0) {
@@ -246,6 +247,7 @@ function getMobileSyncStatusLabel(snapshot: MobileSyncSnapshot) {
 }
 
 export function HomeMetricTile({ label, value }: { label: string; value: number }) {
+  const styles = useUiAtomStyles();
   return (
     <View style={styles.homeMetricTile}>
       <Text style={styles.homeMetricValue}>{value}</Text>
@@ -255,6 +257,7 @@ export function HomeMetricTile({ label, value }: { label: string; value: number 
 }
 
 export function MetricTile({ label, value }: { label: string; value: number }) {
+  const styles = useUiAtomStyles();
   return (
     <View style={styles.metricTile}>
       <Text style={styles.metricValue}>{value}</Text>
@@ -264,6 +267,7 @@ export function MetricTile({ label, value }: { label: string; value: number }) {
 }
 
 export function MetricMiniPill({ label, value }: { label: string; value: number }) {
+  const styles = useUiAtomStyles();
   return (
     <View style={styles.metricMiniPill}>
       <Text style={styles.metricMiniValue}>{value}</Text>
@@ -279,6 +283,7 @@ export function StatusChip({
   label: string;
   tone: "accent" | "muted" | "success";
 }) {
+  const styles = useUiAtomStyles();
   return (
     <View
       style={[
@@ -310,6 +315,7 @@ export function FeatureStatusCard({
   reason: string;
   status: MobileBootstrapPayload["features"]["voice"]["status"];
 }) {
+  const styles = useUiAtomStyles();
   const isAvailable = status === "available";
 
   return (
@@ -337,6 +343,7 @@ export function AvatarMark({
   size?: "large" | "regular" | "small";
   status?: "active" | "idle";
 }) {
+  const styles = useUiAtomStyles();
   return (
     <KitAvatar
       imageUrl={imageUrl}
@@ -356,6 +363,7 @@ export function PermissionReadinessCard({
   readiness: readonly MobilePermissionReadiness[];
   summary: MobilePermissionSummary;
 }) {
+  const styles = useUiAtomStyles();
   const visibleReadiness = compactFeature
     ? getPermissionReadinessForFeature(readiness, compactFeature)
     : readiness;
@@ -395,6 +403,7 @@ export function PermissionReadinessCard({
 }
 
 export function EmptyState({ label, tone }: { label: string; tone: "accent" | "success" }) {
+  const styles = useUiAtomStyles();
   return (
     <KitEmptyState
       icon={tone === "success" ? "checkmark-circle-outline" : "sparkles-outline"}
@@ -404,6 +413,7 @@ export function EmptyState({ label, tone }: { label: string; tone: "accent" | "s
 }
 
 export function DiagnosticPill({ label, value }: { label: string; value: string }) {
+  const styles = useUiAtomStyles();
   return (
     <View style={styles.diagnosticPill}>
       <Text style={styles.diagnosticLabel}>{label}</Text>
@@ -425,6 +435,7 @@ export function ActionButton({
   testID?: string;
   variant: "danger" | "primary" | "secondary";
 }) {
+  const styles = useUiAtomStyles();
   return (
     <KitButton
       disabled={disabled}

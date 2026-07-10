@@ -12,7 +12,6 @@ import {
   getMobileMessageListPerformanceConfig,
   getMobileMessageStreamItems,
   INITIAL_CHANNEL_SEND_STATE,
-  mobileColors,
   useCallback,
   useEffect,
   useMemo,
@@ -39,7 +38,8 @@ import {
   type MobileRenderableMessage,
 } from "../components/message-primitives";
 import { StatusChip } from "../components/ui-atoms";
-import { styles } from "./channel-screen.styles";
+import { useChannelScreenStyles } from "./channel-screen.styles";
+import { useTheme } from "../providers/mobile-theme-provider";
 
 export function MobileChannelChatScreen({
   attachmentsFeature,
@@ -88,6 +88,8 @@ export function MobileChannelChatScreen({
   state: MobileChannelMessagesViewState;
   typingLabel: string | null;
 }) {
+  const theme = useTheme();
+  const styles = useChannelScreenStyles();
   const channelSendState =
     sendState.channelId === channel.id ? sendState : INITIAL_CHANNEL_SEND_STATE;
   const [isSearchPanelOpen, setSearchPanelOpen] = useState(false);
@@ -169,7 +171,7 @@ export function MobileChannelChatScreen({
             ]}
             testID="mobile-channel-back-button"
           >
-            <Ionicons name="chevron-back" size={20} color={mobileColors.text} />
+            <Ionicons name="chevron-back" size={20} color={theme.text.primary} />
           </Pressable>
           <View
             accessible
@@ -203,9 +205,7 @@ export function MobileChannelChatScreen({
                 name={searchVisibility.shouldRenderSearchPanel ? "close" : "search"}
                 size={18}
                 color={
-                  searchVisibility.shouldRenderSearchPanel
-                    ? mobileColors.accentStrong
-                    : mobileColors.muted
+                  searchVisibility.shouldRenderSearchPanel ? theme.accent.strong : theme.text.muted
                 }
               />
             </Pressable>
@@ -222,7 +222,7 @@ export function MobileChannelChatScreen({
             ]}
             testID="mobile-channel-members-button"
           >
-            <Ionicons name="people-outline" size={18} color={mobileColors.muted} />
+            <Ionicons name="people-outline" size={18} color={theme.text.muted} />
           </Pressable>
         </View>
 
@@ -270,6 +270,8 @@ export function ChannelMessageList({
   onRefresh(): void;
   state: MobileChannelMessagesViewState;
 }) {
+  const theme = useTheme();
+  const styles = useChannelScreenStyles();
   const messages = state.payload?.messages ?? [];
   const streamItems = useMemo(() => getMobileMessageStreamItems(messages), [messages]);
   const latestMessageId = messages[messages.length - 1]?.id ?? null;
@@ -366,10 +368,10 @@ export function ChannelMessageList({
         renderItem={renderItem}
         refreshControl={
           <RefreshControl
-            colors={[mobileColors.accentStrong]}
-            progressBackgroundColor={mobileColors.card}
+            colors={[theme.accent.strong]}
+            progressBackgroundColor={theme.surface.card}
             refreshing={state.status === "loading"}
-            tintColor={mobileColors.accentStrong}
+            tintColor={theme.accent.strong}
             onRefresh={onRefresh}
           />
         }
@@ -393,6 +395,8 @@ export function ChannelScrollToBottomButton({
   onPress(): void;
   visible: boolean;
 }) {
+  const theme = useTheme();
+  const styles = useChannelScreenStyles();
   if (!visible) {
     return null;
   }
@@ -407,12 +411,13 @@ export function ChannelScrollToBottomButton({
         pressed && styles.actionButtonPressed,
       ]}
     >
-      <Ionicons name="arrow-down" size={18} color={mobileColors.text} />
+      <Ionicons name="arrow-down" size={18} color={theme.text.primary} />
     </Pressable>
   );
 }
 
 export function ChannelTypingIndicator({ label }: { label: string | null }) {
+  const styles = useChannelScreenStyles();
   if (!label) {
     return null;
   }
@@ -470,6 +475,7 @@ export function ChannelMessagesPreviewCard({
   sendState: MobileChannelSendViewState;
   state: MobileChannelMessagesViewState;
 }) {
+  const styles = useChannelScreenStyles();
   const channelSendState =
     sendState.channelId === channel.id ? sendState : INITIAL_CHANNEL_SEND_STATE;
 
