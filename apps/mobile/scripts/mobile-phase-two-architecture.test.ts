@@ -34,4 +34,17 @@ describe("mobile Phase 2 architecture", () => {
     assert.match(source, /from "\.\/dm-conversation-screen"/);
     assert.ok(source.split(/\r?\n/).length < 220, "DM screen shell must remain focused");
   });
+
+  it("moves the workspace message surface behind a dedicated browser module", () => {
+    const homeScreen = join(appRoot, "screens", "home-screen.tsx");
+    const workspaceBrowser = join(appRoot, "screens", "workspace-browser.tsx");
+    const channelSections = join(appRoot, "screens", "workspace-channel-section-list.tsx");
+
+    assert.equal(existsSync(workspaceBrowser), true, "Expected a workspace browser surface");
+    assert.equal(existsSync(channelSections), true, "Expected a workspace channel-list surface");
+
+    const source = readFileSync(homeScreen, "utf8");
+    assert.match(source, /from "\.\/workspace-browser"/);
+    assert.match(source, /from "\.\/workspace-channel-section-list"/);
+  });
 });
