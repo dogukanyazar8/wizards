@@ -9,7 +9,6 @@ import {
   getMobileMessageBodyPreview,
   getMobileMessageStreamItems,
   memo,
-  mobileColors,
   useCallback,
   useMemo,
   useState,
@@ -21,7 +20,11 @@ import {
 import { FlashList } from "@shopify/flash-list";
 import { AvatarMark } from "./ui-atoms";
 import { MobileCachedImage } from "./mobile-cached-image";
-import { styles } from "./message-primitives.styles";
+import { Icon } from "./kit";
+import { useMessagePrimitiveStyles } from "./message-primitives.styles";
+import { useTheme } from "../providers/mobile-theme-provider";
+import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
+import { formatMobileDateSeparator } from "../../locale/mobile-date-separator";
 
 const MOBILE_SEARCH_RESULT_RENDER_LIMIT = 6;
 
@@ -50,6 +53,8 @@ export function MessageSearchPanel({
   scope: "channel" | "dm";
   state: MobileMessageSearchViewState;
 }) {
+  const theme = useTheme();
+  const styles = useMessagePrimitiveStyles();
   const [draft, setDraft] = useState("");
   const normalizedDraft = draft.trim().replace(/\s+/g, " ");
   const isActiveContext = isMessageSearchStateForContext(state, scope, conversationId);
@@ -84,7 +89,7 @@ export function MessageSearchPanel({
           onChangeText={setDraft}
           onSubmitEditing={handleSearch}
           placeholder={copy.messageSearchPlaceholder}
-          placeholderTextColor={mobileColors.mutedSoft}
+          placeholderTextColor={theme.text.soft}
           returnKeyType="search"
           style={styles.messageSearchInput}
           value={draft}
@@ -99,7 +104,7 @@ export function MessageSearchPanel({
               pressed && styles.actionButtonPressed,
             ]}
           >
-            <Text style={styles.messageSearchClearText}>x</Text>
+            <Icon name="close" size={16} tone="accent" />
           </Pressable>
         ) : null}
         <Pressable
@@ -126,10 +131,12 @@ export function MessageSearchPanel({
 }
 
 export function MessageSearchResults({ state }: { state: MobileMessageSearchViewState }) {
+  const theme = useTheme();
+  const styles = useMessagePrimitiveStyles();
   if (state.status === "loading" && !state.payload) {
     return (
       <View style={styles.messageSearchStatusRow}>
-        <ActivityIndicator color={mobileColors.accentStrong} size="small" />
+        <ActivityIndicator color={theme.accent.strong} size="small" />
         <Text style={styles.messageSearchStatusText}>{copy.messageSearchLoading}</Text>
       </View>
     );
@@ -168,6 +175,7 @@ export function MessageSearchResults({ state }: { state: MobileMessageSearchView
 }
 
 export function MessageSearchResultRow({ result }: { result: MessageSearchResult }) {
+  const styles = useMessagePrimitiveStyles();
   const authorLabel = result.author.displayName ?? result.author.username;
   const body = result.content.trim() || copy.dmAttachmentOnlyMessage;
 
@@ -203,19 +211,6 @@ export type MobileRenderableMessage = ChatMessage | MobileDMMessagesResponse["me
 
 export type MobileRenderableAttachment = MobileRenderableMessage["attachments"][number];
 
-function formatMobileDateSeparator(value: string, locale = "tr-TR"): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  return new Intl.DateTimeFormat(locale, {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  }).format(date);
-}
-
 function formatMobileAttachmentSize(size: number): string {
   if (!Number.isFinite(size) || size <= 0) {
     return "";
@@ -240,7 +235,9 @@ function getMobileAttachmentPreviewUri(attachment: MobileRenderableAttachment): 
 }
 
 export function MessageDateSeparator({ createdAt }: { createdAt: string }) {
-  const label = formatMobileDateSeparator(createdAt);
+  const styles = useMessagePrimitiveStyles();
+  const { locale } = useMobileLocaleRuntime();
+  const label = formatMobileDateSeparator(createdAt, locale);
   if (!label) {
     return null;
   }
@@ -264,6 +261,7 @@ export function MessageAttachmentList({
 }: {
   attachments: readonly MobileRenderableAttachment[];
 }) {
+  const styles = useMessagePrimitiveStyles();
   if (attachments.length === 0) {
     return null;
   }
@@ -292,7 +290,7 @@ export function MessageAttachmentList({
               />
             ) : (
               <View style={styles.messageAttachmentIcon}>
-                <Text style={styles.messageAttachmentIconText}>FILE</Text>
+                <Icon name="document-attach-outline" size={22} tone="accent" />
               </View>
             )}
             <View style={styles.messageAttachmentMeta}>
@@ -315,6 +313,7 @@ export function MessageReactionList({
 }: {
   reactions: MobileRenderableMessage["reactions"];
 }) {
+  const styles = useMessagePrimitiveStyles();
   if (reactions.length === 0) {
     return null;
   }
@@ -339,6 +338,7 @@ export function MessageStream({
   currentUserId: string;
   messages: readonly MobileRenderableMessage[];
 }) {
+  const styles = useMessagePrimitiveStyles();
   const streamItems = useMemo(() => getMobileMessageStreamItems(messages), [messages]);
 
   return (
@@ -373,6 +373,7 @@ export function MessagePreviewRow({
   message: MobileRenderableMessage;
   own?: boolean;
 }) {
+  const styles = useMessagePrimitiveStyles();
   const isChannelMode = mode === "channel";
   const authorLabel = message.author.displayName ?? message.author.username;
   const body = getMobileMessageBodyPreview(message, {

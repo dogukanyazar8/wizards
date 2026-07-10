@@ -9,7 +9,6 @@ import {
   View,
   copy,
   getMobileVoiceChannelScreenModel,
-  mobileColors,
   summarizeMobileVoiceRuntimeState,
   useMemo,
   useState,
@@ -39,7 +38,8 @@ import {
   ScreenShell,
   StatusChip,
 } from "../components/ui-atoms";
-import { styles } from "./voice-screen.styles";
+import { useVoiceScreenStyles } from "./voice-screen.styles";
+import { useTheme } from "../providers/mobile-theme-provider";
 
 export function VoiceScreen({
   bootstrapState,
@@ -78,6 +78,7 @@ export function VoiceScreen({
   onRefreshBootstrap(): void;
   onRefreshVisibleData(): void;
 }) {
+  const styles = useVoiceScreenStyles();
   const [screenShareConsentVisible, setScreenShareConsentVisible] = useState(false);
   const requestScreenShareToggle = () => {
     if (voiceRoomState.selfScreenShareEnabled) {
@@ -90,6 +91,7 @@ export function VoiceScreen({
 
   return (
     <ScreenShell
+      testID="mobile-voice-screen"
       eyebrow={copy.tabVoice}
       title={copy.voiceTitle}
       description={copy.voiceDescription}
@@ -150,6 +152,7 @@ export function VoiceRuntimeCard({
   state: MobileVoiceRuntimeState;
   onRequestPermission(): Promise<void>;
 }) {
+  const styles = useVoiceScreenStyles();
   const summary = summarizeMobileVoiceRuntimeState(state);
   const text = getMobileVoiceRuntimeText(state);
   const canRequest =
@@ -276,6 +279,8 @@ export function ScreenShareActiveBanner({
   onStop(): void;
   room: MobileVoiceRoomState;
 }) {
+  const theme = useTheme();
+  const styles = useVoiceScreenStyles();
   if (!shouldShowScreenShareActiveBanner(room)) {
     return null;
   }
@@ -283,7 +288,7 @@ export function ScreenShareActiveBanner({
   return (
     <View style={styles.mobileVoiceScreenShareBanner}>
       <View style={styles.mobileVoiceScreenShareBannerIcon}>
-        <Ionicons name="desktop-outline" size={17} color="#047857" />
+        <Ionicons name="desktop-outline" size={17} color={theme.status.success} />
       </View>
       <View style={styles.mobileVoiceScreenShareBannerText}>
         <Text style={styles.mobileVoiceScreenShareBannerTitle}>
@@ -312,6 +317,8 @@ export function ScreenShareConsentSheet({
   onConfirm(): void;
   visible: boolean;
 }) {
+  const theme = useTheme();
+  const styles = useVoiceScreenStyles();
   if (!visible) {
     return null;
   }
@@ -319,7 +326,7 @@ export function ScreenShareConsentSheet({
   return (
     <View style={styles.mobileVoiceScreenShareConsent}>
       <View style={styles.mobileVoiceScreenShareConsentIcon}>
-        <Ionicons name="warning-outline" size={18} color="#B45309" />
+        <Ionicons name="warning-outline" size={18} color={theme.status.warning} />
       </View>
       <View style={styles.mobileVoiceScreenShareConsentText}>
         <Text style={styles.mobileVoiceScreenShareConsentTitle}>
@@ -370,6 +377,8 @@ function ScreenShareVideoSurface({
   participant: MobileVoiceRoomParticipant;
   variant: "fullscreen" | "inline";
 }) {
+  const theme = useTheme();
+  const styles = useVoiceScreenStyles();
   if (!participant.screenShareTrackRef) {
     return (
       <View
@@ -379,7 +388,7 @@ function ScreenShareVideoSurface({
             : styles.mobileVoiceScreenShareWaiting
         }
       >
-        <Ionicons name="desktop-outline" size={24} color="#94A3B8" />
+        <Ionicons name="desktop-outline" size={24} color={theme.media.textMuted} />
         <Text style={styles.mobileVoiceScreenShareWaitingText}>
           {copy.voiceScreenShareViewerWaiting}
         </Text>
@@ -405,6 +414,8 @@ export function MobileScreenShareViewer({
 }: {
   participants: readonly MobileVoiceRoomParticipant[];
 }) {
+  const theme = useTheme();
+  const styles = useVoiceScreenStyles();
   const [expanded, setExpanded] = useState(false);
   const participant = getActiveScreenShareParticipant(participants);
 
@@ -419,7 +430,7 @@ export function MobileScreenShareViewer({
     <View style={styles.mobileVoiceScreenShareViewer}>
       <View style={styles.mobileVoiceScreenShareViewerHeader}>
         <View style={styles.mobileVoiceScreenShareViewerIcon}>
-          <Ionicons name="desktop-outline" size={18} color="#2563EB" />
+          <Ionicons name="desktop-outline" size={18} color={theme.status.info} />
         </View>
         <View style={styles.mobileVoiceScreenShareViewerText}>
           <Text style={styles.mobileVoiceScreenShareViewerEyebrow}>
@@ -444,7 +455,7 @@ export function MobileScreenShareViewer({
           <Ionicons
             name="expand-outline"
             size={18}
-            color={canExpand ? mobileColors.text : mobileColors.mutedSoft}
+            color={canExpand ? theme.text.primary : theme.text.soft}
           />
         </Pressable>
       </View>
@@ -487,7 +498,7 @@ export function MobileScreenShareViewer({
                 pressed && styles.actionButtonPressed,
               ]}
             >
-              <Ionicons name="close" size={22} color="#FFFFFF" />
+              <Ionicons name="close" size={22} color={theme.media.text} />
             </Pressable>
           </View>
           <ScrollView
@@ -515,6 +526,7 @@ function getVoiceParticipantName(participant: MobileVoiceRoomParticipant): strin
 }
 
 export function VoiceLevelBars({ participant }: { participant: MobileVoiceRoomParticipant }) {
+  const styles = useVoiceScreenStyles();
   const level = participant.isMuted ? 0 : Math.max(0, Math.min(1, participant.audioLevel));
   const barHeights = [0.42, 0.7, 1, 0.62].map((multiplier) =>
     Math.max(6, Math.round(8 + level * 18 * multiplier)),
@@ -547,6 +559,8 @@ export function MobileVoiceParticipantRow({
 }: {
   participant: MobileVoiceRoomParticipant;
 }) {
+  const theme = useTheme();
+  const styles = useVoiceScreenStyles();
   const title = getVoiceParticipantName(participant);
   const subtitle = participant.isMuted
     ? copy.voiceRoomMuted
@@ -581,12 +595,12 @@ export function MobileVoiceParticipantRow({
         </Text>
       </View>
       {participant.isMuted ? (
-        <Ionicons name="mic-off-outline" size={18} color={mobileColors.mutedSoft} />
+        <Ionicons name="mic-off-outline" size={18} color={theme.text.soft} />
       ) : (
         <VoiceLevelBars participant={participant} />
       )}
       {participant.isScreenSharing ? (
-        <Ionicons name="desktop-outline" size={17} color={mobileColors.success} />
+        <Ionicons name="desktop-outline" size={17} color={theme.status.success} />
       ) : null}
     </View>
   );
@@ -601,6 +615,7 @@ export function MobileVoiceParticipantGroup({
   participants: readonly MobileVoiceRoomParticipant[];
   title: string;
 }) {
+  const styles = useVoiceScreenStyles();
   return (
     <View style={styles.mobileVoiceSectionCard}>
       <View style={styles.mobileVoiceSectionHeader}>
@@ -660,6 +675,7 @@ export function MobileVoiceInviteCandidateList({
   onSendInvite(targetUserId: string): void;
   sendStates: Readonly<Record<string, MobileVoiceInviteSendState>>;
 }) {
+  const styles = useVoiceScreenStyles();
   return (
     <View style={styles.mobileVoiceSectionCard}>
       <View style={styles.mobileVoiceSectionHeader}>
@@ -735,9 +751,11 @@ export function MobileVoiceInfoRow({
   label: string;
   value: string;
 }) {
+  const theme = useTheme();
+  const styles = useVoiceScreenStyles();
   return (
     <View style={styles.mobileVoiceInfoRow}>
-      <Ionicons name={icon} size={18} color={mobileColors.muted} />
+      <Ionicons name={icon} size={18} color={theme.text.muted} />
       <Text style={styles.mobileVoiceInfoLabel}>{label}</Text>
       <Text style={styles.mobileVoiceInfoValue} numberOfLines={1}>
         {value}
@@ -761,6 +779,8 @@ export function MobileVoiceControlButton({
   onPress(): void;
   tone?: "danger" | "neutral" | "primary";
 }) {
+  const theme = useTheme();
+  const styles = useVoiceScreenStyles();
   return (
     <Pressable
       accessibilityRole="button"
@@ -780,7 +800,13 @@ export function MobileVoiceControlButton({
       <Ionicons
         name={icon}
         size={21}
-        color={tone === "primary" ? "#FFFFFF" : tone === "danger" ? "#DC2626" : mobileColors.text}
+        color={
+          tone === "primary"
+            ? theme.text.onPrimary
+            : tone === "danger"
+              ? theme.status.danger
+              : theme.text.primary
+        }
       />
       <Text
         style={[
@@ -822,6 +848,8 @@ export function PushToTalkButton({
   onEnd(): void;
   phase: MobilePushToTalkPhase;
 }) {
+  const theme = useTheme();
+  const styles = useVoiceScreenStyles();
   if (inputMode !== "push-to-talk") {
     return null;
   }
@@ -851,7 +879,7 @@ export function PushToTalkButton({
       ]}
     >
       <View style={[styles.mobilePushToTalkIcon, isActive && styles.mobilePushToTalkIconActive]}>
-        <Ionicons name={isActive ? "mic" : "mic-outline"} size={24} color="#FFFFFF" />
+        <Ionicons name={isActive ? "mic" : "mic-outline"} size={24} color={theme.text.onPrimary} />
       </View>
       <Text style={styles.mobilePushToTalkLabel} numberOfLines={1}>
         {label}
@@ -903,6 +931,8 @@ export function MobileVoiceChannelScreen({
   voiceInputMode: MobileVoiceInputMode;
   voicePushToTalkPhase: MobilePushToTalkPhase;
 }) {
+  const theme = useTheme();
+  const styles = useVoiceScreenStyles();
   const model = useMemo(
     () =>
       getMobileVoiceChannelScreenModel(room, {
@@ -939,7 +969,7 @@ export function MobileVoiceChannelScreen({
             pressed && styles.actionButtonPressed,
           ]}
         >
-          <Ionicons name="chevron-back" size={20} color={mobileColors.text} />
+          <Ionicons name="chevron-back" size={20} color={theme.text.primary} />
         </Pressable>
         <AvatarMark
           imageUrl={serverIconUrl}
@@ -968,7 +998,7 @@ export function MobileVoiceChannelScreen({
           disabled
           style={[styles.mobileChannelChatIconButton, styles.mobileVoiceHeaderDisabledButton]}
         >
-          <Ionicons name="ellipsis-horizontal" size={18} color={mobileColors.mutedSoft} />
+          <Ionicons name="ellipsis-horizontal" size={18} color={theme.text.soft} />
         </Pressable>
       </View>
 

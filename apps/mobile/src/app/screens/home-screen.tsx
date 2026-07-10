@@ -17,7 +17,6 @@ import {
   getVisibleMobileWorkspaceChannelSections,
   getMobileVoiceInviteCandidates,
   MOBILE_RENDER_LIMITS,
-  mobileColors,
   useCallback,
   useMemo,
   useState,
@@ -53,7 +52,8 @@ import {
   MobileSyncHealthBanner,
   StatusChip,
 } from "../components/ui-atoms";
-import { styles } from "./home-screen.styles";
+import { useTheme } from "../providers/mobile-theme-provider";
+import { useHomeScreenStyles } from "./home-screen.styles";
 
 export function OverviewScreen({
   bootstrapState,
@@ -142,13 +142,14 @@ export function OverviewScreen({
   onSendChannelMessage(content: string): Promise<boolean>;
   onSendVoiceInvite(targetUserId: string): void;
 }) {
+  const styles = useHomeScreenStyles();
   const attachmentsFeature =
     bootstrapState.status === "ready" ? bootstrapState.payload.features.attachments : null;
   const messageSearchFeature =
     bootstrapState.status === "ready" ? bootstrapState.payload.features.messageSearch : null;
 
   return (
-    <View style={styles.homeScreen}>
+    <View style={styles.homeScreen} testID="mobile-overview-screen">
       <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
       <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
       {bootstrapState.status === "ready" ? (
@@ -286,6 +287,8 @@ export function MobileWorkspaceBrowser({
   onSendChannelMessage(content: string): Promise<boolean>;
   onSendVoiceInvite(targetUserId: string): void;
 }) {
+  const styles = useHomeScreenStyles();
+  const theme = useTheme();
   const [channelQuery, setChannelQuery] = useState("");
   const [collapsedSectionIds, setCollapsedSectionIds] = useState<Record<string, boolean>>({});
   const servers = useMemo(
@@ -494,7 +497,7 @@ export function MobileWorkspaceBrowser({
           disabled
           style={styles.mobileServerRailAddButton}
         >
-          <Ionicons name="add" size={22} color={mobileColors.accentStrong} />
+          <Ionicons name="add" size={22} color={theme.accent.strong} />
         </Pressable>
       </View>
 
@@ -523,15 +526,15 @@ export function MobileWorkspaceBrowser({
                 </Text>
               </View>
               {isActiveServerLoading ? (
-                <ActivityIndicator color={mobileColors.accentStrong} size="small" />
+                <ActivityIndicator color={theme.accent.strong} size="small" />
               ) : (
-                <Ionicons name="chevron-down" size={18} color={mobileColors.muted} />
+                <Ionicons name="chevron-down" size={18} color={theme.text.muted} />
               )}
             </View>
 
             <View style={styles.mobileWorkspaceSearchRow}>
               <View style={styles.mobileWorkspaceSearchBox}>
-                <Ionicons name="search-outline" size={16} color={mobileColors.mutedSoft} />
+                <Ionicons name="search-outline" size={16} color={theme.text.soft} />
                 <TextInput
                   accessibilityLabel={copy.workspaceSearchPlaceholder}
                   autoCapitalize="none"
@@ -539,7 +542,7 @@ export function MobileWorkspaceBrowser({
                   clearButtonMode="while-editing"
                   onChangeText={setChannelQuery}
                   placeholder={copy.workspaceSearchPlaceholder}
-                  placeholderTextColor={mobileColors.mutedSoft}
+                  placeholderTextColor={theme.text.soft}
                   returnKeyType="search"
                   style={styles.mobileWorkspaceSearchInput}
                   value={channelQuery}
@@ -607,6 +610,8 @@ export function WorkspaceChannelSectionList({
   sections: MobileVisibleWorkspaceChannelSection[];
   selectedChannelId: string | null;
 }) {
+  const styles = useHomeScreenStyles();
+  const theme = useTheme();
   if (sections.length === 0) {
     return <Text style={styles.contractDescription}>{copy.workspaceNoChannels}</Text>;
   }
@@ -655,7 +660,7 @@ export function WorkspaceChannelSectionList({
               <Ionicons
                 name={section.isCollapsed ? "chevron-forward" : "chevron-down"}
                 size={14}
-                color={mobileColors.mutedSoft}
+                color={theme.text.soft}
               />
             </View>
           </Pressable>
@@ -677,6 +682,8 @@ export function WorkspaceChannelCompactRow({
   isSelected: boolean;
   onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
 }) {
+  const styles = useHomeScreenStyles();
+  const theme = useTheme();
   const priority = getMobileChannelPriority(channel);
   const iconName =
     channel.type === "TEXT" ? "chatbubble-ellipses-outline" : "volume-medium-outline";
@@ -703,7 +710,7 @@ export function WorkspaceChannelCompactRow({
         <Ionicons
           name={iconName}
           size={15}
-          color={channel.type === "VOICE" ? "#047857" : mobileColors.accentStrong}
+          color={channel.type === "VOICE" ? theme.status.success : theme.accent.strong}
         />
       </View>
       <View style={styles.mobileWorkspaceChannelText}>
@@ -727,7 +734,7 @@ export function WorkspaceChannelCompactRow({
         <Ionicons
           name={priority.isLocked ? "lock-closed-outline" : "eye-off-outline"}
           size={14}
-          color={mobileColors.mutedSoft}
+          color={theme.text.soft}
         />
       ) : null}
     </Pressable>
@@ -743,6 +750,7 @@ export function HomeGreetingHeader({
   signedInUserLabel: string | null;
   state: MobileBootstrapViewState;
 }) {
+  const styles = useHomeScreenStyles();
   const user = state.status === "ready" ? state.payload.user : null;
   const label = user?.displayName ?? signedInUserLabel ?? user?.username ?? copy.appTitle;
 
@@ -777,6 +785,7 @@ export function HomeGreetingHeader({
 }
 
 export function HomeSummaryCard({ state }: { state: MobileBootstrapViewState }) {
+  const styles = useHomeScreenStyles();
   if (state.status !== "ready") {
     return null;
   }
@@ -826,6 +835,7 @@ export function HomeQuickActionsCard({
   onOpenTab(tab: MobileTabId): void;
   state: MobileBootstrapViewState;
 }) {
+  const styles = useHomeScreenStyles();
   if (state.status !== "ready") {
     return null;
   }
@@ -923,6 +933,7 @@ export function RecentServersCard({
   selectedServerId?: string | null;
   servers: MobileBootstrapPayload["home"]["servers"]["recent"];
 }) {
+  const styles = useHomeScreenStyles();
   const visibleServers = useMemo(
     () => getBoundedMobileList(servers, MOBILE_RENDER_LIMITS.servers),
     [servers],
@@ -1021,6 +1032,7 @@ export function WorkspacePreviewCard({
   selectedServerId: string | null;
   serverState: MobileWorkspaceServerViewState;
 }) {
+  const styles = useHomeScreenStyles();
   if (bootstrapState.status !== "ready") {
     return null;
   }
@@ -1157,6 +1169,7 @@ export function WorkspaceChannelList({
   onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
   selectedChannelId: string | null;
 }) {
+  const styles = useHomeScreenStyles();
   if (channels.length === 0) {
     return <Text style={styles.contractDescription}>{copy.workspaceNoChannels}</Text>;
   }

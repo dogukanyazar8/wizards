@@ -1,7 +1,14 @@
 import { type ComponentProps, useEffect } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  Text,
+  View,
+  type ImageStyle,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   useAnimatedStyle,
@@ -9,13 +16,8 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
-import {
-  mobileColors,
-  mobileElevation,
-  mobileRadii,
-  mobileSizing,
-  mobileTypography,
-} from "../design/tokens";
+import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
+import type { MobileTheme } from "../design/themes";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import { isMobileTabId, type MobileTabId } from "./mobile-navigation";
 
@@ -51,6 +53,7 @@ export function MobileBottomTabBar({
   state,
 }: BottomTabBarProps & { readonly directMessageUnreadCount?: number }) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createMobileBottomTabBarStyles);
 
   return (
     <View style={[styles.bottomNavOuter, { paddingBottom: Math.max(insets.bottom, 12) }]}>
@@ -116,6 +119,8 @@ function MobileAnimatedTabIcon({
   readonly icon: { active: MobileNavIconName; inactive: MobileNavIconName };
   readonly isActive: boolean;
 }) {
+  const theme = useTheme();
+  const styles = useThemedStyles(createMobileBottomTabBarStyles);
   const reduceMotion = useReducedMotion();
   const activeProgress = useSharedValue(isActive ? 1 : 0);
 
@@ -140,7 +145,7 @@ function MobileAnimatedTabIcon({
         <Ionicons
           name={isActive ? icon.active : icon.inactive}
           size={isActive ? 21 : 20}
-          color={isActive ? mobileColors.primaryForeground : mobileColors.textMuted}
+          color={isActive ? theme.text.onPrimary : theme.text.muted}
         />
       </View>
       {badge > 0 ? (
@@ -152,92 +157,93 @@ function MobileAnimatedTabIcon({
   );
 }
 
-const styles = StyleSheet.create({
-  bottomNavOuter: { paddingTop: 10 },
-  bottomNavShadow: { borderRadius: 30, ...mobileElevation.floating },
-  bottomNavSurface: {
-    minHeight: 70,
-    flexDirection: "row",
-    gap: 3,
-    minWidth: 0,
-    borderWidth: 1,
-    borderColor: mobileColors.borderSubtle,
-    borderRadius: 30,
-    backgroundColor: mobileColors.surfaceElevated,
-    paddingHorizontal: 7,
-    paddingVertical: 7,
-    overflow: "hidden",
-  },
-  bottomNavSheen: {
-    position: "absolute",
-    top: 1,
-    right: 18,
-    left: 18,
-    height: 1,
-    borderRadius: mobileRadii.pill,
-    backgroundColor: mobileColors.surfaceOverlay,
-  },
-  navButton: {
-    minHeight: mobileSizing.minTouchTarget + 12,
-    flex: 1,
-    minWidth: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    borderRadius: 22,
-    position: "relative",
-  },
-  navButtonActive: { backgroundColor: mobileColors.primarySoft },
-  navButtonPressed: { transform: [{ scale: 0.97 }] },
-  navVisualWrap: {
-    width: 40,
-    height: 34,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-  navActiveGlow: {
-    position: "absolute",
-    width: 42,
-    height: 42,
-    borderRadius: mobileRadii.pill,
-    backgroundColor: mobileColors.ambientPrimary,
-  },
-  navIconHalo: {
-    width: 34,
-    height: 34,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: mobileRadii.pill,
-    backgroundColor: "transparent",
-  },
-  navIconHaloActive: { backgroundColor: mobileColors.primary, ...mobileElevation.soft },
-  navLabel: {
-    ...mobileTypography.caption,
-    maxWidth: "100%",
-    color: mobileColors.textMuted,
-    fontSize: 10.5,
-    lineHeight: 13,
-  },
-  navLabelActive: {
-    color: mobileColors.primary,
-    fontFamily: mobileTypography.fontFamilyBold,
-  },
-  navBadge: {
-    position: "absolute",
-    top: -2,
-    right: -3,
-    minWidth: 17,
-    height: 17,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: mobileRadii.pill,
-    backgroundColor: mobileColors.primary,
-    paddingHorizontal: 4,
-  },
-  navBadgeText: {
-    color: mobileColors.primaryForeground,
-    fontSize: 9,
-    fontFamily: mobileTypography.fontFamilyBold,
-  },
-});
+export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
+  ({
+    bottomNavOuter: { paddingTop: 10 },
+    bottomNavShadow: { borderRadius: 30, ...theme.elevation.floating },
+    bottomNavSurface: {
+      minHeight: 70,
+      flexDirection: "row",
+      gap: 3,
+      minWidth: 0,
+      borderWidth: 1,
+      borderColor: theme.border.subtle,
+      borderRadius: 30,
+      backgroundColor: theme.surface.elevated,
+      paddingHorizontal: 7,
+      paddingVertical: 7,
+      overflow: "hidden",
+    },
+    bottomNavSheen: {
+      position: "absolute",
+      top: 1,
+      right: 18,
+      left: 18,
+      height: 1,
+      borderRadius: theme.radii.pill,
+      backgroundColor: theme.surface.overlay,
+    },
+    navButton: {
+      minHeight: theme.sizing.minTouchTarget + 12,
+      flex: 1,
+      minWidth: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      borderRadius: 22,
+      position: "relative",
+    },
+    navButtonActive: { backgroundColor: theme.accent.soft },
+    navButtonPressed: { transform: [{ scale: 0.97 }] },
+    navVisualWrap: {
+      width: 40,
+      height: 34,
+      alignItems: "center",
+      justifyContent: "center",
+      position: "relative",
+    },
+    navActiveGlow: {
+      position: "absolute",
+      width: 42,
+      height: 42,
+      borderRadius: theme.radii.pill,
+      backgroundColor: theme.accent.soft,
+    },
+    navIconHalo: {
+      width: 34,
+      height: 34,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: theme.radii.pill,
+      backgroundColor: theme.surface.elevated,
+    },
+    navIconHaloActive: { backgroundColor: theme.accent.default, ...theme.elevation.soft },
+    navLabel: {
+      ...theme.typography.caption,
+      maxWidth: "100%",
+      color: theme.text.muted,
+      fontSize: 10.5,
+      lineHeight: 13,
+    },
+    navLabelActive: {
+      color: theme.accent.strong,
+      fontFamily: theme.typography.fontFamilyBold,
+    },
+    navBadge: {
+      position: "absolute",
+      top: -2,
+      right: -3,
+      minWidth: 17,
+      height: 17,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: theme.radii.pill,
+      backgroundColor: theme.accent.default,
+      paddingHorizontal: 4,
+    },
+    navBadgeText: {
+      color: theme.text.onPrimary,
+      fontSize: 9,
+      fontFamily: theme.typography.fontFamilyBold,
+    },
+  }) satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;

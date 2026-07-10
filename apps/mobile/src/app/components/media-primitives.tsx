@@ -5,7 +5,7 @@ import {
   type MobileMediaRuntimeState,
   type MobilePermissionReadiness,
 } from "../mobile-root-screen-shared";
-import { styles } from "./media-primitives.styles";
+import { useMediaPrimitiveStyles } from "./media-primitives.styles";
 
 type MediaRuntimeStatusTone = "danger" | "neutral" | "success" | "warning";
 
@@ -47,6 +47,7 @@ export function MediaRuntimeStatusPill({
   label: string;
   status: MobilePermissionReadiness["status"];
 }) {
+  const styles = useMediaPrimitiveStyles();
   const tone = getPermissionStatusTone(status);
 
   return (

@@ -1,10 +1,10 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, Text, View } from "react-native";
 
-import { mobileColors } from "../../design/tokens";
 import { activeMobileCopy } from "../../locale/mobile-locale-preferences";
 import type { MobileVoiceInviteReceived } from "../../voice/mobile-voice-room-contract";
-import { styles } from "./mobile-voice-invite-overlay.styles";
+import { useMobileVoiceInviteOverlayStyles } from "./mobile-voice-invite-overlay.styles";
+import { useTheme } from "../providers/mobile-theme-provider";
 
 const copy = activeMobileCopy;
 
@@ -20,6 +20,8 @@ export function MobileVoiceInviteOverlay({
   onAccept(inviteId: string): void;
   onDecline(inviteId: string): void;
 }) {
+  const theme = useTheme();
+  const styles = useMobileVoiceInviteOverlayStyles();
   const invite = invites[0];
 
   if (!invite) {
@@ -36,7 +38,7 @@ export function MobileVoiceInviteOverlay({
     <View pointerEvents="box-none" style={styles.mobileVoiceInviteOverlay}>
       <View style={styles.mobileVoiceInviteOverlayCard}>
         <View style={styles.mobileVoiceInviteOverlayIcon}>
-          <Ionicons name="call" size={18} color={mobileColors.accent} />
+          <Ionicons name="call" size={18} color={theme.accent.default} />
         </View>
         <View style={styles.mobileVoiceInviteOverlayText}>
           <Text style={styles.mobileVoiceInviteOverlayTitle}>{copy.voiceInviteIncomingTitle}</Text>

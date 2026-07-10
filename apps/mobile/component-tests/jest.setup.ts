@@ -1,10 +1,30 @@
+jest.mock("@react-native-async-storage/async-storage", () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(async () => null),
+    setItem: jest.fn(async () => undefined),
+  },
+}));
+
 jest.mock("@expo/vector-icons/Ionicons", () => ({
   __esModule: true,
-  default: ({ name }: { name: string }) => {
+  default: ({
+    accessibilityLabel,
+    name,
+    ...props
+  }: {
+    accessibilityLabel?: string;
+    name: string;
+    [key: string]: unknown;
+  }) => {
     const React = require("react");
     const { Text } = require("react-native");
 
-    return React.createElement(Text, { accessibilityLabel: `icon:${name}` }, name);
+    return React.createElement(
+      Text,
+      { ...props, accessibilityLabel: accessibilityLabel ?? `icon:${name}` },
+      name,
+    );
   },
 }));
 
@@ -17,6 +37,28 @@ jest.mock("@livekit/react-native", () => ({
   },
 }));
 
+jest.mock("expo-navigation-bar", () => ({
+  NavigationBar: (props: Record<string, unknown>) => {
+    const React = require("react");
+    const { View } = require("react-native");
+
+    return React.createElement(View, { ...props, testID: "mobile-system-navigation-bar" });
+  },
+}));
+
+jest.mock("expo-status-bar", () => ({
+  StatusBar: (props: Record<string, unknown>) => {
+    const React = require("react");
+    const { View } = require("react-native");
+
+    return React.createElement(View, { ...props, testID: "mobile-system-status-bar" });
+  },
+}));
+
+jest.mock("expo-system-ui", () => ({
+  setBackgroundColorAsync: jest.fn(async () => undefined),
+}));
+
 jest.mock("react-native-reanimated", () => {
   const React = require("react");
   const { View } = require("react-native");
@@ -26,10 +68,17 @@ jest.mock("react-native-reanimated", () => {
 
   return {
     __esModule: true,
-    default: { View: AnimatedView },
+    default: {
+      View: AnimatedView,
+      createAnimatedComponent: (component: unknown) => component,
+    },
+    cancelAnimation: jest.fn(),
+    runOnJS: (callback: (...args: unknown[]) => unknown) => callback,
     useAnimatedStyle: (factory: () => Record<string, unknown>) => factory(),
-    useReducedMotion: () => false,
+    useReducedMotion: jest.fn(() => false),
     useSharedValue: (value: unknown) => ({ value }),
+    withRepeat: (value: unknown) => value,
     withSpring: (value: unknown) => value,
+    withTiming: (value: unknown) => value,
   };
 });

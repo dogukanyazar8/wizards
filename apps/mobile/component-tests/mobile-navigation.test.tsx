@@ -1,6 +1,10 @@
 import React from "react";
-import { fireEvent, render, waitFor } from "@testing-library/react-native";
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import * as ReactNative from "react-native";
+import { StyleSheet } from "react-native";
+import { fireEvent, waitFor } from "@testing-library/react-native";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { darkTheme, lightTheme } from "../src/design/themes";
+import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
 let mockAuthStatus: "checking" | "error" | "signed-in" | "signed-out" = "signed-in";
 
@@ -108,6 +112,26 @@ describe("mobile React Navigation runtime", () => {
   beforeEach(() => {
     mockAuthStatus = "signed-in";
   });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it.each([
+    ["light", lightTheme],
+    ["dark", darkTheme],
+  ] as const)(
+    "uses the %s semantic tab surface without changing tab roles",
+    async (scheme, theme) => {
+      jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
+      const view = await render(<MobileNavigator />);
+      const selectedTab = view.getByTestId("mobile-bottom-tab-overview");
+
+      expect(selectedTab.props.accessibilityRole).toBe("tab");
+      expect(selectedTab.props.accessibilityState.selected).toBe(true);
+      expect(StyleSheet.flatten(selectedTab.props.style).backgroundColor).toBe(theme.accent.soft);
+    },
+  );
 
   it("renders the five stable bottom-tab test IDs", async () => {
     const view = await render(<MobileNavigator />);

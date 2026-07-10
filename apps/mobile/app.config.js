@@ -147,7 +147,7 @@ module.exports = ({ config }) => {
         foregroundImage: WHISPR_MOBILE_ICON.adaptiveForegroundImage,
       },
       permissions: getWhisprMobileAndroidPermissions(),
-      predictiveBackGestureEnabled: false,
+      predictiveBackGestureEnabled: true,
     },
     plugins: [
       ...(config.plugins ?? []),

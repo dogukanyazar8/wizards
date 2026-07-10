@@ -52,6 +52,10 @@ export function getActiveMobileLocale(): MobileLocale {
   return activeMobileLocale;
 }
 
+export function getMobileIntlLocale(locale: MobileLocale): "en-US" | "tr-TR" {
+  return locale === "en" ? "en-US" : "tr-TR";
+}
+
 export function normalizeMobileLocale(value: unknown): MobileLocale {
   return value === "en" || value === "tr" ? value : DEFAULT_MOBILE_LOCALE;
 }

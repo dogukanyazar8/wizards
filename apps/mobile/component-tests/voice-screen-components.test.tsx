@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Text } from "react-native";
-import { fireEvent, render } from "@testing-library/react-native";
+import { fireEvent } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
+import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
 import { activeMobileCopy } from "../src/locale/mobile-locale-preferences";
 import {

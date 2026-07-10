@@ -1,0 +1,71 @@
+appId: team.whispr.mobile
+---
+- launchApp
+- tapOn:
+    text: "http://10.0.2.2:8081"
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+- runFlow:
+    when:
+      visible: "Reload"
+    commands:
+      - pressKey: BACK
+- openLink: "whispr://settings"
+- assertVisible:
+    id: "mobile-settings-screen"
+- tapOn:
+    id: "mobile-bottom-tab-overview"
+- runFlow:
+    file: "helpers/login-uat.yml"
+- openLink: "whispr://settings"
+- assertVisible:
+    id: "mobile-settings-screen"
+- scrollUntilVisible:
+    element:
+      id: "mobile-settings-appearance-control"
+    direction: DOWN
+- assertVisible:
+    id: "mobile-settings-appearance-control"
+- tapOn:
+    text: "Koyu|Dark"
+- assertVisible:
+    text: "Koyu|Dark"
+    checked: true
+- tapOn:
+    id: "mobile-bottom-tab-overview"
+- assertVisible:
+    id: "mobile-overview-screen"
+- takeScreenshot: "artifacts/mobile/phase1/closure/dark-overview"
+- tapOn:
+    id: "mobile-bottom-tab-messages"
+- assertVisible:
+    id: "mobile-dm-inbox-screen"
+- tapOn:
+    id: "mobile-bottom-tab-notifications"
+- assertVisible:
+    id: "mobile-notifications-screen"
+- tapOn:
+    id: "mobile-bottom-tab-voice"
+- assertVisible:
+    id: "mobile-voice-screen"
+- tapOn:
+    id: "mobile-bottom-tab-settings"
+- assertVisible:
+    id: "mobile-settings-screen"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "mobile-settings-appearance-control"
+    direction: DOWN
+- assertVisible:
+    text: "Koyu|Dark"
+    checked: true
+- takeScreenshot: "artifacts/mobile/phase1/closure/dark-settings"
+- tapOn:
+    text: "Acik|Light"
+- assertVisible:
+    text: "Acik|Light"
+    checked: true
+- takeScreenshot: "artifacts/mobile/phase1/closure/light-settings"

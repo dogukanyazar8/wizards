@@ -7,7 +7,6 @@ import {
   copy,
   getMobileAttachmentDraftSendGuard,
   getMobileAttachmentUploadReadiness,
-  mobileColors,
   useCallback,
   useState,
   type MobileBootstrapFeature,
@@ -16,7 +15,9 @@ import {
   type MobileMediaRuntimeState,
 } from "../mobile-root-screen-shared";
 import { formatMobileMediaAssetMeta } from "../components/media-primitives";
-import { styles } from "./mobile-composer.styles";
+import { Icon } from "../components/kit";
+import { useMobileComposerStyles } from "./mobile-composer.styles";
+import { useTheme } from "../providers/mobile-theme-provider";
 
 export function DMComposer({
   attachmentsFeature,
@@ -45,6 +46,8 @@ export function DMComposer({
   sendingActionLabel?: string;
   variant?: "channel" | "default";
 }) {
+  const theme = useTheme();
+  const styles = useMobileComposerStyles();
   const [draft, setDraft] = useState("");
   const trimmedDraft = draft.trim();
   const selectedAsset = mediaState?.selectedAsset ?? null;
@@ -107,7 +110,7 @@ export function DMComposer({
                   pressed && styles.actionButtonPressed,
                 ]}
               >
-                <Ionicons name="close" size={16} color={mobileColors.accentStrong} />
+                <Ionicons name="close" size={16} color={theme.accent.strong} />
               </Pressable>
             ) : null}
           </View>
@@ -119,7 +122,7 @@ export function DMComposer({
           multiline
           onChangeText={handleDraftChange}
           placeholder={placeholder}
-          placeholderTextColor={mobileColors.mutedSoft}
+          placeholderTextColor={theme.text.soft}
           style={[styles.dmComposerInput, styles.channelComposerInput]}
           value={draft}
         />
@@ -144,7 +147,7 @@ export function DMComposer({
                 <Ionicons
                   name={isPickingDocument ? "hourglass-outline" : "add"}
                   size={22}
-                  color={mobileColors.accentStrong}
+                  color={theme.accent.strong}
                 />
               </Pressable>
             ) : null}
@@ -166,7 +169,7 @@ export function DMComposer({
                 <Ionicons
                   name={isPickingPhoto ? "hourglass-outline" : "image-outline"}
                   size={20}
-                  color={mobileColors.accentStrong}
+                  color={theme.accent.strong}
                 />
               </Pressable>
             ) : null}
@@ -182,7 +185,7 @@ export function DMComposer({
               ]}
               testID="mobile-channel-emoji-button"
             >
-              <Ionicons name="happy-outline" size={20} color={mobileColors.muted} />
+              <Ionicons name="happy-outline" size={20} color={theme.text.muted} />
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -210,7 +213,7 @@ export function DMComposer({
               ]}
               testID="mobile-channel-voice-record-button"
             >
-              <Ionicons name="mic-outline" size={22} color={mobileColors.muted} />
+              <Ionicons name="mic-outline" size={22} color={theme.text.muted} />
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -229,7 +232,7 @@ export function DMComposer({
               <Ionicons
                 name={isSending ? "hourglass-outline" : "paper-plane"}
                 size={20}
-                color="#FFFFFF"
+                color={theme.text.onPrimary}
               />
             </Pressable>
           </View>
@@ -282,7 +285,7 @@ export function DMComposer({
             <Ionicons
               name={isPickingPhoto ? "hourglass-outline" : "image-outline"}
               size={18}
-              color={mobileColors.accentStrong}
+              color={theme.accent.strong}
             />
           </Pressable>
         ) : null}
@@ -310,7 +313,7 @@ export function DMComposer({
                 pressed && styles.actionButtonPressed,
               ]}
             >
-              <Text style={styles.dmComposerAttachmentClearText}>x</Text>
+              <Icon name="close" size={16} tone="accent" />
             </Pressable>
           ) : null}
         </View>
@@ -321,7 +324,7 @@ export function DMComposer({
         multiline
         onChangeText={handleDraftChange}
         placeholder={placeholder}
-        placeholderTextColor={mobileColors.mutedSoft}
+        placeholderTextColor={theme.text.soft}
         style={styles.dmComposerInput}
         value={draft}
       />

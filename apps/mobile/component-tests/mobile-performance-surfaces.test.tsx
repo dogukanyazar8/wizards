@@ -1,8 +1,10 @@
-import React from "react";
-import { render } from "@testing-library/react-native";
+import React, { useState } from "react";
+import { Pressable, Text } from "react-native";
+import { fireEvent } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { ChatMessage, MobileBootstrapPayload } from "@wizards/types";
 import type { MobileVisibleWorkspaceChannelSection } from "../src/app/mobile-display-model";
+import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
 const mockFlashListRender = jest.fn();
 const mockExpoImageRender = jest.fn();
@@ -47,14 +49,15 @@ jest.mock("expo-image", () => {
   };
 });
 
-import { MessageAttachmentList, MessageStream } from "../src/app/components/message-primitives";
+import {
+  MemoizedMessagePreviewRow,
+  MessageAttachmentList,
+  MessageStream,
+} from "../src/app/components/message-primitives";
 import { AvatarMark } from "../src/app/components/ui-atoms";
 import { ChannelMessageList } from "../src/app/screens/channel-screen";
 import { DirectMessageListCard } from "../src/app/screens/dm-screen";
-import {
-  RecentServersCard,
-  WorkspaceChannelSectionList,
-} from "../src/app/screens/home-screen";
+import { RecentServersCard, WorkspaceChannelSectionList } from "../src/app/screens/home-screen";
 
 function makeMessage(id: string): ChatMessage {
   return {
@@ -212,5 +215,32 @@ describe("mobile performance surfaces", () => {
     for (const [props] of mockExpoImageRender.mock.calls) {
       expect(props).toMatchObject({ cachePolicy: "memory-disk", contentFit: "cover" });
     }
+  });
+
+  it("does not rerender an unchanged hot message row for unrelated parent state", async () => {
+    const message = makeMessage("memoized-message");
+
+    function Harness() {
+      const [unrelatedCount, setUnrelatedCount] = useState(0);
+
+      return (
+        <>
+          <Pressable
+            testID="unrelated-parent-update"
+            onPress={() => setUnrelatedCount((n) => n + 1)}
+          >
+            <Text>{unrelatedCount}</Text>
+          </Pressable>
+          <MemoizedMessagePreviewRow message={message} />
+        </>
+      );
+    }
+
+    const view = await render(<Harness />);
+    expect(mockExpoImageRender).toHaveBeenCalledTimes(1);
+
+    await fireEvent.press(view.getByTestId("unrelated-parent-update"));
+
+    expect(mockExpoImageRender).toHaveBeenCalledTimes(1);
   });
 });

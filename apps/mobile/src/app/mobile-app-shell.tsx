@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { mobileColors, mobileSpacing } from "../design/tokens";
+import type { MobileTheme } from "../design/themes";
+import { useThemedStyles } from "./providers/mobile-theme-provider";
 
 interface MobileAppShellProps {
   authStatus: "checking" | "error" | "signed-in" | "signed-out";
@@ -10,6 +11,7 @@ interface MobileAppShellProps {
 
 export function MobileAppShell({ authStatus, children }: MobileAppShellProps) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createMobileAppShellStyles);
   const topInset = Math.max(insets.top, 12);
   const bottomInset = Math.max(insets.bottom, 12);
   const isSignedIn = authStatus === "signed-in";
@@ -29,15 +31,15 @@ export function MobileAppShell({ authStatus, children }: MobileAppShellProps) {
   );
 }
 
-const styles = StyleSheet.create({
+export const createMobileAppShellStyles = (theme: MobileTheme) => ({
   safeArea: {
     flex: 1,
-    backgroundColor: mobileColors.surfaceBase,
+    backgroundColor: theme.surface.base,
   },
   shell: {
     flex: 1,
     minWidth: 0,
-    paddingHorizontal: mobileSpacing.page,
+    paddingHorizontal: theme.spacing.page,
     paddingTop: 8,
   },
   shellSignedIn: {
@@ -51,7 +53,7 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     minWidth: 0,
-    paddingVertical: mobileSpacing.section,
+    paddingVertical: theme.spacing.section,
   },
   contentSignedIn: {
     paddingTop: 6,

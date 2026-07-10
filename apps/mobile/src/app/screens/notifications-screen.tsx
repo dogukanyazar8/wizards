@@ -26,7 +26,7 @@ import {
   formatMobileMediaAssetMeta,
   getMobileMediaRuntimeText,
 } from "../components/media-primitives";
-import { styles } from "./notifications-screen.styles";
+import { useNotificationsScreenStyles } from "./notifications-screen.styles";
 
 export function NotificationsScreen({
   bootstrapState,
@@ -47,8 +47,10 @@ export function NotificationsScreen({
   onRefreshBootstrap(): void;
   onRefreshVisibleData(): void;
 }) {
+  const styles = useNotificationsScreenStyles();
   return (
     <ScreenShell
+      testID="mobile-notifications-screen"
       eyebrow={copy.tabNotifications}
       title={copy.notificationsTitle}
       description={copy.notificationsDescription}
@@ -87,6 +89,7 @@ export function NotificationRuntimeCard({
   state: MobileNotificationRuntimeState;
   onRequestPermission(): Promise<void>;
 }) {
+  const styles = useNotificationsScreenStyles();
   const summary = summarizeMobileNotificationRuntimeState(state);
   const text = getMobileNotificationRuntimeText(state);
   const canRequest =
@@ -203,6 +206,7 @@ export function MediaRuntimeCard({
   onRequestDocumentPicker(): Promise<void>;
   onRequestPhotoLibraryPermission(): Promise<void>;
 }) {
+  const styles = useNotificationsScreenStyles();
   const summary = summarizeMobileMediaRuntimeState(state);
   const text = getMobileMediaRuntimeText(state);
   const canRequestCamera =
