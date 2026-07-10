@@ -1,11 +1,9 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { getMobileThemeCompatibilityColors } from "../../design/mobile-theme-compat";
 import type { MobileTheme } from "../../design/themes";
 import { useThemedStyles } from "../providers/mobile-theme-provider";
 import { createSharedStyles } from "../styles/shared-styles";
 
 export const createDmScreenStyles = (theme: MobileTheme) => {
-  const mobileColors = getMobileThemeCompatibilityColors(theme);
   const mobileRadii = theme.radii;
   const mobileSizing = theme.sizing;
 
@@ -19,7 +17,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       width: 6,
       height: 6,
       borderRadius: mobileRadii.pill,
-      backgroundColor: mobileColors.success,
+      backgroundColor: theme.status.success,
     },
     dmActivePresencePill: {
       minHeight: 24,
@@ -49,7 +47,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       backgroundColor: theme.surface.soft,
     },
     dmBackButtonText: {
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 18,
       fontWeight: "900",
     },
@@ -59,10 +57,10 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: 18,
       backgroundColor: theme.surface.card,
-      shadowColor: mobileColors.shadow,
+      shadowColor: theme.elevation.card.shadowColor,
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: theme.dark ? 0 : 0.08,
       shadowRadius: 16,
@@ -75,12 +73,12 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       alignItems: "center",
       gap: 12,
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: 18,
       backgroundColor: theme.surface.card,
       paddingHorizontal: 14,
       paddingVertical: 11,
-      shadowColor: mobileColors.shadow,
+      shadowColor: theme.elevation.card.shadowColor,
       shadowOffset: { width: 0, height: 7 },
       shadowOpacity: theme.dark ? 0 : 0.045,
       shadowRadius: 12,
@@ -135,13 +133,13 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
     dmConversationName: {
       flex: 1,
       minWidth: 0,
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 15,
       lineHeight: 20,
       fontWeight: "900",
     },
     dmConversationPreview: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 13,
       lineHeight: 18,
       fontWeight: "700",
@@ -153,7 +151,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       gap: 6,
     },
     dmConversationTime: {
-      color: mobileColors.mutedSoft,
+      color: theme.text.soft,
       fontSize: 12,
       fontWeight: "800",
     },
@@ -164,7 +162,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       gap: 8,
     },
     dmInboxDescription: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 13,
       lineHeight: 18,
       fontWeight: "700",
@@ -186,7 +184,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       gap: 16,
     },
     dmInboxTitle: {
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 24,
       lineHeight: 30,
       fontWeight: "900",
@@ -201,7 +199,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: 18,
       backgroundColor: theme.surface.card,
     },
@@ -219,7 +217,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       alignItems: "center",
       gap: 10,
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: mobileRadii.control,
       backgroundColor: theme.surface.card,
       paddingHorizontal: 14,
@@ -232,7 +230,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       gap: 10,
     },
     dmSectionTitle: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 13,
       fontWeight: "900",
     },
@@ -246,7 +244,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       borderRadius: 18,
       backgroundColor: theme.surface.overlay,
       padding: 14,
-      shadowColor: mobileColors.primary,
+      shadowColor: theme.accent.default,
       shadowOffset: { width: 0, height: 10 },
       shadowOpacity: theme.dark ? 0 : 0.08,
       shadowRadius: 18,
@@ -258,7 +256,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       gap: 4,
     },
     dmSummaryDescription: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 13,
       lineHeight: 18,
       fontWeight: "700",
@@ -276,7 +274,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       width: 88,
     },
     dmSummaryTitle: {
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 16,
       lineHeight: 21,
       fontWeight: "900",
@@ -285,7 +283,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       minWidth: 20,
       overflow: "hidden",
       borderRadius: mobileRadii.pill,
-      backgroundColor: mobileColors.accentStrong,
+      backgroundColor: theme.accent.strong,
       color: theme.text.onPrimary,
       fontSize: 11,
       fontWeight: "900",
@@ -298,7 +296,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: mobileRadii.pill,
       backgroundColor: theme.surface.card,
       paddingHorizontal: 12,
@@ -311,15 +309,15 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       opacity: 0.56,
     },
     inboxFilterButtonText: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 12,
       fontWeight: "900",
     },
     inboxFilterButtonTextActive: {
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
     },
     inboxFilterButtonTextDisabled: {
-      color: mobileColors.mutedSoft,
+      color: theme.text.soft,
     },
     inboxFilterRow: {
       flexDirection: "row",
@@ -328,7 +326,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       minWidth: 0,
     },
     inboxResultText: {
-      color: mobileColors.mutedSoft,
+      color: theme.text.soft,
       fontSize: 11,
       fontWeight: "800",
     },
@@ -336,7 +334,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       minHeight: 44,
       flex: 1,
       minWidth: 0,
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 14,
       fontWeight: "700",
       paddingVertical: 0,

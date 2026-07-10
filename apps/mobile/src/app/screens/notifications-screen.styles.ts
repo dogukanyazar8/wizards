@@ -1,11 +1,9 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { getMobileThemeCompatibilityColors } from "../../design/mobile-theme-compat";
 import type { MobileTheme } from "../../design/themes";
 import { useThemedStyles } from "../providers/mobile-theme-provider";
 import { createSharedStyles } from "../styles/shared-styles";
 
 export const createNotificationsScreenStyles = (theme: MobileTheme) => {
-  const mobileColors = getMobileThemeCompatibilityColors(theme);
   const mobileRadii = theme.radii;
   const mobileSizing = theme.sizing;
   const notificationsScreenStyles = {
@@ -24,9 +22,9 @@ export const createNotificationsScreenStyles = (theme: MobileTheme) => {
     mediaSelectedAssetCard: {
       minWidth: 0,
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: mobileRadii.control,
-      backgroundColor: mobileColors.white,
+      backgroundColor: theme.surface.card,
       paddingHorizontal: 11,
       paddingVertical: 9,
     },

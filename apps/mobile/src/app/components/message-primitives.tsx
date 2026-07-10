@@ -20,8 +20,11 @@ import {
 import { FlashList } from "@shopify/flash-list";
 import { AvatarMark } from "./ui-atoms";
 import { MobileCachedImage } from "./mobile-cached-image";
+import { Icon } from "./kit";
 import { useMessagePrimitiveStyles } from "./message-primitives.styles";
 import { useTheme } from "../providers/mobile-theme-provider";
+import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
+import { formatMobileDateSeparator } from "../../locale/mobile-date-separator";
 
 const MOBILE_SEARCH_RESULT_RENDER_LIMIT = 6;
 
@@ -101,7 +104,7 @@ export function MessageSearchPanel({
               pressed && styles.actionButtonPressed,
             ]}
           >
-            <Text style={styles.messageSearchClearText}>x</Text>
+            <Icon name="close" size={16} tone="accent" />
           </Pressable>
         ) : null}
         <Pressable
@@ -208,19 +211,6 @@ export type MobileRenderableMessage = ChatMessage | MobileDMMessagesResponse["me
 
 export type MobileRenderableAttachment = MobileRenderableMessage["attachments"][number];
 
-function formatMobileDateSeparator(value: string, locale = "tr-TR"): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  return new Intl.DateTimeFormat(locale, {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  }).format(date);
-}
-
 function formatMobileAttachmentSize(size: number): string {
   if (!Number.isFinite(size) || size <= 0) {
     return "";
@@ -246,7 +236,8 @@ function getMobileAttachmentPreviewUri(attachment: MobileRenderableAttachment): 
 
 export function MessageDateSeparator({ createdAt }: { createdAt: string }) {
   const styles = useMessagePrimitiveStyles();
-  const label = formatMobileDateSeparator(createdAt);
+  const { locale } = useMobileLocaleRuntime();
+  const label = formatMobileDateSeparator(createdAt, locale);
   if (!label) {
     return null;
   }
@@ -299,7 +290,7 @@ export function MessageAttachmentList({
               />
             ) : (
               <View style={styles.messageAttachmentIcon}>
-                <Text style={styles.messageAttachmentIconText}>FILE</Text>
+                <Icon name="document-attach-outline" size={22} tone="accent" />
               </View>
             )}
             <View style={styles.messageAttachmentMeta}>

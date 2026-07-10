@@ -1,11 +1,9 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { getMobileThemeCompatibilityColors } from "../../design/mobile-theme-compat";
 import type { MobileTheme } from "../../design/themes";
 import { useThemedStyles } from "../providers/mobile-theme-provider";
 import { createSharedStyles } from "../styles/shared-styles";
 
 export const createChannelScreenStyles = (theme: MobileTheme) => {
-  const mobileColors = getMobileThemeCompatibilityColors(theme);
   const mobileRadii = theme.radii;
   const mobileSizing = theme.sizing;
 
@@ -31,7 +29,7 @@ export const createChannelScreenStyles = (theme: MobileTheme) => {
     },
     dmPreviewMeta: {
       marginTop: 2,
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 12,
       fontWeight: "700",
     },
@@ -73,7 +71,7 @@ export const createChannelScreenStyles = (theme: MobileTheme) => {
       backgroundColor: theme.accent.soft,
     },
     mobileChannelChatHashText: {
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
       fontSize: 24,
       fontWeight: "900",
     },
@@ -113,13 +111,13 @@ export const createChannelScreenStyles = (theme: MobileTheme) => {
     mobileChannelChatTitle: {
       flex: 1,
       minWidth: 0,
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 18,
       fontWeight: "900",
     },
     mobileChannelChatTopic: {
       marginTop: 4,
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 12,
       fontWeight: "800",
     },
@@ -127,7 +125,7 @@ export const createChannelScreenStyles = (theme: MobileTheme) => {
       width: 4,
       height: 4,
       borderRadius: 999,
-      backgroundColor: mobileColors.mutedSoft,
+      backgroundColor: theme.text.soft,
     },
     mobileChannelTypingDots: {
       flexDirection: "row",
@@ -144,7 +142,7 @@ export const createChannelScreenStyles = (theme: MobileTheme) => {
     mobileChannelTypingText: {
       minWidth: 0,
       flexShrink: 1,
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 11,
       fontWeight: "800",
     },
@@ -154,7 +152,7 @@ export const createChannelScreenStyles = (theme: MobileTheme) => {
       borderRadius: 13,
       overflow: "hidden",
       backgroundColor: theme.accent.soft,
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
       fontSize: 18,
       fontWeight: "900",
       lineHeight: 34,

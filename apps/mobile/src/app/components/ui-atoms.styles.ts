@@ -1,11 +1,9 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { getMobileThemeCompatibilityColors } from "../../design/mobile-theme-compat";
 import type { MobileTheme } from "../../design/themes";
 import { useThemedStyles } from "../providers/mobile-theme-provider";
 import { createSharedStyles } from "../styles/shared-styles";
 
 export const createUiAtomStyles = (theme: MobileTheme) => {
-  const mobileColors = getMobileThemeCompatibilityColors(theme);
   const mobileRadii = theme.radii;
   const mobileSizing = theme.sizing;
   const mobileSpacing = theme.spacing;
@@ -19,7 +17,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: mobileRadii.control,
       backgroundColor: theme.surface.card,
       paddingHorizontal: 16,
@@ -29,12 +27,12 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       backgroundColor: theme.status.dangerSoft,
     },
     actionButtonPrimary: {
-      borderColor: mobileColors.accent,
-      backgroundColor: mobileColors.accent,
+      borderColor: theme.accent.default,
+      backgroundColor: theme.accent.default,
     },
     actionButtonText: {
       textAlign: "center",
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 14,
       fontWeight: "800",
     },
@@ -63,7 +61,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       borderRadius: 10,
     },
     avatarMarkText: {
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
       fontSize: 12,
       fontWeight: "900",
     },
@@ -92,10 +90,10 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       borderWidth: 2,
       borderColor: theme.surface.card,
       borderRadius: mobileRadii.pill,
-      backgroundColor: mobileColors.mutedSoft,
+      backgroundColor: theme.text.soft,
     },
     avatarStatusActive: {
-      backgroundColor: mobileColors.success,
+      backgroundColor: theme.status.success,
     },
     bootstrapNotice: {
       minWidth: 0,
@@ -118,7 +116,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       gap: 3,
     },
     diagnosticLabel: {
-      color: mobileColors.mutedSoft,
+      color: theme.text.soft,
       fontSize: 10,
       fontWeight: "800",
       letterSpacing: 0.8,
@@ -135,7 +133,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
     },
     diagnosticValue: {
       marginTop: 2,
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 12,
       fontWeight: "800",
     },
@@ -151,7 +149,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       backgroundColor: theme.status.successSoft,
     },
     emptyIconText: {
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
       fontSize: 24,
       fontWeight: "900",
     },
@@ -161,7 +159,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       justifyContent: "center",
       gap: 12,
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: mobileRadii.card,
       backgroundColor: theme.surface.soft,
       padding: 18,
@@ -169,7 +167,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
     emptyStateText: {
       maxWidth: 250,
       textAlign: "center",
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 14,
       lineHeight: 21,
       fontWeight: "700",
@@ -198,14 +196,14 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
     },
     metricLabel: {
       marginTop: 2,
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 12,
       lineHeight: 17,
       fontWeight: "800",
     },
     metricMiniLabel: {
       marginTop: 2,
-      color: mobileColors.mutedSoft,
+      color: theme.text.soft,
       fontSize: 9,
       fontWeight: "900",
       letterSpacing: 0.7,
@@ -221,7 +219,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       paddingVertical: 7,
     },
     metricMiniValue: {
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 16,
       lineHeight: 18,
       fontWeight: "900",
@@ -231,14 +229,14 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       flexBasis: 96,
       minWidth: 0,
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: mobileRadii.control,
       backgroundColor: theme.surface.soft,
       paddingHorizontal: 12,
       paddingVertical: 12,
     },
     metricValue: {
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 24,
       lineHeight: 29,
       fontWeight: "900",
@@ -247,7 +245,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       gap: 12,
       minWidth: 0,
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: mobileRadii.control,
       backgroundColor: theme.surface.soft,
       padding: 14,
@@ -259,7 +257,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       alignItems: "center",
       gap: 7,
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: mobileRadii.pill,
       backgroundColor: theme.surface.card,
       paddingHorizontal: 10,
@@ -268,13 +266,13 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       width: 8,
       height: 8,
       borderRadius: mobileRadii.pill,
-      backgroundColor: mobileColors.mutedSoft,
+      backgroundColor: theme.text.soft,
     },
     permissionChipDotDenied: {
       backgroundColor: theme.status.danger,
     },
     permissionChipDotGranted: {
-      backgroundColor: mobileColors.success,
+      backgroundColor: theme.status.success,
     },
     permissionChipRow: {
       flexDirection: "row",
@@ -285,7 +283,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
     permissionChipText: {
       flexShrink: 1,
       minWidth: 0,
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 12,
       fontWeight: "800",
     },
@@ -299,7 +297,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       paddingVertical: 7,
     },
     permissionCountText: {
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
       fontSize: 12,
       fontWeight: "900",
     },
@@ -315,7 +313,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       gap: 4,
     },
     permissionTitle: {
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 14,
       lineHeight: 20,
       fontWeight: "700",
@@ -345,7 +343,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       alignItems: "center",
       gap: 5,
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: mobileRadii.pill,
       backgroundColor: theme.surface.card,
       paddingHorizontal: 8,
@@ -358,13 +356,13 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       width: 6,
       height: 6,
       borderRadius: mobileRadii.pill,
-      backgroundColor: mobileColors.mutedSoft,
+      backgroundColor: theme.text.soft,
     },
     statusChipDotAccent: {
-      backgroundColor: mobileColors.accentStrong,
+      backgroundColor: theme.accent.strong,
     },
     statusChipDotSuccess: {
-      backgroundColor: mobileColors.success,
+      backgroundColor: theme.status.success,
     },
     statusChipSuccess: {
       borderColor: theme.status.success,
@@ -372,12 +370,12 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
     },
     statusChipText: {
       flexShrink: 1,
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 11,
       fontWeight: "800",
     },
     statusIconSuccess: {
-      backgroundColor: mobileColors.success,
+      backgroundColor: theme.status.success,
     },
     syncCard: {
       gap: 10,
@@ -397,7 +395,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       alignItems: "center",
       gap: 8,
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: mobileRadii.control,
       backgroundColor: theme.surface.base,
       paddingHorizontal: 10,
@@ -412,7 +410,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       backgroundColor: theme.status.successSoft,
     },
     syncChipLabel: {
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 12,
       fontWeight: "900",
     },
@@ -432,13 +430,13 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       gap: 2,
     },
     syncChipValue: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 11,
       lineHeight: 15,
       fontWeight: "700",
     },
     syncDescription: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 12,
       lineHeight: 17,
       fontWeight: "700",
@@ -447,16 +445,16 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       width: 9,
       height: 9,
       borderRadius: mobileRadii.pill,
-      backgroundColor: mobileColors.mutedSoft,
+      backgroundColor: theme.text.soft,
     },
     syncDotError: {
       backgroundColor: theme.status.danger,
     },
     syncDotFresh: {
-      backgroundColor: mobileColors.success,
+      backgroundColor: theme.status.success,
     },
     syncDotStale: {
-      backgroundColor: mobileColors.warning,
+      backgroundColor: theme.status.warning,
     },
     syncHeader: {
       gap: 3,
@@ -480,7 +478,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       backgroundColor: theme.status.dangerSoft,
     },
     syncHealthDescription: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 11,
       lineHeight: 16,
       fontWeight: "700",
@@ -513,7 +511,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       paddingHorizontal: 12,
     },
     syncHealthRetryText: {
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
       fontSize: 12,
       fontWeight: "900",
     },
@@ -523,7 +521,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       gap: 2,
     },
     syncHealthTitle: {
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 13,
       fontWeight: "900",
     },

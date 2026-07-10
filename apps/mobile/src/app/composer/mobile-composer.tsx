@@ -15,6 +15,7 @@ import {
   type MobileMediaRuntimeState,
 } from "../mobile-root-screen-shared";
 import { formatMobileMediaAssetMeta } from "../components/media-primitives";
+import { Icon } from "../components/kit";
 import { useMobileComposerStyles } from "./mobile-composer.styles";
 import { useTheme } from "../providers/mobile-theme-provider";
 
@@ -312,7 +313,7 @@ export function DMComposer({
                 pressed && styles.actionButtonPressed,
               ]}
             >
-              <Text style={styles.dmComposerAttachmentClearText}>x</Text>
+              <Icon name="close" size={16} tone="accent" />
             </Pressable>
           ) : null}
         </View>

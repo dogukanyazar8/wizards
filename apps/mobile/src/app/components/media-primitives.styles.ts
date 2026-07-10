@@ -1,16 +1,14 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { getMobileThemeCompatibilityColors } from "../../design/mobile-theme-compat";
 import type { MobileTheme } from "../../design/themes";
 import { useThemedStyles } from "../providers/mobile-theme-provider";
 import { createSharedStyles } from "../styles/shared-styles";
 
 export const createMediaPrimitiveStyles = (theme: MobileTheme) => {
-  const mobileColors = getMobileThemeCompatibilityColors(theme);
   const mobileRadii = theme.radii;
 
   return {
     mediaRuntimeStatusLabel: {
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 12,
       fontWeight: "900",
     },
@@ -23,7 +21,7 @@ export const createMediaPrimitiveStyles = (theme: MobileTheme) => {
       alignItems: "center",
       gap: 8,
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: mobileRadii.control,
       backgroundColor: theme.surface.soft,
       paddingHorizontal: 10,
@@ -35,7 +33,7 @@ export const createMediaPrimitiveStyles = (theme: MobileTheme) => {
     },
     mediaRuntimeStatusValue: {
       marginTop: 2,
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 11,
       fontWeight: "800",
     },

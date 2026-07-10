@@ -1,11 +1,9 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { getMobileThemeCompatibilityColors } from "../../design/mobile-theme-compat";
 import type { MobileTheme } from "../../design/themes";
 import { useThemedStyles } from "../providers/mobile-theme-provider";
 import { createSharedStyles } from "../styles/shared-styles";
 
 export const createMobileVoiceInviteOverlayStyles = (theme: MobileTheme) => {
-  const mobileColors = getMobileThemeCompatibilityColors(theme);
   const mobileRadii = theme.radii;
 
   return {
@@ -38,7 +36,7 @@ export const createMobileVoiceInviteOverlayStyles = (theme: MobileTheme) => {
     },
     mobileVoiceInviteOverlayDescription: {
       marginTop: 2,
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 11,
       fontWeight: "700",
       lineHeight: 15,
@@ -52,7 +50,7 @@ export const createMobileVoiceInviteOverlayStyles = (theme: MobileTheme) => {
       paddingHorizontal: 10,
     },
     mobileVoiceInviteOverlayGhostText: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 10,
       fontWeight: "900",
     },
@@ -69,7 +67,7 @@ export const createMobileVoiceInviteOverlayStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: mobileRadii.pill,
-      backgroundColor: mobileColors.accentStrong,
+      backgroundColor: theme.accent.strong,
       paddingHorizontal: 12,
     },
     mobileVoiceInviteOverlayPrimaryText: {
@@ -82,7 +80,7 @@ export const createMobileVoiceInviteOverlayStyles = (theme: MobileTheme) => {
       minWidth: 0,
     },
     mobileVoiceInviteOverlayTitle: {
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 13,
       fontWeight: "900",
     },

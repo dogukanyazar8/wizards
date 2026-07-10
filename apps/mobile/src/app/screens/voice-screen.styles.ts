@@ -1,21 +1,19 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { getMobileThemeCompatibilityColors } from "../../design/mobile-theme-compat";
 import type { MobileTheme } from "../../design/themes";
 import { useThemedStyles } from "../providers/mobile-theme-provider";
 import { createSharedStyles } from "../styles/shared-styles";
 
 export const createVoiceScreenStyles = (theme: MobileTheme) => {
-  const mobileColors = getMobileThemeCompatibilityColors(theme);
   const mobileRadii = theme.radii;
 
   return {
     mobileChannelChatDot: {
-      color: mobileColors.success,
+      color: theme.status.success,
       fontSize: 11,
       fontWeight: "900",
     },
     mobileChannelChatMemberCount: {
-      color: mobileColors.success,
+      color: theme.status.success,
       fontSize: 11,
       fontWeight: "900",
     },
@@ -28,7 +26,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     },
     mobileChannelChatServerName: {
       maxWidth: "62%",
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 11,
       fontWeight: "800",
     },
@@ -62,7 +60,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       padding: 10,
     },
     mobileVoiceChannelTitle: {
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 18,
       fontWeight: "900",
     },
@@ -109,11 +107,11 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       opacity: 0.48,
     },
     mobileVoiceControlButtonPrimary: {
-      borderColor: mobileColors.accentStrong,
-      backgroundColor: mobileColors.accentStrong,
+      borderColor: theme.accent.strong,
+      backgroundColor: theme.accent.strong,
     },
     mobileVoiceControlLabel: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 9,
       fontWeight: "900",
       textAlign: "center",
@@ -122,7 +120,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       color: theme.status.danger,
     },
     mobileVoiceControlLabelDisabled: {
-      color: mobileColors.mutedSoft,
+      color: theme.text.soft,
     },
     mobileVoiceControlLabelPrimary: {
       color: theme.text.onPrimary,
@@ -154,7 +152,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: 16,
-      backgroundColor: mobileColors.success,
+      backgroundColor: theme.status.success,
     },
     mobilePushToTalkIconActive: {
       backgroundColor: theme.status.success,
@@ -375,7 +373,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     },
     mobileVoiceScreenShareViewerTitle: {
       marginTop: 1,
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 13,
       fontWeight: "900",
     },
@@ -397,7 +395,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       textAlign: "center",
     },
     mobileVoiceEmptyText: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 12,
       lineHeight: 17,
       fontWeight: "800",
@@ -421,7 +419,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     mobileVoiceInfoLabel: {
       flex: 1,
       minWidth: 0,
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 12,
       fontWeight: "800",
     },
@@ -437,7 +435,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     },
     mobileVoiceInfoValue: {
       maxWidth: "48%",
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 12,
       fontWeight: "900",
       textAlign: "right",
@@ -448,7 +446,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: mobileRadii.pill,
-      backgroundColor: mobileColors.accentStrong,
+      backgroundColor: theme.accent.strong,
       paddingHorizontal: 12,
     },
     mobileVoiceInviteButtonDisabled: {
@@ -460,7 +458,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       fontWeight: "900",
     },
     mobileVoiceInviteButtonTextDisabled: {
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
     },
     mobileVoiceInviteCandidateList: {
       gap: 7,
@@ -481,7 +479,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     },
     mobileVoiceInviteCandidateSubtitle: {
       marginTop: 1,
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 11,
       fontWeight: "700",
     },
@@ -490,12 +488,12 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       minWidth: 0,
     },
     mobileVoiceInviteCandidateTitle: {
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 13,
       fontWeight: "900",
     },
     mobileVoiceInviteEmpty: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 12,
       fontWeight: "800",
       lineHeight: 17,
@@ -503,7 +501,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     mobileVoiceLevelBar: {
       width: 4,
       borderRadius: mobileRadii.pill,
-      backgroundColor: mobileColors.success,
+      backgroundColor: theme.status.success,
     },
     mobileVoiceLevelBars: {
       width: 34,
@@ -536,7 +534,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     },
     mobileVoiceParticipantSubtitle: {
       marginTop: 2,
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 12,
       fontWeight: "800",
     },
@@ -546,7 +544,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     },
     mobileVoiceParticipantTitle: {
       minWidth: 0,
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 14,
       fontWeight: "900",
     },
@@ -570,7 +568,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       overflow: "hidden",
       borderRadius: mobileRadii.pill,
       backgroundColor: theme.accent.soft,
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
       fontSize: 11,
       fontWeight: "900",
       lineHeight: 21,
@@ -587,7 +585,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     mobileVoiceSectionTitle: {
       flex: 1,
       minWidth: 0,
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 11,
       fontWeight: "900",
       letterSpacing: 2,
@@ -597,7 +595,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       overflow: "hidden",
       borderRadius: mobileRadii.pill,
       backgroundColor: theme.accent.soft,
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
       fontSize: 10,
       fontWeight: "900",
       lineHeight: 18,
@@ -610,7 +608,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       gap: 7,
     },
     mobileVoiceStatusText: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 12,
       lineHeight: 17,
       fontWeight: "800",

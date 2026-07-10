@@ -1,0 +1,80 @@
+appId: team.whispr.mobile
+---
+- launchApp
+- tapOn:
+    text: "http://10.0.2.2:8081"
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+- runFlow:
+    when:
+      visible: "Reload"
+    commands:
+      - pressKey: BACK
+- openLink: "whispr://settings"
+- assertVisible:
+    id: "mobile-settings-screen"
+- tapOn:
+    id: "mobile-bottom-tab-overview"
+- runFlow:
+    when:
+      visible: "E-posta"
+    commands:
+      - tapOn: "E-posta"
+      - eraseText: 100
+      - inputText: ${WHISPR_MOBILE_E2E_EMAIL}
+      - tapOn: "Sifre"
+      - eraseText: 100
+      - inputText: ${WHISPR_MOBILE_E2E_PASSWORD}
+      - hideKeyboard
+      - tapOn: "Giris yap"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-bottom-tab-settings"
+    timeout: 30000
+- tapOn:
+    id: "mobile-bottom-tab-settings"
+- scrollUntilVisible:
+    element:
+      id: "mobile-settings-appearance-control"
+    direction: DOWN
+- assertVisible:
+    id: "mobile-settings-appearance-control"
+- runFlow:
+    when:
+      visible: "Koyu"
+    commands:
+      - tapOn: "Koyu"
+- runFlow:
+    when:
+      visible: "Dark"
+    commands:
+      - tapOn: "Dark"
+- tapOn:
+    id: "mobile-bottom-tab-overview"
+- takeScreenshot: "artifacts/mobile/phase1/dark-overview"
+- tapOn:
+    id: "mobile-bottom-tab-messages"
+- tapOn:
+    id: "mobile-bottom-tab-notifications"
+- tapOn:
+    id: "mobile-bottom-tab-voice"
+- tapOn:
+    id: "mobile-bottom-tab-settings"
+- scrollUntilVisible:
+    element:
+      id: "mobile-settings-appearance-control"
+    direction: DOWN
+- takeScreenshot: "artifacts/mobile/phase1/dark-settings"
+- runFlow:
+    when:
+      visible: "Acik"
+    commands:
+      - tapOn: "Acik"
+- runFlow:
+    when:
+      visible: "Light"
+    commands:
+      - tapOn: "Light"
+- takeScreenshot: "artifacts/mobile/phase1/light-settings"

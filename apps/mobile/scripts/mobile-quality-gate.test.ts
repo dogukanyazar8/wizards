@@ -23,6 +23,7 @@ const expectedAreas: MobileQualityArea[] = [
   "search",
   "store",
   "sync",
+  "theme",
   "voice",
   "workspace",
 ];
@@ -55,16 +56,14 @@ describe("mobile quality gate", () => {
     assert.equal(MOBILE_AUTOMATED_GATES.length >= 5, true);
     for (const gate of MOBILE_AUTOMATED_GATES) {
       assert.equal(
-        gate.id === "mobile-maestro-navigation" || gate.command.includes("@wizards/mobile"),
+        gate.id.startsWith("mobile-maestro-") || gate.command.includes("@wizards/mobile"),
         true,
       );
     }
   });
 
   it("tracks the current native mobile product navigation language", () => {
-    const navigationCheck = MOBILE_MANUAL_QA_CHECKS.find(
-      (check) => check.id === "tab-navigation",
-    );
+    const navigationCheck = MOBILE_MANUAL_QA_CHECKS.find((check) => check.id === "tab-navigation");
     assert.ok(navigationCheck);
     assert.match(navigationCheck.label, /Home, DMs, Notifications, Calls, and Profile/);
     assert.doesNotMatch(navigationCheck.label, /Overview, Chat, Voice, and Settings/);
@@ -97,9 +96,7 @@ describe("mobile quality gate", () => {
     assert.match(searchCheck.label, /authenticated mobile endpoints/i);
     assert.match(searchCheck.label, /server-side permission checks/i);
 
-    const searchUiCheck = MOBILE_MANUAL_QA_CHECKS.find(
-      (check) => check.id === "message-search-ui",
-    );
+    const searchUiCheck = MOBILE_MANUAL_QA_CHECKS.find((check) => check.id === "message-search-ui");
     assert.ok(searchUiCheck);
     assert.match(searchUiCheck.label, /bounded real results/i);
     assert.match(searchUiCheck.label, /selected conversation/i);
@@ -110,6 +107,19 @@ describe("mobile quality gate", () => {
     assert.ok(dedicatedChannelCheck);
     assert.match(dedicatedChannelCheck.label, /dedicated channel chat screen/i);
     assert.match(dedicatedChannelCheck.label, /safe-area/i);
+
+    const themeCheck = MOBILE_MANUAL_QA_CHECKS.find(
+      (check) => check.id === "theme-light-dark-system",
+    );
+    assert.ok(themeCheck);
+    assert.equal(themeCheck.area, "theme");
+    assert.match(themeCheck.label, /System, light, and dark/i);
+
+    const darkModeGate = MOBILE_AUTOMATED_GATES.find(
+      (gate) => gate.id === "mobile-maestro-dark-mode",
+    );
+    assert.ok(darkModeGate);
+    assert.match(darkModeGate.command, /phase1-dark-mode\.yml/);
   });
 
   it("summarizes quality readiness without leaking sensitive strings", () => {

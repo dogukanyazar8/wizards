@@ -1,11 +1,9 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { getMobileThemeCompatibilityColors } from "../../design/mobile-theme-compat";
 import type { MobileTheme } from "../../design/themes";
 import { useThemedStyles } from "../providers/mobile-theme-provider";
 import { createSharedStyles } from "../styles/shared-styles";
 
 export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
-  const mobileColors = getMobileThemeCompatibilityColors(theme);
   const mobileRadii = theme.radii;
   const mobileSizing = theme.sizing;
 
@@ -13,13 +11,13 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     dmMessageAuthor: {
       flex: 1,
       minWidth: 0,
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 12,
       fontWeight: "900",
     },
     dmMessageBody: {
       marginTop: 5,
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 14,
       lineHeight: 20,
       fontWeight: "600",
@@ -40,7 +38,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       paddingVertical: 2,
     },
     dmMessageTime: {
-      color: mobileColors.mutedSoft,
+      color: theme.text.soft,
       fontSize: 11,
       fontWeight: "800",
     },
@@ -64,7 +62,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       backgroundColor: theme.accent.soft,
     },
     messageAttachmentIconText: {
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
       fontSize: 10,
       fontWeight: "900",
     },
@@ -75,7 +73,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       backgroundColor: theme.accent.soft,
     },
     messageAttachmentInfo: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 11,
       fontWeight: "700",
     },
@@ -90,7 +88,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       gap: 2,
     },
     messageAttachmentName: {
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 12,
       lineHeight: 16,
       fontWeight: "900",
@@ -113,7 +111,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       borderColor: theme.border.subtle,
       borderRadius: mobileRadii.pill,
       backgroundColor: theme.surface.card,
-      color: mobileColors.mutedSoft,
+      color: theme.text.soft,
       fontSize: 10,
       fontWeight: "900",
       letterSpacing: 0.8,
@@ -137,7 +135,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       maxWidth: "86%",
       minWidth: 0,
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: 18,
       borderBottomLeftRadius: 8,
       backgroundColor: theme.surface.soft,
@@ -193,7 +191,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       minWidth: 0,
     },
     messageReactionText: {
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 11,
       fontWeight: "900",
     },
@@ -201,7 +199,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       minHeight: mobileSizing.minTouchTarget,
       justifyContent: "center",
       borderRadius: mobileRadii.pill,
-      backgroundColor: mobileColors.accentStrong,
+      backgroundColor: theme.accent.strong,
       paddingHorizontal: 12,
     },
     messageSearchButtonDisabled: {
@@ -227,12 +225,12 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: mobileRadii.pill,
       backgroundColor: theme.surface.card,
     },
     messageSearchClearText: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 13,
       fontWeight: "900",
     },
@@ -249,13 +247,13 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       paddingVertical: 8,
     },
     messageSearchHelperText: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 11,
       lineHeight: 16,
       fontWeight: "700",
     },
     messageSearchIcon: {
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
       fontSize: 11,
       fontWeight: "900",
       letterSpacing: 0.7,
@@ -266,10 +264,10 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       flex: 1,
       minWidth: 0,
       borderWidth: 1,
-      borderColor: mobileColors.border,
+      borderColor: theme.border.subtle,
       borderRadius: 16,
       backgroundColor: theme.surface.card,
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 13,
       fontWeight: "700",
       paddingHorizontal: 11,
@@ -284,7 +282,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     },
     messageSearchResultBody: {
       marginTop: 4,
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 13,
       lineHeight: 18,
       fontWeight: "600",
@@ -294,7 +292,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       overflow: "hidden",
       borderRadius: mobileRadii.pill,
       backgroundColor: theme.accent.soft,
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
       fontSize: 11,
       fontWeight: "900",
       paddingHorizontal: 8,
@@ -307,7 +305,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     },
     messageSearchResultMeta: {
       marginTop: 4,
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
       fontSize: 11,
       fontWeight: "900",
     },
@@ -337,7 +335,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messageSearchResultsTitle: {
       flex: 1,
       minWidth: 0,
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 12,
       fontWeight: "900",
     },
@@ -349,7 +347,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       minWidth: 0,
     },
     messageSearchStatusText: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 12,
       fontWeight: "800",
     },

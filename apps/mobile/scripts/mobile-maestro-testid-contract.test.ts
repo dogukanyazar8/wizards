@@ -1,15 +1,22 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 
-import { MOBILE_AUTOMATED_GATES, MOBILE_MANUAL_QA_CHECKS } from "../src/quality/mobile-quality-gate";
+import {
+  MOBILE_AUTOMATED_GATES,
+  MOBILE_MANUAL_QA_CHECKS,
+} from "../src/quality/mobile-quality-gate";
 
 const repositoryRoot = path.resolve(process.cwd(), "../..");
 const flowSource = readFileSync(
   path.join(repositoryRoot, ".maestro", "phase0-navigation.yml"),
   "utf8",
 );
+const darkModeFlowPath = path.join(repositoryRoot, ".maestro", "phase1-dark-mode.yml");
+const darkModeFlowSource = existsSync(darkModeFlowPath)
+  ? readFileSync(darkModeFlowPath, "utf8")
+  : "";
 
 const testIdSources: Record<string, { file: string; needle: string }> = {
   "mobile-bottom-tab-messages": {
@@ -56,7 +63,10 @@ describe("Phase 0 Maestro testID contract", () => {
       const sourceContract = testIdSources[testId];
       assert.ok(sourceContract, `No production source contract exists for ${testId}`);
       const source = readFileSync(path.join(process.cwd(), sourceContract.file), "utf8");
-      assert.ok(source.includes(sourceContract.needle), `${testId} is missing from ${sourceContract.file}`);
+      assert.ok(
+        source.includes(sourceContract.needle),
+        `${testId} is missing from ${sourceContract.file}`,
+      );
     }
   });
 
@@ -66,5 +76,20 @@ describe("Phase 0 Maestro testID contract", () => {
     const manualIds = new Set(MOBILE_MANUAL_QA_CHECKS.map((check) => check.id));
     assert.ok(manualIds.has("android-hardware-back-navigation"));
     assert.ok(manualIds.has("android-navigation-deep-links"));
+  });
+
+  it("binds the Phase 1 appearance control and dark-mode Maestro flow", () => {
+    const settingsSource = readFileSync(
+      path.join(process.cwd(), "src/app/screens/settings-screen.tsx"),
+      "utf8",
+    );
+
+    assert.match(settingsSource, /testID="mobile-settings-appearance-control"/);
+    assert.ok(darkModeFlowSource, ".maestro/phase1-dark-mode.yml must exist");
+    assert.match(darkModeFlowSource, /id:\s*"mobile-settings-appearance-control"/);
+    for (const tabId of ["overview", "messages", "notifications", "voice", "settings"]) {
+      assert.match(darkModeFlowSource, new RegExp(`id:\\s*"mobile-bottom-tab-${tabId}"`));
+    }
+    assert.ok(MOBILE_AUTOMATED_GATES.some((gate) => gate.id === "mobile-maestro-dark-mode"));
   });
 });

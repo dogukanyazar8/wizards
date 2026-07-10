@@ -1,15 +1,38 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
-  mobileColors,
-  mobileElevation,
-  mobileRadii,
-  mobileSizing,
-  mobileSpacing,
-  mobileTypography,
-} from "../src/design/tokens";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { mobileRadii, mobileSizing, mobileSpacing, mobileTypography } from "../src/design/tokens";
+import { darkTheme, lightTheme } from "../src/design/themes";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
+
+const RAW_COLOR_PATTERN = /#[0-9a-f]{6}|rgba\(/i;
+const LEGACY_COLOR_PATTERN = /\bmobileColors\b/;
+const JS_ANIMATED_PATTERN = /from ["']react-native["'][^;]*\bAnimated\b/;
+const PSEUDO_ICON_PATTERN = />\s*(?:FILE|x)\s*<|\{\s*["'](?:FILE|x)["']\s*\}/;
+
+function collectSourceFiles(root: string): string[] {
+  return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+    const absolutePath = join(root, entry.name);
+    if (entry.isDirectory()) {
+      return collectSourceFiles(absolutePath);
+    }
+
+    return /\.tsx?$/.test(entry.name) ? [absolutePath] : [];
+  });
+}
+
+function findSourceViolations(pattern: RegExp): string[] {
+  const files = [
+    ...collectSourceFiles(join(process.cwd(), "src", "app")),
+    ...collectSourceFiles(join(process.cwd(), "src", "navigation")),
+    join(process.cwd(), "src", "voice", "mobile-voice-room-panel.tsx"),
+  ];
+
+  return files
+    .filter((file) => pattern.test(readFileSync(file, "utf8")))
+    .map((file) => relative(process.cwd(), file).replaceAll("\\", "/"))
+    .sort();
+}
 
 function extractFunctionSource(source: string, name: string, nextName: string) {
   const start = source.indexOf(`function ${name}(`);
@@ -43,6 +66,28 @@ function readMobileAuthImplementationSource() {
 }
 
 describe("mobile design contract", () => {
+  it("keeps presentation sources on semantic colors and UI-thread animation", () => {
+    assert.deepEqual(findSourceViolations(RAW_COLOR_PATTERN), []);
+    assert.deepEqual(findSourceViolations(LEGACY_COLOR_PATTERN), []);
+    assert.deepEqual(findSourceViolations(JS_ANIMATED_PATTERN), []);
+  });
+
+  it("keeps kit accessibility contracts explicit and rejects pseudo-icons", () => {
+    const kitRoot = join(process.cwd(), "src", "app", "components", "kit");
+    const buttonSource = readFileSync(join(kitRoot, "button.tsx"), "utf8");
+    const iconButtonSource = readFileSync(join(kitRoot, "icon-button.tsx"), "utf8");
+    const contextMenuSource = readFileSync(join(kitRoot, "context-menu.tsx"), "utf8");
+    const toastSource = readFileSync(join(kitRoot, "toast.tsx"), "utf8");
+
+    assert.match(buttonSource, /accessibilityRole="button"/);
+    assert.match(iconButtonSource, /accessibilityRole="button"/);
+    assert.match(iconButtonSource, /accessibilityLabel: string/);
+    assert.match(contextMenuSource, /accessibilityRole="menu"/);
+    assert.match(contextMenuSource, /accessibilityRole="menuitem"/);
+    assert.match(toastSource, /accessibilityLiveRegion/);
+    assert.deepEqual(findSourceViolations(PSEUDO_ICON_PATTERN), []);
+  });
+
   it("keeps native touch targets and compact surfaces production-safe", () => {
     assert.equal(mobileSizing.minTouchTarget >= 44, true);
     assert.equal(mobileRadii.card <= 22, true);
@@ -72,28 +117,6 @@ describe("mobile design contract", () => {
   });
 
   it("keeps mobile visual tokens aligned with the Whispr web and desktop system", () => {
-    for (const colorToken of [
-      "surfaceBase",
-      "surfaceCard",
-      "surfaceSoft",
-      "surfaceOverlay",
-      "surfaceElevated",
-      "textPrimary",
-      "textSecondary",
-      "textMuted",
-      "primary",
-      "primaryForeground",
-      "primarySoft",
-      "borderSubtle",
-      "input",
-      "ring",
-      "ambientPrimary",
-      "ambientSecondary",
-      "shadow",
-    ] as const) {
-      assert.equal(typeof mobileColors[colorToken], "string", colorToken);
-    }
-
     for (const typographyToken of [
       "display",
       "headline",
@@ -110,11 +133,20 @@ describe("mobile design contract", () => {
       assert.equal(typeof mobileTypography[typographyToken].lineHeight, "number");
     }
 
-    for (const elevationToken of ["soft", "card", "floating"] as const) {
-      assert.equal(typeof mobileElevation[elevationToken].shadowColor, "string");
-      assert.equal(typeof mobileElevation[elevationToken].shadowOpacity, "number");
-      assert.equal(typeof mobileElevation[elevationToken].shadowRadius, "number");
-      assert.equal(typeof mobileElevation[elevationToken].elevation, "number");
+    for (const theme of [lightTheme, darkTheme]) {
+      assert.equal(typeof theme.surface.base, "string");
+      assert.equal(typeof theme.surface.card, "string");
+      assert.equal(typeof theme.text.primary, "string");
+      assert.equal(typeof theme.text.muted, "string");
+      assert.equal(typeof theme.accent.default, "string");
+      assert.equal(typeof theme.border.focus, "string");
+
+      for (const elevationToken of ["soft", "card", "floating"] as const) {
+        assert.equal(typeof theme.elevation[elevationToken].shadowColor, "string");
+        assert.equal(typeof theme.elevation[elevationToken].shadowOpacity, "number");
+        assert.equal(typeof theme.elevation[elevationToken].shadowRadius, "number");
+        assert.equal(typeof theme.elevation[elevationToken].elevation, "number");
+      }
     }
   });
 

@@ -25,6 +25,7 @@ export type MobileQualityArea =
   | "search"
   | "store"
   | "sync"
+  | "theme"
   | "voice"
   | "workspace";
 
@@ -69,7 +70,8 @@ export const MOBILE_AUTOMATED_GATES: MobileAutomatedGate[] = [
   {
     command: "corepack pnpm --filter @wizards/mobile test:components",
     id: "mobile-component-tests",
-    purpose: "React Native component render tests for auth, voice, push-to-talk, and screen share UI.",
+    purpose:
+      "React Native component render tests for auth, voice, push-to-talk, and screen share UI.",
     required: true,
   },
   {
@@ -77,6 +79,13 @@ export const MOBILE_AUTOMATED_GATES: MobileAutomatedGate[] = [
     id: "mobile-maestro-navigation",
     purpose:
       "Android device proof for hardware back plus channel, DM, invite, and settings deep links.",
+    required: true,
+  },
+  {
+    command: "maestro test ../../.maestro/phase1-dark-mode.yml",
+    id: "mobile-maestro-dark-mode",
+    purpose:
+      "Android device proof for system, light, and dark appearance across every primary tab.",
     required: true,
   },
   {
@@ -118,6 +127,14 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
     id: "tab-navigation",
     label:
       "Home, DMs, Notifications, Calls, and Profile bottom tabs switch without overlap or jank.",
+    required: true,
+    risk: "high",
+  },
+  {
+    area: "theme",
+    id: "theme-light-dark-system",
+    label:
+      "System, light, and dark appearance updates app surfaces, system bars, and all primary tabs without remounting product state.",
     required: true,
     risk: "high",
   },
@@ -239,8 +256,7 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
   {
     area: "workspace",
     id: "workspace-channel-read",
-    label:
-      "A real server opens with permission-filtered channels and compact category navigation.",
+    label: "A real server opens with permission-filtered channels and compact category navigation.",
     required: true,
     risk: "high",
   },
@@ -325,14 +341,14 @@ export const MOBILE_QA_DEVICE_MATRIX: MobileQAMatrixTarget[] = [
     sizeClass: "compact",
   },
   {
-    focus: ["dm", "workspace", "sync", "realtime", "permissions", "performance"],
+    focus: ["dm", "workspace", "sync", "realtime", "permissions", "performance", "theme"],
     id: "android-regular",
     label: "Android regular phone",
     platform: "android",
     sizeClass: "regular",
   },
   {
-    focus: ["launch", "deep-link", "navigation"],
+    focus: ["launch", "deep-link", "navigation", "theme"],
     id: "ios-compact",
     label: "iOS compact phone",
     platform: "ios",
@@ -371,6 +387,7 @@ const REQUIRED_MANUAL_AREAS: MobileQualityArea[] = [
   "search",
   "store",
   "sync",
+  "theme",
   "voice",
   "workspace",
 ];
@@ -439,7 +456,7 @@ export function validateMobileQualityGate(): string[] {
   }
 
   for (const gate of MOBILE_AUTOMATED_GATES) {
-    if (gate.id !== "mobile-maestro-navigation" && !gate.command.includes("@wizards/mobile")) {
+    if (!gate.id.startsWith("mobile-maestro-") && !gate.command.includes("@wizards/mobile")) {
       issues.push(`Automated mobile gate ${gate.id} must target @wizards/mobile.`);
     }
   }

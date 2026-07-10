@@ -1,11 +1,9 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { getMobileThemeCompatibilityColors } from "../../design/mobile-theme-compat";
 import type { MobileTheme } from "../../design/themes";
 import { useThemedStyles } from "../providers/mobile-theme-provider";
 import { createSharedStyles } from "../styles/shared-styles";
 
 export const createMobileComposerStyles = (theme: MobileTheme) => {
-  const mobileColors = getMobileThemeCompatibilityColors(theme);
   const mobileRadii = theme.radii;
 
   return {
@@ -44,7 +42,7 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
       paddingHorizontal: 9,
     },
     channelComposerGifButtonText: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 13,
       fontWeight: "900",
     },
@@ -80,8 +78,8 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: 18,
-      backgroundColor: mobileColors.accentStrong,
-      shadowColor: mobileColors.accentStrong,
+      backgroundColor: theme.accent.strong,
+      shadowColor: theme.accent.strong,
       shadowOffset: { width: 0, height: 6 },
       shadowOpacity: theme.dark ? 0 : 0.2,
       shadowRadius: 12,
@@ -120,7 +118,7 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
       opacity: 0.68,
     },
     dmAttachButtonText: {
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
       fontSize: 16,
       fontWeight: "900",
     },
@@ -154,18 +152,18 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
       backgroundColor: theme.accent.soft,
     },
     dmComposerAttachmentClearText: {
-      color: mobileColors.accentStrong,
+      color: theme.accent.strong,
       fontSize: 13,
       fontWeight: "900",
     },
     dmComposerAttachmentMeta: {
       marginTop: 2,
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 11,
       fontWeight: "700",
     },
     dmComposerAttachmentNotice: {
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 11,
       fontWeight: "700",
       lineHeight: 16,
@@ -175,7 +173,7 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
       minWidth: 0,
     },
     dmComposerAttachmentTitle: {
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 12,
       fontWeight: "900",
     },
@@ -185,7 +183,7 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
       minWidth: 0,
       borderRadius: 18,
       backgroundColor: theme.surface.card,
-      color: mobileColors.text,
+      color: theme.text.primary,
       fontSize: 14,
       fontWeight: "600",
       lineHeight: 20,
@@ -202,7 +200,7 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
     dmComposerToolbarText: {
       flex: 1,
       minWidth: 0,
-      color: mobileColors.muted,
+      color: theme.text.muted,
       fontSize: 12,
       fontWeight: "800",
     },
@@ -211,7 +209,7 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: mobileRadii.pill,
-      backgroundColor: mobileColors.accentStrong,
+      backgroundColor: theme.accent.strong,
       paddingHorizontal: 14,
     },
     dmSendButtonDisabled: {
