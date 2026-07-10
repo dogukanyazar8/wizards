@@ -68,10 +68,17 @@ jest.mock("react-native-reanimated", () => {
 
   return {
     __esModule: true,
-    default: { View: AnimatedView },
+    default: {
+      View: AnimatedView,
+      createAnimatedComponent: (component: unknown) => component,
+    },
+    cancelAnimation: jest.fn(),
+    runOnJS: (callback: (...args: unknown[]) => unknown) => callback,
     useAnimatedStyle: (factory: () => Record<string, unknown>) => factory(),
-    useReducedMotion: () => false,
+    useReducedMotion: jest.fn(() => false),
     useSharedValue: (value: unknown) => ({ value }),
+    withRepeat: (value: unknown) => value,
     withSpring: (value: unknown) => value,
+    withTiming: (value: unknown) => value,
   };
 });
