@@ -9,13 +9,15 @@ function emptyStringToNull(value: string | null | undefined) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-const optionalTrimmedString = (maxLength: number) =>
+const optionalTrimmedString = (maxLength: number, preserveUndefined = false) =>
   z
     .string()
     .max(maxLength)
     .optional()
     .or(z.null())
-    .transform((value) => emptyStringToNull(value));
+    .transform((value) =>
+      preserveUndefined && value === undefined ? undefined : emptyStringToNull(value),
+    );
 
 const optionalServerShortName = z
   .string()
@@ -219,14 +221,14 @@ export const UpdateServerSchema = z
     allowFileUploads: z.boolean().optional(),
     allowGifs: z.boolean().optional(),
     allowMemberAdds: z.boolean().optional(),
-    description: optionalTrimmedString(160),
+    description: optionalTrimmedString(160, true),
     iconUrl: z
       .string()
       .url()
       .optional()
       .or(z.literal(""))
       .or(z.null())
-      .transform((value) => emptyStringToNull(value)),
+      .transform((value) => (value === undefined ? undefined : emptyStringToNull(value))),
     name: z.string().trim().min(2).max(64).optional(),
     messageCharacterLimit: z.number().int().min(250).max(40000).optional(),
     deletedMessageNoticeMinutes: z.number().int().min(5).max(10080).optional(),
@@ -276,7 +278,7 @@ export const UpdateChannelSchema = z
   .object({
     categoryId: z.string().nullable().optional(),
     name: workspaceNameSchema(48, "validation.channel.pattern").optional(),
-    topic: optionalTrimmedString(120),
+    topic: optionalTrimmedString(120, true),
     locked: z.boolean().optional(),
   })
   .refine(

@@ -82,6 +82,12 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Test shared types package
+        run: pnpm --filter @wizards/types test
+
+      - name: Test shared UI package
+        run: pnpm --filter @wizards/ui test
+
       - name: Mobile quality gate
         run: |
           pnpm --filter @wizards/mobile test

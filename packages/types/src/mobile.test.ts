@@ -1,0 +1,843 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import * as mobileSchemas from "./mobile";
+import {
+  MOBILE_BOOTSTRAP_ATTACHMENTS_FEATURE_DEFAULT,
+  MOBILE_BOOTSTRAP_INVITES_FEATURE_DEFAULT,
+  MOBILE_BOOTSTRAP_MESSAGE_SEARCH_FEATURE_DEFAULT,
+  MobileAuthExchangeRequestSchema,
+  MobileAuthExchangeResponseSchema,
+  MobileAuthForgotPasswordRequestSchema,
+  MobileAuthForgotPasswordResponseSchema,
+  MobileAuthPasswordLoginRequestSchema,
+  MobileAuthPasswordLoginResponseSchema,
+  MobileAuthRefreshRequestSchema,
+  MobileAuthRefreshResponseSchema,
+  MobileAuthRegisterRequestSchema,
+  MobileAuthRegisterResponseSchema,
+  MobileAuthRevokeRequestSchema,
+  MobileAuthVerificationEmailRequestSchema,
+  MobileAuthVerificationEmailResponseSchema,
+  MobileBootstrapDeepLinkIntentSchema,
+  MobileBootstrapDMConversationSummarySchema,
+  MobileBootstrapDMParticipantSchema,
+  MobileBootstrapFeatureSchema,
+  MobileBootstrapFeatureStatusSchema,
+  MobileBootstrapPayloadSchema,
+  MobileBootstrapPermissionIntentSchema,
+  MobileBootstrapServerSummarySchema,
+  MobileChannelMessagesResponseSchema,
+  MobileChannelSendMessageRequestSchema,
+  MobileChannelSendMessageResponseSchema,
+  MobileDMMessagesResponseSchema,
+  MobileDMSendMessageRequestSchema,
+  MobileDMSendMessageResponseSchema,
+  MobilePushPlatformSchema,
+  MobilePushProviderSchema,
+  MobilePushRegistrationRequestSchema,
+  MobilePushRegistrationResponseSchema,
+  MobilePushRegistrationRevokeResponseSchema,
+  MobileSessionSchemaVersionSchema,
+  MobileSessionSnapshotSchema,
+  MobileSessionTokensSchema,
+  MobileSessionUserSchema,
+  MobileVoiceChannelStateSchema,
+  MobileVoiceHeartbeatRequestSchema,
+  MobileVoiceHeartbeatResponseSchema,
+  MobileVoiceStateDeleteRequestSchema,
+  MobileVoiceStateLeaveResponseSchema,
+  MobileVoiceStateMutationResponseSchema,
+  MobileVoiceStateParticipantSchema,
+  MobileVoiceStatesQuerySchema,
+  MobileVoiceStatesResponseSchema,
+  MobileVoiceStateUpsertRequestSchema,
+  MobileVoiceTokenProviderSchema,
+  MobileVoiceTokenRequestSchema,
+  MobileVoiceTokenResponseSchema,
+  MobileWorkspaceCategorySummarySchema,
+  MobileWorkspaceChannelSummarySchema,
+  MobileWorkspaceServerDetailResponseSchema,
+  MobileWorkspaceServerDetailSchema,
+} from "./mobile";
+import { assertAccepts, assertRejects, assertSchemaBehaviorCoverage } from "./schema-test-helpers";
+
+const now = "2026-07-09T12:00:00.000Z";
+const uuid = "550e8400-e29b-41d4-a716-446655440000";
+
+const sessionUser = {
+  avatarUrl: null,
+  displayName: "Ada Lovelace",
+  id: "user-1",
+  username: "ada",
+};
+
+const sessionTokens = {
+  accessToken: "a".repeat(16),
+  expiresAt: 2_000,
+  issuedAt: 1_000,
+  refreshToken: "r".repeat(16),
+  scopes: ["mobile"],
+  tokenType: "Bearer" as const,
+};
+
+const session = {
+  lastValidatedAt: 1_000,
+  schemaVersion: 1 as const,
+  tokens: sessionTokens,
+  user: sessionUser,
+};
+
+const feature = { label: "Voice", status: "available" as const };
+
+const voiceParticipant = {
+  avatarUrl: null,
+  displayName: "Ada",
+  isScreenSharing: false,
+  userId: "user-1",
+  username: "ada",
+};
+
+const voiceState = { channelId: "channel-1", participants: [voiceParticipant] };
+
+const bootstrapServer = {
+  channelCount: 1,
+  iconUrl: null,
+  id: "server-1",
+  joinedAt: now,
+  memberCount: 1,
+  name: "Analytical Engine",
+  shortName: "AE",
+};
+
+const bootstrapDMParticipant = {
+  avatarUrl: null,
+  displayName: "Charles",
+  id: "user-2",
+  status: "ONLINE",
+  username: "charles",
+};
+
+const bootstrapConversation = {
+  iconUrl: null,
+  id: "conversation-1",
+  lastMessageAt: now,
+  muted: false,
+  name: null,
+  participantCount: 1,
+  participants: [bootstrapDMParticipant],
+  type: "DM" as const,
+  unreadCount: 0,
+};
+
+const bootstrapPayload = {
+  app: {
+    buildId: "build-1",
+    name: "Whispr" as const,
+    releaseChannel: "uat",
+    serverTime: now,
+    version: "0.8.15",
+  },
+  contracts: {
+    deepLinks: ["route" as const],
+    permissions: ["notifications" as const],
+  },
+  features: {
+    messages: feature,
+    nativeAuthTokenExchange: feature,
+    pushNotifications: feature,
+    voice: feature,
+  },
+  home: {
+    directMessages: { recent: [bootstrapConversation], totalCount: 1, unreadCount: 0 },
+    servers: { recent: [bootstrapServer], totalCount: 1 },
+  },
+  user: {
+    avatarUrl: null,
+    displayName: "Ada Lovelace",
+    id: "user-1",
+    locale: "en" as const,
+    status: "ONLINE",
+    username: "ada",
+  },
+};
+
+const dmAuthor = {
+  avatarUrl: null,
+  customStatus: null,
+  displayName: "Ada",
+  id: "user-1",
+  status: "ONLINE" as const,
+  username: "ada",
+};
+
+const dmMessage = {
+  attachments: [],
+  author: dmAuthor,
+  content: "Hello",
+  conversationId: "conversation-1",
+  createdAt: now,
+  deletedAt: null,
+  deletedById: null,
+  editedAt: null,
+  id: "message-1",
+  reactions: [],
+  replyTo: null,
+  replyToId: null,
+  threadParentId: null,
+  userId: "user-1",
+};
+
+const dmParticipant = {
+  avatarUrl: null,
+  customStatus: null,
+  displayName: "Ada",
+  muted: false,
+  presence: { customStatus: null, status: "ONLINE" as const },
+  status: "ONLINE" as const,
+  unreadCount: 0,
+  userId: "user-1",
+  username: "ada",
+};
+
+const dmConversation = {
+  id: "conversation-1",
+  lastMessage: dmMessage,
+  lastMessageAt: now,
+  name: null,
+  participants: [dmParticipant],
+  type: "DM" as const,
+};
+
+const workspaceChannel = {
+  categoryId: null,
+  categoryName: null,
+  id: "channel-1",
+  locked: false,
+  mentionCount: 0,
+  name: "general",
+  position: 0,
+  readOnly: false,
+  topic: null,
+  type: "TEXT" as const,
+  unreadCount: 0,
+};
+
+const workspaceCategory = {
+  channels: [workspaceChannel],
+  id: "category-1",
+  name: "General",
+  position: 0,
+};
+
+const workspaceDetail = {
+  categories: [workspaceCategory],
+  hasMoreChannels: false,
+  members: [],
+  server: {
+    defaultChannelId: "channel-1",
+    description: null,
+    iconUrl: null,
+    id: "server-1",
+    memberCount: 1,
+    mentionCount: 0,
+    name: "Analytical Engine",
+    shortName: "AE",
+    unreadCount: 0,
+    visibleChannelCount: 1,
+  },
+  ungroupedChannels: [],
+};
+
+const chatMessage = {
+  attachments: [],
+  author: {
+    avatarUrl: null,
+    displayName: "Ada",
+    id: "user-1",
+    username: "ada",
+  },
+  channelId: "channel-1",
+  content: "Hello",
+  createdAt: now,
+  deletedAt: null,
+  editedAt: null,
+  id: "message-1",
+  reactions: [],
+  type: "DEFAULT" as const,
+};
+
+const uploadedAttachment = { id: uuid };
+
+describe("mobile schemas", () => {
+  it("keeps every exported schema covered by an acceptance and rejection fixture", () => {
+    assertSchemaBehaviorCoverage(mobileSchemas, {
+      MobileAuthExchangeRequestSchema: {
+        schema: MobileAuthExchangeRequestSchema,
+        valid: { callbackPath: "/mobile/callback", handoffToken: "a".repeat(32) },
+        invalid: { callbackPath: "/mobile/callback", handoffToken: "short" },
+      },
+      MobileAuthExchangeResponseSchema: {
+        schema: MobileAuthExchangeResponseSchema,
+        valid: { session },
+        invalid: { session: null },
+      },
+      MobileAuthForgotPasswordRequestSchema: {
+        schema: MobileAuthForgotPasswordRequestSchema,
+        valid: { email: "ada@example.com", locale: "tr" },
+        invalid: { email: "ada", locale: "tr" },
+      },
+      MobileAuthForgotPasswordResponseSchema: {
+        schema: MobileAuthForgotPasswordResponseSchema,
+        valid: { email: "ada@example.com", message: "Accepted", status: "accepted" },
+        invalid: { email: "ada@example.com", message: "Accepted", status: "sent" },
+      },
+      MobileAuthPasswordLoginRequestSchema: {
+        schema: MobileAuthPasswordLoginRequestSchema,
+        valid: { email: "ada@example.com", password: "correct-horse" },
+        invalid: { email: "ada@example.com", password: "short" },
+      },
+      MobileAuthPasswordLoginResponseSchema: {
+        schema: MobileAuthPasswordLoginResponseSchema,
+        valid: { session },
+        invalid: { session: undefined },
+      },
+      MobileAuthRefreshRequestSchema: {
+        schema: MobileAuthRefreshRequestSchema,
+        valid: { refreshToken: "r".repeat(16) },
+        invalid: { refreshToken: "has whitespace token" },
+      },
+      MobileAuthRefreshResponseSchema: {
+        schema: MobileAuthRefreshResponseSchema,
+        valid: { session },
+        invalid: { session: {} },
+      },
+      MobileAuthRegisterRequestSchema: {
+        schema: MobileAuthRegisterRequestSchema,
+        valid: {
+          confirmPassword: "correct-horse",
+          email: "ada@example.com",
+          locale: "en",
+          password: "correct-horse",
+          username: "ada_lovelace",
+        },
+        invalid: {
+          confirmPassword: "different",
+          email: "ada@example.com",
+          password: "correct-horse",
+          username: "ada_lovelace",
+        },
+      },
+      MobileAuthRegisterResponseSchema: {
+        schema: MobileAuthRegisterResponseSchema,
+        valid: {
+          email: "ada@example.com",
+          message: "Verify email",
+          status: "verification-required",
+        },
+        invalid: { email: "ada@example.com", message: "", status: "verification-required" },
+      },
+      MobileAuthRevokeRequestSchema: {
+        schema: MobileAuthRevokeRequestSchema,
+        valid: { refreshToken: null },
+        invalid: { refreshToken: "short" },
+      },
+      MobileAuthVerificationEmailRequestSchema: {
+        schema: MobileAuthVerificationEmailRequestSchema,
+        valid: { email: "ada@example.com", locale: "en" },
+        invalid: { email: "ada@example.com", locale: "de" },
+      },
+      MobileAuthVerificationEmailResponseSchema: {
+        schema: MobileAuthVerificationEmailResponseSchema,
+        valid: { email: "ada@example.com", message: "Accepted", status: "accepted" },
+        invalid: { email: "ada@example.com", message: "Accepted", status: "pending" },
+      },
+      MobileBootstrapDeepLinkIntentSchema: {
+        schema: MobileBootstrapDeepLinkIntentSchema,
+        valid: "invite",
+        invalid: "external",
+      },
+      MobileBootstrapDMConversationSummarySchema: {
+        schema: MobileBootstrapDMConversationSummarySchema,
+        valid: bootstrapConversation,
+        invalid: { ...bootstrapConversation, participantCount: -1 },
+      },
+      MobileBootstrapDMParticipantSchema: {
+        schema: MobileBootstrapDMParticipantSchema,
+        valid: bootstrapDMParticipant,
+        invalid: { ...bootstrapDMParticipant, username: "" },
+      },
+      MobileBootstrapFeatureSchema: {
+        schema: MobileBootstrapFeatureSchema,
+        valid: feature,
+        invalid: { ...feature, label: "" },
+      },
+      MobileBootstrapFeatureStatusSchema: {
+        schema: MobileBootstrapFeatureStatusSchema,
+        valid: "disabled",
+        invalid: "beta",
+      },
+      MobileBootstrapPayloadSchema: {
+        schema: MobileBootstrapPayloadSchema,
+        valid: bootstrapPayload,
+        invalid: { ...bootstrapPayload, contracts: { deepLinks: [], permissions: [] } },
+      },
+      MobileBootstrapPermissionIntentSchema: {
+        schema: MobileBootstrapPermissionIntentSchema,
+        valid: "screenCapture",
+        invalid: "location",
+      },
+      MobileBootstrapServerSummarySchema: {
+        schema: MobileBootstrapServerSummarySchema,
+        valid: bootstrapServer,
+        invalid: { ...bootstrapServer, joinedAt: "today" },
+      },
+      MobileChannelMessagesResponseSchema: {
+        schema: MobileChannelMessagesResponseSchema,
+        valid: {
+          channel: workspaceChannel,
+          hasMore: false,
+          messages: [chatMessage],
+          nextCursor: null,
+        },
+        invalid: {
+          channel: workspaceChannel,
+          hasMore: false,
+          messages: "message-1",
+          nextCursor: null,
+        },
+      },
+      MobileChannelSendMessageRequestSchema: {
+        schema: MobileChannelSendMessageRequestSchema,
+        valid: { content: "Hello" },
+        invalid: { content: "   " },
+      },
+      MobileChannelSendMessageResponseSchema: {
+        schema: MobileChannelSendMessageResponseSchema,
+        valid: { message: chatMessage },
+        invalid: { message: null },
+      },
+      MobileDMMessagesResponseSchema: {
+        schema: MobileDMMessagesResponseSchema,
+        valid: { conversation: dmConversation, messages: [dmMessage], nextCursor: null },
+        invalid: { conversation: dmConversation, messages: "message-1", nextCursor: null },
+      },
+      MobileDMSendMessageRequestSchema: {
+        schema: MobileDMSendMessageRequestSchema,
+        valid: { content: "Hello" },
+        invalid: { content: "   " },
+      },
+      MobileDMSendMessageResponseSchema: {
+        schema: MobileDMSendMessageResponseSchema,
+        valid: { message: dmMessage },
+        invalid: { message: null },
+      },
+      MobilePushPlatformSchema: {
+        schema: MobilePushPlatformSchema,
+        valid: "android",
+        invalid: "web",
+      },
+      MobilePushProviderSchema: {
+        schema: MobilePushProviderSchema,
+        valid: "expo",
+        invalid: "firebase",
+      },
+      MobilePushRegistrationRequestSchema: {
+        schema: MobilePushRegistrationRequestSchema,
+        valid: {
+          platform: "ios",
+          provider: "expo",
+          token: "ExpoPushToken[abcdefghij]",
+        },
+        invalid: { platform: "ios", provider: "expo", token: "invalid" },
+      },
+      MobilePushRegistrationResponseSchema: {
+        schema: MobilePushRegistrationResponseSchema,
+        valid: {
+          provider: "expo",
+          registered: true,
+          registeredAt: now,
+          tokenFingerprint: "f".repeat(32),
+        },
+        invalid: {
+          provider: "expo",
+          registered: true,
+          registeredAt: now,
+          tokenFingerprint: "short",
+        },
+      },
+      MobilePushRegistrationRevokeResponseSchema: {
+        schema: MobilePushRegistrationRevokeResponseSchema,
+        valid: { revoked: true, revokedAt: now },
+        invalid: { revoked: true, revokedAt: "today" },
+      },
+      MobileSessionSchemaVersionSchema: {
+        schema: MobileSessionSchemaVersionSchema,
+        valid: 1,
+        invalid: 2,
+      },
+      MobileSessionSnapshotSchema: {
+        schema: MobileSessionSnapshotSchema,
+        valid: session,
+        invalid: { ...session, lastValidatedAt: Number.POSITIVE_INFINITY },
+      },
+      MobileSessionTokensSchema: {
+        schema: MobileSessionTokensSchema,
+        valid: sessionTokens,
+        invalid: { ...sessionTokens, accessToken: "has whitespace token" },
+      },
+      MobileSessionUserSchema: {
+        schema: MobileSessionUserSchema,
+        valid: sessionUser,
+        invalid: { ...sessionUser, username: "" },
+      },
+      MobileVoiceChannelStateSchema: {
+        schema: MobileVoiceChannelStateSchema,
+        valid: voiceState,
+        invalid: { ...voiceState, participants: "user-1" },
+      },
+      MobileVoiceHeartbeatRequestSchema: {
+        schema: MobileVoiceHeartbeatRequestSchema,
+        valid: { selfScreenShare: true, sessionId: uuid },
+        invalid: { sessionId: "not-a-uuid" },
+      },
+      MobileVoiceHeartbeatResponseSchema: {
+        schema: MobileVoiceHeartbeatResponseSchema,
+        valid: { channelId: "channel-1", serverId: "server-1", success: true },
+        invalid: { channelId: "channel-1", serverId: "server-1", success: false },
+      },
+      MobileVoiceStateDeleteRequestSchema: {
+        schema: MobileVoiceStateDeleteRequestSchema,
+        valid: { sessionId: uuid },
+        invalid: { sessionId: "not-a-uuid" },
+      },
+      MobileVoiceStateLeaveResponseSchema: {
+        schema: MobileVoiceStateLeaveResponseSchema,
+        valid: { success: true },
+        invalid: { success: false },
+      },
+      MobileVoiceStateMutationResponseSchema: {
+        schema: MobileVoiceStateMutationResponseSchema,
+        valid: {
+          channelId: "channel-1",
+          participants: [voiceParticipant],
+          serverId: "server-1",
+          sessionId: uuid,
+        },
+        invalid: {
+          channelId: "channel-1",
+          participants: [voiceParticipant],
+          serverId: "server-1",
+          sessionId: "not-a-uuid",
+        },
+      },
+      MobileVoiceStateParticipantSchema: {
+        schema: MobileVoiceStateParticipantSchema,
+        valid: voiceParticipant,
+        invalid: { ...voiceParticipant, userId: "" },
+      },
+      MobileVoiceStatesQuerySchema: {
+        schema: MobileVoiceStatesQuerySchema,
+        valid: { serverId: "server-1" },
+        invalid: { serverId: "" },
+      },
+      MobileVoiceStatesResponseSchema: {
+        schema: MobileVoiceStatesResponseSchema,
+        valid: { states: [voiceState] },
+        invalid: { states: "channel-1" },
+      },
+      MobileVoiceStateUpsertRequestSchema: {
+        schema: MobileVoiceStateUpsertRequestSchema,
+        valid: { channelId: "channel-1", serverId: "server-1", sessionId: uuid },
+        invalid: { channelId: "channel-1", serverId: "server-1", sessionId: "invalid" },
+      },
+      MobileVoiceTokenProviderSchema: {
+        schema: MobileVoiceTokenProviderSchema,
+        valid: "livekit",
+        invalid: "webrtc",
+      },
+      MobileVoiceTokenRequestSchema: {
+        schema: MobileVoiceTokenRequestSchema,
+        valid: { channelId: "channel-1" },
+        invalid: { channelId: "" },
+      },
+      MobileVoiceTokenResponseSchema: {
+        schema: MobileVoiceTokenResponseSchema,
+        valid: {
+          channelId: "channel-1",
+          provider: "livekit",
+          token: "t".repeat(16),
+          url: "wss://livekit.example.com",
+        },
+        invalid: {
+          channelId: "channel-1",
+          provider: "livekit",
+          token: "short",
+          url: "wss://livekit.example.com",
+        },
+      },
+      MobileWorkspaceCategorySummarySchema: {
+        schema: MobileWorkspaceCategorySummarySchema,
+        valid: workspaceCategory,
+        invalid: { ...workspaceCategory, position: -1 },
+      },
+      MobileWorkspaceChannelSummarySchema: {
+        schema: MobileWorkspaceChannelSummarySchema,
+        valid: workspaceChannel,
+        invalid: { ...workspaceChannel, categoryName: "" },
+      },
+      MobileWorkspaceServerDetailResponseSchema: {
+        schema: MobileWorkspaceServerDetailResponseSchema,
+        valid: { detail: workspaceDetail },
+        invalid: { detail: null },
+      },
+      MobileWorkspaceServerDetailSchema: {
+        schema: MobileWorkspaceServerDetailSchema,
+        valid: workspaceDetail,
+        invalid: { ...workspaceDetail, hasMoreChannels: "false" },
+      },
+    });
+  });
+
+  it("enforces bootstrap feature and session token boundaries", () => {
+    assertAccepts(MobileBootstrapFeatureSchema, {
+      label: "l".repeat(80),
+      reason: "r".repeat(240),
+      status: "requires-native-permission",
+    });
+    assertRejects(MobileBootstrapFeatureSchema, { label: "", status: "available" }, ["label"]);
+    assertRejects(
+      MobileBootstrapFeatureSchema,
+      { label: "Voice", reason: "r".repeat(241), status: "available" },
+      ["reason"],
+    );
+
+    assertAccepts(MobileSessionTokensSchema, {
+      ...sessionTokens,
+      accessToken: "a".repeat(8192),
+      refreshToken: null,
+      scopes: Array.from({ length: 50 }, (_, index) => `scope-${index}`),
+    });
+    assertRejects(MobileSessionTokensSchema, { ...sessionTokens, accessToken: "a".repeat(15) }, [
+      "accessToken",
+    ]);
+    assertRejects(MobileSessionTokensSchema, { ...sessionTokens, accessToken: "a".repeat(8193) }, [
+      "accessToken",
+    ]);
+    assertRejects(MobileSessionTokensSchema, { ...sessionTokens, issuedAt: Number.NaN }, [
+      "issuedAt",
+    ]);
+    assertRejects(
+      MobileSessionTokensSchema,
+      { ...sessionTokens, scopes: Array.from({ length: 51 }, () => "scope") },
+      ["scopes"],
+    );
+    assertRejects(MobileSessionTokensSchema, { ...sessionTokens, scopes: ["s".repeat(81)] }, [
+      "scopes",
+      0,
+    ]);
+  });
+
+  it("enforces mobile auth token, email, password, and registration refinements", () => {
+    assertAccepts(MobileAuthExchangeRequestSchema, {
+      callbackPath: "c".repeat(512),
+      handoffToken: "A-_1".repeat(32),
+    });
+    assertRejects(
+      MobileAuthExchangeRequestSchema,
+      { callbackPath: "", handoffToken: "a".repeat(32) },
+      ["callbackPath"],
+    );
+    assertRejects(
+      MobileAuthExchangeRequestSchema,
+      { callbackPath: "/callback", handoffToken: "a".repeat(129) },
+      ["handoffToken"],
+    );
+    assertRejects(
+      MobileAuthExchangeRequestSchema,
+      { callbackPath: "/callback", handoffToken: `${"a".repeat(31)}!` },
+      ["handoffToken"],
+    );
+
+    assertAccepts(MobileAuthPasswordLoginRequestSchema, {
+      email: `${"a".repeat(242)}@example.com`,
+      password: "p".repeat(100),
+    });
+    assertRejects(
+      MobileAuthPasswordLoginRequestSchema,
+      { email: `${"a".repeat(243)}@example.com`, password: "password" },
+      ["email"],
+    );
+    assertRejects(
+      MobileAuthPasswordLoginRequestSchema,
+      { email: "ada@example.com", password: "p".repeat(101) },
+      ["password"],
+    );
+
+    const registration = {
+      confirmPassword: "password",
+      email: "ada@example.com",
+      password: "password",
+      username: "ada_1",
+    };
+    assertAccepts(MobileAuthRegisterRequestSchema, registration);
+    assertRejects(
+      MobileAuthRegisterRequestSchema,
+      { ...registration, confirmPassword: "different" },
+      ["confirmPassword"],
+    );
+    assertRejects(MobileAuthRegisterRequestSchema, { ...registration, username: "a" }, [
+      "username",
+    ]);
+    assertRejects(MobileAuthRegisterRequestSchema, { ...registration, username: "u".repeat(33) }, [
+      "username",
+    ]);
+    assertRejects(MobileAuthRegisterRequestSchema, { ...registration, username: "ada-name" }, [
+      "username",
+    ]);
+  });
+
+  it("trims and validates Expo push tokens and rejects unknown strict fields", () => {
+    const parsed = assertAccepts(MobilePushRegistrationRequestSchema, {
+      platform: "android",
+      provider: "expo",
+      token: "  ExponentPushToken[abcdefghij]  ",
+    });
+    assert.equal(parsed?.token, "ExponentPushToken[abcdefghij]");
+    assertRejects(
+      MobilePushRegistrationRequestSchema,
+      { platform: "android", provider: "expo", token: "ExpoPushToken[short]" },
+      ["token"],
+    );
+    assertRejects(MobilePushRegistrationRequestSchema, {
+      extra: true,
+      platform: "android",
+      provider: "expo",
+      token: "ExpoPushToken[abcdefghij]",
+    });
+  });
+
+  it("enforces strict voice request UUIDs, identifiers, and collection limits", () => {
+    assertRejects(MobileVoiceTokenRequestSchema, { channelId: "channel-1", extra: true });
+    assertRejects(MobileVoiceStateDeleteRequestSchema, { extra: true, sessionId: uuid });
+    assertRejects(MobileVoiceHeartbeatRequestSchema, { extra: true, sessionId: uuid });
+    assertRejects(MobileVoiceStatesQuerySchema, { extra: true, serverId: "server-1" });
+    assertRejects(MobileVoiceStateUpsertRequestSchema, {
+      channelId: "channel-1",
+      extra: true,
+      serverId: "server-1",
+      sessionId: uuid,
+    });
+    assertRejects(
+      MobileVoiceChannelStateSchema,
+      { ...voiceState, participants: Array.from({ length: 51 }, () => voiceParticipant) },
+      ["participants"],
+    );
+    assertRejects(
+      MobileVoiceStatesResponseSchema,
+      { states: Array.from({ length: 81 }, () => voiceState) },
+      ["states"],
+    );
+    assertRejects(
+      MobileVoiceStateParticipantSchema,
+      { ...voiceParticipant, username: "u".repeat(81) },
+      ["username"],
+    );
+  });
+
+  it("applies bootstrap defaults and enforces home collection limits", () => {
+    const parsed = assertAccepts(MobileBootstrapPayloadSchema, bootstrapPayload);
+    assert.deepEqual(parsed?.features.attachments, MOBILE_BOOTSTRAP_ATTACHMENTS_FEATURE_DEFAULT);
+    assert.deepEqual(parsed?.features.invites, MOBILE_BOOTSTRAP_INVITES_FEATURE_DEFAULT);
+    assert.deepEqual(
+      parsed?.features.messageSearch,
+      MOBILE_BOOTSTRAP_MESSAGE_SEARCH_FEATURE_DEFAULT,
+    );
+    assertRejects(
+      MobileBootstrapPayloadSchema,
+      {
+        ...bootstrapPayload,
+        home: {
+          ...bootstrapPayload.home,
+          directMessages: {
+            ...bootstrapPayload.home.directMessages,
+            recent: Array.from({ length: 6 }, () => bootstrapConversation),
+          },
+        },
+      },
+      ["home", "directMessages", "recent"],
+    );
+    assertRejects(
+      MobileBootstrapPayloadSchema,
+      {
+        ...bootstrapPayload,
+        home: {
+          ...bootstrapPayload.home,
+          servers: {
+            ...bootstrapPayload.home.servers,
+            recent: Array.from({ length: 51 }, () => bootstrapServer),
+          },
+        },
+      },
+      ["home", "servers", "recent"],
+    );
+  });
+
+  it("requires mobile message content or attachments and enforces transport limits", () => {
+    for (const schema of [
+      MobileDMSendMessageRequestSchema,
+      MobileChannelSendMessageRequestSchema,
+    ]) {
+      assertAccepts(schema, { content: "x".repeat(2_000) });
+      assertAccepts(schema, { attachments: [uploadedAttachment], content: "   " });
+      assertRejects(schema, { attachments: [], content: "   " }, ["content"]);
+      assertRejects(schema, { content: "x".repeat(2_001) }, ["content"]);
+      assertRejects(
+        schema,
+        { attachments: Array.from({ length: 6 }, () => uploadedAttachment), content: "Hello" },
+        ["attachments"],
+      );
+      assertRejects(schema, { content: "Hello", replyToId: "" }, ["replyToId"]);
+      assertRejects(schema, { content: "Hello", threadParentId: "t".repeat(129) }, [
+        "threadParentId",
+      ]);
+    }
+  });
+
+  it("enforces mobile workspace nesting and message collection limits", () => {
+    assertRejects(
+      MobileWorkspaceCategorySummarySchema,
+      { ...workspaceCategory, channels: Array.from({ length: 41 }, () => workspaceChannel) },
+      ["channels"],
+    );
+    assertRejects(
+      MobileWorkspaceServerDetailSchema,
+      { ...workspaceDetail, categories: Array.from({ length: 21 }, () => workspaceCategory) },
+      ["categories"],
+    );
+    assertRejects(
+      MobileWorkspaceServerDetailSchema,
+      { ...workspaceDetail, ungroupedChannels: Array.from({ length: 81 }, () => workspaceChannel) },
+      ["ungroupedChannels"],
+    );
+    assertRejects(
+      MobileDMMessagesResponseSchema,
+      {
+        conversation: dmConversation,
+        messages: Array.from({ length: 31 }, () => dmMessage),
+        nextCursor: null,
+      },
+      ["messages"],
+    );
+    assertRejects(
+      MobileChannelMessagesResponseSchema,
+      {
+        channel: workspaceChannel,
+        hasMore: false,
+        messages: Array.from({ length: 31 }, () => chatMessage),
+        nextCursor: null,
+      },
+      ["messages"],
+    );
+  });
+});

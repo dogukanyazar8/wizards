@@ -414,6 +414,9 @@ importers:
       prettier:
         specifier: ^3.5.3
         version: 3.8.3
+      tsx:
+        specifier: ^4.22.4
+        version: 4.22.4
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
@@ -445,6 +448,9 @@ importers:
       prettier:
         specifier: ^3.5.3
         version: 3.8.3
+      tsx:
+        specifier: ^4.22.4
+        version: 4.22.4
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
