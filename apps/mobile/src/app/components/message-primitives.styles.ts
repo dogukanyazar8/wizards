@@ -119,6 +119,23 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       paddingVertical: 4,
       textTransform: "uppercase",
     },
+    messageListSkeleton: {
+      width: "100%",
+      gap: 14,
+      paddingVertical: 8,
+    },
+    messageListSkeletonBubble: {
+      flex: 1,
+      minWidth: 0,
+      gap: 8,
+    },
+    messageListSkeletonRow: {
+      width: "100%",
+      minWidth: 0,
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+    },
     messagePreviewAuthorChannel: {
       flex: 0,
       fontSize: 15,

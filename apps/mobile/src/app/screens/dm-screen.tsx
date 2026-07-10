@@ -28,7 +28,11 @@ import {
 } from "../mobile-root-screen-shared";
 import { FlashList } from "@shopify/flash-list";
 import { DMComposer } from "../composer/mobile-composer";
-import { MessageSearchPanel, MessageStream } from "../components/message-primitives";
+import {
+  MessageListSkeleton,
+  MessageSearchPanel,
+  MessageStream,
+} from "../components/message-primitives";
 import {
   AvatarMark,
   BootstrapStateNotice,
@@ -586,9 +590,7 @@ export function DMConversationPreviewCard({
         </Pressable>
       </View>
 
-      {state.status === "loading" && !state.payload ? (
-        <Text style={styles.contractDescription}>{copy.dmMessagesLoading}</Text>
-      ) : null}
+      {state.status === "loading" && !state.payload ? <MessageListSkeleton /> : null}
       {state.status === "error" ? (
         <View style={styles.dmErrorRow}>
           <Text style={styles.errorText}>{state.error}</Text>

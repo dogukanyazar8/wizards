@@ -20,10 +20,12 @@
 ### Task 1: Specify message loading behavior with a red component test
 
 **Files:**
+
 - Create: `apps/mobile/component-tests/mobile-message-loading-skeleton.test.tsx`
 - Test: `apps/mobile/component-tests/mobile-message-loading-skeleton.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `MessageListSkeleton`, `ChannelMessagesPreviewCard`, and `DMConversationPreviewCard`.
 - Produces: proof that loading, ready-empty, ready-populated, and reduced-motion paths have exclusive visual states.
 
@@ -50,12 +52,14 @@ Expected: FAIL because `MessageListSkeleton` and its test IDs do not yet exist.
 ### Task 2: Implement the shared message-list skeleton and use it on message surfaces
 
 **Files:**
+
 - Modify: `apps/mobile/src/app/components/message-primitives.tsx`
 - Modify: `apps/mobile/src/app/screens/channel-screen.tsx`
 - Modify: `apps/mobile/src/app/screens/dm-screen.tsx`
 - Modify: `apps/mobile/src/app/locale/mobile-copy.ts` only if the two retired loading keys have no other runtime references
 
 **Interfaces:**
+
 - Consumes: existing `Skeleton` API, `{ height: number; width: DimensionValue; borderRadius?: number }`.
 - Produces: `MessageListSkeleton({ testID?: string })`, rendered by all three first-load message branches.
 
@@ -64,11 +68,21 @@ Expected: FAIL because `MessageListSkeleton` and its test IDs do not yet exist.
 ```tsx
 const MESSAGE_LIST_SKELETON_ROWS = ["74%", "56%", "82%"] as const;
 
-export function MessageListSkeleton({ testID = "mobile-message-list-skeleton" }: { testID?: string }) {
+export function MessageListSkeleton({
+  testID = "mobile-message-list-skeleton",
+}: {
+  testID?: string;
+}) {
   return (
     <View testID={testID}>
       {MESSAGE_LIST_SKELETON_ROWS.map((width, index) => (
-        <Skeleton key={width} borderRadius={16} height={64} testID={`${testID}-row-${index}`} width={width} />
+        <Skeleton
+          key={width}
+          borderRadius={16}
+          height={64}
+          testID={`${testID}-row-${index}`}
+          width={width}
+        />
       ))}
     </View>
   );
@@ -94,6 +108,7 @@ Expected: PASS with the four exclusive-state assertions and reduced-motion asser
 ### Task 3: Verify package integration and refresh graph metadata
 
 **Files:**
+
 - Modify: `graphify-out/` generated graph files via `graphify update .`
 
 - [ ] **Step 1: Confirm obsolete loading-copy references are absent from runtime screens**

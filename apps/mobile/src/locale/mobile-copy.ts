@@ -197,7 +197,6 @@ export const mobileCopy = {
     dmDeletedMessage: "Bu mesaj silindi.",
     dmMessagesLoadFailed:
       "Bu direkt mesaj konusmasi yuklenemedi. Yetkin korunuyor; tekrar deneyebilirsin.",
-    dmMessagesLoading: "Direkt mesajlar yukleniyor.",
     dmNoMessages: "Bu konusmada henuz mesaj yok.",
     dmSendAction: "Gonder",
     dmSendFailed:
@@ -612,7 +611,6 @@ export const mobileCopy = {
       "Son sunucularindan gercek kanallari ac, metin kanali gecmisini guvenli ve sinirli sekilde goruntule.",
     workspaceLoadFailed: "Sunucu bilgileri yuklenemedi. Yetki kontrolu server tarafinda korunuyor.",
     workspaceLoading: "Sunucu kanallari yukleniyor.",
-    workspaceMessagesLoading: "Kanal mesajlari yukleniyor.",
     workspaceMoreChannelsHidden:
       "Bu mobil onizleme performans icin yalnizca ilk kanallari gosterir.",
     workspaceLockedLabel: "Kilitli",
@@ -824,7 +822,6 @@ export const mobileCopy = {
     dmDeletedMessage: "This message was deleted.",
     dmMessagesLoadFailed:
       "This direct message conversation could not be loaded. Your permissions stay protected; try again.",
-    dmMessagesLoading: "Loading direct messages.",
     dmNoMessages: "There are no messages in this conversation yet.",
     dmSendAction: "Send",
     dmSendFailed:
@@ -1245,7 +1242,6 @@ export const mobileCopy = {
     workspaceLoadFailed:
       "Server details could not be loaded. Permission checks remain enforced server-side.",
     workspaceLoading: "Loading server channels.",
-    workspaceMessagesLoading: "Loading channel messages.",
     workspaceMoreChannelsHidden:
       "This mobile preview only shows the first channels to keep performance bounded.",
     workspaceLockedLabel: "Locked",
