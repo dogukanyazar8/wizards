@@ -35,6 +35,7 @@ import {
   insertOptimisticMobileMessage,
   replaceMobileMessage,
   replaceMobileMessageReactions,
+  removeMobileMessage,
 } from "./mobile-message-cache";
 import { mobileQueryKeys } from "./mobile-query-keys";
 
@@ -55,6 +56,10 @@ export type MobileMessageReactionMutationVariables = {
 
 type MobileOptimisticReactionMutationContext<TData> = {
   readonly previousData: TData | undefined;
+};
+
+export type MobileMessageDeleteMutationVariables = {
+  readonly messageId: string;
 };
 
 type MobileOptimisticMutationOptions<
@@ -86,6 +91,12 @@ type MobileOptimisticReactionMutationOptions<
   readonly getUserId: () => string;
   readonly getResponseReactions: (response: TResponse) => readonly MessageReaction[];
   readonly mutationFn: MutationFunction<TResponse, MobileMessageReactionMutationVariables>;
+  readonly queryClient: QueryClient;
+  readonly queryKey: QueryKey;
+};
+
+type MobileOptimisticDeleteMutationOptions<TResponse, TPage extends MobileMessagePage<{ readonly id: string }>, TPageParam> = {
+  readonly mutationFn: MutationFunction<TResponse, MobileMessageDeleteMutationVariables>;
   readonly queryClient: QueryClient;
   readonly queryKey: QueryKey;
 };
@@ -191,6 +202,32 @@ export function createMobileOptimisticReactionMutationOptions<
           options.getResponseReactions(response),
         ),
       );
+    },
+  });
+}
+
+export function createMobileOptimisticDeleteMutationOptions<
+  TResponse,
+  TPage extends MobileMessagePage<{ readonly id: string }>,
+  TPageParam = string | null,
+>(options: MobileOptimisticDeleteMutationOptions<TResponse, TPage, TPageParam>) {
+  type TData = InfiniteData<TPage, TPageParam>;
+  type TContext = MobileOptimisticReactionMutationContext<TData>;
+
+  return mutationOptions<TResponse, Error, MobileMessageDeleteMutationVariables, TContext>({
+    mutationFn: options.mutationFn,
+    onError: (_error, _variables, context) => {
+      if (context?.previousData) {
+        options.queryClient.setQueryData(options.queryKey, context.previousData);
+      }
+    },
+    onMutate: async (variables) => {
+      await options.queryClient.cancelQueries({ queryKey: options.queryKey });
+      const previousData = options.queryClient.getQueryData<TData>(options.queryKey);
+      options.queryClient.setQueryData<TData>(options.queryKey, (current) =>
+        removeMobileMessage(current, variables.messageId),
+      );
+      return { previousData };
     },
   });
 }

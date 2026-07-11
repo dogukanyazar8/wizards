@@ -21,6 +21,7 @@ import { getMobileMessageSearchQueryOptions } from "../src/query/mobile-message-
 import { getMobileWorkspaceQueryOptions } from "../src/query/mobile-workspace-query";
 import {
   createMobileOptimisticMutationOptions,
+  createMobileOptimisticDeleteMutationOptions,
   createMobileOptimisticReactionMutationOptions,
 } from "../src/query/use-mobile-message-mutations";
 
@@ -231,6 +232,27 @@ test("optimistic reaction mutations confirm server reactions and restore the exa
   queryClient.setQueryData(queryKey, snapshot);
   const failureContext = await options.onMutate!(variables, {} as never);
   await options.onError!(new Error("failed"), variables, failureContext, {} as never);
+  assert.deepEqual(queryClient.getQueryData(queryKey), snapshot);
+});
+
+test("optimistic delete mutations remove the target and restore the snapshot on failure", async () => {
+  const queryClient = new QueryClient();
+  const queryKey = ["mobile", "dm-messages", "conversation-1"] as const;
+  const snapshot = createData();
+  queryClient.setQueryData(queryKey, snapshot);
+  const options = createMobileOptimisticDeleteMutationOptions({
+    mutationFn: async () => ({ status: "removed" as const }),
+    queryClient,
+    queryKey,
+  });
+  const variables = { messageId: "2" };
+  const context = await options.onMutate!(variables, {} as never);
+
+  assert.deepEqual(
+    flattenMobileInfiniteData(queryClient.getQueryData(queryKey)).map((message) => message.id),
+    ["1", "3"],
+  );
+  await options.onError!(new Error("failed"), variables, context, {} as never);
   assert.deepEqual(queryClient.getQueryData(queryKey), snapshot);
 });
 
