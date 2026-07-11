@@ -21,6 +21,24 @@ describe("mobile Phase 2 architecture", () => {
     assert.match(source, /useMobileDMMessageMutation/);
   });
 
+  it("keeps message navigation and visible-data refresh with the messaging feature", () => {
+    const productApp = readFileSync(join(appRoot, "mobile-product-app.tsx"), "utf8");
+    const messagingHook = readFileSync(
+      join(appRoot, "features", "use-mobile-messaging-feature.ts"),
+      "utf8",
+    );
+
+    assert.match(messagingHook, /const \[selectedDMConversationId/);
+    assert.match(messagingHook, /const handleOpenWorkspaceChannel/);
+    assert.match(messagingHook, /const refreshVisibleMobileData/);
+    assert.doesNotMatch(productApp, /const \[selectedDMConversationId/);
+    assert.doesNotMatch(productApp, /const handleOpenWorkspaceChannel/);
+    assert.ok(
+      productApp.trimEnd().split(/\r?\n/).length < 400,
+      "Product app must stay below 400 lines",
+    );
+  });
+
   it("splits DM inbox and conversation surfaces around their owning features", () => {
     const dmScreen = join(appRoot, "screens", "dm-screen.tsx");
     const inbox = join(appRoot, "screens", "dm-inbox.tsx");

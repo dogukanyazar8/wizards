@@ -1,31 +1,21 @@
-import { type ComponentType, useCallback, useEffect, useMemo, useState } from "react";
-import type { MobileWorkspaceChannelSummary } from "@wizards/types";
-import { Linking, View } from "react-native";
+import { type ComponentType, useEffect, useMemo } from "react";
+import { View } from "react-native";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { getMobileRuntimeConfig } from "../config/environment";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import type { MobileTabId } from "../navigation/mobile-navigation";
 import { installMobileFontDefaults, useOutfitFonts } from "../design/mobile-fonts";
 import {
-  createInitialMobilePermissionReadiness,
-  summarizeMobilePermissionReadiness,
-} from "../permissions/mobile-permission-contract";
-import {
   getVisibleMobileChannelTypingUsers,
   formatMobileChannelTypingLabel,
 } from "../realtime/mobile-typing-state";
-import { useMobileActiveTargetStore } from "../state/mobile-active-target-store";
 import { MobileAppLockScreen } from "./components/mobile-app-lock-screen";
 import { MobileDeviceIntegrityWarning } from "./components/mobile-device-integrity-warning";
-import {
-  findInitialMobileWorkspaceChannel,
-  resolveMobileTabActiveTextChannelId,
-  resolveMobileWorkspaceActiveTextChannelId,
-} from "./mobile-display-model";
 import { MobileAppShell } from "./mobile-app-shell";
 import { useMobileMessagingFeature } from "./features/use-mobile-messaging-feature";
+import { useMobilePermissionSummary } from "./features/use-mobile-permission-summary";
+import { useMobileProductLinks } from "./features/use-mobile-product-links";
 import { useMobileVoiceInviteFeature } from "./features/use-mobile-voice-invite-feature";
-import { getVisibleMobileSyncHealth } from "./mobile-screen-sync";
 import { MobileVoiceInviteOverlay } from "./overlays/mobile-voice-invite-overlay";
 import { useMobileLocaleRuntime } from "./providers/mobile-locale-provider";
 import { useMobileMediaRuntime } from "./providers/mobile-media-provider";
@@ -112,35 +102,27 @@ export function MobileProductApp({
     toggleScreenShare: toggleVoiceScreenShare,
     voiceInputMode,
   } = useMobileVoiceRuntime();
-  const [currentTab, setCurrentTab] = useState<MobileTabId>("overview");
-  const [selectedDMConversationId, setSelectedDMConversationId] = useState<string | null>(null);
-  const [selectedWorkspaceServerId, setSelectedWorkspaceServerId] = useState<string | null>(null);
-  const [selectedWorkspaceChannelId, setSelectedWorkspaceChannelId] = useState<string | null>(null);
-  const [activeWorkspaceTextChannelId, setActiveWorkspaceTextChannelId] = useState<string | null>(
-    null,
-  );
-  const [activeWorkspaceVoiceChannelId, setActiveWorkspaceVoiceChannelId] = useState<string | null>(
-    null,
-  );
-  const [workspaceRouteIntent, setWorkspaceRouteIntent] = useState<{
-    readonly channelId: string | null;
-    readonly serverId: string;
-    readonly shouldOpenPreferredChannel: boolean;
-  } | null>(null);
-  const activeVoiceChannelId = voiceRoomState.channelId;
   const {
-    bootstrapQuery,
+    activeWorkspaceTextChannelId,
+    activeWorkspaceVoiceChannelId,
     bootstrapState,
-    bootstrapSyncState,
-    channelMessagesQuery,
     channelMessagesState,
     channelSendState,
-    channelSyncState,
     clearMessageSearch,
-    dmMessagesQuery,
+    currentTab,
     dmMessagesState,
     dmSendState,
-    dmSyncState,
+    getSyncHealth,
+    handleChannelDraftChange,
+    handleCloseDMConversation,
+    handleCloseWorkspaceChannel,
+    handleCloseWorkspaceVoiceChannel,
+    handleLeaveWorkspaceVoiceChannel,
+    handleOpenDMConversation,
+    handleOpenVoiceInvite,
+    handleOpenWorkspaceChannel,
+    handleOpenWorkspaceRoute,
+    handleOpenWorkspaceServer,
     handleSearchMessages,
     handleSendChannelMessage,
     handleSendDMMessage,
@@ -148,35 +130,24 @@ export function MobileProductApp({
     refreshBootstrap,
     refreshChannelMessages,
     refreshDMMessages,
+    refreshVisibleMobileData,
     refreshWorkspaceServer,
-    resetChannelMessageMutation,
-    resetDMMessageMutation,
-    workspaceQuery,
     workspaceServerState,
-    workspaceSyncState,
+    selectedDMConversation,
+    selectedDMConversationId,
+    selectedWorkspaceChannelId,
+    selectedWorkspaceServerId,
+    setCurrentTab,
   } = useMobileMessagingFeature({
-    activeWorkspaceTextChannelId,
+    activeVoiceChannelId: voiceRoomState.channelId,
     apiClient,
     currentUser: session?.user ?? null,
     isSignedIn: status === "signed-in",
-    selectedDMConversationId,
-    selectedWorkspaceServerId,
+    joinVoiceChannel,
+    leaveVoiceChannel,
     stopChannelTyping,
+    updateChannelTyping,
   });
-  const handleOpenVoiceInvite = useCallback(
-    ({ channelId, serverId }: { channelId: string; channelName: string; serverId: string }) => {
-      setCurrentTab("overview");
-      setActiveWorkspaceTextChannelId(null);
-      setActiveWorkspaceVoiceChannelId(channelId);
-      setSelectedWorkspaceServerId(serverId);
-      setWorkspaceRouteIntent({
-        channelId,
-        serverId,
-        shouldOpenPreferredChannel: false,
-      });
-    },
-    [],
-  );
   const {
     handleAcceptVoiceInvite,
     handleDeclineVoiceInvite,
@@ -195,314 +166,18 @@ export function MobileProductApp({
     voiceChannelId: voiceRoomState.channelId,
     voiceServerId: voiceRoomState.serverId,
   });
-  const basePermissionReadiness = useMemo(() => createInitialMobilePermissionReadiness(), []);
-  const permissionReadiness = useMemo(
-    () =>
-      basePermissionReadiness.map((item) => {
-        if (item.intent.id === "notifications") {
-          return { ...item, status: notificationState.permissionStatus };
-        }
-
-        if (item.intent.id === "microphone") {
-          return { ...item, status: voiceState.microphoneStatus };
-        }
-
-        if (item.intent.id === "camera") {
-          return { ...item, status: mediaState.cameraStatus };
-        }
-
-        if (item.intent.id === "photoLibrary") {
-          return { ...item, status: mediaState.photoLibraryStatus };
-        }
-
-        return item;
-      }),
-    [
-      basePermissionReadiness,
-      mediaState.cameraStatus,
-      mediaState.photoLibraryStatus,
-      notificationState.permissionStatus,
-      voiceState.microphoneStatus,
-    ],
-  );
-  const permissionSummary = useMemo(
-    () => summarizeMobilePermissionReadiness(permissionReadiness),
-    [permissionReadiness],
-  );
+  const { permissionReadiness, permissionSummary } = useMobilePermissionSummary({
+    cameraStatus: mediaState.cameraStatus,
+    microphoneStatus: voiceState.microphoneStatus,
+    notificationStatus: notificationState.permissionStatus,
+    photoLibraryStatus: mediaState.photoLibraryStatus,
+  });
 
   useEffect(() => {
     if (fontsLoaded) {
       installMobileFontDefaults();
     }
   }, [fontsLoaded]);
-
-  useEffect(() => {
-    setActiveWorkspaceTextChannelId((channelId) =>
-      resolveMobileTabActiveTextChannelId(currentTab, channelId),
-    );
-    if (currentTab !== "overview") {
-      setWorkspaceRouteIntent(null);
-    }
-  }, [currentTab]);
-
-  useEffect(() => {
-    const payload = workspaceQuery.data;
-    const serverId = selectedWorkspaceServerId;
-    if (!payload || !serverId) {
-      return;
-    }
-    const preferredChannelId =
-      workspaceRouteIntent?.serverId === serverId ? workspaceRouteIntent.channelId : null;
-    const shouldOpenPreferredChannel =
-      workspaceRouteIntent?.serverId === serverId &&
-      workspaceRouteIntent.shouldOpenPreferredChannel;
-    const selectedChannel = findInitialMobileWorkspaceChannel(payload.detail, preferredChannelId);
-    setSelectedWorkspaceChannelId(selectedChannel?.id ?? null);
-    setActiveWorkspaceTextChannelId((currentChannelId) =>
-      resolveMobileWorkspaceActiveTextChannelId(payload.detail, {
-        currentChannelId,
-        preferredChannelId,
-        shouldOpenPreferredChannel,
-      }),
-    );
-    if (shouldOpenPreferredChannel) {
-      setActiveWorkspaceVoiceChannelId(null);
-    }
-  }, [selectedWorkspaceServerId, workspaceQuery.data, workspaceRouteIntent]);
-
-  const handleChannelDraftChange = useCallback(
-    (content: string) => {
-      const channelId = selectedWorkspaceChannelId;
-      if (status !== "signed-in" || !channelId) {
-        return;
-      }
-      updateChannelTyping(channelId, content);
-    },
-    [selectedWorkspaceChannelId, status, updateChannelTyping],
-  );
-
-  const handleOpenDMConversation = useCallback(
-    (conversationId: string) => {
-      clearMessageSearch();
-      resetDMMessageMutation();
-      setSelectedDMConversationId(conversationId);
-    },
-    [clearMessageSearch, resetDMMessageMutation],
-  );
-
-  const handleCloseDMConversation = useCallback(() => {
-    clearMessageSearch();
-    resetDMMessageMutation();
-    setSelectedDMConversationId(null);
-  }, [clearMessageSearch, resetDMMessageMutation]);
-
-  const handleOpenWorkspaceServer = useCallback(
-    (serverId: string) => {
-      clearMessageSearch();
-      if (selectedWorkspaceChannelId) {
-        stopChannelTyping(selectedWorkspaceChannelId);
-      }
-      resetChannelMessageMutation();
-      setActiveWorkspaceTextChannelId(null);
-      setActiveWorkspaceVoiceChannelId(null);
-      setSelectedWorkspaceServerId(serverId);
-      setWorkspaceRouteIntent({
-        channelId: null,
-        serverId,
-        shouldOpenPreferredChannel: false,
-      });
-    },
-    [
-      clearMessageSearch,
-      resetChannelMessageMutation,
-      selectedWorkspaceChannelId,
-      stopChannelTyping,
-    ],
-  );
-
-  const handleCloseWorkspaceChannel = useCallback(() => {
-    clearMessageSearch();
-    if (selectedWorkspaceChannelId) {
-      stopChannelTyping(selectedWorkspaceChannelId);
-    }
-    setActiveWorkspaceTextChannelId(null);
-  }, [clearMessageSearch, selectedWorkspaceChannelId, stopChannelTyping]);
-
-  const handleCloseWorkspaceVoiceChannel = useCallback(() => {
-    clearMessageSearch();
-    setActiveWorkspaceVoiceChannelId(null);
-  }, [clearMessageSearch]);
-
-  const handleLeaveWorkspaceVoiceChannel = useCallback(async () => {
-    await leaveVoiceChannel();
-    setActiveWorkspaceVoiceChannelId(null);
-  }, [leaveVoiceChannel]);
-
-  const handleOpenWorkspaceChannel = useCallback(
-    (channel: MobileWorkspaceChannelSummary) => {
-      clearMessageSearch();
-      if (selectedWorkspaceChannelId && selectedWorkspaceChannelId !== channel.id) {
-        stopChannelTyping(selectedWorkspaceChannelId);
-      }
-      setSelectedWorkspaceChannelId(channel.id);
-
-      if (channel.type === "VOICE") {
-        resetChannelMessageMutation();
-        setActiveWorkspaceTextChannelId(null);
-        setActiveWorkspaceVoiceChannelId(channel.id);
-        if (selectedWorkspaceServerId) {
-          void joinVoiceChannel({
-            channelId: channel.id,
-            channelName: channel.name,
-            serverId: selectedWorkspaceServerId,
-          });
-        }
-        return;
-      }
-
-      if (channel.type !== "TEXT") {
-        resetChannelMessageMutation();
-        setActiveWorkspaceTextChannelId(null);
-        setActiveWorkspaceVoiceChannelId(null);
-        return;
-      }
-
-      resetChannelMessageMutation();
-      setActiveWorkspaceTextChannelId(channel.id);
-      setActiveWorkspaceVoiceChannelId(null);
-    },
-    [
-      clearMessageSearch,
-      joinVoiceChannel,
-      resetChannelMessageMutation,
-      selectedWorkspaceChannelId,
-      selectedWorkspaceServerId,
-      stopChannelTyping,
-    ],
-  );
-
-  const selectedDMConversation = useMemo(() => {
-    if (bootstrapState.status !== "ready" || !selectedDMConversationId) {
-      return null;
-    }
-
-    return (
-      bootstrapState.payload.home.directMessages.recent.find(
-        (conversation) => conversation.id === selectedDMConversationId,
-      ) ?? null
-    );
-  }, [bootstrapState, selectedDMConversationId]);
-
-  useEffect(() => {
-    if (
-      status !== "signed-in" ||
-      currentTab !== "overview" ||
-      bootstrapState.status !== "ready" ||
-      selectedWorkspaceServerId ||
-      workspaceServerState.status === "loading"
-    ) {
-      return;
-    }
-
-    const firstServer = bootstrapState.payload.home.servers.recent[0] ?? null;
-    if (!firstServer) {
-      return;
-    }
-
-    handleOpenWorkspaceServer(firstServer.id);
-  }, [
-    bootstrapState,
-    currentTab,
-    handleOpenWorkspaceServer,
-    selectedWorkspaceServerId,
-    status,
-    workspaceServerState.status,
-  ]);
-
-  const refreshVisibleMobileData = useCallback(() => {
-    if (status !== "signed-in") {
-      return;
-    }
-    void bootstrapQuery.refetch();
-    if (selectedDMConversationId) {
-      void dmMessagesQuery.refetch();
-    }
-    if (selectedWorkspaceServerId) {
-      void workspaceQuery.refetch();
-    }
-    if (activeWorkspaceTextChannelId) {
-      void channelMessagesQuery.refetch();
-    }
-  }, [
-    activeWorkspaceTextChannelId,
-    bootstrapQuery,
-    channelMessagesQuery,
-    dmMessagesQuery,
-    selectedDMConversationId,
-    selectedWorkspaceServerId,
-    status,
-    workspaceQuery,
-  ]);
-
-  useEffect(() => {
-    const targets = useMobileActiveTargetStore.getState();
-    if (currentTab === "messages") {
-      targets.setConversation(selectedDMConversationId);
-      return;
-    }
-    if (currentTab === "voice" && selectedWorkspaceServerId && activeVoiceChannelId) {
-      targets.setVoiceChannel(selectedWorkspaceServerId, activeVoiceChannelId);
-      return;
-    }
-    if (currentTab === "overview" && selectedWorkspaceServerId && activeWorkspaceTextChannelId) {
-      targets.setTextChannel(selectedWorkspaceServerId, activeWorkspaceTextChannelId);
-      return;
-    }
-    targets.setServer(selectedWorkspaceServerId);
-  }, [
-    activeVoiceChannelId,
-    activeWorkspaceTextChannelId,
-    currentTab,
-    selectedDMConversationId,
-    selectedWorkspaceServerId,
-  ]);
-
-  useEffect(() => {
-    if (status !== "signed-in") {
-      resetChannelMessageMutation();
-      resetDMMessageMutation();
-      setSelectedDMConversationId(null);
-      clearMessageSearch();
-      setSelectedWorkspaceServerId(null);
-      setSelectedWorkspaceChannelId(null);
-      setActiveWorkspaceTextChannelId(null);
-      setActiveWorkspaceVoiceChannelId(null);
-      setWorkspaceRouteIntent(null);
-      void leaveVoiceChannel();
-    }
-  }, [
-    clearMessageSearch,
-    leaveVoiceChannel,
-    resetChannelMessageMutation,
-    resetDMMessageMutation,
-    status,
-  ]);
-
-  useEffect(() => {
-    if (bootstrapState.status !== "ready" || !selectedDMConversationId) {
-      return;
-    }
-
-    const hasSelectedConversation = bootstrapState.payload.home.directMessages.recent.some(
-      (conversation) => conversation.id === selectedDMConversationId,
-    );
-
-    if (!hasSelectedConversation) {
-      clearMessageSearch();
-      resetDMMessageMutation();
-      setSelectedDMConversationId(null);
-    }
-  }, [bootstrapState, clearMessageSearch, resetDMMessageMutation, selectedDMConversationId]);
 
   const authStatusLabel =
     status === "checking"
@@ -530,51 +205,9 @@ export function MobileProductApp({
     [channelTypingState, selectedWorkspaceChannelId],
   );
 
-  const openTrustedWebPath = useCallback((path: "/cookies" | "/privacy" | "/terms") => {
-    const url = new URL(path, runtimeConfig.webUrl);
-    void Linking.openURL(url.toString()).catch(() => undefined);
-  }, []);
-
-  const openPrivacyPolicy = useCallback(() => {
-    openTrustedWebPath("/privacy");
-  }, [openTrustedWebPath]);
-
-  const openTerms = useCallback(() => {
-    openTrustedWebPath("/terms");
-  }, [openTrustedWebPath]);
-
-  const openCookies = useCallback(() => {
-    openTrustedWebPath("/cookies");
-  }, [openTrustedWebPath]);
-
-  const openSupport = useCallback(() => {
-    void Linking.openURL("mailto:support@whispr.team").catch(() => undefined);
-  }, []);
-
-  const handleOpenWorkspaceRoute = useCallback(
-    (serverId: string, channelId: string | null) => {
-      resetChannelMessageMutation();
-      setSelectedWorkspaceServerId(serverId);
-      setWorkspaceRouteIntent({
-        channelId,
-        serverId,
-        shouldOpenPreferredChannel: true,
-      });
-    },
-    [resetChannelMessageMutation],
+  const { openCookies, openPrivacyPolicy, openSupport, openTerms } = useMobileProductLinks(
+    runtimeConfig.webUrl,
   );
-
-  const getSyncHealth = (tab: MobileTabId) =>
-    getVisibleMobileSyncHealth({
-      bootstrapSyncState,
-      channelSyncState,
-      currentTab: tab,
-      dmSyncState,
-      selectedDMConversationId,
-      selectedWorkspaceChannelId,
-      selectedWorkspaceServerId,
-      workspaceSyncState,
-    });
 
   const messagesScreenProps: MobileMessagesScreenProps = {
     bootstrapState,

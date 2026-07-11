@@ -35,11 +35,11 @@ const testIdSources: Record<string, { file: string; needle: string }> = {
     needle: 'testID="mobile-channel-chat-screen"',
   },
   "mobile-dm-chat-screen": {
-    file: "src/app/screens/dm-screen.tsx",
+    file: "src/app/screens/dm-conversation-screen.tsx",
     needle: 'testID="mobile-dm-chat-screen"',
   },
   "mobile-dm-conversation-row": {
-    file: "src/app/screens/dm-screen.tsx",
+    file: "src/app/screens/dm-inbox.tsx",
     needle: 'testID="mobile-dm-conversation-row"',
   },
   "mobile-dm-inbox-screen": {
@@ -51,7 +51,7 @@ const testIdSources: Record<string, { file: string; needle: string }> = {
     needle: 'testID="mobile-settings-screen"',
   },
   "mobile-workspace-channel-text": {
-    file: "src/app/screens/home-screen.tsx",
+    file: "src/app/screens/workspace-channel-section-list.tsx",
     needle: "mobile-workspace-channel-${channel.type.toLowerCase()}",
   },
 };

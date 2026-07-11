@@ -16,10 +16,7 @@ describe("mobile root boundary", () => {
   });
 
   it("renders each navigation surface through a focused screen provider hook", () => {
-    const source = readFileSync(
-      join(appRoot, "screens", "mobile-screen-containers.tsx"),
-      "utf8",
-    );
+    const source = readFileSync(join(appRoot, "screens", "mobile-screen-containers.tsx"), "utf8");
     for (const screen of [
       "OverviewScreen",
       "MessagesScreen",
@@ -52,11 +49,15 @@ describe("mobile root boundary", () => {
 
   it("keeps virtualized lists and cached remote images on their production primitives", () => {
     const channel = readFileSync(join(appRoot, "screens", "channel-screen.tsx"), "utf8");
-    const dm = readFileSync(join(appRoot, "screens", "dm-screen.tsx"), "utf8");
+    const dmInbox = readFileSync(join(appRoot, "screens", "dm-inbox.tsx"), "utf8");
     const home = readFileSync(join(appRoot, "screens", "home-screen.tsx"), "utf8");
+    const workspaceChannels = readFileSync(
+      join(appRoot, "screens", "workspace-channel-section-list.tsx"),
+      "utf8",
+    );
     const messages = readFileSync(join(appRoot, "components", "message-primitives.tsx"), "utf8");
     const image = readFileSync(join(appRoot, "components", "mobile-cached-image.tsx"), "utf8");
-    for (const source of [channel, dm, home, messages]) {
+    for (const source of [channel, dmInbox, home, messages, workspaceChannels]) {
       assert.match(source, /FlashList/);
     }
     assert.match(image, /cachePolicy="memory-disk"/);

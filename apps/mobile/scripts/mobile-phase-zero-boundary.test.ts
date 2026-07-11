@@ -5,6 +5,10 @@ import { resolve } from "node:path";
 
 const mobileRoot = resolve(process.cwd(), "src/app/whispr-mobile-root.tsx");
 const mobileProductApp = resolve(process.cwd(), "src/app/mobile-product-app.tsx");
+const mobileMessagingFeature = resolve(
+  process.cwd(),
+  "src/app/features/use-mobile-messaging-feature.ts",
+);
 
 function readTree(directory: string): string {
   return readdirSync(directory)
@@ -37,14 +41,15 @@ describe("mobile phase zero boundary", () => {
   });
 
   it("derives server views from query hooks without a manual request state machine", () => {
-    const source = readFileSync(mobileProductApp, "utf8");
-    assert.match(source, /useMobileBootstrapQuery/);
-    assert.match(source, /useMobileChannelMessageMutation/);
-    assert.match(source, /toMobileChannelMessagesViewState/);
+    const productSource = readFileSync(mobileProductApp, "utf8");
+    const featureSource = readFileSync(mobileMessagingFeature, "utf8");
+    assert.match(featureSource, /useMobileBootstrapQuery/);
+    assert.match(featureSource, /useMobileChannelMessageMutation/);
+    assert.match(featureSource, /toMobileChannelMessagesViewState/);
     assert.doesNotMatch(
-      source,
+      featureSource,
       /fetchQuery\s*\(|fetchInfiniteQuery\s*\(|RequestIdRef|sendMobileChannelMessage|sendMobileDMMessage/,
     );
-    assert.doesNotMatch(source, /productState|MobileProductScreenProvider/);
+    assert.doesNotMatch(productSource, /productState|MobileProductScreenProvider/);
   });
 });

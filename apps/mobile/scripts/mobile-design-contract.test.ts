@@ -53,6 +53,8 @@ function readMobileScreenImplementationSource() {
     "src/app/composer/mobile-composer.tsx",
     "src/app/components/message-primitives.tsx",
     "src/app/screens/dm-screen.tsx",
+    "src/app/screens/dm-inbox.tsx",
+    "src/app/screens/dm-conversation-screen.tsx",
     "src/app/screens/voice-screen.tsx",
     "src/app/screens/notifications-screen.tsx",
     "src/app/components/ui-atoms.tsx",
@@ -261,6 +263,10 @@ describe("mobile design contract", () => {
       join(process.cwd(), "src", "app", "mobile-product-app.tsx"),
       "utf8",
     );
+    const productLinksSource = readFileSync(
+      join(process.cwd(), "src", "app", "features", "use-mobile-product-links.ts"),
+      "utf8",
+    );
     const shellSource = readFileSync(
       join(process.cwd(), "src", "app", "mobile-app-shell.tsx"),
       "utf8",
@@ -332,12 +338,13 @@ describe("mobile design contract", () => {
     assert.match(screenSource, /mobile-settings-cookies-action/);
     assert.match(screenSource, /mobile-settings-support-action/);
     assert.match(screenSource, /accessibilityState=\{\{ disabled/);
-    assert.match(productSource, /Linking\.openURL/);
-    assert.match(productSource, /new URL\(path, runtimeConfig\.webUrl\)/);
-    assert.match(productSource, /openTrustedWebPath\("\/privacy"\)/);
-    assert.match(productSource, /openTrustedWebPath\("\/terms"\)/);
-    assert.match(productSource, /openTrustedWebPath\("\/cookies"\)/);
-    assert.match(productSource, /support@whispr\.team/);
+    assert.match(productSource, /useMobileProductLinks/);
+    assert.match(productLinksSource, /Linking\.openURL/);
+    assert.match(productLinksSource, /new URL\(path, webUrl\)/);
+    assert.match(productLinksSource, /openTrustedWebPath\("\/privacy"\)/);
+    assert.match(productLinksSource, /openTrustedWebPath\("\/terms"\)/);
+    assert.match(productLinksSource, /openTrustedWebPath\("\/cookies"\)/);
+    assert.match(productLinksSource, /support@whispr\.team/);
     assert.match(productSource, /activeMobileCopy/);
     assert.match(screenSource, /activeMobileCopy/);
     assert.match(bottomTabBarSource, /activeMobileCopy/);
