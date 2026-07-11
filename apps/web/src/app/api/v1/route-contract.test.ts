@@ -44,8 +44,7 @@ const EXPORTED_METHOD_PATTERN =
 const MUTATING_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 const PARSE_JSON_BODY_CALL_PATTERN = /\bparseJsonBody\s*\(/;
 const RAW_REQUEST_BODY_CALL_PATTERN = /\b(?:request|req)\.(?:json|text|formData)\s*\(/;
-const RATE_LIMIT_CALL_PATTERN =
-  /enforceApiRateLimit\s*\(\s*[^,]+,\s*"([^"]+)"\s*\)/g;
+const RATE_LIMIT_CALL_PATTERN = /enforceApiRateLimit\s*\(\s*[^,]+,\s*"([^"]+)"\s*\)/g;
 
 const EXPECTED_RATE_LIMIT_ACTIONS = [
   {
@@ -124,17 +123,33 @@ function rateLimitActions(content: string) {
   return [...content.matchAll(RATE_LIMIT_CALL_PATTERN)].map((match) => match[1]);
 }
 
+function readRouteContractSource(filePath: string, routeContent: string) {
+  const routeDirectory = path.dirname(filePath);
+  const logicPaths = new Set([path.join(routeDirectory, "route-logic.ts")]);
+  const routeLogicImports = routeContent.matchAll(/from\s+["']([^"']*route-logic)["']/g);
+
+  for (const routeLogicImport of routeLogicImports) {
+    const importPath = routeLogicImport[1];
+    if (importPath) {
+      logicPaths.add(path.resolve(routeDirectory, `${importPath}.ts`));
+    }
+  }
+
+  return [
+    routeContent,
+    ...[...logicPaths]
+      .filter((logicPath) => existsSync(logicPath))
+      .map((logicPath) => readFileSync(logicPath, "utf8")),
+  ].join("\n");
+}
+
 function readRoutes(): RouteFile[] {
   return collectRouteFiles(API_V1_DIR)
     .map((filePath) => {
       const routeContent = readFileSync(filePath, "utf8");
-      const logicPath = path.join(path.dirname(filePath), "route-logic.ts");
-      const content = existsSync(logicPath)
-        ? `${routeContent}\n${readFileSync(logicPath, "utf8")}`
-        : routeContent;
 
       return {
-        content,
+        content: readRouteContractSource(filePath, routeContent),
         methods: exportedMethods(routeContent),
         path: path.relative(process.cwd(), filePath).split(path.sep).join("/"),
         routePath: routePathFor(filePath),

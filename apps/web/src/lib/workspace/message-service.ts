@@ -396,10 +396,14 @@ export async function getChannelMessages(
 export async function getChannelThreadMessages(
   channelId: string,
   parentMessageId: string,
+  viewerId: string,
   cursor?: string,
   limit: number = 50,
-  viewerId?: string,
 ) {
+  await requireChannelPermissionForUser(viewerId, channelId, PermissionBits.VIEW_CHANNEL, {
+    requiredType: ChannelType.TEXT,
+  });
+
   const parent = (await prisma.message.findFirst({
     where: {
       id: parentMessageId,
@@ -733,15 +737,20 @@ export async function editMessage(
   messageId: string,
   userId: string,
   content: string,
-  maxLength: number | null = MESSAGE_CONTENT_DEFAULT_LIMIT,
-  options: { permissions?: bigint } = {},
+  maxLength?: number | null,
+  options: { channelId?: string; permissions?: bigint } = {},
 ): Promise<ChatMessage> {
   const existing = await prisma.message.findUnique({
     where: { id: messageId },
     select: {
       channelId: true,
       channel: {
-        select: { serverId: true },
+        select: {
+          server: {
+            select: { messageCharacterLimit: true },
+          },
+          serverId: true,
+        },
       },
       deletedAt: true,
       placeholderRemovedAt: true,
@@ -752,11 +761,16 @@ export async function editMessage(
   if (
     !existing ||
     !existing.channel.serverId ||
+    !existing.channel.server ||
     existing.deletedAt ||
     existing.placeholderRemovedAt ||
     existing.userId !== userId
   ) {
     throw new ApiError("Cannot edit this message", 403);
+  }
+
+  if (options.channelId && existing.channelId !== options.channelId) {
+    throw new ApiError("Message not found", 404, "NOT_FOUND");
   }
 
   const permissions =
@@ -776,7 +790,12 @@ export async function editMessage(
       )
     ).permissions;
 
-  const nextContent = validateEditableMessageContent(content, maxLength);
+  const effectiveMaxLength =
+    maxLength ??
+    (hasPermission(permissions, PermissionBits.MANAGE_MESSAGES)
+      ? null
+      : existing.channel.server.messageCharacterLimit);
+  const nextContent = validateEditableMessageContent(content, effectiveMaxLength);
   const mentionEveryone = containsMassMention(nextContent);
   if (mentionEveryone) {
     assertCanMentionEveryone(nextContent, permissions);
@@ -807,13 +826,14 @@ export type DeleteMessageResult =
 export async function deleteMessage(
   messageId: string,
   userId: string,
-  isAdmin: boolean,
+  options: { channelId?: string; isAdmin?: boolean } = {},
 ): Promise<DeleteMessageResult> {
   const existing = await prisma.message.findUnique({
     where: { id: messageId },
     select: {
       deletedAt: true,
       deletedById: true,
+      channelId: true,
       channel: {
         select: {
           server: {
@@ -829,6 +849,24 @@ export async function deleteMessage(
   if (!existing || existing.placeholderRemovedAt) {
     throw new ApiError("Cannot delete this message", 403);
   }
+
+  if (options.channelId && existing.channelId !== options.channelId) {
+    throw new ApiError("Message not found", 404, "NOT_FOUND");
+  }
+
+  const isAdmin =
+    options.isAdmin ??
+    hasPermission(
+      (
+        await requireChannelPermissionForUser(
+          userId,
+          existing.channelId,
+          PermissionBits.VIEW_CHANNEL,
+          { requiredType: ChannelType.TEXT },
+        )
+      ).permissions,
+      PermissionBits.MANAGE_MESSAGES,
+    );
 
   if (existing.deletedAt) {
     const canRemovePlaceholder =
@@ -894,6 +932,7 @@ export async function setReaction(
   userId: string,
   emoji: string,
   shouldReact: boolean | undefined,
+  options: { channelId?: string } = {},
 ): Promise<MessageReaction[]> {
   const normalizedEmoji = validateReactionEmoji(emoji);
   const message = await prisma.message.findUnique({
@@ -902,6 +941,10 @@ export async function setReaction(
   });
 
   if (!message || message.deletedAt || message.placeholderRemovedAt) {
+    throw new ApiError("Message not found", 404, "NOT_FOUND");
+  }
+
+  if (options.channelId && message.channelId !== options.channelId) {
     throw new ApiError("Message not found", 404, "NOT_FOUND");
   }
 

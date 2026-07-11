@@ -468,7 +468,7 @@ export function registerMessageHandlers(
       );
       const isAdmin = hasPermission(permissions, PermissionBits.MANAGE_MESSAGES);
 
-      const deleteResult = await deleteMessage(messageId, userId, isAdmin);
+      const deleteResult = await deleteMessage(messageId, userId, { isAdmin });
       const viewerUserIds = await getPermittedChannelViewerUserIds(dbMessage.channelId);
 
       if (deleteResult.status === "removed") {

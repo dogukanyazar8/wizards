@@ -86,8 +86,12 @@ describe("API rate limit configuration", () => {
       "mobile:auth-revoke",
       "mobile:auth-verification-email",
       "mobile:bootstrap",
+      "mobile:channel:messages:edit",
+      "mobile:channel:messages:delete",
       "mobile:channel:messages:list",
+      "mobile:channel:messages:reactions",
       "mobile:channel:messages:send",
+      "mobile:channel:messages:thread",
       "mobile:message:search",
       "mobile:notifications:register",
       "mobile:notifications:revoke",
@@ -124,8 +128,12 @@ describe("API rate limit configuration", () => {
       "mobile:auth-revoke": { limit: 60, windowSeconds: 10 * 60 },
       "mobile:auth-verification-email": { limit: 5, windowSeconds: 60 * 60 },
       "mobile:bootstrap": { limit: 120, windowSeconds: 60 },
+      "mobile:channel:messages:edit": { limit: 30, windowSeconds: 60 },
+      "mobile:channel:messages:delete": { limit: 30, windowSeconds: 60 },
       "mobile:channel:messages:list": { limit: 60, windowSeconds: 60 },
+      "mobile:channel:messages:reactions": { limit: 60, windowSeconds: 60 },
       "mobile:channel:messages:send": { limit: 120, windowSeconds: 60 },
+      "mobile:channel:messages:thread": { limit: 60, windowSeconds: 60 },
       "mobile:message:search": { limit: 40, windowSeconds: 60 },
       "mobile:notifications:register": { limit: 20, windowSeconds: 60 * 60 },
       "mobile:notifications:revoke": { limit: 60, windowSeconds: 10 * 60 },
@@ -134,15 +142,10 @@ describe("API rate limit configuration", () => {
       "mobile:voice:states:list": { limit: 30, windowSeconds: 60 },
       "mobile:voice:token": { limit: 20, windowSeconds: 60 },
       "mobile:server:detail": { limit: 120, windowSeconds: 60 },
-    } satisfies Partial<
-      Record<ApiRateLimitAction, { limit: number; windowSeconds: number }>
-    >;
+    } satisfies Partial<Record<ApiRateLimitAction, { limit: number; windowSeconds: number }>>;
 
     for (const [action, expectedConfig] of Object.entries(expectedConfigs)) {
-      assert.deepEqual(
-        getApiRateLimitConfig(action as ApiRateLimitAction),
-        expectedConfig,
-      );
+      assert.deepEqual(getApiRateLimitConfig(action as ApiRateLimitAction), expectedConfig);
     }
   });
 });
@@ -167,10 +170,7 @@ describe("enforceApiRateLimit", () => {
 
     await assert.rejects(
       () => enforceApiRateLimit("user-1", "dm:messages:send", dependencies),
-      (error) =>
-        error instanceof ApiError &&
-        error.status === 429 &&
-        error.code === "RATE_LIMITED",
+      (error) => error instanceof ApiError && error.status === 429 && error.code === "RATE_LIMITED",
     );
   });
 
