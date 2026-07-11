@@ -1,15 +1,10 @@
-import { Prisma, prisma } from "@wizards/db";
+import { prisma } from "@wizards/db";
 
 import { ApiError } from "@/lib/api";
 import { assertUnblockedDMParticipants } from "@/lib/dm/blocking";
 import { isDMParticipant } from "@/lib/dm/participant-service";
 import { sendDirectMessage } from "@/lib/dm/message-send-service";
-import {
-  dmMessageInclude,
-  getDMDisplayName,
-  mapDMMessagePayloadWithReactions,
-  setDMReaction,
-} from "@/lib/dm/service";
+import { deleteDMMessage, editDMMessage, getDMDisplayName, setDMReaction } from "@/lib/dm/service";
 import { logError } from "@/lib/logger";
 import type { HandlerContext } from "@/lib/socket/context";
 import { createDMErrorEmitter, createSafeDMErrorEmitter } from "@/lib/socket/errors";
@@ -265,9 +260,7 @@ export function registerDMHandlers(
               validationError.code === "NOT_FOUND")
             ? validationError.code
             : "VALIDATION_ERROR",
-          validationError instanceof Error
-            ? validationError.message
-            : "Invalid message payload.",
+          validationError instanceof Error ? validationError.message : "Invalid message payload.",
         );
         return;
       }
@@ -281,73 +274,24 @@ export function registerDMHandlers(
   socket.on("dm:message:edit", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketMessageEditPayloadSchema, rawData);
-      const trimmedContent = data.content;
-      if (!trimmedContent || trimmedContent.length > 2000) {
-        emitDMError("VALIDATION_ERROR", "Message content must be between 1 and 2000 characters.");
-        return;
-      }
+      const result = await editDMMessage(data.messageId, userId, data.content);
 
-      const existingMessage = await prisma.dMMessage.findUnique({
-        where: { id: data.messageId },
-        select: {
-          conversationId: true,
-          deletedAt: true,
-          deletedById: true,
-          placeholderRemovedAt: true,
-          userId: true,
-        },
-      });
-
-      if (!existingMessage || existingMessage.deletedAt || existingMessage.placeholderRemovedAt) {
-        emitDMError("NOT_FOUND", "Message not found.");
-        return;
-      }
-
-      if (!(await isDMParticipant(userId, existingMessage.conversationId))) {
-        emitDMError("FORBIDDEN", "You are not a participant in this DM");
-        return;
-      }
-
-      if (existingMessage.userId !== userId) {
-        emitDMError("FORBIDDEN", "You can only edit your own DM messages.");
-        return;
-      }
-
-      try {
-        const updatedMessage = await prisma.dMMessage.update({
-          where: {
-            id: data.messageId,
-            userId,
-            deletedAt: null,
-            placeholderRemovedAt: null,
-          },
-          data: {
-            content: trimmedContent,
-            editedAt: new Date(),
-          },
-          include: dmMessageInclude,
-        });
-
-        const participants = await prisma.dMParticipant.findMany({
-          where: { conversationId: existingMessage.conversationId },
-          select: { userId: true },
-        });
-
-        for (const participant of participants) {
-          io.to(`user:${participant.userId}`).emit(
-            "dm:message:updated",
-            await mapDMMessagePayloadWithReactions(updatedMessage, participant.userId),
-          );
-        }
-      } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-          emitDMError("NOT_FOUND", "Message not found.");
-          return;
-        }
-
-        throw error;
+      for (const realtimeView of result.realtimeViews) {
+        io.to(`user:${realtimeView.userId}`).emit("dm:message:updated", realtimeView.message);
       }
     } catch (error) {
+      if (error instanceof ApiError) {
+        emitDMError(
+          error.status === 403
+            ? "FORBIDDEN"
+            : error.status === 404
+              ? "NOT_FOUND"
+              : "VALIDATION_ERROR",
+          error.message,
+        );
+        return;
+      }
+
       emitSafeDMError("NOT_FOUND", "Unable to edit DM message.", error);
     }
   });
@@ -355,93 +299,34 @@ export function registerDMHandlers(
   socket.on("dm:message:delete", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketMessageDeletePayloadSchema, rawData);
-      const existingMessage = await prisma.dMMessage.findUnique({
-        where: { id: data.messageId },
-        select: {
-          conversationId: true,
-          deletedAt: true,
-          deletedById: true,
-          placeholderRemovedAt: true,
-          userId: true,
-        },
+      const result = await deleteDMMessage(data.messageId, userId);
+
+      if (result.status === "removed") {
+        io.to(`dm:${result.conversationId}`).emit("dm:message:removed", {
+          conversationId: result.conversationId,
+          messageId: data.messageId,
+        });
+        return;
+      }
+
+      io.to(`dm:${result.conversationId}`).emit("dm:message:deleted", {
+        conversationId: result.conversationId,
+        deletedById: userId,
+        messageId: data.messageId,
       });
-
-      if (!existingMessage || existingMessage.placeholderRemovedAt) {
-        emitDMError("NOT_FOUND", "Message not found.");
-        return;
-      }
-
-      if (!(await isDMParticipant(userId, existingMessage.conversationId))) {
-        emitDMError("FORBIDDEN", "You are not a participant in this DM");
-        return;
-      }
-
-      if (existingMessage.deletedAt) {
-        const canRemovePlaceholder =
-          existingMessage.deletedById === userId ||
-          (!existingMessage.deletedById && existingMessage.userId === userId);
-
-        if (!canRemovePlaceholder) {
-          emitDMError("FORBIDDEN", "You can only remove your own deleted DM notices.");
-          return;
-        }
-
-        const removeResult = await prisma.dMMessage.updateMany({
-          where: {
-            deletedAt: { not: null },
-            id: data.messageId,
-            placeholderRemovedAt: null,
-          },
-          data: {
-            placeholderRemovedAt: new Date(),
-          },
-        });
-
-        if (removeResult.count !== 1) {
-          emitDMError("NOT_FOUND", "Message not found.");
-          return;
-        }
-
-        io.to(`dm:${existingMessage.conversationId}`).emit("dm:message:removed", {
-          messageId: data.messageId,
-          conversationId: existingMessage.conversationId,
-        });
-        return;
-      }
-
-      if (existingMessage.userId !== userId) {
-        emitDMError("FORBIDDEN", "You can only delete your own DM messages.");
-        return;
-      }
-
-      try {
-        await prisma.dMMessage.update({
-          where: {
-            id: data.messageId,
-            userId,
-            deletedAt: null,
-            placeholderRemovedAt: null,
-          },
-          data: {
-            deletedAt: new Date(),
-            deletedById: userId,
-          },
-        });
-
-        io.to(`dm:${existingMessage.conversationId}`).emit("dm:message:deleted", {
-          messageId: data.messageId,
-          conversationId: existingMessage.conversationId,
-          deletedById: userId,
-        });
-      } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-          emitDMError("NOT_FOUND", "Message not found.");
-          return;
-        }
-
-        throw error;
-      }
     } catch (error) {
+      if (error instanceof ApiError) {
+        emitDMError(
+          error.status === 403
+            ? "FORBIDDEN"
+            : error.status === 404
+              ? "NOT_FOUND"
+              : "VALIDATION_ERROR",
+          error.message,
+        );
+        return;
+      }
+
       emitSafeDMError("NOT_FOUND", "Unable to delete DM message.", error);
     }
   });

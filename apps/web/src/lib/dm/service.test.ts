@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { prisma } from "@wizards/db";
 
+import { ApiError } from "@/lib/api";
+
 import {
+  deleteDMMessage,
+  editDMMessage,
   listDirectMessageMutualServers,
   markDirectMessageUnread,
   setDirectMessageMuted,
@@ -236,6 +240,147 @@ describe("DM participant preferences", () => {
           },
         },
       ]);
+    } finally {
+      for (const restore of restores.reverse()) {
+        restore();
+      }
+    }
+  });
+});
+
+describe("DM message mutation authorization", () => {
+  it("does not allow an edit route to target a message from another conversation", async () => {
+    const restores: Restore[] = [];
+
+    patchMethod(
+      prisma.dMMessage,
+      "findUnique",
+      async () => ({
+        conversationId: "conversation-2",
+        deletedAt: null,
+        placeholderRemovedAt: null,
+        userId: "user-1",
+      }),
+      restores,
+    );
+    patchMethod(
+      prisma.dMParticipant,
+      "findUnique",
+      async () => {
+        throw new Error("membership lookup must not run after a route mismatch");
+      },
+      restores,
+    );
+
+    try {
+      await assert.rejects(
+        () =>
+          editDMMessage("message-1", "user-1", "Updated", {
+            conversationId: "conversation-1",
+          }),
+        (error) => error instanceof ApiError && error.status === 404 && error.code === "NOT_FOUND",
+      );
+      await assert.rejects(
+        () => deleteDMMessage("message-1", "user-1", { conversationId: "conversation-1" }),
+        (error) => error instanceof ApiError && error.status === 404 && error.code === "NOT_FOUND",
+      );
+    } finally {
+      for (const restore of restores.reverse()) {
+        restore();
+      }
+    }
+  });
+
+  it("requires the DM message author before an edit can reach persistence", async () => {
+    const restores: Restore[] = [];
+
+    patchMethod(
+      prisma.dMMessage,
+      "findUnique",
+      async () => ({
+        conversationId: "conversation-1",
+        deletedAt: null,
+        placeholderRemovedAt: null,
+        userId: "user-2",
+      }),
+      restores,
+    );
+    patchMethod(
+      prisma.dMParticipant,
+      "findUnique",
+      async () => ({ id: "participant-1" }),
+      restores,
+    );
+    patchMethod(
+      prisma.dMMessage,
+      "update",
+      async () => {
+        throw new Error("unauthorized edits must not reach persistence");
+      },
+      restores,
+    );
+
+    try {
+      await assert.rejects(
+        () => editDMMessage("message-1", "user-1", "Updated", { conversationId: "conversation-1" }),
+        (error) => error instanceof ApiError && error.status === 403 && error.code === "FORBIDDEN",
+      );
+    } finally {
+      for (const restore of restores.reverse()) {
+        restore();
+      }
+    }
+  });
+
+  it("allows the deleting actor to remove their own deleted DM notice", async () => {
+    const restores: Restore[] = [];
+    const updates: unknown[] = [];
+
+    patchMethod(
+      prisma.dMMessage,
+      "findUnique",
+      async () => ({
+        conversationId: "conversation-1",
+        deletedAt: new Date("2026-07-11T12:00:00.000Z"),
+        deletedById: "user-1",
+        placeholderRemovedAt: null,
+        userId: "user-1",
+      }),
+      restores,
+    );
+    patchMethod(
+      prisma.dMParticipant,
+      "findUnique",
+      async () => ({ id: "participant-1" }),
+      restores,
+    );
+    patchMethod(
+      prisma.dMMessage,
+      "updateMany",
+      async (args: unknown) => {
+        updates.push(args);
+        return { count: 1 };
+      },
+      restores,
+    );
+
+    try {
+      const result = await deleteDMMessage("message-1", "user-1", {
+        conversationId: "conversation-1",
+      });
+
+      assert.deepEqual(result, { conversationId: "conversation-1", status: "removed" });
+      assert.equal(updates.length, 1);
+      const update = updates[0] as {
+        data: { placeholderRemovedAt: unknown };
+        where: unknown;
+      };
+      assert.ok(update.data.placeholderRemovedAt instanceof Date);
+      assert.deepEqual(update.where, {
+        deletedAt: { not: null },
+        id: "message-1",
+        placeholderRemovedAt: null,
+      });
     } finally {
       for (const restore of restores.reverse()) {
         restore();

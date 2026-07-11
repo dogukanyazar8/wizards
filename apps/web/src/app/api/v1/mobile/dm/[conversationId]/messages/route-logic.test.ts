@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type { DMMessagePayload, MessageReaction } from "@wizards/types";
+import { ApiError } from "@/lib/api";
 import {
+  mobileDMMessageDeleteRoute,
+  mobileDMMessageEditRoute,
   mobileDMMessageReactionRoute,
   mobileDMMessageThreadRoute,
   type MobileDMMessageRouteDependencies,
@@ -39,11 +42,23 @@ function createDependencies(
 ): MobileDMMessageRouteDependencies {
   return {
     authenticate: async () => "user-1",
+    deleteMessage: async () => ({
+      conversationId: "conversation-1",
+      placeholderExpiresAt: null,
+      status: "deleted",
+    }),
+    emitMessageDeleted: async () => undefined,
+    emitMessageUpdated: async () => undefined,
     emitReactionUpdated: async () => undefined,
     enforceActionRateLimit: async () => undefined,
     enforceRateLimit: async () => undefined,
     getThread: async () => ({ messages: [], nextCursor: null, parent: message }),
+    parseEditRequest: async () => ({ content: "Updated" }),
     parseReactionRequest: async () => ({ emoji: "👍" }),
+    updateMessage: async () => ({
+      message: { ...message, content: "Updated" },
+      realtimeViews: [{ message: { ...message, content: "Updated" }, userId: "user-1" }],
+    }),
     updateReaction: async () => reactions,
     ...overrides,
   };
@@ -54,6 +69,109 @@ const context = {
 };
 
 describe("mobile DM message action routes", () => {
+  it("limits and validates an edit before calling the service and emitting the update", async () => {
+    const calls: string[] = [];
+    const response = await mobileDMMessageEditRoute(
+      new Request("http://localhost/api/v1/mobile/dm/conversation-1/messages/message-1", {
+        body: JSON.stringify({ content: "Updated" }),
+        headers: { "content-type": "application/json" },
+        method: "PATCH",
+      }),
+      context,
+      createDependencies({
+        authenticate: async () => {
+          calls.push("authenticate");
+          return "user-1";
+        },
+        emitMessageUpdated: async () => {
+          calls.push("emit");
+        },
+        enforceActionRateLimit: async () => {
+          calls.push("action-limit");
+        },
+        enforceRateLimit: async () => {
+          calls.push("rate-limit");
+        },
+        parseEditRequest: async () => {
+          calls.push("parse");
+          return { content: "Updated" };
+        },
+        updateMessage: async () => {
+          calls.push("update");
+          return {
+            message: { ...message, content: "Updated" },
+            realtimeViews: [{ message: { ...message, content: "Updated" }, userId: "user-1" }],
+          };
+        },
+      }),
+    );
+
+    assert.deepEqual(calls, [
+      "authenticate",
+      "rate-limit",
+      "action-limit",
+      "parse",
+      "update",
+      "emit",
+    ]);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { message: { ...message, content: "Updated" } });
+  });
+
+  it("emits deletion only after the server-authorized DM delete succeeds", async () => {
+    const calls: string[] = [];
+    const response = await mobileDMMessageDeleteRoute(
+      new Request("http://localhost/api/v1/mobile/dm/conversation-1/messages/message-1", {
+        method: "DELETE",
+      }),
+      context,
+      createDependencies({
+        authenticate: async () => {
+          calls.push("authenticate");
+          return "user-1";
+        },
+        deleteMessage: async () => {
+          calls.push("delete");
+          return { conversationId: "conversation-1", status: "removed" };
+        },
+        emitMessageDeleted: async () => {
+          calls.push("emit");
+        },
+        enforceActionRateLimit: async () => {
+          calls.push("action-limit");
+        },
+        enforceRateLimit: async () => {
+          calls.push("rate-limit");
+        },
+      }),
+    );
+
+    assert.deepEqual(calls, ["authenticate", "rate-limit", "action-limit", "delete", "emit"]);
+    assert.deepEqual(await response.json(), { status: "removed" });
+  });
+
+  it("returns safe edit errors without reflecting private message content", async () => {
+    const response = await mobileDMMessageEditRoute(
+      new Request("http://localhost/api/v1/mobile/dm/conversation-1/messages/message-1", {
+        body: JSON.stringify({ content: "very private message content" }),
+        headers: { "content-type": "application/json" },
+        method: "PATCH",
+      }),
+      context,
+      createDependencies({
+        updateMessage: async () => {
+          throw new ApiError("Cannot edit this message", 403, "FORBIDDEN");
+        },
+      }),
+    );
+
+    assert.equal(response.status, 403);
+    assert.deepEqual(await response.json(), {
+      code: "FORBIDDEN",
+      error: "Cannot edit this message",
+    });
+  });
+
   it("authenticates, rate limits, validates, and emits a reaction update", async () => {
     const calls: string[] = [];
     const response = await mobileDMMessageReactionRoute(

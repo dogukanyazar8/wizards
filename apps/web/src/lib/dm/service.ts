@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
-import type {
-  DMConversationDTO,
-  DMMessagePayload,
-  DMParticipantDTO,
-  MessageThreadSummary,
-  MessageReaction,
+import {
+  MESSAGE_CONTENT_DEFAULT_LIMIT,
+  type DMConversationDTO,
+  type DMMessagePayload,
+  type DMParticipantDTO,
+  type MessageReaction,
+  type MessageThreadSummary,
 } from "@wizards/types";
 import { Prisma, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
@@ -1110,6 +1111,213 @@ export async function hideDirectMessage(userId: string, conversationId: string) 
       hiddenAt: new Date(),
     },
   });
+}
+
+type DMMessageMutationOptions = {
+  conversationId?: string;
+};
+
+export type DMMessageRealtimeView = {
+  message: DMMessagePayload;
+  userId: string;
+};
+
+export type DMMessageEditResult = {
+  message: DMMessagePayload;
+  realtimeViews: DMMessageRealtimeView[];
+};
+
+export type DMDeleteMessageResult =
+  | {
+      conversationId: string;
+      placeholderExpiresAt: null;
+      status: "deleted";
+    }
+  | {
+      conversationId: string;
+      status: "removed";
+    };
+
+function validateEditableDMMessageContent(content: unknown) {
+  const nextContent = typeof content === "string" ? content.trim() : "";
+  if (!nextContent || nextContent.length > MESSAGE_CONTENT_DEFAULT_LIMIT) {
+    throw new ApiError(
+      `Message content must be between 1 and ${MESSAGE_CONTENT_DEFAULT_LIMIT} characters.`,
+      400,
+      "VALIDATION_ERROR",
+    );
+  }
+
+  return nextContent;
+}
+
+async function mapDMMessageRealtimeViews(message: RawDMMessage, userIds: string[]) {
+  const uniqueUserIds = Array.from(new Set(userIds));
+  const [reactionsByMessageId, threadSummaryByMessageId] = await Promise.all([
+    getDMReactionMap([message.id]),
+    getDMThreadSummaryMap([message.id]),
+  ]);
+
+  return uniqueUserIds.map((userId) => ({
+    message: mapDMMessagePayload(message, reactionsByMessageId, threadSummaryByMessageId, userId),
+    userId,
+  }));
+}
+
+export async function editDMMessage(
+  messageId: string,
+  userId: string,
+  content: string,
+  options: DMMessageMutationOptions = {},
+): Promise<DMMessageEditResult> {
+  const existingMessage = await prisma.dMMessage.findUnique({
+    where: { id: messageId },
+    select: {
+      conversationId: true,
+      deletedAt: true,
+      placeholderRemovedAt: true,
+      userId: true,
+    },
+  });
+
+  if (
+    !existingMessage ||
+    existingMessage.deletedAt ||
+    existingMessage.placeholderRemovedAt ||
+    (options.conversationId && existingMessage.conversationId !== options.conversationId)
+  ) {
+    throw new ApiError("Message not found", 404, "NOT_FOUND");
+  }
+
+  await requireDMParticipant(userId, existingMessage.conversationId);
+
+  if (existingMessage.userId !== userId) {
+    throw new ApiError("You can only edit your own DM messages.", 403, "FORBIDDEN");
+  }
+
+  const nextContent = validateEditableDMMessageContent(content);
+  let updatedMessage: RawDMMessage;
+  try {
+    updatedMessage = await prisma.dMMessage.update({
+      where: {
+        id: messageId,
+        userId,
+        deletedAt: null,
+        placeholderRemovedAt: null,
+      },
+      data: {
+        content: nextContent,
+        editedAt: new Date(),
+      },
+      include: dmMessageInclude,
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      throw new ApiError("Message not found", 404, "NOT_FOUND");
+    }
+
+    throw error;
+  }
+
+  const participants = await prisma.dMParticipant.findMany({
+    where: { conversationId: existingMessage.conversationId },
+    select: { userId: true },
+  });
+  const realtimeViews = await mapDMMessageRealtimeViews(
+    updatedMessage,
+    participants.map((participant) => participant.userId),
+  );
+  const actorView = realtimeViews.find((view) => view.userId === userId);
+
+  if (!actorView) {
+    throw new ApiError("Message not found", 404, "NOT_FOUND");
+  }
+
+  return {
+    message: actorView.message,
+    realtimeViews,
+  };
+}
+
+export async function deleteDMMessage(
+  messageId: string,
+  userId: string,
+  options: DMMessageMutationOptions = {},
+): Promise<DMDeleteMessageResult> {
+  const existingMessage = await prisma.dMMessage.findUnique({
+    where: { id: messageId },
+    select: {
+      conversationId: true,
+      deletedAt: true,
+      deletedById: true,
+      placeholderRemovedAt: true,
+      userId: true,
+    },
+  });
+
+  if (
+    !existingMessage ||
+    existingMessage.placeholderRemovedAt ||
+    (options.conversationId && existingMessage.conversationId !== options.conversationId)
+  ) {
+    throw new ApiError("Message not found", 404, "NOT_FOUND");
+  }
+
+  await requireDMParticipant(userId, existingMessage.conversationId);
+
+  if (existingMessage.deletedAt) {
+    const canRemovePlaceholder =
+      existingMessage.deletedById === userId ||
+      (!existingMessage.deletedById && existingMessage.userId === userId);
+
+    if (!canRemovePlaceholder) {
+      throw new ApiError("You can only remove your own deleted DM notices.", 403, "FORBIDDEN");
+    }
+
+    const removeResult = await prisma.dMMessage.updateMany({
+      where: {
+        deletedAt: { not: null },
+        id: messageId,
+        placeholderRemovedAt: null,
+      },
+      data: {
+        placeholderRemovedAt: new Date(),
+      },
+    });
+
+    if (removeResult.count !== 1) {
+      throw new ApiError("Message not found", 404, "NOT_FOUND");
+    }
+
+    return { conversationId: existingMessage.conversationId, status: "removed" };
+  }
+
+  if (existingMessage.userId !== userId) {
+    throw new ApiError("You can only delete your own DM messages.", 403, "FORBIDDEN");
+  }
+
+  const deleteResult = await prisma.dMMessage.updateMany({
+    where: {
+      deletedAt: null,
+      id: messageId,
+      placeholderRemovedAt: null,
+      userId,
+    },
+    data: {
+      deletedAt: new Date(),
+      deletedById: userId,
+    },
+  });
+
+  if (deleteResult.count !== 1) {
+    throw new ApiError("Message not found", 404, "NOT_FOUND");
+  }
+
+  return {
+    conversationId: existingMessage.conversationId,
+    placeholderExpiresAt: null,
+    status: "deleted",
+  };
 }
 
 export async function toggleDMReaction(

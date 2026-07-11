@@ -1,5 +1,7 @@
 import {
   MobileDMMessagesThreadResponseSchema,
+  MobileMessageDeleteResponseSchema,
+  MobileMessageEditRequestSchema,
   MobileMessageReactionRequestSchema,
   MobileMessageReactionResponseSchema,
   type DMMessagePayload,
@@ -10,7 +12,14 @@ import { z } from "zod";
 import { enforceApiRateLimit, type ApiRateLimitAction } from "@/lib/api-rate-limit";
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
 import { requireMobileApiUserId } from "@/lib/auth/api";
-import { listDMThreadMessages, setDMReaction } from "@/lib/dm/service";
+import {
+  deleteDMMessage,
+  editDMMessage,
+  listDMThreadMessages,
+  setDMReaction,
+  type DMDeleteMessageResult,
+  type DMMessageEditResult,
+} from "@/lib/dm/service";
 import { logError } from "@/lib/logger";
 import { getRedisRate } from "@/lib/redis";
 import { checkDMMessageRateLimits, shouldLogRateLimitUnavailable } from "@/lib/socket/rate-limits";
@@ -34,6 +43,9 @@ type DMMessageInput = { conversationId: string; messageId: string; userId: strin
 
 export type MobileDMMessageRouteDependencies = {
   authenticate: (request: Request) => Promise<string>;
+  deleteMessage: (input: DMMessageInput) => Promise<DMDeleteMessageResult>;
+  emitMessageDeleted: (input: DMMessageInput & { result: DMDeleteMessageResult }) => Promise<void>;
+  emitMessageUpdated: (input: DMMessageInput & { result: DMMessageEditResult }) => Promise<void>;
   emitReactionUpdated: (input: DMMessageInput & { reactions: MessageReaction[] }) => Promise<void>;
   enforceActionRateLimit: (input: { conversationId: string; userId: string }) => Promise<void>;
   enforceRateLimit: (userId: string, scope: ApiRateLimitAction) => Promise<void>;
@@ -42,7 +54,9 @@ export type MobileDMMessageRouteDependencies = {
     nextCursor: string | null;
     parent: DMMessagePayload;
   }>;
+  parseEditRequest: (request: Request) => Promise<{ content: string }>;
   parseReactionRequest: (request: Request) => Promise<{ emoji: string }>;
+  updateMessage: (input: DMMessageInput & { content: string }) => Promise<DMMessageEditResult>;
   updateReaction: (
     input: DMMessageInput & { emoji: string; shouldReact: boolean },
   ) => Promise<MessageReaction[]>;
@@ -87,14 +101,55 @@ async function emitDMReactionUpdated({
     .emit("dm:message:reaction_updated", { messageId, reactions });
 }
 
+async function emitDMMessageUpdated({ result }: DMMessageInput & { result: DMMessageEditResult }) {
+  const io = getSocketServer();
+  if (!io) {
+    return;
+  }
+
+  for (const realtimeView of result.realtimeViews) {
+    io.to(`user:${realtimeView.userId}`).emit("dm:message:updated", realtimeView.message);
+  }
+}
+
+async function emitDMMessageDeleted({
+  conversationId,
+  messageId,
+  result,
+  userId,
+}: DMMessageInput & { result: DMDeleteMessageResult }) {
+  const io = getSocketServer();
+  if (!io) {
+    return;
+  }
+
+  if (result.status === "removed") {
+    io.to(`dm:${conversationId}`).emit("dm:message:removed", { conversationId, messageId });
+    return;
+  }
+
+  io.to(`dm:${conversationId}`).emit("dm:message:deleted", {
+    conversationId,
+    deletedById: userId,
+    messageId,
+  });
+}
+
 const defaultMobileDMMessageRouteDependencies: MobileDMMessageRouteDependencies = {
   authenticate: (request) => requireMobileApiUserId(request),
+  deleteMessage: ({ conversationId, messageId, userId }) =>
+    deleteDMMessage(messageId, userId, { conversationId }),
+  emitMessageDeleted: emitDMMessageDeleted,
+  emitMessageUpdated: emitDMMessageUpdated,
   emitReactionUpdated: emitDMReactionUpdated,
   enforceActionRateLimit: enforceMobileDMMessageActionRateLimit,
   enforceRateLimit: (userId, scope) => enforceApiRateLimit(userId, scope),
   getThread: ({ conversationId, cursor, limit, messageId, userId }) =>
     listDMThreadMessages(userId, conversationId, messageId, cursor, limit),
+  parseEditRequest: (request) => parseJsonBody(request, MobileMessageEditRequestSchema),
   parseReactionRequest: (request) => parseJsonBody(request, MobileMessageReactionRequestSchema),
+  updateMessage: ({ content, conversationId, messageId, userId }) =>
+    editDMMessage(messageId, userId, content, { conversationId }),
   updateReaction: ({ conversationId, emoji, messageId, shouldReact, userId }) =>
     setDMReaction(messageId, userId, emoji, shouldReact, { conversationId }),
 };
@@ -114,6 +169,45 @@ function getThreadQuery(request: Request) {
     ? Math.min(Math.max(requestedLimit, 1), MOBILE_THREAD_MESSAGE_LIMIT)
     : MOBILE_THREAD_MESSAGE_LIMIT;
   return MobileDMThreadQuerySchema.parse({ ...(cursor ? { cursor } : {}), limit });
+}
+
+export async function mobileDMMessageEditRoute(
+  request: Request,
+  context: MobileDMMessageRouteContext,
+  dependencies: MobileDMMessageRouteDependencies = defaultMobileDMMessageRouteDependencies,
+) {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, "mobile:dm:messages:edit");
+    const input = await getDMMessageInput(context, userId);
+    await dependencies.enforceActionRateLimit(input);
+    const body = await dependencies.parseEditRequest(request);
+    const result = await dependencies.updateMessage({ ...input, content: body.content });
+    await dependencies.emitMessageUpdated({ ...input, result });
+
+    return Response.json({ message: result.message });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function mobileDMMessageDeleteRoute(
+  request: Request,
+  context: MobileDMMessageRouteContext,
+  dependencies: MobileDMMessageRouteDependencies = defaultMobileDMMessageRouteDependencies,
+) {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, "mobile:dm:messages:delete");
+    const input = await getDMMessageInput(context, userId);
+    await dependencies.enforceActionRateLimit(input);
+    const result = await dependencies.deleteMessage(input);
+    await dependencies.emitMessageDeleted({ ...input, result });
+
+    return Response.json(MobileMessageDeleteResponseSchema.parse(result));
+  } catch (error) {
+    return jsonError(error);
+  }
 }
 
 export async function mobileDMMessageReactionRoute(
