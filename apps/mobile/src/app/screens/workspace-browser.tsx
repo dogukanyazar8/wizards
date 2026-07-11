@@ -48,6 +48,7 @@ export function MobileWorkspaceBrowser({
   channelMessagesState,
   channelSendState,
   channelTypingLabel,
+  isReactionMutationPending,
   locale,
   mediaState,
   messageSearchFeature,
@@ -81,6 +82,7 @@ export function MobileWorkspaceBrowser({
   onChannelDraftChange,
   onSearchMessages,
   onSendChannelMessage,
+  onToggleMessageReaction,
   onSendVoiceInvite,
 }: {
   attachmentsFeature: MobileBootstrapFeature | null;
@@ -91,6 +93,7 @@ export function MobileWorkspaceBrowser({
   channelMessagesState: MobileChannelMessagesViewState;
   channelSendState: MobileChannelSendViewState;
   channelTypingLabel: string | null;
+  isReactionMutationPending: boolean;
   locale: MobileLocale;
   mediaState: MobileMediaRuntimeState;
   messageSearchFeature: MobileBootstrapFeature | null;
@@ -128,6 +131,7 @@ export function MobileWorkspaceBrowser({
     scope: "channel";
   }): Promise<void>;
   onSendChannelMessage(content: string): Promise<boolean>;
+  onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   onSendVoiceInvite(targetUserId: string): void;
 }) {
   const styles = useHomeScreenStyles();
@@ -240,6 +244,7 @@ export function MobileWorkspaceBrowser({
         attachmentsFeature={attachmentsFeature}
         channel={activeTextChannel}
         currentUserId={bootstrapState.payload.user.id}
+        isReactionMutationPending={isReactionMutationPending}
         mediaState={mediaState}
         memberCount={activeMemberCount}
         messageSearchFeature={messageSearchFeature}
@@ -257,6 +262,7 @@ export function MobileWorkspaceBrowser({
         onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
         onSearchMessages={onSearchMessages}
         onSendMessage={onSendChannelMessage}
+        onToggleMessageReaction={onToggleMessageReaction}
       />
     );
   }

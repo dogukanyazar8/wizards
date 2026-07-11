@@ -34,6 +34,7 @@ export function MessagesScreen({
   bootstrapState,
   dmMessagesState,
   dmSendState,
+  isReactionMutationPending,
   mediaState,
   messageSearchState,
   selectedConversation,
@@ -50,10 +51,12 @@ export function MessagesScreen({
   onRequestPhotoLibraryPicker,
   onSearchMessages,
   onSendMessage,
+  onToggleMessageReaction,
 }: {
   bootstrapState: MobileBootstrapViewState;
   dmMessagesState: MobileDMMessagesViewState;
   dmSendState: MobileDMSendViewState;
+  isReactionMutationPending: boolean;
   mediaState: MobileMediaRuntimeState;
   messageSearchState: MobileMessageSearchViewState;
   selectedConversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number] | null;
@@ -70,6 +73,7 @@ export function MessagesScreen({
   onRequestPhotoLibraryPicker(): Promise<void>;
   onSearchMessages(input: { conversationId: string; query: string; scope: "dm" }): Promise<void>;
   onSendMessage(content: string): Promise<boolean>;
+  onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
 }) {
   const styles = useDmScreenStyles();
   const hasConversations =
@@ -90,6 +94,7 @@ export function MessagesScreen({
         attachmentsFeature={attachmentsFeature}
         conversation={selectedConversation}
         currentUserId={bootstrapState.status === "ready" ? bootstrapState.payload.user.id : ""}
+        isReactionMutationPending={isReactionMutationPending}
         sendState={dmSendState}
         state={dmMessagesState}
         syncHealth={syncHealth}
@@ -105,6 +110,7 @@ export function MessagesScreen({
         onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
         onSearchMessages={onSearchMessages}
         onSendMessage={onSendMessage}
+        onToggleMessageReaction={onToggleMessageReaction}
       />
     );
   }

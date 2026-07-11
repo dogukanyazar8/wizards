@@ -20,7 +20,7 @@ import {
 import { FlashList } from "@shopify/flash-list";
 import { AvatarMark } from "./ui-atoms";
 import { MobileCachedImage } from "./mobile-cached-image";
-import { Icon, Skeleton } from "./kit";
+import { ContextMenu, Icon, Skeleton, type ContextMenuAction } from "./kit";
 import { useMessagePrimitiveStyles } from "./message-primitives.styles";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
@@ -32,6 +32,18 @@ const MESSAGE_LIST_SKELETON_ROWS = [
   { bodyWidth: "58%", metadataWidth: "42%" },
   { bodyWidth: "84%", metadataWidth: "30%" },
 ] as const;
+export const MOBILE_MESSAGE_REACTION_EMOJIS = ["👍", "❤️", "😂", "🎉", "😮", "👀"] as const;
+
+export type MobileMessageReactionToggleInput = {
+  readonly emoji: string;
+  readonly messageId: string;
+  readonly shouldReact: boolean;
+};
+
+function getMessageReactionActionLabel(emoji: string, shouldReact: boolean): string {
+  const template = shouldReact ? copy.messageReactionAddAction : copy.messageReactionRemoveAction;
+  return template.replace("{emoji}", emoji);
+}
 
 export function MessageListSkeleton({
   testID = "mobile-message-list-skeleton",
@@ -365,10 +377,14 @@ export function MessageReactionList({
 
 export function MessageStream({
   currentUserId,
+  isReactionMutationPending = false,
   messages,
+  onToggleReaction,
 }: {
   currentUserId: string;
+  isReactionMutationPending?: boolean;
   messages: readonly MobileRenderableMessage[];
+  onToggleReaction?(input: MobileMessageReactionToggleInput): void;
 }) {
   const styles = useMessagePrimitiveStyles();
   const streamItems = useMemo(() => getMobileMessageStreamItems(messages), [messages]);
@@ -384,8 +400,11 @@ export function MessageStream({
             <MessageDateSeparator createdAt={item.message.createdAt} />
           ) : null}
           <MemoizedMessagePreviewRow
+            currentUserId={currentUserId}
+            isReactionMutationPending={isReactionMutationPending}
             message={item.message}
             own={item.message.author.id === currentUserId}
+            {...(onToggleReaction ? { onToggleReaction } : {})}
           />
         </View>
       )}
@@ -397,12 +416,18 @@ export function MessageStream({
 }
 
 export function MessagePreviewRow({
+  currentUserId,
+  isReactionMutationPending = false,
   mode = "conversation",
   message,
+  onToggleReaction,
   own = false,
 }: {
+  currentUserId?: string;
+  isReactionMutationPending?: boolean;
   mode?: "channel" | "conversation";
   message: MobileRenderableMessage;
+  onToggleReaction?(input: MobileMessageReactionToggleInput): void;
   own?: boolean;
 }) {
   const styles = useMessagePrimitiveStyles();
@@ -412,8 +437,28 @@ export function MessagePreviewRow({
     attachmentOnly: copy.dmAttachmentOnlyMessage,
     deleted: copy.dmDeletedMessage,
   });
+  const reactionActions = useMemo<readonly ContextMenuAction[]>(
+    () =>
+      MOBILE_MESSAGE_REACTION_EMOJIS.map((emoji) => {
+        const shouldReact = !message.reactions.some(
+          (reaction) =>
+            reaction.emoji === emoji &&
+            currentUserId !== undefined &&
+            reaction.userIds.includes(currentUserId),
+        );
 
-  return (
+        return {
+          id: `reaction-${emoji}`,
+          label: getMessageReactionActionLabel(emoji, shouldReact),
+          onPress: () => {
+            onToggleReaction?.({ emoji, messageId: message.id, shouldReact });
+          },
+        };
+      }),
+    [currentUserId, message.id, message.reactions, onToggleReaction],
+  );
+
+  const content = (
     <View
       style={[
         styles.messagePreviewRow,
@@ -455,6 +500,21 @@ export function MessagePreviewRow({
         <MessageReactionList reactions={message.reactions} />
       </View>
     </View>
+  );
+
+  if (!onToggleReaction) {
+    return content;
+  }
+
+  return (
+    <ContextMenu
+      accessibilityLabel={copy.messageReactionMenuLabel}
+      actions={reactionActions}
+      disabled={isReactionMutationPending}
+      testID={`mobile-message-actions-${message.id}`}
+    >
+      {content}
+    </ContextMenu>
   );
 }
 

@@ -15,15 +15,27 @@ import type {
   MobileChannelSendMessageResponse,
   MobileDMMessagesResponse,
   MobileDMSendMessageResponse,
+  MobileMessageReactionResponse,
+  MessageReaction,
 } from "@wizards/types";
 import type { MobileApiClient } from "../api/mobile-api-client";
 import type { MobileSessionUser } from "../auth/session-types";
-import { sendMobileDMMessage, type SendMobileDMMessageInput } from "../dm/mobile-dm-client";
+import {
+  sendMobileDMMessage,
+  setMobileDMMessageReaction,
+  type SendMobileDMMessageInput,
+} from "../dm/mobile-dm-client";
 import {
   sendMobileChannelMessage,
+  setMobileChannelMessageReaction,
   type SendMobileChannelMessageInput,
 } from "../workspace/mobile-workspace-client";
-import { insertOptimisticMobileMessage, replaceMobileMessage } from "./mobile-message-cache";
+import {
+  applyMobileOptimisticMessageReaction,
+  insertOptimisticMobileMessage,
+  replaceMobileMessage,
+  replaceMobileMessageReactions,
+} from "./mobile-message-cache";
 import { mobileQueryKeys } from "./mobile-query-keys";
 
 type MobileMessagePage<TMessage extends { readonly id: string }> = {
@@ -32,6 +44,16 @@ type MobileMessagePage<TMessage extends { readonly id: string }> = {
 
 type MobileOptimisticMutationContext<TData> = {
   readonly clientId: string;
+  readonly previousData: TData | undefined;
+};
+
+export type MobileMessageReactionMutationVariables = {
+  readonly emoji: string;
+  readonly messageId: string;
+  readonly shouldReact: boolean;
+};
+
+type MobileOptimisticReactionMutationContext<TData> = {
   readonly previousData: TData | undefined;
 };
 
@@ -46,6 +68,24 @@ type MobileOptimisticMutationOptions<
   readonly getResponseMessage: (response: TResponse) => TMessage;
   readonly invalidateKeys: readonly QueryKey[];
   readonly mutationFn: MutationFunction<TResponse, TVariables>;
+  readonly queryClient: QueryClient;
+  readonly queryKey: QueryKey;
+};
+
+type MobileReactionMessage = {
+  readonly id: string;
+  readonly reactions: readonly MessageReaction[];
+};
+
+type MobileOptimisticReactionMutationOptions<
+  TResponse,
+  TMessage extends MobileReactionMessage,
+  TPage extends MobileMessagePage<TMessage>,
+  TPageParam,
+> = {
+  readonly getUserId: () => string;
+  readonly getResponseReactions: (response: TResponse) => readonly MessageReaction[];
+  readonly mutationFn: MutationFunction<TResponse, MobileMessageReactionMutationVariables>;
   readonly queryClient: QueryClient;
   readonly queryKey: QueryKey;
 };
@@ -107,6 +147,49 @@ export function createMobileOptimisticMutationOptions<
       const message = options.getResponseMessage(response);
       options.queryClient.setQueryData<TData>(options.queryKey, (current) =>
         replaceMobileMessage(current, context.clientId, message),
+      );
+    },
+  });
+}
+
+export function createMobileOptimisticReactionMutationOptions<
+  TResponse,
+  TMessage extends MobileReactionMessage,
+  TPage extends MobileMessagePage<TMessage>,
+  TPageParam = string | null,
+>(options: MobileOptimisticReactionMutationOptions<TResponse, TMessage, TPage, TPageParam>) {
+  type TData = InfiniteData<TPage, TPageParam>;
+  type TContext = MobileOptimisticReactionMutationContext<TData>;
+
+  return mutationOptions<TResponse, Error, MobileMessageReactionMutationVariables, TContext>({
+    mutationFn: options.mutationFn,
+    onError: (_error, _variables, context) => {
+      if (context?.previousData) {
+        options.queryClient.setQueryData(options.queryKey, context.previousData);
+      }
+    },
+    onMutate: async (variables) => {
+      await options.queryClient.cancelQueries({ queryKey: options.queryKey });
+      const previousData = options.queryClient.getQueryData<TData>(options.queryKey);
+      const userId = options.getUserId();
+      options.queryClient.setQueryData<TData>(options.queryKey, (current) =>
+        applyMobileOptimisticMessageReaction(
+          current,
+          variables.messageId,
+          variables.emoji,
+          userId,
+          variables.shouldReact,
+        ),
+      );
+      return { previousData };
+    },
+    onSuccess: (response, variables) => {
+      options.queryClient.setQueryData<TData>(options.queryKey, (current) =>
+        replaceMobileMessageReactions(
+          current,
+          variables.messageId,
+          options.getResponseReactions(response),
+        ),
       );
     },
   });
@@ -196,6 +279,60 @@ export function useMobileDMMessageMutation(input: {
       invalidateKeys: [mobileQueryKeys.bootstrap(), mobileQueryKeys.dmConversations()],
       mutationFn: (draft) =>
         sendMobileDMMessage(input.client, { ...draft, conversationId: input.conversationId }),
+      queryClient,
+      queryKey,
+    }),
+  );
+}
+
+export function useMobileChannelMessageReactionMutation(input: {
+  readonly author: MobileSessionUser | null;
+  readonly channelId: string;
+  readonly client: MobileApiClient;
+}) {
+  const queryClient = useQueryClient();
+  const queryKey = mobileQueryKeys.channelMessages(input.channelId);
+
+  return useMutation(
+    createMobileOptimisticReactionMutationOptions<
+      MobileMessageReactionResponse,
+      ChatMessage,
+      MobileChannelMessagesResponse
+    >({
+      getUserId: () => requireMobileMutationAuthor(input.author).id,
+      getResponseReactions: (response) => response.reactions,
+      mutationFn: (variables) =>
+        setMobileChannelMessageReaction(input.client, {
+          ...variables,
+          channelId: input.channelId,
+        }),
+      queryClient,
+      queryKey,
+    }),
+  );
+}
+
+export function useMobileDMMessageReactionMutation(input: {
+  readonly author: DMMessageAuthorPayload | null;
+  readonly client: MobileApiClient;
+  readonly conversationId: string;
+}) {
+  const queryClient = useQueryClient();
+  const queryKey = mobileQueryKeys.dmMessages(input.conversationId);
+
+  return useMutation(
+    createMobileOptimisticReactionMutationOptions<
+      MobileMessageReactionResponse,
+      DMMessagePayload,
+      MobileDMMessagesResponse
+    >({
+      getUserId: () => requireMobileMutationAuthor(input.author).id,
+      getResponseReactions: (response) => response.reactions,
+      mutationFn: (variables) =>
+        setMobileDMMessageReaction(input.client, {
+          ...variables,
+          conversationId: input.conversationId,
+        }),
       queryClient,
       queryKey,
     }),

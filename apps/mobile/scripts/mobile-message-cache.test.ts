@@ -18,7 +18,10 @@ import {
 } from "../src/query/mobile-message-queries";
 import { getMobileMessageSearchQueryOptions } from "../src/query/mobile-message-search-query";
 import { getMobileWorkspaceQueryOptions } from "../src/query/mobile-workspace-query";
-import { createMobileOptimisticMutationOptions } from "../src/query/use-mobile-message-mutations";
+import {
+  createMobileOptimisticMutationOptions,
+  createMobileOptimisticReactionMutationOptions,
+} from "../src/query/use-mobile-message-mutations";
 
 type TestMessage = {
   readonly content: string;
@@ -140,6 +143,85 @@ test("reaction cache helpers update only the targeted message and preserve serve
     { count: 3, emoji: "sparkles", userIds: ["user-1", "user-2", "user-3"] },
   ]);
   assert.equal(serverConfirmed?.pages[0]?.messages[1], data.pages[0]?.messages[1]);
+});
+
+test("optimistic reaction mutations confirm server reactions and restore the exact snapshot on failure", async () => {
+  type ReactionTestMessage = TestMessage & {
+    readonly reactions: readonly { count: number; emoji: string; userIds: string[] }[];
+  };
+  type ReactionTestPage = {
+    readonly messages: readonly ReactionTestMessage[];
+    readonly nextCursor: string | null;
+  };
+  const queryClient = new QueryClient();
+  const queryKey = ["mobile", "dm-messages", "conversation-1"] as const;
+  const snapshot: InfiniteData<ReactionTestPage, string | null> = {
+    pageParams: [null],
+    pages: [
+      {
+        messages: [
+          {
+            content: "target",
+            id: "message-1",
+            reactions: [{ count: 1, emoji: "thumbs-up", userIds: ["user-2"] }],
+          },
+          { content: "other", id: "message-2", reactions: [] },
+        ],
+        nextCursor: null,
+      },
+    ],
+  };
+  queryClient.setQueryData(queryKey, snapshot);
+
+  const options = createMobileOptimisticReactionMutationOptions({
+    getUserId: () => "user-1",
+    getResponseReactions: (response: { reactions: ReactionTestMessage["reactions"] }) =>
+      response.reactions,
+    mutationFn: async () => ({
+      reactions: [{ count: 2, emoji: "thumbs-up", userIds: ["user-2", "user-1"] }],
+    }),
+    queryClient,
+    queryKey,
+  });
+  const variables = { emoji: "thumbs-up", messageId: "message-1", shouldReact: true };
+  const successContext = await options.onMutate!(variables, {} as never);
+
+  assert.deepEqual(
+    queryClient.getQueryData<InfiniteData<ReactionTestPage, string | null>>(queryKey),
+    {
+      pageParams: [null],
+      pages: [
+        {
+          messages: [
+            {
+              content: "target",
+              id: "message-1",
+              reactions: [{ count: 2, emoji: "thumbs-up", userIds: ["user-2", "user-1"] }],
+            },
+            { content: "other", id: "message-2", reactions: [] },
+          ],
+          nextCursor: null,
+        },
+      ],
+    },
+  );
+
+  await options.onSuccess!(
+    { reactions: [{ count: 1, emoji: "heart", userIds: ["user-1"] }] },
+    variables,
+    successContext,
+    {} as never,
+  );
+  assert.deepEqual(
+    queryClient.getQueryData<InfiniteData<ReactionTestPage, string | null>>(queryKey)?.pages[0]
+      ?.messages[0]?.reactions,
+    [{ count: 1, emoji: "heart", userIds: ["user-1"] }],
+  );
+
+  queryClient.setQueryData(queryKey, snapshot);
+  const failureContext = await options.onMutate!(variables, {} as never);
+  await options.onError!(new Error("failed"), variables, failureContext, {} as never);
+  assert.deepEqual(queryClient.getQueryData(queryKey), snapshot);
 });
 
 test("query option factories use opaque domain keys and cursor pagination", () => {

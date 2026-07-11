@@ -46,6 +46,7 @@ export function MobileChannelChatScreen({
   attachmentsFeature,
   channel,
   currentUserId,
+  isReactionMutationPending,
   mediaState,
   memberCount,
   messageSearchFeature,
@@ -59,6 +60,7 @@ export function MobileChannelChatScreen({
   onRequestPhotoLibraryPicker,
   onSearchMessages,
   onSendMessage,
+  onToggleMessageReaction,
   sendState,
   serverName,
   state,
@@ -67,6 +69,7 @@ export function MobileChannelChatScreen({
   attachmentsFeature: MobileBootstrapFeature | null;
   channel: MobileWorkspaceChannelSummary;
   currentUserId: string;
+  isReactionMutationPending: boolean;
   mediaState: MobileMediaRuntimeState;
   memberCount: number;
   messageSearchFeature: MobileBootstrapFeature | null;
@@ -84,6 +87,7 @@ export function MobileChannelChatScreen({
     scope: "channel";
   }): Promise<void>;
   onSendMessage(content: string): Promise<boolean>;
+  onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   sendState: MobileChannelSendViewState;
   serverName: string;
   state: MobileChannelMessagesViewState;
@@ -237,7 +241,13 @@ export function MobileChannelChatScreen({
           />
         ) : null}
 
-        <ChannelMessageList currentUserId={currentUserId} onRefresh={onRefresh} state={state} />
+        <ChannelMessageList
+          currentUserId={currentUserId}
+          isReactionMutationPending={isReactionMutationPending}
+          onRefresh={onRefresh}
+          onToggleMessageReaction={onToggleMessageReaction}
+          state={state}
+        />
 
         {state.status === "ready" ? (
           <>
@@ -264,11 +274,15 @@ export function MobileChannelChatScreen({
 
 export function ChannelMessageList({
   currentUserId,
+  isReactionMutationPending = false,
   onRefresh,
+  onToggleMessageReaction,
   state,
 }: {
   currentUserId: string;
+  isReactionMutationPending?: boolean;
   onRefresh(): void;
+  onToggleMessageReaction?(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   state: MobileChannelMessagesViewState;
 }) {
   const theme = useTheme();
@@ -313,9 +327,12 @@ export function ChannelMessageList({
           <MessageDateSeparator createdAt={item.message.createdAt} />
         ) : null}
         <MemoizedMessagePreviewRow
+          currentUserId={currentUserId}
+          isReactionMutationPending={isReactionMutationPending}
           message={item.message}
           mode="channel"
           own={item.message.author.id === currentUserId}
+          {...(onToggleMessageReaction ? { onToggleReaction: onToggleMessageReaction } : {})}
         />
       </View>
     ),

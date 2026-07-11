@@ -12,7 +12,10 @@ import {
 import { useMobileMessageSearchQuery } from "../../query/mobile-message-search-query";
 import {
   useMobileChannelMessageMutation,
+  useMobileChannelMessageReactionMutation,
   useMobileDMMessageMutation,
+  useMobileDMMessageReactionMutation,
+  type MobileMessageReactionMutationVariables,
 } from "../../query/use-mobile-message-mutations";
 import { useMobileWorkspaceQuery } from "../../query/mobile-workspace-query";
 import {
@@ -103,19 +106,30 @@ export function useMobileMessagingFeature({
   );
   const dmMessagesQuery = useMobileDMMessagesQuery(apiClient, selectedDMConversationId ?? "");
   const messageSearchQuery = useMobileMessageSearchQuery(apiClient, messageSearchInput);
+  const dmMessageAuthor = currentUser
+    ? {
+        ...currentUser,
+        customStatus: null,
+        status: "OFFLINE" as const,
+      }
+    : null;
   const channelMessageMutation = useMobileChannelMessageMutation({
     author: currentUser,
     channelId: activeWorkspaceTextChannelId ?? "",
     client: apiClient,
   });
   const dmMessageMutation = useMobileDMMessageMutation({
-    author: currentUser
-      ? {
-          ...currentUser,
-          customStatus: null,
-          status: "OFFLINE" as const,
-        }
-      : null,
+    author: dmMessageAuthor,
+    client: apiClient,
+    conversationId: selectedDMConversationId ?? "",
+  });
+  const channelReactionMutation = useMobileChannelMessageReactionMutation({
+    author: currentUser,
+    channelId: activeWorkspaceTextChannelId ?? "",
+    client: apiClient,
+  });
+  const dmReactionMutation = useMobileDMMessageReactionMutation({
+    author: dmMessageAuthor,
     client: apiClient,
     conversationId: selectedDMConversationId ?? "",
   });
@@ -131,6 +145,9 @@ export function useMobileMessagingFeature({
     mutateAsync: sendDMMessage,
     reset: resetDMMessageMutation,
   } = dmMessageMutation;
+  const { isPending: isChannelReactionPending, mutate: mutateChannelReaction } =
+    channelReactionMutation;
+  const { isPending: isDMReactionPending, mutate: mutateDMReaction } = dmReactionMutation;
   const bootstrapState = toMobileBootstrapViewState(
     bootstrapQuery,
     summarizeMobileBootstrap,
@@ -283,6 +300,39 @@ export function useMobileMessagingFeature({
       }
     },
     [activeWorkspaceTextChannelId, isSignedIn, sendChannelMessage, stopChannelTyping],
+  );
+
+  const handleToggleChannelMessageReaction = useCallback(
+    (variables: MobileMessageReactionMutationVariables) => {
+      if (
+        !isSignedIn ||
+        !currentUser ||
+        !activeWorkspaceTextChannelId ||
+        isChannelReactionPending
+      ) {
+        return;
+      }
+
+      mutateChannelReaction(variables);
+    },
+    [
+      activeWorkspaceTextChannelId,
+      currentUser,
+      isChannelReactionPending,
+      isSignedIn,
+      mutateChannelReaction,
+    ],
+  );
+
+  const handleToggleDMMessageReaction = useCallback(
+    (variables: MobileMessageReactionMutationVariables) => {
+      if (!isSignedIn || !currentUser || !selectedDMConversationId || isDMReactionPending) {
+        return;
+      }
+
+      mutateDMReaction(variables);
+    },
+    [currentUser, isDMReactionPending, isSignedIn, mutateDMReaction, selectedDMConversationId],
   );
 
   const refreshBootstrap = useCallback(() => {
@@ -620,6 +670,10 @@ export function useMobileMessagingFeature({
     handleSearchMessages,
     handleSendChannelMessage,
     handleSendDMMessage,
+    handleToggleChannelMessageReaction,
+    handleToggleDMMessageReaction,
+    isChannelReactionPending,
+    isDMReactionPending,
     messageSearchState,
     refreshBootstrap,
     refreshChannelMessages,

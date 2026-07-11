@@ -198,6 +198,9 @@ export const mobileCopy = {
     dmMessagesLoadFailed:
       "Bu direkt mesaj konusmasi yuklenemedi. Yetkin korunuyor; tekrar deneyebilirsin.",
     dmNoMessages: "Bu konusmada henuz mesaj yok.",
+    messageReactionAddAction: "{emoji} ile tepki ver",
+    messageReactionMenuLabel: "Mesaj tepkileri",
+    messageReactionRemoveAction: "{emoji} tepkisini kaldir",
     dmSendAction: "Gonder",
     dmSendFailed:
       "Mesaj gonderilemedi. Yetki, baglanti veya rate-limit durumunu kontrol edip tekrar dene.",
@@ -823,6 +826,9 @@ export const mobileCopy = {
     dmMessagesLoadFailed:
       "This direct message conversation could not be loaded. Your permissions stay protected; try again.",
     dmNoMessages: "There are no messages in this conversation yet.",
+    messageReactionAddAction: "React with {emoji}",
+    messageReactionMenuLabel: "Message reactions",
+    messageReactionRemoveAction: "Remove {emoji} reaction",
     dmSendAction: "Send",
     dmSendFailed:
       "Message could not be sent. Check permissions, connectivity, or rate limits and try again.",

@@ -28,6 +28,7 @@ export function DMConversationScreen({
   attachmentsFeature,
   conversation,
   currentUserId,
+  isReactionMutationPending,
   mediaState,
   messageSearchFeature,
   messageSearchState,
@@ -40,6 +41,7 @@ export function DMConversationScreen({
   onRequestPhotoLibraryPicker,
   onSearchMessages,
   onSendMessage,
+  onToggleMessageReaction,
   sendState,
   state,
   syncHealth,
@@ -47,6 +49,7 @@ export function DMConversationScreen({
   attachmentsFeature: MobileBootstrapFeature | null;
   conversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number];
   currentUserId: string;
+  isReactionMutationPending: boolean;
   mediaState: MobileMediaRuntimeState;
   messageSearchFeature: MobileBootstrapFeature | null;
   messageSearchState: MobileMessageSearchViewState;
@@ -62,6 +65,7 @@ export function DMConversationScreen({
   onRequestPhotoLibraryPicker(): Promise<void>;
   onSearchMessages(input: { conversationId: string; query: string; scope: "dm" }): Promise<void>;
   onSendMessage(content: string): Promise<boolean>;
+  onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
 }) {
   const styles = useDmScreenStyles();
   const title = getMobileConversationTitle(conversation, copy.directMessageFallback);
@@ -126,6 +130,7 @@ export function DMConversationScreen({
         attachmentsFeature={attachmentsFeature}
         conversation={conversation}
         currentUserId={currentUserId}
+        isReactionMutationPending={isReactionMutationPending}
         sendState={sendState}
         state={state}
         mediaState={mediaState}
@@ -134,6 +139,7 @@ export function DMConversationScreen({
         onRequestDocumentPicker={onRequestDocumentPicker}
         onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
         onSendMessage={onSendMessage}
+        onToggleMessageReaction={onToggleMessageReaction}
       />
     </View>
   );
@@ -143,24 +149,28 @@ export function DMConversationPreviewCard({
   attachmentsFeature,
   conversation,
   currentUserId,
+  isReactionMutationPending,
   mediaState,
   onClearSelectedMediaAsset,
   onRetry,
   onRequestDocumentPicker,
   onRequestPhotoLibraryPicker,
   onSendMessage,
+  onToggleMessageReaction,
   sendState,
   state,
 }: {
   attachmentsFeature: MobileBootstrapFeature | null;
   conversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number] | null;
   currentUserId: string;
+  isReactionMutationPending: boolean;
   mediaState: MobileMediaRuntimeState;
   onClearSelectedMediaAsset(): void;
   onRetry(): void;
   onRequestDocumentPicker(): Promise<void>;
   onRequestPhotoLibraryPicker(): Promise<void>;
   onSendMessage(content: string): Promise<boolean>;
+  onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   sendState: MobileDMSendViewState;
   state: MobileDMMessagesViewState;
 }) {
@@ -228,7 +238,12 @@ export function DMConversationPreviewCard({
         </View>
       ) : null}
       {state.payload && state.payload.messages.length > 0 ? (
-        <MessageStream currentUserId={currentUserId} messages={state.payload.messages} />
+        <MessageStream
+          currentUserId={currentUserId}
+          isReactionMutationPending={isReactionMutationPending}
+          messages={state.payload.messages}
+          onToggleReaction={onToggleMessageReaction}
+        />
       ) : null}
       {state.status === "ready" && state.payload.messages.length === 0 ? (
         <Text style={styles.contractDescription}>{copy.dmNoMessages}</Text>

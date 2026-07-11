@@ -3,6 +3,7 @@ import { BackHandler, Pressable, StyleSheet, Text } from "react-native";
 import { fireEvent, render } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { useReducedMotion } from "react-native-reanimated";
+import type { ChatMessage } from "@wizards/types";
 import { darkTheme, lightTheme, type MobileTheme } from "../src/design/themes";
 
 let mockTheme: MobileTheme = lightTheme;
@@ -46,6 +47,7 @@ jest.mock("react-native-gesture-handler", () => {
 });
 
 import { BottomSheet, ContextMenu } from "../src/app/components/kit";
+import { MessagePreviewRow } from "../src/app/components/message-primitives";
 
 beforeEach(() => {
   mockGestureHandlers = {};
@@ -129,6 +131,42 @@ for (const theme of [lightTheme, darkTheme]) {
 
       expect(onAction).toHaveBeenCalledTimes(1);
       expect(view.queryByTestId("message-menu-options")).toBeNull();
+    });
+
+    it("opens a message reaction menu and toggles the selected emoji", async () => {
+      mockTheme = theme;
+      const onToggleReaction = jest.fn();
+      const message: ChatMessage = {
+        attachments: [],
+        author: {
+          avatarUrl: null,
+          displayName: "Ada",
+          id: "user-2",
+          status: "ONLINE",
+          username: "ada",
+        },
+        channelId: "channel-1",
+        content: "Merhaba",
+        createdAt: "2026-07-11T10:00:00.000Z",
+        deletedAt: null,
+        editedAt: null,
+        id: "message-1",
+        mentionEveryone: false,
+        reactions: [],
+        type: "DEFAULT",
+      };
+      const view = await render(
+        <MessagePreviewRow message={message} onToggleReaction={onToggleReaction} />,
+      );
+
+      await fireEvent(view.getByTestId("mobile-message-actions-message-1-trigger"), "longPress");
+      await fireEvent.press(view.getByLabelText("👍 ile tepki ver"));
+
+      expect(onToggleReaction).toHaveBeenCalledWith({
+        emoji: "👍",
+        messageId: "message-1",
+        shouldReact: true,
+      });
     });
   });
 }

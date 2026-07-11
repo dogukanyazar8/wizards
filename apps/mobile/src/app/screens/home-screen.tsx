@@ -52,6 +52,7 @@ export function OverviewScreen({
   channelMessagesState,
   channelSendState,
   channelTypingLabel,
+  isReactionMutationPending,
   locale,
   mediaState,
   messageSearchState,
@@ -87,12 +88,14 @@ export function OverviewScreen({
   onChannelDraftChange,
   onSearchMessages,
   onSendChannelMessage,
+  onToggleMessageReaction,
   onSendVoiceInvite,
 }: {
   bootstrapState: MobileBootstrapViewState;
   channelMessagesState: MobileChannelMessagesViewState;
   channelSendState: MobileChannelSendViewState;
   channelTypingLabel: string | null;
+  isReactionMutationPending: boolean;
   locale: MobileLocale;
   mediaState: MobileMediaRuntimeState;
   messageSearchState: MobileMessageSearchViewState;
@@ -132,6 +135,7 @@ export function OverviewScreen({
     scope: "channel";
   }): Promise<void>;
   onSendChannelMessage(content: string): Promise<boolean>;
+  onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   onSendVoiceInvite(targetUserId: string): void;
 }) {
   const styles = useHomeScreenStyles();
@@ -151,6 +155,7 @@ export function OverviewScreen({
           channelMessagesState={channelMessagesState}
           channelSendState={channelSendState}
           channelTypingLabel={channelTypingLabel}
+          isReactionMutationPending={isReactionMutationPending}
           locale={locale}
           mediaState={mediaState}
           messageSearchFeature={messageSearchFeature}
@@ -184,6 +189,7 @@ export function OverviewScreen({
           onChannelDraftChange={onChannelDraftChange}
           onSearchMessages={onSearchMessages}
           onSendChannelMessage={onSendChannelMessage}
+          onToggleMessageReaction={onToggleMessageReaction}
           onSendVoiceInvite={onSendVoiceInvite}
         />
       ) : null}
