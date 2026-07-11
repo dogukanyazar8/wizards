@@ -11,6 +11,7 @@ import {
   replaceMobileMessageReactions,
   replaceMobileMessage,
   restoreMobileMessageSnapshot,
+  removeMobileMessage,
 } from "../src/query/mobile-message-cache";
 import {
   getMobileChannelMessagesQueryOptions,
@@ -88,6 +89,15 @@ test("cache helpers preserve an absent query cache", () => {
   assert.equal(insertOptimisticMobileMessage(undefined, message), undefined);
   assert.equal(replaceMobileMessage(undefined, message.id, message), undefined);
   assert.equal(appendOrReplaceMobileMessage(undefined, message), undefined);
+  assert.equal(removeMobileMessage(undefined, message.id), undefined);
+});
+
+test("message cache removal updates only the requested message", () => {
+  const data = createData();
+  const next = removeMobileMessage(data, "2");
+
+  assert.deepEqual(flattenMobileInfiniteData(next).map((message) => message.id), ["1", "3"]);
+  assert.equal(removeMobileMessage(data, "missing"), data);
 });
 
 test("reaction cache helpers update only the targeted message and preserve server reaction shape", () => {

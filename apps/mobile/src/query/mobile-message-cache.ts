@@ -101,6 +101,32 @@ export function appendOrReplaceMobileMessage<
   return replaceMatchingMobileMessages(data, new Set([message.id]), message);
 }
 
+export function removeMobileMessage<
+  TMessage extends MobileCacheMessage,
+  TPage extends MobileCachePage<TMessage>,
+  TPageParam,
+>(
+  data: MobileMessageData<TMessage, TPage, TPageParam> | undefined,
+  messageId: string,
+): MobileMessageData<TMessage, TPage, TPageParam> | undefined {
+  if (!data || data.pages.length === 0) {
+    return data;
+  }
+
+  let changed = false;
+  const pages = data.pages.map((page) => {
+    const messages = page.messages.filter((message) => message.id !== messageId);
+    if (messages.length === page.messages.length) {
+      return page;
+    }
+
+    changed = true;
+    return { ...page, messages } as TPage;
+  });
+
+  return changed ? { ...data, pages } : data;
+}
+
 type MobileReactionCacheMessage = MobileCacheMessage & {
   readonly reactions: readonly MessageReaction[];
 };
