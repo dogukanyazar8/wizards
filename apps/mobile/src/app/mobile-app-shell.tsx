@@ -15,17 +15,15 @@ export function MobileAppShell({ authStatus, children }: MobileAppShellProps) {
   const topInset = Math.max(insets.top, 12);
   const bottomInset = Math.max(insets.bottom, 12);
   const isSignedIn = authStatus === "signed-in";
-  const contentContainerStyle = [
-    styles.content,
-    isSignedIn && styles.contentSignedIn,
-    styles.contentOwnScroll,
-    !isSignedIn && { paddingBottom: bottomInset + 12 },
-  ];
+  const contentContainerStyle =
+    isSignedIn
+      ? styles.contentSignedIn
+      : [styles.content, styles.contentOwnScroll, { paddingBottom: bottomInset + 12 }];
 
   return (
     <View style={[styles.safeArea, { paddingTop: topInset }]}>
       <View style={[styles.shell, isSignedIn && styles.shellSignedIn]}>
-        <View style={[styles.contentScroll, ...contentContainerStyle]}>{children}</View>
+        <View style={[styles.contentScroll, contentContainerStyle]}>{children}</View>
       </View>
     </View>
   );
@@ -56,8 +54,8 @@ export const createMobileAppShellStyles = (theme: MobileTheme) => ({
     paddingVertical: theme.spacing.section,
   },
   contentSignedIn: {
-    paddingTop: 6,
-    paddingBottom: 106,
+    flex: 1,
+    minWidth: 0,
   },
   contentOwnScroll: {
     flex: 1,
