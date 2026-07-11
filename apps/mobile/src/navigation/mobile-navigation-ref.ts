@@ -25,6 +25,9 @@ export function navigateMobileRouteIntent(intent: MobileNavigationRouteIntent): 
     case "DirectMessage":
       mobileNavigationRef.navigate("DirectMessage", intent.params);
       break;
+    case "MessageThread":
+      mobileNavigationRef.navigate("MessageThread", intent.params);
+      break;
     case "SettingsDetail":
       mobileNavigationRef.navigate("SettingsDetail", intent.params);
       break;

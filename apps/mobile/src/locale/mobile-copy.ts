@@ -201,6 +201,11 @@ export const mobileCopy = {
     messageReactionAddAction: "{emoji} ile tepki ver",
     messageReactionMenuLabel: "Mesaj tepkileri",
     messageReactionRemoveAction: "{emoji} tepkisini kaldir",
+    messageThreadBackAction: "Geri",
+    messageThreadEmpty: "Bu thread'de henuz yanit yok.",
+    messageThreadLoadFailed: "Thread yuklenemedi. Baglantini kontrol edip tekrar dene.",
+    messageThreadOpenAction: "Thread'i ac",
+    messageThreadTitle: "Thread",
     dmSendAction: "Gonder",
     dmSendFailed:
       "Mesaj gonderilemedi. Yetki, baglanti veya rate-limit durumunu kontrol edip tekrar dene.",
@@ -829,6 +834,11 @@ export const mobileCopy = {
     messageReactionAddAction: "React with {emoji}",
     messageReactionMenuLabel: "Message reactions",
     messageReactionRemoveAction: "Remove {emoji} reaction",
+    messageThreadBackAction: "Back",
+    messageThreadEmpty: "There are no replies in this thread yet.",
+    messageThreadLoadFailed: "This thread could not load. Check your connection and try again.",
+    messageThreadOpenAction: "Open thread",
+    messageThreadTitle: "Thread",
     dmSendAction: "Send",
     dmSendFailed:
       "Message could not be sent. Check permissions, connectivity, or rate limits and try again.",

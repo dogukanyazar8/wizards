@@ -51,6 +51,7 @@ export function MessagesScreen({
   onRequestPhotoLibraryPicker,
   onSearchMessages,
   onSendMessage,
+  onOpenThread,
   onToggleMessageReaction,
 }: {
   bootstrapState: MobileBootstrapViewState;
@@ -73,6 +74,7 @@ export function MessagesScreen({
   onRequestPhotoLibraryPicker(): Promise<void>;
   onSearchMessages(input: { conversationId: string; query: string; scope: "dm" }): Promise<void>;
   onSendMessage(content: string): Promise<boolean>;
+  onOpenThread?(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
 }) {
   const styles = useDmScreenStyles();
@@ -110,6 +112,7 @@ export function MessagesScreen({
         onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
         onSearchMessages={onSearchMessages}
         onSendMessage={onSendMessage}
+        {...(onOpenThread ? { onOpenThread } : {})}
         onToggleMessageReaction={onToggleMessageReaction}
       />
     );

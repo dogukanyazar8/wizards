@@ -18,6 +18,11 @@ export type MobileRootStackParamList = {
   DirectMessage: {
     readonly conversationId: string;
   };
+  MessageThread: {
+    readonly contextId: string;
+    readonly messageId: string;
+    readonly scope: "channel" | "dm";
+  };
   SettingsDetail: {
     readonly section: string;
   };
@@ -37,6 +42,11 @@ export type MobileNavigationRouteIntent =
   | {
       readonly name: "DirectMessage";
       readonly params: MobileRootStackParamList["DirectMessage"];
+      readonly type: "route";
+    }
+  | {
+      readonly name: "MessageThread";
+      readonly params: MobileRootStackParamList["MessageThread"];
       readonly type: "route";
     }
   | {

@@ -379,11 +379,13 @@ export function MessageStream({
   currentUserId,
   isReactionMutationPending = false,
   messages,
+  onOpenThread,
   onToggleReaction,
 }: {
   currentUserId: string;
   isReactionMutationPending?: boolean;
   messages: readonly MobileRenderableMessage[];
+  onOpenThread?(messageId: string): void;
   onToggleReaction?(input: MobileMessageReactionToggleInput): void;
 }) {
   const styles = useMessagePrimitiveStyles();
@@ -404,6 +406,7 @@ export function MessageStream({
             isReactionMutationPending={isReactionMutationPending}
             message={item.message}
             own={item.message.author.id === currentUserId}
+            {...(onOpenThread ? { onOpenThread } : {})}
             {...(onToggleReaction ? { onToggleReaction } : {})}
           />
         </View>
@@ -420,6 +423,7 @@ export function MessagePreviewRow({
   isReactionMutationPending = false,
   mode = "conversation",
   message,
+  onOpenThread,
   onToggleReaction,
   own = false,
 }: {
@@ -427,6 +431,7 @@ export function MessagePreviewRow({
   isReactionMutationPending?: boolean;
   mode?: "channel" | "conversation";
   message: MobileRenderableMessage;
+  onOpenThread?(messageId: string): void;
   onToggleReaction?(input: MobileMessageReactionToggleInput): void;
   own?: boolean;
 }) {
@@ -438,8 +443,17 @@ export function MessagePreviewRow({
     deleted: copy.dmDeletedMessage,
   });
   const reactionActions = useMemo<readonly ContextMenuAction[]>(
-    () =>
-      MOBILE_MESSAGE_REACTION_EMOJIS.map((emoji) => {
+    () => [
+      ...(onOpenThread
+        ? [
+            {
+              id: "open-thread",
+              label: copy.messageThreadOpenAction,
+              onPress: () => onOpenThread(message.id),
+            },
+          ]
+        : []),
+      ...MOBILE_MESSAGE_REACTION_EMOJIS.map((emoji) => {
         const shouldReact = !message.reactions.some(
           (reaction) =>
             reaction.emoji === emoji &&
@@ -455,6 +469,7 @@ export function MessagePreviewRow({
           },
         };
       }),
+    ],
     [currentUserId, message.id, message.reactions, onToggleReaction],
   );
 

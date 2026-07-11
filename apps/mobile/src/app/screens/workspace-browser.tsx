@@ -82,6 +82,7 @@ export function MobileWorkspaceBrowser({
   onChannelDraftChange,
   onSearchMessages,
   onSendChannelMessage,
+  onOpenThread,
   onToggleMessageReaction,
   onSendVoiceInvite,
 }: {
@@ -131,6 +132,7 @@ export function MobileWorkspaceBrowser({
     scope: "channel";
   }): Promise<void>;
   onSendChannelMessage(content: string): Promise<boolean>;
+  onOpenThread?(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   onSendVoiceInvite(targetUserId: string): void;
 }) {
@@ -262,6 +264,7 @@ export function MobileWorkspaceBrowser({
         onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
         onSearchMessages={onSearchMessages}
         onSendMessage={onSendChannelMessage}
+        {...(onOpenThread ? { onOpenThread } : {})}
         onToggleMessageReaction={onToggleMessageReaction}
       />
     );

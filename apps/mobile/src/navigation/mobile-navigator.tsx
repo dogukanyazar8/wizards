@@ -11,6 +11,7 @@ import { AuthGate } from "../app/screens/auth-gate";
 import {
   ChannelStackScreenContainer,
   DirectMessageStackScreenContainer,
+  MessageThreadStackScreenContainer,
   MessagesTabScreenContainer,
   NotificationsTabScreenContainer,
   OverviewTabScreenContainer,
@@ -94,6 +95,13 @@ export function MobileNavigator({
           {(props) => (
             <ProtectedStackRoute>
               <DirectMessageStackScreenContainer {...props} />
+            </ProtectedStackRoute>
+          )}
+        </RootStack.Screen>
+        <RootStack.Screen name="MessageThread">
+          {(props) => (
+            <ProtectedStackRoute>
+              <MessageThreadStackScreenContainer {...props} />
             </ProtectedStackRoute>
           )}
         </RootStack.Screen>

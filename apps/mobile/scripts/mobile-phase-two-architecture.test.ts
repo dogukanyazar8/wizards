@@ -78,4 +78,15 @@ describe("mobile Phase 2 architecture", () => {
     assert.match(source, /voice:state:update/);
     assert.match(source, /subscribe\(handleLocalRealtimeEvent\)/);
   });
+
+  it("opens message threads through a protected mobile stack route", () => {
+    const navigator = readFileSync(join(process.cwd(), "src", "navigation", "mobile-navigator.tsx"), "utf8");
+    const messagePrimitives = readFileSync(
+      join(appRoot, "components", "message-primitives.tsx"),
+      "utf8",
+    );
+
+    assert.match(navigator, /name="MessageThread"/);
+    assert.match(messagePrimitives, /onOpenThread/);
+  });
 });

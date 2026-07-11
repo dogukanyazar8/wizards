@@ -60,6 +60,7 @@ export function MobileChannelChatScreen({
   onRequestPhotoLibraryPicker,
   onSearchMessages,
   onSendMessage,
+  onOpenThread,
   onToggleMessageReaction,
   sendState,
   serverName,
@@ -87,6 +88,7 @@ export function MobileChannelChatScreen({
     scope: "channel";
   }): Promise<void>;
   onSendMessage(content: string): Promise<boolean>;
+  onOpenThread?(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   sendState: MobileChannelSendViewState;
   serverName: string;
@@ -246,6 +248,7 @@ export function MobileChannelChatScreen({
           isReactionMutationPending={isReactionMutationPending}
           onRefresh={onRefresh}
           onToggleMessageReaction={onToggleMessageReaction}
+          {...(onOpenThread ? { onOpenThread } : {})}
           state={state}
         />
 
@@ -276,12 +279,14 @@ export function ChannelMessageList({
   currentUserId,
   isReactionMutationPending = false,
   onRefresh,
+  onOpenThread,
   onToggleMessageReaction,
   state,
 }: {
   currentUserId: string;
   isReactionMutationPending?: boolean;
   onRefresh(): void;
+  onOpenThread?(messageId: string): void;
   onToggleMessageReaction?(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   state: MobileChannelMessagesViewState;
 }) {
@@ -332,6 +337,7 @@ export function ChannelMessageList({
           message={item.message}
           mode="channel"
           own={item.message.author.id === currentUserId}
+          {...(onOpenThread ? { onOpenThread } : {})}
           {...(onToggleMessageReaction ? { onToggleReaction: onToggleMessageReaction } : {})}
         />
       </View>

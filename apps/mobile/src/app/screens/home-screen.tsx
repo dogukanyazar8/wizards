@@ -88,6 +88,7 @@ export function OverviewScreen({
   onChannelDraftChange,
   onSearchMessages,
   onSendChannelMessage,
+  onOpenThread,
   onToggleMessageReaction,
   onSendVoiceInvite,
 }: {
@@ -135,6 +136,7 @@ export function OverviewScreen({
     scope: "channel";
   }): Promise<void>;
   onSendChannelMessage(content: string): Promise<boolean>;
+  onOpenThread?(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   onSendVoiceInvite(targetUserId: string): void;
 }) {
@@ -189,6 +191,7 @@ export function OverviewScreen({
           onChannelDraftChange={onChannelDraftChange}
           onSearchMessages={onSearchMessages}
           onSendChannelMessage={onSendChannelMessage}
+          {...(onOpenThread ? { onOpenThread } : {})}
           onToggleMessageReaction={onToggleMessageReaction}
           onSendVoiceInvite={onSendVoiceInvite}
         />

@@ -19,6 +19,7 @@ import {
   useMobileVoiceScreenProps,
 } from "../providers/mobile-product-screen-provider";
 import { MessagesScreen } from "./dm-screen";
+import { MobileMessageThreadScreen } from "./message-thread-screen";
 import { OverviewScreen } from "./home-screen";
 import { NotificationsScreen } from "./notifications-screen";
 import { ProfileSettingsScreen } from "./settings-screen";
@@ -34,6 +35,15 @@ export function OverviewTabScreenContainer({
   return (
     <OverviewScreen
       {...screenProps}
+      onOpenThread={(messageId) => {
+        if (screenProps.activeWorkspaceTextChannelId && rootNavigation) {
+          rootNavigation.navigate("MessageThread", {
+            contextId: screenProps.activeWorkspaceTextChannelId,
+            messageId,
+            scope: "channel",
+          });
+        }
+      }}
       onOpenWorkspaceChannel={(channel) => {
         screenProps.onOpenWorkspaceChannel(channel);
         if (channel.type === "TEXT" && screenProps.selectedWorkspaceServerId && rootNavigation) {
@@ -57,6 +67,15 @@ export function MessagesTabScreenContainer({
   return (
     <MessagesScreen
       {...screenProps}
+      onOpenThread={(messageId) => {
+        if (screenProps.selectedConversationId && rootNavigation) {
+          rootNavigation.navigate("MessageThread", {
+            contextId: screenProps.selectedConversationId,
+            messageId,
+            scope: "dm",
+          });
+        }
+      }}
       onOpenConversation={(conversationId) => {
         screenProps.onOpenConversation(conversationId);
         rootNavigation?.navigate("DirectMessage", { conversationId });
@@ -112,6 +131,9 @@ export function ChannelStackScreenContainer({
   return (
     <OverviewScreen
       {...screenProps}
+      onOpenThread={(messageId) => {
+        navigation.navigate("MessageThread", { contextId: channelId, messageId, scope: "channel" });
+      }}
       onCloseWorkspaceChannel={() => {
         screenProps.onCloseWorkspaceChannel();
         navigation.goBack();
@@ -147,12 +169,22 @@ export function DirectMessageStackScreenContainer({
   return (
     <MessagesScreen
       {...screenProps}
+      onOpenThread={(messageId) => {
+        navigation.navigate("MessageThread", { contextId: conversationId, messageId, scope: "dm" });
+      }}
       onCloseConversation={() => {
         screenProps.onCloseConversation();
         navigation.goBack();
       }}
     />
   );
+}
+
+export function MessageThreadStackScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "MessageThread">) {
+  return <MobileMessageThreadScreen {...route.params} onBack={() => navigation.goBack()} />;
 }
 
 export function SettingsDetailScreenContainer(

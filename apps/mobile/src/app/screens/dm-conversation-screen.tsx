@@ -41,6 +41,7 @@ export function DMConversationScreen({
   onRequestPhotoLibraryPicker,
   onSearchMessages,
   onSendMessage,
+  onOpenThread,
   onToggleMessageReaction,
   sendState,
   state,
@@ -65,6 +66,7 @@ export function DMConversationScreen({
   onRequestPhotoLibraryPicker(): Promise<void>;
   onSearchMessages(input: { conversationId: string; query: string; scope: "dm" }): Promise<void>;
   onSendMessage(content: string): Promise<boolean>;
+  onOpenThread?(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
 }) {
   const styles = useDmScreenStyles();
@@ -139,6 +141,7 @@ export function DMConversationScreen({
         onRequestDocumentPicker={onRequestDocumentPicker}
         onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
         onSendMessage={onSendMessage}
+        {...(onOpenThread ? { onOpenThread } : {})}
         onToggleMessageReaction={onToggleMessageReaction}
       />
     </View>
@@ -156,6 +159,7 @@ export function DMConversationPreviewCard({
   onRequestDocumentPicker,
   onRequestPhotoLibraryPicker,
   onSendMessage,
+  onOpenThread,
   onToggleMessageReaction,
   sendState,
   state,
@@ -170,6 +174,7 @@ export function DMConversationPreviewCard({
   onRequestDocumentPicker(): Promise<void>;
   onRequestPhotoLibraryPicker(): Promise<void>;
   onSendMessage(content: string): Promise<boolean>;
+  onOpenThread?(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   sendState: MobileDMSendViewState;
   state: MobileDMMessagesViewState;
@@ -242,6 +247,7 @@ export function DMConversationPreviewCard({
           currentUserId={currentUserId}
           isReactionMutationPending={isReactionMutationPending}
           messages={state.payload.messages}
+          {...(onOpenThread ? { onOpenThread } : {})}
           onToggleReaction={onToggleMessageReaction}
         />
       ) : null}
