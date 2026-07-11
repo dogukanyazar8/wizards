@@ -37,10 +37,7 @@ describe("mobile realtime contract", () => {
     assert.deepEqual(getMobileRealtimeRefreshSources("voice:invite:error"), []);
     assert.deepEqual(getMobileRealtimeRefreshSources("typing:update"), []);
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:typing:update"), []);
-    assert.deepEqual(getMobileRealtimeRefreshSources("presence:update"), [
-      "bootstrap",
-      "presence",
-    ]);
+    assert.deepEqual(getMobileRealtimeRefreshSources("presence:update"), ["bootstrap", "presence"]);
   });
 
   it("preserves voice invite payloads without scheduling a data refresh", () => {
@@ -70,7 +67,7 @@ describe("mobile realtime contract", () => {
     assert.equal((event.payload as { id: string }).id, "invite-1");
   });
 
-  it("redacts payload body while preserving safe routing metadata", () => {
+  it("preserves active DM payloads for a transient cache update", () => {
     const event = createMobileRealtimeEventEnvelope(
       "dm:message:new",
       {
@@ -81,16 +78,12 @@ describe("mobile realtime contract", () => {
       1_000,
     );
 
-    assert.deepEqual(event, {
-      channelId: null,
-      conversationId: "conversation-1",
-      eventName: "dm:message:new",
-      payload: null,
-      receivedAt: 1_000,
-      refreshSources: ["dm"],
-      serverId: null,
-    });
-    assert.equal(JSON.stringify(event).includes("must not be copied"), false);
+    assert.equal(event.conversationId, "conversation-1");
+    assert.deepEqual(event.refreshSources, ["dm"]);
+    assert.equal(
+      (event.payload as { content: string }).content,
+      "must not be copied into realtime state",
+    );
   });
 
   it("preserves active channel message payloads for silent local UI updates", () => {

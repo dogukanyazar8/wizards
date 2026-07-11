@@ -202,6 +202,12 @@ export function isMobileRealtimeChannelMessagePayloadEvent(
   return CHANNEL_REFRESH_EVENTS.has(eventName);
 }
 
+export function isMobileRealtimeDMMessagePayloadEvent(
+  eventName: MobileRealtimeServerEventName,
+): boolean {
+  return eventName === "dm:message:new" || eventName === "dm:message:updated";
+}
+
 export function createMobileRealtimeEventEnvelope(
   eventName: MobileRealtimeServerEventName,
   payload: unknown,
@@ -214,6 +220,7 @@ export function createMobileRealtimeEventEnvelope(
     payload:
       eventName.startsWith("voice:") ||
       isMobileRealtimeChannelMessagePayloadEvent(eventName) ||
+      isMobileRealtimeDMMessagePayloadEvent(eventName) ||
       eventName === "typing:update" ||
       eventName === "dm:typing:update"
         ? payload
@@ -270,10 +277,7 @@ export function validateMobileRealtimeContract(): string[] {
     issues.push("Mobile realtime refresh timer sources must remain bounded.");
   }
 
-  if (
-    MOBILE_REALTIME_REFRESH_DEBOUNCE_MS < 250 ||
-    MOBILE_REALTIME_REFRESH_DEBOUNCE_MS > 1_000
-  ) {
+  if (MOBILE_REALTIME_REFRESH_DEBOUNCE_MS < 250 || MOBILE_REALTIME_REFRESH_DEBOUNCE_MS > 1_000) {
     issues.push("Mobile realtime refresh debounce must stay within mobile-safe bounds.");
   }
 

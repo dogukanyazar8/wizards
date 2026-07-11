@@ -4,7 +4,10 @@ import type {
   MobileRealtimeRefreshSource,
   MobileRealtimeVisibility,
 } from "./mobile-realtime-contract";
-import { isMobileRealtimeChannelMessagePayloadEvent } from "./mobile-realtime-contract";
+import {
+  isMobileRealtimeChannelMessagePayloadEvent,
+  isMobileRealtimeDMMessagePayloadEvent,
+} from "./mobile-realtime-contract";
 
 export const MOBILE_REALTIME_FOREGROUND_BACKFILL_GAP_MS = 10_000;
 
@@ -42,7 +45,10 @@ export function createInitialMobileRealtimeSnapshot(): MobileRealtimeConnectionS
 export function redactMobileRealtimeEventForSnapshot(
   event: MobileRealtimeEventEnvelope,
 ): MobileRealtimeEventEnvelope {
-  if (!isMobileRealtimeChannelMessagePayloadEvent(event.eventName)) {
+  if (
+    !isMobileRealtimeChannelMessagePayloadEvent(event.eventName) &&
+    !isMobileRealtimeDMMessagePayloadEvent(event.eventName)
+  ) {
     return event;
   }
 
@@ -128,11 +134,7 @@ export function shouldConnectMobileRealtime(input: {
   hasSession: boolean;
   visibility: MobileRealtimeVisibility;
 }) {
-  return (
-    input.authStatus === "signed-in" &&
-    input.hasSession &&
-    input.visibility === "foreground"
-  );
+  return input.authStatus === "signed-in" && input.hasSession && input.visibility === "foreground";
 }
 
 export function getMobileRealtimeVisibilityFromAppState(
@@ -183,9 +185,7 @@ export function getMobileRealtimeForegroundBackfillSources(input: {
   return sources;
 }
 
-export function summarizeMobileRealtimeConnection(
-  state: MobileRealtimeConnectionSnapshot,
-) {
+export function summarizeMobileRealtimeConnection(state: MobileRealtimeConnectionSnapshot) {
   return {
     eventCount: state.eventCount,
     hasRecentEvent: state.lastEvent !== null,

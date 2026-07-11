@@ -34,9 +34,9 @@ describe("mobile realtime state", () => {
       { now: 1_500, type: "connected" },
     );
     const event = createMobileRealtimeEventEnvelope(
-      "message:new",
+      "dm:message:new",
       {
-        channelId: "channel-1",
+        conversationId: "conversation-1",
         content: "not retained",
       },
       2_000,
@@ -48,7 +48,7 @@ describe("mobile realtime state", () => {
 
     assert.equal(withEvent.status, "connected");
     assert.equal(withEvent.eventCount, 1);
-    assert.equal(withEvent.lastEvent?.channelId, "channel-1");
+    assert.equal(withEvent.lastEvent?.conversationId, "conversation-1");
     assert.equal(JSON.stringify(withEvent).includes("not retained"), false);
   });
 

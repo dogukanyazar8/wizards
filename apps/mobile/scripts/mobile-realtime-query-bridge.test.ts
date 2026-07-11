@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { QueryClient, type InfiniteData } from "@tanstack/react-query";
-import type { ChatMessage, MobileChannelMessagesResponse } from "@wizards/types";
+import type {
+  ChatMessage,
+  DMMessagePayload,
+  MobileChannelMessagesResponse,
+  MobileDMMessagesResponse,
+} from "@wizards/types";
 import { mobileQueryKeys } from "../src/query/mobile-query-keys";
 import { createMobileRealtimeEventEnvelope } from "../src/realtime/mobile-realtime-contract";
 import {
@@ -47,6 +52,47 @@ function makeChannelPage(messages: ChatMessage[]): MobileChannelMessagesResponse
       unreadCount: 0,
     },
     hasMore: false,
+    messages,
+    nextCursor: null,
+  };
+}
+
+function makeDMMessage(id: string): DMMessagePayload {
+  return {
+    attachments: [],
+    author: {
+      avatarUrl: null,
+      customStatus: null,
+      displayName: "Ada",
+      id: "user-1",
+      status: "ONLINE",
+      username: "ada",
+    },
+    content: "redacted-dm-message",
+    conversationId: "conversation-1",
+    createdAt: "2026-07-11T12:00:00.000Z",
+    deletedAt: null,
+    deletedById: null,
+    editedAt: null,
+    id,
+    reactions: [],
+    replyTo: null,
+    replyToId: null,
+    threadParentId: null,
+    userId: "user-1",
+  };
+}
+
+function makeDMPage(messages: DMMessagePayload[]): MobileDMMessagesResponse {
+  return {
+    conversation: {
+      id: "conversation-1",
+      lastMessage: null,
+      lastMessageAt: "2026-07-11T12:00:00.000Z",
+      name: null,
+      participants: [],
+      type: "DM",
+    },
     messages,
     nextCursor: null,
   };
@@ -126,17 +172,14 @@ describe("mobile realtime query bridge", () => {
     };
     queryClient.setQueryData(key, initial);
 
-    bridge.handleEvent(
-      createMobileRealtimeEventEnvelope("message:new", makeMessage("message-2")),
-    );
+    bridge.handleEvent(createMobileRealtimeEventEnvelope("message:new", makeMessage("message-2")));
 
-    const updated = queryClient.getQueryData<
-      InfiniteData<MobileChannelMessagesResponse, string | null>
-    >(key);
-    assert.deepEqual(updated?.pages[0]?.messages.map((message) => message.id), [
-      "message-1",
-      "message-2",
-    ]);
+    const updated =
+      queryClient.getQueryData<InfiniteData<MobileChannelMessagesResponse, string | null>>(key);
+    assert.deepEqual(
+      updated?.pages[0]?.messages.map((message) => message.id),
+      ["message-1", "message-2"],
+    );
     assert.equal(fake.pendingCount(), 0);
 
     bridge.handleEvent(
@@ -146,6 +189,29 @@ describe("mobile realtime query bridge", () => {
       }),
     );
     assert.equal(fake.pendingCount(), 1);
+  });
+
+  it("updates validated active DM message pages without scheduling a refresh", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const key = mobileQueryKeys.dmMessages("conversation-1");
+    queryClient.setQueryData<InfiniteData<MobileDMMessagesResponse, string | null>>(key, {
+      pageParams: [null],
+      pages: [makeDMPage([makeDMMessage("message-1")])],
+    });
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("dm:message:new", makeDMMessage("message-2")),
+    );
+
+    const updated =
+      queryClient.getQueryData<InfiniteData<MobileDMMessagesResponse, string | null>>(key);
+    assert.deepEqual(
+      updated?.pages[0]?.messages.map((message) => message.id),
+      ["message-1", "message-2"],
+    );
+    assert.equal(fake.pendingCount(), 0);
   });
 
   it("invalidates DM events and clears every pending timer on dispose", () => {

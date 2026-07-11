@@ -1,9 +1,15 @@
 import type { InfiniteData, QueryClient, QueryKey } from "@tanstack/react-query";
-import type { MobileChannelMessagesResponse } from "@wizards/types";
+import {
+  DMMessagePayloadSchema,
+  type MobileChannelMessagesResponse,
+  type MobileDMMessagesResponse,
+} from "@wizards/types";
+import { appendOrReplaceMobileMessage } from "../query/mobile-message-cache";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 import {
   getMobileRealtimeRefreshTimerSource,
   isMobileRealtimeChannelMessagePayloadEvent,
+  isMobileRealtimeDMMessagePayloadEvent,
   MOBILE_REALTIME_REFRESH_DEBOUNCE_MS,
   type MobileRealtimeEventEnvelope,
   type MobileRealtimeRefreshSource,
@@ -12,10 +18,8 @@ import {
 import type { MobileRealtimeActiveTargets } from "./mobile-realtime-state";
 import { applyMobileRealtimeChannelMessageEvent } from "../workspace/mobile-channel-message-state";
 
-type MobileChannelMessagesInfiniteData = InfiniteData<
-  MobileChannelMessagesResponse,
-  string | null
->;
+type MobileChannelMessagesInfiniteData = InfiniteData<MobileChannelMessagesResponse, string | null>;
+type MobileDMMessagesInfiniteData = InfiniteData<MobileDMMessagesResponse, string | null>;
 
 export interface MobileRealtimeQueryBridgeScheduler {
   clearTimeout(timer: unknown): void;
@@ -63,10 +67,7 @@ export function createMobileRealtimeQueryBridge({
     }
   };
 
-  const scheduleInvalidation = (
-    source: MobileRealtimeRefreshSource,
-    queryKey: QueryKey | null,
-  ) => {
+  const scheduleInvalidation = (source: MobileRealtimeRefreshSource, queryKey: QueryKey | null) => {
     if (disposed || !queryKey) {
       return;
     }
@@ -149,6 +150,32 @@ export function createMobileRealtimeQueryBridge({
     return handled;
   };
 
+  const applyActiveDMEvent = (event: MobileRealtimeEventEnvelope): boolean => {
+    if (!isMobileRealtimeDMMessagePayloadEvent(event.eventName)) {
+      return false;
+    }
+
+    const { conversationId } = getActiveTargets();
+    const message = DMMessagePayloadSchema.safeParse(event.payload);
+    if (!conversationId || !message.success || message.data.conversationId !== conversationId) {
+      return false;
+    }
+
+    let handled = false;
+    queryClient.setQueryData<MobileDMMessagesInfiniteData>(
+      mobileQueryKeys.dmMessages(conversationId),
+      (current) => {
+        if (!current || current.pages.length === 0) {
+          return current;
+        }
+
+        handled = true;
+        return appendOrReplaceMobileMessage(current, message.data);
+      },
+    );
+    return handled;
+  };
+
   return {
     backfill(sources) {
       for (const source of new Set(sources)) {
@@ -164,8 +191,12 @@ export function createMobileRealtimeQueryBridge({
     },
     handleEvent(event) {
       const channelEventHandled = applyActiveChannelEvent(event);
+      const dmEventHandled = applyActiveDMEvent(event);
       for (const source of event.refreshSources) {
         if (source === "channel" && channelEventHandled) {
+          continue;
+        }
+        if (source === "dm" && dmEventHandled) {
           continue;
         }
         scheduleSource(source, event);
