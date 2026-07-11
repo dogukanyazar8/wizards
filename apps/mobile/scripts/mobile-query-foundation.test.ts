@@ -26,6 +26,23 @@ test("mobile query keys exclude raw search text and PII", () => {
   );
 });
 
+test("thread query keys isolate the parent message from channel and DM history", () => {
+  const keys = createMobileQueryKeys(new MobileSearchKeyRegistry());
+
+  assert.deepEqual(keys.channelThread("channel-1", "message-1"), [
+    "mobile",
+    "channel-thread",
+    "channel-1",
+    "message-1",
+  ]);
+  assert.deepEqual(keys.dmThread("conversation-1", "message-1"), [
+    "mobile",
+    "dm-thread",
+    "conversation-1",
+    "message-1",
+  ]);
+});
+
 test("mobile query client uses a bounded in-memory policy", () => {
   const client = createMobileQueryClient();
   const defaults = client.getDefaultOptions().queries;
