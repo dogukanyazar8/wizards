@@ -37,7 +37,7 @@ content storage was added.
 
 ## UI contracts
 
-- Long press exposes copy/share, reply, owner-only edit/delete, thread, quick reactions, and the
+- Long press exposes native clipboard copy, reply, owner-only edit/delete, thread, quick reactions, and the
   in-house emoji picker. Delete always requires destructive confirmation.
 - Reply/edit state is visible above the composer and cancellable; replies render a quote and can
   scroll back to a loaded parent.
@@ -55,28 +55,31 @@ content storage was added.
 
 - `pnpm --filter @wizards/mobile typecheck`: PASS.
 - `pnpm --filter @wizards/mobile test`: PASS, 334/334.
-- `pnpm --filter @wizards/mobile test:components -- --runInBand`: PASS, 81/81.
+- `pnpm --filter @wizards/mobile test:components`: PASS, 86/86 across 17 suites.
 - `pnpm --filter @wizards/mobile quality:check`: PASS, zero blockers and 10 automated gates.
-- `pnpm audit --audit-level high`: PASS, no known vulnerabilities.
+- `pnpm --filter @wizards/mobile exec expo install --check`: PASS, dependencies are up to date.
+- `pnpm audit --prod`: PASS, no known vulnerabilities.
 - Phase 2 Maestro/testID contract: PASS. The flow is `.maestro/phase2-messaging.yml` and writes only
-  to `artifacts/mobile/phase2/`.
+  to `artifacts/mobile/phase2/closure/`.
 
 ## Device evidence status
 
-The single Android Maestro attempt reached the installed dev client but stopped before login because
-that APK does not contain the already-declared `ExpoNavigationBar` native module required by the
-current bundle. Evidence is retained outside git under `artifacts/mobile/phase2/` (`maestro-phase2.xml`,
-`maestro-phase2.log`, debug recording, and `failure-screen.png`). This is an installed-APK/native
-runtime mismatch, not a Phase 2 flow failure or account lockout.
-
-Per the Phase 2 no-native-build rule, no replacement APK was built in this batch. Run the same flow
-once against an APK produced from the current `uat` native configuration to collect the required
-light/dark screenshots and final device PASS.
+- The Phase 3 M1 native build was produced and installed with
+  `corepack pnpm --filter @wizards/mobile android:uat:local`; package `team.whispr.mobile` includes
+  both Expo Navigation Bar and Expo Clipboard.
+- `.maestro/phase2-messaging.yml`: PASS on the Android `Pixel_10_Pro` emulator. The flow verified
+  authenticated UAT handoff, channel deep-link routing, send, reaction, reply, edit, thread reply,
+  destructive delete, and light/dark rendering.
+- Maestro 2.6.1 requires `.env.maestro` values to be supplied with explicit `-e KEY=value`
+  arguments; invoking the flow without them resolves channel identifiers as `undefined`.
+- Light evidence: `artifacts/mobile/phase2/closure/light-messaging.png`.
+- Dark evidence: `artifacts/mobile/phase2/closure/dark-messaging.png`.
+- Evidence is ignored by git and contains no credentials, tokens, or secret material.
 
 ## Phase 3 handoff
 
-- Replace the copy/share compatibility action with a dedicated clipboard API only if Phase 3 permits
-  the corresponding Expo native module and a current APK build.
+- Native clipboard replacement and the single Phase 3 Android build are complete in M1.
+- All remaining Phase 3 milestones are JavaScript-only and must add no native dependency or build.
 - Extend reply-to-parent loading from a narrow refresh to cursor traversal when the mobile history API
   exposes deterministic parent lookup.
 - Keep `.env.maestro` local and keep all Phase 2 evidence under ignored `artifacts/mobile/phase2/`.

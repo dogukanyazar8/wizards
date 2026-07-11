@@ -64,12 +64,15 @@ describe("Phase 0 Maestro testID contract", () => {
     assert.ok(loginHelperSource, ".maestro/helpers/login-uat.yml must exist");
     assert.equal(loginHelperSource.match(/\$\{MAESTRO_UAT_EMAIL\}/g)?.length, 1);
     assert.equal(loginHelperSource.match(/\$\{MAESTRO_UAT_PASSWORD\}/g)?.length, 1);
-    assert.equal(loginHelperSource.match(/tapOn:\s*"Giris yap"/g)?.length, 1);
+    assert.match(loginHelperSource, /id:\s*"mobile-settings-web-sign-in-action"/);
+    assert.match(loginHelperSource, /id:\s*"email"/);
+    assert.match(loginHelperSource, /id:\s*"password"/);
+    assert.equal(loginHelperSource.match(/tapOn:\s*"Giris yap\|Sign In"/g)?.length, 1);
     assert.doesNotMatch(loginHelperSource, /retry/i);
-    assert.match(
-      loginHelperSource,
-      /extendedWaitUntil:[\s\S]*id:\s*"mobile-workspace-channel-text"/,
-    );
+    assert.match(loginHelperSource, /id:\s*"mobile-bottom-tab-settings"/);
+    assert.match(loginHelperSource, /id:\s*"mobile-settings-sign-out-action"/);
+    assert.match(loginHelperSource, /id:\s*"mobile-bottom-tab-overview"/);
+    assert.match(loginHelperSource, /id:\s*"mobile-overview-screen"/);
 
     for (const source of [flowSource, darkModeFlowSource]) {
       assert.match(source, /file:\s*"helpers\/login-uat\.yml"/);
@@ -169,6 +172,10 @@ describe("Phase 0 Maestro testID contract", () => {
         "src/app/screens/message-thread-screen.tsx",
         "mobile-message-thread-screen",
       ],
+      "mobile-message-thread-back-button": [
+        "src/app/screens/message-thread-screen.tsx",
+        "mobile-message-thread-back-button",
+      ],
     } as const;
     for (const [testId, [sourcePath, needle]] of Object.entries(contracts)) {
       assert.match(phase2FlowSource, new RegExp(`id:\\s*"${testId}"`));
@@ -177,8 +184,18 @@ describe("Phase 0 Maestro testID contract", () => {
     for (const action of ["More emoji", "Reply", "Edit", "Open thread", "Delete"]) {
       assert.match(phase2FlowSource, new RegExp(action));
     }
-    assert.match(phase2FlowSource, /artifacts\/mobile\/phase2\/light-messaging/);
-    assert.match(phase2FlowSource, /artifacts\/mobile\/phase2\/dark-messaging/);
+    assert.ok(
+      (phase2FlowSource.match(/id:\s*"mobile-message-actions-\.\*-trigger"/g)?.length ?? 0) >=
+        4,
+    );
+    for (const message of ["Phase2 Maestro verified", "Phase2 edited verified"]) {
+      assert.match(
+        phase2FlowSource,
+        new RegExp(`containsChild:[\\s\\S]{0,80}text:\\s*"${message}"`),
+      );
+    }
+    assert.match(phase2FlowSource, /artifacts\/mobile\/phase2\/closure\/light-messaging/);
+    assert.match(phase2FlowSource, /artifacts\/mobile\/phase2\/closure\/dark-messaging/);
     assert.ok(MOBILE_AUTOMATED_GATES.some((gate) => gate.id === "mobile-maestro-phase2-messaging"));
   });
 });

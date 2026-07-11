@@ -59,6 +59,10 @@ jest.mock("expo-system-ui", () => ({
   setBackgroundColorAsync: jest.fn(async () => undefined),
 }));
 
+jest.mock("expo-clipboard", () => ({
+  setStringAsync: jest.fn(async () => true),
+}));
+
 jest.mock("react-native-reanimated", () => {
   const React = require("react");
   const { View } = require("react-native");

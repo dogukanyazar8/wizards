@@ -2,17 +2,34 @@ appId: team.whispr.mobile
 ---
 - runFlow:
     when:
-      visible: "E-posta"
+      visible:
+        id: "mobile-settings-web-sign-in-action"
     commands:
-      - tapOn: "E-posta"
+      - tapOn:
+          id: "mobile-settings-web-sign-in-action"
+      - extendedWaitUntil:
+          visible:
+            id: "email"
+          timeout: 15000
+      - tapOn:
+          id: "email"
       - eraseText: 100
       - inputText: ${MAESTRO_UAT_EMAIL}
-      - tapOn: "Sifre"
+      - tapOn:
+          id: "password"
       - eraseText: 100
       - inputText: ${MAESTRO_UAT_PASSWORD}
       - hideKeyboard
-      - tapOn: "Giris yap"
+      - tapOn: "Giris yap|Sign In"
+- tapOn:
+    id: "mobile-bottom-tab-settings"
 - extendedWaitUntil:
     visible:
-      id: "mobile-workspace-channel-text"
+      id: "mobile-settings-sign-out-action"
     timeout: 30000
+- tapOn:
+    id: "mobile-bottom-tab-overview"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-overview-screen"
+    timeout: 15000

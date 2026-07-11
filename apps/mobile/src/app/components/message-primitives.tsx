@@ -19,7 +19,8 @@ import {
   type MobileMessageSearchViewState,
 } from "../mobile-root-screen-shared";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
-import { Alert, Share } from "react-native";
+import * as Clipboard from "expo-clipboard";
+import { Alert } from "react-native";
 import { AvatarMark } from "./ui-atoms";
 import { MobileCachedImage } from "./mobile-cached-image";
 import { ContextMenu, Icon, Skeleton, type ContextMenuAction } from "./kit";
@@ -542,7 +543,11 @@ export function MessagePreviewRow({
             {
               id: "copy",
               label: copy.messageCopyAction,
-              onPress: () => void Share.share({ message: message.content }),
+              onPress: () => {
+                void Clipboard.setStringAsync(message.content).catch(() => {
+                  Alert.alert(copy.messageCopyFailedTitle, copy.messageCopyFailedDescription);
+                });
+              },
             },
           ]
         : []),

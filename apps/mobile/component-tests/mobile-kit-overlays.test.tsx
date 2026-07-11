@@ -1,6 +1,7 @@
 import React from "react";
-import { Alert, BackHandler, Pressable, StyleSheet, Text } from "react-native";
-import { fireEvent, render } from "@testing-library/react-native";
+import { Alert, BackHandler, Pressable, Share, StyleSheet, Text } from "react-native";
+import * as Clipboard from "expo-clipboard";
+import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { useReducedMotion } from "react-native-reanimated";
 import type { ChatMessage } from "@wizards/types";
@@ -61,6 +62,7 @@ import { MessageAttachmentList, MessagePreviewRow } from "../src/app/components/
 beforeEach(() => {
   mockGestureHandlers = {};
   jest.mocked(useReducedMotion).mockReturnValue(false);
+  jest.mocked(Clipboard.setStringAsync).mockClear();
 });
 
 for (const theme of [lightTheme, darkTheme]) {
@@ -192,6 +194,75 @@ for (const theme of [lightTheme, darkTheme]) {
         messageId: "message-1",
         shouldReact: true,
       });
+    });
+
+    it("copies a message to the native clipboard without opening the share sheet", async () => {
+      mockTheme = theme;
+      const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "dismissedAction" });
+      const message: ChatMessage = {
+        attachments: [],
+        author: {
+          avatarUrl: null,
+          displayName: "Ada",
+          id: "user-2",
+          status: "ONLINE",
+          username: "ada",
+        },
+        channelId: "channel-1",
+        content: "Copy this message",
+        createdAt: "2026-07-11T10:00:00.000Z",
+        deletedAt: null,
+        editedAt: null,
+        id: "message-copy",
+        mentionEveryone: false,
+        reactions: [],
+        type: "DEFAULT",
+      };
+      const view = await render(<MessagePreviewRow message={message} />);
+
+      await fireEvent(view.getByTestId("mobile-message-actions-message-copy-trigger"), "longPress");
+      await fireEvent.press(view.getByLabelText(copy.messageCopyAction));
+
+      expect(Clipboard.setStringAsync).toHaveBeenCalledWith("Copy this message");
+      expect(share).not.toHaveBeenCalled();
+      share.mockRestore();
+    });
+
+    it("shows a bounded error when copying a message fails", async () => {
+      mockTheme = theme;
+      const alert = jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
+      jest.mocked(Clipboard.setStringAsync).mockRejectedValueOnce(new Error("clipboard unavailable"));
+      const message: ChatMessage = {
+        attachments: [],
+        author: {
+          avatarUrl: null,
+          displayName: "Ada",
+          id: "user-2",
+          status: "ONLINE",
+          username: "ada",
+        },
+        channelId: "channel-1",
+        content: "Copy this message",
+        createdAt: "2026-07-11T10:00:00.000Z",
+        deletedAt: null,
+        editedAt: null,
+        id: "message-copy-failure",
+        mentionEveryone: false,
+        reactions: [],
+        type: "DEFAULT",
+      };
+      const view = await render(<MessagePreviewRow message={message} />);
+
+      await fireEvent(
+        view.getByTestId("mobile-message-actions-message-copy-failure-trigger"),
+        "longPress",
+      );
+      await fireEvent.press(view.getByLabelText(copy.messageCopyAction));
+
+      await waitFor(() =>
+        expect(alert).toHaveBeenCalledWith(expect.any(String), expect.any(String)),
+      );
+      alert.mockRestore();
     });
 
     it("gates edit and delete to the author and confirms destructive deletion", async () => {

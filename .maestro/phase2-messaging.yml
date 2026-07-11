@@ -14,18 +14,24 @@ appId: team.whispr.mobile
     id: "mobile-channel-chat-screen"
 - tapOn:
     id: "mobile-channel-composer-input"
-- inputText: "Phase2 Maestro message"
+- inputText: "Phase2 Maestro verified"
 - tapOn:
     id: "mobile-channel-send-button"
 - extendedWaitUntil:
-    visible: "Phase2 Maestro message"
+    visible: "Phase2 Maestro verified"
     timeout: 15000
-- longPressOn: "Phase2 Maestro message"
+- longPressOn:
+    id: "mobile-message-actions-.*-trigger"
+    containsChild:
+      text: "Phase2 Maestro verified"
 - tapOn: "Daha fazla emoji|More emoji"
 - assertVisible:
     id: "mobile-message-emoji-picker-panel"
 - tapOn: "😀"
-- longPressOn: "Phase2 Maestro message"
+- longPressOn:
+    id: "mobile-message-actions-.*-trigger"
+    containsChild:
+      text: "Phase2 Maestro verified"
 - tapOn: "Yanitla|Reply"
 - assertVisible:
     id: "mobile-message-reply-preview"
@@ -37,20 +43,26 @@ appId: team.whispr.mobile
 - extendedWaitUntil:
     visible: "Phase2 reply"
     timeout: 15000
-- longPressOn: "Phase2 Maestro message"
+- longPressOn:
+    id: "mobile-message-actions-.*-trigger"
+    containsChild:
+      text: "Phase2 Maestro verified"
 - tapOn: "Duzenle|Edit"
 - assertVisible:
     id: "mobile-message-edit-preview"
 - tapOn:
     id: "mobile-channel-composer-input"
 - eraseText: 100
-- inputText: "Phase2 edited message"
+- inputText: "Phase2 edited verified"
 - tapOn:
     id: "mobile-channel-send-button"
 - extendedWaitUntil:
-    visible: "Phase2 edited message"
+    visible: "Phase2 edited verified"
     timeout: 15000
-- longPressOn: "Phase2 reply"
+- longPressOn:
+    id: "mobile-message-actions-.*-trigger"
+    containsChild:
+      text: "Phase2 edited verified"
 - tapOn: "Thread'i ac|Open thread"
 - assertVisible:
     id: "mobile-message-thread-screen"
@@ -62,15 +74,26 @@ appId: team.whispr.mobile
 - extendedWaitUntil:
     visible: "Phase2 thread reply"
     timeout: 15000
-- takeScreenshot: "artifacts/mobile/phase2/light-messaging"
-- pressKey: BACK
-- longPressOn: "Phase2 edited message"
+- takeScreenshot: "artifacts/mobile/phase2/closure/light-messaging"
+- tapOn:
+    id: "mobile-message-thread-back-button"
+- longPressOn:
+    id: "mobile-message-actions-.*-trigger"
+    containsChild:
+      text: "Phase2 edited verified"
 - tapOn: "Sil|Delete"
 - tapOn: "Sil|Delete"
-- assertNotVisible: "Phase2 edited message"
+- assertNotVisible:
+    id: "mobile-message-actions-.*-trigger"
+    containsChild:
+      text: "Phase2 edited verified"
 - openLink: "whispr://settings"
+- scrollUntilVisible:
+    element:
+      id: "mobile-settings-appearance-control"
+    direction: DOWN
 - tapOn:
     id: "mobile-settings-appearance-control"
 - tapOn: "Koyu|Dark"
 - openLink: "whispr://channels/${WHISPR_MOBILE_E2E_SERVER_ID}/${WHISPR_MOBILE_E2E_CHANNEL_ID}"
-- takeScreenshot: "artifacts/mobile/phase2/dark-messaging"
+- takeScreenshot: "artifacts/mobile/phase2/closure/dark-messaging"
