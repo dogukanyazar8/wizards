@@ -8,11 +8,7 @@ import type {
 } from "@wizards/types";
 import { Prisma, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
-import {
-  areFriends,
-  getBlockStatus,
-  haveMutualServers,
-} from "@/lib/friends/helpers";
+import { areFriends, getBlockStatus, haveMutualServers } from "@/lib/friends/helpers";
 import { getRedis } from "@/lib/redis";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { mapAttachmentsForViewer } from "@/lib/messages/attachment-visibility";
@@ -104,7 +100,7 @@ type DMMessageNode = {
   deletedAt: Date | null;
   deletedById: string | null;
   placeholderRemovedAt: Date | null;
-    createdAt: Date;
+  createdAt: Date;
   author: {
     id: string;
     username: string;
@@ -206,12 +202,15 @@ function groupDMReactions(
     string,
     {
       userIds: Set<string>;
-      users: Map<string, {
-        id: string;
-        username: string;
-        displayName: string | null;
-        avatarUrl: string | null;
-      }>;
+      users: Map<
+        string,
+        {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        }
+      >;
     }
   >();
 
@@ -348,10 +347,7 @@ async function getDMReactionMap(messageIds: string[]) {
   return reactionsByMessageId;
 }
 
-export function getDMDisplayName(user: {
-  username: string;
-  displayName: string | null;
-}) {
+export function getDMDisplayName(user: { username: string; displayName: string | null }) {
   return user.displayName ?? user.username;
 }
 
@@ -426,9 +422,7 @@ function mapDMReply(
       duration: attachment.duration ?? null,
       thumbnailUrl: attachment.thumbnailUrl ?? null,
     })),
-    reactions: groupDMReactions(
-      reactionsByMessageId.get(message.id) ?? message.reactions ?? [],
-    ),
+    reactions: groupDMReactions(reactionsByMessageId.get(message.id) ?? message.reactions ?? []),
     replyTo: nextReply,
   };
 }
@@ -727,7 +721,7 @@ export async function listDirectMessages(
   `);
 
   const pageRows = rows.slice(0, limit);
-  const nextCursor = rows.length > limit ? pageRows.at(-1)?.conversationId ?? null : null;
+  const nextCursor = rows.length > limit ? (pageRows.at(-1)?.conversationId ?? null) : null;
 
   if (pageRows.length === 0) {
     return {
@@ -755,9 +749,7 @@ export async function listDirectMessages(
   const conversations = await Promise.all(
     pageRows
       .map((row) => participationById.get(row.participantId))
-      .filter((participant): participant is NonNullable<typeof participant> =>
-        Boolean(participant),
-      )
+      .filter((participant): participant is NonNullable<typeof participant> => Boolean(participant))
       .map((participant) =>
         mapDMConversationDTO(participant.conversation, userId, deletedMessageLabel),
       ),
@@ -956,7 +948,7 @@ export async function listDMMessages(
 
   const hasMore = messages.length > limit;
   const pageMessages = hasMore ? messages.slice(0, limit) : messages;
-  const nextCursor = hasMore ? pageMessages[pageMessages.length - 1]?.id ?? null : null;
+  const nextCursor = hasMore ? (pageMessages[pageMessages.length - 1]?.id ?? null) : null;
   const messageIds = pageMessages.map((message) => message.id);
   const [reactionsByMessageId, threadSummaryByMessageId] = await Promise.all([
     getDMReactionMap(messageIds),
@@ -1034,7 +1026,7 @@ export async function listDMThreadMessages(
 
   const hasMore = messages.length > limit;
   const pageMessages = hasMore ? messages.slice(0, limit) : messages;
-  const nextCursor = hasMore ? pageMessages[pageMessages.length - 1]?.id ?? null : null;
+  const nextCursor = hasMore ? (pageMessages[pageMessages.length - 1]?.id ?? null) : null;
   const messageIds = [parent.id, ...pageMessages.map((message) => message.id)];
   const [reactionsByMessageId, threadSummaryByMessageId] = await Promise.all([
     getDMReactionMap(messageIds),
@@ -1133,6 +1125,7 @@ export async function setDMReaction(
   userId: string,
   emoji: string,
   shouldReact: boolean | undefined,
+  options: { conversationId?: string } = {},
 ): Promise<MessageReaction[]> {
   const normalizedEmoji = validateDMReactionEmoji(emoji);
   const message = await prisma.dMMessage.findUnique({
@@ -1145,6 +1138,10 @@ export async function setDMReaction(
   });
 
   if (!message || message.deletedAt || message.placeholderRemovedAt) {
+    throw new ApiError("Message not found", 404, "NOT_FOUND");
+  }
+
+  if (options.conversationId && message.conversationId !== options.conversationId) {
     throw new ApiError("Message not found", 404, "NOT_FOUND");
   }
 

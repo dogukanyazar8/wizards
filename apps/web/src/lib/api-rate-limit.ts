@@ -65,6 +65,8 @@ export const API_RATE_LIMITS = {
   "mobile:channel:messages:reactions": { limit: 60, windowSeconds: 60 },
   "mobile:channel:messages:send": { limit: 120, windowSeconds: 60 },
   "mobile:channel:messages:thread": { limit: 60, windowSeconds: 60 },
+  "mobile:dm:messages:reactions": { limit: 60, windowSeconds: 60 },
+  "mobile:dm:messages:thread": { limit: 30, windowSeconds: 60 },
   "mobile:message:search": { limit: 40, windowSeconds: 60 },
   "mobile:notifications:register": { limit: 20, windowSeconds: 60 * 60 },
   "mobile:notifications:revoke": { limit: 60, windowSeconds: 10 * 60 },
