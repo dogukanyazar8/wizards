@@ -2,6 +2,8 @@ import { z } from "zod";
 import {
   ChatMessageSchema,
   MESSAGE_CONTENT_DEFAULT_LIMIT,
+  MESSAGE_CONTENT_HARD_LIMIT,
+  MessageReactionSchema,
   MessagesResponseSchema,
   UploadedAttachmentInputSchema,
 } from "./messages";
@@ -348,6 +350,39 @@ export const MobileDMMessagesResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 
+export const MobileMessageReactionRequestSchema = z.object({
+  emoji: z.string().trim().min(1).max(64),
+});
+
+export const MobileMessageReactionResponseSchema = z.object({
+  reactions: z.array(MessageReactionSchema),
+});
+
+export const MobileMessageEditRequestSchema = z.object({
+  content: z
+    .string()
+    .max(MESSAGE_CONTENT_HARD_LIMIT)
+    .refine((content) => content.trim().length > 0, {
+      message: "Message content is required",
+    }),
+});
+
+export const MobileMessageDeleteResponseSchema = z.union([
+  z.object({
+    placeholderExpiresAt: z.string().datetime().nullable(),
+    status: z.literal("deleted"),
+  }),
+  z.object({
+    status: z.literal("removed"),
+  }),
+]);
+
+export const MobileDMMessagesThreadResponseSchema = z.object({
+  messages: z.array(DMMessagePayloadSchema).max(30),
+  nextCursor: z.string().nullable(),
+  parent: DMMessagePayloadSchema,
+});
+
 const MobileSendMessageRequestSchema = z
   .object({
     attachments: z.array(UploadedAttachmentInputSchema).max(5).default([]),
@@ -417,6 +452,13 @@ export const MobileChannelMessagesResponseSchema = MessagesResponseSchema.extend
   nextCursor: z.string().nullable(),
 });
 
+export const MobileChannelThreadMessagesResponseSchema = z.object({
+  hasMore: z.boolean(),
+  messages: z.array(ChatMessageSchema).max(30),
+  nextCursor: z.string().nullable(),
+  parent: ChatMessageSchema,
+});
+
 export const MobileChannelSendMessageRequestSchema = MobileSendMessageRequestSchema;
 
 export const MobileChannelSendMessageResponseSchema = z.object({
@@ -432,14 +474,22 @@ export type MobileBootstrapDMConversationSummary = z.infer<
 >;
 export type MobileBootstrapPayload = z.infer<typeof MobileBootstrapPayloadSchema>;
 export type MobileDMMessagesResponse = z.infer<typeof MobileDMMessagesResponseSchema>;
+export type MobileDMMessagesThreadResponse = z.infer<typeof MobileDMMessagesThreadResponseSchema>;
 export type MobileDMSendMessageRequest = z.infer<typeof MobileDMSendMessageRequestSchema>;
 export type MobileDMSendMessageResponse = z.infer<typeof MobileDMSendMessageResponseSchema>;
+export type MobileMessageReactionRequest = z.infer<typeof MobileMessageReactionRequestSchema>;
+export type MobileMessageReactionResponse = z.infer<typeof MobileMessageReactionResponseSchema>;
+export type MobileMessageEditRequest = z.infer<typeof MobileMessageEditRequestSchema>;
+export type MobileMessageDeleteResponse = z.infer<typeof MobileMessageDeleteResponseSchema>;
 export type MobileWorkspaceChannelSummary = z.infer<typeof MobileWorkspaceChannelSummarySchema>;
 export type MobileWorkspaceServerDetail = z.infer<typeof MobileWorkspaceServerDetailSchema>;
 export type MobileWorkspaceServerDetailResponse = z.infer<
   typeof MobileWorkspaceServerDetailResponseSchema
 >;
 export type MobileChannelMessagesResponse = z.infer<typeof MobileChannelMessagesResponseSchema>;
+export type MobileChannelThreadMessagesResponse = z.infer<
+  typeof MobileChannelThreadMessagesResponseSchema
+>;
 export type MobileChannelSendMessageRequest = z.infer<typeof MobileChannelSendMessageRequestSchema>;
 export type MobileChannelSendMessageResponse = z.infer<
   typeof MobileChannelSendMessageResponseSchema

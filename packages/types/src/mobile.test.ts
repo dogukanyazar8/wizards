@@ -28,11 +28,17 @@ import {
   MobileBootstrapPermissionIntentSchema,
   MobileBootstrapServerSummarySchema,
   MobileChannelMessagesResponseSchema,
+  MobileChannelThreadMessagesResponseSchema,
   MobileChannelSendMessageRequestSchema,
   MobileChannelSendMessageResponseSchema,
+  MobileDMMessagesThreadResponseSchema,
   MobileDMMessagesResponseSchema,
   MobileDMSendMessageRequestSchema,
   MobileDMSendMessageResponseSchema,
+  MobileMessageDeleteResponseSchema,
+  MobileMessageEditRequestSchema,
+  MobileMessageReactionRequestSchema,
+  MobileMessageReactionResponseSchema,
   MobilePushPlatformSchema,
   MobilePushProviderSchema,
   MobilePushRegistrationRequestSchema,
@@ -407,6 +413,21 @@ describe("mobile schemas", () => {
           nextCursor: null,
         },
       },
+      MobileChannelThreadMessagesResponseSchema: {
+        schema: MobileChannelThreadMessagesResponseSchema,
+        valid: {
+          hasMore: false,
+          messages: [chatMessage],
+          nextCursor: null,
+          parent: chatMessage,
+        },
+        invalid: {
+          hasMore: false,
+          messages: [chatMessage],
+          nextCursor: null,
+          parent: null,
+        },
+      },
       MobileChannelSendMessageRequestSchema: {
         schema: MobileChannelSendMessageRequestSchema,
         valid: { content: "Hello" },
@@ -422,6 +443,11 @@ describe("mobile schemas", () => {
         valid: { conversation: dmConversation, messages: [dmMessage], nextCursor: null },
         invalid: { conversation: dmConversation, messages: "message-1", nextCursor: null },
       },
+      MobileDMMessagesThreadResponseSchema: {
+        schema: MobileDMMessagesThreadResponseSchema,
+        valid: { messages: [dmMessage], nextCursor: null, parent: dmMessage },
+        invalid: { messages: [dmMessage], nextCursor: null, parent: null },
+      },
       MobileDMSendMessageRequestSchema: {
         schema: MobileDMSendMessageRequestSchema,
         valid: { content: "Hello" },
@@ -431,6 +457,26 @@ describe("mobile schemas", () => {
         schema: MobileDMSendMessageResponseSchema,
         valid: { message: dmMessage },
         invalid: { message: null },
+      },
+      MobileMessageDeleteResponseSchema: {
+        schema: MobileMessageDeleteResponseSchema,
+        valid: { placeholderExpiresAt: now, status: "deleted" },
+        invalid: { status: "deleted" },
+      },
+      MobileMessageEditRequestSchema: {
+        schema: MobileMessageEditRequestSchema,
+        valid: { content: "Edited message" },
+        invalid: { content: "   " },
+      },
+      MobileMessageReactionRequestSchema: {
+        schema: MobileMessageReactionRequestSchema,
+        valid: { emoji: "👍" },
+        invalid: { emoji: "   " },
+      },
+      MobileMessageReactionResponseSchema: {
+        schema: MobileMessageReactionResponseSchema,
+        valid: { reactions: [] },
+        invalid: { reactions: "none" },
       },
       MobilePushPlatformSchema: {
         schema: MobilePushPlatformSchema,
