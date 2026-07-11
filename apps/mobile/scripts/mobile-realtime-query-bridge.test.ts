@@ -214,6 +214,41 @@ describe("mobile realtime query bridge", () => {
     assert.equal(fake.pendingCount(), 0);
   });
 
+  it("applies active DM reaction and removal events without broad refresh", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const key = mobileQueryKeys.dmMessages("conversation-1");
+    queryClient.setQueryData<InfiniteData<MobileDMMessagesResponse, string | null>>(key, {
+      pageParams: [null],
+      pages: [makeDMPage([makeDMMessage("message-1"), makeDMMessage("message-2")])],
+    });
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("dm:message:reaction_updated", {
+        messageId: "message-1",
+        reactions: [{ count: 1, emoji: "heart", userIds: ["user-1"] }],
+      }),
+    );
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("dm:message:removed", {
+        conversationId: "conversation-1",
+        messageId: "message-2",
+      }),
+    );
+
+    const updated =
+      queryClient.getQueryData<InfiniteData<MobileDMMessagesResponse, string | null>>(key);
+    assert.deepEqual(
+      updated?.pages[0]?.messages.map((message) => message.id),
+      ["message-1"],
+    );
+    assert.deepEqual(updated?.pages[0]?.messages[0]?.reactions, [
+      { count: 1, emoji: "heart", userIds: ["user-1"] },
+    ]);
+    assert.equal(fake.pendingCount(), 0);
+  });
+
   it("invalidates DM events and clears every pending timer on dispose", () => {
     const queryClient = new QueryClient();
     const fake = createFakeScheduler();

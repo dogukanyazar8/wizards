@@ -89,6 +89,13 @@ export const MOBILE_AUTOMATED_GATES: MobileAutomatedGate[] = [
     required: true,
   },
   {
+    command: "maestro test ../../.maestro/phase2-messaging.yml",
+    id: "mobile-maestro-phase2-messaging",
+    purpose:
+      "Android device proof for reactions, replies, edits, deletion, threads, and both themes.",
+    required: true,
+  },
+  {
     command: "corepack pnpm --filter @wizards/mobile validate:env",
     id: "mobile-env-validation",
     purpose: "Build-time endpoint and public environment validation.",

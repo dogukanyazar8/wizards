@@ -19,6 +19,8 @@ export type MobileRealtimeClient = {
   disconnect(): void;
   emitChannelTypingStart(channelId: string): void;
   emitChannelTypingStop(channelId: string): void;
+  emitDMTypingStart(conversationId: string): void;
+  emitDMTypingStop(conversationId: string): void;
   emitVoiceInviteAccept(input: { channelId: string; inviteId: string; serverId: string }): void;
   emitVoiceInviteDecline(input: { channelId: string; inviteId: string; serverId: string }): void;
   emitVoiceInviteSend(input: { channelId: string; serverId: string; targetUserId: string }): void;
@@ -39,7 +41,9 @@ type MutableSocketAuth = {
   auth?: { token?: string };
 };
 
-async function resolveSocketAuthToken(getAccessToken: MobileRealtimeClientOptions["getAccessToken"]) {
+async function resolveSocketAuthToken(
+  getAccessToken: MobileRealtimeClientOptions["getAccessToken"],
+) {
   const token = await getAccessToken();
   return typeof token === "string" && token.length > 0 ? token : null;
 }
@@ -107,10 +111,7 @@ export function createMobileRealtimeClient(
     for (const eventName of MOBILE_REALTIME_SERVER_EVENTS) {
       boundSocket.on(eventName, (payload: unknown) => {
         options.onEvent(
-          createMobileRealtimeEventEnvelope(
-            eventName as MobileRealtimeServerEventName,
-            payload,
-          ),
+          createMobileRealtimeEventEnvelope(eventName as MobileRealtimeServerEventName, payload),
         );
       });
     }
@@ -203,6 +204,20 @@ export function createMobileRealtimeClient(
       }
 
       socket.emit("typing:stop", channelId);
+    },
+
+    emitDMTypingStart(conversationId) {
+      if (!socket?.connected || conversationId.trim().length === 0) {
+        return;
+      }
+      socket.emit("dm:typing:start", { conversationId });
+    },
+
+    emitDMTypingStop(conversationId) {
+      if (!socket?.connected || conversationId.trim().length === 0) {
+        return;
+      }
+      socket.emit("dm:typing:stop", { conversationId });
     },
 
     emitVoiceInviteAccept(input) {

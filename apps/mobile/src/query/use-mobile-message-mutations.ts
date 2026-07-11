@@ -15,19 +15,24 @@ import type {
   MobileChannelSendMessageResponse,
   MobileDMMessagesResponse,
   MobileDMSendMessageResponse,
+  MobileMessageDeleteResponse,
   MobileMessageReactionResponse,
   MessageReaction,
 } from "@wizards/types";
 import type { MobileApiClient } from "../api/mobile-api-client";
 import type { MobileSessionUser } from "../auth/session-types";
 import {
+  deleteMobileDMMessage,
   sendMobileDMMessage,
   setMobileDMMessageReaction,
+  updateMobileDMMessage,
   type SendMobileDMMessageInput,
 } from "../dm/mobile-dm-client";
 import {
+  deleteMobileChannelMessage,
   sendMobileChannelMessage,
   setMobileChannelMessageReaction,
+  updateMobileChannelMessage,
   type SendMobileChannelMessageInput,
 } from "../workspace/mobile-workspace-client";
 import {
@@ -36,6 +41,8 @@ import {
   replaceMobileMessage,
   replaceMobileMessageReactions,
   removeMobileMessage,
+  softDeleteMobileMessage,
+  updateMobileMessageContent,
 } from "./mobile-message-cache";
 import { mobileQueryKeys } from "./mobile-query-keys";
 
@@ -60,6 +67,10 @@ type MobileOptimisticReactionMutationContext<TData> = {
 
 export type MobileMessageDeleteMutationVariables = {
   readonly messageId: string;
+};
+
+export type MobileMessageEditMutationVariables = MobileMessageDeleteMutationVariables & {
+  readonly content: string;
 };
 
 type MobileOptimisticMutationOptions<
@@ -95,8 +106,33 @@ type MobileOptimisticReactionMutationOptions<
   readonly queryKey: QueryKey;
 };
 
-type MobileOptimisticDeleteMutationOptions<TResponse, TPage extends MobileMessagePage<{ readonly id: string }>, TPageParam> = {
+type MobileOptimisticDeleteMutationOptions<
+  TResponse,
+  TPage extends MobileMessagePage<{ readonly id: string }>,
+  TPageParam,
+> = {
+  readonly applyOptimisticDelete?: (
+    data: InfiniteData<TPage, TPageParam> | undefined,
+    messageId: string,
+  ) => InfiniteData<TPage, TPageParam> | undefined;
   readonly mutationFn: MutationFunction<TResponse, MobileMessageDeleteMutationVariables>;
+  readonly queryClient: QueryClient;
+  readonly queryKey: QueryKey;
+  readonly shouldRemoveOnSuccess?: (response: TResponse) => boolean;
+};
+
+type MobileOptimisticEditMutationOptions<
+  TResponse,
+  TMessage extends {
+    readonly content: string;
+    readonly editedAt?: string | null;
+    readonly id: string;
+  },
+  TPage extends MobileMessagePage<TMessage>,
+  TPageParam,
+> = {
+  readonly getResponseMessage: (response: TResponse) => TMessage;
+  readonly mutationFn: MutationFunction<TResponse, MobileMessageEditMutationVariables>;
   readonly queryClient: QueryClient;
   readonly queryKey: QueryKey;
 };
@@ -225,9 +261,59 @@ export function createMobileOptimisticDeleteMutationOptions<
       await options.queryClient.cancelQueries({ queryKey: options.queryKey });
       const previousData = options.queryClient.getQueryData<TData>(options.queryKey);
       options.queryClient.setQueryData<TData>(options.queryKey, (current) =>
-        removeMobileMessage(current, variables.messageId),
+        options.applyOptimisticDelete
+          ? options.applyOptimisticDelete(current, variables.messageId)
+          : removeMobileMessage(current, variables.messageId),
       );
       return { previousData };
+    },
+    onSuccess: (response, variables) => {
+      if (options.shouldRemoveOnSuccess?.(response)) {
+        options.queryClient.setQueryData<TData>(options.queryKey, (current) =>
+          removeMobileMessage(current, variables.messageId),
+        );
+      }
+    },
+  });
+}
+
+export function createMobileOptimisticEditMutationOptions<
+  TResponse,
+  TMessage extends {
+    readonly content: string;
+    readonly editedAt?: string | null;
+    readonly id: string;
+  },
+  TPage extends MobileMessagePage<TMessage>,
+  TPageParam = string | null,
+>(options: MobileOptimisticEditMutationOptions<TResponse, TMessage, TPage, TPageParam>) {
+  type TData = InfiniteData<TPage, TPageParam>;
+  type TContext = MobileOptimisticReactionMutationContext<TData>;
+
+  return mutationOptions<TResponse, Error, MobileMessageEditMutationVariables, TContext>({
+    mutationFn: options.mutationFn,
+    onError: (_error, _variables, context) => {
+      if (context?.previousData) {
+        options.queryClient.setQueryData(options.queryKey, context.previousData);
+      }
+    },
+    onMutate: async (variables) => {
+      await options.queryClient.cancelQueries({ queryKey: options.queryKey });
+      const previousData = options.queryClient.getQueryData<TData>(options.queryKey);
+      options.queryClient.setQueryData<TData>(options.queryKey, (current) =>
+        updateMobileMessageContent(
+          current,
+          variables.messageId,
+          variables.content,
+          new Date().toISOString(),
+        ),
+      );
+      return { previousData };
+    },
+    onSuccess: (response, variables) => {
+      options.queryClient.setQueryData<TData>(options.queryKey, (current) =>
+        replaceMobileMessage(current, variables.messageId, options.getResponseMessage(response)),
+      );
     },
   });
 }
@@ -372,6 +458,96 @@ export function useMobileDMMessageReactionMutation(input: {
         }),
       queryClient,
       queryKey,
+    }),
+  );
+}
+
+export function useMobileChannelMessageEditMutation(input: {
+  readonly channelId: string;
+  readonly client: MobileApiClient;
+}) {
+  const queryClient = useQueryClient();
+  const queryKey = mobileQueryKeys.channelMessages(input.channelId);
+
+  return useMutation(
+    createMobileOptimisticEditMutationOptions<
+      MobileChannelSendMessageResponse,
+      ChatMessage,
+      MobileChannelMessagesResponse
+    >({
+      getResponseMessage: (response) => response.message,
+      mutationFn: (variables) =>
+        updateMobileChannelMessage(input.client, { ...variables, channelId: input.channelId }),
+      queryClient,
+      queryKey,
+    }),
+  );
+}
+
+export function useMobileDMMessageEditMutation(input: {
+  readonly client: MobileApiClient;
+  readonly conversationId: string;
+}) {
+  const queryClient = useQueryClient();
+  const queryKey = mobileQueryKeys.dmMessages(input.conversationId);
+
+  return useMutation(
+    createMobileOptimisticEditMutationOptions<
+      MobileDMSendMessageResponse,
+      DMMessagePayload,
+      MobileDMMessagesResponse
+    >({
+      getResponseMessage: (response) => response.message,
+      mutationFn: (variables) =>
+        updateMobileDMMessage(input.client, { ...variables, conversationId: input.conversationId }),
+      queryClient,
+      queryKey,
+    }),
+  );
+}
+
+export function useMobileChannelMessageDeleteMutation(input: {
+  readonly channelId: string;
+  readonly client: MobileApiClient;
+}) {
+  const queryClient = useQueryClient();
+  const queryKey = mobileQueryKeys.channelMessages(input.channelId);
+
+  return useMutation(
+    createMobileOptimisticDeleteMutationOptions<
+      MobileMessageDeleteResponse,
+      MobileChannelMessagesResponse
+    >({
+      applyOptimisticDelete: (current, messageId) =>
+        softDeleteMobileMessage(current, messageId, new Date().toISOString()),
+      mutationFn: (variables) =>
+        deleteMobileChannelMessage(input.client, { ...variables, channelId: input.channelId }),
+      queryClient,
+      queryKey,
+      shouldRemoveOnSuccess: (response) => response.status === "removed",
+    }),
+  );
+}
+
+export function useMobileDMMessageDeleteMutation(input: {
+  readonly client: MobileApiClient;
+  readonly conversationId: string;
+}) {
+  const queryClient = useQueryClient();
+  const queryKey = mobileQueryKeys.dmMessages(input.conversationId);
+
+  return useMutation(
+    createMobileOptimisticDeleteMutationOptions<
+      MobileMessageDeleteResponse,
+      MobileDMMessagesResponse
+    >({
+      applyOptimisticDelete: (current, messageId) =>
+        softDeleteMobileMessage(current, messageId, new Date().toISOString()),
+      mutationFn: (variables) =>
+        deleteMobileDMMessage(input.client, { ...variables, conversationId: input.conversationId }),
+      queryClient,
+      queryKey,
+      shouldRemoveOnSuccess: (response) => response.status === "removed",
     }),
   );
 }

@@ -1,10 +1,11 @@
 import React from "react";
-import { BackHandler, Pressable, StyleSheet, Text } from "react-native";
+import { Alert, BackHandler, Pressable, StyleSheet, Text } from "react-native";
 import { fireEvent, render } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { useReducedMotion } from "react-native-reanimated";
 import type { ChatMessage } from "@wizards/types";
 import { darkTheme, lightTheme, type MobileTheme } from "../src/design/themes";
+import { activeMobileCopy as copy } from "../src/locale/mobile-locale-preferences";
 
 let mockTheme: MobileTheme = lightTheme;
 let mockGestureHandlers: {
@@ -26,6 +27,13 @@ jest.mock("react-native-gesture-handler", () => {
 
   return {
     Gesture: {
+      Pinch: () => {
+        const gesture = {
+          onEnd: () => gesture,
+          onUpdate: () => gesture,
+        };
+        return gesture;
+      },
       Pan: () => {
         const gesture = {
           enabled: () => gesture,
@@ -40,6 +48,7 @@ jest.mock("react-native-gesture-handler", () => {
         };
         return gesture;
       },
+      Simultaneous: (...gestures: unknown[]) => gestures[0],
     },
     GestureDetector: ({ children }: { children: React.ReactNode }) =>
       ReactRuntime.createElement(ReactNative.View, { testID: "mock-gesture-detector" }, children),
@@ -47,7 +56,7 @@ jest.mock("react-native-gesture-handler", () => {
 });
 
 import { BottomSheet, ContextMenu } from "../src/app/components/kit";
-import { MessagePreviewRow } from "../src/app/components/message-primitives";
+import { MessageAttachmentList, MessagePreviewRow } from "../src/app/components/message-primitives";
 
 beforeEach(() => {
   mockGestureHandlers = {};
@@ -67,12 +76,7 @@ for (const theme of [lightTheme, darkTheme]) {
       });
 
       const view = await render(
-        <BottomSheet
-          accessibilityLabel="Actions"
-          onClose={onClose}
-          open
-          testID="overlay-sheet"
-        >
+        <BottomSheet accessibilityLabel="Actions" onClose={onClose} open testID="overlay-sheet">
           <Text>Sheet content</Text>
         </BottomSheet>,
       );
@@ -97,7 +101,12 @@ for (const theme of [lightTheme, darkTheme]) {
       mockTheme = theme;
       jest.mocked(useReducedMotion).mockReturnValue(true);
       const view = await render(
-        <BottomSheet accessibilityLabel="Actions" onClose={jest.fn()} open={false} testID="closed-sheet">
+        <BottomSheet
+          accessibilityLabel="Actions"
+          onClose={jest.fn()}
+          open={false}
+          testID="closed-sheet"
+        >
           <Text>Hidden content</Text>
         </BottomSheet>,
       );
@@ -152,7 +161,7 @@ for (const theme of [lightTheme, darkTheme]) {
         editedAt: null,
         id: "message-1",
         mentionEveryone: false,
-        reactions: [],
+        reactions: [{ count: 1, emoji: "🔥", userIds: ["user-3"] }],
         type: "DEFAULT",
       };
       const view = await render(
@@ -167,6 +176,100 @@ for (const theme of [lightTheme, darkTheme]) {
         messageId: "message-1",
         shouldReact: true,
       });
+
+      await fireEvent(view.getByTestId("mobile-message-actions-message-1-trigger"), "longPress");
+      await fireEvent.press(view.getByLabelText(copy.messageEmojiPickerAction));
+      expect(view.getByTestId("mobile-message-emoji-picker-panel")).toBeTruthy();
+      await fireEvent.press(view.getByLabelText("😀"));
+      expect(onToggleReaction).toHaveBeenLastCalledWith({
+        emoji: "😀",
+        messageId: "message-1",
+        shouldReact: true,
+      });
+      await fireEvent.press(view.getByTestId("mobile-message-reaction-message-1-🔥"));
+      expect(onToggleReaction).toHaveBeenLastCalledWith({
+        emoji: "🔥",
+        messageId: "message-1",
+        shouldReact: true,
+      });
+    });
+
+    it("gates edit and delete to the author and confirms destructive deletion", async () => {
+      mockTheme = theme;
+      const onDeleteMessage = jest.fn();
+      const onEditMessage = jest.fn();
+      const onReplyMessage = jest.fn();
+      const alert = jest.spyOn(Alert, "alert").mockImplementation((_title, _message, buttons) => {
+        buttons?.find((button) => button.style === "destructive")?.onPress?.();
+      });
+      const message: ChatMessage = {
+        attachments: [],
+        author: {
+          avatarUrl: null,
+          displayName: "Ada",
+          id: "user-1",
+          status: "ONLINE",
+          username: "ada",
+        },
+        channelId: "channel-1",
+        content: "Own message",
+        createdAt: "2026-07-11T10:00:00.000Z",
+        deletedAt: null,
+        editedAt: null,
+        id: "message-own",
+        mentionEveryone: false,
+        reactions: [],
+        type: "DEFAULT",
+      };
+      const view = await render(
+        <MessagePreviewRow
+          currentUserId="user-1"
+          message={message}
+          onDeleteMessage={onDeleteMessage}
+          onEditMessage={onEditMessage}
+          onReplyMessage={onReplyMessage}
+          own
+        />,
+      );
+
+      await fireEvent(view.getByTestId("mobile-message-actions-message-own-trigger"), "longPress");
+      await fireEvent.press(view.getByLabelText(copy.messageReplyAction));
+      expect(onReplyMessage).toHaveBeenCalledWith({ content: "Own message", id: "message-own" });
+      await fireEvent(view.getByTestId("mobile-message-actions-message-own-trigger"), "longPress");
+      await fireEvent.press(view.getByLabelText(copy.messageEditAction));
+      expect(onEditMessage).toHaveBeenCalledWith({ content: "Own message", id: "message-own" });
+      await fireEvent(view.getByTestId("mobile-message-actions-message-own-trigger"), "longPress");
+      await fireEvent.press(view.getByLabelText(copy.messageDeleteAction));
+      expect(alert).toHaveBeenCalledTimes(1);
+      expect(onDeleteMessage).toHaveBeenCalledWith("message-own");
+      alert.mockRestore();
+    });
+
+    it("opens image attachments in the reduced-motion-aware lightbox", async () => {
+      mockTheme = theme;
+      const view = await render(
+        <MessageAttachmentList
+          attachments={[
+            {
+              contentType: "image/png",
+              duration: null,
+              filename: "proof.png",
+              height: 600,
+              id: "attachment-1",
+              scanStatus: "CLEAN",
+              size: 1024,
+              thumbnailUrl: "https://cdn.example.com/proof-thumb.png",
+              url: "https://cdn.example.com/proof.png",
+              width: 800,
+            },
+          ]}
+        />,
+      );
+
+      await fireEvent.press(view.getByTestId("mobile-message-image-attachment-1"));
+      expect(view.getByTestId("mobile-message-image-lightbox")).toBeTruthy();
+      await fireEvent.press(view.getByTestId("mobile-message-image-lightbox-close"));
+      expect(view.queryByTestId("mobile-message-image-lightbox")).toBeNull();
     });
   });
 }

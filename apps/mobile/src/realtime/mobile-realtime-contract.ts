@@ -205,7 +205,7 @@ export function isMobileRealtimeChannelMessagePayloadEvent(
 export function isMobileRealtimeDMMessagePayloadEvent(
   eventName: MobileRealtimeServerEventName,
 ): boolean {
-  return eventName === "dm:message:new" || eventName === "dm:message:updated";
+  return DM_REFRESH_EVENTS.has(eventName);
 }
 
 export function createMobileRealtimeEventEnvelope(

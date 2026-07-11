@@ -22,6 +22,20 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       lineHeight: 20,
       fontWeight: "600",
     },
+    messageMention: {
+      backgroundColor: theme.accent.soft,
+      color: theme.accent.strong,
+      fontWeight: "900",
+    },
+    messageReplyQuote: {
+      borderLeftColor: theme.accent.strong,
+      borderLeftWidth: 3,
+      color: theme.text.muted,
+      fontSize: 12,
+      lineHeight: 17,
+      marginBottom: 6,
+      paddingLeft: 8,
+    },
     dmMessageHeader: {
       flexDirection: "row",
       alignItems: "center",

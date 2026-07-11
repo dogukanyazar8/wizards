@@ -8,6 +8,7 @@ import {
   getMobileAttachmentDraftSendGuard,
   getMobileAttachmentUploadReadiness,
   useCallback,
+  useEffect,
   useState,
   type MobileBootstrapFeature,
   type MobileChannelSendViewState,
@@ -19,9 +20,17 @@ import { Icon } from "../components/kit";
 import { useMobileComposerStyles } from "./mobile-composer.styles";
 import { useTheme } from "../providers/mobile-theme-provider";
 
+export type MobileComposerIntent = {
+  readonly content: string;
+  readonly messageId: string;
+  readonly mode: "edit" | "reply";
+};
+
 export function DMComposer({
   attachmentsFeature,
   mediaState,
+  intent = null,
+  onCancelIntent,
   onClearSelectedMediaAsset,
   onDraftChange,
   onRequestDocumentPicker,
@@ -35,6 +44,8 @@ export function DMComposer({
 }: {
   attachmentsFeature?: MobileBootstrapFeature | null;
   mediaState?: MobileMediaRuntimeState;
+  intent?: MobileComposerIntent | null;
+  onCancelIntent?: () => void;
   onClearSelectedMediaAsset?: () => void;
   onDraftChange?: (content: string) => void;
   onRequestDocumentPicker?: () => Promise<void>;
@@ -67,6 +78,12 @@ export function DMComposer({
     reason: attachmentUploadReadiness.reason,
   });
 
+  useEffect(() => {
+    if (intent?.mode === "edit") {
+      setDraft(intent.content);
+    }
+  }, [intent]);
+
   const handleSend = useCallback(async () => {
     if (isDisabled) {
       return;
@@ -76,8 +93,36 @@ export function DMComposer({
     if (didSend) {
       setDraft("");
       onDraftChange?.("");
+      onCancelIntent?.();
     }
-  }, [isDisabled, onDraftChange, onSend, trimmedDraft]);
+  }, [isDisabled, onCancelIntent, onDraftChange, onSend, trimmedDraft]);
+
+  const intentBanner = intent ? (
+    <View style={styles.dmComposerAttachmentCard} testID={`mobile-message-${intent.mode}-preview`}>
+      <View style={styles.dmComposerAttachmentText}>
+        <Text style={styles.dmComposerAttachmentTitle} numberOfLines={1}>
+          {intent.mode === "edit" ? copy.messageEditingLabel : copy.messageReplyingToLabel}
+        </Text>
+        <Text style={styles.dmComposerAttachmentMeta} numberOfLines={1}>
+          {intent.content}
+        </Text>
+      </View>
+      {onCancelIntent ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.messageComposerCancelAction}
+          onPress={onCancelIntent}
+          style={({ pressed }) => [
+            styles.dmComposerAttachmentClear,
+            pressed && styles.actionButtonPressed,
+          ]}
+          testID="mobile-message-intent-cancel"
+        >
+          <Icon name="close" size={16} tone="accent" />
+        </Pressable>
+      ) : null}
+    </View>
+  ) : null;
 
   const handleDraftChange = useCallback(
     (content: string) => {
@@ -90,6 +135,7 @@ export function DMComposer({
   if (variant === "channel") {
     return (
       <View style={[styles.dmComposer, styles.channelComposer]} testID="mobile-channel-composer">
+        {intentBanner}
         {selectedAsset ? (
           <View style={styles.dmComposerAttachmentCard}>
             <View style={styles.dmComposerAttachmentText}>
@@ -124,6 +170,7 @@ export function DMComposer({
           placeholder={placeholder}
           placeholderTextColor={theme.text.soft}
           style={[styles.dmComposerInput, styles.channelComposerInput]}
+          testID="mobile-channel-composer-input"
           value={draft}
         />
 
@@ -250,6 +297,7 @@ export function DMComposer({
 
   return (
     <View style={styles.dmComposer}>
+      {intentBanner}
       <View style={styles.dmComposerToolbar}>
         {onRequestDocumentPicker ? (
           <Pressable
@@ -326,6 +374,7 @@ export function DMComposer({
         placeholder={placeholder}
         placeholderTextColor={theme.text.soft}
         style={styles.dmComposerInput}
+        testID="mobile-dm-composer-input"
         value={draft}
       />
       <Pressable
@@ -339,6 +388,7 @@ export function DMComposer({
           isDisabled && styles.dmSendButtonDisabled,
           pressed && !isDisabled && styles.actionButtonPressed,
         ]}
+        testID="mobile-dm-send-button"
       >
         <Text style={styles.dmSendButtonText}>
           {isSending ? sendingActionLabel : sendActionLabel}

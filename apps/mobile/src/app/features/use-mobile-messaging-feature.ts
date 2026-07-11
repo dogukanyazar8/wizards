@@ -12,10 +12,15 @@ import {
 import { useMobileMessageSearchQuery } from "../../query/mobile-message-search-query";
 import {
   useMobileChannelMessageMutation,
+  useMobileChannelMessageDeleteMutation,
+  useMobileChannelMessageEditMutation,
   useMobileChannelMessageReactionMutation,
+  useMobileDMMessageDeleteMutation,
+  useMobileDMMessageEditMutation,
   useMobileDMMessageMutation,
   useMobileDMMessageReactionMutation,
   type MobileMessageReactionMutationVariables,
+  type MobileMessageEditMutationVariables,
 } from "../../query/use-mobile-message-mutations";
 import { useMobileWorkspaceQuery } from "../../query/mobile-workspace-query";
 import {
@@ -65,7 +70,9 @@ export function useMobileMessagingFeature({
   joinVoiceChannel,
   leaveVoiceChannel,
   stopChannelTyping,
+  stopDMTyping,
   updateChannelTyping,
+  updateDMTyping,
 }: {
   readonly activeVoiceChannelId: string | null;
   readonly apiClient: MobileApiClient;
@@ -78,7 +85,9 @@ export function useMobileMessagingFeature({
   }) => Promise<boolean>;
   readonly leaveVoiceChannel: () => Promise<void>;
   readonly stopChannelTyping: (channelId: string) => void;
+  readonly stopDMTyping: (conversationId: string) => void;
   readonly updateChannelTyping: (channelId: string, content: string) => void;
+  readonly updateDMTyping: (conversationId: string, content: string) => void;
 }) {
   const [currentTab, setCurrentTab] = useState<MobileTabId>("overview");
   const [selectedDMConversationId, setSelectedDMConversationId] = useState<string | null>(null);
@@ -133,6 +142,22 @@ export function useMobileMessagingFeature({
     client: apiClient,
     conversationId: selectedDMConversationId ?? "",
   });
+  const channelEditMutation = useMobileChannelMessageEditMutation({
+    channelId: activeWorkspaceTextChannelId ?? "",
+    client: apiClient,
+  });
+  const dmEditMutation = useMobileDMMessageEditMutation({
+    client: apiClient,
+    conversationId: selectedDMConversationId ?? "",
+  });
+  const channelDeleteMutation = useMobileChannelMessageDeleteMutation({
+    channelId: activeWorkspaceTextChannelId ?? "",
+    client: apiClient,
+  });
+  const dmDeleteMutation = useMobileDMMessageDeleteMutation({
+    client: apiClient,
+    conversationId: selectedDMConversationId ?? "",
+  });
   const {
     isError: isChannelSendError,
     isPending: isChannelSending,
@@ -148,6 +173,11 @@ export function useMobileMessagingFeature({
   const { isPending: isChannelReactionPending, mutate: mutateChannelReaction } =
     channelReactionMutation;
   const { isPending: isDMReactionPending, mutate: mutateDMReaction } = dmReactionMutation;
+  const { isPending: isChannelEditPending, mutateAsync: editChannelMessage } = channelEditMutation;
+  const { isPending: isDMEditPending, mutateAsync: editDMMessage } = dmEditMutation;
+  const { isPending: isChannelDeletePending, mutateAsync: deleteChannelMessage } =
+    channelDeleteMutation;
+  const { isPending: isDMDeletePending, mutateAsync: deleteDMMessage } = dmDeleteMutation;
   const bootstrapState = toMobileBootstrapViewState(
     bootstrapQuery,
     summarizeMobileBootstrap,
@@ -265,7 +295,10 @@ export function useMobileMessagingFeature({
   );
 
   const handleSendDMMessage = useCallback(
-    async (content: string): Promise<boolean> => {
+    async (
+      content: string,
+      intent?: { readonly replyToId?: string; readonly threadParentId?: string },
+    ): Promise<boolean> => {
       const trimmedContent = content.trim();
 
       if (!isSignedIn || !selectedDMConversationId || trimmedContent.length === 0) {
@@ -273,17 +306,21 @@ export function useMobileMessagingFeature({
       }
 
       try {
-        await sendDMMessage({ content: trimmedContent });
+        stopDMTyping(selectedDMConversationId);
+        await sendDMMessage({ content: trimmedContent, ...intent });
         return true;
       } catch {
         return false;
       }
     },
-    [isSignedIn, selectedDMConversationId, sendDMMessage],
+    [isSignedIn, selectedDMConversationId, sendDMMessage, stopDMTyping],
   );
 
   const handleSendChannelMessage = useCallback(
-    async (content: string): Promise<boolean> => {
+    async (
+      content: string,
+      intent?: { readonly replyToId?: string; readonly threadParentId?: string },
+    ): Promise<boolean> => {
       const trimmedContent = content.trim();
 
       if (!isSignedIn || !activeWorkspaceTextChannelId || trimmedContent.length === 0) {
@@ -293,7 +330,7 @@ export function useMobileMessagingFeature({
       stopChannelTyping(activeWorkspaceTextChannelId);
 
       try {
-        await sendChannelMessage({ content: trimmedContent });
+        await sendChannelMessage({ content: trimmedContent, ...intent });
         return true;
       } catch {
         return false;
@@ -335,6 +372,78 @@ export function useMobileMessagingFeature({
     [currentUser, isDMReactionPending, isSignedIn, mutateDMReaction, selectedDMConversationId],
   );
 
+  const handleEditChannelMessage = useCallback(
+    async (variables: MobileMessageEditMutationVariables): Promise<boolean> => {
+      if (!isSignedIn || !currentUser || !activeWorkspaceTextChannelId || isChannelEditPending) {
+        return false;
+      }
+      try {
+        await editChannelMessage({ ...variables, content: variables.content.trim() });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [
+      activeWorkspaceTextChannelId,
+      currentUser,
+      editChannelMessage,
+      isChannelEditPending,
+      isSignedIn,
+    ],
+  );
+
+  const handleEditDMMessage = useCallback(
+    async (variables: MobileMessageEditMutationVariables): Promise<boolean> => {
+      if (!isSignedIn || !currentUser || !selectedDMConversationId || isDMEditPending) {
+        return false;
+      }
+      try {
+        await editDMMessage({ ...variables, content: variables.content.trim() });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [currentUser, editDMMessage, isDMEditPending, isSignedIn, selectedDMConversationId],
+  );
+
+  const handleDeleteChannelMessage = useCallback(
+    async (messageId: string): Promise<boolean> => {
+      if (!isSignedIn || !currentUser || !activeWorkspaceTextChannelId || isChannelDeletePending) {
+        return false;
+      }
+      try {
+        await deleteChannelMessage({ messageId });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [
+      activeWorkspaceTextChannelId,
+      currentUser,
+      deleteChannelMessage,
+      isChannelDeletePending,
+      isSignedIn,
+    ],
+  );
+
+  const handleDeleteDMMessage = useCallback(
+    async (messageId: string): Promise<boolean> => {
+      if (!isSignedIn || !currentUser || !selectedDMConversationId || isDMDeletePending) {
+        return false;
+      }
+      try {
+        await deleteDMMessage({ messageId });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [currentUser, deleteDMMessage, isDMDeletePending, isSignedIn, selectedDMConversationId],
+  );
+
   const refreshBootstrap = useCallback(() => {
     void bootstrapQuery.refetch();
   }, [bootstrapQuery]);
@@ -366,6 +475,14 @@ export function useMobileMessagingFeature({
     },
     [isSignedIn, selectedWorkspaceChannelId, updateChannelTyping],
   );
+  const handleDMDraftChange = useCallback(
+    (content: string) => {
+      if (isSignedIn && selectedDMConversationId) {
+        updateDMTyping(selectedDMConversationId, content);
+      }
+    },
+    [isSignedIn, selectedDMConversationId, updateDMTyping],
+  );
 
   const handleOpenDMConversation = useCallback(
     (conversationId: string) => {
@@ -377,10 +494,13 @@ export function useMobileMessagingFeature({
   );
 
   const handleCloseDMConversation = useCallback(() => {
+    if (selectedDMConversationId) {
+      stopDMTyping(selectedDMConversationId);
+    }
     clearMessageSearch();
     resetDMMessageMutation();
     setSelectedDMConversationId(null);
-  }, [clearMessageSearch, resetDMMessageMutation]);
+  }, [clearMessageSearch, resetDMMessageMutation, selectedDMConversationId, stopDMTyping]);
 
   const handleOpenWorkspaceServer = useCallback(
     (serverId: string) => {
@@ -658,6 +778,11 @@ export function useMobileMessagingFeature({
     dmSyncState: toMobileSyncSnapshot(dmMessagesQuery, "dm"),
     getSyncHealth,
     handleChannelDraftChange,
+    handleDeleteChannelMessage,
+    handleDeleteDMMessage,
+    handleDMDraftChange,
+    handleEditChannelMessage,
+    handleEditDMMessage,
     handleCloseDMConversation,
     handleCloseWorkspaceChannel,
     handleCloseWorkspaceVoiceChannel,
@@ -673,7 +798,9 @@ export function useMobileMessagingFeature({
     handleToggleChannelMessageReaction,
     handleToggleDMMessageReaction,
     isChannelReactionPending,
+    isChannelMessageActionPending: isChannelEditPending || isChannelDeletePending,
     isDMReactionPending,
+    isDMMessageActionPending: isDMEditPending || isDMDeletePending,
     messageSearchState,
     refreshBootstrap,
     refreshChannelMessages,

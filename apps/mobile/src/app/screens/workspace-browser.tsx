@@ -82,6 +82,8 @@ export function MobileWorkspaceBrowser({
   onChannelDraftChange,
   onSearchMessages,
   onSendChannelMessage,
+  onDeleteMessage,
+  onEditMessage,
   onOpenThread,
   onToggleMessageReaction,
   onSendVoiceInvite,
@@ -131,7 +133,12 @@ export function MobileWorkspaceBrowser({
     query: string;
     scope: "channel";
   }): Promise<void>;
-  onSendChannelMessage(content: string): Promise<boolean>;
+  onSendChannelMessage(
+    content: string,
+    intent?: { readonly replyToId?: string; readonly threadParentId?: string },
+  ): Promise<boolean>;
+  onDeleteMessage(messageId: string): Promise<boolean>;
+  onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onOpenThread?(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   onSendVoiceInvite(targetUserId: string): void;
@@ -206,7 +213,9 @@ export function MobileWorkspaceBrowser({
     const collapsedMap = Object.fromEntries(
       channelSections.map((section) => [
         section.id,
-        isSearchingChannels ? false : collapsedSectionIds[`${activeServerId}:${section.id}`] === true,
+        isSearchingChannels
+          ? false
+          : collapsedSectionIds[`${activeServerId}:${section.id}`] === true,
       ]),
     );
 
@@ -217,7 +226,9 @@ export function MobileWorkspaceBrowser({
     serverState.serverId === activeServerId &&
     serverState.status === "loading";
   const isActiveServerError =
-    activeServerId !== null && serverState.serverId === activeServerId && serverState.status === "error";
+    activeServerId !== null &&
+    serverState.serverId === activeServerId &&
+    serverState.status === "error";
   const handleServerPress = useCallback(
     (serverId: string) => {
       setChannelQuery("");
@@ -264,6 +275,8 @@ export function MobileWorkspaceBrowser({
         onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
         onSearchMessages={onSearchMessages}
         onSendMessage={onSendChannelMessage}
+        onDeleteMessage={onDeleteMessage}
+        onEditMessage={onEditMessage}
         {...(onOpenThread ? { onOpenThread } : {})}
         onToggleMessageReaction={onToggleMessageReaction}
       />
@@ -358,13 +371,18 @@ export function MobileWorkspaceBrowser({
         ) : (
           <>
             <View style={styles.mobileWorkspaceHeader}>
-              <AvatarMark imageUrl={activeServerIconUrl} label={activeServerShortName} size="large" />
+              <AvatarMark
+                imageUrl={activeServerIconUrl}
+                label={activeServerShortName}
+                size="large"
+              />
               <View style={styles.mobileWorkspaceHeaderText}>
                 <Text style={styles.mobileWorkspaceTitle} numberOfLines={1}>
                   {activeServerName}
                 </Text>
                 <Text style={styles.mobileWorkspaceMeta} numberOfLines={1}>
-                  {activeMemberCount} {copy.membersSuffix} - {activeChannelCount} {copy.channelsSuffix}
+                  {activeMemberCount} {copy.membersSuffix} - {activeChannelCount}{" "}
+                  {copy.channelsSuffix}
                 </Text>
               </View>
               {isActiveServerLoading ? (
@@ -399,7 +417,10 @@ export function MobileWorkspaceBrowser({
                   accessibilityRole="button"
                   accessibilityLabel={copy.retryAction}
                   onPress={onRefreshServer}
-                  style={({ pressed }) => [styles.retryButton, pressed && styles.actionButtonPressed]}
+                  style={({ pressed }) => [
+                    styles.retryButton,
+                    pressed && styles.actionButtonPressed,
+                  ]}
                 >
                   <Text style={styles.retryButtonText}>{copy.retryAction}</Text>
                 </Pressable>

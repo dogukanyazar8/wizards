@@ -19,6 +19,8 @@ const darkModeFlowSource = existsSync(darkModeFlowPath)
   : "";
 const loginHelperPath = path.join(repositoryRoot, ".maestro", "helpers", "login-uat.yml");
 const loginHelperSource = existsSync(loginHelperPath) ? readFileSync(loginHelperPath, "utf8") : "";
+const phase2FlowPath = path.join(repositoryRoot, ".maestro", "phase2-messaging.yml");
+const phase2FlowSource = existsSync(phase2FlowPath) ? readFileSync(phase2FlowPath, "utf8") : "";
 const rootGitignoreSource = readFileSync(path.join(repositoryRoot, ".gitignore"), "utf8");
 
 const testIdSources: Record<string, { file: string; needle: string }> = {
@@ -133,5 +135,50 @@ describe("Phase 0 Maestro testID contract", () => {
       assert.match(readFileSync(path.join(process.cwd(), sourcePath), "utf8"), new RegExp(testId));
     }
     assert.ok(MOBILE_AUTOMATED_GATES.some((gate) => gate.id === "mobile-maestro-dark-mode"));
+  });
+
+  it("binds the Phase 2 messaging flow to production interaction testIDs", () => {
+    assert.ok(phase2FlowSource, ".maestro/phase2-messaging.yml must exist");
+    const contracts = {
+      "mobile-channel-composer-input": [
+        "src/app/composer/mobile-composer.tsx",
+        "mobile-channel-composer-input",
+      ],
+      "mobile-channel-send-button": [
+        "src/app/composer/mobile-composer.tsx",
+        "mobile-channel-send-button",
+      ],
+      "mobile-dm-composer-input": [
+        "src/app/composer/mobile-composer.tsx",
+        "mobile-dm-composer-input",
+      ],
+      "mobile-dm-send-button": ["src/app/composer/mobile-composer.tsx", "mobile-dm-send-button"],
+      "mobile-message-edit-preview": [
+        "src/app/composer/mobile-composer.tsx",
+        "mobile-message-${intent.mode}-preview",
+      ],
+      "mobile-message-emoji-picker-panel": [
+        "src/app/components/message-emoji-picker.tsx",
+        "mobile-message-emoji-picker",
+      ],
+      "mobile-message-reply-preview": [
+        "src/app/composer/mobile-composer.tsx",
+        "mobile-message-${intent.mode}-preview",
+      ],
+      "mobile-message-thread-screen": [
+        "src/app/screens/message-thread-screen.tsx",
+        "mobile-message-thread-screen",
+      ],
+    } as const;
+    for (const [testId, [sourcePath, needle]] of Object.entries(contracts)) {
+      assert.match(phase2FlowSource, new RegExp(`id:\\s*"${testId}"`));
+      assert.ok(readFileSync(path.join(process.cwd(), sourcePath), "utf8").includes(needle));
+    }
+    for (const action of ["More emoji", "Reply", "Edit", "Open thread", "Delete"]) {
+      assert.match(phase2FlowSource, new RegExp(action));
+    }
+    assert.match(phase2FlowSource, /artifacts\/mobile\/phase2\/light-messaging/);
+    assert.match(phase2FlowSource, /artifacts\/mobile\/phase2\/dark-messaging/);
+    assert.ok(MOBILE_AUTOMATED_GATES.some((gate) => gate.id === "mobile-maestro-phase2-messaging"));
   });
 });

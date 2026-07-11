@@ -1,0 +1,76 @@
+appId: team.whispr.mobile
+---
+- launchApp
+- tapOn:
+    text: "http://10.0.2.2:8081"
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+- runFlow:
+    file: "helpers/login-uat.yml"
+- openLink: "whispr://channels/${WHISPR_MOBILE_E2E_SERVER_ID}/${WHISPR_MOBILE_E2E_CHANNEL_ID}"
+- assertVisible:
+    id: "mobile-channel-chat-screen"
+- tapOn:
+    id: "mobile-channel-composer-input"
+- inputText: "Phase2 Maestro message"
+- tapOn:
+    id: "mobile-channel-send-button"
+- extendedWaitUntil:
+    visible: "Phase2 Maestro message"
+    timeout: 15000
+- longPressOn: "Phase2 Maestro message"
+- tapOn: "Daha fazla emoji|More emoji"
+- assertVisible:
+    id: "mobile-message-emoji-picker-panel"
+- tapOn: "😀"
+- longPressOn: "Phase2 Maestro message"
+- tapOn: "Yanitla|Reply"
+- assertVisible:
+    id: "mobile-message-reply-preview"
+- tapOn:
+    id: "mobile-channel-composer-input"
+- inputText: "Phase2 reply"
+- tapOn:
+    id: "mobile-channel-send-button"
+- extendedWaitUntil:
+    visible: "Phase2 reply"
+    timeout: 15000
+- longPressOn: "Phase2 Maestro message"
+- tapOn: "Duzenle|Edit"
+- assertVisible:
+    id: "mobile-message-edit-preview"
+- tapOn:
+    id: "mobile-channel-composer-input"
+- eraseText: 100
+- inputText: "Phase2 edited message"
+- tapOn:
+    id: "mobile-channel-send-button"
+- extendedWaitUntil:
+    visible: "Phase2 edited message"
+    timeout: 15000
+- longPressOn: "Phase2 reply"
+- tapOn: "Thread'i ac|Open thread"
+- assertVisible:
+    id: "mobile-message-thread-screen"
+- tapOn:
+    id: "mobile-dm-composer-input"
+- inputText: "Phase2 thread reply"
+- tapOn:
+    id: "mobile-dm-send-button"
+- extendedWaitUntil:
+    visible: "Phase2 thread reply"
+    timeout: 15000
+- takeScreenshot: "artifacts/mobile/phase2/light-messaging"
+- pressKey: BACK
+- longPressOn: "Phase2 edited message"
+- tapOn: "Sil|Delete"
+- tapOn: "Sil|Delete"
+- assertNotVisible: "Phase2 edited message"
+- openLink: "whispr://settings"
+- tapOn:
+    id: "mobile-settings-appearance-control"
+- tapOn: "Koyu|Dark"
+- openLink: "whispr://channels/${WHISPR_MOBILE_E2E_SERVER_ID}/${WHISPR_MOBILE_E2E_CHANNEL_ID}"
+- takeScreenshot: "artifacts/mobile/phase2/dark-messaging"

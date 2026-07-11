@@ -46,13 +46,16 @@ type MobileRealtimeEventListener = (event: MobileRealtimeEventEnvelope) => void;
 
 interface MobileRealtimeRuntime {
   readonly connection: MobileRealtimeConnectionSnapshot;
+  readonly dmTyping: MobileChannelTypingState;
   readonly typing: MobileChannelTypingState;
   emitVoiceInviteAccept(input: { channelId: string; inviteId: string; serverId: string }): void;
   emitVoiceInviteDecline(input: { channelId: string; inviteId: string; serverId: string }): void;
   emitVoiceInviteSend(input: { channelId: string; serverId: string; targetUserId: string }): void;
   stopChannelTyping(channelId: string): void;
+  stopDMTyping(conversationId: string): void;
   subscribe(listener: MobileRealtimeEventListener): () => void;
   updateChannelTyping(channelId: string, content: string): void;
+  updateDMTyping(conversationId: string, content: string): void;
 }
 
 const MobileRealtimeRuntimeContext = createContext<MobileRealtimeRuntime | null>(null);
@@ -73,6 +76,9 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
   );
   const connectionRef = useRef(connection);
   const [typing, setTyping] = useState<MobileChannelTypingState>(
+    createInitialMobileChannelTypingState,
+  );
+  const [dmTyping, setDMTyping] = useState<MobileChannelTypingState>(
     createInitialMobileChannelTypingState,
   );
   const [bridge] = useState(() =>
@@ -98,6 +104,16 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
     typingPruneTimersRef.current[channelId] = setTimeout(() => {
       delete typingPruneTimersRef.current[channelId];
       setTyping((current) => pruneMobileChannelTypingState(current));
+    }, MOBILE_CHANNEL_TYPING_STOP_DELAY_MS + 750);
+  }, []);
+  const scheduleDMTypingPrune = useCallback((conversationId: string) => {
+    const timerKey = `dm-prune:${conversationId}`;
+    if (typingPruneTimersRef.current[timerKey]) {
+      return;
+    }
+    typingPruneTimersRef.current[timerKey] = setTimeout(() => {
+      delete typingPruneTimersRef.current[timerKey];
+      setDMTyping((current) => pruneMobileChannelTypingState(current));
     }, MOBILE_CHANNEL_TYPING_STOP_DELAY_MS + 750);
   }, []);
 
@@ -147,6 +163,50 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
     [status, stopChannelTyping],
   );
 
+  const stopDMTyping = useCallback((conversationId: string) => {
+    const normalizedConversationId = conversationId.trim();
+    const timerKey = `dm:${normalizedConversationId}`;
+    if (!normalizedConversationId) {
+      return;
+    }
+    const stopTimer = typingStopTimersRef.current[timerKey];
+    if (stopTimer) {
+      clearTimeout(stopTimer);
+      delete typingStopTimersRef.current[timerKey];
+    }
+    delete typingLastStartAtRef.current[timerKey];
+    clientRef.current?.emitDMTypingStop(normalizedConversationId);
+  }, []);
+
+  const updateDMTyping = useCallback(
+    (conversationId: string, content: string) => {
+      const normalizedConversationId = conversationId.trim();
+      const timerKey = `dm:${normalizedConversationId}`;
+      if (status !== "signed-in" || !normalizedConversationId) {
+        return;
+      }
+      if (!content.trim()) {
+        stopDMTyping(normalizedConversationId);
+        return;
+      }
+      const now = Date.now();
+      const lastStartedAt = typingLastStartAtRef.current[timerKey] ?? 0;
+      if (now - lastStartedAt >= MOBILE_CHANNEL_TYPING_START_THROTTLE_MS) {
+        clientRef.current?.emitDMTypingStart(normalizedConversationId);
+        typingLastStartAtRef.current[timerKey] = now;
+      }
+      const stopTimer = typingStopTimersRef.current[timerKey];
+      if (stopTimer) {
+        clearTimeout(stopTimer);
+      }
+      typingStopTimersRef.current[timerKey] = setTimeout(
+        () => stopDMTyping(normalizedConversationId),
+        MOBILE_CHANNEL_TYPING_STOP_DELAY_MS,
+      );
+    },
+    [status, stopDMTyping],
+  );
+
   const handleEvent = useCallback(
     (event: MobileRealtimeEventEnvelope) => {
       dispatchConnection({ event, type: "event-received" });
@@ -170,12 +230,32 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
           scheduleTypingPrune(payload.channelId);
         }
       }
+      if (event.eventName === "dm:typing:update") {
+        const payload = getMobileDMTypingUpdatePayload(event.payload);
+        if (payload) {
+          setDMTyping((current) =>
+            replaceMobileChannelTypingUsers(current, {
+              channelId: payload.conversationId,
+              currentUserNames: [session?.user.displayName ?? "", session?.user.username ?? ""],
+              now: event.receivedAt,
+              usernames: payload.users,
+            }),
+          );
+          scheduleDMTypingPrune(payload.conversationId);
+        }
+      }
 
       for (const listener of listenersRef.current) {
         listener(event);
       }
     },
-    [bridge, scheduleTypingPrune, session?.user.displayName, session?.user.username],
+    [
+      bridge,
+      scheduleDMTypingPrune,
+      scheduleTypingPrune,
+      session?.user.displayName,
+      session?.user.username,
+    ],
   );
 
   useEffect(() => {
@@ -221,14 +301,7 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
         clientRef.current = null;
       }
     };
-  }, [
-    bridge,
-    connection.visibility,
-    getAccessToken,
-    handleEvent,
-    session?.user.id,
-    status,
-  ]);
+  }, [bridge, connection.visibility, getAccessToken, handleEvent, session?.user.id, status]);
 
   const channelId = useMobileActiveTargetStore((state) => state.channelId);
   const conversationId = useMobileActiveTargetStore((state) => state.conversationId);
@@ -268,6 +341,7 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
     queryClient.removeQueries({ queryKey: mobileQueryKeys.all });
     resetMobileSessionState();
     setTyping(createInitialMobileChannelTypingState());
+    setDMTyping(createInitialMobileChannelTypingState());
   }, [bridge, queryClient, status]);
 
   useEffect(
@@ -297,15 +371,27 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
   const value = useMemo<MobileRealtimeRuntime>(
     () => ({
       connection,
+      dmTyping,
       emitVoiceInviteAccept: (input) => clientRef.current?.emitVoiceInviteAccept(input),
       emitVoiceInviteDecline: (input) => clientRef.current?.emitVoiceInviteDecline(input),
       emitVoiceInviteSend: (input) => clientRef.current?.emitVoiceInviteSend(input),
       stopChannelTyping,
+      stopDMTyping,
       subscribe,
       typing,
       updateChannelTyping,
+      updateDMTyping,
     }),
-    [connection, stopChannelTyping, subscribe, typing, updateChannelTyping],
+    [
+      connection,
+      dmTyping,
+      stopChannelTyping,
+      stopDMTyping,
+      subscribe,
+      typing,
+      updateChannelTyping,
+      updateDMTyping,
+    ],
   );
 
   return (
@@ -339,5 +425,28 @@ function getMobileChannelTypingUpdatePayload(payload: unknown): {
   return {
     channelId: record.channelId,
     users: record.users.filter((user): user is string => typeof user === "string"),
+  };
+}
+
+function getMobileDMTypingUpdatePayload(payload: unknown): {
+  conversationId: string;
+  users: string[];
+} | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const record = payload as Record<string, unknown>;
+  if (typeof record.conversationId !== "string" || !Array.isArray(record.typingUsers)) {
+    return null;
+  }
+  return {
+    conversationId: record.conversationId,
+    users: record.typingUsers.flatMap((user) => {
+      if (!user || typeof user !== "object" || Array.isArray(user)) {
+        return [];
+      }
+      const username = (user as Record<string, unknown>).username;
+      return typeof username === "string" ? [username] : [];
+    }),
   };
 }

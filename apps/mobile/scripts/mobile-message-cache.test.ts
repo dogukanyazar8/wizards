@@ -10,8 +10,10 @@ import {
   insertOptimisticMobileMessage,
   replaceMobileMessageReactions,
   replaceMobileMessage,
+  updateMobileMessageContent,
   restoreMobileMessageSnapshot,
   removeMobileMessage,
+  softDeleteMobileMessage,
 } from "../src/query/mobile-message-cache";
 import {
   getMobileChannelMessagesQueryOptions,
@@ -22,6 +24,7 @@ import { getMobileWorkspaceQueryOptions } from "../src/query/mobile-workspace-qu
 import {
   createMobileOptimisticMutationOptions,
   createMobileOptimisticDeleteMutationOptions,
+  createMobileOptimisticEditMutationOptions,
   createMobileOptimisticReactionMutationOptions,
 } from "../src/query/use-mobile-message-mutations";
 
@@ -97,8 +100,56 @@ test("message cache removal updates only the requested message", () => {
   const data = createData();
   const next = removeMobileMessage(data, "2");
 
-  assert.deepEqual(flattenMobileInfiniteData(next).map((message) => message.id), ["1", "3"]);
+  assert.deepEqual(
+    flattenMobileInfiniteData(next).map((message) => message.id),
+    ["1", "3"],
+  );
   assert.equal(removeMobileMessage(data, "missing"), data);
+});
+
+test("soft deletion keeps a bounded placeholder and clears sensitive message fields", () => {
+  const data: InfiniteData<
+    {
+      messages: readonly (TestMessage & {
+        attachments: string[];
+        deletedAt: string | null;
+        reactions: never[];
+      })[];
+      nextCursor: null;
+    },
+    string | null
+  > = {
+    pageParams: [null],
+    pages: [
+      {
+        messages: [
+          { attachments: ["private"], content: "secret", deletedAt: null, id: "1", reactions: [] },
+        ],
+        nextCursor: null,
+      },
+    ],
+  };
+  const next = softDeleteMobileMessage(data, "1", "2026-07-11T12:00:00.000Z");
+
+  assert.deepEqual(next?.pages[0]?.messages[0], {
+    attachments: [],
+    content: "",
+    deletedAt: "2026-07-11T12:00:00.000Z",
+    id: "1",
+    reactions: [],
+  });
+});
+
+test("message cache edits update only the target content and edited timestamp", () => {
+  const data = createData();
+  const next = updateMobileMessageContent(data, "2", "updated", "2026-07-11T12:00:00.000Z");
+
+  assert.deepEqual(flattenMobileInfiniteData(next), [
+    { content: "one", id: "1" },
+    { content: "updated", editedAt: "2026-07-11T12:00:00.000Z", id: "2" },
+    { content: "three", id: "3" },
+  ]);
+  assert.equal(updateMobileMessageContent(data, "missing", "updated", "now"), data);
 });
 
 test("reaction cache helpers update only the targeted message and preserve server reaction shape", () => {
@@ -253,6 +304,45 @@ test("optimistic delete mutations remove the target and restore the snapshot on 
     ["1", "3"],
   );
   await options.onError!(new Error("failed"), variables, context, {} as never);
+  assert.deepEqual(queryClient.getQueryData(queryKey), snapshot);
+});
+
+test("optimistic edit mutations replace server messages and restore the snapshot on failure", async () => {
+  const queryClient = new QueryClient();
+  const queryKey = ["mobile", "dm-messages", "conversation-1"] as const;
+  const snapshot = createData();
+  queryClient.setQueryData(queryKey, snapshot);
+  const options = createMobileOptimisticEditMutationOptions({
+    getResponseMessage: (response: { message: TestMessage }) => response.message,
+    mutationFn: async () => ({ message: { content: "server", id: "2" } }),
+    queryClient,
+    queryKey,
+  });
+  const variables = { content: "optimistic", messageId: "2" };
+  const context = await options.onMutate!(variables, {} as never);
+
+  assert.equal(
+    flattenMobileInfiniteData<TestMessage, TestPage, string | null>(
+      queryClient.getQueryData<InfiniteData<TestPage, string | null>>(queryKey),
+    ).find(({ id }) => id === "2")?.content,
+    "optimistic",
+  );
+  await options.onSuccess!(
+    { message: { content: "server", id: "2" } },
+    variables,
+    context,
+    {} as never,
+  );
+  assert.equal(
+    flattenMobileInfiniteData<TestMessage, TestPage, string | null>(
+      queryClient.getQueryData<InfiniteData<TestPage, string | null>>(queryKey),
+    ).find(({ id }) => id === "2")?.content,
+    "server",
+  );
+
+  queryClient.setQueryData(queryKey, snapshot);
+  const failureContext = await options.onMutate!(variables, {} as never);
+  await options.onError!(new Error("failed"), variables, failureContext, {} as never);
   assert.deepEqual(queryClient.getQueryData(queryKey), snapshot);
 });
 

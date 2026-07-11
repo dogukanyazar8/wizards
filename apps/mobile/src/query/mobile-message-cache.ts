@@ -127,6 +127,29 @@ export function removeMobileMessage<
   return changed ? { ...data, pages } : data;
 }
 
+export function softDeleteMobileMessage<
+  TMessage extends MobileCacheMessage & {
+    readonly attachments: readonly unknown[];
+    readonly content: string;
+    readonly deletedAt: string | null;
+    readonly reactions: readonly MessageReaction[];
+  },
+  TPage extends MobileCachePage<TMessage>,
+  TPageParam,
+>(
+  data: MobileMessageData<TMessage, TPage, TPageParam> | undefined,
+  messageId: string,
+  deletedAt: string,
+): MobileMessageData<TMessage, TPage, TPageParam> | undefined {
+  return updateMobileMessageById(data, messageId, (message) => ({
+    ...message,
+    attachments: [],
+    content: "",
+    deletedAt,
+    reactions: [],
+  }));
+}
+
 type MobileReactionCacheMessage = MobileCacheMessage & {
   readonly reactions: readonly MessageReaction[];
 };
@@ -164,6 +187,26 @@ function updateMobileMessageById<
   });
 
   return changed ? { ...data, pages } : data;
+}
+
+export function updateMobileMessageContent<
+  TMessage extends MobileCacheMessage & {
+    readonly content: string;
+    readonly editedAt?: string | null;
+  },
+  TPage extends MobileCachePage<TMessage>,
+  TPageParam,
+>(
+  data: MobileMessageData<TMessage, TPage, TPageParam> | undefined,
+  messageId: string,
+  content: string,
+  editedAt: string,
+): MobileMessageData<TMessage, TPage, TPageParam> | undefined {
+  return updateMobileMessageById(data, messageId, (message) => ({
+    ...message,
+    content,
+    editedAt,
+  }));
 }
 
 function getNextMobileMessageReactions(

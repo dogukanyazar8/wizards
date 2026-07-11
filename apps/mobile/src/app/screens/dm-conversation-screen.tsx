@@ -14,12 +14,15 @@ import {
   type MobileMediaRuntimeState,
   type MobileMessageSearchViewState,
   type MobileSyncHealthSummary,
+  useCallback,
+  useState,
 } from "../mobile-root-screen-shared";
-import { DMComposer } from "../composer/mobile-composer";
+import { DMComposer, type MobileComposerIntent } from "../composer/mobile-composer";
 import {
   MessageListSkeleton,
   MessageSearchPanel,
   MessageStream,
+  type MobileMessageActionTarget,
 } from "../components/message-primitives";
 import { AvatarMark, EmptyState, MobileSyncHealthBanner, StatusChip } from "../components/ui-atoms";
 import { useDmScreenStyles } from "./dm-screen.styles";
@@ -41,11 +44,15 @@ export function DMConversationScreen({
   onRequestPhotoLibraryPicker,
   onSearchMessages,
   onSendMessage,
+  onDraftChange,
+  onDeleteMessage,
+  onEditMessage,
   onOpenThread,
   onToggleMessageReaction,
   sendState,
   state,
   syncHealth,
+  typingLabel,
 }: {
   attachmentsFeature: MobileBootstrapFeature | null;
   conversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number];
@@ -57,6 +64,7 @@ export function DMConversationScreen({
   sendState: MobileDMSendViewState;
   state: MobileDMMessagesViewState;
   syncHealth: MobileSyncHealthSummary;
+  typingLabel: string | null;
   onBack(): void;
   onClearMessageSearch(): void;
   onClearSelectedMediaAsset(): void;
@@ -65,7 +73,13 @@ export function DMConversationScreen({
   onRequestDocumentPicker(): Promise<void>;
   onRequestPhotoLibraryPicker(): Promise<void>;
   onSearchMessages(input: { conversationId: string; query: string; scope: "dm" }): Promise<void>;
-  onSendMessage(content: string): Promise<boolean>;
+  onSendMessage(
+    content: string,
+    intent?: { readonly replyToId?: string; readonly threadParentId?: string },
+  ): Promise<boolean>;
+  onDraftChange(content: string): void;
+  onDeleteMessage(messageId: string): Promise<boolean>;
+  onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onOpenThread?(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
 }) {
@@ -141,8 +155,12 @@ export function DMConversationScreen({
         onRequestDocumentPicker={onRequestDocumentPicker}
         onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
         onSendMessage={onSendMessage}
+        onDraftChange={onDraftChange}
+        onDeleteMessage={onDeleteMessage}
+        onEditMessage={onEditMessage}
         {...(onOpenThread ? { onOpenThread } : {})}
         onToggleMessageReaction={onToggleMessageReaction}
+        typingLabel={typingLabel}
       />
     </View>
   );
@@ -159,10 +177,14 @@ export function DMConversationPreviewCard({
   onRequestDocumentPicker,
   onRequestPhotoLibraryPicker,
   onSendMessage,
+  onDraftChange,
+  onDeleteMessage,
+  onEditMessage,
   onOpenThread,
   onToggleMessageReaction,
   sendState,
   state,
+  typingLabel,
 }: {
   attachmentsFeature: MobileBootstrapFeature | null;
   conversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number] | null;
@@ -173,13 +195,37 @@ export function DMConversationPreviewCard({
   onRetry(): void;
   onRequestDocumentPicker(): Promise<void>;
   onRequestPhotoLibraryPicker(): Promise<void>;
-  onSendMessage(content: string): Promise<boolean>;
+  onSendMessage(
+    content: string,
+    intent?: { readonly replyToId?: string; readonly threadParentId?: string },
+  ): Promise<boolean>;
+  onDraftChange(content: string): void;
+  onDeleteMessage(messageId: string): Promise<boolean>;
+  onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onOpenThread?(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   sendState: MobileDMSendViewState;
   state: MobileDMMessagesViewState;
+  typingLabel: string | null;
 }) {
   const styles = useDmScreenStyles();
+  const [composerIntent, setComposerIntent] = useState<MobileComposerIntent | null>(null);
+  const handleReplyMessage = useCallback((message: MobileMessageActionTarget) => {
+    setComposerIntent({ content: message.content, messageId: message.id, mode: "reply" });
+  }, []);
+  const handleEditMessage = useCallback((message: MobileMessageActionTarget) => {
+    setComposerIntent({ content: message.content, messageId: message.id, mode: "edit" });
+  }, []);
+  const handleComposerSend = useCallback(
+    (content: string) =>
+      composerIntent?.mode === "edit"
+        ? onEditMessage({ content, messageId: composerIntent.messageId })
+        : onSendMessage(
+            content,
+            composerIntent ? { replyToId: composerIntent.messageId } : undefined,
+          ),
+    [composerIntent, onEditMessage, onSendMessage],
+  );
   if (!conversation) {
     return <EmptyState tone="accent" label={copy.dmSelectConversation} />;
   }
@@ -248,6 +294,9 @@ export function DMConversationPreviewCard({
           isReactionMutationPending={isReactionMutationPending}
           messages={state.payload.messages}
           {...(onOpenThread ? { onOpenThread } : {})}
+          onDeleteMessage={(messageId) => void onDeleteMessage(messageId)}
+          onEditMessage={handleEditMessage}
+          onReplyMessage={handleReplyMessage}
           onToggleReaction={onToggleMessageReaction}
         />
       ) : null}
@@ -255,15 +304,21 @@ export function DMConversationPreviewCard({
         <Text style={styles.contractDescription}>{copy.dmNoMessages}</Text>
       ) : null}
       {state.status === "ready" ? (
-        <DMComposer
-          attachmentsFeature={attachmentsFeature}
-          sendState={conversationSendState}
-          mediaState={mediaState}
-          onClearSelectedMediaAsset={onClearSelectedMediaAsset}
-          onRequestDocumentPicker={onRequestDocumentPicker}
-          onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
-          onSend={onSendMessage}
-        />
+        <>
+          {typingLabel ? <Text testID="mobile-dm-typing-indicator">{typingLabel}</Text> : null}
+          <DMComposer
+            attachmentsFeature={attachmentsFeature}
+            sendState={conversationSendState}
+            mediaState={mediaState}
+            onClearSelectedMediaAsset={onClearSelectedMediaAsset}
+            onDraftChange={onDraftChange}
+            onRequestDocumentPicker={onRequestDocumentPicker}
+            onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
+            intent={composerIntent}
+            onCancelIntent={() => setComposerIntent(null)}
+            onSend={handleComposerSend}
+          />
+        </>
       ) : null}
     </View>
   );

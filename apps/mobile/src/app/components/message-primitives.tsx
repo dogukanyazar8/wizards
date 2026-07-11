@@ -11,13 +11,15 @@ import {
   memo,
   useCallback,
   useMemo,
+  useRef,
   useState,
   type ChatMessage,
   type MessageSearchResult,
   type MobileDMMessagesResponse,
   type MobileMessageSearchViewState,
 } from "../mobile-root-screen-shared";
-import { FlashList } from "@shopify/flash-list";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
+import { Alert, Share } from "react-native";
 import { AvatarMark } from "./ui-atoms";
 import { MobileCachedImage } from "./mobile-cached-image";
 import { ContextMenu, Icon, Skeleton, type ContextMenuAction } from "./kit";
@@ -25,6 +27,8 @@ import { useMessagePrimitiveStyles } from "./message-primitives.styles";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { formatMobileDateSeparator } from "../../locale/mobile-date-separator";
+import { MessageEmojiPicker } from "./message-emoji-picker";
+import { MessageImageLightbox } from "./message-image-lightbox";
 
 const MOBILE_SEARCH_RESULT_RENDER_LIMIT = 6;
 const MESSAGE_LIST_SKELETON_ROWS = [
@@ -40,9 +44,35 @@ export type MobileMessageReactionToggleInput = {
   readonly shouldReact: boolean;
 };
 
+export type MobileMessageActionTarget = {
+  readonly content: string;
+  readonly id: string;
+};
+
 function getMessageReactionActionLabel(emoji: string, shouldReact: boolean): string {
   const template = shouldReact ? copy.messageReactionAddAction : copy.messageReactionRemoveAction;
   return template.replace("{emoji}", emoji);
+}
+
+function MessageBodyText({ body, channel }: { readonly body: string; readonly channel: boolean }) {
+  const styles = useMessagePrimitiveStyles();
+  const segments = body.split(/(@[\p{L}\p{N}_.-]+)/gu);
+
+  return (
+    <Text
+      style={[styles.dmMessageBody, channel && styles.messagePreviewBodyChannel]}
+      numberOfLines={channel ? undefined : 4}
+    >
+      {segments.map((segment, index) => (
+        <Text
+          key={`${index}:${segment}`}
+          style={segment.startsWith("@") ? styles.messageMention : undefined}
+        >
+          {segment}
+        </Text>
+      ))}
+    </Text>
+  );
 }
 
 export function MessageListSkeleton({
@@ -306,6 +336,7 @@ export function MessageAttachmentList({
   attachments: readonly MobileRenderableAttachment[];
 }) {
   const styles = useMessagePrimitiveStyles();
+  const [lightboxUri, setLightboxUri] = useState<string | null>(null);
   if (attachments.length === 0) {
     return null;
   }
@@ -326,12 +357,19 @@ export function MessageAttachmentList({
             style={styles.messageAttachmentCard}
           >
             {previewUri ? (
-              <MobileCachedImage
-                accessibilityIgnoresInvertColors
-                importantForAccessibility="no"
-                source={{ uri: previewUri }}
-                style={styles.messageAttachmentImage}
-              />
+              <Pressable
+                accessibilityLabel={copy.messageLightboxOpenAction}
+                accessibilityRole="button"
+                onPress={() => setLightboxUri(attachment.url || previewUri)}
+                testID={`mobile-message-image-${attachment.id}`}
+              >
+                <MobileCachedImage
+                  accessibilityIgnoresInvertColors
+                  importantForAccessibility="no"
+                  source={{ uri: previewUri }}
+                  style={styles.messageAttachmentImage}
+                />
+              </Pressable>
             ) : (
               <View style={styles.messageAttachmentIcon}>
                 <Icon name="document-attach-outline" size={22} tone="accent" />
@@ -348,13 +386,24 @@ export function MessageAttachmentList({
           </View>
         );
       })}
+      <MessageImageLightbox
+        onClose={() => setLightboxUri(null)}
+        open={lightboxUri !== null}
+        uri={lightboxUri}
+      />
     </View>
   );
 }
 
 export function MessageReactionList({
+  currentUserId,
+  messageId,
+  onToggleReaction,
   reactions,
 }: {
+  currentUserId?: string;
+  messageId?: string;
+  onToggleReaction?(input: MobileMessageReactionToggleInput): void;
   reactions: MobileRenderableMessage["reactions"];
 }) {
   const styles = useMessagePrimitiveStyles();
@@ -365,11 +414,25 @@ export function MessageReactionList({
   return (
     <View style={styles.messageReactionRow}>
       {reactions.map((reaction) => (
-        <View key={reaction.emoji} style={styles.messageReactionChip}>
+        <Pressable
+          accessibilityRole={onToggleReaction ? "button" : undefined}
+          disabled={!onToggleReaction || !messageId}
+          key={reaction.emoji}
+          onPress={() =>
+            messageId &&
+            onToggleReaction?.({
+              emoji: reaction.emoji,
+              messageId,
+              shouldReact: !currentUserId || !reaction.userIds.includes(currentUserId),
+            })
+          }
+          style={styles.messageReactionChip}
+          testID={messageId ? `mobile-message-reaction-${messageId}-${reaction.emoji}` : undefined}
+        >
           <Text style={styles.messageReactionText}>
             {reaction.emoji} {reaction.count}
           </Text>
-        </View>
+        </Pressable>
       ))}
     </View>
   );
@@ -380,22 +443,39 @@ export function MessageStream({
   isReactionMutationPending = false,
   messages,
   onOpenThread,
+  onDeleteMessage,
+  onEditMessage,
+  onReplyMessage,
   onToggleReaction,
 }: {
   currentUserId: string;
   isReactionMutationPending?: boolean;
   messages: readonly MobileRenderableMessage[];
   onOpenThread?(messageId: string): void;
+  onDeleteMessage?(messageId: string): void;
+  onEditMessage?(message: MobileMessageActionTarget): void;
+  onReplyMessage?(message: MobileMessageActionTarget): void;
   onToggleReaction?(input: MobileMessageReactionToggleInput): void;
 }) {
   const styles = useMessagePrimitiveStyles();
   const streamItems = useMemo(() => getMobileMessageStreamItems(messages), [messages]);
+  const listRef = useRef<FlashListRef<(typeof streamItems)[number]> | null>(null);
+  const handleOpenReply = useCallback(
+    (messageId: string) => {
+      const index = streamItems.findIndex((item) => item.message.id === messageId);
+      if (index >= 0) {
+        listRef.current?.scrollToIndex({ animated: true, index, viewPosition: 0.5 });
+      }
+    },
+    [streamItems],
+  );
 
   return (
     <FlashList
       contentContainerStyle={styles.dmMessageListContent}
       data={streamItems}
       keyExtractor={(item) => item.id}
+      ref={listRef}
       renderItem={({ item }) => (
         <View style={styles.messageStreamItem}>
           {item.showDateSeparator ? (
@@ -407,6 +487,10 @@ export function MessageStream({
             message={item.message}
             own={item.message.author.id === currentUserId}
             {...(onOpenThread ? { onOpenThread } : {})}
+            {...(onDeleteMessage ? { onDeleteMessage } : {})}
+            {...(onEditMessage ? { onEditMessage } : {})}
+            {...(onReplyMessage ? { onReplyMessage } : {})}
+            onOpenReply={handleOpenReply}
             {...(onToggleReaction ? { onToggleReaction } : {})}
           />
         </View>
@@ -424,6 +508,10 @@ export function MessagePreviewRow({
   mode = "conversation",
   message,
   onOpenThread,
+  onOpenReply,
+  onDeleteMessage,
+  onEditMessage,
+  onReplyMessage,
   onToggleReaction,
   own = false,
 }: {
@@ -432,18 +520,69 @@ export function MessagePreviewRow({
   mode?: "channel" | "conversation";
   message: MobileRenderableMessage;
   onOpenThread?(messageId: string): void;
+  onOpenReply?(messageId: string): void;
+  onDeleteMessage?(messageId: string): void;
+  onEditMessage?(message: MobileMessageActionTarget): void;
+  onReplyMessage?(message: MobileMessageActionTarget): void;
   onToggleReaction?(input: MobileMessageReactionToggleInput): void;
   own?: boolean;
 }) {
   const styles = useMessagePrimitiveStyles();
   const isChannelMode = mode === "channel";
+  const [isEmojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const authorLabel = message.author.displayName ?? message.author.username;
   const body = getMobileMessageBodyPreview(message, {
     attachmentOnly: copy.dmAttachmentOnlyMessage,
     deleted: copy.dmDeletedMessage,
   });
-  const reactionActions = useMemo<readonly ContextMenuAction[]>(
+  const messageActions = useMemo<readonly ContextMenuAction[]>(
     () => [
+      ...(message.content
+        ? [
+            {
+              id: "copy",
+              label: copy.messageCopyAction,
+              onPress: () => void Share.share({ message: message.content }),
+            },
+          ]
+        : []),
+      ...(onReplyMessage
+        ? [
+            {
+              id: "reply",
+              label: copy.messageReplyAction,
+              onPress: () => onReplyMessage({ content: message.content, id: message.id }),
+            },
+          ]
+        : []),
+      ...(own && onEditMessage
+        ? [
+            {
+              id: "edit",
+              label: copy.messageEditAction,
+              onPress: () => onEditMessage({ content: message.content, id: message.id }),
+            },
+          ]
+        : []),
+      ...(own && onDeleteMessage
+        ? [
+            {
+              destructive: true,
+              id: "delete",
+              label: copy.messageDeleteAction,
+              onPress: () => {
+                Alert.alert(copy.messageDeleteConfirmTitle, copy.messageDeleteConfirmDescription, [
+                  { style: "cancel", text: copy.messageDeleteCancelAction },
+                  {
+                    onPress: () => onDeleteMessage(message.id),
+                    style: "destructive",
+                    text: copy.messageDeleteAction,
+                  },
+                ]);
+              },
+            },
+          ]
+        : []),
       ...(onOpenThread
         ? [
             {
@@ -453,7 +592,16 @@ export function MessagePreviewRow({
             },
           ]
         : []),
-      ...MOBILE_MESSAGE_REACTION_EMOJIS.map((emoji) => {
+      ...(onToggleReaction
+        ? [
+            {
+              id: "more-emoji",
+              label: copy.messageEmojiPickerAction,
+              onPress: () => setEmojiPickerOpen(true),
+            },
+          ]
+        : []),
+      ...(onToggleReaction ? MOBILE_MESSAGE_REACTION_EMOJIS : []).map((emoji) => {
         const shouldReact = !message.reactions.some(
           (reaction) =>
             reaction.emoji === emoji &&
@@ -470,7 +618,16 @@ export function MessagePreviewRow({
         };
       }),
     ],
-    [currentUserId, message.id, message.reactions, onToggleReaction],
+    [
+      currentUserId,
+      message,
+      onDeleteMessage,
+      onEditMessage,
+      onOpenThread,
+      onReplyMessage,
+      onToggleReaction,
+      own,
+    ],
   );
 
   const content = (
@@ -505,31 +662,79 @@ export function MessagePreviewRow({
           </Text>
           <Text style={styles.dmMessageTime}>{formatMobileDisplayTime(message.createdAt)}</Text>
         </View>
-        <Text
-          style={[styles.dmMessageBody, isChannelMode && styles.messagePreviewBodyChannel]}
-          numberOfLines={isChannelMode ? undefined : 4}
-        >
-          {body}
-        </Text>
+        {message.replyTo ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onOpenReply?.(message.replyTo!.id)}
+            testID={`mobile-message-reply-quote-${message.id}`}
+          >
+            <Text style={styles.messageReplyQuote} numberOfLines={2}>
+              {message.replyTo.content || copy.dmDeletedMessage}
+            </Text>
+          </Pressable>
+        ) : null}
+        <MessageBodyText body={body} channel={isChannelMode} />
+        {message.editedAt ? (
+          <Text style={styles.dmMessageTime}>{copy.messageEditedLabel}</Text>
+        ) : null}
         <MessageAttachmentList attachments={message.attachments} />
-        <MessageReactionList reactions={message.reactions} />
+        <MessageReactionList
+          messageId={message.id}
+          reactions={message.reactions}
+          {...(currentUserId ? { currentUserId } : {})}
+          {...(onToggleReaction ? { onToggleReaction } : {})}
+        />
+        {message.threadSummary && message.threadSummary.replyCount > 0 && onOpenThread ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onOpenThread(message.id)}
+            testID={`mobile-message-thread-summary-${message.id}`}
+          >
+            <Text style={styles.messageReplyQuote}>
+              {copy.messageThreadReplyCountLabel.replace(
+                "{count}",
+                String(message.threadSummary.replyCount),
+              )}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
 
-  if (!onToggleReaction) {
+  if (messageActions.length === 0) {
     return content;
   }
 
   return (
-    <ContextMenu
-      accessibilityLabel={copy.messageReactionMenuLabel}
-      actions={reactionActions}
-      disabled={isReactionMutationPending}
-      testID={`mobile-message-actions-${message.id}`}
-    >
-      {content}
-    </ContextMenu>
+    <>
+      <ContextMenu
+        accessibilityLabel={copy.messageReactionMenuLabel}
+        actions={messageActions}
+        disabled={isReactionMutationPending}
+        testID={`mobile-message-actions-${message.id}`}
+      >
+        {content}
+      </ContextMenu>
+      {onToggleReaction ? (
+        <MessageEmojiPicker
+          isOpen={isEmojiPickerOpen}
+          onClose={() => setEmojiPickerOpen(false)}
+          onSelect={(emoji) =>
+            onToggleReaction({
+              emoji,
+              messageId: message.id,
+              shouldReact: !message.reactions.some(
+                (reaction) =>
+                  reaction.emoji === emoji &&
+                  currentUserId !== undefined &&
+                  reaction.userIds.includes(currentUserId),
+              ),
+            })
+          }
+        />
+      ) : null}
+    </>
   );
 }
 

@@ -28,7 +28,7 @@ import {
   type NativeSyntheticEvent,
 } from "../mobile-root-screen-shared";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
-import { DMComposer } from "../composer/mobile-composer";
+import { DMComposer, type MobileComposerIntent } from "../composer/mobile-composer";
 import {
   MessageDateSeparator,
   MessageListSkeleton,
@@ -37,6 +37,7 @@ import {
   MemoizedMessagePreviewRow,
   isMessageSearchStateForContext,
   type MobileRenderableMessage,
+  type MobileMessageActionTarget,
 } from "../components/message-primitives";
 import { StatusChip } from "../components/ui-atoms";
 import { useChannelScreenStyles } from "./channel-screen.styles";
@@ -60,6 +61,8 @@ export function MobileChannelChatScreen({
   onRequestPhotoLibraryPicker,
   onSearchMessages,
   onSendMessage,
+  onDeleteMessage,
+  onEditMessage,
   onOpenThread,
   onToggleMessageReaction,
   sendState,
@@ -87,7 +90,12 @@ export function MobileChannelChatScreen({
     query: string;
     scope: "channel";
   }): Promise<void>;
-  onSendMessage(content: string): Promise<boolean>;
+  onSendMessage(
+    content: string,
+    intent?: { readonly replyToId?: string; readonly threadParentId?: string },
+  ): Promise<boolean>;
+  onDeleteMessage(messageId: string): Promise<boolean>;
+  onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onOpenThread?(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   sendState: MobileChannelSendViewState;
@@ -100,6 +108,7 @@ export function MobileChannelChatScreen({
   const channelSendState =
     sendState.channelId === channel.id ? sendState : INITIAL_CHANNEL_SEND_STATE;
   const [isSearchPanelOpen, setSearchPanelOpen] = useState(false);
+  const [composerIntent, setComposerIntent] = useState<MobileComposerIntent | null>(null);
   const isChannelSearchContextActive = isMessageSearchStateForContext(
     messageSearchState,
     "channel",
@@ -155,6 +164,22 @@ export function MobileChannelChatScreen({
     searchVisibility.isSearchAvailable,
     searchVisibility.shouldRenderSearchPanel,
   ]);
+  const handleReplyMessage = useCallback((message: MobileMessageActionTarget) => {
+    setComposerIntent({ content: message.content, messageId: message.id, mode: "reply" });
+  }, []);
+  const handleEditMessage = useCallback((message: MobileMessageActionTarget) => {
+    setComposerIntent({ content: message.content, messageId: message.id, mode: "edit" });
+  }, []);
+  const handleComposerSend = useCallback(
+    (content: string) =>
+      composerIntent?.mode === "edit"
+        ? onEditMessage({ content, messageId: composerIntent.messageId })
+        : onSendMessage(
+            content,
+            composerIntent ? { replyToId: composerIntent.messageId } : undefined,
+          ),
+    [composerIntent, onEditMessage, onSendMessage],
+  );
 
   return (
     <KeyboardAvoidingView
@@ -247,6 +272,9 @@ export function MobileChannelChatScreen({
           currentUserId={currentUserId}
           isReactionMutationPending={isReactionMutationPending}
           onRefresh={onRefresh}
+          onDeleteMessage={onDeleteMessage}
+          onEditMessage={handleEditMessage}
+          onReplyMessage={handleReplyMessage}
           onToggleMessageReaction={onToggleMessageReaction}
           {...(onOpenThread ? { onOpenThread } : {})}
           state={state}
@@ -262,10 +290,12 @@ export function MobileChannelChatScreen({
               sendState={channelSendState}
               sendingActionLabel={copy.channelSendingAction}
               mediaState={mediaState}
+              intent={composerIntent}
+              onCancelIntent={() => setComposerIntent(null)}
               onClearSelectedMediaAsset={onClearSelectedMediaAsset}
               onDraftChange={onDraftChange}
               onRequestDocumentPicker={onRequestDocumentPicker}
-              onSend={onSendMessage}
+              onSend={handleComposerSend}
               variant="channel"
             />
           </>
@@ -279,6 +309,9 @@ export function ChannelMessageList({
   currentUserId,
   isReactionMutationPending = false,
   onRefresh,
+  onDeleteMessage,
+  onEditMessage,
+  onReplyMessage,
   onOpenThread,
   onToggleMessageReaction,
   state,
@@ -286,6 +319,9 @@ export function ChannelMessageList({
   currentUserId: string;
   isReactionMutationPending?: boolean;
   onRefresh(): void;
+  onDeleteMessage?(messageId: string): Promise<boolean>;
+  onEditMessage?(message: MobileMessageActionTarget): void;
+  onReplyMessage?(message: MobileMessageActionTarget): void;
   onOpenThread?(messageId: string): void;
   onToggleMessageReaction?(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   state: MobileChannelMessagesViewState;
@@ -320,6 +356,17 @@ export function ChannelMessageList({
     const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
     setShowScrollToBottom(distanceFromBottom > 120);
   }, []);
+  const handleOpenReply = useCallback(
+    (messageId: string) => {
+      const index = streamItems.findIndex((item) => item.message.id === messageId);
+      if (index >= 0) {
+        listRef.current?.scrollToIndex({ animated: true, index, viewPosition: 0.5 });
+        return;
+      }
+      onRefresh();
+    },
+    [onRefresh, streamItems],
+  );
 
   useEffect(() => {
     scrollToLatestMessage(true);
@@ -338,11 +385,27 @@ export function ChannelMessageList({
           mode="channel"
           own={item.message.author.id === currentUserId}
           {...(onOpenThread ? { onOpenThread } : {})}
+          onOpenReply={handleOpenReply}
+          {...(onDeleteMessage
+            ? { onDeleteMessage: (messageId: string) => void onDeleteMessage(messageId) }
+            : {})}
+          {...(onEditMessage ? { onEditMessage } : {})}
+          {...(onReplyMessage ? { onReplyMessage } : {})}
           {...(onToggleMessageReaction ? { onToggleReaction: onToggleMessageReaction } : {})}
         />
       </View>
     ),
-    [currentUserId],
+    [
+      currentUserId,
+      handleOpenReply,
+      isReactionMutationPending,
+      onDeleteMessage,
+      onEditMessage,
+      onOpenThread,
+      onReplyMessage,
+      onToggleMessageReaction,
+      styles.messageStreamItem,
+    ],
   );
 
   const emptyComponent = useMemo(() => {

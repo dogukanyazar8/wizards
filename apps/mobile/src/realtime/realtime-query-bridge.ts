@@ -4,7 +4,11 @@ import {
   type MobileChannelMessagesResponse,
   type MobileDMMessagesResponse,
 } from "@wizards/types";
-import { appendOrReplaceMobileMessage } from "../query/mobile-message-cache";
+import {
+  appendOrReplaceMobileMessage,
+  removeMobileMessage,
+  replaceMobileMessageReactions,
+} from "../query/mobile-message-cache";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 import {
   getMobileRealtimeRefreshTimerSource,
@@ -151,13 +155,39 @@ export function createMobileRealtimeQueryBridge({
   };
 
   const applyActiveDMEvent = (event: MobileRealtimeEventEnvelope): boolean => {
+    const { conversationId } = getActiveTargets();
+    if (!conversationId || (event.conversationId && event.conversationId !== conversationId)) {
+      return false;
+    }
+    if (event.eventName === "dm:message:removed") {
+      const messageId = getPayloadString(event.payload, "messageId");
+      if (!messageId) {
+        return false;
+      }
+      queryClient.setQueryData<MobileDMMessagesInfiniteData>(
+        mobileQueryKeys.dmMessages(conversationId),
+        (current) => removeMobileMessage(current, messageId),
+      );
+      return true;
+    }
+    if (event.eventName === "dm:message:reaction_updated") {
+      const messageId = getPayloadString(event.payload, "messageId");
+      const reactions = getPayloadReactions(event.payload);
+      if (!messageId || !reactions) {
+        return false;
+      }
+      queryClient.setQueryData<MobileDMMessagesInfiniteData>(
+        mobileQueryKeys.dmMessages(conversationId),
+        (current) => replaceMobileMessageReactions(current, messageId, reactions),
+      );
+      return true;
+    }
     if (!isMobileRealtimeDMMessagePayloadEvent(event.eventName)) {
       return false;
     }
 
-    const { conversationId } = getActiveTargets();
     const message = DMMessagePayloadSchema.safeParse(event.payload);
-    if (!conversationId || !message.success || message.data.conversationId !== conversationId) {
+    if (!message.success || message.data.conversationId !== conversationId) {
       return false;
     }
 
@@ -203,6 +233,39 @@ export function createMobileRealtimeQueryBridge({
       }
     },
   };
+}
+
+function getPayloadString(payload: unknown, key: string): string | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const value = (payload as Record<string, unknown>)[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function getPayloadReactions(payload: unknown) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const reactions = (payload as Record<string, unknown>).reactions;
+  if (!Array.isArray(reactions)) {
+    return null;
+  }
+  const valid = reactions.every(
+    (reaction) =>
+      reaction !== null &&
+      typeof reaction === "object" &&
+      !Array.isArray(reaction) &&
+      typeof (reaction as Record<string, unknown>).emoji === "string" &&
+      typeof (reaction as Record<string, unknown>).count === "number" &&
+      Array.isArray((reaction as Record<string, unknown>).userIds) &&
+      ((reaction as Record<string, unknown>).userIds as unknown[]).every(
+        (userId) => typeof userId === "string",
+      ),
+  );
+  return valid
+    ? (reactions as readonly { count: number; emoji: string; userIds: string[] }[])
+    : null;
 }
 
 function applyMobileRealtimeEventToInfiniteChannelData(

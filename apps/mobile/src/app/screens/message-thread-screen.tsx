@@ -6,8 +6,17 @@ import {
   useMobileDMMessageThreadQuery,
 } from "../../query/mobile-message-thread-query";
 import { useThemedStyles } from "../providers/mobile-theme-provider";
-import { MessageListSkeleton, MessagePreviewRow, MessageStream } from "../components/message-primitives";
+import {
+  MessageListSkeleton,
+  MessagePreviewRow,
+  MessageStream,
+} from "../components/message-primitives";
 import { activeMobileCopy } from "../../locale/mobile-locale-preferences";
+import {
+  useMobileChannelMessageMutation,
+  useMobileDMMessageMutation,
+} from "../../query/use-mobile-message-mutations";
+import { DMComposer } from "../composer/mobile-composer";
 
 const copy = activeMobileCopy;
 const createStyles = (theme: MobileTheme) => ({
@@ -47,6 +56,26 @@ export function MobileMessageThreadScreen({
   const query = scope === "channel" ? channelQuery : dmQuery;
   const payload = query.data;
   const currentUserId = session?.user.id ?? "";
+  const channelMutation = useMobileChannelMessageMutation({
+    author: session?.user ?? null,
+    channelId: scope === "channel" ? contextId : "",
+    client: apiClient,
+  });
+  const dmMutation = useMobileDMMessageMutation({
+    author: session ? { ...session.user, customStatus: null, status: "OFFLINE" as const } : null,
+    client: apiClient,
+    conversationId: scope === "dm" ? contextId : "",
+  });
+  const activeMutation = scope === "channel" ? channelMutation : dmMutation;
+  const sendThreadReply = async (content: string): Promise<boolean> => {
+    try {
+      await activeMutation.mutateAsync({ content: content.trim(), threadParentId: messageId });
+      await query.refetch();
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   return (
     <View style={styles.screen} testID="mobile-message-thread-screen">
@@ -63,9 +92,7 @@ export function MobileMessageThreadScreen({
         <Text style={styles.title}>{copy.messageThreadTitle}</Text>
       </View>
       {query.isLoading ? <MessageListSkeleton testID="mobile-thread-loading" /> : null}
-      {query.isError ? (
-        <Text style={styles.error}>{copy.messageThreadLoadFailed}</Text>
-      ) : null}
+      {query.isError ? <Text style={styles.error}>{copy.messageThreadLoadFailed}</Text> : null}
       {payload ? (
         <>
           <View style={styles.parent}>
@@ -76,6 +103,19 @@ export function MobileMessageThreadScreen({
           ) : (
             <Text style={styles.empty}>{copy.messageThreadEmpty}</Text>
           )}
+          <DMComposer
+            onSend={sendThreadReply}
+            placeholder={copy.messageThreadReplyPlaceholder}
+            sendState={{
+              error: activeMutation.isError ? copy.dmSendFailed : null,
+              status: activeMutation.isPending
+                ? "sending"
+                : activeMutation.isError
+                  ? "error"
+                  : "idle",
+              ...(scope === "channel" ? { channelId: contextId } : { conversationId: contextId }),
+            }}
+          />
         </>
       ) : null}
     </View>

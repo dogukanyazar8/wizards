@@ -1,14 +1,10 @@
-import { type ComponentType, useEffect, useMemo } from "react";
+import { type ComponentType, useEffect } from "react";
 import { View } from "react-native";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { getMobileRuntimeConfig } from "../config/environment";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import type { MobileTabId } from "../navigation/mobile-navigation";
 import { installMobileFontDefaults, useOutfitFonts } from "../design/mobile-fonts";
-import {
-  getVisibleMobileChannelTypingUsers,
-  formatMobileChannelTypingLabel,
-} from "../realtime/mobile-typing-state";
 import { MobileAppLockScreen } from "./components/mobile-app-lock-screen";
 import { MobileDeviceIntegrityWarning } from "./components/mobile-device-integrity-warning";
 import { MobileAppShell } from "./mobile-app-shell";
@@ -16,6 +12,7 @@ import { useMobileMessagingFeature } from "./features/use-mobile-messaging-featu
 import { useMobilePermissionSummary } from "./features/use-mobile-permission-summary";
 import { useMobileProductLinks } from "./features/use-mobile-product-links";
 import { useMobileVoiceInviteFeature } from "./features/use-mobile-voice-invite-feature";
+import { useMobileTypingLabels } from "./features/use-mobile-typing-labels";
 import { MobileVoiceInviteOverlay } from "./overlays/mobile-voice-invite-overlay";
 import { useMobileLocaleRuntime } from "./providers/mobile-locale-provider";
 import { useMobileMediaRuntime } from "./providers/mobile-media-provider";
@@ -79,10 +76,13 @@ export function MobileProductApp({
     emitVoiceInviteAccept,
     emitVoiceInviteDecline,
     emitVoiceInviteSend,
+    dmTyping: dmTypingState,
     stopChannelTyping,
+    stopDMTyping,
     subscribe: subscribeRealtime,
     typing: channelTypingState,
     updateChannelTyping,
+    updateDMTyping,
   } = useMobileRealtimeRuntime();
   const {
     beginPushToTalk,
@@ -114,6 +114,11 @@ export function MobileProductApp({
     dmSendState,
     getSyncHealth,
     handleChannelDraftChange,
+    handleDeleteChannelMessage,
+    handleDeleteDMMessage,
+    handleDMDraftChange,
+    handleEditChannelMessage,
+    handleEditDMMessage,
     handleCloseDMConversation,
     handleCloseWorkspaceChannel,
     handleCloseWorkspaceVoiceChannel,
@@ -129,7 +134,9 @@ export function MobileProductApp({
     handleToggleChannelMessageReaction,
     handleToggleDMMessageReaction,
     isChannelReactionPending,
+    isChannelMessageActionPending,
     isDMReactionPending,
+    isDMMessageActionPending,
     messageSearchState,
     refreshBootstrap,
     refreshChannelMessages,
@@ -150,7 +157,9 @@ export function MobileProductApp({
     joinVoiceChannel,
     leaveVoiceChannel,
     stopChannelTyping,
+    stopDMTyping,
     updateChannelTyping,
+    updateDMTyping,
   });
   const {
     handleAcceptVoiceInvite,
@@ -176,39 +185,27 @@ export function MobileProductApp({
     notificationStatus: notificationState.permissionStatus,
     photoLibraryStatus: mediaState.photoLibraryStatus,
   });
-
   useEffect(() => {
     if (fontsLoaded) {
       installMobileFontDefaults();
     }
   }, [fontsLoaded]);
-
   const authStatusLabel =
     status === "checking"
       ? copy.authChecking
       : status === "signed-in"
         ? copy.authSignedIn
         : copy.authSignedOut;
-
-  const signedInUserLabel = useMemo(() => {
-    if (!session) {
-      return null;
-    }
-
-    return session.user.displayName ?? session.user.username;
-  }, [session]);
+  const signedInUserLabel = session ? (session.user.displayName ?? session.user.username) : null;
 
   const mobileShellUnreadCount =
     bootstrapState.status === "ready" ? bootstrapState.payload.home.directMessages.unreadCount : 0;
-
-  const channelTypingLabel = useMemo(
-    () =>
-      formatMobileChannelTypingLabel(
-        getVisibleMobileChannelTypingUsers(channelTypingState, selectedWorkspaceChannelId),
-      ),
-    [channelTypingState, selectedWorkspaceChannelId],
-  );
-
+  const { channelTypingLabel, dmTypingLabel } = useMobileTypingLabels({
+    channelId: selectedWorkspaceChannelId,
+    channelTyping: channelTypingState,
+    conversationId: selectedDMConversationId,
+    dmTyping: dmTypingState,
+  });
   const { openCookies, openPrivacyPolicy, openSupport, openTerms } = useMobileProductLinks(
     runtimeConfig.webUrl,
   );
@@ -217,7 +214,8 @@ export function MobileProductApp({
     bootstrapState,
     dmMessagesState,
     dmSendState,
-    isReactionMutationPending: isDMReactionPending,
+    dmTypingLabel,
+    isReactionMutationPending: isDMReactionPending || isDMMessageActionPending,
     mediaState,
     messageSearchState,
     onClearMessageSearch: clearMessageSearch,
@@ -231,6 +229,9 @@ export function MobileProductApp({
     onRequestPhotoLibraryPicker: handleRequestPhotoLibraryPicker,
     onSearchMessages: handleSearchMessages,
     onSendMessage: handleSendDMMessage,
+    onDeleteMessage: handleDeleteDMMessage,
+    onEditMessage: handleEditDMMessage,
+    onDraftChange: handleDMDraftChange,
     onToggleMessageReaction: handleToggleDMMessageReaction,
     selectedConversation: selectedDMConversation,
     selectedConversationId: selectedDMConversationId,
@@ -243,7 +244,7 @@ export function MobileProductApp({
     bootstrapState,
     channelMessagesState,
     channelSendState,
-    isReactionMutationPending: isChannelReactionPending,
+    isReactionMutationPending: isChannelReactionPending || isChannelMessageActionPending,
     channelTypingLabel,
     locale: mobileLocale,
     mediaState,
@@ -267,6 +268,8 @@ export function MobileProductApp({
     onSearchMessages: handleSearchMessages,
     onSelectVoiceAudioOutput: selectVoiceAudioOutput,
     onSendChannelMessage: handleSendChannelMessage,
+    onDeleteMessage: handleDeleteChannelMessage,
+    onEditMessage: handleEditChannelMessage,
     onToggleMessageReaction: handleToggleChannelMessageReaction,
     onSendVoiceInvite: handleSendVoiceInvite,
     onToggleVoiceCamera: toggleVoiceCamera,

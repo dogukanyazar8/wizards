@@ -9,18 +9,10 @@ import {
   type MobileMessageSearchViewState,
   type MobileSyncHealthSummary,
 } from "../mobile-root-screen-shared";
-import {
-  BootstrapStateNotice,
-  EmptyState,
-  MobileSyncHealthBanner,
-} from "../components/ui-atoms";
+import { BootstrapStateNotice, EmptyState, MobileSyncHealthBanner } from "../components/ui-atoms";
 import { useDmScreenStyles } from "./dm-screen.styles";
 import { DMConversationScreen } from "./dm-conversation-screen";
-import {
-  DMInboxHeader,
-  DirectMessageListCard,
-  DirectMessageSummaryCard,
-} from "./dm-inbox";
+import { DMInboxHeader, DirectMessageListCard, DirectMessageSummaryCard } from "./dm-inbox";
 
 export { DMConversationScreen, DMConversationPreviewCard } from "./dm-conversation-screen";
 export {
@@ -34,6 +26,7 @@ export function MessagesScreen({
   bootstrapState,
   dmMessagesState,
   dmSendState,
+  dmTypingLabel,
   isReactionMutationPending,
   mediaState,
   messageSearchState,
@@ -51,12 +44,16 @@ export function MessagesScreen({
   onRequestPhotoLibraryPicker,
   onSearchMessages,
   onSendMessage,
+  onDraftChange,
+  onDeleteMessage,
+  onEditMessage,
   onOpenThread,
   onToggleMessageReaction,
 }: {
   bootstrapState: MobileBootstrapViewState;
   dmMessagesState: MobileDMMessagesViewState;
   dmSendState: MobileDMSendViewState;
+  dmTypingLabel: string | null;
   isReactionMutationPending: boolean;
   mediaState: MobileMediaRuntimeState;
   messageSearchState: MobileMessageSearchViewState;
@@ -73,7 +70,13 @@ export function MessagesScreen({
   onRequestDocumentPicker(): Promise<void>;
   onRequestPhotoLibraryPicker(): Promise<void>;
   onSearchMessages(input: { conversationId: string; query: string; scope: "dm" }): Promise<void>;
-  onSendMessage(content: string): Promise<boolean>;
+  onSendMessage(
+    content: string,
+    intent?: { readonly replyToId?: string; readonly threadParentId?: string },
+  ): Promise<boolean>;
+  onDraftChange(content: string): void;
+  onDeleteMessage(messageId: string): Promise<boolean>;
+  onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onOpenThread?(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
 }) {
@@ -98,6 +101,7 @@ export function MessagesScreen({
         currentUserId={bootstrapState.status === "ready" ? bootstrapState.payload.user.id : ""}
         isReactionMutationPending={isReactionMutationPending}
         sendState={dmSendState}
+        typingLabel={dmTypingLabel}
         state={dmMessagesState}
         syncHealth={syncHealth}
         mediaState={mediaState}
@@ -112,6 +116,9 @@ export function MessagesScreen({
         onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
         onSearchMessages={onSearchMessages}
         onSendMessage={onSendMessage}
+        onDraftChange={onDraftChange}
+        onDeleteMessage={onDeleteMessage}
+        onEditMessage={onEditMessage}
         {...(onOpenThread ? { onOpenThread } : {})}
         onToggleMessageReaction={onToggleMessageReaction}
       />
