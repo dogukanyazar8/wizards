@@ -1,16 +1,20 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  buildMobileDMMessagePath,
+  buildMobileDMMessageReactionPath,
+  buildMobileDMMessageThreadPath,
   buildMobileDMSendMessagePath,
   buildMobileDMMessagesPath,
+  deleteMobileDMMessage,
+  fetchMobileDMMessageThread,
   fetchMobileDMMessages,
   MOBILE_DM_MESSAGES_LIMIT,
   sendMobileDMMessage,
+  setMobileDMMessageReaction,
+  updateMobileDMMessage,
 } from "../src/dm/mobile-dm-client";
-import type {
-  MobileApiClient,
-  MobileApiRequestOptions,
-} from "../src/api/mobile-api-client";
+import type { MobileApiClient, MobileApiRequestOptions } from "../src/api/mobile-api-client";
 
 const validResponse = {
   conversation: {
@@ -66,6 +70,12 @@ const validResponse = {
   nextCursor: null,
 };
 
+const validThreadResponse = {
+  messages: validResponse.messages,
+  nextCursor: null,
+  parent: validResponse.messages[0],
+};
+
 describe("mobile DM client", () => {
   it("builds a bounded, encoded mobile DM messages endpoint path", () => {
     assert.equal(
@@ -78,6 +88,23 @@ describe("mobile DM client", () => {
     assert.equal(
       buildMobileDMSendMessagePath({ conversationId: "dm/conversation 1" }),
       "/api/v1/mobile/dm/dm%2Fconversation%201/messages",
+    );
+  });
+
+  it("builds encoded DM message action, reaction, and bounded thread paths", () => {
+    const input = { conversationId: "dm/conversation 1", messageId: "message/id 1" };
+
+    assert.equal(
+      buildMobileDMMessagePath(input),
+      "/api/v1/mobile/dm/dm%2Fconversation%201/messages/message%2Fid%201",
+    );
+    assert.equal(
+      buildMobileDMMessageReactionPath(input),
+      "/api/v1/mobile/dm/dm%2Fconversation%201/messages/message%2Fid%201/reactions",
+    );
+    assert.equal(
+      buildMobileDMMessageThreadPath({ ...input, cursor: "cursor 2" }),
+      `/api/v1/mobile/dm/dm%2Fconversation%201/messages/message%2Fid%201/thread?limit=${MOBILE_DM_MESSAGES_LIMIT}&cursor=cursor+2`,
     );
   });
 
@@ -130,6 +157,80 @@ describe("mobile DM client", () => {
       },
     ]);
     assert.equal(response.message.id, "message-1");
+  });
+
+  it("updates, deletes, reacts to, and loads a DM thread through validated action contracts", async () => {
+    const requests: Array<{
+      options: MobileApiRequestOptions | undefined;
+      path: string;
+    }> = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string, options?: MobileApiRequestOptions) {
+        requests.push({ options, path });
+
+        if (path.includes("/thread")) {
+          return validThreadResponse as TResponse;
+        }
+        if (options?.method === "DELETE" && path.endsWith("/reactions")) {
+          return { reactions: [] } as TResponse;
+        }
+        if (options?.method === "PUT") {
+          return {
+            reactions: [{ count: 1, emoji: "thumbs-up", userIds: ["user-1"] }],
+          } as TResponse;
+        }
+        if (options?.method === "PATCH") {
+          return { message: validResponse.messages[0] } as TResponse;
+        }
+        return { status: "removed" } as TResponse;
+      },
+    };
+
+    const input = { conversationId: "conversation-1", messageId: "message-1" };
+    const updated = await updateMobileDMMessage(client, {
+      ...input,
+      content: "Updated from mobile.",
+    });
+    const reacted = await setMobileDMMessageReaction(client, {
+      ...input,
+      emoji: "thumbs-up",
+      shouldReact: true,
+    });
+    const unreacted = await setMobileDMMessageReaction(client, {
+      ...input,
+      emoji: "thumbs-up",
+      shouldReact: false,
+    });
+    const deleted = await deleteMobileDMMessage(client, input);
+    const thread = await fetchMobileDMMessageThread(client, { ...input, cursor: "cursor-1" });
+
+    assert.deepEqual(requests, [
+      {
+        options: { body: { content: "Updated from mobile." }, method: "PATCH" },
+        path: "/api/v1/mobile/dm/conversation-1/messages/message-1",
+      },
+      {
+        options: { body: { emoji: "thumbs-up" }, method: "PUT" },
+        path: "/api/v1/mobile/dm/conversation-1/messages/message-1/reactions",
+      },
+      {
+        options: { body: { emoji: "thumbs-up" }, method: "DELETE" },
+        path: "/api/v1/mobile/dm/conversation-1/messages/message-1/reactions",
+      },
+      {
+        options: { method: "DELETE" },
+        path: "/api/v1/mobile/dm/conversation-1/messages/message-1",
+      },
+      {
+        options: undefined,
+        path: `/api/v1/mobile/dm/conversation-1/messages/message-1/thread?limit=${MOBILE_DM_MESSAGES_LIMIT}&cursor=cursor-1`,
+      },
+    ]);
+    assert.equal(updated.message.id, "message-1");
+    assert.equal(reacted.reactions[0]?.count, 1);
+    assert.deepEqual(unreacted.reactions, []);
+    assert.equal(deleted.status, "removed");
+    assert.equal(thread.parent.id, "message-1");
   });
 
   it("rejects malformed message payloads before the UI trusts them", async () => {

@@ -1,17 +1,21 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type {
-  MobileApiClient,
-  MobileApiRequestOptions,
-} from "../src/api/mobile-api-client";
+import type { MobileApiClient, MobileApiRequestOptions } from "../src/api/mobile-api-client";
 import {
+  buildMobileChannelMessagePath,
+  buildMobileChannelMessageReactionPath,
+  buildMobileChannelMessageThreadPath,
   buildMobileChannelMessagesPath,
   buildMobileChannelSendMessagePath,
   buildMobileWorkspaceServerPath,
+  deleteMobileChannelMessage,
+  fetchMobileChannelMessageThread,
   fetchMobileChannelMessages,
   fetchMobileWorkspaceServer,
   MOBILE_CHANNEL_MESSAGES_LIMIT,
   sendMobileChannelMessage,
+  setMobileChannelMessageReaction,
+  updateMobileChannelMessage,
 } from "../src/workspace/mobile-workspace-client";
 
 const validServerDetailResponse = {
@@ -95,6 +99,13 @@ const validChannelMessagesResponse = {
   nextCursor: null,
 };
 
+const validChannelThreadResponse = {
+  hasMore: false,
+  messages: validChannelMessagesResponse.messages,
+  nextCursor: null,
+  parent: validChannelMessagesResponse.messages[0],
+};
+
 describe("mobile workspace client", () => {
   it("builds an encoded mobile server detail endpoint path", () => {
     assert.equal(
@@ -114,6 +125,23 @@ describe("mobile workspace client", () => {
     assert.equal(
       buildMobileChannelSendMessagePath({ channelId: "channel/id 1" }),
       "/api/v1/mobile/channels/channel%2Fid%201/messages",
+    );
+  });
+
+  it("builds encoded channel message action, reaction, and bounded thread paths", () => {
+    const input = { channelId: "channel/id 1", messageId: "message/id 1" };
+
+    assert.equal(
+      buildMobileChannelMessagePath(input),
+      "/api/v1/mobile/channels/channel%2Fid%201/messages/message%2Fid%201",
+    );
+    assert.equal(
+      buildMobileChannelMessageReactionPath(input),
+      "/api/v1/mobile/channels/channel%2Fid%201/messages/message%2Fid%201/reactions",
+    );
+    assert.equal(
+      buildMobileChannelMessageThreadPath({ ...input, cursor: "cursor 2" }),
+      `/api/v1/mobile/channels/channel%2Fid%201/messages/message%2Fid%201/thread?limit=${MOBILE_CHANNEL_MESSAGES_LIMIT}&cursor=cursor+2`,
     );
   });
 
@@ -183,6 +211,80 @@ describe("mobile workspace client", () => {
       },
     ]);
     assert.equal(response.message.id, "message-1");
+  });
+
+  it("updates, deletes, reacts to, and loads a channel thread through validated action contracts", async () => {
+    const requests: Array<{
+      options: MobileApiRequestOptions | undefined;
+      path: string;
+    }> = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string, options?: MobileApiRequestOptions) {
+        requests.push({ options, path });
+
+        if (path.includes("/thread")) {
+          return validChannelThreadResponse as TResponse;
+        }
+        if (options?.method === "DELETE" && path.endsWith("/reactions")) {
+          return { reactions: [] } as TResponse;
+        }
+        if (options?.method === "PUT") {
+          return {
+            reactions: [{ count: 1, emoji: "thumbs-up", userIds: ["user-1"] }],
+          } as TResponse;
+        }
+        if (options?.method === "PATCH") {
+          return { message: validChannelMessagesResponse.messages[0] } as TResponse;
+        }
+        return { status: "removed" } as TResponse;
+      },
+    };
+
+    const input = { channelId: "channel-1", messageId: "message-1" };
+    const updated = await updateMobileChannelMessage(client, {
+      ...input,
+      content: "Updated from mobile.",
+    });
+    const reacted = await setMobileChannelMessageReaction(client, {
+      ...input,
+      emoji: "thumbs-up",
+      shouldReact: true,
+    });
+    const unreacted = await setMobileChannelMessageReaction(client, {
+      ...input,
+      emoji: "thumbs-up",
+      shouldReact: false,
+    });
+    const deleted = await deleteMobileChannelMessage(client, input);
+    const thread = await fetchMobileChannelMessageThread(client, { ...input, cursor: "cursor-1" });
+
+    assert.deepEqual(requests, [
+      {
+        options: { body: { content: "Updated from mobile." }, method: "PATCH" },
+        path: "/api/v1/mobile/channels/channel-1/messages/message-1",
+      },
+      {
+        options: { body: { emoji: "thumbs-up" }, method: "PUT" },
+        path: "/api/v1/mobile/channels/channel-1/messages/message-1/reactions",
+      },
+      {
+        options: { body: { emoji: "thumbs-up" }, method: "DELETE" },
+        path: "/api/v1/mobile/channels/channel-1/messages/message-1/reactions",
+      },
+      {
+        options: { method: "DELETE" },
+        path: "/api/v1/mobile/channels/channel-1/messages/message-1",
+      },
+      {
+        options: undefined,
+        path: `/api/v1/mobile/channels/channel-1/messages/message-1/thread?limit=${MOBILE_CHANNEL_MESSAGES_LIMIT}&cursor=cursor-1`,
+      },
+    ]);
+    assert.equal(updated.message.id, "message-1");
+    assert.equal(reacted.reactions[0]?.count, 1);
+    assert.deepEqual(unreacted.reactions, []);
+    assert.equal(deleted.status, "removed");
+    assert.equal(thread.parent.id, "message-1");
   });
 
   it("rejects malformed workspace server payloads before the UI trusts them", async () => {

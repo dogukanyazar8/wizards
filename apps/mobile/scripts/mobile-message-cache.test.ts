@@ -4,9 +4,11 @@ import { QueryClient, type InfiniteData } from "@tanstack/react-query";
 import type { MobileApiClient } from "../src/api/mobile-api-client";
 import { getMobileBootstrapQueryOptions } from "../src/query/mobile-bootstrap-query";
 import {
+  applyMobileOptimisticMessageReaction,
   appendOrReplaceMobileMessage,
   flattenMobileInfiniteData,
   insertOptimisticMobileMessage,
+  replaceMobileMessageReactions,
   replaceMobileMessage,
   restoreMobileMessageSnapshot,
 } from "../src/query/mobile-message-cache";
@@ -83,6 +85,61 @@ test("cache helpers preserve an absent query cache", () => {
   assert.equal(insertOptimisticMobileMessage(undefined, message), undefined);
   assert.equal(replaceMobileMessage(undefined, message.id, message), undefined);
   assert.equal(appendOrReplaceMobileMessage(undefined, message), undefined);
+});
+
+test("reaction cache helpers update only the targeted message and preserve server reaction shape", () => {
+  type ReactionTestMessage = TestMessage & {
+    readonly reactions: readonly { count: number; emoji: string; userIds: string[] }[];
+  };
+  type ReactionTestPage = {
+    readonly messages: readonly ReactionTestMessage[];
+    readonly nextCursor: string | null;
+  };
+  const data: InfiniteData<ReactionTestPage, string | null> = {
+    pageParams: [null],
+    pages: [
+      {
+        messages: [
+          {
+            content: "target",
+            id: "message-1",
+            reactions: [{ count: 1, emoji: "thumbs-up", userIds: ["user-2"] }],
+          },
+          { content: "other", id: "message-2", reactions: [] },
+        ],
+        nextCursor: null,
+      },
+    ],
+  };
+
+  const optimisticallyReacted = applyMobileOptimisticMessageReaction(
+    data,
+    "message-1",
+    "thumbs-up",
+    "user-1",
+    true,
+  );
+  const optimisticallyUnreacted = applyMobileOptimisticMessageReaction(
+    optimisticallyReacted,
+    "message-1",
+    "thumbs-up",
+    "user-1",
+    false,
+  );
+  const serverConfirmed = replaceMobileMessageReactions(optimisticallyUnreacted, "message-1", [
+    { count: 3, emoji: "sparkles", userIds: ["user-1", "user-2", "user-3"] },
+  ]);
+
+  assert.deepEqual(optimisticallyReacted?.pages[0]?.messages[0]?.reactions, [
+    { count: 2, emoji: "thumbs-up", userIds: ["user-2", "user-1"] },
+  ]);
+  assert.deepEqual(optimisticallyUnreacted?.pages[0]?.messages[0]?.reactions, [
+    { count: 1, emoji: "thumbs-up", userIds: ["user-2"] },
+  ]);
+  assert.deepEqual(serverConfirmed?.pages[0]?.messages[0]?.reactions, [
+    { count: 3, emoji: "sparkles", userIds: ["user-1", "user-2", "user-3"] },
+  ]);
+  assert.equal(serverConfirmed?.pages[0]?.messages[1], data.pages[0]?.messages[1]);
 });
 
 test("query option factories use opaque domain keys and cursor pagination", () => {
