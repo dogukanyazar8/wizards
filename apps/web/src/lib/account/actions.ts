@@ -12,13 +12,14 @@ import {
   type TwoFactorFailureResult,
 } from "@/lib/auth/two-factor";
 import {
-  broadcastPresenceUpdateToFriends,
-  persistUserPresence,
-} from "@/lib/friends/service";
+  broadcastUserProfileUpdate,
+  mapVisiblePresenceStatus,
+  updateAccountPresence,
+  updateAccountProfile,
+} from "@/lib/account/service";
+import { ApiError } from "@/lib/api";
 import { logError } from "@/lib/logger";
 import type { FriendPresenceStatus } from "@/lib/friends/types";
-import type { UserProfileUpdatedPayload } from "@/lib/socket/events";
-import { getSocketServer } from "@/lib/socket/runtime";
 
 const UpdateAccountSettingsSchema = z.object({
   displayName: z.string().trim().max(60, "settings.account.errors.displayNameTooLong"),
@@ -116,19 +117,6 @@ function mapUserToAccountState(user: {
   };
 }
 
-function mapVisiblePresenceStatus(status: UserStatus): FriendPresenceStatus {
-  if (
-    status === UserStatus.ONLINE ||
-    status === UserStatus.IDLE ||
-    status === UserStatus.DND ||
-    status === UserStatus.OFFLINE
-  ) {
-    return status;
-  }
-
-  return "OFFLINE";
-}
-
 function mapTwoFactorError(error: TwoFactorFailureResult["error"]) {
   switch (error) {
     case "already_enabled":
@@ -188,48 +176,6 @@ function isTrustedAvatarUrl(value: string | null) {
   }
 }
 
-async function broadcastUserProfileUpdate(profile: UserProfileUpdatedPayload) {
-  const io = getSocketServer();
-  if (!io) {
-    return;
-  }
-
-  const [friendships, serverMemberships] = await Promise.all([
-    prisma.friendRequest.findMany({
-      where: {
-        status: "ACCEPTED",
-        OR: [{ senderId: profile.userId }, { receiverId: profile.userId }],
-      },
-      select: {
-        receiverId: true,
-        senderId: true,
-      },
-    }),
-    prisma.serverMember.findMany({
-      where: { userId: profile.userId },
-      select: { serverId: true },
-    }),
-  ]);
-
-  const targetUserIds = new Set<string>([profile.userId]);
-
-  for (const friendship of friendships) {
-    targetUserIds.add(
-      friendship.senderId === profile.userId
-        ? friendship.receiverId
-        : friendship.senderId,
-    );
-  }
-
-  for (const targetUserId of targetUserIds) {
-    io.to(`user:${targetUserId}`).emit("user:profile:updated", profile);
-  }
-
-  for (const membership of serverMemberships) {
-    io.to(`server:${membership.serverId}`).emit("user:profile:updated", profile);
-  }
-}
-
 export async function updateAccountSettingsAction(
   payload: AccountSettingsState,
 ): Promise<UpdateAccountSettingsResult> {
@@ -263,62 +209,24 @@ export async function updateAccountSettingsAction(
     };
   }
 
-  const nextDisplayName = parsed.data.displayName.trim() || null;
-  const nextEmail = parsed.data.email;
-  const nextStatus = parsed.data.status;
-  const nextUsername = parsed.data.username;
-
-  const [emailConflict, usernameConflict] = await Promise.all([
-    prisma.user.findFirst({
-      where: {
-        email: nextEmail,
-        NOT: { id: session.user.id },
-      },
-      select: { id: true },
-    }),
-    prisma.user.findFirst({
-      where: {
-        username: nextUsername,
-        NOT: { id: session.user.id },
-      },
-      select: { id: true },
-    }),
-  ]);
-
-  if (emailConflict) {
-    return {
-      fieldErrors: { email: "settings.account.errors.emailTaken" },
-      success: false,
-    };
+  let updatedUser;
+  try {
+    updatedUser = await updateAccountProfile(session.user.id, parsed.data);
+  } catch (error) {
+    if (error instanceof ApiError && error.code === "EMAIL_TAKEN") {
+      return {
+        fieldErrors: { email: "settings.account.errors.emailTaken" },
+        success: false,
+      };
+    }
+    if (error instanceof ApiError && error.code === "USERNAME_TAKEN") {
+      return {
+        fieldErrors: { username: "settings.account.errors.usernameTaken" },
+        success: false,
+      };
+    }
+    throw error;
   }
-
-  if (usernameConflict) {
-    return {
-      fieldErrors: { username: "settings.account.errors.usernameTaken" },
-      success: false,
-    };
-  }
-
-  const updatedUser = await prisma.user.update({
-    where: { id: session.user.id },
-    data: {
-      displayName: nextDisplayName,
-      email: nextEmail,
-      status: nextStatus,
-      username: nextUsername,
-    },
-    select: {
-      avatarUrl: true,
-      customStatus: true,
-      displayName: true,
-      email: true,
-      emailVerified: true,
-      id: true,
-      status: true,
-      twoFactorEnabled: true,
-      username: true,
-    },
-  });
 
   await unstable_update({
     user: {
@@ -327,22 +235,6 @@ export async function updateAccountSettingsAction(
       email: updatedUser.email,
       username: updatedUser.username,
     },
-  });
-
-  const visibleStatus = mapVisiblePresenceStatus(updatedUser.status);
-  const presence = await persistUserPresence(session.user.id, visibleStatus);
-
-  if (presence) {
-    await broadcastPresenceUpdateToFriends(presence);
-  }
-
-  await broadcastUserProfileUpdate({
-    avatarUrl: updatedUser.avatarUrl,
-    customStatus: updatedUser.customStatus,
-    displayName: updatedUser.displayName,
-    status: visibleStatus,
-    userId: session.user.id,
-    username: updatedUser.username,
   });
 
   return {
@@ -511,19 +403,16 @@ export async function updatePresenceStatusAction(
     };
   }
 
-  const presence = await persistUserPresence(session.user.id, parsed.data);
-
-  if (!presence) {
+  try {
+    const presence = await updateAccountPresence(session.user.id, parsed.data);
+    return {
+      status: presence.status,
+      success: true,
+    };
+  } catch {
     return {
       error: "settings.account.errors.save",
       success: false,
     };
   }
-
-  await broadcastPresenceUpdateToFriends(presence);
-
-  return {
-    status: presence.status,
-    success: true,
-  };
 }

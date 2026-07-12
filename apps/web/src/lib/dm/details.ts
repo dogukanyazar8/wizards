@@ -1,4 +1,4 @@
-import type { ChatMessage, MessageAttachment } from "@wizards/types";
+import type { MessageAttachment } from "@wizards/types";
 import {
   isMessageFileContentType,
   isMessageImageContentType,
@@ -31,7 +31,12 @@ function isFileAttachment(attachment: MessageAttachment) {
 }
 
 export function getDmSharedAttachmentSummary(
-  messages: readonly ChatMessage[],
+  messages: ReadonlyArray<{
+    attachments: MessageAttachment[];
+    createdAt: string;
+    deletedAt: string | null;
+    id: string;
+  }>,
   options: {
     fileLimit?: number;
     mediaLimit?: number;
