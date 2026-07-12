@@ -44,11 +44,13 @@ export function DMConversationScreen({
   onRequestPhotoLibraryPicker,
   onSearchMessages,
   onSendMessage,
+  onSendGif,
   onDraftChange,
   onDeleteMessage,
   onEditMessage,
   onOpenThread,
   onToggleMessageReaction,
+  onOpenDetails,
   sendState,
   state,
   syncHealth,
@@ -77,11 +79,13 @@ export function DMConversationScreen({
     content: string,
     intent?: { readonly replyToId?: string; readonly threadParentId?: string },
   ): Promise<boolean>;
+  onSendGif?(gifId: string): Promise<boolean>;
   onDraftChange(content: string): void;
   onDeleteMessage(messageId: string): Promise<boolean>;
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onOpenThread?(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
+  onOpenDetails?(): void;
 }) {
   const styles = useDmScreenStyles();
   const title = getMobileConversationTitle(conversation, copy.directMessageFallback);
@@ -92,6 +96,15 @@ export function DMConversationScreen({
   return (
     <View style={styles.chatScreen} testID="mobile-dm-chat-screen">
       <View style={styles.dmConversationHeader}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Conversation details"
+          onPress={onOpenDetails}
+          style={({ pressed }) => [styles.dmRefreshButton, pressed && styles.actionButtonPressed]}
+          testID="mobile-dm-details-open"
+        >
+          <Text style={styles.dmRefreshButtonText}>ⓘ</Text>
+        </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={copy.dmBackAction}
@@ -155,6 +168,7 @@ export function DMConversationScreen({
         onRequestDocumentPicker={onRequestDocumentPicker}
         onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
         onSendMessage={onSendMessage}
+        {...(onSendGif ? { onSendGif } : {})}
         onDraftChange={onDraftChange}
         onDeleteMessage={onDeleteMessage}
         onEditMessage={onEditMessage}
@@ -177,6 +191,7 @@ export function DMConversationPreviewCard({
   onRequestDocumentPicker,
   onRequestPhotoLibraryPicker,
   onSendMessage,
+  onSendGif,
   onDraftChange,
   onDeleteMessage,
   onEditMessage,
@@ -199,6 +214,7 @@ export function DMConversationPreviewCard({
     content: string,
     intent?: { readonly replyToId?: string; readonly threadParentId?: string },
   ): Promise<boolean>;
+  onSendGif?(gifId: string): Promise<boolean>;
   onDraftChange(content: string): void;
   onDeleteMessage(messageId: string): Promise<boolean>;
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
@@ -317,6 +333,7 @@ export function DMConversationPreviewCard({
             intent={composerIntent}
             onCancelIntent={() => setComposerIntent(null)}
             onSend={handleComposerSend}
+            {...(onSendGif ? { onSendGif } : {})}
           />
         </>
       ) : null}

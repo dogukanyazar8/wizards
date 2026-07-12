@@ -1,0 +1,104 @@
+appId: team.whispr.mobile
+---
+- launchApp
+- tapOn:
+    text: "http://10.0.2.2:8081"
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+- tapOn:
+    text: "http://.*:8081"
+    index: 0
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "mobile-bottom-tab-settings|mobile-settings-web-sign-in-action"
+    timeout: 60000
+- openLink: "whispr://settings"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-settings-screen"
+    timeout: 60000
+- runFlow:
+    file: "helpers/login-uat.yml"
+- openLink: "whispr://settings"
+- assertVisible:
+    id: "mobile-settings-screen"
+- tapOn:
+    id: "mobile-settings-open-appearance"
+- assertVisible:
+    id: "mobile-settings-appearance"
+- tapOn:
+    id: "mobile-settings-appearance-control"
+- tapOn: "Acik|Light"
+- openLink: "whispr://channels/@me"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-dm-inbox-screen"
+    timeout: 30000
+- tapOn:
+    id: "mobile-dm-conversation-row"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "mobile-dm-chat-screen"
+    timeout: 30000
+- tapOn:
+    id: "mobile-dm-details-open"
+- assertVisible:
+    id: "mobile-dm-details-screen"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-dm-details-participant"
+    timeout: 30000
+- takeScreenshot: "artifacts/mobile/phase3/closure/light-dm-details"
+- pressKey: BACK
+- tapOn:
+    id: "mobile-dm-gif-button"
+- assertVisible:
+    id: "mobile-gif-picker-panel"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-gif-result-.*"
+    timeout: 30000
+- takeScreenshot: "artifacts/mobile/phase3/closure/light-gif-picker"
+- pressKey: BACK
+- openLink: "whispr://settings"
+- tapOn:
+    id: "mobile-settings-open-security"
+- assertVisible:
+    id: "mobile-settings-security"
+- tapOn:
+    id: "mobile-settings-open-2fa"
+- assertVisible:
+    id: "mobile-security-screen"
+- takeScreenshot: "artifacts/mobile/phase3/closure/light-security"
+# The flow intentionally never starts 2FA setup, so QR/manual/recovery secrets cannot enter evidence.
+- openLink: "whispr://settings"
+- tapOn:
+    id: "mobile-settings-open-appearance"
+- tapOn:
+    id: "mobile-settings-appearance-control"
+- tapOn: "Koyu|Dark"
+- openLink: "whispr://channels/@me"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-dm-inbox-screen"
+    timeout: 30000
+- tapOn:
+    id: "mobile-dm-conversation-row"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "mobile-dm-chat-screen"
+    timeout: 30000
+- tapOn:
+    id: "mobile-dm-details-open"
+- assertVisible:
+    id: "mobile-dm-details-screen"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-dm-details-participant"
+    timeout: 30000
+- takeScreenshot: "artifacts/mobile/phase3/closure/dark-dm-details"

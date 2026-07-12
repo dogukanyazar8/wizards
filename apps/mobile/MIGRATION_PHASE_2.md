@@ -48,7 +48,8 @@ content storage was added.
   reduced-motion behavior.
 - Mentions use semantic accent roles. DM typing reuses the bounded typing state and server socket
   contract.
-- `mobile-product-app.tsx` remains below 400 lines and touched presentation files do not use the
+- `mobile-product-app.tsx` remains a bounded composition root (below 410 lines after Phase 3 GIF
+  handler wiring), and touched presentation files do not use the
   compatibility theme layer or raw mobile colors.
 
 ## Verification

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
+import { ApiError, parseJsonBody } from "@/lib/api";
 
 const routes = import("./route-logic");
 
@@ -32,7 +32,11 @@ function context(params: Record<string, string>) {
 
 function dependencies(overrides: Record<string, unknown> = {}) {
   return {
-    actOnFriendRequest: async (_userId: string, _requestId: string, action: "accept" | "decline") => ({
+    actOnFriendRequest: async (
+      _userId: string,
+      _requestId: string,
+      action: "accept" | "decline",
+    ) => ({
       ...pendingRequest,
       status: action === "accept" ? ("ACCEPTED" as const) : ("DECLINED" as const),
     }),
@@ -41,7 +45,12 @@ function dependencies(overrides: Record<string, unknown> = {}) {
     enforceRateLimit: async () => undefined,
     listBlockedUsers: async () => [ada],
     listFriends: async () => [
-      { ...ada, customStatus: null, presence: { customStatus: null, status: "ONLINE" as const }, status: "ONLINE" as const },
+      {
+        ...ada,
+        customStatus: null,
+        presence: { customStatus: null, status: "ONLINE" as const },
+        status: "ONLINE" as const,
+      },
     ],
     listPendingFriendRequests: async () => ({ incoming: [pendingRequest], outgoing: [] }),
     parseBody: parseJsonBody,
@@ -63,14 +72,22 @@ describe("mobile friends route logic", () => {
           calls.push("auth");
           return "user-1";
         },
-        enforceRateLimit: async (userId: string, action: string) => calls.push(`rate:${userId}:${action}`),
+        enforceRateLimit: async (userId: string, action: string) =>
+          calls.push(`rate:${userId}:${action}`),
         listBlockedUsers: async (userId: string) => {
           calls.push(`blocked:${userId}`);
           return [ada];
         },
         listFriends: async (userId: string) => {
           calls.push(`friends:${userId}`);
-          return [{ ...ada, customStatus: null, presence: { customStatus: null, status: "ONLINE" as const }, status: "ONLINE" as const }];
+          return [
+            {
+              ...ada,
+              customStatus: null,
+              presence: { customStatus: null, status: "ONLINE" as const },
+              status: "ONLINE" as const,
+            },
+          ];
         },
         listPendingFriendRequests: async (userId: string) => {
           calls.push(`pending:${userId}`);
@@ -82,12 +99,22 @@ describe("mobile friends route logic", () => {
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
       blocked: [ada],
-      friends: [{ ...ada, customStatus: null, presence: { customStatus: null, status: "ONLINE" }, status: "ONLINE" }],
+      friends: [
+        {
+          ...ada,
+          customStatus: null,
+          presence: { customStatus: null, status: "ONLINE" },
+          status: "ONLINE",
+        },
+      ],
       pending: { incoming: [pendingRequest], outgoing: [] },
     });
     assert.equal(calls[0], "auth");
     assert.equal(calls[1], "rate:user-1:mobile:friends:list");
-    assert.deepEqual(new Set(calls.slice(2)), new Set(["blocked:user-1", "friends:user-1", "pending:user-1"]));
+    assert.deepEqual(
+      new Set(calls.slice(2)),
+      new Set(["blocked:user-1", "friends:user-1", "pending:user-1"]),
+    );
   });
 
   it("creates and acts on friend requests with strict mobile contracts", async () => {
@@ -138,7 +165,8 @@ describe("mobile friends route logic", () => {
   });
 
   it("removes, blocks, and unblocks only after params validation and rate limiting", async () => {
-    const { mobileFriendBlockRoute, mobileFriendRemoveRoute, mobileFriendUnblockRoute } = await routes;
+    const { mobileFriendBlockRoute, mobileFriendRemoveRoute, mobileFriendUnblockRoute } =
+      await routes;
     const calls: string[] = [];
     const deps = dependencies({
       blockUser: async (userId: string, targetId: string) => {
@@ -146,13 +174,27 @@ describe("mobile friends route logic", () => {
         return ada;
       },
       enforceRateLimit: async (_userId: string, action: string) => calls.push(action),
-      removeFriend: async (userId: string, targetId: string) => calls.push(`remove:${userId}:${targetId}`),
-      unblockUser: async (userId: string, targetId: string) => calls.push(`unblock:${userId}:${targetId}`),
+      removeFriend: async (userId: string, targetId: string) =>
+        calls.push(`remove:${userId}:${targetId}`),
+      unblockUser: async (userId: string, targetId: string) =>
+        calls.push(`unblock:${userId}:${targetId}`),
     });
 
-    const remove = await mobileFriendRemoveRoute(new Request("https://whispr.test"), context({ userId: "user-2" }), deps);
-    const block = await mobileFriendBlockRoute(new Request("https://whispr.test"), context({ userId: "user-2" }), deps);
-    const unblock = await mobileFriendUnblockRoute(new Request("https://whispr.test"), context({ userId: "user-2" }), deps);
+    const remove = await mobileFriendRemoveRoute(
+      new Request("https://whispr.test"),
+      context({ userId: "user-2" }),
+      deps,
+    );
+    const block = await mobileFriendBlockRoute(
+      new Request("https://whispr.test"),
+      context({ userId: "user-2" }),
+      deps,
+    );
+    const unblock = await mobileFriendUnblockRoute(
+      new Request("https://whispr.test"),
+      context({ userId: "user-2" }),
+      deps,
+    );
 
     assert.deepEqual(await remove.json(), { success: true });
     assert.deepEqual(await block.json(), { blocked: ada });
@@ -171,7 +213,11 @@ describe("mobile friends route logic", () => {
     const { mobileFriendRequestCreateRoute, mobileFriendRemoveRoute } = await routes;
     const unauthorized = await mobileFriendRequestCreateRoute(
       jsonRequest("/api/v1/mobile/friends/requests", "POST", { username: "ada" }),
-      dependencies({ authenticate: async () => { throw new ApiError("Unauthorized", 401, "UNAUTHORIZED"); } }),
+      dependencies({
+        authenticate: async () => {
+          throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
+        },
+      }),
     );
     const invalid = await mobileFriendRemoveRoute(
       new Request("https://whispr.test"),
@@ -182,6 +228,8 @@ describe("mobile friends route logic", () => {
     assert.equal(unauthorized.status, 401);
     assert.deepEqual(await unauthorized.json(), { code: "UNAUTHORIZED", error: "Unauthorized" });
     assert.equal(invalid.status, 400);
-    assert.deepEqual(await invalid.json(), { error: "String must contain at least 1 character(s)" });
+    assert.deepEqual(await invalid.json(), {
+      error: "String must contain at least 1 character(s)",
+    });
   });
 });

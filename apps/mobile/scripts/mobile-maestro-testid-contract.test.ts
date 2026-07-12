@@ -21,6 +21,8 @@ const loginHelperPath = path.join(repositoryRoot, ".maestro", "helpers", "login-
 const loginHelperSource = existsSync(loginHelperPath) ? readFileSync(loginHelperPath, "utf8") : "";
 const phase2FlowPath = path.join(repositoryRoot, ".maestro", "phase2-messaging.yml");
 const phase2FlowSource = existsSync(phase2FlowPath) ? readFileSync(phase2FlowPath, "utf8") : "";
+const phase3FlowPath = path.join(repositoryRoot, ".maestro", "phase3-social.yml");
+const phase3FlowSource = existsSync(phase3FlowPath) ? readFileSync(phase3FlowPath, "utf8") : "";
 const rootGitignoreSource = readFileSync(path.join(repositoryRoot, ".gitignore"), "utf8");
 
 const testIdSources: Record<string, { file: string; needle: string }> = {
@@ -68,9 +70,21 @@ describe("Phase 0 Maestro testID contract", () => {
     assert.match(loginHelperSource, /id:\s*"email"/);
     assert.match(loginHelperSource, /id:\s*"password"/);
     assert.equal(loginHelperSource.match(/tapOn:\s*"Giris yap\|Sign In"/g)?.length, 1);
+    assert.match(
+      loginHelperSource,
+      /tapOn:\s*"Giris yap\|Sign In"[\s\S]*?extendedWaitUntil:[\s\S]*?id:\s*"mobile-bottom-tab-settings"[\s\S]*?- tapOn:[\s\S]*?id:\s*"mobile-bottom-tab-settings"/,
+    );
     assert.doesNotMatch(loginHelperSource, /retry/i);
     assert.match(loginHelperSource, /id:\s*"mobile-bottom-tab-settings"/);
+    assert.match(
+      loginHelperSource,
+      /id:\s*"mobile-bottom-tab-settings"[\s\S]*?id:\s*"mobile-settings-open-account"[\s\S]*?id:\s*"mobile-settings-account"[\s\S]*?id:\s*"mobile-settings-sign-out-action"/,
+    );
     assert.match(loginHelperSource, /id:\s*"mobile-settings-sign-out-action"/);
+    assert.match(
+      loginHelperSource,
+      /id:\s*"mobile-settings-sign-out-action"[\s\S]*?pressKey:\s*BACK[\s\S]*?id:\s*"mobile-bottom-tab-overview"/,
+    );
     assert.match(loginHelperSource, /id:\s*"mobile-bottom-tab-overview"/);
     assert.match(loginHelperSource, /id:\s*"mobile-overview-screen"/);
 
@@ -185,8 +199,7 @@ describe("Phase 0 Maestro testID contract", () => {
       assert.match(phase2FlowSource, new RegExp(action));
     }
     assert.ok(
-      (phase2FlowSource.match(/id:\s*"mobile-message-actions-\.\*-trigger"/g)?.length ?? 0) >=
-        4,
+      (phase2FlowSource.match(/id:\s*"mobile-message-actions-\.\*-trigger"/g)?.length ?? 0) >= 4,
     );
     for (const message of ["Phase2 Maestro verified", "Phase2 edited verified"]) {
       assert.match(
@@ -197,5 +210,55 @@ describe("Phase 0 Maestro testID contract", () => {
     assert.match(phase2FlowSource, /artifacts\/mobile\/phase2\/closure\/light-messaging/);
     assert.match(phase2FlowSource, /artifacts\/mobile\/phase2\/closure\/dark-messaging/);
     assert.ok(MOBILE_AUTOMATED_GATES.some((gate) => gate.id === "mobile-maestro-phase2-messaging"));
+  });
+
+  it("binds the Phase 3 social and account flow without capturing 2FA secrets", () => {
+    assert.ok(phase3FlowSource, ".maestro/phase3-social.yml must exist");
+    assert.match(
+      phase3FlowSource,
+      /openLink:\s*"whispr:\/\/settings"[\s\S]*?id:\s*"mobile-settings-screen"[\s\S]*?file:\s*"helpers\/login-uat\.yml"/,
+    );
+    assert.match(
+      phase3FlowSource,
+      /openLink:\s*"whispr:\/\/channels\/@me"[\s\S]*?id:\s*"mobile-dm-conversation-row"[\s\S]*?id:\s*"mobile-dm-chat-screen"/,
+    );
+    assert.doesNotMatch(phase3FlowSource, /WHISPR_MOBILE_E2E_CONVERSATION_ID/);
+    assert.match(
+      phase3FlowSource,
+      /id:\s*"mobile-dm-details-screen"[\s\S]*?id:\s*"mobile-dm-details-participant"[\s\S]*?light-dm-details/,
+    );
+    assert.match(
+      phase3FlowSource,
+      /id:\s*"mobile-gif-picker-panel"[\s\S]*?id:\s*"mobile-gif-result-\.\*"[\s\S]*?light-gif-picker/,
+    );
+    const contracts = {
+      "mobile-dm-details-open": "src/app/screens/dm-conversation-screen.tsx",
+      "mobile-dm-details-screen": "src/dm/mobile-dm-details-screen.tsx",
+      "mobile-dm-gif-button": "src/app/composer/mobile-composer.tsx",
+      "mobile-gif-picker-panel": "src/media/mobile-gif-picker.tsx",
+      "mobile-settings-open-2fa": "src/app/screens/settings-screen.tsx",
+      "mobile-security-screen": "src/account/mobile-two-factor-screen.tsx",
+    } as const;
+    for (const [testId, sourcePath] of Object.entries(contracts)) {
+      assert.match(phase3FlowSource, new RegExp(`id:\\s*"${testId}"`));
+      assert.match(
+        readFileSync(path.join(process.cwd(), sourcePath), "utf8"),
+        new RegExp(testId.replace(/-panel$/, "")),
+      );
+    }
+    assert.match(phase3FlowSource, /file:\s*"helpers\/login-uat\.yml"/);
+    assert.doesNotMatch(
+      phase3FlowSource,
+      /mobile-2fa-(?:setup-start|qr|manual-key|confirm|recovery-codes)/,
+    );
+    for (const screenshot of [
+      "light-dm-details",
+      "light-gif-picker",
+      "light-security",
+      "dark-dm-details",
+    ]) {
+      assert.match(phase3FlowSource, new RegExp(`artifacts/mobile/phase3/closure/${screenshot}`));
+    }
+    assert.ok(MOBILE_AUTOMATED_GATES.some((gate) => gate.id === "mobile-maestro-phase3-social"));
   });
 });

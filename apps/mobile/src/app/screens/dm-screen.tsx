@@ -49,11 +49,13 @@ export function MessagesScreen({
   onRequestPhotoLibraryPicker,
   onSearchMessages,
   onSendMessage,
+  onSendGif,
   onDraftChange,
   onDeleteMessage,
   onEditMessage,
   onOpenThread,
   onToggleMessageReaction,
+  onOpenDetails,
 }: {
   bootstrapState: MobileBootstrapViewState;
   dmMessagesState: MobileDMMessagesViewState;
@@ -79,11 +81,13 @@ export function MessagesScreen({
     content: string,
     intent?: { readonly replyToId?: string; readonly threadParentId?: string },
   ): Promise<boolean>;
+  onSendGif?(gifId: string): Promise<boolean>;
   onDraftChange(content: string): void;
   onDeleteMessage(messageId: string): Promise<boolean>;
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onOpenThread?(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
+  onOpenDetails?(): void;
 }) {
   const styles = useDmScreenStyles();
   const { locale } = useMobileLocaleRuntime();
@@ -123,11 +127,13 @@ export function MessagesScreen({
         onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
         onSearchMessages={onSearchMessages}
         onSendMessage={onSendMessage}
+        {...(onSendGif ? { onSendGif } : {})}
         onDraftChange={onDraftChange}
         onDeleteMessage={onDeleteMessage}
         onEditMessage={onEditMessage}
         {...(onOpenThread ? { onOpenThread } : {})}
         onToggleMessageReaction={onToggleMessageReaction}
+        {...(onOpenDetails ? { onOpenDetails } : {})}
       />
     );
   }
@@ -138,29 +144,60 @@ export function MessagesScreen({
       <View style={styles.inboxFilterRow} testID="mobile-social-segment">
         {(["conversations", "friends"] as const).map((segment) => {
           const selected = inboxSegment === segment;
-          const label = segment === "conversations" ? (locale === "tr" ? "Konusmalar" : "Conversations") : (locale === "tr" ? "Arkadaslar" : "Friends");
-          return <Pressable key={segment} accessibilityRole="tab" accessibilityState={{ selected }} onPress={() => setInboxSegment(segment)} style={[styles.inboxFilterButton, selected && styles.inboxFilterButtonActive]} testID={segment === "friends" ? "mobile-social-segment-friends" : "mobile-social-segment-conversations"}><Text style={[styles.inboxFilterButtonText, selected && styles.inboxFilterButtonTextActive]}>{label}</Text></Pressable>;
+          const label =
+            segment === "conversations"
+              ? locale === "tr"
+                ? "Konusmalar"
+                : "Conversations"
+              : locale === "tr"
+                ? "Arkadaslar"
+                : "Friends";
+          return (
+            <Pressable
+              key={segment}
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
+              onPress={() => setInboxSegment(segment)}
+              style={[styles.inboxFilterButton, selected && styles.inboxFilterButtonActive]}
+              testID={
+                segment === "friends"
+                  ? "mobile-social-segment-friends"
+                  : "mobile-social-segment-conversations"
+              }
+            >
+              <Text
+                style={[
+                  styles.inboxFilterButtonText,
+                  selected && styles.inboxFilterButtonTextActive,
+                ]}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          );
         })}
       </View>
-      {inboxSegment === "friends" ? <FriendsHub /> : (
+      {inboxSegment === "friends" ? (
+        <FriendsHub />
+      ) : (
         <>
-      <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
-      <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
-      {bootstrapState.status === "ready" ? (
-        <DirectMessageSummaryCard
-          totalCount={bootstrapState.payload.home.directMessages.totalCount}
-          unreadCount={bootstrapState.payload.home.directMessages.unreadCount}
-        />
-      ) : null}
-      {hasConversations ? (
-        <DirectMessageListCard
-          conversations={bootstrapState.payload.home.directMessages.recent}
-          selectedConversationId={selectedConversationId}
-          onOpenConversation={onOpenConversation}
-        />
-      ) : shouldShowEmpty ? (
-        <EmptyState tone="accent" label={copy.messagesEmpty} />
-      ) : null}
+          <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
+          <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
+          {bootstrapState.status === "ready" ? (
+            <DirectMessageSummaryCard
+              totalCount={bootstrapState.payload.home.directMessages.totalCount}
+              unreadCount={bootstrapState.payload.home.directMessages.unreadCount}
+            />
+          ) : null}
+          {hasConversations ? (
+            <DirectMessageListCard
+              conversations={bootstrapState.payload.home.directMessages.recent}
+              selectedConversationId={selectedConversationId}
+              onOpenConversation={onOpenConversation}
+            />
+          ) : shouldShowEmpty ? (
+            <EmptyState tone="accent" label={copy.messagesEmpty} />
+          ) : null}
         </>
       )}
     </View>

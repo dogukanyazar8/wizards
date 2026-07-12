@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
 import type {
@@ -25,6 +25,8 @@ import { NotificationsScreen } from "./notifications-screen";
 import { ProfileSettingsScreen } from "./settings-screen";
 import { BlockedUsersScreen, ProfileEditScreen } from "../../social/social-account-screens";
 import { VoiceScreen } from "./voice-screen";
+import { MobileTwoFactorScreen } from "../../account/mobile-two-factor-screen";
+import { MobileDMDetailsScreen } from "../../dm/mobile-dm-details-screen";
 
 export function OverviewTabScreenContainer({
   navigation,
@@ -111,6 +113,7 @@ export function ChannelStackScreenContainer({
   const { openWorkspaceRoute } = useMobileProductNavigationActions();
   const { channelId, serverId } = route.params;
   const closeWorkspaceChannel = screenProps.onCloseWorkspaceChannel;
+  const closeWorkspaceChannelRef = useLatestValueRef(closeWorkspaceChannel);
   const setServer = useMobileActiveTargetStore((state) => state.setServer);
   const setTextChannel = useMobileActiveTargetStore((state) => state.setTextChannel);
 
@@ -120,13 +123,20 @@ export function ChannelStackScreenContainer({
       setTextChannel(serverId, channelId);
 
       return () => {
-        closeWorkspaceChannel();
+        closeWorkspaceChannelRef.current();
         const current = useMobileActiveTargetStore.getState();
         if (current.serverId === serverId && current.channelId === channelId) {
           setServer(serverId);
         }
       };
-    }, [channelId, closeWorkspaceChannel, openWorkspaceRoute, serverId, setServer, setTextChannel]),
+    }, [
+      channelId,
+      closeWorkspaceChannelRef,
+      openWorkspaceRoute,
+      serverId,
+      setServer,
+      setTextChannel,
+    ]),
   );
 
   return (
@@ -150,6 +160,7 @@ export function DirectMessageStackScreenContainer({
   const screenProps = useMobileMessagesScreenProps();
   const { conversationId } = route.params;
   const closeDMConversation = screenProps.onCloseConversation;
+  const closeDMConversationRef = useLatestValueRef(closeDMConversation);
   const openDMConversation = screenProps.onOpenConversation;
   const setConversation = useMobileActiveTargetStore((state) => state.setConversation);
 
@@ -159,17 +170,18 @@ export function DirectMessageStackScreenContainer({
       setConversation(conversationId);
 
       return () => {
-        closeDMConversation();
+        closeDMConversationRef.current();
         if (useMobileActiveTargetStore.getState().conversationId === conversationId) {
           setConversation(null);
         }
       };
-    }, [closeDMConversation, conversationId, openDMConversation, setConversation]),
+    }, [closeDMConversationRef, conversationId, openDMConversation, setConversation]),
   );
 
   return (
     <MessagesScreen
       {...screenProps}
+      onOpenDetails={() => navigation.navigate("DMDetails", { conversationId })}
       onOpenThread={(messageId) => {
         navigation.navigate("MessageThread", { contextId: conversationId, messageId, scope: "dm" });
       }}
@@ -188,16 +200,55 @@ export function MessageThreadStackScreenContainer({
   return <MobileMessageThreadScreen {...route.params} onBack={() => navigation.goBack()} />;
 }
 
-export function SettingsDetailScreenContainer(
-  _props: NativeStackScreenProps<MobileRootStackParamList, "SettingsDetail">,
-) {
-  return <ProfileSettingsScreen {...useMobileSettingsScreenProps()} />;
+export function SettingsDetailScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "SettingsDetail">) {
+  return (
+    <ProfileSettingsScreen
+      {...useMobileSettingsScreenProps()}
+      activeSection={route.params.section}
+      onBack={() => navigation.goBack()}
+    />
+  );
 }
 
-export function ProfileEditScreenContainer({ navigation }: NativeStackScreenProps<MobileRootStackParamList, "ProfileEdit">) {
+export function ProfileEditScreenContainer({
+  navigation,
+}: NativeStackScreenProps<MobileRootStackParamList, "ProfileEdit">) {
   return <ProfileEditScreen onBack={() => navigation.goBack()} />;
 }
 
-export function BlockedUsersScreenContainer({ navigation }: NativeStackScreenProps<MobileRootStackParamList, "BlockedUsers">) {
+export function BlockedUsersScreenContainer({
+  navigation,
+}: NativeStackScreenProps<MobileRootStackParamList, "BlockedUsers">) {
   return <BlockedUsersScreen onBack={() => navigation.goBack()} />;
+}
+
+export function SecurityScreenContainer({
+  navigation,
+}: NativeStackScreenProps<MobileRootStackParamList, "Security">) {
+  return <MobileTwoFactorScreen onBack={() => navigation.goBack()} />;
+}
+
+export function DMDetailsScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "DMDetails">) {
+  return (
+    <MobileDMDetailsScreen
+      conversationId={route.params.conversationId}
+      onBack={() => navigation.goBack()}
+    />
+  );
+}
+
+function useLatestValueRef<T>(value: T) {
+  const valueRef = useRef(value);
+
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+
+  return valueRef;
 }

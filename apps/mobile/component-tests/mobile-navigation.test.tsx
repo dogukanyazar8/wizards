@@ -101,6 +101,10 @@ jest.mock(
         React.createElement(View, { testID: "mobile-profile-edit-screen" }),
       BlockedUsersScreenContainer: () =>
         React.createElement(View, { testID: "mobile-blocked-users-screen" }),
+      SecurityScreenContainer: () =>
+        React.createElement(View, { testID: "mobile-security-screen" }),
+      DMDetailsScreenContainer: () =>
+        React.createElement(View, { testID: "mobile-dm-details-screen" }),
       SettingsTabScreenContainer: () =>
         React.createElement(View, { testID: "mobile-settings-tab-screen" }),
       VoiceTabScreenContainer: () =>

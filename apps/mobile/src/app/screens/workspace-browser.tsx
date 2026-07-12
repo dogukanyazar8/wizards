@@ -82,6 +82,7 @@ export function MobileWorkspaceBrowser({
   onChannelDraftChange,
   onSearchMessages,
   onSendChannelMessage,
+  onSendChannelGif,
   onDeleteMessage,
   onEditMessage,
   onOpenThread,
@@ -137,6 +138,7 @@ export function MobileWorkspaceBrowser({
     content: string,
     intent?: { readonly replyToId?: string; readonly threadParentId?: string },
   ): Promise<boolean>;
+  onSendChannelGif?(gifId: string): Promise<boolean>;
   onDeleteMessage(messageId: string): Promise<boolean>;
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onOpenThread?(messageId: string): void;
@@ -275,6 +277,7 @@ export function MobileWorkspaceBrowser({
         onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
         onSearchMessages={onSearchMessages}
         onSendMessage={onSendChannelMessage}
+        {...(onSendChannelGif ? { onSendGif: onSendChannelGif } : {})}
         onDeleteMessage={onDeleteMessage}
         onEditMessage={onEditMessage}
         {...(onOpenThread ? { onOpenThread } : {})}

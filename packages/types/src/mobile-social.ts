@@ -11,7 +11,10 @@ const MobileHttpsUrlSchema = z
   .refine((value) => new URL(value).protocol === "https:", "HTTPS URL required");
 const MobileGiphyAssetUrlSchema = z.union([
   MobileHttpsUrlSchema,
-  z.string().max(512).regex(/^data:image\/gif;base64,[A-Za-z0-9+/=]+$/),
+  z
+    .string()
+    .max(512)
+    .regex(/^data:image\/gif;base64,[A-Za-z0-9+/=]+$/),
 ]);
 
 export const MobileFriendPresenceStatusSchema = z.enum(["ONLINE", "IDLE", "DND", "OFFLINE"]);
@@ -131,7 +134,10 @@ export const MobileTwoFactorSetupResponseSchema = z
   .object({
     manualEntryKey: z.string().min(8).max(128),
     otpauthUri: z.string().min(16).max(2048).startsWith("otpauth://"),
-    qrCodeDataUrl: z.string().max(262_144).regex(/^data:image\/png;base64,[A-Za-z0-9+/=]+$/),
+    qrCodeDataUrl: z
+      .string()
+      .max(262_144)
+      .regex(/^data:image\/png;base64,[A-Za-z0-9+/=]+$/),
   })
   .strict();
 export const MobileTwoFactorConfirmResponseSchema = z
@@ -165,11 +171,40 @@ export const MobileGiphySearchResponseSchema = z
   .object({ gifs: z.array(MobileGiphyGifSchema).max(36) })
   .strict();
 
+export const MobileGiphyAttachmentRequestSchema = z
+  .object({ gifId: MobileBoundedIdSchema })
+  .strict();
+export const MobileGiphyAttachmentResponseSchema = z
+  .object({
+    attachment: MessageAttachmentSchema,
+    input: z
+      .object({
+        height: z.number().int().positive().nullable(),
+        id: MobileBoundedIdSchema,
+        width: z.number().int().positive().nullable(),
+      })
+      .strict(),
+  })
+  .strict();
+
+export const MobileLinkPreviewRequestSchema = z.object({ url: MobileHttpsUrlSchema }).strict();
+export const MobileLinkPreviewResponseSchema = z
+  .object({
+    description: z.string().max(280).nullable(),
+    imageUrl: MobileHttpsUrlSchema.nullable(),
+    siteName: z.string().max(80).nullable(),
+    title: z.string().max(160).nullable(),
+    url: MobileHttpsUrlSchema,
+  })
+  .strict();
+
 export const MobileDMDetailsParamsSchema = z
   .object({ conversationId: MobileBoundedIdSchema })
   .strict();
 export const MobileDMCreateRequestSchema = z.object({ userId: MobileBoundedIdSchema }).strict();
-export const MobileDMCreateResponseSchema = z.object({ conversation: DMConversationDTOSchema }).strict();
+export const MobileDMCreateResponseSchema = z
+  .object({ conversation: DMConversationDTOSchema })
+  .strict();
 export const MobileDMDetailsQuerySchema = z
   .object({
     cursor: MobileBoundedIdSchema.optional(),
@@ -215,4 +250,8 @@ export type MobileProfileUpdate = z.infer<typeof MobileProfileUpdateSchema>;
 export type MobileTwoFactorDisableRequest = z.infer<typeof MobileTwoFactorDisableRequestSchema>;
 export type MobileTwoFactorConfirmRequest = z.infer<typeof MobileTwoFactorConfirmRequestSchema>;
 export type MobileGiphySearchQuery = z.infer<typeof MobileGiphySearchQuerySchema>;
+export type MobileGiphyAttachmentRequest = z.infer<typeof MobileGiphyAttachmentRequestSchema>;
+export type MobileGiphyAttachmentResponse = z.infer<typeof MobileGiphyAttachmentResponseSchema>;
+export type MobileLinkPreviewRequest = z.infer<typeof MobileLinkPreviewRequestSchema>;
+export type MobileLinkPreviewResponse = z.infer<typeof MobileLinkPreviewResponseSchema>;
 export type MobileDMDetailsQuery = z.infer<typeof MobileDMDetailsQuerySchema>;

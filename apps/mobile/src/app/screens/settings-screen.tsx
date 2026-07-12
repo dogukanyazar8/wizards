@@ -60,6 +60,8 @@ import { useTheme, useThemePreference } from "../providers/mobile-theme-provider
 import type { MobileThemeMode } from "../../design/mobile-theme-runtime";
 import { useSettingsScreenStyles } from "./settings-screen.styles";
 import { SocialAccountQuickActions } from "../../social/social-account-screens";
+import { Button } from "../components/kit";
+import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 
 function getMobilePermissionLabel(intentId: MobilePermissionIntentId): string {
   switch (intentId) {
@@ -1444,6 +1446,7 @@ function getDeepLinkStatusLabel(result: MobileDeepLinkParseResult | null) {
 }
 
 export function ProfileSettingsScreen({
+  activeSection,
   appLockAvailability,
   appLockEnabled,
   authStatusLabel,
@@ -1475,7 +1478,9 @@ export function ProfileSettingsScreen({
   onSelectVoiceInputMode,
   onSignOut,
   onToggleAppLock,
+  onBack,
 }: {
+  activeSection?: string;
   appLockAvailability: MobileAppLockAvailability;
   appLockEnabled: boolean;
   authStatusLabel: string;
@@ -1507,6 +1512,7 @@ export function ProfileSettingsScreen({
   onSelectVoiceInputMode(mode: MobileVoiceInputMode): void;
   onSignOut(): void;
   onToggleAppLock(enabled: boolean): void;
+  onBack?(): void;
 }) {
   const styles = useSettingsScreenStyles();
   const { mode: themeMode } = useThemePreference();
@@ -1607,6 +1613,207 @@ export function ProfileSettingsScreen({
       value: releaseChannel,
     },
   ];
+  const resolvedSection = activeSection ?? (socialActionsEnabled ? "hub" : "legacy");
+  const tr = locale === "tr";
+  const sectionLabels = {
+    account: tr ? "Hesap" : "Account",
+    security: tr ? "Guvenlik" : "Security",
+    appearance: tr ? "Gorunum" : "Appearance",
+    notifications: tr ? "Bildirimler" : "Notifications",
+    language: tr ? "Dil" : "Language",
+    about: tr ? "Hakkinda" : "About",
+    developer: tr ? "Gelistirici" : "Developer",
+  } as const;
+
+  const sectionShell = (title: string, children: ReactNode, testID: string) => (
+    <ScrollView
+      contentContainerStyle={styles.settingsScreenContent}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      style={styles.settingsScreenScroll}
+    >
+      <ScreenShell
+        testID={testID}
+        eyebrow={copy.tabProfile}
+        title={title}
+        description={copy.settingsDescription}
+      >
+        {onBack ? (
+          <Button
+            label={tr ? "Geri" : "Back"}
+            icon="arrow-back"
+            variant="ghost"
+            onPress={onBack}
+            testID={`${testID}-back`}
+          />
+        ) : null}
+        {children}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      </ScreenShell>
+    </ScrollView>
+  );
+
+  if (resolvedSection === "hub") {
+    return sectionShell(
+      copy.settingsTitle,
+      <>
+        <SettingsAccountCard
+          authStatusLabel={authStatusLabel}
+          bootstrapState={bootstrapState}
+          signedInUserLabel={signedInUserLabel}
+          status={status}
+        />
+        <View style={styles.settingsSectionActions} testID="mobile-settings-ia">
+          {Object.entries(sectionLabels).map(([id, label]) => (
+            <Button
+              key={id}
+              label={label}
+              icon={
+                id === "security"
+                  ? "shield-checkmark-outline"
+                  : id === "developer"
+                    ? "code-slash-outline"
+                    : "chevron-forward"
+              }
+              variant="secondary"
+              onPress={() =>
+                mobileNavigationRef.isReady() &&
+                mobileNavigationRef.navigate("SettingsDetail", { section: id })
+              }
+              testID={`mobile-settings-open-${id}`}
+            />
+          ))}
+        </View>
+      </>,
+      "mobile-settings-screen",
+    );
+  }
+
+  if (resolvedSection === "account")
+    return sectionShell(
+      sectionLabels.account,
+      <>
+        <SettingsAccountCard
+          authStatusLabel={authStatusLabel}
+          bootstrapState={bootstrapState}
+          signedInUserLabel={signedInUserLabel}
+          status={status}
+        />
+        {socialActionsEnabled ? <SocialAccountQuickActions /> : null}
+        <SettingsSessionActionCard
+          isSignedIn={isSignedIn}
+          onOpenWebRegister={onOpenWebRegister}
+          onOpenWebSignIn={onOpenWebSignIn}
+          onRefresh={onRefresh}
+          onSignOut={onSignOut}
+        />
+      </>,
+      "mobile-settings-account",
+    );
+  if (resolvedSection === "security")
+    return sectionShell(
+      sectionLabels.security,
+      <>
+        <Button
+          label={tr ? "Iki faktorlu dogrulama" : "Two-factor authentication"}
+          icon="shield-checkmark-outline"
+          onPress={() => mobileNavigationRef.isReady() && mobileNavigationRef.navigate("Security")}
+          testID="mobile-settings-open-2fa"
+        />
+        <SettingsPreferenceSection
+          description={copy.settingsPrivacyDescription}
+          rows={privacyRows}
+          title={copy.settingsPrivacyTitle}
+        />
+        <SettingsPreferenceSection
+          description={copy.settingsAppLockDescription}
+          rows={[]}
+          title={copy.settingsAppLockTitle}
+        >
+          <SettingsAppLockControl
+            availability={appLockAvailability}
+            enabled={appLockEnabled}
+            onToggle={onToggleAppLock}
+          />
+        </SettingsPreferenceSection>
+      </>,
+      "mobile-settings-security",
+    );
+  if (resolvedSection === "appearance")
+    return sectionShell(
+      sectionLabels.appearance,
+      <SettingsPreferenceSection
+        description={copy.settingsAppearanceDescription}
+        rows={appearanceRows.filter((row) => row.id === "theme")}
+        title={copy.settingsAppearanceTitle}
+      >
+        <SettingsAppearanceSelector />
+      </SettingsPreferenceSection>,
+      "mobile-settings-appearance",
+    );
+  if (resolvedSection === "language")
+    return sectionShell(
+      sectionLabels.language,
+      <SettingsPreferenceSection
+        description={copy.settingsLanguageDescription}
+        rows={appearanceRows.filter((row) => row.id === "language")}
+        title={copy.settingsLanguageTitle}
+      >
+        <SettingsLocaleSelector locale={locale} onSelectLocale={onSelectLocale} />
+      </SettingsPreferenceSection>,
+      "mobile-settings-language",
+    );
+  if (resolvedSection === "notifications")
+    return sectionShell(
+      sectionLabels.notifications,
+      <>
+        <SettingsPreferenceSection
+          description={copy.settingsNotificationsDescription}
+          rows={notificationRows}
+          title={copy.settingsNotificationsTitle}
+        />
+        <SettingsNativePermissionCard
+          mediaState={mediaState}
+          onRequestCameraPermission={onRequestCameraPermission}
+          onRequestDocumentPicker={onRequestDocumentPicker}
+          onRequestNotificationPermission={onRequestNotificationPermission}
+          onRequestPhotoLibraryPermission={onRequestPhotoLibraryPermission}
+          readiness={permissionReadiness}
+          summary={permissionSummary}
+        />
+      </>,
+      "mobile-settings-notifications",
+    );
+  if (resolvedSection === "about")
+    return sectionShell(
+      sectionLabels.about,
+      <>
+        <SettingsPreferenceSection
+          description={copy.settingsAboutDescription}
+          rows={aboutRows}
+          title={copy.settingsAboutTitle}
+        />
+        <SettingsSupportLegalCard
+          onOpenCookies={onOpenCookies}
+          onOpenPrivacyPolicy={onOpenPrivacyPolicy}
+          onOpenSupport={onOpenSupport}
+          onOpenTerms={onOpenTerms}
+        />
+      </>,
+      "mobile-settings-about",
+    );
+  if (resolvedSection === "developer")
+    return sectionShell(
+      sectionLabels.developer,
+      <>
+        <SettingsPermissionEvidenceCard summary={permissionSummary} />
+        <SettingsReleaseQualityCard />
+        {bootstrapState.status === "ready" ? (
+          <SettingsFeatureReadinessCard features={bootstrapState.payload.features} />
+        ) : null}
+      </>,
+      "mobile-settings-developer",
+    );
 
   return (
     <ScrollView

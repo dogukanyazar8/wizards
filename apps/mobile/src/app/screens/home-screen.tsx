@@ -88,6 +88,7 @@ export function OverviewScreen({
   onChannelDraftChange,
   onSearchMessages,
   onSendChannelMessage,
+  onSendChannelGif,
   onDeleteMessage,
   onEditMessage,
   onOpenThread,
@@ -141,6 +142,7 @@ export function OverviewScreen({
     content: string,
     intent?: { readonly replyToId?: string; readonly threadParentId?: string },
   ): Promise<boolean>;
+  onSendChannelGif?(gifId: string): Promise<boolean>;
   onDeleteMessage(messageId: string): Promise<boolean>;
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onOpenThread?(messageId: string): void;
@@ -198,6 +200,7 @@ export function OverviewScreen({
           onChannelDraftChange={onChannelDraftChange}
           onSearchMessages={onSearchMessages}
           onSendChannelMessage={onSendChannelMessage}
+          {...(onSendChannelGif ? { onSendChannelGif } : {})}
           onDeleteMessage={onDeleteMessage}
           onEditMessage={onEditMessage}
           {...(onOpenThread ? { onOpenThread } : {})}

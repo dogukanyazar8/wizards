@@ -29,6 +29,8 @@ import { useTheme } from "../providers/mobile-theme-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { formatMobileDateSeparator } from "../../locale/mobile-date-separator";
 import { MessageEmojiPicker } from "./message-emoji-picker";
+import { MobileLinkPreviewCard } from "../../messages/mobile-link-preview-card";
+import { extractFirstHttpsUrl } from "../../messages/mobile-link-preview-client";
 import { MessageImageLightbox } from "./message-image-lightbox";
 
 const MOBILE_SEARCH_RESULT_RENDER_LIMIT = 6;
@@ -536,6 +538,7 @@ export function MessagePreviewRow({
     attachmentOnly: copy.dmAttachmentOnlyMessage,
     deleted: copy.dmDeletedMessage,
   });
+  const previewUrl = extractFirstHttpsUrl(message.content);
   const messageActions = useMemo<readonly ContextMenuAction[]>(
     () => [
       ...(message.content
@@ -679,6 +682,7 @@ export function MessagePreviewRow({
           </Pressable>
         ) : null}
         <MessageBodyText body={body} channel={isChannelMode} />
+        {previewUrl ? <MobileLinkPreviewCard messageId={message.id} url={previewUrl} /> : null}
         {message.editedAt ? (
           <Text style={styles.dmMessageTime}>{copy.messageEditedLabel}</Text>
         ) : null}

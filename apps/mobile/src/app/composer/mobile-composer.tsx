@@ -19,6 +19,7 @@ import { formatMobileMediaAssetMeta } from "../components/media-primitives";
 import { Icon } from "../components/kit";
 import { useMobileComposerStyles } from "./mobile-composer.styles";
 import { useTheme } from "../providers/mobile-theme-provider";
+import { MobileGifPicker } from "../../media/mobile-gif-picker";
 
 export type MobileComposerIntent = {
   readonly content: string;
@@ -36,6 +37,7 @@ export function DMComposer({
   onRequestDocumentPicker,
   onRequestPhotoLibraryPicker,
   onSend,
+  onSendGif,
   placeholder = copy.dmComposerPlaceholder,
   sendActionLabel = copy.dmSendAction,
   sendState,
@@ -51,6 +53,7 @@ export function DMComposer({
   onRequestDocumentPicker?: () => Promise<void>;
   onRequestPhotoLibraryPicker?: () => Promise<void>;
   onSend(content: string): Promise<boolean>;
+  onSendGif?: (gifId: string) => Promise<boolean>;
   placeholder?: string;
   sendActionLabel?: string;
   sendState: MobileChannelSendViewState | MobileDMSendViewState;
@@ -60,6 +63,7 @@ export function DMComposer({
   const theme = useTheme();
   const styles = useMobileComposerStyles();
   const [draft, setDraft] = useState("");
+  const [gifPickerOpen, setGifPickerOpen] = useState(false);
   const trimmedDraft = draft.trim();
   const selectedAsset = mediaState?.selectedAsset ?? null;
   const isPickingDocument = mediaState?.status === "checking-document-picker";
@@ -236,11 +240,15 @@ export function DMComposer({
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={copy.composerGifUnavailableAction}
-              accessibilityState={{ disabled: true }}
-              disabled
+              accessibilityLabel="GIF"
+              accessibilityState={{ disabled: !onSendGif }}
+              disabled={!onSendGif}
               hitSlop={6}
-              style={[styles.channelComposerGifButton, styles.channelComposerIconButtonUnavailable]}
+              onPress={() => setGifPickerOpen(true)}
+              style={[
+                styles.channelComposerGifButton,
+                !onSendGif && styles.channelComposerIconButtonUnavailable,
+              ]}
               testID="mobile-channel-gif-button"
             >
               <Text style={styles.channelComposerGifButtonText}>GIF</Text>
@@ -291,6 +299,13 @@ export function DMComposer({
         {sendState.status === "error" && sendState.error ? (
           <Text style={styles.dmSendErrorText}>{sendState.error}</Text>
         ) : null}
+        {onSendGif ? (
+          <MobileGifPicker
+            open={gifPickerOpen}
+            onClose={() => setGifPickerOpen(false)}
+            onSelect={onSendGif}
+          />
+        ) : null}
       </View>
     );
   }
@@ -335,6 +350,17 @@ export function DMComposer({
               size={18}
               color={theme.accent.strong}
             />
+          </Pressable>
+        ) : null}
+        {onSendGif ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="GIF"
+            onPress={() => setGifPickerOpen(true)}
+            style={({ pressed }) => [styles.dmAttachButton, pressed && styles.actionButtonPressed]}
+            testID="mobile-dm-gif-button"
+          >
+            <Text style={styles.dmAttachButtonText}>GIF</Text>
           </Pressable>
         ) : null}
         <Text style={styles.dmComposerToolbarText} numberOfLines={1}>
@@ -399,6 +425,13 @@ export function DMComposer({
       ) : null}
       {sendState.status === "error" && sendState.error ? (
         <Text style={styles.dmSendErrorText}>{sendState.error}</Text>
+      ) : null}
+      {onSendGif ? (
+        <MobileGifPicker
+          open={gifPickerOpen}
+          onClose={() => setGifPickerOpen(false)}
+          onSelect={onSendGif}
+        />
       ) : null}
     </View>
   );

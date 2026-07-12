@@ -28,6 +28,8 @@ export type MobileRootStackParamList = {
   };
   ProfileEdit: undefined;
   BlockedUsers: undefined;
+  Security: undefined;
+  DMDetails: { readonly conversationId: string };
 };
 
 export type MobileNavigationRouteIntent =

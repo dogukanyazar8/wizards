@@ -20,6 +20,8 @@ import {
   VoiceTabScreenContainer,
   ProfileEditScreenContainer,
   BlockedUsersScreenContainer,
+  SecurityScreenContainer,
+  DMDetailsScreenContainer,
 } from "../app/screens/mobile-screen-containers";
 import { MobileBottomTabBar } from "./mobile-bottom-tab-bar";
 import { createMobileLinkingOptions } from "./mobile-linking";
@@ -110,6 +112,20 @@ export function MobileNavigator({
         <RootStack.Screen name="SettingsDetail" component={SettingsDetailScreenContainer} />
         <RootStack.Screen name="ProfileEdit" component={ProfileEditScreenContainer} />
         <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreenContainer} />
+        <RootStack.Screen name="Security">
+          {(props) => (
+            <ProtectedStackRoute>
+              <SecurityScreenContainer {...props} />
+            </ProtectedStackRoute>
+          )}
+        </RootStack.Screen>
+        <RootStack.Screen name="DMDetails">
+          {(props) => (
+            <ProtectedStackRoute>
+              <DMDetailsScreenContainer {...props} />
+            </ProtectedStackRoute>
+          )}
+        </RootStack.Screen>
       </RootStack.Navigator>
     </NavigationContainer>
   );

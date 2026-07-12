@@ -21,12 +21,31 @@ appId: team.whispr.mobile
       - inputText: ${MAESTRO_UAT_PASSWORD}
       - hideKeyboard
       - tapOn: "Giris yap|Sign In"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-bottom-tab-settings"
+    timeout: 30000
 - tapOn:
     id: "mobile-bottom-tab-settings"
 - extendedWaitUntil:
     visible:
+      id: "mobile-settings-screen"
+    timeout: 30000
+- tapOn:
+    id: "mobile-settings-open-account"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-settings-account"
+    timeout: 15000
+- extendedWaitUntil:
+    visible:
       id: "mobile-settings-sign-out-action"
     timeout: 30000
+- pressKey: BACK
+- extendedWaitUntil:
+    visible:
+      id: "mobile-settings-screen"
+    timeout: 15000
 - tapOn:
     id: "mobile-bottom-tab-overview"
 - extendedWaitUntil:

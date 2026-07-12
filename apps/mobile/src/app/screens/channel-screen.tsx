@@ -61,6 +61,7 @@ export function MobileChannelChatScreen({
   onRequestPhotoLibraryPicker,
   onSearchMessages,
   onSendMessage,
+  onSendGif,
   onDeleteMessage,
   onEditMessage,
   onOpenThread,
@@ -94,6 +95,7 @@ export function MobileChannelChatScreen({
     content: string,
     intent?: { readonly replyToId?: string; readonly threadParentId?: string },
   ): Promise<boolean>;
+  onSendGif?(gifId: string): Promise<boolean>;
   onDeleteMessage(messageId: string): Promise<boolean>;
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onOpenThread?(messageId: string): void;
@@ -296,6 +298,7 @@ export function MobileChannelChatScreen({
               onDraftChange={onDraftChange}
               onRequestDocumentPicker={onRequestDocumentPicker}
               onSend={handleComposerSend}
+              {...(onSendGif ? { onSendGif } : {})}
               variant="channel"
             />
           </>

@@ -18,8 +18,14 @@ describe("mobile social and account schemas", () => {
       displayName: "Ada",
       username: "ada",
     });
-    assert.equal(MobileProfileUpdateSchema.safeParse({ displayName: "Ada", email: "a@b.co" }).success, false);
-    assert.equal(MobileProfileUpdateSchema.safeParse({ avatarUrl: "https://example.com/a.png" }).success, false);
+    assert.equal(
+      MobileProfileUpdateSchema.safeParse({ displayName: "Ada", email: "a@b.co" }).success,
+      false,
+    );
+    assert.equal(
+      MobileProfileUpdateSchema.safeParse({ avatarUrl: "https://example.com/a.png" }).success,
+      false,
+    );
     assert.equal(MobilePresenceUpdateSchema.safeParse({ status: "DND" }).success, true);
     assert.equal(MobilePresenceUpdateSchema.safeParse({ status: "INVISIBLE" }).success, false);
   });
@@ -59,7 +65,10 @@ describe("mobile social and account schemas", () => {
     assert.deepEqual(MobileFriendRequestCreateSchema.parse({ username: "  ada  " }), {
       username: "ada",
     });
-    assert.equal(MobileFriendRequestCreateSchema.safeParse({ username: "a", userId: "x" }).success, false);
+    assert.equal(
+      MobileFriendRequestCreateSchema.safeParse({ username: "a", userId: "x" }).success,
+      false,
+    );
     assert.equal(MobileFriendRequestActionResponseSchema.safeParse({ request }).success, true);
   });
 
@@ -87,7 +96,8 @@ describe("mobile social and account schemas", () => {
       true,
     );
     assert.equal(
-      MobileTwoFactorDisableRequestSchema.safeParse({ code: "123456", password: "password" }).success,
+      MobileTwoFactorDisableRequestSchema.safeParse({ code: "123456", password: "password" })
+        .success,
       true,
     );
     assert.equal(MobileTwoFactorDisableRequestSchema.safeParse({ code: "123456" }).success, false);
@@ -112,7 +122,59 @@ describe("mobile social and account schemas", () => {
     };
     assert.equal(MobileGiphySearchResponseSchema.safeParse({ gifs: [gif] }).success, true);
     assert.equal(
-      MobileGiphySearchResponseSchema.safeParse({ gifs: [{ ...gif, url: "http://example.com/a.gif" }] }).success,
+      MobileGiphySearchResponseSchema.safeParse({
+        gifs: [{ ...gif, url: "http://example.com/a.gif" }],
+      }).success,
+      false,
+    );
+  });
+
+  it("validates server-created GIF attachments and HTTPS link previews", async () => {
+    const {
+      MobileGiphyAttachmentRequestSchema,
+      MobileGiphyAttachmentResponseSchema,
+      MobileLinkPreviewRequestSchema,
+      MobileLinkPreviewResponseSchema,
+    } = await schemas;
+    assert.deepEqual(MobileGiphyAttachmentRequestSchema.parse({ gifId: "gif-1" }), {
+      gifId: "gif-1",
+    });
+    const attachment = {
+      contentType: "image/gif",
+      filename: "giphy-gif-1.gif",
+      height: 120,
+      id: "attachment-1",
+      scanStatus: "CLEAN",
+      size: 1024,
+      url: "https://media.giphy.com/a.gif",
+      width: 160,
+    };
+    assert.equal(
+      MobileGiphyAttachmentResponseSchema.safeParse({
+        attachment,
+        input: { height: 120, id: attachment.id, width: 160 },
+      }).success,
+      true,
+    );
+    assert.equal(
+      MobileGiphyAttachmentRequestSchema.safeParse({ gifId: "x".repeat(129) }).success,
+      false,
+    );
+    assert.deepEqual(MobileLinkPreviewRequestSchema.parse({ url: "https://example.com/post" }), {
+      url: "https://example.com/post",
+    });
+    assert.equal(
+      MobileLinkPreviewResponseSchema.safeParse({
+        description: "Safe",
+        imageUrl: "https://example.com/image.png",
+        siteName: "Example",
+        title: "Post",
+        url: "https://example.com/post",
+      }).success,
+      true,
+    );
+    assert.equal(
+      MobileLinkPreviewRequestSchema.safeParse({ url: "http://127.0.0.1/private" }).success,
       false,
     );
   });

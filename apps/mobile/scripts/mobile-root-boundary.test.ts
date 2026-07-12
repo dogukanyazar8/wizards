@@ -31,6 +31,14 @@ describe("mobile root boundary", () => {
     assert.doesNotMatch(source, /ActiveScreen|MobileScreenRuntimeProvider|ActiveScreenProps/);
   });
 
+  it("keeps focused route cleanup callbacks stable while selected targets change", () => {
+    const source = readFileSync(join(appRoot, "screens", "mobile-screen-containers.tsx"), "utf8");
+    assert.match(source, /useLatestValueRef\(closeWorkspaceChannel\)/);
+    assert.match(source, /useLatestValueRef\(closeDMConversation\)/);
+    assert.match(source, /closeWorkspaceChannelRef\.current\(\)/);
+    assert.match(source, /closeDMConversationRef\.current\(\)/);
+  });
+
   it("keeps route, overlay, and composer modules split by product surface", () => {
     for (const path of [
       ["screens", "home-screen.tsx"],

@@ -45,6 +45,7 @@ import {
 import type { MobileChannelSendViewState, MobileDMSendViewState } from "../mobile-screen-state";
 import { getVisibleMobileSyncHealth } from "../mobile-screen-sync";
 import { activeMobileCopy } from "../../locale/mobile-locale-preferences";
+import { createMobileGiphyAttachment } from "../../media/mobile-giphy-client";
 
 const copy = activeMobileCopy;
 
@@ -337,6 +338,36 @@ export function useMobileMessagingFeature({
       }
     },
     [activeWorkspaceTextChannelId, isSignedIn, sendChannelMessage, stopChannelTyping],
+  );
+
+  const handleSendDMGif = useCallback(
+    async (gifId: string): Promise<boolean> => {
+      if (!isSignedIn || !selectedDMConversationId) return false;
+      try {
+        const { input } = await createMobileGiphyAttachment(apiClient, gifId);
+        stopDMTyping(selectedDMConversationId);
+        await sendDMMessage({ attachments: [input], content: "" });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [apiClient, isSignedIn, selectedDMConversationId, sendDMMessage, stopDMTyping],
+  );
+
+  const handleSendChannelGif = useCallback(
+    async (gifId: string): Promise<boolean> => {
+      if (!isSignedIn || !activeWorkspaceTextChannelId) return false;
+      try {
+        const { input } = await createMobileGiphyAttachment(apiClient, gifId);
+        stopChannelTyping(activeWorkspaceTextChannelId);
+        await sendChannelMessage({ attachments: [input], content: "" });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [activeWorkspaceTextChannelId, apiClient, isSignedIn, sendChannelMessage, stopChannelTyping],
   );
 
   const handleToggleChannelMessageReaction = useCallback(
@@ -794,7 +825,9 @@ export function useMobileMessagingFeature({
     handleOpenWorkspaceServer,
     handleSearchMessages,
     handleSendChannelMessage,
+    handleSendChannelGif,
     handleSendDMMessage,
+    handleSendDMGif,
     handleToggleChannelMessageReaction,
     handleToggleDMMessageReaction,
     isChannelReactionPending,

@@ -357,10 +357,9 @@ describe("mobile design contract", () => {
     assert.doesNotMatch(shellSource, /mobileCopy\.tr/);
     assert.doesNotMatch(errorBoundarySource, /mobileCopy\.tr/);
     assert.doesNotMatch(voiceSource, /mobileCopy\.tr/);
-    assert.doesNotMatch(
-      profileSettingsSource,
-      /showDiagnostics|onToggleDiagnostics|SettingsMobileOverviewCard|SettingsFeatureReadinessCard|SettingsPermissionEvidenceCard|SettingsReleaseQualityCard|DeveloperDiagnosticsCard|SessionDiagnostics|ReleaseReadinessCard|StoreReadinessCard|ProductionReadinessCard|MobileQualityGateCard|MediaRuntimeCard/,
-    );
+    assert.doesNotMatch(profileSettingsSource, /showDiagnostics|onToggleDiagnostics/);
+    assert.match(profileSettingsSource, /resolvedSection === "developer"/);
+    assert.match(profileSettingsSource, /"mobile-settings-developer"/);
   });
 
   it("keeps the bottom navigation on the premium floating capsule contract", () => {
