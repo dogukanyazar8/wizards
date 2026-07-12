@@ -26,6 +26,8 @@ export type MobileRootStackParamList = {
   SettingsDetail: {
     readonly section: string;
   };
+  ProfileEdit: undefined;
+  BlockedUsers: undefined;
 };
 
 export type MobileNavigationRouteIntent =
@@ -53,7 +55,9 @@ export type MobileNavigationRouteIntent =
       readonly name: "SettingsDetail";
       readonly params: MobileRootStackParamList["SettingsDetail"];
       readonly type: "route";
-    };
+    }
+  | { readonly name: "ProfileEdit"; readonly params: undefined; readonly type: "route" }
+  | { readonly name: "BlockedUsers"; readonly params: undefined; readonly type: "route" };
 
 export type MobileNavigationCommandIntent = Exclude<
   MobileDeepLinkIntent,

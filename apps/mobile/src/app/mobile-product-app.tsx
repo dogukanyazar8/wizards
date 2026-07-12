@@ -324,6 +324,7 @@ export function MobileProductApp({
     permissionReadiness,
     permissionSummary,
     signedInUserLabel,
+    socialActionsEnabled: status === "signed-in",
     status,
     syncHealth: getSyncHealth("settings"),
     voiceInputMode,

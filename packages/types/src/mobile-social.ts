@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { MessageAttachmentSchema } from "./messages";
+import { DMConversationDTOSchema } from "./socket";
 
 const MobileBoundedIdSchema = z.string().trim().min(1).max(128);
 const MobileHttpsUrlSchema = z
@@ -167,6 +168,8 @@ export const MobileGiphySearchResponseSchema = z
 export const MobileDMDetailsParamsSchema = z
   .object({ conversationId: MobileBoundedIdSchema })
   .strict();
+export const MobileDMCreateRequestSchema = z.object({ userId: MobileBoundedIdSchema }).strict();
+export const MobileDMCreateResponseSchema = z.object({ conversation: DMConversationDTOSchema }).strict();
 export const MobileDMDetailsQuerySchema = z
   .object({
     cursor: MobileBoundedIdSchema.optional(),
@@ -204,6 +207,9 @@ export const MobileDMDetailsResponseSchema = z
   .strict();
 
 export type MobileFriendRequestCreate = z.infer<typeof MobileFriendRequestCreateSchema>;
+export type MobileFriendsOverviewResponse = z.infer<typeof MobileFriendsOverviewResponseSchema>;
+export type MobileFriendPresenceStatus = z.infer<typeof MobileFriendPresenceStatusSchema>;
+export type MobileProfileResponse = z.infer<typeof MobileProfileResponseSchema>;
 export type MobilePresenceUpdate = z.infer<typeof MobilePresenceUpdateSchema>;
 export type MobileProfileUpdate = z.infer<typeof MobileProfileUpdateSchema>;
 export type MobileTwoFactorDisableRequest = z.infer<typeof MobileTwoFactorDisableRequestSchema>;

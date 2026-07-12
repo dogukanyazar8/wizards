@@ -16,7 +16,9 @@ export const MOBILE_REALTIME_SERVER_EVENTS = [
   "dm:message:reaction_updated",
   "dm:typing:update",
   "dm:conversation:updated",
+  "friends:updated",
   "presence:update",
+  "user:profile:updated",
   "typing:update",
   "notification:new",
   "voice:state:update",
@@ -53,6 +55,7 @@ export const MOBILE_REALTIME_REFRESH_TIMER_SOURCES = [
   "bootstrap",
   "channel",
   "dm",
+  "presence",
   "workspace",
 ] as const;
 
@@ -118,8 +121,13 @@ const WORKSPACE_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
 const BOOTSTRAP_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
   "server:unread:update",
   "dm:conversation:updated",
-  "presence:update",
   "notification:new",
+]);
+
+const SOCIAL_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
+  "friends:updated",
+  "presence:update",
+  "user:profile:updated",
 ]);
 
 export function isMobileRealtimeServerEventName(
@@ -171,7 +179,7 @@ export function getMobileRealtimeRefreshSources(
     sources.add("workspace");
   }
 
-  if (eventName === "presence:update") {
+  if (SOCIAL_REFRESH_EVENTS.has(eventName)) {
     sources.add("presence");
   }
 
@@ -189,7 +197,7 @@ export function getMobileRealtimeRefreshSources(
 export function getMobileRealtimeRefreshTimerSource(
   source: MobileRealtimeRefreshSource,
 ): MobileRealtimeRefreshTimerSource {
-  if (source === "presence" || source === "notification") {
+  if (source === "notification") {
     return "bootstrap";
   }
 
@@ -273,7 +281,7 @@ export function validateMobileRealtimeContract(): string[] {
     issues.push("Mobile realtime refresh timer sources must be unique.");
   }
 
-  if (MOBILE_REALTIME_REFRESH_TIMER_SOURCES.length > 4) {
+  if (MOBILE_REALTIME_REFRESH_TIMER_SOURCES.length > 5) {
     issues.push("Mobile realtime refresh timer sources must remain bounded.");
   }
 

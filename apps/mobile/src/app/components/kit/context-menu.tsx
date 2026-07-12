@@ -20,6 +20,7 @@ export interface ContextMenuProps {
   readonly actions: readonly ContextMenuAction[];
   readonly children: ReactNode;
   readonly disabled?: boolean;
+  readonly onPress?: () => void;
   readonly testID?: string;
 }
 
@@ -46,6 +47,7 @@ export function ContextMenu({
   actions,
   children,
   disabled = false,
+  onPress,
   testID = "mobile-context-menu",
 }: ContextMenuProps) {
   const styles = useThemedStyles(createStyles);
@@ -60,6 +62,7 @@ export function ContextMenu({
         delayLongPress={350}
         disabled={disabled}
         onLongPress={() => setOpen(true)}
+        onPress={onPress}
         style={styles.trigger}
         testID={`${testID}-trigger`}
       >

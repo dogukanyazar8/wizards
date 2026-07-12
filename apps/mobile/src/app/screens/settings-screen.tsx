@@ -59,6 +59,7 @@ import { formatMobileMediaAssetMeta } from "../components/media-primitives";
 import { useTheme, useThemePreference } from "../providers/mobile-theme-provider";
 import type { MobileThemeMode } from "../../design/mobile-theme-runtime";
 import { useSettingsScreenStyles } from "./settings-screen.styles";
+import { SocialAccountQuickActions } from "../../social/social-account-screens";
 
 function getMobilePermissionLabel(intentId: MobilePermissionIntentId): string {
   switch (intentId) {
@@ -1453,6 +1454,7 @@ export function ProfileSettingsScreen({
   permissionReadiness,
   permissionSummary,
   signedInUserLabel,
+  socialActionsEnabled = false,
   status,
   syncHealth,
   voiceInputMode,
@@ -1484,6 +1486,7 @@ export function ProfileSettingsScreen({
   permissionReadiness: readonly MobilePermissionReadiness[];
   permissionSummary: MobilePermissionSummary;
   signedInUserLabel: string | null;
+  socialActionsEnabled?: boolean;
   status: string;
   syncHealth: MobileSyncHealthSummary;
   voiceInputMode: MobileVoiceInputMode;
@@ -1626,6 +1629,7 @@ export function ProfileSettingsScreen({
           signedInUserLabel={signedInUserLabel}
           status={status}
         />
+        {socialActionsEnabled ? <SocialAccountQuickActions /> : null}
         <SettingsSessionActionCard
           isSignedIn={isSignedIn}
           onOpenWebRegister={onOpenWebRegister}

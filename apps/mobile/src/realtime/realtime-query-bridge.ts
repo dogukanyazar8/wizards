@@ -95,7 +95,12 @@ export function createMobileRealtimeQueryBridge({
   ) => {
     const targets = getActiveTargets();
 
-    if (source === "bootstrap" || source === "presence" || source === "notification") {
+    if (source === "presence") {
+      scheduleInvalidation(source, mobileQueryKeys.friends());
+      return;
+    }
+
+    if (source === "bootstrap" || source === "notification") {
       scheduleInvalidation(source, mobileQueryKeys.bootstrap());
       return;
     }

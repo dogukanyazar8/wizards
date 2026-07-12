@@ -18,6 +18,8 @@ describe("mobile realtime contract", () => {
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("message:new"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("dm:message:new"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("presence:update"));
+    assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("friends:updated"));
+    assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("user:profile:updated"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("voice:state:update"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("voice:invite:received"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("voice:invite:sent"));
@@ -37,7 +39,9 @@ describe("mobile realtime contract", () => {
     assert.deepEqual(getMobileRealtimeRefreshSources("voice:invite:error"), []);
     assert.deepEqual(getMobileRealtimeRefreshSources("typing:update"), []);
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:typing:update"), []);
-    assert.deepEqual(getMobileRealtimeRefreshSources("presence:update"), ["bootstrap", "presence"]);
+    assert.deepEqual(getMobileRealtimeRefreshSources("presence:update"), ["presence"]);
+    assert.deepEqual(getMobileRealtimeRefreshSources("friends:updated"), ["presence"]);
+    assert.deepEqual(getMobileRealtimeRefreshSources("user:profile:updated"), ["presence"]);
   });
 
   it("preserves voice invite payloads without scheduling a data refresh", () => {
@@ -142,11 +146,12 @@ describe("mobile realtime contract", () => {
       "bootstrap",
       "channel",
       "dm",
+      "presence",
       "workspace",
     ]);
     assert.equal(MOBILE_REALTIME_REFRESH_DEBOUNCE_MS >= 250, true);
     assert.equal(MOBILE_REALTIME_REFRESH_DEBOUNCE_MS <= 1_000, true);
-    assert.equal(getMobileRealtimeRefreshTimerSource("presence"), "bootstrap");
+    assert.equal(getMobileRealtimeRefreshTimerSource("presence"), "presence");
     assert.equal(getMobileRealtimeRefreshTimerSource("notification"), "bootstrap");
     assert.equal(getMobileRealtimeRefreshTimerSource("channel"), "channel");
     assert.equal(getMobileRealtimeRefreshTimerSource("workspace"), "workspace");

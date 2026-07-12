@@ -146,6 +146,7 @@ describe("mobile realtime query bridge", () => {
     const bridge = createBridge(queryClient, fake.scheduler);
     const keys = [
       mobileQueryKeys.bootstrap(),
+      mobileQueryKeys.friends(),
       mobileQueryKeys.workspace("server-1"),
       mobileQueryKeys.channelMessages("channel-1"),
       mobileQueryKeys.dmMessages("conversation-1"),
@@ -156,7 +157,7 @@ describe("mobile realtime query bridge", () => {
     bridge.handleEvent(createMobileRealtimeEventEnvelope("notification:new", { id: "notice-1" }));
     bridge.backfill(["workspace", "channel", "dm"]);
 
-    assert.equal(fake.pendingCount(), 4);
+    assert.equal(fake.pendingCount(), 5);
     fake.flush();
     keys.forEach((key) => assert.equal(queryClient.getQueryState(key)?.isInvalidated, true));
   });

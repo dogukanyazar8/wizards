@@ -23,6 +23,7 @@ import { MobileMessageThreadScreen } from "./message-thread-screen";
 import { OverviewScreen } from "./home-screen";
 import { NotificationsScreen } from "./notifications-screen";
 import { ProfileSettingsScreen } from "./settings-screen";
+import { BlockedUsersScreen, ProfileEditScreen } from "../../social/social-account-screens";
 import { VoiceScreen } from "./voice-screen";
 
 export function OverviewTabScreenContainer({
@@ -191,4 +192,12 @@ export function SettingsDetailScreenContainer(
   _props: NativeStackScreenProps<MobileRootStackParamList, "SettingsDetail">,
 ) {
   return <ProfileSettingsScreen {...useMobileSettingsScreenProps()} />;
+}
+
+export function ProfileEditScreenContainer({ navigation }: NativeStackScreenProps<MobileRootStackParamList, "ProfileEdit">) {
+  return <ProfileEditScreen onBack={() => navigation.goBack()} />;
+}
+
+export function BlockedUsersScreenContainer({ navigation }: NativeStackScreenProps<MobileRootStackParamList, "BlockedUsers">) {
+  return <BlockedUsersScreen onBack={() => navigation.goBack()} />;
 }

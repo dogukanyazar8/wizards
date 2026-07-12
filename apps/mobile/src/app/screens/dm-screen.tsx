@@ -1,5 +1,7 @@
 import {
   View,
+  Pressable,
+  Text,
   copy,
   type MobileBootstrapPayload,
   type MobileBootstrapViewState,
@@ -8,11 +10,14 @@ import {
   type MobileMediaRuntimeState,
   type MobileMessageSearchViewState,
   type MobileSyncHealthSummary,
+  useState,
 } from "../mobile-root-screen-shared";
 import { BootstrapStateNotice, EmptyState, MobileSyncHealthBanner } from "../components/ui-atoms";
 import { useDmScreenStyles } from "./dm-screen.styles";
 import { DMConversationScreen } from "./dm-conversation-screen";
 import { DMInboxHeader, DirectMessageListCard, DirectMessageSummaryCard } from "./dm-inbox";
+import { FriendsHub } from "../../social/friends-hub";
+import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 
 export { DMConversationScreen, DMConversationPreviewCard } from "./dm-conversation-screen";
 export {
@@ -81,6 +86,8 @@ export function MessagesScreen({
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
 }) {
   const styles = useDmScreenStyles();
+  const { locale } = useMobileLocaleRuntime();
+  const [inboxSegment, setInboxSegment] = useState<"conversations" | "friends">("conversations");
   const hasConversations =
     bootstrapState.status === "ready" &&
     bootstrapState.payload.home.directMessages.recent.length > 0;
@@ -128,6 +135,15 @@ export function MessagesScreen({
   return (
     <View style={[styles.chatScreen, styles.dmInboxScreen]} testID="mobile-dm-inbox-screen">
       <DMInboxHeader />
+      <View style={styles.inboxFilterRow} testID="mobile-social-segment">
+        {(["conversations", "friends"] as const).map((segment) => {
+          const selected = inboxSegment === segment;
+          const label = segment === "conversations" ? (locale === "tr" ? "Konusmalar" : "Conversations") : (locale === "tr" ? "Arkadaslar" : "Friends");
+          return <Pressable key={segment} accessibilityRole="tab" accessibilityState={{ selected }} onPress={() => setInboxSegment(segment)} style={[styles.inboxFilterButton, selected && styles.inboxFilterButtonActive]} testID={segment === "friends" ? "mobile-social-segment-friends" : "mobile-social-segment-conversations"}><Text style={[styles.inboxFilterButtonText, selected && styles.inboxFilterButtonTextActive]}>{label}</Text></Pressable>;
+        })}
+      </View>
+      {inboxSegment === "friends" ? <FriendsHub /> : (
+        <>
       <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
       <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
       {bootstrapState.status === "ready" ? (
@@ -145,6 +161,8 @@ export function MessagesScreen({
       ) : shouldShowEmpty ? (
         <EmptyState tone="accent" label={copy.messagesEmpty} />
       ) : null}
+        </>
+      )}
     </View>
   );
 }

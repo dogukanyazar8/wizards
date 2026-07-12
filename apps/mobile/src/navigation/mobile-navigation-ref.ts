@@ -31,6 +31,12 @@ export function navigateMobileRouteIntent(intent: MobileNavigationRouteIntent): 
     case "SettingsDetail":
       mobileNavigationRef.navigate("SettingsDetail", intent.params);
       break;
+    case "ProfileEdit":
+      mobileNavigationRef.navigate("ProfileEdit");
+      break;
+    case "BlockedUsers":
+      mobileNavigationRef.navigate("BlockedUsers");
+      break;
   }
 
   return true;
