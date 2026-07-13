@@ -15,6 +15,7 @@ describe("outbox worker lifecycle", () => {
       const startedDrain = resolve;
       startOutboxWorker({
         cleanupJobs: async () => {},
+        cleanupMobileMediaUploads: async () => ({ deleted: 0, failed: 0 }),
         cleanupReauthChallenges: async () => 0,
         drainJobs: async () => {
           startedDrain();
@@ -38,5 +39,63 @@ describe("outbox worker lifecycle", () => {
     releaseDrain();
     await stopped;
     assert.equal(drainCompleted, true);
+  });
+
+  it("runs and awaits mobile media cleanup in the hourly cleanup block", async () => {
+    const operations: string[] = [];
+    let releaseMediaCleanup: (() => void) | undefined;
+    let signalMediaStarted: (() => void) | undefined;
+    const mediaStarted = new Promise<void>((resolve) => {
+      signalMediaStarted = resolve;
+    });
+
+    startOutboxWorker({
+      cleanupJobs: async () => {
+        operations.push("cleanup.jobs");
+      },
+      cleanupMobileMediaUploads: async () => {
+        operations.push("cleanup.media.start");
+        signalMediaStarted?.();
+        await new Promise<void>((resolve) => {
+          releaseMediaCleanup = resolve;
+        });
+        operations.push("cleanup.media.end");
+        return { deleted: 1, failed: 0 };
+      },
+      cleanupReauthChallenges: async () => {
+        operations.push("cleanup.reauth");
+        return 0;
+      },
+      drainJobs: async () => {
+        operations.push("drain.jobs");
+        return 0;
+      },
+      intervalMs: 60_000,
+      runImmediately: true,
+      workerId: "test-worker-media",
+    });
+
+    const started = await Promise.race([
+      mediaStarted.then(() => true),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 50)),
+    ]);
+    assert.equal(started, true, "hourly cleanup never started mobile media cleanup");
+
+    let stopped = false;
+    const stopping = stopOutboxWorker({ timeoutMs: 1_000 }).then(() => {
+      stopped = true;
+    });
+    await Promise.resolve();
+    assert.equal(stopped, false);
+
+    releaseMediaCleanup?.();
+    await stopping;
+    assert.deepEqual(operations, [
+      "drain.jobs",
+      "cleanup.jobs",
+      "cleanup.reauth",
+      "cleanup.media.start",
+      "cleanup.media.end",
+    ]);
   });
 });

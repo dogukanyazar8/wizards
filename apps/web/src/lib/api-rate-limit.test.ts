@@ -11,6 +11,29 @@ import type { getRedisRate } from "./redis";
 
 type FakeRedis = ReturnType<typeof getRedisRate>;
 
+const M1_MOBILE_RATE_LIMITS = {
+  "mobile:channel:history:clear": { limit: 10, windowSeconds: 60 },
+  "mobile:media:claim": { limit: 20, windowSeconds: 300 },
+  "mobile:media:upload": { limit: 10, windowSeconds: 300 },
+  "mobile:server:categories:create": { limit: 30, windowSeconds: 60 },
+  "mobile:server:categories:delete": { limit: 30, windowSeconds: 60 },
+  "mobile:server:categories:update": { limit: 30, windowSeconds: 60 },
+  "mobile:server:channels:create": { limit: 30, windowSeconds: 60 },
+  "mobile:server:channels:delete": { limit: 30, windowSeconds: 60 },
+  "mobile:server:channels:update": { limit: 30, windowSeconds: 60 },
+  "mobile:server:create": { limit: 10, windowSeconds: 3_600 },
+  "mobile:server:delete": { limit: 5, windowSeconds: 3_600 },
+  "mobile:server:detail": { limit: 120, windowSeconds: 60 },
+  "mobile:server:invites:create": { limit: 20, windowSeconds: 600 },
+  "mobile:server:invites:list": { limit: 60, windowSeconds: 60 },
+  "mobile:server:join": { limit: 20, windowSeconds: 600 },
+  "mobile:server:member:kick": { limit: 30, windowSeconds: 600 },
+  "mobile:server:member-roles:update": { limit: 40, windowSeconds: 600 },
+  "mobile:server:members:list": { limit: 60, windowSeconds: 60 },
+  "mobile:server:roles:list": { limit: 60, windowSeconds: 60 },
+  "mobile:server:update": { limit: 30, windowSeconds: 60 },
+} as const;
+
 function fakeRateLimitDependencies(args: {
   allowed?: boolean;
   error?: unknown;
@@ -111,6 +134,29 @@ describe("API rate limit configuration", () => {
 
     for (const action of requiredActions) {
       assert.ok(getApiRateLimitConfig(action));
+    }
+  });
+
+  it("locks every Phase 4 M1 mobile action to its reviewed limit and window", () => {
+    const expectedActions = Object.keys(M1_MOBILE_RATE_LIMITS).sort();
+    const actualActions = Object.keys(API_RATE_LIMITS)
+      .filter(
+        (action) =>
+          action.startsWith("mobile:server:") ||
+          action.startsWith("mobile:channel:history:") ||
+          action.startsWith("mobile:media:"),
+      )
+      .sort();
+
+    assert.equal(expectedActions.length, 20);
+    assert.deepEqual(actualActions, expectedActions);
+
+    for (const [action, expectedConfig] of Object.entries(M1_MOBILE_RATE_LIMITS)) {
+      assert.deepEqual(
+        getApiRateLimitConfig(action as ApiRateLimitAction),
+        expectedConfig,
+        `${action} rate-limit contract changed`,
+      );
     }
   });
 

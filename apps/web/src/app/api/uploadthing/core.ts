@@ -1,11 +1,17 @@
+import { prisma } from "@wizards/db";
+import { MobileMediaUploadIntentSchema } from "@wizards/types";
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
+
 import { auth } from "@/auth";
-import { prisma } from "@wizards/db";
 import { createPendingMessageAttachmentUpload } from "@/lib/attachments/upload-persistence";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRedisRate } from "@/lib/redis";
 import { logError } from "@/lib/logger";
+import {
+  authorizeMobileMediaUpload,
+  completeMobileMediaUpload,
+} from "@/lib/mobile/mobile-media-uploadthing";
 
 const f = createUploadthing();
 
@@ -114,6 +120,23 @@ async function createMessageAttachment({
 }
 
 export const uploadRouter: FileRouter = {
+  mobileMediaUploader: f({
+    "image/jpeg": {
+      maxFileCount: 1,
+      maxFileSize: "4MB",
+    },
+    "image/png": {
+      maxFileCount: 1,
+      maxFileSize: "4MB",
+    },
+    "image/webp": {
+      maxFileCount: 1,
+      maxFileSize: "4MB",
+    },
+  })
+    .input(MobileMediaUploadIntentSchema)
+    .middleware(({ input, req }) => authorizeMobileMediaUpload({ intent: input, request: req }))
+    .onUploadComplete(completeMobileMediaUpload),
   profileAvatarUploader: f({
     "image/jpeg": {
       maxFileCount: 1,

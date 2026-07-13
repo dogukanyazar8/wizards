@@ -4,21 +4,22 @@ import type { CreateWorkspaceRoleInput, UpdateWorkspaceRoleInput } from "@wizard
 
 import { ApiError } from "@/lib/api";
 import { getSocketServer } from "@/lib/socket/runtime";
-import {
-  ensureServerPermission,
-  getAccessContext,
-} from "@/lib/workspace/access-context";
+import { ensureServerPermission, getAccessContext } from "@/lib/workspace/access-context";
 import { invalidateServerPermissionCache } from "@/lib/workspace/permission-cache";
 import { PermissionBits } from "@/lib/workspace/permissions";
 import {
   ensureCanWriteRolePermissions,
   getRolePresetPermissions,
+  isElevatedPermissions,
+  isOwnerAccess,
   isProtectedRole,
   toPermissionMask,
   toWorkspaceRole,
 } from "@/lib/workspace/role-helpers";
 import { DEFAULT_ROLE_COLOR } from "@/lib/workspace/workspace-constants";
 import { normalizeWorkspaceLabel } from "@/lib/workspace/workspace-label";
+
+const MOBILE_ASSIGNABLE_ROLE_LIMIT = 100;
 
 export async function listWorkspaceRoles(userId: string, serverId: string) {
   const access = await getAccessContext(userId, serverId);
@@ -49,6 +50,55 @@ export async function listWorkspaceRoles(userId: string, serverId: string) {
   });
 
   return roles.map(toWorkspaceRole);
+}
+
+export async function listAssignableWorkspaceRoles(userId: string, serverId: string) {
+  const access = await getAccessContext(userId, serverId);
+  ensureServerPermission(access, PermissionBits.MANAGE_ROLES);
+
+  const roles = await prisma.role.findMany({
+    orderBy: [
+      {
+        position: "desc",
+      },
+      {
+        createdAt: "asc",
+      },
+      {
+        id: "asc",
+      },
+    ],
+    select: {
+      color: true,
+      id: true,
+      isDefault: true,
+      managed: true,
+      name: true,
+      permissions: true,
+      position: true,
+    },
+    where: {
+      serverId,
+    },
+    take: MOBILE_ASSIGNABLE_ROLE_LIMIT + 1,
+  });
+
+  if (roles.length > MOBILE_ASSIGNABLE_ROLE_LIMIT) {
+    throw new ApiError(
+      "Mobile role list exceeds the supported limit",
+      409,
+      "MOBILE_RESPONSE_LIMIT_EXCEEDED",
+    );
+  }
+
+  return roles
+    .filter(
+      (role) =>
+        !role.isDefault &&
+        !role.managed &&
+        (isOwnerAccess(access) || !isElevatedPermissions(role.permissions)),
+    )
+    .map(({ color, id, name, position }) => ({ color, id, name, position }));
 }
 
 export async function createWorkspaceRole(

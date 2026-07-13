@@ -1,5 +1,5 @@
 import { ChannelType, MessageType, prisma } from "@wizards/db";
-import type { CreateInviteInput } from "@wizards/types";
+import type { CreateInviteInput, WorkspaceInvite } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
 import { getSocketServer } from "@/lib/socket/runtime";
@@ -11,21 +11,38 @@ import {
 } from "@/lib/workspace/access-context";
 import { generateInviteCode } from "@/lib/workspace/invite-code";
 import { getMessageById } from "@/lib/workspace/message-service";
-import {
-  invalidateMemberPermissionCache,
-} from "@/lib/workspace/permission-cache";
+import { invalidateMemberPermissionCache } from "@/lib/workspace/permission-cache";
 import {
   emitServerUnreadUpdatesForServer,
   getActiveChannelViewerUserIds,
   markChannelReadStates,
 } from "@/lib/workspace/unread-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
+import { mapInvites } from "@/lib/workspace/server-query-helpers";
 
-export async function createWorkspaceInvite(
+const workspaceInviteSelect = {
+  channelId: true,
+  code: true,
+  createdAt: true,
+  creator: {
+    select: {
+      displayName: true,
+      username: true,
+    },
+  },
+  expiresAt: true,
+  id: true,
+  maxUses: true,
+  uses: true,
+} as const;
+
+const MOBILE_INVITE_LIST_LIMIT = 100;
+
+async function createWorkspaceInviteRecord(
   userId: string,
   serverId: string,
   input: CreateInviteInput,
-) {
+): Promise<WorkspaceInvite> {
   const access = await getAccessContext(userId, serverId);
   ensureServerPermission(access, PermissionBits.MANAGE_INVITES);
 
@@ -69,7 +86,7 @@ export async function createWorkspaceInvite(
       ? new Date(Date.now() + input.expiresInHours * 60 * 60 * 1000)
       : null;
 
-  await prisma.serverInvite.create({
+  const invite = await prisma.serverInvite.create({
     data: {
       channelId,
       code,
@@ -78,9 +95,107 @@ export async function createWorkspaceInvite(
       maxUses: input.maxUses ?? null,
       serverId,
     },
+    select: workspaceInviteSelect,
   });
 
-  return { code };
+  return mapInvites([invite])[0]!;
+}
+
+export async function createWorkspaceInvite(
+  userId: string,
+  serverId: string,
+  input: CreateInviteInput,
+) {
+  const invite = await createWorkspaceInviteRecord(userId, serverId, input);
+
+  return { code: invite.code };
+}
+
+export async function createWorkspaceInviteWithDetails(
+  userId: string,
+  serverId: string,
+  input: CreateInviteInput,
+): Promise<WorkspaceInvite> {
+  return createWorkspaceInviteRecord(userId, serverId, input);
+}
+
+export async function listWorkspaceInvites(
+  userId: string,
+  serverId: string,
+): Promise<WorkspaceInvite[]> {
+  const access = await getAccessContext(userId, serverId);
+  ensureServerPermission(access, PermissionBits.MANAGE_INVITES);
+
+  const invites = await prisma.serverInvite.findMany({
+    orderBy: {
+      createdAt: "desc",
+    },
+    select: workspaceInviteSelect,
+    where: {
+      serverId,
+    },
+  });
+
+  return mapInvites(invites);
+}
+
+export async function listMobileWorkspaceInvites(
+  userId: string,
+  serverId: string,
+): Promise<WorkspaceInvite[]> {
+  const access = await getAccessContext(userId, serverId);
+  ensureServerPermission(access, PermissionBits.MANAGE_INVITES);
+
+  const invites = await prisma.serverInvite.findMany({
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    select: workspaceInviteSelect,
+    take: MOBILE_INVITE_LIST_LIMIT + 1,
+    where: {
+      serverId,
+    },
+  });
+
+  if (invites.length > MOBILE_INVITE_LIST_LIMIT) {
+    throw new ApiError(
+      "Mobile invite list exceeds the supported limit",
+      409,
+      "MOBILE_RESPONSE_LIMIT_EXCEEDED",
+    );
+  }
+
+  return mapInvites(invites);
+}
+
+function inviteConfigurationError(message: string) {
+  return new ApiError(message, 500, "CONFIGURATION_ERROR");
+}
+
+export function buildMobileInviteShareUrl(
+  code: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  const rawOrigin = [env.APP_URL, env.AUTH_URL, env.NEXTAUTH_URL]
+    .map((value) => value?.trim())
+    .find((value): value is string => Boolean(value));
+
+  if (!rawOrigin) {
+    throw inviteConfigurationError("Canonical application URL is not configured.");
+  }
+
+  let origin: URL;
+  try {
+    origin = new URL(rawOrigin);
+  } catch {
+    throw inviteConfigurationError("Canonical application URL is invalid.");
+  }
+
+  const protocolAllowed =
+    origin.protocol === "https:" || (env.NODE_ENV === "development" && origin.protocol === "http:");
+  if (!protocolAllowed) {
+    throw inviteConfigurationError("Canonical application URL must use HTTPS.");
+  }
+
+  return new URL(`/invite/${encodeURIComponent(code)}`, `${origin.origin}/`).toString();
 }
 
 export async function revokeWorkspaceInvite(userId: string, serverId: string, inviteId: string) {

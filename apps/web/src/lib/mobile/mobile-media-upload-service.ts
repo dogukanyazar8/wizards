@@ -1,0 +1,535 @@
+import { MobileMediaUploadPurpose, prisma } from "@wizards/db";
+import {
+  MobileMediaClaimResponseSchema,
+  MobileMediaUploadCompletionResponseSchema,
+  type MobileMediaClaimResponse,
+  type MobileMediaUploadCompletionResponse,
+} from "@wizards/types";
+import { UTApi } from "uploadthing/server";
+
+import { broadcastUserProfileUpdate, mapVisiblePresenceStatus } from "@/lib/account/service";
+import { ApiError } from "@/lib/api";
+import { logWarning } from "@/lib/logger";
+import type { UserProfileUpdatedPayload } from "@/lib/socket/events";
+import { getSocketServer } from "@/lib/socket/runtime";
+import { ensureServerPermission, getAccessContextWithClient } from "@/lib/workspace/access-context";
+import { PermissionBits } from "@/lib/workspace/permissions";
+import type { VerifiedMobileImage } from "./mobile-media-verifier";
+
+const CLAIM_TTL_MS = 15 * 60 * 1000;
+const CLEANUP_BATCH_LIMIT = 25;
+const CLEANUP_LEASE_MS = 5 * 60 * 1000;
+const OPPORTUNISTIC_CLEANUP_TIMEOUT_MS = 1_000;
+
+export type MobileMediaRecordDependencies = {
+  client: Pick<typeof prisma, "mobileMediaUpload">;
+  logWarning?: (scope: string, error: unknown) => void;
+  now: () => Date;
+  opportunisticCleanup?: () => Promise<void>;
+};
+
+const defaultRecordDependencies: MobileMediaRecordDependencies = {
+  client: prisma,
+  logWarning,
+  now: () => new Date(),
+  opportunisticCleanup: () => runOpportunisticMobileMediaCleanup(),
+};
+
+export type MobileMediaClaimDependencies = {
+  broadcastProfile: (profile: UserProfileUpdatedPayload) => Promise<void>;
+  broadcastServer: (serverId: string) => Promise<void>;
+  client: Pick<typeof prisma, "$transaction">;
+  logWarning?: (scope: string, error: unknown) => void;
+  now: () => Date;
+  opportunisticCleanup?: () => Promise<void>;
+};
+
+const defaultClaimDependencies: MobileMediaClaimDependencies = {
+  broadcastProfile: broadcastUserProfileUpdate,
+  async broadcastServer(serverId) {
+    getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", { serverId });
+  },
+  client: prisma,
+  logWarning,
+  now: () => new Date(),
+  opportunisticCleanup: () => runOpportunisticMobileMediaCleanup(),
+};
+
+export type MobileMediaCleanupDependencies = {
+  client: Pick<typeof prisma, "mobileMediaUpload">;
+  deleteStorageObject: (storageKey: string) => Promise<void>;
+  logWarning: (scope: string, error: unknown) => void;
+};
+
+const defaultCleanupDependencies: MobileMediaCleanupDependencies = {
+  client: prisma,
+  async deleteStorageObject(storageKey) {
+    const result = await new UTApi().deleteFiles(storageKey);
+    if (!result.success) {
+      throw new Error("UploadThing cleanup failed");
+    }
+  },
+  logWarning,
+};
+
+export type MobileMediaOpportunisticCleanupDependencies = {
+  cleanup: (options: { limit: number }) => Promise<{ deleted: number; failed: number }>;
+  logWarning: (scope: string, error: unknown) => void;
+  timeoutMs?: number;
+};
+
+function toDatabasePurpose(purpose: "profile-avatar" | "server-icon") {
+  return purpose === "profile-avatar"
+    ? MobileMediaUploadPurpose.PROFILE_AVATAR
+    : MobileMediaUploadPurpose.SERVER_ICON;
+}
+
+function toPublicPurpose(purpose: MobileMediaUploadPurpose) {
+  return purpose === MobileMediaUploadPurpose.PROFILE_AVATAR ? "profile-avatar" : "server-icon";
+}
+
+function immutableUploadMatches(
+  upload: {
+    contentType: string;
+    height: number;
+    ownerId: string;
+    purpose: MobileMediaUploadPurpose;
+    sizeBytes: number;
+    storageKey: string;
+    targetServerId: string | null;
+    url: string;
+    width: number;
+  },
+  input: {
+    image: VerifiedMobileImage;
+    ownerId: string;
+    purpose: "profile-avatar" | "server-icon";
+    targetServerId: string | null;
+  },
+) {
+  return (
+    upload.ownerId === input.ownerId &&
+    upload.purpose === toDatabasePurpose(input.purpose) &&
+    upload.targetServerId === input.targetServerId &&
+    upload.storageKey === input.image.storageKey &&
+    upload.url === input.image.url &&
+    upload.contentType === input.image.contentType &&
+    upload.sizeBytes === input.image.sizeBytes &&
+    upload.width === input.image.width &&
+    upload.height === input.image.height
+  );
+}
+
+export async function recordVerifiedMobileMediaUpload(
+  input: {
+    image: VerifiedMobileImage;
+    ownerId: string;
+    purpose: "profile-avatar" | "server-icon";
+    targetServerId: string | null;
+  },
+  dependencies: MobileMediaRecordDependencies = defaultRecordDependencies,
+): Promise<MobileMediaUploadCompletionResponse> {
+  const now = dependencies.now();
+  const expiresAt = new Date(now.getTime() + CLAIM_TTL_MS);
+  const purpose = toDatabasePurpose(input.purpose);
+  const upload = await dependencies.client.mobileMediaUpload.upsert({
+    create: {
+      cleanupAfter: expiresAt,
+      contentType: input.image.contentType,
+      expiresAt,
+      height: input.image.height,
+      ownerId: input.ownerId,
+      purpose,
+      sizeBytes: input.image.sizeBytes,
+      storageKey: input.image.storageKey,
+      targetServerId: input.targetServerId,
+      url: input.image.url,
+      width: input.image.width,
+    },
+    update: {},
+    where: { storageKey: input.image.storageKey },
+  });
+
+  if (!immutableUploadMatches(upload, input)) {
+    throw new ApiError(
+      "Upload record conflicts with the verified callback",
+      409,
+      "UPLOAD_RECORD_CONFLICT",
+    );
+  }
+
+  const response = MobileMediaUploadCompletionResponseSchema.parse({
+    claimId: upload.id,
+    expiresAt: upload.expiresAt.toISOString(),
+    purpose: toPublicPurpose(upload.purpose),
+    targetServerId: upload.targetServerId,
+  });
+  await runInjectedOpportunisticCleanup(dependencies);
+  return response;
+}
+
+function uploadClaimUnavailable(): never {
+  throw new ApiError("Upload claim is invalid or expired", 409, "UPLOAD_CLAIM_UNAVAILABLE");
+}
+
+function hasValidPurposeTarget(upload: {
+  purpose: MobileMediaUploadPurpose;
+  targetServerId: string | null;
+}) {
+  return (
+    (upload.purpose === MobileMediaUploadPurpose.PROFILE_AVATAR &&
+      upload.targetServerId === null) ||
+    (upload.purpose === MobileMediaUploadPurpose.SERVER_ICON && upload.targetServerId !== null)
+  );
+}
+
+export async function claimMobileMediaUpload(
+  userId: string,
+  input: { claimId: string },
+  dependencies: MobileMediaClaimDependencies = defaultClaimDependencies,
+): Promise<MobileMediaClaimResponse> {
+  const now = dependencies.now();
+  const committed = await dependencies.client.$transaction(async (tx) => {
+    const upload = await tx.mobileMediaUpload.findUnique({
+      where: { id: input.claimId },
+      select: {
+        claimedAt: true,
+        cleanupAfter: true,
+        expiresAt: true,
+        id: true,
+        ownerId: true,
+        purpose: true,
+        storageDeletedAt: true,
+        targetServerId: true,
+        url: true,
+      },
+    });
+
+    if (
+      !upload ||
+      upload.ownerId !== userId ||
+      upload.claimedAt !== null ||
+      upload.cleanupAfter === null ||
+      upload.cleanupAfter.getTime() !== upload.expiresAt.getTime() ||
+      upload.storageDeletedAt !== null ||
+      upload.expiresAt <= now ||
+      !hasValidPurposeTarget(upload)
+    ) {
+      return uploadClaimUnavailable();
+    }
+
+    let previousUrl: string | null;
+    if (upload.purpose === MobileMediaUploadPurpose.PROFILE_AVATAR) {
+      const currentProfile = await tx.user.findUnique({
+        where: { id: userId },
+        select: { avatarUrl: true },
+      });
+      if (!currentProfile) {
+        throw new ApiError("Account not found", 404, "USER_NOT_FOUND");
+      }
+      previousUrl = currentProfile.avatarUrl;
+    } else {
+      const targetServerId = upload.targetServerId;
+      if (!targetServerId) {
+        return uploadClaimUnavailable();
+      }
+      const access = await getAccessContextWithClient(tx, userId, targetServerId);
+      ensureServerPermission(access, PermissionBits.MANAGE_SERVER);
+      const currentServer = await tx.server.findUnique({
+        where: { id: targetServerId },
+        select: { iconUrl: true },
+      });
+      if (!currentServer) {
+        return uploadClaimUnavailable();
+      }
+      previousUrl = currentServer.iconUrl;
+    }
+
+    const superseded =
+      previousUrl && previousUrl !== upload.url
+        ? await tx.mobileMediaUpload.findFirst({
+            where: {
+              claimedAt: { not: null },
+              cleanupAfter: null,
+              id: { not: upload.id },
+              ...(upload.purpose === MobileMediaUploadPurpose.PROFILE_AVATAR
+                ? { ownerId: userId }
+                : {}),
+              purpose: upload.purpose,
+              storageDeletedAt: null,
+              targetServerId: upload.targetServerId,
+              url: previousUrl,
+            },
+            select: { id: true },
+          })
+        : null;
+
+    const claimed = await tx.mobileMediaUpload.updateMany({
+      data: { claimedAt: now, cleanupAfter: null },
+      where: {
+        claimedAt: null,
+        cleanupAfter: upload.cleanupAfter,
+        expiresAt: { gt: now },
+        id: input.claimId,
+        ownerId: userId,
+        storageDeletedAt: null,
+      },
+    });
+    if (claimed.count !== 1) {
+      return uploadClaimUnavailable();
+    }
+
+    if (upload.purpose === MobileMediaUploadPurpose.PROFILE_AVATAR) {
+      const targetUpdated = await tx.user.updateMany({
+        where: { avatarUrl: previousUrl, id: userId },
+        data: { avatarUrl: upload.url },
+      });
+      if (targetUpdated.count !== 1) {
+        return uploadClaimUnavailable();
+      }
+
+      const profile = await tx.user.findUnique({
+        where: { id: userId },
+        select: {
+          avatarUrl: true,
+          customStatus: true,
+          displayName: true,
+          id: true,
+          status: true,
+          twoFactorEnabled: true,
+          username: true,
+        },
+      });
+      if (!profile) {
+        return uploadClaimUnavailable();
+      }
+
+      if (superseded) {
+        await tx.mobileMediaUpload.updateMany({
+          data: { cleanupAfter: now },
+          where: { cleanupAfter: null, id: superseded.id, storageDeletedAt: null },
+        });
+      }
+
+      const visibleStatus = mapVisiblePresenceStatus(profile.status);
+      return {
+        broadcast: {
+          avatarUrl: profile.avatarUrl,
+          customStatus: profile.customStatus,
+          displayName: profile.displayName,
+          status: visibleStatus,
+          userId: profile.id,
+          username: profile.username,
+        } satisfies UserProfileUpdatedPayload,
+        kind: "profile" as const,
+        response: MobileMediaClaimResponseSchema.parse({
+          claimId: upload.id,
+          claimedAt: now.toISOString(),
+          profile: {
+            avatarUrl: profile.avatarUrl,
+            customStatus: profile.customStatus,
+            displayName: profile.displayName,
+            id: profile.id,
+            status: visibleStatus,
+            twoFactorEnabled: profile.twoFactorEnabled,
+            username: profile.username,
+          },
+          purpose: "profile-avatar",
+        }),
+      };
+    }
+
+    const targetServerId = upload.targetServerId;
+    if (!targetServerId) {
+      return uploadClaimUnavailable();
+    }
+    const targetUpdated = await tx.server.updateMany({
+      where: { iconUrl: previousUrl, id: targetServerId },
+      data: { iconUrl: upload.url },
+    });
+    if (targetUpdated.count !== 1) {
+      return uploadClaimUnavailable();
+    }
+
+    const server = await tx.server.findUnique({
+      where: { id: targetServerId },
+      select: { iconUrl: true, id: true },
+    });
+    if (!server) {
+      return uploadClaimUnavailable();
+    }
+
+    if (superseded) {
+      await tx.mobileMediaUpload.updateMany({
+        data: { cleanupAfter: now },
+        where: { cleanupAfter: null, id: superseded.id, storageDeletedAt: null },
+      });
+    }
+
+    return {
+      kind: "server" as const,
+      response: MobileMediaClaimResponseSchema.parse({
+        claimId: upload.id,
+        claimedAt: now.toISOString(),
+        purpose: "server-icon",
+        server,
+      }),
+      serverId: targetServerId,
+    };
+  });
+
+  await runInjectedOpportunisticCleanup(dependencies);
+  if (committed.kind === "profile") {
+    await dependencies.broadcastProfile(committed.broadcast);
+  } else {
+    await dependencies.broadcastServer(committed.serverId);
+  }
+
+  return committed.response;
+}
+
+function boundedCleanupLimit(limit: number | undefined) {
+  if (limit === undefined || !Number.isFinite(limit)) {
+    return CLEANUP_BATCH_LIMIT;
+  }
+  return Math.min(CLEANUP_BATCH_LIMIT, Math.max(1, Math.trunc(limit)));
+}
+
+function redactedCleanupFailure(error: unknown, uploadId?: string) {
+  return {
+    errorName: error instanceof Error ? error.name : "UnknownError",
+    ...(uploadId ? { uploadId } : {}),
+  };
+}
+
+async function runInjectedOpportunisticCleanup(dependencies: {
+  logWarning?: (scope: string, error: unknown) => void;
+  opportunisticCleanup?: () => Promise<void>;
+}) {
+  try {
+    await (dependencies.opportunisticCleanup ?? runOpportunisticMobileMediaCleanup)();
+  } catch (error) {
+    try {
+      (dependencies.logWarning ?? logWarning)(
+        "[mobile-media-cleanup] request cleanup failed",
+        redactedCleanupFailure(error),
+      );
+    } catch {
+      // Cleanup must never replace an otherwise valid upload or claim response.
+    }
+  }
+}
+
+export async function cleanupMobileMediaUploads(
+  options: { limit?: number; now?: Date } = {},
+  dependencies: MobileMediaCleanupDependencies = defaultCleanupDependencies,
+): Promise<{ deleted: number; failed: number }> {
+  const now = options.now ?? new Date();
+  const candidates = await dependencies.client.mobileMediaUpload.findMany({
+    where: {
+      cleanupAfter: { lte: now },
+      storageDeletedAt: null,
+    },
+    orderBy: [{ cleanupAfter: "asc" }, { id: "asc" }],
+    take: boundedCleanupLimit(options.limit),
+    select: { id: true, storageKey: true },
+  });
+
+  let deleted = 0;
+  let failed = 0;
+  for (const candidate of candidates) {
+    const leaseUntil = new Date(now.getTime() + CLEANUP_LEASE_MS);
+    const acquired = await dependencies.client.mobileMediaUpload.updateMany({
+      where: {
+        cleanupAfter: { lte: now },
+        id: candidate.id,
+        storageDeletedAt: null,
+      },
+      data: {
+        cleanupAfter: leaseUntil,
+        cleanupAttempts: { increment: 1 },
+        cleanupLastAttemptAt: now,
+      },
+    });
+    if (acquired.count !== 1) {
+      continue;
+    }
+
+    try {
+      await dependencies.deleteStorageObject(candidate.storageKey);
+    } catch (error) {
+      failed += 1;
+      await dependencies.client.mobileMediaUpload.updateMany({
+        where: {
+          cleanupAfter: leaseUntil,
+          id: candidate.id,
+          storageDeletedAt: null,
+        },
+        data: { cleanupAfter: now },
+      });
+      dependencies.logWarning(
+        "[mobile-media-cleanup] storage deletion failed",
+        redactedCleanupFailure(error, candidate.id),
+      );
+      continue;
+    }
+
+    const updated = await dependencies.client.mobileMediaUpload.updateMany({
+      where: {
+        cleanupAfter: leaseUntil,
+        id: candidate.id,
+        storageDeletedAt: null,
+      },
+      data: {
+        cleanupAfter: null,
+        storageDeletedAt: now,
+      },
+    });
+    deleted += updated.count;
+  }
+
+  return { deleted, failed };
+}
+
+const defaultOpportunisticCleanupDependencies: MobileMediaOpportunisticCleanupDependencies = {
+  cleanup: (options) => cleanupMobileMediaUploads(options),
+  logWarning,
+};
+
+export async function runOpportunisticMobileMediaCleanup(
+  dependencies: MobileMediaOpportunisticCleanupDependencies = defaultOpportunisticCleanupDependencies,
+): Promise<void> {
+  const timeoutMs = Math.max(
+    1,
+    Math.trunc(dependencies.timeoutMs ?? OPPORTUNISTIC_CLEANUP_TIMEOUT_MS),
+  );
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  const timeoutOutcome = new Promise<{ status: "timeout" }>((resolve) => {
+    timeout = setTimeout(() => resolve({ status: "timeout" }), timeoutMs);
+    timeout.unref?.();
+  });
+  const cleanupOutcome = dependencies.cleanup({ limit: 1 }).then(
+    () => ({ status: "completed" as const }),
+    (error) => ({ error, status: "failed" as const }),
+  );
+
+  const outcome = await Promise.race([cleanupOutcome, timeoutOutcome]);
+  if (timeout) {
+    clearTimeout(timeout);
+  }
+
+  if (outcome.status === "completed") {
+    return;
+  }
+
+  try {
+    dependencies.logWarning(
+      "[mobile-media-cleanup] opportunistic cleanup failed",
+      outcome.status === "failed"
+        ? redactedCleanupFailure(outcome.error)
+        : { errorName: "CleanupTimeout" },
+    );
+  } catch {
+    // Cleanup and logging are both best effort at request boundaries.
+  }
+}

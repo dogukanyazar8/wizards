@@ -1,5 +1,6 @@
 import { logError } from "@/lib/logger";
 import { cleanupAccountReauthChallenges } from "@/lib/auth/reauth-cleanup";
+import { cleanupMobileMediaUploads as cleanupMobileMediaUploadsService } from "@/lib/mobile/mobile-media-upload-service";
 import { cleanupOutboxJobs, drainOutboxJobs } from "@/lib/outbox/service";
 
 const DEFAULT_OUTBOX_WORKER_BATCH_SIZE = 25;
@@ -13,6 +14,7 @@ let lastCleanupAt = 0;
 
 type StartOutboxWorkerOptions = {
   cleanupJobs?: typeof cleanupOutboxJobs;
+  cleanupMobileMediaUploads?: typeof cleanupMobileMediaUploadsService;
   cleanupReauthChallenges?: typeof cleanupAccountReauthChallenges;
   drainJobs?: typeof drainOutboxJobs;
   intervalMs?: number;
@@ -32,6 +34,7 @@ function readPositiveIntegerEnv(name: string, fallback: number) {
 
 export function startOutboxWorker({
   cleanupJobs = cleanupOutboxJobs,
+  cleanupMobileMediaUploads = cleanupMobileMediaUploadsService,
   cleanupReauthChallenges = cleanupAccountReauthChallenges,
   drainJobs = drainOutboxJobs,
   intervalMs,
@@ -49,10 +52,7 @@ export function startOutboxWorker({
   );
   const configuredIntervalMs =
     intervalMs ??
-    readPositiveIntegerEnv(
-      "WHISPR_OUTBOX_INTERVAL_MS",
-      DEFAULT_OUTBOX_WORKER_INTERVAL_MS,
-    );
+    readPositiveIntegerEnv("WHISPR_OUTBOX_INTERVAL_MS", DEFAULT_OUTBOX_WORKER_INTERVAL_MS);
   const workerId = configuredWorkerId ?? `web-${process.pid}`;
   const drain = () => {
     if (currentDrainPromise) {
@@ -70,6 +70,7 @@ export function startOutboxWorker({
         const cleanupNow = new Date(now);
         await cleanupJobs(cleanupNow);
         await cleanupReauthChallenges({ now: cleanupNow });
+        await cleanupMobileMediaUploads({ now: cleanupNow });
       })
       .catch((error) => {
         logError("[outbox] Worker drain failed", error);

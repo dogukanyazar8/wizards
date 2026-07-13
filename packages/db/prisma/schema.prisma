@@ -136,6 +136,11 @@ enum AttachmentScanStatus {
   ERROR
 }
 
+enum MobileMediaUploadPurpose {
+  PROFILE_AVATAR
+  SERVER_ICON
+}
+
 // Sticker animation preferences
 enum AnimateStickers {
   ALWAYS
@@ -855,6 +860,30 @@ model Attachment {
   @@index([messageId])
   @@index([dmMessageId])
   @@index([scanStatus])
+}
+
+model MobileMediaUpload {
+  id                   String                   @id @default(uuid())
+  ownerId              String
+  purpose              MobileMediaUploadPurpose
+  targetServerId       String?
+  storageKey           String                   @unique
+  url                  String
+  contentType          String
+  sizeBytes            Int
+  width                Int
+  height               Int
+  createdAt            DateTime                 @default(now())
+  expiresAt            DateTime
+  claimedAt            DateTime?
+  cleanupAfter         DateTime?
+  cleanupLastAttemptAt DateTime?
+  cleanupAttempts      Int                      @default(0)
+  storageDeletedAt     DateTime?
+
+  @@index([ownerId, purpose, targetServerId])
+  @@index([expiresAt, claimedAt])
+  @@index([cleanupAfter, storageDeletedAt])
 }
 
 model MessageMention {

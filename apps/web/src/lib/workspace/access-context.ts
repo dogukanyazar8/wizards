@@ -1,4 +1,4 @@
-import { prisma } from "@wizards/db";
+import { prisma, type Prisma } from "@wizards/db";
 import type { WorkspaceAccessLevel } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
@@ -6,12 +6,17 @@ import { requireServerPermission } from "@/lib/workspace/permissions";
 import { deriveAccessLevel, mergeRoleRecords } from "@/lib/workspace/role-helpers";
 import type { AccessContext } from "@/lib/workspace/workspace-types";
 
-export async function getAccessContext(
+export async function getAccessContext(userId: string, serverId: string): Promise<AccessContext> {
+  return getAccessContextWithClient(prisma, userId, serverId);
+}
+
+export async function getAccessContextWithClient(
+  client: Pick<Prisma.TransactionClient, "serverBan" | "serverMember">,
   userId: string,
   serverId: string,
 ): Promise<AccessContext> {
   const [membership, serverBan] = await Promise.all([
-    prisma.serverMember.findFirst({
+    client.serverMember.findFirst({
       where: {
         serverId,
         userId,
@@ -50,7 +55,7 @@ export async function getAccessContext(
         },
       },
     }),
-    prisma.serverBan.findUnique({
+    client.serverBan.findUnique({
       where: {
         serverId_userId: {
           serverId,

@@ -4,10 +4,7 @@ import type { CreateChannelInput, UpdateChannelInput } from "@wizards/types";
 import { ApiError } from "@/lib/api";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { disconnectUnauthorizedVoiceParticipants } from "@/lib/voice/service";
-import {
-  ensureServerPermission,
-  getAccessContext,
-} from "@/lib/workspace/access-context";
+import { ensureServerPermission, getAccessContext } from "@/lib/workspace/access-context";
 import {
   applyChannelPermissionMutation,
   prepareChannelPermissionMutation,
@@ -121,6 +118,7 @@ export async function updateWorkspaceChannel(
   userId: string,
   channelId: string,
   input: UpdateChannelInput,
+  options: { expectedServerId?: string } = {},
 ) {
   const existingChannel = await prisma.channel.findUnique({
     where: {
@@ -135,7 +133,11 @@ export async function updateWorkspaceChannel(
     },
   });
 
-  if (!existingChannel?.serverId) {
+  if (
+    !existingChannel?.serverId ||
+    (options.expectedServerId !== undefined &&
+      existingChannel.serverId !== options.expectedServerId)
+  ) {
     throw new ApiError("Channel not found", 404);
   }
 
@@ -302,7 +304,11 @@ export async function reorderWorkspaceChannels(
   });
 }
 
-export async function deleteWorkspaceChannel(userId: string, channelId: string) {
+export async function deleteWorkspaceChannel(
+  userId: string,
+  channelId: string,
+  options: { expectedServerId?: string } = {},
+) {
   const channel = await prisma.channel.findUnique({
     where: {
       id: channelId,
@@ -313,7 +319,10 @@ export async function deleteWorkspaceChannel(userId: string, channelId: string) 
     },
   });
 
-  if (!channel?.serverId) {
+  if (
+    !channel?.serverId ||
+    (options.expectedServerId !== undefined && channel.serverId !== options.expectedServerId)
+  ) {
     throw new ApiError("Channel not found", 404);
   }
 

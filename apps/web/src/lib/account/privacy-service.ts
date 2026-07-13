@@ -1,4 +1,4 @@
-import { UserStatus, prisma, type Prisma } from "@wizards/db";
+import { MobileMediaUploadPurpose, UserStatus, prisma, type Prisma } from "@wizards/db";
 import { UTApi } from "uploadthing/server";
 import { ApiError } from "@/lib/api";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
@@ -13,6 +13,22 @@ export const ACCOUNT_DELETION_CONFIRMATION = "DELETE MY ACCOUNT";
 const DELETED_ACCOUNT_DISPLAY_NAME = "Deleted User";
 const DELETED_ACCOUNT_MESSAGE_CONTENT = "";
 const UPLOADTHING_DELETE_BATCH_SIZE = 100;
+
+export type AccountAnonymizationDependencies = {
+  clearRuntimeState: typeof clearAccountRuntimeState;
+  client: Pick<typeof prisma, "$transaction" | "user">;
+  deleteUploadThingFiles: typeof deleteAccountUploadThingFiles;
+  now: () => Date;
+  revokeSessions: typeof revokeUserSessions;
+};
+
+const defaultAccountAnonymizationDependencies: AccountAnonymizationDependencies = {
+  clearRuntimeState: clearAccountRuntimeState,
+  client: prisma,
+  deleteUploadThingFiles: deleteAccountUploadThingFiles,
+  now: () => new Date(),
+  revokeSessions: revokeUserSessions,
+};
 
 export function buildDeletedAccountIdentity(userId: string) {
   const stableId = userId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 24) || "unknown";
@@ -48,8 +64,7 @@ export function extractUploadThingFileKey(value: string | null | undefined) {
 
   const segments = url.pathname.split("/").filter(Boolean);
   const fileMarkerIndex = segments.lastIndexOf("f");
-  const rawKey =
-    fileMarkerIndex >= 0 ? segments[fileMarkerIndex + 1] : segments.at(-1);
+  const rawKey = fileMarkerIndex >= 0 ? segments[fileMarkerIndex + 1] : segments.at(-1);
 
   return rawKey ? decodeURIComponent(rawKey) : null;
 }
@@ -331,12 +346,10 @@ async function clearAccountRuntimeState(userId: string, serverIds: string[]) {
     logError("[account-privacy] Failed to clear deleted account Redis state", error);
   }
 
-  await Promise.all(
-    [
-      invalidateServerRoomIdsCache(userId),
-      ...serverIds.map((serverId) => invalidateMemberPermissionCache(serverId, userId)),
-    ],
-  );
+  await Promise.all([
+    invalidateServerRoomIdsCache(userId),
+    ...serverIds.map((serverId) => invalidateMemberPermissionCache(serverId, userId)),
+  ]);
 }
 
 async function deleteAccountUploadThingFiles(userId: string) {
@@ -390,8 +403,11 @@ async function deleteAccountUploadThingFiles(userId: string) {
   }
 }
 
-export async function anonymizeAccount(userId: string) {
-  const user = await prisma.user.findUnique({
+export async function anonymizeAccount(
+  userId: string,
+  dependencies: AccountAnonymizationDependencies = defaultAccountAnonymizationDependencies,
+) {
+  const user = await dependencies.client.user.findUnique({
     where: { id: userId },
     select: {
       deletedAt: true,
@@ -426,13 +442,29 @@ export async function anonymizeAccount(userId: string) {
     );
   }
 
-  const now = new Date();
+  const now = dependencies.now();
   const identity = buildDeletedAccountIdentity(userId);
   const serverIds = user.serverMembers.map((membership) => membership.serverId);
 
-  await deleteAccountUploadThingFiles(userId);
+  await dependencies.deleteUploadThingFiles(userId);
 
-  await prisma.$transaction(async (tx) => {
+  await dependencies.client.$transaction(async (tx) => {
+    await tx.mobileMediaUpload.updateMany({
+      where: {
+        OR: [
+          {
+            ownerId: userId,
+            purpose: MobileMediaUploadPurpose.PROFILE_AVATAR,
+          },
+          {
+            claimedAt: null,
+            expiresAt: { lte: now },
+          },
+        ],
+        storageDeletedAt: null,
+      },
+      data: { cleanupAfter: now },
+    });
     await tx.account.deleteMany({ where: { userId } });
     await tx.session.deleteMany({ where: { userId } });
     await tx.emailVerificationToken.deleteMany({ where: { userId } });
@@ -563,8 +595,8 @@ export async function anonymizeAccount(userId: string) {
     });
   });
 
-  await revokeUserSessions(userId, { now });
-  await clearAccountRuntimeState(userId, serverIds);
+  await dependencies.revokeSessions(userId, { now });
+  await dependencies.clearRuntimeState(userId, serverIds);
 
   return { deletedAt: now };
 }

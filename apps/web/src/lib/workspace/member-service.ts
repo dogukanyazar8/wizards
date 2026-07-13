@@ -14,9 +14,7 @@ import {
   getAccessContext,
 } from "@/lib/workspace/access-context";
 import { getMessageById } from "@/lib/workspace/message-service";
-import {
-  invalidateMemberPermissionCache,
-} from "@/lib/workspace/permission-cache";
+import { invalidateMemberPermissionCache } from "@/lib/workspace/permission-cache";
 import {
   emitServerUnreadUpdatesForServer,
   getActiveChannelViewerUserIds,
@@ -106,38 +104,50 @@ export async function updateWorkspaceMemberRoles(
     throw new ApiError("One or more roles could not be found.", 404, "ROLE_NOT_FOUND");
   }
 
-  if (roles.some((role) => role.isDefault || role.managed)) {
+  const currentManagedRoleIds = new Set(
+    member.roles
+      .map((entry) => entry.role)
+      .filter((role) => !role.isDefault && role.managed)
+      .map((role) => role.id),
+  );
+
+  if (
+    roles.some((role) => role.isDefault || (role.managed && !currentManagedRoleIds.has(role.id)))
+  ) {
     throw new ApiError("Protected roles cannot be assigned manually.", 403, "PROTECTED_ROLE");
   }
 
-  for (const role of roles) {
+  const requestedMutableRoles = roles.filter((role) => !role.isDefault && !role.managed);
+
+  for (const role of requestedMutableRoles) {
     ensureCanWriteRolePermissions(access, role.permissions);
   }
 
-  const existingNonDefaultRoleIds = member.roles
+  const existingMutableRoleIds = member.roles
     .map((entry) => entry.role)
-    .filter((role) => !role.isDefault)
+    .filter((role) => !role.isDefault && !role.managed)
     .map((role) => role.id);
-  const addedRoleIds = requestedRoleIds.filter(
-    (roleId) => !existingNonDefaultRoleIds.includes(roleId),
+  const requestedMutableRoleIds = requestedMutableRoles.map((role) => role.id);
+  const addedRoleIds = requestedMutableRoleIds.filter(
+    (roleId) => !existingMutableRoleIds.includes(roleId),
   );
-  const addedRoles = roles.filter((role) => addedRoleIds.includes(role.id));
+  const addedRoles = requestedMutableRoles.filter((role) => addedRoleIds.includes(role.id));
 
   const mutations: Prisma.PrismaPromise<unknown>[] = [
     prisma.memberRole.deleteMany({
       where: {
         memberId,
         roleId: {
-          in: existingNonDefaultRoleIds,
+          in: existingMutableRoleIds,
         },
       },
     }),
   ];
 
-  if (requestedRoleIds.length > 0) {
+  if (requestedMutableRoleIds.length > 0) {
     mutations.push(
       prisma.memberRole.createMany({
-        data: requestedRoleIds.map((roleId) => ({
+        data: requestedMutableRoleIds.map((roleId) => ({
           memberId,
           roleId,
         })),

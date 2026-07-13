@@ -216,39 +216,39 @@ export const CreateServerSchema = z.object({
   shortName: optionalServerShortName,
 });
 
-export const UpdateServerSchema = z
-  .object({
-    allowFileUploads: z.boolean().optional(),
-    allowGifs: z.boolean().optional(),
-    allowMemberAdds: z.boolean().optional(),
-    description: optionalTrimmedString(160, true),
-    iconUrl: z
-      .string()
-      .url()
-      .optional()
-      .or(z.literal(""))
-      .or(z.null())
-      .transform((value) => (value === undefined ? undefined : emptyStringToNull(value))),
-    name: z.string().trim().min(2).max(64).optional(),
-    messageCharacterLimit: z.number().int().min(250).max(40000).optional(),
-    deletedMessageNoticeMinutes: z.number().int().min(5).max(10080).optional(),
-    shortName: optionalServerShortName,
-  })
-  .refine(
-    (value) =>
-      value.name !== undefined ||
-      value.shortName !== undefined ||
-      value.description !== undefined ||
-      value.iconUrl !== undefined ||
-      value.messageCharacterLimit !== undefined ||
-      value.deletedMessageNoticeMinutes !== undefined ||
-      value.allowGifs !== undefined ||
-      value.allowFileUploads !== undefined ||
-      value.allowMemberAdds !== undefined,
-    {
-      message: "validation.form.atLeastOne",
-    },
-  );
+export const UpdateServerFieldsSchema = z.object({
+  allowFileUploads: z.boolean().optional(),
+  allowGifs: z.boolean().optional(),
+  allowMemberAdds: z.boolean().optional(),
+  description: optionalTrimmedString(160, true),
+  iconUrl: z
+    .string()
+    .url()
+    .optional()
+    .or(z.literal(""))
+    .or(z.null())
+    .transform((value) => (value === undefined ? undefined : emptyStringToNull(value))),
+  name: z.string().trim().min(2).max(64).optional(),
+  messageCharacterLimit: z.number().int().min(250).max(40000).optional(),
+  deletedMessageNoticeMinutes: z.number().int().min(5).max(10080).optional(),
+  shortName: optionalServerShortName,
+});
+
+export const UpdateServerSchema = UpdateServerFieldsSchema.refine(
+  (value) =>
+    value.name !== undefined ||
+    value.shortName !== undefined ||
+    value.description !== undefined ||
+    value.iconUrl !== undefined ||
+    value.messageCharacterLimit !== undefined ||
+    value.deletedMessageNoticeMinutes !== undefined ||
+    value.allowGifs !== undefined ||
+    value.allowFileUploads !== undefined ||
+    value.allowMemberAdds !== undefined,
+  {
+    message: "validation.form.atLeastOne",
+  },
+);
 
 export const AddServerMemberSchema = z.object({
   username: z.string().trim().min(2).max(32),
@@ -274,23 +274,23 @@ export const CreateChannelSchema = z.object({
   type: WorkspaceChannelTypeSchema,
 });
 
-export const UpdateChannelSchema = z
-  .object({
-    categoryId: z.string().nullable().optional(),
-    name: workspaceNameSchema(48, "validation.channel.pattern").optional(),
-    topic: optionalTrimmedString(120, true),
-    locked: z.boolean().optional(),
-  })
-  .refine(
-    (value) =>
-      value.name !== undefined ||
-      value.categoryId !== undefined ||
-      value.topic !== undefined ||
-      value.locked !== undefined,
-    {
-      message: "validation.form.atLeastOne",
-    },
-  );
+export const UpdateChannelFieldsSchema = z.object({
+  categoryId: z.string().nullable().optional(),
+  name: workspaceNameSchema(48, "validation.channel.pattern").optional(),
+  topic: optionalTrimmedString(120, true),
+  locked: z.boolean().optional(),
+});
+
+export const UpdateChannelSchema = UpdateChannelFieldsSchema.refine(
+  (value) =>
+    value.name !== undefined ||
+    value.categoryId !== undefined ||
+    value.topic !== undefined ||
+    value.locked !== undefined,
+  {
+    message: "validation.form.atLeastOne",
+  },
+);
 
 export const ReorderChannelsSchema = z.object({
   items: z

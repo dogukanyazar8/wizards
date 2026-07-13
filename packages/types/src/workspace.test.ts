@@ -14,7 +14,9 @@ import {
   ReorderChannelsSchema,
   RoleBadgeSchema,
   UpdateCategorySchema,
+  UpdateChannelFieldsSchema,
   UpdateChannelSchema,
+  UpdateServerFieldsSchema,
   UpdateServerSchema,
   UpdateWorkspaceChannelPermissionsSchema,
   UpdateWorkspaceMemberRolesSchema,
@@ -166,10 +168,20 @@ describe("workspace schemas", () => {
         valid: { name: "Product" },
         invalid: { name: "<>" },
       },
+      UpdateChannelFieldsSchema: {
+        schema: UpdateChannelFieldsSchema,
+        valid: {},
+        invalid: { name: "!!!" },
+      },
       UpdateChannelSchema: {
         schema: UpdateChannelSchema,
         valid: { locked: true },
         invalid: {},
+      },
+      UpdateServerFieldsSchema: {
+        schema: UpdateServerFieldsSchema,
+        valid: {},
+        invalid: { name: "n" },
       },
       UpdateServerSchema: {
         schema: UpdateServerSchema,

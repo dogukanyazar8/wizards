@@ -1,9 +1,11 @@
-import { ChannelType, prisma } from "@wizards/db";
+import { ChannelType, MobileMediaUploadPurpose, prisma } from "@wizards/db";
 import type { Prisma } from "@wizards/db";
 import type {
   CreateServerInput,
   DeleteServerInput,
   UpdateServerInput,
+  WorkspaceMember,
+  WorkspaceMemberPage,
   WorkspaceServerDetail,
 } from "@wizards/types";
 
@@ -18,6 +20,7 @@ import {
 import { generateInviteCode } from "@/lib/workspace/invite-code";
 import { invalidateServerPermissionCache } from "@/lib/workspace/permission-cache";
 import {
+  getBoundedMobileServerUnreadSummary,
   getServerChannelUnreadCounts,
   getServerMentionCount,
   getServerUnreadAndMentionCounts,
@@ -33,11 +36,7 @@ import {
   resolveChannelPermissions,
   resolveServerPermissions,
 } from "@/lib/workspace/permissions";
-import {
-  deriveAccessLevel,
-  mergeRoleRecords,
-  toWorkspaceRole,
-} from "@/lib/workspace/role-helpers";
+import { deriveAccessLevel, mergeRoleRecords, toWorkspaceRole } from "@/lib/workspace/role-helpers";
 import {
   mapCategories,
   mapInvites,
@@ -52,7 +51,49 @@ import {
   SERVER_DETAIL_MEMBER_LIMIT,
   SERVER_MEMBERS_PAGE_LIMIT,
 } from "@/lib/workspace/workspace-constants";
-import type { ChannelRecord } from "@/lib/workspace/workspace-types";
+import type { AccessContext, ChannelRecord } from "@/lib/workspace/workspace-types";
+
+const MOBILE_SERVER_DETAIL_CATEGORY_LIMIT = 20;
+const MOBILE_SERVER_DETAIL_CHANNEL_PER_CATEGORY_LIMIT = 40;
+const MOBILE_SERVER_DETAIL_CHANNEL_LIMIT = 80;
+const MOBILE_SERVER_DETAIL_MEMBER_LIMIT = 80;
+const MOBILE_MEMBER_NON_DEFAULT_ROLE_LIMIT = 25;
+const MOBILE_MEMBER_ROLE_QUERY_LIMIT = MOBILE_MEMBER_NON_DEFAULT_ROLE_LIMIT + 2;
+
+export type MobileWorkspaceServerDetailProjection = {
+  categories: WorkspaceServerDetail["categories"];
+  members: WorkspaceServerDetail["members"];
+  server: Pick<
+    WorkspaceServerDetail["server"],
+    | "defaultChannelId"
+    | "description"
+    | "iconUrl"
+    | "id"
+    | "memberCount"
+    | "mentionCount"
+    | "name"
+    | "shortName"
+    | "unreadCount"
+  >;
+  ungroupedChannels: WorkspaceServerDetail["ungroupedChannels"];
+};
+
+function ensureMobileMemberRoleBounds(
+  members: Array<{ roles: Array<{ role: { isDefault: boolean } }> }>,
+) {
+  for (const member of members) {
+    const defaultRoleCount = member.roles.filter(({ role }) => role.isDefault).length;
+    const nonDefaultRoleCount = member.roles.length - defaultRoleCount;
+
+    if (defaultRoleCount > 1 || nonDefaultRoleCount > MOBILE_MEMBER_NON_DEFAULT_ROLE_LIMIT) {
+      throw new ApiError(
+        "Mobile member role list exceeds the supported limit",
+        409,
+        "MOBILE_RESPONSE_LIMIT_EXCEEDED",
+      );
+    }
+  }
+}
 
 export async function listWorkspaceServers(userId: string) {
   const memberships = await prisma.serverMember.findMany({
@@ -178,11 +219,8 @@ export async function listWorkspaceServers(userId: string) {
   });
 }
 
-export async function getWorkspaceServerDetail(
-  userId: string,
-  serverId: string,
-): Promise<WorkspaceServerDetail> {
-  const access = await getAccessContext(userId, serverId);
+async function loadWorkspaceServerDetail(access: AccessContext): Promise<WorkspaceServerDetail> {
+  const { serverId, userId } = access;
   const isAdmin = access.accessLevel !== "MEMBER";
   const canManageInvites = hasPermission(
     resolveServerPermissions(access),
@@ -427,15 +465,262 @@ export async function getWorkspaceServerDetail(
   };
 }
 
-export async function listWorkspaceServerMembers(
+async function loadMobileWorkspaceServerDetail(access: AccessContext): Promise<{
+  detail: MobileWorkspaceServerDetailProjection;
+  hasMoreChannels: boolean;
+}> {
+  const { serverId, userId } = access;
+  const server = await prisma.server.findUnique({
+    where: {
+      id: serverId,
+    },
+    select: {
+      _count: {
+        select: {
+          members: true,
+        },
+      },
+      categories: {
+        orderBy: [{ position: "asc" }, { id: "asc" }],
+        select: {
+          channels: {
+            orderBy: [{ position: "asc" }, { id: "asc" }],
+            select: {
+              categoryId: true,
+              id: true,
+              locked: true,
+              name: true,
+              permissionOverrides: {
+                select: {
+                  allow: true,
+                  deny: true,
+                  targetId: true,
+                  targetType: true,
+                },
+              },
+              position: true,
+              topic: true,
+              type: true,
+            },
+            take: MOBILE_SERVER_DETAIL_CHANNEL_PER_CATEGORY_LIMIT + 1,
+            where: {
+              parentId: null,
+              type: {
+                in: [ChannelType.TEXT, ChannelType.VOICE],
+              },
+            },
+          },
+          id: true,
+          name: true,
+          position: true,
+        },
+        take: MOBILE_SERVER_DETAIL_CATEGORY_LIMIT + 1,
+      },
+      channels: {
+        orderBy: [{ position: "asc" }, { id: "asc" }],
+        select: {
+          categoryId: true,
+          id: true,
+          locked: true,
+          name: true,
+          permissionOverrides: {
+            select: {
+              allow: true,
+              deny: true,
+              targetId: true,
+              targetType: true,
+            },
+          },
+          position: true,
+          topic: true,
+          type: true,
+        },
+        take: MOBILE_SERVER_DETAIL_CHANNEL_LIMIT + 1,
+        where: {
+          categoryId: null,
+          parentId: null,
+          type: {
+            in: [ChannelType.TEXT, ChannelType.VOICE],
+          },
+        },
+      },
+      description: true,
+      iconUrl: true,
+      id: true,
+      members: {
+        orderBy: [{ joinedAt: "asc" }, { id: "asc" }],
+        select: {
+          id: true,
+          nickname: true,
+          roles: {
+            orderBy: [{ role: { position: "desc" } }, { roleId: "asc" }],
+            select: {
+              role: {
+                select: {
+                  color: true,
+                  id: true,
+                  isDefault: true,
+                  name: true,
+                  permissions: true,
+                },
+              },
+            },
+            take: MOBILE_MEMBER_ROLE_QUERY_LIMIT,
+          },
+          user: {
+            select: {
+              avatarUrl: true,
+              customStatus: true,
+              displayName: true,
+              id: true,
+              status: true,
+              username: true,
+            },
+          },
+        },
+        take: MOBILE_SERVER_DETAIL_MEMBER_LIMIT + 1,
+      },
+      name: true,
+      ownerId: true,
+      shortName: true,
+    },
+  });
+
+  if (!server) {
+    throw new ApiError("Server not found", 404);
+  }
+
+  ensureMobileMemberRoleBounds(server.members);
+
+  let hasMoreChannels =
+    server.categories.length > MOBILE_SERVER_DETAIL_CATEGORY_LIMIT ||
+    server.channels.length > MOBILE_SERVER_DETAIL_CHANNEL_LIMIT ||
+    server.categories
+      .slice(0, MOBILE_SERVER_DETAIL_CATEGORY_LIMIT)
+      .some(
+        (category) => category.channels.length > MOBILE_SERVER_DETAIL_CHANNEL_PER_CATEGORY_LIMIT,
+      );
+  const visibleCategoryRows = server.categories
+    .slice(0, MOBILE_SERVER_DETAIL_CATEGORY_LIMIT)
+    .map((category) => ({
+      ...category,
+      channels: category.channels
+        .slice(0, MOBILE_SERVER_DETAIL_CHANNEL_PER_CATEGORY_LIMIT)
+        .map((channel) => withVisibleChannelAccess(access, channel))
+        .filter((channel): channel is ChannelRecord => channel !== null),
+    }));
+  const visibleUngroupedRows = server.channels
+    .slice(0, MOBILE_SERVER_DETAIL_CHANNEL_LIMIT)
+    .map((channel) => withVisibleChannelAccess(access, channel))
+    .filter((channel): channel is ChannelRecord => channel !== null);
+
+  let remainingChannelSlots = MOBILE_SERVER_DETAIL_CHANNEL_LIMIT;
+  const boundedCategoryRows = visibleCategoryRows.map((category) => {
+    const channels = category.channels.slice(0, remainingChannelSlots);
+    if (channels.length < category.channels.length) {
+      hasMoreChannels = true;
+    }
+    remainingChannelSlots -= channels.length;
+
+    return { ...category, channels };
+  });
+  const boundedUngroupedRows = visibleUngroupedRows.slice(0, remainingChannelSlots);
+  if (boundedUngroupedRows.length < visibleUngroupedRows.length) {
+    hasMoreChannels = true;
+  }
+
+  const visibleTextChannelIds = [
+    ...boundedCategoryRows.flatMap((category) => category.channels),
+    ...boundedUngroupedRows,
+  ]
+    .filter((channel) => channel.type === ChannelType.TEXT)
+    .map((channel) => channel.id);
+  const unreadSummary = await getBoundedMobileServerUnreadSummary(
+    userId,
+    serverId,
+    visibleTextChannelIds,
+  );
+  const categories = mapCategories(boundedCategoryRows, unreadSummary.channelUnreadCounts);
+  const ungroupedChannels = boundedUngroupedRows.map((channel) =>
+    toWorkspaceChannel(channel, unreadSummary.channelUnreadCounts),
+  );
+  const memberRows = server.members.slice(0, MOBILE_SERVER_DETAIL_MEMBER_LIMIT);
+  const members = await mapMembers(server.ownerId, memberRows);
+
+  return {
+    detail: {
+      categories,
+      members,
+      server: {
+        defaultChannelId: pickDefaultChannelId({ categories, ungroupedChannels }),
+        description: server.description,
+        iconUrl: server.iconUrl,
+        id: server.id,
+        memberCount: server._count.members,
+        mentionCount: unreadSummary.mentionCount,
+        name: server.name,
+        shortName: server.shortName,
+        unreadCount: unreadSummary.unreadCount,
+      },
+      ungroupedChannels,
+    },
+    hasMoreChannels,
+  };
+}
+
+export async function getWorkspaceServerDetailWithAccess(
   userId: string,
   serverId: string,
+): Promise<{ access: AccessContext; detail: WorkspaceServerDetail }> {
+  const access = await getAccessContext(userId, serverId);
+  const detail = await loadWorkspaceServerDetail(access);
+
+  return { access, detail };
+}
+
+export async function getMobileWorkspaceServerDetailWithAccess(
+  userId: string,
+  serverId: string,
+): Promise<{
+  access: AccessContext;
+  detail: MobileWorkspaceServerDetailProjection;
+  hasMoreChannels: boolean;
+}> {
+  const access = await getAccessContext(userId, serverId);
+  const result = await loadMobileWorkspaceServerDetail(access);
+
+  return { access, ...result };
+}
+
+export async function getWorkspaceServerDetail(
+  userId: string,
+  serverId: string,
+): Promise<WorkspaceServerDetail> {
+  return (await getWorkspaceServerDetailWithAccess(userId, serverId)).detail;
+}
+
+type WorkspaceMemberWithAuthorizationRoles = {
+  authorizationRoles: Array<{
+    id: string;
+    isDefault: boolean;
+    managed: boolean;
+    permissions: bigint;
+  }>;
+  member: WorkspaceMember;
+};
+
+async function loadWorkspaceServerMembers(
+  access: AccessContext,
   options: {
     cursor?: string;
     limit?: number;
   } = {},
-) {
-  const access = await getAccessContext(userId, serverId);
+  projection: { boundMobileRoles?: boolean } = {},
+): Promise<{
+  memberPage: WorkspaceMemberPage;
+  members: WorkspaceMemberWithAuthorizationRoles[];
+}> {
+  const { serverId } = access;
   const limit = Math.min(
     Math.max(options.limit ?? SERVER_MEMBERS_PAGE_LIMIT, 1),
     SERVER_MEMBERS_PAGE_LIMIT,
@@ -488,11 +773,19 @@ export async function listWorkspaceServerMembers(
       id: true,
       nickname: true,
       roles: {
+        ...(projection.boundMobileRoles
+          ? {
+              orderBy: [{ role: { position: "desc" as const } }, { roleId: "asc" as const }],
+              take: MOBILE_MEMBER_ROLE_QUERY_LIMIT,
+            }
+          : {}),
         select: {
           role: {
             select: {
               color: true,
               id: true,
+              isDefault: true,
+              managed: true,
               name: true,
               permissions: true,
             },
@@ -516,14 +809,78 @@ export async function listWorkspaceServerMembers(
       ...cursorFilter,
     },
   });
+  if (projection.boundMobileRoles) {
+    ensureMobileMemberRoleBounds(rows);
+  }
   const pageRows = rows.slice(0, limit);
+  const members = await mapMembers(access.ownerId, pageRows);
 
   return {
     memberPage: {
       limit,
       nextCursor: rows.length > limit ? (pageRows.at(-1)?.id ?? null) : null,
     },
-    members: await mapMembers(access.ownerId, pageRows),
+    members: members.map((member, index) => ({
+      authorizationRoles: pageRows[index]!.roles.map(({ role }) => ({
+        id: role.id,
+        isDefault: role.isDefault,
+        managed: role.managed,
+        permissions: role.permissions,
+      })),
+      member,
+    })),
+  };
+}
+
+export async function listWorkspaceServerMembersWithAccess(
+  userId: string,
+  serverId: string,
+  options: {
+    cursor?: string;
+    limit?: number;
+  } = {},
+): Promise<{
+  access: AccessContext;
+  memberPage: WorkspaceMemberPage;
+  members: WorkspaceMemberWithAuthorizationRoles[];
+}> {
+  const access = await getAccessContext(userId, serverId);
+  const result = await loadWorkspaceServerMembers(access, options);
+
+  return { access, ...result };
+}
+
+export async function listMobileWorkspaceServerMembersWithAccess(
+  userId: string,
+  serverId: string,
+  options: {
+    cursor?: string;
+    limit?: number;
+  } = {},
+): Promise<{
+  access: AccessContext;
+  memberPage: WorkspaceMemberPage;
+  members: WorkspaceMemberWithAuthorizationRoles[];
+}> {
+  const access = await getAccessContext(userId, serverId);
+  const result = await loadWorkspaceServerMembers(access, options, { boundMobileRoles: true });
+
+  return { access, ...result };
+}
+
+export async function listWorkspaceServerMembers(
+  userId: string,
+  serverId: string,
+  options: {
+    cursor?: string;
+    limit?: number;
+  } = {},
+) {
+  const result = await listWorkspaceServerMembersWithAccess(userId, serverId, options);
+
+  return {
+    memberPage: result.memberPage,
+    members: result.members.map(({ member }) => member),
   };
 }
 
@@ -777,10 +1134,21 @@ export async function deleteWorkspaceServer(
     },
   });
 
-  await prisma.server.delete({
-    where: {
-      id: serverId,
-    },
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    await tx.mobileMediaUpload.updateMany({
+      where: {
+        purpose: MobileMediaUploadPurpose.SERVER_ICON,
+        storageDeletedAt: null,
+        targetServerId: serverId,
+      },
+      data: { cleanupAfter: now },
+    });
+    await tx.server.delete({
+      where: {
+        id: serverId,
+      },
+    });
   });
 
   await invalidateServerPermissionCache(serverId);
