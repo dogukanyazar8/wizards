@@ -1,4 +1,5 @@
 import { assertOutboxWorkerEnvironment } from "@/lib/env";
+import { registerSentryErrorReporter } from "@/lib/observability/register-sentry";
 import { startOutboxWorker, stopOutboxWorker } from "@/lib/outbox/worker";
 import {
   closeHeadlessSocketServer,
@@ -13,6 +14,7 @@ try {
 
 const runtime = process.env.NODE_ENV === "production" ? "production" : "development";
 assertOutboxWorkerEnvironment(process.env, runtime);
+registerSentryErrorReporter();
 
 if (process.env.WHISPR_OUTBOX_WORKER === "false") {
   console.info("Whispr outbox worker is disabled.");
