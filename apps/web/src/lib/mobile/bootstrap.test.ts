@@ -20,7 +20,7 @@ describe("mobile bootstrap payload", () => {
     assert.equal(payload.app.name, "Whispr");
     assert.equal(payload.app.serverTime, "2026-06-26T12:00:00.000Z");
     assert.equal(payload.features.attachments.status, "requires-server-contract");
-    assert.equal(payload.features.invites.status, "requires-server-contract");
+    assert.equal(payload.features.invites.status, "available");
     assert.equal(payload.features.messageSearch.status, "available");
     assert.equal(payload.features.messages.status, "available");
     assert.equal(payload.features.pushNotifications.status, "requires-native-permission");

@@ -44,6 +44,89 @@ describe("mobile realtime contract", () => {
     assert.deepEqual(getMobileRealtimeRefreshSources("user:profile:updated"), ["presence"]);
   });
 
+  it("retains only schema-validated server management and social payloads", () => {
+    const membership = createMobileRealtimeEventEnvelope(
+      "server:membership:removed",
+      { reason: "kicked", serverId: "server-1" },
+      2_100,
+    );
+    assert.equal(membership.serverId, "server-1");
+    assert.deepEqual(membership.payload, { reason: "kicked", serverId: "server-1" });
+
+    const history = createMobileRealtimeEventEnvelope(
+      "message:history_cleared",
+      { channelId: "channel-1" },
+      2_200,
+    );
+    assert.equal(history.channelId, "channel-1");
+    assert.deepEqual(history.payload, { channelId: "channel-1" });
+
+    const presence = createMobileRealtimeEventEnvelope(
+      "presence:update",
+      { customStatus: "Reviewing", status: "IDLE", userId: "user-2" },
+      2_300,
+    );
+    assert.deepEqual(presence.payload, {
+      customStatus: "Reviewing",
+      status: "IDLE",
+      userId: "user-2",
+    });
+
+    const profile = createMobileRealtimeEventEnvelope(
+      "user:profile:updated",
+      {
+        avatarUrl: "https://cdn.example.com/avatar.png",
+        customStatus: null,
+        displayName: "Ada Lovelace",
+        status: "ONLINE",
+        userId: "user-2",
+        username: "ada",
+      },
+      2_400,
+    );
+    assert.deepEqual(profile.payload, {
+      avatarUrl: "https://cdn.example.com/avatar.png",
+      customStatus: null,
+      displayName: "Ada Lovelace",
+      status: "ONLINE",
+      userId: "user-2",
+      username: "ada",
+    });
+  });
+
+  it("drops malformed managed ids, presence values, avatars, and extra fields", () => {
+    const malformed = [
+      createMobileRealtimeEventEnvelope("server:settings:updated", { serverId: "" }),
+      createMobileRealtimeEventEnvelope("server:membership:added", {
+        serverId: "server-1",
+        userId: "user-1",
+      }),
+      createMobileRealtimeEventEnvelope("message:history_cleared", {
+        channelId: "channel-1",
+        unexpected: true,
+      }),
+      createMobileRealtimeEventEnvelope("presence:update", {
+        customStatus: null,
+        status: "INVISIBLE",
+        userId: "user-2",
+      }),
+      createMobileRealtimeEventEnvelope("user:profile:updated", {
+        avatarUrl: "not-a-url",
+        customStatus: null,
+        displayName: "Ada Lovelace",
+        status: "ONLINE",
+        userId: "user-2",
+        username: "ada",
+      }),
+    ];
+
+    malformed.forEach((event) => {
+      assert.equal(event.channelId, null);
+      assert.equal(event.payload, null);
+      assert.equal(event.serverId, null);
+    });
+  });
+
   it("preserves voice invite payloads without scheduling a data refresh", () => {
     const event = createMobileRealtimeEventEnvelope(
       "voice:invite:received",

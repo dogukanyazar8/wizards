@@ -795,6 +795,7 @@ describe("mobile schemas", () => {
     const parsed = assertAccepts(MobileBootstrapPayloadSchema, bootstrapPayload);
     assert.deepEqual(parsed?.features.attachments, MOBILE_BOOTSTRAP_ATTACHMENTS_FEATURE_DEFAULT);
     assert.deepEqual(parsed?.features.invites, MOBILE_BOOTSTRAP_INVITES_FEATURE_DEFAULT);
+    assert.equal(parsed?.features.invites.status, "available");
     assert.deepEqual(
       parsed?.features.messageSearch,
       MOBILE_BOOTSTRAP_MESSAGE_SEARCH_FEATURE_DEFAULT,

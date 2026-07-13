@@ -44,12 +44,14 @@ import {
   createMobileAuthState,
   getMobileSessionDiagnostics,
   isMobileSessionExpired,
+  replaceMobileSessionUser,
   shouldRefreshMobileSession,
 } from "./session-manager";
 import type {
   MobileAuthState,
   MobileSessionDiagnostics,
   MobileSessionSnapshot,
+  MobileSessionUser,
 } from "./session-types";
 import type { MobileSessionRepository } from "./session-store";
 
@@ -64,7 +66,7 @@ const APP_LOCK_PROMPT_OPTIONS = {
   promptMessage: appLockCopy.appLockScreenTitle,
 } as const;
 
-interface MobileAuthContextValue extends MobileAuthState {
+export interface MobileAuthContextValue extends MobileAuthState {
   apiClient: MobileApiClient;
   appLockAvailability: MobileAppLockAvailability;
   appLockEnabled: boolean;
@@ -91,6 +93,7 @@ interface MobileAuthContextValue extends MobileAuthState {
     email: string;
   }): Promise<{ email: string; ok: true } | { message: string; ok: false }>;
   refreshSessionFromStorage(): Promise<void>;
+  replaceSessionUser(user: MobileSessionUser): Promise<boolean>;
   retryAppLockUnlock(): Promise<boolean>;
   setAppLockEnabled(enabled: boolean): Promise<void>;
   signInWithPassword(input: {
@@ -412,6 +415,34 @@ export function MobileAuthProvider({
     return session?.tokens.accessToken ?? null;
   }, [ensureFreshSession]);
 
+  const replaceSessionUser = useCallback(
+    async (user: MobileSessionUser): Promise<boolean> => {
+      const current = stateRef.current;
+      if (current.status !== "signed-in" || !current.session) {
+        return false;
+      }
+
+      const nextSession = replaceMobileSessionUser(current.session, user);
+      if (!nextSession) {
+        return false;
+      }
+
+      try {
+        await repository.save(nextSession);
+      } catch {
+        return false;
+      }
+
+      if (stateRef.current.status !== "signed-in" || stateRef.current.session !== current.session) {
+        return false;
+      }
+
+      commitAuthState(createMobileAuthState("signed-in", nextSession));
+      return true;
+    },
+    [commitAuthState, repository],
+  );
+
   const completeAuthHandoff = useCallback(
     async (input: { callbackPath: string; handoffToken: string }) => {
       commitAuthState(createMobileAuthState("checking", stateRef.current.session));
@@ -592,6 +623,7 @@ export function MobileAuthProvider({
       requestPasswordReset,
       requestVerificationEmail,
       refreshSessionFromStorage,
+      replaceSessionUser,
       retryAppLockUnlock,
       setAppLockEnabled,
       signInWithPassword,
@@ -615,6 +647,7 @@ export function MobileAuthProvider({
       requestPasswordReset,
       requestVerificationEmail,
       refreshSessionFromStorage,
+      replaceSessionUser,
       retryAppLockUnlock,
       setAppLockEnabled,
       signInWithPassword,

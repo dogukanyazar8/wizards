@@ -12,6 +12,7 @@ import {
   INITIAL_WORKSPACE_SERVER_STATE,
   INITIAL_WORKSPACE_SYNC_STATE,
 } from "../src/app/mobile-screen-state";
+import type { MobileWorkspaceServerViewState } from "../src/app/mobile-screen-state";
 
 describe("mobile screen state", () => {
   it("keeps all screen data surfaces fail-closed before real data arrives", () => {
@@ -75,5 +76,29 @@ describe("mobile screen state", () => {
     assert.equal(INITIAL_DM_SYNC_STATE.source, "dm");
     assert.equal(INITIAL_WORKSPACE_SYNC_STATE.source, "workspace");
     assert.equal(INITIAL_CHANNEL_SYNC_STATE.source, "channel");
+  });
+
+  it("requires ready workspace state to retain the managed capability contract", () => {
+    const state: MobileWorkspaceServerViewState = {
+      error: null,
+      payload: {
+        detail: {
+          capabilities: {
+            canClearHistory: false,
+            canDeleteServer: false,
+            canKickMembers: false,
+            canManageChannels: true,
+            canManageInvites: true,
+            canManageRoles: false,
+            canManageServer: true,
+            canUploadServerIcon: true,
+          },
+        },
+      } as never,
+      serverId: "server-1",
+      status: "ready",
+    };
+
+    assert.equal(state.payload.detail.capabilities.canManageInvites, true);
   });
 });

@@ -23,9 +23,13 @@ describe("mobile Phase 3 social contract", () => {
     assert.match(realtime, /"user:profile:updated"/);
   });
 
-  it("does not invent an avatar upload path while the existing contract is unavailable", () => {
+  it("uses the bounded M2 avatar upload and claim contract without a direct profile mutation", () => {
     const account = read("../src/social/social-account-screens.tsx");
-    assert.match(account, /getMobileAttachmentUploadReadiness/);
-    assert.equal(/fetch\(|requestJson\([^)]*avatar/i.test(account), false);
+    const avatarEditor = read("../src/social/mobile-profile-avatar-editor.tsx");
+    assert.match(account, /MobileProfileAvatarEditor/);
+    assert.match(avatarEditor, /useMobileImageUpload/);
+    assert.match(avatarEditor, /purpose: "profile-avatar"/);
+    assert.match(avatarEditor, /patchMobileProfileAvatarCaches/);
+    assert.equal(/fetch\(|requestJson\([^)]*avatar/i.test(`${account}\n${avatarEditor}`), false);
   });
 });

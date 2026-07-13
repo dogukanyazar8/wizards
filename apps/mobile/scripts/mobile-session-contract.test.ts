@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { MOBILE_SESSION_SCHEMA_VERSION, type MobileSessionSnapshot } from "../src/auth/session-types";
+import {
+  MOBILE_SESSION_SCHEMA_VERSION,
+  type MobileSessionSnapshot,
+} from "../src/auth/session-types";
 import {
   getMobileSessionDiagnostics,
   isMobileSessionExpired,
   normalizeMobileSessionSnapshot,
+  replaceMobileSessionUser,
   shouldRefreshMobileSession,
 } from "../src/auth/session-manager";
 import {
@@ -122,5 +126,54 @@ describe("mobile secure session contract", () => {
     assert.equal(serialized.includes("access-token"), false);
     assert.equal(serialized.includes("refresh-token"), false);
     assert.equal(serialized.includes("user-1"), false);
+  });
+
+  it("replaces only the same user's normalized avatar while preserving the session contract", () => {
+    const session = buildSession();
+    const replacement = replaceMobileSessionUser(session, {
+      avatarUrl: "https://cdn.whispr.team/avatars/user-1.webp",
+      displayName: "Updated CodeX",
+      id: "user-1",
+      username: "updated_codex",
+    });
+
+    assert.deepEqual(replacement, {
+      ...session,
+      user: {
+        avatarUrl: "https://cdn.whispr.team/avatars/user-1.webp",
+        displayName: "Updated CodeX",
+        id: "user-1",
+        username: "updated_codex",
+      },
+    });
+    assert.equal(replacement?.tokens, session.tokens);
+    assert.equal(replacement?.schemaVersion, session.schemaVersion);
+    assert.equal(replacement?.lastValidatedAt, session.lastValidatedAt);
+  });
+
+  it("fails closed for a different user and never keeps non-HTTPS avatar URLs", () => {
+    const session = buildSession();
+
+    assert.equal(
+      replaceMobileSessionUser(session, {
+        avatarUrl: "https://cdn.whispr.team/avatars/other.webp",
+        displayName: "Other",
+        id: "user-2",
+        username: "other",
+      }),
+      null,
+    );
+
+    for (const avatarUrl of [
+      "file:///private/avatar.jpg",
+      "http://whispr.team/avatar.jpg",
+      "bad-url",
+    ]) {
+      const replacement = replaceMobileSessionUser(session, {
+        ...session.user,
+        avatarUrl,
+      });
+      assert.equal(replacement?.user.avatarUrl, null);
+    }
   });
 });

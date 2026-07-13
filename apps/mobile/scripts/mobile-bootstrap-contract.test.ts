@@ -29,8 +29,8 @@ const validPayload = {
     },
     invites: {
       label: "Invites",
-      reason: "Mobile invite acceptance endpoint pending.",
-      status: "requires-server-contract",
+      reason: "Authenticated mobile create/join and canonical invite sharing are available.",
+      status: "available",
     },
     messageSearch: {
       label: "Message search",
@@ -123,8 +123,8 @@ describe("mobile bootstrap contract", () => {
 
     assert.deepEqual(requests, [MOBILE_BOOTSTRAP_ENDPOINT]);
     assert.equal(payload.user.username, "codex");
-    assert.equal(summary.enabledFeatureCount, 3);
-    assert.equal(summary.pendingContractCount, 4);
+    assert.equal(summary.enabledFeatureCount, 4);
+    assert.equal(summary.pendingContractCount, 3);
     assert.equal(summary.disabledFeatureCount, 0);
     assert.equal(summary.workspaceCount, 1);
     assert.equal(summary.directMessageCount, 1);
@@ -136,6 +136,11 @@ describe("mobile bootstrap contract", () => {
       ...validPayload,
       features: {
         messages: validPayload.features.messages,
+        invites: {
+          label: "Invites",
+          reason: "Older server contract.",
+          status: "requires-server-contract",
+        },
         nativeAuthTokenExchange: validPayload.features.nativeAuthTokenExchange,
         pushNotifications: validPayload.features.pushNotifications,
         voice: validPayload.features.voice,

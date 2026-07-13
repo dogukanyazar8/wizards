@@ -588,6 +588,8 @@ corepack pnpm --filter @wizards/mobile typecheck
 **Files:**
 
 - Modify: apps/mobile/src/app/features/use-mobile-server-management-feature.ts
+- Modify: apps/mobile/src/app/screens/workspace-browser.tsx
+- Modify: apps/mobile/src/locale/mobile-copy.ts
 - Modify: apps/mobile/src/workspace/mobile-server-create-join-sheet.tsx
 - Create: apps/mobile/src/query/mobile-server-cache.ts
 - Create: apps/mobile/scripts/mobile-server-cache.test.ts
@@ -715,7 +717,7 @@ corepack pnpm --filter @wizards/mobile typecheck
 - [ ] **Step 1: Run all focused tests**
 
 ```powershell
-corepack pnpm --filter @wizards/mobile exec node --test --import tsx scripts/mobile-image-upload-contract.test.ts scripts/mobile-media-upload-architecture.test.ts scripts/mobile-server-management-client.test.ts scripts/mobile-media-claim-client.test.ts scripts/mobile-image-upload-service.test.ts scripts/mobile-workspace-selection.test.ts scripts/mobile-invite-contract.test.ts scripts/mobile-invite-share.test.ts scripts/mobile-session-contract.test.ts scripts/mobile-profile-cache.test.ts scripts/mobile-server-cache.test.ts scripts/mobile-realtime-contract.test.ts scripts/mobile-realtime-query-bridge.test.ts scripts/mobile-realtime-cache.test.ts
+corepack pnpm --filter @wizards/mobile exec node --test --import tsx scripts/mobile-image-upload-contract.test.ts scripts/mobile-media-upload-architecture.test.ts scripts/mobile-server-management-client.test.ts scripts/mobile-server-management-mutations.test.ts scripts/mobile-media-claim-client.test.ts scripts/mobile-image-upload-service.test.ts scripts/mobile-workspace-selection.test.ts scripts/mobile-invite-contract.test.ts scripts/mobile-invite-share.test.ts scripts/mobile-session-contract.test.ts scripts/mobile-profile-cache.test.ts scripts/mobile-server-cache.test.ts scripts/mobile-realtime-contract.test.ts scripts/mobile-realtime-query-bridge.test.ts scripts/mobile-realtime-cache.test.ts
 corepack pnpm --filter @wizards/mobile exec jest --runInBand component-tests/mobile-server-create-join.test.tsx component-tests/mobile-server-invite-share.test.tsx component-tests/mobile-profile-avatar-upload.test.tsx component-tests/mobile-server-icon-upload.test.tsx
 ```
 

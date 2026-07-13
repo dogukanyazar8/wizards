@@ -32,9 +32,8 @@ export const MOBILE_BOOTSTRAP_ATTACHMENTS_FEATURE_DEFAULT = {
 
 export const MOBILE_BOOTSTRAP_INVITES_FEATURE_DEFAULT = {
   label: "Invites",
-  reason:
-    "Mobile can validate safe invite deep links, but accepting invites inside the native app remains gated until the mobile invite acceptance endpoint is complete.",
-  status: "requires-server-contract",
+  reason: "Authenticated mobile create/join and canonical invite sharing are available.",
+  status: "available",
 } as const;
 
 export const MOBILE_BOOTSTRAP_MESSAGE_SEARCH_FEATURE_DEFAULT = {

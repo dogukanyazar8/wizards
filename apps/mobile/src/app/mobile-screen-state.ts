@@ -3,7 +3,7 @@ import type {
   MobileChannelMessagesResponse,
   MobileDMMessagesResponse,
   MessageSearchResponse,
-  MobileWorkspaceServerDetailResponse,
+  MobileManagedWorkspaceServerDetailResponse,
 } from "@wizards/types";
 import type { MobileBootstrapSummary } from "../bootstrap/mobile-bootstrap";
 import { createInitialMobileSyncSnapshot } from "../sync/mobile-sync-contract";
@@ -110,13 +110,13 @@ export type MobileWorkspaceServerViewState =
     }
   | {
       error: null;
-      payload: MobileWorkspaceServerDetailResponse;
+      payload: MobileManagedWorkspaceServerDetailResponse;
       serverId: string;
       status: "ready";
     }
   | {
       error: null;
-      payload: MobileWorkspaceServerDetailResponse | null;
+      payload: MobileManagedWorkspaceServerDetailResponse | null;
       serverId: string;
       status: "loading";
     }
@@ -208,6 +208,4 @@ export const INITIAL_DM_SYNC_STATE = Object.freeze(createInitialMobileSyncSnapsh
 export const INITIAL_WORKSPACE_SYNC_STATE = Object.freeze(
   createInitialMobileSyncSnapshot("workspace"),
 );
-export const INITIAL_CHANNEL_SYNC_STATE = Object.freeze(
-  createInitialMobileSyncSnapshot("channel"),
-);
+export const INITIAL_CHANNEL_SYNC_STATE = Object.freeze(createInitialMobileSyncSnapshot("channel"));

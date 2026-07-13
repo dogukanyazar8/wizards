@@ -4,14 +4,14 @@ import {
   MobileChannelSendMessageResponseSchema,
   MobileMessageDeleteResponseSchema,
   MobileMessageReactionResponseSchema,
-  MobileWorkspaceServerDetailResponseSchema,
+  MobileManagedWorkspaceServerDetailResponseSchema,
   type MobileChannelMessagesResponse,
   type MobileChannelThreadMessagesResponse,
   type MobileChannelSendMessageRequest,
   type MobileChannelSendMessageResponse,
   type MobileMessageDeleteResponse,
   type MobileMessageReactionResponse,
-  type MobileWorkspaceServerDetailResponse,
+  type MobileManagedWorkspaceServerDetailResponse,
 } from "@wizards/types";
 import type { MobileApiClient } from "../api/mobile-api-client";
 
@@ -24,9 +24,9 @@ export function buildMobileWorkspaceServerPath(input: { serverId: string }): str
 export async function fetchMobileWorkspaceServer(
   client: MobileApiClient,
   input: { serverId: string },
-): Promise<MobileWorkspaceServerDetailResponse> {
+): Promise<MobileManagedWorkspaceServerDetailResponse> {
   const payload = await client.requestJson<unknown>(buildMobileWorkspaceServerPath(input));
-  return MobileWorkspaceServerDetailResponseSchema.parse(payload);
+  return MobileManagedWorkspaceServerDetailResponseSchema.parse(payload);
 }
 
 export function buildMobileChannelMessagesPath(input: {

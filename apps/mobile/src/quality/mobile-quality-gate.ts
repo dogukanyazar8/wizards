@@ -193,7 +193,7 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
     area: "deep-link",
     id: "invite-link-contract",
     label:
-      "Safe invite links are recognized in-app while native invite acceptance stays blocked until the server contract is available.",
+      "Safe invite links support native create/join and canonical share while server authorization remains enforced.",
     required: true,
     risk: "critical",
   },

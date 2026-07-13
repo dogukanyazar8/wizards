@@ -140,6 +140,12 @@ function createBridge(queryClient: QueryClient, scheduler: MobileRealtimeQueryBr
 }
 
 describe("mobile realtime query bridge", () => {
+  it("exposes bounded root query keys for realtime cache patching", () => {
+    assert.deepEqual(mobileQueryKeys.workspaceRoot(), ["mobile", "workspace"]);
+    assert.deepEqual(mobileQueryKeys.channelMessagesRoot(), ["mobile", "channel-messages"]);
+    assert.deepEqual(mobileQueryKeys.dmMessagesRoot(), ["mobile", "dm-messages"]);
+  });
+
   it("debounces presence, notification, workspace, channel, and DM mappings by timer source", () => {
     const queryClient = new QueryClient();
     const fake = createFakeScheduler();
@@ -153,7 +159,7 @@ describe("mobile realtime query bridge", () => {
     ] as const;
     keys.forEach((key) => queryClient.setQueryData(key, { ready: true }));
 
-    bridge.handleEvent(createMobileRealtimeEventEnvelope("presence:update", { userId: "user-2" }));
+    bridge.handleEvent(createMobileRealtimeEventEnvelope("friends:updated", { userId: "user-2" }));
     bridge.handleEvent(createMobileRealtimeEventEnvelope("notification:new", { id: "notice-1" }));
     bridge.backfill(["workspace", "channel", "dm"]);
 
@@ -269,5 +275,153 @@ describe("mobile realtime query bridge", () => {
     assert.equal(fake.pendingCount(), 0);
     fake.flush();
     assert.equal(queryClient.getQueryState(key)?.isInvalidated, false);
+  });
+
+  it("removes only the departed server and exact workspace cache", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const bootstrapKey = mobileQueryKeys.bootstrap();
+    const departedWorkspaceKey = mobileQueryKeys.workspace("server-1");
+    const unaffectedWorkspaceKey = mobileQueryKeys.workspace("server-2");
+    const unaffectedWorkspace = { detail: { server: { id: "server-2" } } };
+
+    queryClient.setQueryData(bootstrapKey, {
+      home: {
+        servers: {
+          recent: [{ id: "server-1" }, { id: "server-2" }],
+          totalCount: 2,
+        },
+      },
+    });
+    queryClient.setQueryData(departedWorkspaceKey, { detail: { server: { id: "server-1" } } });
+    queryClient.setQueryData(unaffectedWorkspaceKey, unaffectedWorkspace);
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("server:membership:removed", {
+        reason: "left",
+        serverId: "server-1",
+      }),
+    );
+
+    assert.deepEqual(
+      (
+        queryClient.getQueryData<{ home: { servers: { recent: { id: string }[] } } }>(bootstrapKey)
+          ?.home.servers.recent ?? []
+      ).map((server) => server.id),
+      ["server-2"],
+    );
+    assert.equal(queryClient.getQueryData(departedWorkspaceKey), undefined);
+    assert.equal(queryClient.getQueryData(unaffectedWorkspaceKey), unaffectedWorkspace);
+    assert.equal(fake.pendingCount(), 0);
+  });
+
+  it("invalidates the event server even when it is not the active workspace", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const bootstrapKey = mobileQueryKeys.bootstrap();
+    const inactiveWorkspaceKey = mobileQueryKeys.workspace("server-inactive");
+    const activeWorkspaceKey = mobileQueryKeys.workspace("server-1");
+    queryClient.setQueryData(bootstrapKey, { ready: true });
+    queryClient.setQueryData(inactiveWorkspaceKey, { ready: true });
+    queryClient.setQueryData(activeWorkspaceKey, { ready: true });
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("server:settings:updated", {
+        serverId: "server-inactive",
+      }),
+    );
+
+    assert.equal(queryClient.getQueryState(bootstrapKey)?.isInvalidated, true);
+    assert.equal(queryClient.getQueryState(inactiveWorkspaceKey)?.isInvalidated, true);
+    assert.equal(queryClient.getQueryState(activeWorkspaceKey)?.isInvalidated, false);
+    assert.equal(fake.pendingCount(), 0);
+  });
+
+  it("patches matching workspace members under the workspace root", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const matchingKey = mobileQueryKeys.workspace("server-1");
+    const unrelatedKey = mobileQueryKeys.workspace("server-2");
+    const matching = {
+      detail: {
+        capabilities: { canManageServer: false },
+        members: [
+          {
+            customStatus: null,
+            status: "ONLINE",
+            userId: "user-2",
+          },
+        ],
+      },
+    };
+    const unrelated = {
+      detail: {
+        capabilities: { canManageServer: true },
+        members: [
+          {
+            customStatus: "Busy",
+            status: "DND",
+            userId: "user-3",
+          },
+        ],
+      },
+    };
+    queryClient.setQueryData(matchingKey, matching);
+    queryClient.setQueryData(unrelatedKey, unrelated);
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("presence:update", {
+        customStatus: "Reviewing",
+        status: "IDLE",
+        userId: "user-2",
+      }),
+    );
+
+    assert.equal(
+      queryClient.getQueryData<typeof matching>(matchingKey)?.detail.members[0]?.status,
+      "IDLE",
+    );
+    assert.equal(
+      queryClient.getQueryData<typeof matching>(matchingKey)?.detail.capabilities,
+      matching.detail.capabilities,
+    );
+    assert.equal(queryClient.getQueryData(unrelatedKey), unrelated);
+  });
+
+  it("does not mutate or refresh malformed validated payloads and disposes narrow fallbacks", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const bootstrapKey = mobileQueryKeys.bootstrap();
+    const initialBootstrap = {
+      home: { servers: { recent: [{ id: "server-2" }], totalCount: 1 } },
+    };
+    queryClient.setQueryData(bootstrapKey, initialBootstrap);
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("presence:update", {
+        customStatus: null,
+        status: "NOT_A_STATUS",
+        userId: "user-2",
+      }),
+    );
+    assert.equal(queryClient.getQueryData(bootstrapKey), initialBootstrap);
+    assert.equal(fake.pendingCount(), 0);
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("server:membership:removed", {
+        reason: "left",
+        serverId: "server-1",
+      }),
+    );
+    assert.equal(fake.pendingCount(), 1);
+
+    bridge.dispose();
+    assert.equal(fake.pendingCount(), 0);
+    fake.flush();
+    assert.equal(queryClient.getQueryState(bootstrapKey)?.isInvalidated, false);
   });
 });

@@ -35,6 +35,10 @@ import {
   type MobileWorkspaceChannelSummary,
   type MobileWorkspaceServerViewState,
 } from "../mobile-root-screen-shared";
+import { useMobileServerManagementFeature } from "../features/use-mobile-server-management-feature";
+import { MobileServerCreateJoinSheet } from "../../workspace/mobile-server-create-join-sheet";
+import { shareMobileInviteUrl } from "../../invite/mobile-invite-share";
+import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { MobileChannelChatScreen } from "./channel-screen";
 import { AvatarMark } from "../components/ui-atoms";
 import { useTheme } from "../providers/mobile-theme-provider";
@@ -147,8 +151,14 @@ export function MobileWorkspaceBrowser({
 }) {
   const styles = useHomeScreenStyles();
   const theme = useTheme();
+  const { apiClient } = useMobileAuth();
   const [channelQuery, setChannelQuery] = useState("");
   const [collapsedSectionIds, setCollapsedSectionIds] = useState<Record<string, boolean>>({});
+  const [inviteShareError, setInviteShareError] = useState<string | null>(null);
+  const serverManagement = useMobileServerManagementFeature({
+    client: apiClient,
+    onOpenServer,
+  });
   const servers = useMemo(
     () =>
       getBoundedMobileList(
@@ -231,6 +241,8 @@ export function MobileWorkspaceBrowser({
     activeServerId !== null &&
     serverState.serverId === activeServerId &&
     serverState.status === "error";
+  const canManageInvites = workspacePayload?.detail.capabilities.canManageInvites === true;
+  const canUploadServerIcon = workspacePayload?.detail.capabilities.canUploadServerIcon === true;
   const handleServerPress = useCallback(
     (serverId: string) => {
       setChannelQuery("");
@@ -252,6 +264,19 @@ export function MobileWorkspaceBrowser({
     },
     [activeServerId, isSearchingChannels],
   );
+  const handleInviteShare = useCallback(async () => {
+    if (!activeServerId) {
+      return;
+    }
+
+    setInviteShareError(null);
+    try {
+      const response = await serverManagement.createInvite(activeServerId);
+      await shareMobileInviteUrl(response.invite.shareUrl);
+    } catch {
+      setInviteShareError(copy.workspaceServerInviteShareFailed);
+    }
+  }, [activeServerId, serverManagement]);
 
   if (activeChannelSurface === "channel-chat" && activeTextChannel) {
     return (
@@ -356,9 +381,10 @@ export function MobileWorkspaceBrowser({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={copy.workspaceAddServerAction}
-          accessibilityState={{ disabled: true }}
-          disabled
+          accessibilityState={{ disabled: false }}
+          onPress={serverManagement.openCreateJoinSheet}
           style={styles.mobileServerRailAddButton}
+          testID="mobile-server-add-open"
         >
           <Ionicons name="add" size={22} color={theme.accent.strong} />
         </Pressable>
@@ -394,6 +420,40 @@ export function MobileWorkspaceBrowser({
                 <Ionicons name="chevron-down" size={18} color={theme.text.muted} />
               )}
             </View>
+
+            {canManageInvites ? (
+              <Pressable
+                accessibilityLabel={copy.workspaceServerInviteShareAction}
+                accessibilityRole="button"
+                disabled={serverManagement.busy}
+                onPress={() => void handleInviteShare()}
+                style={styles.retryButton}
+                testID={`mobile-server-invite-share-${activeServerId}`}
+              >
+                <Text style={styles.retryButtonText}>{copy.workspaceServerInviteShareAction}</Text>
+              </Pressable>
+            ) : null}
+            {canUploadServerIcon && activeServerId ? (
+              <Pressable
+                accessibilityLabel={copy.workspaceServerIconAction}
+                accessibilityRole="button"
+                disabled={serverManagement.busy}
+                onPress={() => serverManagement.openServerIconUpload(activeServerId)}
+                style={styles.retryButton}
+                testID={`mobile-server-icon-edit-${activeServerId}`}
+              >
+                <Text style={styles.retryButtonText}>{copy.workspaceServerIconAction}</Text>
+              </Pressable>
+            ) : null}
+            {inviteShareError ? (
+              <Text
+                accessibilityRole="alert"
+                style={styles.errorText}
+                testID="mobile-server-invite-share-error"
+              >
+                {inviteShareError}
+              </Text>
+            ) : null}
 
             <View style={styles.mobileWorkspaceSearchRow}>
               <View style={styles.mobileWorkspaceSearchBox}>
@@ -456,6 +516,17 @@ export function MobileWorkspaceBrowser({
           </>
         )}
       </View>
+      <MobileServerCreateJoinSheet
+        busy={serverManagement.busy}
+        error={null}
+        onClose={serverManagement.closeCreateJoinSheet}
+        onCreate={serverManagement.createServer}
+        onJoin={serverManagement.joinServer}
+        onServerReady={serverManagement.selectServer}
+        onUploadServerIcon={serverManagement.uploadServerIcon}
+        open={serverManagement.isCreateJoinSheetOpen}
+        serverIconTargetId={serverManagement.serverIconTargetId}
+      />
     </View>
   );
 }

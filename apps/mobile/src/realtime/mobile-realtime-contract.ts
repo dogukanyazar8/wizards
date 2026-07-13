@@ -130,10 +130,61 @@ const SOCIAL_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
   "user:profile:updated",
 ]);
 
+type MobileValidatedRealtimePayload = {
+  channelId: string | null;
+  payload: unknown;
+  serverId: string | null;
+};
+
+type MobileRealtimePayloadParser = (payload: unknown) => MobileValidatedRealtimePayload | null;
+
+const MOBILE_REALTIME_PAYLOAD_PARSERS = {
+  "message:history_cleared": (payload) => {
+    const parsed = MobileMessageHistoryClearedEventSchema.safeParse(payload);
+    return parsed.success
+      ? { channelId: parsed.data.channelId, payload: parsed.data, serverId: null }
+      : null;
+  },
+  "presence:update": (payload) => {
+    const parsed = MobilePresenceUpdateEventSchema.safeParse(payload);
+    return parsed.success ? { channelId: null, payload: parsed.data, serverId: null } : null;
+  },
+  "server:membership:added": (payload) => {
+    const parsed = MobileServerMembershipAddedEventSchema.safeParse(payload);
+    return parsed.success
+      ? { channelId: null, payload: parsed.data, serverId: parsed.data.serverId }
+      : null;
+  },
+  "server:membership:removed": (payload) => {
+    const parsed = MobileServerMembershipRemovedEventSchema.safeParse(payload);
+    return parsed.success
+      ? { channelId: null, payload: parsed.data, serverId: parsed.data.serverId }
+      : null;
+  },
+  "server:settings:updated": (payload) => {
+    const parsed = MobileServerSettingsUpdatedEventSchema.safeParse(payload);
+    return parsed.success
+      ? { channelId: null, payload: parsed.data, serverId: parsed.data.serverId }
+      : null;
+  },
+  "user:profile:updated": (payload) => {
+    const parsed = MobileUserProfileUpdatedEventSchema.safeParse(payload);
+    return parsed.success ? { channelId: null, payload: parsed.data, serverId: null } : null;
+  },
+} satisfies Partial<Record<MobileRealtimeServerEventName, MobileRealtimePayloadParser>>;
+
+type MobileValidatedRealtimeEventName = keyof typeof MOBILE_REALTIME_PAYLOAD_PARSERS;
+
 export function isMobileRealtimeServerEventName(
   value: string,
 ): value is MobileRealtimeServerEventName {
   return (MOBILE_REALTIME_SERVER_EVENTS as readonly string[]).includes(value);
+}
+
+export function isMobileRealtimeValidatedPayloadEvent(
+  eventName: MobileRealtimeServerEventName,
+): eventName is MobileValidatedRealtimeEventName {
+  return eventName in MOBILE_REALTIME_PAYLOAD_PARSERS;
 }
 
 function getStringProperty(payload: unknown, key: string): string | null {
@@ -221,21 +272,30 @@ export function createMobileRealtimeEventEnvelope(
   payload: unknown,
   now = Date.now(),
 ): MobileRealtimeEventEnvelope {
+  const parser = isMobileRealtimeValidatedPayloadEvent(eventName)
+    ? MOBILE_REALTIME_PAYLOAD_PARSERS[eventName]
+    : null;
+  const parsedPayload = parser?.(payload) ?? null;
+
   return {
-    channelId: getStringProperty(payload, "channelId"),
-    conversationId: getStringProperty(payload, "conversationId"),
+    channelId:
+      parsedPayload?.channelId ?? (parser ? null : getStringProperty(payload, "channelId")),
+    conversationId: parsedPayload ? null : getStringProperty(payload, "conversationId"),
     eventName,
-    payload:
-      eventName.startsWith("voice:") ||
-      isMobileRealtimeChannelMessagePayloadEvent(eventName) ||
-      isMobileRealtimeDMMessagePayloadEvent(eventName) ||
-      eventName === "typing:update" ||
-      eventName === "dm:typing:update"
-        ? payload
-        : null,
+    payload: parsedPayload
+      ? parsedPayload.payload
+      : parser
+        ? null
+        : eventName.startsWith("voice:") ||
+            isMobileRealtimeChannelMessagePayloadEvent(eventName) ||
+            isMobileRealtimeDMMessagePayloadEvent(eventName) ||
+            eventName === "typing:update" ||
+            eventName === "dm:typing:update"
+          ? payload
+          : null,
     receivedAt: now,
     refreshSources: getMobileRealtimeRefreshSources(eventName),
-    serverId: getStringProperty(payload, "serverId"),
+    serverId: parsedPayload?.serverId ?? (parser ? null : getStringProperty(payload, "serverId")),
   };
 }
 
@@ -291,3 +351,11 @@ export function validateMobileRealtimeContract(): string[] {
 
   return issues;
 }
+import {
+  MobileMessageHistoryClearedEventSchema,
+  MobilePresenceUpdateEventSchema,
+  MobileServerMembershipAddedEventSchema,
+  MobileServerMembershipRemovedEventSchema,
+  MobileServerSettingsUpdatedEventSchema,
+  MobileUserProfileUpdatedEventSchema,
+} from "@wizards/types";

@@ -56,10 +56,12 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
   return {
     all,
     bootstrap: () => [...all, "bootstrap"] as const,
+    channelMessagesRoot: () => [...all, "channel-messages"] as const,
     channelMessages: (channelId: string) => [...all, "channel-messages", channelId] as const,
     channelThread: (channelId: string, messageId: string) =>
       [...all, "channel-thread", channelId, messageId] as const,
     dmConversations: () => [...all, "dm-conversations"] as const,
+    dmMessagesRoot: () => [...all, "dm-messages"] as const,
     dmMessages: (conversationId: string) => [...all, "dm-messages", conversationId] as const,
     dmDetails: (conversationId: string) => [...all, "dm-details", conversationId] as const,
     dmThread: (conversationId: string, messageId: string) =>
@@ -75,6 +77,7 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
         input.conversationId,
         registry.getFingerprint(input),
       ] as const,
+    workspaceRoot: () => [...all, "workspace"] as const,
     workspace: (serverId: string) => [...all, "workspace", serverId] as const,
   };
 }

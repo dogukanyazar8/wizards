@@ -1,8 +1,16 @@
 import type { InfiniteData, QueryClient, QueryKey } from "@tanstack/react-query";
 import {
   DMMessagePayloadSchema,
+  MobilePresenceUpdateEventSchema,
+  MobileServerMembershipAddedEventSchema,
+  MobileServerMembershipRemovedEventSchema,
+  MobileServerSettingsUpdatedEventSchema,
+  MobileUserProfileUpdatedEventSchema,
+  type MobileBootstrapPayload,
   type MobileChannelMessagesResponse,
   type MobileDMMessagesResponse,
+  type MobileFriendsOverviewResponse,
+  type MobileManagedWorkspaceServerDetailResponse,
 } from "@wizards/types";
 import {
   appendOrReplaceMobileMessage,
@@ -11,13 +19,22 @@ import {
 } from "../query/mobile-message-cache";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 import {
+  patchMobileRealtimeBootstrapProfile,
+  patchMobileRealtimeBootstrapPresence,
+  patchMobileRealtimeFriendsProfile,
+  patchMobileRealtimeFriendsPresence,
+  patchMobileRealtimeWorkspaceProfile,
+  patchMobileRealtimeWorkspacePresence,
+  removeMobileRealtimeBootstrapServer,
+} from "../query/mobile-realtime-cache";
+import {
   getMobileRealtimeRefreshTimerSource,
   isMobileRealtimeChannelMessagePayloadEvent,
   isMobileRealtimeDMMessagePayloadEvent,
+  isMobileRealtimeValidatedPayloadEvent,
   MOBILE_REALTIME_REFRESH_DEBOUNCE_MS,
   type MobileRealtimeEventEnvelope,
   type MobileRealtimeRefreshSource,
-  type MobileRealtimeRefreshTimerSource,
 } from "./mobile-realtime-contract";
 import type { MobileRealtimeActiveTargets } from "./mobile-realtime-state";
 import { applyMobileRealtimeChannelMessageEvent } from "../workspace/mobile-channel-message-state";
@@ -57,36 +74,37 @@ export function createMobileRealtimeQueryBridge({
   queryClient,
   scheduler = defaultScheduler,
 }: CreateMobileRealtimeQueryBridgeOptions): MobileRealtimeQueryBridge {
-  const timers: Partial<Record<MobileRealtimeRefreshTimerSource, unknown>> = {};
+  const timers = new Map<string, unknown>();
   let disposed = false;
 
   const clearTimers = () => {
-    for (const timer of Object.values(timers)) {
-      if (timer !== undefined) {
-        scheduler.clearTimeout(timer);
-      }
+    for (const timer of timers.values()) {
+      scheduler.clearTimeout(timer);
     }
-    for (const source of Object.keys(timers) as MobileRealtimeRefreshTimerSource[]) {
-      delete timers[source];
-    }
+    timers.clear();
   };
 
-  const scheduleInvalidation = (source: MobileRealtimeRefreshSource, queryKey: QueryKey | null) => {
+  const scheduleInvalidation = (
+    source: MobileRealtimeRefreshSource,
+    queryKey: QueryKey | null,
+    exact = true,
+  ) => {
     if (disposed || !queryKey) {
       return;
     }
 
-    const timerSource = getMobileRealtimeRefreshTimerSource(source);
-    if (timers[timerSource] !== undefined) {
+    const timerKey = `${getMobileRealtimeRefreshTimerSource(source)}:${exact ? "exact" : "prefix"}:${JSON.stringify(queryKey)}`;
+    if (timers.has(timerKey)) {
       return;
     }
 
-    timers[timerSource] = scheduler.setTimeout(() => {
-      delete timers[timerSource];
+    const timer = scheduler.setTimeout(() => {
+      timers.delete(timerKey);
       if (!disposed) {
-        void queryClient.invalidateQueries({ exact: true, queryKey });
+        void queryClient.invalidateQueries({ exact, queryKey });
       }
     }, MOBILE_REALTIME_REFRESH_DEBOUNCE_MS);
+    timers.set(timerKey, timer);
   };
 
   const scheduleSource = (
@@ -135,6 +153,154 @@ export function createMobileRealtimeQueryBridge({
       source,
       matchesTarget ? mobileQueryKeys.dmMessages(targetConversationId) : null,
     );
+  };
+
+  const patchPresenceCaches = (payload: unknown) => {
+    const parsed = MobilePresenceUpdateEventSchema.safeParse(payload);
+    if (!parsed.success) {
+      return;
+    }
+
+    let friendsPatched = false;
+    queryClient.setQueryData<MobileFriendsOverviewResponse>(
+      mobileQueryKeys.friends(),
+      (current) => {
+        const result = patchMobileRealtimeFriendsPresence(current, parsed.data);
+        friendsPatched = result.patched;
+        return result.data;
+      },
+    );
+    if (!friendsPatched) {
+      scheduleInvalidation("presence", mobileQueryKeys.friends());
+    }
+
+    let bootstrapPatched = false;
+    queryClient.setQueryData<MobileBootstrapPayload>(mobileQueryKeys.bootstrap(), (current) => {
+      const result = patchMobileRealtimeBootstrapPresence(current, parsed.data);
+      bootstrapPatched = result.patched;
+      return result.data;
+    });
+    if (!bootstrapPatched) {
+      scheduleInvalidation("bootstrap", mobileQueryKeys.bootstrap());
+    }
+
+    let workspacePatched = false;
+    queryClient.setQueriesData<MobileManagedWorkspaceServerDetailResponse>(
+      { queryKey: mobileQueryKeys.workspaceRoot() },
+      (current) => {
+        const result = patchMobileRealtimeWorkspacePresence(current, parsed.data);
+        workspacePatched ||= result.patched;
+        return result.data;
+      },
+    );
+    if (!workspacePatched) {
+      scheduleInvalidation("workspace", mobileQueryKeys.workspaceRoot(), false);
+    }
+  };
+
+  const patchProfileCaches = (payload: unknown) => {
+    const parsed = MobileUserProfileUpdatedEventSchema.safeParse(payload);
+    if (!parsed.success) {
+      return;
+    }
+
+    let friendsPatched = false;
+    queryClient.setQueryData<MobileFriendsOverviewResponse>(
+      mobileQueryKeys.friends(),
+      (current) => {
+        const result = patchMobileRealtimeFriendsProfile(current, parsed.data);
+        friendsPatched = result.patched;
+        return result.data;
+      },
+    );
+    if (!friendsPatched) {
+      scheduleInvalidation("presence", mobileQueryKeys.friends());
+    }
+
+    let bootstrapPatched = false;
+    queryClient.setQueryData<MobileBootstrapPayload>(mobileQueryKeys.bootstrap(), (current) => {
+      const result = patchMobileRealtimeBootstrapProfile(current, parsed.data);
+      bootstrapPatched = result.patched;
+      return result.data;
+    });
+    if (!bootstrapPatched) {
+      scheduleInvalidation("bootstrap", mobileQueryKeys.bootstrap());
+    }
+
+    let workspacePatched = false;
+    queryClient.setQueriesData<MobileManagedWorkspaceServerDetailResponse>(
+      { queryKey: mobileQueryKeys.workspaceRoot() },
+      (current) => {
+        const result = patchMobileRealtimeWorkspaceProfile(current, parsed.data);
+        workspacePatched ||= result.patched;
+        return result.data;
+      },
+    );
+    if (!workspacePatched) {
+      scheduleInvalidation("workspace", mobileQueryKeys.workspaceRoot(), false);
+    }
+  };
+
+  const applyValidatedManagementEvent = (event: MobileRealtimeEventEnvelope): boolean => {
+    if (event.eventName === "server:membership:removed") {
+      const parsed = MobileServerMembershipRemovedEventSchema.safeParse(event.payload);
+      if (!parsed.success) {
+        return true;
+      }
+
+      let bootstrapPatched = false;
+      queryClient.setQueryData<MobileBootstrapPayload>(mobileQueryKeys.bootstrap(), (current) => {
+        const result = removeMobileRealtimeBootstrapServer(current, parsed.data.serverId);
+        bootstrapPatched = result.patched;
+        return result.data;
+      });
+      if (!bootstrapPatched) {
+        scheduleInvalidation("bootstrap", mobileQueryKeys.bootstrap());
+      }
+      queryClient.removeQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.workspace(parsed.data.serverId),
+      });
+      return true;
+    }
+
+    if (event.eventName === "server:membership:added") {
+      const parsed = MobileServerMembershipAddedEventSchema.safeParse(event.payload);
+      if (!parsed.success) {
+        return true;
+      }
+      void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
+      void queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.workspace(parsed.data.serverId),
+      });
+      return true;
+    }
+
+    if (event.eventName === "server:settings:updated") {
+      const parsed = MobileServerSettingsUpdatedEventSchema.safeParse(event.payload);
+      if (!parsed.success) {
+        return true;
+      }
+      void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
+      void queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.workspace(parsed.data.serverId),
+      });
+      return true;
+    }
+
+    if (event.eventName === "presence:update") {
+      patchPresenceCaches(event.payload);
+      return true;
+    }
+
+    if (event.eventName === "user:profile:updated") {
+      patchProfileCaches(event.payload);
+      return true;
+    }
+
+    return false;
   };
 
   const applyActiveChannelEvent = (event: MobileRealtimeEventEnvelope): boolean => {
@@ -225,6 +391,14 @@ export function createMobileRealtimeQueryBridge({
       clearTimers();
     },
     handleEvent(event) {
+      if (isMobileRealtimeValidatedPayloadEvent(event.eventName) && event.payload === null) {
+        return;
+      }
+
+      if (applyValidatedManagementEvent(event)) {
+        return;
+      }
+
       const channelEventHandled = applyActiveChannelEvent(event);
       const dmEventHandled = applyActiveDMEvent(event);
       for (const source of event.refreshSources) {

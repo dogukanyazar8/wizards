@@ -93,6 +93,43 @@ export const MobileServerCapabilitiesSchema = z
   })
   .strict();
 
+export const MobileServerSettingsUpdatedEventSchema = z
+  .object({ serverId: MobileResourceIdSchema })
+  .strict();
+export const MobileServerMembershipAddedEventSchema = z
+  .object({ serverId: MobileResourceIdSchema })
+  .strict();
+export const MobileServerMembershipRemovedEventSchema = z
+  .object({
+    reason: z.enum(["deleted", "kicked", "left"]),
+    serverId: MobileResourceIdSchema,
+  })
+  .strict();
+export const MobileMessageHistoryClearedEventSchema = z
+  .object({ channelId: MobileResourceIdSchema })
+  .strict();
+export const MobilePresenceUpdateEventSchema = z
+  .object({
+    customStatus: z.string().max(128).nullable(),
+    status: z.enum(["ONLINE", "IDLE", "DND", "OFFLINE"]),
+    userId: MobileResourceIdSchema,
+  })
+  .strict();
+export const MobileUserProfileUpdatedEventSchema = z
+  .object({
+    avatarUrl: MobileHttpsUrlSchema.nullable(),
+    customStatus: z.string().max(128).nullable(),
+    displayName: z.string().max(60).nullable(),
+    status: z.enum(["ONLINE", "IDLE", "DND", "OFFLINE"]),
+    userId: MobileResourceIdSchema,
+    username: z
+      .string()
+      .min(2)
+      .max(32)
+      .regex(/^[a-zA-Z0-9_]+$/),
+  })
+  .strict();
+
 export const MobileServerIdParamsSchema = z.object({ serverId: MobileResourceIdSchema }).strict();
 export const MobileServerCategoryParamsSchema = z
   .object({
@@ -274,6 +311,20 @@ export type MobileMediaUploadCompletionResponse = z.infer<
 export type MobileMediaClaimRequest = z.infer<typeof MobileMediaClaimRequestSchema>;
 export type MobileMediaClaimResponse = z.infer<typeof MobileMediaClaimResponseSchema>;
 export type MobileServerCapabilities = z.infer<typeof MobileServerCapabilitiesSchema>;
+export type MobileServerSettingsUpdatedEvent = z.infer<
+  typeof MobileServerSettingsUpdatedEventSchema
+>;
+export type MobileServerMembershipAddedEvent = z.infer<
+  typeof MobileServerMembershipAddedEventSchema
+>;
+export type MobileServerMembershipRemovedEvent = z.infer<
+  typeof MobileServerMembershipRemovedEventSchema
+>;
+export type MobileMessageHistoryClearedEvent = z.infer<
+  typeof MobileMessageHistoryClearedEventSchema
+>;
+export type MobilePresenceUpdateEvent = z.infer<typeof MobilePresenceUpdateEventSchema>;
+export type MobileUserProfileUpdatedEvent = z.infer<typeof MobileUserProfileUpdatedEventSchema>;
 export type MobileServerIdParams = z.infer<typeof MobileServerIdParamsSchema>;
 export type MobileServerCategoryParams = z.infer<typeof MobileServerCategoryParamsSchema>;
 export type MobileServerChannelParams = z.infer<typeof MobileServerChannelParamsSchema>;

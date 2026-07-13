@@ -6,6 +6,7 @@ import {
   toMobileChannelMessagesViewState,
   toMobileMessageSearchViewState,
   toMobileSyncSnapshot,
+  toMobileWorkspaceViewState,
 } from "../src/app/mobile-query-view-state";
 
 const idleQuery = {
@@ -20,7 +21,9 @@ const idleQuery = {
 
 describe("mobile query view-state adapters", () => {
   it("derives bootstrap readiness without a duplicate fetch state machine", () => {
-    const payload = { home: { directMessages: { recent: [], unreadCount: 0 }, servers: { recent: [] } } };
+    const payload = {
+      home: { directMessages: { recent: [], unreadCount: 0 }, servers: { recent: [] } },
+    };
     const state = toMobileBootstrapViewState(
       { ...idleQuery, data: payload as never, dataUpdatedAt: 42, isPending: false },
       () => ({ directMessageCount: 0, serverCount: 0 }) as never,
@@ -35,7 +38,7 @@ describe("mobile query view-state adapters", () => {
     const state = toMobileChannelMessagesViewState(
       {
         ...idleQuery,
-        data: ({
+        data: {
           pages: [
             { messages: [{ id: "2", content: "new" } as never] },
             {
@@ -45,7 +48,7 @@ describe("mobile query view-state adapters", () => {
               ],
             },
           ],
-        } as unknown) as never,
+        } as unknown as never,
         isPending: false,
       },
       "channel-1",
@@ -90,5 +93,30 @@ describe("mobile query view-state adapters", () => {
     assert.equal(failed.status, "error");
     assert.equal(failed.failureCount, 2);
     assert.equal(failed.lastFailedAt, 84);
+  });
+
+  it("preserves managed workspace capabilities through the query view state", () => {
+    const payload = {
+      detail: {
+        capabilities: {
+          canClearHistory: false,
+          canDeleteServer: false,
+          canKickMembers: false,
+          canManageChannels: true,
+          canManageInvites: true,
+          canManageRoles: false,
+          canManageServer: true,
+          canUploadServerIcon: true,
+        },
+      },
+    } as never;
+    const state = toMobileWorkspaceViewState(
+      { ...idleQuery, data: payload, isPending: false },
+      "server-1",
+      "failed",
+    );
+
+    assert.equal(state.status, "ready");
+    assert.equal(state.payload?.detail.capabilities.canManageInvites, true);
   });
 });

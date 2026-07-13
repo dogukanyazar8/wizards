@@ -87,7 +87,7 @@ describe("mobile quality gate", () => {
     );
     assert.ok(inviteCheck);
     assert.match(inviteCheck.label, /Safe invite links/);
-    assert.match(inviteCheck.label, /server contract/i);
+    assert.match(inviteCheck.label, /native create\/join and canonical share/i);
 
     const searchCheck = MOBILE_MANUAL_QA_CHECKS.find(
       (check) => check.id === "message-search-contract",

@@ -20,6 +20,16 @@ import {
 
 const validServerDetailResponse = {
   detail: {
+    capabilities: {
+      canClearHistory: false,
+      canDeleteServer: false,
+      canKickMembers: false,
+      canManageChannels: true,
+      canManageInvites: true,
+      canManageRoles: false,
+      canManageServer: true,
+      canUploadServerIcon: true,
+    },
     categories: [
       {
         channels: [
@@ -159,6 +169,7 @@ describe("mobile workspace client", () => {
     assert.deepEqual(requests, ["/api/v1/mobile/servers/server-1"]);
     assert.equal(response.detail.server.id, "server-1");
     assert.equal(response.detail.categories[0]?.channels[0]?.name, "welcome");
+    assert.equal(response.detail.capabilities.canManageInvites, true);
   });
 
   it("loads and validates a mobile channel messages response", async () => {

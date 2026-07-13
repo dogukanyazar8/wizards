@@ -46,6 +46,7 @@ import type { MobileChannelSendViewState, MobileDMSendViewState } from "../mobil
 import { getVisibleMobileSyncHealth } from "../mobile-screen-sync";
 import { activeMobileCopy } from "../../locale/mobile-locale-preferences";
 import { createMobileGiphyAttachment } from "../../media/mobile-giphy-client";
+import { resolveMobileWorkspaceServerSelection } from "../../workspace/mobile-workspace-selection";
 
 const copy = activeMobileCopy;
 
@@ -631,27 +632,38 @@ export function useMobileMessagingFeature({
   }, [bootstrapState, selectedDMConversationId]);
 
   useEffect(() => {
-    if (
-      !isSignedIn ||
-      currentTab !== "overview" ||
-      bootstrapState.status !== "ready" ||
-      selectedWorkspaceServerId ||
-      workspaceServerState.status === "loading"
-    ) {
+    if (!isSignedIn || bootstrapState.status !== "ready") {
       return;
     }
 
-    const firstServer = bootstrapState.payload.home.servers.recent[0] ?? null;
-    if (firstServer) {
-      handleOpenWorkspaceServer(firstServer.id);
+    const resolvedServerId = resolveMobileWorkspaceServerSelection(
+      selectedWorkspaceServerId,
+      bootstrapState.payload.home.servers.recent,
+    );
+    if (resolvedServerId === selectedWorkspaceServerId) {
+      return;
     }
+
+    if (selectedWorkspaceChannelId) {
+      stopChannelTyping(selectedWorkspaceChannelId);
+    }
+    clearMessageSearch();
+    resetChannelMessageMutation();
+    setSelectedWorkspaceChannelId(null);
+    setActiveWorkspaceTextChannelId(null);
+    void leaveVoiceChannel().catch(() => undefined);
+    setActiveWorkspaceVoiceChannelId(null);
+    setWorkspaceRouteIntent(null);
+    setSelectedWorkspaceServerId(resolvedServerId);
   }, [
     bootstrapState,
-    currentTab,
-    handleOpenWorkspaceServer,
+    clearMessageSearch,
     isSignedIn,
+    leaveVoiceChannel,
+    resetChannelMessageMutation,
+    selectedWorkspaceChannelId,
     selectedWorkspaceServerId,
-    workspaceServerState.status,
+    stopChannelTyping,
   ]);
 
   const refreshVisibleMobileData = useCallback(() => {

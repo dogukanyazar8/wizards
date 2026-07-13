@@ -3,7 +3,7 @@ import type {
   MobileChannelMessagesResponse,
   MobileDMMessagesResponse,
   MessageSearchResponse,
-  MobileWorkspaceServerDetailResponse,
+  MobileManagedWorkspaceServerDetailResponse,
 } from "@wizards/types";
 import type { MobileBootstrapSummary } from "../bootstrap/mobile-bootstrap";
 import { flattenMobileInfinitePages } from "../query/mobile-query-pages";
@@ -58,7 +58,7 @@ export function toMobileBootstrapViewState(
 }
 
 export function toMobileWorkspaceViewState(
-  query: MobileQueryViewInput<MobileWorkspaceServerDetailResponse>,
+  query: MobileQueryViewInput<MobileManagedWorkspaceServerDetailResponse>,
   serverId: string | null,
   errorMessage: string,
 ): MobileWorkspaceServerViewState {
@@ -122,7 +122,11 @@ export function toMobileDMMessagesViewState(
 
 export function toMobileMessageSearchViewState(
   query: MobileQueryViewInput<MobileInfiniteQueryData<MessageSearchResponse>>,
-  input: { readonly conversationId: string; readonly query: string; readonly scope: MobileMessageSearchScope },
+  input: {
+    readonly conversationId: string;
+    readonly query: string;
+    readonly scope: MobileMessageSearchScope;
+  },
   errorMessage: string,
 ): MobileMessageSearchViewState {
   if (!input.conversationId || !input.query) {

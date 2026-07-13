@@ -72,6 +72,22 @@ export function normalizeMobileSessionUser(value: unknown): MobileSessionUser | 
   };
 }
 
+export function replaceMobileSessionUser(
+  session: MobileSessionSnapshot,
+  user: MobileSessionUser,
+): MobileSessionSnapshot | null {
+  const normalizedUser = normalizeMobileSessionUser(user);
+
+  if (!normalizedUser || normalizedUser.id !== session.user.id) {
+    return null;
+  }
+
+  return {
+    ...session,
+    user: normalizedUser,
+  };
+}
+
 export function normalizeMobileSessionTokens(value: unknown): MobileSessionTokens | null {
   if (!isPlainObject(value) || !isValidMobileSecretToken(value.accessToken)) {
     return null;

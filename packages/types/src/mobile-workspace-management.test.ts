@@ -22,7 +22,9 @@ import {
   MobileMediaUploadIntentSchema,
   MobileMediaUploadPurposeSchema,
   MobileMemberRolesUpdateRequestSchema,
+  MobileMessageHistoryClearedEventSchema,
   MobileMutationSuccessResponseSchema,
+  MobilePresenceUpdateEventSchema,
   MobileServerCapabilitiesSchema,
   MobileServerCategoryParamsSchema,
   MobileServerChannelParamsSchema,
@@ -41,7 +43,11 @@ import {
   MobileServerMemberSchema,
   MobileServerMembersQuerySchema,
   MobileServerMembersResponseSchema,
+  MobileServerMembershipAddedEventSchema,
+  MobileServerMembershipRemovedEventSchema,
+  MobileServerSettingsUpdatedEventSchema,
   MobileServerUpdateRequestSchema,
+  MobileUserProfileUpdatedEventSchema,
 } from "./mobile-workspace-management";
 import { assertAccepts, assertRejects, assertSchemaBehaviorCoverage } from "./schema-test-helpers";
 
@@ -223,10 +229,20 @@ describe("mobile workspace management schemas", () => {
         valid: { roleIds: ["role-1"] },
         invalid: { roleIds: ["role-1", "role-1"] },
       },
+      MobileMessageHistoryClearedEventSchema: {
+        schema: MobileMessageHistoryClearedEventSchema,
+        valid: { channelId: "channel-1" },
+        invalid: { channelId: "" },
+      },
       MobileMutationSuccessResponseSchema: {
         schema: MobileMutationSuccessResponseSchema,
         valid: { success: true },
         invalid: { success: false },
+      },
+      MobilePresenceUpdateEventSchema: {
+        schema: MobilePresenceUpdateEventSchema,
+        valid: { customStatus: "Reviewing", status: "IDLE", userId: "user-1" },
+        invalid: { customStatus: "Reviewing", status: "INVISIBLE", userId: "user-1" },
       },
       MobileServerCapabilitiesSchema: {
         schema: MobileServerCapabilitiesSchema,
@@ -318,10 +334,44 @@ describe("mobile workspace management schemas", () => {
         valid: { memberPage: { limit: 50, nextCursor: null }, members: [member] },
         invalid: { memberPage: { limit: 101, nextCursor: null }, members: [member] },
       },
+      MobileServerMembershipAddedEventSchema: {
+        schema: MobileServerMembershipAddedEventSchema,
+        valid: { serverId: "server-1" },
+        invalid: { serverId: "", userId: "user-1" },
+      },
+      MobileServerMembershipRemovedEventSchema: {
+        schema: MobileServerMembershipRemovedEventSchema,
+        valid: { reason: "kicked", serverId: "server-1" },
+        invalid: { reason: "banned", serverId: "server-1" },
+      },
+      MobileServerSettingsUpdatedEventSchema: {
+        schema: MobileServerSettingsUpdatedEventSchema,
+        valid: { serverId: "server-1" },
+        invalid: { serverId: "server-1", settings: {} },
+      },
       MobileServerUpdateRequestSchema: {
         schema: MobileServerUpdateRequestSchema,
         valid: { name: "Renamed Guild" },
         invalid: {},
+      },
+      MobileUserProfileUpdatedEventSchema: {
+        schema: MobileUserProfileUpdatedEventSchema,
+        valid: {
+          avatarUrl: "https://cdn.example.com/avatar.png",
+          customStatus: null,
+          displayName: "Ada Lovelace",
+          status: "ONLINE",
+          userId: "user-1",
+          username: "ada",
+        },
+        invalid: {
+          avatarUrl: "not-a-url",
+          customStatus: null,
+          displayName: "Ada Lovelace",
+          status: "ONLINE",
+          userId: "user-1",
+          username: "ada",
+        },
       },
     });
   });
