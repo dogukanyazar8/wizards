@@ -45,4 +45,4 @@
 
 - [x] Add `.maestro/phase3-social.yml` with testID contract and redacted screenshot paths.
 - [x] Add `MIGRATION_PHASE_3.md` with API/screen/hook map and Phase 4 handoff.
-- [ ] Run full gates, audit, graph update, Maestro once, stage only M4, commit, and push `uat`.
+- [x] Run full gates, audit, graph update, Maestro once, stage only M4, commit, and push `uat`.

@@ -60,7 +60,7 @@ appId: team.whispr.mobile
     id: "mobile-gif-picker-panel"
 - extendedWaitUntil:
     visible:
-      id: "mobile-gif-result-.*"
+      id: "mobile-gif-image-loaded-.*"
     timeout: 30000
 - takeScreenshot: "artifacts/mobile/phase3/closure/light-gif-picker"
 - pressKey: BACK

@@ -19,6 +19,12 @@ test("GIF selection uses the in-house sheet, FlashList, and server-created attac
   const feature = read("app", "features", "use-mobile-messaging-feature.ts");
   assert.match(picker, /BottomSheet/);
   assert.match(picker, /FlashList/);
+  assert.match(picker, /MobileCachedImage/);
+  assert.match(picker, /mobile-gif-image-loaded-/);
+  assert.doesNotMatch(
+    picker,
+    /import\s*\{[\s\S]*?\bImage\b[\s\S]*?\}\s*from\s*["']react-native["']/,
+  );
   assert.match(feature, /createMobileGiphyAttachment/);
   assert.match(feature, /attachments: \[input\]/);
 });

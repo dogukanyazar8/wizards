@@ -229,7 +229,7 @@ describe("Phase 0 Maestro testID contract", () => {
     );
     assert.match(
       phase3FlowSource,
-      /id:\s*"mobile-gif-picker-panel"[\s\S]*?id:\s*"mobile-gif-result-\.\*"[\s\S]*?light-gif-picker/,
+      /id:\s*"mobile-gif-picker-panel"[\s\S]*?id:\s*"mobile-gif-image-loaded-\.\*"[\s\S]*?light-gif-picker/,
     );
     const contracts = {
       "mobile-dm-details-open": "src/app/screens/dm-conversation-screen.tsx",

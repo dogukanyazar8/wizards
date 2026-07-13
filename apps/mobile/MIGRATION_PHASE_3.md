@@ -36,12 +36,23 @@ queue, or local social/profile/message storage.
 
 ## Verification and device evidence
 
-- Fast and closure gates: typecheck, unit tests, component tests, quality check, Expo dependency
-  alignment, production audit, and Graphify update.
+- Closure gates completed on 2026-07-13: web production build, typecheck, lint, and 575/575 tests
+  across 148 suites; mobile typecheck, 351/351 contract tests across 60 suites, and 86/86 component
+  tests across 17 suites; shared types typecheck and 42/42 tests across 7 suites.
+- Mobile quality reported zero blockers, Expo dependencies were aligned, and the production audit
+  reported no known vulnerabilities. Graphify was refreshed after the implementation changes.
+- Railway deployed `f54f3109` successfully to `wizardsweb-uat.up.railway.app`; `/api/health`
+  returned 200 and the anonymous Giphy mobile route returned the expected authenticated-boundary
+  401 instead of the previous 404.
 - `.maestro/phase3-social.yml` uses the single-attempt UAT login helper and writes ignored evidence
-  only to `artifacts/mobile/phase3/closure/`.
+  only to `artifacts/mobile/phase3/closure/`. The `Pixel_10_Pro` post-deploy run passed and captured
+  populated light/dark DM details, rendered GIF images, and the light security screen.
+- GIF evidence waits for the `expo-image` load callback rather than only waiting for response data;
+  this guards against blank Android WebP/GIF tiles.
 - The flow intentionally does not start 2FA setup; security evidence therefore contains no QR,
   manual key, confirmation code, password, or recovery code.
+- Post-run Android logcat contained no maximum-update-depth, render-boundary, fatal-exception,
+  missing-native-module, or ExpoClipboard errors.
 
 ## Phase 4 handoff
 

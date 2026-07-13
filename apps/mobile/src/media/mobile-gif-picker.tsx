@@ -1,8 +1,9 @@
 import { FlashList } from "@shopify/flash-list";
 import { useEffect, useState } from "react";
-import { Image, Pressable, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 
 import { useMobileAuth } from "../auth/mobile-auth-context";
+import { MobileCachedImage } from "../app/components/mobile-cached-image";
 import { BottomSheet, Button } from "../app/components/kit";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
@@ -52,6 +53,7 @@ export function MobileGifPicker({
   const tr = locale === "tr";
   const [query, setQuery] = useState("");
   const [gifs, setGifs] = useState<readonly Gif[]>([]);
+  const [loadedGifIds, setLoadedGifIds] = useState<ReadonlySet<string>>(() => new Set());
   const [busy, setBusy] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +63,7 @@ export function MobileGifPicker({
   async function runSearch() {
     setBusy(true);
     setError(null);
+    setLoadedGifIds(new Set());
     try {
       setGifs((await searchMobileGiphy(apiClient, { limit: 24, offset: 0, query })).gifs);
     } catch {
@@ -68,6 +71,14 @@ export function MobileGifPicker({
     } finally {
       setBusy(false);
     }
+  }
+  function markGifLoaded(id: string) {
+    setLoadedGifIds((current) => {
+      if (current.has(id)) return current;
+      const next = new Set(current);
+      next.add(id);
+      return next;
+    });
   }
   async function choose(id: string) {
     setSendingId(id);
@@ -127,7 +138,15 @@ export function MobileGifPicker({
               style={styles.tile}
               testID={`mobile-gif-result-${item.id}`}
             >
-              <Image source={{ uri: item.previewUrl }} style={styles.image} />
+              <MobileCachedImage
+                onLoad={() => markGifLoaded(item.id)}
+                source={{ uri: item.previewUrl }}
+                style={styles.image}
+                testID={
+                  loadedGifIds.has(item.id) ? `mobile-gif-image-loaded-${item.id}` : undefined
+                }
+                transition={0}
+              />
               <Text numberOfLines={1} style={styles.label}>
                 {sendingId === item.id ? (tr ? "Gonderiliyor" : "Sending") : item.title}
               </Text>
