@@ -1,0 +1,124 @@
+appId: team.whispr.mobile
+---
+# The flow creates and removes only its own named UAT server. It never assigns roles or kicks shared users.
+- launchApp
+- tapOn:
+    text: "http://10.0.2.2:8081"
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+- tapOn:
+    text: "http://.*:8081"
+    index: 0
+    optional: true
+- openLink: "whispr://settings"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-settings-screen"
+    timeout: 60000
+- runFlow:
+    file: "helpers/login-uat.yml"
+- openLink: "whispr://settings"
+- tapOn:
+    id: "mobile-settings-open-appearance"
+- assertVisible:
+    id: "mobile-settings-appearance"
+- tapOn:
+    id: "mobile-settings-appearance-control"
+- tapOn: "Acik|Light"
+- tapOn:
+    id: "mobile-bottom-tab-overview"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-overview-screen"
+    timeout: 30000
+- tapOn:
+    id: "mobile-server-add-open"
+- assertVisible:
+    id: "mobile-server-create-join-sheet"
+- tapOn:
+    id: "mobile-server-mode-create"
+- tapOn:
+    id: "mobile-server-create-name"
+- inputText: "Phase4 Maestro UAT"
+- tapOn:
+    id: "mobile-server-create-submit"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-server-settings-open-.*"
+    timeout: 30000
+- tapOn:
+    id: "mobile-server-invite-share-.*"
+- pressKey: BACK
+# The native share chooser is closed before any evidence is captured.
+- tapOn:
+    id: "mobile-server-settings-open-.*"
+- assertVisible:
+    id: "mobile-server-settings-screen"
+- tapOn:
+    id: "mobile-category-create-open"
+- assertVisible:
+    id: "mobile-category-editor-sheet"
+- tapOn:
+    id: "mobile-category-name"
+- inputText: "Maestro"
+- tapOn:
+    id: "mobile-category-save"
+- tapOn:
+    id: "mobile-channel-create-open"
+- assertVisible:
+    id: "mobile-channel-editor-sheet"
+- tapOn:
+    id: "mobile-channel-name"
+- inputText: "maestro-text"
+- tapOn:
+    id: "mobile-channel-type-text"
+- tapOn:
+    id: "mobile-channel-save"
+- tapOn:
+    id: "mobile-server-members-open-.*"
+- assertVisible:
+    id: "mobile-server-members-screen"
+- pressKey: BACK
+- tapOn:
+    id: "mobile-server-icon-picker"
+- extendedWaitUntil:
+    visible: "phase4-avatar"
+    timeout: 30000
+- tapOn: "phase4-avatar"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-server-settings-screen"
+    timeout: 30000
+- takeScreenshot: "artifacts/mobile/phase4/closure/light-server-management"
+- openLink: "whispr://settings"
+- tapOn:
+    id: "mobile-settings-open-appearance"
+- tapOn:
+    id: "mobile-settings-appearance-control"
+- tapOn: "Koyu|Dark"
+- tapOn:
+    id: "mobile-bottom-tab-overview"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-server-settings-open-.*"
+    timeout: 30000
+- tapOn:
+    id: "mobile-server-settings-open-.*"
+- assertVisible:
+    id: "mobile-server-settings-screen"
+- takeScreenshot: "artifacts/mobile/phase4/closure/dark-server-management"
+- tapOn:
+    id: "mobile-server-delete-open"
+- assertVisible:
+    id: "mobile-server-delete-confirm-input"
+- tapOn:
+    id: "mobile-server-delete-confirm-input"
+- inputText: "Phase4 Maestro UAT"
+- tapOn:
+    id: "mobile-server-delete-confirm-confirm"
+- extendedWaitUntil:
+    notVisible:
+      id: "mobile-server-settings-open-.*"
+    timeout: 30000

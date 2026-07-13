@@ -105,6 +105,18 @@ jest.mock(
         React.createElement(View, { testID: "mobile-security-screen" }),
       DMDetailsScreenContainer: () =>
         React.createElement(View, { testID: "mobile-dm-details-screen" }),
+      ServerSettingsStackScreenContainer: stackScreen(
+        "mobile-server-settings-stack-screen",
+        "mobile-test-server-settings-back",
+      ),
+      ServerMembersStackScreenContainer: stackScreen(
+        "mobile-server-members-stack-screen",
+        "mobile-test-server-members-back",
+      ),
+      ChannelSettingsStackScreenContainer: stackScreen(
+        "mobile-channel-settings-stack-screen",
+        "mobile-test-channel-settings-back",
+      ),
       SettingsTabScreenContainer: () =>
         React.createElement(View, { testID: "mobile-settings-tab-screen" }),
       VoiceTabScreenContainer: () =>

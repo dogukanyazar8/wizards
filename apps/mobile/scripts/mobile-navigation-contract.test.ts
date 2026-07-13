@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   createMobileNavigationState,
@@ -11,6 +12,8 @@ import {
   parseMobileChannelsRoutePath,
   resolveMobileRoute,
 } from "../src/navigation/mobile-navigation";
+
+const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 
 test("mobile tab ids are stable and validate unknown input", () => {
   assert.deepEqual(MOBILE_TAB_IDS, [
@@ -122,4 +125,31 @@ test("mobile route paths resolve to the intended native product surface", () => 
   assert.equal(getMobileTabForRoutePath("/settings/profile"), "settings");
   assert.equal(getMobileTabForRoutePath("/invite/invite-code"), "overview");
   assert.equal(getMobileTabForRoutePath("/unknown"), DEFAULT_MOBILE_TAB_ID);
+});
+
+test("server management routes remain protected, typed, and contextual", () => {
+  const types = read("../src/navigation/mobile-navigation-types.ts");
+  const navigator = read("../src/navigation/mobile-navigator.tsx");
+  const containers = read("../src/app/screens/mobile-screen-containers.tsx");
+
+  assert.match(types, /ServerSettings:\s*\{\s*readonly serverId: string;?\s*\}/);
+  assert.match(types, /ServerMembers:\s*\{\s*readonly serverId: string;?\s*\}/);
+  assert.match(
+    types,
+    /ChannelSettings:\s*\{\s*readonly channelId: string;\s*readonly serverId: string;?\s*\}/,
+  );
+  for (const routeName of ["ServerSettings", "ServerMembers", "ChannelSettings"]) {
+    assert.match(
+      navigator,
+      new RegExp(`<RootStack\\.Screen name="${routeName}">[\\s\\S]{0,240}<ProtectedStackRoute>`),
+    );
+  }
+  for (const containerName of [
+    "ServerSettingsStackScreenContainer",
+    "ServerMembersStackScreenContainer",
+    "ChannelSettingsStackScreenContainer",
+  ]) {
+    assert.match(containers, new RegExp(`export function ${containerName}`));
+  }
+  assert.equal(/mobile-product-app/.test(containers), false);
 });

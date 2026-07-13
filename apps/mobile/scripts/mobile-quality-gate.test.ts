@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   MOBILE_AUTOMATED_GATES,
   MOBILE_MANUAL_QA_CHECKS,
@@ -128,5 +130,40 @@ describe("mobile quality gate", () => {
     assert.equal(summary.platformCount, 2);
     assert.equal(summary.requiredAreas.length, expectedAreas.length);
     assert.deepEqual(validateMobileQualityGate(), []);
+  });
+
+  it("locks the Phase 4 management closure, documentation, and manual safety checks", () => {
+    const phase4Gate = MOBILE_AUTOMATED_GATES.find(
+      (gate) => gate.id === "mobile-maestro-phase4-server-management",
+    );
+    assert.ok(phase4Gate);
+    assert.equal(phase4Gate.command, "maestro test ../../.maestro/phase4-server-management.yml");
+
+    const manualIds = new Set(MOBILE_MANUAL_QA_CHECKS.map((check) => check.id));
+    for (const id of [
+      "server-management-authz-capabilities",
+      "server-member-role-replacement",
+      "server-member-kick-boundaries",
+      "server-management-pagination-and-history",
+      "server-management-destructive-and-theme",
+    ]) {
+      assert.equal(manualIds.has(id), true, `Missing Phase 4 manual check: ${id}`);
+    }
+
+    const requiredStatements = [
+      "Bu çalışma, web'in tam rol CRUD'una (create/update/delete + izin matrisi) göre bilinçli bir daralmadır; tam web rol CRUD paritesi değildir.",
+      "Rol CRUD + izin hiyerarşisi mobilde ertelendi.",
+      "Mobil yalnızca mevcut rollerin atama/kaldırma yetkisini ve yetkili üyeyi sunucudan atma (kick) işlemini sunar; sunucunun rol hiyerarşisini veya yetki sınırlarını genişletmez. Rol atama/kaldırma ve kick uçlarında web'in “kim kimi atayabilir veya sunucudan atabilir?” authz kontrolü servis katmanında birebir korunur.",
+    ];
+    for (const file of ["MIGRATION_PHASE_4.md", "PHASE_5_HANDOFF.md"]) {
+      const filePath = join(process.cwd(), file);
+      assert.equal(existsSync(filePath), true, `${file} must exist`);
+      const source = readFileSync(filePath, "utf8");
+      for (const statement of requiredStatements) {
+        assert.ok(source.includes(statement), `${file} must preserve the Phase 4 role scope`);
+      }
+      assert.match(source, /MobileMediaUpload/);
+      assert.match(source, /Maestro|maestro/);
+    }
   });
 });

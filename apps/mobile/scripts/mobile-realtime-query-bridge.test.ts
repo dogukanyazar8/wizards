@@ -126,12 +126,16 @@ function createFakeScheduler() {
   };
 }
 
-function createBridge(queryClient: QueryClient, scheduler: MobileRealtimeQueryBridgeScheduler) {
+function createBridge(
+  queryClient: QueryClient,
+  scheduler: MobileRealtimeQueryBridgeScheduler,
+  activeServerId: string | null = "server-1",
+) {
   return createMobileRealtimeQueryBridge({
     getActiveTargets: () => ({
       channelId: "channel-1",
       conversationId: "conversation-1",
-      serverId: "server-1",
+      serverId: activeServerId,
       voiceChannelId: null,
     }),
     queryClient,
@@ -326,6 +330,7 @@ describe("mobile realtime query bridge", () => {
     queryClient.setQueryData(bootstrapKey, { ready: true });
     queryClient.setQueryData(inactiveWorkspaceKey, { ready: true });
     queryClient.setQueryData(activeWorkspaceKey, { ready: true });
+    queryClient.setQueryData(mobileQueryKeys.workspaceMembers("server-1"), { ready: true });
 
     bridge.handleEvent(
       createMobileRealtimeEventEnvelope("server:settings:updated", {
@@ -334,9 +339,14 @@ describe("mobile realtime query bridge", () => {
     );
 
     assert.equal(queryClient.getQueryState(bootstrapKey)?.isInvalidated, true);
+    assert.equal(fake.pendingCount(), 1);
+    fake.flush();
     assert.equal(queryClient.getQueryState(inactiveWorkspaceKey)?.isInvalidated, true);
     assert.equal(queryClient.getQueryState(activeWorkspaceKey)?.isInvalidated, false);
-    assert.equal(fake.pendingCount(), 0);
+    assert.equal(
+      queryClient.getQueryState(mobileQueryKeys.workspaceMembers("server-1"))?.isInvalidated,
+      false,
+    );
   });
 
   it("patches matching workspace members under the workspace root", () => {
@@ -389,6 +399,82 @@ describe("mobile realtime query bridge", () => {
       matching.detail.capabilities,
     );
     assert.equal(queryClient.getQueryData(unrelatedKey), unrelated);
+  });
+
+  it("uses one exact workspace timer for an active management event and member list", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const workspaceKey = mobileQueryKeys.workspace("server-1");
+    const membersKey = mobileQueryKeys.workspaceMembers("server-1");
+    const unrelatedWorkspaceKey = mobileQueryKeys.workspace("server-2");
+    queryClient.setQueryData(workspaceKey, { ready: true });
+    queryClient.setQueryData(membersKey, { ready: true });
+    queryClient.setQueryData(unrelatedWorkspaceKey, { ready: true });
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("server:settings:updated", { serverId: "server-1" }),
+    );
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("server:membership:added", { serverId: "server-1" }),
+    );
+
+    assert.equal(fake.pendingCount(), 1);
+    fake.flush();
+    assert.equal(queryClient.getQueryState(workspaceKey)?.isInvalidated, true);
+    assert.equal(queryClient.getQueryState(membersKey)?.isInvalidated, true);
+    assert.equal(queryClient.getQueryState(unrelatedWorkspaceKey)?.isInvalidated, false);
+  });
+
+  it("refreshes only friends and active members for a presence fallback", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const friendsKey = mobileQueryKeys.friends();
+    const membersKey = mobileQueryKeys.workspaceMembers("server-1");
+    const workspaceKey = mobileQueryKeys.workspace("server-1");
+    const unrelatedMembersKey = mobileQueryKeys.workspaceMembers("server-2");
+    queryClient.setQueryData(friendsKey, { friends: [] });
+    queryClient.setQueryData(membersKey, { pages: [] });
+    queryClient.setQueryData(workspaceKey, { detail: { members: [] } });
+    queryClient.setQueryData(unrelatedMembersKey, { pages: [] });
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("presence:update", {
+        customStatus: null,
+        status: "IDLE",
+        userId: "not-cached-user",
+      }),
+    );
+
+    assert.equal(fake.pendingCount(), 1);
+    fake.flush();
+    assert.equal(queryClient.getQueryState(friendsKey)?.isInvalidated, true);
+    assert.equal(queryClient.getQueryState(membersKey)?.isInvalidated, true);
+    assert.equal(queryClient.getQueryState(workspaceKey)?.isInvalidated, false);
+    assert.equal(queryClient.getQueryState(unrelatedMembersKey)?.isInvalidated, false);
+  });
+
+  it("does not schedule member fallback without an active server", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler, null);
+    const friendsKey = mobileQueryKeys.friends();
+    const membersKey = mobileQueryKeys.workspaceMembers("server-1");
+    queryClient.setQueryData(friendsKey, { friends: [] });
+    queryClient.setQueryData(membersKey, { pages: [] });
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("presence:update", {
+        customStatus: null,
+        status: "IDLE",
+        userId: "not-cached-user",
+      }),
+    );
+    fake.flush();
+
+    assert.equal(queryClient.getQueryState(friendsKey)?.isInvalidated, true);
+    assert.equal(queryClient.getQueryState(membersKey)?.isInvalidated, false);
   });
 
   it("does not mutate or refresh malformed validated payloads and disposes narrow fallbacks", () => {

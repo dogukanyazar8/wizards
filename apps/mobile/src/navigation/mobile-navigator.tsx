@@ -22,6 +22,9 @@ import {
   BlockedUsersScreenContainer,
   SecurityScreenContainer,
   DMDetailsScreenContainer,
+  ServerSettingsStackScreenContainer,
+  ServerMembersStackScreenContainer,
+  ChannelSettingsStackScreenContainer,
 } from "../app/screens/mobile-screen-containers";
 import { MobileBottomTabBar } from "./mobile-bottom-tab-bar";
 import { createMobileLinkingOptions } from "./mobile-linking";
@@ -123,6 +126,27 @@ export function MobileNavigator({
           {(props) => (
             <ProtectedStackRoute>
               <DMDetailsScreenContainer {...props} />
+            </ProtectedStackRoute>
+          )}
+        </RootStack.Screen>
+        <RootStack.Screen name="ServerSettings">
+          {(props) => (
+            <ProtectedStackRoute>
+              <ServerSettingsStackScreenContainer {...props} />
+            </ProtectedStackRoute>
+          )}
+        </RootStack.Screen>
+        <RootStack.Screen name="ServerMembers">
+          {(props) => (
+            <ProtectedStackRoute>
+              <ServerMembersStackScreenContainer {...props} />
+            </ProtectedStackRoute>
+          )}
+        </RootStack.Screen>
+        <RootStack.Screen name="ChannelSettings">
+          {(props) => (
+            <ProtectedStackRoute>
+              <ChannelSettingsStackScreenContainer {...props} />
             </ProtectedStackRoute>
           )}
         </RootStack.Screen>

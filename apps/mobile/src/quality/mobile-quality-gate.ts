@@ -103,6 +103,13 @@ export const MOBILE_AUTOMATED_GATES: MobileAutomatedGate[] = [
     required: true,
   },
   {
+    command: "maestro test ../../.maestro/phase4-server-management.yml",
+    id: "mobile-maestro-phase4-server-management",
+    purpose:
+      "Android UAT proof for server, channel, member, media, destructive confirmation, cleanup, and both themes.",
+    required: true,
+  },
+  {
     command: "corepack pnpm --filter @wizards/mobile validate:env",
     id: "mobile-env-validation",
     purpose: "Build-time endpoint and public environment validation.",
@@ -273,6 +280,46 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
     label: "A real server opens with permission-filtered channels and compact category navigation.",
     required: true,
     risk: "high",
+  },
+  {
+    area: "workspace",
+    id: "server-management-authz-capabilities",
+    label:
+      "Server, channel, member, and icon controls appear only for server-provided capabilities while denied mutations stay safely rejected by the service.",
+    required: true,
+    risk: "critical",
+  },
+  {
+    area: "workspace",
+    id: "server-member-role-replacement",
+    label:
+      "Assigning or removing one existing role sends the complete intended role set without calculating hierarchy on the client.",
+    required: true,
+    risk: "critical",
+  },
+  {
+    area: "workspace",
+    id: "server-member-kick-boundaries",
+    label:
+      "Kick handles owner, self, and authorization denial safely and refreshes only the affected member scope.",
+    required: true,
+    risk: "critical",
+  },
+  {
+    area: "workspace",
+    id: "server-management-pagination-and-history",
+    label:
+      "Cursor member pagination preserves first-seen presence order and message-history clearing is confirmed and limited to text channels.",
+    required: true,
+    risk: "high",
+  },
+  {
+    area: "accessibility",
+    id: "server-management-destructive-and-theme",
+    label:
+      "Server management destructive actions prevent duplicate submission and remain legible in light and dark themes with accessible labels.",
+    required: true,
+    risk: "critical",
   },
   {
     area: "workspace",

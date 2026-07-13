@@ -14,13 +14,17 @@ import { useHomeScreenStyles } from "./home-screen.styles";
 
 export function WorkspaceChannelSectionList({
   isCollapseDisabled,
+  canManageChannels = false,
   onOpenChannel,
+  onOpenChannelSettings,
   onToggleSection,
   sections,
   selectedChannelId,
 }: {
   isCollapseDisabled: boolean;
+  canManageChannels?: boolean;
   onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
+  onOpenChannelSettings?(channelId: string): void;
   onToggleSection(sectionId: string): void;
   sections: MobileVisibleWorkspaceChannelSection[];
   selectedChannelId: string | null;
@@ -52,6 +56,8 @@ export function WorkspaceChannelSectionList({
               channel={item.channel}
               isSelected={item.channel.id === selectedChannelId}
               onOpenChannel={onOpenChannel}
+              canManageChannels={canManageChannels}
+              {...(onOpenChannelSettings ? { onOpenChannelSettings } : {})}
             />
           );
         }
@@ -90,12 +96,16 @@ export function WorkspaceChannelSectionList({
 
 export function WorkspaceChannelCompactRow({
   channel,
+  canManageChannels = false,
   isSelected,
   onOpenChannel,
+  onOpenChannelSettings,
 }: {
   channel: MobileWorkspaceChannelSummary;
+  canManageChannels?: boolean;
   isSelected: boolean;
   onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
+  onOpenChannelSettings?(channelId: string): void;
 }) {
   const styles = useHomeScreenStyles();
   const theme = useTheme();
@@ -103,7 +113,7 @@ export function WorkspaceChannelCompactRow({
   const iconName =
     channel.type === "TEXT" ? "chatbubble-ellipses-outline" : "volume-medium-outline";
 
-  return (
+  const channelRow = (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${copy.openWorkspaceChannelAction}: ${channel.name}`}
@@ -153,5 +163,25 @@ export function WorkspaceChannelCompactRow({
         />
       ) : null}
     </Pressable>
+  );
+
+  if (!canManageChannels || !onOpenChannelSettings) {
+    return channelRow;
+  }
+
+  return (
+    <View style={{ alignItems: "stretch", flexDirection: "row", gap: 4 }}>
+      <View style={{ flex: 1 }}>{channelRow}</View>
+      <Pressable
+        accessibilityLabel={`${channel.name} ${copy.workspaceChannelSettingsAction}`}
+        accessibilityRole="button"
+        hitSlop={8}
+        onPress={() => onOpenChannelSettings(channel.id)}
+        style={{ alignItems: "center", justifyContent: "center", minWidth: 44 }}
+        testID={`mobile-channel-settings-open-${channel.id}`}
+      >
+        <Ionicons name="settings-outline" size={16} color={theme.text.soft} />
+      </Pressable>
+    </View>
   );
 }

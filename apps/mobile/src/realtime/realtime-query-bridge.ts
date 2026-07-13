@@ -74,37 +74,48 @@ export function createMobileRealtimeQueryBridge({
   queryClient,
   scheduler = defaultScheduler,
 }: CreateMobileRealtimeQueryBridgeOptions): MobileRealtimeQueryBridge {
-  const timers = new Map<string, unknown>();
+  const timers = new Map<
+    string,
+    { readonly queryKeys: QueryKey[]; readonly timer: unknown }
+  >();
   let disposed = false;
 
   const clearTimers = () => {
-    for (const timer of timers.values()) {
-      scheduler.clearTimeout(timer);
+    for (const entry of timers.values()) {
+      scheduler.clearTimeout(entry.timer);
     }
     timers.clear();
   };
 
-  const scheduleInvalidation = (
+  const scheduleInvalidations = (
     source: MobileRealtimeRefreshSource,
-    queryKey: QueryKey | null,
-    exact = true,
+    queryKeys: readonly QueryKey[],
   ) => {
-    if (disposed || !queryKey) {
+    if (disposed || queryKeys.length === 0) {
       return;
     }
 
-    const timerKey = `${getMobileRealtimeRefreshTimerSource(source)}:${exact ? "exact" : "prefix"}:${JSON.stringify(queryKey)}`;
-    if (timers.has(timerKey)) {
+    const timerKey = getMobileRealtimeRefreshTimerSource(source);
+    const existing = timers.get(timerKey);
+    if (existing) {
+      for (const queryKey of queryKeys) {
+        if (!existing.queryKeys.some((current) => JSON.stringify(current) === JSON.stringify(queryKey))) {
+          existing.queryKeys.push(queryKey);
+        }
+      }
       return;
     }
 
     const timer = scheduler.setTimeout(() => {
+      const entry = timers.get(timerKey);
       timers.delete(timerKey);
       if (!disposed) {
-        void queryClient.invalidateQueries({ exact, queryKey });
+        for (const queryKey of entry?.queryKeys ?? []) {
+          void queryClient.invalidateQueries({ exact: true, queryKey });
+        }
       }
     }, MOBILE_REALTIME_REFRESH_DEBOUNCE_MS);
-    timers.set(timerKey, timer);
+    timers.set(timerKey, { queryKeys: [...queryKeys], timer });
   };
 
   const scheduleSource = (
@@ -114,23 +125,28 @@ export function createMobileRealtimeQueryBridge({
     const targets = getActiveTargets();
 
     if (source === "presence") {
-      scheduleInvalidation(source, mobileQueryKeys.friends());
+      scheduleInvalidations(source, [
+        mobileQueryKeys.friends(),
+        ...(targets.serverId ? [mobileQueryKeys.workspaceMembers(targets.serverId)] : []),
+      ]);
       return;
     }
 
     if (source === "bootstrap" || source === "notification") {
-      scheduleInvalidation(source, mobileQueryKeys.bootstrap());
+      scheduleInvalidations(source, [mobileQueryKeys.bootstrap()]);
       return;
     }
 
     if (source === "workspace") {
-      const targetServerId = targets.serverId;
-      const matchesTarget =
-        targetServerId && (!event?.serverId || event.serverId === targetServerId);
-      scheduleInvalidation(
-        source,
-        matchesTarget ? mobileQueryKeys.workspace(targetServerId) : null,
-      );
+      const eventServerId = event?.serverId;
+      const serverId = eventServerId ?? targets.serverId;
+      if (!serverId) {
+        return;
+      }
+      scheduleInvalidations(source, [
+        mobileQueryKeys.workspace(serverId),
+        ...(targets.serverId === serverId ? [mobileQueryKeys.workspaceMembers(serverId)] : []),
+      ]);
       return;
     }
 
@@ -138,10 +154,9 @@ export function createMobileRealtimeQueryBridge({
       const targetChannelId = targets.channelId;
       const matchesTarget =
         targetChannelId && (!event?.channelId || event.channelId === targetChannelId);
-      scheduleInvalidation(
-        source,
-        matchesTarget ? mobileQueryKeys.channelMessages(targetChannelId) : null,
-      );
+      if (matchesTarget) {
+        scheduleInvalidations(source, [mobileQueryKeys.channelMessages(targetChannelId)]);
+      }
       return;
     }
 
@@ -149,10 +164,9 @@ export function createMobileRealtimeQueryBridge({
     const matchesTarget =
       targetConversationId &&
       (!event?.conversationId || event.conversationId === targetConversationId);
-    scheduleInvalidation(
-      source,
-      matchesTarget ? mobileQueryKeys.dmMessages(targetConversationId) : null,
-    );
+    if (matchesTarget) {
+      scheduleInvalidations(source, [mobileQueryKeys.dmMessages(targetConversationId)]);
+    }
   };
 
   const patchPresenceCaches = (payload: unknown) => {
@@ -171,7 +185,7 @@ export function createMobileRealtimeQueryBridge({
       },
     );
     if (!friendsPatched) {
-      scheduleInvalidation("presence", mobileQueryKeys.friends());
+      scheduleSource("presence", null);
     }
 
     let bootstrapPatched = false;
@@ -181,21 +195,16 @@ export function createMobileRealtimeQueryBridge({
       return result.data;
     });
     if (!bootstrapPatched) {
-      scheduleInvalidation("bootstrap", mobileQueryKeys.bootstrap());
+      void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
     }
 
     let workspacePatched = false;
-    queryClient.setQueriesData<MobileManagedWorkspaceServerDetailResponse>(
-      { queryKey: mobileQueryKeys.workspaceRoot() },
-      (current) => {
-        const result = patchMobileRealtimeWorkspacePresence(current, parsed.data);
-        workspacePatched ||= result.patched;
-        return result.data;
-      },
-    );
-    if (!workspacePatched) {
-      scheduleInvalidation("workspace", mobileQueryKeys.workspaceRoot(), false);
-    }
+    patchWorkspaceDetailCaches((current) => {
+      const result = patchMobileRealtimeWorkspacePresence(current, parsed.data);
+      workspacePatched ||= result.patched;
+      return result.data;
+    });
+    void workspacePatched;
   };
 
   const patchProfileCaches = (payload: unknown) => {
@@ -214,7 +223,7 @@ export function createMobileRealtimeQueryBridge({
       },
     );
     if (!friendsPatched) {
-      scheduleInvalidation("presence", mobileQueryKeys.friends());
+      scheduleSource("presence", null);
     }
 
     let bootstrapPatched = false;
@@ -224,20 +233,30 @@ export function createMobileRealtimeQueryBridge({
       return result.data;
     });
     if (!bootstrapPatched) {
-      scheduleInvalidation("bootstrap", mobileQueryKeys.bootstrap());
+      void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
     }
 
     let workspacePatched = false;
-    queryClient.setQueriesData<MobileManagedWorkspaceServerDetailResponse>(
-      { queryKey: mobileQueryKeys.workspaceRoot() },
-      (current) => {
-        const result = patchMobileRealtimeWorkspaceProfile(current, parsed.data);
-        workspacePatched ||= result.patched;
-        return result.data;
-      },
-    );
-    if (!workspacePatched) {
-      scheduleInvalidation("workspace", mobileQueryKeys.workspaceRoot(), false);
+    patchWorkspaceDetailCaches((current) => {
+      const result = patchMobileRealtimeWorkspaceProfile(current, parsed.data);
+      workspacePatched ||= result.patched;
+      return result.data;
+    });
+    void workspacePatched;
+  };
+
+  const patchWorkspaceDetailCaches = (
+    patch: (
+      current: MobileManagedWorkspaceServerDetailResponse | undefined,
+    ) => MobileManagedWorkspaceServerDetailResponse | undefined,
+  ) => {
+    for (const [queryKey, current] of queryClient.getQueriesData<unknown>({
+      queryKey: mobileQueryKeys.workspaceRoot(),
+    })) {
+      if (!isMobileWorkspaceDetailQueryKey(queryKey) || !isMobileWorkspaceDetail(current)) {
+        continue;
+      }
+      queryClient.setQueryData(queryKey, patch(current));
     }
   };
 
@@ -255,11 +274,19 @@ export function createMobileRealtimeQueryBridge({
         return result.data;
       });
       if (!bootstrapPatched) {
-        scheduleInvalidation("bootstrap", mobileQueryKeys.bootstrap());
+        scheduleSource("bootstrap", null);
       }
       queryClient.removeQueries({
         exact: true,
         queryKey: mobileQueryKeys.workspace(parsed.data.serverId),
+      });
+      queryClient.removeQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.workspaceMembers(parsed.data.serverId),
+      });
+      queryClient.removeQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.workspaceRoles(parsed.data.serverId),
       });
       return true;
     }
@@ -270,9 +297,9 @@ export function createMobileRealtimeQueryBridge({
         return true;
       }
       void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
-      void queryClient.invalidateQueries({
-        exact: true,
-        queryKey: mobileQueryKeys.workspace(parsed.data.serverId),
+      scheduleSource("workspace", {
+        ...event,
+        serverId: parsed.data.serverId,
       });
       return true;
     }
@@ -283,9 +310,9 @@ export function createMobileRealtimeQueryBridge({
         return true;
       }
       void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
-      void queryClient.invalidateQueries({
-        exact: true,
-        queryKey: mobileQueryKeys.workspace(parsed.data.serverId),
+      scheduleSource("workspace", {
+        ...event,
+        serverId: parsed.data.serverId,
       });
       return true;
     }
@@ -420,6 +447,30 @@ function getPayloadString(payload: unknown, key: string): string | null {
   }
   const value = (payload as Record<string, unknown>)[key];
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function isMobileWorkspaceDetailQueryKey(queryKey: QueryKey): boolean {
+  return (
+    queryKey.length === 3 &&
+    queryKey[0] === "mobile" &&
+    queryKey[1] === "workspace" &&
+    typeof queryKey[2] === "string"
+  );
+}
+
+function isMobileWorkspaceDetail(
+  value: unknown,
+): value is MobileManagedWorkspaceServerDetailResponse {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    "detail" in value &&
+    (value as { readonly detail?: unknown }).detail !== null &&
+    typeof (value as { readonly detail?: unknown }).detail === "object" &&
+    Array.isArray(
+      ((value as { readonly detail: { readonly members?: unknown } }).detail.members),
+    )
+  );
 }
 
 function getPayloadReactions(payload: unknown) {

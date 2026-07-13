@@ -27,6 +27,9 @@ import { BlockedUsersScreen, ProfileEditScreen } from "../../social/social-accou
 import { VoiceScreen } from "./voice-screen";
 import { MobileTwoFactorScreen } from "../../account/mobile-two-factor-screen";
 import { MobileDMDetailsScreen } from "../../dm/mobile-dm-details-screen";
+import { MobileServerSettingsScreen } from "../../workspace/mobile-server-settings-screen";
+import { MobileServerMembersScreen } from "../../workspace/mobile-server-members-screen";
+import { MobileChannelSettingsScreen } from "../../workspace/mobile-channel-settings-screen";
 
 export function OverviewTabScreenContainer({
   navigation,
@@ -238,6 +241,43 @@ export function DMDetailsScreenContainer({
   return (
     <MobileDMDetailsScreen
       conversationId={route.params.conversationId}
+      onBack={() => navigation.goBack()}
+    />
+  );
+}
+
+export function ServerSettingsStackScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "ServerSettings">) {
+  const { serverId } = route.params;
+  return (
+    <MobileServerSettingsScreen
+      serverId={serverId}
+      onBack={() => navigation.goBack()}
+      onOpenMembers={() => navigation.navigate("ServerMembers", { serverId })}
+      onOpenChannelSettings={(channelId) =>
+        navigation.navigate("ChannelSettings", { channelId, serverId })
+      }
+    />
+  );
+}
+
+export function ServerMembersStackScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "ServerMembers">) {
+  return <MobileServerMembersScreen serverId={route.params.serverId} onBack={() => navigation.goBack()} />;
+}
+
+export function ChannelSettingsStackScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "ChannelSettings">) {
+  return (
+    <MobileChannelSettingsScreen
+      channelId={route.params.channelId}
+      serverId={route.params.serverId}
       onBack={() => navigation.goBack()}
     />
   );

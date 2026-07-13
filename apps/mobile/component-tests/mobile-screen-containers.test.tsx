@@ -38,6 +38,46 @@ jest.mock("../src/app/screens/dm-screen", () => ({
   },
 }));
 
+jest.mock("../src/workspace/mobile-server-settings-screen", () => ({
+  MobileServerSettingsScreen: (props: Record<string, unknown>) => {
+    const React = require("react");
+    const { Pressable, Text, View } = require("react-native");
+    return React.createElement(
+      View,
+      { testID: "server-settings-container-screen" },
+      React.createElement(
+        Pressable,
+        { onPress: () => (props.onOpenMembers as jest.Mock)(), testID: "open-members-from-container" },
+        React.createElement(Text, null, "Members"),
+      ),
+      React.createElement(
+        Pressable,
+        {
+          onPress: () => (props.onOpenChannelSettings as jest.Mock)("channel-9"),
+          testID: "open-channel-settings-from-container",
+        },
+        React.createElement(Text, null, "Channel"),
+      ),
+    );
+  },
+}));
+
+jest.mock("../src/workspace/mobile-server-members-screen", () => ({
+  MobileServerMembersScreen: () => {
+    const React = require("react");
+    const { View } = require("react-native");
+    return React.createElement(View, { testID: "server-members-container-screen" });
+  },
+}));
+
+jest.mock("../src/workspace/mobile-channel-settings-screen", () => ({
+  MobileChannelSettingsScreen: () => {
+    const React = require("react");
+    const { View } = require("react-native");
+    return React.createElement(View, { testID: "channel-settings-container-screen" });
+  },
+}));
+
 jest.mock("../src/app/providers/mobile-product-screen-provider", () => ({
   useMobileMessagesScreenProps: () => mockMessagesProps,
   useMobileNotificationsScreenProps: () => ({}),
@@ -50,6 +90,9 @@ jest.mock("../src/app/providers/mobile-product-screen-provider", () => ({
 import {
   MessagesTabScreenContainer,
   OverviewTabScreenContainer,
+  ChannelSettingsStackScreenContainer,
+  ServerMembersStackScreenContainer,
+  ServerSettingsStackScreenContainer,
 } from "../src/app/screens/mobile-screen-containers";
 
 function createNavigation(parentNavigate: jest.Mock) {
@@ -96,5 +139,43 @@ describe("mobile screen navigation containers", () => {
     expect(parentNavigate).toHaveBeenCalledWith("DirectMessage", {
       conversationId: "dm-1",
     });
+  });
+
+  it("retains server context when opening member and channel management", async () => {
+    const navigate = jest.fn();
+    const view = await render(
+      <ServerSettingsStackScreenContainer
+        navigation={{ goBack: jest.fn(), navigate } as never}
+        route={{ params: { serverId: "server-7" } } as never}
+      />,
+    );
+
+    await fireEvent.press(view.getByTestId("open-members-from-container"));
+    await fireEvent.press(view.getByTestId("open-channel-settings-from-container"));
+
+    expect(navigate).toHaveBeenCalledWith("ServerMembers", { serverId: "server-7" });
+    expect(navigate).toHaveBeenCalledWith("ChannelSettings", {
+      channelId: "channel-9",
+      serverId: "server-7",
+    });
+  });
+
+  it("forwards contextual ids unchanged to protected management screens", async () => {
+    const navigation = { goBack: jest.fn() };
+    const members = await render(
+      <ServerMembersStackScreenContainer
+        navigation={navigation as never}
+        route={{ params: { serverId: "server-3" } } as never}
+      />,
+    );
+    const channel = await render(
+      <ChannelSettingsStackScreenContainer
+        navigation={navigation as never}
+        route={{ params: { channelId: "channel-4", serverId: "server-3" } } as never}
+      />,
+    );
+
+    expect(members.getByTestId("server-members-container-screen")).toBeTruthy();
+    expect(channel.getByTestId("channel-settings-container-screen")).toBeTruthy();
   });
 });

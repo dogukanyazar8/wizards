@@ -45,6 +45,7 @@ import { useTheme } from "../providers/mobile-theme-provider";
 import { MobileVoiceChannelScreen } from "./voice-screen";
 import { useHomeScreenStyles } from "./home-screen.styles";
 import { WorkspaceChannelSectionList } from "./workspace-channel-section-list";
+import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 
 export function MobileWorkspaceBrowser({
   attachmentsFeature,
@@ -243,6 +244,11 @@ export function MobileWorkspaceBrowser({
     serverState.status === "error";
   const canManageInvites = workspacePayload?.detail.capabilities.canManageInvites === true;
   const canUploadServerIcon = workspacePayload?.detail.capabilities.canUploadServerIcon === true;
+  const canOpenServerSettings =
+    workspacePayload?.detail.capabilities.canManageServer === true ||
+    workspacePayload?.detail.capabilities.canManageChannels === true ||
+    workspacePayload?.detail.capabilities.canManageRoles === true ||
+    workspacePayload?.detail.capabilities.canKickMembers === true;
   const handleServerPress = useCallback(
     (serverId: string) => {
       setChannelQuery("");
@@ -445,6 +451,21 @@ export function MobileWorkspaceBrowser({
                 <Text style={styles.retryButtonText}>{copy.workspaceServerIconAction}</Text>
               </Pressable>
             ) : null}
+            {canOpenServerSettings && activeServerId ? (
+              <Pressable
+                accessibilityLabel={copy.workspaceServerSettingsAction}
+                accessibilityRole="button"
+                onPress={() => {
+                  if (mobileNavigationRef.isReady()) {
+                    mobileNavigationRef.navigate("ServerSettings", { serverId: activeServerId });
+                  }
+                }}
+                style={styles.retryButton}
+                testID={`mobile-server-settings-open-${activeServerId}`}
+              >
+                <Text style={styles.retryButtonText}>{copy.workspaceServerSettingsAction}</Text>
+              </Pressable>
+            ) : null}
             {inviteShareError ? (
               <Text
                 accessibilityRole="alert"
@@ -497,10 +518,16 @@ export function MobileWorkspaceBrowser({
             {workspacePayload ? (
               <>
                 <WorkspaceChannelSectionList
+                  canManageChannels={workspacePayload.detail.capabilities.canManageChannels}
                   sections={visibleChannelSections}
                   selectedChannelId={selectedChannelId}
                   isCollapseDisabled={isSearchingChannels}
                   onOpenChannel={onOpenChannel}
+                  onOpenChannelSettings={(channelId) => {
+                    if (mobileNavigationRef.isReady() && activeServerId) {
+                      mobileNavigationRef.navigate("ChannelSettings", { channelId, serverId: activeServerId });
+                    }
+                  }}
                   onToggleSection={handleToggleSection}
                 />
                 {channelQuery.trim().length > 0 && channelSections.length === 0 ? (

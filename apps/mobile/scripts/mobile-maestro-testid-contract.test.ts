@@ -23,6 +23,8 @@ const phase2FlowPath = path.join(repositoryRoot, ".maestro", "phase2-messaging.y
 const phase2FlowSource = existsSync(phase2FlowPath) ? readFileSync(phase2FlowPath, "utf8") : "";
 const phase3FlowPath = path.join(repositoryRoot, ".maestro", "phase3-social.yml");
 const phase3FlowSource = existsSync(phase3FlowPath) ? readFileSync(phase3FlowPath, "utf8") : "";
+const phase4FlowPath = path.join(repositoryRoot, ".maestro", "phase4-server-management.yml");
+const phase4FlowSource = existsSync(phase4FlowPath) ? readFileSync(phase4FlowPath, "utf8") : "";
 const rootGitignoreSource = readFileSync(path.join(repositoryRoot, ".gitignore"), "utf8");
 
 const testIdSources: Record<string, { file: string; needle: string }> = {
@@ -260,5 +262,57 @@ describe("Phase 0 Maestro testID contract", () => {
       assert.match(phase3FlowSource, new RegExp(`artifacts/mobile/phase3/closure/${screenshot}`));
     }
     assert.ok(MOBILE_AUTOMATED_GATES.some((gate) => gate.id === "mobile-maestro-phase3-social"));
+  });
+
+  it("binds the Phase 4 server-management flow to safe, contextual test IDs", () => {
+    assert.ok(phase4FlowSource, ".maestro/phase4-server-management.yml must exist");
+    assert.match(phase4FlowSource, /file:\s*"helpers\/login-uat\.yml"/);
+    assert.match(phase4FlowSource, /tapOn:\s*"Acik\|Light"/);
+    assert.match(phase4FlowSource, /tapOn:\s*"Koyu\|Dark"/);
+    assert.match(phase4FlowSource, /inputText:\s*"Phase4 Maestro UAT"/);
+    for (const id of [
+      "mobile-server-add-open",
+      "mobile-server-create-submit",
+      "mobile-server-invite-share-.*",
+      "mobile-server-settings-open-.*",
+      "mobile-category-create-open",
+      "mobile-category-save",
+      "mobile-channel-create-open",
+      "mobile-channel-type-text",
+      "mobile-channel-save",
+      "mobile-server-members-open-.*",
+      "mobile-server-icon-picker",
+      "mobile-server-delete-confirm-input",
+      "mobile-server-delete-confirm-confirm",
+    ]) {
+      assert.match(phase4FlowSource, new RegExp(`id:\\s*"${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
+    }
+    for (const screenshot of ["light-server-management", "dark-server-management"]) {
+      assert.match(
+        phase4FlowSource,
+        new RegExp(`takeScreenshot:\\s*"artifacts/mobile/phase4/closure/${screenshot}"`),
+      );
+    }
+    assert.match(
+      phase4FlowSource,
+      /mobile-server-invite-share-\.\*"[\s\S]*?pressKey:\s*BACK[\s\S]*?light-server-management/,
+    );
+    assert.doesNotMatch(phase4FlowSource, /claimId|inviteCode|MAESTRO_UAT_(?:EMAIL|PASSWORD)/);
+
+    const productionContracts = [
+      ["src/app/screens/workspace-browser.tsx", "mobile-server-settings-open-${activeServerId}"],
+      ["src/workspace/mobile-server-settings-screen.tsx", "mobile-server-settings-screen"],
+      ["src/workspace/mobile-server-settings-screen.tsx", "mobile-server-icon-picker"],
+      ["src/workspace/mobile-workspace-editor-sheets.tsx", "mobile-category-editor-sheet"],
+      ["src/workspace/mobile-channel-settings-screen.tsx", "mobile-channel-settings-screen"],
+      ["src/workspace/mobile-server-members-screen.tsx", "mobile-server-members-list"],
+      ["src/app/components/kit/destructive-confirmation-sheet.tsx", "${testID}-confirm"],
+    ] as const;
+    for (const [sourcePath, needle] of productionContracts) {
+      assert.match(readFileSync(path.join(process.cwd(), sourcePath), "utf8"), new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    }
+    assert.ok(
+      MOBILE_AUTOMATED_GATES.some((gate) => gate.id === "mobile-maestro-phase4-server-management"),
+    );
   });
 });

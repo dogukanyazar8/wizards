@@ -30,6 +30,9 @@ export type MobileRootStackParamList = {
   BlockedUsers: undefined;
   Security: undefined;
   DMDetails: { readonly conversationId: string };
+  ServerSettings: { readonly serverId: string };
+  ServerMembers: { readonly serverId: string };
+  ChannelSettings: { readonly channelId: string; readonly serverId: string };
 };
 
 export type MobileNavigationRouteIntent =

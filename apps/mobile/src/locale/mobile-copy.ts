@@ -641,6 +641,8 @@ export const mobileCopy = {
     workspaceChannelLoadFailed:
       "Bu kanal mesajlari yuklenemedi. Yetki ve baglanti korunuyor; tekrar deneyebilirsin.",
     workspaceAddServerAction: "Sunucu ekle",
+    workspaceServerSettingsAction: "Sunucu ayarları",
+    workspaceChannelSettingsAction: "Kanal ayarları",
     workspaceServerCreateAction: "Sunucu olustur",
     workspaceServerCreateFailed: "Sunucu olusturulamadi. Tekrar dene.",
     workspaceServerCreateInvalid: "Sunucu adi 1-64 karakter olmali.",
@@ -1322,6 +1324,8 @@ export const mobileCopy = {
     workspaceChannelLoadFailed:
       "This channel could not be loaded. Permission and connectivity protections stay in place; try again.",
     workspaceAddServerAction: "Add server",
+    workspaceServerSettingsAction: "Server settings",
+    workspaceChannelSettingsAction: "Channel settings",
     workspaceServerCreateAction: "Create server",
     workspaceServerCreateFailed: "The server could not be created. Try again.",
     workspaceServerCreateInvalid: "Server name must be 1-64 characters.",

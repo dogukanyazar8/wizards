@@ -4,6 +4,7 @@ export * from "./button";
 export * from "./bottom-sheet";
 export * from "./card";
 export * from "./context-menu";
+export * from "./destructive-confirmation-sheet";
 export * from "./divider";
 export * from "./empty-state";
 export * from "./icon";
