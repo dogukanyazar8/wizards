@@ -1,3 +1,5 @@
+import { reportError } from "@/lib/observability/reporter";
+
 const SENSITIVE_KEY_PATTERN =
   /(api[_-]?key|authorization|cookie|hash|password|recovery[_-]?code|secret|token)/i;
 const PII_KEY_NAMES = new Set(["email", "emailaddress", "ip", "ipaddress", "useragent"]);
@@ -17,13 +19,13 @@ function shouldRedactKey(key: string) {
   return PII_KEY_NAMES.has(normalizedKey) || SENSITIVE_KEY_PATTERN.test(key);
 }
 
-function redactText(value: string) {
+export function redactText(value: string) {
   return value
     .replace(JWT_PATTERN, "[redacted-jwt]")
     .replace(LONG_SECRET_PATTERN, "[redacted-secret]");
 }
 
-function redactValue(value: unknown, seen = new WeakSet<object>()): unknown {
+export function redactValue(value: unknown, seen = new WeakSet<object>()): unknown {
   if (typeof value === "string") {
     return redactText(value);
   }
@@ -98,8 +100,29 @@ export function formatWarningLog(scope: string, error: unknown, now = new Date()
 
 export function logError(scope: string, error: unknown) {
   console.error(formatErrorLog(scope, error));
+  reportError(scope, error);
 }
 
 export function logWarning(scope: string, error: unknown) {
   console.warn(formatWarningLog(scope, error));
+}
+
+export function redactErrorForReport(error: unknown): Error {
+  if (error instanceof Error) {
+    const redacted = new Error(redactText(error.message));
+    redacted.name = error.name;
+    if (error.stack) {
+      redacted.stack = redactText(error.stack);
+    }
+    const code = (error as Error & { code?: unknown }).code;
+    if (typeof code === "string") {
+      (redacted as Error & { code?: string }).code = code;
+    }
+    return redacted;
+  }
+
+  const safe = redactValue(error);
+  return new Error(
+    redactText(typeof safe === "string" ? safe : JSON.stringify(safe)),
+  );
 }

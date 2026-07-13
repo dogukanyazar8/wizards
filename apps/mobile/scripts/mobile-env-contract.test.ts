@@ -71,4 +71,27 @@ describe("mobile environment contract", () => {
       "production",
     );
   });
+
+  it("trims and passes through a configured Sentry DSN", () => {
+    const config = buildMobileEnvironmentConfig({
+      mobileEnvironment: "uat",
+      publicApiUrl: "https://wizardsweb-uat.up.railway.app",
+      publicSentryDsn: " https://k@o1.ingest.sentry.io/1 ",
+      publicSocketUrl: "https://wizardsweb-uat.up.railway.app",
+      publicWebUrl: "https://wizardsweb-uat.up.railway.app",
+    });
+
+    assert.equal(config.sentryDsn, "https://k@o1.ingest.sentry.io/1");
+  });
+
+  it("defaults sentryDsn to null when unset", () => {
+    const config = buildMobileEnvironmentConfig({
+      mobileEnvironment: "development",
+      publicApiUrl: "http://localhost:3000",
+      publicSocketUrl: "http://localhost:3000",
+      publicWebUrl: "http://localhost:3000",
+    });
+
+    assert.equal(config.sentryDsn, null);
+  });
 });

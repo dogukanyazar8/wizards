@@ -1,3 +1,10 @@
+jest.mock("@sentry/react-native", () => ({
+  addBreadcrumb: jest.fn(),
+  captureException: jest.fn(),
+  init: jest.fn(),
+  wrap: (component: unknown) => component,
+}));
+
 jest.mock("@react-native-async-storage/async-storage", () => ({
   __esModule: true,
   default: {

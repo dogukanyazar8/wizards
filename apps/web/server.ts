@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "http";
 import next from "next";
 import { assertWebEnvironment } from "./src/lib/env.js";
 import { getOperationalProbeResponse, HEALTH_RESPONSE_HEADERS } from "./src/lib/health.js";
+import { registerSentryErrorReporter } from "./src/lib/observability/register-sentry.js";
 import { startOutboxWorker } from "./src/lib/outbox/worker.js";
 import { initSocketServer } from "./src/lib/socket/server.js";
 
@@ -13,6 +14,7 @@ try {
 
 const dev = process.env.NODE_ENV !== "production";
 assertWebEnvironment(process.env, dev ? "development" : "production");
+registerSentryErrorReporter();
 
 const app = next({ dev });
 const handler = app.getRequestHandler();

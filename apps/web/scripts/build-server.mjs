@@ -49,6 +49,7 @@ const localAliasPlugin = {
 await build({
   bundle: true,
   entryPoints: {
+    instrument: resolve(webRoot, "instrument.ts"),
     "outbox-worker": resolve(webRoot, "scripts/run-outbox-worker.ts"),
     server: resolve(webRoot, "server.ts"),
   },
@@ -58,6 +59,6 @@ await build({
   packages: "external",
   platform: "node",
   plugins: [localAliasPlugin],
-  sourcemap: false,
+  sourcemap: true,
   target: "node22",
 });

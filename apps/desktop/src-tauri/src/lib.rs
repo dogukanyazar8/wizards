@@ -554,6 +554,24 @@ pub fn run() {
     let desktop_app_name =
         std::env::var("WHISPR_DESKTOP_APP_NAME").unwrap_or_else(|_| "Whispr".into());
     let desktop_release_ring = desktop_release_ring();
+
+    // Sentry: derleme zamanında gömülen DSN yoksa tamamen kapalı (no-op).
+    // Guard, run() bloğu boyunca (uygulama ömrü) canlı tutulur; panic
+    // integration'ı sentry::init içinde varsayılan olarak kurulur.
+    let _sentry_guard = option_env!("WHISPR_DESKTOP_SENTRY_DSN")
+        .filter(|dsn| !dsn.trim().is_empty())
+        .map(|dsn| {
+            sentry::init((
+                dsn,
+                sentry::ClientOptions {
+                    environment: Some(desktop_release_ring.clone().into()),
+                    release: sentry::release_name!(),
+                    send_default_pii: false,
+                    ..Default::default()
+                },
+            ))
+        });
+
     let desktop_updater_enabled = desktop_updater_enabled();
     let voice_shortcut_registry = DesktopVoiceShortcutRegistry::default();
     let mut builder = tauri::Builder::default();
