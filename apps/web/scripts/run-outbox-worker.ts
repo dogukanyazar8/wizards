@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { assertOutboxWorkerEnvironment } from "@/lib/env";
 import { registerSentryErrorReporter } from "@/lib/observability/register-sentry";
 import { startOutboxWorker, stopOutboxWorker } from "@/lib/outbox/worker";
@@ -28,6 +29,23 @@ const started = startOutboxWorker({ keepAlive: true });
 if (started) {
   console.info("Whispr outbox worker started.");
 }
+
+const HEARTBEAT_INTERVAL_MS = 60 * 60 * 1000;
+
+function sendWorkerHeartbeat() {
+  if (!Sentry.isInitialized()) {
+    return;
+  }
+
+  Sentry.captureCheckIn({
+    monitorSlug: "outbox-worker-heartbeat",
+    status: "ok",
+  });
+}
+
+sendWorkerHeartbeat();
+const heartbeatTimer = setInterval(sendWorkerHeartbeat, HEARTBEAT_INTERVAL_MS);
+heartbeatTimer.unref?.();
 
 let shuttingDown = false;
 
