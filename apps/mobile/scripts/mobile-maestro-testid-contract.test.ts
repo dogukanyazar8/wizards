@@ -266,9 +266,81 @@ describe("Phase 0 Maestro testID contract", () => {
 
   it("binds the Phase 4 server-management flow to safe, contextual test IDs", () => {
     assert.ok(phase4FlowSource, ".maestro/phase4-server-management.yml must exist");
+    assert.match(
+      phase4FlowSource,
+      /text:\s*"http:\/\/\.\*:8081"[\s\S]*?extendedWaitUntil:[\s\S]*?id:\s*"mobile-bottom-tab-settings"[\s\S]*?openLink:\s*"whispr:\/\/settings"/,
+    );
     assert.match(phase4FlowSource, /file:\s*"helpers\/login-uat\.yml"/);
     assert.match(phase4FlowSource, /tapOn:\s*"Acik\|Light"/);
     assert.match(phase4FlowSource, /tapOn:\s*"Koyu\|Dark"/);
+    for (const themeChoice of ["Acik\\|Light", "Koyu\\|Dark"]) {
+      assert.match(
+        phase4FlowSource,
+        new RegExp(
+          `tapOn:\\s*"${themeChoice}"\\r?\\n- pressKey:\\s*BACK\\r?\\n- tapOn:\\r?\\n\\s+id:\\s*"mobile-bottom-tab-overview"`,
+        ),
+      );
+    }
+    for (const sheetId of [
+      "mobile-server-create-join-sheet",
+      "mobile-category-editor-sheet",
+      "mobile-channel-editor-sheet",
+    ]) {
+      assert.match(phase4FlowSource, new RegExp(`id:\\s*"${sheetId}-panel"`));
+    }
+    for (const [input, actionId] of [
+      ["Phase4 Maestro UAT", "mobile-server-create-submit"],
+      ["Maestro", "mobile-category-save"],
+      ["Phase4 Maestro UAT", "mobile-server-delete-confirm-confirm"],
+    ]) {
+      assert.match(
+        phase4FlowSource,
+        new RegExp(
+          `inputText:\\s*"${input}"\\r?\\n- hideKeyboard\\r?\\n- tapOn:\\r?\\n\\s+id:\\s*"${actionId}"`,
+        ),
+      );
+    }
+    assert.match(
+      phase4FlowSource,
+      /inputText:\s*"maestro-text"\r?\n- hideKeyboard\r?\n- tapOn:\r?\n\s+id:\s*"mobile-channel-type-text"\r?\n- tapOn:\r?\n\s+id:\s*"mobile-channel-save"/,
+    );
+    assert.match(
+      phase4FlowSource,
+      /id:\s*"mobile-server-create-submit"[\s\S]{0,300}?id:\s*"mobile-server-create-finish"[\s\S]{0,200}?id:\s*"mobile-server-settings-open-\.\*"/,
+    );
+    assert.equal(
+      phase4FlowSource.match(/- tapOn:\s*"\.\*: Phase4 Maestro UAT"/g)?.length,
+      3,
+    );
+    assert.match(
+      phase4FlowSource,
+      /id:\s*"mobile-server-create-finish"[\s\S]{0,220}?tapOn:\s*"\.\*: Phase4 Maestro UAT"[\s\S]{0,260}?id:\s*"mobile-server-invite-share-\.\*"/,
+    );
+    assert.match(
+      phase4FlowSource,
+      /mobile-server-invite-share-\.\*"[\s\S]{0,420}?tapOn:\s*"\.\*: Phase4 Maestro UAT"[\s\S]{0,220}?id:\s*"mobile-server-settings-open-\.\*"[\s\S]{0,180}?id:\s*"mobile-server-settings-screen"[\s\S]{0,100}?assertVisible:\s*"Phase4 Maestro UAT"/,
+    );
+    assert.match(
+      phase4FlowSource,
+      /tapOn:\s*"Koyu\|Dark"[\s\S]{0,420}?tapOn:\s*"\.\*: Phase4 Maestro UAT"[\s\S]{0,220}?id:\s*"mobile-server-settings-open-\.\*"[\s\S]{0,180}?id:\s*"mobile-server-settings-screen"[\s\S]{0,100}?assertVisible:\s*"Phase4 Maestro UAT"/,
+    );
+    assert.match(
+      phase4FlowSource,
+      /id:\s*"mobile-server-icon-picker"[\s\S]{0,220}?visible:\s*"Photos\|Fotograflar\|Fotoğraflar"[\s\S]{0,180}?point:\s*"16%,58%"[\s\S]{0,120}?"Done\|Bitti\|Tamam"[\s\S]{0,320}?text:\s*"Server settings saved\.\|Sunucu ayarları kaydedildi\."[\s\S]{0,220}?id:\s*"mobile-server-icon-picker"[\s\S]{0,180}?light-server-management/,
+    );
+    assert.doesNotMatch(phase4FlowSource, /visible:\s*"phase4-avatar"/);
+    assert.match(
+      phase4FlowSource,
+      /id:\s*"mobile-server-invite-share-\.\*"[\s\S]{0,220}?visible:\s*"Sharing link\|Baglanti paylas\|Bağlantı paylaş"[\s\S]{0,160}?pressKey:\s*BACK[\s\S]{0,180}?visible:[\s\S]{0,80}?id:\s*"mobile-overview-screen"/,
+    );
+    assert.match(
+      phase4FlowSource,
+      /dark-server-management"[\s\S]{0,250}?scrollUntilVisible:[\s\S]{0,120}?id:\s*"mobile-server-delete-open"[\s\S]{0,80}?direction:\s*DOWN[\s\S]{0,120}?id:\s*"mobile-server-delete-open"/,
+    );
+    assert.match(
+      phase4FlowSource,
+      /id:\s*"mobile-server-delete-confirm-confirm"[\s\S]{0,220}?visible:[\s\S]{0,80}?id:\s*"mobile-overview-screen"[\s\S]{0,180}?assertNotVisible:\s*"Phase4 Maestro UAT"/,
+    );
     assert.match(phase4FlowSource, /inputText:\s*"Phase4 Maestro UAT"/);
     for (const id of [
       "mobile-server-add-open",
@@ -307,6 +379,7 @@ describe("Phase 0 Maestro testID contract", () => {
       ["src/workspace/mobile-channel-settings-screen.tsx", "mobile-channel-settings-screen"],
       ["src/workspace/mobile-server-members-screen.tsx", "mobile-server-members-list"],
       ["src/app/components/kit/destructive-confirmation-sheet.tsx", "${testID}-confirm"],
+      ["src/app/components/kit/bottom-sheet.tsx", "${testID}-panel"],
     ] as const;
     for (const [sourcePath, needle] of productionContracts) {
       assert.match(readFileSync(path.join(process.cwd(), sourcePath), "utf8"), new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));

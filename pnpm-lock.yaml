@@ -80,9 +80,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.99.2
         version: 5.99.2(react@19.2.3)
-      '@uploadthing/expo':
-        specifier: 7.2.6
-        version: 7.2.6(expo-constants@56.0.20(expo@56.0.15)(react-native@0.85.3(@babel/core@7.29.7)(@react-native/jest-preset@0.85.3(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.2.14)(react@19.2.3)))(expo-document-picker@56.0.4(expo@56.0.15))(expo-image-picker@56.0.20(expo@56.0.15))(next@15.5.18(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.59.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.3))(react@19.2.3))(react-native@0.85.3(@babel/core@7.29.7)(@react-native/jest-preset@0.85.3(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)(uploadthing@7.7.4(next@15.5.18(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.59.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.22.4)(yaml@2.9.0)))
+      '@uploadthing/react':
+        specifier: 7.3.3
+        version: 7.3.3(next@15.5.18(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.59.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.3))(react@19.2.3))(react@19.2.3)(uploadthing@7.7.4(next@15.5.18(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.59.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.22.4)(yaml@2.9.0)))
       '@wizards/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -3032,20 +3032,6 @@ packages:
     resolution: {integrity: sha512-lrW200hZdbfRtztbygyaq/6jP6AKE8qQN2KvPcJ+x7wiD038YtnYtZ82IMNJ69GJibV7bwL3y9FgK+5w/pYt6g==}
     cpu: [x64]
     os: [win32]
-
-  '@uploadthing/expo@7.2.6':
-    resolution: {integrity: sha512-vnqRsw0kYSkiwPukQFcitulb//3GXrWU8XFjS7FDGKAP8kTqoDeBOZ5NaXczmk2sBZYb3ap3D2VJf0VUVEnBbQ==}
-    peerDependencies:
-      '@uploadthing/mime-types': '*'
-      expo-constants: '*'
-      expo-document-picker: '*'
-      expo-image-picker: '*'
-      react: ^17.0.2 || ^18.0.0 || ^19.0.0
-      react-native: '*'
-      uploadthing: ^7.2.0
-    peerDependenciesMeta:
-      '@uploadthing/mime-types':
-        optional: true
 
   '@uploadthing/mime-types@0.3.6':
     resolution: {integrity: sha512-t3tTzgwFV9+1D7lNDYc7Lr7kBwotHaX0ZsvoCGe7xGnXKo9z0jG2Sjl/msll12FeoLj77nyhsxevXyGpQDBvLg==}
@@ -9451,9 +9437,7 @@ snapshots:
       metro-runtime: 0.84.4
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.85.3': {}
 
@@ -10372,19 +10356,6 @@ snapshots:
 
   '@unrs/resolver-binding-win32-x64-msvc@1.11.1':
     optional: true
-
-  '@uploadthing/expo@7.2.6(expo-constants@56.0.20(expo@56.0.15)(react-native@0.85.3(@babel/core@7.29.7)(@react-native/jest-preset@0.85.3(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.2.14)(react@19.2.3)))(expo-document-picker@56.0.4(expo@56.0.15))(expo-image-picker@56.0.20(expo@56.0.15))(next@15.5.18(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.59.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.3))(react@19.2.3))(react-native@0.85.3(@babel/core@7.29.7)(@react-native/jest-preset@0.85.3(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)(uploadthing@7.7.4(next@15.5.18(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.59.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.22.4)(yaml@2.9.0)))':
-    dependencies:
-      '@uploadthing/react': 7.3.3(next@15.5.18(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.59.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.3))(react@19.2.3))(react@19.2.3)(uploadthing@7.7.4(next@15.5.18(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.59.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.22.4)(yaml@2.9.0)))
-      '@uploadthing/shared': 7.1.10
-      expo-constants: 56.0.20(expo@56.0.15)(react-native@0.85.3(@babel/core@7.29.7)(@react-native/jest-preset@0.85.3(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.2.14)(react@19.2.3))
-      expo-document-picker: 56.0.4(expo@56.0.15)
-      expo-image-picker: 56.0.20(expo@56.0.15)
-      react: 19.2.3
-      react-native: 0.85.3(@babel/core@7.29.7)(@react-native/jest-preset@0.85.3(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.2.14)(react@19.2.3)
-      uploadthing: 7.7.4(next@15.5.18(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.59.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.22.4)(yaml@2.9.0))
-    transitivePeerDependencies:
-      - next
 
   '@uploadthing/mime-types@0.3.6': {}
 

@@ -1,4 +1,4 @@
-import { generateReactNativeHelpers } from "@uploadthing/expo";
+import { generateReactHelpers } from "@uploadthing/react/native";
 import {
   MobileMediaUploadIntentSchema,
   type MobileMediaUploadCompletionResponse,
@@ -19,9 +19,11 @@ type MobileMediaUploadRouter = {
   }>;
 };
 
-const helpers = generateReactNativeHelpers<MobileMediaUploadRouter>({
-  url: new URL("/api/uploadthing", getMobileRuntimeConfig().apiUrl),
-});
+function createUploadThingHelpers() {
+  return generateReactHelpers<MobileMediaUploadRouter>({
+    url: new URL("/api/uploadthing", getMobileRuntimeConfig().apiUrl),
+  });
+}
 
 export async function uploadMobileImageToUploadThing(input: {
   accessToken: string;
@@ -29,6 +31,9 @@ export async function uploadMobileImageToUploadThing(input: {
   signal?: AbortSignal;
   target: MobileImageUploadTarget;
 }): Promise<MobileMediaUploadCompletionResponse> {
+  // React Native can replace its URL polyfill after module initialization. Create
+  // the helper lazily so UploadThing's URL identity checks use the active runtime.
+  const helpers = createUploadThingHelpers();
   const rows = await helpers.uploadFiles("mobileMediaUploader", {
     files: [input.file],
     headers: { Authorization: `Bearer ${input.accessToken}` },

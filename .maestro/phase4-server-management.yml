@@ -12,6 +12,10 @@ appId: team.whispr.mobile
     text: "http://.*:8081"
     index: 0
     optional: true
+- extendedWaitUntil:
+    visible:
+      id: "mobile-bottom-tab-settings"
+    timeout: 60000
 - openLink: "whispr://settings"
 - extendedWaitUntil:
     visible:
@@ -27,6 +31,7 @@ appId: team.whispr.mobile
 - tapOn:
     id: "mobile-settings-appearance-control"
 - tapOn: "Acik|Light"
+- pressKey: BACK
 - tapOn:
     id: "mobile-bottom-tab-overview"
 - extendedWaitUntil:
@@ -36,42 +41,64 @@ appId: team.whispr.mobile
 - tapOn:
     id: "mobile-server-add-open"
 - assertVisible:
-    id: "mobile-server-create-join-sheet"
+    id: "mobile-server-create-join-sheet-panel"
 - tapOn:
     id: "mobile-server-mode-create"
 - tapOn:
     id: "mobile-server-create-name"
 - inputText: "Phase4 Maestro UAT"
+- hideKeyboard
 - tapOn:
     id: "mobile-server-create-submit"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-server-create-finish"
+    timeout: 30000
+- tapOn:
+    id: "mobile-server-create-finish"
+- extendedWaitUntil:
+    visible: ".*: Phase4 Maestro UAT"
+    timeout: 30000
+- tapOn: ".*: Phase4 Maestro UAT"
 - extendedWaitUntil:
     visible:
       id: "mobile-server-settings-open-.*"
     timeout: 30000
 - tapOn:
     id: "mobile-server-invite-share-.*"
+- extendedWaitUntil:
+    visible: "Sharing link|Baglanti paylas|Bağlantı paylaş"
+    timeout: 30000
 - pressKey: BACK
+- extendedWaitUntil:
+    visible:
+      id: "mobile-overview-screen"
+    timeout: 30000
 # The native share chooser is closed before any evidence is captured.
+- tapOn: ".*: Phase4 Maestro UAT"
 - tapOn:
     id: "mobile-server-settings-open-.*"
 - assertVisible:
     id: "mobile-server-settings-screen"
+- assertVisible: "Phase4 Maestro UAT"
 - tapOn:
     id: "mobile-category-create-open"
 - assertVisible:
-    id: "mobile-category-editor-sheet"
+    id: "mobile-category-editor-sheet-panel"
 - tapOn:
     id: "mobile-category-name"
 - inputText: "Maestro"
+- hideKeyboard
 - tapOn:
     id: "mobile-category-save"
 - tapOn:
     id: "mobile-channel-create-open"
 - assertVisible:
-    id: "mobile-channel-editor-sheet"
+    id: "mobile-channel-editor-sheet-panel"
 - tapOn:
     id: "mobile-channel-name"
 - inputText: "maestro-text"
+- hideKeyboard
 - tapOn:
     id: "mobile-channel-type-text"
 - tapOn:
@@ -84,12 +111,24 @@ appId: team.whispr.mobile
 - tapOn:
     id: "mobile-server-icon-picker"
 - extendedWaitUntil:
-    visible: "phase4-avatar"
+    visible: "Photos|Fotograflar|Fotoğraflar"
     timeout: 30000
-- tapOn: "phase4-avatar"
+- tapOn:
+    point: "16%,58%"
+- tapOn: "Done|Bitti|Tamam"
 - extendedWaitUntil:
     visible:
       id: "mobile-server-settings-screen"
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: "Server settings saved.|Sunucu ayarları kaydedildi."
+    direction: DOWN
+    timeout: 60000
+- scrollUntilVisible:
+    element:
+      id: "mobile-server-icon-picker"
+    direction: UP
     timeout: 30000
 - takeScreenshot: "artifacts/mobile/phase4/closure/light-server-management"
 - openLink: "whispr://settings"
@@ -98,8 +137,10 @@ appId: team.whispr.mobile
 - tapOn:
     id: "mobile-settings-appearance-control"
 - tapOn: "Koyu|Dark"
+- pressKey: BACK
 - tapOn:
     id: "mobile-bottom-tab-overview"
+- tapOn: ".*: Phase4 Maestro UAT"
 - extendedWaitUntil:
     visible:
       id: "mobile-server-settings-open-.*"
@@ -108,7 +149,12 @@ appId: team.whispr.mobile
     id: "mobile-server-settings-open-.*"
 - assertVisible:
     id: "mobile-server-settings-screen"
+- assertVisible: "Phase4 Maestro UAT"
 - takeScreenshot: "artifacts/mobile/phase4/closure/dark-server-management"
+- scrollUntilVisible:
+    element:
+      id: "mobile-server-delete-open"
+    direction: DOWN
 - tapOn:
     id: "mobile-server-delete-open"
 - assertVisible:
@@ -116,9 +162,11 @@ appId: team.whispr.mobile
 - tapOn:
     id: "mobile-server-delete-confirm-input"
 - inputText: "Phase4 Maestro UAT"
+- hideKeyboard
 - tapOn:
     id: "mobile-server-delete-confirm-confirm"
 - extendedWaitUntil:
-    notVisible:
-      id: "mobile-server-settings-open-.*"
+    visible:
+      id: "mobile-overview-screen"
     timeout: 30000
+- assertNotVisible: "Phase4 Maestro UAT"

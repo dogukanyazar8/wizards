@@ -12,7 +12,10 @@ function readSource(name: string) {
 }
 
 describe("mobile media upload architecture", () => {
-  it("uses the custom Expo picker with the official UploadThing transport", () => {
+  it("uses the custom Expo picker with the React Native-safe UploadThing transport", () => {
+    const packageJson = JSON.parse(
+      readFileSync(join(process.cwd(), "package.json"), "utf8"),
+    ) as { dependencies?: Record<string, string> };
     const pickerSource = readSource("mobile-image-picker.ts");
     const transportSource = readSource("mobile-uploadthing-client.ts");
     const contractSource = readSource("mobile-image-upload-contract.ts");
@@ -22,7 +25,22 @@ describe("mobile media upload architecture", () => {
     );
 
     assert.match(pickerSource, /from "expo-image-picker"/);
-    assert.match(transportSource, /generateReactNativeHelpers/);
+    assert.doesNotMatch(pickerSource, /fetch\(asset\.uri\)/);
+    assert.match(pickerSource, /uri:\s*asset\.uri/);
+    assert.match(pickerSource, /size:\s*asset\.fileSize\s*\?\?\s*0/);
+    assert.match(
+      transportSource,
+      /generateReactHelpers.*from "@uploadthing\/react\/native"/s,
+    );
+    assert.doesNotMatch(transportSource, /generateReactNativeHelpers/);
+    assert.equal(packageJson.dependencies?.["@uploadthing/react"], "7.3.3");
+    assert.equal(packageJson.dependencies?.["@uploadthing/expo"], undefined);
+    assert.match(transportSource, /function createUploadThingHelpers/);
+    assert.match(
+      transportSource,
+      /uploadMobileImageToUploadThing[\s\S]*createUploadThingHelpers\(\)/,
+    );
+    assert.doesNotMatch(transportSource, /const helpers = generateReactHelpers/);
     assert.match(transportSource, /\.uploadFiles/);
     assert.doesNotMatch(transportSource, /useImageUploader/);
     assert.doesNotMatch(contractSource, /MobileMediaRuntimeState/);

@@ -50,26 +50,15 @@ export async function pickMobileImage(): Promise<MobilePickedImage | null> {
     throw new MobileImageUploadError("unsupported-image-content-type");
   }
 
-  let blob: Blob;
-
-  try {
-    blob = await fetch(asset.uri).then((response) => response.blob());
-  } catch {
-    throw new MobileImageUploadError("unable-to-read-selected-file");
-  }
-
-  validateMobilePickedImageAsset({
-    mimeType,
-    sizeBytes: blob.size,
+  // React Native uploads local files through a URI-backed FormData part. Reading
+  // Android Photo Picker URIs with fetch() is not portable under the new runtime.
+  const file = {
+    lastModified: Date.now(),
+    name: MOBILE_IMAGE_FILE_NAMES[mimeType as keyof typeof MOBILE_IMAGE_FILE_NAMES],
+    size: asset.fileSize ?? 0,
+    type: mimeType,
     uri: asset.uri,
-  });
+  } as unknown as File;
 
-  const file = Object.assign(
-    new File([blob], MOBILE_IMAGE_FILE_NAMES[mimeType as keyof typeof MOBILE_IMAGE_FILE_NAMES], {
-      type: mimeType,
-    }),
-    { uri: asset.uri },
-  );
-
-  return { file: file as File, localUri: asset.uri };
+  return { file, localUri: asset.uri };
 }
