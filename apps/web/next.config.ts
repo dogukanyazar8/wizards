@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import bundleAnalyzer from "@next/bundle-analyzer";
+import { withSentryConfig } from "@sentry/nextjs";
 import { readFileSync } from "node:fs";
 
 const packageJson = JSON.parse(
@@ -98,4 +99,20 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withBundleAnalyzer(nextConfig);
+const sentryOrg = firstNonEmpty(process.env.SENTRY_ORG);
+const sentryProject = firstNonEmpty(process.env.SENTRY_PROJECT);
+const sentryAuthToken = firstNonEmpty(process.env.SENTRY_AUTH_TOKEN);
+
+export default withSentryConfig(withBundleAnalyzer(nextConfig), {
+  ...(sentryOrg ? { org: sentryOrg } : {}),
+  ...(sentryProject ? { project: sentryProject } : {}),
+  ...(sentryAuthToken ? { authToken: sentryAuthToken } : {}),
+  sentryUrl: process.env.SENTRY_URL || "https://de.sentry.io",
+  silent: true,
+  telemetry: false,
+  disableLogger: true,
+  tunnelRoute: "/monitoring",
+  widenClientFileUpload: true,
+  release: { name: whisprBuildId },
+  sourcemaps: { deleteSourcemapsAfterUpload: true },
+});

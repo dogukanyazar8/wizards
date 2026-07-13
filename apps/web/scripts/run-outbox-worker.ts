@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import type * as SentryNextjs from "@sentry/nextjs";
 import { assertOutboxWorkerEnvironment } from "@/lib/env";
 import { registerSentryErrorReporter } from "@/lib/observability/register-sentry";
 import { startOutboxWorker, stopOutboxWorker } from "@/lib/outbox/worker";
@@ -12,7 +13,7 @@ import {
 // statik analizinin çözemediği captureCheckIn/isInitialized gibi
 // fonksiyonların garanti gelmesini sağlar (bkz. register-sentry.ts).
 const require = createRequire(import.meta.url);
-const Sentry = require("@sentry/nextjs") as typeof import("@sentry/nextjs");
+const Sentry = require("@sentry/nextjs") as typeof SentryNextjs;
 
 try {
   process.loadEnvFile();

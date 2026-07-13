@@ -4,6 +4,8 @@
 // tarafından entry başına kopyalandığından buradan import edilirse uygulama
 // bundle'ındaki instance ile ayrışır.
 import { createRequire } from "node:module";
+import type * as SentryNextjs from "@sentry/nextjs";
+import type * as PrismaInstrumentationNs from "@prisma/instrumentation";
 
 // @sentry/nextjs ve @prisma/instrumentation CJS paketlerdir. Node'un ESM
 // named-export statik analizi (cjs-module-lexer) bu paketlerin tüm export
@@ -16,8 +18,8 @@ import { createRequire } from "node:module";
 // dosyalar için gereklidir (Next tarafından derlenen dosyalarda plain import
 // güvenlidir çünkü Next kendi Sentry eklentisiyle doğru alt modülü seçer).
 const require = createRequire(import.meta.url);
-const Sentry = require("@sentry/nextjs") as typeof import("@sentry/nextjs");
-const { PrismaInstrumentation } = require("@prisma/instrumentation") as typeof import("@prisma/instrumentation");
+const Sentry = require("@sentry/nextjs") as typeof SentryNextjs;
+const { PrismaInstrumentation } = require("@prisma/instrumentation") as typeof PrismaInstrumentationNs;
 
 // KAYNAK-DOĞRU: apps/web/src/lib/logger.ts. instrument.ts import-bağımsız
 // olmak zorunda olduğundan bu iki desen kasıtlı olarak burada tekrarlanır;

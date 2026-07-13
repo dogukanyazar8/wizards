@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import type * as SentryNextjs from "@sentry/nextjs";
 import { redactErrorForReport, redactText } from "@/lib/logger";
 import { registerErrorReporter } from "@/lib/observability/reporter";
 
@@ -8,9 +9,10 @@ import { registerErrorReporter } from "@/lib/observability/reporter";
 // Node'un ESM named-export statik analizinin (cjs-module-lexer) çözebildiği
 // kısıtlı bir alt kümeyi verir ve isInitialized/captureException gibi
 // fonksiyonlar sessizce undefined kalabilir. createRequire tam CJS
-// çözümlemesini garanti eder.
+// çözümlemesini garanti eder; `import type` yalnız derleme-zamanı tip
+// bilgisi taşır, ayrı bir runtime modül örneği oluşturmaz.
 const require = createRequire(import.meta.url);
-const Sentry = require("@sentry/nextjs") as typeof import("@sentry/nextjs");
+const Sentry = require("@sentry/nextjs") as typeof SentryNextjs;
 
 export function registerSentryErrorReporter() {
   if (!Sentry.isInitialized()) {
