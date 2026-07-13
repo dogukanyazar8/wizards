@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { formatErrorLog, formatWarningLog } from "./logger";
+import {
+  formatErrorLog,
+  formatWarningLog,
+  logError,
+  logWarning,
+  redactErrorForReport,
+} from "./logger";
+import { clearErrorReporter, registerErrorReporter } from "./observability/reporter";
 
 describe("structured logger", () => {
   it("preserves non-PII email metadata and approved diagnostic hashes", () => {
@@ -174,5 +181,43 @@ describe("structured logger", () => {
     assert.equal(payload.scope, "voice:metadata");
     assert.equal(payload.error.token, "[redacted]");
     assert.equal(payload.error.error.message, "timeout for [redacted-secret]");
+  });
+});
+
+describe("logError reporter köprüsü", () => {
+  it("logError kayıtlı reporter'ı tetikler", () => {
+    const calls: Array<{ scope: string; error: unknown }> = [];
+    registerErrorReporter((scope, error) => calls.push({ scope, error }));
+    const failure = new Error("bridge test");
+    logError("[bridge] test", failure);
+    clearErrorReporter();
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]?.scope, "[bridge] test");
+  });
+
+  it("logWarning reporter'ı tetiklemez", () => {
+    const calls: unknown[] = [];
+    registerErrorReporter((scope) => calls.push(scope));
+    logWarning("[bridge] warn", new Error("warn"));
+    clearErrorReporter();
+    assert.equal(calls.length, 0);
+  });
+});
+
+describe("redactErrorForReport", () => {
+  it("mesajdaki JWT'yi redakte eder, stack'i korur", () => {
+    const jwt =
+      "eyJaaaaaaaaaaaaaaaaaaaa.eyJbbbbbbbbbbbbbbbbbbbb.cccccccccccccccccccc";
+    const failure = new Error(`token sızdı: ${jwt}`);
+    const redacted = redactErrorForReport(failure);
+    assert.ok(!redacted.message.includes("eyJ"));
+    assert.ok(redacted.message.includes("[redacted-jwt]"));
+    assert.equal(redacted.name, "Error");
+    assert.ok(typeof redacted.stack === "string" && redacted.stack.length > 0);
+  });
+
+  it("Error olmayan değeri redakte string'e sarar", () => {
+    const redacted = redactErrorForReport({ secret: "sk_live_ABCDEFGHIJKLMNOP123" });
+    assert.ok(redacted instanceof Error);
   });
 });
