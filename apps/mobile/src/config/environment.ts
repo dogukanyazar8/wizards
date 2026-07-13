@@ -6,6 +6,7 @@ export type MobileEnvironmentConfig = {
   apiUrl: string;
   environment: MobileEnvironmentName;
   releaseChannel: MobileEnvironmentName;
+  sentryDsn: string | null;
   socketUrl: string;
   webUrl: string;
 };
@@ -13,6 +14,7 @@ export type MobileEnvironmentConfig = {
 type BuildMobileEnvironmentConfigInput = {
   mobileEnvironment?: string;
   publicApiUrl?: string;
+  publicSentryDsn?: string;
   publicSocketUrl?: string;
   publicWebUrl?: string;
 };
@@ -118,6 +120,7 @@ export function buildMobileEnvironmentConfig(
     apiUrl,
     environment,
     releaseChannel: environment,
+    sentryDsn: input.publicSentryDsn?.trim() || null,
     socketUrl,
     webUrl,
   };
@@ -127,6 +130,7 @@ export function getMobileRuntimeConfig(): MobileEnvironmentConfig {
   return buildMobileEnvironmentConfig({
     mobileEnvironment: process.env.EXPO_PUBLIC_WHISPR_MOBILE_ENV ?? process.env.WHISPR_MOBILE_ENV,
     publicApiUrl: process.env.EXPO_PUBLIC_WHISPR_API_URL,
+    publicSentryDsn: process.env.EXPO_PUBLIC_WHISPR_SENTRY_DSN,
     publicSocketUrl: process.env.EXPO_PUBLIC_WHISPR_SOCKET_URL,
     publicWebUrl: process.env.EXPO_PUBLIC_WHISPR_WEB_URL,
   });

@@ -114,6 +114,7 @@ function buildPublicConfig(environment) {
     apiUrl,
     environment,
     releaseChannel: environment,
+    sentryDsn: process.env.EXPO_PUBLIC_WHISPR_SENTRY_DSN?.trim() || null,
     socketUrl,
     webUrl,
   };
@@ -155,6 +156,13 @@ module.exports = ({ config }) => {
       "@config-plugins/react-native-webrtc",
       "expo-image",
       "./plugins/withScreenShare",
+      [
+        "@sentry/react-native/expo",
+        {
+          organization: process.env.SENTRY_ORG ?? "whispr-p0",
+          project: "whispr-mobile",
+        },
+      ],
     ],
     extra: {
       ...config.extra,

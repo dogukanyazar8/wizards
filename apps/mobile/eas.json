@@ -20,7 +20,8 @@
         "WHISPR_MOBILE_ENV": "uat",
         "EXPO_PUBLIC_WHISPR_API_URL": "https://wizardsweb-uat.up.railway.app",
         "EXPO_PUBLIC_WHISPR_SOCKET_URL": "https://wizardsweb-uat.up.railway.app",
-        "EXPO_PUBLIC_WHISPR_WEB_URL": "https://wizardsweb-uat.up.railway.app"
+        "EXPO_PUBLIC_WHISPR_WEB_URL": "https://wizardsweb-uat.up.railway.app",
+        "EXPO_PUBLIC_WHISPR_SENTRY_DSN": "https://74b46a856eefe32a4df74f7196249590@o4511722135617536.ingest.de.sentry.io/4511727701065808"
       }
     },
     "canary": {
@@ -31,7 +32,8 @@
         "WHISPR_MOBILE_ENV": "canary",
         "EXPO_PUBLIC_WHISPR_API_URL": "https://whispr.team",
         "EXPO_PUBLIC_WHISPR_SOCKET_URL": "https://whispr.team",
-        "EXPO_PUBLIC_WHISPR_WEB_URL": "https://whispr.team"
+        "EXPO_PUBLIC_WHISPR_WEB_URL": "https://whispr.team",
+        "EXPO_PUBLIC_WHISPR_SENTRY_DSN": "https://74b46a856eefe32a4df74f7196249590@o4511722135617536.ingest.de.sentry.io/4511727701065808"
       }
     },
     "production": {
@@ -42,7 +44,8 @@
         "WHISPR_MOBILE_ENV": "production",
         "EXPO_PUBLIC_WHISPR_API_URL": "https://whispr.team",
         "EXPO_PUBLIC_WHISPR_SOCKET_URL": "https://whispr.team",
-        "EXPO_PUBLIC_WHISPR_WEB_URL": "https://whispr.team"
+        "EXPO_PUBLIC_WHISPR_WEB_URL": "https://whispr.team",
+        "EXPO_PUBLIC_WHISPR_SENTRY_DSN": "https://74b46a856eefe32a4df74f7196249590@o4511722135617536.ingest.de.sentry.io/4511727701065808"
       }
     }
   },

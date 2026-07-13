@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getMobileTheme } from "../design/mobile-theme-runtime";
 import type { MobileTheme } from "../design/themes";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
+import { reportMobileBoundaryError } from "../observability/mobile-sentry";
 import { useThemedStyles } from "./providers/mobile-theme-provider";
 
 const copy = activeMobileCopy;
@@ -43,6 +44,8 @@ class MobileErrorBoundaryCore extends Component<
   }
 
   componentDidCatch(error: unknown, errorInfo: ErrorInfo) {
+    reportMobileBoundaryError(error, errorInfo.componentStack);
+
     if (process.env.NODE_ENV === "production") {
       return;
     }
