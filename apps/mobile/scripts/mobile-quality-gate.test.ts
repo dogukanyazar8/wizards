@@ -71,7 +71,7 @@ describe("mobile quality gate", () => {
     assert.doesNotMatch(navigationCheck.label, /Overview, Chat, Voice, and Settings/);
 
     const voiceCheck = MOBILE_MANUAL_QA_CHECKS.find(
-      (check) => check.id === "voice-disabled-contract",
+      (check) => check.id === "voice-lifecycle-contract",
     );
     assert.ok(voiceCheck);
     assert.match(voiceCheck.label, /LiveKit join/i);
@@ -164,6 +164,39 @@ describe("mobile quality gate", () => {
       }
       assert.match(source, /MobileMediaUpload/);
       assert.match(source, /Maestro|maestro/);
+    }
+  });
+
+  it("locks the Phase 5 privacy, performance, voice, and offline closure", () => {
+    const phase5Gate = MOBILE_AUTOMATED_GATES.find(
+      (gate) => gate.id === "mobile-maestro-phase5-voice",
+    );
+    assert.ok(phase5Gate);
+    assert.equal(phase5Gate.command, "maestro test ../../.maestro/phase5-voice-polish.yml");
+
+    const manualIds = new Set(MOBILE_MANUAL_QA_CHECKS.map((check) => check.id));
+    for (const id of [
+      "app-switcher-privacy-shield",
+      "voice-camera-device-noise",
+      "offline-awareness-no-queue",
+      "phase5-list-startup-performance",
+      "phase5-voice-accessibility",
+    ]) {
+      assert.equal(manualIds.has(id), true, `Missing Phase 5 manual check: ${id}`);
+    }
+
+    const migrationPath = join(process.cwd(), "MIGRATION_PHASE_5.md");
+    assert.equal(existsSync(migrationPath), true, "MIGRATION_PHASE_5.md must exist");
+    const migration = readFileSync(migrationPath, "utf8");
+    for (const statement of [
+      "Rol CRUD + izin hiyerar",
+      "channel/category reorder UI",
+      "offline queue",
+      "group video layout",
+      "Phase 0-5",
+      "onLoad",
+    ]) {
+      assert.ok(migration.includes(statement), `Missing Phase 5 migration statement: ${statement}`);
     }
   });
 });

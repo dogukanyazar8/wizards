@@ -6,6 +6,7 @@ import { mobileRadii, mobileSizing, mobileSpacing } from "../../design/tokens";
 import { BottomSheet } from "./kit";
 import { useTheme, useThemedStyles } from "../providers/mobile-theme-provider";
 import { MOBILE_MESSAGE_EMOJI_DATA, type MobileEmojiCategory } from "./message-emoji-data";
+import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 
 const CATEGORIES: readonly MobileEmojiCategory[] = ["faces", "gestures", "symbols"];
 
@@ -20,6 +21,7 @@ export function MessageEmojiPicker({
 }) {
   const theme = useTheme();
   const styles = useThemedStyles(createStyles);
+  const { selection } = useMobileHaptics();
   const [category, setCategory] = useState<MobileEmojiCategory>("faces");
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -57,7 +59,10 @@ export function MessageEmojiPicker({
             accessibilityRole="tab"
             accessibilityState={{ selected: item === category }}
             key={item}
-            onPress={() => setCategory(item)}
+            onPress={() => {
+              selection();
+              setCategory(item);
+            }}
             style={[styles.tab, item === category && styles.tabSelected]}
             testID={`mobile-message-emoji-category-${item}`}
           >
@@ -76,6 +81,7 @@ export function MessageEmojiPicker({
             accessibilityLabel={item.emoji}
             accessibilityRole="button"
             onPress={() => {
+              selection();
               onSelect(item.emoji);
               onClose();
             }}

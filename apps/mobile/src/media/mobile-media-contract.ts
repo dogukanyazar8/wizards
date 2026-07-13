@@ -345,8 +345,8 @@ export function validateMobileMediaContract(): string[] {
   if (!videoCalls) {
     issues.push("videoCalls capability must be declared.");
   } else {
-    if (videoCalls.stage !== "requires-native-module") {
-      issues.push("videoCalls must stay requires-native-module until camera track flow exists.");
+    if (videoCalls.stage !== "foundation-ready") {
+      issues.push("videoCalls must stay foundation-ready after camera track flow exists.");
     }
 
     if (!videoCalls.permissionIntents.includes("camera")) {

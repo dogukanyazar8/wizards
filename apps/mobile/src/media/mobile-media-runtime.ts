@@ -8,13 +8,14 @@ import {
   mapExpoImagePickerPermissionStatus,
   type MobileMediaRuntimeState,
 } from "./mobile-media-contract";
+import { getExpoDocumentPickerModule, getExpoImagePickerModule } from "./expo-mobile-media-modules";
 
 export async function requestMobilePhotoLibraryPermissionAfterUserAction(
   current: MobileMediaRuntimeState,
   now = Date.now(),
 ): Promise<MobileMediaRuntimeState> {
   try {
-    const ImagePicker = await import("expo-image-picker");
+    const ImagePicker = getExpoImagePickerModule();
 
     const currentPermissions = await ImagePicker.getMediaLibraryPermissionsAsync();
     const currentStatus = mapExpoImagePickerPermissionStatus(
@@ -62,7 +63,7 @@ export async function requestMobilePhotoLibraryPickerAfterUserAction(
   now = Date.now(),
 ): Promise<MobileMediaRuntimeState> {
   try {
-    const ImagePicker = await import("expo-image-picker");
+    const ImagePicker = getExpoImagePickerModule();
 
     const currentPermissions = await ImagePicker.getMediaLibraryPermissionsAsync();
     let permissionStatus = mapExpoImagePickerPermissionStatus(
@@ -128,7 +129,7 @@ export async function requestMobileCameraPermissionAfterUserAction(
   now = Date.now(),
 ): Promise<MobileMediaRuntimeState> {
   try {
-    const ImagePicker = await import("expo-image-picker");
+    const ImagePicker = getExpoImagePickerModule();
 
     const currentPermissions = await ImagePicker.getCameraPermissionsAsync();
     const currentStatus = mapExpoImagePickerPermissionStatus(
@@ -166,7 +167,7 @@ export async function requestMobileDocumentPickerAfterUserAction(
   now = Date.now(),
 ): Promise<MobileMediaRuntimeState> {
   try {
-    const DocumentPicker = await import("expo-document-picker");
+    const DocumentPicker = getExpoDocumentPickerModule();
     const result = await DocumentPicker.getDocumentAsync({
       copyToCacheDirectory: true,
       multiple: false,

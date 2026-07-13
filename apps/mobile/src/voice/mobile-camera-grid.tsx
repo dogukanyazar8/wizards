@@ -1,5 +1,6 @@
 import { VideoTrack } from "@livekit/react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { activeMobileCopy as copy } from "../locale/mobile-locale-preferences";
@@ -7,7 +8,7 @@ import type { MobileTheme } from "../design/themes";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
 import type { MobileVoiceRoomParticipant } from "./mobile-voice-room-contract";
 
-const MAX_VISIBLE_CAMERA_TILES = 6;
+export const MAX_VISIBLE_CAMERA_TILES = 6;
 
 const createStyles = (theme: MobileTheme) => ({
   grid: {
@@ -51,7 +52,7 @@ const createStyles = (theme: MobileTheme) => ({
   },
 });
 
-export function MobileVoiceCameraGrid({
+export const MobileVoiceCameraGrid = memo(function MobileVoiceCameraGrid({
   canFlip,
   onFlip,
   participants,
@@ -71,10 +72,18 @@ export function MobileVoiceCameraGrid({
   }
 
   return (
-    <View accessibilityLabel={copy.voiceCameraOnAction} style={styles.grid} testID="mobile-voice-camera-grid">
+    <View
+      accessibilityLabel={copy.voiceCameraOnAction}
+      style={styles.grid}
+      testID="mobile-voice-camera-grid"
+    >
       {visible.map((participant) => (
         <View key={participant.userId} style={styles.tile}>
-          <VideoTrack objectFit="cover" style={styles.video} trackRef={participant.cameraTrackRef!} />
+          <VideoTrack
+            objectFit="cover"
+            style={styles.video}
+            trackRef={participant.cameraTrackRef!}
+          />
           <Text numberOfLines={1} style={styles.label}>
             {participant.displayName ?? participant.username}
           </Text>
@@ -93,4 +102,4 @@ export function MobileVoiceCameraGrid({
       ))}
     </View>
   );
-}
+});

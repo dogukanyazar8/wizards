@@ -53,7 +53,7 @@ export const MOBILE_NATIVE_CAPABILITIES: readonly MobileNativeCapability[] = [
     feature: "camera",
     id: "videoCalls",
     permissionIntents: ["camera", "microphone"],
-    stage: "requires-native-module",
+    stage: "foundation-ready",
     userActionTrigger: "User starts camera or joins a video call.",
   },
   {
@@ -124,6 +124,10 @@ export function validateMobileNativeCapabilityContract(): string[] {
 
     if (capability.id === "voiceChannels" && capability.stage !== "foundation-ready") {
       issues.push("voiceChannels must stay foundation-ready after native LiveKit join exists.");
+    }
+
+    if (capability.id === "videoCalls" && capability.stage !== "foundation-ready") {
+      issues.push("videoCalls must stay foundation-ready after native camera publishing exists.");
     }
 
     if (

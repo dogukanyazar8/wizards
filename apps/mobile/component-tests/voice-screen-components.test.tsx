@@ -144,6 +144,7 @@ describe("mobile voice component rendering", () => {
     );
 
     expect(view.getByTestId("mobile-voice-device-sheet-panel")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-device-refresh")).toBeTruthy();
     await fireEvent.press(view.getByTestId("mobile-voice-noise-toggle"));
     expect(onSelectNoiseSuppression).toHaveBeenCalledWith(false);
   });
@@ -159,13 +160,15 @@ describe("mobile voice component rendering", () => {
 
     await fireEvent(button, "pressIn");
     expect(view.getByText(copy.voicePushToTalkHolding)).toBeTruthy();
-    expect(view.getByLabelText(copy.voicePushToTalkAccessibilityLabel).props.accessibilityState)
-      .toEqual(expect.objectContaining({ busy: false, selected: true }));
+    expect(
+      view.getByLabelText(copy.voicePushToTalkAccessibilityLabel).props.accessibilityState,
+    ).toEqual(expect.objectContaining({ busy: false, selected: true }));
 
     await fireEvent(view.getByLabelText(copy.voicePushToTalkAccessibilityLabel), "pressOut");
     expect(view.getByText(copy.voicePushToTalkReleaseCushion)).toBeTruthy();
-    expect(view.getByLabelText(copy.voicePushToTalkAccessibilityLabel).props.accessibilityState)
-      .toEqual(expect.objectContaining({ busy: true, selected: true }));
+    expect(
+      view.getByLabelText(copy.voicePushToTalkAccessibilityLabel).props.accessibilityState,
+    ).toEqual(expect.objectContaining({ busy: true, selected: true }));
   });
 
   it("hides push-to-talk controls outside push-to-talk input mode", async () => {
@@ -238,7 +241,9 @@ describe("mobile voice component rendering", () => {
   it("renders the screen-share viewer expand action disabled until a video track exists", async () => {
     const view = await render(
       <MobileScreenShareViewer
-        participants={[createParticipant({ isScreenSharing: true, screenShareTrackRef: undefined })]}
+        participants={[
+          createParticipant({ isScreenSharing: true, screenShareTrackRef: undefined }),
+        ]}
       />,
     );
 
@@ -311,6 +316,10 @@ describe("mobile voice component rendering", () => {
     );
 
     const microphoneButton = view.getByLabelText(copy.voiceInputModePushToTalk);
+    expect(view.getByTestId("mobile-voice-channel-screen")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-camera-toggle")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-settings-open")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-leave")).toBeTruthy();
     expect(microphoneButton.props.accessibilityState).toEqual(
       expect.objectContaining({ disabled: true }),
     );

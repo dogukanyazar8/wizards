@@ -39,6 +39,7 @@ import {
   StatusChip,
 } from "../components/ui-atoms";
 import { useHomeScreenStyles } from "./home-screen.styles";
+import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
 import { MobileWorkspaceBrowser } from "./workspace-browser";
 
 export { MobileWorkspaceBrowser } from "./workspace-browser";
@@ -433,6 +434,7 @@ export function RecentServersCard({
           contentContainerStyle={styles.compactList}
           data={visibleServers}
           keyExtractor={(server) => server.id}
+          onLoad={mobileListLoadHandlers.workspaceServers}
           renderItem={({ item: server }) => (
             <Pressable
               accessibilityRole={onOpenServer ? "button" : undefined}

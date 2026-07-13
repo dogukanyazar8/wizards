@@ -3,6 +3,7 @@ import {
   type MobilePickedImage,
   validateMobilePickedImageAsset,
 } from "./mobile-image-upload-contract";
+import { getExpoImagePickerModule } from "./expo-mobile-media-modules";
 
 const MOBILE_IMAGE_FILE_NAMES: Record<"image/jpeg" | "image/png" | "image/webp", string> = {
   "image/jpeg": "mobile-image.jpg",
@@ -11,7 +12,7 @@ const MOBILE_IMAGE_FILE_NAMES: Record<"image/jpeg" | "image/png" | "image/webp",
 };
 
 export async function pickMobileImage(): Promise<MobilePickedImage | null> {
-  const ImagePicker = await import("expo-image-picker");
+  const ImagePicker = getExpoImagePickerModule();
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
   if (!permission.granted) {

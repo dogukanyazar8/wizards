@@ -174,6 +174,7 @@ export function VoiceScreen({
       <ActionButton
         label={copy.voiceSettingsAction}
         onPress={() => setVoiceSettingsVisible(true)}
+        testID="mobile-voice-settings-open"
         variant="secondary"
       />
       <VoiceRuntimeCard state={voiceState} onRequestPermission={onRequestVoicePermission} />
@@ -806,6 +807,7 @@ export function MobileVoiceControlButton({
   isActive = false,
   label,
   onPress,
+  testID,
   tone = "neutral",
 }: {
   disabled?: boolean;
@@ -813,6 +815,7 @@ export function MobileVoiceControlButton({
   isActive?: boolean;
   label: string;
   onPress(): void;
+  testID?: string;
   tone?: "danger" | "neutral" | "primary";
 }) {
   const theme = useTheme();
@@ -832,6 +835,7 @@ export function MobileVoiceControlButton({
         disabled && styles.mobileVoiceControlButtonDisabled,
         pressed && !disabled && styles.actionButtonPressed,
       ]}
+      testID={testID}
     >
       <Ionicons
         name={icon}
@@ -917,7 +921,7 @@ export function PushToTalkButton({
       <View style={[styles.mobilePushToTalkIcon, isActive && styles.mobilePushToTalkIconActive]}>
         <Ionicons name={isActive ? "mic" : "mic-outline"} size={24} color={theme.text.onPrimary} />
       </View>
-      <Text style={styles.mobilePushToTalkLabel} numberOfLines={1}>
+      <Text maxFontSizeMultiplier={1.8} style={styles.mobilePushToTalkLabel} numberOfLines={1}>
         {label}
       </Text>
     </Pressable>
@@ -1005,7 +1009,7 @@ export function MobileVoiceChannelScreen({
   };
 
   return (
-    <View style={styles.mobileVoiceChannelScreen}>
+    <View style={styles.mobileVoiceChannelScreen} testID="mobile-voice-channel-screen">
       <View style={styles.mobileVoiceChannelHeader}>
         <Pressable
           accessibilityRole="button"
@@ -1045,6 +1049,7 @@ export function MobileVoiceChannelScreen({
           disabled={!model.canOpenSettings}
           onPress={() => setVoiceSettingsVisible(true)}
           style={styles.mobileChannelChatIconButton}
+          testID="mobile-voice-settings-open"
         >
           <Ionicons name="ellipsis-horizontal" size={18} color={theme.text.soft} />
         </Pressable>
@@ -1145,6 +1150,7 @@ export function MobileVoiceChannelScreen({
           }
           disabled={!model.canToggleMicrophone || isPushToTalkMode}
           onPress={() => void onToggleMute()}
+          testID="mobile-voice-mute-toggle"
           tone={!isPushToTalkMode && !room.selfMuted ? "primary" : "neutral"}
         />
         <MobileVoiceControlButton
@@ -1153,6 +1159,7 @@ export function MobileVoiceChannelScreen({
           disabled={!model.canToggleCamera}
           isActive={room.selfCameraEnabled}
           onPress={() => void onToggleCamera()}
+          testID="mobile-voice-camera-toggle"
         />
         <MobileVoiceControlButton
           icon="headset-outline"
@@ -1185,12 +1192,14 @@ export function MobileVoiceChannelScreen({
           label={copy.voiceSettingsAction}
           disabled={!model.canOpenSettings}
           onPress={() => setVoiceSettingsVisible(true)}
+          testID="mobile-voice-settings-open-control"
         />
         <MobileVoiceControlButton
           icon="exit-outline"
           label={copy.voiceLeaveAction}
           disabled={!model.canLeave}
           onPress={() => void onLeave()}
+          testID="mobile-voice-leave"
           tone="danger"
         />
       </View>

@@ -9,6 +9,8 @@ import { MobileThemeSystemSurfaces } from "./src/app/providers/mobile-theme-syst
 import { MobileHapticsProvider } from "./src/app/providers/mobile-haptics-provider";
 import { MobileNetworkProvider } from "./src/app/providers/mobile-network-provider";
 import { ToastProvider } from "./src/app/components/kit/toast";
+import { MobilePrivacyShield } from "./src/app/components/mobile-privacy-shield";
+import { MobileStartupPerformanceMarker } from "./src/app/components/mobile-startup-performance-marker";
 import { WhisprMobileRoot } from "./src/app/whispr-mobile-root";
 import { expoMobileBiometricAuthenticator } from "./src/security/expo-mobile-app-lock";
 import { expoMobileDeviceIntegrityDetector } from "./src/security/expo-mobile-device-integrity";
@@ -24,6 +26,7 @@ export default function App() {
               <ToastProvider>
                 <MobileHapticsProvider>
                   <MobileNetworkProvider>
+                    <MobileStartupPerformanceMarker />
                     <MobileErrorBoundary>
                       <MobileAuthProvider
                         appLockPreferenceStore={mobileAppLockPreferenceStore}
@@ -35,6 +38,7 @@ export default function App() {
                       </MobileAuthProvider>
                       <MobileThemeSystemSurfaces />
                     </MobileErrorBoundary>
+                    <MobilePrivacyShield />
                   </MobileNetworkProvider>
                 </MobileHapticsProvider>
               </ToastProvider>

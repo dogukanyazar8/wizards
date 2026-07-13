@@ -58,14 +58,21 @@ describe("mobile native capability contract", () => {
     assert.ok(voiceChannels);
     assert.equal(voiceChannels.stage, "foundation-ready");
     assert.deepEqual(voiceChannels.permissionIntents, ["microphone", "notifications"]);
+
+    const videoCalls = MOBILE_NATIVE_CAPABILITIES.find(
+      (capability) => capability.id === "videoCalls",
+    );
+    assert.ok(videoCalls);
+    assert.equal(videoCalls.stage, "foundation-ready");
+    assert.deepEqual(videoCalls.permissionIntents, ["camera", "microphone"]);
   });
 
-  it("summarizes native capability readiness without claiming unfinished features are ready", () => {
+  it("summarizes all implemented native capabilities as foundation ready", () => {
     const summary = summarizeMobileNativeCapabilities();
 
     assert.equal(summary.total, 5);
-    assert.equal(summary.foundationReady, 4);
-    assert.equal(summary.blockedByNativeModule, 1);
+    assert.equal(summary.foundationReady, 5);
+    assert.equal(summary.blockedByNativeModule, 0);
     assert.equal(summary.blockedByServerContract, 0);
     assert.equal(summary.blockedByResearch, 0);
     assert.deepEqual(validateMobileNativeCapabilityContract(), []);

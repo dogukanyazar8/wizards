@@ -25,6 +25,17 @@ const phase3FlowPath = path.join(repositoryRoot, ".maestro", "phase3-social.yml"
 const phase3FlowSource = existsSync(phase3FlowPath) ? readFileSync(phase3FlowPath, "utf8") : "";
 const phase4FlowPath = path.join(repositoryRoot, ".maestro", "phase4-server-management.yml");
 const phase4FlowSource = existsSync(phase4FlowPath) ? readFileSync(phase4FlowPath, "utf8") : "";
+const phase5FlowPath = path.join(repositoryRoot, ".maestro", "phase5-voice-polish.yml");
+const phase5FlowSource = existsSync(phase5FlowPath) ? readFileSync(phase5FlowPath, "utf8") : "";
+const phase5OfflineFlowPath = path.join(
+  repositoryRoot,
+  ".maestro",
+  "helpers",
+  "phase5-offline-recovery.yml",
+);
+const phase5OfflineFlowSource = existsSync(phase5OfflineFlowPath)
+  ? readFileSync(phase5OfflineFlowPath, "utf8")
+  : "";
 const rootGitignoreSource = readFileSync(path.join(repositoryRoot, ".gitignore"), "utf8");
 
 const testIdSources: Record<string, { file: string; needle: string }> = {
@@ -63,19 +74,20 @@ const testIdSources: Record<string, { file: string; needle: string }> = {
 };
 
 describe("Phase 0 Maestro testID contract", () => {
-  it("uses one non-retrying UAT login helper with ignored local credentials", () => {
+  it("uses one non-retrying native UAT login helper with ignored development credentials", () => {
     assert.match(rootGitignoreSource, /^\.env\.maestro$/m);
+    assert.match(rootGitignoreSource, /^\.env\.local$/m);
     assert.ok(loginHelperSource, ".maestro/helpers/login-uat.yml must exist");
-    assert.equal(loginHelperSource.match(/\$\{MAESTRO_UAT_EMAIL\}/g)?.length, 1);
-    assert.equal(loginHelperSource.match(/\$\{MAESTRO_UAT_PASSWORD\}/g)?.length, 1);
     assert.match(loginHelperSource, /id:\s*"mobile-settings-web-sign-in-action"/);
-    assert.match(loginHelperSource, /id:\s*"email"/);
-    assert.match(loginHelperSource, /id:\s*"password"/);
-    assert.equal(loginHelperSource.match(/tapOn:\s*"Giris yap\|Sign In"/g)?.length, 1);
+    assert.match(loginHelperSource, /id:\s*"mobile-auth-screen"/);
+    assert.match(loginHelperSource, /tapOn:\s*"Dev hesabini doldur\|Fill dev account"/);
+    assert.equal(loginHelperSource.match(/tapOn:\s*"Giris yap\|Sign in"/g)?.length, 1);
     assert.match(
       loginHelperSource,
-      /tapOn:\s*"Giris yap\|Sign In"[\s\S]*?extendedWaitUntil:[\s\S]*?id:\s*"mobile-bottom-tab-settings"[\s\S]*?- tapOn:[\s\S]*?id:\s*"mobile-bottom-tab-settings"/,
+      /id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-screen"[\s\S]*?tapOn:\s*"Dev hesabini doldur\|Fill dev account"[\s\S]*?tapOn:\s*"Giris yap\|Sign in"[\s\S]*?id:\s*"mobile-overview-screen"[\s\S]*?id:\s*"mobile-bottom-tab-settings"/,
     );
+    assert.doesNotMatch(loginHelperSource, /MAESTRO_UAT_(?:EMAIL|PASSWORD)/);
+    assert.doesNotMatch(loginHelperSource, /id:\s*"(?:email|password)"/);
     assert.doesNotMatch(loginHelperSource, /retry/i);
     assert.match(loginHelperSource, /id:\s*"mobile-bottom-tab-settings"/);
     assert.match(
@@ -308,10 +320,7 @@ describe("Phase 0 Maestro testID contract", () => {
       phase4FlowSource,
       /id:\s*"mobile-server-create-submit"[\s\S]{0,300}?id:\s*"mobile-server-create-finish"[\s\S]{0,200}?id:\s*"mobile-server-settings-open-\.\*"/,
     );
-    assert.equal(
-      phase4FlowSource.match(/- tapOn:\s*"\.\*: Phase4 Maestro UAT"/g)?.length,
-      3,
-    );
+    assert.equal(phase4FlowSource.match(/- tapOn:\s*"\.\*: Phase4 Maestro UAT"/g)?.length, 3);
     assert.match(
       phase4FlowSource,
       /id:\s*"mobile-server-create-finish"[\s\S]{0,220}?tapOn:\s*"\.\*: Phase4 Maestro UAT"[\s\S]{0,260}?id:\s*"mobile-server-invite-share-\.\*"/,
@@ -357,7 +366,10 @@ describe("Phase 0 Maestro testID contract", () => {
       "mobile-server-delete-confirm-input",
       "mobile-server-delete-confirm-confirm",
     ]) {
-      assert.match(phase4FlowSource, new RegExp(`id:\\s*"${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
+      assert.match(
+        phase4FlowSource,
+        new RegExp(`id:\\s*"${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`),
+      );
     }
     for (const screenshot of ["light-server-management", "dark-server-management"]) {
       assert.match(
@@ -382,10 +394,60 @@ describe("Phase 0 Maestro testID contract", () => {
       ["src/app/components/kit/bottom-sheet.tsx", "${testID}-panel"],
     ] as const;
     for (const [sourcePath, needle] of productionContracts) {
-      assert.match(readFileSync(path.join(process.cwd(), sourcePath), "utf8"), new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+      assert.match(
+        readFileSync(path.join(process.cwd(), sourcePath), "utf8"),
+        new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+      );
     }
     assert.ok(
       MOBILE_AUTOMATED_GATES.some((gate) => gate.id === "mobile-maestro-phase4-server-management"),
     );
+  });
+
+  it("binds the Phase 5 voice and offline flow without capturing active camera content", () => {
+    assert.ok(phase5FlowSource, ".maestro/phase5-voice-polish.yml must exist");
+    const completePhase5FlowSource = `${phase5FlowSource}\n${phase5OfflineFlowSource}`;
+    assert.ok(phase5OfflineFlowSource, ".maestro/helpers/phase5-offline-recovery.yml must exist");
+    assert.match(phase5FlowSource, /visible:\s*"Reload"[\s\S]*?pressKey:\s*BACK/);
+    assert.match(phase5FlowSource, /id:\s*"mobile-bottom-tab-settings"/);
+    assert.match(phase5FlowSource, /file:\s*"helpers\/login-uat\.yml"/);
+    for (const id of [
+      "mobile-workspace-channel-voice",
+      "mobile-settings-permission-action-camera",
+      "mobile-voice-channel-screen",
+      "mobile-voice-mute-toggle",
+      "mobile-voice-camera-toggle",
+      "mobile-voice-settings-open-control",
+      "mobile-voice-device-sheet-panel",
+      "mobile-voice-device-refresh",
+      "mobile-voice-noise-toggle",
+      "mobile-offline-banner",
+      "mobile-voice-leave",
+    ]) {
+      assert.match(completePhase5FlowSource, new RegExp(`id:\\s*"${id}"`));
+    }
+    assert.match(phase5FlowSource, /file:\s*"helpers\/phase5-offline-recovery\.yml"/);
+    assert.match(phase5OfflineFlowSource, /setAirplaneMode:\s*enabled/);
+    assert.match(phase5OfflineFlowSource, /setAirplaneMode:\s*disabled/);
+    for (const themeChoice of ["Acik\\|Light", "Koyu\\|Dark"]) {
+      assert.match(
+        phase5FlowSource,
+        new RegExp(
+          `tapOn:\\s*"${themeChoice}"\\r?\\n- pressKey:\\s*BACK\\r?\\n- tapOn:\\r?\\n\\s+id:\\s*"mobile-bottom-tab-overview"`,
+        ),
+      );
+    }
+    assert.match(
+      phase5FlowSource,
+      /id:\s*"mobile-voice-camera-toggle"[\s\S]{0,360}?id:\s*"mobile-voice-camera-toggle"[\s\S]{0,700}?takeScreenshot:/,
+    );
+    for (const screenshot of ["light-voice-polish", "dark-voice-polish"]) {
+      assert.match(
+        phase5FlowSource,
+        new RegExp(`takeScreenshot:\\s*"artifacts/mobile/phase5/${screenshot}"`),
+      );
+    }
+    assert.doesNotMatch(phase5FlowSource, /claimId|inviteCode|MAESTRO_UAT_(?:EMAIL|PASSWORD)/);
+    assert.ok(MOBILE_AUTOMATED_GATES.some((gate) => gate.id === "mobile-maestro-phase5-voice"));
   });
 });

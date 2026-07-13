@@ -1,0 +1,15 @@
+appId: team.whispr.mobile
+---
+- setAirplaneMode: enabled
+- pressKey: HOME
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: "mobile-offline-banner"
+    timeout: 60000
+- setAirplaneMode: disabled
+- extendedWaitUntil:
+    notVisible:
+      id: "mobile-offline-banner"
+    timeout: 60000

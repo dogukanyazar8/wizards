@@ -32,6 +32,8 @@ import { MessageEmojiPicker } from "./message-emoji-picker";
 import { MobileLinkPreviewCard } from "../../messages/mobile-link-preview-card";
 import { extractFirstHttpsUrl } from "../../messages/mobile-link-preview-client";
 import { MessageImageLightbox } from "./message-image-lightbox";
+import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
+import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 
 const MOBILE_SEARCH_RESULT_RENDER_LIMIT = 6;
 const MESSAGE_LIST_SKELETON_ROWS = [
@@ -410,6 +412,7 @@ export function MessageReactionList({
   reactions: MobileRenderableMessage["reactions"];
 }) {
   const styles = useMessagePrimitiveStyles();
+  const { selection } = useMobileHaptics();
   if (reactions.length === 0) {
     return null;
   }
@@ -421,14 +424,17 @@ export function MessageReactionList({
           accessibilityRole={onToggleReaction ? "button" : undefined}
           disabled={!onToggleReaction || !messageId}
           key={reaction.emoji}
-          onPress={() =>
-            messageId &&
-            onToggleReaction?.({
+          onPress={() => {
+            if (!messageId || !onToggleReaction) {
+              return;
+            }
+            selection();
+            onToggleReaction({
               emoji: reaction.emoji,
               messageId,
               shouldReact: !currentUserId || !reaction.userIds.includes(currentUserId),
-            })
-          }
+            });
+          }}
           style={styles.messageReactionChip}
           testID={messageId ? `mobile-message-reaction-${messageId}-${reaction.emoji}` : undefined}
         >
@@ -478,6 +484,7 @@ export function MessageStream({
       contentContainerStyle={styles.dmMessageListContent}
       data={streamItems}
       keyExtractor={(item) => item.id}
+      onLoad={mobileListLoadHandlers.dmMessages}
       ref={listRef}
       renderItem={({ item }) => (
         <View style={styles.messageStreamItem}>

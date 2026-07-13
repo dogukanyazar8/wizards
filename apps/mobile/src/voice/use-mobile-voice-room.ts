@@ -158,9 +158,7 @@ function voiceParticipantsChanged(
   return false;
 }
 
-function getCameraTrackRef(
-  participant: Participant,
-): MobileVoiceRoomParticipant["cameraTrackRef"] {
+function getCameraTrackRef(participant: Participant): MobileVoiceRoomParticipant["cameraTrackRef"] {
   const publication = participant.getTrackPublication(Track.Source.Camera);
   if (!publication?.track) {
     return undefined;
@@ -195,7 +193,6 @@ function mapLiveKitParticipantToRoomParticipant(
   const userId = participantIdentityToUserId(participant.identity);
   const isSelf = userId === currentUser.id;
   const microphonePublication = participant.getTrackPublication(Track.Source.Microphone);
-  const cameraPublication = participant.getTrackPublication(Track.Source.Camera);
   const screenSharePublication = participant.getTrackPublication(Track.Source.ScreenShare);
   const cameraTrackRef = getCameraTrackRef(participant);
   const screenShareTrackRef = getScreenShareTrackRef(participant);
@@ -204,7 +201,7 @@ function mapLiveKitParticipantToRoomParticipant(
     audioLevel: toBoundedAudioLevel(participant.audioLevel),
     avatarUrl: isSelf ? currentUser.avatarUrl : null,
     displayName: isSelf ? currentUser.displayName : null,
-    isCameraEnabled: Boolean(cameraPublication?.isSubscribed || cameraPublication?.isEnabled),
+    isCameraEnabled: participant.isCameraEnabled,
     isMuted: microphonePublication ? microphonePublication.isMuted : false,
     isScreenSharing: Boolean(screenSharePublication?.isSubscribed || screenSharePublication),
     isSelf,
@@ -430,56 +427,59 @@ export function useMobileVoiceRoom({
     [onVoiceDevicePreferencesChange],
   );
 
-  const enumerateVoiceDevices = useCallback(async (room: Room) => {
-    const [rawInputs, rawOutputs] = await Promise.all([
-      Room.getLocalDevices("audioinput"),
-      AudioSession.getAudioOutputs(),
-    ]);
-    const availableAudioInputs = toMobileVoiceInputOptions(rawInputs);
-    const availableAudioOutputs = toMobileVoiceOutputOptions(rawOutputs);
-    const currentPreferences = voiceDevicePreferencesRef.current;
-    const selectedAudioInputId = availableAudioInputs.some(
-      ({ id }) => id === currentPreferences.audioInputId,
-    )
-      ? currentPreferences.audioInputId
-      : null;
-    const selectedAudioOutputId = availableAudioOutputs.some(
-      ({ id }) => id === currentPreferences.audioOutputId,
-    )
-      ? currentPreferences.audioOutputId
-      : null;
+  const enumerateVoiceDevices = useCallback(
+    async (room: Room) => {
+      const [rawInputs, rawOutputs] = await Promise.all([
+        Room.getLocalDevices("audioinput"),
+        AudioSession.getAudioOutputs(),
+      ]);
+      const availableAudioInputs = toMobileVoiceInputOptions(rawInputs);
+      const availableAudioOutputs = toMobileVoiceOutputOptions(rawOutputs);
+      const currentPreferences = voiceDevicePreferencesRef.current;
+      const selectedAudioInputId = availableAudioInputs.some(
+        ({ id }) => id === currentPreferences.audioInputId,
+      )
+        ? currentPreferences.audioInputId
+        : null;
+      const selectedAudioOutputId = availableAudioOutputs.some(
+        ({ id }) => id === currentPreferences.audioOutputId,
+      )
+        ? currentPreferences.audioOutputId
+        : null;
 
-    if (selectedAudioInputId) {
-      await room.switchActiveDevice("audioinput", selectedAudioInputId);
-    }
-    if (selectedAudioOutputId) {
-      await AudioSession.selectAudioOutput(selectedAudioOutputId);
-    }
+      if (selectedAudioInputId) {
+        await room.switchActiveDevice("audioinput", selectedAudioInputId);
+      }
+      if (selectedAudioOutputId) {
+        await AudioSession.selectAudioOutput(selectedAudioOutputId);
+      }
 
-    if (
-      selectedAudioInputId !== currentPreferences.audioInputId ||
-      selectedAudioOutputId !== currentPreferences.audioOutputId
-    ) {
-      commitVoiceDevicePreferences({
-        ...currentPreferences,
-        audioInputId: selectedAudioInputId,
-        audioOutputId: selectedAudioOutputId,
-      });
-    }
+      if (
+        selectedAudioInputId !== currentPreferences.audioInputId ||
+        selectedAudioOutputId !== currentPreferences.audioOutputId
+      ) {
+        commitVoiceDevicePreferences({
+          ...currentPreferences,
+          audioInputId: selectedAudioInputId,
+          audioOutputId: selectedAudioOutputId,
+        });
+      }
 
-    setRoomState((current) => ({
-      ...current,
-      availableAudioInputs,
-      availableAudioOutputs,
-      selectedAudioInputId,
-      selectedAudioOutputId,
-      selfAudioOutput:
-        selectedAudioOutputId === "speaker" || selectedAudioOutputId === "force_speaker"
-          ? "speaker"
-          : "default",
-      updatedAt: Date.now(),
-    }));
-  }, [commitVoiceDevicePreferences]);
+      setRoomState((current) => ({
+        ...current,
+        availableAudioInputs,
+        availableAudioOutputs,
+        selectedAudioInputId,
+        selectedAudioOutputId,
+        selfAudioOutput:
+          selectedAudioOutputId === "speaker" || selectedAudioOutputId === "force_speaker"
+            ? "speaker"
+            : "default",
+        updatedAt: Date.now(),
+      }));
+    },
+    [commitVoiceDevicePreferences],
+  );
 
   const refreshVoiceDevices = useCallback(async () => {
     const room = roomRef.current;
@@ -753,8 +753,7 @@ export function useMobileVoiceRoom({
             mergeServerParticipants(user, current.participants, serverState.participants),
             room,
           ),
-          noiseSuppressionEnabled:
-            voiceDevicePreferencesRef.current.noiseSuppressionEnabled,
+          noiseSuppressionEnabled: voiceDevicePreferencesRef.current.noiseSuppressionEnabled,
           screenShareStatus: "off",
           selfCameraEnabled: room.localParticipant.isCameraEnabled,
           selfMuted: !room.localParticipant.isMicrophoneEnabled,
@@ -809,9 +808,7 @@ export function useMobileVoiceRoom({
     await setMobileMicrophoneEnabledWithNoiseSuppression(
       room.localParticipant,
       nextEnabled,
-      getMobileMicrophoneCaptureOptions(
-        voiceDevicePreferencesRef.current.noiseSuppressionEnabled,
-      ),
+      getMobileMicrophoneCaptureOptions(voiceDevicePreferencesRef.current.noiseSuppressionEnabled),
     );
     updateParticipantsFromRoom();
   }, [roomState.status, updateParticipantsFromRoom, voiceInputMode]);
@@ -1037,7 +1034,10 @@ export function useMobileVoiceRoom({
         const microphoneTrack = room.localParticipant.getTrackPublication(
           Track.Source.Microphone,
         )?.track;
-        if (room.localParticipant.isMicrophoneEnabled && microphoneTrack instanceof LocalAudioTrack) {
+        if (
+          room.localParticipant.isMicrophoneEnabled &&
+          microphoneTrack instanceof LocalAudioTrack
+        ) {
           await microphoneTrack.restartTrack(getMobileMicrophoneCaptureOptions(enabled));
         }
         commitVoiceDevicePreferences({

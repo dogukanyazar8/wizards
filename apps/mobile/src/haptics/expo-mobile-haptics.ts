@@ -13,6 +13,10 @@ const storage: MobileHapticsPreferenceStorage = {
   },
 };
 
+function getExpoHapticsModule(): typeof import("expo-haptics") {
+  return require("expo-haptics") as typeof import("expo-haptics");
+}
+
 export const mobileHapticsPreferenceRepository = {
   load: () => loadMobileHapticsPreference(storage),
   save: (enabled: boolean) => saveMobileHapticsPreference(storage, enabled),
@@ -20,11 +24,11 @@ export const mobileHapticsPreferenceRepository = {
 
 export const expoMobileHaptics = {
   impact: async () => {
-    const Haptics = await import("expo-haptics");
+    const Haptics = getExpoHapticsModule();
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   },
   notification: async (tone: "error" | "success" | "warning") => {
-    const Haptics = await import("expo-haptics");
+    const Haptics = getExpoHapticsModule();
     await Haptics.notificationAsync(
       tone === "success"
         ? Haptics.NotificationFeedbackType.Success
@@ -34,7 +38,7 @@ export const expoMobileHaptics = {
     );
   },
   selection: async () => {
-    const Haptics = await import("expo-haptics");
+    const Haptics = getExpoHapticsModule();
     await Haptics.selectionAsync();
   },
 };

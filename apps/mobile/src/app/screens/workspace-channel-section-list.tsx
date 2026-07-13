@@ -11,6 +11,7 @@ import {
 } from "../mobile-root-screen-shared";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { useHomeScreenStyles } from "./home-screen.styles";
+import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
 
 export function WorkspaceChannelSectionList({
   isCollapseDisabled,
@@ -49,6 +50,7 @@ export function WorkspaceChannelSectionList({
       contentContainerStyle={styles.mobileWorkspaceSectionList}
       data={items}
       keyExtractor={(item) => item.id}
+      onLoad={mobileListLoadHandlers.workspaceChannels}
       renderItem={({ item }) => {
         if (item.kind === "channel") {
           return (

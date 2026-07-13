@@ -22,6 +22,7 @@ import {
 import { AvatarMark, MetricMiniPill, StatusChip } from "../components/ui-atoms";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { useDmScreenStyles } from "./dm-screen.styles";
+import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
 
 export function DMInboxHeader() {
   const theme = useTheme();
@@ -191,6 +192,7 @@ export function DirectMessageListCard({
         contentContainerStyle={styles.dmConversationList}
         data={visibleConversations}
         keyExtractor={(conversation) => conversation.id}
+        onLoad={mobileListLoadHandlers.dmInbox}
         renderItem={({ item: conversation }) => (
           <DirectMessageConversationCard
             conversation={conversation}

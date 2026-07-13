@@ -42,6 +42,7 @@ import {
 import { StatusChip } from "../components/ui-atoms";
 import { useChannelScreenStyles } from "./channel-screen.styles";
 import { useTheme } from "../providers/mobile-theme-provider";
+import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
 
 export function MobileChannelChatScreen({
   attachmentsFeature,
@@ -454,6 +455,7 @@ export function ChannelMessageList({
         ListEmptyComponent={emptyComponent}
         onContentSizeChange={() => scrollToLatestMessage(false)}
         onLayout={() => scrollToLatestMessage(false)}
+        onLoad={mobileListLoadHandlers.channelMessages}
         onScroll={handleScroll}
         renderItem={renderItem}
         refreshControl={

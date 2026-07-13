@@ -17,6 +17,7 @@ jest.mock("@shopify/flash-list", () => {
       (
         props: {
           data?: readonly unknown[];
+          onLoad?: (info: { elapsedTimeInMs: number }) => void;
           renderItem?: (input: { index: number; item: unknown }) => React.ReactNode;
           testID?: string;
         },
@@ -155,6 +156,9 @@ describe("mobile performance surfaces", () => {
     await render(<MessageStream currentUserId="user-1" messages={[message]} />);
     expect(mockFlashListRender).toHaveBeenCalledTimes(2);
     expect(mockFlashListRender.mock.calls[0]?.[0]).toMatchObject({ data: expect.any(Array) });
+    for (const [props] of mockFlashListRender.mock.calls) {
+      expect(props.onLoad).toEqual(expect.any(Function));
+    }
   });
 
   it("routes DM conversations, workspace channels, and bounded servers through FlashList", async () => {
@@ -190,6 +194,9 @@ describe("mobile performance surfaces", () => {
     const serverView = await render(<RecentServersCard servers={[server]} />);
     expect(serverView.getByTestId("mobile-workspace-server-row")).toBeTruthy();
     expect(mockFlashListRender).toHaveBeenCalledTimes(3);
+    for (const [props] of mockFlashListRender.mock.calls) {
+      expect(props.onLoad).toEqual(expect.any(Function));
+    }
   });
 
   it("loads remote avatars and attachment previews through Expo Image memory-disk caching", async () => {

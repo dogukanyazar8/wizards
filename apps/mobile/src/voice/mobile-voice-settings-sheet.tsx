@@ -6,7 +6,10 @@ import { BottomSheet } from "../app/components/kit/bottom-sheet";
 import { activeMobileCopy as copy } from "../locale/mobile-locale-preferences";
 import type { MobileTheme } from "../design/themes";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
-import type { MobileVoiceInputOption, MobileVoiceOutputOption } from "./mobile-voice-device-contract";
+import type {
+  MobileVoiceInputOption,
+  MobileVoiceOutputOption,
+} from "./mobile-voice-device-contract";
 
 const createStyles = (theme: MobileTheme) => ({
   root: { flex: 1 },
@@ -132,18 +135,23 @@ export function MobileVoiceSettingsSheet({
     >
       <View style={styles.root}>
         <View style={styles.header}>
-          <Text style={styles.title}>{copy.voiceSettingsAction}</Text>
+          <Text maxFontSizeMultiplier={2} numberOfLines={2} style={styles.title}>
+            {copy.voiceSettingsAction}
+          </Text>
           <Pressable
             accessibilityLabel={copy.voiceDeviceRefreshAction}
             accessibilityRole="button"
             onPress={() => void onRefresh()}
             style={styles.refresh}
+            testID="mobile-voice-device-refresh"
           >
             <Ionicons color={theme.text.primary} name="refresh" size={21} />
           </Pressable>
         </View>
         <ScrollView style={styles.scroll}>
-          <Text style={styles.sectionTitle}>{copy.voiceAudioInputTitle}</Text>
+          <Text maxFontSizeMultiplier={2} numberOfLines={2} style={styles.sectionTitle}>
+            {copy.voiceAudioInputTitle}
+          </Text>
           {audioInputs.map((option) => (
             <DeviceRow
               key={option.id}
@@ -153,7 +161,9 @@ export function MobileVoiceSettingsSheet({
               testID={`mobile-voice-audio-input-${option.id}`}
             />
           ))}
-          <Text style={styles.sectionTitle}>{copy.voiceAudioOutputTitle}</Text>
+          <Text maxFontSizeMultiplier={2} numberOfLines={2} style={styles.sectionTitle}>
+            {copy.voiceAudioOutputTitle}
+          </Text>
           {audioOutputs.map((option) => (
             <DeviceRow
               key={option.id}
@@ -163,7 +173,9 @@ export function MobileVoiceSettingsSheet({
               testID={`mobile-voice-audio-output-${option.id}`}
             />
           ))}
-          <Text style={styles.sectionTitle}>{copy.voiceNoiseSuppressionAction}</Text>
+          <Text maxFontSizeMultiplier={2} numberOfLines={2} style={styles.sectionTitle}>
+            {copy.voiceNoiseSuppressionAction}
+          </Text>
           <Pressable
             accessibilityLabel={copy.voiceNoiseSuppressionAction}
             accessibilityRole="switch"

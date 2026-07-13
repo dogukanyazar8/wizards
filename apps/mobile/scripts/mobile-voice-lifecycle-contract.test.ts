@@ -72,6 +72,11 @@ describe("mobile voice lifecycle contract", () => {
 
     assert.match(hookSource, /getTrackPublication\(Track\.Source\.Camera\)/);
     assert.match(hookSource, /cameraTrackRef/);
+    assert.match(hookSource, /isCameraEnabled:\s*participant\.isCameraEnabled/);
+    assert.doesNotMatch(
+      hookSource,
+      /isCameraEnabled:\s*Boolean\(cameraPublication\?\.isSubscribed\s*\|\|/,
+    );
     assert.match(hookSource, /restartTrack\([\s\S]*facingMode/);
     assert.match(hookSource, /setCameraEnabled\(false\)/);
     assert.match(hookSource, /selfVideo:\s*false/);

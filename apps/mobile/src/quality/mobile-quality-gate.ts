@@ -110,6 +110,13 @@ export const MOBILE_AUTOMATED_GATES: MobileAutomatedGate[] = [
     required: true,
   },
   {
+    command: "maestro test ../../.maestro/phase5-voice-polish.yml",
+    id: "mobile-maestro-phase5-voice",
+    purpose:
+      "Android UAT proof for voice camera, device selection, noise suppression, offline awareness, privacy-safe evidence, and both themes.",
+    required: true,
+  },
+  {
     command: "corepack pnpm --filter @wizards/mobile validate:env",
     id: "mobile-env-validation",
     purpose: "Build-time endpoint and public environment validation.",
@@ -347,11 +354,51 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
   },
   {
     area: "voice",
-    id: "voice-disabled-contract",
+    id: "voice-lifecycle-contract",
     label:
       "Calls validates native LiveKit join, mute, camera, audio output, disconnect cleanup, and heartbeat cleanup before release promotion.",
     required: true,
     risk: "high",
+  },
+  {
+    area: "voice",
+    id: "voice-camera-device-noise",
+    label:
+      "A real voice room publishes and stops the camera, flips the local camera, selects bounded audio devices, persists noise suppression, and stops video in background.",
+    required: true,
+    risk: "critical",
+  },
+  {
+    area: "auth",
+    id: "app-switcher-privacy-shield",
+    label:
+      "Inactive and background AppState values cover DM and voice content with an opaque privacy shield before app-switcher capture, independently of optional biometric lock.",
+    required: true,
+    risk: "critical",
+  },
+  {
+    area: "sync",
+    id: "offline-awareness-no-queue",
+    label:
+      "NetInfo drives the offline banner and TanStack onlineManager; offline mutations fail before auth or fetch with a bounded toast and are never queued or persisted.",
+    required: true,
+    risk: "critical",
+  },
+  {
+    area: "performance",
+    id: "phase5-list-startup-performance",
+    label:
+      "Startup and hot FlashList onLoad timings remain bounded, PII-free, memory-only, and within release budgets without hot-row rerender regression.",
+    required: true,
+    risk: "high",
+  },
+  {
+    area: "accessibility",
+    id: "phase5-voice-accessibility",
+    label:
+      "Camera, audio-device, noise, haptic, offline, and voice controls expose roles, labels, state, stable test IDs, font scaling, and at least 44px touch targets.",
+    required: true,
+    risk: "critical",
   },
   {
     area: "performance",
