@@ -3,7 +3,21 @@
 // KURAL: Bu dosya yalnız dış paket import edebilir. Yerel modüller esbuild
 // tarafından entry başına kopyalandığından buradan import edilirse uygulama
 // bundle'ındaki instance ile ayrışır.
-import * as Sentry from "@sentry/nextjs";
+import { createRequire } from "node:module";
+
+// @sentry/nextjs ve @prisma/instrumentation CJS paketlerdir. Node'un ESM
+// named-export statik analizi (cjs-module-lexer) bu paketlerin tüm export
+// yüzeyini güvenilir biçimde çözemiyor — plain `import * as X` ile yalnız
+// küçük bir alt küme (ör. Sentry için 29/198 export) gelir ve isInitialized/
+// captureException/captureCheckIn/prismaIntegration gibi kritik fonksiyonlar
+// sessizce undefined kalır. createRequire ile Node'un tam CJS çözümlemesi
+// zorunlu kılınır; bu yalnız instrument.ts gibi Next'in webpack/turbopack
+// build-time Sentry aliaslamasından GEÇMEYEN, esbuild ile bundle'lanan
+// dosyalar için gereklidir (Next tarafından derlenen dosyalarda plain import
+// güvenlidir çünkü Next kendi Sentry eklentisiyle doğru alt modülü seçer).
+const require = createRequire(import.meta.url);
+const Sentry = require("@sentry/nextjs") as typeof import("@sentry/nextjs");
+const { PrismaInstrumentation } = require("@prisma/instrumentation") as typeof import("@prisma/instrumentation");
 
 // KAYNAK-DOĞRU: apps/web/src/lib/logger.ts. instrument.ts import-bağımsız
 // olmak zorunda olduğundan bu iki desen kasıtlı olarak burada tekrarlanır;
@@ -37,6 +51,11 @@ if (!dsn) {
       undefined,
     sendDefaultPii: false,
     tracesSampleRate: parseSampleRate(process.env.SENTRY_TRACES_SAMPLE_RATE, 0.1),
+    integrations: [
+      Sentry.prismaIntegration({
+        prismaInstrumentation: new PrismaInstrumentation(),
+      }),
+    ],
     ignoreTransactions: [/^GET \/(ready|health)$/, /^POST \/monitoring/],
     initialScope: {
       tags: {

@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/nextjs";
+import { createRequire } from "node:module";
 import { assertOutboxWorkerEnvironment } from "@/lib/env";
 import { registerSentryErrorReporter } from "@/lib/observability/register-sentry";
 import { startOutboxWorker, stopOutboxWorker } from "@/lib/outbox/worker";
@@ -6,6 +6,13 @@ import {
   closeHeadlessSocketServer,
   initHeadlessSocketServer,
 } from "@/lib/socket/worker-runtime";
+
+// @sentry/nextjs bir CJS pakettir; bu dosya esbuild ile bundle'lanır (Next'in
+// build-time Sentry aliaslamasından geçmez). createRequire, ESM named-export
+// statik analizinin çözemediği captureCheckIn/isInitialized gibi
+// fonksiyonların garanti gelmesini sağlar (bkz. register-sentry.ts).
+const require = createRequire(import.meta.url);
+const Sentry = require("@sentry/nextjs") as typeof import("@sentry/nextjs");
 
 try {
   process.loadEnvFile();
