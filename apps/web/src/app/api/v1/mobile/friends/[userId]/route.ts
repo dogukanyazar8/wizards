@@ -1,3 +1,5 @@
-import { mobileFriendRemoveRoute } from "../route-logic";
+import { mobileFriendRemoveRoute, type MobileFriendRouteContext } from "../route-logic";
 
-export const DELETE = mobileFriendRemoveRoute;
+export function DELETE(request: Request, context: MobileFriendRouteContext) {
+  return mobileFriendRemoveRoute(request, context);
+}

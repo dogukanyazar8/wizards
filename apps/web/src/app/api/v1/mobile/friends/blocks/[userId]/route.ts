@@ -1,4 +1,13 @@
-import { mobileFriendBlockRoute, mobileFriendUnblockRoute } from "../../route-logic";
+import {
+  mobileFriendBlockRoute,
+  mobileFriendUnblockRoute,
+  type MobileFriendRouteContext,
+} from "../../route-logic";
 
-export const DELETE = mobileFriendUnblockRoute;
-export const PUT = mobileFriendBlockRoute;
+export function DELETE(request: Request, context: MobileFriendRouteContext) {
+  return mobileFriendUnblockRoute(request, context);
+}
+
+export function PUT(request: Request, context: MobileFriendRouteContext) {
+  return mobileFriendBlockRoute(request, context);
+}

@@ -41,6 +41,8 @@ const AUTH_GUARD_CALL_PATTERN =
   /\b(?:requireApiUserId|requireMobileApiUserId|requireMobileApiSession|requireAdminUser)\s*\(/;
 const EXPORTED_METHOD_PATTERN =
   /export\s+(?:async\s+)?function\s+(GET|POST|PATCH|PUT|DELETE)\b|export\s+const\s+(GET|POST|PATCH|PUT|DELETE)\b/g;
+const DIRECT_HANDLER_ALIAS_PATTERN =
+  /export\s+const\s+(?:GET|POST|PATCH|PUT|DELETE)\s*=\s*[A-Za-z_$][\w$]*\s*;/;
 const MUTATING_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 const PARSE_JSON_BODY_CALL_PATTERN = /\bparseJsonBody\s*\(/;
 const RAW_REQUEST_BODY_CALL_PATTERN = /\b(?:request|req)\.(?:json|text|formData)\s*\(/;
@@ -214,6 +216,15 @@ describe("API v1 route contract", () => {
       .map((route) => route.path);
 
     assert.deepEqual(rawBodyReaders, []);
+  });
+
+  it("keeps injectable mobile route logic behind Next.js-compatible handlers", () => {
+    const directlyAliasedHandlers = routes
+      .filter((route) => route.routePath.startsWith("mobile/"))
+      .filter((route) => DIRECT_HANDLER_ALIAS_PATTERN.test(route.content))
+      .map((route) => route.path);
+
+    assert.deepEqual(directlyAliasedHandlers, []);
   });
 
   it("keeps high-risk route rate-limit actions mapped to the intended method", () => {

@@ -1,3 +1,8 @@
-import { mobileFriendRequestRejectRoute } from "../../../route-logic";
+import {
+  mobileFriendRequestRejectRoute,
+  type MobileFriendRouteContext,
+} from "../../../route-logic";
 
-export const POST = mobileFriendRequestRejectRoute;
+export function POST(request: Request, context: MobileFriendRouteContext) {
+  return mobileFriendRequestRejectRoute(request, context);
+}

@@ -2,4 +2,7 @@ import { mobileProfileUpdateRoute } from "./route-logic";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const PATCH = mobileProfileUpdateRoute;
+
+export function PATCH(request: Request) {
+  return mobileProfileUpdateRoute(request);
+}

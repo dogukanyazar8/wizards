@@ -1,3 +1,5 @@
 import { mobileFriendRequestCreateRoute } from "../route-logic";
 
-export const POST = mobileFriendRequestCreateRoute;
+export function POST(request: Request) {
+  return mobileFriendRequestCreateRoute(request);
+}
