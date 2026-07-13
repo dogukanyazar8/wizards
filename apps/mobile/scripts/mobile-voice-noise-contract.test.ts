@@ -18,6 +18,11 @@ describe("mobile voice noise suppression contract", () => {
     });
     assert.equal(getMobileNoiseSuppressionLabel("tr"), "Gurultu bastirma aktif");
     assert.equal(getMobileNoiseSuppressionLabel("en"), "Noise suppression active");
+    assert.deepEqual(getMobileMicrophoneCaptureOptions(false), {
+      autoGainControl: true,
+      echoCancellation: true,
+      noiseSuppression: false,
+    });
   });
 
   it("passes capture constraints to the actual LiveKit microphone enable call", async () => {

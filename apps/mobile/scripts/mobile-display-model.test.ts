@@ -266,9 +266,13 @@ describe("mobile display model", () => {
   it("builds a bounded voice channel screen model from real room participants", () => {
     const model = getMobileVoiceChannelScreenModel(
       {
+        availableAudioInputs: [],
+        availableAudioOutputs: [],
+        cameraFacingMode: "user",
         channelId: "voice-1",
         channelName: "live-room",
         errorMessage: null,
+        noiseSuppressionEnabled: true,
         participants: [
           {
             audioLevel: 0.72,
@@ -296,6 +300,8 @@ describe("mobile display model", () => {
           },
         ],
         screenShareStatus: "unsupported",
+        selectedAudioInputId: null,
+        selectedAudioOutputId: null,
         selfAudioOutput: "default",
         selfCameraEnabled: false,
         selfMuted: false,
@@ -325,17 +331,23 @@ describe("mobile display model", () => {
     assert.equal(model.canToggleCamera, true);
     assert.equal(model.canToggleMicrophone, true);
     assert.equal(model.canShareScreen, true);
-    assert.equal(model.canOpenSettings, false);
+    assert.equal(model.canOpenSettings, true);
   });
 
   it("localizes the mobile voice noise suppression label", () => {
     const englishModel = getMobileVoiceChannelScreenModel(
       {
+        availableAudioInputs: [],
+        availableAudioOutputs: [],
+        cameraFacingMode: "user",
         channelId: "voice-1",
         channelName: "live-room",
         errorMessage: null,
+        noiseSuppressionEnabled: true,
         participants: [],
         screenShareStatus: "off",
+        selectedAudioInputId: null,
+        selectedAudioOutputId: null,
         selfAudioOutput: "default",
         selfCameraEnabled: false,
         selfMuted: false,

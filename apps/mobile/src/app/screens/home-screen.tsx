@@ -80,7 +80,12 @@ export function OverviewScreen({
   onRequestPhotoLibraryPicker,
   onBeginVoicePushToTalk,
   onEndVoicePushToTalk,
+  onFlipVoiceCamera,
+  onRefreshVoiceDevices,
+  onSelectVoiceAudioInput,
+  onSelectVoiceAudioOutputDevice,
   onSelectVoiceAudioOutput,
+  onSelectVoiceNoiseSuppression,
   onToggleVoiceCamera,
   onToggleVoiceMute,
   onToggleVoiceScreenShare,
@@ -127,7 +132,12 @@ export function OverviewScreen({
   onRequestPhotoLibraryPicker(): Promise<void>;
   onBeginVoicePushToTalk(): Promise<void>;
   onEndVoicePushToTalk(): void;
+  onFlipVoiceCamera(): Promise<void>;
+  onRefreshVoiceDevices(): Promise<void>;
+  onSelectVoiceAudioInput(id: string): Promise<void>;
+  onSelectVoiceAudioOutputDevice(id: string): Promise<void>;
   onSelectVoiceAudioOutput(mode: MobileVoiceAudioOutputMode): Promise<void>;
+  onSelectVoiceNoiseSuppression(enabled: boolean): Promise<void>;
   onToggleVoiceCamera(): Promise<void>;
   onToggleVoiceMute(): Promise<void>;
   onToggleVoiceScreenShare(): Promise<void>;
@@ -192,7 +202,12 @@ export function OverviewScreen({
           onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
           onBeginVoicePushToTalk={onBeginVoicePushToTalk}
           onEndVoicePushToTalk={onEndVoicePushToTalk}
+          onFlipVoiceCamera={onFlipVoiceCamera}
+          onRefreshVoiceDevices={onRefreshVoiceDevices}
+          onSelectVoiceAudioInput={onSelectVoiceAudioInput}
+          onSelectVoiceAudioOutputDevice={onSelectVoiceAudioOutputDevice}
           onSelectVoiceAudioOutput={onSelectVoiceAudioOutput}
+          onSelectVoiceNoiseSuppression={onSelectVoiceNoiseSuppression}
           onToggleVoiceCamera={onToggleVoiceCamera}
           onToggleVoiceMute={onToggleVoiceMute}
           onToggleVoiceScreenShare={onToggleVoiceScreenShare}

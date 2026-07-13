@@ -2,6 +2,14 @@ import type { MobileVoiceStateParticipant, WorkspaceMember } from "@wizards/type
 import type { Participant, Track, TrackPublication } from "livekit-client";
 
 import type { MobileSessionUser } from "../auth/session-types";
+import {
+  DEFAULT_MOBILE_CAMERA_FACING_MODE,
+  type MobileCameraFacingMode,
+} from "./mobile-camera-contract";
+import type {
+  MobileVoiceInputOption,
+  MobileVoiceOutputOption,
+} from "./mobile-voice-device-contract";
 
 export type MobileVoiceRoomConnectionStatus =
   | "checking-permission"
@@ -85,29 +93,38 @@ export interface MobileVoiceInviteSendState {
 export interface MobileVoiceRoomParticipant {
   readonly audioLevel: number;
   readonly avatarUrl: string | null;
+  readonly cameraTrackRef?: MobileVoiceTrackReference;
   readonly displayName: string | null;
   readonly isCameraEnabled: boolean;
   readonly isMuted: boolean;
   readonly isScreenSharing: boolean;
   readonly isSelf: boolean;
   readonly isSpeaking: boolean;
-  readonly screenShareTrackRef?: MobileScreenShareTrackReference;
+  readonly screenShareTrackRef?: MobileVoiceTrackReference;
   readonly userId: string;
   readonly username: string;
 }
 
-export interface MobileScreenShareTrackReference {
+export interface MobileVoiceTrackReference {
   readonly participant: Participant;
   readonly publication: TrackPublication;
   readonly source: Track.Source;
 }
 
+export type MobileScreenShareTrackReference = MobileVoiceTrackReference;
+
 export interface MobileVoiceRoomState {
+  readonly availableAudioInputs: readonly MobileVoiceInputOption[];
+  readonly availableAudioOutputs: readonly MobileVoiceOutputOption[];
+  readonly cameraFacingMode: MobileCameraFacingMode;
   readonly channelId: string | null;
   readonly channelName: string | null;
   readonly errorMessage: string | null;
+  readonly noiseSuppressionEnabled: boolean;
   readonly participants: readonly MobileVoiceRoomParticipant[];
   readonly screenShareStatus: MobileVoiceScreenShareStatus;
+  readonly selectedAudioInputId: string | null;
+  readonly selectedAudioOutputId: string | null;
   readonly selfAudioOutput: MobileVoiceAudioOutputMode;
   readonly selfCameraEnabled: boolean;
   readonly selfMuted: boolean;
@@ -124,11 +141,17 @@ const ACTIVE_VOICE_INVITE_STATUSES = new Set(["ONLINE", "IDLE", "DND"]);
 
 export function createInitialMobileVoiceRoomState(): MobileVoiceRoomState {
   return {
+    availableAudioInputs: [],
+    availableAudioOutputs: [],
+    cameraFacingMode: DEFAULT_MOBILE_CAMERA_FACING_MODE,
     channelId: null,
     channelName: null,
     errorMessage: null,
+    noiseSuppressionEnabled: true,
     participants: [],
     screenShareStatus: "off",
+    selectedAudioInputId: null,
+    selectedAudioOutputId: null,
     selfAudioOutput: "default",
     selfCameraEnabled: false,
     selfMuted: false,
@@ -384,10 +407,19 @@ export function mergeMobileVoiceRoomParticipants(
 
   for (const participant of incoming) {
     const previous = byUserId.get(participant.userId);
-    const { screenShareTrackRef: _previousScreenShareTrackRef, ...previousWithoutTrackRef } =
-      previous ?? {};
-    const { screenShareTrackRef: _participantScreenShareTrackRef, ...participantWithoutTrackRef } =
-      participant;
+    const {
+      cameraTrackRef: _previousCameraTrackRef,
+      screenShareTrackRef: _previousScreenShareTrackRef,
+      ...previousWithoutTrackRef
+    } = previous ?? {};
+    const {
+      cameraTrackRef: _participantCameraTrackRef,
+      screenShareTrackRef: _participantScreenShareTrackRef,
+      ...participantWithoutTrackRef
+    } = participant;
+    const cameraTrackRef = participant.isCameraEnabled
+      ? (participant.cameraTrackRef ?? previous?.cameraTrackRef)
+      : undefined;
     const screenShareTrackRef = participant.isScreenSharing
       ? (participant.screenShareTrackRef ?? previous?.screenShareTrackRef)
       : undefined;
@@ -405,7 +437,13 @@ export function mergeMobileVoiceRoomParticipants(
 
     byUserId.set(
       participant.userId,
-      screenShareTrackRef ? { ...merged, screenShareTrackRef } : merged,
+      cameraTrackRef || screenShareTrackRef
+        ? {
+            ...merged,
+            ...(cameraTrackRef ? { cameraTrackRef } : {}),
+            ...(screenShareTrackRef ? { screenShareTrackRef } : {}),
+          }
+        : merged,
     );
   }
 

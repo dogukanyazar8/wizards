@@ -4,6 +4,25 @@ import { fireEvent } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
+jest.mock("react-native-gesture-handler", () => {
+  const ReactRuntime = require("react");
+  const ReactNative = require("react-native");
+  return {
+    Gesture: {
+      Pan: () => {
+        const gesture = {
+          enabled: () => gesture,
+          onEnd: () => gesture,
+          onUpdate: () => gesture,
+        };
+        return gesture;
+      },
+    },
+    GestureDetector: ({ children }: { children: React.ReactNode }) =>
+      ReactRuntime.createElement(ReactNative.View, null, children),
+  };
+});
+
 import { activeMobileCopy } from "../src/locale/mobile-locale-preferences";
 import {
   MobileScreenShareViewer,
@@ -11,6 +30,8 @@ import {
   PushToTalkButton,
   ScreenShareConsentSheet,
 } from "../src/app/screens/voice-screen";
+import { MobileVoiceCameraGrid } from "../src/voice/mobile-camera-grid";
+import { MobileVoiceSettingsSheet } from "../src/voice/mobile-voice-settings-sheet";
 import type {
   MobileScreenShareTrackReference,
   MobileVoiceRoomParticipant,
@@ -41,11 +62,17 @@ function createConnectedVoiceRoom(
   overrides: Partial<MobileVoiceRoomState> = {},
 ): MobileVoiceRoomState {
   return {
+    availableAudioInputs: [],
+    availableAudioOutputs: [],
+    cameraFacingMode: "user",
     channelId: "voice-general",
     channelName: "General Voice",
     errorMessage: null,
+    noiseSuppressionEnabled: true,
     participants: [createParticipant({ isSelf: true, userId: "self", username: "me" })],
     screenShareStatus: "off",
+    selectedAudioInputId: null,
+    selectedAudioOutputId: null,
     selfAudioOutput: "default",
     selfCameraEnabled: false,
     selfMuted: false,
@@ -77,6 +104,50 @@ function PushToTalkHarness() {
 }
 
 describe("mobile voice component rendering", () => {
+  it("renders bounded camera tracks and exposes the camera flip action", async () => {
+    const trackRef = {
+      participant: {},
+      publication: {},
+      source: "camera",
+    } as MobileVoiceRoomParticipant["cameraTrackRef"];
+    const view = await render(
+      <MobileVoiceCameraGrid
+        canFlip
+        onFlip={() => undefined}
+        participants={[
+          createParticipant({ cameraTrackRef: trackRef, isCameraEnabled: true, isSelf: true }),
+        ]}
+      />,
+    );
+
+    expect(view.getByTestId("mobile-voice-camera-grid")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-camera-flip")).toBeTruthy();
+    expect(view.getByTestId("mobile-livekit-video-track")).toBeTruthy();
+  });
+
+  it("renders device choices and a persisted noise toggle in the voice settings sheet", async () => {
+    const onSelectNoiseSuppression = jest.fn();
+    const view = await render(
+      <MobileVoiceSettingsSheet
+        audioInputs={[{ id: "mic-1", kind: "audioinput", label: "Phone microphone" }]}
+        audioOutputs={[{ id: "speaker", kind: "audiooutput", labelKey: "speaker" }]}
+        noiseSuppressionEnabled
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+        onSelectAudioInput={() => undefined}
+        onSelectAudioOutput={() => undefined}
+        onSelectNoiseSuppression={onSelectNoiseSuppression}
+        open
+        selectedAudioInputId="mic-1"
+        selectedAudioOutputId="speaker"
+      />,
+    );
+
+    expect(view.getByTestId("mobile-voice-device-sheet-panel")).toBeTruthy();
+    await fireEvent.press(view.getByTestId("mobile-voice-noise-toggle"));
+    expect(onSelectNoiseSuppression).toHaveBeenCalledWith(false);
+  });
+
   it("updates the push-to-talk label and accessibility state while the user holds and releases", async () => {
     const view = await render(<PushToTalkHarness />);
 
@@ -217,8 +288,13 @@ describe("mobile voice component rendering", () => {
         onBack={() => undefined}
         onBeginPushToTalk={async () => undefined}
         onEndPushToTalk={() => undefined}
+        onFlipCamera={async () => undefined}
         onLeave={async () => undefined}
+        onRefreshVoiceDevices={async () => undefined}
+        onSelectAudioInput={async () => undefined}
+        onSelectAudioOutputDevice={async () => undefined}
         onSelectAudioOutput={async () => undefined}
+        onSelectNoiseSuppression={async () => undefined}
         onSendInvite={() => undefined}
         onToggleCamera={async () => undefined}
         onToggleMute={async () => {

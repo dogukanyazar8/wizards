@@ -414,7 +414,7 @@ export function getMobileVoiceChannelScreenModel(
   return {
     allParticipants,
     canLeave: room.status !== "idle",
-    canOpenSettings: false,
+    canOpenSettings: isConnected,
     canSelectDefaultAudio: isConnected,
     canSelectSpeaker: isConnected,
     canShareScreen: isConnected,

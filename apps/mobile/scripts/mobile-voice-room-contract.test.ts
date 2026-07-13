@@ -67,6 +67,37 @@ describe("mobile voice room contract", () => {
     assert.equal(merged[0]?.isMuted, false);
   });
 
+  it("keeps the newest live camera track and clears it when camera stops", () => {
+    const previousTrack = { publication: { trackSid: "old" } };
+    const currentTrack = { publication: { trackSid: "new" } };
+    const withCamera = mergeMobileVoiceRoomParticipants(
+      [
+        createParticipant({
+          cameraTrackRef: previousTrack as NonNullable<
+            MobileVoiceRoomParticipant["cameraTrackRef"]
+          >,
+          isCameraEnabled: true,
+        }),
+      ],
+      [
+        createParticipant({
+          cameraTrackRef: currentTrack as NonNullable<
+            MobileVoiceRoomParticipant["cameraTrackRef"]
+          >,
+          isCameraEnabled: true,
+        }),
+      ],
+    );
+
+    assert.equal(withCamera[0]?.cameraTrackRef, currentTrack);
+    assert.equal(
+      mergeMobileVoiceRoomParticipants(withCamera, [
+        createParticipant({ isCameraEnabled: false }),
+      ])[0]?.cameraTrackRef,
+      undefined,
+    );
+  });
+
   it("builds invite candidates only from real online server members outside the active room", () => {
     const members: MobileVoiceInviteMember[] = [
       {

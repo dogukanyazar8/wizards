@@ -4,14 +4,14 @@ export interface MobileMicrophoneLocalParticipant {
   setMicrophoneEnabled(enabled: boolean, options?: AudioCaptureOptions): Promise<unknown>;
 }
 
-const MOBILE_MICROPHONE_CAPTURE_OPTIONS: AudioCaptureOptions = {
-  autoGainControl: true,
-  echoCancellation: true,
-  noiseSuppression: true,
-};
-
-export function getMobileMicrophoneCaptureOptions(): AudioCaptureOptions {
-  return { ...MOBILE_MICROPHONE_CAPTURE_OPTIONS };
+export function getMobileMicrophoneCaptureOptions(
+  noiseSuppressionEnabled = true,
+): AudioCaptureOptions {
+  return {
+    autoGainControl: true,
+    echoCancellation: true,
+    noiseSuppression: noiseSuppressionEnabled,
+  };
 }
 
 export function getMobileNoiseSuppressionLabel(locale: "en" | "tr"): string {

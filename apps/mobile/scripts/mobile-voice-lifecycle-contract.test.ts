@@ -60,6 +60,37 @@ describe("mobile voice lifecycle contract", () => {
     assert.match(hookSource, /server-leave cleanup/i);
   });
 
+  it("publishes camera tracks, flips the local camera, and stops video in background", () => {
+    const hookSource = readFileSync(
+      resolve(__dirname, "../src/voice/use-mobile-voice-room.ts"),
+      "utf8",
+    );
+    const voiceProviderSource = readFileSync(
+      resolve(__dirname, "../src/app/providers/mobile-voice-provider.tsx"),
+      "utf8",
+    );
+
+    assert.match(hookSource, /getTrackPublication\(Track\.Source\.Camera\)/);
+    assert.match(hookSource, /cameraTrackRef/);
+    assert.match(hookSource, /restartTrack\([\s\S]*facingMode/);
+    assert.match(hookSource, /setCameraEnabled\(false\)/);
+    assert.match(hookSource, /selfVideo:\s*false/);
+    assert.match(voiceProviderSource, /requestCameraPermission[\s\S]*toggleCamera/);
+  });
+
+  it("enumerates and switches only bounded mobile audio devices", () => {
+    const hookSource = readFileSync(
+      resolve(__dirname, "../src/voice/use-mobile-voice-room.ts"),
+      "utf8",
+    );
+
+    assert.match(hookSource, /Room\.getLocalDevices\("audioinput"\)/);
+    assert.match(hookSource, /AudioSession\.getAudioOutputs\(\)/);
+    assert.match(hookSource, /switchActiveDevice\("audioinput"/);
+    assert.match(hookSource, /toMobileVoiceInputOptions/);
+    assert.match(hookSource, /toMobileVoiceOutputOptions/);
+  });
+
   it("summarizes lifecycle readiness without leaking endpoint or token material", () => {
     const summary = summarizeMobileVoiceLifecycleMatrix();
 

@@ -15,6 +15,11 @@ import {
   type MobileVoiceInputMode,
 } from "../../voice/mobile-voice-ptt-contract";
 import { useMobileVoiceRoom } from "../../voice/use-mobile-voice-room";
+import { useMobileMediaRuntime } from "./mobile-media-provider";
+import {
+  DEFAULT_MOBILE_VOICE_DEVICE_PREFERENCES,
+  type MobileVoiceDevicePreferences,
+} from "../../voice/mobile-voice-device-contract";
 
 type MobileVoiceRoomRuntime = ReturnType<typeof useMobileVoiceRoom>;
 
@@ -28,28 +33,46 @@ const MobileVoiceRuntimeContext = createContext<MobileVoiceRuntime | null>(null)
 
 export function MobileVoiceProvider({ children }: PropsWithChildren) {
   const { apiClient, session } = useMobileAuth();
+  const { requestCameraPermission, state: mediaState } = useMobileMediaRuntime();
   const [voiceInputMode, setVoiceInputMode] = useState<MobileVoiceInputMode>(
     DEFAULT_MOBILE_VOICE_INPUT_MODE,
+  );
+  const [voiceDevicePreferences, setVoiceDevicePreferences] =
+    useState<MobileVoiceDevicePreferences>(DEFAULT_MOBILE_VOICE_DEVICE_PREFERENCES);
+  const persistVoiceDevicePreferences = useCallback(
+    (preferences: MobileVoiceDevicePreferences) => {
+      setVoiceDevicePreferences(preferences);
+      void mobileVoicePreferenceRepository
+        .saveDevicePreferences(preferences)
+        .catch(() => undefined);
+    },
+    [],
   );
   const voiceRoom = useMobileVoiceRoom({
     apiClient,
     currentUser: session?.user ?? null,
+    onVoiceDevicePreferencesChange: persistVoiceDevicePreferences,
+    voiceDevicePreferences,
     voiceInputMode,
   });
 
   useEffect(() => {
     let isMounted = true;
 
-    mobileVoicePreferenceRepository
-      .loadInputMode()
-      .then((storedInputMode) => {
+    Promise.all([
+      mobileVoicePreferenceRepository.loadInputMode(),
+      mobileVoicePreferenceRepository.loadDevicePreferences(),
+    ])
+      .then(([storedInputMode, storedDevicePreferences]) => {
         if (isMounted) {
           setVoiceInputMode(storedInputMode);
+          setVoiceDevicePreferences(storedDevicePreferences);
         }
       })
       .catch(() => {
         if (isMounted) {
           setVoiceInputMode(DEFAULT_MOBILE_VOICE_INPUT_MODE);
+          setVoiceDevicePreferences(DEFAULT_MOBILE_VOICE_DEVICE_PREFERENCES);
         }
       });
 
@@ -68,14 +91,25 @@ export function MobileVoiceProvider({ children }: PropsWithChildren) {
     await voiceRoom.requestMicrophonePermission();
   }, [voiceRoom.requestMicrophonePermission]);
 
+  const toggleCamera = useCallback(async () => {
+    if (!voiceRoom.roomState.selfCameraEnabled && !mediaState.hasCameraPermission) {
+      const permission = await requestCameraPermission();
+      if (!permission.hasCameraPermission) {
+        return;
+      }
+    }
+    await voiceRoom.toggleCamera();
+  }, [mediaState.hasCameraPermission, requestCameraPermission, voiceRoom]);
+
   const value = useMemo(
     () => ({
       ...voiceRoom,
       requestMicrophonePermission,
       selectVoiceInputMode,
+      toggleCamera,
       voiceInputMode,
     }),
-    [requestMicrophonePermission, selectVoiceInputMode, voiceInputMode, voiceRoom],
+    [requestMicrophonePermission, selectVoiceInputMode, toggleCamera, voiceInputMode, voiceRoom],
   );
 
   return (

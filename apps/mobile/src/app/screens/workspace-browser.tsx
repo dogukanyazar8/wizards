@@ -79,7 +79,12 @@ export function MobileWorkspaceBrowser({
   onRequestPhotoLibraryPicker,
   onBeginVoicePushToTalk,
   onEndVoicePushToTalk,
+  onFlipVoiceCamera,
+  onRefreshVoiceDevices,
+  onSelectVoiceAudioInput,
+  onSelectVoiceAudioOutputDevice,
   onSelectVoiceAudioOutput,
+  onSelectVoiceNoiseSuppression,
   onToggleVoiceCamera,
   onToggleVoiceMute,
   onToggleVoiceScreenShare,
@@ -128,7 +133,12 @@ export function MobileWorkspaceBrowser({
   onRequestPhotoLibraryPicker(): Promise<void>;
   onBeginVoicePushToTalk(): Promise<void>;
   onEndVoicePushToTalk(): void;
+  onFlipVoiceCamera(): Promise<void>;
+  onRefreshVoiceDevices(): Promise<void>;
+  onSelectVoiceAudioInput(id: string): Promise<void>;
+  onSelectVoiceAudioOutputDevice(id: string): Promise<void>;
   onSelectVoiceAudioOutput(mode: MobileVoiceAudioOutputMode): Promise<void>;
+  onSelectVoiceNoiseSuppression(enabled: boolean): Promise<void>;
   onToggleVoiceCamera(): Promise<void>;
   onToggleVoiceMute(): Promise<void>;
   onToggleVoiceScreenShare(): Promise<void>;
@@ -334,8 +344,13 @@ export function MobileWorkspaceBrowser({
         onBack={onCloseWorkspaceVoiceChannel}
         onBeginPushToTalk={onBeginVoicePushToTalk}
         onEndPushToTalk={onEndVoicePushToTalk}
+        onFlipCamera={onFlipVoiceCamera}
         onLeave={onLeaveWorkspaceVoiceChannel}
+        onRefreshVoiceDevices={onRefreshVoiceDevices}
+        onSelectAudioInput={onSelectVoiceAudioInput}
+        onSelectAudioOutputDevice={onSelectVoiceAudioOutputDevice}
         onSelectAudioOutput={onSelectVoiceAudioOutput}
+        onSelectNoiseSuppression={onSelectVoiceNoiseSuppression}
         onSendInvite={onSendVoiceInvite}
         onToggleCamera={onToggleVoiceCamera}
         onToggleMute={onToggleVoiceMute}

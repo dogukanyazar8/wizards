@@ -42,7 +42,13 @@ jest.mock("../src/media/mobile-media-runtime", () => ({
 
 jest.mock("../src/voice/expo-mobile-voice-preferences", () => ({
   mobileVoicePreferenceRepository: {
+    loadDevicePreferences: jest.fn(async () => ({
+      audioInputId: null,
+      audioOutputId: null,
+      noiseSuppressionEnabled: true,
+    })),
     loadInputMode: jest.fn(async () => "voice-activity"),
+    saveDevicePreferences: jest.fn(async () => undefined),
     saveInputMode: jest.fn(async () => undefined),
   },
 }));
@@ -67,11 +73,17 @@ jest.mock("../src/voice/use-mobile-voice-room", () => ({
     },
     requestMicrophonePermission: mockRequestMicrophone,
     roomState: {
+      availableAudioInputs: [],
+      availableAudioOutputs: [],
+      cameraFacingMode: "user",
       channelId: null,
       channelName: null,
       errorMessage: null,
+      noiseSuppressionEnabled: true,
       participants: [],
       screenShareStatus: "off",
+      selectedAudioInputId: null,
+      selectedAudioOutputId: null,
       selfAudioOutput: "default",
       selfCameraEnabled: false,
       selfMuted: false,

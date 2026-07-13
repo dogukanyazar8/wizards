@@ -32,12 +32,9 @@ import {
   type MobileSettingsScreenProps,
   type MobileVoiceScreenProps,
 } from "./providers/mobile-product-screen-provider";
-
 const copy = activeMobileCopy;
 const runtimeConfig = getMobileRuntimeConfig();
-export function MobileProductApp({
-  Navigator,
-}: {
+export function MobileProductApp({ Navigator }: {
   readonly Navigator: ComponentType<{
     readonly directMessageUnreadCount?: number;
     readonly onTabChange?: (tab: MobileTabId) => void;
@@ -87,13 +84,18 @@ export function MobileProductApp({
   const {
     beginPushToTalk,
     endPushToTalk,
+    flipCamera: flipVoiceCamera,
     joinVoiceChannel,
     leaveVoiceChannel,
     permissionState: voiceState,
     pushToTalkState: voicePushToTalkState,
     requestMicrophonePermission: handleRequestVoicePermission,
     roomState: voiceRoomState,
+    refreshVoiceDevices,
+    selectAudioDeviceOutput: selectVoiceAudioOutputDevice,
+    selectAudioInput: selectVoiceAudioInput,
     selectAudioOutput: selectVoiceAudioOutput,
+    selectNoiseSuppression: selectVoiceNoiseSuppression,
     selectVoiceInputMode: handleSelectMobileVoiceInputMode,
     syncParticipantAudioLevelFromServer,
     syncParticipantsFromServer,
@@ -199,9 +201,8 @@ export function MobileProductApp({
         ? copy.authSignedIn
         : copy.authSignedOut;
   const signedInUserLabel = session ? (session.user.displayName ?? session.user.username) : null;
-
-  const mobileShellUnreadCount =
-    bootstrapState.status === "ready" ? bootstrapState.payload.home.directMessages.unreadCount : 0;
+  const mobileShellUnreadCount = bootstrapState.status === "ready"
+    ? bootstrapState.payload.home.directMessages.unreadCount : 0;
   const { channelTypingLabel, dmTypingLabel } = useMobileTypingLabels({
     channelId: selectedWorkspaceChannelId,
     channelTyping: channelTypingState,
@@ -211,7 +212,6 @@ export function MobileProductApp({
   const { openCookies, openPrivacyPolicy, openSupport, openTerms } = useMobileProductLinks(
     runtimeConfig.webUrl,
   );
-
   const messagesScreenProps: MobileMessagesScreenProps = {
     bootstrapState,
     dmMessagesState,
@@ -240,7 +240,6 @@ export function MobileProductApp({
     selectedConversationId: selectedDMConversationId,
     syncHealth: getSyncHealth("messages"),
   };
-
   const overviewScreenProps: MobileOverviewScreenProps = {
     activeWorkspaceTextChannelId,
     activeWorkspaceVoiceChannelId,
@@ -259,6 +258,7 @@ export function MobileProductApp({
     onCloseWorkspaceChannel: handleCloseWorkspaceChannel,
     onCloseWorkspaceVoiceChannel: handleCloseWorkspaceVoiceChannel,
     onEndVoicePushToTalk: endPushToTalk,
+    onFlipVoiceCamera: flipVoiceCamera,
     onLeaveWorkspaceVoiceChannel: handleLeaveWorkspaceVoiceChannel,
     onOpenWorkspaceChannel: handleOpenWorkspaceChannel,
     onOpenWorkspaceServer: handleOpenWorkspaceServer,
@@ -266,10 +266,14 @@ export function MobileProductApp({
     onRefreshChannelMessages: refreshChannelMessages,
     onRefreshVisibleData: refreshVisibleMobileData,
     onRefreshWorkspaceServer: refreshWorkspaceServer,
+    onRefreshVoiceDevices: refreshVoiceDevices,
     onRequestDocumentPicker: handleRequestDocumentPicker,
     onRequestPhotoLibraryPicker: handleRequestPhotoLibraryPicker,
     onSearchMessages: handleSearchMessages,
     onSelectVoiceAudioOutput: selectVoiceAudioOutput,
+    onSelectVoiceAudioInput: selectVoiceAudioInput,
+    onSelectVoiceAudioOutputDevice: selectVoiceAudioOutputDevice,
+    onSelectVoiceNoiseSuppression: selectVoiceNoiseSuppression,
     onSendChannelMessage: handleSendChannelMessage,
     onSendChannelGif: handleSendChannelGif,
     onDeleteMessage: handleDeleteChannelMessage,
@@ -288,7 +292,6 @@ export function MobileProductApp({
     voiceRoomState,
     workspaceServerState,
   };
-
   const notificationsScreenProps: MobileNotificationsScreenProps = {
     bootstrapState,
     notificationState,
@@ -299,7 +302,6 @@ export function MobileProductApp({
     permissionSummary,
     syncHealth: getSyncHealth("notifications"),
   };
-
   const settingsScreenProps: MobileSettingsScreenProps = {
     appLockAvailability,
     appLockEnabled,
@@ -317,7 +319,9 @@ export function MobileProductApp({
     onRefresh: () => void refreshSessionFromStorage(),
     onRefreshBootstrap: refreshBootstrap,
     onRefreshVisibleData: refreshVisibleMobileData,
-    onRequestCameraPermission: handleRequestCameraPermission,
+    onRequestCameraPermission: async () => {
+      await handleRequestCameraPermission();
+    },
     onRequestDocumentPicker: handleRequestDocumentPicker,
     onRequestNotificationPermission: handleRequestNotificationPermission,
     onRequestPhotoLibraryPermission: handleRequestPhotoLibraryPermission,
@@ -333,15 +337,19 @@ export function MobileProductApp({
     syncHealth: getSyncHealth("settings"),
     voiceInputMode,
   };
-
   const voiceScreenProps: MobileVoiceScreenProps = {
     bootstrapState,
     onBeginVoicePushToTalk: beginPushToTalk,
     onEndVoicePushToTalk: endPushToTalk,
+    onFlipVoiceCamera: flipVoiceCamera,
     onLeaveVoiceChannel: leaveVoiceChannel,
     onRefreshBootstrap: refreshBootstrap,
     onRefreshVisibleData: refreshVisibleMobileData,
+    onRefreshVoiceDevices: refreshVoiceDevices,
     onRequestVoicePermission: handleRequestVoicePermission,
+    onSelectVoiceAudioInput: selectVoiceAudioInput,
+    onSelectVoiceAudioOutputDevice: selectVoiceAudioOutputDevice,
+    onSelectVoiceNoiseSuppression: selectVoiceNoiseSuppression,
     onToggleVoiceCamera: toggleVoiceCamera,
     onToggleVoiceMute: toggleVoiceMute,
     onToggleVoiceScreenShare: toggleVoiceScreenShare,
@@ -353,11 +361,9 @@ export function MobileProductApp({
     voiceRoomState,
     voiceState,
   };
-
   if (!fontsLoaded) {
     return null;
   }
-
   return (
     <MobileProductNavigationProvider value={{ openWorkspaceRoute: handleOpenWorkspaceRoute }}>
       <MobileMessagesScreenProvider value={messagesScreenProps}>

@@ -23,7 +23,7 @@ import {
 
 interface MobileMediaRuntime {
   readonly clearSelectedAsset: () => void;
-  readonly requestCameraPermission: () => Promise<void>;
+  readonly requestCameraPermission: () => Promise<MobileMediaRuntimeState>;
   readonly requestDocumentPicker: () => Promise<void>;
   readonly requestPhotoLibraryPermission: () => Promise<void>;
   readonly requestPhotoLibraryPicker: () => Promise<void>;
@@ -52,7 +52,9 @@ export function MobileMediaProvider({ children }: PropsWithChildren) {
 
   const requestCameraPermission = useCallback(async () => {
     setState((current) => createCheckingMobileMediaRuntimeState(current, "camera"));
-    setState(await requestMobileCameraPermissionAfterUserAction(stateRef.current));
+    const nextState = await requestMobileCameraPermissionAfterUserAction(stateRef.current);
+    setState(nextState);
+    return nextState;
   }, []);
 
   const requestDocumentPicker = useCallback(async () => {

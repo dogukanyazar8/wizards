@@ -40,6 +40,8 @@ import {
 } from "../components/ui-atoms";
 import { useVoiceScreenStyles } from "./voice-screen.styles";
 import { useTheme } from "../providers/mobile-theme-provider";
+import { MobileVoiceCameraGrid } from "../../voice/mobile-camera-grid";
+import { MobileVoiceSettingsSheet } from "../../voice/mobile-voice-settings-sheet";
 
 export function VoiceScreen({
   bootstrapState,
@@ -51,9 +53,14 @@ export function VoiceScreen({
   voiceState,
   syncHealth,
   onLeaveVoiceChannel,
+  onFlipVoiceCamera,
+  onRefreshVoiceDevices,
   onBeginVoicePushToTalk,
   onEndVoicePushToTalk,
   onRequestVoicePermission,
+  onSelectVoiceAudioInput,
+  onSelectVoiceAudioOutputDevice,
+  onSelectVoiceNoiseSuppression,
   onToggleVoiceCamera,
   onToggleVoiceMute,
   onToggleVoiceScreenShare,
@@ -71,7 +78,12 @@ export function VoiceScreen({
   onBeginVoicePushToTalk(): Promise<void>;
   onEndVoicePushToTalk(): void;
   onLeaveVoiceChannel(): Promise<void>;
+  onFlipVoiceCamera(): Promise<void>;
+  onRefreshVoiceDevices(): Promise<void>;
   onRequestVoicePermission(): Promise<void>;
+  onSelectVoiceAudioInput(id: string): Promise<void>;
+  onSelectVoiceAudioOutputDevice(id: string): Promise<void>;
+  onSelectVoiceNoiseSuppression(enabled: boolean): Promise<void>;
   onToggleVoiceCamera(): Promise<void>;
   onToggleVoiceMute(): Promise<void>;
   onToggleVoiceScreenShare(): Promise<void>;
@@ -80,6 +92,7 @@ export function VoiceScreen({
 }) {
   const styles = useVoiceScreenStyles();
   const [screenShareConsentVisible, setScreenShareConsentVisible] = useState(false);
+  const [voiceSettingsVisible, setVoiceSettingsVisible] = useState(false);
   const requestScreenShareToggle = () => {
     if (voiceRoomState.selfScreenShareEnabled) {
       void onToggleVoiceScreenShare();
@@ -124,6 +137,24 @@ export function VoiceScreen({
         }}
       />
       <MobileScreenShareViewer participants={voiceRoomState.participants} />
+      <MobileVoiceCameraGrid
+        canFlip={voiceRoomState.selfCameraEnabled}
+        onFlip={() => void onFlipVoiceCamera()}
+        participants={voiceRoomState.participants}
+      />
+      <MobileVoiceSettingsSheet
+        audioInputs={voiceRoomState.availableAudioInputs}
+        audioOutputs={voiceRoomState.availableAudioOutputs}
+        noiseSuppressionEnabled={voiceRoomState.noiseSuppressionEnabled}
+        onClose={() => setVoiceSettingsVisible(false)}
+        onRefresh={onRefreshVoiceDevices}
+        onSelectAudioInput={onSelectVoiceAudioInput}
+        onSelectAudioOutput={onSelectVoiceAudioOutputDevice}
+        onSelectNoiseSuppression={onSelectVoiceNoiseSuppression}
+        open={voiceSettingsVisible}
+        selectedAudioInputId={voiceRoomState.selectedAudioInputId}
+        selectedAudioOutputId={voiceRoomState.selectedAudioOutputId}
+      />
       <PushToTalkButton
         disabled={voiceRoomState.status !== "connected" || voiceInputMode !== "push-to-talk"}
         inputMode={voiceInputMode}
@@ -139,6 +170,11 @@ export function VoiceScreen({
         onToggleCamera={() => void onToggleVoiceCamera()}
         onToggleMute={() => void onToggleVoiceMute()}
         onToggleScreenShare={requestScreenShareToggle}
+      />
+      <ActionButton
+        label={copy.voiceSettingsAction}
+        onPress={() => setVoiceSettingsVisible(true)}
+        variant="secondary"
       />
       <VoiceRuntimeCard state={voiceState} onRequestPermission={onRequestVoicePermission} />
     </ScreenShell>
@@ -898,6 +934,11 @@ export function MobileVoiceChannelScreen({
   onBeginPushToTalk,
   onEndPushToTalk,
   onLeave,
+  onFlipCamera,
+  onRefreshVoiceDevices,
+  onSelectAudioInput,
+  onSelectAudioOutputDevice,
+  onSelectNoiseSuppression,
   onSelectAudioOutput,
   onSendInvite,
   onToggleCamera,
@@ -919,7 +960,12 @@ export function MobileVoiceChannelScreen({
   onBeginPushToTalk(): Promise<void>;
   onEndPushToTalk(): void;
   onLeave(): Promise<void>;
+  onFlipCamera(): Promise<void>;
+  onRefreshVoiceDevices(): Promise<void>;
   onSelectAudioOutput(mode: MobileVoiceAudioOutputMode): Promise<void>;
+  onSelectAudioInput(id: string): Promise<void>;
+  onSelectAudioOutputDevice(id: string): Promise<void>;
+  onSelectNoiseSuppression(enabled: boolean): Promise<void>;
   onSendInvite(targetUserId: string): void;
   onToggleCamera(): Promise<void>;
   onToggleMute(): Promise<void>;
@@ -948,6 +994,7 @@ export function MobileVoiceChannelScreen({
   const createdValue = copy.voiceRoomUnknownInfo;
   const isPushToTalkMode = voiceInputMode === "push-to-talk";
   const [screenShareConsentVisible, setScreenShareConsentVisible] = useState(false);
+  const [voiceSettingsVisible, setVoiceSettingsVisible] = useState(false);
   const requestScreenShareToggle = () => {
     if (room.selfScreenShareEnabled) {
       void onToggleScreenShare();
@@ -994,9 +1041,10 @@ export function MobileVoiceChannelScreen({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={copy.voiceSettingsAction}
-          accessibilityState={{ disabled: true }}
-          disabled
-          style={[styles.mobileChannelChatIconButton, styles.mobileVoiceHeaderDisabledButton]}
+          accessibilityState={{ disabled: !model.canOpenSettings }}
+          disabled={!model.canOpenSettings}
+          onPress={() => setVoiceSettingsVisible(true)}
+          style={styles.mobileChannelChatIconButton}
         >
           <Ionicons name="ellipsis-horizontal" size={18} color={theme.text.soft} />
         </Pressable>
@@ -1018,12 +1066,30 @@ export function MobileVoiceChannelScreen({
           void onToggleScreenShare();
         }}
       />
+      <MobileVoiceSettingsSheet
+        audioInputs={room.availableAudioInputs}
+        audioOutputs={room.availableAudioOutputs}
+        noiseSuppressionEnabled={room.noiseSuppressionEnabled}
+        onClose={() => setVoiceSettingsVisible(false)}
+        onRefresh={onRefreshVoiceDevices}
+        onSelectAudioInput={onSelectAudioInput}
+        onSelectAudioOutput={onSelectAudioOutputDevice}
+        onSelectNoiseSuppression={onSelectNoiseSuppression}
+        open={voiceSettingsVisible}
+        selectedAudioInputId={room.selectedAudioInputId}
+        selectedAudioOutputId={room.selectedAudioOutputId}
+      />
 
       <ScrollView
         contentContainerStyle={styles.mobileVoiceChannelContent}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.mobileVoiceStatusText}>{statusText}</Text>
+        <MobileVoiceCameraGrid
+          canFlip={room.selfCameraEnabled}
+          onFlip={() => void onFlipCamera()}
+          participants={model.allParticipants}
+        />
         <MobileScreenShareViewer participants={model.allParticipants} />
         <MobileVoiceParticipantGroup
           emptyLabel={copy.voiceRoomNoParticipants}
@@ -1118,7 +1184,7 @@ export function MobileVoiceChannelScreen({
           icon="settings-outline"
           label={copy.voiceSettingsAction}
           disabled={!model.canOpenSettings}
-          onPress={() => undefined}
+          onPress={() => setVoiceSettingsVisible(true)}
         />
         <MobileVoiceControlButton
           icon="exit-outline"
