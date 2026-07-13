@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { DefaultTheme, NavigationContainer, type NavigationState } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Linking } from "react-native";
+import { useReducedMotion } from "react-native-reanimated";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { getMobileRuntimeConfig } from "../config/environment";
 import { useMobileDeepLinkRuntime } from "../app/providers/mobile-deep-link-provider";
@@ -45,6 +46,7 @@ export function MobileNavigator({
   onTabChange,
 }: MobileNavigatorProps) {
   const theme = useTheme();
+  const reducedMotion = useReducedMotion() === true;
   const { handleCommand } = useMobileDeepLinkRuntime();
   const runtimeConfig = getMobileRuntimeConfig();
   const linking = useMemo(
@@ -78,6 +80,13 @@ export function MobileNavigator({
     }),
     [theme],
   );
+  const rootStackOptions = useMemo(
+    () => ({
+      animation: reducedMotion ? ("none" as const) : ("slide_from_right" as const),
+      headerShown: false,
+    }),
+    [reducedMotion],
+  );
 
   return (
     <NavigationContainer
@@ -87,7 +96,7 @@ export function MobileNavigator({
       ref={mobileNavigationRef}
       theme={navigationTheme}
     >
-      <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      <RootStack.Navigator screenOptions={rootStackOptions}>
         <RootStack.Screen name="MainTabs">
           {() => <MobileBottomTabs directMessageUnreadCount={directMessageUnreadCount} />}
         </RootStack.Screen>

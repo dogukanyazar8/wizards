@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createMobileApiClient, MobileApiError } from "../src/api/mobile-api-client";
+import { MobileOfflineError } from "../src/network/mobile-network-contract";
 
 describe("mobile API client", () => {
   it("uses safe relative API paths and attaches bearer tokens", async () => {
@@ -54,10 +55,13 @@ describe("mobile API client", () => {
     const client = createMobileApiClient({
       baseUrl: "https://whispr.team",
       fetchImpl: async () =>
-        new Response(JSON.stringify({ code: "UNAUTHORIZED", token: "access-token-should-not-leak" }), {
-          headers: { "content-type": "application/json" },
-          status: 401,
-        }),
+        new Response(
+          JSON.stringify({ code: "UNAUTHORIZED", token: "access-token-should-not-leak" }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 401,
+          },
+        ),
       getAccessToken: () => "access-token-1234567890",
     });
 
@@ -126,5 +130,29 @@ describe("mobile API client", () => {
     });
 
     assert.equal(result, undefined);
+  });
+
+  it("fails offline mutations before token resolution or fetch without queueing", async () => {
+    let fetchCalls = 0;
+    let tokenCalls = 0;
+    const client = createMobileApiClient({
+      baseUrl: "https://whispr.team",
+      fetchImpl: async () => {
+        fetchCalls += 1;
+        return new Response(null, { status: 204 });
+      },
+      getAccessToken: () => {
+        tokenCalls += 1;
+        return "unused-token";
+      },
+      getNetworkStatus: () => "offline",
+    });
+
+    await assert.rejects(
+      () => client.requestJson("/api/v1/mobile/friends", { method: "POST" }),
+      MobileOfflineError,
+    );
+    assert.equal(fetchCalls, 0);
+    assert.equal(tokenCalls, 0);
   });
 });

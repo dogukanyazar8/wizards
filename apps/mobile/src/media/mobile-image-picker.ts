@@ -1,5 +1,3 @@
-import * as ImagePicker from "expo-image-picker";
-
 import {
   MobileImageUploadError,
   type MobilePickedImage,
@@ -13,6 +11,7 @@ const MOBILE_IMAGE_FILE_NAMES: Record<"image/jpeg" | "image/png" | "image/webp",
 };
 
 export async function pickMobileImage(): Promise<MobilePickedImage | null> {
+  const ImagePicker = await import("expo-image-picker");
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
   if (!permission.granted) {

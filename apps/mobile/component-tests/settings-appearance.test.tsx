@@ -12,12 +12,24 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
-import { SettingsAppearanceSelector } from "../src/app/screens/settings-screen";
+import {
+  SettingsAppearanceSelector,
+  SettingsHapticsControl,
+} from "../src/app/screens/settings-screen";
 import { MOBILE_THEME_PREFERENCE_KEY } from "../src/design/mobile-theme-runtime";
 import { setActiveMobileLocale } from "../src/locale/mobile-locale-preferences";
 
 const mockGetItem = AsyncStorage.getItem as jest.MockedFunction<typeof AsyncStorage.getItem>;
 const mockSetItem = AsyncStorage.setItem as jest.MockedFunction<typeof AsyncStorage.setItem>;
+const mockSetHapticsEnabled = jest.fn();
+
+jest.mock("../src/app/providers/mobile-haptics-provider", () => ({
+  useMobileHaptics: () => ({ enabled: true, setEnabled: mockSetHapticsEnabled }),
+}));
+
+jest.mock("../src/media/use-mobile-image-upload", () => ({
+  useMobileImageUpload: () => ({ isBusy: false, selectAndUpload: jest.fn() }),
+}));
 
 describe("SettingsAppearanceSelector", () => {
   beforeEach(() => {
@@ -50,5 +62,17 @@ describe("SettingsAppearanceSelector", () => {
     await waitFor(() =>
       expect(mockSetItem).toHaveBeenCalledWith(MOBILE_THEME_PREFERENCE_KEY, "dark"),
     );
+  });
+
+  it("exposes an accessible haptics preference toggle", async () => {
+    const view = await render(
+      <MobileThemeProvider>
+        <SettingsHapticsControl />
+      </MobileThemeProvider>,
+    );
+    const toggle = view.getByTestId("mobile-haptics-toggle");
+    expect(toggle.props.accessibilityState.checked).toBe(true);
+    await fireEvent.press(toggle);
+    expect(mockSetHapticsEnabled).toHaveBeenCalledWith(false);
   });
 });

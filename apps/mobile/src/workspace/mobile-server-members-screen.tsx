@@ -5,7 +5,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { MobileServerMember } from "@wizards/types";
 
 import { useMobileAuth } from "../auth/mobile-auth-context";
-import { Avatar, BottomSheet, Button, DestructiveConfirmationSheet } from "../app/components/kit";
+import {
+  Avatar,
+  BottomSheet,
+  Button,
+  DestructiveConfirmationSheet,
+  EmptyState,
+  Skeleton,
+} from "../app/components/kit";
 import { useThemedStyles } from "../app/providers/mobile-theme-provider";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 import { useMobileServerManagementMutations } from "../query/use-mobile-server-management-mutations";
@@ -28,7 +35,8 @@ export interface MobileServerMembersScreenProps {
 const COPY = {
   back: "Back",
   empty: "There are no members to show.",
-  error: "Member changes could not be completed. Permissions may have changed; the list was refreshed.",
+  error:
+    "Member changes could not be completed. Permissions may have changed; the list was refreshed.",
   kick: "Kick member",
   kickBody: "This removes the member from the server.",
   loadMore: "Could not load more members. Try again.",
@@ -57,8 +65,9 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
   const [error, setError] = useState<string | null>(null);
   const expandedMember = useMemo(
     () =>
-      members.data?.pages.flatMap((page) => page.members).find((member) => member.id === expandedMemberId) ??
-      null,
+      members.data?.pages
+        .flatMap((page) => page.members)
+        .find((member) => member.id === expandedMemberId) ?? null,
     [expandedMemberId, members.data?.pages],
   );
   const roles = useMobileAssignableRolesQuery(
@@ -116,7 +125,11 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
 
   const renderMember = ({ item }: { readonly item: MobileServerMemberListRow }) => {
     if (item.kind === "header") {
-      return <Text style={styles.memberHeader}>{item.id === "present" ? COPY.present : COPY.offline}</Text>;
+      return (
+        <Text style={styles.memberHeader}>
+          {item.id === "present" ? COPY.present : COPY.offline}
+        </Text>
+      );
     }
     const { member } = item;
     const canExpandRoles = member.actions.canManageRoles;
@@ -129,7 +142,9 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
         />
         <View style={styles.rowBody}>
           <Text style={styles.body}>{member.displayName}</Text>
-          <Text style={styles.caption}>{member.status} · @{member.username}</Text>
+          <Text style={styles.caption}>
+            {member.status} · @{member.username}
+          </Text>
         </View>
         {canExpandRoles ? (
           <Button
@@ -154,7 +169,11 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
   if (members.isLoading) {
     return (
       <View style={styles.root} testID="mobile-server-members-screen">
-        <View style={styles.content}><ActivityIndicator /></View>
+        <View style={styles.content} testID="mobile-server-members-loading">
+          <Skeleton height={64} />
+          <Skeleton height={64} />
+          <Skeleton height={64} />
+        </View>
       </View>
     );
   }
@@ -163,7 +182,9 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
     return (
       <View style={styles.root} testID="mobile-server-members-screen">
         <View style={styles.content}>
-          <Text accessibilityRole="alert" style={styles.error}>{COPY.error}</Text>
+          <Text accessibilityRole="alert" style={styles.error}>
+            {COPY.error}
+          </Text>
           <Button label="Retry" onPress={() => void members.refetch()} />
           <Button label={COPY.back} onPress={onBack} variant="ghost" />
         </View>
@@ -178,7 +199,9 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
         <Text style={styles.title}>{COPY.members}</Text>
       </View>
       {rows.length === 0 ? (
-        <View style={styles.content}><Text style={styles.body}>{COPY.empty}</Text></View>
+        <View style={styles.content} testID="mobile-server-members-empty">
+          <EmptyState description={COPY.empty} icon="people-outline" title={COPY.members} />
+        </View>
       ) : (
         <FlashList
           data={rows}
@@ -196,13 +219,21 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
       )}
       {members.isFetchNextPageError ? (
         <View style={styles.content}>
-          <Text accessibilityRole="alert" style={styles.error} testID="mobile-server-members-load-more-error">
+          <Text
+            accessibilityRole="alert"
+            style={styles.error}
+            testID="mobile-server-members-load-more-error"
+          >
             {COPY.loadMore}
           </Text>
           <Button label="Retry" onPress={() => void fetchNextPage()} variant="secondary" />
         </View>
       ) : null}
-      {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <Text accessibilityRole="alert" style={styles.error}>
+          {error}
+        </Text>
+      ) : null}
       <BottomSheet
         accessibilityLabel={COPY.roles}
         onClose={() => setExpandedMemberId(null)}
@@ -210,34 +241,46 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
         testID="mobile-member-roles-sheet"
       >
         <View style={styles.sheet}>
-          <Text accessibilityRole="header" style={styles.sectionTitle}>{COPY.roles}</Text>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>
+            {COPY.roles}
+          </Text>
           {roles.isLoading ? <ActivityIndicator /> : null}
           {!roles.isLoading && (roles.data?.roles.length ?? 0) === 0 ? (
             <Text style={styles.body}>{COPY.rolesUnavailable}</Text>
           ) : null}
-          {expandedMember && roles.data?.roles.map((role) => {
-            const assigned = expandedMember.roleIds.includes(role.id);
-            return (
-              <Pressable
-                accessibilityLabel={`${role.name} role`}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: assigned }}
-                key={role.id}
-                onPress={() => {
-                  if (assigned) {
-                    setPendingRoleRemoval({ member: expandedMember, roleId: role.id, roleName: role.name });
-                  } else {
-                    void mutateRoles(expandedMember, role.id, true).catch(() => undefined);
-                  }
-                }}
-                style={styles.roleRow}
-                testID={`mobile-member-${expandedMember.id}-role-${role.id}`}
-              >
-                <View style={[styles.roleDot, { backgroundColor: `#${role.color.toString(16).padStart(6, "0")}` }]} />
-                <Text style={styles.body}>{role.name}</Text>
-              </Pressable>
-            );
-          })}
+          {expandedMember &&
+            roles.data?.roles.map((role) => {
+              const assigned = expandedMember.roleIds.includes(role.id);
+              return (
+                <Pressable
+                  accessibilityLabel={`${role.name} role`}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: assigned }}
+                  key={role.id}
+                  onPress={() => {
+                    if (assigned) {
+                      setPendingRoleRemoval({
+                        member: expandedMember,
+                        roleId: role.id,
+                        roleName: role.name,
+                      });
+                    } else {
+                      void mutateRoles(expandedMember, role.id, true).catch(() => undefined);
+                    }
+                  }}
+                  style={styles.roleRow}
+                  testID={`mobile-member-${expandedMember.id}-role-${role.id}`}
+                >
+                  <View
+                    style={[
+                      styles.roleDot,
+                      { backgroundColor: `#${role.color.toString(16).padStart(6, "0")}` },
+                    ]}
+                  />
+                  <Text style={styles.body}>{role.name}</Text>
+                </Pressable>
+              );
+            })}
         </View>
       </BottomSheet>
       <DestructiveConfirmationSheet

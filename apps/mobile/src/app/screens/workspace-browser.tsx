@@ -46,6 +46,7 @@ import { MobileVoiceChannelScreen } from "./voice-screen";
 import { useHomeScreenStyles } from "./home-screen.styles";
 import { WorkspaceChannelSectionList } from "./workspace-channel-section-list";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
+import { EmptyState, Skeleton } from "../components/kit";
 
 export function MobileWorkspaceBrowser({
   attachmentsFeature,
@@ -413,10 +414,12 @@ export function MobileWorkspaceBrowser({
 
       <View style={styles.mobileWorkspacePanel}>
         {servers.length === 0 ? (
-          <View style={styles.mobileWorkspaceEmpty}>
-            <Text style={styles.screenEyebrow}>{copy.overviewTitle}</Text>
-            <Text style={styles.screenTitle}>{copy.homeNoServers}</Text>
-            <Text style={styles.screenDescription}>{copy.homePrimaryServerEmpty}</Text>
+          <View style={styles.mobileWorkspaceEmpty} testID="mobile-workspace-empty">
+            <EmptyState
+              description={copy.homePrimaryServerEmpty}
+              icon="server-outline"
+              title={copy.homeNoServers}
+            />
           </View>
         ) : (
           <>
@@ -441,6 +444,13 @@ export function MobileWorkspaceBrowser({
                 <Ionicons name="chevron-down" size={18} color={theme.text.muted} />
               )}
             </View>
+            {isActiveServerLoading ? (
+              <View style={styles.mobileWorkspaceSearchRow} testID="mobile-workspace-loading">
+                <Skeleton height={48} />
+                <Skeleton height={48} />
+                <Skeleton height={48} />
+              </View>
+            ) : null}
 
             {canManageInvites ? (
               <Pressable
@@ -540,7 +550,10 @@ export function MobileWorkspaceBrowser({
                   onOpenChannel={onOpenChannel}
                   onOpenChannelSettings={(channelId) => {
                     if (mobileNavigationRef.isReady() && activeServerId) {
-                      mobileNavigationRef.navigate("ChannelSettings", { channelId, serverId: activeServerId });
+                      mobileNavigationRef.navigate("ChannelSettings", {
+                        channelId,
+                        serverId: activeServerId,
+                      });
                     }
                   }}
                   onToggleSection={handleToggleSection}

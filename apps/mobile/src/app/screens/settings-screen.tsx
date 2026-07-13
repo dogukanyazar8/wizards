@@ -62,6 +62,7 @@ import { useSettingsScreenStyles } from "./settings-screen.styles";
 import { SocialAccountQuickActions } from "../../social/social-account-screens";
 import { Button } from "../components/kit";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
+import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 
 function getMobilePermissionLabel(intentId: MobilePermissionIntentId): string {
   switch (intentId) {
@@ -980,6 +981,36 @@ export function SettingsAppearanceSelector() {
   );
 }
 
+export function SettingsHapticsControl() {
+  const styles = useSettingsScreenStyles();
+  const { enabled, setEnabled } = useMobileHaptics();
+  const label = enabled ? copy.settingsHapticsEnabled : copy.settingsHapticsDisabled;
+
+  return (
+    <Pressable
+      accessibilityLabel={copy.settingsHapticsTitle}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: enabled }}
+      onPress={() => setEnabled(!enabled)}
+      style={({ pressed }) => [
+        styles.settingsLocaleOption,
+        enabled && styles.settingsLocaleOptionSelected,
+        pressed && styles.actionButtonPressed,
+      ]}
+      testID="mobile-haptics-toggle"
+    >
+      <Text
+        style={[
+          styles.settingsLocaleOptionLabel,
+          enabled && styles.settingsLocaleOptionLabelSelected,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 function getMobileVoiceInputModeOptions(): ReadonlyArray<{
   id: MobileVoiceInputMode;
   label: string;
@@ -1748,6 +1779,7 @@ export function ProfileSettingsScreen({
         title={copy.settingsAppearanceTitle}
       >
         <SettingsAppearanceSelector />
+        <SettingsHapticsControl />
       </SettingsPreferenceSection>,
       "mobile-settings-appearance",
     );
@@ -1857,6 +1889,7 @@ export function ProfileSettingsScreen({
         >
           <SettingsLocaleSelector locale={locale} onSelectLocale={onSelectLocale} />
           <SettingsAppearanceSelector />
+          <SettingsHapticsControl />
         </SettingsPreferenceSection>
         <SettingsPreferenceSection
           description={copy.settingsNotificationsDescription}

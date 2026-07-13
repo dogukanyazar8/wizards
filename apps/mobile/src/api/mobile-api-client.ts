@@ -1,3 +1,13 @@
+import {
+  MobileOfflineError,
+  isMobileMutationMethod,
+  type MobileNetworkStatus,
+} from "../network/mobile-network-contract";
+import {
+  emitMobileOfflineMutationAttempt,
+  getMobileNetworkStatusSnapshot,
+} from "../network/mobile-network-events";
+
 export class MobileApiError extends Error {
   readonly apiPath: string | null;
   readonly code: string;
@@ -6,7 +16,12 @@ export class MobileApiError extends Error {
 
   constructor(
     message: string,
-    input: { apiPath?: string | null; code?: string; serverCode?: string | null; status?: number } = {},
+    input: {
+      apiPath?: string | null;
+      code?: string;
+      serverCode?: string | null;
+      status?: number;
+    } = {},
   ) {
     super(message);
     this.name = "MobileApiError";
@@ -21,6 +36,7 @@ export interface MobileApiClientOptions {
   baseUrl: string;
   fetchImpl?: typeof fetch;
   getAccessToken?: () => Promise<string | null> | string | null;
+  getNetworkStatus?: () => MobileNetworkStatus;
   timeoutMs?: number;
 }
 
@@ -41,7 +57,12 @@ function normalizeBaseUrl(value: string): string {
 }
 
 function assertRelativeApiPath(path: string) {
-  if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\") || path.includes("..")) {
+  if (
+    !path.startsWith("/") ||
+    path.startsWith("//") ||
+    path.includes("\\") ||
+    path.includes("..")
+  ) {
     throw new MobileApiError("Whispr mobile API requests must use a safe relative path.", {
       code: "unsafe_path",
     });
@@ -100,6 +121,13 @@ export function createMobileApiClient(options: MobileApiClientOptions): MobileAp
 
   return {
     async requestJson<TResponse>(path: string, requestOptions: MobileApiRequestOptions = {}) {
+      assertRelativeApiPath(path);
+      const networkStatus = options.getNetworkStatus?.() ?? getMobileNetworkStatusSnapshot();
+      if (networkStatus === "offline" && isMobileMutationMethod(requestOptions.method)) {
+        emitMobileOfflineMutationAttempt();
+        throw new MobileOfflineError();
+      }
+
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
 

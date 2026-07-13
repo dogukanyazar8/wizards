@@ -5,6 +5,7 @@ import { useThemedStyles } from "../../providers/mobile-theme-provider";
 import type { MobileTheme } from "../../../design/themes";
 import { BottomSheet } from "./bottom-sheet";
 import { Icon } from "./icon";
+import { useMobileHaptics } from "../../providers/mobile-haptics-provider";
 
 export interface ContextMenuAction {
   destructive?: boolean;
@@ -51,6 +52,7 @@ export function ContextMenu({
   testID = "mobile-context-menu",
 }: ContextMenuProps) {
   const styles = useThemedStyles(createStyles);
+  const haptics = useMobileHaptics();
   const [open, setOpen] = useState(false);
 
   return (
@@ -61,7 +63,10 @@ export function ContextMenu({
         accessibilityState={{ disabled }}
         delayLongPress={350}
         disabled={disabled}
-        onLongPress={() => setOpen(true)}
+        onLongPress={() => {
+          haptics.impact();
+          setOpen(true);
+        }}
         onPress={onPress}
         style={styles.trigger}
         testID={`${testID}-trigger`}
@@ -86,6 +91,7 @@ export function ContextMenu({
                 disabled={isDisabled}
                 key={action.id}
                 onPress={() => {
+                  action.destructive ? haptics.notification("warning") : haptics.selection();
                   setOpen(false);
                   action.onPress();
                 }}

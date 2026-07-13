@@ -1,14 +1,10 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { ComponentProps } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  Text,
-  type PressableProps,
-} from "react-native";
+import { ActivityIndicator, Pressable, Text, type PressableProps } from "react-native";
 import { useTheme, useThemedStyles } from "../../providers/mobile-theme-provider";
 import type { MobileTheme } from "../../../design/themes";
 import { Icon } from "./icon";
+import { useMobileHaptics } from "../../providers/mobile-haptics-provider";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -77,10 +73,12 @@ export function Button({
   fullWidth = false,
   icon,
   label,
+  onPress,
   variant = "primary",
   ...props
 }: ButtonProps) {
   const theme = useTheme();
+  const haptics = useMobileHaptics();
   const styles = useThemedStyles(createStyles);
   const isDisabled = disabled === true || busy;
   const usesColorFill = variant === "primary" || variant === "danger";
@@ -93,6 +91,10 @@ export function Button({
       accessibilityRole="button"
       accessibilityState={{ ...accessibilityState, busy, disabled: isDisabled }}
       disabled={isDisabled}
+      onPress={(event) => {
+        haptics.selection();
+        onPress?.(event);
+      }}
       style={({ pressed }) => [
         styles.root,
         styles[variant],
