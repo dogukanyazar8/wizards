@@ -115,11 +115,12 @@ redeploy. Every SDK returns to no-op; no code revert is needed.
   build when the package is `import`ed without going through Next's own webpack/turbopack
   Sentry plugin. `isInitialized`, `captureException`, and `captureCheckIn` are among the missing
   ones — they silently become `undefined` rather than throwing at import time, so the failure
-  only surfaces as a runtime `TypeError` on first call. `instrument.ts`,
-  `register-sentry.ts`, and `run-outbox-worker.ts` all use `createRequire(import.meta.url)` to
+  only surfaces as a runtime `TypeError` on first call. This affects `captureMessage` and `flush`
+  too — `instrument.ts`, `register-sentry.ts`, `run-outbox-worker.ts`, and
+  `scripts/send-sentry-test-event.ts` all use `createRequire(import.meta.url)` to
   force full CJS resolution instead. **Do not "simplify" these to a plain `import * as Sentry`** —
   files processed by Next's own build (`src/instrumentation.ts`, `src/instrumentation-client.ts`)
-  are fine with plain imports; files bundled by the standalone esbuild pipeline
+  are fine with plain imports; anything run standalone via `tsx` or bundled by the esbuild pipeline
   (`instrument.ts`, anything imported into `server.ts`/`run-outbox-worker.ts`) are not.
 - **Cargo's incremental fingerprint does not track `option_env!` inputs.** Rebuilding
   `apps/desktop/src-tauri` locally with a changed `WHISPR_DESKTOP_SENTRY_DSN` but no source file
