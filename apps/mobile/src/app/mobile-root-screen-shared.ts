@@ -63,7 +63,11 @@ export type {
   MobileVoiceInputMode,
 } from "../voice/mobile-voice-ptt-contract";
 export { MobileVoiceRoomPanel } from "../voice/mobile-voice-room-panel";
-export { getMobileVoiceInviteCandidates } from "../voice/mobile-voice-room-contract";
+export {
+  getMobileVoiceInviteCandidates,
+  hasVoiceRoomContext,
+  isVoiceSessionActive,
+} from "../voice/mobile-voice-room-contract";
 export type {
   MobileVoiceAudioOutputMode,
   MobileVoiceInviteCandidate,

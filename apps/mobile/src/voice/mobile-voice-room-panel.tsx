@@ -27,6 +27,8 @@ function getVoiceRoomStatusLabel(state: MobileVoiceRoomState): string {
       return copy.voiceRoomCheckingPermission;
     case "connecting":
       return copy.voiceRoomConnecting;
+    case "reconnecting":
+      return copy.voiceRoomReconnecting;
     case "connected":
       return copy.voiceRoomConnected;
     case "leaving":
@@ -201,6 +203,7 @@ export function MobileVoiceRoomPanel({
   const isBusy =
     room.status === "checking-permission" ||
     room.status === "connecting" ||
+    room.status === "reconnecting" ||
     room.status === "leaving";
   const isConnected = room.status === "connected";
   const isPushToTalkMode = voiceInputMode === "push-to-talk";

@@ -2,11 +2,16 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  advanceMobileVoiceSessionGeneration,
   createInitialMobileVoiceRoomState,
   getMobileVoiceInviteCandidates,
+  hasVoiceRoomContext,
+  isCurrentMobileVoiceSessionGeneration,
+  isVoiceSessionActive,
   type MobileVoiceInviteMember,
   mergeMobileVoiceRoomParticipants,
   type MobileVoiceRoomParticipant,
+  transitionMobileVoiceRoomConnectionState,
 } from "../src/voice/mobile-voice-room-contract";
 
 function createParticipant(
@@ -32,6 +37,92 @@ describe("mobile voice room contract", () => {
     const state = createInitialMobileVoiceRoomState();
 
     assert.equal(state.selfAudioOutput, "default");
+    assert.equal(state.connectedAt, null);
+  });
+
+  it("models every voice session status without treating terminal routes as active", () => {
+    const initial = {
+      ...createInitialMobileVoiceRoomState(),
+      channelId: "voice-1",
+      channelName: "Daily standup",
+      serverId: "server-1",
+    };
+    const statuses = [
+      "checking-permission",
+      "connecting",
+      "connected",
+      "reconnecting",
+      "leaving",
+      "error",
+      "permission-denied",
+      "idle",
+    ] as const;
+
+    for (const status of statuses) {
+      const next = transitionMobileVoiceRoomConnectionState(initial, status, 1_000);
+      assert.equal(
+        isVoiceSessionActive(next.status),
+        status === "connecting" || status === "connected" || status === "reconnecting",
+      );
+    }
+  });
+
+  it("keeps connectedAt stable throughout reconnecting and resets it for terminal states", () => {
+    const initial = {
+      ...createInitialMobileVoiceRoomState(),
+      channelId: "voice-1",
+      channelName: "Daily standup",
+      serverId: "server-1",
+      status: "connecting" as const,
+    };
+    const connected = transitionMobileVoiceRoomConnectionState(initial, "connected", 1_000);
+    const reconnecting = transitionMobileVoiceRoomConnectionState(connected, "reconnecting", 2_000);
+    const reconnected = transitionMobileVoiceRoomConnectionState(reconnecting, "connected", 3_000);
+    const failed = transitionMobileVoiceRoomConnectionState(reconnected, "error", 4_000);
+
+    assert.equal(connected.connectedAt, 1_000);
+    assert.equal(reconnecting.connectedAt, 1_000);
+    assert.equal(reconnected.connectedAt, 1_000);
+    assert.equal(failed.connectedAt, null);
+    assert.equal(failed.updatedAt, 4_000);
+  });
+
+  it("accepts only the current generation so late callbacks cannot revive an obsolete room", () => {
+    const firstGeneration = advanceMobileVoiceSessionGeneration(0);
+    const currentGeneration = advanceMobileVoiceSessionGeneration(firstGeneration);
+    let applied = false;
+
+    if (isCurrentMobileVoiceSessionGeneration(firstGeneration, currentGeneration)) {
+      applied = true;
+    }
+
+    assert.equal(firstGeneration, 1);
+    assert.equal(currentGeneration, 2);
+    assert.equal(applied, false);
+  });
+
+  it("requires validated room metadata before retaining a full voice route context", () => {
+    const state = transitionMobileVoiceRoomConnectionState(
+      {
+        ...createInitialMobileVoiceRoomState(),
+        channelId: "voice-1",
+        channelName: "Daily standup",
+        errorMessage: "Connection dropped.",
+        serverId: "server-1",
+      },
+      "error",
+      1_000,
+    );
+
+    assert.equal(hasVoiceRoomContext(state), true);
+    assert.equal(
+      hasVoiceRoomContext({
+        ...state,
+        channelName: null,
+      }),
+      false,
+    );
+    assert.equal(hasVoiceRoomContext({ ...state, status: "idle" }), false);
   });
 
   it("does not keep stale speaking or audio level state after a participant goes quiet", () => {
@@ -81,9 +172,7 @@ describe("mobile voice room contract", () => {
       ],
       [
         createParticipant({
-          cameraTrackRef: currentTrack as NonNullable<
-            MobileVoiceRoomParticipant["cameraTrackRef"]
-          >,
+          cameraTrackRef: currentTrack as NonNullable<MobileVoiceRoomParticipant["cameraTrackRef"]>,
           isCameraEnabled: true,
         }),
       ],

@@ -277,6 +277,8 @@ function getVoiceRoomScreenStatus(room: MobileVoiceRoomState): string {
       return copy.voiceRoomConnected;
     case "connecting":
       return copy.voiceRoomConnecting;
+    case "reconnecting":
+      return copy.voiceRoomReconnecting;
     case "error":
       return copy.voiceRoomError;
     case "leaving":

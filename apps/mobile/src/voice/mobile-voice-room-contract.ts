@@ -18,7 +18,8 @@ export type MobileVoiceRoomConnectionStatus =
   | "error"
   | "idle"
   | "leaving"
-  | "permission-denied";
+  | "permission-denied"
+  | "reconnecting";
 
 export type MobileVoiceScreenShareStatus =
   | "error"
@@ -119,6 +120,7 @@ export interface MobileVoiceRoomState {
   readonly cameraFacingMode: MobileCameraFacingMode;
   readonly channelId: string | null;
   readonly channelName: string | null;
+  readonly connectedAt: number | null;
   readonly errorMessage: string | null;
   readonly noiseSuppressionEnabled: boolean;
   readonly participants: readonly MobileVoiceRoomParticipant[];
@@ -146,6 +148,7 @@ export function createInitialMobileVoiceRoomState(): MobileVoiceRoomState {
     cameraFacingMode: DEFAULT_MOBILE_CAMERA_FACING_MODE,
     channelId: null,
     channelName: null,
+    connectedAt: null,
     errorMessage: null,
     noiseSuppressionEnabled: true,
     participants: [],
@@ -160,6 +163,58 @@ export function createInitialMobileVoiceRoomState(): MobileVoiceRoomState {
     sessionId: null,
     status: "idle",
     updatedAt: null,
+  };
+}
+
+export function advanceMobileVoiceSessionGeneration(currentGeneration: number): number {
+  return currentGeneration + 1;
+}
+
+export function isCurrentMobileVoiceSessionGeneration(
+  capturedGeneration: number,
+  currentGeneration: number,
+): boolean {
+  return capturedGeneration === currentGeneration;
+}
+
+export function isVoiceSessionActive(status: MobileVoiceRoomConnectionStatus): boolean {
+  return status === "connecting" || status === "connected" || status === "reconnecting";
+}
+
+export function hasVoiceRoomContext(state: MobileVoiceRoomState): boolean {
+  if (!state.channelId || !state.channelName || !state.serverId) {
+    return false;
+  }
+
+  return (
+    isVoiceSessionActive(state.status) ||
+    state.status === "checking-permission" ||
+    state.status === "leaving" ||
+    (state.status === "error" && Boolean(state.errorMessage))
+  );
+}
+
+export function transitionMobileVoiceRoomConnectionState(
+  state: MobileVoiceRoomState,
+  status: MobileVoiceRoomConnectionStatus,
+  updatedAt: number,
+): MobileVoiceRoomState {
+  const resetsConnectedAt =
+    status === "error" ||
+    status === "idle" ||
+    status === "leaving" ||
+    status === "permission-denied";
+
+  return {
+    ...state,
+    connectedAt:
+      status === "connected"
+        ? (state.connectedAt ?? updatedAt)
+        : resetsConnectedAt
+          ? null
+          : state.connectedAt,
+    status,
+    updatedAt,
   };
 }
 

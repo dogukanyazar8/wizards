@@ -271,6 +271,7 @@ describe("mobile display model", () => {
         cameraFacingMode: "user",
         channelId: "voice-1",
         channelName: "live-room",
+        connectedAt: 1,
         errorMessage: null,
         noiseSuppressionEnabled: true,
         participants: [
@@ -342,6 +343,7 @@ describe("mobile display model", () => {
         cameraFacingMode: "user",
         channelId: "voice-1",
         channelName: "live-room",
+        connectedAt: 1,
         errorMessage: null,
         noiseSuppressionEnabled: true,
         participants: [],
