@@ -9,7 +9,6 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -45,15 +44,18 @@ function getMobileTabLabel(tabId: MobileTabId): string {
 }
 
 export function MobileBottomTabBar({
+  bottomSafeAreaInset,
   directMessageUnreadCount = 0,
   navigation,
   state,
-}: BottomTabBarProps & { readonly directMessageUnreadCount?: number }) {
-  const insets = useSafeAreaInsets();
+}: Omit<BottomTabBarProps, "insets"> & {
+  readonly bottomSafeAreaInset: number;
+  readonly directMessageUnreadCount?: number;
+}) {
   const styles = useThemedStyles(createMobileBottomTabBarStyles);
 
   return (
-    <View style={[styles.bottomNavOuter, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+    <View style={[styles.bottomNavOuter, { paddingBottom: bottomSafeAreaInset }]}>
       <View style={styles.bottomNavShadow}>
         <View style={styles.bottomNavSurface} accessibilityRole="tablist">
           <View style={styles.bottomNavSheen} pointerEvents="none" />
@@ -92,10 +94,7 @@ export function MobileBottomTabBar({
                 ]}
               >
                 <MobileAnimatedTabIcon badge={badge} icon={icon} isActive={isActive} />
-                <Text
-                  style={[styles.navLabel, isActive && styles.navLabelActive]}
-                  numberOfLines={1}
-                >
+                <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>
                   {getMobileTabLabel(tabId)}
                 </Text>
               </Pressable>
@@ -221,6 +220,7 @@ export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
       color: theme.text.muted,
       fontSize: 10.5,
       lineHeight: 13,
+      textAlign: "center",
     },
     navLabelActive: {
       color: theme.accent.strong,

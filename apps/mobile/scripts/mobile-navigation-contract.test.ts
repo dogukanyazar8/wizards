@@ -156,3 +156,19 @@ test("voice room is a protected root route rather than a bottom tab", () => {
   assert.match(containers, /hardwareBackPress/);
   assert.match(containers, /isVoiceSessionActive/);
 });
+
+test("floating navigation chrome is the measured inset owner for tab roots", () => {
+  const chrome = read("../src/navigation/floating-navigation-chrome.tsx");
+  const bottomTabBar = read("../src/navigation/mobile-bottom-tab-bar.tsx");
+  const navigator = read("../src/navigation/mobile-navigator.tsx");
+  const settingsStyles = read("../src/app/screens/settings-screen.styles.ts");
+
+  assert.match(chrome, /BottomTabBarHeightCallbackContext/);
+  assert.match(chrome, /onLayout=\{handleLayout\}/);
+  assert.match(chrome, /isVoiceSessionActive\(voiceRoom\.status\)/);
+  assert.match(chrome, /mobile-mini-voice-bar/);
+  assert.match(chrome, /Keyboard\.addListener/);
+  assert.match(navigator, /tabBarHideOnKeyboard:\s*true/);
+  assert.doesNotMatch(bottomTabBar, /useSafeAreaInsets/);
+  assert.doesNotMatch(settingsStyles, /paddingBottom:\s*132/);
+});

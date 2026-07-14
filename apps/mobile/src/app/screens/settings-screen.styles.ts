@@ -458,9 +458,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       gap: 4,
       minWidth: 0,
     },
-    settingsScreenContent: {
-      paddingBottom: 132,
-    },
+    settingsScreenContent: {},
     settingsScreenScroll: {
       flex: 1,
       minWidth: 0,

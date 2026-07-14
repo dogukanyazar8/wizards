@@ -28,6 +28,12 @@ jest.mock("../src/app/providers/mobile-deep-link-provider", () => ({
   }),
 }));
 
+jest.mock("../src/app/providers/mobile-product-screen-provider", () => ({
+  useMobileVoiceScreenProps: () => ({
+    voiceRoomState: { channelName: null, status: "idle" },
+  }),
+}));
+
 jest.mock("../src/app/screens/auth-gate", () => ({
   AuthGate: () => {
     const React = require("react");

@@ -27,10 +27,11 @@ import {
   ServerMembersStackScreenContainer,
   ChannelSettingsStackScreenContainer,
 } from "../app/screens/mobile-screen-containers";
-import { MobileBottomTabBar } from "./mobile-bottom-tab-bar";
+import { useMobileVoiceScreenProps } from "../app/providers/mobile-product-screen-provider";
+import { FloatingNavigationChrome } from "./floating-navigation-chrome";
 import { createMobileLinkingOptions } from "./mobile-linking";
 import { isMobileTabId, resolveMobileRoute, type MobileTabId } from "./mobile-navigation";
-import { mobileNavigationRef } from "./mobile-navigation-ref";
+import { mobileNavigationRef, navigateMobileRouteIntent } from "./mobile-navigation-ref";
 import type { MobileBottomTabParamList, MobileRootStackParamList } from "./mobile-navigation-types";
 
 const RootStack = createNativeStackNavigator<MobileRootStackParamList>();
@@ -177,14 +178,23 @@ function MobileBottomTabs({
   readonly directMessageUnreadCount: number;
 }) {
   const { status } = useMobileAuth();
+  const { voiceRoomState } = useMobileVoiceScreenProps();
+  const openVoiceRoom = useCallback(() => {
+    navigateMobileRouteIntent({ name: "VoiceRoom", params: undefined, type: "route" });
+  }, []);
 
   return (
     <BottomTabs.Navigator
       backBehavior="history"
       initialRouteName={status === "signed-in" ? "overview" : "settings"}
-      screenOptions={{ headerShown: false, lazy: true }}
+      screenOptions={{ headerShown: false, lazy: true, tabBarHideOnKeyboard: true }}
       tabBar={(props) => (
-        <MobileBottomTabBar {...props} directMessageUnreadCount={directMessageUnreadCount} />
+        <FloatingNavigationChrome
+          {...props}
+          directMessageUnreadCount={directMessageUnreadCount}
+          onOpenVoiceRoom={openVoiceRoom}
+          voiceRoom={voiceRoomState}
+        />
       )}
     >
       <BottomTabs.Screen name="overview">
