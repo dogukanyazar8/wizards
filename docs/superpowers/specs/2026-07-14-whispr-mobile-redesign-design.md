@@ -357,7 +357,7 @@ A threshold exception requires a checked-in explanation tied to one platform ras
 
 Reference PNGs, style manifests, transforms, masks, reviewed native state goldens, and their source hashes are checked into `apps/mobile/visual-baselines/whispr-redesign/`. Normal verification regenerates reference output in a temporary directory and fails on drift; it never updates a baseline. Baseline changes require the dedicated update command, an explicit expected source hash, visual overlay artifacts, and human review in the scoped change.
 
-The required `Verify` CI job installs the pinned Chromium runtime and runs `pnpm --filter @wizards/mobile visual:gate` without `continue-on-error`. The gate regenerates every normalized golden into a temporary directory, rejects manifest/source/transform/anchor drift, and applies the pinned pixel gate to every generated baseline. A failure makes the `Verify` check red; the UAT branch protection must require this check before a pull request can merge. Native UAT captures remain a separate required acceptance artifact and are never replaced by this deterministic reference gate.
+The required `Verify` CI job installs the pinned Chromium runtime and runs `pnpm --filter @wizards/mobile visual:golden-drift` without `continue-on-error`. This reference-drift check regenerates every normalized golden into a temporary directory, rejects manifest/source/transform/anchor drift, and applies the pinned pixel gate to every generated baseline. `pnpm --filter @wizards/mobile visual:gate` is the distinct native gate: it requires `WHISPR_DEVICE_CAPTURE_DIRECTORY`, validates every deterministic UAT capture manifest and image hash, and compares each implemented capture against its normalized golden; it never falls back to golden-to-golden comparison. A failure makes the applicable acceptance check red; the UAT branch protection must require `Verify` before a pull request can merge. Native UAT captures remain a separate required acceptance artifact and are never replaced by the deterministic reference-drift check.
 
 Actual device captures, diff images, readiness logs, and a redacted run manifest live under ignored `artifacts/redesign/<commit>/<platform>/` and are uploaded by CI for 30 days. The manifest records commit, build profile, platform/device, source/baseline/transform/font hashes, locale, theme, UAT scenario ID, clock epoch, masks, and exact tool versions without storing tenant IDs, user IDs, invite codes, tokens, or message content.
 
@@ -432,7 +432,7 @@ corepack pnpm --filter @wizards/mobile test:components
 corepack pnpm --filter @wizards/mobile quality:check
 corepack pnpm --filter @wizards/mobile exec expo install --check
 corepack pnpm --filter @wizards/mobile visual:reference:verify
-corepack pnpm --filter @wizards/mobile visual:capture:android
+corepack pnpm --filter @wizards/mobile visual:capture:android -- --anchor 1a
 corepack pnpm --filter @wizards/mobile acceptance:dispatch:ios
 corepack pnpm --filter @wizards/mobile visual:diff
 corepack pnpm --filter @wizards/mobile visual:verify

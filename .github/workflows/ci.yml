@@ -99,8 +99,8 @@ jobs:
           pnpm --filter @wizards/mobile release:check
           pnpm --filter @wizards/mobile quality:check
 
-      - name: Mobile redesign visual gate
-        run: pnpm --filter @wizards/mobile visual:gate
+      - name: Mobile redesign golden drift
+        run: pnpm --filter @wizards/mobile visual:golden-drift
 
       - name: Test with coverage baseline
         env:

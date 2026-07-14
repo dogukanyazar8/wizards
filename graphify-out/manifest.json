@@ -516,16 +516,16 @@
     "hash": "e387adce3095f03f29af9ff5174e2985"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-redesign-ci-contract.test.ts": {
-    "mtime": 1784040997.9743662,
-    "hash": "0d71b209e6c07d24dc37488408befe12"
+    "mtime": 1784064063.85992,
+    "hash": "f0815a8f85ad933e26116736b9ac4515"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-redesign-device-capture.test.ts": {
-    "mtime": 1784039514.842631,
-    "hash": "6e9d4a7a4fe371fbaf5af768ff248f8e"
+    "mtime": 1784064236.141265,
+    "hash": "ad661d75a6c2c606260e4fb3d8bfa206"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-redesign-device-capture.ts": {
-    "mtime": 1784039840.4589856,
-    "hash": "cf47a8d3e6c2ec10e049662b80aceb0a"
+    "mtime": 1784064236.1402664,
+    "hash": "ae35b2a8739626b14e2bb4505a1c156e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-redesign-diff.test.ts": {
     "mtime": 1784040547.53547,
@@ -542,6 +542,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-redesign-extract.ts": {
     "mtime": 1784038658.5441623,
     "hash": "9db3c5ae45f8022df29c71cad27f77da"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-redesign-golden-drift.ts": {
+    "mtime": 1784064127.9807358,
+    "hash": "4623de02f5258c86c1fb2ada71038c7f"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-redesign-golden-transform.test.ts": {
     "mtime": 1784041033.380913,
@@ -568,8 +572,8 @@
     "hash": "cee4e048ab0457f215964f10baa4cf40"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-redesign-visual-gate.ts": {
-    "mtime": 1784041160.3207076,
-    "hash": "9c1aa27f3f5e27b46a53b2eb2bb727ab"
+    "mtime": 1784064151.3172734,
+    "hash": "3d0f2c18891bc991a79eb01dda3678e2"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-release-contract.test.ts": {
     "mtime": 1783962986.585471,
@@ -5160,8 +5164,8 @@
     "hash": "4f479c0cedb35ddefc9d796a7719eda8"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\docs\\superpowers\\specs\\2026-07-14-whispr-mobile-redesign-design.md": {
-    "mtime": 1784041100.9970691,
-    "hash": "268c70a517e145267a9aa1b0609a3943"
+    "mtime": 1784064236.1422682,
+    "hash": "1157b049210016fdde8d8f707a825b0c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\src-tauri\\icons\\128x128.png": {
     "mtime": 1778571008.084259,

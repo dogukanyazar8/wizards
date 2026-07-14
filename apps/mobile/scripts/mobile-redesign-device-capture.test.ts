@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -43,6 +44,7 @@ test("deterministic device capture accepts only a pinned UAT DPR-3 environment",
 
   const outputRoot = mkdtempSync(path.join(tmpdir(), "whispr-device-capture-"));
   const result = await capture.writeDeterministicDeviceCapture({
+    anchor: "1a",
     buildProfile: "uat",
     commit: "0123456789abcdef0123456789abcdef01234567",
     inputPath: path.join(mobileRoot, "visual-baselines", "whispr-mobile-redesign", "v1", "1a.png"),
@@ -53,6 +55,7 @@ test("deterministic device capture accepts only a pinned UAT DPR-3 environment",
   });
 
   assert.equal(result.manifest.buildProfile, "uat");
+  assert.equal(result.manifest.anchor, "1a");
   assert.equal(result.manifest.platform, "android");
   assert.equal(result.manifest.theme, "light");
   assert.equal(result.manifest.locale, "tr-TR");
@@ -61,4 +64,23 @@ test("deterministic device capture accepts only a pinned UAT DPR-3 environment",
   assert.equal(result.manifest.mask.version, 1);
   assert.equal(existsSync(result.capturePath), true);
   assert.equal(existsSync(result.manifestPath), true);
+  assert.match(result.capturePath, /1a-light\.png$/);
+  assert.match(result.manifestPath, /1a-light-manifest\.json$/);
+
+  const evidence = await capture.readDeterministicDeviceCapture({
+    anchor: "1a",
+    captureDirectory: path.dirname(result.capturePath),
+    theme: "light",
+  });
+  assert.equal(evidence.manifest.inputHash, result.manifest.inputHash);
+
+  await writeFile(result.manifestPath, JSON.stringify({ ...result.manifest, platform: "unknown" }));
+  await assert.rejects(
+    () => capture.readDeterministicDeviceCapture({
+      anchor: "1a",
+      captureDirectory: path.dirname(result.capturePath),
+      theme: "light",
+    }),
+    /invalid platform, mask, or image hash/i,
+  );
 });

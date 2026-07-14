@@ -1,13 +1,12 @@
-import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 
-import { diffTwoLayerVisuals } from "./mobile-redesign-diff";
 import {
-  generateNormalizedGoldens,
-  type NormalizedGoldenManifest,
-} from "./mobile-redesign-golden-transform";
+  DEVICE_CAPTURE_TARGETS,
+  readCaptureEnvironment,
+  readDeterministicDeviceCapture,
+} from "./mobile-redesign-device-capture";
+import { diffTwoLayerVisuals, type Mask } from "./mobile-redesign-diff";
 
 const scriptDirectory = path.dirname(import.meta.dirname);
 const baselineDirectory = path.join(
@@ -17,51 +16,52 @@ const baselineDirectory = path.join(
   "v1",
 );
 
-type GoldenManifestIdentity = Readonly<{
-  anchors: readonly Readonly<{ anchor: string; theme: string }>[];
-  sourceHash: string;
-  transformHash: string;
-  version: number;
-}>;
+// 1h is a handoff reference only; it is not an implemented mobile surface.
+export const DEVICE_GATE_TARGETS = DEVICE_CAPTURE_TARGETS;
 
-export function assertNormalizedGoldenManifestMatches(
-  baseline: GoldenManifestIdentity,
-  generated: GoldenManifestIdentity,
-): void {
-  assert.equal(generated.version, baseline.version, "normalized golden manifest version drifted");
-  assert.equal(generated.sourceHash, baseline.sourceHash, "normalized golden source hash drifted");
-  assert.equal(generated.transformHash, baseline.transformHash, "normalized golden transform hash drifted");
-  assert.deepEqual(generated.anchors, baseline.anchors, "normalized golden anchor mapping drifted");
+function nativeMasksFor(platform: "android" | "ios"): readonly Mask[] {
+  const environment = readCaptureEnvironment();
+  return environment.masks.platforms[platform].map(({ id, polygon }) => ({
+    id,
+    polygon: polygon.map(([x, y]) => ({ x, y })),
+  }));
 }
 
-async function readBaselineManifest(): Promise<NormalizedGoldenManifest> {
-  const manifestPath = path.join(baselineDirectory, "normalized-golden-manifest.json");
-  return JSON.parse(await readFile(manifestPath, "utf8")) as NormalizedGoldenManifest;
+export function requireDeviceCaptureDirectory(value: string | undefined): string {
+  if (!value) {
+    throw new Error(
+      "WHISPR_DEVICE_CAPTURE_DIRECTORY is required; visual:gate only compares deterministic device evidence with normalized goldens.",
+    );
+  }
+  const captureDirectory = path.resolve(value);
+  if (!existsSync(captureDirectory) || !statSync(captureDirectory).isDirectory()) {
+    throw new Error(`WHISPR_DEVICE_CAPTURE_DIRECTORY must be an existing capture directory: ${captureDirectory}`);
+  }
+  return captureDirectory;
 }
 
-export async function verifyNormalizedGoldenBaselines(): Promise<void> {
-  const outputDirectory = await mkdtemp(path.join(tmpdir(), "whispr-visual-gate-"));
-  try {
-    const [baseline, generated] = await Promise.all([
-      readBaselineManifest(),
-      generateNormalizedGoldens({ outputDirectory }),
-    ]);
-    assertNormalizedGoldenManifestMatches(baseline, generated);
+export async function verifyDeviceCapturesAgainstNormalizedGoldens(input: {
+  captureDirectory: string;
+}): Promise<void> {
+  const captureDirectory = requireDeviceCaptureDirectory(input.captureDirectory);
 
-    for (const anchor of baseline.anchors) {
-      const result = await diffTwoLayerVisuals({
-        expectedPath: path.join(baselineDirectory, `${anchor.anchor}.png`),
-        actualPath: path.join(outputDirectory, `${anchor.anchor}.png`),
-        outputDirectory: path.join(outputDirectory, "diff", anchor.anchor),
-      });
-      if (!result.passed) {
-        throw new Error(
-          `Normalized golden pixel regression for ${anchor.anchor}; see ${result.overlayPath} and ${result.reportPath}.`,
-        );
-      }
+  for (const target of DEVICE_GATE_TARGETS) {
+    const evidence = await readDeterministicDeviceCapture({
+      anchor: target.anchor,
+      captureDirectory,
+      theme: target.theme,
+    });
+    const result = await diffTwoLayerVisuals({
+      actualPath: evidence.capturePath,
+      expectedPath: path.join(baselineDirectory, `${target.anchor}.png`),
+      masks: nativeMasksFor(evidence.manifest.platform),
+      outputDirectory: path.join(captureDirectory, "diff", `${target.anchor}-${target.theme}`),
+    });
+    if (!result.passed) {
+      throw new Error(
+        `Device visual regression for ${target.anchor}-${target.theme}; see ${result.overlayPath} and ${result.reportPath}.`,
+      );
     }
-  } finally {
-    await rm(outputDirectory, { force: true, recursive: true });
   }
 }
 
@@ -69,8 +69,10 @@ const invokedAsScript =
   process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename);
 
 if (invokedAsScript) {
-  verifyNormalizedGoldenBaselines()
-    .then(() => process.stdout.write("Normalized mobile golden and pixel gate passed.\n"))
+  verifyDeviceCapturesAgainstNormalizedGoldens({
+    captureDirectory: requireDeviceCaptureDirectory(process.env.WHISPR_DEVICE_CAPTURE_DIRECTORY),
+  })
+    .then(() => process.stdout.write("Mobile device visual gate passed.\n"))
     .catch((error: unknown) => {
       console.error(error);
       process.exitCode = 1;

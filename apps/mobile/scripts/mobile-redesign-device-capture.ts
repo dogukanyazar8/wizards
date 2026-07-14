@@ -22,8 +22,20 @@ export const DEVICE_CAPTURE_LOGICAL_VIEWPORT = { height: 844, width: 390 } as co
 export const DEVICE_CAPTURE_PHYSICAL_VIEWPORT = { height: 2532, width: 1170 } as const;
 export const DEVICE_CAPTURE_SAFE_AREA_INSETS = { bottom: 0, left: 0, right: 0, top: 42 } as const;
 
-type Platform = "android" | "ios";
-type Theme = "dark" | "light";
+export type Platform = "android" | "ios";
+export type Theme = "dark" | "light";
+export const DEVICE_CAPTURE_TARGETS = [
+  { anchor: "1a", theme: "light" },
+  { anchor: "1b", theme: "light" },
+  { anchor: "1c", theme: "light" },
+  { anchor: "1d", theme: "light" },
+  { anchor: "1e", theme: "light" },
+  { anchor: "1f", theme: "light" },
+  { anchor: "1g", theme: "light" },
+  { anchor: "1i", theme: "dark" },
+  { anchor: "1j", theme: "dark" },
+] as const;
+export type DeviceCaptureAnchor = (typeof DEVICE_CAPTURE_TARGETS)[number]["anchor"];
 type Mask = { id: (typeof allowedMaskIds)[number]; polygon: readonly (readonly [number, number])[] };
 
 export type CaptureEnvironment = {
@@ -46,6 +58,7 @@ export type CaptureEnvironment = {
 };
 
 export type DeviceCaptureManifest = {
+  anchor: DeviceCaptureAnchor;
   buildProfile: "uat";
   captureEnvironmentHash: string;
   colorSpace: "sRGB";
@@ -177,7 +190,56 @@ function assertCommit(commit: string): asserts commit is string {
   }
 }
 
+function assertCaptureTarget(anchor: string, theme: string): asserts anchor is DeviceCaptureAnchor {
+  if (!DEVICE_CAPTURE_TARGETS.some((target) => target.anchor === anchor && target.theme === theme)) {
+    throw new Error(`Device capture target ${anchor}-${theme} is not a supported normalized golden target.`);
+  }
+}
+
+function assertManifestMatchesEnvironment(manifest: DeviceCaptureManifest, environment: CaptureEnvironment): void {
+  if (
+    (manifest.platform !== "android" && manifest.platform !== "ios") ||
+    !manifest.mask ||
+    !Array.isArray(manifest.mask.ids) ||
+    typeof manifest.mask.hash !== "string" ||
+    typeof manifest.inputHash !== "string" ||
+    !/^[0-9a-f]{64}$/i.test(manifest.inputHash)
+  ) {
+    throw new Error("Device capture manifest has an invalid platform, mask, or image hash.");
+  }
+  assertCaptureTarget(manifest.anchor, manifest.theme);
+  assertCommit(manifest.commit);
+  if (
+    manifest.buildProfile !== "uat" ||
+    manifest.colorSpace !== environment.colorSpace ||
+    manifest.deviceScaleFactor !== environment.deviceScaleFactor ||
+    manifest.fontScale !== environment.fontScale ||
+    manifest.locale !== environment.locale ||
+    manifest.reducedMotion !== environment.reducedMotion ||
+    manifest.sourceDateEpoch !== "0" ||
+    manifest.testAccount !== allowedTestAccount ||
+    manifest.timezone !== environment.timezone ||
+    manifest.version !== 1 ||
+    !equalJson(manifest.logicalViewport, environment.logicalViewport) ||
+    !equalJson(manifest.physicalViewport, environment.physicalViewport) ||
+    !equalJson(manifest.safeAreaInsets, environment.safeAreaInsets)
+  ) {
+    throw new Error("Device capture manifest differs from the pinned deterministic contract.");
+  }
+  const environmentBytes = readFileSync(environmentPath);
+  const maskBytes = readFileSync(path.join(baselineDirectory, environment.masks.file));
+  if (
+    manifest.captureEnvironmentHash !== sha256(environmentBytes) ||
+    manifest.mask.hash !== sha256(maskBytes) ||
+    manifest.mask.version !== environment.masks.version ||
+    !equalJson(manifest.mask.ids, environment.masks.platforms[manifest.platform]?.map(({ id }) => id))
+  ) {
+    throw new Error("Device capture manifest hashes or native masks do not match the pinned environment.");
+  }
+}
+
 export async function writeDeterministicDeviceCapture(input: {
+  anchor: DeviceCaptureAnchor;
   buildProfile: "uat" | "production" | "store";
   commit: string;
   inputPath: string;
@@ -189,6 +251,7 @@ export async function writeDeterministicDeviceCapture(input: {
   const environment = readCaptureEnvironment();
   assertDeterministicDeviceCapture({ ...environment, buildProfile: input.buildProfile });
   assertCommit(input.commit);
+  assertCaptureTarget(input.anchor, input.theme);
   if (input.testAccount !== allowedTestAccount) {
     throw new Error("Device capture may use only the allowlisted redacted UAT test account alias.");
   }
@@ -203,11 +266,12 @@ export async function writeDeterministicDeviceCapture(input: {
   const environmentBytes = readFileSync(environmentPath);
   const outputDirectory = path.resolve(input.outputRoot, input.commit, input.platform);
   await mkdir(outputDirectory, { recursive: true });
-  const capturePath = path.join(outputDirectory, `${input.theme}.png`);
-  const manifestPath = path.join(outputDirectory, `${input.theme}-manifest.json`);
+  const capturePath = path.join(outputDirectory, `${input.anchor}-${input.theme}.png`);
+  const manifestPath = path.join(outputDirectory, `${input.anchor}-${input.theme}-manifest.json`);
   await copyFile(input.inputPath, capturePath);
 
   const manifest: DeviceCaptureManifest = {
+    anchor: input.anchor,
     buildProfile: "uat",
     captureEnvironmentHash: sha256(environmentBytes),
     colorSpace: environment.colorSpace,
@@ -237,6 +301,33 @@ export async function writeDeterministicDeviceCapture(input: {
   return { capturePath, manifest, manifestPath };
 }
 
+export async function readDeterministicDeviceCapture(input: {
+  anchor: DeviceCaptureAnchor;
+  captureDirectory: string;
+  theme: Theme;
+}): Promise<{ capturePath: string; manifest: DeviceCaptureManifest; manifestPath: string }> {
+  assertCaptureTarget(input.anchor, input.theme);
+  const captureDirectory = path.resolve(input.captureDirectory);
+  const capturePath = path.join(captureDirectory, `${input.anchor}-${input.theme}.png`);
+  const manifestPath = path.join(captureDirectory, `${input.anchor}-${input.theme}-manifest.json`);
+  if (!existsSync(capturePath) || !existsSync(manifestPath)) {
+    throw new Error(`Missing device capture evidence for ${input.anchor}-${input.theme} in ${captureDirectory}.`);
+  }
+  const [image, rawManifest] = await Promise.all([readFile(capturePath), readFile(manifestPath, "utf8")]);
+  const manifest = JSON.parse(rawManifest) as DeviceCaptureManifest;
+  const environment = readCaptureEnvironment();
+  assertDeterministicDeviceCapture(environment);
+  assertManifestMatchesEnvironment(manifest, environment);
+  if (manifest.anchor !== input.anchor || manifest.theme !== input.theme) {
+    throw new Error(`Device capture manifest target does not match ${input.anchor}-${input.theme}.`);
+  }
+  const dimensions = parsePngDimensions(image);
+  if (!equalJson(dimensions, DEVICE_CAPTURE_PHYSICAL_VIEWPORT) || manifest.inputHash !== sha256(image)) {
+    throw new Error(`Device capture evidence for ${input.anchor}-${input.theme} has an invalid image hash or viewport.`);
+  }
+  return { capturePath, manifest, manifestPath };
+}
+
 function readCliValue(name: string): string {
   const index = process.argv.indexOf(name);
   const value = index === -1 ? undefined : process.argv[index + 1];
@@ -257,6 +348,7 @@ if (invokedAsScript) {
     throw new Error("Set WHISPR_CAPTURE_INPUT to the native DPR-3 screenshot PNG.");
   }
   writeDeterministicDeviceCapture({
+    anchor: readCliValue("--anchor") as DeviceCaptureAnchor,
     buildProfile: process.env.WHISPR_MOBILE_ENV === "uat" ? "uat" : "production",
     commit: process.env.WHISPR_CAPTURE_COMMIT ?? getCommit(),
     inputPath,

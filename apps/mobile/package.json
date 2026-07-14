@@ -29,6 +29,7 @@
     "visual:capture:android": "node --import tsx scripts/mobile-redesign-device-capture.ts --platform android",
     "visual:capture:ios": "node --import tsx scripts/mobile-redesign-device-capture.ts --platform ios",
     "visual:diff": "node --import tsx scripts/mobile-redesign-diff.ts",
+    "visual:golden-drift": "node --import tsx scripts/mobile-redesign-golden-drift.ts",
     "visual:gate": "node --import tsx scripts/mobile-redesign-visual-gate.ts"
   },
   "dependencies": {
