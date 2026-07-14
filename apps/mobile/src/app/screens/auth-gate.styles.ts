@@ -12,7 +12,7 @@ export const createAuthGateStyles = (theme: MobileTheme) => {
       borderColor: theme.status.danger,
       borderRadius: mobileRadii.control,
       backgroundColor: theme.status.dangerSoft,
-      color: theme.status.danger,
+      color: theme.status.onStatus,
       fontSize: 12,
       fontWeight: "800",
       lineHeight: 18,
@@ -24,7 +24,7 @@ export const createAuthGateStyles = (theme: MobileTheme) => {
       borderColor: theme.status.success,
       borderRadius: mobileRadii.control,
       backgroundColor: theme.surface.soft,
-      color: theme.status.success,
+      color: theme.status.successText,
       fontSize: 12,
       fontWeight: "800",
       lineHeight: 18,
@@ -55,8 +55,8 @@ export const createAuthGateStyles = (theme: MobileTheme) => {
       backgroundColor: theme.surface.card,
     },
     premiumAuthCheckboxChecked: {
-      borderColor: theme.accent.default,
-      backgroundColor: theme.accent.default,
+      borderColor: theme.accent.action,
+      backgroundColor: theme.accent.action,
     },
     premiumAuthCheckboxRow: {
       minHeight: mobileSizing.minTouchTarget,
@@ -239,8 +239,8 @@ export const createAuthGateStyles = (theme: MobileTheme) => {
       justifyContent: "center",
       gap: 12,
       borderRadius: mobileRadii.control,
-      backgroundColor: theme.accent.default,
-      shadowColor: theme.accent.default,
+      backgroundColor: theme.accent.action,
+      shadowColor: theme.accent.action,
       shadowOffset: { height: 12, width: 0 },
       shadowOpacity: 0.28,
       shadowRadius: 18,
@@ -260,7 +260,7 @@ export const createAuthGateStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: 9,
-      backgroundColor: theme.accent.default,
+      backgroundColor: theme.accent.action,
     },
     premiumAuthProfileGrid: {
       minWidth: 0,
@@ -366,7 +366,7 @@ export const createAuthGateStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: 14,
-      backgroundColor: theme.status.success,
+      backgroundColor: theme.status.successSoft,
     },
     premiumAuthSecurityText: {
       flex: 1,
@@ -437,7 +437,7 @@ export const createAuthGateStyles = (theme: MobileTheme) => {
       color: theme.accent.strong,
     },
     premiumAuthStrengthLabelSuccess: {
-      color: theme.status.success,
+      color: theme.status.successText,
     },
     premiumAuthStrengthLabelWarning: {
       color: theme.status.warning,

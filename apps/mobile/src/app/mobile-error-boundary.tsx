@@ -198,7 +198,7 @@ export const createMobileErrorStyles = (theme: MobileTheme) =>
       alignSelf: "stretch",
       marginTop: 18,
       borderRadius: theme.radii.control,
-      backgroundColor: theme.accent.default,
+      backgroundColor: theme.accent.action,
       paddingHorizontal: 18,
     },
     retryButtonPressed: {

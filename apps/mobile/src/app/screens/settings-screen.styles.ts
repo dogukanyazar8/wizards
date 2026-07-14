@@ -112,7 +112,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       color: theme.status.danger,
     },
     nativeSettingsRowValueSuccess: {
-      color: theme.status.success,
+      color: theme.status.successText,
     },
     nativeSettingsRowValueWarning: {
       color: theme.status.warning,
@@ -223,7 +223,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       color: theme.status.danger,
     },
     settingsEvidenceRowValueSuccess: {
-      color: theme.status.success,
+      color: theme.status.successText,
     },
     settingsEvidenceRowValueWarning: {
       color: theme.status.warning,

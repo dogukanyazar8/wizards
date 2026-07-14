@@ -28,7 +28,7 @@ const CLOSE_VELOCITY = 900;
 const createStyles = (theme: MobileTheme) => ({
   root: { flex: 1, justifyContent: "flex-end" as const },
   backdrop: {
-    backgroundColor: theme.interactive.disabled,
+    backgroundColor: theme.surface.scrim,
     bottom: 0,
     left: 0,
     position: "absolute" as const,

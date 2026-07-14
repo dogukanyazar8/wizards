@@ -81,7 +81,7 @@ const createStyles = (theme: MobileTheme) => ({
   actionText: { ...theme.typography.caption, color: theme.accent.strong },
   danger: { color: theme.status.danger },
   notice: { ...theme.typography.body, color: theme.text.muted, paddingVertical: 12 },
-  error: { color: theme.status.danger },
+  error: { color: theme.status.dangerOnBase },
 });
 
 export function FriendsHub() {

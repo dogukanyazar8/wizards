@@ -67,7 +67,7 @@ export const createMobileVoiceInviteOverlayStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: mobileRadii.pill,
-      backgroundColor: theme.accent.strong,
+      backgroundColor: theme.accent.action,
       paddingHorizontal: 12,
     },
     mobileVoiceInviteOverlayPrimaryText: {

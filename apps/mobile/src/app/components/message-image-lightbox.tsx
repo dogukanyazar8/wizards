@@ -114,7 +114,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     close: {
       alignItems: "center",
-      backgroundColor: theme.surface.overlay,
+      backgroundColor: theme.surface.inverse,
       borderRadius: theme.radii.pill,
       height: 48,
       justifyContent: "center",
@@ -127,7 +127,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     imageFrame: { height: "80%", width: "100%" },
     root: {
       alignItems: "center",
-      backgroundColor: theme.surface.overlay,
+      backgroundColor: theme.surface.scrim,
       flex: 1,
       justifyContent: "center",
     },

@@ -76,10 +76,12 @@ export function BootstrapStateNotice({
   return (
     <View style={[styles.bootstrapNotice, isError && styles.bootstrapNoticeError]}>
       <View style={styles.bootstrapNoticeText}>
-        <Text style={styles.environmentLabel}>
+        <Text style={[styles.environmentLabel, isError && styles.bootstrapNoticeForegroundError]}>
           {isError ? copy.bootstrapLoadErrorTitle : copy.bootstrapLoadingTitle}
         </Text>
-        <Text style={styles.contractDescription}>
+        <Text
+          style={[styles.contractDescription, isError && styles.bootstrapNoticeForegroundError]}
+        >
           {isError ? state.error : copy.bootstrapLoadingDescription}
         </Text>
       </View>
@@ -321,12 +323,20 @@ export function FeatureStatusCard({
   return (
     <View style={[styles.statusCard, isAvailable && styles.statusCardSuccess]}>
       <View style={[styles.statusIcon, isAvailable && styles.statusIconSuccess]}>
-        <Text style={styles.statusIconText}>{isAvailable ? "OK" : "!"}</Text>
+        <Text style={[styles.statusIconText, isAvailable && styles.statusIconTextSuccess]}>
+          {isAvailable ? "OK" : "!"}
+        </Text>
       </View>
       <View style={styles.statusCardText}>
-        <Text style={styles.environmentLabel}>{label}</Text>
-        <Text style={styles.statusCardTitle}>{status}</Text>
-        <Text style={styles.statusCardDescription}>{reason}</Text>
+        <Text style={[styles.environmentLabel, isAvailable && styles.statusCardTextSuccess]}>
+          {label}
+        </Text>
+        <Text style={[styles.statusCardTitle, isAvailable && styles.statusCardTextSuccess]}>
+          {status}
+        </Text>
+        <Text style={[styles.statusCardDescription, isAvailable && styles.statusCardTextSuccess]}>
+          {reason}
+        </Text>
       </View>
     </View>
   );

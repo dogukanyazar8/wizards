@@ -217,7 +217,7 @@ export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
       borderRadius: theme.radii.pill,
       backgroundColor: theme.surface.elevated,
     },
-    navIconHaloActive: { backgroundColor: theme.accent.default, ...theme.elevation.soft },
+    navIconHaloActive: { backgroundColor: theme.accent.action, ...theme.elevation.soft },
     navLabel: {
       ...theme.typography.caption,
       maxWidth: "100%",
@@ -238,7 +238,7 @@ export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
       alignItems: "center",
       justifyContent: "center",
       borderRadius: theme.radii.pill,
-      backgroundColor: theme.accent.default,
+      backgroundColor: theme.accent.action,
       paddingHorizontal: 4,
     },
     navBadgeText: {

@@ -96,6 +96,7 @@ export const redesignLight = {
   successText: "#187A4C",
   canonicalDanger: "#E05252",
   danger: "#C94343",
+  dangerOnBase: "#C84343",
   dangerSurface: "#FCE9E9",
   inkSurface: "#1E2235",
 } as const;
@@ -115,8 +116,16 @@ export const redesignDark = {
   accentText: "#A5A8F5",
   selectedSurface: "#2A2D55",
   selectedBorder: "#3B3F73",
+  canonicalDanger: "#E05252",
+  danger: "#E45A5A",
+  dangerAction: "#C94343",
+  dangerOnBase: "#E45A5A",
+  dangerSurface: "rgba(224,82,82,.14)",
   success: "#34D399",
   successSurface: "rgba(52,211,153,.12)",
+  warning: "#F59E0B",
+  warningSurface: "rgba(245,158,11,.14)",
+  sheetOverlay: "rgba(0,0,0,.55)",
 } as const;
 
 export const redesignAvatarTintsLight = [

@@ -867,7 +867,7 @@ function SecurityCard() {
   return (
     <View style={styles.premiumAuthSecurityCard}>
       <View style={styles.premiumAuthSecurityIcon}>
-        <Ionicons name="shield-checkmark" size={21} color={theme.text.onPrimary} />
+        <Ionicons name="shield-checkmark" size={21} color={theme.status.successText} />
       </View>
       <View style={styles.premiumAuthSecurityText}>
         <Text style={styles.premiumAuthSecurityTitle}>{copy.authSecurityStatus}</Text>

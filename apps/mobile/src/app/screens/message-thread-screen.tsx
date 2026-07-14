@@ -26,7 +26,11 @@ const createStyles = (theme: MobileTheme) => ({
   backText: { ...theme.typography.bodyStrong, color: theme.accent.strong },
   title: { ...theme.typography.title, color: theme.text.primary, flex: 1 },
   parent: { marginTop: theme.spacing.section },
-  error: { ...theme.typography.body, color: theme.status.danger, marginTop: theme.spacing.section },
+  error: {
+    ...theme.typography.body,
+    color: theme.status.dangerOnBase,
+    marginTop: theme.spacing.section,
+  },
   empty: { ...theme.typography.body, color: theme.text.muted, marginTop: theme.spacing.section },
 });
 

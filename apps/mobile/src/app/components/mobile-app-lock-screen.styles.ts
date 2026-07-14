@@ -54,10 +54,10 @@ const createStyles = (theme: MobileTheme) =>
       justifyContent: "center" as const,
       borderRadius: theme.radii.control,
       paddingHorizontal: 20,
-      backgroundColor: theme.accent.default,
+      backgroundColor: theme.accent.action,
     },
     retryButtonPressed: {
-      backgroundColor: theme.accent.strong,
+      backgroundColor: theme.accent.action,
     },
     retryLabel: {
       ...theme.typography.button,

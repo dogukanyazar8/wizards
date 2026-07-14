@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
+import { StyleSheet } from "react-native";
 import { createMediaPrimitiveStyles } from "../src/app/components/media-primitives.styles";
 import { createMessagePrimitiveStyles } from "../src/app/components/message-primitives.styles";
 import { createUiAtomStyles } from "../src/app/components/ui-atoms.styles";
@@ -59,5 +60,55 @@ describe("mobile communication semantic themes", () => {
       theme.surface.card,
     );
     expect(createMobileVoiceRoomPanelStyles(theme).card.backgroundColor).toBe(theme.surface.card);
+  });
+
+  it.each([
+    ["light", lightTheme],
+    ["dark", darkTheme],
+  ] as const)("composes audited %s status and action color pairs", (_scheme, theme) => {
+    const homeStyles = createHomeScreenStyles(theme);
+    const uiStyles = createUiAtomStyles(theme);
+    const bootstrapErrorContainer = StyleSheet.flatten([
+      uiStyles.bootstrapNotice,
+      uiStyles.bootstrapNoticeError,
+    ]);
+    const bootstrapErrorTitle = StyleSheet.flatten([
+      uiStyles.environmentLabel,
+      uiStyles.bootstrapNoticeForegroundError,
+    ]);
+    const bootstrapErrorDescription = StyleSheet.flatten([
+      uiStyles.contractDescription,
+      uiStyles.bootstrapNoticeForegroundError,
+    ]);
+    const successIcon = StyleSheet.flatten([uiStyles.statusIcon, uiStyles.statusIconSuccess]);
+    const successIconText = StyleSheet.flatten([
+      uiStyles.statusIconText,
+      uiStyles.statusIconTextSuccess,
+    ]);
+    const successCardLabel = StyleSheet.flatten([
+      uiStyles.environmentLabel,
+      uiStyles.statusCardTextSuccess,
+    ]);
+    const successCardTitle = StyleSheet.flatten([
+      uiStyles.statusCardTitle,
+      uiStyles.statusCardTextSuccess,
+    ]);
+    const successCardDescription = StyleSheet.flatten([
+      uiStyles.statusCardDescription,
+      uiStyles.statusCardTextSuccess,
+    ]);
+
+    expect(bootstrapErrorContainer.backgroundColor).toBe(theme.status.dangerSoft);
+    expect(bootstrapErrorTitle.color).toBe(theme.status.onStatus);
+    expect(bootstrapErrorDescription.color).toBe(theme.status.onStatus);
+    expect(successIcon.backgroundColor).toBe(theme.status.successSoft);
+    expect(successIconText.color).toBe(theme.status.successText);
+    expect(uiStyles.environmentLabel.color).toBe(theme.text.soft);
+    expect(uiStyles.statusCardDescription.color).toBe(theme.text.muted);
+    expect(successCardLabel.color).toBe(theme.status.successText);
+    expect(successCardTitle.color).toBe(theme.status.successText);
+    expect(successCardDescription.color).toBe(theme.status.successText);
+    expect(homeStyles.homeSummaryCard.backgroundColor).toBe(theme.accent.action);
+    expect(homeStyles.homePrimaryServerMeta.color).toBe(theme.text.onPrimary);
   });
 });

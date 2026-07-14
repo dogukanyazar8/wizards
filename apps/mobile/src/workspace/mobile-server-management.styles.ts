@@ -10,8 +10,8 @@ export const createMobileServerManagementStyles = (theme: MobileTheme) =>
     sectionTitle: { ...theme.typography.title, color: theme.text.primary },
     body: { ...theme.typography.body, color: theme.text.muted },
     caption: { ...theme.typography.caption, color: theme.text.soft },
-    error: { ...theme.typography.body, color: theme.status.danger },
-    success: { ...theme.typography.body, color: theme.status.success },
+    error: { ...theme.typography.body, color: theme.status.dangerOnBase },
+    success: { ...theme.typography.body, color: theme.status.successText },
     card: {
       backgroundColor: theme.surface.card,
       borderColor: theme.border.subtle,

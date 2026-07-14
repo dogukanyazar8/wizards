@@ -6,14 +6,14 @@ import { useThemedStyles } from "../providers/mobile-theme-provider";
 const createStyles = (theme: MobileTheme) => ({
   banner: {
     alignItems: "center" as const,
-    backgroundColor: theme.status.warning,
+    backgroundColor: theme.status.warningSoft,
     minHeight: 32,
     paddingHorizontal: theme.spacing.page,
     paddingVertical: 6,
     width: "100%" as const,
     zIndex: 90,
   },
-  text: { ...theme.typography.label, color: theme.text.onPrimary, textAlign: "center" as const },
+  text: { ...theme.typography.label, color: theme.status.onStatus, textAlign: "center" as const },
 });
 
 export function MobileOfflineBanner() {

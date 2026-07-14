@@ -34,7 +34,11 @@ const labels = {
 
 const createStyles = (theme: MobileTheme) => ({
   root: { alignItems: "center" as const, gap: 10 },
-  error: { ...theme.typography.caption, color: theme.status.danger, textAlign: "center" as const },
+  error: {
+    ...theme.typography.caption,
+    color: theme.status.dangerOnBase,
+    textAlign: "center" as const,
+  },
   status: { ...theme.typography.caption, color: theme.text.muted, textAlign: "center" as const },
   warning: {
     ...theme.typography.caption,

@@ -21,7 +21,7 @@ export function getMobileThemeCompatibilityColors(theme: MobileTheme) {
     input: theme.surface.soft,
     muted: theme.text.muted,
     mutedSoft: theme.text.soft,
-    primary: theme.accent.default,
+    primary: theme.accent.action,
     primaryForeground: theme.text.onPrimary,
     primarySoft: theme.accent.soft,
     ring: theme.border.focus,
@@ -42,6 +42,6 @@ export function getMobileThemeCompatibilityColors(theme: MobileTheme) {
     textSoft: theme.text.soft,
     warning: theme.status.warning,
     warningSoft: theme.status.warningSoft,
-    white: theme.surface.card,
+    white: theme.text.onPrimary,
   } as const;
 }

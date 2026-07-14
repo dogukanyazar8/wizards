@@ -1,5 +1,11 @@
+import {
+  mobilePalette,
+  redesignAvatarTintsDark,
+  redesignAvatarTintsLight,
+  redesignDark,
+  redesignLight,
+} from "./palette";
 import { mobileRadii, mobileSizing, mobileSpacing, mobileTypography } from "./tokens";
-import { mobilePalette } from "./palette";
 
 export type MobileThemeId = "dark" | "light";
 
@@ -14,12 +20,25 @@ export interface MobileThemeElevationStyle {
   readonly shadowRadius: number;
 }
 
+export interface MobileAvatarTint {
+  readonly bg: string;
+  readonly fg: string;
+}
+
+export type MobileAvatarTints = readonly [MobileAvatarTint, ...MobileAvatarTint[]];
+
 export interface MobileTheme {
   readonly accent: {
+    /** Accessible filled-action color; use with text.onPrimary. */
+    readonly action: string;
+    /** Canonical brand accent for non-text controls and decorative use. */
     readonly default: string;
     readonly soft: string;
+    readonly softBorder: string;
+    /** Accessible accent foreground for normal-size text. */
     readonly strong: string;
   };
+  readonly avatarTints: MobileAvatarTints;
   readonly border: {
     readonly default: string;
     readonly focus: string;
@@ -52,12 +71,22 @@ export interface MobileTheme {
   readonly sizing: typeof mobileSizing;
   readonly spacing: typeof mobileSpacing;
   readonly status: {
+    /** Accessible danger foreground on card surfaces; also used for non-text status accents. */
     readonly danger: string;
+    /** Accessible filled danger action color; use with text.onPrimary. */
+    readonly dangerAction: string;
+    /** Accessible normal-text danger foreground on base and card surfaces. */
+    readonly dangerOnBase: string;
     readonly dangerSoft: string;
     readonly info: string;
     readonly infoSoft: string;
+    /** Primary foreground for semantic status bands. */
+    readonly onStatus: string;
+    /** Canonical success accent for icons, borders and decorative controls. */
     readonly success: string;
     readonly successSoft: string;
+    /** Accessible success foreground for audited text contexts. */
+    readonly successText: string;
     readonly warning: string;
     readonly warningSoft: string;
   };
@@ -65,8 +94,10 @@ export interface MobileTheme {
     readonly base: string;
     readonly card: string;
     readonly elevated: string;
+    readonly inverse: string;
     readonly overlay: string;
     readonly rail: string;
+    readonly scrim: string;
     readonly soft: string;
   };
   readonly systemBars: {
@@ -76,7 +107,9 @@ export interface MobileTheme {
   readonly text: {
     readonly inverse: string;
     readonly muted: string;
+    readonly onInverse: string;
     readonly onPrimary: string;
+    readonly placeholder: string;
     readonly primary: string;
     readonly secondary: string;
     readonly soft: string;
@@ -97,43 +130,46 @@ function deepFreeze<T>(value: T): T {
 
 export const lightTheme = deepFreeze({
   accent: {
-    default: mobilePalette.indigo[600],
-    soft: mobilePalette.indigo[50],
-    strong: mobilePalette.indigo[700],
+    action: redesignLight.primary,
+    default: redesignLight.primary,
+    soft: redesignLight.lavender,
+    softBorder: redesignLight.lavenderBorder,
+    strong: redesignLight.primaryStrong,
   },
+  avatarTints: redesignAvatarTintsLight,
   border: {
-    default: mobilePalette.neutral[500],
-    focus: mobilePalette.indigo[500],
-    subtle: mobilePalette.neutral[300],
+    default: redesignLight.hairline,
+    focus: redesignLight.primary,
+    subtle: redesignLight.border,
   },
   dark: false,
   elevation: {
     card: {
-      elevation: 3,
-      shadowColor: mobilePalette.neutral[900],
+      elevation: 6,
+      shadowColor: redesignLight.inkSurface,
       shadowOffset: { height: 8, width: 0 },
       shadowOpacity: 0.08,
-      shadowRadius: 18,
+      shadowRadius: 24,
     },
     floating: {
       elevation: 10,
-      shadowColor: mobilePalette.neutral[900],
+      shadowColor: redesignLight.inkSurface,
       shadowOffset: { height: 16, width: 0 },
       shadowOpacity: 0.16,
       shadowRadius: 24,
     },
     soft: {
-      elevation: 4,
-      shadowColor: mobilePalette.indigo[600],
-      shadowOffset: { height: 8, width: 0 },
-      shadowOpacity: 0.12,
+      elevation: 6,
+      shadowColor: redesignLight.primary,
+      shadowOffset: { height: 6, width: 0 },
+      shadowOpacity: 0.35,
       shadowRadius: 14,
     },
   },
   gradients: {
-    appBackground: [mobilePalette.neutral[50], mobilePalette.indigo[50]],
-    primaryAction: [mobilePalette.indigo[600], mobilePalette.violet[600]],
-    softSurface: [mobilePalette.neutral.white, mobilePalette.violet[50]],
+    appBackground: [redesignLight.bg, redesignLight.lavender],
+    primaryAction: [redesignLight.primary, redesignLight.primaryStrong],
+    softSurface: [redesignLight.card, redesignLight.lavender],
   },
   id: "light",
   interactive: {
@@ -151,77 +187,88 @@ export const lightTheme = deepFreeze({
   sizing: mobileSizing,
   spacing: mobileSpacing,
   status: {
-    danger: mobilePalette.status.danger,
-    dangerSoft: mobilePalette.status.dangerSoft,
+    danger: redesignLight.danger,
+    dangerAction: redesignLight.danger,
+    dangerOnBase: redesignLight.dangerOnBase,
+    dangerSoft: redesignLight.dangerSurface,
     info: mobilePalette.status.info,
     infoSoft: mobilePalette.status.infoSoft,
-    success: mobilePalette.status.success,
-    successSoft: mobilePalette.status.successSoft,
+    onStatus: redesignLight.text,
+    success: redesignLight.success,
+    successSoft: redesignLight.successSurface,
+    successText: redesignLight.successText,
     warning: mobilePalette.status.warning,
     warningSoft: mobilePalette.status.warningSoft,
   },
   surface: {
-    base: mobilePalette.neutral[50],
-    card: mobilePalette.neutral.white,
-    elevated: mobilePalette.neutral.white,
+    base: redesignLight.bg,
+    card: redesignLight.card,
+    elevated: redesignLight.card,
+    inverse: redesignLight.inkSurface,
     overlay: mobilePalette.neutral[100],
-    rail: mobilePalette.indigo[50],
-    soft: mobilePalette.neutral[100],
+    rail: redesignLight.lavender,
+    scrim: redesignDark.sheetOverlay,
+    soft: redesignLight.bg,
   },
   systemBars: {
-    androidNavigationBar: mobilePalette.neutral[50],
+    androidNavigationBar: redesignLight.bg,
     statusBar: "dark",
   },
   text: {
     inverse: mobilePalette.neutral.white,
-    muted: mobilePalette.neutral[600],
+    muted: redesignLight.textFaint,
+    onInverse: mobilePalette.neutral.white,
     onPrimary: mobilePalette.neutral.white,
-    primary: mobilePalette.neutral[900],
-    secondary: mobilePalette.neutral[600],
-    soft: mobilePalette.neutral[500],
+    placeholder: redesignLight.placeholder,
+    primary: redesignLight.text,
+    secondary: redesignLight.textSecondary,
+    soft: redesignLight.textFaint,
   },
   typography: mobileTypography,
 } satisfies MobileTheme);
 
 export const darkTheme = deepFreeze({
   accent: {
-    default: mobilePalette.indigo[400],
-    soft: mobilePalette.violet[900],
-    strong: mobilePalette.indigo[300],
+    action: redesignDark.primaryWithWhiteText,
+    default: redesignDark.primary,
+    soft: redesignDark.selectedSurface,
+    softBorder: redesignDark.selectedBorder,
+    strong: redesignDark.accentText,
   },
+  avatarTints: redesignAvatarTintsDark,
   border: {
-    default: mobilePalette.neutral[500],
-    focus: mobilePalette.indigo[400],
-    subtle: mobilePalette.neutral[700],
+    default: redesignDark.hairline,
+    focus: redesignDark.primary,
+    subtle: redesignDark.border,
   },
   dark: true,
   elevation: {
     card: {
       elevation: 0,
-      shadowColor: mobilePalette.neutral[950],
+      shadowColor: redesignDark.bg,
       shadowOffset: { height: 0, width: 0 },
       shadowOpacity: 0,
       shadowRadius: 0,
     },
     floating: {
       elevation: 0,
-      shadowColor: mobilePalette.neutral[950],
+      shadowColor: redesignDark.bg,
       shadowOffset: { height: 0, width: 0 },
       shadowOpacity: 0,
       shadowRadius: 0,
     },
     soft: {
       elevation: 0,
-      shadowColor: mobilePalette.neutral[950],
+      shadowColor: redesignDark.bg,
       shadowOffset: { height: 0, width: 0 },
       shadowOpacity: 0,
       shadowRadius: 0,
     },
   },
   gradients: {
-    appBackground: [mobilePalette.neutral[950], mobilePalette.neutral[900]],
-    primaryAction: [mobilePalette.indigo[400], mobilePalette.violet[400]],
-    softSurface: [mobilePalette.neutral[850], mobilePalette.violet[900]],
+    appBackground: [redesignDark.bg, redesignDark.card],
+    primaryAction: [redesignDark.primaryWithWhiteText, redesignDark.primaryWithWhiteText],
+    softSurface: [redesignDark.card, redesignDark.selectedSurface],
   },
   id: "dark",
   interactive: {
@@ -239,34 +286,42 @@ export const darkTheme = deepFreeze({
   sizing: mobileSizing,
   spacing: mobileSpacing,
   status: {
-    danger: mobilePalette.status.dangerDark,
-    dangerSoft: mobilePalette.status.dangerSoftDark,
+    danger: redesignDark.danger,
+    dangerAction: redesignDark.dangerAction,
+    dangerOnBase: redesignDark.dangerOnBase,
+    dangerSoft: redesignDark.dangerSurface,
     info: mobilePalette.status.infoDark,
     infoSoft: mobilePalette.status.infoSoftDark,
-    success: mobilePalette.status.successDark,
-    successSoft: mobilePalette.status.successSoftDark,
-    warning: mobilePalette.status.warningDark,
-    warningSoft: mobilePalette.status.warningSoftDark,
+    onStatus: redesignDark.text,
+    success: redesignDark.success,
+    successSoft: redesignDark.successSurface,
+    successText: redesignDark.success,
+    warning: redesignDark.warning,
+    warningSoft: redesignDark.warningSurface,
   },
   surface: {
-    base: mobilePalette.neutral[950],
-    card: mobilePalette.neutral[900],
-    elevated: mobilePalette.neutral[850],
-    overlay: mobilePalette.neutral[800],
-    rail: mobilePalette.neutral[900],
-    soft: mobilePalette.neutral[800],
+    base: redesignDark.bg,
+    card: redesignDark.card,
+    elevated: redesignDark.card,
+    inverse: redesignLight.inkSurface,
+    overlay: redesignDark.hairline,
+    rail: redesignDark.card,
+    scrim: redesignDark.sheetOverlay,
+    soft: redesignDark.hairline,
   },
   systemBars: {
-    androidNavigationBar: mobilePalette.neutral[950],
+    androidNavigationBar: redesignDark.bg,
     statusBar: "light",
   },
   text: {
-    inverse: mobilePalette.neutral[950],
-    muted: mobilePalette.neutral[300],
-    onPrimary: mobilePalette.neutral[900],
-    primary: mobilePalette.neutral[50],
-    secondary: mobilePalette.neutral[200],
-    soft: mobilePalette.neutral[400],
+    inverse: mobilePalette.neutral.white,
+    muted: redesignDark.textFaint,
+    onInverse: mobilePalette.neutral.white,
+    onPrimary: mobilePalette.neutral.white,
+    placeholder: redesignDark.textFaint,
+    primary: redesignDark.text,
+    secondary: redesignDark.textSecondary,
+    soft: redesignDark.textFaint,
   },
   typography: mobileTypography,
 } satisfies MobileTheme);

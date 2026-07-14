@@ -80,7 +80,7 @@ export const createSharedStyles = (theme: MobileTheme) => {
       textTransform: "uppercase",
     },
     errorText: {
-      color: theme.status.danger,
+      color: theme.status.dangerOnBase,
       fontSize: 13,
       fontWeight: "700",
     },
@@ -166,7 +166,7 @@ export const createSharedStyles = (theme: MobileTheme) => {
       borderColor: theme.status.danger,
       borderRadius: mobileRadii.control,
       backgroundColor: theme.status.dangerSoft,
-      color: theme.status.danger,
+      color: theme.status.onStatus,
       fontSize: 11,
       lineHeight: 16,
       fontWeight: "800",
@@ -271,7 +271,7 @@ export const createSharedStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: mobileRadii.pill,
-      backgroundColor: theme.accent.default,
+      backgroundColor: theme.accent.action,
     },
     statusIconText: {
       color: theme.text.onPrimary,

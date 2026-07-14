@@ -8,12 +8,12 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
 
   return {
     mobileChannelChatDot: {
-      color: theme.status.success,
+      color: theme.status.successText,
       fontSize: 11,
       fontWeight: "900",
     },
     mobileChannelChatMemberCount: {
-      color: theme.status.success,
+      color: theme.status.successText,
       fontSize: 11,
       fontWeight: "900",
     },
@@ -107,8 +107,8 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       opacity: 0.48,
     },
     mobileVoiceControlButtonPrimary: {
-      borderColor: theme.accent.strong,
-      backgroundColor: theme.accent.strong,
+      borderColor: theme.accent.action,
+      backgroundColor: theme.accent.action,
     },
     mobileVoiceControlLabel: {
       color: theme.text.muted,
@@ -152,14 +152,14 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: 16,
-      backgroundColor: theme.status.success,
+      backgroundColor: theme.surface.inverse,
     },
     mobilePushToTalkIconActive: {
-      backgroundColor: theme.status.success,
+      backgroundColor: theme.surface.inverse,
     },
     mobilePushToTalkLabel: {
       minWidth: 0,
-      color: theme.status.success,
+      color: theme.status.successText,
       fontSize: 15,
       fontWeight: "900",
     },
@@ -175,7 +175,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       padding: 10,
     },
     mobileVoiceScreenShareBannerDescription: {
-      color: theme.status.success,
+      color: theme.status.successText,
       fontSize: 11,
       fontWeight: "800",
       lineHeight: 15,
@@ -194,7 +194,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       gap: 2,
     },
     mobileVoiceScreenShareBannerTitle: {
-      color: theme.status.success,
+      color: theme.status.successText,
       fontSize: 13,
       fontWeight: "900",
     },
@@ -406,7 +406,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       borderColor: theme.status.danger,
       borderRadius: mobileRadii.control,
       backgroundColor: theme.status.dangerSoft,
-      color: theme.status.danger,
+      color: theme.status.onStatus,
       fontSize: 12,
       lineHeight: 17,
       fontWeight: "800",
@@ -446,7 +446,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: mobileRadii.pill,
-      backgroundColor: theme.accent.strong,
+      backgroundColor: theme.accent.action,
       paddingHorizontal: 12,
     },
     mobileVoiceInviteButtonDisabled: {

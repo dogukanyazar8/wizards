@@ -33,7 +33,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       paddingHorizontal: 8,
     },
     dmActivePresenceText: {
-      color: theme.status.success,
+      color: theme.status.successText,
       fontSize: 11,
       fontWeight: "900",
     },
@@ -285,7 +285,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       minWidth: 20,
       overflow: "hidden",
       borderRadius: mobileRadii.pill,
-      backgroundColor: theme.accent.strong,
+      backgroundColor: theme.accent.action,
       color: theme.text.onPrimary,
       fontSize: 11,
       fontWeight: "900",

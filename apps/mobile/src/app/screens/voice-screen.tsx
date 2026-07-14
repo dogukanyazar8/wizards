@@ -919,7 +919,7 @@ export function PushToTalkButton({
       ]}
     >
       <View style={[styles.mobilePushToTalkIcon, isActive && styles.mobilePushToTalkIconActive]}>
-        <Ionicons name={isActive ? "mic" : "mic-outline"} size={24} color={theme.text.onPrimary} />
+        <Ionicons name={isActive ? "mic" : "mic-outline"} size={24} color={theme.status.success} />
       </View>
       <Text maxFontSizeMultiplier={1.8} style={styles.mobilePushToTalkLabel} numberOfLines={1}>
         {label}

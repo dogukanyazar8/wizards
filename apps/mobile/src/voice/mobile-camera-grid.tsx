@@ -30,7 +30,7 @@ const createStyles = (theme: MobileTheme) => ({
   },
   video: { height: "100%" as const, width: "100%" as const },
   label: {
-    backgroundColor: theme.surface.overlay,
+    backgroundColor: theme.surface.inverse,
     bottom: 8,
     color: theme.text.onPrimary,
     left: 8,
@@ -41,7 +41,7 @@ const createStyles = (theme: MobileTheme) => ({
   },
   flip: {
     alignItems: "center" as const,
-    backgroundColor: theme.surface.overlay,
+    backgroundColor: theme.surface.inverse,
     borderRadius: theme.radii.pill,
     height: 44,
     justifyContent: "center" as const,

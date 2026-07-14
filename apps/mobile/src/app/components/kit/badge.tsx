@@ -26,8 +26,8 @@ const createStyles = (theme: MobileTheme) => ({
   warning: { backgroundColor: theme.surface.soft, borderColor: theme.status.warning },
   label: { ...theme.typography.caption, color: theme.text.secondary },
   accentLabel: { color: theme.accent.strong },
-  dangerLabel: { color: theme.status.danger },
-  successLabel: { color: theme.status.success },
+  dangerLabel: { color: theme.status.onStatus },
+  successLabel: { color: theme.status.successText },
   warningLabel: { color: theme.status.warning },
 });
 

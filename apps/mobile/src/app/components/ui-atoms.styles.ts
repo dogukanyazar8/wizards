@@ -27,8 +27,8 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       backgroundColor: theme.status.dangerSoft,
     },
     actionButtonPrimary: {
-      borderColor: theme.accent.default,
-      backgroundColor: theme.accent.default,
+      borderColor: theme.accent.action,
+      backgroundColor: theme.accent.action,
     },
     actionButtonText: {
       textAlign: "center",
@@ -37,7 +37,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       fontWeight: "800",
     },
     actionButtonTextDanger: {
-      color: theme.status.danger,
+      color: theme.status.onStatus,
     },
     actionButtonTextPrimary: {
       color: theme.text.onPrimary,
@@ -109,6 +109,9 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
     bootstrapNoticeError: {
       borderColor: theme.status.danger,
       backgroundColor: theme.status.dangerSoft,
+    },
+    bootstrapNoticeForegroundError: {
+      color: theme.status.onStatus,
     },
     bootstrapNoticeText: {
       flex: 1,
@@ -184,7 +187,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       borderWidth: 1,
       borderColor: theme.border.focus,
       borderRadius: 14,
-      backgroundColor: theme.interactive.pressed,
+      backgroundColor: theme.accent.action,
       paddingHorizontal: 10,
       paddingVertical: 10,
     },
@@ -336,6 +339,9 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       borderColor: theme.status.success,
       backgroundColor: theme.status.successSoft,
     },
+    statusCardTextSuccess: {
+      color: theme.status.successText,
+    },
     statusChip: {
       minHeight: 24,
       maxWidth: "100%",
@@ -375,7 +381,12 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       fontWeight: "800",
     },
     statusIconSuccess: {
-      backgroundColor: theme.status.success,
+      borderWidth: 1,
+      borderColor: theme.status.success,
+      backgroundColor: theme.status.successSoft,
+    },
+    statusIconTextSuccess: {
+      color: theme.status.successText,
     },
     syncCard: {
       gap: 10,

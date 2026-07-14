@@ -230,7 +230,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       minHeight: mobileSizing.minTouchTarget,
       justifyContent: "center",
       borderRadius: mobileRadii.pill,
-      backgroundColor: theme.accent.strong,
+      backgroundColor: theme.accent.action,
       paddingHorizontal: 12,
     },
     messageSearchButtonDisabled: {
@@ -270,7 +270,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       borderColor: theme.status.danger,
       borderRadius: 14,
       backgroundColor: theme.status.dangerSoft,
-      color: theme.status.danger,
+      color: theme.status.onStatus,
       fontSize: 11,
       lineHeight: 16,
       fontWeight: "800",

@@ -38,7 +38,7 @@ const createStyles = (theme: MobileTheme) => ({
     paddingHorizontal: 14,
   },
   qr: { alignSelf: "center" as const, height: 220, width: 220 },
-  error: { ...theme.typography.body, color: theme.status.danger },
+  error: { ...theme.typography.body, color: theme.status.dangerOnBase },
   recovery: { ...theme.typography.bodyStrong, color: theme.text.primary },
 });
 

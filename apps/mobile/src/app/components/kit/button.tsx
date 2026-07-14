@@ -30,8 +30,8 @@ const createStyles = (theme: MobileTheme) => ({
   },
   fullWidth: { width: "100%" as const },
   primary: {
-    backgroundColor: theme.accent.default,
-    borderColor: theme.accent.default,
+    backgroundColor: theme.accent.action,
+    borderColor: theme.accent.action,
   },
   secondary: {
     backgroundColor: theme.surface.elevated,
@@ -42,8 +42,8 @@ const createStyles = (theme: MobileTheme) => ({
     borderColor: theme.surface.base,
   },
   danger: {
-    backgroundColor: theme.status.danger,
-    borderColor: theme.status.danger,
+    backgroundColor: theme.status.dangerAction,
+    borderColor: theme.status.dangerAction,
   },
   disabled: {
     backgroundColor: theme.surface.soft,

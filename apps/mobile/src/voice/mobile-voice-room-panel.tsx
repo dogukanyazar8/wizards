@@ -380,8 +380,8 @@ export const createMobileVoiceRoomPanelStyles = (theme: MobileTheme) =>
       transform: [{ scale: 0.98 }],
     },
     controlButtonPrimary: {
-      backgroundColor: theme.accent.default,
-      borderColor: theme.accent.default,
+      backgroundColor: theme.accent.action,
+      borderColor: theme.accent.action,
     },
     controlLabel: {
       ...theme.typography.caption,
@@ -432,7 +432,7 @@ export const createMobileVoiceRoomPanelStyles = (theme: MobileTheme) =>
       borderRadius: 14,
       overflow: "hidden",
       backgroundColor: theme.status.dangerSoft,
-      color: theme.status.danger,
+      color: theme.status.onStatus,
       ...theme.typography.label,
     },
     eyebrow: {
