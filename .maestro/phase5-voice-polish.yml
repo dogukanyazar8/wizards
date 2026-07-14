@@ -55,7 +55,7 @@ appId: team.whispr.mobile
     id: "mobile-settings-open-appearance"
 - assertVisible:
     id: "mobile-settings-appearance"
-- tapOn: "Acik|Light"
+- tapOn: "Açık|Light"
 - pressKey: BACK
 - tapOn:
     id: "mobile-bottom-tab-overview"

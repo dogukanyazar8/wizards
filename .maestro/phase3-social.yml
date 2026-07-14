@@ -31,7 +31,7 @@ appId: team.whispr.mobile
     id: "mobile-settings-appearance"
 - tapOn:
     id: "mobile-settings-appearance-control"
-- tapOn: "Acik|Light"
+- tapOn: "Açık|Light"
 - openLink: "whispr://channels/@me"
 - extendedWaitUntil:
     visible:

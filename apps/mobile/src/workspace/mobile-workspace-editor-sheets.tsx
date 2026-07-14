@@ -4,6 +4,7 @@ import type { MobileManagedWorkspaceServerDetailResponse } from "@wizards/types"
 
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { BottomSheet, Button, DestructiveConfirmationSheet } from "../app/components/kit";
+import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import { useThemedStyles } from "../app/providers/mobile-theme-provider";
 import { useMobileServerManagementMutations } from "../query/use-mobile-server-management-mutations";
 import { createMobileServerManagementStyles } from "./mobile-server-management.styles";
@@ -23,17 +24,32 @@ export interface MobileWorkspaceEditorSheetsProps {
 }
 
 const COPY = {
-  cancel: "Cancel",
-  category: "Category",
-  channel: "Channel",
-  create: "Create",
-  delete: "Delete",
-  error: "This change could not be completed. Please try again.",
-  name: "Name",
-  save: "Save",
-  text: "Text",
-  topic: "Topic",
-  voice: "Voice",
+  en: {
+    cancel: "Cancel",
+    category: "Category",
+    channel: "Channel",
+    create: "Create",
+    delete: "Delete",
+    error: "This change could not be completed. Please try again.",
+    name: "Name",
+    save: "Save",
+    text: "Text",
+    topic: "Topic",
+    voice: "Voice",
+  },
+  tr: {
+    cancel: "İptal",
+    category: "Kategori",
+    channel: "Kanal",
+    create: "Oluştur",
+    delete: "Sil",
+    error: "Değişiklik tamamlanamadı. Lütfen tekrar deneyin.",
+    name: "Ad",
+    save: "Kaydet",
+    text: "Metin",
+    topic: "Konu",
+    voice: "Ses",
+  },
 } as const;
 
 function normalizeName(value: string): string | null {
@@ -53,6 +69,8 @@ export function MobileWorkspaceEditorSheets({
   serverId,
 }: MobileWorkspaceEditorSheetsProps) {
   const { apiClient } = useMobileAuth();
+  const { locale } = useMobileLocaleRuntime();
+  const labels = COPY[locale];
   const styles = useThemedStyles(createMobileServerManagementStyles);
   const mutations = useMobileServerManagementMutations(apiClient);
   const [name, setName] = useState("");
@@ -66,16 +84,19 @@ export function MobileWorkspaceEditorSheets({
   } | null>(null);
   const submittingRef = useRef(false);
   const channels = useMemo(
-    () => [...detail.categories.flatMap((category) => category.channels), ...detail.ungroupedChannels],
+    () => [
+      ...detail.categories.flatMap((category) => category.channels),
+      ...detail.ungroupedChannels,
+    ],
     [detail.categories, detail.ungroupedChannels],
   );
   const editingCategory =
     editor?.kind === "category-edit"
-      ? detail.categories.find((category) => category.id === editor.categoryId) ?? null
+      ? (detail.categories.find((category) => category.id === editor.categoryId) ?? null)
       : null;
   const editingChannel =
     editor?.kind === "channel-edit"
-      ? channels.find((channel) => channel.id === editor.channelId) ?? null
+      ? (channels.find((channel) => channel.id === editor.channelId) ?? null)
       : null;
   const isCategoryEditor = editor?.kind === "category-create" || editor?.kind === "category-edit";
   const isOpen = editor !== null;
@@ -124,7 +145,7 @@ export function MobileWorkspaceEditorSheets({
     const normalizedName = normalizeName(name);
     const normalizedTopic = normalizeTopic(topic);
     if (!normalizedName || normalizedTopic === null) {
-      setError(COPY.error);
+      setError(labels.error);
       return;
     }
 
@@ -158,7 +179,7 @@ export function MobileWorkspaceEditorSheets({
       }
       onClose();
     } catch {
-      setError(COPY.error);
+      setError(labels.error);
     } finally {
       submittingRef.current = false;
     }
@@ -173,13 +194,15 @@ export function MobileWorkspaceEditorSheets({
       setDeleteCategory(null);
       onClose();
     } catch {
-      setError(COPY.error);
+      setError(labels.error);
       throw new Error("mobile-category-delete-failed");
     }
   };
 
   const currentCategoryName =
-    categoryId === null ? "No category" : detail.categories.find((item) => item.id === categoryId)?.name ?? "No category";
+    categoryId === null
+      ? "No category"
+      : (detail.categories.find((item) => item.id === categoryId)?.name ?? "No category");
   const isPending =
     mutations.createCategory.isPending ||
     mutations.updateCategory.isPending ||
@@ -189,7 +212,7 @@ export function MobileWorkspaceEditorSheets({
   return (
     <>
       <BottomSheet
-        accessibilityLabel={isCategoryEditor ? COPY.category : COPY.channel}
+        accessibilityLabel={isCategoryEditor ? labels.category : labels.channel}
         onClose={onClose}
         open={isOpen}
         snapPoint={560}
@@ -197,15 +220,15 @@ export function MobileWorkspaceEditorSheets({
       >
         <View style={styles.sheet}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>
-            {isCategoryEditor ? COPY.category : COPY.channel}
+            {isCategoryEditor ? labels.category : labels.channel}
           </Text>
           <TextInput
-            accessibilityLabel={COPY.name}
+            accessibilityLabel={labels.name}
             autoCapitalize="words"
             autoCorrect
             maxLength={48}
             onChangeText={setName}
-            placeholder={COPY.name}
+            placeholder={labels.name}
             style={styles.input}
             testID={isCategoryEditor ? "mobile-category-name" : "mobile-channel-name"}
             value={name}
@@ -213,10 +236,10 @@ export function MobileWorkspaceEditorSheets({
           {!isCategoryEditor ? (
             <>
               <TextInput
-                accessibilityLabel={COPY.topic}
+                accessibilityLabel={labels.topic}
                 maxLength={120}
                 onChangeText={setTopic}
-                placeholder={COPY.topic}
+                placeholder={labels.topic}
                 style={styles.input}
                 testID="mobile-channel-topic"
                 value={topic}
@@ -225,14 +248,14 @@ export function MobileWorkspaceEditorSheets({
                 <View style={styles.row}>
                   <Button
                     accessibilityState={{ selected: type === "TEXT" }}
-                    label={COPY.text}
+                    label={labels.text}
                     onPress={() => setType("TEXT")}
                     testID="mobile-channel-type-text"
                     variant={type === "TEXT" ? "primary" : "secondary"}
                   />
                   <Button
                     accessibilityState={{ selected: type === "VOICE" }}
-                    label={COPY.voice}
+                    label={labels.voice}
                     onPress={() => setType("VOICE")}
                     testID="mobile-channel-type-voice"
                     variant={type === "VOICE" ? "primary" : "secondary"}
@@ -240,42 +263,54 @@ export function MobileWorkspaceEditorSheets({
                 </View>
               ) : null}
               <Button
-                label={`${COPY.category}: ${currentCategoryName}`}
+                label={`${labels.category}: ${currentCategoryName}`}
                 onPress={cycleCategory}
                 testID="mobile-channel-category"
                 variant="secondary"
               />
             </>
           ) : null}
-          {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
+          {error ? (
+            <Text accessibilityRole="alert" style={styles.error}>
+              {error}
+            </Text>
+          ) : null}
           <Button
             busy={isPending}
-            disabled={normalizeName(name) === null || (!isCategoryEditor && normalizeTopic(topic) === null)}
-            label={editor?.kind === "category-create" || editor?.kind === "channel-create" ? COPY.create : COPY.save}
+            disabled={
+              normalizeName(name) === null || (!isCategoryEditor && normalizeTopic(topic) === null)
+            }
+            label={
+              editor?.kind === "category-create" || editor?.kind === "channel-create"
+                ? labels.create
+                : labels.save
+            }
             onPress={() => void save()}
             testID={isCategoryEditor ? "mobile-category-save" : "mobile-channel-save"}
           />
           {editingCategory ? (
             <Button
-              label={COPY.delete}
-              onPress={() => setDeleteCategory({ id: editingCategory.id, name: editingCategory.name })}
+              label={labels.delete}
+              onPress={() =>
+                setDeleteCategory({ id: editingCategory.id, name: editingCategory.name })
+              }
               testID={`mobile-category-${editingCategory.id}-delete`}
               variant="danger"
             />
           ) : null}
-          <Button label={COPY.cancel} onPress={onClose} variant="ghost" />
+          <Button label={labels.cancel} onPress={onClose} variant="ghost" />
         </View>
       </BottomSheet>
       <DestructiveConfirmationSheet
         body="Deleting a category cannot be undone."
         busy={mutations.deleteCategory.isPending}
-        confirmLabel={COPY.delete}
+        confirmLabel={labels.delete}
         onCancel={() => setDeleteCategory(null)}
         onConfirm={confirmDeleteCategory}
         open={deleteCategory !== null}
         {...(deleteCategory ? { requiredText: deleteCategory.name } : {})}
         testID="mobile-category-delete-confirm"
-        title={COPY.delete}
+        title={labels.delete}
       />
     </>
   );

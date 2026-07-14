@@ -47,7 +47,7 @@ appId: team.whispr.mobile
     id: "mobile-message-actions-.*-trigger"
     containsChild:
       text: "Phase2 Maestro verified"
-- tapOn: "Duzenle|Edit"
+- tapOn: "Düzenle|Edit"
 - assertVisible:
     id: "mobile-message-edit-preview"
 - tapOn:

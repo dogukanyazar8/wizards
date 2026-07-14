@@ -67,7 +67,7 @@ export function MobileGifPicker({
     try {
       setGifs((await searchMobileGiphy(apiClient, { limit: 24, offset: 0, query })).gifs);
     } catch {
-      setError(tr ? "GIF'ler yuklenemedi." : "GIFs could not be loaded.");
+      setError(tr ? "GIF'ler yüklenemedi." : "GIFs could not be loaded.");
     } finally {
       setBusy(false);
     }
@@ -90,7 +90,7 @@ export function MobileGifPicker({
   }
   return (
     <BottomSheet
-      accessibilityLabel={tr ? "GIF secici" : "GIF picker"}
+      accessibilityLabel={tr ? "GIF seçici" : "GIF picker"}
       onClose={onClose}
       open={open}
       snapPoint={620}
@@ -127,7 +127,9 @@ export function MobileGifPicker({
           numColumns={2}
           keyExtractor={(item) => item.id}
           ListEmptyComponent={
-            !busy ? <Text style={styles.empty}>{tr ? "Sonuc yok" : "No GIFs found"}</Text> : null
+            !busy ? (
+              <Text style={styles.empty}>{tr ? "Sonuç bulunamadı" : "No GIFs found"}</Text>
+            ) : null
           }
           renderItem={({ item }) => (
             <Pressable
@@ -148,7 +150,7 @@ export function MobileGifPicker({
                 transition={0}
               />
               <Text numberOfLines={1} style={styles.label}>
-                {sendingId === item.id ? (tr ? "Gonderiliyor" : "Sending") : item.title}
+                {sendingId === item.id ? (tr ? "Gönderiliyor" : "Sending") : item.title}
               </Text>
             </Pressable>
           )}

@@ -48,7 +48,7 @@ describe("SettingsAppearanceSelector", () => {
 
     const control = view.getByTestId("mobile-settings-appearance-control");
     const system = view.getByLabelText("Sistem");
-    const light = view.getByLabelText("Acik");
+    const light = view.getByLabelText("Açık");
     const dark = view.getByLabelText("Koyu");
 
     expect(control.props.accessibilityRole).toBe("radiogroup");

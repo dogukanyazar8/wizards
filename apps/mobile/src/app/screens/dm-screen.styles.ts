@@ -9,6 +9,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
 
   return {
     chatScreen: {
+      flex: 1,
       flexGrow: 1,
       gap: 12,
       minWidth: 0,
@@ -126,8 +127,8 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       paddingVertical: 1,
     },
     dmConversationListViewport: {
-      minHeight: 64,
-      maxHeight: 460,
+      flex: 1,
+      minHeight: 0,
       minWidth: 0,
     },
     dmConversationName: {
@@ -190,6 +191,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       fontWeight: "900",
     },
     dmListCard: {
+      flex: 1,
       gap: 12,
       minWidth: 0,
     },

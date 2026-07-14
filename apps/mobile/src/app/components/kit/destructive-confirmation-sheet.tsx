@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Text, TextInput, View } from "react-native";
 
 import type { MobileTheme } from "../../../design/themes";
+import { activeMobileCopy as copy } from "../../../locale/mobile-locale-preferences";
 import { useThemedStyles } from "../../providers/mobile-theme-provider";
 import { BottomSheet } from "./bottom-sheet";
 import { Button } from "./button";
@@ -75,7 +76,7 @@ export function DestructiveConfirmationSheet({
     try {
       await onConfirm();
     } catch {
-      setError("This action could not be completed. Please try again.");
+      setError(copy.confirmationError);
     } finally {
       pendingRef.current = false;
       setSubmitting(false);
@@ -91,7 +92,7 @@ export function DestructiveConfirmationSheet({
         <Text style={styles.body}>{body}</Text>
         {requiredText !== undefined ? (
           <TextInput
-            accessibilityLabel={`Type ${requiredText} to confirm`}
+            accessibilityLabel={copy.confirmationTypeToConfirm.replace("{value}", requiredText)}
             autoCapitalize="none"
             autoCorrect={false}
             onChangeText={setValue}
@@ -102,7 +103,7 @@ export function DestructiveConfirmationSheet({
           />
         ) : null}
         <Text accessibilityLiveRegion="polite" style={styles.status} testID={`${testID}-status`}>
-          {isBusy ? "Working..." : ""}
+          {isBusy ? copy.confirmationWorking : ""}
         </Text>
         {error ? (
           <Text accessibilityLiveRegion="polite" style={styles.error} testID={`${testID}-error`}>
@@ -112,7 +113,7 @@ export function DestructiveConfirmationSheet({
         <View style={styles.actions}>
           <Button
             disabled={isBusy}
-            label="Cancel"
+            label={copy.confirmationCancelAction}
             onPress={onCancel}
             testID={`${testID}-cancel`}
             variant="secondary"

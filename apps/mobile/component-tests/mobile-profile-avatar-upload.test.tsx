@@ -157,7 +157,7 @@ describe("mobile profile avatar upload", () => {
     const { view } = await renderEditor();
 
     expect(view.getByTestId("mobile-profile-avatar-upload-status").props.children).toBe(
-      "Avatar yukleniyor...",
+      "Avatar yükleniyor...",
     );
     await fireEvent.press(view.getByTestId("mobile-profile-avatar-picker"));
     expect(mockSelectAndUpload).not.toHaveBeenCalled();

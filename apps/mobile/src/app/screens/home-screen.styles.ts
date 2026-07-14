@@ -206,6 +206,7 @@ export const createHomeScreenStyles = (theme: MobileTheme) => {
       fontWeight: "900",
     },
     homeScreen: {
+      flex: 1,
       flexGrow: 1,
       gap: 12,
       minWidth: 0,
@@ -447,8 +448,8 @@ export const createHomeScreenStyles = (theme: MobileTheme) => {
       paddingVertical: 1,
     },
     mobileWorkspaceSectionListViewport: {
-      minHeight: 120,
-      maxHeight: 520,
+      flex: 1,
+      minHeight: 0,
       minWidth: 0,
     },
     mobileWorkspaceSectionMeta: {
@@ -483,6 +484,7 @@ export const createHomeScreenStyles = (theme: MobileTheme) => {
       textAlign: "center",
     },
     workspaceBrowserShell: {
+      flex: 1,
       minWidth: 0,
       flexDirection: "row",
       alignItems: "stretch",

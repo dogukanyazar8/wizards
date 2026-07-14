@@ -30,7 +30,7 @@ appId: team.whispr.mobile
     id: "mobile-settings-appearance"
 - tapOn:
     id: "mobile-settings-appearance-control"
-- tapOn: "Acik|Light"
+- tapOn: "Açık|Light"
 - pressKey: BACK
 - tapOn:
     id: "mobile-bottom-tab-overview"
@@ -67,7 +67,7 @@ appId: team.whispr.mobile
 - tapOn:
     id: "mobile-server-invite-share-.*"
 - extendedWaitUntil:
-    visible: "Sharing link|Baglanti paylas|Bağlantı paylaş"
+    visible: "Sharing link|Bağlantı paylaş"
     timeout: 30000
 - pressKey: BACK
 - extendedWaitUntil:
@@ -111,7 +111,7 @@ appId: team.whispr.mobile
 - tapOn:
     id: "mobile-server-icon-picker"
 - extendedWaitUntil:
-    visible: "Photos|Fotograflar|Fotoğraflar"
+    visible: "Photos|Fotoğraflar"
     timeout: 30000
 - tapOn:
     point: "16%,58%"

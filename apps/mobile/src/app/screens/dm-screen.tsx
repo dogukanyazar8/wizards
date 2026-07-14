@@ -17,7 +17,6 @@ import { useDmScreenStyles } from "./dm-screen.styles";
 import { DMConversationScreen } from "./dm-conversation-screen";
 import { DMInboxHeader, DirectMessageListCard, DirectMessageSummaryCard } from "./dm-inbox";
 import { FriendsHub } from "../../social/friends-hub";
-import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 
 export { DMConversationScreen, DMConversationPreviewCard } from "./dm-conversation-screen";
 export {
@@ -90,7 +89,6 @@ export function MessagesScreen({
   onOpenDetails?(): void;
 }) {
   const styles = useDmScreenStyles();
-  const { locale } = useMobileLocaleRuntime();
   const [inboxSegment, setInboxSegment] = useState<"conversations" | "friends">("conversations");
   const hasConversations =
     bootstrapState.status === "ready" &&
@@ -146,12 +144,8 @@ export function MessagesScreen({
           const selected = inboxSegment === segment;
           const label =
             segment === "conversations"
-              ? locale === "tr"
-                ? "Konusmalar"
-                : "Conversations"
-              : locale === "tr"
-                ? "Arkadaslar"
-                : "Friends";
+              ? copy.socialSegmentConversations
+              : copy.socialSegmentFriends;
           return (
             <Pressable
               key={segment}

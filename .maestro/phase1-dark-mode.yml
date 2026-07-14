@@ -64,8 +64,8 @@ appId: team.whispr.mobile
     checked: true
 - takeScreenshot: "artifacts/mobile/phase1/closure/dark-settings"
 - tapOn:
-    text: "Acik|Light"
+    text: "Açık|Light"
 - assertVisible:
-    text: "Acik|Light"
+    text: "Açık|Light"
     checked: true
 - takeScreenshot: "artifacts/mobile/phase1/closure/light-settings"

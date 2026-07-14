@@ -16,6 +16,17 @@ type Row =
   | { id: string; kind: "server"; value: Details["mutualServers"][number] }
   | { id: string; kind: "attachment"; value: Details["sharedAttachments"]["media"][number] };
 
+function getPresenceLabel(status: string, isTurkish: boolean): string {
+  const labels: Record<string, readonly [string, string]> = {
+    DND: ["Rahatsız etmeyin", "Do not disturb"],
+    IDLE: ["Boşta", "Idle"],
+    OFFLINE: ["Çevrimdışı", "Offline"],
+    ONLINE: ["Çevrimiçi", "Online"],
+  };
+  const localized = labels[status];
+  return localized ? localized[isTurkish ? 0 : 1] : status;
+}
+
 const createStyles = (theme: MobileTheme) => ({
   root: { backgroundColor: theme.surface.base, flex: 1 },
   content: { gap: 10, padding: theme.spacing.page, paddingBottom: 48 },
@@ -98,7 +109,7 @@ export function MobileDMDetailsScreen({
               onPress={onBack}
               testID="mobile-dm-details-back"
             />
-            <Text style={styles.title}>{tr ? "Sohbet detaylari" : "Conversation details"}</Text>
+            <Text style={styles.title}>{tr ? "Sohbet ayrıntıları" : "Conversation details"}</Text>
           </>
         }
         ListEmptyComponent={
@@ -106,10 +117,10 @@ export function MobileDMDetailsScreen({
             <Text style={styles.empty}>
               {query.isError
                 ? tr
-                  ? "Detaylar yuklenemedi."
+                  ? "Ayrıntılar yüklenemedi."
                   : "Details could not be loaded."
                 : tr
-                  ? "Paylasilan ayrinti yok."
+                  ? "Henüz paylaşılan ayrıntı yok."
                   : "No shared details yet."}
             </Text>
           ) : null
@@ -125,7 +136,7 @@ export function MobileDMDetailsScreen({
                 <View style={styles.body}>
                   <Text style={styles.name}>{item.value.displayName ?? item.value.username}</Text>
                   <Text style={styles.meta}>
-                    @{item.value.username} · {item.value.status}
+                    @{item.value.username} · {getPresenceLabel(item.value.status, tr)}
                   </Text>
                   {item.value.customStatus ? (
                     <Text style={styles.meta}>{item.value.customStatus}</Text>
@@ -143,7 +154,7 @@ export function MobileDMDetailsScreen({
                   <Text style={styles.section}>{tr ? "ORTAK SUNUCU" : "MUTUAL SERVER"}</Text>
                   <Text style={styles.name}>{item.value.name}</Text>
                   <Text style={styles.meta}>
-                    {item.value.memberCount} {tr ? "uye" : "members"}
+                    {item.value.memberCount} {tr ? "üye" : "members"}
                   </Text>
                 </View>
               </View>
@@ -160,7 +171,7 @@ export function MobileDMDetailsScreen({
                 <Image source={{ uri: attachment.url }} style={styles.image} />
               ) : null}
               <View style={styles.body}>
-                <Text style={styles.section}>{tr ? "PAYLASILAN DOSYA" : "SHARED ATTACHMENT"}</Text>
+                <Text style={styles.section}>{tr ? "PAYLAŞILAN DOSYA" : "SHARED ATTACHMENT"}</Text>
                 <Text numberOfLines={1} style={styles.name}>
                   {attachment.filename}
                 </Text>

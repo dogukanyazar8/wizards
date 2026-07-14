@@ -16,15 +16,19 @@ const labels = {
     picker: "Choose avatar",
     ready: "Avatar ready.",
     retry: "Retry avatar upload",
+    failed: "Avatar upload could not be completed.",
+    syncFailed: "Avatar could not be synchronized.",
     syncing: "Avatar updated. It may take a moment to sync locally.",
     uploading: "Uploading avatar...",
   },
   tr: {
-    picker: "Avatar sec",
-    ready: "Avatar hazir.",
-    retry: "Avatar yuklemeyi tekrar dene",
-    syncing: "Avatar guncellendi. Yerel olarak eslenmesi biraz zaman alabilir.",
-    uploading: "Avatar yukleniyor...",
+    picker: "Avatar seç",
+    ready: "Avatar hazır.",
+    retry: "Avatar yüklemeyi tekrar dene",
+    failed: "Avatar yüklemesi tamamlanamadı.",
+    syncFailed: "Avatar eşitlenemedi.",
+    syncing: "Avatar güncellendi. Yerel olarak eşitlenmesi biraz zaman alabilir.",
+    uploading: "Avatar yükleniyor...",
   },
 } as const;
 
@@ -75,13 +79,13 @@ export function MobileProfileAvatarEditor({
 
     if (result.status === "error") {
       setLocalPreviewUri(null);
-      setError(result.message);
+      setError(t.failed);
       return;
     }
 
     if (result.response.purpose !== "profile-avatar" || result.response.profile.id !== user.id) {
       setLocalPreviewUri(null);
-      setError("Avatar could not be synchronized.");
+      setError(t.syncFailed);
       return;
     }
 
@@ -113,7 +117,16 @@ export function MobileProfileAvatarEditor({
     void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
     void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.profile() });
     void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.friends() });
-  }, [isBusy, queryClient, replaceSessionUser, selectAndUpload, t.syncing, user]);
+  }, [
+    isBusy,
+    queryClient,
+    replaceSessionUser,
+    selectAndUpload,
+    t.failed,
+    t.syncFailed,
+    t.syncing,
+    user,
+  ]);
 
   return (
     <View style={styles.root}>

@@ -6,11 +6,34 @@ import { createMobileComposerStyles } from "../src/app/composer/mobile-composer.
 import { createMobileVoiceInviteOverlayStyles } from "../src/app/overlays/mobile-voice-invite-overlay.styles";
 import { createChannelScreenStyles } from "../src/app/screens/channel-screen.styles";
 import { createDmScreenStyles } from "../src/app/screens/dm-screen.styles";
+import { createHomeScreenStyles } from "../src/app/screens/home-screen.styles";
 import { createVoiceScreenStyles } from "../src/app/screens/voice-screen.styles";
 import { darkTheme, lightTheme } from "../src/design/themes";
 import { createMobileVoiceRoomPanelStyles } from "../src/voice/mobile-voice-room-panel";
 
 describe("mobile communication semantic themes", () => {
+  it.each([
+    ["light", lightTheme],
+    ["dark", darkTheme],
+  ] as const)(
+    "lets the %s workspace and DM lists own the remaining tab height",
+    (_scheme, theme) => {
+      const homeStyles = createHomeScreenStyles(theme);
+      const dmStyles = createDmScreenStyles(theme);
+
+      expect(homeStyles.homeScreen.flex).toBe(1);
+      expect(homeStyles.workspaceBrowserShell.flex).toBe(1);
+      expect(homeStyles.mobileWorkspaceSectionListViewport).toMatchObject({
+        flex: 1,
+        minHeight: 0,
+      });
+      expect(dmStyles.chatScreen.flex).toBe(1);
+      expect(dmStyles.dmListCard.flex).toBe(1);
+      expect(dmStyles.dmConversationListViewport).toMatchObject({ flex: 1, minHeight: 0 });
+      expect(dmStyles.dmConversationListViewport).not.toHaveProperty("maxHeight");
+    },
+  );
+
   it.each([
     ["light", lightTheme],
     ["dark", darkTheme],

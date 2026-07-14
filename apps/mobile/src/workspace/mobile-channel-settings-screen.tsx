@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, Text, TextInput, View } from "react-nati
 
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { Button, Card, DestructiveConfirmationSheet } from "../app/components/kit";
+import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import { useThemedStyles } from "../app/providers/mobile-theme-provider";
 import { useMobileServerManagementMutations } from "../query/use-mobile-server-management-mutations";
 import { useMobileWorkspaceQuery } from "../query/mobile-workspace-query";
@@ -15,18 +16,36 @@ export interface MobileChannelSettingsScreenProps {
 }
 
 const COPY = {
-  back: "Back",
-  category: "Category",
-  clear: "Clear message history",
-  clearBody: "This permanently deletes channel messages. This cannot be undone.",
-  delete: "Delete channel",
-  deleteBody: "This permanently deletes the channel. This cannot be undone.",
-  error: "This channel action could not be completed. Please try again.",
-  loading: "Loading channel settings…",
-  name: "Channel name",
-  save: "Save changes",
-  title: "Channel settings",
-  topic: "Topic",
+  en: {
+    back: "Back",
+    category: "Category",
+    clear: "Clear message history",
+    clearBody: "This permanently deletes channel messages. This cannot be undone.",
+    delete: "Delete channel",
+    deleteBody: "This permanently deletes the channel. This cannot be undone.",
+    error: "This channel action could not be completed. Please try again.",
+    historyDeleted: "{count} messages deleted.",
+    loading: "Loading channel settings…",
+    name: "Channel name",
+    save: "Save changes",
+    title: "Channel settings",
+    topic: "Topic",
+  },
+  tr: {
+    back: "Geri",
+    category: "Kategori",
+    clear: "Mesaj geçmişini temizle",
+    clearBody: "Bu işlem kanal mesajlarını kalıcı olarak siler ve geri alınamaz.",
+    delete: "Kanalı sil",
+    deleteBody: "Bu işlem kanalı kalıcı olarak siler ve geri alınamaz.",
+    error: "Kanal işlemi tamamlanamadı. Lütfen tekrar deneyin.",
+    historyDeleted: "{count} mesaj silindi.",
+    loading: "Kanal ayarları yükleniyor…",
+    name: "Kanal adı",
+    save: "Değişiklikleri kaydet",
+    title: "Kanal ayarları",
+    topic: "Konu",
+  },
 } as const;
 
 function normalizeName(value: string) {
@@ -45,6 +64,8 @@ export function MobileChannelSettingsScreen({
   serverId,
 }: MobileChannelSettingsScreenProps) {
   const { apiClient } = useMobileAuth();
+  const { locale } = useMobileLocaleRuntime();
+  const labels = COPY[locale];
   const styles = useThemedStyles(createMobileServerManagementStyles);
   const workspace = useMobileWorkspaceQuery(apiClient, serverId);
   const mutations = useMobileServerManagementMutations(apiClient);
@@ -60,9 +81,10 @@ export function MobileChannelSettingsScreen({
   const channel = useMemo(
     () =>
       detail
-        ? [...detail.categories.flatMap((category) => category.channels), ...detail.ungroupedChannels].find(
-            (item) => item.id === channelId,
-          ) ?? null
+        ? ([
+            ...detail.categories.flatMap((category) => category.channels),
+            ...detail.ungroupedChannels,
+          ].find((item) => item.id === channelId) ?? null)
         : null,
     [channelId, detail],
   );
@@ -109,7 +131,7 @@ export function MobileChannelSettingsScreen({
         topic: nextTopic || null,
       });
     } catch {
-      setError(COPY.error);
+      setError(labels.error);
     } finally {
       submitRef.current = false;
     }
@@ -122,7 +144,7 @@ export function MobileChannelSettingsScreen({
       setDeleteOpen(false);
       onBack();
     } catch {
-      setError(COPY.error);
+      setError(labels.error);
       throw new Error("mobile-channel-delete-failed");
     }
   };
@@ -132,9 +154,9 @@ export function MobileChannelSettingsScreen({
     try {
       const response = await mutations.clearChannelHistory.mutateAsync({ channelId });
       setHistoryOpen(false);
-      setHistoryNotice(`${response.deletedCount} messages deleted.`);
+      setHistoryNotice(labels.historyDeleted.replace("{count}", String(response.deletedCount)));
     } catch {
-      setError(COPY.error);
+      setError(labels.error);
       throw new Error("mobile-channel-history-clear-failed");
     }
   };
@@ -144,7 +166,7 @@ export function MobileChannelSettingsScreen({
       <View style={styles.root} testID="mobile-channel-settings-screen">
         <View style={styles.content}>
           <ActivityIndicator />
-          <Text style={styles.body}>{COPY.loading}</Text>
+          <Text style={styles.body}>{labels.loading}</Text>
         </View>
       </View>
     );
@@ -152,10 +174,16 @@ export function MobileChannelSettingsScreen({
 
   if (!detail || !channel || workspace.isError) {
     return (
-      <ScrollView contentContainerStyle={styles.content} style={styles.root} testID="mobile-channel-settings-screen">
-        <Text style={styles.title}>{COPY.title}</Text>
-        <Text accessibilityRole="alert" style={styles.error}>{COPY.error}</Text>
-        <Button label={COPY.back} onPress={onBack} variant="ghost" />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        style={styles.root}
+        testID="mobile-channel-settings-screen"
+      >
+        <Text style={styles.title}>{labels.title}</Text>
+        <Text accessibilityRole="alert" style={styles.error}>
+          {labels.error}
+        </Text>
+        <Button label={labels.back} onPress={onBack} variant="ghost" />
       </ScrollView>
     );
   }
@@ -163,7 +191,9 @@ export function MobileChannelSettingsScreen({
   const canManageChannels = detail.capabilities.canManageChannels;
   const canClearHistory = detail.capabilities.canClearHistory && channel.type === "TEXT";
   const categoryName =
-    categoryId === null ? "No category" : detail.categories.find((item) => item.id === categoryId)?.name ?? "No category";
+    categoryId === null
+      ? "No category"
+      : (detail.categories.find((item) => item.id === categoryId)?.name ?? "No category");
   const invalidInput = normalizeName(name) === null || normalizeTopic(topic) === null;
 
   return (
@@ -173,14 +203,14 @@ export function MobileChannelSettingsScreen({
       style={styles.root}
       testID="mobile-channel-settings-screen"
     >
-      <Button label={COPY.back} onPress={onBack} variant="ghost" />
-      <Text style={styles.title}>{COPY.title}</Text>
+      <Button label={labels.back} onPress={onBack} variant="ghost" />
+      <Text style={styles.title}>{labels.title}</Text>
       <Card style={styles.card}>
         <Text style={styles.caption}>{channel.type}</Text>
         {canManageChannels ? (
           <>
             <TextInput
-              accessibilityLabel={COPY.name}
+              accessibilityLabel={labels.name}
               autoCapitalize="words"
               autoCorrect
               maxLength={48}
@@ -190,7 +220,7 @@ export function MobileChannelSettingsScreen({
               value={name}
             />
             <TextInput
-              accessibilityLabel={COPY.topic}
+              accessibilityLabel={labels.topic}
               maxLength={120}
               onChangeText={setTopic}
               style={styles.input}
@@ -198,7 +228,7 @@ export function MobileChannelSettingsScreen({
               value={topic}
             />
             <Button
-              label={`${COPY.category}: ${categoryName}`}
+              label={`${labels.category}: ${categoryName}`}
               onPress={cycleCategory}
               testID="mobile-channel-settings-category"
               variant="secondary"
@@ -206,7 +236,7 @@ export function MobileChannelSettingsScreen({
             <Button
               busy={mutations.updateChannel.isPending}
               disabled={invalidInput}
-              label={COPY.save}
+              label={labels.save}
               onPress={() => void update()}
               testID="mobile-channel-settings-save"
             />
@@ -214,7 +244,7 @@ export function MobileChannelSettingsScreen({
         ) : null}
         {canClearHistory ? (
           <Button
-            label={COPY.clear}
+            label={labels.clear}
             onPress={() => setHistoryOpen(true)}
             testID={`mobile-channel-history-clear-open-${channelId}`}
             variant="danger"
@@ -222,34 +252,42 @@ export function MobileChannelSettingsScreen({
         ) : null}
         {canManageChannels ? (
           <Button
-            label={COPY.delete}
+            label={labels.delete}
             onPress={() => setDeleteOpen(true)}
             testID={`mobile-channel-delete-open-${channelId}`}
             variant="danger"
           />
         ) : null}
       </Card>
-      {historyNotice ? <Text accessibilityLiveRegion="polite" style={styles.success}>{historyNotice}</Text> : null}
-      {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
+      {historyNotice ? (
+        <Text accessibilityLiveRegion="polite" style={styles.success}>
+          {historyNotice}
+        </Text>
+      ) : null}
+      {error ? (
+        <Text accessibilityRole="alert" style={styles.error}>
+          {error}
+        </Text>
+      ) : null}
       <DestructiveConfirmationSheet
-        body={COPY.deleteBody}
+        body={labels.deleteBody}
         busy={mutations.deleteChannel.isPending}
-        confirmLabel={COPY.delete}
+        confirmLabel={labels.delete}
         onCancel={() => setDeleteOpen(false)}
         onConfirm={deleteChannel}
         open={deleteOpen}
         testID="mobile-channel-delete-confirm"
-        title={COPY.delete}
+        title={labels.delete}
       />
       <DestructiveConfirmationSheet
-        body={COPY.clearBody}
+        body={labels.clearBody}
         busy={mutations.clearChannelHistory.isPending}
-        confirmLabel={COPY.clear}
+        confirmLabel={labels.clear}
         onCancel={() => setHistoryOpen(false)}
         onConfirm={clearHistory}
         open={historyOpen}
         testID="mobile-channel-history-clear-confirm"
-        title={COPY.clear}
+        title={labels.clear}
       />
     </ScrollView>
   );

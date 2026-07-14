@@ -11,6 +11,7 @@ import {
 import { Text, View } from "react-native";
 import { useThemedStyles } from "../../providers/mobile-theme-provider";
 import type { MobileTheme } from "../../../design/themes";
+import { activeMobileCopy as copy } from "../../../locale/mobile-locale-preferences";
 import { IconButton } from "./icon-button";
 
 export type ToastTone = "danger" | "info" | "success" | "warning";
@@ -94,9 +95,7 @@ export function ToastProvider({ children }: PropsWithChildren) {
       message: input.message,
       tone: input.tone ?? "info",
     };
-    setQueue((current) =>
-      current.length >= MAX_TOAST_QUEUE ? current : [...current, entry],
-    );
+    setQueue((current) => (current.length >= MAX_TOAST_QUEUE ? current : [...current, entry]));
     return id;
   }, []);
 
@@ -129,7 +128,7 @@ export function ToastProvider({ children }: PropsWithChildren) {
               {currentToast.message}
             </Text>
             <IconButton
-              accessibilityLabel="Dismiss notification"
+              accessibilityLabel={copy.dismissNotificationAction}
               icon="close"
               onPress={() => dismissToast(currentToast.id)}
               size="sm"

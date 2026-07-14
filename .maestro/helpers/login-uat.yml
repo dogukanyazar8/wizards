@@ -11,8 +11,8 @@ appId: team.whispr.mobile
           visible:
             id: "mobile-auth-screen"
           timeout: 15000
-      - tapOn: "Dev hesabini doldur|Fill dev account"
-      - tapOn: "Giris yap|Sign in"
+      - tapOn: "Geliştirme hesabını doldur|Fill dev account"
+      - tapOn: "Giriş yap|Sign in"
       - extendedWaitUntil:
           visible:
             id: "mobile-overview-screen"

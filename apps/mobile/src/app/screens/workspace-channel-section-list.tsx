@@ -68,7 +68,11 @@ export function WorkspaceChannelSectionList({
         return (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${section.name} ${section.isCollapsed ? "ac" : "kapat"}`}
+            accessibilityLabel={`${section.name} ${
+              section.isCollapsed
+                ? copy.workspaceSectionExpandAction
+                : copy.workspaceSectionCollapseAction
+            }`}
             accessibilityState={{ disabled: isCollapseDisabled, expanded: !section.isCollapsed }}
             disabled={isCollapseDisabled}
             onPress={() => onToggleSection(section.id)}

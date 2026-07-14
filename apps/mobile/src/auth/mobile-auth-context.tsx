@@ -377,7 +377,7 @@ export function MobileAuthProvider({
 
       commitAuthState(createMobileAuthState("signed-in", freshSession));
     } catch {
-      commitAuthState(createMobileAuthState("error", null, "Oturum guvenli sekilde okunamadi."));
+      commitAuthState(createMobileAuthState("error", null, activeMobileCopy.authSessionReadFailed));
     }
   }, [commitAuthState, ensureFreshSession, repository]);
 
@@ -476,7 +476,7 @@ export function MobileAuthProvider({
       } catch {
         commitAuthState(createMobileAuthState("signed-out", null, "Giris tamamlanamadi."));
         return {
-          message: "E-posta veya sifre hatali ya da hesap dogrulanmamis olabilir.",
+          message: activeMobileCopy.authInvalidCredentials,
           ok: false,
         } as const;
       }
@@ -502,10 +502,11 @@ export function MobileAuthProvider({
           ok: true,
         } as const;
       } catch {
-        commitAuthState(createMobileAuthState("signed-out", null, "Hesap olusturulamadi."));
+        commitAuthState(
+          createMobileAuthState("signed-out", null, activeMobileCopy.authRegisterFailedTitle),
+        );
         return {
-          message:
-            "Hesap olusturulamadi. Bilgileri, kullanici adini ve e-posta durumunu kontrol et.",
+          message: activeMobileCopy.authRegisterFailed,
           ok: false,
         } as const;
       }
@@ -527,10 +528,10 @@ export function MobileAuthProvider({
         } as const;
       } catch {
         commitAuthState(
-          createMobileAuthState("signed-out", null, "Sifre sifirlama baslatilamadi."),
+          createMobileAuthState("signed-out", null, activeMobileCopy.authPasswordResetFailedTitle),
         );
         return {
-          message: "Sifre sifirlama su anda baslatilamadi. Biraz sonra tekrar dene.",
+          message: activeMobileCopy.authPasswordResetFailed,
           ok: false,
         } as const;
       }
@@ -552,10 +553,14 @@ export function MobileAuthProvider({
         } as const;
       } catch {
         commitAuthState(
-          createMobileAuthState("signed-out", null, "Dogrulama e-postasi gonderilemedi."),
+          createMobileAuthState(
+            "signed-out",
+            null,
+            activeMobileCopy.authVerificationEmailFailedTitle,
+          ),
         );
         return {
-          message: "Dogrulama e-postasi su anda gonderilemedi. Biraz sonra tekrar dene.",
+          message: activeMobileCopy.authVerificationEmailFailed,
           ok: false,
         } as const;
       }

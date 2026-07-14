@@ -80,11 +80,11 @@ describe("Phase 0 Maestro testID contract", () => {
     assert.ok(loginHelperSource, ".maestro/helpers/login-uat.yml must exist");
     assert.match(loginHelperSource, /id:\s*"mobile-settings-web-sign-in-action"/);
     assert.match(loginHelperSource, /id:\s*"mobile-auth-screen"/);
-    assert.match(loginHelperSource, /tapOn:\s*"Dev hesabini doldur\|Fill dev account"/);
-    assert.equal(loginHelperSource.match(/tapOn:\s*"Giris yap\|Sign in"/g)?.length, 1);
+    assert.match(loginHelperSource, /tapOn:\s*"Geliştirme hesabını doldur\|Fill dev account"/);
+    assert.equal(loginHelperSource.match(/tapOn:\s*"Giriş yap\|Sign in"/g)?.length, 1);
     assert.match(
       loginHelperSource,
-      /id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-screen"[\s\S]*?tapOn:\s*"Dev hesabini doldur\|Fill dev account"[\s\S]*?tapOn:\s*"Giris yap\|Sign in"[\s\S]*?id:\s*"mobile-overview-screen"[\s\S]*?id:\s*"mobile-bottom-tab-settings"/,
+      /id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-screen"[\s\S]*?tapOn:\s*"Geliştirme hesabını doldur\|Fill dev account"[\s\S]*?tapOn:\s*"Giriş yap\|Sign in"[\s\S]*?id:\s*"mobile-overview-screen"[\s\S]*?id:\s*"mobile-bottom-tab-settings"/,
     );
     assert.doesNotMatch(loginHelperSource, /MAESTRO_UAT_(?:EMAIL|PASSWORD)/);
     assert.doesNotMatch(loginHelperSource, /id:\s*"(?:email|password)"/);
@@ -106,7 +106,7 @@ describe("Phase 0 Maestro testID contract", () => {
       assert.match(source, /file:\s*"helpers\/login-uat\.yml"/);
       assert.doesNotMatch(source, /MAESTRO_UAT_(?:EMAIL|PASSWORD)/);
       assert.doesNotMatch(source, /WHISPR_MOBILE_E2E_(?:EMAIL|PASSWORD)/);
-      assert.doesNotMatch(source, /tapOn:\s*"Giris yap"/);
+      assert.doesNotMatch(source, /tapOn:\s*"Giriş yap"/);
     }
   });
 
@@ -283,9 +283,9 @@ describe("Phase 0 Maestro testID contract", () => {
       /text:\s*"http:\/\/\.\*:8081"[\s\S]*?extendedWaitUntil:[\s\S]*?id:\s*"mobile-bottom-tab-settings"[\s\S]*?openLink:\s*"whispr:\/\/settings"/,
     );
     assert.match(phase4FlowSource, /file:\s*"helpers\/login-uat\.yml"/);
-    assert.match(phase4FlowSource, /tapOn:\s*"Acik\|Light"/);
+    assert.match(phase4FlowSource, /tapOn:\s*"Açık\|Light"/);
     assert.match(phase4FlowSource, /tapOn:\s*"Koyu\|Dark"/);
-    for (const themeChoice of ["Acik\\|Light", "Koyu\\|Dark"]) {
+    for (const themeChoice of ["Açık\\|Light", "Koyu\\|Dark"]) {
       assert.match(
         phase4FlowSource,
         new RegExp(
@@ -335,12 +335,12 @@ describe("Phase 0 Maestro testID contract", () => {
     );
     assert.match(
       phase4FlowSource,
-      /id:\s*"mobile-server-icon-picker"[\s\S]{0,220}?visible:\s*"Photos\|Fotograflar\|Fotoğraflar"[\s\S]{0,180}?point:\s*"16%,58%"[\s\S]{0,120}?"Done\|Bitti\|Tamam"[\s\S]{0,320}?text:\s*"Server settings saved\.\|Sunucu ayarları kaydedildi\."[\s\S]{0,220}?id:\s*"mobile-server-icon-picker"[\s\S]{0,180}?light-server-management/,
+      /id:\s*"mobile-server-icon-picker"[\s\S]{0,220}?visible:\s*"Photos\|Fotoğraflar"[\s\S]{0,180}?point:\s*"16%,58%"[\s\S]{0,120}?"Done\|Bitti\|Tamam"[\s\S]{0,320}?text:\s*"Server settings saved\.\|Sunucu ayarları kaydedildi\."[\s\S]{0,220}?id:\s*"mobile-server-icon-picker"[\s\S]{0,180}?light-server-management/,
     );
     assert.doesNotMatch(phase4FlowSource, /visible:\s*"phase4-avatar"/);
     assert.match(
       phase4FlowSource,
-      /id:\s*"mobile-server-invite-share-\.\*"[\s\S]{0,220}?visible:\s*"Sharing link\|Baglanti paylas\|Bağlantı paylaş"[\s\S]{0,160}?pressKey:\s*BACK[\s\S]{0,180}?visible:[\s\S]{0,80}?id:\s*"mobile-overview-screen"/,
+      /id:\s*"mobile-server-invite-share-\.\*"[\s\S]{0,220}?visible:\s*"Sharing link\|Bağlantı paylaş"[\s\S]{0,160}?pressKey:\s*BACK[\s\S]{0,180}?visible:[\s\S]{0,80}?id:\s*"mobile-overview-screen"/,
     );
     assert.match(
       phase4FlowSource,
@@ -429,7 +429,7 @@ describe("Phase 0 Maestro testID contract", () => {
     assert.match(phase5FlowSource, /file:\s*"helpers\/phase5-offline-recovery\.yml"/);
     assert.match(phase5OfflineFlowSource, /setAirplaneMode:\s*enabled/);
     assert.match(phase5OfflineFlowSource, /setAirplaneMode:\s*disabled/);
-    for (const themeChoice of ["Acik\\|Light", "Koyu\\|Dark"]) {
+    for (const themeChoice of ["Açık\\|Light", "Koyu\\|Dark"]) {
       assert.match(
         phase5FlowSource,
         new RegExp(

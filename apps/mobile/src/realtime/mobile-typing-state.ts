@@ -1,3 +1,5 @@
+import { activeMobileCopy as copy } from "../locale/mobile-locale-preferences";
+
 export type MobileChannelTypingUser = {
   expiresAt: number;
   name: string;
@@ -31,7 +33,7 @@ export function createInitialMobileChannelTypingState(): MobileChannelTypingStat
 
 function normalizeTypingName(value: string): string {
   const normalized = value.trim().replace(/\s+/g, " ");
-  return normalized.length > 0 ? normalized : "Kullanici";
+  return normalized.length > 0 ? normalized : copy.unknownUserLabel;
 }
 
 export function applyMobileChannelTypingUpdate(
@@ -47,9 +49,7 @@ export function applyMobileChannelTypingUpdate(
 
   const now = update.now ?? Date.now();
   const currentUsers = state[channelId] ?? [];
-  const nextUsers = currentUsers.filter(
-    (user) => user.userId !== userId && user.expiresAt > now,
-  );
+  const nextUsers = currentUsers.filter((user) => user.userId !== userId && user.expiresAt > now);
 
   if (update.isTyping) {
     nextUsers.push({

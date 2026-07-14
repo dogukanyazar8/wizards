@@ -98,7 +98,7 @@ export function DMConversationScreen({
       <View style={styles.dmConversationHeader}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Conversation details"
+          accessibilityLabel={copy.conversationDetailsAction}
           onPress={onOpenDetails}
           style={({ pressed }) => [styles.dmRefreshButton, pressed && styles.actionButtonPressed]}
           testID="mobile-dm-details-open"

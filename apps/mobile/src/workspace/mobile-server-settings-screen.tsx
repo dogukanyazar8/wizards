@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useMobileAuth } from "../auth/mobile-auth-context";
@@ -12,7 +20,10 @@ import { mobileQueryKeys } from "../query/mobile-query-keys";
 import { useMobileServerManagementMutations } from "../query/use-mobile-server-management-mutations";
 import { useMobileWorkspaceQuery } from "../query/mobile-workspace-query";
 import { createMobileServerManagementStyles } from "./mobile-server-management.styles";
-import { MobileWorkspaceEditorSheets, type MobileWorkspaceEditorState } from "./mobile-workspace-editor-sheets";
+import {
+  MobileWorkspaceEditorSheets,
+  type MobileWorkspaceEditorState,
+} from "./mobile-workspace-editor-sheets";
 
 export interface MobileServerSettingsScreenProps {
   readonly serverId: string;
@@ -24,13 +35,20 @@ export interface MobileServerSettingsScreenProps {
 const copy = {
   en: {
     back: "Back",
+    channelSuffix: "channels",
+    channelSettings: "channel settings",
     channels: "Channels",
+    createCategory: "Create category",
+    createChannel: "Create channel",
     delete: "Delete server",
-    deleteBody: "This permanently deletes the server and its visible mobile data. Type the server name to continue.",
+    deleteBody:
+      "This permanently deletes the server and its visible mobile data. Type the server name to continue.",
     deleted: "The server was deleted.",
     editIcon: "Choose server icon",
+    edit: "Edit",
     error: "This server action could not be completed. Please try again.",
     loading: "Loading server settings…",
+    memberSuffix: "members",
     members: "Manage members",
     name: "Server name",
     save: "Save changes",
@@ -39,13 +57,20 @@ const copy = {
   },
   tr: {
     back: "Geri",
+    channelSuffix: "kanal",
+    channelSettings: "kanal ayarları",
     channels: "Kanallar",
+    createCategory: "Kategori oluştur",
+    createChannel: "Kanal oluştur",
     delete: "Sunucuyu sil",
-    deleteBody: "Bu işlem sunucuyu ve mobilde görünen verilerini kalıcı olarak siler. Devam etmek için sunucu adını yazın.",
+    deleteBody:
+      "Bu işlem sunucuyu ve mobilde görünen verilerini kalıcı olarak siler. Devam etmek için sunucu adını yazın.",
     deleted: "Sunucu silindi.",
     editIcon: "Sunucu simgesi seç",
+    edit: "Düzenle",
     error: "Sunucu işlemi tamamlanamadı. Lütfen yeniden deneyin.",
     loading: "Sunucu ayarları yükleniyor…",
+    memberSuffix: "üye",
     members: "Üyeleri yönet",
     name: "Sunucu adı",
     save: "Değişiklikleri kaydet",
@@ -149,7 +174,10 @@ export function MobileServerSettingsScreen({
       serverId,
     });
     void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
-    void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.workspace(serverId) });
+    void queryClient.invalidateQueries({
+      exact: true,
+      queryKey: mobileQueryKeys.workspace(serverId),
+    });
     setIconPreviewUri(outcome.response.server.iconUrl);
     setNotice(labels.saved);
   };
@@ -184,12 +212,21 @@ export function MobileServerSettingsScreen({
 
   if (!server || workspace.isError) {
     return (
-      <ScrollView contentContainerStyle={styles.content} style={styles.root} testID="mobile-server-settings-screen">
+      <ScrollView
+        contentContainerStyle={styles.content}
+        style={styles.root}
+        testID="mobile-server-settings-screen"
+      >
         <Text style={styles.title}>{labels.title}</Text>
         <Text accessibilityRole="alert" style={styles.error} testID="mobile-server-settings-error">
           {labels.error}
         </Text>
-        <Button label={labels.back} onPress={onBack} testID="mobile-server-settings-back" variant="ghost" />
+        <Button
+          label={labels.back}
+          onPress={onBack}
+          testID="mobile-server-settings-back"
+          variant="ghost"
+        />
       </ScrollView>
     );
   }
@@ -205,14 +242,25 @@ export function MobileServerSettingsScreen({
       style={styles.root}
       testID="mobile-server-settings-screen"
     >
-      <Button label={labels.back} onPress={onBack} testID="mobile-server-settings-back" variant="ghost" />
+      <Button
+        label={labels.back}
+        onPress={onBack}
+        testID="mobile-server-settings-back"
+        variant="ghost"
+      />
       <Text style={styles.title}>{labels.title}</Text>
       <Card style={styles.card}>
         <View style={styles.row}>
-          {shownIcon ? <Image source={{ uri: shownIcon }} style={styles.icon} /> : <View style={styles.icon} />}
+          {shownIcon ? (
+            <Image source={{ uri: shownIcon }} style={styles.icon} />
+          ) : (
+            <View style={styles.icon} />
+          )}
           <View style={styles.rowBody}>
             <Text style={styles.sectionTitle}>{server.name}</Text>
-            <Text style={styles.caption}>{server.memberCount} members</Text>
+            <Text style={styles.caption}>
+              {server.memberCount} {labels.memberSuffix}
+            </Text>
           </View>
         </View>
         {capabilities?.canUploadServerIcon ? (
@@ -259,13 +307,13 @@ export function MobileServerSettingsScreen({
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>{labels.channels}</Text>
           <Button
-            label="Create category"
+            label={labels.createCategory}
             onPress={() => setEditor({ kind: "category-create" })}
             testID="mobile-category-create-open"
             variant="secondary"
           />
           <Button
-            label="Create channel"
+            label={labels.createChannel}
             onPress={() => setEditor({ kind: "channel-create" })}
             testID="mobile-channel-create-open"
             variant="secondary"
@@ -274,10 +322,12 @@ export function MobileServerSettingsScreen({
             <View key={category.id} style={styles.channelRow}>
               <View style={styles.rowBody}>
                 <Text style={styles.body}>{category.name}</Text>
-                <Text style={styles.caption}>{category.channels.length} channels</Text>
+                <Text style={styles.caption}>
+                  {category.channels.length} {labels.channelSuffix}
+                </Text>
               </View>
               <Button
-                label="Edit"
+                label={labels.edit}
                 onPress={() =>
                   setEditor({
                     categoryId: category.id,
@@ -292,7 +342,7 @@ export function MobileServerSettingsScreen({
           ))}
           {groupedChannels.map((channel) => (
             <Pressable
-              accessibilityLabel={`${channel.name} settings`}
+              accessibilityLabel={`${channel.name} ${labels.channelSettings}`}
               accessibilityRole="button"
               key={channel.id}
               onPress={() => onOpenChannelSettings(channel.id)}
@@ -315,8 +365,16 @@ export function MobileServerSettingsScreen({
           variant="danger"
         />
       ) : null}
-      {error ? <Text accessibilityRole="alert" style={styles.error} testID="mobile-server-settings-error">{error}</Text> : null}
-      {notice ? <Text accessibilityLiveRegion="polite" style={styles.success}>{notice}</Text> : null}
+      {error ? (
+        <Text accessibilityRole="alert" style={styles.error} testID="mobile-server-settings-error">
+          {error}
+        </Text>
+      ) : null}
+      {notice ? (
+        <Text accessibilityLiveRegion="polite" style={styles.success}>
+          {notice}
+        </Text>
+      ) : null}
       <MobileWorkspaceEditorSheets
         detail={detail}
         editor={editor}

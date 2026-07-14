@@ -837,7 +837,7 @@ export function EnvironmentCard() {
   const styles = useSettingsScreenStyles();
   return (
     <View style={styles.environmentCard}>
-      <Text style={styles.environmentLabel}>Environment</Text>
+      <Text style={styles.environmentLabel}>{copy.settingsEnvironmentLabel}</Text>
       <Text style={styles.environmentValue}>{runtimeConfig.environment}</Text>
       <Text style={styles.environmentUrl} numberOfLines={1}>
         {runtimeConfig.apiUrl}
@@ -1361,9 +1361,15 @@ export function SessionDiagnostics({ diagnostics }: { diagnostics: MobileSession
   const styles = useSettingsScreenStyles();
   return (
     <View style={styles.diagnosticsRow}>
-      <DiagnosticPill label="Session" value={diagnostics.hasSession ? "var" : "yok"} />
-      <DiagnosticPill label="Scopes" value={String(diagnostics.scopeCount)} />
-      <DiagnosticPill label="Refresh" value={diagnostics.hasRefreshToken ? "hazÄ±r" : "yok"} />
+      <DiagnosticPill
+        label={copy.settingsSessionLabel}
+        value={diagnostics.hasSession ? copy.settingsReadyLabel : copy.settingsMissingLabel}
+      />
+      <DiagnosticPill label={copy.settingsScopeCountLabel} value={String(diagnostics.scopeCount)} />
+      <DiagnosticPill
+        label={copy.settingsRefreshTokenLabel}
+        value={diagnostics.hasRefreshToken ? copy.settingsReadyLabel : copy.settingsMissingLabel}
+      />
     </View>
   );
 }
@@ -1645,15 +1651,14 @@ export function ProfileSettingsScreen({
     },
   ];
   const resolvedSection = activeSection ?? (socialActionsEnabled ? "hub" : "legacy");
-  const tr = locale === "tr";
   const sectionLabels = {
-    account: tr ? "Hesap" : "Account",
-    security: tr ? "Guvenlik" : "Security",
-    appearance: tr ? "Gorunum" : "Appearance",
-    notifications: tr ? "Bildirimler" : "Notifications",
-    language: tr ? "Dil" : "Language",
-    about: tr ? "Hakkinda" : "About",
-    developer: tr ? "Gelistirici" : "Developer",
+    account: copy.settingsAccountTitle,
+    security: copy.settingsSecurityTitle,
+    appearance: copy.settingsAppearanceTitle,
+    notifications: copy.settingsNotificationsTitle,
+    language: copy.settingsLanguageTitle,
+    about: copy.settingsAboutTitle,
+    developer: copy.settingsDeveloperTitle,
   } as const;
 
   const sectionShell = (title: string, children: ReactNode, testID: string) => (
@@ -1671,7 +1676,7 @@ export function ProfileSettingsScreen({
       >
         {onBack ? (
           <Button
-            label={tr ? "Geri" : "Back"}
+            label={copy.messageThreadBackAction}
             icon="arrow-back"
             variant="ghost"
             onPress={onBack}
@@ -1746,7 +1751,7 @@ export function ProfileSettingsScreen({
       sectionLabels.security,
       <>
         <Button
-          label={tr ? "Iki faktorlu dogrulama" : "Two-factor authentication"}
+          label={copy.settingsTwoFactorAction}
           icon="shield-checkmark-outline"
           onPress={() => mobileNavigationRef.isReady() && mobileNavigationRef.navigate("Security")}
           testID="mobile-settings-open-2fa"
