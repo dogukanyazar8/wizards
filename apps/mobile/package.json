@@ -23,6 +23,7 @@
     "test:components": "jest",
     "typecheck": "tsc --noEmit",
     "validate:env": "node --import tsx scripts/validate-mobile-env.ts",
+    "visual:reference:extract": "node --import tsx scripts/mobile-redesign-extract.ts",
     "visual:reference:verify": "node --import tsx scripts/mobile-redesign-reference.ts"
   },
   "dependencies": {

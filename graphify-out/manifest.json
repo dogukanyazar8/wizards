@@ -332,8 +332,8 @@
     "hash": "a63a0db1faa98cb214faafb48af35f33"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-design-contract.test.ts": {
-    "mtime": 1784034213.9333613,
-    "hash": "df3fcb8785feff1d178934bf70edde55"
+    "mtime": 1784038722.0888288,
+    "hash": "d69423809702c65beb40858f0b9dfa92"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-dev-login.test.ts": {
     "mtime": 1783962986.5789137,
@@ -515,6 +515,14 @@
     "mtime": 1783730793.9759352,
     "hash": "e387adce3095f03f29af9ff5174e2985"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-redesign-extract.test.ts": {
+    "mtime": 1784038701.5163784,
+    "hash": "c926b587259352a4342484f76ce972be"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-redesign-extract.ts": {
+    "mtime": 1784038658.5441623,
+    "hash": "9db3c5ae45f8022df29c71cad27f77da"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-redesign-icon-contract.test.ts": {
     "mtime": 1784030729.9334326,
     "hash": "44f30146ff2c206bfa56847bd988ec73"
@@ -524,12 +532,12 @@
     "hash": "4590bff4f82c5e4f0f0c751cc505e273"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-redesign-reference.ts": {
-    "mtime": 1784037697.3471704,
-    "hash": "e2ee099e9b8bc7f3f802e8558f395a70"
+    "mtime": 1784038121.121299,
+    "hash": "51d16edd6709ad682a425d37269463df"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-redesign-theme-contract.test.ts": {
-    "mtime": 1784036969.4804163,
-    "hash": "2b89ff174b14261c616c76c9fdfc5cff"
+    "mtime": 1784038603.2557435,
+    "hash": "cee4e048ab0457f215964f10baa4cf40"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-release-contract.test.ts": {
     "mtime": 1783962986.585471,
@@ -1200,12 +1208,12 @@
     "hash": "fe0782a12bc727f12345f9a063d2ff66"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\navigation\\floating-navigation-chrome.tsx": {
-    "mtime": 1784037075.462912,
-    "hash": "f4a4f4694093bd05dcfa32b770bf813b"
+    "mtime": 1784038603.2557435,
+    "hash": "384f96f773015b47b56328a09484e870"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\navigation\\mobile-bottom-tab-bar.tsx": {
-    "mtime": 1784037138.694243,
-    "hash": "86ea6b96bd4ed38a5626fe738c63e69e"
+    "mtime": 1784038603.2547438,
+    "hash": "2b65cf2277136b86dbeb14abf3e55f86"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\navigation\\mobile-linking.ts": {
     "mtime": 1784032412.5243998,
@@ -5318,6 +5326,46 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\uat-pass\\screenshots\\screenshots\\artifacts\\mobile\\phase5\\light-voice-polish.png": {
     "mtime": 1783968031.4569657,
     "hash": "b6dec9f29965ed2d036e7545f2455f65"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1a.png": {
+    "mtime": 1784038680.354095,
+    "hash": "0e3b75eed6fdaa71043cd49ebd627c38"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1b.png": {
+    "mtime": 1784038680.3530955,
+    "hash": "72426522abf8bfc7ba31b24cf27043e0"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1c.png": {
+    "mtime": 1784038680.354095,
+    "hash": "8d8076aeec2ff4b7a5ac1e7be81af6eb"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1d.png": {
+    "mtime": 1784038680.354095,
+    "hash": "16d8140999a42e3c1cb995418e16f3d6"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1e.png": {
+    "mtime": 1784038680.354095,
+    "hash": "3e31d70c95ce2e310a17402544c3306b"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1f.png": {
+    "mtime": 1784038680.354095,
+    "hash": "98b0c59dddc9b8336e49d920ac6090ca"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1g.png": {
+    "mtime": 1784038680.354095,
+    "hash": "da8c8cf3bb3f42421445e7f30b7940ed"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1h.png": {
+    "mtime": 1784038680.354095,
+    "hash": "99be813363616b0d301a89e12819b406"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1i.png": {
+    "mtime": 1784038680.354095,
+    "hash": "12a725e08575fb074a7c5ec4d6fe8ea7"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1j.png": {
+    "mtime": 1784038680.354095,
+    "hash": "3674aaf8f0c7a5116770128834585f76"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\assets\\favicon.png": {
     "mtime": 1782500332.3454044,

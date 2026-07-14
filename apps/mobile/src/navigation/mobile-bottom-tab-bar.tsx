@@ -4,6 +4,7 @@ import { Pressable, Text, View, type TextStyle, type ViewStyle } from "react-nat
 import { useMobileHaptics } from "../app/providers/mobile-haptics-provider";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
 import { redesignLight } from "../design/palette";
+import { mobileNavigationMetrics } from "../design/tokens";
 import type { MobileTheme } from "../design/themes";
 import { MobileLineIcon, type MobileLineIconName } from "../design/mobile-line-icons";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
@@ -153,6 +154,7 @@ export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
       alignItems: "center",
       justifyContent: "center",
       gap: 3,
+      paddingVertical: mobileNavigationMetrics.tabItemPaddingVertical,
       borderRadius: theme.radii.tabPill,
       position: "relative",
     },
@@ -166,7 +168,7 @@ export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
       position: "relative",
     },
     navLabel: {
-      ...theme.typography.caption,
+      ...theme.typography.tabLabel,
       maxWidth: "100%",
       color: theme.text.soft,
       textAlign: "center",

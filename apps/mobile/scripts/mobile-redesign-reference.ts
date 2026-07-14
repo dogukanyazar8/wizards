@@ -215,7 +215,7 @@ function disableGoogleFontsImport(handoffHtml: string): string {
   );
 }
 
-function createReferenceHtml(fontAssets: readonly VendoredFontAsset[]): string {
+export function createReferenceHtml(fontAssets: readonly VendoredFontAsset[]): string {
   const handoffHtml = disableGoogleFontsImport(readFileSync(handoffPath, "utf8"));
   const fontCss = buildVendoredFontFaceCss(fontAssets);
 
@@ -233,13 +233,15 @@ function createReferenceHtml(fontAssets: readonly VendoredFontAsset[]): string {
   );
 }
 
-async function startReferenceServer(
-  referenceHtml: string,
-  fontAssets: readonly VendoredFontAsset[],
-): Promise<{
+export type ReferenceCaptureServer = {
   close: () => Promise<void>;
   origin: string;
-}> {
+};
+
+export async function startReferenceServer(
+  referenceHtml: string,
+  fontAssets: readonly VendoredFontAsset[],
+): Promise<ReferenceCaptureServer> {
   const fontBuffers = new Map<string, Buffer>(
     fontAssets.map((font) => [font.filename, readFileSync(font.absolutePath)]),
   );

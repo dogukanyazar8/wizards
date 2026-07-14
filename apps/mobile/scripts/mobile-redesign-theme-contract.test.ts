@@ -7,7 +7,13 @@ import * as ts from "typescript";
 import * as paletteModule from "../src/design/palette";
 import { getMobileThemeCompatibilityColors } from "../src/design/mobile-theme-compat";
 import { darkTheme, lightTheme } from "../src/design/themes";
-import { mobileRadii, mobileSizing, mobileSpacing, mobileTypography } from "../src/design/tokens";
+import {
+  mobileNavigationMetrics,
+  mobileRadii,
+  mobileSizing,
+  mobileSpacing,
+  mobileTypography,
+} from "../src/design/tokens";
 
 const paletteExports = paletteModule as Record<string, unknown>;
 const handoffHtmlPath = join(
@@ -161,6 +167,10 @@ describe("mobile redesign palette contract", () => {
       section: 16,
       row: 12,
     });
+    assert.deepEqual(mobileNavigationMetrics, {
+      miniVoiceBarToTabBarGap: 14,
+      tabItemPaddingVertical: 8,
+    });
   });
 
   it("locks every redesign typography role to explicit Plus Jakarta metrics", () => {
@@ -240,6 +250,12 @@ describe("mobile redesign palette contract", () => {
         fontFamily: "WhisprJakarta_600SemiBold",
         fontSize: 12,
         lineHeight: 16,
+        letterSpacing: 0,
+      },
+      tabLabel: {
+        fontFamily: "WhisprJakarta_600SemiBold",
+        fontSize: 10.5,
+        lineHeight: 13,
         letterSpacing: 0,
       },
     });

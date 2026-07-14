@@ -7,6 +7,7 @@ import { Keyboard, Platform, Pressable, Text, View, type LayoutChangeEvent } fro
 import { useMobileHaptics } from "../app/providers/mobile-haptics-provider";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
 import { MobileLineIcon } from "../design/mobile-line-icons";
+import { mobileNavigationMetrics } from "../design/tokens";
 import type { MobileTheme } from "../design/themes";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import {
@@ -246,7 +247,7 @@ function useMobileKeyboardVisibility(): boolean {
 
 export const createFloatingNavigationChromeStyles = (theme: MobileTheme) => ({
   chrome: {
-    gap: 12,
+    gap: mobileNavigationMetrics.miniVoiceBarToTabBarGap,
     minWidth: 0,
     paddingTop: 8,
   },

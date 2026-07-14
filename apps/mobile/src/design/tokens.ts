@@ -47,6 +47,12 @@ export const mobileSpacing = {
   row: 12,
 } as const;
 
+/** Measured from the canonical 390x844 reference extractor; do not normalize to the spacing scale. */
+export const mobileNavigationMetrics = {
+  miniVoiceBarToTabBarGap: 14,
+  tabItemPaddingVertical: 8,
+} as const;
+
 export const mobileTypography = {
   fontFamily: "WhisprJakarta_400Regular",
   fontFamilyBold: "WhisprJakarta_700Bold",
@@ -93,6 +99,12 @@ export const mobileTypography = {
     fontFamily: "WhisprJakarta_600SemiBold",
     fontSize: 12,
     lineHeight: 16,
+    letterSpacing: 0,
+  },
+  tabLabel: {
+    fontFamily: "WhisprJakarta_600SemiBold",
+    fontSize: 10.5,
+    lineHeight: 13,
     letterSpacing: 0,
   },
   message: {

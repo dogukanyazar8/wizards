@@ -394,7 +394,8 @@ describe("mobile design contract", () => {
     assert.match(shellSource, /useThemedStyles\(createMobileBottomTabBarStyles\)/);
     assert.match(shellSource, /theme\.elevation\.tabBar/);
     assert.doesNotMatch(shellSource, /theme\.elevation\.(?:floating|soft)/);
-    assert.match(shellSource, /theme\.typography\.caption/);
+    assert.match(shellSource, /theme\.typography\.tabLabel/);
+    assert.match(shellSource, /mobileNavigationMetrics\.tabItemPaddingVertical/);
     assert.match(shellSource, /theme\.surface\.card/);
     assert.match(shellSource, /theme\.text\.soft/);
     assert.match(shellSource, /theme\.radii\.tabPill/);
