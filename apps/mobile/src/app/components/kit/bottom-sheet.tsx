@@ -43,7 +43,7 @@ const createStyles = (theme: MobileTheme) => ({
     borderWidth: 1,
     overflow: "hidden" as const,
     paddingBottom: theme.spacing.page,
-    ...theme.elevation.floating,
+    ...theme.elevation.bottomSheet,
   },
   handleArea: { alignItems: "center" as const, paddingBottom: 10, paddingTop: 10 },
   handle: {

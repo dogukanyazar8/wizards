@@ -27,6 +27,16 @@ export const mobileSizing = {
   avatarXLRadius: 18,
   avatarXXL: 76,
   avatarXXLRadius: 26,
+  squircle38: 38,
+  squircle38Radius: 13,
+  squircle46: 46,
+  squircle46Radius: 16,
+  squircle52: 52,
+  squircle52Radius: 18,
+  squircle60: 60,
+  squircle60Radius: 22,
+  squircle80: 80,
+  squircle80Radius: 28,
   iconStroke: 1.8,
 } as const;
 
@@ -96,6 +106,12 @@ export const mobileTypography = {
     fontSize: 11.5,
     lineHeight: 14,
     letterSpacing: 1.38,
+  },
+  dateSeparator: {
+    fontFamily: "WhisprJakarta_700Bold",
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 1.1,
   },
   secondary: {
     fontFamily: "WhisprJakarta_500Medium",

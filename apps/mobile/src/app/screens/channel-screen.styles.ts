@@ -21,7 +21,7 @@ export const createChannelScreenStyles = (theme: MobileTheme) => {
       borderColor: theme.border.subtle,
       borderRadius: mobileRadii.pill,
       backgroundColor: theme.surface.card,
-      shadowColor: theme.elevation.floating.shadowColor,
+      shadowColor: theme.elevation.headerCard.shadowColor,
       shadowOffset: { width: 0, height: 10 },
       shadowOpacity: theme.dark ? 0 : 0.12,
       shadowRadius: 20,

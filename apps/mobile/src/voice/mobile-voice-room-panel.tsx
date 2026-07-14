@@ -350,7 +350,7 @@ export const createMobileVoiceRoomPanelStyles = (theme: MobileTheme) =>
       borderWidth: 1,
       borderColor: theme.border.subtle,
       backgroundColor: theme.surface.card,
-      ...theme.elevation.card,
+      ...theme.elevation.headerCard,
     },
     controlButton: {
       minHeight: 44,
@@ -374,7 +374,7 @@ export const createMobileVoiceRoomPanelStyles = (theme: MobileTheme) =>
       opacity: 0.56,
     },
     controlButtonElevated: {
-      ...theme.elevation.soft,
+      ...theme.elevation.primaryAction,
     },
     controlButtonPressed: {
       transform: [{ scale: 0.98 }],

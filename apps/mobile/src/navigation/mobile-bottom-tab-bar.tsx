@@ -160,7 +160,7 @@ function MobileAnimatedTabIcon({
 export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
   ({
     bottomNavOuter: { paddingTop: 10 },
-    bottomNavShadow: { borderRadius: 30, ...theme.elevation.floating },
+    bottomNavShadow: { borderRadius: 30, ...theme.elevation.tabBar },
     bottomNavSurface: {
       minHeight: 70,
       flexDirection: "row",
@@ -217,7 +217,7 @@ export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
       borderRadius: theme.radii.pill,
       backgroundColor: theme.surface.elevated,
     },
-    navIconHaloActive: { backgroundColor: theme.accent.action, ...theme.elevation.soft },
+    navIconHaloActive: { backgroundColor: theme.accent.action },
     navLabel: {
       ...theme.typography.caption,
       maxWidth: "100%",

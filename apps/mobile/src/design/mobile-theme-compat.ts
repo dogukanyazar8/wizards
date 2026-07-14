@@ -25,7 +25,7 @@ export function getMobileThemeCompatibilityColors(theme: MobileTheme) {
     primaryForeground: theme.text.onPrimary,
     primarySoft: theme.accent.soft,
     ring: theme.border.focus,
-    shadow: theme.elevation.card.shadowColor,
+    shadow: theme.elevation.headerCard.shadowColor,
     success: theme.status.success,
     successSoft: theme.status.successSoft,
     surfaceBase: theme.surface.base,

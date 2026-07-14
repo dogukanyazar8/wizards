@@ -28,7 +28,7 @@ export const createMobileVoiceInviteOverlayStyles = (theme: MobileTheme) => {
       borderRadius: 22,
       backgroundColor: theme.surface.elevated,
       padding: 10,
-      shadowColor: theme.elevation.floating.shadowColor,
+      shadowColor: theme.elevation.headerCard.shadowColor,
       shadowOffset: { width: 0, height: 10 },
       shadowOpacity: theme.dark ? 0 : 0.14,
       shadowRadius: 18,

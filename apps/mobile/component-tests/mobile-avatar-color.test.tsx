@@ -5,10 +5,28 @@ import { darkTheme, lightTheme, type MobileTheme } from "../src/design/themes";
 describe("mobile avatar tint derivation", () => {
   it("keeps the documented UTF-16 hash indexes stable", () => {
     expect(getMobileAvatarTint("user-123", lightTheme)).toBe(lightTheme.avatarTints[4]);
-    expect(getMobileAvatarTint("user-123", darkTheme)).toBe(darkTheme.avatarTints[0]);
+    expect(getMobileAvatarTint("user-123", darkTheme)).toBe(darkTheme.avatarTints[4]);
     expect(getMobileAvatarTint("user-456", lightTheme)).toBe(lightTheme.avatarTints[3]);
-    expect(getMobileAvatarTint("user-456", darkTheme)).toBe(darkTheme.avatarTints[1]);
+    expect(getMobileAvatarTint("user-456", darkTheme)).toBe(darkTheme.avatarTints[3]);
     expect(getMobileAvatarTint("👩‍🚀", lightTheme)).toBe(lightTheme.avatarTints[2]);
+  });
+
+  it("uses the same stable tint slot for every identity in every theme", () => {
+    const identityIds = Array.from({ length: 100 }, (_, index) => `avatar-contract-${index}`);
+
+    expect(darkTheme.avatarTints).toHaveLength(lightTheme.avatarTints.length);
+
+    const coveredSlots = new Set<number>();
+    for (const id of identityIds) {
+      const lightSlot = lightTheme.avatarTints.indexOf(getMobileAvatarTint(id, lightTheme));
+      const darkSlot = darkTheme.avatarTints.indexOf(getMobileAvatarTint(id, darkTheme));
+
+      expect(lightSlot).toBeGreaterThanOrEqual(0);
+      expect(darkSlot).toBe(lightSlot);
+      coveredSlots.add(lightSlot);
+    }
+
+    expect(coveredSlots.size).toBe(lightTheme.avatarTints.length);
   });
 
   it("applies unsigned rollover during every UTF-16 hash step", () => {
@@ -52,7 +70,7 @@ describe("mobile avatar tint derivation", () => {
 
     expect(thrown).toBeInstanceOf(Error);
     expect((thrown as Error).message).toBe(
-      "Mobile avatar theme must define at least one avatar tint.",
+      "Mobile avatar theme must define exactly 5 stable avatar tints.",
     );
     expect((thrown as Error).message).not.toContain(sensitiveId);
   });

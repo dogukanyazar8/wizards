@@ -1,4 +1,5 @@
 import type { MobileLocale } from "../locale/mobile-locale-preferences";
+import { MOBILE_AVATAR_TINT_SLOT_COUNT } from "./palette";
 import type { MobileAvatarTint, MobileTheme } from "./themes";
 
 function hashMobileAvatarId(id: string): number {
@@ -17,11 +18,13 @@ export function getMobileAvatarTint(id: string, theme: MobileTheme): MobileAvata
   }
 
   const { avatarTints } = theme;
-  if (avatarTints.length === 0) {
-    throw new Error("Mobile avatar theme must define at least one avatar tint.");
+  if (avatarTints.length !== MOBILE_AVATAR_TINT_SLOT_COUNT) {
+    throw new Error(
+      `Mobile avatar theme must define exactly ${MOBILE_AVATAR_TINT_SLOT_COUNT} stable avatar tints.`,
+    );
   }
 
-  const tint = avatarTints[hashMobileAvatarId(id) % avatarTints.length];
+  const tint = avatarTints[hashMobileAvatarId(id) % MOBILE_AVATAR_TINT_SLOT_COUNT];
   if (!tint) {
     throw new Error("Mobile avatar tint lookup failed for the active theme.");
   }

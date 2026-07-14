@@ -149,4 +149,10 @@ export const redesignAccessibleAvatarTintsLight = [
 export const redesignAvatarTintsDark = [
   { bg: "#2A2D55", fg: "#A5A8F5" },
   { bg: "#3A2E1B", fg: "#E8B36A" },
+  { bg: "#1D344A", fg: "#78BDF0" },
+  { bg: "#352743", fg: "#C9A6ED" },
+  { bg: "#1D3A31", fg: "#70D5A5" },
 ] as const;
+
+/** Stable identity domain shared by every theme; palette order is a public visual contract. */
+export const MOBILE_AVATAR_TINT_SLOT_COUNT = redesignAvatarTintsLight.length;

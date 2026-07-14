@@ -161,7 +161,7 @@ export const createMobileErrorStyles = (theme: MobileTheme) =>
       backgroundColor: theme.surface.card,
       paddingHorizontal: 22,
       paddingVertical: 24,
-      ...theme.elevation.floating,
+      ...theme.elevation.headerCard,
     },
     icon: {
       width: 44,

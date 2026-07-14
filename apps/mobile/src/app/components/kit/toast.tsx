@@ -59,7 +59,7 @@ const createStyles = (theme: MobileTheme) => ({
     paddingHorizontal: theme.spacing.section,
     paddingVertical: 8,
     width: "100%" as const,
-    ...theme.elevation.floating,
+    ...theme.elevation.tabBar,
   },
   danger: { borderColor: theme.status.danger },
   info: { borderColor: theme.status.info },

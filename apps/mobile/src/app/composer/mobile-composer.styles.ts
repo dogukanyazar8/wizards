@@ -17,7 +17,7 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
       backgroundColor: theme.surface.elevated,
       paddingHorizontal: 10,
       paddingVertical: 8,
-      shadowColor: theme.elevation.floating.shadowColor,
+      shadowColor: theme.elevation.headerCard.shadowColor,
       shadowOffset: { width: 0, height: 10 },
       shadowOpacity: theme.dark ? 0 : 0.1,
       shadowRadius: 20,

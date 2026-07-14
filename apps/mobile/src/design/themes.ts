@@ -46,9 +46,12 @@ export interface MobileTheme {
   };
   readonly dark: boolean;
   readonly elevation: {
-    readonly card: MobileThemeElevationStyle;
-    readonly floating: MobileThemeElevationStyle;
-    readonly soft: MobileThemeElevationStyle;
+    readonly bottomSheet: MobileThemeElevationStyle;
+    readonly dangerAction: MobileThemeElevationStyle;
+    readonly headerCard: MobileThemeElevationStyle;
+    readonly miniVoiceBar: MobileThemeElevationStyle;
+    readonly primaryAction: MobileThemeElevationStyle;
+    readonly tabBar: MobileThemeElevationStyle;
   };
   readonly gradients: {
     readonly appBackground: readonly [string, string];
@@ -105,6 +108,8 @@ export interface MobileTheme {
     readonly statusBar: "dark" | "light";
   };
   readonly text: {
+    /** Reference-critical date-divider color; do not use for normal body text. */
+    readonly dateSeparator: string;
     readonly inverse: string;
     readonly muted: string;
     readonly onInverse: string;
@@ -144,26 +149,47 @@ export const lightTheme = deepFreeze({
   },
   dark: false,
   elevation: {
-    card: {
-      elevation: 6,
+    bottomSheet: {
+      elevation: 12,
       shadowColor: redesignLight.inkSurface,
-      shadowOffset: { height: 8, width: 0 },
-      shadowOpacity: 0.08,
-      shadowRadius: 24,
+      shadowOffset: { height: -12, width: 0 },
+      shadowOpacity: 0.2,
+      shadowRadius: 40,
     },
-    floating: {
+    dangerAction: {
+      elevation: 8,
+      shadowColor: redesignLight.canonicalDanger,
+      shadowOffset: { height: 8, width: 0 },
+      shadowOpacity: 0.4,
+      shadowRadius: 20,
+    },
+    headerCard: {
+      elevation: 2,
+      shadowColor: redesignLight.inkSurface,
+      shadowOffset: { height: 2, width: 0 },
+      shadowOpacity: 0.04,
+      shadowRadius: 8,
+    },
+    miniVoiceBar: {
       elevation: 10,
       shadowColor: redesignLight.inkSurface,
-      shadowOffset: { height: 16, width: 0 },
-      shadowOpacity: 0.16,
+      shadowOffset: { height: 10, width: 0 },
+      shadowOpacity: 0.25,
       shadowRadius: 24,
     },
-    soft: {
+    primaryAction: {
       elevation: 6,
       shadowColor: redesignLight.primary,
       shadowOffset: { height: 6, width: 0 },
       shadowOpacity: 0.35,
       shadowRadius: 14,
+    },
+    tabBar: {
+      elevation: 6,
+      shadowColor: redesignLight.inkSurface,
+      shadowOffset: { height: 8, width: 0 },
+      shadowOpacity: 0.08,
+      shadowRadius: 24,
     },
   },
   gradients: {
@@ -215,6 +241,7 @@ export const lightTheme = deepFreeze({
     statusBar: "dark",
   },
   text: {
+    dateSeparator: redesignLight.canonicalTextFaint,
     inverse: mobilePalette.neutral.white,
     muted: redesignLight.textFaint,
     onInverse: mobilePalette.neutral.white,
@@ -243,26 +270,47 @@ export const darkTheme = deepFreeze({
   },
   dark: true,
   elevation: {
-    card: {
+    bottomSheet: {
       elevation: 0,
       shadowColor: redesignDark.bg,
       shadowOffset: { height: 0, width: 0 },
       shadowOpacity: 0,
       shadowRadius: 0,
     },
-    floating: {
+    dangerAction: {
       elevation: 0,
       shadowColor: redesignDark.bg,
       shadowOffset: { height: 0, width: 0 },
       shadowOpacity: 0,
       shadowRadius: 0,
     },
-    soft: {
+    headerCard: {
       elevation: 0,
       shadowColor: redesignDark.bg,
       shadowOffset: { height: 0, width: 0 },
       shadowOpacity: 0,
       shadowRadius: 0,
+    },
+    miniVoiceBar: {
+      elevation: 0,
+      shadowColor: redesignDark.bg,
+      shadowOffset: { height: 0, width: 0 },
+      shadowOpacity: 0,
+      shadowRadius: 0,
+    },
+    primaryAction: {
+      elevation: 6,
+      shadowColor: redesignDark.primary,
+      shadowOffset: { height: 6, width: 0 },
+      shadowOpacity: 0.4,
+      shadowRadius: 14,
+    },
+    tabBar: {
+      elevation: 6,
+      shadowColor: "#000000",
+      shadowOffset: { height: 8, width: 0 },
+      shadowOpacity: 0.35,
+      shadowRadius: 24,
     },
   },
   gradients: {
@@ -314,6 +362,7 @@ export const darkTheme = deepFreeze({
     statusBar: "light",
   },
   text: {
+    dateSeparator: redesignDark.canonicalTextFaint,
     inverse: mobilePalette.neutral.white,
     muted: redesignDark.textFaint,
     onInverse: mobilePalette.neutral.white,

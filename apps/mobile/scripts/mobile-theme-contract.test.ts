@@ -231,12 +231,13 @@ describe("mobile semantic theme contract", () => {
     assertThemeContrast(darkTheme);
   });
 
-  it("uses a derived dark palette and surface elevation instead of inversion shadows", () => {
+  it("uses a derived dark palette and the source-defined dark elevations", () => {
     assert.notEqual(darkTheme.surface.base, lightTheme.text.primary);
     assert.notEqual(darkTheme.accent.default, lightTheme.accent.default);
     assert.notEqual(darkTheme.surface.base, darkTheme.surface.card);
-    assert.equal(darkTheme.elevation.card.shadowOpacity, 0);
-    assert.equal(darkTheme.elevation.floating.shadowOpacity, 0);
+    assert.equal(darkTheme.elevation.headerCard.shadowOpacity, 0);
+    assert.equal(darkTheme.elevation.tabBar.shadowOpacity, 0.35);
+    assert.equal(darkTheme.elevation.primaryAction.shadowOpacity, 0.4);
   });
 
   it("normalizes and resolves system, light, and dark preferences fail-closed", () => {

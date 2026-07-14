@@ -5,6 +5,13 @@ import { pathToFileURL } from "node:url";
 import { describe, it } from "node:test";
 
 const definitionPath = join(process.cwd(), "src", "design", "mobile-line-icon-definitions.ts");
+const handoffHtmlPath = join(
+  process.cwd(),
+  "..",
+  "..",
+  "design_handoff_whispr_mobile",
+  "Whispr Mobile Redesign.dc.html",
+);
 
 const expectedDefinitions = {
   "back-arrow": {
@@ -181,6 +188,20 @@ describe("mobile redesign icon contract", () => {
 
     assert.deepEqual(definitions.MOBILE_LINE_ICON_NAMES, expectedNames);
     assert.deepEqual(definitions.MOBILE_LINE_ICON_DEFINITIONS, expectedDefinitions);
+  });
+
+  it("derives every supported vector path from the canonical HTML handoff", () => {
+    const handoffHtml = readFileSync(handoffHtmlPath, "utf8");
+
+    for (const definition of Object.values(expectedDefinitions)) {
+      for (const child of definition.children) {
+        if (!("d" in child)) {
+          continue;
+        }
+
+        assert.match(handoffHtml, new RegExp(`d="${child.d}"`, "u"), child.d);
+      }
+    }
   });
 
   it("does not invent vectors for pseudo-icons absent from the HTML", async () => {

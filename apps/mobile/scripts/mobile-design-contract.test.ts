@@ -163,6 +163,7 @@ describe("mobile design contract", () => {
       "button",
       "caption",
       "overline",
+      "dateSeparator",
     ] as const) {
       assert.equal(typeof mobileTypography[typographyToken].fontFamily, "string", typographyToken);
       assert.equal(typeof mobileTypography[typographyToken].fontSize, "number");
@@ -178,7 +179,14 @@ describe("mobile design contract", () => {
       assert.equal(typeof theme.accent.default, "string");
       assert.equal(typeof theme.border.focus, "string");
 
-      for (const elevationToken of ["soft", "card", "floating"] as const) {
+      for (const elevationToken of [
+        "bottomSheet",
+        "dangerAction",
+        "headerCard",
+        "miniVoiceBar",
+        "primaryAction",
+        "tabBar",
+      ] as const) {
         assert.equal(typeof theme.elevation[elevationToken].shadowColor, "string");
         assert.equal(typeof theme.elevation[elevationToken].shadowOpacity, "number");
         assert.equal(typeof theme.elevation[elevationToken].shadowRadius, "number");
@@ -384,7 +392,8 @@ describe("mobile design contract", () => {
     assert.match(shellSource, /styles\.navIconHalo/);
     assert.match(shellSource, /styles\.navActiveGlow/);
     assert.match(shellSource, /useThemedStyles\(createMobileBottomTabBarStyles\)/);
-    assert.match(shellSource, /theme\.elevation\.floating/);
+    assert.match(shellSource, /theme\.elevation\.tabBar/);
+    assert.doesNotMatch(shellSource, /theme\.elevation\.(?:floating|soft)/);
     assert.match(shellSource, /theme\.typography\.caption/);
     assert.match(shellSource, /theme\.surface\.elevated/);
     assert.match(shellSource, /theme\.text\.onPrimary/);
@@ -403,7 +412,8 @@ describe("mobile design contract", () => {
     assert.match(voiceSource, /useThemedStyles\(createMobileVoiceRoomPanelStyles\)/);
     assert.match(voiceSource, /theme\.typography\.headline/);
     assert.match(voiceSource, /theme\.typography\.bodyStrong/);
-    assert.match(voiceSource, /theme\.elevation\.card/);
+    assert.match(voiceSource, /theme\.elevation\.headerCard/);
+    assert.match(voiceSource, /theme\.elevation\.primaryAction/);
     assert.match(voiceSource, /theme\.surface\.card/);
     assert.match(voiceSource, /theme\.status\.dangerSoft/);
   });

@@ -75,7 +75,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       borderRadius: 18,
       backgroundColor: theme.surface.card,
       padding: 7,
-      shadowColor: theme.elevation.floating.shadowColor,
+      shadowColor: theme.elevation.headerCard.shadowColor,
       shadowOffset: { width: 0, height: 10 },
       shadowOpacity: theme.dark ? 0 : 0.12,
       shadowRadius: 16,

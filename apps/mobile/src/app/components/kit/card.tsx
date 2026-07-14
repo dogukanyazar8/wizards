@@ -15,11 +15,11 @@ const createStyles = (theme: MobileTheme) => ({
   },
   default: {
     backgroundColor: theme.surface.card,
-    ...theme.elevation.card,
+    ...theme.elevation.headerCard,
   },
   elevated: {
     backgroundColor: theme.surface.elevated,
-    ...theme.elevation.floating,
+    ...theme.elevation.tabBar,
   },
   soft: { backgroundColor: theme.surface.soft },
   paddingNone: { padding: 0 },

@@ -10,6 +10,13 @@ import { darkTheme, lightTheme } from "../src/design/themes";
 import { mobileRadii, mobileSizing, mobileSpacing, mobileTypography } from "../src/design/tokens";
 
 const paletteExports = paletteModule as Record<string, unknown>;
+const handoffHtmlPath = join(
+  process.cwd(),
+  "..",
+  "..",
+  "design_handoff_whispr_mobile",
+  "Whispr Mobile Redesign.dc.html",
+);
 
 type DynamicTypeViolation = {
   file: string;
@@ -136,6 +143,16 @@ describe("mobile redesign palette contract", () => {
       avatarXLRadius: 18,
       avatarXXL: 76,
       avatarXXLRadius: 26,
+      squircle38: 38,
+      squircle38Radius: 13,
+      squircle46: 46,
+      squircle46Radius: 16,
+      squircle52: 52,
+      squircle52Radius: 18,
+      squircle60: 60,
+      squircle60Radius: 22,
+      squircle80: 80,
+      squircle80Radius: 28,
       iconStroke: 1.8,
     });
     assert.deepEqual(mobileSpacing, {
@@ -206,6 +223,12 @@ describe("mobile redesign palette contract", () => {
         fontSize: 11.5,
         lineHeight: 14,
         letterSpacing: 1.38,
+      },
+      dateSeparator: {
+        fontFamily: "WhisprJakarta_700Bold",
+        fontSize: 11,
+        lineHeight: 14,
+        letterSpacing: 1.1,
       },
       button: {
         fontFamily: "WhisprJakarta_700Bold",
@@ -426,6 +449,9 @@ export function Fixture({ cap }: { cap: number }) {
     assert.deepEqual(paletteExports.redesignAvatarTintsDark, [
       { bg: "#2A2D55", fg: "#A5A8F5" },
       { bg: "#3A2E1B", fg: "#E8B36A" },
+      { bg: "#1D344A", fg: "#78BDF0" },
+      { bg: "#352743", fg: "#C9A6ED" },
+      { bg: "#1D3A31", fg: "#70D5A5" },
     ]);
     assert.deepEqual(paletteExports.redesignAccessibleAvatarTintsLight, [
       { bg: "#EEF0FE", fg: "#4F46E5" },
@@ -502,6 +528,7 @@ export function Fixture({ cap }: { cap: number }) {
     });
 
     assert.deepEqual(lightTheme.text, {
+      dateSeparator: "#8A90B0",
       inverse: "#FFFFFF",
       muted: "#676D90",
       onInverse: "#FFFFFF",
@@ -512,6 +539,7 @@ export function Fixture({ cap }: { cap: number }) {
       soft: "#676D90",
     });
     assert.deepEqual(darkTheme.text, {
+      dateSeparator: "#6E7398",
       inverse: "#FFFFFF",
       muted: "#8288AD",
       onInverse: "#FFFFFF",
@@ -553,8 +581,12 @@ export function Fixture({ cap }: { cap: number }) {
 
     assert.deepEqual(lightTheme.avatarTints, paletteModule.redesignAccessibleAvatarTintsLight);
     assert.deepEqual(darkTheme.avatarTints, paletteModule.redesignAvatarTintsDark);
-    assert.ok(lightTheme.avatarTints.length > 0);
-    assert.ok(darkTheme.avatarTints.length > 0);
+    assert.equal(lightTheme.avatarTints.length, 5);
+    assert.equal(darkTheme.avatarTints.length, 5);
+    for (let index = 0; index < lightTheme.avatarTints.length; index += 1) {
+      assert.ok(lightTheme.avatarTints[index]);
+      assert.ok(darkTheme.avatarTints[index]);
+    }
     assert.deepEqual(lightTheme.systemBars, {
       androidNavigationBar: "#F6F7FB",
       statusBar: "dark",
@@ -565,26 +597,83 @@ export function Fixture({ cap }: { cap: number }) {
     });
   });
 
-  it("uses the audited native shadow values and no dark-theme shadows", () => {
-    assert.deepEqual(lightTheme.elevation.card, {
+  it("maps every tokenized application shadow to the canonical HTML", () => {
+    const handoffShadows = [...readFileSync(handoffHtmlPath, "utf8").matchAll(/box-shadow:([^;\"]+)/g)]
+      .map((match) => match[1]?.trim())
+      .filter(
+        (shadow): shadow is string =>
+          Boolean(shadow) &&
+          shadow !== "0 12px 32px rgba(30,34,53,.10)" &&
+          shadow !== "0 0 0 6px rgba(52,211,153,.2)",
+      );
+
+    assert.deepEqual([...new Set(handoffShadows)].sort(), [
+      "0 -12px 40px rgba(30,34,53,.2)",
+      "0 10px 24px rgba(30,34,53,.25)",
+      "0 2px 8px rgba(30,34,53,.04)",
+      "0 6px 14px rgba(109,102,240,.4)",
+      "0 6px 14px rgba(79,70,229,.35)",
+      "0 8px 20px rgba(224,82,82,.4)",
+      "0 8px 24px rgba(0,0,0,.35)",
+      "0 8px 24px rgba(30,34,53,.08)",
+    ]);
+
+    assert.deepEqual(lightTheme.elevation.headerCard, {
+      elevation: 2,
+      shadowColor: "#1E2235",
+      shadowOffset: { height: 2, width: 0 },
+      shadowOpacity: 0.04,
+      shadowRadius: 8,
+    });
+    assert.deepEqual(lightTheme.elevation.tabBar, {
       elevation: 6,
       shadowColor: "#1E2235",
       shadowOffset: { height: 8, width: 0 },
       shadowOpacity: 0.08,
       shadowRadius: 24,
     });
-    assert.deepEqual(lightTheme.elevation.soft, {
+    assert.deepEqual(lightTheme.elevation.primaryAction, {
       elevation: 6,
       shadowColor: "#4F46E5",
       shadowOffset: { height: 6, width: 0 },
       shadowOpacity: 0.35,
       shadowRadius: 14,
     });
-    for (const elevation of Object.values(darkTheme.elevation)) {
-      assert.equal(elevation.elevation, 0);
-      assert.equal(elevation.shadowOpacity, 0);
-      assert.equal(elevation.shadowRadius, 0);
-    }
+    assert.deepEqual(lightTheme.elevation.bottomSheet, {
+      elevation: 12,
+      shadowColor: "#1E2235",
+      shadowOffset: { height: -12, width: 0 },
+      shadowOpacity: 0.2,
+      shadowRadius: 40,
+    });
+    assert.deepEqual(lightTheme.elevation.dangerAction, {
+      elevation: 8,
+      shadowColor: "#E05252",
+      shadowOffset: { height: 8, width: 0 },
+      shadowOpacity: 0.4,
+      shadowRadius: 20,
+    });
+    assert.deepEqual(lightTheme.elevation.miniVoiceBar, {
+      elevation: 10,
+      shadowColor: "#1E2235",
+      shadowOffset: { height: 10, width: 0 },
+      shadowOpacity: 0.25,
+      shadowRadius: 24,
+    });
+    assert.deepEqual(darkTheme.elevation.tabBar, {
+      elevation: 6,
+      shadowColor: "#000000",
+      shadowOffset: { height: 8, width: 0 },
+      shadowOpacity: 0.35,
+      shadowRadius: 24,
+    });
+    assert.deepEqual(darkTheme.elevation.primaryAction, {
+      elevation: 6,
+      shadowColor: "#6D66F0",
+      shadowOffset: { height: 6, width: 0 },
+      shadowOpacity: 0.4,
+      shadowRadius: 14,
+    });
   });
 
   it("separates accessible filled actions from canonical decorative accent fills", () => {
