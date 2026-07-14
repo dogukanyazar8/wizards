@@ -123,7 +123,7 @@ export function OverviewScreen({
   onCloseWorkspaceChannel(): void;
   onCloseWorkspaceVoiceChannel(): void;
   onLeaveWorkspaceVoiceChannel(): Promise<void>;
-  onOpenWorkspaceChannel(channel: MobileWorkspaceChannelSummary): void;
+  onOpenWorkspaceChannel(channel: MobileWorkspaceChannelSummary): Promise<boolean>;
   onOpenWorkspaceServer(serverId: string): void;
   onRefreshBootstrap(): void;
   onRefreshChannelMessages(): void;
@@ -353,7 +353,7 @@ export function HomeQuickActionsCard({
     }
 
     if (action.kind === "voice") {
-      onOpenTab("voice");
+      onOpenTab("overview");
     }
   };
 

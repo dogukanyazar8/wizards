@@ -44,6 +44,7 @@ describe("mobile linking configuration", () => {
       null,
     );
     assert.equal(resolveMobileNavigationIntent("whispr://admin", { webUrl }), null);
+    assert.equal(resolveMobileNavigationIntent("whispr://voice", { webUrl }), null);
   });
 
   it("keeps auth handoffs and invites as typed commands", () => {

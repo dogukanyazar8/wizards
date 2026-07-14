@@ -29,7 +29,6 @@ const tabIcons: Record<MobileTabId, { active: MobileNavIconName; inactive: Mobil
   notifications: { active: "notifications", inactive: "notifications-outline" },
   overview: { active: "home", inactive: "home-outline" },
   settings: { active: "person-circle", inactive: "person-circle-outline" },
-  voice: { active: "call", inactive: "call-outline" },
 };
 
 function getMobileTabLabel(tabId: MobileTabId): string {
@@ -42,8 +41,6 @@ function getMobileTabLabel(tabId: MobileTabId): string {
       return copy.tabOverview;
     case "settings":
       return copy.tabProfile;
-    case "voice":
-      return copy.tabVoice;
   }
 }
 

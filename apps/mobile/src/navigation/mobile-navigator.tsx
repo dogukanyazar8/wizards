@@ -18,7 +18,7 @@ import {
   OverviewTabScreenContainer,
   SettingsDetailScreenContainer,
   SettingsTabScreenContainer,
-  VoiceTabScreenContainer,
+  VoiceRoomStackScreenContainer,
   ProfileEditScreenContainer,
   BlockedUsersScreenContainer,
   SecurityScreenContainer,
@@ -99,6 +99,13 @@ export function MobileNavigator({
       <RootStack.Navigator screenOptions={rootStackOptions}>
         <RootStack.Screen name="MainTabs">
           {() => <MobileBottomTabs directMessageUnreadCount={directMessageUnreadCount} />}
+        </RootStack.Screen>
+        <RootStack.Screen name="VoiceRoom">
+          {(props) => (
+            <ProtectedStackRoute>
+              <VoiceRoomStackScreenContainer {...props} />
+            </ProtectedStackRoute>
+          )}
         </RootStack.Screen>
         <RootStack.Screen name="ChannelChat">
           {(props) => (
@@ -198,13 +205,6 @@ function MobileBottomTabs({
         {(props) => (
           <ProtectedTab tab="notifications">
             <NotificationsTabScreenContainer {...props} />
-          </ProtectedTab>
-        )}
-      </BottomTabs.Screen>
-      <BottomTabs.Screen name="voice">
-        {(props) => (
-          <ProtectedTab tab="voice">
-            <VoiceTabScreenContainer {...props} />
           </ProtectedTab>
         )}
       </BottomTabs.Screen>

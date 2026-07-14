@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
+import { BackHandler } from "react-native";
 import type {
   NativeStackNavigationProp,
   NativeStackScreenProps,
@@ -30,6 +31,14 @@ import { MobileDMDetailsScreen } from "../../dm/mobile-dm-details-screen";
 import { MobileServerSettingsScreen } from "../../workspace/mobile-server-settings-screen";
 import { MobileServerMembersScreen } from "../../workspace/mobile-server-members-screen";
 import { MobileChannelSettingsScreen } from "../../workspace/mobile-channel-settings-screen";
+import {
+  clearMobileVoiceRoomRouteContext,
+  getMobileVoiceRoomRouteContext,
+  hasMatchingMobileVoiceRoomRouteContext,
+} from "../../voice/mobile-voice-room-route-context";
+import { hasVoiceRoomContext, isVoiceSessionActive } from "../../voice/mobile-voice-room-contract";
+
+const MOBILE_VOICE_LEAVING_TIMEOUT_MS = 5_000;
 
 export function OverviewTabScreenContainer({
   navigation,
@@ -50,14 +59,20 @@ export function OverviewTabScreenContainer({
           });
         }
       }}
-      onOpenWorkspaceChannel={(channel) => {
-        screenProps.onOpenWorkspaceChannel(channel);
+      onOpenWorkspaceChannel={async (channel) => {
+        const shouldOpenVoiceRoom = await screenProps.onOpenWorkspaceChannel(channel);
+        if (channel.type === "VOICE" && shouldOpenVoiceRoom && rootNavigation) {
+          rootNavigation.navigate("VoiceRoom");
+          return true;
+        }
+
         if (channel.type === "TEXT" && screenProps.selectedWorkspaceServerId && rootNavigation) {
           rootNavigation.navigate("ChannelChat", {
             channelId: channel.id,
             serverId: screenProps.selectedWorkspaceServerId,
           });
         }
+        return false;
       }}
     />
   );
@@ -96,10 +111,81 @@ export function NotificationsTabScreenContainer(
   return <NotificationsScreen {...useMobileNotificationsScreenProps()} />;
 }
 
-export function VoiceTabScreenContainer(
-  _props: BottomTabScreenProps<MobileBottomTabParamList, "voice">,
-) {
-  return <VoiceScreen {...useMobileVoiceScreenProps()} />;
+export function VoiceRoomStackScreenContainer({
+  navigation,
+}: NativeStackScreenProps<MobileRootStackParamList, "VoiceRoom">) {
+  const screenProps = useMobileVoiceScreenProps();
+  const room = screenProps.voiceRoomState;
+  const routeContext = getMobileVoiceRoomRouteContext();
+  const hasRouteContext =
+    routeContext !== null &&
+    (room.status === "idle" ||
+      (hasMatchingMobileVoiceRoomRouteContext(room) && hasVoiceRoomContext(room)));
+  const leaveVoiceRoom = useCallback(async () => {
+    try {
+      await screenProps.onLeaveVoiceChannel();
+    } finally {
+      clearMobileVoiceRoomRouteContext();
+      navigation.replace("MainTabs", { screen: "overview" });
+    }
+  }, [navigation, screenProps]);
+  const leaveAndReturnToOverview = useCallback(() => {
+    void leaveVoiceRoom();
+  }, [leaveVoiceRoom]);
+  const minimizeVoiceRoom = useCallback(() => {
+    navigation.navigate("MainTabs", { screen: "overview" });
+  }, [navigation]);
+
+  useEffect(() => {
+    if (!hasRouteContext) {
+      navigation.replace("MainTabs", { screen: "overview" });
+    }
+  }, [hasRouteContext, navigation]);
+
+  useEffect(() => {
+    if (room.status !== "leaving") {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      clearMobileVoiceRoomRouteContext();
+      navigation.replace("MainTabs", { screen: "overview" });
+    }, MOBILE_VOICE_LEAVING_TIMEOUT_MS);
+
+    return () => clearTimeout(timeout);
+  }, [navigation, room.status]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+        if (isVoiceSessionActive(room.status)) {
+          minimizeVoiceRoom();
+          return true;
+        }
+
+        if (room.status === "error") {
+          leaveAndReturnToOverview();
+          return true;
+        }
+
+        return room.status === "checking-permission" || room.status === "leaving";
+      });
+
+      return () => subscription.remove();
+    }, [leaveAndReturnToOverview, minimizeVoiceRoom, room.status]),
+  );
+
+  if (!hasRouteContext) {
+    return null;
+  }
+
+  return (
+    <VoiceScreen
+      {...screenProps}
+      onLeaveVoiceChannel={leaveVoiceRoom}
+      testID="mobile-voice-room-screen"
+    />
+  );
 }
 
 export function SettingsTabScreenContainer(
@@ -267,7 +353,12 @@ export function ServerMembersStackScreenContainer({
   navigation,
   route,
 }: NativeStackScreenProps<MobileRootStackParamList, "ServerMembers">) {
-  return <MobileServerMembersScreen serverId={route.params.serverId} onBack={() => navigation.goBack()} />;
+  return (
+    <MobileServerMembersScreen
+      serverId={route.params.serverId}
+      onBack={() => navigation.goBack()}
+    />
+  );
 }
 
 export function ChannelSettingsStackScreenContainer({

@@ -4,6 +4,11 @@ import type { MobileApiClient } from "../../api/mobile-api-client";
 import type { MobileSessionUser } from "../../auth/session-types";
 import { summarizeMobileBootstrap } from "../../bootstrap/mobile-bootstrap";
 import type { MobileTabId } from "../../navigation/mobile-navigation";
+import type { MobileVoiceRuntimeState } from "../../voice/mobile-voice-contract";
+import {
+  clearMobileVoiceRoomRouteContext,
+  setMobileVoiceRoomRouteContext,
+} from "../../voice/mobile-voice-room-route-context";
 import { useMobileBootstrapQuery } from "../../query/mobile-bootstrap-query";
 import {
   useMobileChannelMessagesQuery,
@@ -43,7 +48,7 @@ import {
   toMobileWorkspaceViewState,
 } from "../mobile-query-view-state";
 import type { MobileChannelSendViewState, MobileDMSendViewState } from "../mobile-screen-state";
-import { getVisibleMobileSyncHealth } from "../mobile-screen-sync";
+import { getVisibleMobileSyncHealth, type MobileSyncHealthDomain } from "../mobile-screen-sync";
 import { activeMobileCopy } from "../../locale/mobile-locale-preferences";
 import { createMobileGiphyAttachment } from "../../media/mobile-giphy-client";
 import { resolveMobileWorkspaceServerSelection } from "../../workspace/mobile-workspace-selection";
@@ -71,6 +76,7 @@ export function useMobileMessagingFeature({
   isSignedIn,
   joinVoiceChannel,
   leaveVoiceChannel,
+  requestMicrophonePermission,
   stopChannelTyping,
   stopDMTyping,
   updateChannelTyping,
@@ -83,9 +89,11 @@ export function useMobileMessagingFeature({
   readonly joinVoiceChannel: (input: {
     channelId: string;
     channelName: string;
+    permission?: MobileVoiceRuntimeState;
     serverId: string;
   }) => Promise<boolean>;
   readonly leaveVoiceChannel: () => Promise<void>;
+  readonly requestMicrophonePermission: () => Promise<MobileVoiceRuntimeState>;
   readonly stopChannelTyping: (channelId: string) => void;
   readonly stopDMTyping: (conversationId: string) => void;
   readonly updateChannelTyping: (channelId: string, content: string) => void;
@@ -568,16 +576,18 @@ export function useMobileMessagingFeature({
 
   const handleCloseWorkspaceVoiceChannel = useCallback(() => {
     clearMessageSearch();
+    clearMobileVoiceRoomRouteContext();
     setActiveWorkspaceVoiceChannelId(null);
   }, [clearMessageSearch]);
 
   const handleLeaveWorkspaceVoiceChannel = useCallback(async () => {
     await leaveVoiceChannel();
+    clearMobileVoiceRoomRouteContext();
     setActiveWorkspaceVoiceChannelId(null);
   }, [leaveVoiceChannel]);
 
   const handleOpenWorkspaceChannel = useCallback(
-    (channel: MobileWorkspaceChannelSummary) => {
+    async (channel: MobileWorkspaceChannelSummary): Promise<boolean> => {
       clearMessageSearch();
       if (selectedWorkspaceChannelId && selectedWorkspaceChannelId !== channel.id) {
         stopChannelTyping(selectedWorkspaceChannelId);
@@ -587,31 +597,48 @@ export function useMobileMessagingFeature({
       if (channel.type === "VOICE") {
         resetChannelMessageMutation();
         setActiveWorkspaceTextChannelId(null);
-        setActiveWorkspaceVoiceChannelId(channel.id);
-        if (selectedWorkspaceServerId) {
-          void joinVoiceChannel({
-            channelId: channel.id,
-            channelName: channel.name,
-            serverId: selectedWorkspaceServerId,
-          });
+        if (!selectedWorkspaceServerId) {
+          setActiveWorkspaceVoiceChannelId(null);
+          return false;
         }
-        return;
+
+        const permission = await requestMicrophonePermission();
+        if (!permission.hasMicrophonePermission) {
+          setActiveWorkspaceVoiceChannelId(null);
+          return false;
+        }
+
+        setMobileVoiceRoomRouteContext({
+          channelId: channel.id,
+          channelName: channel.name,
+          serverId: selectedWorkspaceServerId,
+        });
+        setActiveWorkspaceVoiceChannelId(channel.id);
+        void joinVoiceChannel({
+          channelId: channel.id,
+          channelName: channel.name,
+          permission,
+          serverId: selectedWorkspaceServerId,
+        });
+        return true;
       }
 
       if (channel.type !== "TEXT") {
         resetChannelMessageMutation();
         setActiveWorkspaceTextChannelId(null);
         setActiveWorkspaceVoiceChannelId(null);
-        return;
+        return false;
       }
 
       resetChannelMessageMutation();
       setActiveWorkspaceTextChannelId(channel.id);
       setActiveWorkspaceVoiceChannelId(null);
+      return false;
     },
     [
       clearMessageSearch,
       joinVoiceChannel,
+      requestMicrophonePermission,
       resetChannelMessageMutation,
       selectedWorkspaceChannelId,
       selectedWorkspaceServerId,
@@ -652,6 +679,7 @@ export function useMobileMessagingFeature({
     setSelectedWorkspaceChannelId(null);
     setActiveWorkspaceTextChannelId(null);
     void leaveVoiceChannel().catch(() => undefined);
+    clearMobileVoiceRoomRouteContext();
     setActiveWorkspaceVoiceChannelId(null);
     setWorkspaceRouteIntent(null);
     setSelectedWorkspaceServerId(resolvedServerId);
@@ -697,7 +725,7 @@ export function useMobileMessagingFeature({
       targets.setConversation(selectedDMConversationId);
       return;
     }
-    if (currentTab === "voice" && selectedWorkspaceServerId && activeVoiceChannelId) {
+    if (selectedWorkspaceServerId && activeVoiceChannelId) {
       targets.setVoiceChannel(selectedWorkspaceServerId, activeVoiceChannelId);
       return;
     }
@@ -727,6 +755,7 @@ export function useMobileMessagingFeature({
     setSelectedWorkspaceChannelId(null);
     setActiveWorkspaceTextChannelId(null);
     setActiveWorkspaceVoiceChannelId(null);
+    clearMobileVoiceRoomRouteContext();
     setWorkspaceRouteIntent(null);
     void leaveVoiceChannel();
   }, [
@@ -781,7 +810,7 @@ export function useMobileMessagingFeature({
   );
 
   const getSyncHealth = useCallback(
-    (tab: MobileTabId) =>
+    (tab: MobileSyncHealthDomain) =>
       getVisibleMobileSyncHealth({
         bootstrapSyncState: toMobileSyncSnapshot(bootstrapQuery, "bootstrap"),
         channelSyncState: toMobileSyncSnapshot(channelMessagesQuery, "channel"),

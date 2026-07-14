@@ -144,7 +144,6 @@ describe("Phase 0 Maestro testID contract", () => {
       "mobile-notifications-screen": "src/app/screens/notifications-screen.tsx",
       "mobile-overview-screen": "src/app/screens/home-screen.tsx",
       "mobile-settings-screen": "src/app/screens/settings-screen.tsx",
-      "mobile-voice-screen": "src/app/screens/voice-screen.tsx",
     } as const;
 
     assert.match(settingsSource, /testID="mobile-settings-appearance-control"/);
@@ -158,9 +157,10 @@ describe("Phase 0 Maestro testID contract", () => {
         new RegExp(`takeScreenshot:\\s*"artifacts/mobile/phase1/closure/${screenshot}"`),
       );
     }
-    for (const tabId of ["overview", "messages", "notifications", "voice", "settings"]) {
+    for (const tabId of ["overview", "messages", "notifications", "settings"]) {
       assert.match(darkModeFlowSource, new RegExp(`id:\\s*"mobile-bottom-tab-${tabId}"`));
     }
+    assert.doesNotMatch(darkModeFlowSource, /mobile-bottom-tab-voice/);
     for (const [testId, sourcePath] of Object.entries(destinationContracts)) {
       assert.match(darkModeFlowSource, new RegExp(`id:\\s*"${testId}"`));
       assert.match(readFileSync(path.join(process.cwd(), sourcePath), "utf8"), new RegExp(testId));
@@ -414,7 +414,7 @@ describe("Phase 0 Maestro testID contract", () => {
     for (const id of [
       "mobile-workspace-channel-voice",
       "mobile-settings-permission-action-camera",
-      "mobile-voice-channel-screen",
+      "mobile-voice-room-screen",
       "mobile-voice-mute-toggle",
       "mobile-voice-camera-toggle",
       "mobile-voice-settings-open-control",

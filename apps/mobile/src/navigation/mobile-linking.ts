@@ -75,7 +75,6 @@ export function createMobileLinkingOptions({
             notifications: "notifications",
             overview: "channels",
             settings: "settings",
-            voice: "voice",
           },
         },
         ChannelChat: "channels/:serverId/:channelId",

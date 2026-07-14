@@ -16,20 +16,8 @@ import {
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 
 test("mobile tab ids are stable and validate unknown input", () => {
-  assert.deepEqual(MOBILE_TAB_IDS, [
-    "overview",
-    "messages",
-    "notifications",
-    "voice",
-    "settings",
-  ]);
-  assert.deepEqual(MOBILE_BOTTOM_TAB_IDS, [
-    "overview",
-    "messages",
-    "notifications",
-    "voice",
-    "settings",
-  ]);
+  assert.deepEqual(MOBILE_TAB_IDS, ["overview", "messages", "notifications", "settings"]);
+  assert.deepEqual(MOBILE_BOTTOM_TAB_IDS, ["overview", "messages", "notifications", "settings"]);
   assert.equal(isMobileTabId("messages"), true);
   assert.equal(isMobileTabId("members"), false);
 });
@@ -40,8 +28,8 @@ test("bottom navigation exposes only primary native product surfaces", () => {
   assert.equal(bottomTabs.includes("notifications"), true);
   assert.equal(bottomTabs.includes("overview"), true);
   assert.equal(bottomTabs.includes("settings"), true);
-  assert.equal(bottomTabs.includes("voice"), true);
-  assert.equal(MOBILE_TAB_IDS.includes("voice"), true);
+  assert.equal(bottomTabs.includes("voice"), false);
+  assert.equal((MOBILE_TAB_IDS as readonly string[]).includes("voice"), false);
 });
 
 test("mobile navigation state falls back to the home overview tab", () => {
@@ -94,8 +82,8 @@ test("notifications are gated while signed out", () => {
 });
 
 test("protected mobile routes can distinguish loading from signed-out", () => {
-  assert.equal(resolveMobileRoute("voice", "checking").blockedReason, "checking");
-  assert.equal(resolveMobileRoute("voice", "signed-in").isBlocked, false);
+  assert.equal(resolveMobileRoute("overview", "checking").blockedReason, "checking");
+  assert.equal(resolveMobileRoute("overview", "signed-in").isBlocked, false);
 });
 
 test("public mobile routes stay available without a session", () => {
@@ -152,4 +140,19 @@ test("server management routes remain protected, typed, and contextual", () => {
     assert.match(containers, new RegExp(`export function ${containerName}`));
   }
   assert.equal(/mobile-product-app/.test(containers), false);
+});
+
+test("voice room is a protected root route rather than a bottom tab", () => {
+  const types = read("../src/navigation/mobile-navigation-types.ts");
+  const navigator = read("../src/navigation/mobile-navigator.tsx");
+  const navigationRef = read("../src/navigation/mobile-navigation-ref.ts");
+  const containers = read("../src/app/screens/mobile-screen-containers.tsx");
+
+  assert.match(types, /VoiceRoom:\s*undefined/);
+  assert.doesNotMatch(types, /voice:\s*undefined/);
+  assert.match(navigator, /<RootStack\.Screen name="VoiceRoom">[\s\S]{0,240}<ProtectedStackRoute>/);
+  assert.doesNotMatch(navigator, /<BottomTabs\.Screen name="voice"/);
+  assert.match(navigationRef, /getMobileVoiceRoomRouteContext/);
+  assert.match(containers, /hardwareBackPress/);
+  assert.match(containers, /isVoiceSessionActive/);
 });

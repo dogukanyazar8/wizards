@@ -61,7 +61,7 @@ appId: team.whispr.mobile
     id: "mobile-bottom-tab-overview"
 - extendedWaitUntil:
     visible:
-      id: "mobile-workspace-channel-voice|mobile-voice-channel-screen"
+      id: "mobile-workspace-channel-voice|mobile-voice-room-screen"
     timeout: 30000
 
 # Join a real voice channel and exercise microphone/camera without capturing active video.
@@ -75,7 +75,7 @@ appId: team.whispr.mobile
           index: 0
 - extendedWaitUntil:
     visible:
-      id: "mobile-voice-channel-screen"
+      id: "mobile-voice-room-screen"
     timeout: 30000
 - extendedWaitUntil:
     visible:
@@ -119,7 +119,7 @@ appId: team.whispr.mobile
     id: "mobile-voice-noise-toggle"
 - pressKey: BACK
 - assertVisible:
-    id: "mobile-voice-channel-screen"
+    id: "mobile-voice-room-screen"
 - takeScreenshot: "artifacts/mobile/phase5/light-voice-polish"
 
 # Keep the room connected while proving the dark surface; camera remains off.
@@ -133,7 +133,7 @@ appId: team.whispr.mobile
     id: "mobile-bottom-tab-overview"
 - extendedWaitUntil:
     visible:
-      id: "mobile-workspace-channel-voice|mobile-voice-channel-screen"
+      id: "mobile-workspace-channel-voice|mobile-voice-room-screen"
     timeout: 30000
 - runFlow:
     when:
@@ -145,7 +145,7 @@ appId: team.whispr.mobile
           index: 0
 - extendedWaitUntil:
     visible:
-      id: "mobile-voice-channel-screen"
+      id: "mobile-voice-room-screen"
     timeout: 30000
 - assertNotVisible:
     id: "mobile-voice-camera-grid"

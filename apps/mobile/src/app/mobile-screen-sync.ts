@@ -5,10 +5,12 @@ import {
   type MobileSyncSnapshot,
 } from "../sync/mobile-sync-contract";
 
+export type MobileSyncHealthDomain = MobileTabId | "voice";
+
 export type VisibleMobileSyncHealthInput = {
   bootstrapSyncState: MobileSyncSnapshot;
   channelSyncState: MobileSyncSnapshot;
-  currentTab: MobileTabId;
+  currentTab: MobileSyncHealthDomain;
   dmSyncState: MobileSyncSnapshot;
   selectedDMConversationId: string | null;
   selectedWorkspaceChannelId: string | null;

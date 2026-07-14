@@ -5,12 +5,12 @@ export type MobileBottomTabParamList = {
   overview: undefined;
   messages: undefined;
   notifications: undefined;
-  voice: undefined;
   settings: undefined;
 };
 
 export type MobileRootStackParamList = {
   MainTabs: NavigatorScreenParams<MobileBottomTabParamList> | undefined;
+  VoiceRoom: undefined;
   ChannelChat: {
     readonly channelId: string;
     readonly serverId: string;
@@ -36,6 +36,11 @@ export type MobileRootStackParamList = {
 };
 
 export type MobileNavigationRouteIntent =
+  | {
+      readonly name: "VoiceRoom";
+      readonly params: undefined;
+      readonly type: "route";
+    }
   | {
       readonly name: "MainTabs";
       readonly params: NavigatorScreenParams<MobileBottomTabParamList>;

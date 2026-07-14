@@ -153,12 +153,13 @@ describe("mobile React Navigation runtime", () => {
     },
   );
 
-  it("renders the five stable bottom-tab test IDs", async () => {
+  it("renders the four stable bottom-tab test IDs", async () => {
     const view = await render(<MobileNavigator />);
 
-    for (const tab of ["overview", "messages", "notifications", "voice", "settings"]) {
+    for (const tab of ["overview", "messages", "notifications", "settings"]) {
       expect(view.getByTestId(`mobile-bottom-tab-${tab}`)).toBeTruthy();
     }
+    expect(view.queryByTestId("mobile-bottom-tab-voice")).toBeNull();
   });
 
   it("starts on public settings and guards protected tabs while signed out", async () => {

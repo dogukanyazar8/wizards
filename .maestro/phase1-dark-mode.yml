@@ -47,10 +47,6 @@ appId: team.whispr.mobile
 - assertVisible:
     id: "mobile-notifications-screen"
 - tapOn:
-    id: "mobile-bottom-tab-voice"
-- assertVisible:
-    id: "mobile-voice-screen"
-- tapOn:
     id: "mobile-bottom-tab-settings"
 - assertVisible:
     id: "mobile-settings-screen"

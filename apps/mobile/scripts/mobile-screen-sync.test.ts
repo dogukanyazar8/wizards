@@ -85,4 +85,19 @@ describe("mobile screen sync", () => {
     assert.equal(serverOnlyHealth.status, "error");
     assert.equal(channelHealth.status, "error");
   });
+
+  it("keeps voice health as an independent domain rather than a bottom tab", () => {
+    const health = getVisibleMobileSyncHealth({
+      bootstrapSyncState: freshSnapshot("bootstrap"),
+      channelSyncState: freshSnapshot("channel"),
+      currentTab: "voice",
+      dmSyncState: failedSnapshot("dm"),
+      selectedDMConversationId: "dm-1",
+      selectedWorkspaceChannelId: null,
+      selectedWorkspaceServerId: "server-1",
+      workspaceSyncState: failedSnapshot("workspace"),
+    });
+
+    assert.equal(health.status, "error");
+  });
 });

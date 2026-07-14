@@ -15,6 +15,7 @@ import {
   type MobileVoiceInputMode,
 } from "../../voice/mobile-voice-ptt-contract";
 import { useMobileVoiceRoom } from "../../voice/use-mobile-voice-room";
+import type { MobileVoiceRuntimeState } from "../../voice/mobile-voice-contract";
 import { useMobileMediaRuntime } from "./mobile-media-provider";
 import {
   DEFAULT_MOBILE_VOICE_DEVICE_PREFERENCES,
@@ -24,7 +25,7 @@ import {
 type MobileVoiceRoomRuntime = ReturnType<typeof useMobileVoiceRoom>;
 
 type MobileVoiceRuntime = Omit<MobileVoiceRoomRuntime, "requestMicrophonePermission"> & {
-  readonly requestMicrophonePermission: () => Promise<void>;
+  readonly requestMicrophonePermission: () => Promise<MobileVoiceRuntimeState>;
   readonly selectVoiceInputMode: (mode: MobileVoiceInputMode) => void;
   readonly voiceInputMode: MobileVoiceInputMode;
 };
@@ -39,15 +40,10 @@ export function MobileVoiceProvider({ children }: PropsWithChildren) {
   );
   const [voiceDevicePreferences, setVoiceDevicePreferences] =
     useState<MobileVoiceDevicePreferences>(DEFAULT_MOBILE_VOICE_DEVICE_PREFERENCES);
-  const persistVoiceDevicePreferences = useCallback(
-    (preferences: MobileVoiceDevicePreferences) => {
-      setVoiceDevicePreferences(preferences);
-      void mobileVoicePreferenceRepository
-        .saveDevicePreferences(preferences)
-        .catch(() => undefined);
-    },
-    [],
-  );
+  const persistVoiceDevicePreferences = useCallback((preferences: MobileVoiceDevicePreferences) => {
+    setVoiceDevicePreferences(preferences);
+    void mobileVoicePreferenceRepository.saveDevicePreferences(preferences).catch(() => undefined);
+  }, []);
   const voiceRoom = useMobileVoiceRoom({
     apiClient,
     currentUser: session?.user ?? null,
@@ -88,7 +84,7 @@ export function MobileVoiceProvider({ children }: PropsWithChildren) {
   }, []);
 
   const requestMicrophonePermission = useCallback(async () => {
-    await voiceRoom.requestMicrophonePermission();
+    return voiceRoom.requestMicrophonePermission();
   }, [voiceRoom.requestMicrophonePermission]);
 
   const toggleCamera = useCallback(async () => {

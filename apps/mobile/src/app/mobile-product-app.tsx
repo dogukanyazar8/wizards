@@ -4,6 +4,7 @@ import { useMobileAuth } from "../auth/mobile-auth-context";
 import { getMobileRuntimeConfig } from "../config/environment";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import type { MobileTabId } from "../navigation/mobile-navigation";
+import { openMobileVoiceRoom } from "../voice/mobile-voice-room-route-navigation";
 import { MobileAppLockScreen } from "./components/mobile-app-lock-screen";
 import { MobileDeviceIntegrityWarning } from "./components/mobile-device-integrity-warning";
 import { MobileAppShell } from "./mobile-app-shell";
@@ -160,6 +161,7 @@ export function MobileProductApp({
     isSignedIn: status === "signed-in",
     joinVoiceChannel,
     leaveVoiceChannel,
+    requestMicrophonePermission: handleRequestVoicePermission,
     stopChannelTyping,
     stopDMTyping,
     updateChannelTyping,
@@ -177,6 +179,7 @@ export function MobileProductApp({
     emitVoiceInviteSend,
     joinVoiceChannel,
     onOpenVoiceInvite: handleOpenVoiceInvite,
+    onVoiceRoomJoined: openMobileVoiceRoom,
     subscribe: subscribeRealtime,
     syncParticipantAudioLevelFromServer,
     syncParticipantsFromServer,
@@ -341,7 +344,9 @@ export function MobileProductApp({
     onRefreshBootstrap: refreshBootstrap,
     onRefreshVisibleData: refreshVisibleMobileData,
     onRefreshVoiceDevices: refreshVoiceDevices,
-    onRequestVoicePermission: handleRequestVoicePermission,
+    onRequestVoicePermission: async () => {
+      await handleRequestVoicePermission();
+    },
     onSelectVoiceAudioInput: selectVoiceAudioInput,
     onSelectVoiceAudioOutputDevice: selectVoiceAudioOutputDevice,
     onSelectVoiceNoiseSuppression: selectVoiceNoiseSuppression,

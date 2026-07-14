@@ -84,6 +84,7 @@ import {
 type JoinVoiceChannelInput = {
   channelId: string;
   channelName: string;
+  permission?: MobileVoiceRuntimeState;
   serverId: string;
 };
 
@@ -756,7 +757,12 @@ export function useMobileVoiceRoom({
   );
 
   const joinVoiceChannel = useCallback(
-    async ({ channelId, channelName, serverId }: JoinVoiceChannelInput): Promise<boolean> => {
+    async ({
+      channelId,
+      channelName,
+      permission: preparedPermission,
+      serverId,
+    }: JoinVoiceChannelInput): Promise<boolean> => {
       const user = currentUserRef.current;
       if (!user) {
         setRoomState((current) => ({
@@ -788,7 +794,7 @@ export function useMobileVoiceRoom({
         updatedAt: Date.now(),
       });
 
-      const permission = await requestMicrophonePermission();
+      const permission = preparedPermission ?? (await requestMicrophonePermission());
       if (!isCurrentSessionGeneration(generation)) {
         return false;
       }

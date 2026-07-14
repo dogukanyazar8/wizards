@@ -107,6 +107,7 @@ export function useMobileVoiceInviteFeature({
   emitVoiceInviteSend,
   joinVoiceChannel,
   onOpenVoiceInvite,
+  onVoiceRoomJoined,
   subscribe,
   syncParticipantAudioLevelFromServer,
   syncParticipantsFromServer,
@@ -130,6 +131,7 @@ export function useMobileVoiceInviteFeature({
   }) => void;
   readonly joinVoiceChannel: (input: MobileVoiceChannelInput) => Promise<boolean>;
   readonly onOpenVoiceInvite: (input: MobileVoiceChannelInput) => void;
+  readonly onVoiceRoomJoined: (input: MobileVoiceChannelInput) => void;
   readonly subscribe: (listener: (event: MobileRealtimeEventEnvelope) => void) => () => void;
   readonly syncParticipantAudioLevelFromServer: (input: {
     audioLevel: number;
@@ -216,6 +218,11 @@ export function useMobileVoiceInviteFeature({
         serverId: invite.serverId,
       }).then((joined) => {
         if (joined) {
+          onVoiceRoomJoined({
+            channelId: invite.channelId,
+            channelName: invite.channelName,
+            serverId: invite.serverId,
+          });
           setVoiceInviteEntries((current) => current.filter((entry) => entry.id !== invite.id));
           return;
         }
@@ -229,7 +236,13 @@ export function useMobileVoiceInviteFeature({
         );
       });
     },
-    [emitVoiceInviteAccept, joinVoiceChannel, onOpenVoiceInvite, voiceInviteEntries],
+    [
+      emitVoiceInviteAccept,
+      joinVoiceChannel,
+      onOpenVoiceInvite,
+      onVoiceRoomJoined,
+      voiceInviteEntries,
+    ],
   );
 
   const handleDeclineVoiceInvite = useCallback(
@@ -252,7 +265,9 @@ export function useMobileVoiceInviteFeature({
   const handleLocalRealtimeEvent = useCallback(
     (event: MobileRealtimeEventEnvelope) => {
       const voicePayload =
-        event.eventName === "voice:state:update" ? getMobileVoiceStateUpdatePayload(event.payload) : null;
+        event.eventName === "voice:state:update"
+          ? getMobileVoiceStateUpdatePayload(event.payload)
+          : null;
       const voiceAudioPayload =
         event.eventName === "voice:audio-level:update"
           ? getMobileVoiceAudioLevelUpdatePayload(event.payload)
@@ -270,7 +285,9 @@ export function useMobileVoiceInviteFeature({
           ? getMobileVoiceInviteStatusPayload(event.payload)
           : null;
       const voiceInviteErrorPayload =
-        event.eventName === "voice:invite:error" ? getMobileVoiceInviteErrorPayload(event.payload) : null;
+        event.eventName === "voice:invite:error"
+          ? getMobileVoiceInviteErrorPayload(event.payload)
+          : null;
 
       if (voicePayload) {
         syncParticipantsFromServer(voicePayload);

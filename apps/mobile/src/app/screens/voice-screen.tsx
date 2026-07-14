@@ -66,6 +66,7 @@ export function VoiceScreen({
   onToggleVoiceScreenShare,
   onRefreshBootstrap,
   onRefreshVisibleData,
+  testID = "mobile-voice-screen",
 }: {
   bootstrapState: MobileBootstrapViewState;
   permissionReadiness: readonly MobilePermissionReadiness[];
@@ -89,6 +90,7 @@ export function VoiceScreen({
   onToggleVoiceScreenShare(): Promise<void>;
   onRefreshBootstrap(): void;
   onRefreshVisibleData(): void;
+  testID?: string;
 }) {
   const styles = useVoiceScreenStyles();
   const [screenShareConsentVisible, setScreenShareConsentVisible] = useState(false);
@@ -104,7 +106,7 @@ export function VoiceScreen({
 
   return (
     <ScreenShell
-      testID="mobile-voice-screen"
+      testID={testID}
       eyebrow={copy.tabVoice}
       title={copy.voiceTitle}
       description={copy.voiceDescription}
