@@ -149,6 +149,12 @@ const MOBILE_REALTIME_PAYLOAD_PARSERS = {
     const parsed = MobilePresenceUpdateEventSchema.safeParse(payload);
     return parsed.success ? { channelId: null, payload: parsed.data, serverId: null } : null;
   },
+  "server:unread:update": (payload) => {
+    const parsed = MobileServerUnreadUpdateEventSchema.safeParse(payload);
+    return parsed.success
+      ? { channelId: null, payload: parsed.data, serverId: parsed.data.serverId }
+      : null;
+  },
   "server:membership:added": (payload) => {
     const parsed = MobileServerMembershipAddedEventSchema.safeParse(payload);
     return parsed.success
@@ -354,6 +360,7 @@ export function validateMobileRealtimeContract(): string[] {
 import {
   MobileMessageHistoryClearedEventSchema,
   MobilePresenceUpdateEventSchema,
+  MobileServerUnreadUpdateEventSchema,
   MobileServerMembershipAddedEventSchema,
   MobileServerMembershipRemovedEventSchema,
   MobileServerSettingsUpdatedEventSchema,

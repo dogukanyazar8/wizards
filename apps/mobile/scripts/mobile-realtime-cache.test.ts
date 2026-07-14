@@ -8,10 +8,12 @@ import type {
 import {
   patchMobileRealtimeBootstrapProfile,
   patchMobileRealtimeBootstrapPresence,
+  patchMobileRealtimeBootstrapServerUnread,
   patchMobileRealtimeFriendsProfile,
   patchMobileRealtimeFriendsPresence,
   patchMobileRealtimeWorkspaceProfile,
   patchMobileRealtimeWorkspacePresence,
+  patchMobileRealtimeWorkspaceServerUnread,
   removeMobileRealtimeBootstrapServer,
 } from "../src/query/mobile-realtime-cache";
 
@@ -46,8 +48,10 @@ function makeBootstrap(): MobileBootstrapPayload {
             id: "server-1",
             joinedAt: "2026-07-13T10:00:00.000Z",
             memberCount: 2,
+            mentionCount: 0,
             name: "Primary",
             shortName: null,
+            unreadCount: 0,
           },
           {
             channelCount: 1,
@@ -55,8 +59,10 @@ function makeBootstrap(): MobileBootstrapPayload {
             id: "server-2",
             joinedAt: "2026-07-13T10:00:00.000Z",
             memberCount: 2,
+            mentionCount: 0,
             name: "Unaffected",
             shortName: null,
+            unreadCount: 0,
           },
         ],
         totalCount: 2,
@@ -247,6 +253,29 @@ describe("mobile realtime cache", () => {
     assert.equal(workspaceResult.data?.detail.members[0]?.displayName, profile.displayName);
     assert.equal(workspaceResult.data?.detail.members[1], workspace.detail.members[1]);
     assert.equal(workspaceResult.data?.detail.capabilities, workspace.detail.capabilities);
+  });
+
+  it("patches only the matching server unread and mention counts", () => {
+    const bootstrap = makeBootstrap();
+    const workspace = makeWorkspace();
+    const event = { mentionCount: 2, serverId: "server-1", unreadCount: 5 };
+
+    const bootstrapResult = patchMobileRealtimeBootstrapServerUnread(bootstrap, event);
+    const workspaceResult = patchMobileRealtimeWorkspaceServerUnread(workspace, event);
+
+    assert.equal(bootstrapResult.patched, true);
+    assert.equal(bootstrapResult.data?.home.servers.recent[0]?.unreadCount, 5);
+    assert.equal(bootstrapResult.data?.home.servers.recent[1], bootstrap.home.servers.recent[1]);
+    assert.equal(workspaceResult.patched, true);
+    assert.equal(workspaceResult.data?.detail.server.mentionCount, 2);
+    assert.equal(
+      patchMobileRealtimeWorkspaceServerUnread(workspace, {
+        mentionCount: 2,
+        serverId: "server-404",
+        unreadCount: 5,
+      }).data,
+      workspace,
+    );
   });
 
   it("keeps unavailable and unrelated cache entries unchanged", () => {

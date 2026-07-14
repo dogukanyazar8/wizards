@@ -39,6 +39,7 @@ function makeChannelPayload(
   return {
     channel: {
       id: "channel-1",
+      lastMessage: null,
       categoryId: null,
       categoryName: null,
       locked: false,

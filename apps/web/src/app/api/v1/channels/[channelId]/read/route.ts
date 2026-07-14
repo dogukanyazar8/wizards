@@ -120,13 +120,13 @@ export async function PATCH(_: Request, context: RouteContext) {
       userId,
     });
 
-    const unreadCount = await emitServerUnreadUpdateToUser(userId, channel.serverId);
+    const serverUnread = await emitServerUnreadUpdateToUser(userId, channel.serverId);
 
     return Response.json({
       firstUnreadMessageId: firstUnreadMessage?.id ?? null,
       mentionCount: 0,
       serverId: channel.serverId,
-      unreadCount,
+      unreadCount: serverUnread.unreadCount,
     });
   } catch (error) {
     return jsonError(error);

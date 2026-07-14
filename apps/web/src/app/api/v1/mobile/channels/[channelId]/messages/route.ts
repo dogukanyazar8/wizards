@@ -148,6 +148,17 @@ async function getMobileChannelSummary(
       categoryId: true,
       id: true,
       locked: true,
+      messages: {
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: {
+          author: { select: { displayName: true, id: true, username: true } },
+          content: true,
+          createdAt: true,
+          id: true,
+        },
+        take: 1,
+        where: { deletedAt: null, threadId: null, threadParentId: null },
+      },
       name: true,
       position: true,
       topic: true,
@@ -159,10 +170,22 @@ async function getMobileChannelSummary(
     throw new ApiError("Channel not found", 404, "CHANNEL_NOT_FOUND");
   }
 
+  const lastMessage = channel.messages[0];
+  const text = lastMessage?.content.trim().replace(/\s+/g, " ").slice(0, 240) ?? "";
+
   return {
     categoryId: channel.categoryId,
     categoryName: channel.category?.name ?? null,
     id: channel.id,
+    lastMessage:
+      lastMessage && text.length > 0
+        ? {
+            author: lastMessage.author,
+            createdAt: lastMessage.createdAt.toISOString(),
+            id: lastMessage.id,
+            text,
+          }
+        : null,
     locked: channel.locked,
     mentionCount: 0,
     name: channel.name,

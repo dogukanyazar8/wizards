@@ -567,7 +567,7 @@ export async function emitServerUnreadUpdateToUser(userId: string, serverId: str
     });
   }
 
-  return unreadCount;
+  return { mentionCount, unreadCount };
 }
 
 export async function emitServerUnreadUpdatesForServer(serverId: string, memberUserIds?: string[]) {

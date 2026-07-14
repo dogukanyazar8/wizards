@@ -2,6 +2,7 @@ import { prisma } from "@wizards/db";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { ApiError, jsonError } from "@/lib/api";
 import { requireMobileApiUserId } from "@/lib/auth/api";
+import { getServerUnreadAndMentionCounts } from "@/lib/workspace/unread-service";
 import {
   getMobileBootstrapPayload,
   type MobileBootstrapHomeSummary,
@@ -133,6 +134,12 @@ export async function GET(request: Request) {
       throw new ApiError("User not found", 404, "USER_NOT_FOUND");
     }
 
+    const recentServerIds = recentServerMemberships.map((membership) => membership.server.id);
+    const { mentionCounts, unreadCounts } = await getServerUnreadAndMentionCounts(
+      userId,
+      recentServerIds,
+    );
+
     const home: MobileBootstrapHomeSummary = {
       directMessages: {
         recent: recentDMParticipants.map((participant) => ({
@@ -162,8 +169,10 @@ export async function GET(request: Request) {
           id: membership.server.id,
           joinedAt: membership.joinedAt.toISOString(),
           memberCount: membership.server._count.members,
+          mentionCount: mentionCounts.get(membership.server.id) ?? 0,
           name: membership.server.name,
           shortName: membership.server.shortName,
+          unreadCount: unreadCounts.get(membership.server.id) ?? 0,
         })),
         totalCount: serverTotalCount,
       },

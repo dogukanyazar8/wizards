@@ -2,6 +2,7 @@ import type { InfiniteData, QueryClient, QueryKey } from "@tanstack/react-query"
 import {
   DMMessagePayloadSchema,
   MobilePresenceUpdateEventSchema,
+  MobileServerUnreadUpdateEventSchema,
   MobileServerMembershipAddedEventSchema,
   MobileServerMembershipRemovedEventSchema,
   MobileServerSettingsUpdatedEventSchema,
@@ -21,10 +22,12 @@ import { mobileQueryKeys } from "../query/mobile-query-keys";
 import {
   patchMobileRealtimeBootstrapProfile,
   patchMobileRealtimeBootstrapPresence,
+  patchMobileRealtimeBootstrapServerUnread,
   patchMobileRealtimeFriendsProfile,
   patchMobileRealtimeFriendsPresence,
   patchMobileRealtimeWorkspaceProfile,
   patchMobileRealtimeWorkspacePresence,
+  patchMobileRealtimeWorkspaceServerUnread,
   removeMobileRealtimeBootstrapServer,
 } from "../query/mobile-realtime-cache";
 import {
@@ -323,6 +326,26 @@ export function createMobileRealtimeQueryBridge({
         ...event,
         serverId: parsed.data.serverId,
       });
+      return true;
+    }
+
+    if (event.eventName === "server:unread:update") {
+      const parsed = MobileServerUnreadUpdateEventSchema.safeParse(event.payload);
+      if (!parsed.success) {
+        return true;
+      }
+      let bootstrapPatched = false;
+      queryClient.setQueryData<MobileBootstrapPayload>(mobileQueryKeys.bootstrap(), (current) => {
+        const result = patchMobileRealtimeBootstrapServerUnread(current, parsed.data);
+        bootstrapPatched = result.patched;
+        return result.data;
+      });
+      if (!bootstrapPatched) {
+        scheduleSource("bootstrap", null);
+      }
+      patchWorkspaceDetailCaches((current) =>
+        patchMobileRealtimeWorkspaceServerUnread(current, parsed.data).data,
+      );
       return true;
     }
 

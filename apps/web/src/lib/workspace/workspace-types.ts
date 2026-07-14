@@ -27,6 +27,16 @@ export type ChannelRecord = {
   canAccess?: boolean;
   id: string;
   locked: boolean;
+  messages?: Array<{
+    author: {
+      displayName: string | null;
+      id: string;
+      username: string;
+    };
+    content: string;
+    createdAt: Date;
+    id: string;
+  }>;
   name: string;
   permissionOverrides?: Array<{
     allow: bigint;

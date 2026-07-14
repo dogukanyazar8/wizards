@@ -93,6 +93,7 @@ const mobileDetail = {
       categoryId: null,
       categoryName: null,
       id: "channel-1",
+      lastMessage: null,
       locked: false,
       mentionCount: 1,
       name: "general",
@@ -225,6 +226,37 @@ describe("mobile server detail route logic", () => {
       "reload:user-1:server-1",
       "capabilities",
     ]);
+  });
+
+  it("preserves the canonical last-message preview when the mobile projection provides one", async () => {
+    const { mobileServerDetailRoute } = await routes;
+    const previewDetail = {
+      ...detail,
+      ungroupedChannels: [
+        {
+          ...detail.ungroupedChannels[0]!,
+          lastMessage: {
+            author: { displayName: "Ada", id: "user-2", username: "ada" },
+            createdAt: "2026-07-15T08:00:00.000Z",
+            id: "message-1",
+            text: "Canonical preview text",
+          },
+        },
+      ],
+    };
+    const response = await mobileServerDetailRoute(
+      request("GET"),
+      context({ serverId: "server-1" }),
+      dependencies({
+        getServerDetailWithAccess: async () => ({ access, detail: previewDetail }),
+      }),
+    );
+
+    const body = (await response.json()) as {
+      detail: { ungroupedChannels: Array<{ lastMessage: { text: string } | null }> };
+    };
+    assert.equal(response.status, 200);
+    assert.equal(body.detail.ungroupedChannels[0]?.lastMessage?.text, "Canonical preview text");
   });
 
   it("caps each category at 40 channels and treats the 41st row as a conservative sentinel", async () => {

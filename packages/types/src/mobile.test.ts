@@ -27,6 +27,9 @@ import {
   MobileBootstrapPayloadSchema,
   MobileBootstrapPermissionIntentSchema,
   MobileBootstrapServerSummarySchema,
+  MobileChannelLastMessagePreviewAuthorSchema,
+  MobileChannelLastMessagePreviewSchema,
+  MobileChannelMarkReadResponseSchema,
   MobileChannelMessagesResponseSchema,
   MobileChannelThreadMessagesResponseSchema,
   MobileChannelSendMessageRequestSchema,
@@ -55,6 +58,7 @@ import {
   MobilePushRegistrationRequestSchema,
   MobilePushRegistrationResponseSchema,
   MobilePushRegistrationRevokeResponseSchema,
+  MobileServerUnreadUpdateEventSchema,
   MobileSessionSchemaVersionSchema,
   MobileSessionSnapshotSchema,
   MobileSessionTokensSchema,
@@ -123,8 +127,10 @@ const bootstrapServer = {
   id: "server-1",
   joinedAt: now,
   memberCount: 1,
+  mentionCount: 0,
   name: "Analytical Engine",
   shortName: "AE",
+  unreadCount: 0,
 };
 
 const bootstrapDMParticipant = {
@@ -241,6 +247,12 @@ const workspaceChannel = {
   categoryId: null,
   categoryName: null,
   id: "channel-1",
+  lastMessage: {
+    author: { displayName: "Ada", id: "user-1", username: "ada" },
+    createdAt: now,
+    id: "message-1",
+    text: "Hello",
+  },
   locked: false,
   mentionCount: 0,
   name: "general",
@@ -445,6 +457,29 @@ describe("mobile schemas", () => {
         valid: bootstrapServer,
         invalid: { ...bootstrapServer, joinedAt: "today" },
       },
+      MobileChannelLastMessagePreviewAuthorSchema: {
+        schema: MobileChannelLastMessagePreviewAuthorSchema,
+        valid: workspaceChannel.lastMessage.author,
+        invalid: { ...workspaceChannel.lastMessage.author, username: "" },
+      },
+      MobileChannelLastMessagePreviewSchema: {
+        schema: MobileChannelLastMessagePreviewSchema,
+        valid: workspaceChannel.lastMessage,
+        invalid: { ...workspaceChannel.lastMessage, text: "" },
+      },
+      MobileChannelMarkReadResponseSchema: {
+        schema: MobileChannelMarkReadResponseSchema,
+        valid: {
+          channelId: "channel-1",
+          firstUnreadMessageId: null,
+          mentionCount: 0,
+          serverId: "server-1",
+          serverMentionCount: 0,
+          serverUnreadCount: 0,
+          unreadCount: 0,
+        },
+        invalid: { channelId: "channel-1" },
+      },
       MobileChannelMessagesResponseSchema: {
         schema: MobileChannelMessagesResponseSchema,
         valid: {
@@ -605,6 +640,11 @@ describe("mobile schemas", () => {
         schema: MobilePushRegistrationRevokeResponseSchema,
         valid: { revoked: true, revokedAt: now },
         invalid: { revoked: true, revokedAt: "today" },
+      },
+      MobileServerUnreadUpdateEventSchema: {
+        schema: MobileServerUnreadUpdateEventSchema,
+        valid: { mentionCount: 0, serverId: "server-1", unreadCount: 1 },
+        invalid: { mentionCount: -1, serverId: "server-1", unreadCount: 1 },
       },
       MobileSessionSchemaVersionSchema: {
         schema: MobileSessionSchemaVersionSchema,

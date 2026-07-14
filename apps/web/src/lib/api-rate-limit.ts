@@ -63,6 +63,7 @@ export const API_RATE_LIMITS = {
   "mobile:account:profile": { limit: 30, windowSeconds: 60 },
   "mobile:account:two-factor": { limit: 10, windowSeconds: 10 * 60 },
   "mobile:channel:history:clear": { limit: 10, windowSeconds: 60 },
+  "mobile:channel:mark-read": { limit: 180, windowSeconds: 60 },
   "mobile:channel:messages:list": { limit: 60, windowSeconds: 60 },
   "mobile:channel:messages:edit": { limit: 30, windowSeconds: 60 },
   "mobile:channel:messages:delete": { limit: 30, windowSeconds: 60 },

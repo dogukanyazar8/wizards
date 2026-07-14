@@ -344,8 +344,10 @@ export const MobileBootstrapServerSummarySchema = z.object({
   id: z.string().min(1),
   joinedAt: z.string().datetime(),
   memberCount: z.number().int().nonnegative(),
+  mentionCount: z.number().int().nonnegative(),
   name: z.string().min(1).max(120),
   shortName: z.string().min(1).max(8).nullable(),
+  unreadCount: z.number().int().nonnegative(),
 });
 
 export const MobileBootstrapDMParticipantSchema = z.object({
@@ -501,6 +503,19 @@ export const MobileDMSendMessageResponseSchema = z.object({
   message: DMMessagePayloadSchema,
 });
 
+export const MobileChannelLastMessagePreviewAuthorSchema = z.object({
+  displayName: z.string().min(1).max(120).nullable(),
+  id: z.string().min(1).max(128),
+  username: z.string().min(1).max(80),
+});
+
+export const MobileChannelLastMessagePreviewSchema = z.object({
+  author: MobileChannelLastMessagePreviewAuthorSchema,
+  createdAt: z.string().datetime(),
+  id: z.string().min(1).max(128),
+  text: z.string().min(1).max(240),
+});
+
 export const MobileWorkspaceChannelSummarySchema = WorkspaceChannelSchema.pick({
   id: true,
   categoryId: true,
@@ -514,6 +529,7 @@ export const MobileWorkspaceChannelSummarySchema = WorkspaceChannelSchema.pick({
   unreadCount: true,
 }).extend({
   categoryName: z.string().min(1).max(120).nullable(),
+  lastMessage: MobileChannelLastMessagePreviewSchema.nullable(),
 });
 
 export const MobileWorkspaceCategorySummarySchema = z.object({
@@ -565,6 +581,22 @@ export const MobileChannelSendMessageResponseSchema = z.object({
   message: ChatMessageSchema,
 });
 
+export const MobileChannelMarkReadResponseSchema = z.object({
+  channelId: z.string().min(1).max(128),
+  firstUnreadMessageId: z.string().min(1).max(128).nullable(),
+  mentionCount: z.number().int().nonnegative(),
+  serverId: z.string().min(1).max(128),
+  serverMentionCount: z.number().int().nonnegative(),
+  serverUnreadCount: z.number().int().nonnegative(),
+  unreadCount: z.number().int().nonnegative(),
+});
+
+export const MobileServerUnreadUpdateEventSchema = z.object({
+  mentionCount: z.number().int().nonnegative(),
+  serverId: z.string().min(1).max(128),
+  unreadCount: z.number().int().nonnegative(),
+});
+
 export type MobileBootstrapFeatureStatus = z.infer<typeof MobileBootstrapFeatureStatusSchema>;
 export type MobileBootstrapFeature = z.infer<typeof MobileBootstrapFeatureSchema>;
 export type MobileBootstrapServerSummary = z.infer<typeof MobileBootstrapServerSummarySchema>;
@@ -591,6 +623,10 @@ export type MobileMessageReactionResponse = z.infer<typeof MobileMessageReaction
 export type MobileMessageEditRequest = z.infer<typeof MobileMessageEditRequestSchema>;
 export type MobileMessageDeleteResponse = z.infer<typeof MobileMessageDeleteResponseSchema>;
 export type MobileWorkspaceChannelSummary = z.infer<typeof MobileWorkspaceChannelSummarySchema>;
+export type MobileChannelLastMessagePreviewAuthor = z.infer<
+  typeof MobileChannelLastMessagePreviewAuthorSchema
+>;
+export type MobileChannelLastMessagePreview = z.infer<typeof MobileChannelLastMessagePreviewSchema>;
 export type MobileWorkspaceServerDetail = z.infer<typeof MobileWorkspaceServerDetailSchema>;
 export type MobileWorkspaceServerDetailResponse = z.infer<
   typeof MobileWorkspaceServerDetailResponseSchema
@@ -603,6 +639,8 @@ export type MobileChannelSendMessageRequest = z.infer<typeof MobileChannelSendMe
 export type MobileChannelSendMessageResponse = z.infer<
   typeof MobileChannelSendMessageResponseSchema
 >;
+export type MobileChannelMarkReadResponse = z.infer<typeof MobileChannelMarkReadResponseSchema>;
+export type MobileServerUnreadUpdateEvent = z.infer<typeof MobileServerUnreadUpdateEventSchema>;
 export type MobileAuthExchangeRequest = z.infer<typeof MobileAuthExchangeRequestSchema>;
 export type MobileAuthExchangeResponse = z.infer<typeof MobileAuthExchangeResponseSchema>;
 export type MobileAuthRefreshRequest = z.infer<typeof MobileAuthRefreshRequestSchema>;

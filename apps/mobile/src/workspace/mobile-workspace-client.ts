@@ -1,11 +1,13 @@
 import {
   MobileChannelMessagesResponseSchema,
+  MobileChannelMarkReadResponseSchema,
   MobileChannelThreadMessagesResponseSchema,
   MobileChannelSendMessageResponseSchema,
   MobileMessageDeleteResponseSchema,
   MobileMessageReactionResponseSchema,
   MobileManagedWorkspaceServerDetailResponseSchema,
   type MobileChannelMessagesResponse,
+  type MobileChannelMarkReadResponse,
   type MobileChannelThreadMessagesResponse,
   type MobileChannelSendMessageRequest,
   type MobileChannelSendMessageResponse,
@@ -42,6 +44,20 @@ export function buildMobileChannelMessagesPath(input: {
   }
 
   return `/api/v1/mobile/channels/${encodeURIComponent(input.channelId)}/messages?${params.toString()}`;
+}
+
+export function buildMobileChannelMarkReadPath(input: { channelId: string }): string {
+  return `/api/v1/mobile/channels/${encodeURIComponent(input.channelId)}/read`;
+}
+
+export async function markMobileChannelRead(
+  client: MobileApiClient,
+  input: { channelId: string },
+): Promise<MobileChannelMarkReadResponse> {
+  const payload = await client.requestJson<unknown>(buildMobileChannelMarkReadPath(input), {
+    method: "PATCH",
+  });
+  return MobileChannelMarkReadResponseSchema.parse(payload);
 }
 
 export async function fetchMobileChannelMessages(

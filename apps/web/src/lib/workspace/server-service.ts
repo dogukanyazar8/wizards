@@ -78,6 +78,54 @@ export type MobileWorkspaceServerDetailProjection = {
   ungroupedChannels: WorkspaceServerDetail["ungroupedChannels"];
 };
 
+function toMobilePreviewText(content: string): string | null {
+  const text = content.trim().replace(/\s+/g, " ").slice(0, 240);
+  return text.length > 0 ? text : null;
+}
+
+function toMobileWorkspaceChannel(
+  channel: ChannelRecord,
+  unreadCounts: Map<string, { mentionCount: number; unreadCount: number }>,
+): WorkspaceServerDetail["ungroupedChannels"][number] & {
+  lastMessage: {
+    author: { displayName: string | null; id: string; username: string };
+    createdAt: string;
+    id: string;
+    text: string;
+  } | null;
+} {
+  const lastMessage = channel.messages?.[0];
+  const text = lastMessage ? toMobilePreviewText(lastMessage.content) : null;
+
+  return {
+    ...toWorkspaceChannel(channel, unreadCounts),
+    lastMessage:
+      lastMessage && text
+        ? {
+            author: lastMessage.author,
+            createdAt: lastMessage.createdAt.toISOString(),
+            id: lastMessage.id,
+            text,
+          }
+        : null,
+  };
+}
+
+function mapMobileCategories(
+  categories: Array<{
+    channels: ChannelRecord[];
+    id: string;
+    name: string;
+    position: number;
+  }>,
+  unreadCounts: Map<string, { mentionCount: number; unreadCount: number }>,
+) {
+  return categories.map((category) => ({
+    ...category,
+    channels: category.channels.map((channel) => toMobileWorkspaceChannel(channel, unreadCounts)),
+  }));
+}
+
 function ensureMobileMemberRoleBounds(
   members: Array<{ roles: Array<{ role: { isDefault: boolean } }> }>,
 ) {
@@ -489,6 +537,17 @@ async function loadMobileWorkspaceServerDetail(access: AccessContext): Promise<{
               categoryId: true,
               id: true,
               locked: true,
+              messages: {
+                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                select: {
+                  author: { select: { displayName: true, id: true, username: true } },
+                  content: true,
+                  createdAt: true,
+                  id: true,
+                },
+                take: 1,
+                where: { deletedAt: null, threadId: null, threadParentId: null },
+              },
               name: true,
               permissionOverrides: {
                 select: {
@@ -522,6 +581,17 @@ async function loadMobileWorkspaceServerDetail(access: AccessContext): Promise<{
           categoryId: true,
           id: true,
           locked: true,
+          messages: {
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            select: {
+              author: { select: { displayName: true, id: true, username: true } },
+              content: true,
+              createdAt: true,
+              id: true,
+            },
+            take: 1,
+            where: { deletedAt: null, threadId: null, threadParentId: null },
+          },
           name: true,
           permissionOverrides: {
             select: {
@@ -640,9 +710,9 @@ async function loadMobileWorkspaceServerDetail(access: AccessContext): Promise<{
     serverId,
     visibleTextChannelIds,
   );
-  const categories = mapCategories(boundedCategoryRows, unreadSummary.channelUnreadCounts);
+  const categories = mapMobileCategories(boundedCategoryRows, unreadSummary.channelUnreadCounts);
   const ungroupedChannels = boundedUngroupedRows.map((channel) =>
-    toWorkspaceChannel(channel, unreadSummary.channelUnreadCounts),
+    toMobileWorkspaceChannel(channel, unreadSummary.channelUnreadCounts),
   );
   const memberRows = server.members.slice(0, MOBILE_SERVER_DETAIL_MEMBER_LIMIT);
   const members = await mapMembers(server.ownerId, memberRows);

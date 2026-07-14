@@ -12,11 +12,14 @@ import type {
   DMMessageAuthorPayload,
   DMMessagePayload,
   MobileChannelMessagesResponse,
+  MobileChannelMarkReadResponse,
   MobileChannelSendMessageResponse,
   MobileDMMessagesResponse,
   MobileDMSendMessageResponse,
   MobileMessageDeleteResponse,
   MobileMessageReactionResponse,
+  MobileBootstrapPayload,
+  MobileManagedWorkspaceServerDetailResponse,
   MessageReaction,
 } from "@wizards/types";
 import type { MobileApiClient } from "../api/mobile-api-client";
@@ -32,6 +35,7 @@ import {
   deleteMobileChannelMessage,
   sendMobileChannelMessage,
   setMobileChannelMessageReaction,
+  markMobileChannelRead,
   updateMobileChannelMessage,
   type SendMobileChannelMessageInput,
 } from "../workspace/mobile-workspace-client";
@@ -363,6 +367,55 @@ export function useMobileChannelMessageMutation(input: {
       queryKey,
     }),
   );
+}
+
+export function useMobileChannelReadMutation(input: { readonly client: MobileApiClient }) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (variables: { channelId: string }) => markMobileChannelRead(input.client, variables),
+    onSuccess: (response: MobileChannelMarkReadResponse) => {
+      queryClient.setQueryData<MobileBootstrapPayload>(mobileQueryKeys.bootstrap(), (current) => {
+        if (!current) return current;
+        const recent = current.home.servers.recent.map((server) =>
+          server.id === response.serverId
+            ? {
+                ...server,
+                mentionCount: response.serverMentionCount,
+                unreadCount: response.serverUnreadCount,
+              }
+            : server,
+        );
+        return { ...current, home: { ...current.home, servers: { ...current.home.servers, recent } } };
+      });
+      queryClient.setQueryData<MobileManagedWorkspaceServerDetailResponse>(
+        mobileQueryKeys.workspace(response.serverId),
+        (current) => {
+          if (!current) return current;
+          const patchChannel = (channel: typeof current.detail.ungroupedChannels[number]) =>
+            channel.id === response.channelId
+              ? { ...channel, mentionCount: response.mentionCount, unreadCount: response.unreadCount }
+              : channel;
+          return {
+            ...current,
+            detail: {
+              ...current.detail,
+              categories: current.detail.categories.map((category) => ({
+                ...category,
+                channels: category.channels.map(patchChannel),
+              })),
+              server: {
+                ...current.detail.server,
+                mentionCount: response.serverMentionCount,
+                unreadCount: response.serverUnreadCount,
+              },
+              ungroupedChannels: current.detail.ungroupedChannels.map(patchChannel),
+            },
+          };
+        },
+      );
+    },
+  });
 }
 
 type MobileDMDraft = Omit<SendMobileDMMessageInput, "conversationId">;

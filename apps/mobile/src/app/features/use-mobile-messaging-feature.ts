@@ -22,6 +22,7 @@ import {
 import { useMobileMessageSearchQuery } from "../../query/mobile-message-search-query";
 import {
   useMobileChannelMessageMutation,
+  useMobileChannelReadMutation,
   useMobileChannelMessageDeleteMutation,
   useMobileChannelMessageEditMutation,
   useMobileChannelMessageReactionMutation,
@@ -143,6 +144,7 @@ export function useMobileMessagingFeature({
     channelId: activeWorkspaceTextChannelId ?? "",
     client: apiClient,
   });
+  const channelReadMutation = useMobileChannelReadMutation({ client: apiClient });
   const dmMessageMutation = useMobileDMMessageMutation({
     author: dmMessageAuthor,
     client: apiClient,
@@ -188,6 +190,7 @@ export function useMobileMessagingFeature({
   } = dmMessageMutation;
   const { isPending: isChannelReactionPending, mutate: mutateChannelReaction } =
     channelReactionMutation;
+  const { mutate: markChannelRead } = channelReadMutation;
   const { isPending: isDMReactionPending, mutate: mutateDMReaction } = dmReactionMutation;
   const { isPending: isChannelEditPending, mutateAsync: editChannelMessage } = channelEditMutation;
   const { isPending: isDMEditPending, mutateAsync: editDMMessage } = dmEditMutation;
@@ -644,11 +647,13 @@ export function useMobileMessagingFeature({
       resetChannelMessageMutation();
       setActiveWorkspaceTextChannelId(channel.id);
       setActiveWorkspaceVoiceChannelId(null);
+      markChannelRead({ channelId: channel.id });
       return false;
     },
     [
       clearMessageSearch,
       joinVoiceChannel,
+      markChannelRead,
       requestMicrophonePermission,
       resetChannelMessageMutation,
       selectedWorkspaceChannelId,

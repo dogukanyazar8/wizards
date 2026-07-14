@@ -5,6 +5,7 @@ import {
   buildMobileChannelMessagePath,
   buildMobileChannelMessageReactionPath,
   buildMobileChannelMessageThreadPath,
+  buildMobileChannelMarkReadPath,
   buildMobileChannelMessagesPath,
   buildMobileChannelSendMessagePath,
   buildMobileWorkspaceServerPath,
@@ -12,6 +13,7 @@ import {
   fetchMobileChannelMessageThread,
   fetchMobileChannelMessages,
   fetchMobileWorkspaceServer,
+  markMobileChannelRead,
   MOBILE_CHANNEL_MESSAGES_LIMIT,
   sendMobileChannelMessage,
   setMobileChannelMessageReaction,
@@ -38,6 +40,16 @@ const validServerDetailResponse = {
             categoryName: "Lobby",
             id: "channel-1",
             locked: false,
+            lastMessage: {
+              author: {
+                displayName: "Alice",
+                id: "user-1",
+                username: "alice",
+              },
+              createdAt: "2026-06-30T08:00:00.000Z",
+              id: "message-1",
+              text: "Hello from a real text channel.",
+            },
             mentionCount: 0,
             name: "welcome",
             position: 0,
@@ -153,6 +165,39 @@ describe("mobile workspace client", () => {
       buildMobileChannelMessageThreadPath({ ...input, cursor: "cursor 2" }),
       `/api/v1/mobile/channels/channel%2Fid%201/messages/message%2Fid%201/thread?limit=${MOBILE_CHANNEL_MESSAGES_LIMIT}&cursor=cursor+2`,
     );
+  });
+
+  it("marks an accessible text channel read through the bearer-auth contract", async () => {
+    const requests: Array<{ options: MobileApiRequestOptions | undefined; path: string }> = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string, options?: MobileApiRequestOptions) {
+        requests.push({ options, path });
+        return {
+          channelId: "channel-1",
+          firstUnreadMessageId: null,
+          mentionCount: 0,
+          serverId: "server-1",
+          serverMentionCount: 1,
+          serverUnreadCount: 2,
+          unreadCount: 0,
+        } as TResponse;
+      },
+    };
+
+    assert.equal(
+      buildMobileChannelMarkReadPath({ channelId: "channel/id 1" }),
+      "/api/v1/mobile/channels/channel%2Fid%201/read",
+    );
+
+    const response = await markMobileChannelRead(client, { channelId: "channel-1" });
+
+    assert.deepEqual(requests, [
+      {
+        options: { method: "PATCH" },
+        path: "/api/v1/mobile/channels/channel-1/read",
+      },
+    ]);
+    assert.equal(response.serverUnreadCount, 2);
   });
 
   it("loads and validates a mobile workspace server detail response", async () => {

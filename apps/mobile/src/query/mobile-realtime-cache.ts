@@ -3,6 +3,7 @@ import type {
   MobileFriendsOverviewResponse,
   MobileManagedWorkspaceServerDetailResponse,
   MobilePresenceUpdateEvent,
+  MobileServerUnreadUpdateEvent,
   MobileUserProfileUpdatedEvent,
 } from "@wizards/types";
 
@@ -38,6 +39,52 @@ export function removeMobileRealtimeBootstrapServer(
           recent,
           totalCount: Math.max(0, data.home.servers.totalCount - 1),
         },
+      },
+    },
+    patched: true,
+  };
+}
+
+export function patchMobileRealtimeBootstrapServerUnread(
+  data: MobileBootstrapPayload | undefined,
+  event: MobileServerUnreadUpdateEvent,
+): MobileRealtimeCachePatch<MobileBootstrapPayload> {
+  if (!data) {
+    return unchanged<MobileBootstrapPayload>(data);
+  }
+
+  let patched = false;
+  const recent = data.home.servers.recent.map((server) => {
+    if (server.id !== event.serverId) return server;
+    const next = { ...server, mentionCount: event.mentionCount, unreadCount: event.unreadCount };
+    const changed =
+      next.mentionCount !== server.mentionCount || next.unreadCount !== server.unreadCount;
+    patched ||= changed;
+    return changed ? next : server;
+  });
+
+  return patched
+    ? { data: { ...data, home: { ...data.home, servers: { ...data.home.servers, recent } } }, patched }
+    : unchanged(data);
+}
+
+export function patchMobileRealtimeWorkspaceServerUnread(
+  data: MobileManagedWorkspaceServerDetailResponse | undefined,
+  event: MobileServerUnreadUpdateEvent,
+): MobileRealtimeCachePatch<MobileManagedWorkspaceServerDetailResponse> {
+  if (!data || data.detail.server.id !== event.serverId) {
+    return unchanged<MobileManagedWorkspaceServerDetailResponse>(data);
+  }
+  const server = data.detail.server;
+  if (server.mentionCount === event.mentionCount && server.unreadCount === event.unreadCount) {
+    return unchanged(data);
+  }
+  return {
+    data: {
+      ...data,
+      detail: {
+        ...data.detail,
+        server: { ...server, mentionCount: event.mentionCount, unreadCount: event.unreadCount },
       },
     },
     patched: true,

@@ -42,6 +42,7 @@ function makeChannelPage(messages: ChatMessage[]): MobileChannelMessagesResponse
       categoryId: null,
       categoryName: null,
       id: "channel-1",
+      lastMessage: null,
       locked: false,
       mentionCount: 0,
       name: "development",

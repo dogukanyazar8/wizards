@@ -29,7 +29,9 @@ type MobileServerRateLimitAction =
   | "mobile:server:detail"
   | "mobile:server:update";
 
-type WorkspaceChannel = MobileWorkspaceServerDetailProjection["ungroupedChannels"][number];
+type WorkspaceChannel = MobileWorkspaceServerDetailProjection["ungroupedChannels"][number] & {
+  lastMessage?: MobileWorkspaceChannelSummary["lastMessage"];
+};
 
 export type MobileServerDetailRouteContext = {
   params: Promise<Record<string, string>>;
@@ -213,6 +215,7 @@ function toMobileWorkspaceChannel(
     categoryName,
     id: channel.id,
     locked: channel.locked,
+    lastMessage: channel.lastMessage ?? null,
     mentionCount: channel.mentionCount,
     name: channel.name,
     position: channel.position,
