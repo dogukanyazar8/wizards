@@ -178,7 +178,22 @@ function MobileBottomTabs({
   readonly directMessageUnreadCount: number;
 }) {
   const { status } = useMobileAuth();
-  const { voiceRoomState } = useMobileVoiceScreenProps();
+  const {
+    bootstrapState,
+    onBeginVoicePushToTalk,
+    onEndVoicePushToTalk,
+    onLeaveVoiceChannel,
+    onToggleVoiceMute,
+    voiceInputMode,
+    voicePushToTalkPhase,
+    voiceRoomState,
+  } = useMobileVoiceScreenProps();
+  const voiceServerName =
+    bootstrapState.status === "ready"
+      ? (bootstrapState.payload.home.servers.recent.find(
+          (server) => server.id === voiceRoomState.serverId,
+        )?.name ?? null)
+      : null;
   const openVoiceRoom = useCallback(() => {
     navigateMobileRouteIntent({ name: "VoiceRoom", params: undefined, type: "route" });
   }, []);
@@ -192,8 +207,15 @@ function MobileBottomTabs({
         <FloatingNavigationChrome
           {...props}
           directMessageUnreadCount={directMessageUnreadCount}
+          onBeginPushToTalk={onBeginVoicePushToTalk}
+          onEndPushToTalk={onEndVoicePushToTalk}
+          onLeaveVoiceChannel={onLeaveVoiceChannel}
           onOpenVoiceRoom={openVoiceRoom}
+          onToggleVoiceMute={onToggleVoiceMute}
+          voiceInputMode={voiceInputMode}
+          voicePushToTalkPhase={voicePushToTalkPhase}
           voiceRoom={voiceRoomState}
+          voiceServerName={voiceServerName}
         />
       )}
     >

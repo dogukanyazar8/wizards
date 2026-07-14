@@ -339,7 +339,7 @@ export function MobileProductApp({
     onBeginVoicePushToTalk: beginPushToTalk,
     onEndVoicePushToTalk: endPushToTalk,
     onFlipVoiceCamera: flipVoiceCamera,
-    onLeaveVoiceChannel: leaveVoiceChannel,
+    onLeaveVoiceChannel: handleLeaveWorkspaceVoiceChannel,
     onRefreshBootstrap: refreshBootstrap,
     onRefreshVisibleData: refreshVisibleMobileData,
     onRefreshVoiceDevices: refreshVoiceDevices,

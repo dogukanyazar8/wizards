@@ -198,3 +198,25 @@ test("floating pill tab bar uses canonical styling and typed DM unread state", (
   assert.match(copy, /tabServers:\s*"Sunucular"/);
   assert.match(copy, /tabServers:\s*"Servers"/);
 });
+
+test("mini voice bar is an active-session-only control surface", () => {
+  const chrome = read("../src/navigation/floating-navigation-chrome.tsx");
+  const productApp = read("../src/app/mobile-product-app.tsx");
+
+  assert.match(chrome, /isVoiceSessionActive\(voiceRoom\.status\)/);
+  assert.match(chrome, /marginHorizontal:\s*20/);
+  assert.match(chrome, /borderRadius:\s*20/);
+  assert.match(chrome, /paddingHorizontal:\s*16/);
+  assert.match(chrome, /paddingVertical:\s*12/);
+  assert.match(chrome, /theme\.surface\.inverse/);
+  assert.match(chrome, /theme\.elevation\.miniVoiceBar/);
+  assert.match(chrome, /theme\.text\.onInverseMuted/);
+  assert.match(chrome, /onBeginPushToTalk/);
+  assert.match(chrome, /onEndPushToTalk/);
+  assert.match(chrome, /onToggleVoiceMute/);
+  assert.match(chrome, /isTalkPressed\s*\?\s*"mic"\s*:\s*"mic-off"/);
+  assert.match(chrome, /onLeaveVoiceChannel/);
+  assert.match(chrome, /mobile-mini-voice-mic/);
+  assert.match(chrome, /mobile-mini-voice-leave/);
+  assert.match(productApp, /onLeaveVoiceChannel:\s*handleLeaveWorkspaceVoiceChannel/);
+});

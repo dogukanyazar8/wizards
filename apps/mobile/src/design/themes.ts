@@ -98,6 +98,7 @@ export interface MobileTheme {
     readonly card: string;
     readonly elevated: string;
     readonly inverse: string;
+    readonly inverseControl: string;
     readonly overlay: string;
     readonly rail: string;
     readonly scrim: string;
@@ -112,6 +113,7 @@ export interface MobileTheme {
     readonly dateSeparator: string;
     readonly inverse: string;
     readonly muted: string;
+    readonly onInverseMuted: string;
     readonly onInverse: string;
     readonly onPrimary: string;
     readonly placeholder: string;
@@ -231,6 +233,7 @@ export const lightTheme = deepFreeze({
     card: redesignLight.card,
     elevated: redesignLight.card,
     inverse: redesignLight.inkSurface,
+    inverseControl: "rgba(255,255,255,.12)",
     overlay: mobilePalette.neutral[100],
     rail: redesignLight.lavender,
     scrim: redesignDark.sheetOverlay,
@@ -244,6 +247,7 @@ export const lightTheme = deepFreeze({
     dateSeparator: redesignLight.canonicalTextFaint,
     inverse: mobilePalette.neutral.white,
     muted: redesignLight.textFaint,
+    onInverseMuted: "#9BA1C7",
     onInverse: mobilePalette.neutral.white,
     onPrimary: mobilePalette.neutral.white,
     placeholder: redesignLight.placeholder,
@@ -344,6 +348,7 @@ export const darkTheme = deepFreeze({
     card: redesignDark.card,
     elevated: redesignDark.card,
     inverse: redesignLight.inkSurface,
+    inverseControl: "rgba(255,255,255,.12)",
     overlay: redesignDark.hairline,
     rail: redesignDark.card,
     scrim: redesignDark.sheetOverlay,
@@ -357,6 +362,7 @@ export const darkTheme = deepFreeze({
     dateSeparator: redesignDark.canonicalTextFaint,
     inverse: mobilePalette.neutral.white,
     muted: redesignDark.textFaint,
+    onInverseMuted: "#9BA1C7",
     onInverse: mobilePalette.neutral.white,
     onPrimary: mobilePalette.neutral.white,
     placeholder: redesignDark.textFaint,

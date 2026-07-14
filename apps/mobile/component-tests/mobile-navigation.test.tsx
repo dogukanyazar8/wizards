@@ -30,6 +30,7 @@ jest.mock("../src/app/providers/mobile-deep-link-provider", () => ({
 
 jest.mock("../src/app/providers/mobile-product-screen-provider", () => ({
   useMobileVoiceScreenProps: () => ({
+    bootstrapState: { status: "loading" },
     voiceRoomState: { channelName: null, status: "idle" },
   }),
 }));

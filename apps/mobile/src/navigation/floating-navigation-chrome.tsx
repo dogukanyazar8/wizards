@@ -1,17 +1,22 @@
 import { useCallback, useContext, useEffect, useState } from "react";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   BottomTabBarHeightCallbackContext,
   type BottomTabBarProps,
 } from "@react-navigation/bottom-tabs";
 import { Keyboard, Platform, Pressable, Text, View, type LayoutChangeEvent } from "react-native";
+import { useMobileHaptics } from "../app/providers/mobile-haptics-provider";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
+import { MobileLineIcon } from "../design/mobile-line-icons";
 import type { MobileTheme } from "../design/themes";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import {
   isVoiceSessionActive,
   type MobileVoiceRoomState,
 } from "../voice/mobile-voice-room-contract";
+import type {
+  MobilePushToTalkPhase,
+  MobileVoiceInputMode,
+} from "../voice/mobile-voice-ptt-contract";
 import { MobileBottomTabBar } from "./mobile-bottom-tab-bar";
 
 const copy = activeMobileCopy;
@@ -19,15 +24,28 @@ const copy = activeMobileCopy;
 export function FloatingNavigationChrome({
   directMessageUnreadCount = 0,
   insets,
+  onBeginPushToTalk,
+  onEndPushToTalk,
+  onLeaveVoiceChannel,
   onOpenVoiceRoom,
+  onToggleVoiceMute,
+  voiceInputMode,
+  voicePushToTalkPhase,
   voiceRoom,
+  voiceServerName,
   ...tabBarProps
 }: BottomTabBarProps & {
   readonly directMessageUnreadCount?: number;
+  readonly onBeginPushToTalk: () => Promise<void>;
+  readonly onEndPushToTalk: () => void;
+  readonly onLeaveVoiceChannel: () => Promise<void>;
   readonly onOpenVoiceRoom: () => void;
-  readonly voiceRoom: Pick<MobileVoiceRoomState, "channelName" | "status">;
+  readonly onToggleVoiceMute: () => Promise<void>;
+  readonly voiceInputMode: MobileVoiceInputMode;
+  readonly voicePushToTalkPhase: MobilePushToTalkPhase;
+  readonly voiceRoom: Pick<MobileVoiceRoomState, "channelName" | "selfMuted" | "status">;
+  readonly voiceServerName: string | null;
 }) {
-  const theme = useTheme();
   const styles = useThemedStyles(createFloatingNavigationChromeStyles);
   const onHeightChange = useContext(BottomTabBarHeightCallbackContext);
   const keyboardVisible = useMobileKeyboardVisibility();
@@ -53,26 +71,17 @@ export function FloatingNavigationChrome({
       {keyboardVisible ? null : (
         <>
           {miniVoiceBarVisible ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={copy.voiceTitle}
-              onPress={onOpenVoiceRoom}
-              style={({ pressed }) => [styles.miniVoiceBar, pressed && styles.miniVoiceBarPressed]}
-              testID="mobile-mini-voice-bar"
-            >
-              <View style={styles.miniVoiceBarIcon}>
-                <Ionicons name="mic" size={18} color={theme.text.onPrimary} />
-              </View>
-              <View style={styles.miniVoiceBarText}>
-                <Text style={styles.miniVoiceBarTitle} numberOfLines={1}>
-                  {voiceRoom.channelName ?? copy.voiceTitle}
-                </Text>
-                <Text style={styles.miniVoiceBarStatus} numberOfLines={1}>
-                  {copy.voiceTitle}
-                </Text>
-              </View>
-              <Ionicons name="chevron-up" size={18} color={theme.text.onPrimary} />
-            </Pressable>
+            <MiniVoiceBar
+              onBeginPushToTalk={onBeginPushToTalk}
+              onEndPushToTalk={onEndPushToTalk}
+              onLeaveVoiceChannel={onLeaveVoiceChannel}
+              onOpenVoiceRoom={onOpenVoiceRoom}
+              onToggleVoiceMute={onToggleVoiceMute}
+              voiceInputMode={voiceInputMode}
+              voicePushToTalkPhase={voicePushToTalkPhase}
+              voiceRoom={voiceRoom}
+              voiceServerName={voiceServerName}
+            />
           ) : null}
           <MobileBottomTabBar
             {...tabBarProps}
@@ -82,6 +91,138 @@ export function FloatingNavigationChrome({
         </>
       )}
     </View>
+  );
+}
+
+function MiniVoiceBar({
+  onBeginPushToTalk,
+  onEndPushToTalk,
+  onLeaveVoiceChannel,
+  onOpenVoiceRoom,
+  onToggleVoiceMute,
+  voiceInputMode,
+  voicePushToTalkPhase,
+  voiceRoom,
+  voiceServerName,
+}: {
+  readonly onBeginPushToTalk: () => Promise<void>;
+  readonly onEndPushToTalk: () => void;
+  readonly onLeaveVoiceChannel: () => Promise<void>;
+  readonly onOpenVoiceRoom: () => void;
+  readonly onToggleVoiceMute: () => Promise<void>;
+  readonly voiceInputMode: MobileVoiceInputMode;
+  readonly voicePushToTalkPhase: MobilePushToTalkPhase;
+  readonly voiceRoom: Pick<MobileVoiceRoomState, "channelName" | "selfMuted" | "status">;
+  readonly voiceServerName: string | null;
+}) {
+  const { selection } = useMobileHaptics();
+  const styles = useThemedStyles(createFloatingNavigationChromeStyles);
+  const theme = useTheme();
+  const [leavePending, setLeavePending] = useState(false);
+  const isPushToTalk = voiceInputMode === "push-to-talk";
+  const microphoneEnabled = voiceRoom.status === "connected" && !leavePending;
+  const isTalkPressed = isPushToTalk && voicePushToTalkPhase === "holding";
+  const microphoneLabel = isPushToTalk
+    ? copy.voicePushToTalkAccessibilityLabel
+    : voiceRoom.selfMuted
+      ? copy.voiceUnmuteAction
+      : copy.voiceMuteAction;
+  const statusLabel = voiceServerName
+    ? `${copy.voiceMiniBarConnected} · ${voiceServerName}`
+    : copy.voiceMiniBarConnected;
+
+  const handleMicrophonePress = useCallback(async () => {
+    if (!microphoneEnabled) {
+      return;
+    }
+
+    if (isPushToTalk) {
+      await onBeginPushToTalk();
+    } else {
+      await onToggleVoiceMute();
+    }
+    selection();
+  }, [isPushToTalk, microphoneEnabled, onBeginPushToTalk, onToggleVoiceMute, selection]);
+
+  const handleLeave = useCallback(async () => {
+    if (leavePending) {
+      return;
+    }
+
+    setLeavePending(true);
+    try {
+      await onLeaveVoiceChannel();
+      selection();
+    } finally {
+      setLeavePending(false);
+    }
+  }, [leavePending, onLeaveVoiceChannel, selection]);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={copy.voiceTitle}
+      onPress={onOpenVoiceRoom}
+      style={({ pressed }) => [styles.miniVoiceBar, pressed && styles.miniVoiceBarPressed]}
+      testID="mobile-mini-voice-bar"
+    >
+      <View style={styles.miniVoiceBarPresence} />
+      <View style={styles.miniVoiceBarText}>
+        <Text style={styles.miniVoiceBarTitle} numberOfLines={1}>
+          {voiceRoom.channelName ?? copy.voiceTitle}
+        </Text>
+        <Text style={styles.miniVoiceBarStatus} numberOfLines={1}>
+          {statusLabel}
+        </Text>
+      </View>
+      <Pressable
+        accessibilityLabel={microphoneLabel}
+        accessibilityRole="button"
+        accessibilityState={{
+          disabled: !microphoneEnabled,
+          selected: isPushToTalk ? isTalkPressed : !voiceRoom.selfMuted,
+        }}
+        disabled={!microphoneEnabled}
+        onPress={isPushToTalk ? undefined : () => void handleMicrophonePress()}
+        onPressIn={isPushToTalk ? () => void handleMicrophonePress() : undefined}
+        onPressOut={isPushToTalk ? onEndPushToTalk : undefined}
+        style={({ pressed }) => [
+          styles.miniVoiceBarControl,
+          (pressed || isTalkPressed) && styles.miniVoiceBarControlPressed,
+          !microphoneEnabled && styles.miniVoiceBarControlDisabled,
+        ]}
+        testID="mobile-mini-voice-mic"
+      >
+        <MobileLineIcon
+          color={theme.text.onInverse}
+          name={
+            isPushToTalk
+              ? isTalkPressed
+                ? "mic"
+                : "mic-off"
+              : voiceRoom.selfMuted
+                ? "mic-off"
+                : "mic"
+          }
+          size={17}
+        />
+      </Pressable>
+      <Pressable
+        accessibilityLabel={copy.voiceLeaveAction}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: leavePending }}
+        disabled={leavePending}
+        onPress={() => void handleLeave()}
+        style={({ pressed }) => [
+          styles.miniVoiceBarLeave,
+          pressed && styles.miniVoiceBarLeavePressed,
+          leavePending && styles.miniVoiceBarControlDisabled,
+        ]}
+        testID="mobile-mini-voice-leave"
+      >
+        <MobileLineIcon color={theme.text.onInverse} name="leave" size={17} />
+      </Pressable>
+    </Pressable>
   );
 }
 
@@ -105,7 +246,7 @@ function useMobileKeyboardVisibility(): boolean {
 
 export const createFloatingNavigationChromeStyles = (theme: MobileTheme) => ({
   chrome: {
-    gap: 8,
+    gap: 12,
     minWidth: 0,
     paddingTop: 8,
   },
@@ -115,32 +256,53 @@ export const createFloatingNavigationChromeStyles = (theme: MobileTheme) => ({
     paddingTop: 0,
   },
   miniVoiceBar: {
-    minHeight: 54,
+    minHeight: 60,
     minWidth: 0,
     flexDirection: "row" as const,
     alignItems: "center" as const,
-    gap: 10,
-    borderRadius: 18,
+    gap: 12,
+    marginHorizontal: 20,
+    borderRadius: 20,
     backgroundColor: theme.surface.inverse,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     ...theme.elevation.miniVoiceBar,
   },
-  miniVoiceBarIcon: {
-    width: 34,
-    height: 34,
+  miniVoiceBarControl: {
+    width: 36,
+    height: 36,
     alignItems: "center" as const,
     justifyContent: "center" as const,
-    borderRadius: 13,
-    backgroundColor: theme.accent.action,
+    borderRadius: 12,
+    backgroundColor: theme.surface.inverseControl,
+  },
+  miniVoiceBarControlDisabled: {
+    opacity: 0.5,
+  },
+  miniVoiceBarControlPressed: {
+    backgroundColor: theme.interactive.pressed,
+  },
+  miniVoiceBarLeave: {
+    width: 36,
+    height: 36,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    borderRadius: 12,
+    backgroundColor: theme.status.dangerAction,
+  },
+  miniVoiceBarLeavePressed: { opacity: 0.78 },
+  miniVoiceBarPresence: {
+    width: 8,
+    height: 8,
+    borderRadius: theme.radii.pill,
+    backgroundColor: theme.status.success,
   },
   miniVoiceBarPressed: {
     opacity: 0.88,
   },
   miniVoiceBarStatus: {
-    color: theme.text.onPrimary,
-    fontSize: 11,
-    fontWeight: "700" as const,
+    ...theme.typography.caption,
+    color: theme.text.onInverseMuted,
   },
   miniVoiceBarText: {
     flex: 1,
@@ -148,8 +310,9 @@ export const createFloatingNavigationChromeStyles = (theme: MobileTheme) => ({
     gap: 1,
   },
   miniVoiceBarTitle: {
-    color: theme.text.onPrimary,
-    fontSize: 13,
-    fontWeight: "900" as const,
+    color: theme.text.onInverse,
+    fontSize: 13.5,
+    fontFamily: theme.typography.fontFamilyBold,
+    fontWeight: "700" as const,
   },
 });

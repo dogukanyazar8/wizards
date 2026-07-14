@@ -511,6 +511,7 @@ export function Fixture({ cap }: { cap: number }) {
       card: "#FFFFFF",
       elevated: "#FFFFFF",
       inverse: "#1E2235",
+      inverseControl: "rgba(255,255,255,.12)",
       overlay: "#F1F5F9",
       rail: "#EEF0FE",
       scrim: "rgba(0,0,0,.55)",
@@ -521,6 +522,7 @@ export function Fixture({ cap }: { cap: number }) {
       card: "#1C1F3A",
       elevated: "#1C1F3A",
       inverse: "#1E2235",
+      inverseControl: "rgba(255,255,255,.12)",
       overlay: "#232644",
       rail: "#1C1F3A",
       scrim: "rgba(0,0,0,.55)",
@@ -532,6 +534,7 @@ export function Fixture({ cap }: { cap: number }) {
       inverse: "#FFFFFF",
       muted: "#676D90",
       onInverse: "#FFFFFF",
+      onInverseMuted: "#9BA1C7",
       onPrimary: "#FFFFFF",
       placeholder: "#676D90",
       primary: "#1E2235",
@@ -543,6 +546,7 @@ export function Fixture({ cap }: { cap: number }) {
       inverse: "#FFFFFF",
       muted: "#8288AD",
       onInverse: "#FFFFFF",
+      onInverseMuted: "#9BA1C7",
       onPrimary: "#FFFFFF",
       placeholder: "#8288AD",
       primary: "#ECEEFA",
@@ -598,7 +602,9 @@ export function Fixture({ cap }: { cap: number }) {
   });
 
   it("maps every tokenized application shadow to the canonical HTML", () => {
-    const handoffShadows = [...readFileSync(handoffHtmlPath, "utf8").matchAll(/box-shadow:([^;\"]+)/g)]
+    const handoffShadows = [
+      ...readFileSync(handoffHtmlPath, "utf8").matchAll(/box-shadow:([^;\"]+)/g),
+    ]
       .map((match) => match[1]?.trim())
       .filter(
         (shadow): shadow is string =>
