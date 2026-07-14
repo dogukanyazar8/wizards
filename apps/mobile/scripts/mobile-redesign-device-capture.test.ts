@@ -45,6 +45,7 @@ test("deterministic device capture accepts only a pinned UAT DPR-3 environment",
   const outputRoot = mkdtempSync(path.join(tmpdir(), "whispr-device-capture-"));
   const result = await capture.writeDeterministicDeviceCapture({
     anchor: "1a",
+    build: "uat-20260715.1",
     buildProfile: "uat",
     commit: "0123456789abcdef0123456789abcdef01234567",
     inputPath: path.join(mobileRoot, "visual-baselines", "whispr-mobile-redesign", "v1", "1a.png"),
@@ -64,21 +65,36 @@ test("deterministic device capture accepts only a pinned UAT DPR-3 environment",
   assert.equal(result.manifest.mask.version, 1);
   assert.equal(existsSync(result.capturePath), true);
   assert.equal(existsSync(result.manifestPath), true);
-  assert.match(result.capturePath, /1a-light\.png$/);
-  assert.match(result.manifestPath, /1a-light-manifest\.json$/);
+  assert.match(result.capturePath, /1a-light[\\/]1a-light\.png$/);
+  assert.match(result.manifestPath, /1a-light[\\/]1a-light-manifest\.json$/);
 
   const evidence = await capture.readDeterministicDeviceCapture({
     anchor: "1a",
-    captureDirectory: path.dirname(result.capturePath),
+    captureDirectory: outputRoot,
     theme: "light",
   });
   assert.equal(evidence.manifest.inputHash, result.manifest.inputHash);
+
+  assert.doesNotThrow(() =>
+    capture.assertVisualCaptureEvidenceIsFresh({
+      changedPaths: ["artifacts/redesign/1a-light/1a-light.png"],
+      commit: result.manifest.commit,
+    }),
+  );
+  assert.throws(
+    () =>
+      capture.assertVisualCaptureEvidenceIsFresh({
+        changedPaths: ["apps/mobile/src/navigation/mobile-navigation.tsx"],
+        commit: result.manifest.commit,
+      }),
+    /stale/i,
+  );
 
   await writeFile(result.manifestPath, JSON.stringify({ ...result.manifest, platform: "unknown" }));
   await assert.rejects(
     () => capture.readDeterministicDeviceCapture({
       anchor: "1a",
-      captureDirectory: path.dirname(result.capturePath),
+      captureDirectory: outputRoot,
       theme: "light",
     }),
     /invalid platform, mask, or image hash/i,

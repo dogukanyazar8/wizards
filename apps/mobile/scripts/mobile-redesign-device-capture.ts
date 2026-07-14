@@ -59,6 +59,7 @@ export type CaptureEnvironment = {
 
 export type DeviceCaptureManifest = {
   anchor: DeviceCaptureAnchor;
+  build: string;
   buildProfile: "uat";
   captureEnvironmentHash: string;
   colorSpace: "sRGB";
@@ -79,6 +80,18 @@ export type DeviceCaptureManifest = {
   timezone: "Europe/Istanbul";
   version: 1;
 };
+
+// Any change in these inputs can change a native visual capture. Keep this
+// deliberately conservative: accepting stale evidence is worse than requiring
+// a recapture for a mobile source change.
+export const VISUAL_CAPTURE_SOURCE_PATHS = [
+  "apps/mobile/assets/",
+  "apps/mobile/package.json",
+  "apps/mobile/scripts/",
+  "apps/mobile/src/",
+  "apps/mobile/visual-baselines/whispr-mobile-redesign/",
+  "pnpm-lock.yaml",
+] as const;
 
 function sha256(value: Buffer): string {
   return createHash("sha256").update(value).digest("hex");
@@ -190,6 +203,52 @@ function assertCommit(commit: string): asserts commit is string {
   }
 }
 
+function assertBuild(build: string): void {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{2,127}$/.test(build)) {
+    throw new Error("Device capture evidence requires a non-secret UAT build identifier.");
+  }
+}
+
+function captureTargetDirectory(captureDirectory: string, anchor: DeviceCaptureAnchor, theme: Theme): string {
+  return path.join(path.resolve(captureDirectory), `${anchor}-${theme}`);
+}
+
+function isVisualCaptureSourcePath(filePath: string): boolean {
+  return VISUAL_CAPTURE_SOURCE_PATHS.some(
+    (sourcePath) => filePath === sourcePath || filePath.startsWith(sourcePath),
+  );
+}
+
+export function assertVisualCaptureEvidenceIsFresh(input: { commit: string; changedPaths: readonly string[] }): void {
+  assertCommit(input.commit);
+  const changedVisualSources = input.changedPaths.filter(isVisualCaptureSourcePath);
+  if (changedVisualSources.length > 0) {
+    throw new Error(
+      `Device capture evidence is stale for ${input.commit}: ${changedVisualSources.join(", ")}. Recapture and commit the affected targets.`,
+    );
+  }
+}
+
+export function getChangedVisualCaptureSourcePaths(commit: string): string[] {
+  assertCommit(commit);
+  try {
+    execFileSync("git", ["merge-base", "--is-ancestor", commit, "HEAD"], {
+      cwd: repositoryRoot,
+      stdio: "ignore",
+    });
+  } catch {
+    throw new Error(`Device capture evidence commit ${commit} is not an ancestor of HEAD.`);
+  }
+
+  return execFileSync(
+    "git",
+    ["diff", "--name-only", "--diff-filter=ACMR", `${commit}..HEAD`, "--", ...VISUAL_CAPTURE_SOURCE_PATHS],
+    { cwd: repositoryRoot, encoding: "utf8" },
+  )
+    .split(/\r?\n/)
+    .filter(Boolean);
+}
+
 function assertCaptureTarget(anchor: string, theme: string): asserts anchor is DeviceCaptureAnchor {
   if (!DEVICE_CAPTURE_TARGETS.some((target) => target.anchor === anchor && target.theme === theme)) {
     throw new Error(`Device capture target ${anchor}-${theme} is not a supported normalized golden target.`);
@@ -211,6 +270,7 @@ function assertManifestMatchesEnvironment(manifest: DeviceCaptureManifest, envir
   assertCommit(manifest.commit);
   if (
     manifest.buildProfile !== "uat" ||
+    typeof manifest.build !== "string" ||
     manifest.colorSpace !== environment.colorSpace ||
     manifest.deviceScaleFactor !== environment.deviceScaleFactor ||
     manifest.fontScale !== environment.fontScale ||
@@ -226,6 +286,7 @@ function assertManifestMatchesEnvironment(manifest: DeviceCaptureManifest, envir
   ) {
     throw new Error("Device capture manifest differs from the pinned deterministic contract.");
   }
+  assertBuild(manifest.build);
   const environmentBytes = readFileSync(environmentPath);
   const maskBytes = readFileSync(path.join(baselineDirectory, environment.masks.file));
   if (
@@ -240,6 +301,7 @@ function assertManifestMatchesEnvironment(manifest: DeviceCaptureManifest, envir
 
 export async function writeDeterministicDeviceCapture(input: {
   anchor: DeviceCaptureAnchor;
+  build: string;
   buildProfile: "uat" | "production" | "store";
   commit: string;
   inputPath: string;
@@ -251,6 +313,7 @@ export async function writeDeterministicDeviceCapture(input: {
   const environment = readCaptureEnvironment();
   assertDeterministicDeviceCapture({ ...environment, buildProfile: input.buildProfile });
   assertCommit(input.commit);
+  assertBuild(input.build);
   assertCaptureTarget(input.anchor, input.theme);
   if (input.testAccount !== allowedTestAccount) {
     throw new Error("Device capture may use only the allowlisted redacted UAT test account alias.");
@@ -264,7 +327,7 @@ export async function writeDeterministicDeviceCapture(input: {
   const maskPath = path.join(baselineDirectory, environment.masks.file);
   const maskBytes = readFileSync(maskPath);
   const environmentBytes = readFileSync(environmentPath);
-  const outputDirectory = path.resolve(input.outputRoot, input.commit, input.platform);
+  const outputDirectory = captureTargetDirectory(input.outputRoot, input.anchor, input.theme);
   await mkdir(outputDirectory, { recursive: true });
   const capturePath = path.join(outputDirectory, `${input.anchor}-${input.theme}.png`);
   const manifestPath = path.join(outputDirectory, `${input.anchor}-${input.theme}-manifest.json`);
@@ -272,6 +335,7 @@ export async function writeDeterministicDeviceCapture(input: {
 
   const manifest: DeviceCaptureManifest = {
     anchor: input.anchor,
+    build: input.build,
     buildProfile: "uat",
     captureEnvironmentHash: sha256(environmentBytes),
     colorSpace: environment.colorSpace,
@@ -308,8 +372,9 @@ export async function readDeterministicDeviceCapture(input: {
 }): Promise<{ capturePath: string; manifest: DeviceCaptureManifest; manifestPath: string }> {
   assertCaptureTarget(input.anchor, input.theme);
   const captureDirectory = path.resolve(input.captureDirectory);
-  const capturePath = path.join(captureDirectory, `${input.anchor}-${input.theme}.png`);
-  const manifestPath = path.join(captureDirectory, `${input.anchor}-${input.theme}-manifest.json`);
+  const targetDirectory = captureTargetDirectory(captureDirectory, input.anchor, input.theme);
+  const capturePath = path.join(targetDirectory, `${input.anchor}-${input.theme}.png`);
+  const manifestPath = path.join(targetDirectory, `${input.anchor}-${input.theme}-manifest.json`);
   if (!existsSync(capturePath) || !existsSync(manifestPath)) {
     throw new Error(`Missing device capture evidence for ${input.anchor}-${input.theme} in ${captureDirectory}.`);
   }
@@ -349,6 +414,7 @@ if (invokedAsScript) {
   }
   writeDeterministicDeviceCapture({
     anchor: readCliValue("--anchor") as DeviceCaptureAnchor,
+    build: process.env.WHISPR_CAPTURE_BUILD ?? "",
     buildProfile: process.env.WHISPR_MOBILE_ENV === "uat" ? "uat" : "production",
     commit: process.env.WHISPR_CAPTURE_COMMIT ?? getCommit(),
     inputPath,

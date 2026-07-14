@@ -1,0 +1,78 @@
+name: Mobile Redesign Device Gate (UAT)
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: mobile-redesign-device-gate-uat
+  cancel-in-progress: false
+
+jobs:
+  device-visual-gate:
+    name: Device visual gate (UAT evidence)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout UAT evidence
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          ref: uat
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run committed device evidence gate
+        id: device_gate
+        env:
+          WHISPR_DEVICE_CAPTURE_DIRECTORY: artifacts/redesign
+        run: pnpm --filter @wizards/mobile visual:gate
+
+      - name: Upload device visual gate evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          if-no-files-found: warn
+          name: mobile-redesign-device-gate-uat-${{ github.run_id }}
+          path: artifacts/redesign
+          retention-days: 30
+
+      - name: Notify UAT visual gate failure
+        if: failure()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v7
+        with:
+          script: |
+            const title = "Mobile UAT device visual gate is failing";
+            const marker = "<!-- mobile-redesign-device-gate -->";
+            const { owner, repo } = context.repo;
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              per_page: 100,
+            });
+            const existing = issues.find((issue) => issue.title === title && issue.body?.includes(marker));
+            const body = `${marker}\nThe committed UAT device-capture evidence failed on the uat ref. Run: ${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            if (existing) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body });
+            } else {
+              await github.rest.issues.create({ owner, repo, title, body });
+            }

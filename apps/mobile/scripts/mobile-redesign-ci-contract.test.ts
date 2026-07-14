@@ -26,6 +26,22 @@ test("CI blocks normalized golden drift without misrepresenting it as a device g
   assert.doesNotMatch(workflow, /Mobile redesign golden drift[\s\S]{0,240}continue-on-error:\s*true/);
 });
 
+test("nightly UAT device gate reads committed evidence and refuses stale screen evidence", () => {
+  const workflow = readFileSync(
+    path.join(repositoryRoot, ".github", "workflows", "mobile-redesign-device-gate-nightly.yml"),
+    "utf8",
+  );
+
+  assert.match(workflow, /schedule:/);
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /ref:\s*uat/);
+  assert.match(workflow, /fetch-depth:\s*0/);
+  assert.match(workflow, /WHISPR_DEVICE_CAPTURE_DIRECTORY:\s*artifacts\/redesign/);
+  assert.match(workflow, /pnpm --filter @wizards\/mobile visual:gate/);
+  assert.match(workflow, /actions\/upload-artifact@/);
+  assert.doesNotMatch(workflow, /visual:gate[\s\S]{0,160}continue-on-error:\s*true/);
+});
+
 test("golden drift gate rejects a normalized golden manifest drift", async () => {
   const gate = await import("./mobile-redesign-golden-drift");
   const baseline = {

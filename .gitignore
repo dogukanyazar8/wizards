@@ -34,6 +34,15 @@ apps/mobile/artifacts/
 
 # Local cross-platform verification evidence
 /artifacts/
+!/artifacts/
+/artifacts/*
+!/artifacts/redesign/
+!/artifacts/redesign/**/
+/artifacts/redesign/**/*.*
+!/artifacts/redesign/**/*-light.png
+!/artifacts/redesign/**/*-dark.png
+!/artifacts/redesign/**/*-light-manifest.json
+!/artifacts/redesign/**/*-dark-manifest.json
 
 target
 apps/desktop/.tauri

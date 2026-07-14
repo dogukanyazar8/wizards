@@ -3,6 +3,8 @@ import path from "node:path";
 
 import {
   DEVICE_CAPTURE_TARGETS,
+  assertVisualCaptureEvidenceIsFresh,
+  getChangedVisualCaptureSourcePaths,
   readCaptureEnvironment,
   readDeterministicDeviceCapture,
 } from "./mobile-redesign-device-capture";
@@ -44,6 +46,7 @@ export async function verifyDeviceCapturesAgainstNormalizedGoldens(input: {
   captureDirectory: string;
 }): Promise<void> {
   const captureDirectory = requireDeviceCaptureDirectory(input.captureDirectory);
+  const changedPathsByCommit = new Map<string, string[]>();
 
   for (const target of DEVICE_GATE_TARGETS) {
     const evidence = await readDeterministicDeviceCapture({
@@ -51,6 +54,9 @@ export async function verifyDeviceCapturesAgainstNormalizedGoldens(input: {
       captureDirectory,
       theme: target.theme,
     });
+    const changedPaths = changedPathsByCommit.get(evidence.manifest.commit) ?? getChangedVisualCaptureSourcePaths(evidence.manifest.commit);
+    changedPathsByCommit.set(evidence.manifest.commit, changedPaths);
+    assertVisualCaptureEvidenceIsFresh({ commit: evidence.manifest.commit, changedPaths });
     const result = await diffTwoLayerVisuals({
       actualPath: evidence.capturePath,
       expectedPath: path.join(baselineDirectory, `${target.anchor}.png`),
