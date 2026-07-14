@@ -53,6 +53,54 @@ export const mobileNavigationMetrics = {
   tabItemPaddingVertical: 8,
 } as const;
 
+/**
+ * Named measurements used by the redesign screen trees outside the compact
+ * spacing/radius scale. They remain semantic so dark screens without an HTML
+ * pixel reference can be validated against the same role contract.
+ */
+export const mobileLayoutMetrics = {
+  border: { hairline: 1 },
+  fixed: {
+    actionWidth: 104,
+    compactActionHeight: 30,
+    composeControl: 48,
+    conversationMinHeight: 86,
+    conversationHeaderHeight: 58,
+    denseRowHeight: 56,
+    handleHeight: 4,
+    handleWidth: 42,
+    iconControl: 34,
+    metricColumn: 88,
+    minimumActionWidth: 54,
+    permissionRowHeight: 64,
+    readingColumn: 92,
+    summaryMaxWidth: 128,
+  },
+  opacity: {
+    disabled: 0.62,
+    muted: 0.52,
+    pressed: 0.78,
+    subdued: 0.56,
+    textDisabled: 0.86,
+    touched: 0.88,
+  },
+  spacing: {
+    hairline: 1,
+    micro: 2,
+    microPlus: 3,
+    small: 4,
+    smallPlus: 5,
+    tight: 7,
+    tightPlus: 9,
+  },
+  typography: {
+    compactTracking: 0.7,
+    mediaTracking: 0.8,
+    sectionTracking: 1.5,
+    screenTitleLineHeight: 31,
+  },
+} as const;
+
 export const mobileTypography = {
   fontFamily: "WhisprJakarta_400Regular",
   fontFamilyBold: "WhisprJakarta_700Bold",

@@ -9,7 +9,7 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 import { useThemedStyles } from "../../providers/mobile-theme-provider";
-import type { MobileTheme } from "../../../design/themes";
+import { createBottomSheetStyles } from "./bottom-sheet.styles";
 
 export interface BottomSheetProps {
   accessibilityLabel: string;
@@ -24,36 +24,6 @@ const DEFAULT_SNAP_POINT = 420;
 const MIN_SNAP_POINT = 240;
 const MAX_SNAP_POINT = 720;
 const CLOSE_VELOCITY = 900;
-
-const createStyles = (theme: MobileTheme) => ({
-  root: { flex: 1, justifyContent: "flex-end" as const },
-  backdrop: {
-    backgroundColor: theme.surface.scrim,
-    bottom: 0,
-    left: 0,
-    position: "absolute" as const,
-    right: 0,
-    top: 0,
-  },
-  panel: {
-    backgroundColor: theme.surface.elevated,
-    borderColor: theme.border.subtle,
-    borderTopLeftRadius: theme.radii.card,
-    borderTopRightRadius: theme.radii.card,
-    borderWidth: 1,
-    overflow: "hidden" as const,
-    paddingBottom: theme.spacing.page,
-    ...theme.elevation.bottomSheet,
-  },
-  handleArea: { alignItems: "center" as const, paddingBottom: 10, paddingTop: 10 },
-  handle: {
-    backgroundColor: theme.border.default,
-    borderRadius: theme.radii.pill,
-    height: 4,
-    width: 42,
-  },
-  content: { flex: 1, paddingHorizontal: theme.spacing.page },
-});
 
 function clampSnapPoint(snapPoint: number | undefined): number {
   const value = Number.isFinite(snapPoint) ? Math.round(snapPoint ?? DEFAULT_SNAP_POINT) : DEFAULT_SNAP_POINT;
@@ -74,7 +44,7 @@ export function BottomSheet({
   snapPoint: requestedSnapPoint,
   testID = "mobile-bottom-sheet",
 }: BottomSheetProps) {
-  const styles = useThemedStyles(createStyles);
+  const styles = useThemedStyles(createBottomSheetStyles);
   const reducedMotion = useReducedMotion() === true;
   const snapPoint = clampSnapPoint(requestedSnapPoint);
   const translateY = useSharedValue(open ? 0 : snapPoint);

@@ -890,7 +890,7 @@ export function Fixture({ cap }: { cap: number }) {
 
   it("keeps sheet and lightbox backdrops on the dedicated scrim role", () => {
     const bottomSheet = readFileSync(
-      join(process.cwd(), "src", "app", "components", "kit", "bottom-sheet.tsx"),
+      join(process.cwd(), "src", "app", "components", "kit", "bottom-sheet.styles.ts"),
       "utf8",
     );
     const lightbox = readFileSync(

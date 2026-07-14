@@ -5,7 +5,13 @@ import {
   redesignDark,
   redesignLight,
 } from "./palette";
-import { mobileRadii, mobileSizing, mobileSpacing, mobileTypography } from "./tokens";
+import {
+  mobileLayoutMetrics,
+  mobileRadii,
+  mobileSizing,
+  mobileSpacing,
+  mobileTypography,
+} from "./tokens";
 
 export type MobileThemeId = "dark" | "light";
 
@@ -65,6 +71,8 @@ export interface MobileTheme {
     readonly disabled: string;
     readonly pressed: string;
   };
+  /** Named non-scale layout measures used by semantic screen style trees. */
+  readonly layout: typeof mobileLayoutMetrics;
   readonly media: {
     readonly border: string;
     readonly surface: string;
@@ -211,6 +219,7 @@ export const lightTheme = deepFreeze({
     disabled: mobilePalette.overlay.disabledLight,
     pressed: mobilePalette.overlay.pressedLight,
   },
+  layout: mobileLayoutMetrics,
   media: {
     border: mobilePalette.neutral[700],
     surface: mobilePalette.neutral[950],
@@ -329,6 +338,7 @@ export const darkTheme = deepFreeze({
     disabled: mobilePalette.overlay.disabledDark,
     pressed: mobilePalette.overlay.pressedDark,
   },
+  layout: mobileLayoutMetrics,
   media: {
     border: mobilePalette.neutral[700],
     surface: mobilePalette.neutral[950],
