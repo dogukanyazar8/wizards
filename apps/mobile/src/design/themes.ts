@@ -42,6 +42,8 @@ export interface MobileTheme {
   readonly border: {
     readonly default: string;
     readonly focus: string;
+    /** Surface-matched ring for non-text controls layered on a card. */
+    readonly onSurfaceRing: string;
     readonly subtle: string;
   };
   readonly dark: boolean;
@@ -80,6 +82,8 @@ export interface MobileTheme {
     readonly dangerAction: string;
     /** Accessible normal-text danger foreground on base and card surfaces. */
     readonly dangerOnBase: string;
+    /** Canonical danger accent for icons and controls on inverse surfaces. */
+    readonly dangerOnInverse: string;
     readonly dangerSoft: string;
     readonly info: string;
     readonly infoSoft: string;
@@ -87,6 +91,8 @@ export interface MobileTheme {
     readonly onStatus: string;
     /** Canonical success accent for icons, borders and decorative controls. */
     readonly success: string;
+    /** Canonical success accent for icons and controls on inverse surfaces. */
+    readonly successOnInverse: string;
     readonly successSoft: string;
     /** Accessible success foreground for audited text contexts. */
     readonly successText: string;
@@ -147,6 +153,7 @@ export const lightTheme = deepFreeze({
   border: {
     default: redesignLight.hairline,
     focus: redesignLight.primary,
+    onSurfaceRing: mobilePalette.neutral.white,
     subtle: redesignLight.border,
   },
   dark: false,
@@ -218,11 +225,13 @@ export const lightTheme = deepFreeze({
     danger: redesignLight.danger,
     dangerAction: redesignLight.danger,
     dangerOnBase: redesignLight.dangerOnBase,
+    dangerOnInverse: redesignLight.canonicalDanger,
     dangerSoft: redesignLight.dangerSurface,
     info: mobilePalette.status.info,
     infoSoft: mobilePalette.status.infoSoft,
     onStatus: redesignLight.text,
     success: redesignLight.success,
+    successOnInverse: redesignDark.success,
     successSoft: redesignLight.successSurface,
     successText: redesignLight.successText,
     warning: mobilePalette.status.warning,
@@ -270,6 +279,7 @@ export const darkTheme = deepFreeze({
   border: {
     default: redesignDark.hairline,
     focus: redesignDark.primary,
+    onSurfaceRing: redesignDark.card,
     subtle: redesignDark.border,
   },
   dark: true,
@@ -333,11 +343,13 @@ export const darkTheme = deepFreeze({
     danger: redesignDark.danger,
     dangerAction: redesignDark.dangerAction,
     dangerOnBase: redesignDark.dangerOnBase,
+    dangerOnInverse: redesignLight.canonicalDanger,
     dangerSoft: redesignDark.dangerSurface,
     info: mobilePalette.status.infoDark,
     infoSoft: mobilePalette.status.infoSoftDark,
     onStatus: redesignDark.text,
     success: redesignDark.success,
+    successOnInverse: redesignDark.success,
     successSoft: redesignDark.successSurface,
     successText: redesignDark.success,
     warning: redesignDark.warning,

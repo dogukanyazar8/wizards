@@ -3,6 +3,7 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Pressable, Text, View, type TextStyle, type ViewStyle } from "react-native";
 import { useMobileHaptics } from "../app/providers/mobile-haptics-provider";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
+import { redesignLight } from "../design/palette";
 import type { MobileTheme } from "../design/themes";
 import { MobileLineIcon, type MobileLineIconName } from "../design/mobile-line-icons";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
@@ -92,11 +93,13 @@ export function MobileBottomTabBar({
                 <MobileTabIcon
                   icon={tabIcons[tabId]}
                   isActive={isActive}
-                  showUnreadDot={showUnreadDot}
                 />
                 <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>
                   {getMobileTabLabel(tabId)}
                 </Text>
+                {showUnreadDot ? (
+                  <View style={styles.navUnreadDot} testID="mobile-bottom-tab-unread-dot" />
+                ) : null}
               </Pressable>
             );
           })}
@@ -109,11 +112,9 @@ export function MobileBottomTabBar({
 function MobileTabIcon({
   icon,
   isActive,
-  showUnreadDot,
 }: {
   readonly icon: MobileLineIconName;
   readonly isActive: boolean;
-  readonly showUnreadDot: boolean;
 }) {
   const theme = useTheme();
   const styles = useThemedStyles(createMobileBottomTabBarStyles);
@@ -121,13 +122,10 @@ function MobileTabIcon({
   return (
     <View style={styles.navVisualWrap}>
       <MobileLineIcon
-        color={isActive ? theme.accent.strong : theme.text.soft}
+        color={isActive ? theme.accent.default : theme.text.soft}
         name={icon}
-        size={20}
+        size={22}
       />
-      {showUnreadDot ? (
-        <View style={styles.navUnreadDot} testID="mobile-bottom-tab-unread-dot" />
-      ) : null}
     </View>
   );
 }
@@ -174,16 +172,18 @@ export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
       textAlign: "center",
     },
     navLabelActive: {
-      color: theme.accent.strong,
+      color: theme.accent.default,
       fontFamily: theme.typography.fontFamilyBold,
     },
     navUnreadDot: {
       position: "absolute",
-      top: 0,
-      right: 0,
+      top: 5,
+      right: 22,
       width: 8,
       height: 8,
       borderRadius: theme.radii.pill,
-      backgroundColor: theme.status.danger,
+      borderWidth: 2,
+      borderColor: theme.border.onSurfaceRing,
+      backgroundColor: redesignLight.canonicalDanger,
     },
   }) satisfies Record<string, TextStyle | ViewStyle>;

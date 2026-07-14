@@ -1,7 +1,12 @@
 import React from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fireEvent } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
-import { MobileBottomTabBar } from "../src/navigation/mobile-bottom-tab-bar";
+import {
+  createMobileBottomTabBarStyles,
+  MobileBottomTabBar,
+} from "../src/navigation/mobile-bottom-tab-bar";
 import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provider";
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
 import { lightTheme } from "../src/design/themes";
@@ -59,6 +64,29 @@ describe("mobile redesign pill tab bar", () => {
         expect.objectContaining({ backgroundColor: lightTheme.accent.soft }),
       ]),
     );
+  });
+
+  it("uses canonical active-tab and unread-dot presentation tokens", () => {
+    const styles = createMobileBottomTabBarStyles(lightTheme);
+    const source = readFileSync(
+      join(process.cwd(), "src", "navigation", "mobile-bottom-tab-bar.tsx"),
+      "utf8",
+    );
+
+    expect(styles.navLabelActive).toEqual(
+      expect.objectContaining({ color: lightTheme.accent.default }),
+    );
+    expect(styles.navUnreadDot).toEqual(
+      expect.objectContaining({
+        backgroundColor: "#E05252",
+        borderColor: lightTheme.border.onSurfaceRing,
+        borderWidth: 2,
+        right: 22,
+        top: 5,
+      }),
+    );
+    expect(source).toContain("color={isActive ? theme.accent.default : theme.text.soft}");
+    expect(source).toContain("size={22}");
   });
 
   it("emits haptics only after a non-prevented tab selection completes", async () => {

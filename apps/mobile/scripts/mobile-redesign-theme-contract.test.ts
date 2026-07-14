@@ -498,11 +498,13 @@ export function Fixture({ cap }: { cap: number }) {
     assert.deepEqual(lightTheme.border, {
       default: "#F0F1F8",
       focus: "#4F46E5",
+      onSurfaceRing: "#FFFFFF",
       subtle: "#E7E9F4",
     });
     assert.deepEqual(darkTheme.border, {
       default: "#232644",
       focus: "#6D66F0",
+      onSurfaceRing: "#1C1F3A",
       subtle: "#2B2F52",
     });
 
@@ -558,11 +560,13 @@ export function Fixture({ cap }: { cap: number }) {
       danger: "#C94343",
       dangerAction: "#C94343",
       dangerOnBase: "#C84343",
+      dangerOnInverse: "#E05252",
       dangerSoft: "#FCE9E9",
       info: "#2563EB",
       infoSoft: "#EFF6FF",
       onStatus: "#1E2235",
       success: "#22C55E",
+      successOnInverse: "#34D399",
       successSoft: "#E8F8EE",
       successText: "#187A4C",
       warning: "#B45309",
@@ -572,16 +576,20 @@ export function Fixture({ cap }: { cap: number }) {
       danger: "#E45A5A",
       dangerAction: "#C94343",
       dangerOnBase: "#E45A5A",
+      dangerOnInverse: "#E05252",
       dangerSoft: "rgba(224,82,82,.14)",
       info: "#60A5FA",
       infoSoft: "#172554",
       onStatus: "#ECEEFA",
       success: "#34D399",
+      successOnInverse: "#34D399",
       successSoft: "rgba(52,211,153,.12)",
       successText: "#34D399",
       warning: "#F59E0B",
       warningSoft: "rgba(245,158,11,.14)",
     });
+    assert.equal(lightTheme.status.successOnInverse, darkTheme.status.successOnInverse);
+    assert.equal(lightTheme.status.dangerOnInverse, darkTheme.status.dangerOnInverse);
 
     assert.deepEqual(lightTheme.avatarTints, paletteModule.redesignAccessibleAvatarTintsLight);
     assert.deepEqual(darkTheme.avatarTints, paletteModule.redesignAvatarTintsDark);

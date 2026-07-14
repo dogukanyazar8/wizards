@@ -288,14 +288,14 @@ export const createFloatingNavigationChromeStyles = (theme: MobileTheme) => ({
     alignItems: "center" as const,
     justifyContent: "center" as const,
     borderRadius: 12,
-    backgroundColor: theme.status.dangerAction,
+    backgroundColor: theme.status.dangerOnInverse,
   },
   miniVoiceBarLeavePressed: { opacity: 0.78 },
   miniVoiceBarPresence: {
     width: 8,
     height: 8,
     borderRadius: theme.radii.pill,
-    backgroundColor: theme.status.success,
+    backgroundColor: theme.status.successOnInverse,
   },
   miniVoiceBarPressed: {
     opacity: 0.88,
