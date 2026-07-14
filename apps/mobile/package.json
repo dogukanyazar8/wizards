@@ -24,7 +24,8 @@
     "typecheck": "tsc --noEmit",
     "validate:env": "node --import tsx scripts/validate-mobile-env.ts",
     "visual:reference:extract": "node --import tsx scripts/mobile-redesign-extract.ts",
-    "visual:reference:verify": "node --import tsx scripts/mobile-redesign-reference.ts"
+    "visual:reference:verify": "node --import tsx scripts/mobile-redesign-reference.ts",
+    "visual:golden:generate": "node --import tsx scripts/mobile-redesign-golden-transform.ts"
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^15.0.1",

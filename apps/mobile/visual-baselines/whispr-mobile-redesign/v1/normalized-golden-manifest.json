@@ -1,0 +1,152 @@
+{
+  "anchors": [
+    {
+      "anchor": "1a",
+      "physicalBounds": {
+        "height": 2532,
+        "width": 1170
+      },
+      "theme": "light"
+    },
+    {
+      "anchor": "1b",
+      "physicalBounds": {
+        "height": 2532,
+        "width": 1170
+      },
+      "theme": "light"
+    },
+    {
+      "anchor": "1c",
+      "physicalBounds": {
+        "height": 2532,
+        "width": 1170
+      },
+      "theme": "light"
+    },
+    {
+      "anchor": "1d",
+      "physicalBounds": {
+        "height": 2532,
+        "width": 1170
+      },
+      "theme": "light"
+    },
+    {
+      "anchor": "1e",
+      "physicalBounds": {
+        "height": 2532,
+        "width": 1170
+      },
+      "theme": "light"
+    },
+    {
+      "anchor": "1f",
+      "physicalBounds": {
+        "height": 2532,
+        "width": 1170
+      },
+      "theme": "light"
+    },
+    {
+      "anchor": "1g",
+      "physicalBounds": {
+        "height": 2532,
+        "width": 1170
+      },
+      "theme": "light"
+    },
+    {
+      "anchor": "1h",
+      "physicalBounds": {
+        "height": 2532,
+        "width": 1170
+      },
+      "theme": "light"
+    },
+    {
+      "anchor": "1i",
+      "physicalBounds": {
+        "height": 2532,
+        "width": 1170
+      },
+      "theme": "dark"
+    },
+    {
+      "anchor": "1j",
+      "physicalBounds": {
+        "height": 2532,
+        "width": 1170
+      },
+      "theme": "dark"
+    }
+  ],
+  "deviceScaleFactor": 3,
+  "exclusions": {
+    "deviceFrame": "removed",
+    "statusBar": "hidden",
+    "successSpreadRing": "removed"
+  },
+  "logicalViewport": {
+    "height": 844,
+    "width": 390
+  },
+  "physicalViewport": {
+    "height": 2532,
+    "width": 1170
+  },
+  "sourceDateEpoch": "0",
+  "sourceHash": "58f0728de14d1925710c556123bc109dd08983ac9d8c9869d19ae02d0ebd2fa0",
+  "substitutions": [
+    {
+      "from": "#8A46E5",
+      "role": "avatar.initial",
+      "theme": "light",
+      "to": "#8A46C7"
+    },
+    {
+      "from": "#E05252",
+      "role": "text.danger",
+      "theme": "light",
+      "to": "#C94343"
+    },
+    {
+      "from": "#9AA0BC",
+      "role": "text.muted",
+      "theme": "light",
+      "to": "#676D90"
+    },
+    {
+      "from": "#8A90B0",
+      "role": "text.muted",
+      "theme": "light",
+      "to": "#676D90"
+    },
+    {
+      "from": "#6E7398",
+      "role": "text.muted",
+      "theme": "dark",
+      "to": "#8288AD"
+    },
+    {
+      "from": "#6B7194",
+      "role": "text.secondary",
+      "theme": "light",
+      "to": "#62688B"
+    },
+    {
+      "from": "#22A366",
+      "role": "text.success",
+      "theme": "light",
+      "to": "#187A4C"
+    },
+    {
+      "from": "#1B8A55",
+      "role": "text.success",
+      "theme": "light",
+      "to": "#187A4C"
+    }
+  ],
+  "transformHash": "5c430def8b02082acec08979d535e5c48939f5d45c2a2955db3b9160ad027527",
+  "version": 1
+}
