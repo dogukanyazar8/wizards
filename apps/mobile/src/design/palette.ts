@@ -71,3 +71,63 @@ export const mobilePalette = Object.freeze({
 } as const);
 
 export type MobilePalette = typeof mobilePalette;
+
+// Canonical values mirror the handoff; accessible alternatives cover normal-sized text.
+export const redesignLight = {
+  bg: "#F6F7FB",
+  card: "#FFFFFF",
+  border: "#E7E9F4",
+  hairline: "#F0F1F8",
+  text: "#1E2235",
+  canonicalTextSecondary: "#6B7194",
+  textSecondary: "#62688B",
+  canonicalTextFaint: "#8A90B0",
+  textFaint: "#676D90",
+  canonicalPlaceholder: "#9AA0BC",
+  placeholder: "#676D90",
+  primary: "#4F46E5",
+  primaryStrong: "#3F38C9",
+  lavender: "#EEF0FE",
+  lavenderBorder: "#DFE2FC",
+  success: "#22C55E",
+  canonicalSuccessText: "#22A366",
+  successSurface: "#E8F8EE",
+  canonicalSuccessTextDeep: "#1B8A55",
+  successText: "#187A4C",
+  canonicalDanger: "#E05252",
+  danger: "#C94343",
+  dangerSurface: "#FCE9E9",
+  inkSurface: "#1E2235",
+} as const;
+
+export const redesignDark = {
+  bg: "#131529",
+  card: "#1C1F3A",
+  border: "#2B2F52",
+  hairline: "#232644",
+  text: "#ECEEFA",
+  textSecondary: "#9BA1C7",
+  canonicalTextFaint: "#6E7398",
+  textFaint: "#8288AD",
+  canonicalPrimary: "#6D66F0",
+  primary: "#6D66F0",
+  primaryWithWhiteText: "#6B63EC",
+  accentText: "#A5A8F5",
+  selectedSurface: "#2A2D55",
+  selectedBorder: "#3B3F73",
+  success: "#34D399",
+  successSurface: "rgba(52,211,153,.12)",
+} as const;
+
+export const redesignAvatarTintsLight = [
+  { bg: "#EEF0FE", fg: "#4F46E5" },
+  { bg: "#FDEBD7", fg: "#C77A2B" },
+  { bg: "#E0F0FA", fg: "#2B7AC7" },
+  { bg: "#F3E8FA", fg: "#8A46C7" },
+  { bg: "#E8F8EE", fg: "#1B8A55" },
+] as const;
+
+export const redesignAvatarTintsDark = [
+  { bg: "#2A2D55", fg: "#A5A8F5" },
+  { bg: "#3A2E1B", fg: "#E8B36A" },
+] as const;
