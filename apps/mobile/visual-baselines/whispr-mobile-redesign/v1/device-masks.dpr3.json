@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "deviceScaleFactor": 3,
+  "physicalViewport": {
+    "width": 1170,
+    "height": 2532
+  },
+  "platforms": {
+    "android": [
+      { "id": "system-time", "polygon": [[42, 45], [177, 45], [177, 93], [42, 93]] },
+      { "id": "system-signal", "polygon": [[903, 45], [1011, 45], [1011, 93], [903, 93]] },
+      { "id": "system-battery", "polygon": [[1020, 45], [1128, 45], [1128, 93], [1020, 93]] },
+      { "id": "system-gesture-indicator", "polygon": [[480, 2472], [690, 2472], [690, 2499], [480, 2499]] }
+    ],
+    "ios": [
+      { "id": "system-time", "polygon": [[51, 48], [156, 48], [156, 93], [51, 93]] },
+      { "id": "system-signal", "polygon": [[894, 48], [987, 48], [987, 93], [894, 93]] },
+      { "id": "system-battery", "polygon": [[1002, 48], [1122, 48], [1122, 93], [1002, 93]] },
+      { "id": "system-gesture-indicator", "polygon": [[480, 2463], [690, 2463], [690, 2493], [480, 2493]] }
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "logicalViewport": {
+    "width": 390,
+    "height": 844
+  },
+  "physicalViewport": {
+    "width": 1170,
+    "height": 2532
+  },
+  "deviceScaleFactor": 3,
+  "safeAreaInsets": {
+    "top": 42,
+    "right": 0,
+    "bottom": 0,
+    "left": 0
+  },
+  "fontScale": 1,
+  "locale": "tr-TR",
+  "timezone": "Europe/Istanbul",
+  "reducedMotion": "always",
+  "colorSpace": "sRGB",
+  "masks": {
+    "file": "device-masks.dpr3.json",
+    "version": 1
+  }
+}
