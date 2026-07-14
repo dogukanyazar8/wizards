@@ -4,7 +4,7 @@ import { useMobileAuth } from "../auth/mobile-auth-context";
 import { getMobileRuntimeConfig } from "../config/environment";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import type { MobileTabId } from "../navigation/mobile-navigation";
-import { installMobileFontDefaults, useOutfitFonts } from "../design/mobile-fonts";
+import { installMobileFontDefaults, useMobileFonts } from "../design/mobile-fonts";
 import { MobileAppLockScreen } from "./components/mobile-app-lock-screen";
 import { MobileDeviceIntegrityWarning } from "./components/mobile-device-integrity-warning";
 import { MobileAppShell } from "./mobile-app-shell";
@@ -40,7 +40,7 @@ export function MobileProductApp({ Navigator }: {
     readonly onTabChange?: (tab: MobileTabId) => void;
   }>;
 }) {
-  const [fontsLoaded] = useOutfitFonts();
+  const [fontsLoaded] = useMobileFonts();
   const {
     apiClient,
     appLockAvailability,

@@ -1,10 +1,4 @@
-import {
-  Outfit_400Regular,
-  Outfit_500Medium,
-  Outfit_600SemiBold,
-  Outfit_700Bold,
-  useFonts,
-} from "@expo-google-fonts/outfit";
+import { useFonts } from "expo-font";
 import { Text, TextInput } from "react-native";
 
 import { mobileTypography } from "./tokens";
@@ -17,12 +11,13 @@ type FontDefaultTarget = {
 
 let defaultsInstalled = false;
 
-export function useOutfitFonts(): readonly [boolean, Error | null] {
+export function useMobileFonts(): readonly [boolean, Error | null] {
   return useFonts({
-    Outfit: Outfit_400Regular,
-    Outfit_500Medium,
-    Outfit_600SemiBold,
-    Outfit_700Bold,
+    WhisprJakarta_400Regular: require("../../assets/fonts/PlusJakartaSans-Regular.ttf"),
+    WhisprJakarta_500Medium: require("../../assets/fonts/PlusJakartaSans-Medium.ttf"),
+    WhisprJakarta_600SemiBold: require("../../assets/fonts/PlusJakartaSans-SemiBold.ttf"),
+    WhisprJakarta_700Bold: require("../../assets/fonts/PlusJakartaSans-Bold.ttf"),
+    WhisprJakarta_800ExtraBold: require("../../assets/fonts/PlusJakartaSans-ExtraBold.ttf"),
   });
 }
 

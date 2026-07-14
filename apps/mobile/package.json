@@ -26,7 +26,6 @@
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^15.0.1",
-    "@expo-google-fonts/outfit": "^0.4.3",
     "@expo/vector-icons": "^15.1.1",
     "@livekit/react-native": "^2.11.1",
     "@livekit/react-native-expo-plugin": "^1.0.2",

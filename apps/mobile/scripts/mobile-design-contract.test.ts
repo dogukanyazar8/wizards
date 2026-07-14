@@ -128,7 +128,7 @@ describe("mobile design contract", () => {
     assert.equal(mobileSizing.maxInlineContentWidth <= 640, true);
   });
 
-  it("uses Outfit as the app-wide mobile font contract", () => {
+  it("uses vendored Plus Jakarta Sans as the app-wide mobile font contract", () => {
     const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
       dependencies?: Record<string, string>;
     };
@@ -137,10 +137,15 @@ describe("mobile design contract", () => {
       "utf8",
     );
 
-    assert.equal(mobileTypography.fontFamily, "Outfit");
-    assert.ok(packageJson.dependencies?.["@expo-google-fonts/outfit"]);
+    assert.equal(mobileTypography.fontFamily, "WhisprJakarta_400Regular");
+    assert.equal(
+      Object.keys(packageJson.dependencies ?? {}).some((name) =>
+        name.startsWith("@expo-google-fonts/"),
+      ),
+      false,
+    );
     assert.ok(packageJson.dependencies?.["expo-font"]);
-    assert.match(productSource, /useOutfitFonts/);
+    assert.match(productSource, /useMobileFonts/);
   });
 
   it("keeps mobile visual tokens aligned with the Whispr web and desktop system", () => {

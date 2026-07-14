@@ -16,52 +16,53 @@ export const mobileSpacing = {
 } as const;
 
 export const mobileTypography = {
-  fontFamily: "Outfit",
-  fontFamilyBold: "Outfit_700Bold",
-  fontFamilyMedium: "Outfit_500Medium",
-  fontFamilySemiBold: "Outfit_600SemiBold",
+  fontFamily: "WhisprJakarta_400Regular",
+  fontFamilyBold: "WhisprJakarta_700Bold",
+  fontFamilyExtraBold: "WhisprJakarta_800ExtraBold",
+  fontFamilyMedium: "WhisprJakarta_500Medium",
+  fontFamilySemiBold: "WhisprJakarta_600SemiBold",
   body: {
-    fontFamily: "Outfit",
+    fontFamily: "WhisprJakarta_400Regular",
     fontSize: 15,
     lineHeight: 21,
   },
   bodyStrong: {
-    fontFamily: "Outfit_600SemiBold",
+    fontFamily: "WhisprJakarta_600SemiBold",
     fontSize: 15,
     lineHeight: 21,
   },
   button: {
-    fontFamily: "Outfit_700Bold",
+    fontFamily: "WhisprJakarta_700Bold",
     fontSize: 14,
     lineHeight: 18,
   },
   caption: {
-    fontFamily: "Outfit_600SemiBold",
+    fontFamily: "WhisprJakarta_600SemiBold",
     fontSize: 11,
     lineHeight: 14,
   },
   display: {
-    fontFamily: "Outfit_700Bold",
+    fontFamily: "WhisprJakarta_700Bold",
     fontSize: 30,
     lineHeight: 36,
   },
   headline: {
-    fontFamily: "Outfit_700Bold",
+    fontFamily: "WhisprJakarta_700Bold",
     fontSize: 24,
     lineHeight: 30,
   },
   label: {
-    fontFamily: "Outfit_600SemiBold",
+    fontFamily: "WhisprJakarta_600SemiBold",
     fontSize: 12,
     lineHeight: 16,
   },
   message: {
-    fontFamily: "Outfit",
+    fontFamily: "WhisprJakarta_400Regular",
     fontSize: 15,
     lineHeight: 21,
   },
   title: {
-    fontFamily: "Outfit_700Bold",
+    fontFamily: "WhisprJakarta_700Bold",
     fontSize: 20,
     lineHeight: 25,
   },
