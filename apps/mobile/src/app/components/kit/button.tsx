@@ -115,7 +115,7 @@ export function Button({
         />
       ) : null}
       <Text
-        maxFontSizeMultiplier={1.4}
+        maxFontSizeMultiplier={2}
         numberOfLines={2}
         style={[
           styles.label,

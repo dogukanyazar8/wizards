@@ -875,7 +875,7 @@ export function SettingsLocaleSelector({
       testID="mobile-settings-language-control"
       style={styles.settingsLocaleControl}
     >
-      <Text maxFontSizeMultiplier={1.5} style={styles.settingsLocaleDescription}>
+      <Text maxFontSizeMultiplier={2} style={styles.settingsLocaleDescription}>
         {copy.settingsLanguageControlDescription}
       </Text>
       <View style={styles.settingsLocaleOptions}>
@@ -896,7 +896,7 @@ export function SettingsLocaleSelector({
               ]}
             >
               <Text
-                maxFontSizeMultiplier={1.3}
+                maxFontSizeMultiplier={2}
                 style={[
                   styles.settingsLocaleShortLabel,
                   isSelected && styles.settingsLocaleShortLabelSelected,
@@ -905,7 +905,7 @@ export function SettingsLocaleSelector({
                 {option.shortLabel}
               </Text>
               <Text
-                maxFontSizeMultiplier={1.4}
+                maxFontSizeMultiplier={2}
                 style={[
                   styles.settingsLocaleOptionLabel,
                   isSelected && styles.settingsLocaleOptionLabelSelected,
@@ -944,7 +944,7 @@ export function SettingsAppearanceSelector() {
       testID="mobile-settings-appearance-control"
       style={styles.settingsLocaleControl}
     >
-      <Text maxFontSizeMultiplier={1.5} style={styles.settingsLocaleDescription}>
+      <Text maxFontSizeMultiplier={2} style={styles.settingsLocaleDescription}>
         {copy.settingsThemeControlDescription}
       </Text>
       <View style={styles.settingsLocaleOptions}>
@@ -965,7 +965,7 @@ export function SettingsAppearanceSelector() {
               ]}
             >
               <Text
-                maxFontSizeMultiplier={1.4}
+                maxFontSizeMultiplier={2}
                 style={[
                   styles.settingsLocaleOptionLabel,
                   isSelected && styles.settingsLocaleOptionLabelSelected,
@@ -1042,7 +1042,7 @@ export function SettingsVoiceInputModeSelector({
       testID="mobile-settings-voice-input-mode-control"
       style={styles.settingsLocaleControl}
     >
-      <Text maxFontSizeMultiplier={1.5} style={styles.settingsLocaleDescription}>
+      <Text maxFontSizeMultiplier={2} style={styles.settingsLocaleDescription}>
         {copy.settingsVoiceInputModeControlDescription}
       </Text>
       <View style={styles.settingsLocaleOptions}>
@@ -1063,7 +1063,7 @@ export function SettingsVoiceInputModeSelector({
               ]}
             >
               <Text
-                maxFontSizeMultiplier={1.4}
+                maxFontSizeMultiplier={2}
                 style={[
                   styles.settingsLocaleOptionLabel,
                   isSelected && styles.settingsLocaleOptionLabelSelected,

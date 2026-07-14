@@ -35,9 +35,13 @@ export function Badge({ label, style, tone = "neutral", ...props }: BadgeProps) 
   const styles = useThemedStyles(createStyles);
 
   return (
-    <View {...props} accessibilityLabel={props.accessibilityLabel ?? label} style={[styles.root, styles[tone], style]}>
+    <View
+      {...props}
+      accessibilityLabel={props.accessibilityLabel ?? label}
+      style={[styles.root, styles[tone], style]}
+    >
       <Text
-        maxFontSizeMultiplier={1.3}
+        maxFontSizeMultiplier={2}
         numberOfLines={1}
         style={[
           styles.label,

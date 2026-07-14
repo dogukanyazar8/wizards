@@ -156,13 +156,16 @@ describe("mobile design contract", () => {
       "body",
       "bodyStrong",
       "message",
+      "secondary",
       "label",
       "button",
       "caption",
+      "overline",
     ] as const) {
       assert.equal(typeof mobileTypography[typographyToken].fontFamily, "string", typographyToken);
       assert.equal(typeof mobileTypography[typographyToken].fontSize, "number");
       assert.equal(typeof mobileTypography[typographyToken].lineHeight, "number");
+      assert.equal(typeof mobileTypography[typographyToken].letterSpacing, "number");
     }
 
     for (const theme of [lightTheme, darkTheme]) {

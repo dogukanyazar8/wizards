@@ -530,10 +530,10 @@ function AuthHeader({ description, title }: { description: string; title: string
         />
         <Text style={styles.premiumAuthBrandText}>Whispr</Text>
       </View>
-      <Text maxFontSizeMultiplier={1.4} style={styles.premiumAuthTitle}>
+      <Text maxFontSizeMultiplier={2} style={styles.premiumAuthTitle}>
         {title}
       </Text>
-      <Text maxFontSizeMultiplier={1.5} style={styles.premiumAuthSubtitle}>
+      <Text maxFontSizeMultiplier={2} style={styles.premiumAuthSubtitle}>
         {description}
       </Text>
     </View>
@@ -601,7 +601,7 @@ function ProfileTypeSelector({
               <Ionicons name={option.icon} size={16} color={option.color} />
             </View>
             <Text
-              maxFontSizeMultiplier={1.3}
+              maxFontSizeMultiplier={2}
               style={styles.premiumAuthProfileLabel}
               numberOfLines={1}
             >

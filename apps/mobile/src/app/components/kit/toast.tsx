@@ -124,7 +124,7 @@ export function ToastProvider({ children }: PropsWithChildren) {
             style={[styles.toast, styles[currentToast.tone]]}
             testID="mobile-toast"
           >
-            <Text maxFontSizeMultiplier={1.5} numberOfLines={3} style={styles.message}>
+            <Text maxFontSizeMultiplier={2} numberOfLines={3} style={styles.message}>
               {currentToast.message}
             </Text>
             <IconButton

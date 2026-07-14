@@ -110,7 +110,7 @@ export function ContextMenu({
                   />
                 ) : null}
                 <Text
-                  maxFontSizeMultiplier={1.5}
+                  maxFontSizeMultiplier={2}
                   style={[styles.actionLabel, action.destructive && styles.destructiveLabel]}
                 >
                   {action.label}

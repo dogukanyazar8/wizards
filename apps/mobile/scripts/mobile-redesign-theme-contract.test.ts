@@ -1,15 +1,294 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { describe, it } from "node:test";
+import * as ts from "typescript";
 
 import * as paletteModule from "../src/design/palette";
 import { getMobileThemeCompatibilityColors } from "../src/design/mobile-theme-compat";
 import { darkTheme, lightTheme } from "../src/design/themes";
+import { mobileRadii, mobileSizing, mobileSpacing, mobileTypography } from "../src/design/tokens";
 
 const paletteExports = paletteModule as Record<string, unknown>;
 
+type DynamicTypeViolation = {
+  file: string;
+  line: number;
+  reason: "below-minimum" | "missing-value" | "non-literal";
+  value?: number;
+};
+
+function collectTypeScriptSources(root: string): string[] {
+  return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+    const absolutePath = join(root, entry.name);
+
+    if (entry.isDirectory()) {
+      return collectTypeScriptSources(absolutePath);
+    }
+
+    return /\.tsx?$/.test(entry.name) ? [absolutePath] : [];
+  });
+}
+
+function readNumericLiteral(expression: ts.Expression): number | null {
+  if (
+    ts.isParenthesizedExpression(expression) ||
+    ts.isAsExpression(expression) ||
+    ts.isTypeAssertionExpression(expression) ||
+    ts.isSatisfiesExpression(expression) ||
+    ts.isNonNullExpression(expression)
+  ) {
+    return readNumericLiteral(expression.expression);
+  }
+
+  if (ts.isPrefixUnaryExpression(expression)) {
+    const operand = readNumericLiteral(expression.operand);
+    if (operand === null) {
+      return null;
+    }
+
+    if (expression.operator === ts.SyntaxKind.PlusToken) {
+      return operand;
+    }
+    if (expression.operator === ts.SyntaxKind.MinusToken) {
+      return -operand;
+    }
+
+    return null;
+  }
+
+  if (!ts.isNumericLiteral(expression)) {
+    return null;
+  }
+
+  const value = Number(expression.text);
+  return Number.isFinite(value) ? value : null;
+}
+
+function findDynamicTypeViolationsInSource(file: string, source: string): DynamicTypeViolation[] {
+  const sourceFile = ts.createSourceFile(
+    file,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const violations: DynamicTypeViolation[] = [];
+
+  function visit(node: ts.Node): void {
+    if (
+      ts.isJsxAttribute(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === "maxFontSizeMultiplier"
+    ) {
+      const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
+      const initializer = node.initializer;
+
+      if (!initializer) {
+        violations.push({ file, line, reason: "missing-value" });
+      } else if (!ts.isJsxExpression(initializer) || !initializer.expression) {
+        violations.push({ file, line, reason: "non-literal" });
+      } else {
+        const value = readNumericLiteral(initializer.expression);
+
+        if (value === null) {
+          violations.push({ file, line, reason: "non-literal" });
+        } else if (value < 2) {
+          violations.push({ file, line, reason: "below-minimum", value });
+        }
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return violations;
+}
+
 describe("mobile redesign palette contract", () => {
+  it("locks the redesign radius, sizing, and spacing scale", () => {
+    assert.deepEqual(mobileRadii, {
+      card: 22,
+      cardLarge: 24,
+      row: 16,
+      control: 14,
+      chip: 16,
+      bubble: 18,
+      sheet: 36,
+      tabBar: 26,
+      tabPill: 18,
+      pill: 999,
+    });
+    assert.deepEqual(mobileSizing, {
+      maxInlineContentWidth: 520,
+      minTouchTarget: 44,
+      presenceDot: 14,
+      presenceDotBorder: 2.5,
+      unreadBadgeMinHeight: 20,
+      avatarS: 36,
+      avatarSRadius: 12,
+      avatarM: 40,
+      avatarMRadius: 14,
+      avatarL: 44,
+      avatarLRadius: 16,
+      avatarXL: 50,
+      avatarXLRadius: 18,
+      avatarXXL: 76,
+      avatarXXLRadius: 26,
+      iconStroke: 1.8,
+    });
+    assert.deepEqual(mobileSpacing, {
+      page: 20,
+      pageWide: 24,
+      section: 16,
+      row: 12,
+    });
+  });
+
+  it("locks every redesign typography role to explicit Plus Jakarta metrics", () => {
+    assert.deepEqual(mobileTypography, {
+      fontFamily: "WhisprJakarta_400Regular",
+      fontFamilyMedium: "WhisprJakarta_500Medium",
+      fontFamilySemiBold: "WhisprJakarta_600SemiBold",
+      fontFamilyBold: "WhisprJakarta_700Bold",
+      fontFamilyExtraBold: "WhisprJakarta_800ExtraBold",
+      display: {
+        fontFamily: "WhisprJakarta_800ExtraBold",
+        fontSize: 26,
+        lineHeight: 32,
+        letterSpacing: -0.52,
+      },
+      headline: {
+        fontFamily: "WhisprJakarta_800ExtraBold",
+        fontSize: 19,
+        lineHeight: 24,
+        letterSpacing: 0,
+      },
+      title: {
+        fontFamily: "WhisprJakarta_800ExtraBold",
+        fontSize: 17,
+        lineHeight: 22,
+        letterSpacing: 0,
+      },
+      bodyStrong: {
+        fontFamily: "WhisprJakarta_600SemiBold",
+        fontSize: 15,
+        lineHeight: 21,
+        letterSpacing: 0,
+      },
+      body: {
+        fontFamily: "WhisprJakarta_400Regular",
+        fontSize: 15,
+        lineHeight: 21,
+        letterSpacing: 0,
+      },
+      message: {
+        fontFamily: "WhisprJakarta_400Regular",
+        fontSize: 14.5,
+        lineHeight: 21,
+        letterSpacing: 0,
+      },
+      secondary: {
+        fontFamily: "WhisprJakarta_500Medium",
+        fontSize: 12.5,
+        lineHeight: 17,
+        letterSpacing: 0,
+      },
+      caption: {
+        fontFamily: "WhisprJakarta_600SemiBold",
+        fontSize: 11.5,
+        lineHeight: 15,
+        letterSpacing: 0,
+      },
+      overline: {
+        fontFamily: "WhisprJakarta_700Bold",
+        fontSize: 11.5,
+        lineHeight: 14,
+        letterSpacing: 1.38,
+      },
+      button: {
+        fontFamily: "WhisprJakarta_700Bold",
+        fontSize: 14,
+        lineHeight: 18,
+        letterSpacing: 0,
+      },
+      label: {
+        fontFamily: "WhisprJakarta_600SemiBold",
+        fontSize: 12,
+        lineHeight: 16,
+        letterSpacing: 0,
+      },
+    });
+
+    for (const [role, metrics] of Object.entries(mobileTypography)) {
+      if (typeof metrics === "string") {
+        continue;
+      }
+
+      assert.equal(typeof metrics.lineHeight, "number", `${role} lineHeight`);
+      assert.equal(typeof metrics.letterSpacing, "number", `${role} letterSpacing`);
+    }
+  });
+
+  it("parses Dynamic Type JSX expressions and fails closed on unknown values", () => {
+    const fixture = `
+const stringLookalike = "<Text maxFontSizeMultiplier={1.1} />";
+// <Text maxFontSizeMultiplier={1.2} />
+export function Fixture({ cap }: { cap: number }) {
+  return (
+    <>
+      <Text maxFontSizeMultiplier={.5} />
+      <Text maxFontSizeMultiplier={1e0} />
+      <Text maxFontSizeMultiplier={(1.5)} />
+      <Text maxFontSizeMultiplier={1.5 as const} />
+      <Text maxFontSizeMultiplier={1.5 satisfies number} />
+      <Text maxFontSizeMultiplier={+1.5} />
+      <Text maxFontSizeMultiplier={-1} />
+      <Text maxFontSizeMultiplier={cap} />
+      <Text maxFontSizeMultiplier="1.5" />
+      <Text maxFontSizeMultiplier />
+      <Text maxFontSizeMultiplier={2} />
+      <Text maxFontSizeMultiplier={2.5 as const} />
+      <Text maxFontSizeMultiplier={+2} />
+      <Text />
+    </>
+  );
+}
+`;
+
+    const violations = findDynamicTypeViolationsInSource("fixture.tsx", fixture);
+
+    assert.ok(violations.every(({ file }) => file === "fixture.tsx"));
+    assert.deepEqual(
+      violations.map(({ reason, value }) => ({ reason, value: value ?? null })),
+      [
+        { reason: "below-minimum", value: 0.5 },
+        { reason: "below-minimum", value: 1 },
+        { reason: "below-minimum", value: 1.5 },
+        { reason: "below-minimum", value: 1.5 },
+        { reason: "below-minimum", value: 1.5 },
+        { reason: "below-minimum", value: 1.5 },
+        { reason: "below-minimum", value: -1 },
+        { reason: "non-literal", value: null },
+        { reason: "non-literal", value: null },
+        { reason: "missing-value", value: null },
+      ],
+    );
+  });
+
+  it("does not cap explicit numeric Dynamic Type multipliers below 2.0", () => {
+    const sourceRoot = join(process.cwd(), "src");
+    const violations = collectTypeScriptSources(sourceRoot).flatMap((file) =>
+      findDynamicTypeViolationsInSource(
+        relative(process.cwd(), file).replaceAll("\\", "/"),
+        readFileSync(file, "utf8"),
+      ),
+    );
+
+    assert.deepEqual(violations, []);
+  });
+
   it("preserves every legacy mobilePalette group and key", () => {
     assert.deepEqual(Object.keys(paletteModule.mobilePalette), [
       "indigo",

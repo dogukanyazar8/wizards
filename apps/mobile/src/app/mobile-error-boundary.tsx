@@ -125,10 +125,10 @@ function MobileErrorFallback({
         <View style={styles.icon}>
           <Text style={styles.iconText}>!</Text>
         </View>
-        <Text maxFontSizeMultiplier={1.5} style={styles.title}>
+        <Text maxFontSizeMultiplier={2} style={styles.title}>
           {copy.errorBoundaryTitle}
         </Text>
-        <Text maxFontSizeMultiplier={1.5} style={styles.description}>
+        <Text maxFontSizeMultiplier={2} style={styles.description}>
           {copy.errorBoundaryDescription}
         </Text>
         <Pressable

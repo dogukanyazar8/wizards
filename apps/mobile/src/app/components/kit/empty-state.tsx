@@ -62,11 +62,11 @@ export function EmptyState({
           tone="accent"
         />
       </View>
-      <Text accessibilityRole="header" maxFontSizeMultiplier={1.5} style={styles.title}>
+      <Text accessibilityRole="header" maxFontSizeMultiplier={2} style={styles.title}>
         {title}
       </Text>
       {description ? (
-        <Text maxFontSizeMultiplier={1.5} style={styles.description}>
+        <Text maxFontSizeMultiplier={2} style={styles.description}>
           {description}
         </Text>
       ) : null}

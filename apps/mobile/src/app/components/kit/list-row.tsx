@@ -46,11 +46,11 @@ export function ListRow({
     <>
       {leading}
       <View style={styles.body}>
-        <Text maxFontSizeMultiplier={1.5} numberOfLines={1} style={styles.title}>
+        <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.title}>
           {title}
         </Text>
         {subtitle ? (
-          <Text maxFontSizeMultiplier={1.5} numberOfLines={2} style={styles.subtitle}>
+          <Text maxFontSizeMultiplier={2} numberOfLines={2} style={styles.subtitle}>
             {subtitle}
           </Text>
         ) : null}
