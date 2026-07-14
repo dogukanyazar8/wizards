@@ -1,5 +1,6 @@
 import { prisma } from "@wizards/db";
 import type { NotificationType, Prisma } from "@wizards/db";
+import type { MobileNotificationsQuery, MobileNotificationsResponse } from "@wizards/types";
 import { ApiError } from "@/lib/api";
 import type { NotificationDTO } from "./types";
 
@@ -42,6 +43,153 @@ type VisibleNotificationType =
   | "MODERATION"
   | "SERVER_INVITE"
   | "SYSTEM";
+
+type MobileNotificationCursor = {
+  createdAt: Date;
+  id: string;
+};
+
+type MobileNotificationMetadata = Record<string, unknown>;
+
+function getNotificationMetadataString(
+  metadata: MobileNotificationMetadata,
+  key: string,
+  maxLength = 128,
+) {
+  const value = metadata[key];
+  return typeof value === "string" && value.length > 0 && value.length <= maxLength ? value : null;
+}
+
+function encodeMobileNotificationCursor(cursor: MobileNotificationCursor) {
+  return Buffer.from(
+    JSON.stringify({ createdAt: cursor.createdAt.toISOString(), id: cursor.id }),
+    "utf8",
+  ).toString("base64url");
+}
+
+function decodeMobileNotificationCursor(cursor: string): MobileNotificationCursor {
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("invalid cursor payload");
+    }
+    const { createdAt, id } = parsed as { createdAt?: unknown; id?: unknown };
+    const date = typeof createdAt === "string" ? new Date(createdAt) : null;
+    if (!date || Number.isNaN(date.getTime()) || typeof id !== "string" || id.length === 0) {
+      throw new Error("invalid cursor fields");
+    }
+    return { createdAt: date, id };
+  } catch {
+    throw new ApiError("Invalid notification cursor", 400, "INVALID_CURSOR");
+  }
+}
+
+export async function listMobileNotifications(
+  userId: string,
+  query: MobileNotificationsQuery,
+): Promise<MobileNotificationsResponse> {
+  const cursor = query.cursor ? decodeMobileNotificationCursor(query.cursor) : null;
+  const records = await prisma.notification.findMany({
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: {
+      actionUrl: true,
+      body: true,
+      createdAt: true,
+      id: true,
+      metadata: true,
+      read: true,
+      readAt: true,
+      type: true,
+    },
+    take: query.limit + 1,
+    where: {
+      type: { in: VISIBLE_NOTIFICATION_TYPES },
+      userId,
+      ...(cursor
+        ? {
+            OR: [
+              { createdAt: { lt: cursor.createdAt } },
+              { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+            ],
+          }
+        : {}),
+    },
+  });
+  const hasNextPage = records.length > query.limit;
+  const notifications = hasNextPage ? records.slice(0, query.limit) : records;
+  const metadata = notifications.map(
+    (notification) => (notification.metadata as MobileNotificationMetadata | null) ?? {},
+  );
+  const senderIds = metadata
+    .map((value) => getNotificationMetadataString(value, "senderId"))
+    .filter((id): id is string => id !== null);
+  const channelIds = metadata
+    .map((value) => getNotificationMetadataString(value, "channelId"))
+    .filter((id): id is string => id !== null);
+
+  const [users, channels] = await Promise.all([
+    prisma.user.findMany({
+      select: { avatarUrl: true, displayName: true, id: true, username: true },
+      where: { id: { in: senderIds } },
+    }),
+    prisma.channel.findMany({
+      select: { id: true, name: true, serverId: true },
+      where: { id: { in: channelIds } },
+    }),
+  ]);
+  const channelMap = new Map(channels.map((channel) => [channel.id, channel]));
+  const serverIds = metadata
+    .map((value) => getNotificationMetadataString(value, "serverId"))
+    .concat(channels.map((channel) => channel.serverId))
+    .filter((id): id is string => id !== null);
+  const servers = await prisma.server.findMany({
+    select: { id: true, name: true },
+    where: { id: { in: serverIds } },
+  });
+  const userMap = new Map(users.map((user) => [user.id, user]));
+  const serverMap = new Map(servers.map((server) => [server.id, server]));
+
+  return {
+    nextCursor:
+      hasNextPage && notifications.length > 0
+        ? encodeMobileNotificationCursor(notifications[notifications.length - 1]!)
+        : null,
+    notifications: notifications.map((notification, index) => {
+      const notificationMetadata = metadata[index]!;
+      const senderId = getNotificationMetadataString(notificationMetadata, "senderId");
+      const channelId = getNotificationMetadataString(notificationMetadata, "channelId");
+      const serverId =
+        getNotificationMetadataString(notificationMetadata, "serverId") ??
+        (channelId ? channelMap.get(channelId)?.serverId ?? null : null);
+      const messageId = getNotificationMetadataString(notificationMetadata, "messageId");
+      const preview = getNotificationMetadataString(notificationMetadata, "threadReplyPreview", 240);
+      const actor = senderId ? userMap.get(senderId) ?? null : null;
+      const channel = channelId ? channelMap.get(channelId) ?? null : null;
+      const server = serverId ? serverMap.get(serverId) ?? null : null;
+
+      return {
+        actionUrl: notification.actionUrl,
+        actor: actor
+          ? {
+              avatarUrl: actor.avatarUrl,
+              displayName: actor.displayName,
+              id: actor.id,
+              username: actor.username,
+            }
+          : null,
+        body: notification.body,
+        channel: channelId ? { id: channelId, name: channel?.name ?? null } : null,
+        createdAt: notification.createdAt.toISOString(),
+        id: notification.id,
+        messageQuote: messageId ? { id: messageId, preview } : null,
+        read: notification.read,
+        readAt: notification.readAt?.toISOString() ?? null,
+        server: serverId ? { id: serverId, name: server?.name ?? null } : null,
+        type: notification.type as VisibleNotificationType,
+      };
+    }),
+  };
+}
 
 export async function listNotifications(userId: string, limit: number): Promise<NotificationDTO[]> {
   const notifications = await prisma.notification.findMany({

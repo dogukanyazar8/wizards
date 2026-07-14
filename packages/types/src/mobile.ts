@@ -191,6 +191,75 @@ export const MobilePushRegistrationRevokeResponseSchema = z.object({
   revokedAt: z.string().datetime(),
 });
 
+export const MobileNotificationTypeSchema = z.enum([
+  "FRIEND_REQUEST",
+  "FRIEND_ACCEPTED",
+  "DM",
+  "MENTION",
+  "MODERATION",
+  "SERVER_INVITE",
+  "SYSTEM",
+]);
+
+const MobileNotificationActorSchema = z.object({
+  avatarUrl: z.string().url().nullable(),
+  displayName: z.string().min(1).max(120).nullable(),
+  id: z.string().min(1).max(128),
+  username: z.string().min(1).max(80),
+});
+
+const MobileNotificationContextSchema = z.object({
+  id: z.string().min(1).max(128),
+  name: z.string().min(1).max(120).nullable(),
+});
+
+const MobileNotificationMessageQuoteSchema = z.object({
+  id: z.string().min(1).max(128),
+  preview: z.string().min(1).max(240).nullable(),
+});
+
+export const MobileNotificationItemSchema = z.object({
+  actionUrl: z
+    .string()
+    .max(512)
+    .refine((value) => value.startsWith("/") && !value.startsWith("//"), {
+      message: "A notification action URL must be a safe relative path.",
+    })
+    .nullable(),
+  actor: MobileNotificationActorSchema.nullable(),
+  body: z.string().min(1).max(1_000),
+  channel: MobileNotificationContextSchema.nullable(),
+  createdAt: z.string().datetime(),
+  id: z.string().uuid(),
+  messageQuote: MobileNotificationMessageQuoteSchema.nullable(),
+  read: z.boolean(),
+  readAt: z.string().datetime().nullable(),
+  server: MobileNotificationContextSchema.nullable(),
+  type: MobileNotificationTypeSchema,
+});
+
+export const MobileNotificationsQuerySchema = z
+  .object({
+    cursor: z.string().min(1).max(512).optional(),
+    limit: z.coerce.number().int().min(1).max(30).default(20),
+  })
+  .strict();
+
+export const MobileNotificationsResponseSchema = z.object({
+  nextCursor: z.string().min(1).max(512).nullable(),
+  notifications: z.array(MobileNotificationItemSchema).max(30),
+});
+
+export const MobileNotificationIdParamsSchema = z
+  .object({
+    id: z.string().uuid(),
+  })
+  .strict();
+
+export const MobileNotificationMutationResponseSchema = z.object({
+  success: z.literal(true),
+});
+
 export const MobileVoiceTokenProviderSchema = z.literal("livekit");
 
 export const MobileVoiceTokenRequestSchema = z
@@ -519,6 +588,13 @@ export type MobilePushRegistrationRequest = z.infer<typeof MobilePushRegistratio
 export type MobilePushRegistrationResponse = z.infer<typeof MobilePushRegistrationResponseSchema>;
 export type MobilePushRegistrationRevokeResponse = z.infer<
   typeof MobilePushRegistrationRevokeResponseSchema
+>;
+export type MobileNotificationType = z.infer<typeof MobileNotificationTypeSchema>;
+export type MobileNotificationItem = z.infer<typeof MobileNotificationItemSchema>;
+export type MobileNotificationsQuery = z.infer<typeof MobileNotificationsQuerySchema>;
+export type MobileNotificationsResponse = z.infer<typeof MobileNotificationsResponseSchema>;
+export type MobileNotificationMutationResponse = z.infer<
+  typeof MobileNotificationMutationResponseSchema
 >;
 export type MobileVoiceTokenProvider = z.infer<typeof MobileVoiceTokenProviderSchema>;
 export type MobileVoiceTokenRequest = z.infer<typeof MobileVoiceTokenRequestSchema>;

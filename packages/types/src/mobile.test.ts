@@ -39,6 +39,12 @@ import {
   MobileMessageEditRequestSchema,
   MobileMessageReactionRequestSchema,
   MobileMessageReactionResponseSchema,
+  MobileNotificationIdParamsSchema,
+  MobileNotificationItemSchema,
+  MobileNotificationMutationResponseSchema,
+  MobileNotificationTypeSchema,
+  MobileNotificationsQuerySchema,
+  MobileNotificationsResponseSchema,
   MobilePushPlatformSchema,
   MobilePushProviderSchema,
   MobilePushRegistrationRequestSchema,
@@ -478,6 +484,48 @@ describe("mobile schemas", () => {
         valid: { reactions: [] },
         invalid: { reactions: "none" },
       },
+      MobileNotificationIdParamsSchema: {
+        schema: MobileNotificationIdParamsSchema,
+        valid: { id: uuid },
+        invalid: { id: "not-a-uuid" },
+      },
+      MobileNotificationItemSchema: {
+        schema: MobileNotificationItemSchema,
+        valid: {
+          actionUrl: "/channels/server-1/channel-1",
+          actor: null,
+          body: "Ada mentioned you",
+          channel: { id: "channel-1", name: "general" },
+          createdAt: now,
+          id: uuid,
+          messageQuote: { id: "message-1", preview: null },
+          read: false,
+          readAt: null,
+          server: { id: "server-1", name: "Whispr" },
+          type: "MENTION",
+        },
+        invalid: { id: uuid, type: "UNKNOWN" },
+      },
+      MobileNotificationMutationResponseSchema: {
+        schema: MobileNotificationMutationResponseSchema,
+        valid: { success: true },
+        invalid: { success: false },
+      },
+      MobileNotificationTypeSchema: {
+        schema: MobileNotificationTypeSchema,
+        valid: "DM",
+        invalid: "UNKNOWN",
+      },
+      MobileNotificationsQuerySchema: {
+        schema: MobileNotificationsQuerySchema,
+        valid: { cursor: "opaque-cursor", limit: 20 },
+        invalid: { limit: 31 },
+      },
+      MobileNotificationsResponseSchema: {
+        schema: MobileNotificationsResponseSchema,
+        valid: { nextCursor: null, notifications: [] },
+        invalid: { nextCursor: null, notifications: "invalid" },
+      },
       MobilePushPlatformSchema: {
         schema: MobilePushPlatformSchema,
         valid: "android",
@@ -761,6 +809,38 @@ describe("mobile schemas", () => {
       provider: "expo",
       token: "ExpoPushToken[abcdefghij]",
     });
+  });
+
+  it("validates a bounded mobile notification feed and rejects malformed payloads", () => {
+    const notification = {
+      actionUrl: "/channels/server-1/channel-1",
+      actor: { avatarUrl: null, displayName: "Ada", id: "user-2", username: "ada" },
+      body: "Ada mentioned you",
+      channel: { id: "channel-1", name: "general" },
+      createdAt: now,
+      id: uuid,
+      messageQuote: { id: "message-1", preview: "Please review this" },
+      read: false,
+      readAt: null,
+      server: { id: "server-1", name: "Whispr" },
+      type: "MENTION",
+    };
+
+    assertAccepts(MobileNotificationItemSchema, notification);
+    assertRejects(MobileNotificationItemSchema, { ...notification, type: "UNKNOWN" }, ["type"]);
+    assertRejects(MobileNotificationItemSchema, { ...notification, actionUrl: "https://evil.test" }, [
+      "actionUrl",
+    ]);
+    assertRejects(MobileNotificationItemSchema, { ...notification, actionUrl: "//evil.test" }, [
+      "actionUrl",
+    ]);
+    assertAccepts(MobileNotificationsQuerySchema, { cursor: "opaque-cursor", limit: "20" });
+    assertRejects(MobileNotificationsQuerySchema, { limit: 31 }, ["limit"]);
+    assertRejects(MobileNotificationsResponseSchema, {
+      nextCursor: null,
+      notifications: [{ ...notification, readAt: "not-a-date" }],
+    });
+    assertAccepts(MobileNotificationMutationResponseSchema, { success: true });
   });
 
   it("enforces strict voice request UUIDs, identifiers, and collection limits", () => {

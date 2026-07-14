@@ -148,6 +148,7 @@ describe("mobile realtime query bridge", () => {
     assert.deepEqual(mobileQueryKeys.workspaceRoot(), ["mobile", "workspace"]);
     assert.deepEqual(mobileQueryKeys.channelMessagesRoot(), ["mobile", "channel-messages"]);
     assert.deepEqual(mobileQueryKeys.dmMessagesRoot(), ["mobile", "dm-messages"]);
+    assert.deepEqual(mobileQueryKeys.notifications(), ["mobile", "notifications"]);
   });
 
   it("debounces presence, notification, workspace, channel, and DM mappings by timer source", () => {
@@ -156,6 +157,7 @@ describe("mobile realtime query bridge", () => {
     const bridge = createBridge(queryClient, fake.scheduler);
     const keys = [
       mobileQueryKeys.bootstrap(),
+      mobileQueryKeys.notifications(),
       mobileQueryKeys.friends(),
       mobileQueryKeys.workspace("server-1"),
       mobileQueryKeys.channelMessages("channel-1"),

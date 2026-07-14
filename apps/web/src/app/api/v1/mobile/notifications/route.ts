@@ -11,9 +11,14 @@ import {
   registerMobilePushToken,
   revokeMobilePushToken,
 } from "@/lib/mobile/push-notifications";
+import { mobileNotificationsListRoute } from "./route-logic";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+export async function GET(request: Request) {
+  return mobileNotificationsListRoute(request);
+}
 
 export async function POST(request: Request) {
   try {

@@ -132,8 +132,16 @@ export function createMobileRealtimeQueryBridge({
       return;
     }
 
-    if (source === "bootstrap" || source === "notification") {
+    if (source === "bootstrap") {
       scheduleInvalidations(source, [mobileQueryKeys.bootstrap()]);
+      return;
+    }
+
+    if (source === "notification") {
+      scheduleInvalidations(source, [
+        mobileQueryKeys.bootstrap(),
+        mobileQueryKeys.notifications(),
+      ]);
       return;
     }
 

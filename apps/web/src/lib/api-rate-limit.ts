@@ -87,6 +87,8 @@ export const API_RATE_LIMITS = {
   "mobile:media:upload": { limit: 10, windowSeconds: 5 * 60 },
   "mobile:message:search": { limit: 40, windowSeconds: 60 },
   "mobile:notifications:register": { limit: 20, windowSeconds: 60 * 60 },
+  "mobile:notifications:list": { limit: 120, windowSeconds: 60 },
+  "mobile:notifications:mark-read": { limit: 120, windowSeconds: 60 },
   "mobile:notifications:revoke": { limit: 60, windowSeconds: 10 * 60 },
   "mobile:voice:heartbeat": { limit: 240, windowSeconds: 60 },
   "mobile:voice:state": { limit: 60, windowSeconds: 60 },

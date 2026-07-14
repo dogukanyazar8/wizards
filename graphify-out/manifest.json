@@ -432,8 +432,8 @@
     "hash": "23c6ed3411c7531265cc173c365967aa"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-notification-client.test.ts": {
-    "mtime": 1783962986.5834737,
-    "hash": "9a0bd6b60384497930cdc1c9932cb1bf"
+    "mtime": 1784067479.4745588,
+    "hash": "80bdcfc52ce0df3d9869f97fde47bdbd"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-notification-contract.test.ts": {
     "mtime": 1782987330.424498,
@@ -442,6 +442,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-notification-lifecycle-contract.test.ts": {
     "mtime": 1783493497.5733216,
     "hash": "d4c5878310971189db1209708f0b1513"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-notification-query.test.ts": {
+    "mtime": 1784067762.1469312,
+    "hash": "d8c0d0f016bf092512ac582853a59381"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-performance-metrics.test.ts": {
     "mtime": 1783962240.2254431,
@@ -512,8 +516,8 @@
     "hash": "87974a8f17d2da214ffb3a02b85bfb09"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-realtime-query-bridge.test.ts": {
-    "mtime": 1783962832.0216784,
-    "hash": "0ef64c3b2dd56679f75344ec1707490d"
+    "mtime": 1784067388.063474,
+    "hash": "188e6a76756588a476ffdb2f35e67f6d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\scripts\\mobile-realtime-state.test.ts": {
     "mtime": 1783730793.9759352,
@@ -1296,8 +1300,8 @@
     "hash": "787ae6899858a7f99ab23b9897870006"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\notifications\\mobile-notification-client.ts": {
-    "mtime": 1782987055.2853422,
-    "hash": "d123b3fdd626c2551eb6a10e3a4d38ba"
+    "mtime": 1784067446.4459753,
+    "hash": "49631b6b436f42c7bff3453bec0079f5"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\notifications\\mobile-notification-contract.ts": {
     "mtime": 1782987029.3367596,
@@ -1306,6 +1310,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\notifications\\mobile-notification-lifecycle-contract.ts": {
     "mtime": 1783962986.6034997,
     "hash": "0829dfac451a6319602910ed6aeea6b2"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\notifications\\mobile-notification-query.ts": {
+    "mtime": 1784067762.1469312,
+    "hash": "98862f3b3b80d647e6d38cd95bdae49e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\notifications\\mobile-notification-runtime.ts": {
     "mtime": 1783962834.0663846,
@@ -1360,8 +1368,8 @@
     "hash": "ff6fb0721a401a81d55740bb9f6182f8"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\query\\mobile-query-keys.ts": {
-    "mtime": 1783962834.1816232,
-    "hash": "c93d691f684e7c40ca6b4370d94294eb"
+    "mtime": 1784067446.4469757,
+    "hash": "59ade2ddc0329e083322fdef79770813"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\query\\mobile-query-pages.ts": {
     "mtime": 1783627487.0900435,
@@ -1404,8 +1412,8 @@
     "hash": "15be26d22bcae16d52a9c4d8b0fd3d60"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\realtime\\realtime-query-bridge.ts": {
-    "mtime": 1783962986.6094966,
-    "hash": "502837c6ee44f484e17bf21be895528d"
+    "mtime": 1784067446.4469757,
+    "hash": "21c7f0a04d946a5ecd6c92c8940c017d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\src\\release\\mobile-production-readiness.ts": {
     "mtime": 1782974508.3509407,
@@ -1928,8 +1936,8 @@
     "hash": "fc65a7c4f2ada5b1b29bf5e37c8c9ce7"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\route-contract.test.ts": {
-    "mtime": 1783943759.116107,
-    "hash": "6d8f2e792b622051ca8fd0ceafca7408"
+    "mtime": 1784067893.7631679,
+    "hash": "f63d9edd4759f7d95c95d46927bd0650"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\admin\\dashboard\\route-logic.ts": {
     "mtime": 1783573210.8243103,
@@ -2379,9 +2387,25 @@
     "mtime": 1783923305.0518768,
     "hash": "70b431fbd5577b1ae804d106967b13c8"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\mobile\\notifications\\route-logic.test.ts": {
+    "mtime": 1784067846.3749766,
+    "hash": "0c9fb42e4c6292492653863e33d4c430"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\mobile\\notifications\\route-logic.ts": {
+    "mtime": 1784067625.0457234,
+    "hash": "5408982b489a1d3cd7bc2277ec70a117"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\mobile\\notifications\\route.ts": {
-    "mtime": 1782986862.4898095,
-    "hash": "8191462bd434ba225636db2c199a72c9"
+    "mtime": 1784067634.2949405,
+    "hash": "6a96f56d957ed83ba384692b2302dbff"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\mobile\\notifications\\read-all\\route.ts": {
+    "mtime": 1784067634.29694,
+    "hash": "7010e4c3e6639488d7d51dbe5012559f"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\mobile\\notifications\\[id]\\read\\route.ts": {
+    "mtime": 1784067634.295941,
+    "hash": "2d821b326cbf0c1b36a17e51cdcf0a30"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\api\\v1\\mobile\\servers\\route-logic.test.ts": {
     "mtime": 1783937409.4731276,
@@ -3268,8 +3292,8 @@
     "hash": "b9700b11ffa7f0017926f98cbbee62e1"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\api-rate-limit.ts": {
-    "mtime": 1783939580.7377505,
-    "hash": "5ed914c83a73ac939be4e34951941453"
+    "mtime": 1784067625.0447223,
+    "hash": "6099009a4223be49ad7477e497047c61"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\api.test.ts": {
     "mtime": 1783522261.3798983,
@@ -4080,8 +4104,8 @@
     "hash": "7d69edd272dc0449f5f1e04ca68d3c42"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\notifications\\service.ts": {
-    "mtime": 1779082192.49653,
-    "hash": "9a481e4c12dd07618d17bb1f048da14e"
+    "mtime": 1784067846.373977,
+    "hash": "501fe2b76bc8a299ae48c79d3d87024b"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\lib\\notifications\\types.ts": {
     "mtime": 1779082192.49653,
@@ -4796,12 +4820,12 @@
     "hash": "0678f7be12a58056e706e41311f6e900"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\types\\src\\mobile.test.ts": {
-    "mtime": 1783946146.995582,
-    "hash": "9c431163f1733d49fbe031876c395e7d"
+    "mtime": 1784067797.2613888,
+    "hash": "1c68f1aea4165a486a253087163aec78"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\types\\src\\mobile.ts": {
-    "mtime": 1783946336.6759214,
-    "hash": "96735f0d0f05cb6ac9fe67b5ee7c2846"
+    "mtime": 1784067805.8771532,
+    "hash": "5c98f1a47a626fd82d802ef2a20d8538"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\types\\src\\schema-test-helpers.ts": {
     "mtime": 1783663576.7824981,
