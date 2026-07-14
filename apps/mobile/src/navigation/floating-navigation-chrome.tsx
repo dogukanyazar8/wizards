@@ -46,7 +46,7 @@ export function FloatingNavigationChrome({
         styles.chrome,
         keyboardVisible
           ? styles.chromeKeyboardHidden
-          : { paddingBottom: Math.max(insets.bottom, 12) },
+          : { paddingBottom: Math.max(insets.bottom, 18) },
       ]}
       testID="mobile-floating-navigation-chrome"
     >
@@ -76,7 +76,7 @@ export function FloatingNavigationChrome({
           ) : null}
           <MobileBottomTabBar
             {...tabBarProps}
-            bottomSafeAreaInset={Math.max(insets.bottom, 12)}
+            bottomSafeAreaInset={Math.max(insets.bottom, 18)}
             directMessageUnreadCount={directMessageUnreadCount}
           />
         </>

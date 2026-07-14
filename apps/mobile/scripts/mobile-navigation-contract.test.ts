@@ -172,3 +172,29 @@ test("floating navigation chrome is the measured inset owner for tab roots", () 
   assert.doesNotMatch(bottomTabBar, /useSafeAreaInsets/);
   assert.doesNotMatch(settingsStyles, /paddingBottom:\s*132/);
 });
+
+test("floating pill tab bar uses canonical styling and typed DM unread state", () => {
+  const bottomTabBar = read("../src/navigation/mobile-bottom-tab-bar.tsx");
+  const productApp = read("../src/app/mobile-product-app.tsx");
+  const messagingFeature = read("../src/app/features/use-mobile-messaging-feature.ts");
+  const copy = read("../src/locale/mobile-copy.ts");
+
+  for (const icon of ["servers", "chat-bubble", "bell", "profile"]) {
+    assert.match(bottomTabBar, new RegExp(`"${icon}"`));
+  }
+  assert.match(bottomTabBar, /MobileLineIcon/);
+  assert.match(bottomTabBar, /marginHorizontal:\s*16/);
+  assert.match(bottomTabBar, /padding:\s*8/);
+  assert.match(bottomTabBar, /gap:\s*4/);
+  assert.match(bottomTabBar, /theme\.surface\.card/);
+  assert.match(bottomTabBar, /theme\.elevation\.tabBar/);
+  assert.match(bottomTabBar, /theme\.radii\.tabPill/);
+  assert.match(bottomTabBar, /mobile-bottom-tab-unread-dot/);
+  assert.doesNotMatch(bottomTabBar, /navBadgeText|Math\.min\(badge/);
+  assert.match(bottomTabBar, /pendingTabKeyRef/);
+  assert.match(messagingFeature, /bootstrapState\.summary\.unreadDirectMessageCount/);
+  assert.match(productApp, /directMessageUnreadCount=\{directMessageUnreadCount\}/);
+  assert.doesNotMatch(productApp, /payload\.home\.directMessages\.unreadCount/);
+  assert.match(copy, /tabServers:\s*"Sunucular"/);
+  assert.match(copy, /tabServers:\s*"Servers"/);
+});

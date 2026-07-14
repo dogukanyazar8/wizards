@@ -380,7 +380,7 @@ describe("mobile design contract", () => {
     assert.match(profileSettingsSource, /"mobile-settings-developer"/);
   });
 
-  it("keeps the bottom navigation on the premium floating capsule contract", () => {
+  it("keeps the bottom navigation on the canonical floating pill contract", () => {
     const shellSource = readFileSync(
       join(process.cwd(), "src", "navigation", "mobile-bottom-tab-bar.tsx"),
       "utf8",
@@ -389,14 +389,15 @@ describe("mobile design contract", () => {
     assert.match(shellSource, /function MobileBottomTabBar\(/);
     assert.match(shellSource, /styles\.bottomNavShadow/);
     assert.match(shellSource, /styles\.bottomNavSurface/);
-    assert.match(shellSource, /styles\.navIconHalo/);
-    assert.match(shellSource, /styles\.navActiveGlow/);
+    assert.match(shellSource, /MobileLineIcon/);
+    assert.match(shellSource, /styles\.navButtonActive/);
     assert.match(shellSource, /useThemedStyles\(createMobileBottomTabBarStyles\)/);
     assert.match(shellSource, /theme\.elevation\.tabBar/);
     assert.doesNotMatch(shellSource, /theme\.elevation\.(?:floating|soft)/);
     assert.match(shellSource, /theme\.typography\.caption/);
-    assert.match(shellSource, /theme\.surface\.elevated/);
-    assert.match(shellSource, /theme\.text\.onPrimary/);
+    assert.match(shellSource, /theme\.surface\.card/);
+    assert.match(shellSource, /theme\.text\.soft/);
+    assert.match(shellSource, /theme\.radii\.tabPill/);
     assert.match(shellSource, /accessibilityRole="tablist"/);
     assert.match(shellSource, /accessibilityRole="tab"/);
     assert.doesNotMatch(shellSource, /navSelectionBar/);

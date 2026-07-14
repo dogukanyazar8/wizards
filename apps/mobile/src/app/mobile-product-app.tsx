@@ -113,6 +113,7 @@ export function MobileProductApp({
     channelSendState,
     clearMessageSearch,
     currentTab,
+    directMessageUnreadCount,
     dmMessagesState,
     dmSendState,
     getSyncHealth,
@@ -199,8 +200,6 @@ export function MobileProductApp({
         ? copy.authSignedIn
         : copy.authSignedOut;
   const signedInUserLabel = session ? (session.user.displayName ?? session.user.username) : null;
-  const mobileShellUnreadCount =
-    bootstrapState.status === "ready" ? bootstrapState.payload.home.directMessages.unreadCount : 0;
   const { channelTypingLabel, dmTypingLabel } = useMobileTypingLabels({
     channelId: selectedWorkspaceChannelId,
     channelTyping: channelTypingState,
@@ -383,7 +382,7 @@ export function MobileProductApp({
                           visible={deviceIntegrityWarningVisible}
                         />
                         <Navigator
-                          directMessageUnreadCount={mobileShellUnreadCount}
+                          directMessageUnreadCount={directMessageUnreadCount}
                           onTabChange={setCurrentTab}
                         />
                         <MobileVoiceInviteOverlay

@@ -193,6 +193,8 @@ export function useMobileMessagingFeature({
     summarizeMobileBootstrap,
     copy.bootstrapLoadFailed,
   );
+  const directMessageUnreadCount =
+    bootstrapState.status === "ready" ? bootstrapState.summary.unreadDirectMessageCount : 0;
   const workspaceServerState = toMobileWorkspaceViewState(
     workspaceQuery,
     selectedWorkspaceServerId,
@@ -844,6 +846,7 @@ export function useMobileMessagingFeature({
     channelSyncState: toMobileSyncSnapshot(channelMessagesQuery, "channel"),
     clearMessageSearch,
     currentTab,
+    directMessageUnreadCount,
     dmMessagesQuery,
     dmMessagesState,
     dmSendState,
