@@ -66,10 +66,12 @@ import {
   MobileVoiceChannelStateSchema,
   MobileVoiceHeartbeatRequestSchema,
   MobileVoiceHeartbeatResponseSchema,
+  MobileVoiceScreenShareUpdateEventSchema,
   MobileVoiceStateDeleteRequestSchema,
   MobileVoiceStateLeaveResponseSchema,
   MobileVoiceStateMutationResponseSchema,
   MobileVoiceStateParticipantSchema,
+  MobileVoiceStateUpdateEventSchema,
   MobileVoiceStatesQuerySchema,
   MobileVoiceStatesResponseSchema,
   MobileVoiceStateUpsertRequestSchema,
@@ -681,6 +683,21 @@ describe("mobile schemas", () => {
         valid: { channelId: "channel-1", serverId: "server-1", success: true },
         invalid: { channelId: "channel-1", serverId: "server-1", success: false },
       },
+      MobileVoiceScreenShareUpdateEventSchema: {
+        schema: MobileVoiceScreenShareUpdateEventSchema,
+        valid: {
+          channelId: "channel-1",
+          isScreenSharing: true,
+          serverId: "server-1",
+          userId: "user-1",
+        },
+        invalid: {
+          channelId: "channel-1",
+          isScreenSharing: "true",
+          serverId: "server-1",
+          userId: "user-1",
+        },
+      },
       MobileVoiceStateDeleteRequestSchema: {
         schema: MobileVoiceStateDeleteRequestSchema,
         valid: { sessionId: uuid },
@@ -710,6 +727,23 @@ describe("mobile schemas", () => {
         schema: MobileVoiceStateParticipantSchema,
         valid: voiceParticipant,
         invalid: { ...voiceParticipant, userId: "" },
+      },
+      MobileVoiceStateUpdateEventSchema: {
+        schema: MobileVoiceStateUpdateEventSchema,
+        valid: {
+          action: "join",
+          channelId: "channel-1",
+          participants: [voiceParticipant],
+          serverId: "server-1",
+          userId: "user-1",
+        },
+        invalid: {
+          action: "connect",
+          channelId: "channel-1",
+          participants: [voiceParticipant],
+          serverId: "server-1",
+          userId: "user-1",
+        },
       },
       MobileVoiceStatesQuerySchema: {
         schema: MobileVoiceStatesQuerySchema,

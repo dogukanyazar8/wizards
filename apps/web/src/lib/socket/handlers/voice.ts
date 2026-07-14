@@ -279,6 +279,7 @@ export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistr
       await emitVoiceScreenShareUpdate({
         channelId: data.channelId,
         isScreenSharing: data.isScreenSharing,
+        serverId: data.serverId,
         userId,
       });
     } catch (error) {

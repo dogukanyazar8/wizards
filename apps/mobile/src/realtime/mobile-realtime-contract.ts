@@ -177,6 +177,18 @@ const MOBILE_REALTIME_PAYLOAD_PARSERS = {
     const parsed = MobileUserProfileUpdatedEventSchema.safeParse(payload);
     return parsed.success ? { channelId: null, payload: parsed.data, serverId: null } : null;
   },
+  "voice:state:update": (payload) => {
+    const parsed = MobileVoiceStateUpdateEventSchema.safeParse(payload);
+    return parsed.success
+      ? { channelId: parsed.data.channelId, payload: parsed.data, serverId: parsed.data.serverId }
+      : null;
+  },
+  "voice:screenshare:update": (payload) => {
+    const parsed = MobileVoiceScreenShareUpdateEventSchema.safeParse(payload);
+    return parsed.success
+      ? { channelId: parsed.data.channelId, payload: parsed.data, serverId: parsed.data.serverId }
+      : null;
+  },
 } satisfies Partial<Record<MobileRealtimeServerEventName, MobileRealtimePayloadParser>>;
 
 type MobileValidatedRealtimeEventName = keyof typeof MOBILE_REALTIME_PAYLOAD_PARSERS;
@@ -365,4 +377,6 @@ import {
   MobileServerMembershipRemovedEventSchema,
   MobileServerSettingsUpdatedEventSchema,
   MobileUserProfileUpdatedEventSchema,
+  MobileVoiceScreenShareUpdateEventSchema,
+  MobileVoiceStateUpdateEventSchema,
 } from "@wizards/types";

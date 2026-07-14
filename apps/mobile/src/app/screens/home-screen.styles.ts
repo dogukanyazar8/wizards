@@ -352,6 +352,25 @@ export const createHomeScreenStyles = (theme: MobileTheme) => {
       flex: 1,
       minWidth: 0,
     },
+    mobileWorkspaceVoiceAvatars: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 3,
+    },
+    mobileWorkspaceVoicePresence: {
+      marginTop: 3,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      minWidth: 0,
+    },
+    mobileWorkspaceVoicePresenceText: {
+      flex: 1,
+      minWidth: 0,
+      color: theme.status.success,
+      fontSize: 10,
+      fontWeight: "800",
+    },
     mobileWorkspaceEmpty: {
       gap: 8,
       minWidth: 0,

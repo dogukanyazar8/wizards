@@ -292,6 +292,21 @@ export const MobileVoiceStatesResponseSchema = z.object({
   states: z.array(MobileVoiceChannelStateSchema).max(80),
 });
 
+export const MobileVoiceStateUpdateEventSchema = z.object({
+  action: z.enum(["join", "leave"]),
+  channelId: z.string().min(1).max(128),
+  participants: z.array(MobileVoiceStateParticipantSchema).max(50),
+  serverId: z.string().min(1).max(128),
+  userId: z.string().min(1).max(128),
+});
+
+export const MobileVoiceScreenShareUpdateEventSchema = z.object({
+  channelId: z.string().min(1).max(128),
+  isScreenSharing: z.boolean(),
+  serverId: z.string().min(1).max(128),
+  userId: z.string().min(1).max(128),
+});
+
 export const MobileVoiceStateUpsertRequestSchema = z
   .object({
     channelId: z.string().min(1).max(128),
@@ -681,6 +696,10 @@ export type MobileVoiceTokenResponse = z.infer<typeof MobileVoiceTokenResponseSc
 export type MobileVoiceStateParticipant = z.infer<typeof MobileVoiceStateParticipantSchema>;
 export type MobileVoiceChannelState = z.infer<typeof MobileVoiceChannelStateSchema>;
 export type MobileVoiceStatesResponse = z.infer<typeof MobileVoiceStatesResponseSchema>;
+export type MobileVoiceStateUpdateEvent = z.infer<typeof MobileVoiceStateUpdateEventSchema>;
+export type MobileVoiceScreenShareUpdateEvent = z.infer<
+  typeof MobileVoiceScreenShareUpdateEventSchema
+>;
 export type MobileVoiceStateUpsertRequest = z.infer<typeof MobileVoiceStateUpsertRequestSchema>;
 export type MobileVoiceStateDeleteRequest = z.infer<typeof MobileVoiceStateDeleteRequestSchema>;
 export type MobileVoiceHeartbeatRequest = z.infer<typeof MobileVoiceHeartbeatRequestSchema>;

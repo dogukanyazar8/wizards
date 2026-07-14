@@ -39,6 +39,7 @@ import { useMobileServerManagementFeature } from "../features/use-mobile-server-
 import { MobileServerCreateJoinSheet } from "../../workspace/mobile-server-create-join-sheet";
 import { shareMobileInviteUrl } from "../../invite/mobile-invite-share";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
+import { useMobileVoiceStatesQuery } from "../../query/mobile-voice-states-query";
 import { MobileChannelChatScreen } from "./channel-screen";
 import { AvatarMark } from "../components/ui-atoms";
 import { useTheme } from "../providers/mobile-theme-provider";
@@ -188,6 +189,8 @@ export function MobileWorkspaceBrowser({
   const activeServerShortName =
     activeServer?.shortName ?? activeServerSummary?.shortName ?? activeServerName;
   const activeServerIconUrl = activeServer?.iconUrl ?? activeServerSummary?.iconUrl ?? null;
+  const voiceStatesQuery = useMobileVoiceStatesQuery(apiClient, activeServerId ?? "");
+  const voiceStates = voiceStatesQuery.data?.states ?? [];
   const activeMemberCount = activeServer?.memberCount ?? activeServerSummary?.memberCount ?? 0;
   const activeChannelCount =
     activeServer?.visibleChannelCount ?? activeServerSummary?.channelCount ?? 0;
@@ -546,6 +549,7 @@ export function MobileWorkspaceBrowser({
                   canManageChannels={workspacePayload.detail.capabilities.canManageChannels}
                   sections={visibleChannelSections}
                   selectedChannelId={selectedChannelId}
+                  voiceStates={voiceStates}
                   isCollapseDisabled={isSearchingChannels}
                   onOpenChannel={onOpenChannel}
                   onOpenChannelSettings={(channelId) => {

@@ -555,6 +555,22 @@ function mapSocketParticipants(participants: VoiceStateParticipantDTO[]) {
   }));
 }
 
+export function createVoiceStateUpdatePayload(args: {
+  action: "join" | "leave";
+  channelId: string;
+  participants: VoiceStateParticipantDTO[];
+  serverId: string;
+  userId: string;
+}) {
+  return {
+    action: args.action,
+    channelId: args.channelId,
+    participants: mapSocketParticipants(args.participants),
+    serverId: args.serverId,
+    userId: args.userId,
+  };
+}
+
 export async function emitVoiceStateUpdate(args: {
   action: "join" | "leave";
   channelId: string;
@@ -569,12 +585,7 @@ export async function emitVoiceStateUpdate(args: {
 
   const participants =
     args.participants ?? (await buildVoiceStateParticipantsForChannel(args.channelId));
-  const payload = {
-    action: args.action,
-    channelId: args.channelId,
-    participants: mapSocketParticipants(participants),
-    userId: args.userId,
-  };
+  const payload = createVoiceStateUpdatePayload({ ...args, participants });
 
   io.to(getVoiceStateViewerRoomName(args.channelId))
     .to(getVoiceParticipantRoomName(args.channelId))
@@ -584,6 +595,7 @@ export async function emitVoiceStateUpdate(args: {
 export async function emitVoiceScreenShareUpdate(args: {
   channelId: string;
   isScreenSharing: boolean;
+  serverId: string;
   userId: string;
 }) {
   const io = getSocketServer();
@@ -594,6 +606,7 @@ export async function emitVoiceScreenShareUpdate(args: {
   const payload = {
     channelId: args.channelId,
     isScreenSharing: args.isScreenSharing,
+    serverId: args.serverId,
     userId: args.userId,
   };
 
@@ -1013,6 +1026,7 @@ export async function heartbeatVoiceState(userId: string, input: HeartbeatVoiceS
     await emitVoiceScreenShareUpdate({
       channelId: existingState.channelId,
       isScreenSharing: selfScreenShare,
+      serverId: existingState.serverId,
       userId,
     }).catch((error) => {
       logError("[voice] Screen-share heartbeat emit failed", error);

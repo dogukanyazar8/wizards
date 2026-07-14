@@ -7,11 +7,14 @@ import {
   MobileServerMembershipRemovedEventSchema,
   MobileServerSettingsUpdatedEventSchema,
   MobileUserProfileUpdatedEventSchema,
+  MobileVoiceScreenShareUpdateEventSchema,
+  MobileVoiceStateUpdateEventSchema,
   type MobileBootstrapPayload,
   type MobileChannelMessagesResponse,
   type MobileDMMessagesResponse,
   type MobileFriendsOverviewResponse,
   type MobileManagedWorkspaceServerDetailResponse,
+  type MobileVoiceStatesResponse,
 } from "@wizards/types";
 import {
   appendOrReplaceMobileMessage,
@@ -19,6 +22,10 @@ import {
   replaceMobileMessageReactions,
 } from "../query/mobile-message-cache";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
+import {
+  applyMobileVoiceScreenShareUpdate,
+  applyMobileVoiceStateUpdate,
+} from "../query/mobile-voice-states-query";
 import {
   patchMobileRealtimeBootstrapProfile,
   patchMobileRealtimeBootstrapPresence,
@@ -273,6 +280,38 @@ export function createMobileRealtimeQueryBridge({
   };
 
   const applyValidatedManagementEvent = (event: MobileRealtimeEventEnvelope): boolean => {
+    if (event.eventName === "voice:state:update") {
+      const parsed = MobileVoiceStateUpdateEventSchema.safeParse(event.payload);
+      if (!parsed.success) return true;
+
+      const queryKey = mobileQueryKeys.voiceStates(parsed.data.serverId);
+      let hasCachedState = false;
+      queryClient.setQueryData<MobileVoiceStatesResponse>(queryKey, (current) => {
+        hasCachedState = current !== undefined;
+        return applyMobileVoiceStateUpdate(current, parsed.data);
+      });
+      if (!hasCachedState) {
+        void queryClient.invalidateQueries({ exact: true, queryKey });
+      }
+      return true;
+    }
+
+    if (event.eventName === "voice:screenshare:update") {
+      const parsed = MobileVoiceScreenShareUpdateEventSchema.safeParse(event.payload);
+      if (!parsed.success) return true;
+
+      const queryKey = mobileQueryKeys.voiceStates(parsed.data.serverId);
+      let hasCachedState = false;
+      queryClient.setQueryData<MobileVoiceStatesResponse>(queryKey, (current) => {
+        hasCachedState = current !== undefined;
+        return applyMobileVoiceScreenShareUpdate(current, parsed.data);
+      });
+      if (!hasCachedState) {
+        void queryClient.invalidateQueries({ exact: true, queryKey });
+      }
+      return true;
+    }
+
     if (event.eventName === "server:membership:removed") {
       const parsed = MobileServerMembershipRemovedEventSchema.safeParse(event.payload);
       if (!parsed.success) {

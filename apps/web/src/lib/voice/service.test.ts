@@ -6,6 +6,7 @@ import {
   acquireVoiceJoinLocks,
   buildVoiceStateDeleteWhere,
   canClearVoiceStateForSession,
+  createVoiceStateUpdatePayload,
   getVoiceJoinLockSpecs,
   resetVoiceCleanupLocalDebounceForTests,
   releaseVoiceJoinLocks,
@@ -103,6 +104,41 @@ function createVoiceStateClearDelegate(existingState: VoiceStateClearRecord, del
 }
 
 describe("voice service concurrency helpers", () => {
+  it("keeps server scope on every voice-state realtime payload", () => {
+    assert.deepEqual(
+      createVoiceStateUpdatePayload({
+        action: "join",
+        channelId: "voice-1",
+        participants: [
+          {
+            avatarUrl: null,
+            displayName: "Ada",
+            isScreenSharing: false,
+            userId: "user-1",
+            username: "ada",
+          },
+        ],
+        serverId: "server-1",
+        userId: "user-1",
+      }),
+      {
+        action: "join",
+        channelId: "voice-1",
+        participants: [
+          {
+            avatarUrl: null,
+            displayName: "Ada",
+            isScreenSharing: false,
+            userId: "user-1",
+            username: "ada",
+          },
+        ],
+        serverId: "server-1",
+        userId: "user-1",
+      },
+    );
+  });
+
   it("uses a per-user join lock before the channel capacity lock", () => {
     const locks = getVoiceJoinLockSpecs({
       channelId: "channel-1",

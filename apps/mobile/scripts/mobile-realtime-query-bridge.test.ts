@@ -6,6 +6,7 @@ import type {
   DMMessagePayload,
   MobileChannelMessagesResponse,
   MobileDMMessagesResponse,
+  MobileVoiceStatesResponse,
 } from "@wizards/types";
 import { mobileQueryKeys } from "../src/query/mobile-query-keys";
 import { createMobileRealtimeEventEnvelope } from "../src/realtime/mobile-realtime-contract";
@@ -203,6 +204,67 @@ describe("mobile realtime query bridge", () => {
       }),
     );
     assert.equal(fake.pendingCount(), 1);
+  });
+
+  it("patches only the matching server voice-state cache for join and leave snapshots", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const matchingKey = mobileQueryKeys.voiceStates("server-1");
+    const unrelatedKey = mobileQueryKeys.voiceStates("server-2");
+    const matching: MobileVoiceStatesResponse = { states: [] };
+    const unrelated: MobileVoiceStatesResponse = {
+      states: [{ channelId: "voice-2", participants: [] }],
+    };
+    queryClient.setQueryData(matchingKey, matching);
+    queryClient.setQueryData(unrelatedKey, unrelated);
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("voice:state:update", {
+        action: "join",
+        channelId: "voice-1",
+        participants: [
+          {
+            avatarUrl: null,
+            displayName: "Ada",
+            isScreenSharing: false,
+            userId: "user-1",
+            username: "ada",
+          },
+        ],
+        serverId: "server-1",
+        userId: "user-1",
+      }),
+    );
+
+    assert.deepEqual(queryClient.getQueryData<MobileVoiceStatesResponse>(matchingKey), {
+      states: [
+        {
+          channelId: "voice-1",
+          participants: [
+            {
+              avatarUrl: null,
+              displayName: "Ada",
+              isScreenSharing: false,
+              userId: "user-1",
+              username: "ada",
+            },
+          ],
+        },
+      ],
+    });
+    assert.equal(queryClient.getQueryData(unrelatedKey), unrelated);
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("voice:state:update", {
+        action: "leave",
+        channelId: "voice-1",
+        participants: [],
+        serverId: "server-1",
+        userId: "user-1",
+      }),
+    );
+    assert.deepEqual(queryClient.getQueryData<MobileVoiceStatesResponse>(matchingKey), { states: [] });
   });
 
   it("updates validated active DM message pages without scheduling a refresh", () => {

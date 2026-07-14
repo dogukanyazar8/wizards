@@ -92,6 +92,43 @@ describe("mobile realtime contract", () => {
       userId: "user-2",
       username: "ada",
     });
+
+    const voiceState = createMobileRealtimeEventEnvelope(
+      "voice:state:update",
+      {
+        action: "join",
+        channelId: "voice-1",
+        participants: [
+          {
+            avatarUrl: null,
+            displayName: "Ada Lovelace",
+            isScreenSharing: false,
+            userId: "user-2",
+            username: "ada",
+          },
+        ],
+        serverId: "server-1",
+        userId: "user-2",
+      },
+      2_500,
+    );
+    assert.equal(voiceState.serverId, "server-1");
+    assert.equal(voiceState.channelId, "voice-1");
+    assert.deepEqual(voiceState.payload, {
+      action: "join",
+      channelId: "voice-1",
+      participants: [
+        {
+          avatarUrl: null,
+          displayName: "Ada Lovelace",
+          isScreenSharing: false,
+          userId: "user-2",
+          username: "ada",
+        },
+      ],
+      serverId: "server-1",
+      userId: "user-2",
+    });
   });
 
   it("drops malformed managed ids, presence values, avatars, and extra fields", () => {

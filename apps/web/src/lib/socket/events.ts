@@ -256,6 +256,7 @@ export interface ServerToClientEvents {
   "notification:new": (notification: NotificationSocketPayload) => void;
   "voice:state:update": (data: {
     channelId: string;
+    serverId: string;
     userId: string;
     action: "join" | "leave";
     participants: Array<{
@@ -269,6 +270,7 @@ export interface ServerToClientEvents {
   "voice:screenshare:update": (data: {
     channelId: string;
     isScreenSharing: boolean;
+    serverId: string;
     userId: string;
   }) => void;
   "voice:invite:accepted": (data: {

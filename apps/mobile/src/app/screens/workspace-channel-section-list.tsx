@@ -1,4 +1,5 @@
 import { FlashList } from "@shopify/flash-list";
+import type { MobileVoiceChannelState } from "@wizards/types";
 import {
   Ionicons,
   Pressable,
@@ -9,6 +10,7 @@ import {
   type MobileVisibleWorkspaceChannelSection,
   type MobileWorkspaceChannelSummary,
 } from "../mobile-root-screen-shared";
+import { AvatarMark } from "../components/ui-atoms";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { useHomeScreenStyles } from "./home-screen.styles";
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
@@ -21,6 +23,7 @@ export function WorkspaceChannelSectionList({
   onToggleSection,
   sections,
   selectedChannelId,
+  voiceStates = [],
 }: {
   isCollapseDisabled: boolean;
   canManageChannels?: boolean;
@@ -29,6 +32,7 @@ export function WorkspaceChannelSectionList({
   onToggleSection(sectionId: string): void;
   sections: MobileVisibleWorkspaceChannelSection[];
   selectedChannelId: string | null;
+  voiceStates?: readonly MobileVoiceChannelState[];
 }) {
   const styles = useHomeScreenStyles();
   const theme = useTheme();
@@ -59,6 +63,7 @@ export function WorkspaceChannelSectionList({
               isSelected={item.channel.id === selectedChannelId}
               onOpenChannel={onOpenChannel}
               canManageChannels={canManageChannels}
+              voiceState={voiceStates.find((state) => state.channelId === item.channel.id) ?? null}
               {...(onOpenChannelSettings ? { onOpenChannelSettings } : {})}
             />
           );
@@ -106,23 +111,28 @@ export function WorkspaceChannelCompactRow({
   isSelected,
   onOpenChannel,
   onOpenChannelSettings,
+  voiceState,
 }: {
   channel: MobileWorkspaceChannelSummary;
   canManageChannels?: boolean;
   isSelected: boolean;
   onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
   onOpenChannelSettings?(channelId: string): void;
+  voiceState: MobileVoiceChannelState | null;
 }) {
   const styles = useHomeScreenStyles();
   const theme = useTheme();
   const priority = getMobileChannelPriority(channel);
+  const participants = channel.type === "VOICE" ? voiceState?.participants ?? [] : [];
   const iconName =
     channel.type === "TEXT" ? "chatbubble-ellipses-outline" : "volume-medium-outline";
 
   const channelRow = (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${copy.openWorkspaceChannelAction}: ${channel.name}`}
+      accessibilityLabel={`${copy.openWorkspaceChannelAction}: ${channel.name}${
+        participants.length > 0 ? `, ${participants.length} ${copy.voiceParticipantsSpeaking}` : ""
+      }`}
       accessibilityState={{ selected: isSelected }}
       testID={`mobile-workspace-channel-${channel.type.toLowerCase()}`}
       onPress={() => onOpenChannel(channel)}
@@ -159,6 +169,23 @@ export function WorkspaceChannelCompactRow({
           <Text style={styles.mobileWorkspaceChannelMeta} numberOfLines={1}>
             {channel.topic}
           </Text>
+        ) : null}
+        {participants.length > 0 ? (
+          <View style={styles.mobileWorkspaceVoicePresence} testID={`mobile-voice-state-${channel.id}`}>
+            <View style={styles.mobileWorkspaceVoiceAvatars}>
+              {participants.slice(0, 3).map((participant) => (
+                <AvatarMark
+                  key={participant.userId}
+                  imageUrl={participant.avatarUrl}
+                  label={participant.displayName ?? participant.username}
+                  size="small"
+                />
+              ))}
+            </View>
+            <Text style={styles.mobileWorkspaceVoicePresenceText} numberOfLines={1}>
+              {participants.length} {copy.voiceParticipantsSpeaking}
+            </Text>
+          </View>
         ) : null}
       </View>
       {priority.isLocked || priority.isReadOnly ? (

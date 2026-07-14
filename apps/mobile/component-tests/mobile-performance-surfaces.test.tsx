@@ -126,6 +126,16 @@ const channelSections: MobileVisibleWorkspaceChannelSection[] = [
   },
 ];
 
+const voiceChannelSections: MobileVisibleWorkspaceChannelSection[] = [
+  {
+    channels: [{ ...channel, id: "voice-1", name: "General", type: "VOICE" }],
+    id: "category-voice",
+    isCollapsed: false,
+    name: "Voice",
+    totalChannelCount: 1,
+  },
+];
+
 describe("mobile performance surfaces", () => {
   beforeEach(() => {
     mockFlashListRender.mockClear();
@@ -199,6 +209,38 @@ describe("mobile performance surfaces", () => {
     for (const [props] of mockFlashListRender.mock.calls) {
       expect(props.onLoad).toEqual(expect.any(Function));
     }
+  });
+
+  it("renders live voice participant avatars and count from the server voice-state cache", async () => {
+    const channelView = await render(
+      <WorkspaceChannelSectionList
+        isCollapseDisabled={false}
+        onOpenChannel={jest.fn()}
+        onToggleSection={jest.fn()}
+        sections={voiceChannelSections}
+        selectedChannelId={null}
+        voiceStates={[
+          {
+            channelId: "voice-1",
+            participants: [
+              {
+                avatarUrl: "https://cdn.whispr.team/ada.png",
+                displayName: "Ada",
+                isScreenSharing: false,
+                userId: "user-ada",
+                username: "ada",
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(channelView.getByTestId("mobile-voice-state-voice-1")).toBeTruthy();
+    expect(channelView.getByText("1 kişi konuşuyor")).toBeTruthy();
+    expect(mockExpoImageRender).toHaveBeenCalledWith(
+      expect.objectContaining({ source: { uri: "https://cdn.whispr.team/ada.png" } }),
+    );
   });
 
   it("loads remote avatars and attachment previews through Expo Image memory-disk caching", async () => {

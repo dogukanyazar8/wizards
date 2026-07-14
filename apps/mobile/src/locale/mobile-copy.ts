@@ -718,6 +718,7 @@ export const mobileCopy = {
     workspaceTextChannel: "Metin kanalı",
     workspaceTitle: "Sunucu kanalları",
     workspaceVoiceChannel: "Ses kanalı",
+    voiceParticipantsSpeaking: "kişi konuşuyor",
     workspaceVoiceUnavailable: "Mobil ses kanalı katılımı henüz yerel ses sözleşmesini bekliyor.",
   },
   en: {
@@ -1442,6 +1443,7 @@ export const mobileCopy = {
     workspaceTextChannel: "Text channel",
     workspaceTitle: "Server channels",
     workspaceVoiceChannel: "Voice channel",
+    voiceParticipantsSpeaking: "people speaking",
     workspaceVoiceUnavailable:
       "Mobile voice channel join is waiting for the native voice contract.",
   },

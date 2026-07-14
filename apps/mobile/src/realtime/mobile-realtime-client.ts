@@ -48,6 +48,10 @@ async function resolveSocketAuthToken(
   return typeof token === "string" && token.length > 0 ? token : null;
 }
 
+export function getMobileVoiceStatesWatchPayload(serverId: string) {
+  return { serverId };
+}
+
 export function createMobileRealtimeClient(
   options: MobileRealtimeClientOptions,
 ): MobileRealtimeClient {
@@ -72,7 +76,7 @@ export function createMobileRealtimeClient(
     }
 
     if (activeServerId) {
-      socket.emit("voice:states:watch", activeServerId);
+      socket.emit("voice:states:watch", getMobileVoiceStatesWatchPayload(activeServerId));
     }
 
     if (activeVoiceChannelId && activeServerId) {
@@ -181,7 +185,7 @@ export function createMobileRealtimeClient(
         }
 
         if (activeServerId) {
-          socket.emit("voice:states:unwatch", activeServerId);
+          socket.emit("voice:states:unwatch", getMobileVoiceStatesWatchPayload(activeServerId));
         }
       }
 
@@ -278,7 +282,7 @@ export function createMobileRealtimeClient(
       }
 
       if (previousServerId && previousServerId !== activeServerId) {
-        socket.emit("voice:states:unwatch", previousServerId);
+        socket.emit("voice:states:unwatch", getMobileVoiceStatesWatchPayload(previousServerId));
       }
 
       if (activeChannelId && activeChannelId !== previousChannelId) {
@@ -290,7 +294,7 @@ export function createMobileRealtimeClient(
       }
 
       if (activeServerId && activeServerId !== previousServerId) {
-        socket.emit("voice:states:watch", activeServerId);
+        socket.emit("voice:states:watch", getMobileVoiceStatesWatchPayload(activeServerId));
       }
 
       if (
