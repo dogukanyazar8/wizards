@@ -103,6 +103,7 @@ const CHANNEL_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
 ]);
 
 const DM_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
+  "dm:conversation:updated",
   "dm:message:new",
   "dm:message:updated",
   "dm:message:deleted",
@@ -120,7 +121,6 @@ const WORKSPACE_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
 
 const BOOTSTRAP_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
   "server:unread:update",
-  "dm:conversation:updated",
   "notification:new",
 ]);
 

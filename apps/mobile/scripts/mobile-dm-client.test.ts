@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  buildMobileDMConversationsPath,
   buildMobileDMMessagePath,
   buildMobileDMMessageReactionPath,
   buildMobileDMMessageThreadPath,
@@ -9,6 +10,8 @@ import {
   deleteMobileDMMessage,
   fetchMobileDMMessageThread,
   fetchMobileDMMessages,
+  fetchMobileDMConversations,
+  MOBILE_DM_CONVERSATIONS_LIMIT,
   MOBILE_DM_MESSAGES_LIMIT,
   sendMobileDMMessage,
   setMobileDMMessageReaction,
@@ -76,7 +79,57 @@ const validThreadResponse = {
   parent: validResponse.messages[0],
 };
 
+const validConversationsResponse = {
+  conversations: [
+    {
+      iconUrl: null,
+      id: "conversation-1",
+      lastMessage: {
+        author: { displayName: "Alice", id: "user-2", username: "alice" },
+        authorIsCurrentUser: false,
+        createdAt: "2026-06-29T10:00:00.000Z",
+        id: "message-1",
+        text: "Hello from Whispr mobile.",
+      },
+      lastMessageAt: "2026-06-29T10:00:00.000Z",
+      muted: false,
+      name: null,
+      participantCount: 1,
+      participants: [
+        { avatarUrl: null, displayName: "Alice", id: "user-2", status: "ONLINE", username: "alice" },
+      ],
+      type: "DM",
+      unreadCount: 2,
+    },
+  ],
+  nextCursor: "conversation-1",
+  totalUnreadCount: 2,
+};
+
 describe("mobile DM client", () => {
+  it("builds a bounded paginated mobile DM conversations path", () => {
+    assert.equal(
+      buildMobileDMConversationsPath({ cursor: "cursor 2" }),
+      `/api/v1/mobile/dm?limit=${MOBILE_DM_CONVERSATIONS_LIMIT}&cursor=cursor+2`,
+    );
+  });
+
+  it("loads and validates the typed mobile DM conversation cache payload", async () => {
+    const requests: string[] = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string) {
+        requests.push(path);
+        return validConversationsResponse as TResponse;
+      },
+    };
+
+    const response = await fetchMobileDMConversations(client, { cursor: null });
+
+    assert.deepEqual(requests, [`/api/v1/mobile/dm?limit=${MOBILE_DM_CONVERSATIONS_LIMIT}`]);
+    assert.equal(response.conversations[0]?.lastMessage?.authorIsCurrentUser, false);
+    assert.equal(response.conversations[0]?.unreadCount, 2);
+  });
+
   it("builds a bounded, encoded mobile DM messages endpoint path", () => {
     assert.equal(
       buildMobileDMMessagesPath({ conversationId: "dm/conversation 1", cursor: "cursor 2" }),

@@ -11,6 +11,11 @@ import {
 } from "../../voice/mobile-voice-room-route-context";
 import { useMobileBootstrapQuery } from "../../query/mobile-bootstrap-query";
 import {
+  flattenMobileDMConversationPages,
+  getMobileDMUnreadCount,
+  useMobileDMConversationsQuery,
+} from "../../query/mobile-dm-conversations-query";
+import {
   useMobileChannelMessagesQuery,
   useMobileDMMessagesQuery,
 } from "../../query/mobile-message-queries";
@@ -118,6 +123,7 @@ export function useMobileMessagingFeature({
     INITIAL_MESSAGE_SEARCH_INPUT,
   );
   const bootstrapQuery = useMobileBootstrapQuery(apiClient, isSignedIn);
+  const dmConversationsQuery = useMobileDMConversationsQuery(apiClient, isSignedIn);
   const workspaceQuery = useMobileWorkspaceQuery(apiClient, selectedWorkspaceServerId ?? "");
   const channelMessagesQuery = useMobileChannelMessagesQuery(
     apiClient,
@@ -193,8 +199,11 @@ export function useMobileMessagingFeature({
     summarizeMobileBootstrap,
     copy.bootstrapLoadFailed,
   );
-  const directMessageUnreadCount =
-    bootstrapState.status === "ready" ? bootstrapState.summary.unreadDirectMessageCount : 0;
+  const dmConversations = useMemo(
+    () => flattenMobileDMConversationPages(dmConversationsQuery.data),
+    [dmConversationsQuery.data],
+  );
+  const directMessageUnreadCount = getMobileDMUnreadCount(dmConversationsQuery.data);
   const workspaceServerState = toMobileWorkspaceViewState(
     workspaceQuery,
     selectedWorkspaceServerId,
@@ -649,16 +658,12 @@ export function useMobileMessagingFeature({
   );
 
   const selectedDMConversation = useMemo(() => {
-    if (bootstrapState.status !== "ready" || !selectedDMConversationId) {
+    if (!selectedDMConversationId) {
       return null;
     }
 
-    return (
-      bootstrapState.payload.home.directMessages.recent.find(
-        (conversation) => conversation.id === selectedDMConversationId,
-      ) ?? null
-    );
-  }, [bootstrapState, selectedDMConversationId]);
+    return dmConversations.find((conversation) => conversation.id === selectedDMConversationId) ?? null;
+  }, [dmConversations, selectedDMConversationId]);
 
   useEffect(() => {
     if (!isSignedIn || bootstrapState.status !== "ready") {
@@ -701,6 +706,7 @@ export function useMobileMessagingFeature({
       return;
     }
     void bootstrapQuery.refetch();
+    void dmConversationsQuery.refetch();
     if (selectedDMConversationId) {
       void dmMessagesQuery.refetch();
     }
@@ -715,6 +721,7 @@ export function useMobileMessagingFeature({
     bootstrapQuery,
     channelMessagesQuery,
     dmMessagesQuery,
+    dmConversationsQuery,
     isSignedIn,
     selectedDMConversationId,
     selectedWorkspaceServerId,
@@ -769,11 +776,11 @@ export function useMobileMessagingFeature({
   ]);
 
   useEffect(() => {
-    if (bootstrapState.status !== "ready" || !selectedDMConversationId) {
+    if (!selectedDMConversationId || !dmConversationsQuery.data) {
       return;
     }
 
-    const hasSelectedConversation = bootstrapState.payload.home.directMessages.recent.some(
+    const hasSelectedConversation = dmConversations.some(
       (conversation) => conversation.id === selectedDMConversationId,
     );
     if (!hasSelectedConversation) {
@@ -781,7 +788,13 @@ export function useMobileMessagingFeature({
       resetDMMessageMutation();
       setSelectedDMConversationId(null);
     }
-  }, [bootstrapState, clearMessageSearch, resetDMMessageMutation, selectedDMConversationId]);
+  }, [
+    clearMessageSearch,
+    dmConversations,
+    dmConversationsQuery.data,
+    resetDMMessageMutation,
+    selectedDMConversationId,
+  ]);
 
   const handleOpenVoiceInvite = useCallback(
     ({ channelId, serverId }: { channelId: string; channelName: string; serverId: string }) => {
@@ -847,6 +860,8 @@ export function useMobileMessagingFeature({
     clearMessageSearch,
     currentTab,
     directMessageUnreadCount,
+    dmConversations,
+    dmConversationsQuery,
     dmMessagesQuery,
     dmMessagesState,
     dmSendState,

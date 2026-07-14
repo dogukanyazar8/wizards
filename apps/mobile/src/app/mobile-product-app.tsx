@@ -114,6 +114,8 @@ export function MobileProductApp({
     clearMessageSearch,
     currentTab,
     directMessageUnreadCount,
+    dmConversations,
+    dmConversationsQuery,
     dmMessagesState,
     dmSendState,
     getSyncHealth,
@@ -210,7 +212,10 @@ export function MobileProductApp({
     runtimeConfig.webUrl,
   );
   const messagesScreenProps: MobileMessagesScreenProps = {
-    bootstrapState,
+    bootstrapState, dmConversations,
+    dmConversationsHasNextPage: dmConversationsQuery.hasNextPage,
+    dmConversationsIsLoading: dmConversationsQuery.isLoading,
+    onLoadMoreConversations: () => { if (dmConversationsQuery.hasNextPage && !dmConversationsQuery.isFetchingNextPage) void dmConversationsQuery.fetchNextPage(); },
     dmMessagesState,
     dmSendState,
     dmTypingLabel,

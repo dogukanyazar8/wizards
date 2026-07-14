@@ -192,7 +192,8 @@ test("floating pill tab bar uses canonical styling and typed DM unread state", (
   assert.match(bottomTabBar, /mobile-bottom-tab-unread-dot/);
   assert.doesNotMatch(bottomTabBar, /navBadgeText|Math\.min\(badge/);
   assert.match(bottomTabBar, /pendingTabKeyRef/);
-  assert.match(messagingFeature, /bootstrapState\.summary\.unreadDirectMessageCount/);
+  assert.match(messagingFeature, /getMobileDMUnreadCount\(dmConversationsQuery\.data\)/);
+  assert.doesNotMatch(messagingFeature, /bootstrapState\.summary\.unreadDirectMessageCount/);
   assert.match(productApp, /directMessageUnreadCount=\{directMessageUnreadCount\}/);
   assert.doesNotMatch(productApp, /payload\.home\.directMessages\.unreadCount/);
   assert.match(copy, /tabServers:\s*"Sunucular"/);

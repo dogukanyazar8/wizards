@@ -283,6 +283,24 @@ describe("mobile realtime query bridge", () => {
     assert.equal(queryClient.getQueryState(key)?.isInvalidated, false);
   });
 
+  it("invalidates the paginated DM conversation cache for an inactive conversation update", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const conversationsKey = mobileQueryKeys.dmConversations();
+    queryClient.setQueryData(conversationsKey, { pages: [] });
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("dm:conversation:updated", {
+        conversationId: "conversation-not-active",
+      }),
+    );
+
+    assert.equal(fake.pendingCount(), 1);
+    fake.flush();
+    assert.equal(queryClient.getQueryState(conversationsKey)?.isInvalidated, true);
+  });
+
   it("removes only the departed server and exact workspace cache", () => {
     const queryClient = new QueryClient();
     const fake = createFakeScheduler();

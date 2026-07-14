@@ -1,10 +1,12 @@
 import {
+  MobileDMConversationsResponseSchema,
   MobileDMMessagesResponseSchema,
   MobileDMMessagesThreadResponseSchema,
   MobileDMSendMessageResponseSchema,
   MobileMessageDeleteResponseSchema,
   MobileMessageReactionResponseSchema,
   type MobileDMMessagesResponse,
+  type MobileDMConversationsResponse,
   type MobileDMMessagesThreadResponse,
   type MobileDMSendMessageRequest,
   type MobileDMSendMessageResponse,
@@ -14,6 +16,23 @@ import {
 import type { MobileApiClient } from "../api/mobile-api-client";
 
 export const MOBILE_DM_MESSAGES_LIMIT = 30;
+export const MOBILE_DM_CONVERSATIONS_LIMIT = 20;
+
+export function buildMobileDMConversationsPath(input: { cursor?: string | null }): string {
+  const params = new URLSearchParams({ limit: String(MOBILE_DM_CONVERSATIONS_LIMIT) });
+  if (input.cursor) {
+    params.set("cursor", input.cursor);
+  }
+  return `/api/v1/mobile/dm?${params.toString()}`;
+}
+
+export async function fetchMobileDMConversations(
+  client: MobileApiClient,
+  input: { cursor?: string | null },
+): Promise<MobileDMConversationsResponse> {
+  const payload = await client.requestJson<unknown>(buildMobileDMConversationsPath(input));
+  return MobileDMConversationsResponseSchema.parse(payload);
+}
 
 export function buildMobileDMMessagesPath(input: {
   conversationId: string;

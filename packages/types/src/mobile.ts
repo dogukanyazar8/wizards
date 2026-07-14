@@ -368,6 +368,38 @@ export const MobileBootstrapDMConversationSummarySchema = z.object({
   unreadCount: z.number().int().nonnegative(),
 });
 
+export const MobileDMConversationPreviewAuthorSchema = z.object({
+  displayName: z.string().min(1).max(120).nullable(),
+  id: z.string().min(1).max(128),
+  username: z.string().min(1).max(80),
+});
+
+export const MobileDMConversationLastMessagePreviewSchema = z.object({
+  author: MobileDMConversationPreviewAuthorSchema,
+  authorIsCurrentUser: z.boolean(),
+  createdAt: z.string().datetime(),
+  id: z.string().min(1).max(128),
+  text: z.string().min(1).max(240),
+});
+
+export const MobileDMConversationListItemSchema =
+  MobileBootstrapDMConversationSummarySchema.extend({
+    lastMessage: MobileDMConversationLastMessagePreviewSchema.nullable(),
+  });
+
+export const MobileDMConversationsQuerySchema = z
+  .object({
+    cursor: z.string().min(1).max(128).optional(),
+    limit: z.coerce.number().int().min(1).max(30).default(20),
+  })
+  .strict();
+
+export const MobileDMConversationsResponseSchema = z.object({
+  conversations: z.array(MobileDMConversationListItemSchema).max(30),
+  nextCursor: z.string().min(1).max(128).nullable(),
+  totalUnreadCount: z.number().int().nonnegative(),
+});
+
 export const MobileBootstrapPayloadSchema = z.object({
   app: z.object({
     buildId: z.string().min(1),
@@ -540,6 +572,15 @@ export type MobileBootstrapDMParticipant = z.infer<typeof MobileBootstrapDMParti
 export type MobileBootstrapDMConversationSummary = z.infer<
   typeof MobileBootstrapDMConversationSummarySchema
 >;
+export type MobileDMConversationPreviewAuthor = z.infer<
+  typeof MobileDMConversationPreviewAuthorSchema
+>;
+export type MobileDMConversationLastMessagePreview = z.infer<
+  typeof MobileDMConversationLastMessagePreviewSchema
+>;
+export type MobileDMConversationListItem = z.infer<typeof MobileDMConversationListItemSchema>;
+export type MobileDMConversationsQuery = z.infer<typeof MobileDMConversationsQuerySchema>;
+export type MobileDMConversationsResponse = z.infer<typeof MobileDMConversationsResponseSchema>;
 export type MobileBootstrapPayload = z.infer<typeof MobileBootstrapPayloadSchema>;
 export type MobileDMMessagesResponse = z.infer<typeof MobileDMMessagesResponseSchema>;
 export type MobileDMMessagesThreadResponse = z.infer<typeof MobileDMMessagesThreadResponseSchema>;

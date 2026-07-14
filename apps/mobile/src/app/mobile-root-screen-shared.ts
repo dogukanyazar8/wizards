@@ -16,6 +16,7 @@ export type {
   ChatMessage,
   MobileBootstrapFeature,
   MobileBootstrapPayload,
+  MobileDMConversationListItem,
   MobileChannelMessagesResponse,
   MobileDMMessagesResponse,
   MessageSearchResult,

@@ -8,15 +8,13 @@ import {
   copy,
   filterMobileConversations,
   formatMobileDisplayTime,
-  getBoundedMobileList,
   getMobileConversationActiveCount,
   getMobileConversationAvatarUrl,
   getMobileConversationInitialsLabel,
   getMobileConversationTitle,
-  MOBILE_RENDER_LIMITS,
   useMemo,
   useState,
-  type MobileBootstrapPayload,
+  type MobileDMConversationListItem,
   type MobileConversationFilter,
 } from "../mobile-root-screen-shared";
 import { AvatarMark, MetricMiniPill, StatusChip } from "../components/ui-atoms";
@@ -75,10 +73,14 @@ export function DirectMessageSummaryCard({
 
 export function DirectMessageListCard({
   conversations,
+  hasNextPage,
+  onLoadMore,
   onOpenConversation,
   selectedConversationId,
 }: {
-  conversations: MobileBootstrapPayload["home"]["directMessages"]["recent"];
+  conversations: readonly MobileDMConversationListItem[];
+  hasNextPage: boolean;
+  onLoadMore(): void;
   onOpenConversation(conversationId: string): void;
   selectedConversationId: string | null;
 }) {
@@ -94,10 +96,6 @@ export function DirectMessageListCard({
         query,
       }),
     [conversations, filter, query],
-  );
-  const visibleConversations = useMemo(
-    () => getBoundedMobileList(filteredConversations, MOBILE_RENDER_LIMITS.conversations),
-    [filteredConversations],
   );
   const filters: Array<{
     disabled?: boolean;
@@ -190,9 +188,11 @@ export function DirectMessageListCard({
       </View>
       <FlashList
         contentContainerStyle={styles.dmConversationList}
-        data={visibleConversations}
+        data={filteredConversations}
         keyExtractor={(conversation) => conversation.id}
         onLoad={mobileListLoadHandlers.dmInbox}
+        onEndReached={hasNextPage ? onLoadMore : undefined}
+        onEndReachedThreshold={0.6}
         renderItem={({ item: conversation }) => (
           <DirectMessageConversationCard
             conversation={conversation}
@@ -216,7 +216,7 @@ export function DirectMessageConversationCard({
   onOpenConversation,
   selected,
 }: {
-  conversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number];
+  conversation: MobileDMConversationListItem;
   onOpenConversation(conversationId: string): void;
   selected: boolean;
 }) {
@@ -260,7 +260,9 @@ export function DirectMessageConversationCard({
           </View>
         </View>
         <Text style={styles.dmConversationPreview} numberOfLines={1}>
-          {copy.homeContinueLatestDirectMessage}
+          {conversation.lastMessage
+            ? `${conversation.lastMessage.authorIsCurrentUser ? copy.directMessagePreviewYouPrefix : (conversation.lastMessage.author.displayName ?? conversation.lastMessage.author.username)}: ${conversation.lastMessage.text}`
+            : copy.homeContinueLatestDirectMessage}
         </Text>
         <View style={styles.dmConversationFooterRow}>
           {shouldShowActivePill ? (

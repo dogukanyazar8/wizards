@@ -172,9 +172,10 @@ export function createMobileRealtimeQueryBridge({
     const matchesTarget =
       targetConversationId &&
       (!event?.conversationId || event.conversationId === targetConversationId);
-    if (matchesTarget) {
-      scheduleInvalidations(source, [mobileQueryKeys.dmMessages(targetConversationId)]);
-    }
+    scheduleInvalidations(source, [
+      mobileQueryKeys.dmConversations(),
+      ...(matchesTarget ? [mobileQueryKeys.dmMessages(targetConversationId)] : []),
+    ]);
   };
 
   const patchPresenceCaches = (payload: unknown) => {

@@ -31,6 +31,11 @@ import {
   MobileChannelThreadMessagesResponseSchema,
   MobileChannelSendMessageRequestSchema,
   MobileChannelSendMessageResponseSchema,
+  MobileDMConversationLastMessagePreviewSchema,
+  MobileDMConversationListItemSchema,
+  MobileDMConversationPreviewAuthorSchema,
+  MobileDMConversationsQuerySchema,
+  MobileDMConversationsResponseSchema,
   MobileDMMessagesThreadResponseSchema,
   MobileDMMessagesResponseSchema,
   MobileDMSendMessageRequestSchema,
@@ -140,6 +145,17 @@ const bootstrapConversation = {
   participants: [bootstrapDMParticipant],
   type: "DM" as const,
   unreadCount: 0,
+};
+
+const mobileDMConversation = {
+  ...bootstrapConversation,
+  lastMessage: {
+    author: { displayName: "Ada", id: "user-1", username: "ada" },
+    authorIsCurrentUser: true,
+    createdAt: now,
+    id: "message-1",
+    text: "Hello",
+  },
 };
 
 const bootstrapPayload = {
@@ -378,6 +394,31 @@ describe("mobile schemas", () => {
         schema: MobileBootstrapDMParticipantSchema,
         valid: bootstrapDMParticipant,
         invalid: { ...bootstrapDMParticipant, username: "" },
+      },
+      MobileDMConversationPreviewAuthorSchema: {
+        schema: MobileDMConversationPreviewAuthorSchema,
+        valid: mobileDMConversation.lastMessage.author,
+        invalid: { ...mobileDMConversation.lastMessage.author, username: "" },
+      },
+      MobileDMConversationLastMessagePreviewSchema: {
+        schema: MobileDMConversationLastMessagePreviewSchema,
+        valid: mobileDMConversation.lastMessage,
+        invalid: { ...mobileDMConversation.lastMessage, text: "" },
+      },
+      MobileDMConversationListItemSchema: {
+        schema: MobileDMConversationListItemSchema,
+        valid: mobileDMConversation,
+        invalid: { ...mobileDMConversation, lastMessage: { ...mobileDMConversation.lastMessage, createdAt: "today" } },
+      },
+      MobileDMConversationsQuerySchema: {
+        schema: MobileDMConversationsQuerySchema,
+        valid: { cursor: "conversation-1", limit: 20 },
+        invalid: { limit: 31 },
+      },
+      MobileDMConversationsResponseSchema: {
+        schema: MobileDMConversationsResponseSchema,
+        valid: { conversations: [mobileDMConversation], nextCursor: null, totalUnreadCount: 1 },
+        invalid: { conversations: [mobileDMConversation], nextCursor: "", totalUnreadCount: 1 },
       },
       MobileBootstrapFeatureSchema: {
         schema: MobileBootstrapFeatureSchema,

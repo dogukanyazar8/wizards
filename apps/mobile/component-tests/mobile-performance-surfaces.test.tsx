@@ -164,7 +164,9 @@ describe("mobile performance surfaces", () => {
   it("routes DM conversations, workspace channels, and bounded servers through FlashList", async () => {
     const dmView = await render(
       <DirectMessageListCard
-        conversations={[conversation]}
+        conversations={[{ ...conversation, lastMessage: null }]}
+        hasNextPage={false}
+        onLoadMore={jest.fn()}
         onOpenConversation={jest.fn()}
         selectedConversationId={null}
       />,

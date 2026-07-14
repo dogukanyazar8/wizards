@@ -73,6 +73,7 @@ export const API_RATE_LIMITS = {
   "mobile:dm:messages:delete": { limit: 30, windowSeconds: 60 },
   "mobile:dm:messages:reactions": { limit: 60, windowSeconds: 60 },
   "mobile:dm:messages:thread": { limit: 30, windowSeconds: 60 },
+  "mobile:dm:conversations:list": { limit: 120, windowSeconds: 60 },
   "mobile:dm:details": { limit: 60, windowSeconds: 60 },
   "mobile:dm:create": { limit: 30, windowSeconds: 10 * 60 },
   "mobile:friends:block": { limit: 30, windowSeconds: 10 * 60 },

@@ -179,14 +179,14 @@ export function getMobileConversationSearchText(
     .toLowerCase();
 }
 
-export function filterMobileConversations(
-  conversations: readonly MobileConversationSummary[],
+export function filterMobileConversations<T extends MobileConversationSummary>(
+  conversations: readonly T[],
   options: {
     fallback: string;
     filter: MobileConversationFilter;
     query: string;
   },
-): MobileConversationSummary[] {
+): T[] {
   const normalizedQuery = options.query.trim().toLowerCase();
 
   return conversations.filter((conversation) => {

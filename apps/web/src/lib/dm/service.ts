@@ -762,6 +762,18 @@ export async function listDirectMessages(
   };
 }
 
+export async function getDirectMessageUnreadCount(userId: string): Promise<number> {
+  const rows = await prisma.$queryRaw<Array<{ totalUnreadCount: number }>>(Prisma.sql`
+    SELECT COALESCE(SUM(p."unreadCount"), 0)::int AS "totalUnreadCount"
+    FROM "DMParticipant" p
+    INNER JOIN "DMConversation" c ON c."id" = p."conversationId"
+    WHERE p."userId" = ${userId}
+      AND (p."hiddenAt" IS NULL OR c."lastMessageAt" > p."hiddenAt")
+  `);
+
+  return rows[0]?.totalUnreadCount ?? 0;
+}
+
 export async function getDirectMessageConversationForUser(
   conversationId: string,
   userId: string,

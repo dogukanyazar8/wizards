@@ -3,7 +3,7 @@ import {
   Pressable,
   Text,
   copy,
-  type MobileBootstrapPayload,
+  type MobileDMConversationListItem,
   type MobileBootstrapViewState,
   type MobileDMMessagesViewState,
   type MobileDMSendViewState,
@@ -28,6 +28,9 @@ export {
 
 export function MessagesScreen({
   bootstrapState,
+  dmConversations,
+  dmConversationsHasNextPage,
+  dmConversationsIsLoading,
   dmMessagesState,
   dmSendState,
   dmTypingLabel,
@@ -50,6 +53,7 @@ export function MessagesScreen({
   onSendMessage,
   onSendGif,
   onDraftChange,
+  onLoadMoreConversations,
   onDeleteMessage,
   onEditMessage,
   onOpenThread,
@@ -63,7 +67,10 @@ export function MessagesScreen({
   isReactionMutationPending: boolean;
   mediaState: MobileMediaRuntimeState;
   messageSearchState: MobileMessageSearchViewState;
-  selectedConversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number] | null;
+  dmConversations: readonly MobileDMConversationListItem[];
+  dmConversationsHasNextPage: boolean;
+  dmConversationsIsLoading: boolean;
+  selectedConversation: MobileDMConversationListItem | null;
   selectedConversationId: string | null;
   syncHealth: MobileSyncHealthSummary;
   onClearMessageSearch(): void;
@@ -82,6 +89,7 @@ export function MessagesScreen({
   ): Promise<boolean>;
   onSendGif?(gifId: string): Promise<boolean>;
   onDraftChange(content: string): void;
+  onLoadMoreConversations(): void;
   onDeleteMessage(messageId: string): Promise<boolean>;
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onOpenThread?(messageId: string): void;
@@ -90,13 +98,8 @@ export function MessagesScreen({
 }) {
   const styles = useDmScreenStyles();
   const [inboxSegment, setInboxSegment] = useState<"conversations" | "friends">("conversations");
-  const hasConversations =
-    bootstrapState.status === "ready" &&
-    bootstrapState.payload.home.directMessages.recent.length > 0;
-  const shouldShowEmpty =
-    bootstrapState.status === "idle" ||
-    (bootstrapState.status === "ready" &&
-      bootstrapState.payload.home.directMessages.recent.length === 0);
+  const hasConversations = dmConversations.length > 0;
+  const shouldShowEmpty = !dmConversationsIsLoading && !hasConversations;
   const attachmentsFeature =
     bootstrapState.status === "ready" ? bootstrapState.payload.features.attachments : null;
   const messageSearchFeature =
@@ -185,7 +188,9 @@ export function MessagesScreen({
           ) : null}
           {hasConversations ? (
             <DirectMessageListCard
-              conversations={bootstrapState.payload.home.directMessages.recent}
+              conversations={dmConversations}
+              hasNextPage={dmConversationsHasNextPage}
+              onLoadMore={onLoadMoreConversations}
               selectedConversationId={selectedConversationId}
               onOpenConversation={onOpenConversation}
             />

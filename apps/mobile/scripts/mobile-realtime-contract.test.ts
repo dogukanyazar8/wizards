@@ -30,7 +30,7 @@ describe("mobile realtime contract", () => {
   it("maps active conversation events to the narrowest refresh target", () => {
     assert.deepEqual(getMobileRealtimeRefreshSources("message:new"), ["channel"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:message:new"), ["dm"]);
-    assert.deepEqual(getMobileRealtimeRefreshSources("dm:conversation:updated"), ["bootstrap"]);
+    assert.deepEqual(getMobileRealtimeRefreshSources("dm:conversation:updated"), ["dm"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("voice:state:update"), ["workspace"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("voice:audio-level:update"), []);
     assert.deepEqual(getMobileRealtimeRefreshSources("voice:invite:received"), []);
