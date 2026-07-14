@@ -660,6 +660,34 @@ export function Fixture({ cap }: { cap: number }) {
       shadowOpacity: 0.25,
       shadowRadius: 24,
     });
+    assert.deepEqual(darkTheme.elevation.bottomSheet, {
+      elevation: 0,
+      shadowColor: "#131529",
+      shadowOffset: { height: 0, width: 0 },
+      shadowOpacity: 0,
+      shadowRadius: 0,
+    });
+    assert.deepEqual(darkTheme.elevation.dangerAction, {
+      elevation: 8,
+      shadowColor: "#E05252",
+      shadowOffset: { height: 8, width: 0 },
+      shadowOpacity: 0.4,
+      shadowRadius: 20,
+    });
+    assert.deepEqual(darkTheme.elevation.headerCard, {
+      elevation: 0,
+      shadowColor: "#131529",
+      shadowOffset: { height: 0, width: 0 },
+      shadowOpacity: 0,
+      shadowRadius: 0,
+    });
+    assert.deepEqual(darkTheme.elevation.miniVoiceBar, {
+      elevation: 10,
+      shadowColor: "#1E2235",
+      shadowOffset: { height: 10, width: 0 },
+      shadowOpacity: 0.25,
+      shadowRadius: 24,
+    });
     assert.deepEqual(darkTheme.elevation.tabBar, {
       elevation: 6,
       shadowColor: "#000000",
@@ -674,6 +702,8 @@ export function Fixture({ cap }: { cap: number }) {
       shadowOpacity: 0.4,
       shadowRadius: 14,
     });
+    assert.deepEqual(darkTheme.elevation.dangerAction, lightTheme.elevation.dangerAction);
+    assert.deepEqual(darkTheme.elevation.miniVoiceBar, lightTheme.elevation.miniVoiceBar);
   });
 
   it("separates accessible filled actions from canonical decorative accent fills", () => {

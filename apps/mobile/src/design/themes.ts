@@ -278,11 +278,7 @@ export const darkTheme = deepFreeze({
       shadowRadius: 0,
     },
     dangerAction: {
-      elevation: 0,
-      shadowColor: redesignDark.bg,
-      shadowOffset: { height: 0, width: 0 },
-      shadowOpacity: 0,
-      shadowRadius: 0,
+      ...lightTheme.elevation.dangerAction,
     },
     headerCard: {
       elevation: 0,
@@ -292,11 +288,7 @@ export const darkTheme = deepFreeze({
       shadowRadius: 0,
     },
     miniVoiceBar: {
-      elevation: 0,
-      shadowColor: redesignDark.bg,
-      shadowOffset: { height: 0, width: 0 },
-      shadowOpacity: 0,
-      shadowRadius: 0,
+      ...lightTheme.elevation.miniVoiceBar,
     },
     primaryAction: {
       elevation: 6,
