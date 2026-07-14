@@ -136,6 +136,16 @@ export const redesignAvatarTintsLight = [
   { bg: "#E8F8EE", fg: "#1B8A55" },
 ] as const;
 
+// Normal-size initials use the nearest audited foreground that clears WCAG AA.
+// The canonical handoff pairs above remain available for decorative use and visual evidence.
+export const redesignAccessibleAvatarTintsLight = [
+  { bg: "#EEF0FE", fg: "#4F46E5" },
+  { bg: "#FDEBD7", fg: "#9A5E21" },
+  { bg: "#E0F0FA", fg: "#276EB4" },
+  { bg: "#F3E8FA", fg: "#8A46C7" },
+  { bg: "#E8F8EE", fg: "#187A4C" },
+] as const;
+
 export const redesignAvatarTintsDark = [
   { bg: "#2A2D55", fg: "#A5A8F5" },
   { bg: "#3A2E1B", fg: "#E8B36A" },

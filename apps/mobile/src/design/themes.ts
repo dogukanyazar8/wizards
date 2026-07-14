@@ -1,7 +1,7 @@
 import {
   mobilePalette,
+  redesignAccessibleAvatarTintsLight,
   redesignAvatarTintsDark,
-  redesignAvatarTintsLight,
   redesignDark,
   redesignLight,
 } from "./palette";
@@ -136,7 +136,7 @@ export const lightTheme = deepFreeze({
     softBorder: redesignLight.lavenderBorder,
     strong: redesignLight.primaryStrong,
   },
-  avatarTints: redesignAvatarTintsLight,
+  avatarTints: redesignAccessibleAvatarTintsLight,
   border: {
     default: redesignLight.hairline,
     focus: redesignLight.primary,

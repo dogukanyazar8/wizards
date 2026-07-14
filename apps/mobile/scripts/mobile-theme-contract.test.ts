@@ -162,7 +162,7 @@ function assertThemeContrast(theme: MobileTheme): void {
   for (const surfaceName of ["base", "card"] as const) {
     assert.ok(
       contrastRatio(theme.status.danger, theme.status.dangerSoft, theme.surface[surfaceName]) >= 3,
-      `${theme.id} status.danger accent on status.dangerSoft over surface.${surfaceName}`,
+      `${theme.id} non-text status.danger accent on status.dangerSoft over surface.${surfaceName}`,
     );
     assert.ok(
       contrastRatio(theme.status.successText, theme.surface[surfaceName]) >= 4.5,
@@ -202,6 +202,21 @@ function assertThemeContrast(theme: MobileTheme): void {
     contrastRatio(theme.media.text, theme.media.surface) >= 4.5,
     `${theme.id} media.text on media.surface`,
   );
+
+  for (const surfaceName of ["soft", "elevated"] as const) {
+    assert.ok(
+      contrastRatio(theme.status.onStatus, theme.status.dangerSoft, theme.surface[surfaceName]) >=
+        4.5,
+      `${theme.id} status.onStatus on status.dangerSoft over surface.${surfaceName}`,
+    );
+  }
+
+  for (const [index, tint] of theme.avatarTints.entries()) {
+    assert.ok(
+      contrastRatio(tint.fg, tint.bg) >= 4.5,
+      `${theme.id} avatarTints[${index}] initials foreground on tint background`,
+    );
+  }
 }
 
 describe("mobile semantic theme contract", () => {

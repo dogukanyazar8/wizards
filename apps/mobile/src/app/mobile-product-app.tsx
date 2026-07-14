@@ -1,10 +1,9 @@
-import { type ComponentType, useEffect } from "react";
+import { type ComponentType } from "react";
 import { View } from "react-native";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { getMobileRuntimeConfig } from "../config/environment";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import type { MobileTabId } from "../navigation/mobile-navigation";
-import { installMobileFontDefaults, useMobileFonts } from "../design/mobile-fonts";
 import { MobileAppLockScreen } from "./components/mobile-app-lock-screen";
 import { MobileDeviceIntegrityWarning } from "./components/mobile-device-integrity-warning";
 import { MobileAppShell } from "./mobile-app-shell";
@@ -34,13 +33,14 @@ import {
 } from "./providers/mobile-product-screen-provider";
 const copy = activeMobileCopy;
 const runtimeConfig = getMobileRuntimeConfig();
-export function MobileProductApp({ Navigator }: {
+export function MobileProductApp({
+  Navigator,
+}: {
   readonly Navigator: ComponentType<{
     readonly directMessageUnreadCount?: number;
     readonly onTabChange?: (tab: MobileTabId) => void;
   }>;
 }) {
-  const [fontsLoaded] = useMobileFonts();
   const {
     apiClient,
     appLockAvailability,
@@ -189,11 +189,6 @@ export function MobileProductApp({ Navigator }: {
     notificationStatus: notificationState.permissionStatus,
     photoLibraryStatus: mediaState.photoLibraryStatus,
   });
-  useEffect(() => {
-    if (fontsLoaded) {
-      installMobileFontDefaults();
-    }
-  }, [fontsLoaded]);
   const authStatusLabel =
     status === "checking"
       ? copy.authChecking
@@ -201,8 +196,8 @@ export function MobileProductApp({ Navigator }: {
         ? copy.authSignedIn
         : copy.authSignedOut;
   const signedInUserLabel = session ? (session.user.displayName ?? session.user.username) : null;
-  const mobileShellUnreadCount = bootstrapState.status === "ready"
-    ? bootstrapState.payload.home.directMessages.unreadCount : 0;
+  const mobileShellUnreadCount =
+    bootstrapState.status === "ready" ? bootstrapState.payload.home.directMessages.unreadCount : 0;
   const { channelTypingLabel, dmTypingLabel } = useMobileTypingLabels({
     channelId: selectedWorkspaceChannelId,
     channelTyping: channelTypingState,
@@ -361,9 +356,6 @@ export function MobileProductApp({ Navigator }: {
     voiceRoomState,
     voiceState,
   };
-  if (!fontsLoaded) {
-    return null;
-  }
   return (
     <MobileProductNavigationProvider value={{ openWorkspaceRoute: handleOpenWorkspaceRoute }}>
       <MobileMessagesScreenProvider value={messagesScreenProps}>

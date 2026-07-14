@@ -221,10 +221,15 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
       fontWeight: "900",
     },
     dmSendErrorText: {
-      color: theme.status.danger,
+      overflow: "hidden",
+      borderRadius: mobileRadii.control,
+      backgroundColor: theme.status.dangerSoft,
+      color: theme.status.onStatus,
       fontSize: 12,
       fontWeight: "700",
       lineHeight: 17,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
     },
     mobileChannelComposerActions: {
       minWidth: 0,

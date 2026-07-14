@@ -67,7 +67,10 @@ describe("mobile communication semantic themes", () => {
     ["dark", darkTheme],
   ] as const)("composes audited %s status and action color pairs", (_scheme, theme) => {
     const homeStyles = createHomeScreenStyles(theme);
+    const composerStyles = createMobileComposerStyles(theme);
     const uiStyles = createUiAtomStyles(theme);
+    const voicePanelStyles = createMobileVoiceRoomPanelStyles(theme);
+    const voiceScreenStyles = createVoiceScreenStyles(theme);
     const bootstrapErrorContainer = StyleSheet.flatten([
       uiStyles.bootstrapNotice,
       uiStyles.bootstrapNoticeError,
@@ -110,5 +113,13 @@ describe("mobile communication semantic themes", () => {
     expect(successCardDescription.color).toBe(theme.status.successText);
     expect(homeStyles.homeSummaryCard.backgroundColor).toBe(theme.accent.action);
     expect(homeStyles.homePrimaryServerMeta.color).toBe(theme.text.onPrimary);
+    expect(voicePanelStyles.controlButtonDanger.backgroundColor).toBe(theme.status.dangerSoft);
+    expect(voicePanelStyles.controlLabelDanger.color).toBe(theme.status.onStatus);
+    expect(voiceScreenStyles.mobileVoiceControlButtonDanger.backgroundColor).toBe(
+      theme.status.dangerSoft,
+    );
+    expect(voiceScreenStyles.mobileVoiceControlLabelDanger.color).toBe(theme.status.onStatus);
+    expect(composerStyles.dmSendErrorText.backgroundColor).toBe(theme.status.dangerSoft);
+    expect(composerStyles.dmSendErrorText.color).toBe(theme.status.onStatus);
   });
 });

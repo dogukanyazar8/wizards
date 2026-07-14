@@ -129,6 +129,18 @@ describe("mobile font contract", () => {
     );
 
     const fontSource = readFileSync(join(mobileRoot, "src", "design", "mobile-fonts.ts"), "utf8");
+    const fontGateSource = readFileSync(
+      join(mobileRoot, "src", "design", "mobile-font-gate.tsx"),
+      "utf8",
+    );
+    const productAppSource = readFileSync(
+      join(mobileRoot, "src", "app", "mobile-product-app.tsx"),
+      "utf8",
+    );
+    const rootSource = readFileSync(
+      join(mobileRoot, "src", "app", "whispr-mobile-root.tsx"),
+      "utf8",
+    );
     const runtimeSource = collectRuntimeSources(join(mobileRoot, "src"));
     const packageJson = JSON.parse(readFileSync(join(mobileRoot, "package.json"), "utf8")) as {
       readonly dependencies?: Record<string, string>;
@@ -151,5 +163,10 @@ describe("mobile font contract", () => {
         `${expected.family} must load ${filename}`,
       );
     }
+
+    assert.match(fontGateSource, /useMobileFonts\(\)/);
+    assert.match(fontGateSource, /installMobileFontDefaults\(\)/);
+    assert.match(rootSource, /<MobileFontGate>[\s\S]*<MobileAppProviders>/);
+    assert.doesNotMatch(productAppSource, /useMobileFonts|installMobileFontDefaults/);
   });
 });

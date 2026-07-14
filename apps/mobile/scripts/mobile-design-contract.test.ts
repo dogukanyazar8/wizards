@@ -132,8 +132,8 @@ describe("mobile design contract", () => {
     const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
       dependencies?: Record<string, string>;
     };
-    const productSource = readFileSync(
-      join(process.cwd(), "src", "app", "mobile-product-app.tsx"),
+    const fontGateSource = readFileSync(
+      join(process.cwd(), "src", "design", "mobile-font-gate.tsx"),
       "utf8",
     );
 
@@ -145,7 +145,9 @@ describe("mobile design contract", () => {
       false,
     );
     assert.ok(packageJson.dependencies?.["expo-font"]);
-    assert.match(productSource, /useMobileFonts/);
+    assert.match(fontGateSource, /useMobileFonts/);
+    assert.match(fontGateSource, /installMobileFontDefaults/);
+    assert.match(fontGateSource, /MOBILE_FONT_FALLBACK_DIAGNOSTIC/);
   });
 
   it("keeps mobile visual tokens aligned with the Whispr web and desktop system", () => {

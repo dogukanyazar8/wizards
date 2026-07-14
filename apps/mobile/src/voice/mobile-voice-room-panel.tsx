@@ -389,7 +389,7 @@ export const createMobileVoiceRoomPanelStyles = (theme: MobileTheme) =>
       textAlign: "center",
     },
     controlLabelDanger: {
-      color: theme.status.danger,
+      color: theme.status.onStatus,
     },
     controlLabelDisabled: {
       color: theme.text.muted,

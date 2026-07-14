@@ -117,7 +117,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       textAlign: "center",
     },
     mobileVoiceControlLabelDanger: {
-      color: theme.status.danger,
+      color: theme.status.onStatus,
     },
     mobileVoiceControlLabelDisabled: {
       color: theme.text.soft,

@@ -415,7 +415,7 @@ export function Fixture({ cap }: { cap: number }) {
     });
   });
 
-  it("exports only the canonical fallback avatar tint pairs", () => {
+  it("keeps canonical avatar pairs separate from accessible initials pairs", () => {
     assert.deepEqual(paletteExports.redesignAvatarTintsLight, [
       { bg: "#EEF0FE", fg: "#4F46E5" },
       { bg: "#FDEBD7", fg: "#C77A2B" },
@@ -427,6 +427,30 @@ export function Fixture({ cap }: { cap: number }) {
       { bg: "#2A2D55", fg: "#A5A8F5" },
       { bg: "#3A2E1B", fg: "#E8B36A" },
     ]);
+    assert.deepEqual(paletteExports.redesignAccessibleAvatarTintsLight, [
+      { bg: "#EEF0FE", fg: "#4F46E5" },
+      { bg: "#FDEBD7", fg: "#9A5E21" },
+      { bg: "#E0F0FA", fg: "#276EB4" },
+      { bg: "#F3E8FA", fg: "#8A46C7" },
+      { bg: "#E8F8EE", fg: "#187A4C" },
+    ]);
+
+    const designSpec = readFileSync(
+      join(
+        process.cwd(),
+        "..",
+        "..",
+        "docs",
+        "superpowers",
+        "specs",
+        "2026-07-14-whispr-mobile-redesign-design.md",
+      ),
+      "utf8",
+    );
+    assert.match(
+      designSpec,
+      /Accessible light avatar initials use `#4F46E5`, `#9A5E21`, `#276EB4`, `#8A46C7`, and `#187A4C`/,
+    );
   });
 
   it("maps the redesign palette into symmetric semantic theme roles", () => {
@@ -527,7 +551,7 @@ export function Fixture({ cap }: { cap: number }) {
       warningSoft: "rgba(245,158,11,.14)",
     });
 
-    assert.deepEqual(lightTheme.avatarTints, paletteModule.redesignAvatarTintsLight);
+    assert.deepEqual(lightTheme.avatarTints, paletteModule.redesignAccessibleAvatarTintsLight);
     assert.deepEqual(darkTheme.avatarTints, paletteModule.redesignAvatarTintsDark);
     assert.ok(lightTheme.avatarTints.length > 0);
     assert.ok(darkTheme.avatarTints.length > 0);
@@ -602,11 +626,40 @@ export function Fixture({ cap }: { cap: number }) {
       join(process.cwd(), "src", "app", "components", "ui-atoms.styles.ts"),
       "utf8",
     );
+    const voicePanel = readFileSync(
+      join(process.cwd(), "src", "voice", "mobile-voice-room-panel.tsx"),
+      "utf8",
+    );
+    const voiceScreenStyles = readFileSync(
+      join(process.cwd(), "src", "app", "screens", "voice-screen.styles.ts"),
+      "utf8",
+    );
+    const composerStyles = readFileSync(
+      join(process.cwd(), "src", "app", "composer", "mobile-composer.styles.ts"),
+      "utf8",
+    );
 
     assert.match(offlineBanner, /backgroundColor: theme\.status\.warningSoft/);
     assert.match(offlineBanner, /color: theme\.status\.onStatus/);
     assert.match(badge, /dangerLabel: \{ color: theme\.status\.onStatus \}/);
     assert.match(uiAtoms, /actionButtonTextDanger: \{\s*color: theme\.status\.onStatus,/);
+    assert.match(
+      voicePanel,
+      /controlButtonDanger: \{[\s\S]*?backgroundColor: theme\.status\.dangerSoft,/,
+    );
+    assert.match(voicePanel, /controlLabelDanger: \{\s*color: theme\.status\.onStatus,/);
+    assert.match(
+      voiceScreenStyles,
+      /mobileVoiceControlButtonDanger: \{[\s\S]*?backgroundColor: theme\.status\.dangerSoft,/,
+    );
+    assert.match(
+      voiceScreenStyles,
+      /mobileVoiceControlLabelDanger: \{\s*color: theme\.status\.onStatus,/,
+    );
+    assert.match(
+      composerStyles,
+      /dmSendErrorText: \{[\s\S]*?backgroundColor: theme\.status\.dangerSoft,[\s\S]*?color: theme\.status\.onStatus,/,
+    );
   });
 
   it("composes audited bootstrap and feature-status variant foregrounds", () => {
