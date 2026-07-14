@@ -22,7 +22,8 @@
     "test": "node --test --import tsx scripts/*.test.ts",
     "test:components": "jest",
     "typecheck": "tsc --noEmit",
-    "validate:env": "node --import tsx scripts/validate-mobile-env.ts"
+    "validate:env": "node --import tsx scripts/validate-mobile-env.ts",
+    "visual:reference:verify": "node --import tsx scripts/mobile-redesign-reference.ts"
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^15.0.1",
@@ -70,6 +71,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@playwright/test": "1.59.1",
     "@react-native/jest-preset": "0.85.3",
     "@testing-library/react-native": "14.0.1",
     "@types/jest": "29.5.14",
