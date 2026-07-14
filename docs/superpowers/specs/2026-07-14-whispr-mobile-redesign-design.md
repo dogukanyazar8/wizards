@@ -207,6 +207,8 @@ Back minimizes only while `isVoiceSessionActive` is true. In a recoverable error
 
 `FloatingNavigationChrome` is the single bottom-inset owner for the four tab-root surfaces. It contains the mini voice bar when active and the visual pill tab bar. React Navigation measures its complete height and reserves that space for tab content. Tab screens do not add copied `100` or `+60` bottom paddings. Root-stack detail screens such as ChannelChat and VoiceRoom own their composer/footer inset because floating tab chrome is absent; modal sheets own their modal inset. No surface applies both owners.
 
+**F6 — keyboard decision.** When the native keyboard is visible on a tab-root surface, `FloatingNavigationChrome` reserves zero height and renders neither the pill tab bar nor the mini voice bar. The live voice session remains connected; hiding the keyboard restores the chrome and the mini bar when `isVoiceSessionActive` is true. The chrome never overlays or competes with the keyboard. ChannelChat and VoiceRoom are root-stack surfaces without floating chrome and retain ownership of their own keyboard-aware composer/footer inset.
+
 The mini bar appears only for `connecting`, `connected`, or `reconnecting` sessions. Permission-denied, failed, leaving, and idle states do not render it.
 
 One pure `isVoiceSessionActive` predicate implements exactly those three statuses and owns mini-bar/minimize visibility. A separate `hasVoiceRoomContext` guard permits the full route to retain a validated recoverable error or leaving state long enough to retry/finish cleanup; it never treats a bare route name or stale channel ID as a session.
@@ -239,6 +241,8 @@ Vendor one licensed Plus Jakarta Sans release as `PlusJakartaSans-{Regular,Mediu
 
 The reference extractor records computed line heights after the vendored font loads, and `tokens.ts` stores an explicit numeric family, size, weight file, line height, and letter spacing for every role; `normal` line height is forbidden in product code. Android reference-critical text uses `includeFontPadding: false`. Every non-decorative text role, including screen/sheet/header titles, tab labels, metadata, captions, controls, status copy, message bodies, and settings rows, supports at least a 2.0 system font scale. At scale 2.0, titles, actions, metadata, and user content wrap and grow vertically; tab labels may use two lines and the measured floating chrome grows with them; layouts may reflow or stack without hiding text, clipping, overlap, horizontal scrolling, or loss of functionality. Ellipsis is allowed only for repeated identity/content rows whose full value is available through the accessibility label or an existing detail destination, never for a unique control or essential status. Canonical pixel capture remains fixed at font scale 1.0.
 
+**F2 — measured navigation geometry.** The extractor's 1a reference measurement is normative: tab label `10.5px/13px` (explicit numeric line height), tab-item vertical padding `8px`, tab-bar height `72px`, and mini-voice-bar-to-tab-bar gap `14px`. These are measured values, not values rounded into the generic spacing scale. The same tab geometry is confirmed by 1i; the connected dark mini-bar is compared through the dedicated dark-1a evidence.
+
 At the 390-point reference viewport, one canonical CSS pixel maps to one React Native logical point. Layout code uses logical dimensions and native safe-area insets rather than device-pixel scaling; screenshot tooling alone maps those points to physical pixels.
 
 ### Tokens and themes
@@ -247,7 +251,7 @@ Raw runtime React Native presentation colors remain confined to `src/design/pale
 
 The light accessibility mapping is normative and role/context specific. Canonical secondary text `#6B7194` becomes `#62688B` on `#F6F7FB` or `#FFFFFF`; lighter normal-size text `#8A90B0` and `#9AA0BC` becomes `#676D90` on those surfaces; danger normal-size text `#E05252` becomes `#C94343` on white/card surfaces; and success normal-size text `#22A366` or `#1B8A55` becomes `#187A4C` on white, `#F6F7FB`, or `#E8F8EE`. Raw colors remain available only for audited large text, non-text controls, icons, borders, or decorative content. A light role/context pair that is not listed and does not independently pass its required contrast fails the transform instead of receiving an inferred substitution.
 
-The active floating-tab icon and label use `accent.default` exactly (`#4F46E5` in light and `#6D66F0` in dark), not `accent.strong`. Both values independently meet the 5.55:1 applicable contrast requirement; substituting the accessible text role is forbidden because the canonical handoff color is an audited non-text/control mapping under the preceding rule.
+**F3 — active-tab decision.** The active floating-tab icon and label use `accent.default` exactly (`#4F46E5` in light and `#6D66F0` in dark), not `accent.strong`. Both values independently meet the 5.55:1 applicable contrast requirement; substituting the accessible text role is forbidden because the canonical handoff color is an audited non-text/control mapping under the preceding rule.
 
 Accessible light avatar initials use `#4F46E5`, `#9A5E21`, `#276EB4`, `#8A46C7`, and `#187A4C` on the canonical light avatar backgrounds in the same stable index order. The canonical handoff foregrounds remain unchanged for decorative evidence; only the semantic initials array receives these documented normal-text substitutions.
 
@@ -352,6 +356,8 @@ A threshold exception requires a checked-in explanation tied to one platform ras
 ### Baseline and evidence lifecycle
 
 Reference PNGs, style manifests, transforms, masks, reviewed native state goldens, and their source hashes are checked into `apps/mobile/visual-baselines/whispr-redesign/`. Normal verification regenerates reference output in a temporary directory and fails on drift; it never updates a baseline. Baseline changes require the dedicated update command, an explicit expected source hash, visual overlay artifacts, and human review in the scoped change.
+
+The required `Verify` CI job installs the pinned Chromium runtime and runs `pnpm --filter @wizards/mobile visual:gate` without `continue-on-error`. The gate regenerates every normalized golden into a temporary directory, rejects manifest/source/transform/anchor drift, and applies the pinned pixel gate to every generated baseline. A failure makes the `Verify` check red; the UAT branch protection must require this check before a pull request can merge. Native UAT captures remain a separate required acceptance artifact and are never replaced by this deterministic reference gate.
 
 Actual device captures, diff images, readiness logs, and a redacted run manifest live under ignored `artifacts/redesign/<commit>/<platform>/` and are uploaded by CI for 30 days. The manifest records commit, build profile, platform/device, source/baseline/transform/font hashes, locale, theme, UAT scenario ID, clock epoch, masks, and exact tool versions without storing tenant IDs, user IDs, invite codes, tokens, or message content.
 

@@ -82,6 +82,9 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Install mobile visual Chromium
+        run: pnpm --filter @wizards/mobile exec playwright install --with-deps chromium
+
       - name: Test shared types package
         run: pnpm --filter @wizards/types test
 
@@ -95,6 +98,9 @@ jobs:
           pnpm --filter @wizards/mobile validate:env
           pnpm --filter @wizards/mobile release:check
           pnpm --filter @wizards/mobile quality:check
+
+      - name: Mobile redesign visual gate
+        run: pnpm --filter @wizards/mobile visual:gate
 
       - name: Test with coverage baseline
         env:

@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import sharp from "sharp";
 
 const mobileRoot = path.resolve(import.meta.dirname, "..");
 const transformPath = path.join(mobileRoot, "scripts", "mobile-redesign-golden-transform.ts");
@@ -52,9 +53,13 @@ test("normalized golden transform audits substitutions and writes versioned cano
   assert.equal(result.substitutions.length > 0, true);
 
   for (const anchor of result.anchors) {
-    const image = readFileSync(path.join(outputDirectory, `${anchor.anchor}.png`));
+    const imagePath = path.join(outputDirectory, `${anchor.anchor}.png`);
+    const image = readFileSync(imagePath);
     assert.equal(image.readUInt32BE(16), 1170, `${anchor.anchor} physical width`);
     assert.equal(image.readUInt32BE(20), 2532, `${anchor.anchor} physical height`);
+    const metadata = await sharp(imagePath).metadata();
+    assert.equal(metadata.channels, 4, `${anchor.anchor} must be opaque RGBA`);
+    assert.equal(metadata.space, "srgb", `${anchor.anchor} must remain sRGB`);
   }
   assert.equal(existsSync(path.join(outputDirectory, "normalized-golden-manifest.json")), true);
 });

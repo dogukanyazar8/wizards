@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 import { chromium } from "@playwright/test";
+import sharp from "sharp";
 
 import {
   REFERENCE_FONT_SPECS,
@@ -452,7 +453,10 @@ export async function generateNormalizedGoldens(options: {
         const rect = element.getBoundingClientRect();
         return { height: rect.height, width: rect.width, x: rect.x, y: rect.y };
       });
-      const image = await page.screenshot({ clip: captureBounds, scale: "device" });
+      const screenshot = await page.screenshot({ clip: captureBounds, scale: "device" });
+      // Playwright emits an opaque RGB PNG. The pixel gate contract is opaque RGBA,
+      // so add only the constant alpha channel; geometry and RGB samples stay intact.
+      const image = await sharp(screenshot).ensureAlpha(1).png().toBuffer();
       const physicalBounds = readPngDimensions(image);
       if (physicalBounds.width !== REFERENCE_PHYSICAL_VIEWPORT.width || physicalBounds.height !== REFERENCE_PHYSICAL_VIEWPORT.height) {
         throw new Error(`Normalized golden must be 1170x2532 for ${definition.anchor}; received ${physicalBounds.width}x${physicalBounds.height}.`);
