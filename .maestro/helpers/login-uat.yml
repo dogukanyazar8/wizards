@@ -1,5 +1,7 @@
 appId: team.whispr.mobile
 ---
+# Signed-in runs deliberately remain a no-op. Signed-out runs prove the
+# native Login and required Turnstile surface without fabricating a session.
 - runFlow:
     when:
       visible:
@@ -9,42 +11,13 @@ appId: team.whispr.mobile
           id: "mobile-bottom-tab-overview"
       - extendedWaitUntil:
           visible:
-            id: "mobile-auth-screen"
+            id: "mobile-auth-welcome-screen"
           timeout: 15000
-      - tapOn: "Geliştirme hesabını doldur|Fill dev account"
-      - tapOn: "Giriş yap|Sign in"
+      - tapOn:
+          id: "mobile-auth-welcome-sign-in"
       - extendedWaitUntil:
           visible:
-            id: "mobile-overview-screen"
-          timeout: 30000
-- extendedWaitUntil:
-    visible:
-      id: "mobile-bottom-tab-settings"
-    timeout: 30000
-- tapOn:
-    id: "mobile-bottom-tab-settings"
-- extendedWaitUntil:
-    visible:
-      id: "mobile-settings-screen"
-    timeout: 30000
-- tapOn:
-    id: "mobile-settings-open-account"
-- extendedWaitUntil:
-    visible:
-      id: "mobile-settings-account"
-    timeout: 15000
-- extendedWaitUntil:
-    visible:
-      id: "mobile-settings-sign-out-action"
-    timeout: 30000
-- pressKey: BACK
-- extendedWaitUntil:
-    visible:
-      id: "mobile-settings-screen"
-    timeout: 15000
-- tapOn:
-    id: "mobile-bottom-tab-overview"
-- extendedWaitUntil:
-    visible:
-      id: "mobile-overview-screen"
-    timeout: 15000
+            id: "mobile-auth-login-screen"
+          timeout: 15000
+      - assertVisible:
+          id: "mobile-auth-login-turnstile"

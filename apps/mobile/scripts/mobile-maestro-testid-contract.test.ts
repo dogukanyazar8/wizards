@@ -74,33 +74,19 @@ const testIdSources: Record<string, { file: string; needle: string }> = {
 };
 
 describe("Phase 0 Maestro testID contract", () => {
-  it("uses one non-retrying native UAT login helper with ignored development credentials", () => {
+  it("keeps the shared UAT helper a signed-in no-op and a signed-out native login assertion", () => {
     assert.match(rootGitignoreSource, /^\.env\.maestro$/m);
     assert.match(rootGitignoreSource, /^\.env\.local$/m);
     assert.ok(loginHelperSource, ".maestro/helpers/login-uat.yml must exist");
     assert.match(loginHelperSource, /id:\s*"mobile-settings-web-sign-in-action"/);
-    assert.match(loginHelperSource, /id:\s*"mobile-auth-screen"/);
-    assert.match(loginHelperSource, /tapOn:\s*"Geliştirme hesabını doldur\|Fill dev account"/);
-    assert.equal(loginHelperSource.match(/tapOn:\s*"Giriş yap\|Sign in"/g)?.length, 1);
     assert.match(
       loginHelperSource,
-      /id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-screen"[\s\S]*?tapOn:\s*"Geliştirme hesabını doldur\|Fill dev account"[\s\S]*?tapOn:\s*"Giriş yap\|Sign in"[\s\S]*?id:\s*"mobile-overview-screen"[\s\S]*?id:\s*"mobile-bottom-tab-settings"/,
+      /id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-welcome-screen"[\s\S]*?id:\s*"mobile-auth-welcome-sign-in"[\s\S]*?id:\s*"mobile-auth-login-screen"[\s\S]*?id:\s*"mobile-auth-login-turnstile"/,
     );
+    assert.doesNotMatch(loginHelperSource, /mobile-auth-screen/);
     assert.doesNotMatch(loginHelperSource, /MAESTRO_UAT_(?:EMAIL|PASSWORD)/);
-    assert.doesNotMatch(loginHelperSource, /id:\s*"(?:email|password)"/);
-    assert.doesNotMatch(loginHelperSource, /retry/i);
-    assert.match(loginHelperSource, /id:\s*"mobile-bottom-tab-settings"/);
-    assert.match(
-      loginHelperSource,
-      /id:\s*"mobile-bottom-tab-settings"[\s\S]*?id:\s*"mobile-settings-open-account"[\s\S]*?id:\s*"mobile-settings-account"[\s\S]*?id:\s*"mobile-settings-sign-out-action"/,
-    );
-    assert.match(loginHelperSource, /id:\s*"mobile-settings-sign-out-action"/);
-    assert.match(
-      loginHelperSource,
-      /id:\s*"mobile-settings-sign-out-action"[\s\S]*?pressKey:\s*BACK[\s\S]*?id:\s*"mobile-bottom-tab-overview"/,
-    );
-    assert.match(loginHelperSource, /id:\s*"mobile-bottom-tab-overview"/);
-    assert.match(loginHelperSource, /id:\s*"mobile-overview-screen"/);
+    assert.doesNotMatch(loginHelperSource, /(?:development|fill-dev|inputText|retry)/i);
+    assert.doesNotMatch(loginHelperSource, /mobile-auth-(?:login|register|forgot)-submit/);
 
     for (const source of [flowSource, darkModeFlowSource]) {
       assert.match(source, /file:\s*"helpers\/login-uat\.yml"/);

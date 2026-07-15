@@ -89,6 +89,13 @@ export const MOBILE_AUTOMATED_GATES: MobileAutomatedGate[] = [
     required: true,
   },
   {
+    command: "maestro test ../../.maestro/phase2-auth-navigation.yml",
+    id: "mobile-maestro-auth-navigation",
+    purpose:
+      "Android device proof for signed-out auth navigation across Welcome, Login, Register, and password reset without authentication bypass.",
+    required: true,
+  },
+  {
     command: "maestro test ../../.maestro/phase2-messaging.yml",
     id: "mobile-maestro-phase2-messaging",
     purpose:

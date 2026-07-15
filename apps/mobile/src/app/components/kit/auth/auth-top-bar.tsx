@@ -73,6 +73,7 @@ export function AuthTopBar({ backAccessibilityLabel, onBack, testID }: AuthTopBa
           styles.backHitTarget,
           pressed && { opacity: theme.layout.opacity.pressed },
         ]}
+        testID={testID ? `${testID}-back` : undefined}
       >
         <View style={styles.backVisual}>
           <Icon
