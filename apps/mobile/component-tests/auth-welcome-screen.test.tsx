@@ -3,8 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
+import { SafeAreaProvider, type EdgeInsets } from "react-native-safe-area-context";
 
-import { AuthWelcomeScreen } from "../src/app/screens/auth/auth-welcome-screen";
+import {
+  AUTH_WELCOME_TITLE_GRADIENT_COLORS,
+  AuthWelcomeScreen,
+} from "../src/app/screens/auth/auth-welcome-screen";
 import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provider";
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
 import { MOBILE_THEME_PREFERENCE_KEY } from "../src/design/mobile-theme-runtime";
@@ -16,17 +20,29 @@ const mockSetItem = AsyncStorage.setItem as jest.MockedFunction<typeof AsyncStor
 
 let mockSystemScheme: ReactNative.ColorSchemeName = "light";
 
-function renderWelcome(props?: Partial<React.ComponentProps<typeof AuthWelcomeScreen>>) {
+const zeroInsets: EdgeInsets = { bottom: 0, left: 0, right: 0, top: 0 };
+
+function renderWelcome(
+  props?: Partial<React.ComponentProps<typeof AuthWelcomeScreen>>,
+  insets: EdgeInsets = zeroInsets,
+) {
   return render(
-    <MobileThemeProvider>
-      <MobileLocaleProvider>
-        <AuthWelcomeScreen
-          onOpenLanguagePicker={props?.onOpenLanguagePicker ?? jest.fn()}
-          onSignIn={props?.onSignIn ?? jest.fn()}
-          onSignUp={props?.onSignUp ?? jest.fn()}
-        />
-      </MobileLocaleProvider>
-    </MobileThemeProvider>,
+    <SafeAreaProvider
+      initialMetrics={{
+        frame: { height: 844, width: 390, x: 0, y: 0 },
+        insets,
+      }}
+    >
+      <MobileThemeProvider>
+        <MobileLocaleProvider>
+          <AuthWelcomeScreen
+            onOpenLanguagePicker={props?.onOpenLanguagePicker ?? jest.fn()}
+            onSignIn={props?.onSignIn ?? jest.fn()}
+            onSignUp={props?.onSignUp ?? jest.fn()}
+          />
+        </MobileLocaleProvider>
+      </MobileThemeProvider>
+    </SafeAreaProvider>,
   );
 }
 
@@ -205,5 +221,17 @@ describe("AuthWelcomeScreen", () => {
       borderRadius: 28,
       height: 56,
     });
+  });
+
+  it("uses safe insets and the canonical two-stop gradient for the second hero line", async () => {
+    const view = await renderWelcome(undefined, { bottom: 34, left: 0, right: 0, top: 47 });
+    const tree = view.toJSON() as RenderedNode | readonly RenderedNode[] | null;
+
+    expect(StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-layout").props.style)).toMatchObject({
+      paddingBottom: 34,
+      paddingTop: 47,
+    });
+    expect(AUTH_WELCOME_TITLE_GRADIENT_COLORS).toEqual(["#7C6CF6", "#4F9CF6"]);
+    expect(findNodeByTestId(tree, "mobile-auth-welcome-hero-title-gradient")).toBeTruthy();
   });
 });

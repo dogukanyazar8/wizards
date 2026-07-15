@@ -74,10 +74,6 @@ export const createAuthWelcomeScreenStyles = (theme: MobileTheme) => ({
     ...theme.typography.authHeroTitle,
     color: theme.text.primary,
   },
-  heroTitleAccent: {
-    ...theme.typography.authHeroTitle,
-    color: theme.accent.strong,
-  },
   languageControl: {
     alignItems: "center" as const,
     backgroundColor: theme.surface.card,
