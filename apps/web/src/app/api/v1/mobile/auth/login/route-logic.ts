@@ -19,7 +19,12 @@ export type MobilePasswordLoginRouteDependencies = {
 };
 
 const defaultMobilePasswordLoginRouteDependencies: MobilePasswordLoginRouteDependencies = {
-  createPasswordSession: createMobilePasswordSession,
+  createPasswordSession: ({ email, password, twoFactorCode }) =>
+    createMobilePasswordSession(
+      twoFactorCode === undefined
+        ? { email, password }
+        : { email, password, twoFactorCode },
+    ),
   enforceIpRateLimit: (request) =>
     enforceMobileAuthRateLimit(request, "mobile:auth-login"),
   parseLoginRequest: (request) =>

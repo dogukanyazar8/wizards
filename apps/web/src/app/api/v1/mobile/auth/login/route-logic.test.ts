@@ -16,6 +16,7 @@ function createDependencies(
     parseLoginRequest: async () => ({
       email: "ada@example.com",
       password: "wrong-password",
+      turnstileToken: "test-turnstile-token",
     }),
     ...overrides,
   };
@@ -40,7 +41,11 @@ describe("mobile password login route", () => {
         },
         parseLoginRequest: async () => {
           calls.push("parse-body");
-          return { email: "ada@example.com", password: "wrong-password" };
+          return {
+            email: "ada@example.com",
+            password: "wrong-password",
+            turnstileToken: "test-turnstile-token",
+          };
         },
       }),
     );

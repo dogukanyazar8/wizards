@@ -60,6 +60,8 @@ interface TestMobileAuthUser {
   isBanned: boolean;
   locale?: string | null;
   passwordHash?: string | null;
+  twoFactorEnabled: boolean;
+  twoFactorSecret: string | null;
   username: string;
 }
 
@@ -76,6 +78,8 @@ function buildVerifiedUser(overrides: Partial<TestMobileAuthUser> = {}): TestMob
     emailVerified: true,
     id: "user-1",
     isBanned: false,
+    twoFactorEnabled: false,
+    twoFactorSecret: null,
     username: "ada",
     ...overrides,
   };

@@ -28,6 +28,7 @@ import {
 } from "@/lib/auth/password-reset";
 import { rollbackUnverifiedUser } from "@/lib/auth/registration-compensation";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
+import { verifyTwoFactorCredential } from "@/lib/auth/two-factor";
 import {
   assertMobileLoginAttemptAllowed,
   recordMobileLoginAttemptFailure,
@@ -110,12 +111,15 @@ interface MobilePasswordAuthUser extends MobileAuthUser {
   email: string;
   locale: string | null;
   passwordHash: string | null;
+  twoFactorEnabled: boolean;
+  twoFactorSecret: string | null;
 }
 
 interface MobileNativeAuthOptions extends MobileAuthOptions {
   comparePassword?: (password: string, passwordHash: string) => Promise<boolean>;
   loadUserByEmail?: (email: string) => Promise<MobilePasswordAuthUser | null>;
   loginAttemptStore?: AttemptStore;
+  verifyTwoFactor?: typeof verifyTwoFactorCredential;
 }
 
 interface MobileVerificationEmailUser {
@@ -431,6 +435,8 @@ async function loadMobilePasswordAuthUser(email: string) {
       isBanned: true,
       locale: true,
       passwordHash: true,
+      twoFactorEnabled: true,
+      twoFactorSecret: true,
       username: true,
     },
   });
@@ -676,6 +682,7 @@ export async function createMobilePasswordSession(
   input: {
     email: string;
     password: string;
+    twoFactorCode?: string;
   },
   options: MobileNativeAuthOptions = {},
 ) {
@@ -730,6 +737,39 @@ export async function createMobilePasswordSession(
       );
     }
     return null;
+  }
+
+  if (user.twoFactorEnabled) {
+    if (!input.twoFactorCode) {
+      throw new MobileNativeAuthError(
+        "TWO_FACTOR_REQUIRED",
+        401,
+        "Two-factor verification is required.",
+      );
+    }
+
+    const verifyTwoFactor = options.verifyTwoFactor ?? verifyTwoFactorCredential;
+    const result = await verifyTwoFactor({
+      code: input.twoFactorCode,
+      secret: user.twoFactorSecret,
+      userId: user.id,
+    });
+
+    if (!result.success) {
+      if (result.error === "rate_limited") {
+        throw new MobileNativeAuthError(
+          "RATE_LIMITED",
+          429,
+          "Too many two-factor verification attempts. Please try again shortly.",
+        );
+      }
+
+      throw new MobileNativeAuthError(
+        "TWO_FACTOR_INVALID",
+        401,
+        "The two-factor code is invalid or expired.",
+      );
+    }
   }
 
   const redis = getMobileAuthRedis(options);
