@@ -100,39 +100,39 @@ export function MobileNavigator({
     >
       {status === "signed-in" ? (
         <RootStack.Navigator screenOptions={rootStackOptions}>
-        <RootStack.Screen name="MainTabs">
-          {() => <MobileBottomTabs directMessageUnreadCount={directMessageUnreadCount} />}
-        </RootStack.Screen>
-        <RootStack.Screen name="VoiceRoom">
-          {(props) => <VoiceRoomStackScreenContainer {...props} />}
-        </RootStack.Screen>
-        <RootStack.Screen name="ChannelChat">
-          {(props) => <ChannelStackScreenContainer {...props} />}
-        </RootStack.Screen>
-        <RootStack.Screen name="DirectMessage">
-          {(props) => <DirectMessageStackScreenContainer {...props} />}
-        </RootStack.Screen>
-        <RootStack.Screen name="MessageThread">
-          {(props) => <MessageThreadStackScreenContainer {...props} />}
-        </RootStack.Screen>
-        <RootStack.Screen name="SettingsDetail" component={SettingsDetailScreenContainer} />
-        <RootStack.Screen name="ProfileEdit" component={ProfileEditScreenContainer} />
-        <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreenContainer} />
-        <RootStack.Screen name="Security">
-          {(props) => <SecurityScreenContainer {...props} />}
-        </RootStack.Screen>
-        <RootStack.Screen name="DMDetails">
-          {(props) => <DMDetailsScreenContainer {...props} />}
-        </RootStack.Screen>
-        <RootStack.Screen name="ServerSettings">
-          {(props) => <ServerSettingsStackScreenContainer {...props} />}
-        </RootStack.Screen>
-        <RootStack.Screen name="ServerMembers">
-          {(props) => <ServerMembersStackScreenContainer {...props} />}
-        </RootStack.Screen>
-        <RootStack.Screen name="ChannelSettings">
-          {(props) => <ChannelSettingsStackScreenContainer {...props} />}
-        </RootStack.Screen>
+          <RootStack.Screen name="MainTabs">
+            {() => <MobileBottomTabs directMessageUnreadCount={directMessageUnreadCount} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="VoiceRoom">
+            {(props) => <VoiceRoomStackScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="ChannelChat">
+            {(props) => <ChannelStackScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="DirectMessage">
+            {(props) => <DirectMessageStackScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="MessageThread">
+            {(props) => <MessageThreadStackScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="SettingsDetail" component={SettingsDetailScreenContainer} />
+          <RootStack.Screen name="ProfileEdit" component={ProfileEditScreenContainer} />
+          <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreenContainer} />
+          <RootStack.Screen name="Security">
+            {(props) => <SecurityScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="DMDetails">
+            {(props) => <DMDetailsScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="ServerSettings">
+            {(props) => <ServerSettingsStackScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="ServerMembers">
+            {(props) => <ServerMembersStackScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="ChannelSettings">
+            {(props) => <ChannelSettingsStackScreenContainer {...props} />}
+          </RootStack.Screen>
         </RootStack.Navigator>
       ) : (
         <MobileAuthNavigator reason={status === "checking" ? "checking" : "auth-required"} />

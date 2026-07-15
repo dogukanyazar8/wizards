@@ -149,7 +149,7 @@ export const mobileLayoutMetrics = {
     welcomeThemeSegmentHorizontalPadding: 11,
     welcomeThemeSegmentVerticalPadding: 5,
     welcomeTopControlsGap: 8,
-    welcomeTopControlsPaddingTop: 10,
+    welcomeTopControlsPaddingTop: 2,
   },
   border: { hairline: 1 },
   fixed: {

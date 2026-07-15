@@ -50,7 +50,10 @@ export function AuthWelcomeScreen({
     { color: theme.authFeature.fileShare, label: copy.authWelcomeFeatureFileShare },
     { color: theme.authFeature.voice, label: copy.authWelcomeFeatureVoice },
   ];
-  const copyright = copy.authWelcomeCopyrightTemplate.replace("{year}", String(new Date().getFullYear()));
+  const copyright = copy.authWelcomeCopyrightTemplate.replace(
+    "{year}",
+    String(new Date().getFullYear()),
+  );
 
   return (
     <AuthScreenBackground centered={false} fill scrollable testID="mobile-auth-welcome-screen">
@@ -70,6 +73,7 @@ export function AuthWelcomeScreen({
               accessibilityLabel={copy.authThemeToggleLight}
               accessibilityRole="tab"
               accessibilityState={{ selected: resolvedTheme === "light" }}
+              hitSlop={9}
               onPress={() => setMode("light")}
               style={[styles.themeControl, resolvedTheme === "light" && styles.themeControlActive]}
               testID="mobile-auth-welcome-theme-light"
@@ -95,6 +99,7 @@ export function AuthWelcomeScreen({
               accessibilityLabel={copy.authThemeToggleDark}
               accessibilityRole="tab"
               accessibilityState={{ selected: resolvedTheme === "dark" }}
+              hitSlop={9}
               onPress={() => setMode("dark")}
               style={[styles.themeControl, resolvedTheme === "dark" && styles.themeControlActive]}
               testID="mobile-auth-welcome-theme-dark"
@@ -120,6 +125,7 @@ export function AuthWelcomeScreen({
           <Pressable
             accessibilityLabel={localeLabel}
             accessibilityRole="button"
+            hitSlop={5}
             onPress={onOpenLanguagePicker}
             style={styles.languageControl}
             testID="mobile-auth-language-picker"
@@ -152,7 +158,10 @@ export function AuthWelcomeScreen({
             </Text>
           </View>
 
-          <View accessibilityLabel={`${copy.authWelcomeHeroTitleLine1} ${copy.authWelcomeHeroTitleLine2}`} accessibilityRole="header">
+          <View
+            accessibilityLabel={`${copy.authWelcomeHeroTitleLine1} ${copy.authWelcomeHeroTitleLine2}`}
+            accessibilityRole="header"
+          >
             <Text maxFontSizeMultiplier={2} style={styles.heroTitle}>
               {copy.authWelcomeHeroTitleLine1}
             </Text>
@@ -171,14 +180,8 @@ export function AuthWelcomeScreen({
                   y1="0"
                   y2="0"
                 >
-                  <Stop
-                    offset="0"
-                    stopColor={AUTH_WELCOME_TITLE_GRADIENT_COLORS[0]}
-                  />
-                  <Stop
-                    offset="1"
-                    stopColor={AUTH_WELCOME_TITLE_GRADIENT_COLORS[1]}
-                  />
+                  <Stop offset="0" stopColor={AUTH_WELCOME_TITLE_GRADIENT_COLORS[0]} />
+                  <Stop offset="1" stopColor={AUTH_WELCOME_TITLE_GRADIENT_COLORS[1]} />
                 </SvgLinearGradient>
               </Defs>
               <SvgText
@@ -215,10 +218,7 @@ export function AuthWelcomeScreen({
           style={[
             styles.ctaBlock,
             {
-              paddingBottom: Math.max(
-                theme.layout.auth.welcomeCtaBottomPadding - insets.bottom,
-                0,
-              ),
+              paddingBottom: Math.max(theme.layout.auth.welcomeCtaBottomPadding - insets.bottom, 0),
             },
           ]}
         >

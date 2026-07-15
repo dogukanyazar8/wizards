@@ -178,7 +178,9 @@ describe("mobile React Navigation runtime", () => {
     mockAuthStatus = "signed-out";
     const view = await render(<MobileNavigator />);
 
-    expect(view.getByTestId("mobile-auth-navigator").props.accessibilityLabel).toBe("auth-required");
+    expect(view.getByTestId("mobile-auth-navigator").props.accessibilityLabel).toBe(
+      "auth-required",
+    );
     expect(view.queryByTestId("mobile-settings-tab-screen")).toBeNull();
     expect(view.queryByTestId("mobile-bottom-tab-overview")).toBeNull();
     expect(view.queryByTestId("mobile-bottom-tab-messages")).toBeNull();

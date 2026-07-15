@@ -104,7 +104,9 @@ describe("AuthWelcomeScreen", () => {
 
     await waitFor(() => expect(mockGetItem).toHaveBeenCalledTimes(1));
 
-    expect(StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-screen").props.style)).toMatchObject({
+    expect(
+      StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-screen").props.style),
+    ).toMatchObject({
       backgroundColor: surface,
     });
   });
@@ -126,7 +128,9 @@ describe("AuthWelcomeScreen", () => {
 
     await fireEvent.press(view.getByTestId("mobile-auth-welcome-theme-dark"));
     await waitFor(() =>
-      expect(StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-screen").props.style)).toMatchObject({
+      expect(
+        StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-screen").props.style),
+      ).toMatchObject({
         backgroundColor: darkTheme.surface.base,
       }),
     );
@@ -136,7 +140,9 @@ describe("AuthWelcomeScreen", () => {
 
     await fireEvent.press(view.getByTestId("mobile-auth-welcome-theme-light"));
     await waitFor(() =>
-      expect(StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-screen").props.style)).toMatchObject({
+      expect(
+        StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-screen").props.style),
+      ).toMatchObject({
         backgroundColor: lightTheme.surface.base,
       }),
     );
@@ -213,11 +219,15 @@ describe("AuthWelcomeScreen", () => {
       copy.authWelcomeFeatureVoice,
     ].forEach((label) => expect(view.getByText(label)).toBeTruthy());
 
-    expect(resolvePressableStyle(view.getByTestId("mobile-auth-welcome-sign-in").props.style)).toMatchObject({
+    expect(
+      resolvePressableStyle(view.getByTestId("mobile-auth-welcome-sign-in").props.style),
+    ).toMatchObject({
       borderRadius: 28,
       height: 56,
     });
-    expect(resolvePressableStyle(view.getByTestId("mobile-auth-welcome-sign-up").props.style)).toMatchObject({
+    expect(
+      resolvePressableStyle(view.getByTestId("mobile-auth-welcome-sign-up").props.style),
+    ).toMatchObject({
       borderRadius: 28,
       height: 56,
     });
@@ -227,11 +237,26 @@ describe("AuthWelcomeScreen", () => {
     const view = await renderWelcome(undefined, { bottom: 34, left: 0, right: 0, top: 47 });
     const tree = view.toJSON() as RenderedNode | readonly RenderedNode[] | null;
 
-    expect(StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-layout").props.style)).toMatchObject({
+    expect(
+      StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-layout").props.style),
+    ).toMatchObject({
       paddingBottom: 34,
       paddingTop: 47,
     });
     expect(AUTH_WELCOME_TITLE_GRADIENT_COLORS).toEqual(["#7C6CF6", "#4F9CF6"]);
     expect(findNodeByTestId(tree, "mobile-auth-welcome-hero-title-gradient")).toBeTruthy();
+  });
+
+  it("uses the compact 2a control heights instead of generic 44dp touch-target visuals", async () => {
+    const view = await renderWelcome();
+
+    expect(
+      resolvePressableStyle(view.getByTestId("mobile-auth-welcome-theme-light").props.style),
+    ).not.toHaveProperty("minHeight");
+    expect(
+      resolvePressableStyle(view.getByTestId("mobile-auth-language-picker").props.style),
+    ).toMatchObject({ height: 35 });
+    expect(view.getByTestId("mobile-auth-welcome-theme-light").props.hitSlop).toBe(9);
+    expect(view.getByTestId("mobile-auth-language-picker").props.hitSlop).toBe(5);
   });
 });

@@ -61,7 +61,7 @@ it("keeps tab navigation unmounted while secure storage is checking", async () =
 - [ ] **Step 2: Verify red**
 
 ```powershell
-corepack pnpm --filter @wizards/mobile test:components -- mobile-navigation --runInBand
+corepack pnpm --filter @wizards/mobile exec jest component-tests/mobile-navigation.test.tsx --runInBand
 ```
 
 Expected: the tests fail because signed-out currently mounts `MobileBottomTabs` at `settings`.
@@ -82,7 +82,7 @@ const authReason = status === "checking" ? "checking" : "auth-required";
   ) : (
     <MobileAuthNavigator reason={authReason} />
   )}
-</NavigationContainer>
+</NavigationContainer>;
 ```
 
 Remove `ProtectedTab`, `ProtectedStackRoute`, their imports, and the signed-out `initialRouteName` branch from `MobileBottomTabs`; use `initialRouteName="overview"` there.
@@ -90,7 +90,7 @@ Remove `ProtectedTab`, `ProtectedStackRoute`, their imports, and the signed-out 
 - [ ] **Step 4: Verify green and commit**
 
 ```powershell
-corepack pnpm --filter @wizards/mobile test:components -- mobile-navigation --runInBand
+corepack pnpm --filter @wizards/mobile exec jest component-tests/mobile-navigation.test.tsx --runInBand
 git add apps/mobile/src/navigation/mobile-navigator.tsx apps/mobile/component-tests/mobile-navigation.test.tsx
 git commit -m "fix(mobile): open welcome before unauthenticated tabs"
 ```
@@ -118,7 +118,9 @@ Mock non-zero safe insets and assert:
 expect(view.getByTestId("mobile-auth-welcome-hero-title-gradient").props).toMatchObject({
   colors: ["#7C6CF6", "#4F9CF6"],
 });
-expect(StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-layout").props.style)).toMatchObject({
+expect(
+  StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-layout").props.style),
+).toMatchObject({
   paddingBottom: 34,
   paddingTop: 47,
 });
@@ -127,7 +129,7 @@ expect(StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-layout").props.s
 - [ ] **Step 2: Verify red**
 
 ```powershell
-corepack pnpm --filter @wizards/mobile test:components -- auth-welcome-screen --runInBand
+corepack pnpm --filter @wizards/mobile exec jest component-tests/auth-welcome-screen.test.tsx --runInBand
 ```
 
 Expected: the test fails because the current accent is a solid `Text` and no safe-area layout test ID exists.
@@ -139,14 +141,26 @@ Use `useSafeAreaInsets()` and add `testID="mobile-auth-welcome-layout"` to the f
 Replace the accent `Text` with a React Native SVG gradient text surface:
 
 ```tsx
-<Svg height={theme.typography.authHeroTitle.lineHeight} testID="mobile-auth-welcome-hero-title-gradient" width="100%">
+<Svg
+  height={theme.typography.authHeroTitle.lineHeight}
+  testID="mobile-auth-welcome-hero-title-gradient"
+  width="100%"
+>
   <Defs>
     <SvgLinearGradient id="mobile-auth-welcome-title-gradient" x1="0" x2="1" y1="0" y2="0">
       <Stop offset="0" stopColor="#7C6CF6" />
       <Stop offset="1" stopColor="#4F9CF6" />
     </SvgLinearGradient>
   </Defs>
-  <SvgText fill="url(#mobile-auth-welcome-title-gradient)" fontFamily={theme.typography.authHeroTitle.fontFamily} fontSize={theme.typography.authHeroTitle.fontSize} fontWeight="800" letterSpacing={theme.typography.authHeroTitle.letterSpacing} x="0" y={theme.typography.authHeroTitle.lineHeight - 8}>
+  <SvgText
+    fill="url(#mobile-auth-welcome-title-gradient)"
+    fontFamily={theme.typography.authHeroTitle.fontFamily}
+    fontSize={theme.typography.authHeroTitle.fontSize}
+    fontWeight="800"
+    letterSpacing={theme.typography.authHeroTitle.letterSpacing}
+    x="0"
+    y={theme.typography.authHeroTitle.lineHeight - 8}
+  >
     {copy.authWelcomeHeroTitleLine2}
   </SvgText>
 </Svg>
@@ -157,7 +171,7 @@ Keep the existing combined title accessibility label and all five copy-backed fe
 - [ ] **Step 4: Verify green and commit**
 
 ```powershell
-corepack pnpm --filter @wizards/mobile test:components -- auth-welcome-screen --runInBand
+corepack pnpm --filter @wizards/mobile exec jest component-tests/auth-welcome-screen.test.tsx --runInBand
 git add apps/mobile/src/app/screens/auth/auth-welcome-screen.tsx apps/mobile/src/app/screens/auth/auth-welcome-screen.styles.ts apps/mobile/component-tests/auth-welcome-screen.test.tsx
 git commit -m "feat(mobile): align welcome screen with 2a"
 ```
@@ -181,7 +195,7 @@ Expected: the welcome component tests pass with gradient, safe-area, theme, loca
 
 ```powershell
 corepack pnpm --filter @wizards/mobile typecheck
-corepack pnpm --filter @wizards/mobile test:components -- mobile-navigation auth-welcome-screen --runInBand
+corepack pnpm --filter @wizards/mobile exec jest component-tests/mobile-navigation.test.tsx component-tests/auth-welcome-screen.test.tsx --runInBand
 ```
 
 Expected: PASS with no TypeScript errors.
