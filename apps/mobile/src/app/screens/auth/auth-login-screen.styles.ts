@@ -64,6 +64,15 @@ export const createAuthLoginScreenStyles = (theme: MobileTheme) => ({
     justifyContent: "space-between" as const,
     minWidth: 0,
   },
+  notice: {
+    ...theme.typography.authSubtitle,
+    backgroundColor: theme.status.successSoft,
+    borderColor: theme.status.success,
+    borderRadius: theme.layout.auth.fieldRadius,
+    borderWidth: theme.layout.border.hairline,
+    color: theme.status.successText,
+    padding: theme.spacing.section,
+  },
   screen: {
     gap: theme.spacing.section,
     minWidth: 0,

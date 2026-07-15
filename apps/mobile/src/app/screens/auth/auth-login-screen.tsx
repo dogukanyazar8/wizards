@@ -9,6 +9,7 @@ import {
   AuthPrimaryButton,
   AuthProfileTypeSelector,
   AuthScreenBackground,
+  AuthSecondaryButton,
   AuthTextField,
   AuthTopBar,
   AuthTurnstileCard,
@@ -22,6 +23,10 @@ import { createAuthLoginScreenStyles } from "./auth-login-screen.styles";
 const MOBILE_AUTH_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface AuthLoginScreenProps {
+  readonly developmentCredentials?: {
+    readonly email: string;
+    readonly password: string;
+  } | null;
   readonly onBack: () => void;
   readonly onForgotPassword: () => void;
   readonly onOpenWebSignIn: () => void;
@@ -43,6 +48,7 @@ function getSafeResultMessage(message: string, fallback: string) {
 }
 
 export function AuthLoginScreen({
+  developmentCredentials = null,
   onBack,
   onForgotPassword,
   onOpenWebSignIn,
@@ -62,21 +68,39 @@ export function AuthLoginScreen({
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [twoFactorVisible, setTwoFactorVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const clearError = () => setErrorMessage(null);
+  const clearFeedback = () => {
+    setErrorMessage(null);
+    setNoticeMessage(null);
+  };
 
   const handleTurnstileVerify = (token: string | null) => {
     setTurnstileToken(token);
     if (token) {
-      clearError();
+      clearFeedback();
     }
   };
 
   const handleTwoFactorToggle = () => {
     setTwoFactorVisible((visible) => !visible);
     setTwoFactorCode("");
-    clearError();
+    clearFeedback();
+  };
+
+  const handleFillDevelopmentCredentials = () => {
+    if (!developmentCredentials || isSubmitting) {
+      return;
+    }
+
+    setEmail(developmentCredentials.email);
+    setPassword(developmentCredentials.password);
+    setTurnstileToken(null);
+    setTwoFactorCode("");
+    setTwoFactorVisible(false);
+    setErrorMessage(null);
+    setNoticeMessage(copy.authNativeDevCredentialsFilled);
   };
 
   const handleSubmit = async () => {
@@ -86,7 +110,7 @@ export function AuthLoginScreen({
 
     const normalizedEmail = normalizeEmail(email);
     const normalizedTwoFactorCode = twoFactorVisible ? twoFactorCode.trim() : "";
-    clearError();
+    clearFeedback();
 
     if (!normalizedEmail || !password) {
       setErrorMessage(copy.authNativeMissingFields);
@@ -189,7 +213,7 @@ export function AuthLoginScreen({
             label={copy.authNativeEmailLabel}
             onChangeText={(value) => {
               setEmail(value);
-              clearError();
+              clearFeedback();
             }}
             placeholder={copy.authNativeEmailPlaceholder}
             returnKeyType="next"
@@ -219,7 +243,7 @@ export function AuthLoginScreen({
             }
             onChangeText={(value) => {
               setPassword(value);
-              clearError();
+              clearFeedback();
             }}
             placeholder={copy.authNativePasswordPlaceholder}
             returnKeyType="done"
@@ -265,7 +289,7 @@ export function AuthLoginScreen({
               label={copy.authTwoFactorFieldLabel}
               onChangeText={(value) => {
                 setTwoFactorCode(value);
-                clearError();
+                clearFeedback();
               }}
               placeholder={copy.authTwoFactorFieldPlaceholder}
               returnKeyType="done"
@@ -284,6 +308,24 @@ export function AuthLoginScreen({
             onVerify={handleTurnstileVerify}
             testID="mobile-auth-login-turnstile"
           />
+          {noticeMessage ? (
+            <Text
+              accessibilityLiveRegion="polite"
+              maxFontSizeMultiplier={2}
+              style={styles.notice}
+              testID="mobile-auth-login-notice"
+            >
+              {noticeMessage}
+            </Text>
+          ) : null}
+          {developmentCredentials ? (
+            <AuthSecondaryButton
+              disabled={isSubmitting}
+              label={copy.authNativeDevFillAction}
+              onPress={handleFillDevelopmentCredentials}
+              testID="mobile-auth-login-fill-dev-credentials"
+            />
+          ) : null}
           <AuthPrimaryButton
             busy={isSubmitting}
             label={isSubmitting ? copy.authNativeSubmitting : copy.authNativeSignInAction}

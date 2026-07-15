@@ -48,6 +48,7 @@ function renderLogin(props?: Partial<React.ComponentProps<typeof AuthLoginScreen
     <MobileThemeProvider>
       <MobileLocaleProvider>
         <AuthLoginScreen
+          developmentCredentials={props?.developmentCredentials}
           onBack={props?.onBack ?? jest.fn()}
           onForgotPassword={props?.onForgotPassword ?? jest.fn()}
           onOpenWebSignIn={props?.onOpenWebSignIn ?? jest.fn()}
@@ -256,5 +257,34 @@ describe("AuthLoginScreen", () => {
       "password",
       "turnstileToken",
     ]);
+  });
+
+  it("fills development credentials only after an explicit press and clears prior form feedback", async () => {
+    const view = await renderLogin({
+      developmentCredentials: {
+        email: "dev@example.com",
+        password: "development-password",
+      },
+    });
+
+    await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
+    expect(await view.findByText(copy.authNativeMissingFields)).toBeTruthy();
+    expect(view.getByTestId("mobile-auth-login-email-input").props.value).toBe("");
+    expect(view.getByTestId("mobile-auth-login-password-input").props.value).toBe("");
+
+    await fireEvent.press(view.getByTestId("mobile-auth-login-fill-dev-credentials"));
+
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-auth-login-email-input").props.value).toBe("dev@example.com"),
+    );
+    expect(view.getByTestId("mobile-auth-login-password-input").props.value).toBe("development-password");
+    expect(view.queryByText(copy.authNativeMissingFields)).toBeNull();
+    expect(view.getByText(copy.authNativeDevCredentialsFilled)).toBeTruthy();
+  });
+
+  it("does not render the development credential action without a container-supplied value", async () => {
+    const view = await renderLogin();
+
+    expect(view.queryByTestId("mobile-auth-login-fill-dev-credentials")).toBeNull();
   });
 });
