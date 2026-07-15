@@ -8,6 +8,7 @@ export type MobileEnvironmentConfig = {
   releaseChannel: MobileEnvironmentName;
   sentryDsn: string | null;
   socketUrl: string;
+  turnstileSiteKey: string | null;
   webUrl: string;
 };
 
@@ -16,6 +17,7 @@ type BuildMobileEnvironmentConfigInput = {
   publicApiUrl?: string;
   publicSentryDsn?: string;
   publicSocketUrl?: string;
+  publicTurnstileSiteKey?: string;
   publicWebUrl?: string;
 };
 
@@ -108,12 +110,19 @@ export function buildMobileEnvironmentConfig(
     input.publicSocketUrl ?? defaults.socketUrl,
     "EXPO_PUBLIC_WHISPR_SOCKET_URL",
   );
+  const turnstileSiteKey = input.publicTurnstileSiteKey?.trim() || null;
   const webUrl = normalizeUrl(input.publicWebUrl ?? defaults.webUrl, "EXPO_PUBLIC_WHISPR_WEB_URL");
 
   if (environment !== "development") {
     assertReleaseUrl(apiUrl, "EXPO_PUBLIC_WHISPR_API_URL", environment);
     assertReleaseUrl(socketUrl, "EXPO_PUBLIC_WHISPR_SOCKET_URL", environment);
     assertReleaseUrl(webUrl, "EXPO_PUBLIC_WHISPR_WEB_URL", environment);
+
+    if (!turnstileSiteKey) {
+      throw new Error(
+        `EXPO_PUBLIC_WHISPR_TURNSTILE_SITE_KEY is required for ${environment} mobile builds.`,
+      );
+    }
   }
 
   return {
@@ -122,6 +131,7 @@ export function buildMobileEnvironmentConfig(
     releaseChannel: environment,
     sentryDsn: input.publicSentryDsn?.trim() || null,
     socketUrl,
+    turnstileSiteKey,
     webUrl,
   };
 }
@@ -132,6 +142,7 @@ export function getMobileRuntimeConfig(): MobileEnvironmentConfig {
     publicApiUrl: process.env.EXPO_PUBLIC_WHISPR_API_URL,
     publicSentryDsn: process.env.EXPO_PUBLIC_WHISPR_SENTRY_DSN,
     publicSocketUrl: process.env.EXPO_PUBLIC_WHISPR_SOCKET_URL,
+    publicTurnstileSiteKey: process.env.EXPO_PUBLIC_WHISPR_TURNSTILE_SITE_KEY,
     publicWebUrl: process.env.EXPO_PUBLIC_WHISPR_WEB_URL,
   });
 }

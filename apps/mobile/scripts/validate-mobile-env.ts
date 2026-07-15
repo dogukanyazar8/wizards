@@ -4,6 +4,7 @@ const config = buildMobileEnvironmentConfig({
   mobileEnvironment: process.env.WHISPR_MOBILE_ENV,
   publicApiUrl: process.env.EXPO_PUBLIC_WHISPR_API_URL,
   publicSocketUrl: process.env.EXPO_PUBLIC_WHISPR_SOCKET_URL,
+  publicTurnstileSiteKey: process.env.EXPO_PUBLIC_WHISPR_TURNSTILE_SITE_KEY,
   publicWebUrl: process.env.EXPO_PUBLIC_WHISPR_WEB_URL,
 });
 
