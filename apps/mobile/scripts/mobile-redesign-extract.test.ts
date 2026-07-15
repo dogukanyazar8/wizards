@@ -18,7 +18,17 @@ test("canonical extractor captures DPR-3 frames and derives navigation metrics",
   );
 
   const extractor = await import("./mobile-redesign-extract");
+  const reference = await import("./mobile-redesign-reference");
   const { mobileNavigationMetrics, mobileTypography } = await import("../src/design/tokens");
+
+  assert.equal(
+    reference.getReferenceRendererViewportHeight({
+      bodyScrollHeight: 11_312,
+      documentElementScrollHeight: 10_000,
+    }),
+    11_312,
+    "the renderer viewport must reach frames below the former fixed compositor surface",
+  );
 
   assert.equal(
     extractor.getReferenceFrameSelector("1a"),

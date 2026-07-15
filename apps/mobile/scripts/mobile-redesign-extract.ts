@@ -10,6 +10,7 @@ import {
   REFERENCE_FONT_SPECS,
   REFERENCE_SOURCE_DATE_EPOCH,
   createReferenceHtml,
+  getReferenceRendererViewportHeight,
   startReferenceServer,
   validateVendoredFontManifest,
 } from "./mobile-redesign-reference";
@@ -196,9 +197,9 @@ export async function extractCanonicalReferenceManifest(
   try {
     const context = await browser.newContext({
       deviceScaleFactor: REFERENCE_DEVICE_SCALE_FACTOR,
-      // Keep every handoff frame in one unscrolled compositor surface. Element screenshots
-      // round fractional document offsets; this clip retains the exact 390x844 content box.
-      viewport: { height: 10_000, width: 500 },
+      // Render at the capture frame's height first, then expand to the canonical document.
+      // This keeps every frame on one unscrolled compositor surface without a fixed ceiling.
+      viewport: { height: REFERENCE_LOGICAL_VIEWPORT.height, width: 500 },
     });
     const page = await context.newPage();
     await page.route("**/*", async (route) => {
@@ -217,6 +218,15 @@ export async function extractCanonicalReferenceManifest(
         fontSpecs.map(({ family, weight }) => document.fonts.load(`${weight} 16px "${family}"`)),
       );
     }, REFERENCE_FONT_SPECS);
+    await page.setViewportSize({
+      height: getReferenceRendererViewportHeight(
+        await page.evaluate(() => ({
+          bodyScrollHeight: document.body.scrollHeight,
+          documentElementScrollHeight: document.documentElement.scrollHeight,
+        })),
+      ),
+      width: 500,
+    });
 
     const anchors: AnchorManifest[] = [];
     for (const definition of referenceAnchors) {

@@ -19,6 +19,13 @@ const handoffPath = path.join(
 
 export const REFERENCE_SOURCE_DATE_EPOCH = "0";
 
+export function getReferenceRendererViewportHeight(input: {
+  readonly bodyScrollHeight: number;
+  readonly documentElementScrollHeight: number;
+}): number {
+  return Math.max(input.bodyScrollHeight, input.documentElementScrollHeight);
+}
+
 export const REFERENCE_FONT_SPECS = [
   {
     family: "WhisprJakarta-400",

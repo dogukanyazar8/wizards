@@ -640,14 +640,30 @@ export function Fixture({ cap }: { cap: number }) {
     assert.deepEqual([...new Set(handoffShadows)].sort(), [
       "0 -12px 40px rgba(30,34,53,.2)",
       "0 10px 24px rgba(30,34,53,.25)",
+      "0 10px 24px rgba(79,70,229,.32)",
       "0 2px 8px rgba(30,34,53,.04)",
       "0 6px 14px rgba(109,102,240,.4)",
       "0 6px 14px rgba(79,70,229,.35)",
       "0 8px 20px rgba(224,82,82,.4)",
+      "0 8px 20px rgba(79,70,229,.35)",
       "0 8px 24px rgba(0,0,0,.35)",
       "0 8px 24px rgba(30,34,53,.08)",
     ]);
 
+    assert.deepEqual(lightTheme.elevation.authPrimaryAction, {
+      elevation: 10,
+      shadowColor: "#4F46E5",
+      shadowOffset: { height: 10, width: 0 },
+      shadowOpacity: 0.32,
+      shadowRadius: 24,
+    });
+    assert.deepEqual(lightTheme.elevation.authBrandMark, {
+      elevation: 8,
+      shadowColor: "#4F46E5",
+      shadowOffset: { height: 8, width: 0 },
+      shadowOpacity: 0.35,
+      shadowRadius: 20,
+    });
     assert.deepEqual(lightTheme.elevation.headerCard, {
       elevation: 2,
       shadowColor: "#1E2235",
@@ -732,6 +748,8 @@ export function Fixture({ cap }: { cap: number }) {
       shadowOpacity: 0.4,
       shadowRadius: 14,
     });
+    assert.deepEqual(darkTheme.elevation.authPrimaryAction, lightTheme.elevation.authPrimaryAction);
+    assert.deepEqual(darkTheme.elevation.authBrandMark, lightTheme.elevation.authBrandMark);
     assert.deepEqual(darkTheme.elevation.dangerAction, lightTheme.elevation.dangerAction);
     assert.deepEqual(darkTheme.elevation.miniVoiceBar, lightTheme.elevation.miniVoiceBar);
   });

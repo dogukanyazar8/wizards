@@ -54,6 +54,8 @@ export interface MobileTheme {
   };
   readonly dark: boolean;
   readonly elevation: {
+    readonly authBrandMark: MobileThemeElevationStyle;
+    readonly authPrimaryAction: MobileThemeElevationStyle;
     readonly bottomSheet: MobileThemeElevationStyle;
     readonly dangerAction: MobileThemeElevationStyle;
     readonly headerCard: MobileThemeElevationStyle;
@@ -166,6 +168,20 @@ export const lightTheme = deepFreeze({
   },
   dark: false,
   elevation: {
+    authBrandMark: {
+      elevation: 8,
+      shadowColor: redesignLight.primary,
+      shadowOffset: { height: 8, width: 0 },
+      shadowOpacity: 0.35,
+      shadowRadius: 20,
+    },
+    authPrimaryAction: {
+      elevation: 10,
+      shadowColor: redesignLight.primary,
+      shadowOffset: { height: 10, width: 0 },
+      shadowOpacity: 0.32,
+      shadowRadius: 24,
+    },
     bottomSheet: {
       elevation: 12,
       shadowColor: redesignLight.inkSurface,
@@ -293,6 +309,12 @@ export const darkTheme = deepFreeze({
   },
   dark: true,
   elevation: {
+    authBrandMark: {
+      ...lightTheme.elevation.authBrandMark,
+    },
+    authPrimaryAction: {
+      ...lightTheme.elevation.authPrimaryAction,
+    },
     bottomSheet: {
       elevation: 0,
       shadowColor: redesignDark.bg,

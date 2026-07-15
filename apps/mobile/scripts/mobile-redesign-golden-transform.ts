@@ -11,6 +11,7 @@ import {
   REFERENCE_FONT_SPECS,
   REFERENCE_SOURCE_DATE_EPOCH,
   createReferenceHtml,
+  getReferenceRendererViewportHeight,
   startReferenceServer,
   validateVendoredFontManifest,
 } from "./mobile-redesign-reference";
@@ -67,7 +68,7 @@ const auditedRawColors = new Set([
   "rgba(255,255,255,.1)", "rgba(255,255,255,.12)", "rgba(255,255,255,.15)",
   "rgba(30,34,53,.04)", "rgba(30,34,53,.08)", "rgba(30,34,53,.2)",
   "rgba(30,34,53,.25)", "rgba(52,211,153,.12)", "rgba(52,211,153,.15)",
-  "rgba(52,211,153,.2)", "rgba(79,70,229,.35)",
+  "rgba(52,211,153,.2)", "rgba(79,70,229,.32)", "rgba(79,70,229,.35)",
 ]);
 
 type Theme = "dark" | "light";
@@ -286,7 +287,7 @@ export async function generateNormalizedGoldens(options: {
   try {
     const context = await browser.newContext({
       deviceScaleFactor: REFERENCE_DEVICE_SCALE_FACTOR,
-      viewport: { height: 10_000, width: 500 },
+      viewport: { height: REFERENCE_LOGICAL_VIEWPORT.height, width: 500 },
     });
     const page = await context.newPage();
     await page.route("**/*", async (route) => {
@@ -302,6 +303,15 @@ export async function generateNormalizedGoldens(options: {
       await document.fonts.ready;
       await Promise.all(fontSpecs.map(({ family, weight }) => document.fonts.load(`${weight} 16px \"${family}\"`)));
     }, REFERENCE_FONT_SPECS);
+    await page.setViewportSize({
+      height: getReferenceRendererViewportHeight(
+        await page.evaluate(() => ({
+          bodyScrollHeight: document.body.scrollHeight,
+          documentElementScrollHeight: document.documentElement.scrollHeight,
+        })),
+      ),
+      width: 500,
+    });
 
     const captured = await Promise.all(referenceAnchors.map(async (definition) => {
       const selector = getReferenceFrameSelector(definition.anchor);
