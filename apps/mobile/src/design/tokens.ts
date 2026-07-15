@@ -98,6 +98,7 @@ export const mobileLayoutMetrics = {
     inputPaddingVertical: 13,
     infoBannerGlyph: 16,
     labelGap: 7,
+    loginSocialActionHeight: 48,
     logoSquircle: 56,
     logoSquircleRadius: 18,
     passwordHintShieldIcon: 14,
