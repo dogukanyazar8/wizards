@@ -18,6 +18,7 @@ blob-report
 .DS_Store
 *.log
 .claude/
+.worktrees/
 
 # Local assistant and QA artifacts
 .codex/
