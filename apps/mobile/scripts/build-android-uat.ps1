@@ -480,6 +480,11 @@ $env:WHISPR_MOBILE_ENV = "uat"
 $env:EXPO_PUBLIC_WHISPR_API_URL = $UatUrl
 $env:EXPO_PUBLIC_WHISPR_SOCKET_URL = $UatUrl
 $env:EXPO_PUBLIC_WHISPR_WEB_URL = $UatUrl
+if (-not $env:EXPO_PUBLIC_WHISPR_TURNSTILE_SITE_KEY) {
+  # Cloudflare Turnstile site keys are public by design (embedded client-side);
+  # mobile shares the same UAT site/verification pairing as the web app.
+  $env:EXPO_PUBLIC_WHISPR_TURNSTILE_SITE_KEY = "0x4AAAAAADGWpQu2lgjoAjNW"
+}
 if ($BuildType -eq "release") {
   $env:NODE_ENV = "production"
 } elseif (-not $env:NODE_ENV) {
