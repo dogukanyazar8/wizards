@@ -930,12 +930,10 @@ export function Fixture({ cap }: { cap: number }) {
     assert.deepEqual([...new Set(handoffShadows)].sort(), [
       "0 -12px 40px rgba(30,34,53,.2)",
       "0 10px 24px rgba(30,34,53,.25)",
-      "0 10px 24px rgba(79,70,229,.32)",
       "0 2px 8px rgba(30,34,53,.04)",
       "0 6px 14px rgba(109,102,240,.4)",
       "0 6px 14px rgba(79,70,229,.35)",
       "0 8px 20px rgba(224,82,82,.4)",
-      "0 8px 20px rgba(79,70,229,.35)",
       "0 8px 24px rgba(0,0,0,.35)",
       "0 8px 24px rgba(30,34,53,.08)",
     ]);
