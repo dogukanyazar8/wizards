@@ -33,6 +33,7 @@ import { mobileSecureSessionRepository } from "./expo-secure-session-store";
 import type { MobileAppLockPreferenceStore } from "./mobile-app-lock-preference-store";
 import {
   exchangeMobileAuthHandoff,
+  getRequiredMobileTurnstileToken,
   refreshMobileAuthSession,
   registerMobileWithPassword,
   requestMobilePasswordReset,
@@ -40,6 +41,7 @@ import {
   revokeMobileAuthSession,
   signInMobileWithPassword,
 } from "./mobile-auth-exchange";
+import { getMobilePasswordSignInFailure } from "./mobile-auth-error-mapping";
 import {
   createMobileAuthState,
   getMobileSessionDiagnostics,
@@ -84,11 +86,15 @@ export interface MobileAuthContextValue extends MobileAuthState {
     confirmPassword: string;
     email: string;
     password: string;
+    turnstileToken?: string;
     username: string;
   }): Promise<{ email: string; ok: true } | { message: string; ok: false }>;
   requestPasswordReset(input: {
     email: string;
-  }): Promise<{ email: string; ok: true } | { message: string; ok: false }>;
+  }): Promise<
+    | { email: string; ok: true; resetLinkTtlMinutes?: number }
+    | { message: string; ok: false }
+  >;
   requestVerificationEmail(input: {
     email: string;
   }): Promise<{ email: string; ok: true } | { message: string; ok: false }>;
@@ -99,7 +105,12 @@ export interface MobileAuthContextValue extends MobileAuthState {
   signInWithPassword(input: {
     email: string;
     password: string;
-  }): Promise<{ ok: true } | { message: string; ok: false }>;
+    turnstileToken?: string;
+    twoFactorCode?: string;
+  }): Promise<
+    | { ok: true }
+    | { message: string; ok: false; requiresTwoFactor: boolean }
+  >;
   signOut(): Promise<void>;
 }
 
@@ -467,16 +478,24 @@ export function MobileAuthProvider({
   );
 
   const signInWithPassword = useCallback(
-    async (input: { email: string; password: string }) => {
+    async (input: {
+      email: string;
+      password: string;
+      turnstileToken?: string;
+      twoFactorCode?: string;
+    }) => {
       try {
-        const session = await signInMobileWithPassword(createUnauthenticatedClient(), input);
+        const session = await signInMobileWithPassword(createUnauthenticatedClient(), {
+          ...input,
+          turnstileToken: getRequiredMobileTurnstileToken(input.turnstileToken),
+        });
         await repository.save(session);
         commitAuthState(createMobileAuthState("signed-in", session));
         return { ok: true } as const;
-      } catch {
+      } catch (error) {
         commitAuthState(createMobileAuthState("signed-out", null, "Giris tamamlanamadi."));
         return {
-          message: activeMobileCopy.authInvalidCredentials,
+          ...getMobilePasswordSignInFailure(error),
           ok: false,
         } as const;
       }
@@ -489,12 +508,14 @@ export function MobileAuthProvider({
       confirmPassword: string;
       email: string;
       password: string;
+      turnstileToken?: string;
       username: string;
     }) => {
       try {
         const response = await registerMobileWithPassword(createUnauthenticatedClient(), {
           ...input,
           locale: "tr",
+          turnstileToken: getRequiredMobileTurnstileToken(input.turnstileToken),
         });
         commitAuthState(createMobileAuthState("signed-out"));
         return {
@@ -522,10 +543,16 @@ export function MobileAuthProvider({
           locale: "tr",
         });
         commitAuthState(createMobileAuthState("signed-out"));
-        return {
-          email: response.email,
-          ok: true,
-        } as const;
+        return response.resetLinkTtlMinutes === undefined
+          ? ({
+              email: response.email,
+              ok: true,
+            } as const)
+          : ({
+              email: response.email,
+              ok: true,
+              resetLinkTtlMinutes: response.resetLinkTtlMinutes,
+            } as const);
       } catch {
         commitAuthState(
           createMobileAuthState("signed-out", null, activeMobileCopy.authPasswordResetFailedTitle),

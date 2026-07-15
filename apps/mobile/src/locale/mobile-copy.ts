@@ -100,6 +100,7 @@ export const mobileCopy = {
       "{email} için uygun bir hesap varsa şifre sıfırlama bağlantısı gönderildi.",
     authNativeGenericError: "İşlem tamamlanamadı. Biraz sonra tekrar dene.",
     authInvalidCredentials: "E-posta veya şifre hatalı ya da hesap doğrulanmamış olabilir.",
+    authTwoFactorInvalidCode: "İki faktörlü doğrulama kodu geçersiz veya süresi dolmuş.",
     authNativeInvalidEmail: "Geçerli bir e-posta adresi gir.",
     authNativeMissingFields: "Devam etmek için gerekli alanları doldur.",
     authNativePasswordLabel: "Şifre",
@@ -819,6 +820,7 @@ export const mobileCopy = {
     authNativeGenericError: "The request could not be completed. Try again shortly.",
     authInvalidCredentials:
       "The email or password may be incorrect, or the account may be unverified.",
+    authTwoFactorInvalidCode: "The two-factor verification code is invalid or has expired.",
     authNativeInvalidEmail: "Enter a valid email address.",
     authNativeMissingFields: "Fill in the required fields to continue.",
     authNativePasswordLabel: "Password",

@@ -56,6 +56,7 @@ describe("mobile auth exchange contract", () => {
     const session = await signInMobileWithPassword(client, {
       email: "ada@example.com",
       password: "correct-horse-battery",
+      turnstileToken: "turnstile-login-token",
     });
 
     assert.deepEqual(requests, [
@@ -63,6 +64,7 @@ describe("mobile auth exchange contract", () => {
         body: {
           email: "ada@example.com",
           password: "correct-horse-battery",
+          turnstileToken: "turnstile-login-token",
         },
         method: "POST",
         path: MOBILE_AUTH_LOGIN_ENDPOINT,
@@ -94,6 +96,7 @@ describe("mobile auth exchange contract", () => {
       email: "ada@example.com",
       locale: "tr",
       password: "correct-horse-battery",
+      turnstileToken: "turnstile-register-token",
       username: "ada_lovelace",
     });
 
@@ -104,6 +107,7 @@ describe("mobile auth exchange contract", () => {
           email: "ada@example.com",
           locale: "tr",
           password: "correct-horse-battery",
+          turnstileToken: "turnstile-register-token",
           username: "ada_lovelace",
         },
         method: "POST",
@@ -126,6 +130,7 @@ describe("mobile auth exchange contract", () => {
         return {
           email: "ada@example.com",
           message: "password_reset_if_available",
+          resetLinkTtlMinutes: 60,
           status: "accepted",
         } as TResponse;
       },
@@ -147,6 +152,43 @@ describe("mobile auth exchange contract", () => {
       },
     ]);
     assert.equal(response.status, "accepted");
+    assert.equal(response.resetLinkTtlMinutes, 60);
+  });
+
+  it("rejects a missing login Turnstile token before sending a malformed request", async () => {
+    const client: MobileApiClient = {
+      async requestJson() {
+        assert.fail("A missing Turnstile token must not reach the network client.");
+      },
+    };
+
+    await assert.rejects(
+      () =>
+        signInMobileWithPassword(client, {
+          email: "ada@example.com",
+          password: "correct-horse-battery",
+        } as never),
+      /Turnstile token is required/,
+    );
+  });
+
+  it("rejects a missing registration Turnstile token before sending a malformed request", async () => {
+    const client: MobileApiClient = {
+      async requestJson() {
+        assert.fail("A missing Turnstile token must not reach the network client.");
+      },
+    };
+
+    await assert.rejects(
+      () =>
+        registerMobileWithPassword(client, {
+          confirmPassword: "correct-horse-battery",
+          email: "ada@example.com",
+          password: "correct-horse-battery",
+          username: "ada_lovelace",
+        } as never),
+      /Turnstile token is required/,
+    );
   });
 
   it("requests verification email resend through a generic accepted mobile endpoint", async () => {
@@ -322,6 +364,7 @@ describe("mobile auth exchange contract", () => {
         signInMobileWithPassword(client, {
           email: "ada@example.com",
           password: "correct-horse-battery",
+          turnstileToken: "turnstile-login-token",
         }),
       /String must contain at least 1 character/,
     );

@@ -10,7 +10,7 @@ import {
 } from "@/lib/locale";
 import { revokeUserSessions } from "@/lib/auth/session-revocation";
 
-const PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = 60;
+export const PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = 60;
 const PASSWORD_RESET_TOKEN_EXPIRY_MS =
   PASSWORD_RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000;
 

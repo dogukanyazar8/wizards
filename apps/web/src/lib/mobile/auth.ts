@@ -22,6 +22,7 @@ import {
   sendVerificationEmail,
 } from "@/lib/auth/email-verification";
 import {
+  PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
   PasswordResetError,
   sendPasswordResetEmail,
   type PasswordResetUser,
@@ -136,6 +137,21 @@ interface MobileVerificationEmailUser {
 interface MobileVerificationEmailOptions {
   loadUserByEmail?: (email: string) => Promise<MobileVerificationEmailUser | null>;
   sendVerification?: typeof sendVerificationEmail;
+}
+
+interface MobilePasswordResetUser {
+  displayName: string | null;
+  email: string;
+  id: string;
+  isBanned: boolean;
+  locale: string | null;
+  passwordHash: string | null;
+  username: string;
+}
+
+interface MobilePasswordResetOptions {
+  loadUserByEmail?: (email: string) => Promise<MobilePasswordResetUser | null>;
+  sendPasswordReset?: typeof sendPasswordResetEmail;
 }
 
 export class MobileNativeAuthError extends Error {
@@ -453,6 +469,23 @@ async function loadMobileVerificationEmailUser(email: string) {
       id: true,
       isBanned: true,
       locale: true,
+      username: true,
+    },
+  });
+}
+
+async function loadMobilePasswordResetUser(
+  email: string,
+): Promise<MobilePasswordResetUser | null> {
+  return prisma.user.findUnique({
+    where: { email },
+    select: {
+      displayName: true,
+      email: true,
+      id: true,
+      isBanned: true,
+      locale: true,
+      passwordHash: true,
       username: true,
     },
   });
@@ -911,34 +944,26 @@ export async function registerMobilePasswordAccount(input: {
 export async function requestMobilePasswordReset(input: {
   email: string;
   locale?: "en" | "tr" | undefined;
-}) {
+}, options: MobilePasswordResetOptions = {}) {
   const email = normalizeMobileAuthEmail(input.email);
   const locale = normalizeAppLocale(input.locale);
   const genericResponse = MobileAuthForgotPasswordResponseSchema.parse({
     email,
     message: "password_reset_if_available",
+    resetLinkTtlMinutes: PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
     status: "accepted",
   });
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: {
-      displayName: true,
-      email: true,
-      id: true,
-      isBanned: true,
-      locale: true,
-      passwordHash: true,
-      username: true,
-    },
-  });
+  const loadUserByEmail = options.loadUserByEmail ?? loadMobilePasswordResetUser;
+  const sendPasswordReset = options.sendPasswordReset ?? sendPasswordResetEmail;
+  const user = await loadUserByEmail(email);
 
   if (!user || user.isBanned || !user.passwordHash) {
     return genericResponse;
   }
 
   try {
-    await sendPasswordResetEmail(
+    await sendPasswordReset(
       {
         displayName: user.displayName,
         email: user.email,
@@ -950,7 +975,8 @@ export async function requestMobilePasswordReset(input: {
       normalizeAppLocale(user.locale ?? locale),
     );
   } catch (error) {
-    throw mapMobileEmailSendError(error, "PASSWORD_RESET_EMAIL_UNAVAILABLE");
+    logError("[mobile-auth] Password reset email failed", error);
+    return genericResponse;
   }
 
   return genericResponse;

@@ -11,7 +11,7 @@ import {
   type MobileSessionSnapshotPayload,
 } from "@wizards/types";
 
-import type { MobileApiClient } from "../api/mobile-api-client";
+import { MobileApiError, type MobileApiClient } from "../api/mobile-api-client";
 
 export const MOBILE_AUTH_EXCHANGE_ENDPOINT = "/api/v1/mobile/auth/exchange";
 export const MOBILE_AUTH_FORGOT_PASSWORD_ENDPOINT =
@@ -23,15 +23,30 @@ export const MOBILE_AUTH_REVOKE_ENDPOINT = "/api/v1/mobile/auth/revoke";
 export const MOBILE_AUTH_VERIFICATION_EMAIL_ENDPOINT =
   "/api/v1/mobile/auth/verification-email";
 
+export function getRequiredMobileTurnstileToken(token: string | undefined) {
+  if (!token?.trim()) {
+    throw new MobileApiError("Turnstile token is required before mobile authentication.", {
+      code: "turnstile_token_required",
+    });
+  }
+
+  return token;
+}
+
 export async function signInMobileWithPassword(
   client: MobileApiClient,
   input: {
     email: string;
     password: string;
+    turnstileToken: string;
+    twoFactorCode?: string;
   },
 ): Promise<MobileSessionSnapshotPayload> {
   const payload = await client.requestJson<unknown>(MOBILE_AUTH_LOGIN_ENDPOINT, {
-    body: input,
+    body: {
+      ...input,
+      turnstileToken: getRequiredMobileTurnstileToken(input.turnstileToken),
+    },
     method: "POST",
   });
 
@@ -45,11 +60,15 @@ export async function registerMobileWithPassword(
     email: string;
     locale?: "en" | "tr";
     password: string;
+    turnstileToken: string;
     username: string;
   },
 ): Promise<MobileAuthRegisterResponse> {
   const payload = await client.requestJson<unknown>(MOBILE_AUTH_REGISTER_ENDPOINT, {
-    body: input,
+    body: {
+      ...input,
+      turnstileToken: getRequiredMobileTurnstileToken(input.turnstileToken),
+    },
     method: "POST",
   });
 
