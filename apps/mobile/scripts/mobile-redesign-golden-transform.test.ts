@@ -41,6 +41,42 @@ test("normalized golden transform audits substitutions and writes versioned cano
     () => golden.assertMinimumContrast({ background: "#FFFFFF", foreground: "#8A90B0", minimumRatio: 4.5 }),
     /contrast/i,
   );
+  const selectedFrameHash = golden.getNormalizedGoldenSourceHash({
+    bodyAttributes: 'data-handoff="mobile"',
+    frames: [
+      { anchor: "1b", html: '<div id="1b">channel</div>' },
+      { anchor: "1a", html: '<div id="1a">servers</div>' },
+      { anchor: "1c", html: '<div id="1c">messages</div>' },
+      { anchor: "1d", html: '<div id="1d">notifications</div>' },
+      { anchor: "1e", html: '<div id="1e">voice</div>' },
+      { anchor: "1f", html: '<div id="1f">settings</div>' },
+      { anchor: "1g", html: '<div id="1g">switcher</div>' },
+      { anchor: "1h", html: '<div id="1h">profile</div>' },
+      { anchor: "1i", html: '<div id="1i">servers dark</div>' },
+      { anchor: "1j", html: '<div id="1j">channel dark</div>' },
+    ],
+    headHtml: "<style>.frame{display:block}</style>",
+  });
+  assert.equal(
+    selectedFrameHash,
+    golden.getNormalizedGoldenSourceHash({
+      bodyAttributes: 'data-handoff="mobile"',
+      frames: [
+        { anchor: "1j", html: '<div id="1j">channel dark</div>' },
+        { anchor: "1i", html: '<div id="1i">servers dark</div>' },
+        { anchor: "1h", html: '<div id="1h">profile</div>' },
+        { anchor: "1g", html: '<div id="1g">switcher</div>' },
+        { anchor: "1f", html: '<div id="1f">settings</div>' },
+        { anchor: "1e", html: '<div id="1e">voice</div>' },
+        { anchor: "1d", html: '<div id="1d">notifications</div>' },
+        { anchor: "1c", html: '<div id="1c">messages</div>' },
+        { anchor: "1b", html: '<div id="1b">channel</div>' },
+        { anchor: "1a", html: '<div id="1a">servers</div>' },
+      ],
+      headHtml: "<style>.frame{display:block}</style>",
+    }),
+    "the Phase 4 golden identity must include only its named frames in canonical order",
+  );
 
   const outputDirectory = mkdtempSync(path.join(tmpdir(), "whispr-normalized-golden-"));
   const result = await golden.generateNormalizedGoldens({ outputDirectory });

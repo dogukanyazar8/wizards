@@ -51,6 +51,14 @@ const referenceAnchors = [
   { anchor: "1j", theme: "dark" },
 ] as const;
 
+type ReferenceAnchor = (typeof referenceAnchors)[number]["anchor"];
+
+export type NormalizedGoldenSource = {
+  bodyAttributes: string;
+  frames: readonly { anchor: ReferenceAnchor; html: string }[];
+  headHtml: string;
+};
+
 const RAW_COLOR_PATTERN = /#[0-9a-f]{3,8}\b|rgba?\([^)]*\)/gi;
 
 // This is the finite inline-color vocabulary of the canonical handoff frames.
@@ -254,6 +262,23 @@ function sha256(value: Buffer | string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+export function getNormalizedGoldenSourceHash(source: NormalizedGoldenSource): string {
+  const framesByAnchor = new Map(source.frames.map((frame) => [frame.anchor, frame.html]));
+  if (framesByAnchor.size !== referenceAnchors.length || source.frames.length !== referenceAnchors.length) {
+    throw new Error("Normalized golden source must contain each Phase 4 reference frame exactly once.");
+  }
+
+  const frames = referenceAnchors.map(({ anchor }) => {
+    const html = framesByAnchor.get(anchor);
+    if (!html) {
+      throw new Error(`Normalized golden source is missing canonical frame ${anchor}.`);
+    }
+    return { anchor, html };
+  });
+
+  return sha256(JSON.stringify({ bodyAttributes: source.bodyAttributes, frames, headHtml: source.headHtml }));
+}
+
 function readPngDimensions(image: Buffer): { height: number; width: number } {
   if (image.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a") {
     throw new Error("Normalized golden capture did not produce a PNG.");
@@ -277,7 +302,6 @@ export async function generateNormalizedGoldens(options: {
   outputDirectory?: string;
 } = {}): Promise<NormalizedGoldenManifest> {
   process.env.SOURCE_DATE_EPOCH = REFERENCE_SOURCE_DATE_EPOCH;
-  const source = readFileSync(handoffPath);
   const fontAssets = validateVendoredFontManifest();
   const server = await startReferenceServer(createReferenceHtml(fontAssets), fontAssets);
   const browser = await chromium.launch({ headless: true });
@@ -312,8 +336,30 @@ export async function generateNormalizedGoldens(options: {
       ),
       width: 500,
     });
+    const sourceHash = getNormalizedGoldenSourceHash(
+      await page.evaluate((anchors) => {
+        const frames = anchors.map((anchor) => {
+          const frame = document.getElementById(anchor);
+          if (!frame) {
+            throw new Error(`Canonical frame is missing for ${anchor}.`);
+          }
+          return { anchor, html: frame.outerHTML };
+        });
+        const bodyAttributes = Array.from(document.body.attributes)
+          .map(({ name, value }) => `${name}=${JSON.stringify(value)}`)
+          .sort()
+          .join(";");
+        return { bodyAttributes, frames, headHtml: document.head.innerHTML };
+      }, referenceAnchors.map(({ anchor }) => anchor)),
+    );
 
-    const captured = await Promise.all(referenceAnchors.map(async (definition) => {
+    const captured: {
+      definition: (typeof referenceAnchors)[number];
+      image: Buffer;
+      mappings: { from: string; role: string; theme: Theme; to: string }[];
+      physicalBounds: { height: number; width: number };
+    }[] = [];
+    for (const definition of referenceAnchors) {
       const selector = getReferenceFrameSelector(definition.anchor);
       const frame = page.locator(selector);
       const selectorCount = await frame.count();
@@ -459,20 +505,53 @@ export async function generateNormalizedGoldens(options: {
         return { height: rect.height, width: rect.width };
       });
       assertReferenceFrameGeometry({ afterTransform, anchor: definition.anchor, beforeTransform, selectorCount });
-      const captureBounds = await handle.evaluate((element) => {
-        const rect = element.getBoundingClientRect();
-        return { height: rect.height, width: rect.width, x: rect.x, y: rect.y };
-      });
-      const screenshot = await page.screenshot({ clip: captureBounds, scale: "device" });
+      const isolationId = `whispr-normalized-golden-${definition.anchor}`;
+      const frameHtml = await handle.evaluate((element) => element.outerHTML);
+      await page.evaluate(({ frameHtml, isolationId }) => {
+        document.getElementById(isolationId)?.remove();
+        const isolatedRoot = document.createElement("div");
+        isolatedRoot.id = isolationId;
+        isolatedRoot.style.cssText = "position:fixed;top:0;left:0;margin:0;padding:0;z-index:2147483647";
+        isolatedRoot.innerHTML = frameHtml;
+        document.body.append(isolatedRoot);
+      }, { frameHtml, isolationId });
+      const isolatedFrame = page.locator(`#${isolationId} > div`);
+      let screenshot: Buffer;
+      try {
+        if (await isolatedFrame.count() !== 1) {
+          throw new Error(`Normalized golden isolation failed for ${definition.anchor}.`);
+        }
+        screenshot = await isolatedFrame.screenshot({ scale: "device" });
+      } finally {
+        await page.evaluate((id) => document.getElementById(id)?.remove(), isolationId);
+      }
+      const screenshotBounds = readPngDimensions(screenshot);
+      if (
+        screenshotBounds.width < REFERENCE_PHYSICAL_VIEWPORT.width ||
+        screenshotBounds.height < REFERENCE_PHYSICAL_VIEWPORT.height
+      ) {
+        throw new Error(
+          `Normalized golden element capture is smaller than 1170x2532 for ${definition.anchor}.`,
+        );
+      }
       // Playwright emits an opaque RGB PNG. The pixel gate contract is opaque RGBA,
       // so add only the constant alpha channel; geometry and RGB samples stay intact.
-      const image = await sharp(screenshot).ensureAlpha(1).png().toBuffer();
+      const image = await sharp(screenshot)
+        .extract({
+          height: REFERENCE_PHYSICAL_VIEWPORT.height,
+          left: 0,
+          top: 0,
+          width: REFERENCE_PHYSICAL_VIEWPORT.width,
+        })
+        .ensureAlpha(1)
+        .png()
+        .toBuffer();
       const physicalBounds = readPngDimensions(image);
       if (physicalBounds.width !== REFERENCE_PHYSICAL_VIEWPORT.width || physicalBounds.height !== REFERENCE_PHYSICAL_VIEWPORT.height) {
         throw new Error(`Normalized golden must be 1170x2532 for ${definition.anchor}; received ${physicalBounds.width}x${physicalBounds.height}.`);
       }
-      return { definition, image, mappings: audit, physicalBounds };
-    }));
+      captured.push({ definition, image, mappings: audit, physicalBounds });
+    }
 
     await mkdir(targetDirectory, { recursive: true });
     for (const entry of captured) {
@@ -488,7 +567,7 @@ export async function generateNormalizedGoldens(options: {
       logicalViewport: REFERENCE_LOGICAL_VIEWPORT,
       physicalViewport: REFERENCE_PHYSICAL_VIEWPORT,
       sourceDateEpoch: REFERENCE_SOURCE_DATE_EPOCH,
-      sourceHash: sha256(source),
+      sourceHash,
       substitutions: [...substitutions.values()].sort((left, right) => left.role.localeCompare(right.role)),
       transformHash: sha256(readFileSync(fileURLToPath(import.meta.url))),
       version: 1,

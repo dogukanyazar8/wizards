@@ -917,9 +917,13 @@ export function Fixture({ cap }: { cap: number }) {
   });
 
   it("maps every tokenized application shadow to the canonical HTML", () => {
-    const handoffShadows = [
-      ...readFileSync(handoffHtmlPath, "utf8").matchAll(/box-shadow:([^;\"]+)/g),
-    ]
+    const phaseFourHandoff = /<section class="dv-turn" id="t1"[\s\S]*?<\/section>/.exec(
+      readFileSync(handoffHtmlPath, "utf8"),
+    )?.[0];
+    if (!phaseFourHandoff) {
+      throw new Error("Canonical Phase 4 handoff section is missing.");
+    }
+    const handoffShadows = [...phaseFourHandoff.matchAll(/box-shadow:([^;\"]+)/g)]
       .map((match) => match[1]?.trim())
       .filter(
         (shadow): shadow is string =>

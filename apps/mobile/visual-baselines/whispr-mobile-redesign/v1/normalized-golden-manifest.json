@@ -96,7 +96,7 @@
     "width": 1170
   },
   "sourceDateEpoch": "0",
-  "sourceHash": "58f0728de14d1925710c556123bc109dd08983ac9d8c9869d19ae02d0ebd2fa0",
+  "sourceHash": "81c3e532a9c0f1f863c635afebe7f10b377d72e07224afd4b1d26e786308dbf6",
   "substitutions": [
     {
       "from": "#8A46E5",
@@ -147,6 +147,6 @@
       "to": "#187A4C"
     }
   ],
-  "transformHash": "52dcf82c1bd50411ffda4920cba8248c5d675292b23df35cdd3409a9f130d744",
+  "transformHash": "c98328fe74d6332d1d4a10bba92616c09b8bf88dc0d6a381271d524eb11a3cd6",
   "version": 1
 }
