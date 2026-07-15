@@ -8,6 +8,7 @@ import * as paletteModule from "../src/design/palette";
 import { getMobileThemeCompatibilityColors } from "../src/design/mobile-theme-compat";
 import { darkTheme, lightTheme } from "../src/design/themes";
 import {
+  mobileLayoutMetrics,
   mobileNavigationMetrics,
   mobileRadii,
   mobileSizing,
@@ -171,6 +172,33 @@ describe("mobile redesign palette contract", () => {
       miniVoiceBarToTabBarGap: 14,
       tabItemPaddingVertical: 8,
     });
+    assert.deepEqual(mobileLayoutMetrics.auth, {
+      backButton: 42,
+      backButtonRadius: 15,
+      ctaHeight: 56,
+      ctaRadius: 28,
+      formCtaHeight: 54,
+      formCtaRadius: 27,
+      featureChipRadius: 18,
+      featureDot: 7,
+      fieldRadius: 16,
+      focusRingRadius: 3,
+      formInputPaddingVertical: 14,
+      heroGap: 22,
+      heroPadding: 30,
+      iconCard: 72,
+      iconCardRadius: 26,
+      inputPaddingVertical: 13,
+      labelGap: 7,
+      logoSquircle: 56,
+      logoSquircleRadius: 18,
+      profileIcon: 30,
+      profileRadius: 18,
+      profileSelectionBadge: 16,
+      termsCheckbox: 18,
+      themePillRadius: 20,
+      topBarLogo: 32,
+    });
   });
 
   it("locks every redesign typography role to explicit Plus Jakarta metrics", () => {
@@ -180,6 +208,78 @@ describe("mobile redesign palette contract", () => {
       fontFamilySemiBold: "WhisprJakarta_600SemiBold",
       fontFamilyBold: "WhisprJakarta_700Bold",
       fontFamilyExtraBold: "WhisprJakarta_800ExtraBold",
+      authEyebrow: {
+        fontFamily: "WhisprJakarta_700Bold",
+        fontSize: 11,
+        lineHeight: 14,
+        letterSpacing: 1.98,
+      },
+      authHeroTitle: {
+        fontFamily: "WhisprJakarta_800ExtraBold",
+        fontSize: 40,
+        lineHeight: 44.8,
+        letterSpacing: -1.2,
+      },
+      authHeroBody: {
+        fontFamily: "WhisprJakarta_400Regular",
+        fontSize: 16,
+        lineHeight: 24.8,
+        letterSpacing: 0,
+      },
+      authTitle: {
+        fontFamily: "WhisprJakarta_800ExtraBold",
+        fontSize: 29,
+        lineHeight: 36,
+        letterSpacing: -0.58,
+      },
+      authSubtitle: {
+        fontFamily: "WhisprJakarta_400Regular",
+        fontSize: 13.5,
+        lineHeight: 19,
+        letterSpacing: 0,
+      },
+      authFieldLabel: {
+        fontFamily: "WhisprJakarta_700Bold",
+        fontSize: 13,
+        lineHeight: 18,
+        letterSpacing: 0,
+      },
+      authInput: {
+        fontFamily: "WhisprJakarta_400Regular",
+        fontSize: 14.5,
+        lineHeight: 20,
+        letterSpacing: 0,
+      },
+      authCta: {
+        fontFamily: "WhisprJakarta_700Bold",
+        fontSize: 16,
+        lineHeight: 22,
+        letterSpacing: 0,
+      },
+      authWelcomeCta: {
+        fontFamily: "WhisprJakarta_700Bold",
+        fontSize: 16.5,
+        lineHeight: 22,
+        letterSpacing: 0,
+      },
+      authResetCta: {
+        fontFamily: "WhisprJakarta_700Bold",
+        fontSize: 15.5,
+        lineHeight: 22,
+        letterSpacing: 0,
+      },
+      authCompactInput: {
+        fontFamily: "WhisprJakarta_400Regular",
+        fontSize: 13.5,
+        lineHeight: 20,
+        letterSpacing: 0,
+      },
+      authResetSubtitle: {
+        fontFamily: "WhisprJakarta_400Regular",
+        fontSize: 13.5,
+        lineHeight: 20.925,
+        letterSpacing: 0,
+      },
       display: {
         fontFamily: "WhisprJakarta_800ExtraBold",
         fontSize: 26,
