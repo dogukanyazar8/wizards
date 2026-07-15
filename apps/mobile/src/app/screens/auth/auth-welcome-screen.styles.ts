@@ -3,11 +3,9 @@ import type { MobileTheme } from "../../../design/themes";
 export const createAuthWelcomeScreenStyles = (theme: MobileTheme) => ({
   brandMark: {
     alignItems: "center" as const,
-    borderRadius: theme.layout.auth.logoSquircleRadius,
-    height: theme.layout.auth.logoSquircle,
+    height: theme.layout.auth.welcomeBrandCardSize,
     justifyContent: "center" as const,
-    overflow: "hidden" as const,
-    width: theme.layout.auth.logoSquircle,
+    width: theme.layout.auth.welcomeBrandCardSize,
     ...theme.elevation.authBrandMark,
   },
   brandName: {
@@ -82,7 +80,7 @@ export const createAuthWelcomeScreenStyles = (theme: MobileTheme) => ({
     borderWidth: theme.layout.border.hairline,
     flexDirection: "row" as const,
     gap: theme.layout.auth.welcomeLanguageControlGap,
-    height: 35,
+    height: theme.layout.auth.welcomeLanguageControlHeight,
     justifyContent: "center" as const,
     paddingHorizontal: theme.layout.auth.welcomeLanguagePaddingHorizontal,
     paddingVertical: theme.layout.auth.welcomeLanguagePaddingVertical,

@@ -1,8 +1,8 @@
 appId: team.whispr.mobile
 ---
 # Signed-in runs deliberately remain a no-op. The first signed-out branch
-# normalizes Settings to Welcome; the second then proves the native Login and
-# required Turnstile surface without fabricating a session.
+# normalizes Settings to Welcome; the second then proves the native Login
+# surface without fabricating a session.
 - runFlow:
     when:
       visible:
@@ -25,5 +25,3 @@ appId: team.whispr.mobile
           visible:
             id: "mobile-auth-login-screen"
           timeout: 15000
-      - assertVisible:
-          id: "mobile-auth-login-turnstile"

@@ -70,6 +70,21 @@ export const mobilePalette = Object.freeze({
   violet,
 } as const);
 
+/** Brand-only colors that cannot be expressed through semantic foreground/surface roles. */
+export const mobileBrandPalette = Object.freeze({
+  google: {
+    blue: "#4285F4",
+    green: "#34A853",
+    red: "#EA4335",
+    yellow: "#FBBC05",
+  },
+  whisprWave: {
+    blue: "#2F6DFF",
+    indigo: "#5B62FF",
+    lavender: "#7C70FF",
+  },
+} as const);
+
 export type MobilePalette = typeof mobilePalette;
 
 // Canonical values mirror the handoff; accessible alternatives cover normal-sized text.
@@ -142,6 +157,12 @@ export const redesignDark = {
 
 /** Derived from README_AUTH section 2 and HTML anchors #2a–#2d. */
 export const redesignAuthLight = {
+  backgroundDot: "#4F46E5",
+  backgroundGradientEnd: "#F7F3FB",
+  backgroundGradientMiddle: "#EDEFFC",
+  backgroundGradientStart: "#F5F2FC",
+  backgroundGlowBlue: "#60A5FA",
+  backgroundGlowLavender: "#A78BFA",
   gradientFrom: "#7C6CF6",
   gradientTo: "#4F46E5",
   gradientMutedFrom: "#6D5DF6",
@@ -161,6 +182,13 @@ export const redesignAuthLight = {
 
 export const redesignAuthDark = {
   ...redesignAuthLight,
+  /** Matches the web auth canvas dark-theme gradient and radial light sources. */
+  backgroundDot: redesignDark.accentText,
+  backgroundGradientEnd: "#151028",
+  backgroundGradientMiddle: "#10182D",
+  backgroundGradientStart: "#070B18",
+  backgroundGlowBlue: "#3F6BFF",
+  backgroundGlowLavender: "#6A4DFF",
   profileGamerSoft: redesignDark.card,
   profileGamerBorder: redesignDark.border,
   profileCorporateSoft: redesignDark.card,

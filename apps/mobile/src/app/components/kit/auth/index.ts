@@ -7,6 +7,6 @@ export * from "./auth-profile-type-selector";
 export * from "./auth-screen-background";
 export * from "./auth-secondary-button";
 export * from "./auth-security-card";
+export * from "./auth-social-provider-icon";
 export * from "./auth-text-field";
 export * from "./auth-top-bar";
-export * from "./auth-turnstile-card";

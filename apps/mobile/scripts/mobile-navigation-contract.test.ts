@@ -126,11 +126,13 @@ test("server management routes remain protected, typed, and contextual", () => {
     types,
     /ChannelSettings:\s*\{\s*readonly channelId: string;\s*readonly serverId: string;?\s*\}/,
   );
+  assert.match(
+    navigator,
+    /status === "signed-in"\s*\?\s*\(\s*<RootStack\.Navigator/,
+    "the signed-in root stack is the shared protection boundary for server management routes",
+  );
   for (const routeName of ["ServerSettings", "ServerMembers", "ChannelSettings"]) {
-    assert.match(
-      navigator,
-      new RegExp(`<RootStack\\.Screen name="${routeName}">[\\s\\S]{0,240}<ProtectedStackRoute>`),
-    );
+    assert.match(navigator, new RegExp(`<RootStack\\.Screen name="${routeName}">`));
   }
   for (const containerName of [
     "ServerSettingsStackScreenContainer",
@@ -150,7 +152,8 @@ test("voice room is a protected root route rather than a bottom tab", () => {
 
   assert.match(types, /VoiceRoom:\s*undefined/);
   assert.doesNotMatch(types, /voice:\s*undefined/);
-  assert.match(navigator, /<RootStack\.Screen name="VoiceRoom">[\s\S]{0,240}<ProtectedStackRoute>/);
+  assert.match(navigator, /status === "signed-in"\s*\?\s*\(\s*<RootStack\.Navigator/);
+  assert.match(navigator, /<RootStack\.Screen name="VoiceRoom">/);
   assert.doesNotMatch(navigator, /<BottomTabs\.Screen name="voice"/);
   assert.match(navigationRef, /getMobileVoiceRoomRouteContext/);
   assert.match(containers, /hardwareBackPress/);

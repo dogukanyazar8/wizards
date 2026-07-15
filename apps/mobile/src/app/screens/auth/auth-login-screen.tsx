@@ -10,9 +10,9 @@ import {
   AuthProfileTypeSelector,
   AuthScreenBackground,
   AuthSecondaryButton,
+  AuthSocialProviderIcon,
   AuthTextField,
   AuthTopBar,
-  AuthTurnstileCard,
   type MobileAuthProfileType,
 } from "../../components/kit/auth";
 import { Icon } from "../../components/kit/icon";
@@ -34,7 +34,6 @@ export interface AuthLoginScreenProps {
   readonly onSignIn: (input: {
     email: string;
     password: string;
-    turnstileToken: string;
     twoFactorCode?: string;
   }) => Promise<{ ok: true } | { message: string; ok: false; requiresTwoFactor?: boolean }>;
 }
@@ -64,7 +63,6 @@ export function AuthLoginScreen({
   const [password, setPassword] = useState("");
   const [profileType, setProfileType] = useState<MobileAuthProfileType>("personal");
   const [rememberMe, setRememberMe] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [twoFactorVisible, setTwoFactorVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -74,13 +72,6 @@ export function AuthLoginScreen({
   const clearFeedback = () => {
     setErrorMessage(null);
     setNoticeMessage(null);
-  };
-
-  const handleTurnstileVerify = (token: string | null) => {
-    setTurnstileToken(token);
-    if (token) {
-      clearFeedback();
-    }
   };
 
   const handleTwoFactorToggle = () => {
@@ -96,7 +87,6 @@ export function AuthLoginScreen({
 
     setEmail(developmentCredentials.email);
     setPassword(developmentCredentials.password);
-    setTurnstileToken(null);
     setTwoFactorCode("");
     setTwoFactorVisible(false);
     setErrorMessage(null);
@@ -122,11 +112,6 @@ export function AuthLoginScreen({
       return;
     }
 
-    if (!turnstileToken) {
-      setErrorMessage(copy.authTurnstileError);
-      return;
-    }
-
     submissionInFlight.current = true;
     setIsSubmitting(true);
 
@@ -134,12 +119,10 @@ export function AuthLoginScreen({
       const input: {
         email: string;
         password: string;
-        turnstileToken: string;
         twoFactorCode?: string;
       } = {
         email: normalizedEmail,
         password,
-        turnstileToken,
       };
 
       if (normalizedTwoFactorCode) {
@@ -171,6 +154,7 @@ export function AuthLoginScreen({
       centered={false}
       scrollable
       testID="mobile-auth-login-screen"
+      visualVariant="welcome"
     >
       <View style={styles.screen}>
         <View style={styles.topSection}>
@@ -277,6 +261,7 @@ export function AuthLoginScreen({
               disabled={isSubmitting}
               label={copy.authRememberMe}
               onPress={() => setRememberMe((current) => !current)}
+              style={styles.rememberMe}
               testID="mobile-auth-login-remember-me"
             />
           </View>
@@ -303,11 +288,6 @@ export function AuthLoginScreen({
               {copy.authTwoFactorRequiredNotice}
             </Text>
           ) : null}
-          <AuthTurnstileCard
-            action="login"
-            onVerify={handleTurnstileVerify}
-            testID="mobile-auth-login-turnstile"
-          />
           {noticeMessage ? (
             <Text
               accessibilityLiveRegion="polite"
@@ -343,32 +323,25 @@ export function AuthLoginScreen({
             </Text>
             <View style={styles.divider} />
           </View>
-          {MOBILE_AUTH_SOCIAL_PROVIDERS.map((provider) => {
-            const label = copy[provider.labelCopyKey];
+          <View style={styles.socialGrid}>
+            {MOBILE_AUTH_SOCIAL_PROVIDERS.map((provider) => {
+              const label = copy[provider.labelCopyKey];
 
-            return (
-              <Pressable
-                key={provider.id}
-                accessibilityLabel={label}
-                accessibilityRole="button"
-                disabled={isSubmitting}
-                onPress={onOpenWebSignIn}
-                style={styles.socialAction}
-                testID={provider.testID}
-              >
-                <Icon
-                  accessibilityElementsHidden
-                  name={provider.iconName}
-                  size={theme.layout.auth.fullInputIcon}
-                  testID={`${provider.testID}-icon`}
-                  tone="accent"
-                />
-                <Text maxFontSizeMultiplier={2} style={styles.socialActionLabel}>
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
+              return (
+                <Pressable
+                  key={provider.id}
+                  accessibilityLabel={label}
+                  accessibilityRole="button"
+                  disabled={isSubmitting}
+                  onPress={onOpenWebSignIn}
+                  style={styles.socialAction}
+                  testID={provider.testID}
+                >
+                  <AuthSocialProviderIcon provider={provider.id} testID={`${provider.testID}-icon`} />
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
 
         <View style={styles.footerRow}>

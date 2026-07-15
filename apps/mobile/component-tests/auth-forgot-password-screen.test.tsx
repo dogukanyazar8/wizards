@@ -5,14 +5,6 @@ import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 
-jest.mock("react-native-webview", () => ({
-  WebView: (props: Record<string, unknown>) => {
-    const React = require("react");
-    const { View } = require("react-native");
-    return React.createElement(View, props);
-  },
-}));
-
 import { AuthForgotPasswordScreen } from "../src/app/screens/auth/auth-forgot-password-screen";
 import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provider";
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
@@ -77,6 +69,22 @@ describe("AuthForgotPasswordScreen", () => {
     jest.clearAllTimers();
     jest.useRealTimers();
     jest.restoreAllMocks();
+  });
+
+  it("uses the canonical 2a canvas and animated brand mark", async () => {
+    const view = await renderForgotPassword();
+
+    expect(view.getByTestId("mobile-auth-forgot-password-screen-canonical-background-light")).toBeTruthy();
+    expect(
+      view.getByTestId("mobile-auth-forgot-top-bar-brand-mark", { includeHiddenElements: true }).props,
+    ).toMatchObject({ height: 32, width: 32 });
+  });
+
+  it("shows the 30-minute encrypted-data assurance from the canonical reset screen", async () => {
+    const view = await renderForgotPassword();
+
+    expect(view.getByTestId("mobile-auth-forgot-security-info")).toBeTruthy();
+    expect(view.getByText(copy.authForgotInfoTtlTemplate.replace("{minutes}", "30"))).toBeTruthy();
   });
 
   it("switches the icon card to the semantic success treatment after a successful reset", async () => {

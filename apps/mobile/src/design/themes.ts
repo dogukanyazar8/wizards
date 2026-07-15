@@ -255,10 +255,10 @@ export const lightTheme = deepFreeze({
   elevation: {
     authBrandMark: {
       elevation: 8,
-      shadowColor: redesignLight.primary,
-      shadowOffset: { height: 8, width: 0 },
-      shadowOpacity: 0.35,
-      shadowRadius: 20,
+      shadowColor: "#4360FF",
+      shadowOffset: { height: 16, width: 0 },
+      shadowOpacity: 0.24,
+      shadowRadius: 34,
     },
     authPrimaryAction: {
       elevation: 10,

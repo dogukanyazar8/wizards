@@ -19,6 +19,7 @@ export type {
   MobileDMConversationListItem,
   MobileChannelMessagesResponse,
   MobileDMMessagesResponse,
+  MobileNotificationItem,
   MessageSearchResult,
   MobileWorkspaceChannelSummary,
 } from "@wizards/types";

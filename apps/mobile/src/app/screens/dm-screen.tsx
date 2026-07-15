@@ -15,7 +15,7 @@ import {
 import { BootstrapStateNotice, EmptyState, MobileSyncHealthBanner } from "../components/ui-atoms";
 import { useDmScreenStyles } from "./dm-screen.styles";
 import { DMConversationScreen } from "./dm-conversation-screen";
-import { DMInboxHeader, DirectMessageListCard, DirectMessageSummaryCard } from "./dm-inbox";
+import { DMInboxHeader, DirectMessageListCard } from "./dm-inbox";
 import { FriendsHub } from "../../social/friends-hub";
 
 export { DMConversationScreen, DMConversationPreviewCard } from "./dm-conversation-screen";
@@ -23,7 +23,6 @@ export {
   DMInboxHeader,
   DirectMessageConversationCard,
   DirectMessageListCard,
-  DirectMessageSummaryCard,
 } from "./dm-inbox";
 
 export function MessagesScreen({
@@ -142,8 +141,9 @@ export function MessagesScreen({
   return (
     <View style={[styles.chatScreen, styles.dmInboxScreen]} testID="mobile-dm-inbox-screen">
       <DMInboxHeader />
-      <View style={styles.inboxFilterRow} testID="mobile-social-segment">
-        {(["conversations", "friends"] as const).map((segment) => {
+      <View testID="mobile-dm-filter-tabs">
+        <View style={styles.inboxFilterRow} testID="mobile-social-segment">
+          {(["conversations", "friends"] as const).map((segment) => {
           const selected = inboxSegment === segment;
           const label =
             segment === "conversations"
@@ -172,7 +172,8 @@ export function MessagesScreen({
               </Text>
             </Pressable>
           );
-        })}
+          })}
+        </View>
       </View>
       {inboxSegment === "friends" ? (
         <FriendsHub />
@@ -180,12 +181,6 @@ export function MessagesScreen({
         <>
           <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
           <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
-          {bootstrapState.status === "ready" ? (
-            <DirectMessageSummaryCard
-              totalCount={bootstrapState.payload.home.directMessages.totalCount}
-              unreadCount={bootstrapState.payload.home.directMessages.unreadCount}
-            />
-          ) : null}
           {hasConversations ? (
             <DirectMessageListCard
               conversations={dmConversations}

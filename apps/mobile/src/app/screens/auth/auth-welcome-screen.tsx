@@ -20,6 +20,7 @@ import {
 } from "../../providers/mobile-theme-provider";
 import { MOBILE_LOCALE_OPTIONS } from "../../../locale/mobile-locale-preferences";
 import { mobileCopy } from "../../../locale/mobile-copy";
+import { redesignAuthLight } from "../../../design/palette";
 import { AuthWelcomeBrandMark } from "./auth-welcome-brand-mark";
 import { createAuthWelcomeScreenStyles } from "./auth-welcome-screen.styles";
 
@@ -29,7 +30,10 @@ export interface AuthWelcomeScreenProps {
   readonly onSignUp: () => void;
 }
 
-export const AUTH_WELCOME_TITLE_GRADIENT_COLORS = ["#7C6CF6", "#4F9CF6"] as const;
+export const AUTH_WELCOME_TITLE_GRADIENT_COLORS = [
+  redesignAuthLight.gradientFrom,
+  redesignAuthLight.featureFileShare,
+] as const;
 
 export function AuthWelcomeScreen({
   onOpenLanguagePicker,
@@ -56,7 +60,13 @@ export function AuthWelcomeScreen({
   );
 
   return (
-    <AuthScreenBackground centered={false} fill scrollable testID="mobile-auth-welcome-screen">
+    <AuthScreenBackground
+      centered={false}
+      fill
+      scrollable
+      testID="mobile-auth-welcome-screen"
+      visualVariant="welcome"
+    >
       <View
         style={[
           styles.screen,
@@ -150,9 +160,9 @@ export function AuthWelcomeScreen({
 
         <View style={styles.hero}>
           <View style={styles.brandRow}>
-            <LinearGradient colors={theme.gradients.authPrimaryAction} style={styles.brandMark}>
+            <View style={styles.brandMark} testID="mobile-auth-welcome-brand-surface">
               <AuthWelcomeBrandMark testID="mobile-auth-welcome-brand-mark" />
-            </LinearGradient>
+            </View>
             <Text maxFontSizeMultiplier={2} style={styles.brandName}>
               {copy.status}
             </Text>

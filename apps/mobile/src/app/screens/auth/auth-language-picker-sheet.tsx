@@ -140,10 +140,10 @@ export function AuthLanguagePickerSheet({
         >
           <View style={styles.header}>
             <View style={styles.headerCopy}>
-              <Text maxFontSizeMultiplier={1.5} style={styles.title}>
+              <Text maxFontSizeMultiplier={2} style={styles.title}>
                 {copy.authLanguagePickerTitle}
               </Text>
-              <Text maxFontSizeMultiplier={1.5} style={styles.subtitle}>
+              <Text maxFontSizeMultiplier={2} style={styles.subtitle}>
                 {copy.authLanguagePickerSubtitle}
               </Text>
             </View>
@@ -193,19 +193,19 @@ export function AuthLanguagePickerSheet({
                   testID={`mobile-auth-language-option-${option.id}`}
                 >
                   <View style={[styles.languageBadge, rightToLeft && styles.languageBadgeRtl]}>
-                    <Text maxFontSizeMultiplier={1.2} style={styles.languageBadgeLabel}>
+                    <Text maxFontSizeMultiplier={2} style={styles.languageBadgeLabel}>
                       {option.code}
                     </Text>
                   </View>
                   <View style={[styles.languageCopy, rightToLeft && styles.languageCopyRtl]}>
                     <Text
-                      maxFontSizeMultiplier={1.5}
+                      maxFontSizeMultiplier={2}
                       style={[styles.languageNativeName, rightToLeft && styles.languageTextRtl]}
                     >
                       {option.nativeName}
                     </Text>
                     <Text
-                      maxFontSizeMultiplier={1.5}
+                      maxFontSizeMultiplier={2}
                       style={[styles.languageTurkishName, rightToLeft && styles.languageTextRtl]}
                     >
                       {option.turkishName}
@@ -228,7 +228,7 @@ export function AuthLanguagePickerSheet({
           </View>
 
           <View style={styles.deviceRow}>
-            <Text maxFontSizeMultiplier={1.5} style={styles.deviceRowLabel}>
+            <Text maxFontSizeMultiplier={2} style={styles.deviceRowLabel}>
               {copy.authLanguagePickerDeviceMode}
             </Text>
             <Pressable

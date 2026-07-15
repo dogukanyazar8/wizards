@@ -1,15 +1,28 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
 import { SafeAreaProvider, type EdgeInsets } from "react-native-safe-area-context";
-import { useReducedMotion } from "react-native-reanimated";
+import {
+  ReduceMotion,
+  useReducedMotion,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 
 import {
   AUTH_WELCOME_TITLE_GRADIENT_COLORS,
   AuthWelcomeScreen,
 } from "../src/app/screens/auth/auth-welcome-screen";
+import {
+  AUTH_WELCOME_BACKGROUND_DARK_SPEC,
+  AUTH_WELCOME_BACKGROUND_SPEC,
+} from "../src/app/components/kit/auth/auth-welcome-background";
 import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provider";
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
 import { MOBILE_THEME_PREFERENCE_KEY } from "../src/design/mobile-theme-runtime";
@@ -113,6 +126,88 @@ describe("AuthWelcomeScreen", () => {
     });
   });
 
+  it("renders the 2a four-layer lavender background from the canonical 390 by 844 reference", async () => {
+    const view = await renderWelcome();
+    const tree = view.toJSON() as RenderedNode | readonly RenderedNode[] | null;
+
+    expect(findNodeByTestId(tree, "mobile-auth-welcome-screen-canonical-background-light")).toBeTruthy();
+    expect(view.queryByTestId("mobile-auth-welcome-screen-glow-top")).toBeNull();
+    expect(view.queryByTestId("mobile-auth-welcome-screen-glow-bottom")).toBeNull();
+    expect(view.queryByTestId("mobile-auth-welcome-screen-dot")).toBeNull();
+    expect(AUTH_WELCOME_BACKGROUND_SPEC).toEqual({
+      canvas: { height: 844, width: 390 },
+      dotGrid: {
+        color: "#4F46E5",
+        opacity: 0.1,
+        radius: 1.2,
+        spacing: 26,
+      },
+      linearGradient: {
+        angle: 165,
+        stops: [
+          { color: "#F5F2FC", offset: 0 },
+          { color: "#EDEFFC", offset: 0.55 },
+          { color: "#F7F3FB", offset: 1 },
+        ],
+      },
+      radialGradients: [
+        {
+          center: { x: 0.15, y: 0.08 },
+          color: "rgba(167,139,250,.25)",
+          transparentAt: 0.45,
+        },
+        {
+          center: { x: 0.9, y: 0.35 },
+          color: "rgba(96,165,250,.18)",
+          transparentAt: 0.42,
+        },
+      ],
+    });
+  });
+
+  it("preserves the canonical dot grid with dark-appropriate paint after switching to dark mode", async () => {
+    const view = await renderWelcome();
+
+    await fireEvent.press(view.getByTestId("mobile-auth-welcome-theme-dark"));
+    await waitFor(() =>
+      expect(
+        findNodeByTestId(
+          view.toJSON() as RenderedNode | readonly RenderedNode[] | null,
+          "mobile-auth-welcome-screen-canonical-background-dark",
+        ),
+      ).toBeTruthy(),
+    );
+    expect(AUTH_WELCOME_BACKGROUND_DARK_SPEC).toEqual({
+      canvas: { height: 844, width: 390 },
+      dotGrid: {
+        color: "#A5A8F5",
+        opacity: 0.16,
+        radius: 1.2,
+        spacing: 26,
+      },
+      linearGradient: {
+        angle: 135,
+        stops: [
+          { color: "#070B18", offset: 0 },
+          { color: "#10182D", offset: 0.48 },
+          { color: "#151028", offset: 1 },
+        ],
+      },
+      radialGradients: [
+        {
+          center: { x: 0.72, y: 0.1 },
+          color: "rgba(106,77,255,.28)",
+          transparentAt: 0.31,
+        },
+        {
+          center: { x: 0.13, y: 0.24 },
+          color: "rgba(63,107,255,.20)",
+          transparentAt: 0.33,
+        },
+      ],
+    });
+  });
+
   it("calls each welcome action exactly once", async () => {
     const onSignIn = jest.fn();
     const onSignUp = jest.fn();
@@ -169,10 +264,12 @@ describe("AuthWelcomeScreen", () => {
     expect(view.queryByText("All systems active")).toBeNull();
   });
 
-  it("renders the canonical animated five-bar Whispr waveform", async () => {
+  it("renders the exact web brand card and animated five-bar waveform", async () => {
     const view = await renderWelcome();
     const tree = view.toJSON() as RenderedNode | readonly RenderedNode[] | null;
     const brandMark = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark");
+    const brandSurface = findNodeByTestId(tree, "mobile-auth-welcome-brand-surface");
+    const brandCard = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-card");
     const firstBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-animated-bar-1");
     const secondBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-animated-bar-2");
     const thirdBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-animated-bar-3");
@@ -180,57 +277,106 @@ describe("AuthWelcomeScreen", () => {
     const fifthBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-animated-bar-5");
 
     expect(brandMark).toBeTruthy();
+    expect(brandMark?.props).toMatchObject({ height: 52, width: 52 });
+    expect(resolvePressableStyle(brandSurface?.props?.style)).toEqual(
+      expect.objectContaining({
+        height: 52,
+        shadowColor: "#4360FF",
+        shadowOffset: { height: 16, width: 0 },
+        shadowOpacity: 0.24,
+        shadowRadius: 34,
+        width: 52,
+      }),
+    );
+    expect(brandCard?.props).toMatchObject({
+      fill: { brushRef: "mobile-auth-welcome-brand-mark-surface-gradient" },
+      height: 52,
+      rx: 13,
+      width: 52,
+    });
     expect(firstBar?.props).toMatchObject({
-      height: 8.5,
-      rx: 1.3,
-      width: 2.4,
-      x: 3.6,
-      y: 7.75,
+      height: 17,
+      rx: 1.5,
+      width: 3,
+      x: 12.5,
+      y: 17.5,
     });
     expect(secondBar?.props).toMatchObject({
-      height: 12.5,
-      rx: 1.3,
-      width: 2.4,
-      x: 6.8,
-      y: 5.75,
+      height: 25,
+      rx: 1.5,
+      width: 3,
+      x: 18.5,
+      y: 13.5,
     });
     expect(thirdBar?.props).toMatchObject({
-      height: 17,
-      rx: 1.3,
-      width: 2.4,
-      x: 10,
-      y: 3.5,
+      height: 34,
+      rx: 1.5,
+      width: 3,
+      x: 24.5,
+      y: 9,
     });
     expect(fourthBar?.props).toMatchObject({
-      height: 12,
-      rx: 1.3,
-      width: 2.4,
-      x: 13.2,
-      y: 6,
+      height: 24,
+      rx: 1.5,
+      width: 3,
+      x: 30.5,
+      y: 14,
     });
     expect(fifthBar?.props).toMatchObject({
-      height: 9,
-      rx: 1.3,
-      width: 2.4,
-      x: 16.4,
-      y: 7.5,
+      height: 18,
+      rx: 1.5,
+      width: 3,
+      x: 36.5,
+      y: 17,
     });
   });
 
-  it("renders the same five bars without animated wrappers when motion is reduced", async () => {
+  it("does not render a flat white top-edge line above the animated waveform", async () => {
+    const brandMarkSource = readFileSync(
+      join(process.cwd(), "src/app/screens/auth/auth-welcome-brand-mark.tsx"),
+      "utf8",
+    );
+
+    expect(brandMarkSource).not.toContain(
+      '<Rect fill="#FFFFFF" fillOpacity={0.42} height={1} rx={0.5} width={50} x={1} y={0.5} />',
+    );
+  });
+
+  it("keeps the canonical waveform animated when motion is reduced", async () => {
     jest.mocked(useReducedMotion).mockReturnValue(true);
     const view = await renderWelcome();
     const tree = view.toJSON() as RenderedNode | readonly RenderedNode[] | null;
 
-    expect(findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-static-bar-1")?.props).toMatchObject({
-      height: 8.5,
-      width: 2.4,
+    expect(findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-animated-bar-1")?.props).toMatchObject({
+      height: 17,
+      width: 3,
     });
-    expect(findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-static-bar-5")?.props).toMatchObject({
-      height: 9,
-      width: 2.4,
+    expect(findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-animated-bar-5")?.props).toMatchObject({
+      height: 18,
+      width: 3,
     });
-    expect(findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-animated-bar-1")).toBeNull();
+    expect(findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-static-bar-1")).toBeNull();
+    expect(jest.mocked(withTiming).mock.calls).not.toHaveLength(0);
+    expect(
+      jest
+        .mocked(withTiming)
+        .mock.calls.every(([, config]) => config?.reduceMotion === ReduceMotion.Never),
+    ).toBe(true);
+    expect(
+      jest
+        .mocked(withDelay)
+        .mock.calls.every(([, , reduceMotion]) => reduceMotion === ReduceMotion.Never),
+    ).toBe(true);
+    expect(
+      jest
+        .mocked(withRepeat)
+        .mock.calls.every(([, , , , reduceMotion]) => reduceMotion === ReduceMotion.Never),
+    ).toBe(true);
+    expect(
+      jest
+        .mocked(withSequence)
+        .mock.calls.every(([reduceMotion]) => reduceMotion === ReduceMotion.Never),
+    ).toBe(true);
   });
 
   it("renders every copy-backed feature chip and welcome-sized CTAs", async () => {

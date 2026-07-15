@@ -100,27 +100,30 @@ export function AuthPrimaryButton({
     isDisabled || variant === "reset"
       ? theme.gradients.authPrimaryActionMuted
       : theme.gradients.authPrimaryAction;
+  const icon = iconName ? (
+    <Icon
+      accessibilityElementsHidden
+      name={iconName}
+      size={iconSize}
+      testID={testID ? `${testID}-icon` : undefined}
+      tone="inverse"
+    />
+  ) : null;
+  const spinner = (
+    <ActivityIndicator
+      accessibilityElementsHidden
+      color={theme.text.onPrimary}
+      size="small"
+      testID={testID ? `${testID}-spinner` : undefined}
+    />
+  );
   const content = (
     <>
-      {busy ? (
-        <ActivityIndicator
-          accessibilityElementsHidden
-          color={theme.text.onPrimary}
-          size="small"
-          testID={testID ? `${testID}-spinner` : undefined}
-        />
-      ) : iconName ? (
-        <Icon
-          accessibilityElementsHidden
-          name={iconName}
-          size={iconSize}
-          testID={testID ? `${testID}-icon` : undefined}
-          tone="inverse"
-        />
-      ) : null}
+      {busy ? spinner : variant === "welcome" ? null : icon}
       <Text maxFontSizeMultiplier={2} numberOfLines={1} style={[styles.label, labelStyle]}>
         {label}
       </Text>
+      {!busy && variant === "welcome" ? icon : null}
     </>
   );
 

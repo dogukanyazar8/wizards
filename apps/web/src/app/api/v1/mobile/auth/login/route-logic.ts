@@ -4,12 +4,11 @@ import {
 } from "@wizards/types";
 
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
-import { verifyTurnstileToken } from "@/lib/auth/turnstile";
 import {
   createMobilePasswordSession,
   MobileNativeAuthError,
 } from "@/lib/mobile/auth";
-import { enforceMobileAuthRateLimit, getMobileAuthRequestIp } from "../rate-limit";
+import { enforceMobileAuthRateLimit } from "../rate-limit";
 
 export type MobilePasswordLoginRouteDependencies = {
   createPasswordSession: (
@@ -17,14 +16,7 @@ export type MobilePasswordLoginRouteDependencies = {
   ) => ReturnType<typeof createMobilePasswordSession>;
   enforceIpRateLimit: (request: Request) => Promise<void>;
   parseLoginRequest: (request: Request) => Promise<MobileAuthPasswordLoginRequest>;
-  verifyTurnstile: (request: Request, token: string) => Promise<void>;
 };
-
-export async function verifyMobilePasswordLoginTurnstile(request: Request, token: string) {
-  await verifyTurnstileToken(token, getMobileAuthRequestIp(request), {
-    expectedAction: "login",
-  });
-}
 
 const defaultMobilePasswordLoginRouteDependencies: MobilePasswordLoginRouteDependencies = {
   createPasswordSession: ({ email, password, twoFactorCode }) =>
@@ -37,7 +29,6 @@ const defaultMobilePasswordLoginRouteDependencies: MobilePasswordLoginRouteDepen
     enforceMobileAuthRateLimit(request, "mobile:auth-login"),
   parseLoginRequest: (request) =>
     parseJsonBody(request, MobileAuthPasswordLoginRequestSchema),
-  verifyTurnstile: verifyMobilePasswordLoginTurnstile,
 };
 
 export async function mobilePasswordLoginRoute(
@@ -48,11 +39,6 @@ export async function mobilePasswordLoginRoute(
   try {
     await dependencies.enforceIpRateLimit(request);
     const body = await dependencies.parseLoginRequest(request);
-    try {
-      await dependencies.verifyTurnstile(request, body.turnstileToken);
-    } catch {
-      throw new ApiError("Human verification failed.", 400, "TURNSTILE_FAILED");
-    }
     const response = await dependencies.createPasswordSession(body);
 
     if (!response) {

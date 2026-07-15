@@ -61,13 +61,11 @@ jest.mock("../src/app/screens/auth/auth-welcome-screen", () => {
 const LOGIN_INPUT = {
   email: "login@example.com",
   password: "password-123",
-  turnstileToken: "login-token",
 };
 const REGISTER_INPUT = {
   confirmPassword: "password-123",
   email: "register@example.com",
   password: "password-123",
-  turnstileToken: "register-token",
   username: "register_user",
 };
 const RESET_INPUT = { email: "reset@example.com" };
@@ -101,7 +99,6 @@ jest.mock("../src/app/screens/auth/auth-login-screen", () => {
             void onSignIn({
               email: "login@example.com",
               password: "password-123",
-              turnstileToken: "login-token",
             }),
           testID: "mobile-auth-login-submit",
         }),
@@ -126,7 +123,6 @@ jest.mock("../src/app/screens/auth/auth-register-screen", () => {
               confirmPassword: "password-123",
               email: "register@example.com",
               password: "password-123",
-              turnstileToken: "register-token",
               username: "register_user",
             }),
           testID: "mobile-auth-register-submit",
