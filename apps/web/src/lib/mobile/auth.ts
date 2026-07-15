@@ -57,6 +57,9 @@ const MOBILE_ACCESS_TOKEN_ISSUER = "whispr-api";
 const MOBILE_ACCESS_TOKEN_AUDIENCE = "whispr-mobile";
 const MOBILE_ACCESS_TOKEN_TYPE = "whispr-mobile-access";
 const MOBILE_ACCESS_TOKEN_SCOPES = ["mobile:bootstrap"] as const;
+const MOBILE_PASSWORD_RESET_DELIVERY_FAILURE = {
+  code: "PASSWORD_RESET_DELIVERY_FAILED",
+} as const;
 
 interface MobileAuthHandoffPayload {
   callbackPath: string;
@@ -974,8 +977,8 @@ export async function requestMobilePasswordReset(input: {
       } satisfies PasswordResetUser,
       normalizeAppLocale(user.locale ?? locale),
     );
-  } catch (error) {
-    logError("[mobile-auth] Password reset email failed", error);
+  } catch {
+    logError("[mobile-auth] Password reset email failed", MOBILE_PASSWORD_RESET_DELIVERY_FAILURE);
     return genericResponse;
   }
 
