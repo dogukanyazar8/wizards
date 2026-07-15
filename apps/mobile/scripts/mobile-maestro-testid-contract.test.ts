@@ -74,11 +74,19 @@ const testIdSources: Record<string, { file: string; needle: string }> = {
 };
 
 describe("Phase 0 Maestro testID contract", () => {
-  it("keeps the shared UAT helper a signed-in no-op and a signed-out native login assertion", () => {
+  it("keeps the shared UAT helper a signed-in no-op across both signed-out call contexts", () => {
     assert.match(rootGitignoreSource, /^\.env\.maestro$/m);
     assert.match(rootGitignoreSource, /^\.env\.local$/m);
     assert.ok(loginHelperSource, ".maestro/helpers/login-uat.yml must exist");
     assert.match(loginHelperSource, /id:\s*"mobile-settings-web-sign-in-action"/);
+    assert.match(
+      loginHelperSource,
+      /when:\s*\r?\n\s+visible:\s*\r?\n\s+id:\s*"mobile-settings-web-sign-in-action"[\s\S]*?id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-welcome-screen"/,
+    );
+    assert.match(
+      loginHelperSource,
+      /when:\s*\r?\n\s+visible:\s*\r?\n\s+id:\s*"mobile-auth-welcome-screen"[\s\S]*?id:\s*"mobile-auth-welcome-sign-in"[\s\S]*?id:\s*"mobile-auth-login-screen"[\s\S]*?id:\s*"mobile-auth-login-turnstile"/,
+    );
     assert.match(
       loginHelperSource,
       /id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-welcome-screen"[\s\S]*?id:\s*"mobile-auth-welcome-sign-in"[\s\S]*?id:\s*"mobile-auth-login-screen"[\s\S]*?id:\s*"mobile-auth-login-turnstile"/,
@@ -90,6 +98,10 @@ describe("Phase 0 Maestro testID contract", () => {
 
     for (const source of [flowSource, darkModeFlowSource]) {
       assert.match(source, /file:\s*"helpers\/login-uat\.yml"/);
+      assert.match(
+        source,
+        /id:\s*"mobile-bottom-tab-overview"[\s\S]*?file:\s*"helpers\/login-uat\.yml"/,
+      );
       assert.doesNotMatch(source, /MAESTRO_UAT_(?:EMAIL|PASSWORD)/);
       assert.doesNotMatch(source, /WHISPR_MOBILE_E2E_(?:EMAIL|PASSWORD)/);
       assert.doesNotMatch(source, /tapOn:\s*"Giriş yap"/);

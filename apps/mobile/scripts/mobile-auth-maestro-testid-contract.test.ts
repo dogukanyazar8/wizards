@@ -147,6 +147,17 @@ describe("signed-out auth navigation Maestro contract", () => {
     assert.doesNotMatch(loginHelperSource, /mobile-auth-(?:login|register|forgot)-submit/);
   });
 
+  it("covers both signed-out helper call contexts before it proves the native login surface", () => {
+    assert.match(
+      loginHelperSource,
+      /when:\s*\r?\n\s+visible:\s*\r?\n\s+id:\s*"mobile-settings-web-sign-in-action"[\s\S]*?id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-welcome-screen"/,
+    );
+    assert.match(
+      loginHelperSource,
+      /when:\s*\r?\n\s+visible:\s*\r?\n\s+id:\s*"mobile-auth-welcome-screen"[\s\S]*?id:\s*"mobile-auth-welcome-sign-in"[\s\S]*?id:\s*"mobile-auth-login-screen"[\s\S]*?id:\s*"mobile-auth-login-turnstile"/,
+    );
+  });
+
   it("registers signed-out native auth navigation as an Android Maestro gate", () => {
     assert.ok(
       MOBILE_AUTOMATED_GATES.some(
