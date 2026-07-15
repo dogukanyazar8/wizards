@@ -41,6 +41,11 @@ test("normalized golden transform audits substitutions and writes versioned cano
     () => golden.assertMinimumContrast({ background: "#FFFFFF", foreground: "#8A90B0", minimumRatio: 4.5 }),
     /contrast/i,
   );
+  assert.equal(
+    golden.getNormalizedGoldenTransformHash("const frame = 1;\nconst theme = 'light';\n"),
+    golden.getNormalizedGoldenTransformHash("const frame = 1;\r\nconst theme = 'light';\r\n"),
+    "the golden transform identity must be independent of Git checkout line endings",
+  );
   const selectedFrameHash = golden.getNormalizedGoldenSourceHash({
     bodyAttributes: 'data-handoff="mobile"',
     frames: [

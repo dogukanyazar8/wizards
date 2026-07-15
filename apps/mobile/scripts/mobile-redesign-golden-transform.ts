@@ -262,6 +262,10 @@ function sha256(value: Buffer | string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+export function getNormalizedGoldenTransformHash(source: string): string {
+  return sha256(source.replace(/\r\n/g, "\n"));
+}
+
 export function getNormalizedGoldenSourceHash(source: NormalizedGoldenSource): string {
   const framesByAnchor = new Map(source.frames.map((frame) => [frame.anchor, frame.html]));
   if (framesByAnchor.size !== referenceAnchors.length || source.frames.length !== referenceAnchors.length) {
@@ -569,7 +573,7 @@ export async function generateNormalizedGoldens(options: {
       sourceDateEpoch: REFERENCE_SOURCE_DATE_EPOCH,
       sourceHash,
       substitutions: [...substitutions.values()].sort((left, right) => left.role.localeCompare(right.role)),
-      transformHash: sha256(readFileSync(fileURLToPath(import.meta.url))),
+      transformHash: getNormalizedGoldenTransformHash(readFileSync(fileURLToPath(import.meta.url), "utf8")),
       version: 1,
     };
     await writeFile(path.join(targetDirectory, "normalized-golden-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
