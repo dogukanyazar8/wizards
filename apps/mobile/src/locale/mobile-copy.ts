@@ -79,6 +79,9 @@ export const mobileCopy = {
     authSecurityDescription:
       "Whispr, verilerini uçtan uca şifreleme ve gelişmiş güvenlik önlemleriyle korur.",
     authSecurityStatus: "Güvenli ve korumalı",
+    authTurnstileBrand: "Cloudflare Turnstile ile korunur",
+    authTurnstileError: "Güvenlik doğrulaması tamamlanamadı. Lütfen tekrar dene.",
+    authTurnstileLabel: "Güvenlik doğrulaması",
     authSocialApple: "Apple ile devam et",
     authSocialGoogle: "Google ile devam et",
     authSocialMicrosoft: "Microsoft ile devam et",
@@ -799,6 +802,9 @@ export const mobileCopy = {
     authSecurityDescription:
       "Whispr protects your data with end-to-end encryption and advanced security controls.",
     authSecurityStatus: "Safe and protected",
+    authTurnstileBrand: "Protected by Cloudflare Turnstile",
+    authTurnstileError: "Security verification could not be completed. Please try again.",
+    authTurnstileLabel: "Security verification",
     authSocialApple: "Continue with Apple",
     authSocialGoogle: "Continue with Google",
     authSocialMicrosoft: "Continue with Microsoft",

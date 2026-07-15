@@ -86,6 +86,8 @@ export interface MobileTheme {
   readonly border: {
     readonly default: string;
     readonly focus: string;
+    /** Translucent external focus ring for auth text fields. */
+    readonly focusRing: string;
     /** Surface-matched ring for non-text controls layered on a card. */
     readonly onSurfaceRing: string;
     readonly subtle: string;
@@ -227,6 +229,7 @@ export const lightTheme = deepFreeze({
   border: {
     default: redesignLight.hairline,
     focus: redesignLight.primary,
+    focusRing: redesignLight.focusRing,
     onSurfaceRing: mobilePalette.neutral.white,
     subtle: redesignLight.border,
   },
@@ -397,6 +400,7 @@ export const darkTheme = deepFreeze({
   border: {
     default: redesignDark.hairline,
     focus: redesignDark.primary,
+    focusRing: redesignDark.focusRing,
     onSurfaceRing: redesignDark.card,
     subtle: redesignDark.border,
   },
