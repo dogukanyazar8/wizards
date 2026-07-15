@@ -1,0 +1,209 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import * as ReactNative from "react-native";
+import { StyleSheet } from "react-native";
+
+import { AuthWelcomeScreen } from "../src/app/screens/auth/auth-welcome-screen";
+import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provider";
+import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
+import { MOBILE_THEME_PREFERENCE_KEY } from "../src/design/mobile-theme-runtime";
+import { lightTheme, darkTheme } from "../src/design/themes";
+import { mobileCopy } from "../src/locale/mobile-copy";
+
+const mockGetItem = AsyncStorage.getItem as jest.MockedFunction<typeof AsyncStorage.getItem>;
+const mockSetItem = AsyncStorage.setItem as jest.MockedFunction<typeof AsyncStorage.setItem>;
+
+let mockSystemScheme: ReactNative.ColorSchemeName = "light";
+
+function renderWelcome(props?: Partial<React.ComponentProps<typeof AuthWelcomeScreen>>) {
+  return render(
+    <MobileThemeProvider>
+      <MobileLocaleProvider>
+        <AuthWelcomeScreen
+          onOpenLanguagePicker={props?.onOpenLanguagePicker ?? jest.fn()}
+          onSignIn={props?.onSignIn ?? jest.fn()}
+          onSignUp={props?.onSignUp ?? jest.fn()}
+        />
+      </MobileLocaleProvider>
+    </MobileThemeProvider>,
+  );
+}
+
+function resolvePressableStyle(style: unknown) {
+  if (typeof style === "function") {
+    return StyleSheet.flatten(style({ focused: false, hovered: false, pressed: false }));
+  }
+
+  return StyleSheet.flatten(style);
+}
+
+type RenderedNode = {
+  readonly children?: readonly RenderedNode[] | null;
+  readonly props?: Readonly<Record<string, unknown>>;
+};
+
+function findNodeByTestId(node: RenderedNode | readonly RenderedNode[] | null, testID: string) {
+  if (!node) {
+    return null;
+  }
+
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const match = findNodeByTestId(child, testID);
+      if (match) {
+        return match;
+      }
+    }
+
+    return null;
+  }
+
+  if (node.props?.testID === testID) {
+    return node;
+  }
+
+  return findNodeByTestId(node.children ?? null, testID);
+}
+
+describe("AuthWelcomeScreen", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSystemScheme = "light";
+    mockGetItem.mockResolvedValue(null);
+    mockSetItem.mockResolvedValue(undefined);
+    jest.spyOn(ReactNative, "useColorScheme").mockImplementation(() => mockSystemScheme);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it.each([
+    ["light", lightTheme.surface.base],
+    ["dark", darkTheme.surface.base],
+  ] as const)("uses the %s system surface as its root background", async (scheme, surface) => {
+    mockSystemScheme = scheme;
+    const view = await renderWelcome();
+
+    await waitFor(() => expect(mockGetItem).toHaveBeenCalledTimes(1));
+
+    expect(StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-screen").props.style)).toMatchObject({
+      backgroundColor: surface,
+    });
+  });
+
+  it("calls each welcome action exactly once", async () => {
+    const onSignIn = jest.fn();
+    const onSignUp = jest.fn();
+    const view = await renderWelcome({ onSignIn, onSignUp });
+
+    await fireEvent.press(view.getByTestId("mobile-auth-welcome-sign-in"));
+    await fireEvent.press(view.getByTestId("mobile-auth-welcome-sign-up"));
+
+    expect(onSignIn).toHaveBeenCalledTimes(1);
+    expect(onSignUp).toHaveBeenCalledTimes(1);
+  });
+
+  it("switches themes through the real preference provider and persists each selection", async () => {
+    const view = await renderWelcome();
+
+    await fireEvent.press(view.getByTestId("mobile-auth-welcome-theme-dark"));
+    await waitFor(() =>
+      expect(StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-screen").props.style)).toMatchObject({
+        backgroundColor: darkTheme.surface.base,
+      }),
+    );
+    await waitFor(() =>
+      expect(mockSetItem).toHaveBeenLastCalledWith(MOBILE_THEME_PREFERENCE_KEY, "dark"),
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-auth-welcome-theme-light"));
+    await waitFor(() =>
+      expect(StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-screen").props.style)).toMatchObject({
+        backgroundColor: lightTheme.surface.base,
+      }),
+    );
+    await waitFor(() =>
+      expect(mockSetItem).toHaveBeenLastCalledWith(MOBILE_THEME_PREFERENCE_KEY, "light"),
+    );
+  });
+
+  it("opens the locale picker once", async () => {
+    const onOpenLanguagePicker = jest.fn();
+    const view = await renderWelcome({ onOpenLanguagePicker });
+
+    await fireEvent.press(view.getByTestId("mobile-auth-language-picker"));
+
+    expect(onOpenLanguagePicker).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render an unverified system-health status", async () => {
+    const view = await renderWelcome();
+
+    expect(view.queryByText("Tüm sistemler aktif")).toBeNull();
+    expect(view.queryByText("All systems active")).toBeNull();
+  });
+
+  it("renders the exact white waveform mark from the 2a handoff", async () => {
+    const view = await renderWelcome();
+    const tree = view.toJSON() as RenderedNode | readonly RenderedNode[] | null;
+    const brandMark = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark");
+    const firstBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-bar-1");
+    const secondBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-bar-2");
+    const thirdBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-bar-3");
+    const fourthBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-bar-4");
+
+    expect(brandMark).toBeTruthy();
+    expect(firstBar?.props).toMatchObject({
+      height: 6,
+      rx: 1.3,
+      width: 2.6,
+      x: 4,
+      y: 9,
+    });
+    expect(secondBar?.props).toMatchObject({
+      height: 12,
+      rx: 1.3,
+      width: 2.6,
+      x: 8.2,
+      y: 6,
+    });
+    expect(thirdBar?.props).toMatchObject({
+      height: 17,
+      rx: 1.3,
+      width: 2.6,
+      x: 12.4,
+      y: 3.5,
+    });
+    expect(fourthBar?.props).toMatchObject({
+      height: 8,
+      rx: 1.3,
+      width: 2.6,
+      x: 16.6,
+      y: 8,
+    });
+  });
+
+  it("renders every copy-backed feature chip and welcome-sized CTAs", async () => {
+    const view = await renderWelcome();
+    const copy = mobileCopy.tr;
+
+    [
+      copy.authWelcomeFeatureEncryption,
+      copy.authWelcomeFeatureRealtime,
+      copy.authWelcomeFeatureCommunity,
+      copy.authWelcomeFeatureFileShare,
+      copy.authWelcomeFeatureVoice,
+    ].forEach((label) => expect(view.getByText(label)).toBeTruthy());
+
+    expect(resolvePressableStyle(view.getByTestId("mobile-auth-welcome-sign-in").props.style)).toMatchObject({
+      borderRadius: 28,
+      height: 56,
+    });
+    expect(resolvePressableStyle(view.getByTestId("mobile-auth-welcome-sign-up").props.style)).toMatchObject({
+      borderRadius: 28,
+      height: 56,
+    });
+  });
+});

@@ -1,0 +1,142 @@
+import type { MobileTheme } from "../../../design/themes";
+
+export const createAuthWelcomeScreenStyles = (theme: MobileTheme) => ({
+  brandMark: {
+    alignItems: "center" as const,
+    borderRadius: theme.layout.auth.logoSquircleRadius,
+    height: theme.layout.auth.logoSquircle,
+    justifyContent: "center" as const,
+    overflow: "hidden" as const,
+    width: theme.layout.auth.logoSquircle,
+    ...theme.elevation.authBrandMark,
+  },
+  brandName: {
+    ...theme.typography.authWelcomeBrand,
+    color: theme.text.primary,
+  },
+  brandRow: {
+    alignItems: "center" as const,
+    flexDirection: "row" as const,
+    gap: theme.layout.auth.welcomeBrandGap,
+    minWidth: 0,
+  },
+  copyright: {
+    ...theme.typography.authWelcomeCopyright,
+    color: theme.text.muted,
+    textAlign: "center" as const,
+  },
+  copyrightRow: {
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    paddingTop: theme.layout.auth.welcomeCopyrightTopPadding,
+  },
+  ctaBlock: {
+    gap: theme.spacing.row,
+    paddingBottom: theme.layout.auth.welcomeCtaBottomPadding,
+    paddingHorizontal: theme.spacing.pageWide,
+  },
+  featureChip: {
+    alignItems: "center" as const,
+    backgroundColor: theme.surface.card,
+    borderColor: theme.border.subtle,
+    borderRadius: theme.layout.auth.featureChipRadius,
+    borderWidth: theme.layout.border.hairline,
+    flexDirection: "row" as const,
+    gap: theme.layout.auth.welcomeFeatureChipContentGap,
+    paddingHorizontal: theme.layout.auth.welcomeFeatureChipHorizontalPadding,
+    paddingVertical: theme.layout.auth.welcomeFeatureChipVerticalPadding,
+  },
+  featureChipLabel: {
+    ...theme.typography.authWelcomeFeature,
+    color: theme.text.primary,
+  },
+  featureChips: {
+    flexDirection: "row" as const,
+    flexWrap: "wrap" as const,
+    gap: theme.layout.auth.welcomeFeatureChipGap,
+  },
+  featureDot: {
+    borderRadius: theme.layout.auth.featureDot / 2,
+    height: theme.layout.auth.featureDot,
+    width: theme.layout.auth.featureDot,
+  },
+  hero: {
+    flex: 1,
+    gap: theme.layout.auth.heroGap,
+    justifyContent: "center" as const,
+    paddingHorizontal: theme.layout.auth.heroPadding,
+  },
+  heroBody: {
+    ...theme.typography.authHeroBody,
+    color: theme.text.secondary,
+  },
+  heroTitle: {
+    ...theme.typography.authHeroTitle,
+    color: theme.text.primary,
+  },
+  heroTitleAccent: {
+    ...theme.typography.authHeroTitle,
+    color: theme.accent.strong,
+  },
+  languageControl: {
+    alignItems: "center" as const,
+    backgroundColor: theme.surface.card,
+    borderColor: theme.border.subtle,
+    borderRadius: theme.layout.auth.themePillRadius,
+    borderWidth: theme.layout.border.hairline,
+    flexDirection: "row" as const,
+    gap: theme.layout.auth.welcomeLanguageControlGap,
+    justifyContent: "center" as const,
+    minHeight: theme.sizing.minTouchTarget,
+    paddingHorizontal: theme.layout.auth.welcomeLanguagePaddingHorizontal,
+    paddingVertical: theme.layout.auth.welcomeLanguagePaddingVertical,
+  },
+  languageControlLabel: {
+    ...theme.typography.authWelcomeControl,
+    color: theme.text.primary,
+  },
+  screen: {
+    flex: 1,
+    marginHorizontal: -theme.spacing.page,
+    marginVertical: -theme.spacing.section,
+  },
+  themeControl: {
+    alignItems: "center" as const,
+    borderRadius: theme.radii.row,
+    flexDirection: "row" as const,
+    gap: theme.layout.auth.welcomeThemeControlGap,
+    justifyContent: "center" as const,
+    minHeight: theme.sizing.minTouchTarget,
+    paddingHorizontal: theme.layout.auth.welcomeThemeSegmentHorizontalPadding,
+    paddingVertical: theme.layout.auth.welcomeThemeSegmentVerticalPadding,
+  },
+  themeControlActive: {
+    backgroundColor: theme.accent.soft,
+  },
+  themeControlLabel: {
+    ...theme.typography.authWelcomeControl,
+    color: theme.accent.strong,
+  },
+  themeControlLabelInactive: {
+    ...theme.typography.authWelcomeControlMuted,
+    color: theme.text.muted,
+  },
+  themePill: {
+    alignItems: "center" as const,
+    backgroundColor: theme.surface.card,
+    borderColor: theme.border.subtle,
+    borderRadius: theme.layout.auth.themePillRadius,
+    borderWidth: theme.layout.border.hairline,
+    flexDirection: "row" as const,
+    gap: theme.layout.auth.welcomeThemePillGap,
+    padding: theme.layout.auth.welcomeThemePillPadding,
+  },
+  topControls: {
+    alignItems: "center" as const,
+    flexDirection: "row" as const,
+    gap: theme.layout.auth.welcomeTopControlsGap,
+    justifyContent: "flex-end" as const,
+    paddingHorizontal: theme.spacing.pageWide,
+    paddingTop: theme.layout.auth.welcomeTopControlsPaddingTop,
+  },
+});
