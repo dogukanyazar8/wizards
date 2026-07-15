@@ -627,7 +627,7 @@ export function useMobileMessagingFeature({
           channelName: channel.name,
           serverId: selectedWorkspaceServerId,
         });
-        setActiveWorkspaceVoiceChannelId(channel.id);
+        setActiveWorkspaceVoiceChannelId(null);
         void joinVoiceChannel({
           channelId: channel.id,
           channelName: channel.name,

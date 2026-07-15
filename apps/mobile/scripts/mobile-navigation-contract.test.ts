@@ -157,6 +157,16 @@ test("voice room is a protected root route rather than a bottom tab", () => {
   assert.match(containers, /isVoiceSessionActive/);
 });
 
+test("voice room navigation does not retain the legacy overview voice surface", () => {
+  const messagingFeature = read("../src/app/features/use-mobile-messaging-feature.ts");
+  const voiceJoinBranch = messagingFeature.slice(
+    messagingFeature.indexOf('if (channel.type === "VOICE")'),
+    messagingFeature.indexOf('if (channel.type !== "TEXT")'),
+  );
+
+  assert.doesNotMatch(voiceJoinBranch, /setActiveWorkspaceVoiceChannelId\(channel\.id\)/);
+});
+
 test("floating navigation chrome is the measured inset owner for tab roots", () => {
   const chrome = read("../src/navigation/floating-navigation-chrome.tsx");
   const bottomTabBar = read("../src/navigation/mobile-bottom-tab-bar.tsx");
