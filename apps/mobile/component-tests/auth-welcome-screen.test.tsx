@@ -4,6 +4,7 @@ import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
 import { SafeAreaProvider, type EdgeInsets } from "react-native-safe-area-context";
+import { useReducedMotion } from "react-native-reanimated";
 
 import {
   AUTH_WELCOME_TITLE_GRADIENT_COLORS,
@@ -85,6 +86,7 @@ function findNodeByTestId(node: RenderedNode | readonly RenderedNode[] | null, t
 describe("AuthWelcomeScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(useReducedMotion).mockReturnValue(false);
     mockSystemScheme = "light";
     mockGetItem.mockResolvedValue(null);
     mockSetItem.mockResolvedValue(undefined);
@@ -167,44 +169,68 @@ describe("AuthWelcomeScreen", () => {
     expect(view.queryByText("All systems active")).toBeNull();
   });
 
-  it("renders the exact white waveform mark from the 2a handoff", async () => {
+  it("renders the canonical animated five-bar Whispr waveform", async () => {
     const view = await renderWelcome();
     const tree = view.toJSON() as RenderedNode | readonly RenderedNode[] | null;
     const brandMark = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark");
-    const firstBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-bar-1");
-    const secondBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-bar-2");
-    const thirdBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-bar-3");
-    const fourthBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-bar-4");
+    const firstBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-animated-bar-1");
+    const secondBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-animated-bar-2");
+    const thirdBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-animated-bar-3");
+    const fourthBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-animated-bar-4");
+    const fifthBar = findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-animated-bar-5");
 
     expect(brandMark).toBeTruthy();
     expect(firstBar?.props).toMatchObject({
-      height: 6,
+      height: 8.5,
       rx: 1.3,
-      width: 2.6,
-      x: 4,
-      y: 9,
+      width: 2.4,
+      x: 3.6,
+      y: 7.75,
     });
     expect(secondBar?.props).toMatchObject({
-      height: 12,
+      height: 12.5,
       rx: 1.3,
-      width: 2.6,
-      x: 8.2,
-      y: 6,
+      width: 2.4,
+      x: 6.8,
+      y: 5.75,
     });
     expect(thirdBar?.props).toMatchObject({
       height: 17,
       rx: 1.3,
-      width: 2.6,
-      x: 12.4,
+      width: 2.4,
+      x: 10,
       y: 3.5,
     });
     expect(fourthBar?.props).toMatchObject({
-      height: 8,
+      height: 12,
       rx: 1.3,
-      width: 2.6,
-      x: 16.6,
-      y: 8,
+      width: 2.4,
+      x: 13.2,
+      y: 6,
     });
+    expect(fifthBar?.props).toMatchObject({
+      height: 9,
+      rx: 1.3,
+      width: 2.4,
+      x: 16.4,
+      y: 7.5,
+    });
+  });
+
+  it("renders the same five bars without animated wrappers when motion is reduced", async () => {
+    jest.mocked(useReducedMotion).mockReturnValue(true);
+    const view = await renderWelcome();
+    const tree = view.toJSON() as RenderedNode | readonly RenderedNode[] | null;
+
+    expect(findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-static-bar-1")?.props).toMatchObject({
+      height: 8.5,
+      width: 2.4,
+    });
+    expect(findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-static-bar-5")?.props).toMatchObject({
+      height: 9,
+      width: 2.4,
+    });
+    expect(findNodeByTestId(tree, "mobile-auth-welcome-brand-mark-animated-bar-1")).toBeNull();
   });
 
   it("renders every copy-backed feature chip and welcome-sized CTAs", async () => {
