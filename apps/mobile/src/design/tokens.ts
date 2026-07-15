@@ -112,6 +112,9 @@ export const mobileLayoutMetrics = {
     profileSelectionBadge: 16,
     profileSelectionBadgeRightOffset: 10,
     profileSelectionBorderWidth: 1.5,
+    registerContentGap: 13,
+    registerPasswordColumnGap: 10,
+    registerPasswordColumnMinWidth: 132,
     securityCloudflareIcon: 18,
     securityShieldIcon: 21,
     termsCheckbox: 18,
@@ -254,6 +257,12 @@ export const mobileTypography = {
     fontFamily: "WhisprJakarta_400Regular",
     fontSize: 13.5,
     lineHeight: 20,
+    letterSpacing: 0,
+  },
+  authLegalCopy: {
+    fontFamily: "WhisprJakarta_400Regular",
+    fontSize: 12.5,
+    lineHeight: 18.75,
     letterSpacing: 0,
   },
   authResetSubtitle: {

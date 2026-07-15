@@ -74,6 +74,20 @@ function flattenPressableStyle(view: ReturnType<typeof render>, testID: string) 
   return StyleSheet.flatten(typeof style === "function" ? style({ pressed: false }) : style);
 }
 
+function isNestedWithin(node: { parent: unknown }, ancestor: unknown) {
+  let current = node.parent;
+
+  while (current && typeof current === "object" && "parent" in current) {
+    if (current === ancestor) {
+      return true;
+    }
+
+    current = (current as { parent: unknown }).parent;
+  }
+
+  return false;
+}
+
 for (const theme of [lightTheme, darkTheme]) {
   describe(`${theme.id} mobile auth kit`, () => {
     it("renders a busy primary action without dispatching its press", async () => {
@@ -338,13 +352,53 @@ for (const theme of [lightTheme, darkTheme]) {
       );
 
       const checkbox = view.getByTestId("auth-remember");
-      await fireEvent.press(checkbox);
+      const visibleLabel = view.getByText("Remember me");
+      expect(visibleLabel.type).toBe("Text");
+      expect(isNestedWithin(visibleLabel, checkbox)).toBe(true);
+
+      await fireEvent.press(visibleLabel);
 
       expect(checkbox.props.accessibilityRole).toBe("checkbox");
       expect(checkbox.props.accessibilityState).toEqual(
         expect.objectContaining({ checked: true, disabled: false }),
       );
+      expect(flattenPressableStyle(view, "auth-remember")).toEqual(
+        expect.objectContaining({
+          minHeight: theme.sizing.minTouchTarget,
+          minWidth: 0,
+        }),
+      );
       expect(onPress).toHaveBeenCalledTimes(1);
+
+      await fireEvent.press(checkbox);
+      expect(onPress).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps an optional rich label outside the checkbox accessibility target", async () => {
+      mockTheme = theme;
+      const view = await render(
+        <AuthCheckbox
+          checked={false}
+          label="I accept the Terms of Use and Privacy Policy."
+          labelContent={<Text testID="auth-checkbox-rich-label">Custom legal label</Text>}
+          onPress={jest.fn()}
+          testID="auth-checkbox-rich"
+        />,
+      );
+
+      const checkbox = view.getByTestId("auth-checkbox-rich");
+
+      expect(checkbox.props.accessibilityLabel).toBe(
+        "I accept the Terms of Use and Privacy Policy.",
+      );
+      expect(view.getByTestId("auth-checkbox-rich-label")).toBeTruthy();
+      expect(isNestedWithin(view.getByTestId("auth-checkbox-rich-label"), checkbox)).toBe(false);
+      expect(flattenPressableStyle(view, "auth-checkbox-rich")).toEqual(
+        expect.objectContaining({
+          minHeight: theme.sizing.minTouchTarget,
+          minWidth: theme.sizing.minTouchTarget,
+        }),
+      );
     });
 
     it("marks only configured preview profiles and exposes the selected state", async () => {
