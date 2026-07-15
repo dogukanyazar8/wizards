@@ -23,6 +23,7 @@
 
 - `apps/mobile/src/locale/mobile-locale-preferences.ts` — locale metadata, explicit/device preference serialization, pure device-locale resolution.
 - `apps/mobile/src/app/providers/mobile-locale-provider.tsx` — persisted preference hydration, foreground device-locale refresh, runtime commands.
+- `apps/mobile/app.config.js` — Expo Localization config plugin for the dynamic native app configuration.
 - `apps/mobile/src/design/palette.ts`, `tokens.ts`, `themes.ts` — exact 3a semantic color and geometry roles.
 - `apps/mobile/src/app/components/kit/bottom-sheet.tsx` — opt-in backdrop blur and style overrides that do not alter existing callers.
 - `apps/mobile/src/app/screens/auth/auth-welcome-brand-mark.tsx` — five-bar Reanimated SVG logo.
@@ -39,6 +40,7 @@
 **Files:**
 - Modify: `apps/mobile/package.json`
 - Modify: `pnpm-lock.yaml`
+- Modify: `apps/mobile/app.config.js`
 - Modify: `apps/mobile/src/locale/mobile-locale-preferences.ts`
 - Modify: `apps/mobile/src/locale/expo-mobile-locale-preferences.ts`
 - Modify: `apps/mobile/src/app/providers/mobile-locale-provider.tsx`
@@ -84,7 +86,11 @@
   corepack pnpm --filter @wizards/mobile exec expo install expo-localization expo-blur
   ```
 
-  Keep the Expo-selected versions in `apps/mobile/package.json` and `pnpm-lock.yaml`. Do not add an app-config plugin unless the existing native configuration requires it; the module is autolinked for the current Expo runtime.
+  Keep the Expo-selected versions in `apps/mobile/package.json` and `pnpm-lock.yaml`. Because this workspace has a dynamic Expo config with an existing `plugins` array, append `"expo-localization"` to `apps/mobile/app.config.js` and verify it resolves:
+
+  ```powershell
+  corepack pnpm --filter @wizards/mobile exec expo config --type public --json | Select-String -Pattern 'expo-localization' -Quiet
+  ```
 
 - [ ] **Step 4: Implement explicit/device preference parsing and metadata**
 
@@ -162,7 +168,7 @@
 - [ ] **Step 7: Commit the isolated locale contract**
 
   ```powershell
-  git add apps/mobile/package.json pnpm-lock.yaml apps/mobile/src/locale/mobile-locale-preferences.ts apps/mobile/src/locale/expo-mobile-locale-preferences.ts apps/mobile/src/app/providers/mobile-locale-provider.tsx apps/mobile/scripts/mobile-locale-preferences.test.ts
+  git add apps/mobile/package.json pnpm-lock.yaml apps/mobile/app.config.js apps/mobile/src/locale/mobile-locale-preferences.ts apps/mobile/src/locale/expo-mobile-locale-preferences.ts apps/mobile/src/app/providers/mobile-locale-provider.tsx apps/mobile/scripts/mobile-locale-preferences.test.ts
   git commit -m "feat(mobile): add device-aware locale preferences"
   ```
 
@@ -202,7 +208,7 @@
 
 - [ ] **Step 3: Implement the five-bar UI-thread animation**
 
-  Convert SVG rectangles into `Animated.createAnimatedComponent(Rect)` bars. Keep their static dimensions in `CANONICAL_WAVEFORM_BARS`; each receives a `scaleY` shared value around its vertical center. Start the wave with the exact 2,100 ms cycle and 130 ms sequence offset, and cancel all animations on cleanup:
+  Convert SVG rectangles into `Animated.createAnimatedComponent(Rect)` bars. Keep their static dimensions in `CANONICAL_WAVEFORM_BARS`; each receives scale and opacity shared values around its vertical center. Match the web `auth-equalizer` keyframes exactly: `scaleY(0.55)` / opacity `0.72` at 0% and 100%, `scaleY(1)` / opacity `1` at 45%, a 2,100 ms cubic-bezier `(0.45, 0, 0.2, 1)` rhythm, and a one-time 130 ms left-to-right start offset. Cancel all animations on cleanup:
 
   ```ts
   useEffect(() => {
@@ -210,16 +216,19 @@
       amplitude.value = 1;
       return;
     }
-    amplitude.value = withRepeat(
-      withSequence(withTiming(0.62, { duration: 525 }), withTiming(1, { duration: 525 })),
+    scale.value = withDelay(index * 130, withRepeat(
+      withSequence(
+        withTiming(1, { duration: 945, easing: Easing.bezier(0.45, 0, 0.2, 1) }),
+        withTiming(0.55, { duration: 1_155, easing: Easing.bezier(0.45, 0, 0.2, 1) }),
+      ),
       -1,
-      true,
-    );
+      false,
+    ));
     return () => cancelAnimation(amplitude);
   }, [amplitude, reducedMotion]);
   ```
 
-  Apply the per-bar phase with `withDelay(index * 130, ...)`, preserve white fills and rounded corners, and leave `AuthWelcomeScreen` and its styles untouched.
+  Apply an equivalent opacity sequence from `0.72` to `1` then back to `0.72`, preserve white fills and rounded corners, and leave `AuthWelcomeScreen` and its styles untouched. In the reduced-motion branch, render an ordinary `Rect` at full scale and opacity rather than mounting the animated wrapper.
 
 - [ ] **Step 4: Re-run the welcome test**
 

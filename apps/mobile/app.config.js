@@ -155,6 +155,7 @@ module.exports = ({ config }) => {
       "@livekit/react-native-expo-plugin",
       "@config-plugins/react-native-webrtc",
       "expo-image",
+      "expo-localization",
       "./plugins/withScreenShare",
       [
         "@sentry/react-native/expo",
