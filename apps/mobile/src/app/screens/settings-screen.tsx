@@ -61,8 +61,10 @@ import type { MobileThemeMode } from "../../design/mobile-theme-runtime";
 import { useSettingsScreenStyles } from "./settings-screen.styles";
 import { SocialAccountQuickActions } from "../../social/social-account-screens";
 import { Button } from "../components/kit";
+import { Avatar } from "../components/kit/avatar";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
+import { useMobileWorkspaceLayoutPreference } from "../providers/mobile-workspace-layout-provider";
 
 function getMobilePermissionLabel(intentId: MobilePermissionIntentId): string {
   switch (intentId) {
@@ -96,6 +98,220 @@ function getSettingsEvidenceLabels() {
     storeBlockers: copy.settingsStoreBlockersLabel,
     storeWarnings: copy.settingsStoreWarningsLabel,
   };
+}
+
+function navigateToMobileSettingsDetail(section: string) {
+  if (mobileNavigationRef.isReady()) {
+    mobileNavigationRef.navigate("SettingsDetail", { section });
+  }
+}
+
+export function MobileProfileSettingsHub({
+  appVersion,
+  bootstrapState,
+  locale,
+  onSignOut,
+  signedInUserLabel,
+  status,
+  themeMode,
+}: {
+  appVersion: string;
+  bootstrapState: MobileBootstrapViewState;
+  locale: MobileLocale;
+  onSignOut(): void;
+  signedInUserLabel: string | null;
+  status: string;
+  themeMode: MobileThemeMode;
+}) {
+  const styles = useSettingsScreenStyles();
+  const theme = useTheme();
+  const user = bootstrapState.status === "ready" ? bootstrapState.payload.user : null;
+  const displayName = user?.displayName ?? signedInUserLabel ?? user?.username ?? "Whispr";
+  const username = user?.username ? `@${user.username}` : "@whispr";
+  const themeLabel =
+    themeMode === "dark"
+      ? copy.settingsThemeDarkValue
+      : themeMode === "light"
+        ? copy.settingsThemeLightValue
+        : copy.settingsThemeSystemValue;
+  const localeLabel =
+    locale === "tr" ? copy.settingsLanguageTurkishValue : copy.settingsLanguageEnglishValue;
+
+  return (
+    <ScrollView
+      contentContainerStyle={styles.mobileProfileHubContent}
+      showsVerticalScrollIndicator={false}
+      testID="mobile-profile-settings-hub"
+    >
+      <Text style={styles.mobileProfileHubTitle}>{copy.tabProfile}</Text>
+      <View style={styles.mobileProfileIdentityCard} testID="mobile-profile-identity-card">
+        <View style={styles.mobileProfileIdentityBanner} />
+        <View style={styles.mobileProfileIdentityBody}>
+          <View style={styles.mobileProfileIdentityTopRow}>
+            <View style={styles.mobileProfileAvatarRing}>
+              <Avatar
+                imageUrl={user?.avatarUrl ?? null}
+                label={displayName}
+                size="lg"
+                status={status === "signed-in" ? "active" : "idle"}
+              />
+            </View>
+            <Pressable
+              accessibilityLabel={copy.messageEditAction}
+              accessibilityRole="button"
+              onPress={() => {
+                if (mobileNavigationRef.isReady()) {
+                  mobileNavigationRef.navigate("ProfileEdit");
+                }
+              }}
+              style={({ pressed }) => [styles.mobileProfileEditAction, pressed && styles.actionButtonPressed]}
+              testID="mobile-profile-edit"
+            >
+              <Ionicons name="pencil-outline" size={15} color={theme.text.muted} />
+              <Text style={styles.mobileProfileEditActionText}>{copy.messageEditAction}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.mobileProfileIdentityText}>
+            <Text style={styles.mobileProfileDisplayName} numberOfLines={1}>
+              {displayName}
+            </Text>
+            <Text style={styles.mobileProfileUsername} numberOfLines={1}>
+              {username}
+            </Text>
+          </View>
+          <View style={styles.mobileProfileStatusRow}>
+            <View style={styles.mobileProfileStatusDot} />
+            <Text style={styles.mobileProfileStatusText}>Çevrimiçi</Text>
+            <Ionicons name="chevron-down" size={16} color={theme.text.soft} />
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.mobileProfileSettingsCard}>
+        <MobileProfileHubRow
+          icon="person-outline"
+          iconTone="accent"
+          label="Hesap"
+          onPress={() => navigateToMobileSettingsDetail("account")}
+        />
+        <MobileProfileHubRow
+          icon="shield-checkmark-outline"
+          iconTone="success"
+          label="Güvenli oturum"
+          onPress={() => navigateToMobileSettingsDetail("security")}
+          value="Aktif"
+          valueTone="success"
+        />
+        <MobileProfileHubRow
+          icon="sunny-outline"
+          iconTone="warning"
+          label="Görünüm"
+          onPress={() => navigateToMobileSettingsDetail("appearance")}
+          value={themeLabel}
+        />
+        <MobileProfileHubRow
+          icon="notifications-outline"
+          iconTone="accent"
+          label={copy.tabNotifications}
+          onPress={() => navigateToMobileSettingsDetail("notifications")}
+        />
+        <MobileProfileHubRow
+          icon="language-outline"
+          iconTone="neutral"
+          label="Dil"
+          onPress={() => navigateToMobileSettingsDetail("language")}
+          value={localeLabel}
+        />
+      </View>
+
+      <View style={styles.mobileProfileSettingsCard}>
+        <MobileProfileHubRow
+          icon="information-circle-outline"
+          iconTone="neutral"
+          label="Hakkında"
+          onPress={() => navigateToMobileSettingsDetail("about")}
+          value={appVersion}
+        />
+        <MobileProfileHubRow
+          danger
+          icon="log-out-outline"
+          iconTone="danger"
+          label={copy.signOutAction}
+          onPress={onSignOut}
+          showChevron={false}
+        />
+      </View>
+    </ScrollView>
+  );
+}
+
+function MobileProfileHubRow({
+  danger = false,
+  icon,
+  iconTone,
+  label,
+  onPress,
+  showChevron = true,
+  value,
+  valueTone = "default",
+}: {
+  danger?: boolean;
+  icon: MobileIoniconName;
+  iconTone: "accent" | "danger" | "neutral" | "success" | "warning";
+  label: string;
+  onPress(): void;
+  showChevron?: boolean;
+  value?: string;
+  valueTone?: "default" | "success";
+}) {
+  const styles = useSettingsScreenStyles();
+  const theme = useTheme();
+  const iconColor =
+    iconTone === "danger"
+      ? theme.status.danger
+      : iconTone === "success"
+        ? theme.status.success
+        : iconTone === "warning"
+          ? theme.status.warning
+          : iconTone === "neutral"
+            ? theme.text.muted
+            : theme.accent.strong;
+
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.mobileProfileSettingsRow, pressed && styles.actionButtonPressed]}
+    >
+      <View
+        style={[
+          styles.mobileProfileRowIcon,
+          iconTone === "success" && styles.mobileProfileRowIconSuccess,
+          iconTone === "warning" && styles.mobileProfileRowIconWarning,
+          iconTone === "neutral" && styles.mobileProfileRowIconNeutral,
+          iconTone === "danger" && styles.mobileProfileRowIconDanger,
+        ]}
+      >
+        <Ionicons name={icon} size={17} color={iconColor} />
+      </View>
+      <Text style={[styles.mobileProfileSettingsRowLabel, danger && styles.mobileProfileSettingsRowLabelDanger]}>
+        {label}
+      </Text>
+      {value ? (
+        <Text
+          style={[
+            styles.mobileProfileSettingsRowValue,
+            valueTone === "success" && styles.mobileProfileSettingsRowValueSuccess,
+          ]}
+          numberOfLines={1}
+        >
+          {value}
+        </Text>
+      ) : null}
+      {showChevron ? <Ionicons name="chevron-forward" size={17} color={theme.text.soft} /> : null}
+    </Pressable>
+  );
 }
 
 export function SettingsAccountCard({
@@ -981,6 +1197,57 @@ export function SettingsAppearanceSelector() {
   );
 }
 
+export function SettingsWorkspaceLayoutSelector() {
+  const styles = useSettingsScreenStyles();
+  const { layout, setLayout } = useMobileWorkspaceLayoutPreference();
+  const options = [
+    { id: "rail" as const, label: "Sol ray" },
+    { id: "compact" as const, label: "Kompakt" },
+  ];
+
+  return (
+    <View
+      accessibilityLabel="Sunucu görünümü"
+      accessibilityRole="radiogroup"
+      style={styles.settingsLocaleControl}
+      testID="mobile-settings-workspace-layout-control"
+    >
+      <Text maxFontSizeMultiplier={2} style={styles.settingsLocaleDescription}>
+        Sunucular ekranındaki varsayılan düzen
+      </Text>
+      <View style={styles.settingsLocaleOptions}>
+        {options.map((option) => {
+          const selected = layout === option.id;
+          return (
+            <Pressable
+              accessibilityLabel={option.label}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected }}
+              key={option.id}
+              onPress={() => setLayout(option.id)}
+              style={({ pressed }) => [
+                styles.settingsLocaleOption,
+                selected && styles.settingsLocaleOptionSelected,
+                pressed && styles.actionButtonPressed,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.settingsLocaleOptionLabel,
+                  selected && styles.settingsLocaleOptionLabelSelected,
+                ]}
+                numberOfLines={1}
+              >
+                {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export function SettingsHapticsControl() {
   const styles = useSettingsScreenStyles();
   const { enabled, setEnabled } = useMobileHaptics();
@@ -1690,38 +1957,16 @@ export function ProfileSettingsScreen({
   );
 
   if (resolvedSection === "hub") {
-    return sectionShell(
-      copy.settingsTitle,
-      <>
-        <SettingsAccountCard
-          authStatusLabel={authStatusLabel}
-          bootstrapState={bootstrapState}
-          signedInUserLabel={signedInUserLabel}
-          status={status}
-        />
-        <View style={styles.settingsSectionActions} testID="mobile-settings-ia">
-          {Object.entries(sectionLabels).map(([id, label]) => (
-            <Button
-              key={id}
-              label={label}
-              icon={
-                id === "security"
-                  ? "shield-checkmark-outline"
-                  : id === "developer"
-                    ? "code-slash-outline"
-                    : "chevron-forward"
-              }
-              variant="secondary"
-              onPress={() =>
-                mobileNavigationRef.isReady() &&
-                mobileNavigationRef.navigate("SettingsDetail", { section: id })
-              }
-              testID={`mobile-settings-open-${id}`}
-            />
-          ))}
-        </View>
-      </>,
-      "mobile-settings-screen",
+    return (
+      <MobileProfileSettingsHub
+        appVersion={appVersion}
+        bootstrapState={bootstrapState}
+        locale={locale}
+        onSignOut={onSignOut}
+        signedInUserLabel={signedInUserLabel}
+        status={status}
+        themeMode={themeMode}
+      />
     );
   }
 
@@ -1784,6 +2029,7 @@ export function ProfileSettingsScreen({
         title={copy.settingsAppearanceTitle}
       >
         <SettingsAppearanceSelector />
+        <SettingsWorkspaceLayoutSelector />
         <SettingsHapticsControl />
       </SettingsPreferenceSection>,
       "mobile-settings-appearance",

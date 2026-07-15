@@ -37,10 +37,6 @@ const authTestIdSources: Record<string, { file: string; needle: string }> = {
     file: "src/app/screens/auth/auth-login-screen.tsx",
     needle: 'testID="mobile-auth-login-top-bar"',
   },
-  "mobile-auth-login-turnstile": {
-    file: "src/app/screens/auth/auth-login-screen.tsx",
-    needle: 'testID="mobile-auth-login-turnstile"',
-  },
   "mobile-auth-register-screen": {
     file: "src/app/screens/auth/auth-register-screen.tsx",
     needle: 'testID="mobile-auth-register-screen"',
@@ -113,15 +109,7 @@ describe("signed-out auth navigation Maestro contract", () => {
       authFlowSource,
       /mobile-auth-welcome-screen[\s\S]*?mobile-auth-welcome-sign-in[\s\S]*?mobile-auth-login-screen[\s\S]*?mobile-auth-login-forgot-password[\s\S]*?mobile-auth-forgot-password-screen[\s\S]*?mobile-auth-forgot-back-to-sign-in[\s\S]*?mobile-auth-login-screen[\s\S]*?mobile-auth-login-register[\s\S]*?mobile-auth-register-screen[\s\S]*?mobile-auth-register-top-bar-back[\s\S]*?mobile-auth-login-screen[\s\S]*?mobile-auth-login-top-bar-back[\s\S]*?mobile-auth-welcome-screen[\s\S]*?mobile-auth-welcome-sign-up[\s\S]*?mobile-auth-register-screen[\s\S]*?mobile-auth-register-top-bar-back[\s\S]*?mobile-auth-welcome-screen/,
     );
-    assert.match(
-      authFlowSource,
-      /id:\s*"mobile-auth-login-turnstile"/,
-      "The signed-out helper surface must make Turnstile-required login visible without interacting with it.",
-    );
-    assert.doesNotMatch(
-      authFlowSource,
-      /tapOn:\s*\r?\n\s+id:\s*"mobile-auth-(?:login|register)-turnstile"/,
-    );
+    assert.doesNotMatch(authFlowSource, /turnstile|cloudflare/i);
     for (const pattern of forbiddenFlowPatterns) {
       assert.doesNotMatch(authFlowSource, pattern);
     }
@@ -134,7 +122,7 @@ describe("signed-out auth navigation Maestro contract", () => {
     );
     assert.match(
       loginHelperSource,
-      /id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-welcome-screen"[\s\S]*?id:\s*"mobile-auth-welcome-sign-in"[\s\S]*?id:\s*"mobile-auth-login-screen"[\s\S]*?id:\s*"mobile-auth-login-turnstile"/,
+      /id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-welcome-screen"[\s\S]*?id:\s*"mobile-auth-welcome-sign-in"[\s\S]*?id:\s*"mobile-auth-login-screen"/,
     );
     assert.doesNotMatch(loginHelperSource, /mobile-auth-screen/);
     assert.doesNotMatch(loginHelperSource, /(?:development|fill-dev|inputText|turnstileToken|retry)/i);
@@ -148,7 +136,7 @@ describe("signed-out auth navigation Maestro contract", () => {
     );
     assert.match(
       loginHelperSource,
-      /when:\s*\r?\n\s+visible:\s*\r?\n\s+id:\s*"mobile-auth-welcome-screen"[\s\S]*?id:\s*"mobile-auth-welcome-sign-in"[\s\S]*?id:\s*"mobile-auth-login-screen"[\s\S]*?id:\s*"mobile-auth-login-turnstile"/,
+      /when:\s*\r?\n\s+visible:\s*\r?\n\s+id:\s*"mobile-auth-welcome-screen"[\s\S]*?id:\s*"mobile-auth-welcome-sign-in"[\s\S]*?id:\s*"mobile-auth-login-screen"/,
     );
   });
 

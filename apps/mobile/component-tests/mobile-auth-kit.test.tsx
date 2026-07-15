@@ -23,19 +23,6 @@ jest.mock("expo-linear-gradient", () => ({
   },
 }));
 
-jest.mock("react-native-webview", () => ({
-  WebView: (props: Record<string, unknown>) => {
-    const React = require("react");
-    const { View } = require("react-native");
-    return React.createElement(View, props);
-  },
-}));
-
-jest.mock("../src/config/environment", () => ({
-  getMobileRuntimeConfig: jest.fn(),
-}));
-
-import { getMobileRuntimeConfig } from "../src/config/environment";
 import {
   AuthCheckbox,
   AuthEyebrowHeader,
@@ -48,23 +35,8 @@ import {
   AuthSecondaryButton,
   AuthTextField,
   AuthTopBar,
-  AuthTurnstileCard,
   isMobileAuthPasswordStrong,
 } from "../src/app/components/kit/auth";
-
-const mockedRuntimeConfig = jest.mocked(getMobileRuntimeConfig);
-
-function setTurnstileSiteKey(turnstileSiteKey: string | null) {
-  mockedRuntimeConfig.mockReturnValue({
-    apiUrl: "http://localhost:3000",
-    environment: "development",
-    releaseChannel: "development",
-    sentryDsn: null,
-    socketUrl: "http://localhost:3000",
-    turnstileSiteKey,
-    webUrl: "http://localhost:3000",
-  });
-}
 
 function expectIconSize(view: ReturnType<typeof render>, testID: string, size: number) {
   expect(view.getByTestId(testID, { includeHiddenElements: true }).props.size).toBe(size);
@@ -329,6 +301,14 @@ for (const theme of [lightTheme, darkTheme]) {
       );
       expectIconSize(primaryForm, "auth-primary-form-icon", theme.layout.auth.formPrimaryActionIcon);
       expectIconSize(primaryWelcome, "auth-primary-welcome-icon", theme.layout.auth.welcomePrimaryActionIcon);
+      const welcomeLabel = primaryWelcome.getByText("Continue");
+      const welcomeIcon = primaryWelcome.getByTestId("auth-primary-welcome-icon", {
+        includeHiddenElements: true,
+      });
+
+      expect(welcomeLabel.parent?.children.indexOf(welcomeLabel)).toBeLessThan(
+        welcomeLabel.parent?.children.indexOf(welcomeIcon) ?? -1,
+      );
       expectIconSize(secondaryWelcome, "auth-secondary-welcome-icon", theme.layout.auth.welcomeSecondaryActionIcon);
       expectIconSize(fullInput, "auth-full-input-leading-icon", theme.layout.auth.fullInputIcon);
       expectIconSize(fullInput, "auth-full-input-trailing-icon", theme.layout.auth.fullInputIcon);
@@ -336,7 +316,7 @@ for (const theme of [lightTheme, darkTheme]) {
       expectIconSize(compactInput, "auth-compact-input-trailing-icon", theme.layout.auth.compactRegisterPasswordIcon);
       expectIconSize(topBar, "auth-top-bar-back-icon", theme.layout.auth.topBarBackIcon);
       expectIconSize(security, "auth-security-shield-icon", theme.layout.auth.securityShieldIcon);
-      expectIconSize(security, "auth-security-cloudflare-icon", theme.layout.auth.securityCloudflareIcon);
+      expectIconSize(security, "auth-security-badge-icon", theme.layout.auth.securityBadgeIcon);
       expectIconSize(profile, "auth-profile-sizes-option-personal-glyph", theme.layout.auth.profileGlyph);
       expectIconSize(profile, "auth-profile-sizes-option-personal-check", theme.layout.auth.profileCheckGlyph);
       expectIconSize(passwordHint, "auth-password-hint-shield-icon", theme.layout.auth.passwordHintShieldIcon);
@@ -515,108 +495,6 @@ describe("mobile auth password policy", () => {
     expect(isMobileAuthPasswordStrong("Ab1!xyz")).toBe(false);
     expect(isMobileAuthPasswordStrong("Ab1!xyzz")).toBe(true);
     expect(isMobileAuthPasswordStrong("abcdefgh")).toBe(false);
-  });
-});
-
-describe("mobile auth Turnstile boundary", () => {
-  it("fails closed when the runtime site key is unavailable", async () => {
-    setTurnstileSiteKey(null);
-    const onVerify = jest.fn();
-    const view = await render(
-      <AuthTurnstileCard action="login" onVerify={onVerify} testID="auth-turnstile" />,
-    );
-
-    await waitFor(() => expect(onVerify).toHaveBeenCalledWith(null));
-    expect(view.getByTestId("auth-turnstile-error")).toBeTruthy();
-    expect(view.queryByTestId("auth-turnstile-webview")).toBeNull();
-  });
-
-  it("terminally invalidates every malformed or provider failure message", async () => {
-    setTurnstileSiteKey("public-site-key");
-    for (const data of [
-      "not-json",
-      JSON.stringify({ type: "unknown" }),
-      JSON.stringify({ type: "error" }),
-      JSON.stringify({ type: "expired" }),
-    ]) {
-      const onVerify = jest.fn();
-      const view = await render(
-        <AuthTurnstileCard action="register" onVerify={onVerify} testID="auth-turnstile" />,
-      );
-      const webView = view.getByTestId("auth-turnstile-webview");
-
-      await act(async () => {
-        webView.props.onMessage({ nativeEvent: { data } });
-      });
-
-      expect(onVerify).toHaveBeenCalledTimes(1);
-      expect(onVerify).toHaveBeenCalledWith(null);
-
-      await act(async () => {
-        webView.props.onMessage({
-          nativeEvent: { data: JSON.stringify({ token: "verified-token", type: "success" }) },
-        });
-      });
-
-      expect(onVerify).toHaveBeenCalledTimes(1);
-      expect(onVerify).not.toHaveBeenCalledWith("verified-token");
-      await act(async () => {
-        view.unmount();
-      });
-    }
-  });
-
-  it("invalidates each native WebView failure and suppresses its failure screen", async () => {
-    setTurnstileSiteKey("public-site-key");
-    for (const handlerName of ["onError", "onHttpError"] as const) {
-      const onVerify = jest.fn();
-      const view = await render(
-        <AuthTurnstileCard action="register" onVerify={onVerify} testID="auth-turnstile" />,
-      );
-      const webView = view.getByTestId("auth-turnstile-webview");
-      const failure = { preventDefault: jest.fn() };
-
-      await act(async () => {
-        webView.props[handlerName](failure);
-      });
-
-      expect(failure.preventDefault).toHaveBeenCalledTimes(1);
-      expect(onVerify).toHaveBeenCalledTimes(1);
-      expect(onVerify).toHaveBeenCalledWith(null);
-
-      await act(async () => {
-        webView.props.onMessage({
-          nativeEvent: { data: JSON.stringify({ token: "verified-token", type: "success" }) },
-        });
-      });
-
-      expect(onVerify).toHaveBeenCalledTimes(1);
-      expect(onVerify).not.toHaveBeenCalledWith("verified-token");
-      await act(async () => {
-        view.unmount();
-      });
-    }
-  });
-
-  it("accepts one bounded success token on a clean new challenge", async () => {
-    setTurnstileSiteKey("public-site-key");
-    const onVerify = jest.fn();
-    const view = await render(
-      <AuthTurnstileCard action="register" onVerify={onVerify} testID="auth-turnstile" />,
-    );
-    const webView = view.getByTestId("auth-turnstile-webview");
-
-    await act(async () => {
-      webView.props.onMessage({
-        nativeEvent: { data: JSON.stringify({ token: "verified-token", type: "success" }) },
-      });
-      webView.props.onMessage({
-        nativeEvent: { data: JSON.stringify({ token: "another-verified-token", type: "success" }) },
-      });
-    });
-
-    expect(onVerify).toHaveBeenCalledTimes(1);
-    expect(onVerify).toHaveBeenCalledWith("verified-token");
   });
 });
 

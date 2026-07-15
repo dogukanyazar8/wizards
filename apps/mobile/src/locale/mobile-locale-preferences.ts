@@ -7,17 +7,43 @@ export interface MobileLocalePreferenceStorage {
   setItemAsync(key: string, value: string): Promise<void>;
 }
 
+export interface MobileLocaleOption {
+  readonly code: string;
+  readonly direction: "ltr" | "rtl";
+  readonly id: MobileLocale;
+  readonly label: string;
+  readonly nativeName: string;
+  readonly shortLabel: string;
+  readonly turkishName: string;
+}
+
+export type MobileLocalePreference =
+  | { readonly locale: MobileLocale; readonly mode: "manual" }
+  | { readonly manualLocale: MobileLocale; readonly mode: "device" };
+
 export const DEFAULT_MOBILE_LOCALE: MobileLocale = "tr";
 export const MOBILE_LOCALE_STORAGE_KEY = "team.whispr.mobile.locale";
 
-export const MOBILE_LOCALE_OPTIONS: ReadonlyArray<{
-  id: MobileLocale;
-  label: string;
-  shortLabel: string;
-}> = [
-  { id: "tr", label: mobileCopy.tr.settingsLanguageTurkishValue, shortLabel: "TR" },
-  { id: "en", label: mobileCopy.en.settingsLanguageEnglishValue, shortLabel: "EN" },
-];
+export const MOBILE_LOCALE_OPTIONS = [
+  {
+    code: "EN",
+    direction: "ltr",
+    id: "en",
+    label: mobileCopy.en.settingsLanguageEnglishValue,
+    nativeName: "English",
+    shortLabel: "EN",
+    turkishName: mobileCopy.tr.settingsLanguageEnglishValue,
+  },
+  {
+    code: "TR",
+    direction: "ltr",
+    id: "tr",
+    label: mobileCopy.tr.settingsLanguageTurkishValue,
+    nativeName: "Türkçe",
+    shortLabel: "TR",
+    turkishName: mobileCopy.tr.settingsLanguageTurkishValue,
+  },
+] as const satisfies ReadonlyArray<MobileLocaleOption>;
 
 let activeMobileLocale: MobileLocale = DEFAULT_MOBILE_LOCALE;
 
@@ -56,8 +82,34 @@ export function getMobileIntlLocale(locale: MobileLocale): "en-US" | "tr-TR" {
   return locale === "en" ? "en-US" : "tr-TR";
 }
 
+function isMobileLocale(value: unknown): value is MobileLocale {
+  return value === "en" || value === "tr";
+}
+
 export function normalizeMobileLocale(value: unknown): MobileLocale {
-  return value === "en" || value === "tr" ? value : DEFAULT_MOBILE_LOCALE;
+  return isMobileLocale(value) ? value : DEFAULT_MOBILE_LOCALE;
+}
+
+export function normalizeMobileLocalePreference(value: unknown): MobileLocalePreference {
+  if (value === "device") {
+    return { manualLocale: DEFAULT_MOBILE_LOCALE, mode: "device" };
+  }
+
+  if (typeof value === "string" && value.startsWith("device:")) {
+    return { manualLocale: normalizeMobileLocale(value.slice("device:".length)), mode: "device" };
+  }
+
+  return { locale: normalizeMobileLocale(value), mode: "manual" };
+}
+
+export function resolveMobileLocaleFromDeviceLocales(
+  locales: readonly { readonly languageCode: string | null }[],
+): MobileLocale {
+  const supportedLocale = locales
+    .map((locale) => locale.languageCode?.toLowerCase())
+    .find((locale): locale is MobileLocale => isMobileLocale(locale));
+
+  return supportedLocale ?? DEFAULT_MOBILE_LOCALE;
 }
 
 export function setActiveMobileLocale(locale: MobileLocale): MobileLocale {
@@ -67,13 +119,17 @@ export function setActiveMobileLocale(locale: MobileLocale): MobileLocale {
 
 export async function loadMobileLocalePreference(
   storage: MobileLocalePreferenceStorage,
-): Promise<MobileLocale> {
-  return normalizeMobileLocale(await storage.getItemAsync(MOBILE_LOCALE_STORAGE_KEY));
+): Promise<MobileLocalePreference> {
+  return normalizeMobileLocalePreference(await storage.getItemAsync(MOBILE_LOCALE_STORAGE_KEY));
 }
 
 export async function saveMobileLocalePreference(
   storage: MobileLocalePreferenceStorage,
-  locale: MobileLocale,
+  preference: MobileLocalePreference,
 ): Promise<void> {
-  await storage.setItemAsync(MOBILE_LOCALE_STORAGE_KEY, normalizeMobileLocale(locale));
+  const value =
+    preference.mode === "device"
+      ? `device:${normalizeMobileLocale(preference.manualLocale)}`
+      : normalizeMobileLocale(preference.locale);
+  await storage.setItemAsync(MOBILE_LOCALE_STORAGE_KEY, value);
 }

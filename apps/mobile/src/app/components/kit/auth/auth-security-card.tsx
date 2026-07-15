@@ -82,9 +82,9 @@ export function AuthSecurityCard({ description, testID, title }: AuthSecurityCar
           accessibilityElementsHidden
           color={theme.status.warning}
           importantForAccessibility="no"
-          name="cloud"
-          size={theme.layout.auth.securityCloudflareIcon}
-          testID={testID ? `${testID}-cloudflare-icon` : undefined}
+          name="lock-closed"
+          size={theme.layout.auth.securityBadgeIcon}
+          testID={testID ? `${testID}-badge-icon` : undefined}
         />
         <Text style={styles.badgeText}>{copy.authSecurityBadge}</Text>
       </View>

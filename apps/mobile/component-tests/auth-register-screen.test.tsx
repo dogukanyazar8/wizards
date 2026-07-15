@@ -6,14 +6,6 @@ import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 import { Linking } from "react-native";
 
-jest.mock("react-native-webview", () => ({
-  WebView: (props: Record<string, unknown>) => {
-    const React = require("react");
-    const { View } = require("react-native");
-    return React.createElement(View, props);
-  },
-}));
-
 jest.mock("../src/config/environment", () => ({
   getMobileRuntimeConfig: jest.fn(),
 }));
@@ -31,18 +23,16 @@ type RegisterInput = {
   confirmPassword: string;
   email: string;
   password: string;
-  turnstileToken: string;
   username: string;
 };
 
-function setPublicTurnstileSiteKey() {
+function setRuntimeConfig() {
   mockedRuntimeConfig.mockReturnValue({
     apiUrl: "http://localhost:3000",
     environment: "development",
     releaseChannel: "development",
     sentryDsn: null,
     socketUrl: "http://localhost:3000",
-    turnstileSiteKey: "public-site-key",
     webUrl: "https://whispr.test",
   });
 }
@@ -102,17 +92,6 @@ async function fillRegisterFields(
   );
 }
 
-async function completeTurnstile(
-  view: Awaited<ReturnType<typeof render>>,
-  token = "verified-turnstile-token",
-) {
-  await act(async () => {
-    view.getByTestId("mobile-auth-register-turnstile-webview").props.onMessage({
-      nativeEvent: { data: JSON.stringify({ token, type: "success" }) },
-    });
-  });
-}
-
 async function acceptTerms(view: Awaited<ReturnType<typeof render>>) {
   await fireEvent.press(view.getByTestId("mobile-auth-register-terms"));
 }
@@ -120,17 +99,25 @@ async function acceptTerms(view: Awaited<ReturnType<typeof render>>) {
 describe("AuthRegisterScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    setPublicTurnstileSiteKey();
+    setRuntimeConfig();
   });
 
-  it("keeps the primary action disabled without accepted terms even when the form and Turnstile are valid", async () => {
+  it("uses the canonical 2a canvas and animated brand mark", async () => {
+    const view = await renderRegister();
+
+    expect(view.getByTestId("mobile-auth-register-screen-canonical-background-light")).toBeTruthy();
+    expect(
+      view.getByTestId("mobile-auth-register-top-bar-brand-mark", { includeHiddenElements: true }).props,
+    ).toMatchObject({ height: 32, width: 32 });
+  });
+
+  it("keeps the primary action disabled without accepted terms when the form is valid", async () => {
     const onRegister = jest
       .fn<Promise<{ email: string; ok: true }>, [RegisterInput]>()
       .mockResolvedValue({ email: "user@example.com", ok: true });
     const view = await renderRegister({ onRegister });
 
     await fillRegisterFields(view);
-    await completeTurnstile(view);
 
     expect(view.getByTestId("mobile-auth-register-submit").props.accessibilityState).toEqual(
       expect.objectContaining({ disabled: true }),
@@ -147,7 +134,6 @@ describe("AuthRegisterScreen", () => {
     const view = await renderRegister({ onRegister });
 
     await fillRegisterFields(view, { confirmPassword: "different-password" });
-    await completeTurnstile(view);
     await acceptTerms(view);
     await fireEvent.press(view.getByTestId("mobile-auth-register-submit"));
 
@@ -162,7 +148,6 @@ describe("AuthRegisterScreen", () => {
     const view = await renderRegister({ onRegister });
 
     await fillRegisterFields(view, { confirmPassword: "short7", password: "short7" });
-    await completeTurnstile(view);
     await acceptTerms(view);
     await fireEvent.press(view.getByTestId("mobile-auth-register-submit"));
 
@@ -177,7 +162,6 @@ describe("AuthRegisterScreen", () => {
     const view = await renderRegister({ onRegister });
 
     await fillRegisterFields(view, { username: "not valid" });
-    await completeTurnstile(view);
     await acceptTerms(view);
     await fireEvent.press(view.getByTestId("mobile-auth-register-submit"));
 
@@ -206,7 +190,6 @@ describe("AuthRegisterScreen", () => {
     const view = await renderRegister({ onRegister });
 
     await fillRegisterFields(view);
-    await completeTurnstile(view);
     await acceptTerms(view);
     await fireEvent.press(view.getByTestId("mobile-auth-register-submit"));
 
@@ -215,7 +198,6 @@ describe("AuthRegisterScreen", () => {
         confirmPassword: "safe-password",
         email: "user@example.com",
         password: "safe-password",
-        turnstileToken: "verified-turnstile-token",
         username: "wizard_user",
       }),
     );
@@ -223,7 +205,6 @@ describe("AuthRegisterScreen", () => {
       "confirmPassword",
       "email",
       "password",
-      "turnstileToken",
       "username",
     ]);
     expect(
@@ -231,7 +212,7 @@ describe("AuthRegisterScreen", () => {
     ).toBeTruthy();
   });
 
-  it("fails closed when a valid accepted form has no verified Turnstile token", async () => {
+  it("submits an accepted registration directly without rendering a human-verification card", async () => {
     const onRegister = jest
       .fn<Promise<{ email: string; ok: true }>, [RegisterInput]>()
       .mockResolvedValue({ email: "user@example.com", ok: true });
@@ -241,8 +222,15 @@ describe("AuthRegisterScreen", () => {
     await acceptTerms(view);
     await fireEvent.press(view.getByTestId("mobile-auth-register-submit"));
 
-    expect(await view.findByText(copy.authTurnstileError)).toBeTruthy();
-    expect(onRegister).not.toHaveBeenCalled();
+    expect(view.queryByTestId("mobile-auth-register-human-check")).toBeNull();
+    await waitFor(() =>
+      expect(onRegister).toHaveBeenCalledWith({
+        confirmPassword: "safe-password",
+        email: "user@example.com",
+        password: "safe-password",
+        username: "wizard_user",
+      }),
+    );
   });
 
   it("keeps Terms and Privacy links outside the checkbox target while retaining their roles and toggle", async () => {
@@ -287,7 +275,6 @@ describe("AuthRegisterScreen", () => {
     const view = await renderRegister({ onRegister });
 
     await fillRegisterFields(view);
-    await completeTurnstile(view);
     await acceptTerms(view);
     await fireEvent.press(view.getByTestId("mobile-auth-register-submit"));
     await fireEvent.press(view.getByTestId("mobile-auth-register-submit"));

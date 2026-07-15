@@ -1,8 +1,8 @@
 import type { ComponentProps } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
-import whisprIcon from "../../../../../assets/whispr-icon.png";
 import type { MobileTheme } from "../../../../design/themes";
+import { AuthWelcomeBrandMark } from "../../../screens/auth/auth-welcome-brand-mark";
 import { useTheme, useThemedStyles } from "../../../providers/mobile-theme-provider";
 import { Icon } from "../icon";
 
@@ -37,15 +37,15 @@ const createStyles = (theme: MobileTheme) => ({
     justifyContent: "center" as const,
     minWidth: 0,
   },
-  brandImage: {
-    borderRadius: theme.layout.auth.logoSquircleRadius,
+  brandMark: {
     height: theme.layout.auth.topBarLogo,
     width: theme.layout.auth.topBarLogo,
-    ...theme.elevation.authBrandMark,
   },
   brandName: {
-    ...theme.typography.title,
+    ...theme.typography.authWelcomeBrand,
     color: theme.text.primary,
+    fontSize: 18,
+    lineHeight: 24,
   },
   spacer: {
     minHeight: theme.sizing.minTouchTarget,
@@ -86,7 +86,13 @@ export function AuthTopBar({ backAccessibilityLabel, onBack, testID }: AuthTopBa
         </View>
       </Pressable>
       <View accessibilityRole="image" accessibilityLabel="Whispr" style={styles.brand}>
-        <Image accessibilityIgnoresInvertColors source={whisprIcon} style={styles.brandImage} />
+        <View style={styles.brandMark} testID={testID ? `${testID}-brand-surface` : undefined}>
+          <AuthWelcomeBrandMark
+            cornerRadius={theme.layout.auth.topBarLogoRadius}
+            size={theme.layout.auth.topBarLogo}
+            {...(testID === undefined ? {} : { testID: `${testID}-brand-mark` })}
+          />
+        </View>
         <Text maxFontSizeMultiplier={2} style={styles.brandName}>
           Whispr
         </Text>

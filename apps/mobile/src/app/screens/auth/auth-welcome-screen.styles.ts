@@ -3,11 +3,9 @@ import type { MobileTheme } from "../../../design/themes";
 export const createAuthWelcomeScreenStyles = (theme: MobileTheme) => ({
   brandMark: {
     alignItems: "center" as const,
-    borderRadius: theme.layout.auth.logoSquircleRadius,
-    height: theme.layout.auth.logoSquircle,
+    height: theme.layout.auth.welcomeBrandCardSize,
     justifyContent: "center" as const,
-    overflow: "hidden" as const,
-    width: theme.layout.auth.logoSquircle,
+    width: theme.layout.auth.welcomeBrandCardSize,
     ...theme.elevation.authBrandMark,
   },
   brandName: {
@@ -74,10 +72,6 @@ export const createAuthWelcomeScreenStyles = (theme: MobileTheme) => ({
     ...theme.typography.authHeroTitle,
     color: theme.text.primary,
   },
-  heroTitleAccent: {
-    ...theme.typography.authHeroTitle,
-    color: theme.accent.strong,
-  },
   languageControl: {
     alignItems: "center" as const,
     backgroundColor: theme.surface.card,
@@ -86,8 +80,8 @@ export const createAuthWelcomeScreenStyles = (theme: MobileTheme) => ({
     borderWidth: theme.layout.border.hairline,
     flexDirection: "row" as const,
     gap: theme.layout.auth.welcomeLanguageControlGap,
+    height: theme.layout.auth.welcomeLanguageControlHeight,
     justifyContent: "center" as const,
-    minHeight: theme.sizing.minTouchTarget,
     paddingHorizontal: theme.layout.auth.welcomeLanguagePaddingHorizontal,
     paddingVertical: theme.layout.auth.welcomeLanguagePaddingVertical,
   },
@@ -106,7 +100,6 @@ export const createAuthWelcomeScreenStyles = (theme: MobileTheme) => ({
     flexDirection: "row" as const,
     gap: theme.layout.auth.welcomeThemeControlGap,
     justifyContent: "center" as const,
-    minHeight: theme.sizing.minTouchTarget,
     paddingHorizontal: theme.layout.auth.welcomeThemeSegmentHorizontalPadding,
     paddingVertical: theme.layout.auth.welcomeThemeSegmentVerticalPadding,
   },

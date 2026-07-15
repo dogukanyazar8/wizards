@@ -67,7 +67,6 @@ function readMobileAuthImplementationSource() {
   return [
     "src/app/components/kit/auth/auth-password-strength-row.tsx",
     "src/app/components/kit/auth/auth-security-card.tsx",
-    "src/app/components/kit/auth/auth-turnstile-card.tsx",
     "src/app/screens/auth/auth-forgot-password-screen.tsx",
     "src/app/screens/auth/auth-login-screen.tsx",
     "src/app/screens/auth/auth-register-screen.tsx",
@@ -223,14 +222,13 @@ describe("mobile design contract", () => {
     for (const componentName of [
       "AuthPrimaryButton",
       "AuthSecondaryButton",
-      "AuthTurnstileCard",
       "AuthPasswordStrengthRow",
       "AuthSecurityCard",
     ]) {
       assert.match(screenSource, new RegExp(componentName));
     }
 
-    assert.match(screenSource, /cloudflare/i);
+    assert.doesNotMatch(screenSource, /cloudflare|turnstile/i);
     assert.match(screenSource, /authRememberMe/);
     assert.match(screenSource, /termsAccepted/);
     assert.match(screenSource, /createNativeStackNavigator<MobileAuthStackParamList>\(\)/);

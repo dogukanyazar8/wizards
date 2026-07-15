@@ -18,6 +18,7 @@ import { createAuthForgotPasswordScreenStyles } from "./auth-forgot-password-scr
 
 const MOBILE_AUTH_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_RESET_RESEND_COOLDOWN_SECONDS = 60;
+const INITIAL_RESET_LINK_TTL_MINUTES = 30;
 
 export interface AuthForgotPasswordScreenProps {
   readonly onBack: () => void;
@@ -155,7 +156,12 @@ export function AuthForgotPasswordScreen({
       : copy.authForgotResendAction;
 
   return (
-    <AuthScreenBackground centered={false} fill testID="mobile-auth-forgot-password-screen">
+    <AuthScreenBackground
+      centered={false}
+      fill
+      testID="mobile-auth-forgot-password-screen"
+      visualVariant="welcome"
+    >
       <View style={styles.screen}>
         <View style={styles.topSection} testID="mobile-auth-forgot-top-section">
           <AuthTopBar
@@ -288,6 +294,19 @@ export function AuthForgotPasswordScreen({
               tone="accent"
             />
           </Pressable>
+          {!isSuccess ? (
+            <View style={styles.initialInfoBanner}>
+              <AuthInfoBanner
+                iconColor={theme.status.success}
+                iconName="shield-checkmark-outline"
+                testID="mobile-auth-forgot-security-info"
+                text={copy.authForgotInfoTtlTemplate.replace(
+                  "{minutes}",
+                  String(INITIAL_RESET_LINK_TTL_MINUTES),
+                )}
+              />
+            </View>
+          ) : null}
         </View>
       </View>
     </AuthScreenBackground>

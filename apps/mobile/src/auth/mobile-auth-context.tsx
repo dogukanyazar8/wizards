@@ -33,7 +33,6 @@ import { mobileSecureSessionRepository } from "./expo-secure-session-store";
 import type { MobileAppLockPreferenceStore } from "./mobile-app-lock-preference-store";
 import {
   exchangeMobileAuthHandoff,
-  getRequiredMobileTurnstileToken,
   refreshMobileAuthSession,
   registerMobileWithPassword,
   requestMobilePasswordReset,
@@ -86,7 +85,6 @@ export interface MobileAuthContextValue extends MobileAuthState {
     confirmPassword: string;
     email: string;
     password: string;
-    turnstileToken?: string;
     username: string;
   }): Promise<{ email: string; ok: true } | { message: string; ok: false }>;
   requestPasswordReset(input: {
@@ -105,7 +103,6 @@ export interface MobileAuthContextValue extends MobileAuthState {
   signInWithPassword(input: {
     email: string;
     password: string;
-    turnstileToken?: string;
     twoFactorCode?: string;
   }): Promise<
     | { ok: true }
@@ -481,13 +478,11 @@ export function MobileAuthProvider({
     async (input: {
       email: string;
       password: string;
-      turnstileToken?: string;
       twoFactorCode?: string;
     }) => {
       try {
         const session = await signInMobileWithPassword(createUnauthenticatedClient(), {
           ...input,
-          turnstileToken: getRequiredMobileTurnstileToken(input.turnstileToken),
         });
         await repository.save(session);
         commitAuthState(createMobileAuthState("signed-in", session));
@@ -508,14 +503,12 @@ export function MobileAuthProvider({
       confirmPassword: string;
       email: string;
       password: string;
-      turnstileToken?: string;
       username: string;
     }) => {
       try {
         const response = await registerMobileWithPassword(createUnauthenticatedClient(), {
           ...input,
           locale: "tr",
-          turnstileToken: getRequiredMobileTurnstileToken(input.turnstileToken),
         });
         commitAuthState(createMobileAuthState("signed-out"));
         return {

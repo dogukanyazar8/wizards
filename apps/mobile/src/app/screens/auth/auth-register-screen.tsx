@@ -12,7 +12,6 @@ import {
   AuthScreenBackground,
   AuthTextField,
   AuthTopBar,
-  AuthTurnstileCard,
   type MobileAuthProfileType,
 } from "../../components/kit/auth";
 import { useMobileLocaleRuntime } from "../../providers/mobile-locale-provider";
@@ -28,7 +27,6 @@ export interface AuthRegisterScreenProps {
     confirmPassword: string;
     email: string;
     password: string;
-    turnstileToken: string;
     username: string;
   }) => Promise<{ email: string; ok: true } | { message: string; ok: false }>;
   readonly onSignIn: () => void;
@@ -67,7 +65,6 @@ export function AuthRegisterScreen({ onBack, onRegister, onSignIn }: AuthRegiste
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [profileType, setProfileType] = useState<MobileAuthProfileType>("personal");
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -76,13 +73,6 @@ export function AuthRegisterScreen({ onBack, onRegister, onSignIn }: AuthRegiste
   const clearFeedback = () => {
     setErrorMessage(null);
     setSuccessMessage(null);
-  };
-
-  const handleTurnstileVerify = (token: string | null) => {
-    setTurnstileToken(token);
-    if (token) {
-      clearFeedback();
-    }
   };
 
   const handleSubmit = async () => {
@@ -119,11 +109,6 @@ export function AuthRegisterScreen({ onBack, onRegister, onSignIn }: AuthRegiste
       return;
     }
 
-    if (!turnstileToken) {
-      setErrorMessage(copy.authTurnstileError);
-      return;
-    }
-
     submissionInFlight.current = true;
     setIsSubmitting(true);
 
@@ -132,7 +117,6 @@ export function AuthRegisterScreen({ onBack, onRegister, onSignIn }: AuthRegiste
         confirmPassword,
         email: normalizedEmail,
         password,
-        turnstileToken,
         username: normalizedUsername,
       });
 
@@ -151,7 +135,12 @@ export function AuthRegisterScreen({ onBack, onRegister, onSignIn }: AuthRegiste
   };
 
   return (
-    <AuthScreenBackground centered={false} scrollable testID="mobile-auth-register-screen">
+    <AuthScreenBackground
+      centered={false}
+      scrollable
+      testID="mobile-auth-register-screen"
+      visualVariant="welcome"
+    >
       <View style={styles.screen}>
         <View style={styles.topSection}>
           <AuthTopBar
@@ -276,11 +265,6 @@ export function AuthRegisterScreen({ onBack, onRegister, onSignIn }: AuthRegiste
             </View>
           </View>
           <AuthPasswordStrengthRow password={password} testID="mobile-auth-register-password-strength" />
-          <AuthTurnstileCard
-            action="register"
-            onVerify={handleTurnstileVerify}
-            testID="mobile-auth-register-turnstile"
-          />
           <AuthCheckbox
             checked={termsAccepted}
             disabled={isSubmitting}

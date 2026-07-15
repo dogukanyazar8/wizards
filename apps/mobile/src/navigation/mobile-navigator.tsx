@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { DefaultTheme, NavigationContainer, type NavigationState } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -30,7 +30,7 @@ import { useMobileVoiceScreenProps } from "../app/providers/mobile-product-scree
 import { FloatingNavigationChrome } from "./floating-navigation-chrome";
 import { MobileAuthNavigator } from "./mobile-auth-navigator";
 import { createMobileLinkingOptions } from "./mobile-linking";
-import { isMobileTabId, resolveMobileRoute, type MobileTabId } from "./mobile-navigation";
+import { isMobileTabId, type MobileTabId } from "./mobile-navigation";
 import { mobileNavigationRef, navigateMobileRouteIntent } from "./mobile-navigation-ref";
 import type { MobileBottomTabParamList, MobileRootStackParamList } from "./mobile-navigation-types";
 
@@ -46,6 +46,7 @@ export function MobileNavigator({
   directMessageUnreadCount = 0,
   onTabChange,
 }: MobileNavigatorProps) {
+  const { status } = useMobileAuth();
   const theme = useTheme();
   const reducedMotion = useReducedMotion() === true;
   const { handleCommand } = useMobileDeepLinkRuntime();
@@ -97,77 +98,45 @@ export function MobileNavigator({
       ref={mobileNavigationRef}
       theme={navigationTheme}
     >
-      <RootStack.Navigator screenOptions={rootStackOptions}>
-        <RootStack.Screen name="MainTabs">
-          {() => <MobileBottomTabs directMessageUnreadCount={directMessageUnreadCount} />}
-        </RootStack.Screen>
-        <RootStack.Screen name="VoiceRoom">
-          {(props) => (
-            <ProtectedStackRoute>
-              <VoiceRoomStackScreenContainer {...props} />
-            </ProtectedStackRoute>
-          )}
-        </RootStack.Screen>
-        <RootStack.Screen name="ChannelChat">
-          {(props) => (
-            <ProtectedStackRoute>
-              <ChannelStackScreenContainer {...props} />
-            </ProtectedStackRoute>
-          )}
-        </RootStack.Screen>
-        <RootStack.Screen name="DirectMessage">
-          {(props) => (
-            <ProtectedStackRoute>
-              <DirectMessageStackScreenContainer {...props} />
-            </ProtectedStackRoute>
-          )}
-        </RootStack.Screen>
-        <RootStack.Screen name="MessageThread">
-          {(props) => (
-            <ProtectedStackRoute>
-              <MessageThreadStackScreenContainer {...props} />
-            </ProtectedStackRoute>
-          )}
-        </RootStack.Screen>
-        <RootStack.Screen name="SettingsDetail" component={SettingsDetailScreenContainer} />
-        <RootStack.Screen name="ProfileEdit" component={ProfileEditScreenContainer} />
-        <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreenContainer} />
-        <RootStack.Screen name="Security">
-          {(props) => (
-            <ProtectedStackRoute>
-              <SecurityScreenContainer {...props} />
-            </ProtectedStackRoute>
-          )}
-        </RootStack.Screen>
-        <RootStack.Screen name="DMDetails">
-          {(props) => (
-            <ProtectedStackRoute>
-              <DMDetailsScreenContainer {...props} />
-            </ProtectedStackRoute>
-          )}
-        </RootStack.Screen>
-        <RootStack.Screen name="ServerSettings">
-          {(props) => (
-            <ProtectedStackRoute>
-              <ServerSettingsStackScreenContainer {...props} />
-            </ProtectedStackRoute>
-          )}
-        </RootStack.Screen>
-        <RootStack.Screen name="ServerMembers">
-          {(props) => (
-            <ProtectedStackRoute>
-              <ServerMembersStackScreenContainer {...props} />
-            </ProtectedStackRoute>
-          )}
-        </RootStack.Screen>
-        <RootStack.Screen name="ChannelSettings">
-          {(props) => (
-            <ProtectedStackRoute>
-              <ChannelSettingsStackScreenContainer {...props} />
-            </ProtectedStackRoute>
-          )}
-        </RootStack.Screen>
-      </RootStack.Navigator>
+      {status === "signed-in" ? (
+        <RootStack.Navigator screenOptions={rootStackOptions}>
+          <RootStack.Screen name="MainTabs">
+            {() => <MobileBottomTabs directMessageUnreadCount={directMessageUnreadCount} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="VoiceRoom">
+            {(props) => <VoiceRoomStackScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="ChannelChat">
+            {(props) => <ChannelStackScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="DirectMessage">
+            {(props) => <DirectMessageStackScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="MessageThread">
+            {(props) => <MessageThreadStackScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="SettingsDetail" component={SettingsDetailScreenContainer} />
+          <RootStack.Screen name="ProfileEdit" component={ProfileEditScreenContainer} />
+          <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreenContainer} />
+          <RootStack.Screen name="Security">
+            {(props) => <SecurityScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="DMDetails">
+            {(props) => <DMDetailsScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="ServerSettings">
+            {(props) => <ServerSettingsStackScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="ServerMembers">
+            {(props) => <ServerMembersStackScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="ChannelSettings">
+            {(props) => <ChannelSettingsStackScreenContainer {...props} />}
+          </RootStack.Screen>
+        </RootStack.Navigator>
+      ) : (
+        <MobileAuthNavigator reason={status === "checking" ? "checking" : "auth-required"} />
+      )}
     </NavigationContainer>
   );
 }
@@ -177,7 +146,6 @@ function MobileBottomTabs({
 }: {
   readonly directMessageUnreadCount: number;
 }) {
-  const { status } = useMobileAuth();
   const {
     bootstrapState,
     onBeginVoicePushToTalk,
@@ -201,7 +169,7 @@ function MobileBottomTabs({
   return (
     <BottomTabs.Navigator
       backBehavior="history"
-      initialRouteName={status === "signed-in" ? "overview" : "settings"}
+      initialRouteName="overview"
       screenOptions={{ headerShown: false, lazy: true, tabBarHideOnKeyboard: true }}
       tabBar={(props) => (
         <FloatingNavigationChrome
@@ -219,47 +187,12 @@ function MobileBottomTabs({
         />
       )}
     >
-      <BottomTabs.Screen name="overview">
-        {(props) => (
-          <ProtectedTab tab="overview">
-            <OverviewTabScreenContainer {...props} />
-          </ProtectedTab>
-        )}
-      </BottomTabs.Screen>
-      <BottomTabs.Screen name="messages">
-        {(props) => (
-          <ProtectedTab tab="messages">
-            <MessagesTabScreenContainer {...props} />
-          </ProtectedTab>
-        )}
-      </BottomTabs.Screen>
-      <BottomTabs.Screen name="notifications">
-        {(props) => (
-          <ProtectedTab tab="notifications">
-            <NotificationsTabScreenContainer {...props} />
-          </ProtectedTab>
-        )}
-      </BottomTabs.Screen>
+      <BottomTabs.Screen name="overview" component={OverviewTabScreenContainer} />
+      <BottomTabs.Screen name="messages" component={MessagesTabScreenContainer} />
+      <BottomTabs.Screen name="notifications" component={NotificationsTabScreenContainer} />
       <BottomTabs.Screen name="settings" component={SettingsTabScreenContainer} />
     </BottomTabs.Navigator>
   );
-}
-
-function ProtectedTab({
-  children,
-  tab,
-}: {
-  readonly children: ReactNode;
-  readonly tab: MobileTabId;
-}) {
-  const { status } = useMobileAuth();
-  const route = resolveMobileRoute(tab, status);
-  return route.isBlocked ? <MobileAuthNavigator reason={route.blockedReason ?? "auth-required"} /> : children;
-}
-
-function ProtectedStackRoute({ children }: { readonly children: ReactNode }) {
-  const { status } = useMobileAuth();
-  return status === "signed-in" ? children : <MobileAuthNavigator reason={status === "checking" ? "checking" : "auth-required"} />;
 }
 
 function getActiveMainTab(state: NavigationState | undefined): MobileTabId | null {

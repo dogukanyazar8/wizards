@@ -56,7 +56,6 @@ describe("mobile auth exchange contract", () => {
     const session = await signInMobileWithPassword(client, {
       email: "ada@example.com",
       password: "correct-horse-battery",
-      turnstileToken: "turnstile-login-token",
     });
 
     assert.deepEqual(requests, [
@@ -64,7 +63,6 @@ describe("mobile auth exchange contract", () => {
         body: {
           email: "ada@example.com",
           password: "correct-horse-battery",
-          turnstileToken: "turnstile-login-token",
         },
         method: "POST",
         path: MOBILE_AUTH_LOGIN_ENDPOINT,
@@ -96,7 +94,6 @@ describe("mobile auth exchange contract", () => {
       email: "ada@example.com",
       locale: "tr",
       password: "correct-horse-battery",
-      turnstileToken: "turnstile-register-token",
       username: "ada_lovelace",
     });
 
@@ -107,7 +104,6 @@ describe("mobile auth exchange contract", () => {
           email: "ada@example.com",
           locale: "tr",
           password: "correct-horse-battery",
-          turnstileToken: "turnstile-register-token",
           username: "ada_lovelace",
         },
         method: "POST",
@@ -155,40 +151,61 @@ describe("mobile auth exchange contract", () => {
     assert.equal(response.resetLinkTtlMinutes, 60);
   });
 
-  it("rejects a missing login Turnstile token before sending a malformed request", async () => {
+  it("submits a login without a human-verification token", async () => {
+    const requests: Array<{ body: unknown; method: string | undefined; path: string }> = [];
     const client: MobileApiClient = {
-      async requestJson() {
-        assert.fail("A missing Turnstile token must not reach the network client.");
+      async requestJson<TResponse>(path: string, options: MobileApiRequestOptions = {}) {
+        requests.push({ body: options.body, method: options.method, path });
+        return { session: validSession } as TResponse;
       },
     };
 
-    await assert.rejects(
-      () =>
-        signInMobileWithPassword(client, {
-          email: "ada@example.com",
-          password: "correct-horse-battery",
-        } as never),
-      /Turnstile token is required/,
-    );
+    await signInMobileWithPassword(client, {
+      email: "ada@example.com",
+      password: "correct-horse-battery",
+    });
+
+    assert.deepEqual(requests, [
+      {
+        body: { email: "ada@example.com", password: "correct-horse-battery" },
+        method: "POST",
+        path: MOBILE_AUTH_LOGIN_ENDPOINT,
+      },
+    ]);
   });
 
-  it("rejects a missing registration Turnstile token before sending a malformed request", async () => {
+  it("submits a registration without a human-verification token", async () => {
+    const requests: Array<{ body: unknown; method: string | undefined; path: string }> = [];
     const client: MobileApiClient = {
-      async requestJson() {
-        assert.fail("A missing Turnstile token must not reach the network client.");
+      async requestJson<TResponse>(path: string, options: MobileApiRequestOptions = {}) {
+        requests.push({ body: options.body, method: options.method, path });
+        return {
+          email: "ada@example.com",
+          message: "verification_email_sent",
+          status: "verification-required",
+        } as TResponse;
       },
     };
 
-    await assert.rejects(
-      () =>
-        registerMobileWithPassword(client, {
+    await registerMobileWithPassword(client, {
+      confirmPassword: "correct-horse-battery",
+      email: "ada@example.com",
+      password: "correct-horse-battery",
+      username: "ada_lovelace",
+    });
+
+    assert.deepEqual(requests, [
+      {
+        body: {
           confirmPassword: "correct-horse-battery",
           email: "ada@example.com",
           password: "correct-horse-battery",
           username: "ada_lovelace",
-        } as never),
-      /Turnstile token is required/,
-    );
+        },
+        method: "POST",
+        path: MOBILE_AUTH_REGISTER_ENDPOINT,
+      },
+    ]);
   });
 
   it("requests verification email resend through a generic accepted mobile endpoint", async () => {
@@ -364,7 +381,6 @@ describe("mobile auth exchange contract", () => {
         signInMobileWithPassword(client, {
           email: "ada@example.com",
           password: "correct-horse-battery",
-          turnstileToken: "turnstile-login-token",
         }),
       /String must contain at least 1 character/,
     );

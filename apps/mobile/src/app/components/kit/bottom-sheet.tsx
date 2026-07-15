@@ -1,5 +1,14 @@
 import { useEffect, useMemo, type ReactNode } from "react";
-import { BackHandler, Modal, Pressable, View } from "react-native";
+import { BlurView } from "expo-blur";
+import {
+  BackHandler,
+  Modal,
+  Pressable,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
@@ -18,6 +27,20 @@ export interface BottomSheetProps {
   open: boolean;
   snapPoint?: number;
   testID?: string;
+  /**
+   * Screen-specific visual treatment without creating a second sheet primitive.
+   * Interaction, accessibility and dismissal semantics stay owned by BottomSheet.
+   */
+  presentation?: BottomSheetPresentation;
+}
+
+export interface BottomSheetPresentation {
+  readonly backdropBlurIntensity?: number;
+  readonly backdropStyle?: StyleProp<ViewStyle>;
+  readonly contentStyle?: StyleProp<ViewStyle>;
+  readonly handleAreaStyle?: StyleProp<ViewStyle>;
+  readonly handleStyle?: StyleProp<ViewStyle>;
+  readonly panelStyle?: StyleProp<ViewStyle>;
 }
 
 const DEFAULT_SNAP_POINT = 420;
@@ -41,6 +64,7 @@ export function BottomSheet({
   children,
   onClose,
   open,
+  presentation,
   snapPoint: requestedSnapPoint,
   testID = "mobile-bottom-sheet",
 }: BottomSheetProps) {
@@ -110,22 +134,35 @@ export function BottomSheet({
           accessibilityLabel={accessibilityLabel}
           accessibilityRole="button"
           onPress={onClose}
-          style={styles.backdrop}
+          style={[styles.backdrop, presentation?.backdropStyle]}
           testID={`${testID}-backdrop`}
-        />
+        >
+          {presentation?.backdropBlurIntensity ? (
+            <BlurView
+              intensity={presentation.backdropBlurIntensity}
+              pointerEvents="none"
+              style={StyleSheet.absoluteFill}
+            />
+          ) : null}
+        </Pressable>
         <GestureDetector gesture={panGesture}>
           <Animated.View
             accessibilityLabel={accessibilityLabel}
             accessibilityViewIsModal
             onAccessibilityEscape={onClose}
             role="dialog"
-            style={[styles.panel, { height: snapPoint }, animatedPanelStyle]}
+            style={[
+              styles.panel,
+              presentation?.panelStyle,
+              { height: snapPoint },
+              animatedPanelStyle,
+            ]}
             testID={`${testID}-panel`}
           >
-            <View style={styles.handleArea}>
-              <View style={styles.handle} />
+            <View style={[styles.handleArea, presentation?.handleAreaStyle]}>
+              <View style={[styles.handle, presentation?.handleStyle]} />
             </View>
-            <View style={styles.content}>{children}</View>
+            <View style={[styles.content, presentation?.contentStyle]}>{children}</View>
           </Animated.View>
         </GestureDetector>
       </View>

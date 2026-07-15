@@ -8,6 +8,8 @@ import {
   activeMobileCopy,
   loadMobileLocalePreference,
   normalizeMobileLocale,
+  normalizeMobileLocalePreference,
+  resolveMobileLocaleFromDeviceLocales,
   saveMobileLocalePreference,
   setActiveMobileLocale,
   type MobileLocalePreferenceStorage,
@@ -86,26 +88,50 @@ describe("mobile locale preferences", () => {
     }
   });
 
-  it("normalizes mobile locale values fail-closed to Turkish", () => {
+  it("normalizes manual and device preferences fail-closed to Turkish", () => {
     assert.equal(DEFAULT_MOBILE_LOCALE, "tr");
     assert.deepEqual(
       MOBILE_LOCALE_OPTIONS.map((option) => option.id),
-      ["tr", "en"],
+      ["en", "tr"],
     );
     assert.equal(normalizeMobileLocale("tr"), "tr");
     assert.equal(normalizeMobileLocale("en"), "en");
     assert.equal(normalizeMobileLocale("de"), "tr");
     assert.equal(normalizeMobileLocale(undefined), "tr");
+    assert.deepEqual(normalizeMobileLocalePreference("tr"), { locale: "tr", mode: "manual" });
+    assert.deepEqual(normalizeMobileLocalePreference("device:en"), {
+      manualLocale: "en",
+      mode: "device",
+    });
+    assert.deepEqual(normalizeMobileLocalePreference("device:de"), {
+      manualLocale: "tr",
+      mode: "device",
+    });
+    assert.deepEqual(normalizeMobileLocalePreference("unsafe"), { locale: "tr", mode: "manual" });
   });
 
-  it("loads and saves the mobile language preference without exposing session data", async () => {
+  it("loads legacy preferences, retains the manual locale in device mode, and saves without exposing session data", async () => {
     const storage = createMemoryStorage("en");
 
-    assert.equal(await loadMobileLocalePreference(storage), "en");
-    await saveMobileLocalePreference(storage, "tr");
+    assert.deepEqual(await loadMobileLocalePreference(storage), { locale: "en", mode: "manual" });
+    await saveMobileLocalePreference(storage, { manualLocale: "tr", mode: "device" });
 
-    assert.equal(storage.value, "tr");
-    assert.equal(await loadMobileLocalePreference(createMemoryStorage("unsafe")), "tr");
+    assert.equal(storage.value, "device:tr");
+    assert.deepEqual(await loadMobileLocalePreference(createMemoryStorage("unsafe")), {
+      locale: "tr",
+      mode: "manual",
+    });
+  });
+
+  it("uses the first supported device language and safely falls back to Turkish", () => {
+    assert.equal(
+      resolveMobileLocaleFromDeviceLocales([
+        { languageCode: "de" },
+        { languageCode: "en" },
+      ]),
+      "en",
+    );
+    assert.equal(resolveMobileLocaleFromDeviceLocales([{ languageCode: "de" }]), "tr");
   });
 
   it("drives the active mobile copy from the selected locale", () => {

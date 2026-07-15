@@ -77,6 +77,15 @@ export interface MobileTheme {
     readonly realtime: string;
     readonly voice: string;
   };
+  readonly authLanguage: {
+    readonly backdrop: string;
+    readonly closeSurface: string;
+    readonly deviceSurface: string;
+    readonly handle: string;
+    readonly radio: string;
+    readonly selectedBorder: string;
+    readonly selectedSurface: string;
+  };
   readonly authProfile: {
     readonly corporate: MobileAuthProfileAccent;
     readonly gamer: MobileAuthProfileAccent;
@@ -202,6 +211,15 @@ export const lightTheme = deepFreeze({
     realtime: redesignAuthLight.featureRealtime,
     voice: redesignAuthLight.featureVoice,
   },
+  authLanguage: {
+    backdrop: redesignLight.languageBackdrop,
+    closeSurface: redesignLight.languageClose,
+    deviceSurface: redesignLight.languageDevice,
+    handle: redesignLight.languageHandle,
+    radio: redesignLight.languageRadio,
+    selectedBorder: redesignLight.primary,
+    selectedSurface: redesignLight.lavender,
+  },
   authProfile: {
     corporate: {
       badgeBorder: redesignAuthLight.profileCorporateBorder,
@@ -237,10 +255,10 @@ export const lightTheme = deepFreeze({
   elevation: {
     authBrandMark: {
       elevation: 8,
-      shadowColor: redesignLight.primary,
-      shadowOffset: { height: 8, width: 0 },
-      shadowOpacity: 0.35,
-      shadowRadius: 20,
+      shadowColor: "#4360FF",
+      shadowOffset: { height: 16, width: 0 },
+      shadowOpacity: 0.24,
+      shadowRadius: 34,
     },
     authPrimaryAction: {
       elevation: 10,
@@ -372,6 +390,15 @@ export const darkTheme = deepFreeze({
     fileShare: redesignAuthDark.featureFileShare,
     realtime: redesignAuthDark.featureRealtime,
     voice: redesignAuthDark.featureVoice,
+  },
+  authLanguage: {
+    backdrop: redesignDark.languageBackdrop,
+    closeSurface: redesignDark.languageClose,
+    deviceSurface: redesignDark.languageDevice,
+    handle: redesignDark.languageHandle,
+    radio: redesignDark.languageRadio,
+    selectedBorder: redesignDark.primary,
+    selectedSurface: redesignDark.selectedSurface,
   },
   authProfile: {
     corporate: {

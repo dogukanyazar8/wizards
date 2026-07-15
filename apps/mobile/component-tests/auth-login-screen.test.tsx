@@ -1,47 +1,20 @@
 import React from "react";
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
+import { StyleSheet } from "react-native";
 
-jest.mock("react-native-webview", () => ({
-  WebView: (props: Record<string, unknown>) => {
-    const React = require("react");
-    const { View } = require("react-native");
-    return React.createElement(View, props);
-  },
-}));
-
-jest.mock("../src/config/environment", () => ({
-  getMobileRuntimeConfig: jest.fn(),
-}));
-
-import { getMobileRuntimeConfig } from "../src/config/environment";
 import { AuthLoginScreen } from "../src/app/screens/auth/auth-login-screen";
 import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provider";
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
-import { lightTheme } from "../src/design/themes";
 import { mobileCopy } from "../src/locale/mobile-copy";
 
-const mockedRuntimeConfig = jest.mocked(getMobileRuntimeConfig);
 const copy = mobileCopy.tr;
 
 type SignInInput = {
   email: string;
   password: string;
-  turnstileToken: string;
   twoFactorCode?: string;
 };
-
-function setPublicTurnstileSiteKey() {
-  mockedRuntimeConfig.mockReturnValue({
-    apiUrl: "http://localhost:3000",
-    environment: "development",
-    releaseChannel: "development",
-    sentryDsn: null,
-    socketUrl: "http://localhost:3000",
-    turnstileSiteKey: "public-site-key",
-    webUrl: "http://localhost:3000",
-  });
-}
 
 function renderLogin(props?: Partial<React.ComponentProps<typeof AuthLoginScreen>>) {
   return render(
@@ -74,21 +47,30 @@ async function fillValidCredentials(view: Awaited<ReturnType<typeof render>>) {
   );
 }
 
-async function completeTurnstile(
-  view: Awaited<ReturnType<typeof render>>,
-  token = "verified-turnstile-token",
-) {
-  await act(async () => {
-    view.getByTestId("mobile-auth-login-turnstile-webview").props.onMessage({
-      nativeEvent: { data: JSON.stringify({ token, type: "success" }) },
-    });
-  });
+function resolvePressableStyle(style: unknown) {
+  if (typeof style === "function") {
+    return StyleSheet.flatten(style({ focused: false, hovered: false, pressed: false }));
+  }
+
+  return StyleSheet.flatten(style);
 }
 
 describe("AuthLoginScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    setPublicTurnstileSiteKey();
+  });
+
+  it("uses the canonical 2a canvas, animated brand mark, and compact configured social grid", async () => {
+    const view = await renderLogin();
+
+    expect(view.getByTestId("mobile-auth-login-screen-canonical-background-light")).toBeTruthy();
+    expect(
+      view.getByTestId("mobile-auth-login-top-bar-brand-mark", { includeHiddenElements: true }).props,
+    ).toMatchObject({ height: 32, width: 32 });
+    expect(resolvePressableStyle(view.getByTestId("mobile-auth-social-google").props.style)).toEqual(
+      expect.objectContaining({ height: 48, width: 78 }),
+    );
+    expect(view.queryByText(copy.authSocialGoogle)).toBeNull();
   });
 
   it("fails locally for empty required credentials without dispatching sign-in", async () => {
@@ -116,30 +98,18 @@ describe("AuthLoginScreen", () => {
     expect(onSignIn).not.toHaveBeenCalled();
   });
 
-  it("fails closed when valid credentials have no verified Turnstile token", async () => {
+  it("submits valid credentials directly without rendering a human-verification card", async () => {
     const onSignIn = jest.fn<Promise<{ ok: true }>, [SignInInput]>().mockResolvedValue({ ok: true });
     const view = await renderLogin({ onSignIn });
 
     await fillValidCredentials(view);
     await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
 
-    expect(await view.findByText(copy.authTurnstileError)).toBeTruthy();
-    expect(onSignIn).not.toHaveBeenCalled();
-  });
-
-  it("accepts a clean real-WebView Turnstile success and sends only normalized credentials", async () => {
-    const onSignIn = jest.fn<Promise<{ ok: true }>, [SignInInput]>().mockResolvedValue({ ok: true });
-    const view = await renderLogin({ onSignIn });
-
-    await fillValidCredentials(view);
-    await completeTurnstile(view);
-    await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
-
+    expect(view.queryByTestId("mobile-auth-login-human-check")).toBeNull();
     await waitFor(() =>
       expect(onSignIn).toHaveBeenCalledWith({
         email: "user@example.com",
         password: "safe-password",
-        turnstileToken: "verified-turnstile-token",
       }),
     );
   });
@@ -152,7 +122,6 @@ describe("AuthLoginScreen", () => {
     const view = await renderLogin({ onSignIn });
 
     await fillValidCredentials(view);
-    await completeTurnstile(view);
     await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
 
     expect(await view.findByText("2FA is required for this account.")).toBeTruthy();
@@ -165,7 +134,6 @@ describe("AuthLoginScreen", () => {
       expect(onSignIn).toHaveBeenLastCalledWith({
         email: "user@example.com",
         password: "safe-password",
-        turnstileToken: "verified-turnstile-token",
         twoFactorCode: "123456",
       }),
     );
@@ -180,7 +148,6 @@ describe("AuthLoginScreen", () => {
     const view = await renderLogin({ onSignIn });
 
     await fillValidCredentials(view);
-    await completeTurnstile(view);
     await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
     await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
 
@@ -228,14 +195,23 @@ describe("AuthLoginScreen", () => {
     ).toBe("shield-checkmark-outline");
   });
 
-  it("uses the semantic accent presentation for the Google provider icon", async () => {
+  it("keeps the 2FA and remember-me controls on one measured row", async () => {
+    const view = await renderLogin();
+
+    expect(resolvePressableStyle(view.getByTestId("mobile-auth-login-two-factor-link").props.style)).toEqual(
+      expect.objectContaining({ flex: 1 }),
+    );
+    expect(resolvePressableStyle(view.getByTestId("mobile-auth-login-remember-me").props.style)).toEqual(
+      expect.objectContaining({ width: 112 }),
+    );
+  });
+
+  it("uses the supplied multicolor Google mark instead of recoloring it with a Whispr token", async () => {
     const view = await renderLogin();
 
     expect(
-      view.getByTestId("mobile-auth-social-google-icon", {
-        includeHiddenElements: true,
-      }).props.color,
-    ).toBe(lightTheme.accent.default);
+      view.getByTestId("mobile-auth-social-google-icon", { includeHiddenElements: true }).props,
+    ).toMatchObject({ height: 20, width: 20 });
   });
 
   it("keeps profile selection presentation-only and excludes it from the sign-in payload", async () => {
@@ -248,14 +224,12 @@ describe("AuthLoginScreen", () => {
     );
 
     await fillValidCredentials(view);
-    await completeTurnstile(view);
     await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
 
     await waitFor(() => expect(onSignIn).toHaveBeenCalledTimes(1));
     expect(Object.keys(onSignIn.mock.calls[0]![0])).toEqual([
       "email",
       "password",
-      "turnstileToken",
     ]);
   });
 

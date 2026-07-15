@@ -64,6 +64,10 @@ export const createAuthLoginScreenStyles = (theme: MobileTheme) => ({
     justifyContent: "space-between" as const,
     minWidth: 0,
   },
+  rememberMe: {
+    flexShrink: 0,
+    width: theme.layout.auth.loginRememberMeWidth,
+  },
   notice: {
     ...theme.typography.authSubtitle,
     backgroundColor: theme.status.successSoft,
@@ -81,17 +85,18 @@ export const createAuthLoginScreenStyles = (theme: MobileTheme) => ({
     alignItems: "center" as const,
     backgroundColor: theme.surface.card,
     borderColor: theme.border.subtle,
-    borderRadius: theme.radii.control,
+    borderRadius: theme.layout.auth.fieldRadius,
     borderWidth: theme.layout.border.hairline,
-    flexDirection: "row" as const,
-    gap: theme.layout.auth.ctaContentGap,
     height: theme.layout.auth.loginSocialActionHeight,
     justifyContent: "center" as const,
-    minWidth: 0,
+    width: theme.layout.auth.loginSocialActionWidth,
   },
-  socialActionLabel: {
-    ...theme.typography.authFieldLabel,
-    color: theme.text.primary,
+  socialGrid: {
+    flexDirection: "row" as const,
+    flexWrap: "wrap" as const,
+    gap: theme.layout.auth.loginSocialActionGap,
+    justifyContent: "center" as const,
+    minWidth: 0,
   },
   socialGroup: {
     gap: theme.spacing.row,
@@ -104,7 +109,7 @@ export const createAuthLoginScreenStyles = (theme: MobileTheme) => ({
   twoFactorAction: {
     alignItems: "center" as const,
     flexDirection: "row" as const,
-    flexShrink: 1,
+    flex: 1,
     gap: theme.layout.spacing.tightPlus,
     minWidth: 0,
   },

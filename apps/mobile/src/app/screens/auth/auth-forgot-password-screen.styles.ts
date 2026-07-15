@@ -40,6 +40,9 @@ export const createAuthForgotPasswordScreenStyles = (theme: MobileTheme) => ({
     backgroundColor: theme.status.successSoft,
     borderColor: theme.status.success,
   },
+  initialInfoBanner: {
+    marginTop: theme.layout.auth.forgotInfoBannerMarginTop,
+  },
   content: {
     flex: 1,
     gap: theme.layout.auth.forgotContentGap,

@@ -70,6 +70,15 @@ jest.mock("expo-clipboard", () => ({
   setStringAsync: jest.fn(async () => true),
 }));
 
+jest.mock("expo-blur", () => ({
+  BlurView: (props: Record<string, unknown>) => {
+    const React = require("react");
+    const { View } = require("react-native");
+
+    return React.createElement(View, { ...props, testID: "mobile-blur-view" });
+  },
+}));
+
 jest.mock("react-native-reanimated", () => {
   const React = require("react");
   const { View } = require("react-native");
@@ -83,13 +92,18 @@ jest.mock("react-native-reanimated", () => {
       View: AnimatedView,
       createAnimatedComponent: (component: unknown) => component,
     },
+    Easing: { bezier: jest.fn(() => "bezier") },
+    ReduceMotion: { Always: "always", Never: "never", System: "system" },
     cancelAnimation: jest.fn(),
     runOnJS: (callback: (...args: unknown[]) => unknown) => callback,
+    useAnimatedProps: (factory: () => Record<string, unknown>) => factory(),
     useAnimatedStyle: (factory: () => Record<string, unknown>) => factory(),
     useReducedMotion: jest.fn(() => false),
     useSharedValue: (value: unknown) => ({ value }),
-    withRepeat: (value: unknown) => value,
+    withDelay: jest.fn((_delay: number, value: unknown) => value),
+    withRepeat: jest.fn((value: unknown) => value),
+    withSequence: jest.fn((...values: unknown[]) => values.at(-1)),
     withSpring: (value: unknown) => value,
-    withTiming: (value: unknown) => value,
+    withTiming: jest.fn((value: unknown) => value),
   };
 });

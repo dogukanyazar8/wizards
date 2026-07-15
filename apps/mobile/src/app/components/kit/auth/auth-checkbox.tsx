@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
 
 import type { MobileTheme } from "../../../../design/themes";
 import { useTheme, useThemedStyles } from "../../../providers/mobile-theme-provider";
@@ -12,6 +12,8 @@ export interface AuthCheckboxProps {
   /** Optional sibling rich inline content while `label` remains the checkbox's accessible name. */
   readonly labelContent?: ReactNode;
   readonly onPress: NonNullable<ComponentProps<typeof Pressable>["onPress"]>;
+  /** Optional layout constraint supplied by the parent row. */
+  readonly style?: StyleProp<ViewStyle>;
   readonly testID?: string;
 }
 
@@ -73,6 +75,7 @@ export function AuthCheckbox({
   label,
   labelContent,
   onPress,
+  style,
   testID,
 }: AuthCheckboxProps) {
   const theme = useTheme();
@@ -105,6 +108,7 @@ export function AuthCheckbox({
         }}
         style={({ pressed }) => [
           styles.root,
+          style,
           disabled && styles.disabled,
           pressed && !disabled && { opacity: theme.layout.opacity.pressed },
         ]}

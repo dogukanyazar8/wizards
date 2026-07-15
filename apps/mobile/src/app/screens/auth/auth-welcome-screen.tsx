@@ -1,5 +1,12 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { Pressable, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, {
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Stop,
+  Text as SvgText,
+} from "react-native-svg";
 
 import { AuthPrimaryButton } from "../../components/kit/auth/auth-primary-button";
 import { AuthScreenBackground } from "../../components/kit/auth/auth-screen-background";
@@ -13,6 +20,7 @@ import {
 } from "../../providers/mobile-theme-provider";
 import { MOBILE_LOCALE_OPTIONS } from "../../../locale/mobile-locale-preferences";
 import { mobileCopy } from "../../../locale/mobile-copy";
+import { redesignAuthLight } from "../../../design/palette";
 import { AuthWelcomeBrandMark } from "./auth-welcome-brand-mark";
 import { createAuthWelcomeScreenStyles } from "./auth-welcome-screen.styles";
 
@@ -22,12 +30,18 @@ export interface AuthWelcomeScreenProps {
   readonly onSignUp: () => void;
 }
 
+export const AUTH_WELCOME_TITLE_GRADIENT_COLORS = [
+  redesignAuthLight.gradientFrom,
+  redesignAuthLight.featureFileShare,
+] as const;
+
 export function AuthWelcomeScreen({
   onOpenLanguagePicker,
   onSignIn,
   onSignUp,
 }: AuthWelcomeScreenProps) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { locale } = useMobileLocaleRuntime();
   const { resolvedTheme, setMode } = useThemePreference();
   const styles = useThemedStyles(createAuthWelcomeScreenStyles);
@@ -40,17 +54,36 @@ export function AuthWelcomeScreen({
     { color: theme.authFeature.fileShare, label: copy.authWelcomeFeatureFileShare },
     { color: theme.authFeature.voice, label: copy.authWelcomeFeatureVoice },
   ];
-  const copyright = copy.authWelcomeCopyrightTemplate.replace("{year}", String(new Date().getFullYear()));
+  const copyright = copy.authWelcomeCopyrightTemplate.replace(
+    "{year}",
+    String(new Date().getFullYear()),
+  );
 
   return (
-    <AuthScreenBackground centered={false} testID="mobile-auth-welcome-screen">
-      <View style={styles.screen}>
+    <AuthScreenBackground
+      centered={false}
+      fill
+      scrollable
+      testID="mobile-auth-welcome-screen"
+      visualVariant="welcome"
+    >
+      <View
+        style={[
+          styles.screen,
+          {
+            paddingBottom: Math.max(insets.bottom, theme.layout.auth.welcomeCtaBottomPadding),
+            paddingTop: Math.max(insets.top, theme.spacing.section),
+          },
+        ]}
+        testID="mobile-auth-welcome-layout"
+      >
         <View style={styles.topControls}>
           <View accessibilityRole="tablist" style={styles.themePill}>
             <Pressable
               accessibilityLabel={copy.authThemeToggleLight}
               accessibilityRole="tab"
               accessibilityState={{ selected: resolvedTheme === "light" }}
+              hitSlop={9}
               onPress={() => setMode("light")}
               style={[styles.themeControl, resolvedTheme === "light" && styles.themeControlActive]}
               testID="mobile-auth-welcome-theme-light"
@@ -76,6 +109,7 @@ export function AuthWelcomeScreen({
               accessibilityLabel={copy.authThemeToggleDark}
               accessibilityRole="tab"
               accessibilityState={{ selected: resolvedTheme === "dark" }}
+              hitSlop={9}
               onPress={() => setMode("dark")}
               style={[styles.themeControl, resolvedTheme === "dark" && styles.themeControlActive]}
               testID="mobile-auth-welcome-theme-dark"
@@ -101,6 +135,7 @@ export function AuthWelcomeScreen({
           <Pressable
             accessibilityLabel={localeLabel}
             accessibilityRole="button"
+            hitSlop={5}
             onPress={onOpenLanguagePicker}
             style={styles.languageControl}
             testID="mobile-auth-language-picker"
@@ -125,21 +160,52 @@ export function AuthWelcomeScreen({
 
         <View style={styles.hero}>
           <View style={styles.brandRow}>
-            <LinearGradient colors={theme.gradients.authPrimaryAction} style={styles.brandMark}>
+            <View style={styles.brandMark} testID="mobile-auth-welcome-brand-surface">
               <AuthWelcomeBrandMark testID="mobile-auth-welcome-brand-mark" />
-            </LinearGradient>
+            </View>
             <Text maxFontSizeMultiplier={2} style={styles.brandName}>
               {copy.status}
             </Text>
           </View>
 
-          <View accessibilityLabel={`${copy.authWelcomeHeroTitleLine1} ${copy.authWelcomeHeroTitleLine2}`} accessibilityRole="header">
+          <View
+            accessibilityLabel={`${copy.authWelcomeHeroTitleLine1} ${copy.authWelcomeHeroTitleLine2}`}
+            accessibilityRole="header"
+          >
             <Text maxFontSizeMultiplier={2} style={styles.heroTitle}>
               {copy.authWelcomeHeroTitleLine1}
             </Text>
-            <Text maxFontSizeMultiplier={2} style={styles.heroTitleAccent}>
-              {copy.authWelcomeHeroTitleLine2}
-            </Text>
+            <Svg
+              accessible={false}
+              accessibilityElementsHidden
+              height={theme.typography.authHeroTitle.lineHeight}
+              testID="mobile-auth-welcome-hero-title-gradient"
+              width="100%"
+            >
+              <Defs>
+                <SvgLinearGradient
+                  id="mobile-auth-welcome-title-gradient"
+                  x1="0"
+                  x2="1"
+                  y1="0"
+                  y2="0"
+                >
+                  <Stop offset="0" stopColor={AUTH_WELCOME_TITLE_GRADIENT_COLORS[0]} />
+                  <Stop offset="1" stopColor={AUTH_WELCOME_TITLE_GRADIENT_COLORS[1]} />
+                </SvgLinearGradient>
+              </Defs>
+              <SvgText
+                fill="url(#mobile-auth-welcome-title-gradient)"
+                fontFamily={theme.typography.authHeroTitle.fontFamily}
+                fontSize={theme.typography.authHeroTitle.fontSize}
+                fontWeight="800"
+                letterSpacing={theme.typography.authHeroTitle.letterSpacing}
+                x="0"
+                y={theme.typography.authHeroTitle.fontSize}
+              >
+                {copy.authWelcomeHeroTitleLine2}
+              </SvgText>
+            </Svg>
           </View>
 
           <Text maxFontSizeMultiplier={2} style={styles.heroBody}>
@@ -158,7 +224,14 @@ export function AuthWelcomeScreen({
           </View>
         </View>
 
-        <View style={styles.ctaBlock}>
+        <View
+          style={[
+            styles.ctaBlock,
+            {
+              paddingBottom: Math.max(theme.layout.auth.welcomeCtaBottomPadding - insets.bottom, 0),
+            },
+          ]}
+        >
           <AuthPrimaryButton
             iconName="arrow-forward"
             label={copy.authWelcomeSignInAction}

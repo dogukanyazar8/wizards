@@ -2,7 +2,7 @@ import * as SecureStore from "expo-secure-store";
 import {
   loadMobileLocalePreference,
   saveMobileLocalePreference,
-  type MobileLocale,
+  type MobileLocalePreference,
   type MobileLocalePreferenceStorage,
 } from "./mobile-locale-preferences";
 
@@ -24,7 +24,7 @@ export const mobileLocalePreferenceRepository = {
   load() {
     return loadMobileLocalePreference(expoMobileLocalePreferenceStorage);
   },
-  save(locale: MobileLocale) {
-    return saveMobileLocalePreference(expoMobileLocalePreferenceStorage, locale);
+  save(preference: MobileLocalePreference) {
+    return saveMobileLocalePreference(expoMobileLocalePreferenceStorage, preference);
   },
 };

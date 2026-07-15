@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 
 import type { MobileTheme } from "../../../../design/themes";
 import { useTheme, useThemedStyles } from "../../../providers/mobile-theme-provider";
+import { AuthWelcomeBackground } from "./auth-welcome-background";
 
 export interface AuthScreenBackgroundProps extends PropsWithChildren {
   readonly centered?: boolean;
@@ -10,6 +11,8 @@ export interface AuthScreenBackgroundProps extends PropsWithChildren {
   readonly fill?: boolean;
   readonly scrollable?: boolean;
   readonly testID?: string;
+  /** Applies the canonical 2a background without changing other auth flows. */
+  readonly visualVariant?: "default" | "welcome";
 }
 
 const createStyles = (theme: MobileTheme) => ({
@@ -91,10 +94,12 @@ export function AuthScreenBackground({
   fill = false,
   scrollable = false,
   testID,
+  visualVariant = "default",
 }: AuthScreenBackgroundProps) {
   const theme = useTheme();
   const styles = useThemedStyles(createStyles);
   const { auth } = theme.layout;
+  const rendersCanonicalWelcomeBackground = visualVariant === "welcome";
   const content = (
     <View
       style={[styles.content, centered && styles.contentCentered, fill && styles.contentFill]}
@@ -110,27 +115,36 @@ export function AuthScreenBackground({
       style={styles.keyboard}
       testID={testID}
     >
-      <View style={styles.glowTop} testID={testID ? `${testID}-glow-top` : undefined} />
-      <View style={styles.glowBottom} testID={testID ? `${testID}-glow-bottom` : undefined} />
-      <View style={styles.dotField}>
-        {Array.from({ length: auth.backgroundDotCount }, (_, index) => {
-          const left = `${(index * auth.backgroundDotHorizontalStep) % auth.backgroundDotHorizontalModulo}%` as `${number}%`;
-          const top = `${(index * auth.backgroundDotVerticalStep) % auth.backgroundDotVerticalModulo}%` as `${number}%`;
-          const emphasized = index % auth.backgroundDotHighlightInterval === 0;
+      {rendersCanonicalWelcomeBackground ? (
+        <AuthWelcomeBackground
+          tone={theme.dark ? "dark" : "light"}
+          {...(testID ? { testID: `${testID}-canonical-background-${theme.id}` } : {})}
+        />
+      ) : (
+        <>
+          <View style={styles.glowTop} testID={testID ? `${testID}-glow-top` : undefined} />
+          <View style={styles.glowBottom} testID={testID ? `${testID}-glow-bottom` : undefined} />
+          <View style={styles.dotField}>
+            {Array.from({ length: auth.backgroundDotCount }, (_, index) => {
+              const left = `${(index * auth.backgroundDotHorizontalStep) % auth.backgroundDotHorizontalModulo}%` as `${number}%`;
+              const top = `${(index * auth.backgroundDotVerticalStep) % auth.backgroundDotVerticalModulo}%` as `${number}%`;
+              const emphasized = index % auth.backgroundDotHighlightInterval === 0;
 
-          return (
-            <View
-              key={`${left}-${top}`}
-              style={[
-                styles.dot,
-                emphasized ? styles.dotEmphasized : styles.dotStandard,
-                { left, top },
-              ]}
-              testID={testID ? `${testID}-dot` : undefined}
-            />
-          );
-        })}
-      </View>
+              return (
+                <View
+                  key={`${left}-${top}`}
+                  style={[
+                    styles.dot,
+                    emphasized ? styles.dotEmphasized : styles.dotStandard,
+                    { left, top },
+                  ]}
+                  testID={testID ? `${testID}-dot` : undefined}
+                />
+              );
+            })}
+          </View>
+        </>
+      )}
       {scrollable ? (
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           {content}

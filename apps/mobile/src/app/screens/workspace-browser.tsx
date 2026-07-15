@@ -1,6 +1,5 @@
 import {
   ActivityIndicator,
-  Image,
   Ionicons,
   Pressable,
   Text,
@@ -18,7 +17,6 @@ import {
   useCallback,
   useMemo,
   useState,
-  whisprIcon,
   type MobileBootstrapFeature,
   type MobileBootstrapPayload,
   type MobileBootstrapViewState,
@@ -43,9 +41,11 @@ import { useMobileVoiceStatesQuery } from "../../query/mobile-voice-states-query
 import { MobileChannelChatScreen } from "./channel-screen";
 import { AvatarMark } from "../components/ui-atoms";
 import { useTheme } from "../providers/mobile-theme-provider";
+import { useMobileWorkspaceLayoutPreference } from "../providers/mobile-workspace-layout-provider";
 import { MobileVoiceChannelScreen } from "./voice-screen";
 import { useHomeScreenStyles } from "./home-screen.styles";
 import { WorkspaceChannelSectionList } from "./workspace-channel-section-list";
+import { MobileWorkspaceServerSwitcherSheet } from "./mobile-workspace-server-switcher-sheet";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { EmptyState, Skeleton } from "../components/kit";
 
@@ -164,10 +164,12 @@ export function MobileWorkspaceBrowser({
 }) {
   const styles = useHomeScreenStyles();
   const theme = useTheme();
+  const { layout: workspaceLayout } = useMobileWorkspaceLayoutPreference();
   const { apiClient } = useMobileAuth();
   const [channelQuery, setChannelQuery] = useState("");
   const [collapsedSectionIds, setCollapsedSectionIds] = useState<Record<string, boolean>>({});
   const [inviteShareError, setInviteShareError] = useState<string | null>(null);
+  const [isServerSwitcherOpen, setServerSwitcherOpen] = useState(false);
   const serverManagement = useMobileServerManagementFeature({
     client: apiClient,
     onOpenServer,
@@ -256,6 +258,7 @@ export function MobileWorkspaceBrowser({
     activeServerId !== null &&
     serverState.serverId === activeServerId &&
     serverState.status === "error";
+  const isCompactWorkspaceLayout = workspaceLayout === "compact";
   const canManageInvites = workspacePayload?.detail.capabilities.canManageInvites === true;
   const canUploadServerIcon = workspacePayload?.detail.capabilities.canUploadServerIcon === true;
   const canOpenServerSettings =
@@ -364,15 +367,13 @@ export function MobileWorkspaceBrowser({
   }
 
   return (
-    <View style={styles.workspaceBrowserShell}>
-      <View style={styles.mobileServerRail}>
-        <Image
-          accessibilityIgnoresInvertColors
-          accessibilityLabel={copy.appTitle}
-          source={whisprIcon}
-          style={styles.mobileServerRailLogo}
-        />
-        <View style={styles.mobileServerRailDivider} />
+    <View
+      style={[
+        styles.workspaceBrowserShell,
+        isCompactWorkspaceLayout && styles.workspaceBrowserShellCompact,
+      ]}
+    >
+      {!isCompactWorkspaceLayout ? <View style={styles.mobileServerRail}>
         <View style={styles.mobileServerRailList}>
           {servers.map((server) => {
             const isActive = server.id === activeServerId;
@@ -391,6 +392,7 @@ export function MobileWorkspaceBrowser({
                   pressed && styles.compactListRowPressed,
                 ]}
               >
+                {isActive ? <View style={styles.mobileServerRailActiveIndicator} /> : null}
                 <AvatarMark
                   imageUrl={server.iconUrl}
                   label={server.shortName ?? server.name}
@@ -413,9 +415,14 @@ export function MobileWorkspaceBrowser({
         >
           <Ionicons name="add" size={22} color={theme.accent.strong} />
         </Pressable>
-      </View>
+      </View> : null}
 
-      <View style={styles.mobileWorkspacePanel}>
+      <View
+        style={[
+          styles.mobileWorkspacePanel,
+          isCompactWorkspaceLayout && styles.mobileWorkspacePanelCompact,
+        ]}
+      >
         {servers.length === 0 ? (
           <View style={styles.mobileWorkspaceEmpty} testID="mobile-workspace-empty">
             <EmptyState
@@ -426,26 +433,54 @@ export function MobileWorkspaceBrowser({
           </View>
         ) : (
           <>
-            <View style={styles.mobileWorkspaceHeader}>
-              <AvatarMark
-                imageUrl={activeServerIconUrl}
-                label={activeServerShortName}
-                size="large"
-              />
-              <View style={styles.mobileWorkspaceHeaderText}>
-                <Text style={styles.mobileWorkspaceTitle} numberOfLines={1}>
-                  {activeServerName}
-                </Text>
-                <Text style={styles.mobileWorkspaceMeta} numberOfLines={1}>
-                  {activeMemberCount} {copy.membersSuffix} - {activeChannelCount}{" "}
-                  {copy.channelsSuffix}
-                </Text>
-              </View>
-              {isActiveServerLoading ? (
-                <ActivityIndicator color={theme.accent.strong} size="small" />
-              ) : (
-                <Ionicons name="chevron-down" size={18} color={theme.text.muted} />
-              )}
+            <View style={styles.mobileWorkspaceHeaderRow}>
+              <Pressable
+                accessibilityLabel={copy.openWorkspaceServerAction}
+                accessibilityRole="button"
+                onPress={() => setServerSwitcherOpen(true)}
+                style={({ pressed }) => [
+                  styles.mobileWorkspaceHeader,
+                  isCompactWorkspaceLayout && styles.mobileWorkspaceHeaderCompact,
+                  pressed && styles.compactListRowPressed,
+                ]}
+                testID="mobile-workspace-server-switcher-open"
+              >
+                {isCompactWorkspaceLayout ? (
+                  <AvatarMark
+                    imageUrl={activeServerIconUrl}
+                    label={activeServerShortName}
+                    size="large"
+                  />
+                ) : null}
+                <View style={styles.mobileWorkspaceHeaderText}>
+                  <Text style={styles.mobileWorkspaceTitle} numberOfLines={1}>
+                    {activeServerName}
+                  </Text>
+                  <Text style={styles.mobileWorkspaceMeta} numberOfLines={1}>
+                    {activeMemberCount} {copy.membersSuffix} - {activeChannelCount}{" "}
+                    {copy.channelsSuffix}
+                  </Text>
+                </View>
+                {isActiveServerLoading ? (
+                  <ActivityIndicator color={theme.accent.strong} size="small" />
+                ) : (
+                  <Ionicons name="chevron-down" size={18} color={theme.text.muted} />
+                )}
+              </Pressable>
+              {isCompactWorkspaceLayout ? (
+                <Pressable
+                  accessibilityLabel={copy.workspaceAddServerAction}
+                  accessibilityRole="button"
+                  onPress={serverManagement.openCreateJoinSheet}
+                  style={({ pressed }) => [
+                    styles.mobileWorkspaceCompactAddButton,
+                    pressed && styles.compactListRowPressed,
+                  ]}
+                  testID="mobile-workspace-compact-add-server"
+                >
+                  <Ionicons name="person-add-outline" size={20} color={theme.accent.strong} />
+                </Pressable>
+              ) : null}
             </View>
             {isActiveServerLoading ? (
               <View style={styles.mobileWorkspaceSearchRow} testID="mobile-workspace-loading">
@@ -585,6 +620,14 @@ export function MobileWorkspaceBrowser({
         onUploadServerIcon={serverManagement.uploadServerIcon}
         open={serverManagement.isCreateJoinSheetOpen}
         serverIconTargetId={serverManagement.serverIconTargetId}
+      />
+      <MobileWorkspaceServerSwitcherSheet
+        activeServerId={activeServerId}
+        onClose={() => setServerSwitcherOpen(false)}
+        onOpenCreateJoin={serverManagement.openCreateJoinSheet}
+        onOpenServer={handleServerPress}
+        open={isServerSwitcherOpen}
+        servers={servers}
       />
     </View>
   );

@@ -15,7 +15,6 @@ import {
   useMemo,
   useState,
   type MobileDMConversationListItem,
-  type MobileConversationFilter,
 } from "../mobile-root-screen-shared";
 import { AvatarMark, MetricMiniPill, StatusChip } from "../components/ui-atoms";
 import { useTheme } from "../providers/mobile-theme-provider";
@@ -39,7 +38,7 @@ export function DMInboxHeader() {
         testID="mobile-dm-compose-button"
         style={styles.dmComposeButton}
       >
-        <Ionicons name="chatbubble-ellipses-outline" size={20} color={theme.accent.strong} />
+        <Ionicons name="add" size={22} color={theme.text.onPrimary} />
       </Pressable>
     </View>
   );
@@ -87,30 +86,15 @@ export function DirectMessageListCard({
   const theme = useTheme();
   const styles = useDmScreenStyles();
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<MobileConversationFilter>("all");
   const filteredConversations = useMemo(
     () =>
       filterMobileConversations(conversations, {
         fallback: copy.directMessageFallback,
-        filter,
+        filter: "all",
         query,
       }),
-    [conversations, filter, query],
+    [conversations, query],
   );
-  const filters: Array<{
-    disabled?: boolean;
-    id: MobileConversationFilter | "favorites";
-    label: string;
-  }> = [
-    { id: "all", label: copy.directMessageFilterAll },
-    { id: "unread", label: copy.directMessageFilterUnread },
-    {
-      disabled: true,
-      id: "favorites",
-      label: copy.directMessageFilterFavorites,
-    },
-    { id: "groups", label: copy.directMessageFilterGroups },
-  ];
 
   return (
     <View style={styles.dmListCard}>
@@ -131,60 +115,6 @@ export function DirectMessageListCard({
             value={query}
           />
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={copy.directMessageFilterAction}
-          accessibilityState={{ disabled: true }}
-          disabled
-          style={styles.dmSearchFilterButton}
-        >
-          <Ionicons name="options-outline" size={20} color={theme.accent.strong} />
-        </Pressable>
-      </View>
-      <View style={styles.inboxFilterRow} testID="mobile-dm-filter-tabs">
-        {filters.map((item) => {
-          const isActive = !item.disabled && item.id === filter;
-
-          return (
-            <Pressable
-              key={item.id}
-              accessibilityRole="button"
-              accessibilityLabel={item.label}
-              accessibilityState={{
-                disabled: item.disabled,
-                selected: isActive,
-              }}
-              disabled={item.disabled}
-              onPress={() => {
-                if (!item.disabled) {
-                  setFilter(item.id as MobileConversationFilter);
-                }
-              }}
-              style={({ pressed }) => [
-                styles.inboxFilterButton,
-                isActive && styles.inboxFilterButtonActive,
-                item.disabled && styles.inboxFilterButtonDisabled,
-                pressed && !item.disabled && styles.actionButtonPressed,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.inboxFilterButtonText,
-                  isActive && styles.inboxFilterButtonTextActive,
-                  item.disabled && styles.inboxFilterButtonTextDisabled,
-                ]}
-              >
-                {item.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <View style={styles.dmSectionHeaderRow}>
-        <Text style={styles.dmSectionTitle}>{copy.directMessageSectionAll}</Text>
-        <Text style={styles.inboxResultText}>
-          {filteredConversations.length} {copy.directMessageResultCount}
-        </Text>
       </View>
       <FlashList
         contentContainerStyle={styles.dmConversationList}
@@ -237,7 +167,7 @@ export function DirectMessageConversationCard({
       onPress={() => onOpenConversation(conversation.id)}
       style={({ pressed }) => [
         styles.dmConversationCard,
-        selected && styles.dmConversationCardSelected,
+        (selected || conversation.unreadCount > 0) && styles.dmConversationCardSelected,
         pressed && styles.dmConversationCardPressed,
       ]}
     >

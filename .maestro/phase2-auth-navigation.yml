@@ -21,8 +21,6 @@ appId: team.whispr.mobile
     visible:
       id: "mobile-auth-login-screen"
     timeout: 15000
-- assertVisible:
-    id: "mobile-auth-login-turnstile"
 - tapOn:
     id: "mobile-auth-login-forgot-password"
 - extendedWaitUntil:
