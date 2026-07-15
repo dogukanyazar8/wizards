@@ -77,6 +77,15 @@ export interface MobileTheme {
     readonly realtime: string;
     readonly voice: string;
   };
+  readonly authLanguage: {
+    readonly backdrop: string;
+    readonly closeSurface: string;
+    readonly deviceSurface: string;
+    readonly handle: string;
+    readonly radio: string;
+    readonly selectedBorder: string;
+    readonly selectedSurface: string;
+  };
   readonly authProfile: {
     readonly corporate: MobileAuthProfileAccent;
     readonly gamer: MobileAuthProfileAccent;
@@ -201,6 +210,15 @@ export const lightTheme = deepFreeze({
     fileShare: redesignAuthLight.featureFileShare,
     realtime: redesignAuthLight.featureRealtime,
     voice: redesignAuthLight.featureVoice,
+  },
+  authLanguage: {
+    backdrop: redesignLight.languageBackdrop,
+    closeSurface: redesignLight.languageClose,
+    deviceSurface: redesignLight.languageDevice,
+    handle: redesignLight.languageHandle,
+    radio: redesignLight.languageRadio,
+    selectedBorder: redesignLight.primary,
+    selectedSurface: redesignLight.lavender,
   },
   authProfile: {
     corporate: {
@@ -372,6 +390,15 @@ export const darkTheme = deepFreeze({
     fileShare: redesignAuthDark.featureFileShare,
     realtime: redesignAuthDark.featureRealtime,
     voice: redesignAuthDark.featureVoice,
+  },
+  authLanguage: {
+    backdrop: redesignDark.languageBackdrop,
+    closeSurface: redesignDark.languageClose,
+    deviceSurface: redesignDark.languageDevice,
+    handle: redesignDark.languageHandle,
+    radio: redesignDark.languageRadio,
+    selectedBorder: redesignDark.primary,
+    selectedSurface: redesignDark.selectedSurface,
   },
   authProfile: {
     corporate: {

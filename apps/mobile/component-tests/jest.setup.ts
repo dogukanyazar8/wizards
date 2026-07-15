@@ -70,6 +70,15 @@ jest.mock("expo-clipboard", () => ({
   setStringAsync: jest.fn(async () => true),
 }));
 
+jest.mock("expo-blur", () => ({
+  BlurView: (props: Record<string, unknown>) => {
+    const React = require("react");
+    const { View } = require("react-native");
+
+    return React.createElement(View, { ...props, testID: "mobile-blur-view" });
+  },
+}));
+
 jest.mock("react-native-reanimated", () => {
   const React = require("react");
   const { View } = require("react-native");

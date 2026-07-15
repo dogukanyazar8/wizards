@@ -5,14 +5,12 @@ import { ActivityIndicator, Text, View } from "react-native";
 import { useMobileAuth } from "../../../auth/mobile-auth-context";
 import { getMobileDevLoginCredentials } from "../../../auth/mobile-dev-login";
 import type { MobileAuthStackParamList } from "../../../navigation/mobile-auth-navigation-types";
-import type { MobileLocale } from "../../../locale/mobile-locale-preferences";
 import { mobileCopy } from "../../../locale/mobile-copy";
-import { BottomSheet } from "../../components/kit/bottom-sheet";
 import { AuthScreenBackground } from "../../components/kit/auth/auth-screen-background";
 import { useMobileLocaleRuntime } from "../../providers/mobile-locale-provider";
 import { useTheme, useThemedStyles } from "../../providers/mobile-theme-provider";
-import { SettingsLocaleSelector } from "../settings-screen";
 import { AuthForgotPasswordScreen } from "./auth-forgot-password-screen";
+import { AuthLanguagePickerSheet } from "./auth-language-picker-sheet";
 import { AuthLoginScreen } from "./auth-login-screen";
 import { AuthRegisterScreen } from "./auth-register-screen";
 import { AuthWelcomeScreen } from "./auth-welcome-screen";
@@ -87,13 +85,7 @@ export function MobileAuthSessionCheckingContainer() {
 
 export function MobileAuthWelcomeScreenContainer({ navigation }: WelcomeScreenProps) {
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
-  const { locale, selectLocale } = useMobileLocaleRuntime();
-  const copy = mobileCopy[locale];
-
-  const handleSelectLocale = (nextLocale: MobileLocale) => {
-    selectLocale(nextLocale);
-    setLanguagePickerOpen(false);
-  };
+  const { locale, selectLocale, setUseDeviceLocale, usingDeviceLocale } = useMobileLocaleRuntime();
 
   return (
     <>
@@ -102,14 +94,14 @@ export function MobileAuthWelcomeScreenContainer({ navigation }: WelcomeScreenPr
         onSignIn={() => navigation.navigate("Login")}
         onSignUp={() => navigation.navigate("Register")}
       />
-      <BottomSheet
-        accessibilityLabel={copy.settingsLanguageTitle}
+      <AuthLanguagePickerSheet
+        locale={locale}
         onClose={() => setLanguagePickerOpen(false)}
+        onSelectLocale={selectLocale}
+        onSetUseDeviceLocale={setUseDeviceLocale}
         open={languagePickerOpen}
-        testID="mobile-auth-language-sheet"
-      >
-        <SettingsLocaleSelector locale={locale} onSelectLocale={handleSelectLocale} />
-      </BottomSheet>
+        usingDeviceLocale={usingDeviceLocale}
+      />
     </>
   );
 }

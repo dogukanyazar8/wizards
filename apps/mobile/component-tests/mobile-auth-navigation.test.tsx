@@ -12,18 +12,28 @@ jest.mock("../src/auth/mobile-dev-login", () => ({
   getMobileDevLoginCredentials: jest.fn(),
 }));
 
-jest.mock("../src/app/components/kit/bottom-sheet", () => {
+jest.mock("../src/app/screens/auth/auth-language-picker-sheet", () => {
   const ReactRuntime = require("react");
   const { Pressable, View } = require("react-native");
 
   return {
-    BottomSheet: ({ children, onClose, open, testID }: any) =>
+    AuthLanguagePickerSheet: ({ onClose, onSelectLocale, open }: any) =>
       open
         ? ReactRuntime.createElement(
             View,
-            { testID },
-            ReactRuntime.createElement(Pressable, { onPress: onClose, testID: `${testID}-backdrop` }),
-            children,
+            { testID: "mobile-auth-language-sheet" },
+            ReactRuntime.createElement(Pressable, {
+              onPress: onClose,
+              testID: "mobile-auth-language-sheet-backdrop",
+            }),
+            ReactRuntime.createElement(Pressable, {
+              accessibilityLabel: "English",
+              onPress: () => {
+                onSelectLocale("en");
+                onClose();
+              },
+              testID: "mobile-auth-language-option-en",
+            }),
           )
         : null,
   };
@@ -230,7 +240,7 @@ describe("MobileAuthNavigator", () => {
     expect(view.queryByTestId("mobile-auth-welcome-screen")).toBeNull();
   });
 
-  it("reuses the locale selector, applies the selected locale, and closes its sheet", async () => {
+  it("opens the welcome language sheet, applies the selected locale, and closes it", async () => {
     const view = await renderNavigator();
 
     await fireEvent.press(view.getByTestId("mobile-auth-language-picker"));

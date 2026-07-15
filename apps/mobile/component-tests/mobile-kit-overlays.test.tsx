@@ -117,6 +117,37 @@ for (const theme of [lightTheme, darkTheme]) {
       expect(view.queryByText("Hidden content")).toBeNull();
     });
 
+    it("supports a screen-specific backdrop blur and panel presentation without changing dismissal ownership", async () => {
+      mockTheme = theme;
+      const view = await render(
+        <BottomSheet
+          accessibilityLabel="Language selection"
+          onClose={jest.fn()}
+          open
+          presentation={{
+            backdropBlurIntensity: 2,
+            backdropStyle: { backgroundColor: theme.authLanguage.backdrop },
+            contentStyle: { paddingHorizontal: 0 },
+            handleStyle: { height: 5, width: 40 },
+            panelStyle: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 0 },
+          }}
+          testID="presented-sheet"
+        >
+          <Text>Language content</Text>
+        </BottomSheet>,
+      );
+
+      expect(view.getByTestId("mobile-blur-view").props.intensity).toBe(2);
+      expect(StyleSheet.flatten(view.getByTestId("presented-sheet-backdrop").props.style)).toMatchObject({
+        backgroundColor: theme.authLanguage.backdrop,
+      });
+      expect(StyleSheet.flatten(view.getByTestId("presented-sheet-panel").props.style)).toMatchObject({
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        borderWidth: 0,
+      });
+    });
+
     it("opens ContextMenu on long press and closes after an accessible action", async () => {
       mockTheme = theme;
       const onAction = jest.fn();
