@@ -6,6 +6,8 @@ import { useTheme, useThemedStyles } from "../../../providers/mobile-theme-provi
 
 export interface AuthScreenBackgroundProps extends PropsWithChildren {
   readonly centered?: boolean;
+  /** Keeps the content container viewport-sized for screens with pinned chrome. */
+  readonly fill?: boolean;
   readonly scrollable?: boolean;
   readonly testID?: string;
 }
@@ -21,6 +23,9 @@ const createStyles = (theme: MobileTheme) => ({
   contentCentered: {
     flexGrow: 1,
     justifyContent: "center" as const,
+  },
+  contentFill: {
+    flex: 1,
   },
   dot: {
     backgroundColor: theme.accent.default,
@@ -83,13 +88,21 @@ const createStyles = (theme: MobileTheme) => ({
 export function AuthScreenBackground({
   centered = true,
   children,
+  fill = false,
   scrollable = false,
   testID,
 }: AuthScreenBackgroundProps) {
   const theme = useTheme();
   const styles = useThemedStyles(createStyles);
   const { auth } = theme.layout;
-  const content = <View style={[styles.content, centered && styles.contentCentered]}>{children}</View>;
+  const content = (
+    <View
+      style={[styles.content, centered && styles.contentCentered, fill && styles.contentFill]}
+      testID={testID ? `${testID}-content` : undefined}
+    >
+      {children}
+    </View>
+  );
 
   return (
     <KeyboardAvoidingView

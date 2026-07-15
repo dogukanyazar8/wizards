@@ -39,7 +39,11 @@ export function AuthEyebrowHeader({ eyebrow, subtitle, testID, title }: AuthEyeb
 
   return (
     <View style={styles.root} testID={testID}>
-      {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+      {eyebrow ? (
+        <Text maxFontSizeMultiplier={2} style={styles.eyebrow}>
+          {eyebrow}
+        </Text>
+      ) : null}
       <Text accessibilityRole="header" maxFontSizeMultiplier={2} style={styles.title}>
         {title}
       </Text>

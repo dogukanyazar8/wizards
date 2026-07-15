@@ -96,6 +96,10 @@ export function AuthPrimaryButton({
     variant === "welcome"
       ? theme.layout.auth.welcomePrimaryActionIcon
       : theme.layout.auth.formPrimaryActionIcon;
+  const gradientColors =
+    isDisabled || variant === "reset"
+      ? theme.gradients.authPrimaryActionMuted
+      : theme.gradients.authPrimaryAction;
   const content = (
     <>
       {busy ? (
@@ -141,7 +145,7 @@ export function AuthPrimaryButton({
     >
       {gradient ? (
         <LinearGradient
-          colors={isDisabled ? theme.gradients.authPrimaryActionMuted : theme.gradients.authPrimaryAction}
+          colors={gradientColors}
           style={fillStyle}
           testID={testID ? `${testID}-gradient` : undefined}
         >

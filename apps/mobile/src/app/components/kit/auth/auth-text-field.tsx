@@ -123,7 +123,9 @@ export function AuthTextField({
   return (
     <View style={styles.root}>
       <View style={styles.labelRow}>
-        <Text style={styles.label}>{label}</Text>
+        <Text maxFontSizeMultiplier={2} style={styles.label}>
+          {label}
+        </Text>
         {labelAccessory}
       </View>
       <View style={styles.fieldWrapper}>
@@ -185,7 +187,12 @@ export function AuthTextField({
         </View>
       </View>
       {errorMessage ? (
-        <Text accessibilityLiveRegion="polite" style={styles.error} testID={testID ? `${testID}-error` : undefined}>
+        <Text
+          accessibilityLiveRegion="polite"
+          maxFontSizeMultiplier={2}
+          style={styles.error}
+          testID={testID ? `${testID}-error` : undefined}
+        >
           {errorMessage}
         </Text>
       ) : null}

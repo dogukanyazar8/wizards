@@ -38,6 +38,7 @@ jest.mock("../src/config/environment", () => ({
 import { getMobileRuntimeConfig } from "../src/config/environment";
 import {
   AuthCheckbox,
+  AuthEyebrowHeader,
   AuthInfoBanner,
   AuthPasswordStrengthRow,
   AuthPrimaryButton,
@@ -138,6 +139,26 @@ for (const theme of [lightTheme, darkTheme]) {
       await fireEvent.press(view.getByLabelText("Şifreyi göster"));
       expect(view.getByLabelText("Password").props.secureTextEntry).toBe(false);
       expect(view.getByLabelText("Şifreyi gizle")).toBeTruthy();
+    });
+
+    it("caps all shared auth eyebrow and field support text at the approved Dynamic Type limit", async () => {
+      mockTheme = theme;
+      const view = await render(
+        <>
+          <AuthEyebrowHeader eyebrow="Secure access" title="Reset your password" />
+          <AuthTextField
+            errorMessage="Enter a valid email address"
+            label="Email address"
+            onChangeText={jest.fn()}
+            testID="auth-dynamic-type-field"
+            value=""
+          />
+        </>,
+      );
+
+      expect(view.getByText("Secure access").props.maxFontSizeMultiplier).toBe(2);
+      expect(view.getByText("Email address").props.maxFontSizeMultiplier).toBe(2);
+      expect(view.getByTestId("auth-dynamic-type-field-error").props.maxFontSizeMultiplier).toBe(2);
     });
 
     it("renders an external semantic focus ring without changing input shell geometry", async () => {
@@ -321,6 +342,22 @@ for (const theme of [lightTheme, darkTheme]) {
       expectIconSize(passwordHint, "auth-password-hint-shield-icon", theme.layout.auth.passwordHintShieldIcon);
       expectIconSize(checkbox, "auth-checkbox-check-icon", theme.layout.auth.checkboxCheckGlyph);
       expectIconSize(infoBanner, "auth-info-icon", theme.layout.auth.infoBannerGlyph);
+    });
+
+    it("uses the muted semantic auth gradient for a reset primary action", async () => {
+      mockTheme = theme;
+      const view = await render(
+        <AuthPrimaryButton
+          label="Send reset link"
+          onPress={jest.fn()}
+          testID="auth-primary-reset"
+          variant="reset"
+        />,
+      );
+
+      expect(view.getByTestId("auth-primary-reset-gradient").props.colors).toEqual(
+        theme.gradients.authPrimaryActionMuted,
+      );
     });
 
     it("keeps primary elevation on an unclipped outer touch target", async () => {
@@ -584,6 +621,19 @@ describe("mobile auth Turnstile boundary", () => {
 });
 
 describe("mobile auth screen background", () => {
+  it("keeps fill-mode content viewport-sized for screens with pinned chrome", async () => {
+    mockTheme = lightTheme;
+    const view = await render(
+      <AuthScreenBackground centered={false} fill testID="auth-background-fill">
+        <View />
+      </AuthScreenBackground>,
+    );
+
+    expect(StyleSheet.flatten(view.getByTestId("auth-background-fill-content").props.style)).toEqual(
+      expect.objectContaining({ flex: 1 }),
+    );
+  });
+
   it("ports the approved 24-dot and exact glow geometry through semantic roles", async () => {
     mockTheme = lightTheme;
     const view = await render(<AuthScreenBackground testID="auth-background" />);
