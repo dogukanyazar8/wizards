@@ -203,6 +203,20 @@ export function AuthLoginScreen({
             autoCorrect={false}
             iconName="lock-closed-outline"
             label={copy.authNativePasswordLabel}
+            labelAccessory={
+              <Pressable
+                accessibilityLabel={copy.authNativeForgotLink}
+                accessibilityRole="button"
+                disabled={isSubmitting}
+                onPress={onForgotPassword}
+                style={styles.inlineActionTarget}
+                testID="mobile-auth-login-forgot-password"
+              >
+                <Text maxFontSizeMultiplier={2} style={styles.inlineAction}>
+                  {copy.authNativeForgotLink}
+                </Text>
+              </Pressable>
+            }
             onChangeText={(value) => {
               setPassword(value);
               clearError();
@@ -215,6 +229,25 @@ export function AuthLoginScreen({
             value={password}
           />
           <View style={styles.inlineRow}>
+            <Pressable
+              accessibilityLabel={copy.authTwoFactorLinkAction}
+              accessibilityRole="button"
+              disabled={isSubmitting}
+              onPress={handleTwoFactorToggle}
+              style={[styles.inlineActionTarget, styles.twoFactorAction]}
+              testID="mobile-auth-login-two-factor-link"
+            >
+              <Icon
+                accessibilityElementsHidden
+                name="shield-checkmark-outline"
+                size={theme.layout.auth.passwordHintShieldIcon}
+                testID="mobile-auth-login-two-factor-icon"
+                tone="accent"
+              />
+              <Text maxFontSizeMultiplier={2} style={styles.twoFactorActionLabel}>
+                {copy.authTwoFactorLinkAction}
+              </Text>
+            </Pressable>
             <AuthCheckbox
               checked={rememberMe}
               disabled={isSubmitting}
@@ -222,31 +255,7 @@ export function AuthLoginScreen({
               onPress={() => setRememberMe((current) => !current)}
               testID="mobile-auth-login-remember-me"
             />
-            <Pressable
-              accessibilityLabel={copy.authNativeForgotLink}
-              accessibilityRole="button"
-              disabled={isSubmitting}
-              onPress={onForgotPassword}
-              style={styles.inlineActionTarget}
-              testID="mobile-auth-login-forgot-password"
-            >
-              <Text maxFontSizeMultiplier={2} style={styles.inlineAction}>
-                {copy.authNativeForgotLink}
-              </Text>
-            </Pressable>
           </View>
-          <Pressable
-            accessibilityLabel={copy.authTwoFactorLinkAction}
-            accessibilityRole="button"
-            disabled={isSubmitting}
-            onPress={handleTwoFactorToggle}
-            style={styles.inlineActionTarget}
-            testID="mobile-auth-login-two-factor-link"
-          >
-            <Text maxFontSizeMultiplier={2} style={styles.inlineAction}>
-              {copy.authTwoFactorLinkAction}
-            </Text>
-          </Pressable>
           {twoFactorVisible ? (
             <AuthTextField
               autoCapitalize="none"
@@ -310,7 +319,7 @@ export function AuthLoginScreen({
                   name={provider.iconName}
                   size={theme.layout.auth.fullInputIcon}
                   testID={`${provider.testID}-icon`}
-                  tone="danger"
+                  tone="accent"
                 />
                 <Text maxFontSizeMultiplier={2} style={styles.socialActionLabel}>
                   {label}

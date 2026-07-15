@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 
@@ -188,6 +188,35 @@ for (const theme of [lightTheme, darkTheme]) {
       expect(
         StyleSheet.flatten(view.getByTestId("auth-register-email-field").props.style).paddingVertical,
       ).toBe(theme.layout.auth.inputPaddingVertical);
+    });
+
+    it("keeps a typed label accessory in the semantic label row", async () => {
+      mockTheme = theme;
+      const view = await render(
+        <AuthTextField
+          label="Password"
+          labelAccessory={
+            <Pressable accessibilityRole="button" testID="auth-password-forgot">
+              <Text>Forgot password?</Text>
+            </Pressable>
+          }
+          onChangeText={jest.fn()}
+          testID="auth-password-with-accessory"
+          value=""
+        />,
+      );
+
+      const label = view.getByText("Password");
+      const accessory = view.getByTestId("auth-password-forgot");
+
+      expect(accessory.parent).toBe(label.parent);
+      expect(StyleSheet.flatten(label.parent?.props.style)).toEqual(
+        expect.objectContaining({
+          alignItems: "center",
+          flexDirection: "row",
+          justifyContent: "space-between",
+        }),
+      );
     });
 
     it("uses the context-specific auth icon and CTA-gap roles", async () => {

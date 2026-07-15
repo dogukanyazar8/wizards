@@ -1,5 +1,5 @@
 import type Ionicons from "@expo/vector-icons/Ionicons";
-import { useState, type ComponentProps } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
 import type { MobileTheme } from "../../../../design/themes";
@@ -14,6 +14,8 @@ export interface AuthTextFieldProps
   readonly iconSize?: "compact" | "full";
   readonly inputStyle?: ComponentProps<typeof TextInput>["style"];
   readonly label: string;
+  /** Optional accessible control rendered alongside the field label. */
+  readonly labelAccessory?: ReactNode;
   readonly testID?: string;
   readonly variant?: "form" | "register";
 }
@@ -73,6 +75,14 @@ const createStyles = (theme: MobileTheme) => ({
   label: {
     ...theme.typography.authFieldLabel,
     color: theme.text.primary,
+    flexShrink: 1,
+  },
+  labelRow: {
+    alignItems: "center" as const,
+    flexDirection: "row" as const,
+    gap: theme.layout.spacing.tightPlus,
+    justifyContent: "space-between" as const,
+    minWidth: 0,
   },
   root: {
     gap: theme.layout.auth.labelGap,
@@ -86,6 +96,7 @@ export function AuthTextField({
   iconSize = "full",
   inputStyle,
   label,
+  labelAccessory,
   onBlur,
   onFocus,
   secureTextEntry = false,
@@ -111,7 +122,10 @@ export function AuthTextField({
 
   return (
     <View style={styles.root}>
-      <Text style={styles.label}>{label}</Text>
+      <View style={styles.labelRow}>
+        <Text style={styles.label}>{label}</Text>
+        {labelAccessory}
+      </View>
       <View style={styles.fieldWrapper}>
         {focused && !errorMessage ? (
           <View style={styles.focusRing} testID={testID ? `${testID}-focus-ring` : undefined} />

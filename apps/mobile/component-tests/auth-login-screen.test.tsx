@@ -18,6 +18,7 @@ import { getMobileRuntimeConfig } from "../src/config/environment";
 import { AuthLoginScreen } from "../src/app/screens/auth/auth-login-screen";
 import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provider";
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
+import { lightTheme } from "../src/design/themes";
 import { mobileCopy } from "../src/locale/mobile-copy";
 
 const mockedRuntimeConfig = jest.mocked(getMobileRuntimeConfig);
@@ -203,6 +204,37 @@ describe("AuthLoginScreen", () => {
     expect(view.queryByTestId("mobile-auth-social-microsoft")).toBeNull();
     expect(view.queryByTestId("mobile-auth-social-apple")).toBeNull();
     expect(view.queryByTestId("mobile-auth-social-whispr")).toBeNull();
+  });
+
+  it("keeps the forgot action in the password label row", async () => {
+    const view = await renderLogin();
+
+    expect(view.getByTestId("mobile-auth-login-forgot-password").parent).toBe(
+      view.getByText(copy.authNativePasswordLabel).parent,
+    );
+  });
+
+  it("groups the 2FA backup control and local remember checkbox together", async () => {
+    const view = await renderLogin();
+
+    expect(view.getByTestId("mobile-auth-login-two-factor-link").parent).toBe(
+      view.getByTestId("mobile-auth-login-remember-me").parent,
+    );
+    expect(
+      view.getByTestId("mobile-auth-login-two-factor-icon", {
+        includeHiddenElements: true,
+      }).props.children,
+    ).toBe("shield-checkmark-outline");
+  });
+
+  it("uses the semantic accent presentation for the Google provider icon", async () => {
+    const view = await renderLogin();
+
+    expect(
+      view.getByTestId("mobile-auth-social-google-icon", {
+        includeHiddenElements: true,
+      }).props.color,
+    ).toBe(lightTheme.accent.default);
   });
 
   it("keeps profile selection presentation-only and excludes it from the sign-in payload", async () => {

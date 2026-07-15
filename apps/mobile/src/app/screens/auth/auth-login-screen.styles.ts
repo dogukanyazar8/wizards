@@ -92,4 +92,16 @@ export const createAuthLoginScreenStyles = (theme: MobileTheme) => ({
     gap: theme.spacing.section,
     minWidth: 0,
   },
+  twoFactorAction: {
+    alignItems: "center" as const,
+    flexDirection: "row" as const,
+    flexShrink: 1,
+    gap: theme.layout.spacing.tightPlus,
+    minWidth: 0,
+  },
+  twoFactorActionLabel: {
+    ...theme.typography.authFieldLabel,
+    color: theme.accent.strong,
+    flexShrink: 1,
+  },
 });
