@@ -47,7 +47,7 @@ describe("mobile root boundary", () => {
       ["screens", "voice-screen.tsx"],
       ["screens", "settings-screen.tsx"],
       ["screens", "notifications-screen.tsx"],
-      ["screens", "auth-gate.tsx"],
+      ["screens", "auth", "mobile-auth-screen-containers.tsx"],
       ["overlays", "mobile-voice-invite-overlay.tsx"],
       ["composer", "mobile-composer.tsx"],
     ]) {

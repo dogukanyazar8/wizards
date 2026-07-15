@@ -8,7 +8,6 @@ import { useMobileAuth } from "../auth/mobile-auth-context";
 import { getMobileRuntimeConfig } from "../config/environment";
 import { useMobileDeepLinkRuntime } from "../app/providers/mobile-deep-link-provider";
 import { useTheme } from "../app/providers/mobile-theme-provider";
-import { AuthGate } from "../app/screens/auth-gate";
 import {
   ChannelStackScreenContainer,
   DirectMessageStackScreenContainer,
@@ -29,6 +28,7 @@ import {
 } from "../app/screens/mobile-screen-containers";
 import { useMobileVoiceScreenProps } from "../app/providers/mobile-product-screen-provider";
 import { FloatingNavigationChrome } from "./floating-navigation-chrome";
+import { MobileAuthNavigator } from "./mobile-auth-navigator";
 import { createMobileLinkingOptions } from "./mobile-linking";
 import { isMobileTabId, resolveMobileRoute, type MobileTabId } from "./mobile-navigation";
 import { mobileNavigationRef, navigateMobileRouteIntent } from "./mobile-navigation-ref";
@@ -254,28 +254,12 @@ function ProtectedTab({
 }) {
   const { status } = useMobileAuth();
   const route = resolveMobileRoute(tab, status);
-  return route.isBlocked ? <MobileAuthGate reason={route.blockedReason} /> : children;
+  return route.isBlocked ? <MobileAuthNavigator reason={route.blockedReason ?? "auth-required"} /> : children;
 }
 
 function ProtectedStackRoute({ children }: { readonly children: ReactNode }) {
   const { status } = useMobileAuth();
-  return status === "signed-in" ? children : <MobileAuthGate reason="auth-required" />;
-}
-
-function MobileAuthGate({ reason }: { readonly reason: "auth-required" | "checking" | null }) {
-  const auth = useMobileAuth();
-  return (
-    <AuthGate
-      reason={reason ?? "auth-required"}
-      onOpenWebRegister={() => void auth.openWebRegister()}
-      onOpenWebSignIn={() => void auth.openWebSignIn()}
-      onRefresh={() => void auth.refreshSessionFromStorage()}
-      onRegisterWithPassword={auth.registerWithPassword}
-      onRequestPasswordReset={auth.requestPasswordReset}
-      onRequestVerificationEmail={auth.requestVerificationEmail}
-      onSignInWithPassword={auth.signInWithPassword}
-    />
-  );
+  return status === "signed-in" ? children : <MobileAuthNavigator reason={status === "checking" ? "checking" : "auth-required"} />;
 }
 
 function getActiveMainTab(state: NavigationState | undefined): MobileTabId | null {

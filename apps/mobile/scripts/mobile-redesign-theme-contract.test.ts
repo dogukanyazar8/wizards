@@ -1069,8 +1069,12 @@ export function Fixture({ cap }: { cap: number }) {
   });
 
   it("separates accessible filled actions from canonical decorative accent fills", () => {
-    const authStyles = readFileSync(
-      join(process.cwd(), "src", "app", "screens", "auth-gate.styles.ts"),
+    const authPrimaryButton = readFileSync(
+      join(process.cwd(), "src", "app", "components", "kit", "auth", "auth-primary-button.tsx"),
+      "utf8",
+    );
+    const authScreenBackground = readFileSync(
+      join(process.cwd(), "src", "app", "components", "kit", "auth", "auth-screen-background.tsx"),
       "utf8",
     );
     const uiAtoms = readFileSync(
@@ -1079,13 +1083,12 @@ export function Fixture({ cap }: { cap: number }) {
     );
 
     assert.match(
-      authStyles,
-      /premiumAuthPrimaryButton: \{[\s\S]*?backgroundColor: theme\.accent\.action,/,
+      authPrimaryButton,
+      /solid: \{\s*backgroundColor: theme\.accent\.action,/,
     );
-    assert.match(authStyles, /premiumAuthDot: \{[\s\S]*?backgroundColor: theme\.accent\.default,/);
     assert.match(
-      authStyles,
-      /premiumAuthStrengthFillAccent: \{\s*backgroundColor: theme\.accent\.strong,/,
+      authScreenBackground,
+      /dot: \{\s*backgroundColor: theme\.accent\.default,/,
     );
     assert.match(uiAtoms, /actionButtonPrimary: \{[\s\S]*?backgroundColor: theme\.accent\.action,/);
     assert.match(uiAtoms, /statusChipDotAccent: \{\s*backgroundColor: theme\.accent\.strong,/);
@@ -1234,17 +1237,13 @@ export function Fixture({ cap }: { cap: number }) {
     assert.match(lightbox, /root: \{[\s\S]*?backgroundColor: theme\.surface\.scrim,/);
   });
 
-  it("keeps legacy white-foreground controls on audited contrast pairs", () => {
+  it("keeps auth and legacy white-foreground controls on audited contrast pairs", () => {
     const cameraGrid = readFileSync(
       join(process.cwd(), "src", "voice", "mobile-camera-grid.tsx"),
       "utf8",
     );
-    const authStyles = readFileSync(
-      join(process.cwd(), "src", "app", "screens", "auth-gate.styles.ts"),
-      "utf8",
-    );
-    const authScreen = readFileSync(
-      join(process.cwd(), "src", "app", "screens", "auth-gate.tsx"),
+    const authSecurityCard = readFileSync(
+      join(process.cwd(), "src", "app", "components", "kit", "auth", "auth-security-card.tsx"),
       "utf8",
     );
     const uiAtoms = readFileSync(
@@ -1263,10 +1262,10 @@ export function Fixture({ cap }: { cap: number }) {
     assert.match(cameraGrid, /label: \{[\s\S]*?backgroundColor: theme\.surface\.inverse,/);
     assert.match(cameraGrid, /flip: \{[\s\S]*?backgroundColor: theme\.surface\.inverse,/);
     assert.match(
-      authStyles,
-      /premiumAuthSecurityIcon: \{[\s\S]*?backgroundColor: theme\.status\.successSoft,/,
+      authSecurityCard,
+      /icon: \{[\s\S]*?backgroundColor: theme\.status\.successSoft,/,
     );
-    assert.match(authScreen, /shield-checkmark" size=\{21\} color=\{theme\.status\.successText\}/);
+    assert.match(authSecurityCard, /color=\{theme\.status\.successText\}/);
     assert.match(uiAtoms, /homeMetricTile: \{[\s\S]*?backgroundColor: theme\.accent\.action,/);
     assert.match(
       voiceStyles,

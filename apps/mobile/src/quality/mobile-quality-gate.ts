@@ -184,8 +184,8 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
   },
   {
     area: "auth",
-    id: "auth-gate",
-    label: "Signed-out protected screens show the auth gate and never impersonate a user.",
+    id: "auth-flow",
+    label: "Signed-out protected screens show the auth flow and never impersonate a user.",
     required: true,
     risk: "critical",
   },

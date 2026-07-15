@@ -35,13 +35,18 @@ jest.mock("../src/app/providers/mobile-product-screen-provider", () => ({
   }),
 }));
 
-jest.mock("../src/app/screens/auth-gate", () => ({
-  AuthGate: () => {
-    const React = require("react");
-    const { View } = require("react-native");
-    return React.createElement(View, { testID: "mobile-auth-gate" });
-  },
-}));
+jest.mock("../src/navigation/mobile-auth-navigator", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+
+  return {
+    MobileAuthNavigator: ({ reason }: { reason: "auth-required" | "checking" }) =>
+      React.createElement(View, {
+        accessibilityLabel: reason,
+        testID: "mobile-auth-navigator",
+      }),
+  };
+});
 
 jest.mock(
   "../src/app/screens/mobile-screen-containers",
@@ -169,13 +174,22 @@ describe("mobile React Navigation runtime", () => {
     expect(view.queryByTestId("mobile-bottom-tab-voice")).toBeNull();
   });
 
-  it("starts on public settings and guards protected tabs while signed out", async () => {
+  it("starts on public settings and sends signed-out protected tabs to the auth navigator", async () => {
     mockAuthStatus = "signed-out";
     const view = await render(<MobileNavigator />);
 
     expect(view.getByTestId("mobile-settings-tab-screen")).toBeTruthy();
     await fireEvent.press(view.getByTestId("mobile-bottom-tab-overview"));
-    expect(view.getByTestId("mobile-auth-gate")).toBeTruthy();
+    expect(view.getByTestId("mobile-auth-navigator").props.accessibilityLabel).toBe("auth-required");
+  });
+
+  it("passes checking through to the auth navigator without rendering a signed-out welcome flow", async () => {
+    mockAuthStatus = "checking";
+    const view = await render(<MobileNavigator />);
+
+    expect(view.getByTestId("mobile-settings-tab-screen")).toBeTruthy();
+    await fireEvent.press(view.getByTestId("mobile-bottom-tab-overview"));
+    expect(view.getByTestId("mobile-auth-navigator").props.accessibilityLabel).toBe("checking");
   });
 
   it("pushes channel and DM stack routes and pops without an exit dialog", async () => {

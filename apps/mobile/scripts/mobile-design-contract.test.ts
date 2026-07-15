@@ -64,7 +64,19 @@ function readMobileScreenImplementationSource() {
 }
 
 function readMobileAuthImplementationSource() {
-  return readFileSync(join(process.cwd(), "src", "app", "screens", "auth-gate.tsx"), "utf8");
+  return [
+    "src/app/components/kit/auth/auth-password-strength-row.tsx",
+    "src/app/components/kit/auth/auth-security-card.tsx",
+    "src/app/components/kit/auth/auth-turnstile-card.tsx",
+    "src/app/screens/auth/auth-forgot-password-screen.tsx",
+    "src/app/screens/auth/auth-login-screen.tsx",
+    "src/app/screens/auth/auth-register-screen.tsx",
+    "src/app/screens/auth/auth-welcome-screen.tsx",
+    "src/app/screens/auth/mobile-auth-screen-containers.tsx",
+    "src/navigation/mobile-auth-navigator.tsx",
+  ]
+    .map((path) => readFileSync(join(process.cwd(), path), "utf8"))
+    .join("\n");
 }
 
 describe("mobile design contract", () => {
@@ -195,39 +207,36 @@ describe("mobile design contract", () => {
     }
   });
 
-  it("renders the mobile auth screens through reusable premium auth components", () => {
+  it("renders the mobile auth flow through reusable screens, kit primitives, and typed navigation", () => {
     const screenSource = readMobileAuthImplementationSource();
 
     for (const componentName of [
-      "AuthScreenLayout",
-      "AuthHeader",
-      "ProfileTypeSelector",
-      "AuthInput",
-      "AuthPrimaryButton",
-      "AuthSecondaryButton",
-      "SocialLoginRow",
-      "SecurityCard",
-      "PasswordStrengthBar",
+      "AuthWelcomeScreen",
+      "AuthLoginScreen",
+      "AuthRegisterScreen",
+      "AuthForgotPasswordScreen",
+      "MobileAuthNavigator",
     ]) {
       assert.match(screenSource, new RegExp(`function ${componentName}\\(`));
     }
 
+    for (const componentName of [
+      "AuthPrimaryButton",
+      "AuthSecondaryButton",
+      "AuthTurnstileCard",
+      "AuthPasswordStrengthRow",
+      "AuthSecurityCard",
+    ]) {
+      assert.match(screenSource, new RegExp(componentName));
+    }
+
     assert.match(screenSource, /cloudflare/i);
     assert.match(screenSource, /authRememberMe/);
-    assert.match(screenSource, /authTermsAccepted/);
-    assert.match(screenSource, /authProfileCorporate/);
-    assert.match(
-      screenSource,
-      /useState<"corporate" \| "gamer" \| "personal">\(\s*"personal",?\s*\)/,
-    );
-    assert.match(screenSource, /authProfilePreviewLabel/);
-    assert.match(screenSource, /authSocialWhisprWeb/);
-    assert.match(screenSource, /mobile-auth-social-whispr/);
+    assert.match(screenSource, /termsAccepted/);
+    assert.match(screenSource, /createNativeStackNavigator<MobileAuthStackParamList>\(\)/);
+    assert.match(screenSource, /initialRouteName="Welcome"/);
+    assert.match(screenSource, /MobileAuthSessionCheckingContainer/);
     assert.doesNotMatch(screenSource, /authSocialDiscord|logo-discord/);
-    assert.doesNotMatch(
-      screenSource,
-      /mode === "register"\s*\?\s*copy\.authNativeWebRegisterFallback\s*:\s*copy\.authNativeWebSignInFallback/,
-    );
   });
 
   it("keeps the dedicated mobile channel chat visually focused and virtualized", () => {
