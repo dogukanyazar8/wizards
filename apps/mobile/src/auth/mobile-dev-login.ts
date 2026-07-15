@@ -6,7 +6,7 @@ export interface MobileDevLoginCredentials {
 declare const __DEV__: boolean | undefined;
 
 function isDevelopmentRuntime() {
-  return typeof __DEV__ !== "undefined" ? __DEV__ : process.env.NODE_ENV !== "production";
+  return typeof __DEV__ !== "undefined" && __DEV__ === true;
 }
 
 export function getMobileDevLoginCredentials(): MobileDevLoginCredentials | null {
