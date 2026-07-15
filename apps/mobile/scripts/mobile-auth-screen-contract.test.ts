@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 
@@ -9,6 +16,7 @@ const mobileRoot = path.resolve(import.meta.dirname, "..");
 const authScreensRoot = path.join(mobileRoot, "src", "app", "screens", "auth");
 const authKitRoot = path.join(mobileRoot, "src", "app", "components", "kit", "auth");
 const authScreenContractSource = path.join(authScreensRoot, "mobile-auth-screen-contract.ts");
+const protectedProductionRoots = [authScreensRoot, authKitRoot] as const;
 
 const rootScreenSources = [
   "auth-welcome-screen.tsx",
@@ -18,16 +26,6 @@ const rootScreenSources = [
 ] as const;
 
 const containerSource = path.join(authScreensRoot, "mobile-auth-screen-containers.tsx");
-const authPresentationAndContainerSources = readdirSync(authScreensRoot)
-  .filter((name) => name.endsWith(".ts") || name.endsWith(".tsx"))
-  .map((name) => path.join(authScreensRoot, name));
-const presentationSources = authPresentationAndContainerSources.filter(
-  (sourcePath) => sourcePath !== containerSource,
-);
-const authKitSources = readdirSync(authKitRoot)
-  .filter((name) => name.endsWith(".ts") || name.endsWith(".tsx"))
-  .map((name) => path.join(authKitRoot, name));
-const protectedProductionSources = [...authPresentationAndContainerSources, ...authKitSources];
 
 const forbiddenSourcePatterns = [
   {
@@ -59,6 +57,29 @@ const forbiddenSourcePatterns = [
   },
 ] as const;
 
+const importSpecifierPattern =
+  /(?:\bimport\s+(?:(?:type\s+)?[\w*$,\s{}]+\s+from\s+)?|\brequire\s*\(\s*|\bimport\s*\(\s*)["']([^"']+)["']/g;
+
+function discoverSourceFiles(root: string): string[] {
+  return readdirSync(root, { withFileTypes: true })
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .flatMap((entry) => {
+      const entryPath = path.join(root, entry.name);
+
+      if (entry.isDirectory()) {
+        return discoverSourceFiles(entryPath);
+      }
+
+      return entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx"))
+        ? [entryPath]
+        : [];
+    });
+}
+
+function discoverProtectedProductionSources() {
+  return protectedProductionRoots.flatMap(discoverSourceFiles);
+}
+
 function readSource(sourcePath: string) {
   return readFileSync(sourcePath, "utf8");
 }
@@ -67,70 +88,127 @@ function countRootTestId(source: string, testId: string) {
   return [...source.matchAll(new RegExp(`testID\\s*=\\s*["']${testId}["']`, "g"))].length;
 }
 
+function getImportedModuleSpecifiers(source: string) {
+  return [...source.matchAll(importSpecifierPattern)].map((match) => match[1]!);
+}
+
+function assertRootTestIdOwnership(protectedProductionSources: readonly string[]) {
+  assert.match(
+    readSource(authScreenContractSource),
+    /export const MOBILE_AUTH_SCREEN_TEST_IDS = \[\s*"mobile-auth-welcome-screen",\s*"mobile-auth-login-screen",\s*"mobile-auth-register-screen",\s*"mobile-auth-forgot-password-screen",\s*\] as const;/,
+    "The production contract must remain an exact readonly tuple declaration.",
+  );
+  assert.equal(
+    new Set(MOBILE_AUTH_SCREEN_TEST_IDS).size,
+    MOBILE_AUTH_SCREEN_TEST_IDS.length,
+    "Auth root test IDs must be unique.",
+  );
+  assert.equal(
+    rootScreenSources.length,
+    MOBILE_AUTH_SCREEN_TEST_IDS.length,
+    "Every production auth root must have one stable contract ID.",
+  );
+
+  for (const [index, testId] of MOBILE_AUTH_SCREEN_TEST_IDS.entries()) {
+    const owningSource = path.join(authScreensRoot, rootScreenSources[index]!);
+    const occurrences = protectedProductionSources.flatMap((sourcePath) =>
+      Array.from({ length: countRootTestId(readSource(sourcePath), testId) }, () => sourcePath),
+    );
+
+    assert.equal(
+      occurrences.length,
+      1,
+      `${testId} must occur exactly once across all live auth presentation and kit sources.`,
+    );
+    assert.equal(occurrences[0], owningSource, `${testId} must stay in its declared presentation source.`);
+  }
+}
+
+function assertNoFixtureDataImports(protectedProductionSources: readonly string[]) {
+  for (const sourcePath of protectedProductionSources) {
+    for (const specifier of getImportedModuleSpecifiers(readSource(sourcePath))) {
+      assert.doesNotMatch(
+        specifier,
+        /(?:dummy|mock|demo|fixture)/i,
+        `${path.relative(mobileRoot, sourcePath)} must not import fixture data.`,
+      );
+    }
+  }
+}
+
+function assertNoForbiddenAuthSourcePatterns(protectedProductionSources: readonly string[]) {
+  assertNoFixtureDataImports(protectedProductionSources);
+
+  for (const sourcePath of protectedProductionSources) {
+    const source = readSource(sourcePath);
+
+    for (const forbidden of forbiddenSourcePatterns) {
+      assert.doesNotMatch(
+        source,
+        forbidden.pattern,
+        `${path.relative(mobileRoot, sourcePath)} contains ${forbidden.name}.`,
+      );
+    }
+  }
+}
+
+function withTemporaryNestedAuthFixture(source: string, assertion: () => void) {
+  const fixtureRoot = mkdtempSync(path.join(authScreensRoot, ".auth-contract-test-"));
+  const nestedSource = path.join(fixtureRoot, "nested", "fixture-source.tsx");
+
+  try {
+    mkdirSync(path.dirname(nestedSource), { recursive: true });
+    writeFileSync(nestedSource, source, "utf8");
+    assertion();
+  } finally {
+    rmSync(fixtureRoot, { force: true, recursive: true });
+  }
+}
+
 describe("mobile auth screen contract", () => {
   it("keeps the exact immutable root test ID list bound one-to-one to live presentation screens", () => {
-    assert.match(
-      readSource(authScreenContractSource),
-      /export const MOBILE_AUTH_SCREEN_TEST_IDS = \[\s*"mobile-auth-welcome-screen",\s*"mobile-auth-login-screen",\s*"mobile-auth-register-screen",\s*"mobile-auth-forgot-password-screen",\s*\] as const;/,
-      "The production contract must remain an exact readonly tuple declaration.",
-    );
-    assert.equal(
-      new Set(MOBILE_AUTH_SCREEN_TEST_IDS).size,
-      MOBILE_AUTH_SCREEN_TEST_IDS.length,
-      "Auth root test IDs must be unique.",
-    );
+    assertRootTestIdOwnership(discoverProtectedProductionSources());
+  });
 
-    assert.equal(
-      rootScreenSources.length,
-      MOBILE_AUTH_SCREEN_TEST_IDS.length,
-      "Every production auth root must have one stable contract ID.",
-    );
-
-    for (const [index, testId] of MOBILE_AUTH_SCREEN_TEST_IDS.entries()) {
-      const owningSourceFile = rootScreenSources[index]!;
-      const owningSource = readSource(path.join(authScreensRoot, owningSourceFile));
-      assert.equal(
-        countRootTestId(owningSource, testId),
-        1,
-        `${testId} must occur exactly once in its owning ${owningSourceFile}.`,
-      );
-
-      for (const otherSourceFile of rootScreenSources) {
-        if (otherSourceFile === owningSourceFile) {
-          continue;
-        }
-
-        const otherSource = readSource(path.join(authScreensRoot, otherSourceFile));
-        assert.equal(
-          countRootTestId(otherSource, testId),
-          0,
-          `${testId} must not drift into ${otherSourceFile}.`,
+  it("rejects a duplicate root ID from a nested live auth source", () => {
+    withTemporaryNestedAuthFixture(
+      'export const nestedAuthRoot = <View testID="mobile-auth-welcome-screen" />;\n',
+      () => {
+        assert.throws(
+          () => assertRootTestIdOwnership(discoverProtectedProductionSources()),
+          /mobile-auth-welcome-screen must occur exactly once across all live auth presentation and kit sources/,
         );
-      }
+      },
+    );
+  });
+
+  it("rejects static, require, and dynamic fixture imports from nested live auth sources", () => {
+    const fixtureImports = [
+      'import fixtureValue from "./fixture-data";\n',
+      'void require("./fixture-data");\n',
+      'void import("./fixture-data");\n',
+    ];
+
+    for (const fixtureImport of fixtureImports) {
+      withTemporaryNestedAuthFixture(fixtureImport, () => {
+        assert.throws(
+          () => assertNoForbiddenAuthSourcePatterns(discoverProtectedProductionSources()),
+          /must not import fixture data/,
+        );
+      });
     }
   });
 
   it("keeps auth presentation sources free of fixture data and test-only runtime paths", () => {
-    for (const sourcePath of protectedProductionSources) {
-      const source = readSource(sourcePath);
-
-      assert.doesNotMatch(
-        source,
-        /\bfrom\s*["'][^"']*(?:dummy|mock|demo|fixture)[^"']*["']/i,
-        `${path.relative(mobileRoot, sourcePath)} must not import fixture data.`,
-      );
-
-      for (const forbidden of forbiddenSourcePatterns) {
-        assert.doesNotMatch(
-          source,
-          forbidden.pattern,
-          `${path.relative(mobileRoot, sourcePath)} contains ${forbidden.name}.`,
-        );
-      }
-    }
+    assertNoForbiddenAuthSourcePatterns(discoverProtectedProductionSources());
   });
 
   it("keeps mobile auth context ownership in containers instead of pure presentation screens", () => {
+    const protectedProductionSources = discoverProtectedProductionSources();
+    const presentationSources = protectedProductionSources.filter(
+      (sourcePath) => sourcePath.startsWith(authScreensRoot) && sourcePath !== containerSource,
+    );
+
     for (const sourcePath of presentationSources) {
       assert.doesNotMatch(
         readSource(sourcePath),
