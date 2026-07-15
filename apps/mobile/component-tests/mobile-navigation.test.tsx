@@ -174,22 +174,25 @@ describe("mobile React Navigation runtime", () => {
     expect(view.queryByTestId("mobile-bottom-tab-voice")).toBeNull();
   });
 
-  it("starts on public settings and sends signed-out protected tabs to the auth navigator", async () => {
+  it("starts a signed-out user on Welcome without mounting tab navigation", async () => {
     mockAuthStatus = "signed-out";
     const view = await render(<MobileNavigator />);
 
-    expect(view.getByTestId("mobile-settings-tab-screen")).toBeTruthy();
-    await fireEvent.press(view.getByTestId("mobile-bottom-tab-overview"));
     expect(view.getByTestId("mobile-auth-navigator").props.accessibilityLabel).toBe("auth-required");
+    expect(view.queryByTestId("mobile-settings-tab-screen")).toBeNull();
+    expect(view.queryByTestId("mobile-bottom-tab-overview")).toBeNull();
+    expect(view.queryByTestId("mobile-bottom-tab-messages")).toBeNull();
+    expect(view.queryByTestId("mobile-bottom-tab-notifications")).toBeNull();
+    expect(view.queryByTestId("mobile-bottom-tab-settings")).toBeNull();
   });
 
-  it("passes checking through to the auth navigator without rendering a signed-out welcome flow", async () => {
+  it("keeps tab navigation unmounted while secure session storage is checking", async () => {
     mockAuthStatus = "checking";
     const view = await render(<MobileNavigator />);
 
-    expect(view.getByTestId("mobile-settings-tab-screen")).toBeTruthy();
-    await fireEvent.press(view.getByTestId("mobile-bottom-tab-overview"));
     expect(view.getByTestId("mobile-auth-navigator").props.accessibilityLabel).toBe("checking");
+    expect(view.queryByTestId("mobile-settings-tab-screen")).toBeNull();
+    expect(view.queryByTestId("mobile-bottom-tab-overview")).toBeNull();
   });
 
   it("pushes channel and DM stack routes and pops without an exit dialog", async () => {
