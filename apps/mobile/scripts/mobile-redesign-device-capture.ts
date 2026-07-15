@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -17,28 +17,48 @@ const allowedMaskIds = [
   "system-battery",
   "system-gesture-indicator",
 ] as const;
+const androidPackageName = "team.whispr.mobile";
 
 export const DEVICE_CAPTURE_LOGICAL_VIEWPORT = { height: 844, width: 390 } as const;
 export const DEVICE_CAPTURE_PHYSICAL_VIEWPORT = { height: 2532, width: 1170 } as const;
 export const DEVICE_CAPTURE_SAFE_AREA_INSETS = { bottom: 0, left: 0, right: 0, top: 42 } as const;
 
+export type AndroidCaptureEnvironment = {
+  abi: "x86_64";
+  apiLevel: 37;
+  avdName: "Pixel_10_Pro";
+  buildFingerprint: "google/sdk_gphone16k_x86_64/emu64xa16k:17/CE2A.260420.019/15611780:user/dev-keys";
+  emulatorVersion: "36.6.11.0";
+  graphicsMode: "auto";
+  gpuRenderer: "Google (NVIDIA Corporation), Android Emulator OpenGL ES Translator (NVIDIA GeForce RTX 5090/PCIe/SSE2), OpenGL ES 3.1 (4.5.0 NVIDIA 610.62)";
+  hardwareProfile: "pixel_10_pro";
+  ramMiB: 2048;
+  systemImage: "system-images;android-37.0;google_apis_playstore_ps16k;x86_64";
+  systemImagePackageSha256: "18cafc7d654896c636ae699d344aac527968a7391e4655998bfd86b6d758cc8e";
+  systemImageRevision: 6;
+};
+
 export type Platform = "android" | "ios";
 export type Theme = "dark" | "light";
 export const DEVICE_CAPTURE_TARGETS = [
-  { anchor: "1a", theme: "light" },
-  { anchor: "1b", theme: "light" },
-  { anchor: "1c", theme: "light" },
-  { anchor: "1d", theme: "light" },
-  { anchor: "1e", theme: "light" },
-  { anchor: "1f", theme: "light" },
-  { anchor: "1g", theme: "light" },
-  { anchor: "1i", theme: "dark" },
-  { anchor: "1j", theme: "dark" },
+  { anchor: "1a", testId: "mobile-overview-screen", theme: "light" },
+  { anchor: "1b", testId: "mobile-channel-chat-screen", theme: "light" },
+  { anchor: "1c", testId: "mobile-dm-inbox-screen", theme: "light" },
+  { anchor: "1d", testId: "mobile-notifications-screen", theme: "light" },
+  { anchor: "1e", testId: "mobile-voice-room-screen", theme: "light" },
+  { anchor: "1f", testId: "mobile-settings-screen", theme: "light" },
+  { anchor: "1g", testId: "mobile-server-switcher-sheet-panel", theme: "light" },
+  { anchor: "1i", testId: "mobile-overview-screen", theme: "dark" },
+  { anchor: "1j", testId: "mobile-channel-chat-screen", theme: "dark" },
 ] as const;
 export type DeviceCaptureAnchor = (typeof DEVICE_CAPTURE_TARGETS)[number]["anchor"];
-type Mask = { id: (typeof allowedMaskIds)[number]; polygon: readonly (readonly [number, number])[] };
+type Mask = {
+  id: (typeof allowedMaskIds)[number];
+  polygon: readonly (readonly [number, number])[];
+};
 
 export type CaptureEnvironment = {
+  android: AndroidCaptureEnvironment;
   buildProfile: "uat" | "production" | "store";
   colorSpace: "sRGB";
   deviceScaleFactor: 3;
@@ -58,6 +78,7 @@ export type CaptureEnvironment = {
 };
 
 export type DeviceCaptureManifest = {
+  android?: AndroidCaptureEnvironment;
   anchor: DeviceCaptureAnchor;
   build: string;
   buildProfile: "uat";
@@ -108,15 +129,60 @@ function equalJson(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function hasCanonicalViewport(value: { height: number; width: number }, expected: { height: number; width: number }): boolean {
+function hasCanonicalViewport(
+  value: { height: number; width: number },
+  expected: { height: number; width: number },
+): boolean {
   return value.width === expected.width && value.height === expected.height;
 }
 
-function hasCanonicalInsets(value: { bottom: number; left: number; right: number; top: number }): boolean {
-  return value.top === DEVICE_CAPTURE_SAFE_AREA_INSETS.top &&
+function hasCanonicalInsets(value: {
+  bottom: number;
+  left: number;
+  right: number;
+  top: number;
+}): boolean {
+  return (
+    value.top === DEVICE_CAPTURE_SAFE_AREA_INSETS.top &&
     value.right === DEVICE_CAPTURE_SAFE_AREA_INSETS.right &&
     value.bottom === DEVICE_CAPTURE_SAFE_AREA_INSETS.bottom &&
-    value.left === DEVICE_CAPTURE_SAFE_AREA_INSETS.left;
+    value.left === DEVICE_CAPTURE_SAFE_AREA_INSETS.left
+  );
+}
+
+export function resolveRepositoryCaptureDirectory(value: string): string {
+  return path.resolve(repositoryRoot, value);
+}
+
+export function assertPinnedAndroidCaptureDevice(device: AndroidCaptureEnvironment): void {
+  if (device.apiLevel !== 37) {
+    throw new Error("Android device capture API level must remain 37.");
+  }
+  if (device.avdName !== "Pixel_10_Pro" || device.hardwareProfile !== "pixel_10_pro") {
+    throw new Error("Android device capture must use the pinned Pixel_10_Pro hardware profile.");
+  }
+  if (device.abi !== "x86_64" || device.ramMiB !== 2048 || device.graphicsMode !== "auto") {
+    throw new Error(
+      "Android device capture hardware or GPU configuration differs from the pinned contract.",
+    );
+  }
+  if (
+    device.systemImage !== "system-images;android-37.0;google_apis_playstore_ps16k;x86_64" ||
+    device.systemImageRevision !== 6 ||
+    device.systemImagePackageSha256 !==
+      "18cafc7d654896c636ae699d344aac527968a7391e4655998bfd86b6d758cc8e"
+  ) {
+    throw new Error("Android device capture system image differs from the pinned contract.");
+  }
+  if (
+    device.buildFingerprint !==
+      "google/sdk_gphone16k_x86_64/emu64xa16k:17/CE2A.260420.019/15611780:user/dev-keys" ||
+    device.emulatorVersion !== "36.6.11.0" ||
+    device.gpuRenderer !==
+      "Google (NVIDIA Corporation), Android Emulator OpenGL ES Translator (NVIDIA GeForce RTX 5090/PCIe/SSE2), OpenGL ES 3.1 (4.5.0 NVIDIA 610.62)"
+  ) {
+    throw new Error("Android device capture runtime differs from the pinned contract.");
+  }
 }
 
 export function assertDeterministicDeviceCapture(environment: CaptureEnvironment): void {
@@ -142,17 +208,25 @@ export function assertDeterministicDeviceCapture(environment: CaptureEnvironment
   ) {
     throw new Error("Device capture environment differs from the pinned deterministic contract.");
   }
+  assertPinnedAndroidCaptureDevice(environment.android);
   for (const platform of ["android", "ios"] as const) {
     const masks = environment.masks.platforms[platform];
     if (!masks || masks.length !== allowedMaskIds.length) {
-      throw new Error(`Device capture masks must define exactly the allowed native glyph regions for ${platform}.`);
+      throw new Error(
+        `Device capture masks must define exactly the allowed native glyph regions for ${platform}.`,
+      );
     }
     const ids = masks.map(({ id }) => id).sort();
     if (!equalJson(ids, [...allowedMaskIds].sort())) {
-      throw new Error(`Device capture masks may cover only time, signal, battery, and gesture glyphs for ${platform}.`);
+      throw new Error(
+        `Device capture masks may cover only time, signal, battery, and gesture glyphs for ${platform}.`,
+      );
     }
     for (const mask of masks) {
-      if (mask.polygon.length < 3 || mask.polygon.some(([x, y]) => x < 0 || y < 0 || x > 1170 || y > 2532)) {
+      if (
+        mask.polygon.length < 3 ||
+        mask.polygon.some(([x, y]) => x < 0 || y < 0 || x > 1170 || y > 2532)
+      ) {
         throw new Error(`Device capture mask ${mask.id} must be a valid DPR-3 viewport polygon.`);
       }
     }
@@ -160,7 +234,10 @@ export function assertDeterministicDeviceCapture(environment: CaptureEnvironment
 }
 
 export function readCaptureEnvironment(): CaptureEnvironment {
-  const rawEnvironment = JSON.parse(readFileSync(environmentPath, "utf8")) as Omit<CaptureEnvironment, "buildProfile" | "masks"> & {
+  const rawEnvironment = JSON.parse(readFileSync(environmentPath, "utf8")) as Omit<
+    CaptureEnvironment,
+    "buildProfile" | "masks"
+  > & {
     masks: { file: string; version: 1 };
   };
   const maskPath = path.join(baselineDirectory, rawEnvironment.masks.file);
@@ -181,7 +258,10 @@ export function readCaptureEnvironment(): CaptureEnvironment {
   } as CaptureEnvironment;
   if (
     rawMasks.deviceScaleFactor !== 3 ||
-    !hasCanonicalViewport(rawMasks.physicalViewport as { height: number; width: number }, DEVICE_CAPTURE_PHYSICAL_VIEWPORT)
+    !hasCanonicalViewport(
+      rawMasks.physicalViewport as { height: number; width: number },
+      DEVICE_CAPTURE_PHYSICAL_VIEWPORT,
+    )
   ) {
     throw new Error("Versioned device masks must use the canonical DPR-3 physical viewport.");
   }
@@ -190,7 +270,10 @@ export function readCaptureEnvironment(): CaptureEnvironment {
 }
 
 function getCommit(): string {
-  const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" }).trim();
+  const commit = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: repositoryRoot,
+    encoding: "utf8",
+  }).trim();
   if (!/^[0-9a-f]{40}$/i.test(commit)) {
     throw new Error("Device capture requires a full Git commit hash.");
   }
@@ -209,7 +292,11 @@ function assertBuild(build: string): void {
   }
 }
 
-function captureTargetDirectory(captureDirectory: string, anchor: DeviceCaptureAnchor, theme: Theme): string {
+function captureTargetDirectory(
+  captureDirectory: string,
+  anchor: DeviceCaptureAnchor,
+  theme: Theme,
+): string {
   return path.join(path.resolve(captureDirectory), `${anchor}-${theme}`);
 }
 
@@ -219,7 +306,10 @@ function isVisualCaptureSourcePath(filePath: string): boolean {
   );
 }
 
-export function assertVisualCaptureEvidenceIsFresh(input: { commit: string; changedPaths: readonly string[] }): void {
+export function assertVisualCaptureEvidenceIsFresh(input: {
+  commit: string;
+  changedPaths: readonly string[];
+}): void {
   assertCommit(input.commit);
   const changedVisualSources = input.changedPaths.filter(isVisualCaptureSourcePath);
   if (changedVisualSources.length > 0) {
@@ -242,7 +332,14 @@ export function getChangedVisualCaptureSourcePaths(commit: string): string[] {
 
   return execFileSync(
     "git",
-    ["diff", "--name-only", "--diff-filter=ACMR", `${commit}..HEAD`, "--", ...VISUAL_CAPTURE_SOURCE_PATHS],
+    [
+      "diff",
+      "--name-only",
+      "--diff-filter=ACMR",
+      `${commit}..HEAD`,
+      "--",
+      ...VISUAL_CAPTURE_SOURCE_PATHS,
+    ],
     { cwd: repositoryRoot, encoding: "utf8" },
   )
     .split(/\r?\n/)
@@ -250,12 +347,210 @@ export function getChangedVisualCaptureSourcePaths(commit: string): string[] {
 }
 
 function assertCaptureTarget(anchor: string, theme: string): asserts anchor is DeviceCaptureAnchor {
-  if (!DEVICE_CAPTURE_TARGETS.some((target) => target.anchor === anchor && target.theme === theme)) {
-    throw new Error(`Device capture target ${anchor}-${theme} is not a supported normalized golden target.`);
+  if (
+    !DEVICE_CAPTURE_TARGETS.some((target) => target.anchor === anchor && target.theme === theme)
+  ) {
+    throw new Error(
+      `Device capture target ${anchor}-${theme} is not a supported normalized golden target.`,
+    );
   }
 }
 
-function assertManifestMatchesEnvironment(manifest: DeviceCaptureManifest, environment: CaptureEnvironment): void {
+function resolveAndroidSdkRoot(): string | undefined {
+  const configuredRoot = process.env.ANDROID_HOME ?? process.env.ANDROID_SDK_ROOT;
+  if (configuredRoot) {
+    return configuredRoot;
+  }
+  if (process.platform === "win32" && process.env.LOCALAPPDATA) {
+    const defaultWindowsSdkRoot = path.join(process.env.LOCALAPPDATA, "Android", "Sdk");
+    if (existsSync(defaultWindowsSdkRoot)) {
+      return defaultWindowsSdkRoot;
+    }
+  }
+  return undefined;
+}
+
+function resolveAdbPath(): string {
+  const androidHome = resolveAndroidSdkRoot();
+  return androidHome
+    ? path.join(androidHome, "platform-tools", process.platform === "win32" ? "adb.exe" : "adb")
+    : "adb";
+}
+
+function resolveEmulatorPath(): string {
+  const androidHome = resolveAndroidSdkRoot();
+  if (!androidHome) {
+    throw new Error(
+      "ANDROID_HOME or ANDROID_SDK_ROOT is required to verify the pinned emulator version.",
+    );
+  }
+  return path.join(
+    androidHome,
+    "emulator",
+    process.platform === "win32" ? "emulator.exe" : "emulator",
+  );
+}
+
+function readAdbOutput(adbPath: string, serial: string, args: readonly string[]): string {
+  return execFileSync(adbPath, ["-s", serial, ...args], { encoding: "utf8" }).trim();
+}
+
+function readEmulatorVersion(emulatorPath: string): string {
+  const output = execFileSync(emulatorPath, ["-version"], { encoding: "utf8" });
+  const match = /^Android emulator version ([^\s]+)/m.exec(output);
+  if (!match?.[1]) {
+    throw new Error("Android emulator did not report a version.");
+  }
+  return match[1];
+}
+
+function parseEffectiveDimension(
+  output: string,
+  dimension: "density" | "size",
+): number | { height: number; width: number } {
+  const matches = [
+    ...output.matchAll(new RegExp(`(?:Override|Physical) ${dimension}:\\s*(.+)$`, "gim")),
+  ];
+  const value = matches.find((match) => match[0].startsWith("Override"))?.[1] ?? matches[0]?.[1];
+  if (!value) {
+    throw new Error(`Android emulator did not report its ${dimension}.`);
+  }
+  if (dimension === "density") {
+    const density = Number.parseInt(value, 10);
+    if (!Number.isInteger(density)) {
+      throw new Error(`Android emulator reported an invalid density: ${value}.`);
+    }
+    return density;
+  }
+  const match = /^(\d+)x(\d+)$/.exec(value.trim());
+  if (!match) {
+    throw new Error(`Android emulator reported an invalid size: ${value}.`);
+  }
+  return {
+    height: Number.parseInt(match[2] as string, 10),
+    width: Number.parseInt(match[1] as string, 10),
+  };
+}
+
+function assertAndroidRuntimeCaptureContract(input: {
+  adbPath: string;
+  environment: CaptureEnvironment;
+  serial: string;
+  theme: Theme;
+}): void {
+  if (!/^emulator-\d+$/.test(input.serial)) {
+    throw new Error("Android device capture requires an emulator serial such as emulator-5554.");
+  }
+  const shell = (args: readonly string[]) =>
+    readAdbOutput(input.adbPath, input.serial, ["shell", ...args]);
+  const size = parseEffectiveDimension(shell(["wm", "size"]), "size");
+  const density = parseEffectiveDimension(shell(["wm", "density"]), "density");
+  const apiLevel = Number.parseInt(shell(["getprop", "ro.build.version.sdk"]), 10);
+  const avdName = shell(["getprop", "ro.boot.qemu.avd_name"]);
+  const abi = shell(["getprop", "ro.product.cpu.abi"]);
+  const buildFingerprint = shell(["getprop", "ro.build.fingerprint"]);
+  const gpuRenderer = /^GLES:\s*(.+)$/m.exec(shell(["dumpsys", "SurfaceFlinger"]))?.[1];
+  const emulatorVersion = readEmulatorVersion(resolveEmulatorPath());
+  const locale = shell(["getprop", "persist.sys.locale"]);
+  const timezone = shell(["getprop", "persist.sys.timezone"]);
+  const fontScale = Number.parseFloat(shell(["settings", "get", "system", "font_scale"]));
+  const animationScales = [
+    shell(["settings", "get", "global", "window_animation_scale"]),
+    shell(["settings", "get", "global", "transition_animation_scale"]),
+    shell(["settings", "get", "global", "animator_duration_scale"]),
+  ];
+  const nightMode = shell(["cmd", "uimode", "night"]);
+
+  if (
+    typeof size === "number" ||
+    !hasCanonicalViewport(size, input.environment.physicalViewport) ||
+    density !== 480
+  ) {
+    throw new Error("Android emulator must use the pinned 1170x2532 at 480dpi display override.");
+  }
+  if (
+    apiLevel !== input.environment.android.apiLevel ||
+    avdName !== input.environment.android.avdName ||
+    abi !== input.environment.android.abi ||
+    buildFingerprint !== input.environment.android.buildFingerprint ||
+    emulatorVersion !== input.environment.android.emulatorVersion ||
+    gpuRenderer !== input.environment.android.gpuRenderer
+  ) {
+    throw new Error(
+      "Android emulator runtime differs from the pinned API, AVD, ABI, system image, emulator, or GPU contract.",
+    );
+  }
+  if (
+    locale !== input.environment.locale ||
+    timezone !== input.environment.timezone ||
+    fontScale !== input.environment.fontScale
+  ) {
+    throw new Error(
+      "Android emulator locale, timezone, or font scale differs from the pinned capture environment.",
+    );
+  }
+  if (animationScales.some((scale) => scale !== "0")) {
+    throw new Error("Android emulator animations must be disabled for deterministic capture.");
+  }
+  const expectedNightMode = input.theme === "dark" ? "yes" : "no";
+  if (!nightMode.endsWith(expectedNightMode)) {
+    throw new Error(
+      `Android emulator night mode must be ${expectedNightMode} for the ${input.theme} target.`,
+    );
+  }
+}
+
+export function captureAndroidDeviceScreenshot(input: {
+  anchor: DeviceCaptureAnchor;
+  serial?: string;
+  theme: Theme;
+}): { android: AndroidCaptureEnvironment; image: Buffer } {
+  const environment = readCaptureEnvironment();
+  const serial = input.serial ?? process.env.ANDROID_SERIAL ?? "";
+  const adbPath = resolveAdbPath();
+  assertAndroidRuntimeCaptureContract({ adbPath, environment, serial, theme: input.theme });
+  const target = DEVICE_CAPTURE_TARGETS.find(
+    (candidate) => candidate.anchor === input.anchor && candidate.theme === input.theme,
+  );
+  if (!target) {
+    throw new Error(`Device capture target ${input.anchor}-${input.theme} is not supported.`);
+  }
+  const activity = readAdbOutput(adbPath, serial, ["shell", "dumpsys", "activity", "activities"]);
+  if (!activity.includes(androidPackageName)) {
+    throw new Error(`Android device capture must foreground ${androidPackageName}.`);
+  }
+  const dumpPath = `/sdcard/whispr-redesign-${process.pid}.xml`;
+  try {
+    readAdbOutput(adbPath, serial, ["shell", "uiautomator", "dump", dumpPath]);
+    const hierarchy = readAdbOutput(adbPath, serial, ["exec-out", "cat", dumpPath]);
+    if (!hierarchy.includes(`resource-id=\"${target.testId}\"`)) {
+      throw new Error(
+        `Android device capture target ${input.anchor}-${input.theme} is not currently visible.`,
+      );
+    }
+    const image = execFileSync(adbPath, ["-s", serial, "exec-out", "screencap", "-p"], {
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    const dimensions = parsePngDimensions(image);
+    if (!equalJson(dimensions, DEVICE_CAPTURE_PHYSICAL_VIEWPORT)) {
+      throw new Error(
+        `Android device screenshot must be 1170x2532; received ${dimensions.width}x${dimensions.height}.`,
+      );
+    }
+    return { android: environment.android, image };
+  } finally {
+    try {
+      execFileSync(adbPath, ["-s", serial, "shell", "rm", "-f", dumpPath], { stdio: "ignore" });
+    } catch {
+      // The temporary UI dump is non-sensitive and best-effort cleanup must not hide capture failures.
+    }
+  }
+}
+
+function assertManifestMatchesEnvironment(
+  manifest: DeviceCaptureManifest,
+  environment: CaptureEnvironment,
+): void {
   if (
     (manifest.platform !== "android" && manifest.platform !== "ios") ||
     !manifest.mask ||
@@ -268,6 +563,14 @@ function assertManifestMatchesEnvironment(manifest: DeviceCaptureManifest, envir
   }
   assertCaptureTarget(manifest.anchor, manifest.theme);
   assertCommit(manifest.commit);
+  if (
+    manifest.platform === "android" &&
+    (!manifest.android || !equalJson(manifest.android, environment.android))
+  ) {
+    throw new Error(
+      "Android device capture manifest differs from the pinned native device contract.",
+    );
+  }
   if (
     manifest.buildProfile !== "uat" ||
     typeof manifest.build !== "string" ||
@@ -293,18 +596,25 @@ function assertManifestMatchesEnvironment(manifest: DeviceCaptureManifest, envir
     manifest.captureEnvironmentHash !== sha256(environmentBytes) ||
     manifest.mask.hash !== sha256(maskBytes) ||
     manifest.mask.version !== environment.masks.version ||
-    !equalJson(manifest.mask.ids, environment.masks.platforms[manifest.platform]?.map(({ id }) => id))
+    !equalJson(
+      manifest.mask.ids,
+      environment.masks.platforms[manifest.platform]?.map(({ id }) => id),
+    )
   ) {
-    throw new Error("Device capture manifest hashes or native masks do not match the pinned environment.");
+    throw new Error(
+      "Device capture manifest hashes or native masks do not match the pinned environment.",
+    );
   }
 }
 
 export async function writeDeterministicDeviceCapture(input: {
   anchor: DeviceCaptureAnchor;
+  android?: AndroidCaptureEnvironment;
   build: string;
   buildProfile: "uat" | "production" | "store";
   commit: string;
-  inputPath: string;
+  image?: Buffer;
+  inputPath?: string;
   outputRoot: string;
   platform: Platform;
   testAccount: string;
@@ -315,13 +625,27 @@ export async function writeDeterministicDeviceCapture(input: {
   assertCommit(input.commit);
   assertBuild(input.build);
   assertCaptureTarget(input.anchor, input.theme);
+  if (input.platform === "android") {
+    if (!input.android) {
+      throw new Error("Android device capture requires pinned native device provenance.");
+    }
+    assertPinnedAndroidCaptureDevice(input.android);
+    if (!equalJson(input.android, environment.android)) {
+      throw new Error("Android device provenance differs from the pinned capture environment.");
+    }
+  }
   if (input.testAccount !== allowedTestAccount) {
     throw new Error("Device capture may use only the allowlisted redacted UAT test account alias.");
   }
-  const image = await readFile(input.inputPath);
+  if ((!input.image && !input.inputPath) || (input.image && input.inputPath)) {
+    throw new Error("Device capture requires exactly one PNG input source.");
+  }
+  const image = input.image ?? (await readFile(input.inputPath as string));
   const dimensions = parsePngDimensions(image);
   if (!equalJson(dimensions, DEVICE_CAPTURE_PHYSICAL_VIEWPORT)) {
-    throw new Error(`Device capture input must be 1170x2532; received ${dimensions.width}x${dimensions.height}.`);
+    throw new Error(
+      `Device capture input must be 1170x2532; received ${dimensions.width}x${dimensions.height}.`,
+    );
   }
 
   const maskPath = path.join(baselineDirectory, environment.masks.file);
@@ -331,9 +655,11 @@ export async function writeDeterministicDeviceCapture(input: {
   await mkdir(outputDirectory, { recursive: true });
   const capturePath = path.join(outputDirectory, `${input.anchor}-${input.theme}.png`);
   const manifestPath = path.join(outputDirectory, `${input.anchor}-${input.theme}-manifest.json`);
-  await copyFile(input.inputPath, capturePath);
+  await writeFile(capturePath, image);
+  const android = input.platform === "android" ? input.android : undefined;
 
   const manifest: DeviceCaptureManifest = {
+    ...(android ? { android } : {}),
     anchor: input.anchor,
     build: input.build,
     buildProfile: "uat",
@@ -376,19 +702,31 @@ export async function readDeterministicDeviceCapture(input: {
   const capturePath = path.join(targetDirectory, `${input.anchor}-${input.theme}.png`);
   const manifestPath = path.join(targetDirectory, `${input.anchor}-${input.theme}-manifest.json`);
   if (!existsSync(capturePath) || !existsSync(manifestPath)) {
-    throw new Error(`Missing device capture evidence for ${input.anchor}-${input.theme} in ${captureDirectory}.`);
+    throw new Error(
+      `Missing device capture evidence for ${input.anchor}-${input.theme} in ${captureDirectory}.`,
+    );
   }
-  const [image, rawManifest] = await Promise.all([readFile(capturePath), readFile(manifestPath, "utf8")]);
+  const [image, rawManifest] = await Promise.all([
+    readFile(capturePath),
+    readFile(manifestPath, "utf8"),
+  ]);
   const manifest = JSON.parse(rawManifest) as DeviceCaptureManifest;
   const environment = readCaptureEnvironment();
   assertDeterministicDeviceCapture(environment);
   assertManifestMatchesEnvironment(manifest, environment);
   if (manifest.anchor !== input.anchor || manifest.theme !== input.theme) {
-    throw new Error(`Device capture manifest target does not match ${input.anchor}-${input.theme}.`);
+    throw new Error(
+      `Device capture manifest target does not match ${input.anchor}-${input.theme}.`,
+    );
   }
   const dimensions = parsePngDimensions(image);
-  if (!equalJson(dimensions, DEVICE_CAPTURE_PHYSICAL_VIEWPORT) || manifest.inputHash !== sha256(image)) {
-    throw new Error(`Device capture evidence for ${input.anchor}-${input.theme} has an invalid image hash or viewport.`);
+  if (
+    !equalJson(dimensions, DEVICE_CAPTURE_PHYSICAL_VIEWPORT) ||
+    manifest.inputHash !== sha256(image)
+  ) {
+    throw new Error(
+      `Device capture evidence for ${input.anchor}-${input.theme} has an invalid image hash or viewport.`,
+    );
   }
   return { capturePath, manifest, manifestPath };
 }
@@ -402,27 +740,36 @@ function readCliValue(name: string): string {
   return value;
 }
 
-const invokedAsScript = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const invokedAsScript =
+  process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invokedAsScript) {
   const platform = readCliValue("--platform") as Platform;
   if (platform !== "android" && platform !== "ios") {
     throw new Error("Device capture platform must be android or ios.");
   }
-  const inputPath = process.env.WHISPR_CAPTURE_INPUT;
-  if (!inputPath || !existsSync(inputPath)) {
-    throw new Error("Set WHISPR_CAPTURE_INPUT to the native DPR-3 screenshot PNG.");
+  const anchor = readCliValue("--anchor") as DeviceCaptureAnchor;
+  const theme = process.env.WHISPR_CAPTURE_THEME === "dark" ? "dark" : "light";
+  const androidCapture =
+    platform === "android" ? captureAndroidDeviceScreenshot({ anchor, theme }) : undefined;
+  const iosInputPath = platform === "ios" ? process.env.WHISPR_CAPTURE_INPUT : undefined;
+  if (platform === "ios" && (!iosInputPath || !existsSync(iosInputPath))) {
+    throw new Error("Set WHISPR_CAPTURE_INPUT to the native iOS DPR-3 screenshot PNG.");
   }
   writeDeterministicDeviceCapture({
-    anchor: readCliValue("--anchor") as DeviceCaptureAnchor,
+    anchor,
+    ...(androidCapture ? { android: androidCapture.android } : {}),
     build: process.env.WHISPR_CAPTURE_BUILD ?? "",
     buildProfile: process.env.WHISPR_MOBILE_ENV === "uat" ? "uat" : "production",
     commit: process.env.WHISPR_CAPTURE_COMMIT ?? getCommit(),
-    inputPath,
-    outputRoot: path.join(repositoryRoot, "artifacts", "redesign"),
+    ...(androidCapture ? { image: androidCapture.image } : { inputPath: iosInputPath as string }),
+    outputRoot: resolveRepositoryCaptureDirectory("artifacts/redesign"),
     platform,
     testAccount: process.env.WHISPR_CAPTURE_TEST_ACCOUNT ?? "",
-    theme: process.env.WHISPR_CAPTURE_THEME === "dark" ? "dark" : "light",
+    theme,
   })
     .then(({ manifestPath }) => console.log(JSON.stringify({ manifestPath, platform })))
-    .catch((error: unknown) => { console.error(error); process.exitCode = 1; });
+    .catch((error: unknown) => {
+      console.error(error);
+      process.exitCode = 1;
+    });
 }

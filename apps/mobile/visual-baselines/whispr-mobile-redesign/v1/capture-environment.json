@@ -1,5 +1,19 @@
 {
   "version": 1,
+  "android": {
+    "abi": "x86_64",
+    "apiLevel": 37,
+    "avdName": "Pixel_10_Pro",
+    "buildFingerprint": "google/sdk_gphone16k_x86_64/emu64xa16k:17/CE2A.260420.019/15611780:user/dev-keys",
+    "emulatorVersion": "36.6.11.0",
+    "graphicsMode": "auto",
+    "gpuRenderer": "Google (NVIDIA Corporation), Android Emulator OpenGL ES Translator (NVIDIA GeForce RTX 5090/PCIe/SSE2), OpenGL ES 3.1 (4.5.0 NVIDIA 610.62)",
+    "hardwareProfile": "pixel_10_pro",
+    "ramMiB": 2048,
+    "systemImage": "system-images;android-37.0;google_apis_playstore_ps16k;x86_64",
+    "systemImagePackageSha256": "18cafc7d654896c636ae699d344aac527968a7391e4655998bfd86b6d758cc8e",
+    "systemImageRevision": 6
+  },
   "logicalViewport": {
     "width": 390,
     "height": 844

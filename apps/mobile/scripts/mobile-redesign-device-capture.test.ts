@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 const mobileRoot = path.resolve(import.meta.dirname, "..");
+const repositoryRoot = path.resolve(mobileRoot, "..", "..");
 const harnessPath = path.join(mobileRoot, "scripts", "mobile-redesign-device-capture.ts");
 
 test("deterministic device capture accepts only a pinned UAT DPR-3 environment", async () => {
@@ -26,7 +27,16 @@ test("deterministic device capture accepts only a pinned UAT DPR-3 environment",
   const capture = await import("./mobile-redesign-device-capture");
   assert.deepEqual(capture.DEVICE_CAPTURE_LOGICAL_VIEWPORT, { height: 844, width: 390 });
   assert.deepEqual(capture.DEVICE_CAPTURE_PHYSICAL_VIEWPORT, { height: 2532, width: 1170 });
-  assert.deepEqual(capture.DEVICE_CAPTURE_SAFE_AREA_INSETS, { bottom: 0, left: 0, right: 0, top: 42 });
+  assert.deepEqual(capture.DEVICE_CAPTURE_SAFE_AREA_INSETS, {
+    bottom: 0,
+    left: 0,
+    right: 0,
+    top: 42,
+  });
+  assert.equal(
+    capture.resolveRepositoryCaptureDirectory("artifacts/redesign"),
+    path.join(repositoryRoot, "artifacts", "redesign"),
+  );
 
   const environment = capture.readCaptureEnvironment();
   assert.equal(environment.deviceScaleFactor, 3);
@@ -35,11 +45,25 @@ test("deterministic device capture accepts only a pinned UAT DPR-3 environment",
   assert.equal(environment.timezone, "Europe/Istanbul");
   assert.equal(environment.colorSpace, "sRGB");
   assert.equal(environment.reducedMotion, "always");
+  assert.equal(environment.android.apiLevel, 37);
+  assert.equal(environment.android.avdName, "Pixel_10_Pro");
+  assert.equal(environment.android.emulatorVersion, "36.6.11.0");
+  assert.equal(environment.android.hardwareProfile, "pixel_10_pro");
+  assert.match(environment.android.gpuRenderer, /Android Emulator OpenGL ES Translator/);
+  assert.equal(environment.android.systemImageRevision, 6);
   assert.equal(environment.masks.version, 1);
   assert.deepEqual(Object.keys(environment.masks.platforms).sort(), ["android", "ios"]);
   assert.throws(
     () => capture.assertDeterministicDeviceCapture({ ...environment, buildProfile: "production" }),
     /UAT-only/i,
+  );
+  assert.throws(
+    () =>
+      capture.assertPinnedAndroidCaptureDevice({
+        ...environment.android,
+        apiLevel: 36,
+      } as unknown as typeof environment.android),
+    /API level/i,
   );
 
   const outputRoot = mkdtempSync(path.join(tmpdir(), "whispr-device-capture-"));
@@ -50,6 +74,7 @@ test("deterministic device capture accepts only a pinned UAT DPR-3 environment",
     commit: "0123456789abcdef0123456789abcdef01234567",
     inputPath: path.join(mobileRoot, "visual-baselines", "whispr-mobile-redesign", "v1", "1a.png"),
     outputRoot,
+    android: environment.android,
     platform: "android",
     testAccount: "visual-uat-capture",
     theme: "light",
@@ -92,11 +117,12 @@ test("deterministic device capture accepts only a pinned UAT DPR-3 environment",
 
   await writeFile(result.manifestPath, JSON.stringify({ ...result.manifest, platform: "unknown" }));
   await assert.rejects(
-    () => capture.readDeterministicDeviceCapture({
-      anchor: "1a",
-      captureDirectory: outputRoot,
-      theme: "light",
-    }),
+    () =>
+      capture.readDeterministicDeviceCapture({
+        anchor: "1a",
+        captureDirectory: outputRoot,
+        theme: "light",
+      }),
     /invalid platform, mask, or image hash/i,
   );
 });

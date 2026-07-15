@@ -10,7 +10,10 @@ test("CI blocks normalized golden drift without misrepresenting it as a device g
   const packageJson = JSON.parse(readFileSync(path.join(mobileRoot, "package.json"), "utf8")) as {
     scripts?: Record<string, string>;
   };
-  const workflow = readFileSync(path.join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8");
+  const workflow = readFileSync(
+    path.join(repositoryRoot, ".github", "workflows", "ci.yml"),
+    "utf8",
+  );
 
   assert.equal(
     packageJson.scripts?.["visual:gate"],
@@ -23,7 +26,10 @@ test("CI blocks normalized golden drift without misrepresenting it as a device g
   assert.match(workflow, /name: Mobile redesign golden drift/);
   assert.match(workflow, /pnpm --filter @wizards\/mobile visual:golden-drift/);
   assert.doesNotMatch(workflow, /pnpm --filter @wizards\/mobile visual:gate/);
-  assert.doesNotMatch(workflow, /Mobile redesign golden drift[\s\S]{0,240}continue-on-error:\s*true/);
+  assert.doesNotMatch(
+    workflow,
+    /Mobile redesign golden drift[\s\S]{0,240}continue-on-error:\s*true/,
+  );
 });
 
 test("nightly UAT device gate reads committed evidence and refuses stale screen evidence", () => {
@@ -53,7 +59,11 @@ test("golden drift gate rejects a normalized golden manifest drift", async () =>
 
   assert.doesNotThrow(() => gate.assertNormalizedGoldenManifestMatches(baseline, baseline));
   assert.throws(
-    () => gate.assertNormalizedGoldenManifestMatches(baseline, { ...baseline, sourceHash: "c".repeat(64) }),
+    () =>
+      gate.assertNormalizedGoldenManifestMatches(baseline, {
+        ...baseline,
+        sourceHash: "c".repeat(64),
+      }),
     /source hash drift/i,
   );
 });
@@ -65,10 +75,42 @@ test("golden drift gate verifies the checked-in normalized golden pixels", async
 
 test("device visual gate is fail-closed and excludes the unimplemented 1h target", async () => {
   const gate = await import("./mobile-redesign-visual-gate");
-  assert.throws(() => gate.requireDeviceCaptureDirectory(undefined), /WHISPR_DEVICE_CAPTURE_DIRECTORY/i);
-  assert.deepEqual(
-    gate.DEVICE_GATE_TARGETS.map((target: { anchor: string; theme: string }) => `${target.anchor}-${target.theme}`),
-    ["1a-light", "1b-light", "1c-light", "1d-light", "1e-light", "1f-light", "1g-light", "1i-dark", "1j-dark"],
+  assert.throws(
+    () => gate.requireDeviceCaptureDirectory(undefined),
+    /WHISPR_DEVICE_CAPTURE_DIRECTORY/i,
   );
-  assert.equal(gate.DEVICE_GATE_TARGETS.some((target: { anchor: string }) => target.anchor === "1h"), false);
+  assert.equal(
+    gate.resolveDeviceCaptureDirectory("artifacts/redesign"),
+    path.join(repositoryRoot, "artifacts", "redesign"),
+  );
+  assert.deepEqual(
+    gate.DEVICE_GATE_TARGETS.map(
+      (target: { anchor: string; theme: string }) => `${target.anchor}-${target.theme}`,
+    ),
+    [
+      "1a-light",
+      "1b-light",
+      "1c-light",
+      "1d-light",
+      "1e-light",
+      "1f-light",
+      "1g-light",
+      "1i-dark",
+      "1j-dark",
+    ],
+  );
+  assert.equal(
+    gate.DEVICE_GATE_TARGETS.some((target: { anchor: string }) => target.anchor === "1h"),
+    false,
+  );
+  assert.deepEqual(
+    gate
+      .resolveDeviceGateTargets(["1a-light"])
+      .map((target: { anchor: string; theme: string }) => `${target.anchor}-${target.theme}`),
+    ["1a-light"],
+  );
+  assert.throws(
+    () => gate.resolveDeviceGateTargets(["1h-light"]),
+    /unsupported device gate target/i,
+  );
 });
