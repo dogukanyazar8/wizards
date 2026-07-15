@@ -85,6 +85,10 @@ describe("mobile redesign pill tab bar", () => {
         top: 5,
       }),
     );
+    expect(styles.navVisualWrap).toEqual(
+      expect.objectContaining({ height: 22, width: 22 }),
+    );
+    expect(styles.navVisualWrap).not.toHaveProperty("position");
     expect(source).toContain("color={isActive ? theme.accent.default : theme.text.soft}");
     expect(source).toContain("size={22}");
   });

@@ -161,11 +161,10 @@ export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
     navButtonActive: { backgroundColor: theme.accent.soft },
     navButtonPressed: { opacity: 0.78 },
     navVisualWrap: {
-      width: 24,
-      height: 24,
+      width: 22,
+      height: 22,
       alignItems: "center",
       justifyContent: "center",
-      position: "relative",
     },
     navLabel: {
       ...theme.typography.tabLabel,
