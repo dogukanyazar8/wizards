@@ -128,6 +128,33 @@ export const redesignDark = {
   sheetOverlay: "rgba(0,0,0,.55)",
 } as const;
 
+/** Derived from README_AUTH section 2 and HTML anchors #2a–#2d. */
+export const redesignAuthLight = {
+  gradientFrom: "#7C6CF6",
+  gradientTo: "#4F46E5",
+  gradientMutedFrom: "#6D5DF6",
+  gradientMutedTo: "#4338CA",
+  profileGamerFg: "#D6318C",
+  profileGamerSoft: "#FCE7F1",
+  profileGamerBorder: "#F5C8DF",
+  profileCorporateFg: "#2373D6",
+  profileCorporateSoft: "#E3F0FD",
+  profileCorporateBorder: "#C4DEF7",
+  featureEncryption: "#22A366",
+  featureRealtime: "#8A46E5",
+  featureCommunity: "#E0529C",
+  featureFileShare: "#4F9CF6",
+  featureVoice: "#E5A346",
+} as const;
+
+export const redesignAuthDark = {
+  ...redesignAuthLight,
+  profileGamerSoft: redesignDark.card,
+  profileGamerBorder: redesignDark.border,
+  profileCorporateSoft: redesignDark.card,
+  profileCorporateBorder: redesignDark.border,
+} as const;
+
 export const redesignAvatarTintsLight = [
   { bg: "#EEF0FE", fg: "#4F46E5" },
   { bg: "#FDEBD7", fg: "#C77A2B" },

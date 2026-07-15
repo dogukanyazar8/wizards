@@ -2,6 +2,8 @@ import {
   mobilePalette,
   redesignAccessibleAvatarTintsLight,
   redesignAvatarTintsDark,
+  redesignAuthDark,
+  redesignAuthLight,
   redesignDark,
   redesignLight,
 } from "./palette";
@@ -33,6 +35,30 @@ export interface MobileAvatarTint {
 
 export type MobileAvatarTints = readonly [MobileAvatarTint, ...MobileAvatarTint[]];
 
+export interface MobileAuthProfileAccent {
+  readonly badgeBorder: string;
+  readonly badgeSoft: string;
+  readonly badgeText: string;
+  readonly icon: string;
+  readonly iconSoft: string;
+}
+
+const lightThemeAccent = {
+  action: redesignLight.primary,
+  default: redesignLight.primary,
+  soft: redesignLight.lavender,
+  softBorder: redesignLight.lavenderBorder,
+  strong: redesignLight.primaryStrong,
+} as const;
+
+const darkThemeAccent = {
+  action: redesignDark.primaryWithWhiteText,
+  default: redesignDark.primary,
+  soft: redesignDark.selectedSurface,
+  softBorder: redesignDark.selectedBorder,
+  strong: redesignDark.accentText,
+} as const;
+
 export interface MobileTheme {
   readonly accent: {
     /** Accessible filled-action color; use with text.onPrimary. */
@@ -43,6 +69,18 @@ export interface MobileTheme {
     readonly softBorder: string;
     /** Accessible accent foreground for normal-size text. */
     readonly strong: string;
+  };
+  readonly authFeature: {
+    readonly community: string;
+    readonly encryption: string;
+    readonly fileShare: string;
+    readonly realtime: string;
+    readonly voice: string;
+  };
+  readonly authProfile: {
+    readonly corporate: MobileAuthProfileAccent;
+    readonly gamer: MobileAuthProfileAccent;
+    readonly personal: MobileAuthProfileAccent;
   };
   readonly avatarTints: MobileAvatarTints;
   readonly border: {
@@ -65,6 +103,8 @@ export interface MobileTheme {
   };
   readonly gradients: {
     readonly appBackground: readonly [string, string];
+    readonly authPrimaryAction: readonly [string, string];
+    readonly authPrimaryActionMuted: readonly [string, string];
     readonly primaryAction: readonly [string, string];
     readonly softSurface: readonly [string, string];
   };
@@ -152,12 +192,36 @@ function deepFreeze<T>(value: T): T {
 }
 
 export const lightTheme = deepFreeze({
-  accent: {
-    action: redesignLight.primary,
-    default: redesignLight.primary,
-    soft: redesignLight.lavender,
-    softBorder: redesignLight.lavenderBorder,
-    strong: redesignLight.primaryStrong,
+  accent: lightThemeAccent,
+  authFeature: {
+    community: redesignAuthLight.featureCommunity,
+    encryption: redesignAuthLight.featureEncryption,
+    fileShare: redesignAuthLight.featureFileShare,
+    realtime: redesignAuthLight.featureRealtime,
+    voice: redesignAuthLight.featureVoice,
+  },
+  authProfile: {
+    corporate: {
+      badgeBorder: redesignAuthLight.profileCorporateBorder,
+      badgeSoft: redesignAuthLight.profileCorporateSoft,
+      badgeText: redesignAuthLight.profileCorporateFg,
+      icon: redesignAuthLight.profileCorporateFg,
+      iconSoft: redesignAuthLight.profileCorporateSoft,
+    },
+    gamer: {
+      badgeBorder: redesignAuthLight.profileGamerBorder,
+      badgeSoft: redesignAuthLight.profileGamerSoft,
+      badgeText: redesignAuthLight.profileGamerFg,
+      icon: redesignAuthLight.profileGamerFg,
+      iconSoft: redesignAuthLight.profileGamerSoft,
+    },
+    personal: {
+      badgeBorder: lightThemeAccent.softBorder,
+      badgeSoft: lightThemeAccent.soft,
+      badgeText: lightThemeAccent.strong,
+      icon: lightThemeAccent.default,
+      iconSoft: lightThemeAccent.soft,
+    },
   },
   avatarTints: redesignAccessibleAvatarTintsLight,
   border: {
@@ -227,6 +291,11 @@ export const lightTheme = deepFreeze({
   },
   gradients: {
     appBackground: [redesignLight.bg, redesignLight.lavender],
+    authPrimaryAction: [redesignAuthLight.gradientFrom, redesignAuthLight.gradientTo],
+    authPrimaryActionMuted: [
+      redesignAuthLight.gradientMutedFrom,
+      redesignAuthLight.gradientMutedTo,
+    ],
     primaryAction: [redesignLight.primary, redesignLight.primaryStrong],
     softSurface: [redesignLight.card, redesignLight.lavender],
   },
@@ -293,12 +362,36 @@ export const lightTheme = deepFreeze({
 } satisfies MobileTheme);
 
 export const darkTheme = deepFreeze({
-  accent: {
-    action: redesignDark.primaryWithWhiteText,
-    default: redesignDark.primary,
-    soft: redesignDark.selectedSurface,
-    softBorder: redesignDark.selectedBorder,
-    strong: redesignDark.accentText,
+  accent: darkThemeAccent,
+  authFeature: {
+    community: redesignAuthDark.featureCommunity,
+    encryption: redesignAuthDark.featureEncryption,
+    fileShare: redesignAuthDark.featureFileShare,
+    realtime: redesignAuthDark.featureRealtime,
+    voice: redesignAuthDark.featureVoice,
+  },
+  authProfile: {
+    corporate: {
+      badgeBorder: redesignAuthDark.profileCorporateBorder,
+      badgeSoft: redesignAuthDark.profileCorporateSoft,
+      badgeText: redesignAuthDark.profileCorporateFg,
+      icon: redesignAuthDark.profileCorporateFg,
+      iconSoft: redesignAuthDark.profileCorporateSoft,
+    },
+    gamer: {
+      badgeBorder: redesignAuthDark.profileGamerBorder,
+      badgeSoft: redesignAuthDark.profileGamerSoft,
+      badgeText: redesignAuthDark.profileGamerFg,
+      icon: redesignAuthDark.profileGamerFg,
+      iconSoft: redesignAuthDark.profileGamerSoft,
+    },
+    personal: {
+      badgeBorder: darkThemeAccent.softBorder,
+      badgeSoft: darkThemeAccent.soft,
+      badgeText: darkThemeAccent.strong,
+      icon: darkThemeAccent.default,
+      iconSoft: darkThemeAccent.soft,
+    },
   },
   avatarTints: redesignAvatarTintsDark,
   border: {
@@ -352,6 +445,8 @@ export const darkTheme = deepFreeze({
   },
   gradients: {
     appBackground: [redesignDark.bg, redesignDark.card],
+    authPrimaryAction: [redesignAuthDark.gradientFrom, redesignAuthDark.gradientTo],
+    authPrimaryActionMuted: [redesignAuthDark.gradientMutedFrom, redesignAuthDark.gradientMutedTo],
     primaryAction: [redesignDark.primaryWithWhiteText, redesignDark.primaryWithWhiteText],
     softSurface: [redesignDark.card, redesignDark.selectedSurface],
   },

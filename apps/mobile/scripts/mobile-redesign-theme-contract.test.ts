@@ -454,6 +454,107 @@ export function Fixture({ cap }: { cap: number }) {
     });
   });
 
+  it("exports canonical auth palette primitives for light and dark surfaces", () => {
+    assert.deepEqual(paletteExports.redesignAuthLight, {
+      gradientFrom: "#7C6CF6",
+      gradientTo: "#4F46E5",
+      gradientMutedFrom: "#6D5DF6",
+      gradientMutedTo: "#4338CA",
+      profileGamerFg: "#D6318C",
+      profileGamerSoft: "#FCE7F1",
+      profileGamerBorder: "#F5C8DF",
+      profileCorporateFg: "#2373D6",
+      profileCorporateSoft: "#E3F0FD",
+      profileCorporateBorder: "#C4DEF7",
+      featureEncryption: "#22A366",
+      featureRealtime: "#8A46E5",
+      featureCommunity: "#E0529C",
+      featureFileShare: "#4F9CF6",
+      featureVoice: "#E5A346",
+    });
+    assert.deepEqual(paletteExports.redesignAuthDark, {
+      gradientFrom: "#7C6CF6",
+      gradientTo: "#4F46E5",
+      gradientMutedFrom: "#6D5DF6",
+      gradientMutedTo: "#4338CA",
+      profileGamerFg: "#D6318C",
+      profileGamerSoft: "#1C1F3A",
+      profileGamerBorder: "#2B2F52",
+      profileCorporateFg: "#2373D6",
+      profileCorporateSoft: "#1C1F3A",
+      profileCorporateBorder: "#2B2F52",
+      featureEncryption: "#22A366",
+      featureRealtime: "#8A46E5",
+      featureCommunity: "#E0529C",
+      featureFileShare: "#4F9CF6",
+      featureVoice: "#E5A346",
+    });
+  });
+
+  it("maps auth gradients, profile accents, and feature accents into both themes", () => {
+    assert.deepEqual(lightTheme.gradients.authPrimaryAction, ["#7C6CF6", "#4F46E5"]);
+    assert.deepEqual(lightTheme.gradients.authPrimaryActionMuted, ["#6D5DF6", "#4338CA"]);
+    assert.deepEqual(darkTheme.gradients.authPrimaryAction, ["#7C6CF6", "#4F46E5"]);
+    assert.deepEqual(darkTheme.gradients.authPrimaryActionMuted, ["#6D5DF6", "#4338CA"]);
+
+    const authFeatures = {
+      community: "#E0529C",
+      encryption: "#22A366",
+      fileShare: "#4F9CF6",
+      realtime: "#8A46E5",
+      voice: "#E5A346",
+    };
+    assert.deepEqual(lightTheme.authFeature, authFeatures);
+    assert.deepEqual(darkTheme.authFeature, authFeatures);
+
+    assert.deepEqual(lightTheme.authProfile, {
+      corporate: {
+        badgeBorder: "#C4DEF7",
+        badgeSoft: "#E3F0FD",
+        badgeText: "#2373D6",
+        icon: "#2373D6",
+        iconSoft: "#E3F0FD",
+      },
+      gamer: {
+        badgeBorder: "#F5C8DF",
+        badgeSoft: "#FCE7F1",
+        badgeText: "#D6318C",
+        icon: "#D6318C",
+        iconSoft: "#FCE7F1",
+      },
+      personal: {
+        badgeBorder: "#DFE2FC",
+        badgeSoft: "#EEF0FE",
+        badgeText: "#3F38C9",
+        icon: "#4F46E5",
+        iconSoft: "#EEF0FE",
+      },
+    });
+    assert.deepEqual(darkTheme.authProfile, {
+      corporate: {
+        badgeBorder: "#2B2F52",
+        badgeSoft: "#1C1F3A",
+        badgeText: "#2373D6",
+        icon: "#2373D6",
+        iconSoft: "#1C1F3A",
+      },
+      gamer: {
+        badgeBorder: "#2B2F52",
+        badgeSoft: "#1C1F3A",
+        badgeText: "#D6318C",
+        icon: "#D6318C",
+        iconSoft: "#1C1F3A",
+      },
+      personal: {
+        badgeBorder: "#3B3F73",
+        badgeSoft: "#2A2D55",
+        badgeText: "#A5A8F5",
+        icon: "#6D66F0",
+        iconSoft: "#2A2D55",
+      },
+    });
+  });
+
   it("keeps canonical avatar pairs separate from accessible initials pairs", () => {
     assert.deepEqual(paletteExports.redesignAvatarTintsLight, [
       { bg: "#EEF0FE", fg: "#4F46E5" },
