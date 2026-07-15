@@ -4,19 +4,13 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import { MOBILE_AUTOMATED_GATES } from "../src/quality/mobile-quality-gate";
+import { MOBILE_AUTH_SCREEN_TEST_IDS } from "../src/app/screens/auth/mobile-auth-screen-contract";
 
 const repositoryRoot = path.resolve(process.cwd(), "../..");
 const authFlowPath = path.join(repositoryRoot, ".maestro", "phase2-auth-navigation.yml");
 const authFlowSource = existsSync(authFlowPath) ? readFileSync(authFlowPath, "utf8") : "";
 const loginHelperPath = path.join(repositoryRoot, ".maestro", "helpers", "login-uat.yml");
 const loginHelperSource = readFileSync(loginHelperPath, "utf8");
-
-export const MOBILE_AUTH_SCREEN_TEST_IDS = [
-  "mobile-auth-welcome-screen",
-  "mobile-auth-login-screen",
-  "mobile-auth-register-screen",
-  "mobile-auth-forgot-password-screen",
-] as const;
 
 const authTestIdSources: Record<string, { file: string; needle: string }> = {
   "mobile-auth-forgot-back-to-sign-in": {
