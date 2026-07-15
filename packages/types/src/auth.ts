@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const TurnstileTokenSchema = z
+export const TurnstileTokenSchema = z
   .string()
   .min(1, "validation.turnstile.required")
   .max(4096, "validation.turnstile.invalid");

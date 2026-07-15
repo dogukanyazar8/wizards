@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TurnstileTokenSchema } from "./auth";
 import {
   ChatMessageSchema,
   MESSAGE_CONTENT_DEFAULT_LIMIT,
@@ -109,6 +110,8 @@ const MobileAuthLocaleSchema = z.enum(["tr", "en"]).optional();
 export const MobileAuthPasswordLoginRequestSchema = z.object({
   email: MobileAuthEmailSchema,
   password: MobileAuthPasswordSchema,
+  turnstileToken: TurnstileTokenSchema,
+  twoFactorCode: z.string().trim().min(1).max(64).optional(),
 });
 
 export const MobileAuthPasswordLoginResponseSchema = z.object({
@@ -121,6 +124,7 @@ export const MobileAuthRegisterRequestSchema = z
     email: MobileAuthEmailSchema,
     locale: MobileAuthLocaleSchema,
     password: MobileAuthPasswordSchema,
+    turnstileToken: TurnstileTokenSchema,
     username: z
       .string()
       .min(2, "validation.username.min")
@@ -146,6 +150,7 @@ export const MobileAuthForgotPasswordRequestSchema = z.object({
 export const MobileAuthForgotPasswordResponseSchema = z.object({
   email: MobileAuthEmailSchema,
   message: z.string().min(1).max(160),
+  resetLinkTtlMinutes: z.number().int().positive().optional(),
   status: z.literal("accepted"),
 });
 

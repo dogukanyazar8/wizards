@@ -8,6 +8,7 @@ import {
   LoginSchema,
   RegisterSchema,
   ResetPasswordSchema,
+  TurnstileTokenSchema,
 } from "./auth";
 import { assertAccepts, assertRejects, assertSchemaBehaviorCoverage } from "./schema-test-helpers";
 
@@ -62,6 +63,11 @@ describe("auth schemas", () => {
           token: "reset-token",
         },
         invalid: { confirmPassword: "password", password: "password", token: "" },
+      },
+      TurnstileTokenSchema: {
+        schema: TurnstileTokenSchema,
+        valid: "turnstile-token",
+        invalid: "",
       },
     });
   });

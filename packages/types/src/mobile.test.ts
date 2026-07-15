@@ -336,8 +336,12 @@ describe("mobile schemas", () => {
       },
       MobileAuthPasswordLoginRequestSchema: {
         schema: MobileAuthPasswordLoginRequestSchema,
-        valid: { email: "ada@example.com", password: "correct-horse" },
-        invalid: { email: "ada@example.com", password: "short" },
+        valid: {
+          email: "ada@example.com",
+          password: "correct-horse",
+          turnstileToken: "turnstile-token",
+        },
+        invalid: { email: "ada@example.com", password: "correct-horse" },
       },
       MobileAuthPasswordLoginResponseSchema: {
         schema: MobileAuthPasswordLoginResponseSchema,
@@ -361,12 +365,14 @@ describe("mobile schemas", () => {
           email: "ada@example.com",
           locale: "en",
           password: "correct-horse",
+          turnstileToken: "turnstile-token",
           username: "ada_lovelace",
         },
         invalid: {
           confirmPassword: "different",
           email: "ada@example.com",
           password: "correct-horse",
+          turnstileToken: "turnstile-token",
           username: "ada_lovelace",
         },
       },
@@ -871,25 +877,93 @@ describe("mobile schemas", () => {
     assertAccepts(MobileAuthPasswordLoginRequestSchema, {
       email: `${"a".repeat(242)}@example.com`,
       password: "p".repeat(100),
+      turnstileToken: "t".repeat(4096),
     });
     assertRejects(
       MobileAuthPasswordLoginRequestSchema,
-      { email: `${"a".repeat(243)}@example.com`, password: "password" },
+      {
+        email: `${"a".repeat(243)}@example.com`,
+        password: "password",
+        turnstileToken: "turnstile-token",
+      },
       ["email"],
     );
     assertRejects(
       MobileAuthPasswordLoginRequestSchema,
-      { email: "ada@example.com", password: "p".repeat(101) },
+      {
+        email: "ada@example.com",
+        password: "p".repeat(101),
+        turnstileToken: "turnstile-token",
+      },
       ["password"],
+    );
+
+    assertRejects(
+      MobileAuthPasswordLoginRequestSchema,
+      { email: "ada@example.com", password: "password" },
+      ["turnstileToken"],
+    );
+    assertRejects(
+      MobileAuthPasswordLoginRequestSchema,
+      { email: "ada@example.com", password: "password", turnstileToken: "" },
+      ["turnstileToken"],
+    );
+    assertRejects(
+      MobileAuthPasswordLoginRequestSchema,
+      {
+        email: "ada@example.com",
+        password: "password",
+        turnstileToken: "t".repeat(4097),
+      },
+      ["turnstileToken"],
+    );
+
+    const parsedLogin = assertAccepts(MobileAuthPasswordLoginRequestSchema, {
+      email: "ada@example.com",
+      password: "password",
+      turnstileToken: "turnstile-token",
+      twoFactorCode: `  ${"2".repeat(64)}  `,
+    });
+    assert.equal(parsedLogin?.twoFactorCode, "2".repeat(64));
+    assertRejects(
+      MobileAuthPasswordLoginRequestSchema,
+      {
+        email: "ada@example.com",
+        password: "password",
+        turnstileToken: "turnstile-token",
+        twoFactorCode: "   ",
+      },
+      ["twoFactorCode"],
+    );
+    assertRejects(
+      MobileAuthPasswordLoginRequestSchema,
+      {
+        email: "ada@example.com",
+        password: "password",
+        turnstileToken: "turnstile-token",
+        twoFactorCode: "2".repeat(65),
+      },
+      ["twoFactorCode"],
     );
 
     const registration = {
       confirmPassword: "password",
       email: "ada@example.com",
       password: "password",
+      turnstileToken: "turnstile-token",
       username: "ada_1",
     };
     assertAccepts(MobileAuthRegisterRequestSchema, registration);
+    assertRejects(
+      MobileAuthRegisterRequestSchema,
+      {
+        confirmPassword: "password",
+        email: "ada@example.com",
+        password: "password",
+        username: "ada_1",
+      },
+      ["turnstileToken"],
+    );
     assertRejects(
       MobileAuthRegisterRequestSchema,
       { ...registration, confirmPassword: "different" },
@@ -904,6 +978,33 @@ describe("mobile schemas", () => {
     assertRejects(MobileAuthRegisterRequestSchema, { ...registration, username: "ada-name" }, [
       "username",
     ]);
+
+    assertAccepts(MobileAuthForgotPasswordResponseSchema, {
+      email: "ada@example.com",
+      message: "Accepted",
+      resetLinkTtlMinutes: 1,
+      status: "accepted",
+    });
+    assertRejects(
+      MobileAuthForgotPasswordResponseSchema,
+      {
+        email: "ada@example.com",
+        message: "Accepted",
+        resetLinkTtlMinutes: 0,
+        status: "accepted",
+      },
+      ["resetLinkTtlMinutes"],
+    );
+    assertRejects(
+      MobileAuthForgotPasswordResponseSchema,
+      {
+        email: "ada@example.com",
+        message: "Accepted",
+        resetLinkTtlMinutes: 1.5,
+        status: "accepted",
+      },
+      ["resetLinkTtlMinutes"],
+    );
   });
 
   it("trims and validates Expo push tokens and rejects unknown strict fields", () => {
