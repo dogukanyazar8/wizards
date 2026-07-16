@@ -19,9 +19,12 @@ import {
 } from "../mobile-root-screen-shared";
 import {
   ActionButton,
+  AvatarMark,
   BootstrapStateNotice,
   EmptyState,
+  MobileSyncHealthBanner,
 } from "../components/ui-atoms";
+import { Skeleton } from "../components/kit";
 import {
   MediaRuntimeStatusPill,
   formatMobileMediaAssetMeta,
@@ -34,6 +37,10 @@ import {
   useMobileNotificationMutations,
   useMobileNotificationsQuery,
 } from "../../notifications/mobile-notification-query";
+import {
+  getMobileNotificationPresentation,
+  groupMobileNotificationsByDay,
+} from "./notifications-screen-model";
 
 export function NotificationsScreen({
   bootstrapState,
@@ -44,6 +51,8 @@ export function NotificationsScreen({
   onRequestNotificationPermission,
   onRefreshBootstrap,
   onRefreshVisibleData,
+  onJoinVoiceNotification,
+  onOpenNotification,
 }: {
   bootstrapState: MobileBootstrapViewState;
   notificationState: MobileNotificationRuntimeState;
@@ -53,6 +62,8 @@ export function NotificationsScreen({
   onRequestNotificationPermission(): Promise<void>;
   onRefreshBootstrap(): void;
   onRefreshVisibleData(): void;
+  onJoinVoiceNotification(notification: MobileNotificationItem): Promise<void>;
+  onOpenNotification(actionUrl: string): void;
 }) {
   const styles = useNotificationsScreenStyles();
   const theme = useTheme();
@@ -60,7 +71,18 @@ export function NotificationsScreen({
   const notificationsQuery = useMobileNotificationsQuery(apiClient);
   const notificationMutations = useMobileNotificationMutations(apiClient);
   const notifications = notificationsQuery.data?.pages.flatMap((page) => page.notifications) ?? [];
+  const notificationGroups = groupMobileNotificationsByDay(notifications, new Date());
   const unreadCount = notifications.filter((notification) => !notification.read).length;
+  const visibleSyncHealth: MobileSyncHealthSummary = notificationsQuery.isError
+    ? {
+        ...syncHealth,
+        failureCount: Math.max(1, syncHealth.failureCount),
+        isRefreshing: false,
+        status: "error",
+      }
+    : syncHealth.isRefreshing || notificationsQuery.isRefetching
+      ? { ...syncHealth, isRefreshing: true, status: "refreshing" }
+      : syncHealth;
   const notificationRuntimeSummary = summarizeMobileNotificationRuntimeState(notificationState);
   const canRequestPermission =
     notificationRuntimeSummary.actionEnabled &&
@@ -120,31 +142,28 @@ export function NotificationsScreen({
           </Pressable>
         </View>
       ) : null}
-      {notificationsQuery.isError ? (
-        <View style={styles.notificationsErrorCard}>
-          <Text style={styles.notificationsErrorText}>{copy.syncHealthErrorDescription}</Text>
-          <Pressable
-            accessibilityLabel={copy.retryAction}
-            accessibilityRole="button"
-            onPress={() => void notificationsQuery.refetch()}
-            style={styles.notificationsRetryAction}
-          >
-            <Text style={styles.notificationsRetryActionText}>{copy.retryAction}</Text>
-          </Pressable>
+      {visibleSyncHealth.status !== "healthy" ? (
+        <View testID="mobile-notifications-sync-status">
+          <MobileSyncHealthBanner
+            health={visibleSyncHealth}
+            onRetry={() => {
+              onRefreshVisibleData();
+              void notificationsQuery.refetch();
+            }}
+          />
         </View>
       ) : null}
       <FlatList
         contentContainerStyle={styles.notificationsList}
-        data={notifications}
-        keyExtractor={(notification) => notification.id}
+        data={notificationGroups}
+        keyExtractor={(group) => group.label}
         ListEmptyComponent={
           notificationsQuery.isLoading ? (
-            <Text style={styles.notificationsLoadingText}>{copy.bootstrapLoadingDescription}</Text>
+            <NotificationsLoadingSkeleton />
           ) : (
             <EmptyState tone="accent" label={copy.notificationsEmpty} />
           )
         }
-        ListHeaderComponent={<Text style={styles.notificationsSectionTitle}>BUGÜN</Text>}
         onEndReached={() => {
           if (notificationsQuery.hasNextPage && !notificationsQuery.isFetchingNextPage) {
             void notificationsQuery.fetchNextPage();
@@ -153,11 +172,19 @@ export function NotificationsScreen({
         onEndReachedThreshold={0.5}
         onRefresh={() => void notificationsQuery.refetch()}
         refreshing={notificationsQuery.isRefetching}
-        renderItem={({ item }) => (
-          <MobileNotificationFeedRow
-            notification={item}
-            onMarkRead={() => notificationMutations.markRead.mutate(item.id)}
-          />
+        renderItem={({ item: group }) => (
+          <View>
+            <Text style={styles.notificationsSectionTitle}>{group.label}</Text>
+            {group.notifications.map((notification) => (
+              <MobileNotificationFeedRow
+                key={notification.id}
+                notification={notification}
+                onJoinVoiceNotification={onJoinVoiceNotification}
+                onMarkRead={() => notificationMutations.markRead.mutate(notification.id)}
+                onOpenNotification={onOpenNotification}
+              />
+            ))}
+          </View>
         )}
         showsVerticalScrollIndicator={false}
         style={styles.notificationsListViewport}
@@ -168,14 +195,18 @@ export function NotificationsScreen({
 
 function MobileNotificationFeedRow({
   notification,
+  onJoinVoiceNotification,
   onMarkRead,
+  onOpenNotification,
 }: {
   notification: MobileNotificationItem;
+  onJoinVoiceNotification(notification: MobileNotificationItem): Promise<void>;
   onMarkRead(): void;
+  onOpenNotification(actionUrl: string): void;
 }) {
   const styles = useNotificationsScreenStyles();
   const theme = useTheme();
-  const icon = getMobileNotificationIcon(notification.type);
+  const presentation = getMobileNotificationPresentation(notification);
   const metadata = [notification.server?.name, notification.channel?.name]
     .filter((value): value is string => Boolean(value))
     .join(" · ");
@@ -189,6 +220,9 @@ function MobileNotificationFeedRow({
         if (!notification.read) {
           onMarkRead();
         }
+        if (notification.actionUrl) {
+          onOpenNotification(notification.actionUrl);
+        }
       }}
       style={({ pressed }) => [
         styles.notificationFeedRow,
@@ -197,9 +231,45 @@ function MobileNotificationFeedRow({
       ]}
       testID={`mobile-notification-${notification.id}`}
     >
-      <View style={styles.notificationFeedIcon}>
-        <Ionicons name={icon} size={19} color={theme.accent.strong} />
-      </View>
+      {notification.actor && presentation.kind !== "voice" ? (
+        <View
+          style={styles.notificationActorAvatarWrap}
+          testID={`mobile-notification-avatar-${notification.id}`}
+        >
+          <AvatarMark
+            avatarBorderRadius={theme.sizing.avatarLRadius}
+            avatarBorderWidth={0}
+            dimension={theme.sizing.avatarL}
+            identityId={notification.actor.id}
+            imageUrl={notification.actor.avatarUrl}
+            label={notification.actor.displayName ?? notification.actor.username}
+          />
+          {presentation.kind === "mention" ? (
+            <View
+              style={styles.notificationMentionBadge}
+              testID={`mobile-notification-mention-badge-${notification.id}`}
+            >
+              <Text style={styles.notificationMentionBadgeText}>@</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : (
+        <View
+          style={[
+            styles.notificationFeedIcon,
+            presentation.kind === "voice" && styles.notificationFeedIconVoice,
+          ]}
+          testID={
+            presentation.kind === "voice" ? `mobile-notification-voice-icon-${notification.id}` : undefined
+          }
+        >
+          <Ionicons
+            name={presentation.icon}
+            size={19}
+            color={presentation.kind === "voice" ? theme.status.successText : theme.accent.strong}
+          />
+        </View>
+      )}
       <View style={styles.notificationFeedText}>
         <Text style={styles.notificationFeedBody} numberOfLines={2}>
           {notification.body}
@@ -214,28 +284,48 @@ function MobileNotificationFeedRow({
           {formatMobileDisplayTime(notification.createdAt)}
         </Text>
       </View>
-      {!notification.read ? <View style={styles.notificationUnreadDot} /> : null}
+      {presentation.canJoinVoice ? (
+        <Pressable
+          accessibilityLabel={`Ses odasına katıl: ${notification.channel?.name ?? ""}`}
+          accessibilityRole="button"
+          onPress={() => {
+            if (!notification.read) {
+              onMarkRead();
+            }
+            void onJoinVoiceNotification(notification);
+          }}
+          style={({ pressed }) => [
+            styles.notificationVoiceJoinAction,
+            pressed && styles.actionButtonPressed,
+          ]}
+          testID={`mobile-notification-voice-join-${notification.id}`}
+        >
+          <Text style={styles.notificationVoiceJoinActionText}>Katıl</Text>
+        </Pressable>
+      ) : !notification.read ? (
+        <View style={styles.notificationUnreadDot} />
+      ) : null}
     </Pressable>
   );
 }
 
-function getMobileNotificationIcon(type: MobileNotificationItem["type"]) {
-  switch (type) {
-    case "DM":
-      return "chatbubble-ellipses-outline" as const;
-    case "FRIEND_ACCEPTED":
-    case "FRIEND_REQUEST":
-      return "person-add-outline" as const;
-    case "MENTION":
-      return "at-outline" as const;
-    case "MODERATION":
-      return "shield-checkmark-outline" as const;
-    case "SERVER_INVITE":
-      return "people-outline" as const;
-    case "SYSTEM":
-    default:
-      return "notifications-outline" as const;
-  }
+function NotificationsLoadingSkeleton() {
+  const styles = useNotificationsScreenStyles();
+
+  return (
+    <View style={styles.notificationsLoadingSkeleton} testID="mobile-notifications-loading-skeleton">
+      {[0, 1, 2].map((index) => (
+        <View key={index} style={styles.notificationSkeletonRow}>
+          <Skeleton borderRadius={16} height={44} width={44} />
+          <View style={styles.notificationSkeletonText}>
+            <Skeleton borderRadius={6} height={14} width="78%" />
+            <Skeleton borderRadius={6} height={12} width="58%" />
+            <Skeleton borderRadius={6} height={11} width="42%" />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
 }
 
 export function NotificationRuntimeCard({

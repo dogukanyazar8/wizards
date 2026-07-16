@@ -304,7 +304,7 @@ export const createFloatingNavigationChromeStyles = (theme: MobileTheme) => ({
   miniVoiceBarStatus: {
     ...theme.typography.caption,
     color: theme.text.onInverseMuted,
-    fontWeight: "600" as const,
+    fontFamily: theme.typography.fontFamilySemiBold,
     includeFontPadding: false,
   },
   miniVoiceBarText: {
@@ -316,7 +316,6 @@ export const createFloatingNavigationChromeStyles = (theme: MobileTheme) => ({
     color: theme.text.onInverse,
     fontSize: 13.5,
     fontFamily: theme.typography.fontFamilyBold,
-    fontWeight: "700" as const,
     includeFontPadding: false,
     lineHeight: 17,
   },

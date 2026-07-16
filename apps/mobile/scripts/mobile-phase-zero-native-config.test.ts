@@ -6,6 +6,7 @@ import test from "node:test";
 const root = process.cwd();
 const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as {
   dependencies: Record<string, string>;
+  devDependencies: Record<string, string>;
   scripts: Record<string, string>;
 };
 
@@ -101,11 +102,90 @@ test("build-only Android APK scripts do not require or mutate a connected device
   assert.match(buildScript, /Join-Path \$tsxTarget "package\.json"/);
   assert.match(buildScript, /function Use-WhisprMobileUatBuildMutex/);
   assert.match(buildScript, /"store-dir"\s*=\s*\$StoreDir/);
-  assert.match(buildScript, /\[int\]\$PnpmVirtualStoreMaxLength\s*=\s*40/);
+  assert.match(buildScript, /\[int\]\$PnpmVirtualStoreMaxLength\s*=\s*32/);
   assert.match(buildScript, /"virtual-store-dir-max-length"\s*=\s*\$VirtualStoreMaxLength/);
   assert.match(buildScript, /"--config\.store-dir=\$PhysicalStoreDir"/);
   assert.match(buildScript, /"--config\.virtual-store-dir=\$PhysicalVirtualStoreDir"/);
   assert.match(buildScript, /\$env:GRADLE_USER_HOME\s*=\s*\$gradleUserHome/);
   assert.match(buildScript, /"--force",\s*"--frozen-lockfile"/);
   assert.match(buildScript, /\$env:CI\s*=\s*"true"/);
+});
+
+test("release bundling declares and validates the Expo Babel preset directly", () => {
+  const babelSource = readFileSync(join(root, "babel.config.js"), "utf8");
+  const buildScript = readFileSync(join(root, "scripts", "build-android-uat.ps1"), "utf8");
+
+  assert.equal(packageJson.devDependencies["babel-preset-expo"], "~56.0.17");
+  assert.match(babelSource, /presets:\s*\["babel-preset-expo"\]/);
+  assert.match(buildScript, /function Assert-ExpoReleaseBundlePrerequisites/);
+  assert.match(buildScript, /require\.resolve\('babel-preset-expo'\)/);
+  assert.match(buildScript, /Assert-ExpoReleaseBundlePrerequisites -WorkingDirectory \$mobileRoot -BuildType \$BuildType/);
+});
+
+test("native cache recovery resolves pnpm's truncated virtual-store directories by package contents", () => {
+  const buildScript = readFileSync(join(root, "scripts", "build-android-uat.ps1"), "utf8");
+
+  assert.match(buildScript, /\$physicalPnpmVirtualStoreDir\s*=\s*Join-Path \$resolvedBuildHome "p"/);
+  assert.match(buildScript, /\$pnpmVirtualStoreDir\s*=\s*Join-Path \$resolvedBuildHome "p"/);
+  assert.doesNotMatch(buildScript, /-Filter "\$packageName\*"/);
+  assert.match(
+    buildScript,
+    /\$packageDirectories\s*=\s*@\(Get-ChildItem -LiteralPath \$VirtualStoreDir -Directory/,
+  );
+  assert.match(
+    buildScript,
+    /Join-Path \$packageDirectory\.FullName "node_modules\\\$packageName\\android"/,
+  );
+});
+
+test("local UAT package commands keep their intended device and ABI contracts", () => {
+  const buildScript = readFileSync(join(root, "scripts", "build-android-uat.ps1"), "utf8");
+  const expectedApkCommands: Record<
+    string,
+    { architectures: string; release: boolean; disableGradleBuildCache: boolean }
+  > = {
+    "android:uat:local:apk": {
+      architectures: "armeabi-v7a,arm64-v8a,x86,x86_64",
+      release: false,
+      disableGradleBuildCache: true,
+    },
+    "android:uat:local:apk:phone": {
+      architectures: "arm64-v8a,armeabi-v7a",
+      release: false,
+      disableGradleBuildCache: false,
+    },
+    "android:uat:local:apk:phone:release": {
+      architectures: "arm64-v8a,armeabi-v7a",
+      release: true,
+      disableGradleBuildCache: false,
+    },
+    "android:uat:local:apk:universal": {
+      architectures: "armeabi-v7a,arm64-v8a,x86,x86_64",
+      release: false,
+      disableGradleBuildCache: true,
+    },
+    "android:uat:local:apk:universal:release": {
+      architectures: "armeabi-v7a,arm64-v8a,x86,x86_64",
+      release: true,
+      disableGradleBuildCache: true,
+    },
+  };
+
+  assert.match(packageJson.scripts["android:uat:local"], /build-android-uat\.ps1/);
+  assert.match(packageJson.scripts["android:uat:local:clean"], /-CleanAndroidCaches\b/);
+
+  for (const [name, expected] of Object.entries(expectedApkCommands)) {
+    const script = packageJson.scripts[name];
+    assert.match(script, new RegExp(`-AndroidArchitectures ${expected.architectures}`));
+    assert.equal(/-BuildType release\b/.test(script), expected.release, `${name} release mode`);
+    assert.equal(
+      /-DisableGradleBuildCache\b/.test(script),
+      expected.disableGradleBuildCache,
+      `${name} Gradle build-cache mode`,
+    );
+  }
+
+  assert.match(buildScript, /\[switch\]\$DisableGradleBuildCache/);
+  assert.match(buildScript, /if \(\$DisableGradleBuildCache\)/);
+  assert.match(buildScript, /"--no-build-cache"/);
 });

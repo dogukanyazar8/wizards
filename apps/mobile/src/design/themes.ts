@@ -49,6 +49,7 @@ const lightThemeAccent = {
   soft: redesignLight.lavender,
   softBorder: redesignLight.lavenderBorder,
   strong: redesignLight.primaryStrong,
+  ownerBadge: redesignLight.ownerBadge,
 } as const;
 
 const darkThemeAccent = {
@@ -57,6 +58,7 @@ const darkThemeAccent = {
   soft: redesignDark.selectedSurface,
   softBorder: redesignDark.selectedBorder,
   strong: redesignDark.accentText,
+  ownerBadge: redesignDark.ownerBadge,
 } as const;
 
 export interface MobileTheme {
@@ -65,6 +67,8 @@ export interface MobileTheme {
     readonly action: string;
     /** Canonical brand accent for non-text controls and decorative use. */
     readonly default: string;
+    /** Non-interactive surface for the channel server-owner badge. */
+    readonly ownerBadge: string;
     readonly soft: string;
     readonly softBorder: string;
     /** Accessible accent foreground for normal-size text. */
@@ -172,6 +176,18 @@ export interface MobileTheme {
     readonly rail: string;
     readonly scrim: string;
     readonly soft: string;
+    /** Canonical full-screen active voice room surface. */
+    readonly voiceRoom: string;
+    /** Canonical active voice room participant-card surface. */
+    readonly voiceRoomParticipant: string;
+    /** Canonical active voice room invite-card surface. */
+    readonly voiceRoomInvite: string;
+    /** Canonical active voice room invite-card border. */
+    readonly voiceRoomInviteBorder: string;
+    /** Canonical active voice room control surface. */
+    readonly voiceRoomControl: string;
+    /** Canonical active voice room control border. */
+    readonly voiceRoomControlBorder: string;
   };
   readonly systemBars: {
     readonly androidNavigationBar: string;
@@ -371,6 +387,12 @@ export const lightTheme = deepFreeze({
     rail: redesignLight.lavender,
     scrim: redesignDark.sheetOverlay,
     soft: redesignLight.bg,
+    voiceRoom: redesignLight.bg,
+    voiceRoomControl: redesignLight.voiceRoomControl,
+    voiceRoomControlBorder: redesignLight.voiceRoomControlBorder,
+    voiceRoomInvite: redesignLight.voiceRoomInvite,
+    voiceRoomInviteBorder: redesignLight.voiceRoomInviteBorder,
+    voiceRoomParticipant: redesignLight.voiceRoomParticipant,
   },
   systemBars: {
     androidNavigationBar: redesignLight.bg,
@@ -536,6 +558,12 @@ export const darkTheme = deepFreeze({
     rail: redesignDark.card,
     scrim: redesignDark.sheetOverlay,
     soft: redesignDark.hairline,
+    voiceRoom: redesignDark.voiceRoom,
+    voiceRoomControl: redesignDark.voiceRoomControl,
+    voiceRoomControlBorder: redesignDark.voiceRoomControlBorder,
+    voiceRoomInvite: redesignDark.voiceRoomInvite,
+    voiceRoomInviteBorder: redesignDark.voiceRoomInviteBorder,
+    voiceRoomParticipant: redesignDark.voiceRoomParticipant,
   },
   systemBars: {
     androidNavigationBar: redesignDark.bg,

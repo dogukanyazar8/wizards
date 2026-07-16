@@ -34,7 +34,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       textAlign: "center",
       color: theme.text.primary,
       fontSize: 14,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     actionButtonTextDanger: {
       color: theme.status.onStatus,
@@ -63,7 +63,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
     avatarMarkText: {
       color: theme.accent.strong,
       fontSize: 12,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     avatarMarkTextSmall: {
       fontSize: 10,
@@ -121,7 +121,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
     diagnosticLabel: {
       color: theme.text.soft,
       fontSize: 10,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       letterSpacing: 0.8,
       textTransform: "uppercase",
     },
@@ -138,7 +138,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       marginTop: 2,
       color: theme.text.primary,
       fontSize: 12,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     emptyIcon: {
       width: 64,
@@ -154,7 +154,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
     emptyIconText: {
       color: theme.accent.strong,
       fontSize: 24,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     emptyState: {
       minHeight: 190,
@@ -173,13 +173,13 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       color: theme.text.muted,
       fontSize: 14,
       lineHeight: 21,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     homeMetricLabel: {
       marginTop: 3,
       color: theme.text.onPrimary,
       fontSize: 11,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     homeMetricTile: {
       flex: 1,
@@ -195,20 +195,20 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       color: theme.text.onPrimary,
       fontSize: 23,
       lineHeight: 27,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     metricLabel: {
       marginTop: 2,
       color: theme.text.muted,
       fontSize: 12,
       lineHeight: 17,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     metricMiniLabel: {
       marginTop: 2,
       color: theme.text.soft,
       fontSize: 9,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       letterSpacing: 0.7,
       textTransform: "uppercase",
     },
@@ -225,7 +225,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       color: theme.text.primary,
       fontSize: 16,
       lineHeight: 18,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     metricTile: {
       flexGrow: 1,
@@ -242,7 +242,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       color: theme.text.primary,
       fontSize: 24,
       lineHeight: 29,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     permissionCard: {
       gap: 12,
@@ -288,7 +288,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       minWidth: 0,
       color: theme.text.primary,
       fontSize: 12,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     permissionCountBadge: {
       minWidth: 48,
@@ -302,7 +302,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
     permissionCountText: {
       color: theme.accent.strong,
       fontSize: 12,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     permissionHeader: {
       flexDirection: "row",
@@ -319,7 +319,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       color: theme.text.primary,
       fontSize: 14,
       lineHeight: 20,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     screenBody: {
       gap: mobileSpacing.row,
@@ -378,7 +378,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       flexShrink: 1,
       color: theme.text.muted,
       fontSize: 11,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     statusIconSuccess: {
       borderWidth: 1,
@@ -423,7 +423,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
     syncChipLabel: {
       color: theme.text.primary,
       fontSize: 12,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     syncChipRow: {
       flexDirection: "row",
@@ -444,13 +444,13 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       color: theme.text.muted,
       fontSize: 11,
       lineHeight: 15,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     syncDescription: {
       color: theme.text.muted,
       fontSize: 12,
       lineHeight: 17,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     syncDot: {
       width: 9,
@@ -492,7 +492,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
       color: theme.text.muted,
       fontSize: 11,
       lineHeight: 16,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     syncHealthIcon: {
       width: 34,
@@ -510,7 +510,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
     syncHealthIconText: {
       color: theme.status.danger,
       fontSize: 16,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     syncHealthRetryButton: {
       minHeight: mobileSizing.minTouchTarget,
@@ -524,7 +524,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
     syncHealthRetryText: {
       color: theme.accent.strong,
       fontSize: 12,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     syncHealthText: {
       flex: 1,
@@ -534,7 +534,7 @@ export const createUiAtomStyles = (theme: MobileTheme) => {
     syncHealthTitle: {
       color: theme.text.primary,
       fontSize: 13,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     ...createSharedStyles(theme),
   } satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;

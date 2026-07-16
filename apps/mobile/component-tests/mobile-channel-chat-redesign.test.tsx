@@ -37,6 +37,7 @@ jest.mock("../src/media/mobile-voice-message-recorder", () => ({
 import type { ChatMessage } from "@wizards/types";
 import { MessageDateSeparator, MessagePreviewRow } from "../src/app/components/message-primitives";
 import { DMComposer } from "../src/app/composer/mobile-composer";
+import { ChannelTypingIndicator } from "../src/app/screens/channel-screen";
 import { createMessagePrimitiveStyles } from "../src/app/components/message-primitives.styles";
 import { createMobileComposerStyles } from "../src/app/composer/mobile-composer.styles";
 import { createChannelScreenStyles } from "../src/app/screens/channel-screen.styles";
@@ -95,7 +96,14 @@ describe("1b channel chat redesign", () => {
       width: 38,
     });
     expect(channel.mobileChannelChatHashText).toMatchObject({ fontSize: 17 });
-    expect(channel.mobileChannelChatTitle).toMatchObject({ fontSize: 16.5 });
+    expect(channel.mobileChannelChatTitle).toMatchObject({
+      fontSize: 16.5,
+      includeFontPadding: false,
+      lineHeight: 21,
+    });
+    expect(channel.mobileChannelChatTopic).toMatchObject({
+      fontFamily: theme.typography.fontFamily,
+    });
     expect(channel.mobileChannelChatBackButton).toMatchObject({ height: 38, width: 22 });
     expect(channel.mobileChannelChatBodyContent).toMatchObject({
       gap: 0,
@@ -116,6 +124,7 @@ describe("1b channel chat redesign", () => {
       minHeight: 44,
     });
     expect(composer.channelComposerIconButton).toMatchObject({
+      backgroundColor: theme.surface.card,
       borderRadius: 16,
       height: 44,
       width: 44,
@@ -177,6 +186,35 @@ describe("1b channel chat redesign", () => {
     expect(StyleSheet.flatten(bubble.props.style)).toMatchObject({ borderTopLeftRadius: 18 });
     expect(view.getByTestId("mobile-channel-message-avatar-spacer-message-1")).toBeTruthy();
     expect(view.queryByText("08:45")).toBeNull();
+  });
+
+  it("marks server-owner channel messages with the compact crown badge", async () => {
+    const view = await render(
+      <MessagePreviewRow
+        currentUserId="user-1"
+        isServerOwner
+        message={{ ...channelMessage, replyTo: null }}
+        mode="channel"
+      />,
+    );
+
+    expect(view.getByTestId("mobile-channel-message-owner-badge-message-1")).toBeTruthy();
+  });
+
+  it("renders a typing avatar and italic text instead of animated dots", async () => {
+    const view = await render(
+      <ChannelTypingIndicator
+        label="Ece yazıyor…"
+        users={[{ expiresAt: 4_500, name: "Ece", userId: "user-2" }]}
+      />,
+    );
+
+    expect(view.getByTestId("mobile-channel-typing-avatar-user-2")).toBeTruthy();
+    expect(view.queryByTestId("mobile-channel-typing-dots")).toBeNull();
+    expect(StyleSheet.flatten(view.getByText("Ece yazıyor…").props.style)).toMatchObject({
+      fontSize: 12,
+      fontStyle: "italic",
+    });
   });
 
   it("uses the bare line-and-label date divider from the 1b reference", async () => {

@@ -33,7 +33,7 @@ export function getMobileActiveVoiceRoomModel(
 }
 
 export function formatMobileVoiceRoomDuration(connectedAt: number | null, now: number): string | null {
-  if (connectedAt === null) {
+  if (typeof connectedAt !== "number" || !Number.isFinite(connectedAt) || !Number.isFinite(now)) {
     return null;
   }
 

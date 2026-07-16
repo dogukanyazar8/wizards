@@ -10,12 +10,28 @@ import { OverviewScreen } from "../screens/home-screen";
 import { NotificationsScreen } from "../screens/notifications-screen";
 import { ProfileSettingsScreen } from "../screens/settings-screen";
 import { VoiceScreen } from "../screens/voice-screen";
+import type {
+  MobileBootstrapViewState,
+  MobilePushToTalkPhase,
+  MobileVoiceInputMode,
+} from "../mobile-root-screen-shared";
 
 export type MobileMessagesScreenProps = ComponentProps<typeof MessagesScreen>;
 export type MobileOverviewScreenProps = ComponentProps<typeof OverviewScreen>;
 export type MobileNotificationsScreenProps = ComponentProps<typeof NotificationsScreen>;
 export type MobileSettingsScreenProps = ComponentProps<typeof ProfileSettingsScreen>;
-export type MobileVoiceScreenProps = ComponentProps<typeof VoiceScreen>;
+/**
+ * The persistent mini voice bar shares the active room's state with the full
+ * screen, but it deliberately owns only navigation-level controls. This keeps
+ * microphone permission and setup actions out of the active-room UI.
+ */
+export type MobileVoiceScreenProps = ComponentProps<typeof VoiceScreen> & {
+  readonly bootstrapState: MobileBootstrapViewState;
+  readonly onBeginVoicePushToTalk: () => Promise<void>;
+  readonly onEndVoicePushToTalk: () => void;
+  readonly voiceInputMode: MobileVoiceInputMode;
+  readonly voicePushToTalkPhase: MobilePushToTalkPhase;
+};
 
 export interface MobileProductNavigationActions {
   readonly openWorkspaceRoute: (serverId: string, channelId: string | null) => void;

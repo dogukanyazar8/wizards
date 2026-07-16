@@ -124,8 +124,8 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       justifyContent: "center",
     },
     tabSelected: { backgroundColor: theme.accent.soft },
-    tabText: { color: theme.text.muted, fontSize: 12, fontWeight: "800" },
+    tabText: { color: theme.text.muted, fontSize: 12, fontFamily: theme.typography.fontFamilyExtraBold },
     tabTextSelected: { color: theme.accent.strong },
     tabs: { flexDirection: "row", gap: mobileSpacing.row },
-    title: { color: theme.text.primary, fontSize: 18, fontWeight: "900" },
+    title: { color: theme.text.primary, fontSize: 18, fontFamily: theme.typography.fontFamilyExtraBold },
   });

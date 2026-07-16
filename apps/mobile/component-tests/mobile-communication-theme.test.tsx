@@ -128,4 +128,21 @@ describe("mobile communication semantic themes", () => {
     expect(composerStyles.dmSendErrorText.backgroundColor).toBe(theme.status.dangerSoft);
     expect(composerStyles.dmSendErrorText.color).toBe(theme.status.onStatus);
   });
+
+  it("keeps the 1e active voice room on its canonical light and dark theme surfaces", () => {
+    const light = createVoiceScreenStyles(lightTheme);
+    const dark = createVoiceScreenStyles(darkTheme);
+
+    expect(light.activeVoiceRoomScreen.backgroundColor).toBe("#F6F7FB");
+    expect(light.activeVoiceRoomParticipantCard).toMatchObject({
+      backgroundColor: "#FFFFFF",
+      borderColor: "#E7E9F4",
+      borderRadius: 28,
+      borderWidth: 1,
+    });
+    expect(dark.activeVoiceRoomScreen.backgroundColor).toBe("#1E2235");
+    expect(dark.activeVoiceRoomParticipantCard.backgroundColor).toBe("rgba(255,255,255,.05)");
+    expect(dark.activeVoiceRoomControl.backgroundColor).toBe("rgba(255,255,255,.1)");
+    expect(dark.activeVoiceRoomControlDanger.backgroundColor).toBe("#E05252");
+  });
 });

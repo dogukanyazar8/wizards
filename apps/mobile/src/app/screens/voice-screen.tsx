@@ -10,6 +10,7 @@ import {
   copy,
   getMobileVoiceChannelScreenModel,
   summarizeMobileVoiceRuntimeState,
+  useEffect,
   useMemo,
   useState,
   type MobileBootstrapViewState,
@@ -31,156 +32,266 @@ import {
 import {
   ActionButton,
   AvatarMark,
-  BootstrapStateNotice,
-  FeatureStatusCard,
-  MobileSyncHealthBanner,
-  PermissionReadinessCard,
-  ScreenShell,
   StatusChip,
 } from "../components/ui-atoms";
+import { Avatar } from "../components/kit/avatar";
+import { useMobileHaptics } from "../providers/mobile-haptics-provider";
+import { getMobileActiveVoiceRoomModel } from "./active-voice-room-model";
 import { useVoiceScreenStyles } from "./voice-screen.styles";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { MobileVoiceCameraGrid } from "../../voice/mobile-camera-grid";
 import { MobileVoiceSettingsSheet } from "../../voice/mobile-voice-settings-sheet";
 
 export function VoiceScreen({
-  bootstrapState,
-  permissionReadiness,
-  permissionSummary,
-  voiceInputMode,
-  voicePushToTalkPhase,
   voiceRoomState,
-  voiceState,
-  syncHealth,
   onLeaveVoiceChannel,
-  onFlipVoiceCamera,
-  onRefreshVoiceDevices,
-  onBeginVoicePushToTalk,
-  onEndVoicePushToTalk,
-  onRequestVoicePermission,
-  onSelectVoiceAudioInput,
-  onSelectVoiceAudioOutputDevice,
-  onSelectVoiceNoiseSuppression,
-  onToggleVoiceCamera,
   onToggleVoiceMute,
-  onToggleVoiceScreenShare,
-  onRefreshBootstrap,
-  onRefreshVisibleData,
+  onMinimize = () => undefined,
+  onOpenChat = () => undefined,
+  onOpenVoiceInvite = () => undefined,
+  onSelectVoiceAudioOutput = async () => undefined,
+  serverName = null,
   testID = "mobile-voice-screen",
 }: {
-  bootstrapState: MobileBootstrapViewState;
-  permissionReadiness: readonly MobilePermissionReadiness[];
-  permissionSummary: MobilePermissionSummary;
-  voiceInputMode: MobileVoiceInputMode;
-  voicePushToTalkPhase: MobilePushToTalkPhase;
   voiceRoomState: MobileVoiceRoomState;
-  voiceState: MobileVoiceRuntimeState;
-  syncHealth: MobileSyncHealthSummary;
-  onBeginVoicePushToTalk(): Promise<void>;
-  onEndVoicePushToTalk(): void;
   onLeaveVoiceChannel(): Promise<void>;
-  onFlipVoiceCamera(): Promise<void>;
-  onRefreshVoiceDevices(): Promise<void>;
-  onRequestVoicePermission(): Promise<void>;
-  onSelectVoiceAudioInput(id: string): Promise<void>;
-  onSelectVoiceAudioOutputDevice(id: string): Promise<void>;
-  onSelectVoiceNoiseSuppression(enabled: boolean): Promise<void>;
-  onToggleVoiceCamera(): Promise<void>;
   onToggleVoiceMute(): Promise<void>;
-  onToggleVoiceScreenShare(): Promise<void>;
-  onRefreshBootstrap(): void;
-  onRefreshVisibleData(): void;
+  onMinimize?(): void;
+  onOpenChat?(): void;
+  onOpenVoiceInvite?(): void;
+  onSelectVoiceAudioOutput?(mode: MobileVoiceAudioOutputMode): Promise<void>;
+  serverName?: string | null;
   testID?: string;
 }) {
   const styles = useVoiceScreenStyles();
-  const [screenShareConsentVisible, setScreenShareConsentVisible] = useState(false);
-  const [voiceSettingsVisible, setVoiceSettingsVisible] = useState(false);
-  const requestScreenShareToggle = () => {
-    if (voiceRoomState.selfScreenShareEnabled) {
-      void onToggleVoiceScreenShare();
+  const theme = useTheme();
+  const { selection } = useMobileHaptics();
+  const [now, setNow] = useState(() => Date.now());
+  const model = getMobileActiveVoiceRoomModel(voiceRoomState, serverName, now);
+
+  useEffect(() => {
+    if (!model.canMinimize) {
       return;
     }
 
-    setScreenShareConsentVisible(true);
+    setNow(Date.now());
+    const interval = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(interval);
+  }, [model.canMinimize]);
+
+  const handleMute = () => {
+    void onToggleVoiceMute().then(selection);
+  };
+  const handleAudioOutput = () => {
+    const next = voiceRoomState.selfAudioOutput === "speaker" ? "default" : "speaker";
+    void onSelectVoiceAudioOutput(next).then(selection);
+  };
+  const handleLeave = () => {
+    void onLeaveVoiceChannel().then(selection);
   };
 
   return (
-    <ScreenShell
-      testID={testID}
-      eyebrow={copy.tabVoice}
-      title={copy.voiceTitle}
-      description={copy.voiceDescription}
-    >
-      <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
-      {bootstrapState.status === "ready" ? (
-        <FeatureStatusCard
-          label={bootstrapState.payload.features.voice.label}
-          reason={bootstrapState.payload.features.voice.reason ?? copy.voiceDescription}
-          status={bootstrapState.payload.features.voice.status}
+    <View style={styles.activeVoiceRoomScreen} testID={testID}>
+      <View style={styles.activeVoiceRoomHeader}>
+        <Pressable
+          accessibilityLabel={copy.voiceRoomMinimizeAction}
+          accessibilityRole="button"
+          disabled={!model.canMinimize}
+          onPress={onMinimize}
+          style={({ pressed }) => [
+            styles.activeVoiceRoomBackButton,
+            !model.canMinimize && styles.activeVoiceRoomControlDisabled,
+            pressed && model.canMinimize && styles.actionButtonPressed,
+          ]}
+          testID="mobile-voice-minimize"
+        >
+          <Ionicons color={theme.dark ? theme.text.inverse : theme.text.primary} name="chevron-back" size={22} />
+        </Pressable>
+        <View style={styles.activeVoiceRoomHeaderText}>
+          <View style={styles.activeVoiceRoomTitleRow}>
+            <Ionicons color={theme.status.successOnInverse} name="volume-high" size={16} />
+            <Text numberOfLines={1} style={styles.activeVoiceRoomTitle}>
+              {model.channelName ?? ""}
+            </Text>
+          </View>
+          <Text numberOfLines={1} style={styles.activeVoiceRoomSubtitle}>
+            {[model.serverName, model.durationLabel].filter(Boolean).join(" · ")}
+          </Text>
+        </View>
+        <View style={styles.activeVoiceRoomConnectionChip}>
+          <View style={styles.activeVoiceRoomConnectionDot} />
+          <Text style={styles.activeVoiceRoomConnectionLabel}>
+            {getActiveVoiceRoomConnectionLabel(model.connectionStatus)}
+          </Text>
+        </View>
+      </View>
+
+      {voiceRoomState.errorMessage ? (
+        <Text style={styles.activeVoiceRoomError} numberOfLines={2}>
+          {voiceRoomState.errorMessage}
+        </Text>
+      ) : null}
+
+      <View style={styles.activeVoiceRoomParticipantGrid}>
+        {model.participants.map((participant) => (
+          <ActiveVoiceRoomParticipantCard key={participant.userId} participant={participant} />
+        ))}
+        <Pressable
+          accessibilityLabel={copy.voiceRoomInviteFriends}
+          accessibilityRole="button"
+          onPress={onOpenVoiceInvite}
+          style={({ pressed }) => [
+            styles.activeVoiceRoomInviteCard,
+            pressed && styles.actionButtonPressed,
+          ]}
+          testID="mobile-voice-invite"
+        >
+            <Ionicons
+              color={theme.dark ? theme.text.onInverseMuted : theme.text.secondary}
+              name="person-add-outline"
+              size={18}
+            />
+          <Text style={styles.activeVoiceRoomInviteLabel}>{copy.voiceRoomInviteFriends}</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.activeVoiceRoomControls}>
+        <ActiveVoiceRoomControl
+          disabled={!model.canToggleMute}
+          icon={voiceRoomState.selfMuted ? "mic-off-outline" : "mic-outline"}
+          label={voiceRoomState.selfMuted ? copy.voiceUnmuteAction : copy.voiceMuteAction}
+          onPress={handleMute}
+          testID="mobile-voice-mute-toggle"
         />
-      ) : (
-        <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
-      )}
-      <PermissionReadinessCard
-        compactFeature="voice"
-        readiness={permissionReadiness}
-        summary={permissionSummary}
-      />
-      <ScreenShareActiveBanner
-        room={voiceRoomState}
-        onStop={() => void onToggleVoiceScreenShare()}
-      />
-      <ScreenShareConsentSheet
-        visible={screenShareConsentVisible}
-        onCancel={() => setScreenShareConsentVisible(false)}
-        onConfirm={() => {
-          setScreenShareConsentVisible(false);
-          void onToggleVoiceScreenShare();
-        }}
-      />
-      <MobileScreenShareViewer participants={voiceRoomState.participants} />
-      <MobileVoiceCameraGrid
-        canFlip={voiceRoomState.selfCameraEnabled}
-        onFlip={() => void onFlipVoiceCamera()}
-        participants={voiceRoomState.participants}
-      />
-      <MobileVoiceSettingsSheet
-        audioInputs={voiceRoomState.availableAudioInputs}
-        audioOutputs={voiceRoomState.availableAudioOutputs}
-        noiseSuppressionEnabled={voiceRoomState.noiseSuppressionEnabled}
-        onClose={() => setVoiceSettingsVisible(false)}
-        onRefresh={onRefreshVoiceDevices}
-        onSelectAudioInput={onSelectVoiceAudioInput}
-        onSelectAudioOutput={onSelectVoiceAudioOutputDevice}
-        onSelectNoiseSuppression={onSelectVoiceNoiseSuppression}
-        open={voiceSettingsVisible}
-        selectedAudioInputId={voiceRoomState.selectedAudioInputId}
-        selectedAudioOutputId={voiceRoomState.selectedAudioOutputId}
-      />
-      <PushToTalkButton
-        disabled={voiceRoomState.status !== "connected" || voiceInputMode !== "push-to-talk"}
-        inputMode={voiceInputMode}
-        phase={voicePushToTalkPhase}
-        onBegin={onBeginVoicePushToTalk}
-        onEnd={onEndVoicePushToTalk}
-      />
-      <MobileVoiceRoomPanel
-        room={voiceRoomState}
-        voiceInputMode={voiceInputMode}
-        onLeave={() => void onLeaveVoiceChannel()}
-        onRequestPermission={() => void onRequestVoicePermission()}
-        onToggleCamera={() => void onToggleVoiceCamera()}
-        onToggleMute={() => void onToggleVoiceMute()}
-        onToggleScreenShare={requestScreenShareToggle}
-      />
-      <ActionButton
-        label={copy.voiceSettingsAction}
-        onPress={() => setVoiceSettingsVisible(true)}
-        testID="mobile-voice-settings-open"
-        variant="secondary"
-      />
-      <VoiceRuntimeCard state={voiceState} onRequestPermission={onRequestVoicePermission} />
-    </ScreenShell>
+        <ActiveVoiceRoomControl
+          icon={voiceRoomState.selfAudioOutput === "speaker" ? "volume-high-outline" : "headset-outline"}
+          label={copy.voiceRoomAudioOutputAction}
+          onPress={handleAudioOutput}
+          selected={voiceRoomState.selfAudioOutput === "speaker"}
+          testID="mobile-voice-audio-output"
+        />
+        <ActiveVoiceRoomControl
+          icon="chatbubble-outline"
+          label={copy.voiceRoomOpenChatAction}
+          onPress={onOpenChat}
+          testID="mobile-voice-chat"
+        />
+        <ActiveVoiceRoomControl
+          danger
+          disabled={!model.canLeave}
+          icon="call-outline"
+          label={copy.voiceLeaveAction}
+          onPress={handleLeave}
+          testID="mobile-voice-leave"
+        />
+      </View>
+      <Text style={styles.activeVoiceRoomPermissionFootnote}>{copy.voiceRoomPermissionFootnote}</Text>
+    </View>
+  );
+}
+
+function getActiveVoiceRoomConnectionLabel(status: MobileVoiceRoomState["status"]): string {
+  switch (status) {
+    case "connected":
+      return copy.voiceRoomConnectionConnected;
+    case "connecting":
+    case "checking-permission":
+      return copy.voiceRoomConnectionConnecting;
+    case "reconnecting":
+      return copy.voiceRoomConnectionReconnecting;
+    case "error":
+    case "permission-denied":
+      return copy.voiceRoomConnectionError;
+    case "leaving":
+      return copy.voiceRoomLeaving;
+    case "idle":
+      return copy.voiceRoomIdle;
+  }
+}
+
+function ActiveVoiceRoomParticipantCard({ participant }: { participant: MobileVoiceRoomParticipant }) {
+  const styles = useVoiceScreenStyles();
+  const theme = useTheme();
+  const name = getVoiceParticipantName(participant);
+  const isSpeaking = participant.isSpeaking && !participant.isMuted;
+
+  return (
+    <View
+      style={[
+        styles.activeVoiceRoomParticipantCard,
+        isSpeaking && styles.activeVoiceRoomParticipantCardSpeaking,
+      ]}
+      testID={`mobile-voice-participant-${participant.userId}`}
+    >
+      <View style={[styles.activeVoiceRoomAvatarRing, isSpeaking && styles.activeVoiceRoomAvatarRingSpeaking]}>
+        <Avatar
+          accessibilityLabel={name}
+          avatarBorderColor="transparent"
+          avatarBorderRadius={28}
+          avatarBorderWidth={0}
+          dimension={80}
+          fallbackTextStyle={styles.activeVoiceRoomAvatarFallback}
+          identityId={participant.userId}
+          imageUrl={participant.avatarUrl}
+          label={name}
+        />
+        {participant.isMuted ? (
+          <View style={styles.activeVoiceRoomMutedBadge} testID={`mobile-voice-participant-${participant.userId}-muted-badge`}>
+            <Ionicons color={theme.text.inverse} name="mic-off" size={13} />
+          </View>
+        ) : null}
+      </View>
+      <View style={styles.activeVoiceRoomParticipantText}>
+        <Text numberOfLines={1} style={styles.activeVoiceRoomParticipantName}>
+          {name}
+        </Text>
+        <Text style={[styles.activeVoiceRoomParticipantStatus, isSpeaking && styles.activeVoiceRoomParticipantStatusSpeaking]}>
+          {participant.isMuted ? copy.voiceRoomMutedParticipant : isSpeaking ? copy.voiceRoomSpeaking : copy.voiceRoomListening}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function ActiveVoiceRoomControl({
+  danger = false,
+  disabled = false,
+  icon,
+  label,
+  onPress,
+  selected = false,
+  testID,
+}: {
+  danger?: boolean;
+  disabled?: boolean;
+  icon: MobileIoniconName;
+  label: string;
+  onPress(): void;
+  selected?: boolean;
+  testID: string;
+}) {
+  const styles = useVoiceScreenStyles();
+  const theme = useTheme();
+  const color = danger || theme.dark ? theme.text.inverse : theme.text.primary;
+
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityState={{ disabled, selected }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.activeVoiceRoomControl,
+        selected && styles.activeVoiceRoomControlSelected,
+        danger && styles.activeVoiceRoomControlDanger,
+        disabled && styles.activeVoiceRoomControlDisabled,
+        pressed && !disabled && styles.actionButtonPressed,
+      ]}
+      testID={testID}
+    >
+      <Ionicons color={color} name={icon} size={24} />
+    </Pressable>
   );
 }
 

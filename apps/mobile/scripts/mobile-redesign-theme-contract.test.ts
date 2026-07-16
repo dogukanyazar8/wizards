@@ -672,6 +672,7 @@ export function Fixture({ cap }: { cap: number }) {
       languageRadio: "#C9CDE4",
       lavender: "#EEF0FE",
       lavenderBorder: "#DFE2FC",
+      ownerBadge: "#FFF3D6",
       success: "#22C55E",
       canonicalSuccessText: "#22A366",
       successSurface: "#E8F8EE",
@@ -682,6 +683,11 @@ export function Fixture({ cap }: { cap: number }) {
       dangerOnBase: "#C84343",
       dangerSurface: "#FCE9E9",
       inkSurface: "#1E2235",
+      voiceRoomControl: "#FFFFFF",
+      voiceRoomControlBorder: "#E7E9F4",
+      voiceRoomInvite: "#FFFFFF",
+      voiceRoomInviteBorder: "#E7E9F4",
+      voiceRoomParticipant: "#FFFFFF",
     });
     assert.deepEqual(paletteExports.redesignDark, {
       bg: "#131529",
@@ -704,6 +710,7 @@ export function Fixture({ cap }: { cap: number }) {
       accentText: "#A5A8F5",
       selectedSurface: "#2A2D55",
       selectedBorder: "#3B3F73",
+      ownerBadge: "#3A2E1B",
       canonicalDanger: "#E05252",
       danger: "#E45A5A",
       dangerAction: "#C94343",
@@ -712,6 +719,12 @@ export function Fixture({ cap }: { cap: number }) {
       success: "#34D399",
       successSurface: "rgba(52,211,153,.12)",
       warning: "#F59E0B",
+      voiceRoom: "#1E2235",
+      voiceRoomControl: "rgba(255,255,255,.1)",
+      voiceRoomControlBorder: "transparent",
+      voiceRoomInvite: "rgba(255,255,255,.04)",
+      voiceRoomInviteBorder: "rgba(255,255,255,.15)",
+      voiceRoomParticipant: "rgba(255,255,255,.05)",
       warningSurface: "rgba(245,158,11,.14)",
       sheetOverlay: "rgba(0,0,0,.55)",
     });
@@ -875,6 +888,7 @@ export function Fixture({ cap }: { cap: number }) {
     assert.deepEqual(lightTheme.accent, {
       action: "#4F46E5",
       default: "#4F46E5",
+      ownerBadge: "#FFF3D6",
       soft: "#EEF0FE",
       softBorder: "#DFE2FC",
       strong: "#3F38C9",
@@ -882,6 +896,7 @@ export function Fixture({ cap }: { cap: number }) {
     assert.deepEqual(darkTheme.accent, {
       action: "#6B63EC",
       default: "#6D66F0",
+      ownerBadge: "#3A2E1B",
       soft: "#2A2D55",
       softBorder: "#3B3F73",
       strong: "#A5A8F5",
@@ -912,6 +927,12 @@ export function Fixture({ cap }: { cap: number }) {
       rail: "#EEF0FE",
       scrim: "rgba(0,0,0,.55)",
       soft: "#F6F7FB",
+      voiceRoom: "#F6F7FB",
+      voiceRoomControl: "#FFFFFF",
+      voiceRoomControlBorder: "#E7E9F4",
+      voiceRoomInvite: "#FFFFFF",
+      voiceRoomInviteBorder: "#E7E9F4",
+      voiceRoomParticipant: "#FFFFFF",
     });
     assert.deepEqual(darkTheme.surface, {
       base: "#131529",
@@ -923,6 +944,12 @@ export function Fixture({ cap }: { cap: number }) {
       rail: "#1C1F3A",
       scrim: "rgba(0,0,0,.55)",
       soft: "#232644",
+      voiceRoom: "#1E2235",
+      voiceRoomControl: "rgba(255,255,255,.1)",
+      voiceRoomControlBorder: "transparent",
+      voiceRoomInvite: "rgba(255,255,255,.04)",
+      voiceRoomInviteBorder: "rgba(255,255,255,.15)",
+      voiceRoomParticipant: "rgba(255,255,255,.05)",
     });
 
     assert.deepEqual(lightTheme.text, {

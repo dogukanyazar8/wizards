@@ -51,6 +51,14 @@ type MobileNotificationCursor = {
 
 type MobileNotificationMetadata = Record<string, unknown>;
 
+const MOBILE_NOTIFICATION_EVENT_KINDS = [
+  "message-reaction",
+  "server-member-joined",
+  "voice-room-started",
+] as const;
+
+type MobileNotificationEventKind = (typeof MOBILE_NOTIFICATION_EVENT_KINDS)[number];
+
 function getNotificationMetadataString(
   metadata: MobileNotificationMetadata,
   key: string,
@@ -58,6 +66,15 @@ function getNotificationMetadataString(
 ) {
   const value = metadata[key];
   return typeof value === "string" && value.length > 0 && value.length <= maxLength ? value : null;
+}
+
+function getMobileNotificationEventKind(
+  metadata: MobileNotificationMetadata,
+): MobileNotificationEventKind | null {
+  const eventKind = getNotificationMetadataString(metadata, "eventKind", 64);
+  return MOBILE_NOTIFICATION_EVENT_KINDS.includes(eventKind as MobileNotificationEventKind)
+    ? (eventKind as MobileNotificationEventKind)
+    : null;
 }
 
 function encodeMobileNotificationCursor(cursor: MobileNotificationCursor) {
@@ -163,6 +180,7 @@ export async function listMobileNotifications(
         (channelId ? channelMap.get(channelId)?.serverId ?? null : null);
       const messageId = getNotificationMetadataString(notificationMetadata, "messageId");
       const preview = getNotificationMetadataString(notificationMetadata, "threadReplyPreview", 240);
+      const eventKind = getMobileNotificationEventKind(notificationMetadata);
       const actor = senderId ? userMap.get(senderId) ?? null : null;
       const channel = channelId ? channelMap.get(channelId) ?? null : null;
       const server = serverId ? serverMap.get(serverId) ?? null : null;
@@ -178,13 +196,14 @@ export async function listMobileNotifications(
             }
           : null,
         body: notification.body,
-        channel: channelId ? { id: channelId, name: channel?.name ?? null } : null,
+        channel: channel ? { id: channel.id, name: channel.name } : null,
         createdAt: notification.createdAt.toISOString(),
+        eventKind,
         id: notification.id,
         messageQuote: messageId ? { id: messageId, preview } : null,
         read: notification.read,
         readAt: notification.readAt?.toISOString() ?? null,
-        server: serverId ? { id: serverId, name: server?.name ?? null } : null,
+        server: server ? { id: server.id, name: server.name } : null,
         type: notification.type as VisibleNotificationType,
       };
     }),

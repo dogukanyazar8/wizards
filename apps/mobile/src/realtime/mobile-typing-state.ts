@@ -163,12 +163,14 @@ export function formatMobileChannelTypingLabel(
   }
 
   if (users.length === 1) {
-    return `${users[0]!.name} yaziyor`;
+    return copy.channelTypingSingle.replace("{name}", users[0]!.name);
   }
 
   if (users.length === 2) {
-    return `${users[0]!.name}, ${users[1]!.name} yaziyor`;
+    return copy.channelTypingMultiple.replace("{names}", `${users[0]!.name}, ${users[1]!.name}`);
   }
 
-  return `${users[0]!.name}, ${users[1]!.name} ve ${users.length - 2} kisi yaziyor`;
+  return copy.channelTypingMany
+    .replace("{names}", `${users[0]!.name}, ${users[1]!.name}`)
+    .replace("{count}", String(users.length - 2));
 }

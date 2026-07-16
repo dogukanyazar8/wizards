@@ -561,6 +561,7 @@ export function MessageStream({
 export function MessagePreviewRow({
   currentUserId,
   channelGroupContinuation = false,
+  isServerOwner = false,
   isReactionMutationPending = false,
   mode = "conversation",
   message,
@@ -574,6 +575,7 @@ export function MessagePreviewRow({
 }: {
   currentUserId?: string;
   channelGroupContinuation?: boolean;
+  isServerOwner?: boolean;
   isReactionMutationPending?: boolean;
   mode?: "channel" | "conversation";
   message: MobileRenderableMessage;
@@ -729,6 +731,15 @@ export function MessagePreviewRow({
             >
               {isChannelMode ? authorLabel : own ? copy.messageYouLabel : authorLabel}
             </Text>
+            {isChannelMode && isServerOwner ? (
+              <View
+                accessibilityLabel={copy.channelOwnerBadgeLabel}
+                style={styles.messagePreviewOwnerBadge}
+                testID={`mobile-channel-message-owner-badge-${message.id}`}
+              >
+                <Text style={styles.messagePreviewOwnerBadgeText}>👑</Text>
+              </View>
+            ) : null}
             <Text style={[styles.dmMessageTime, isChannelMode && styles.messagePreviewTimeChannel]}>
               {formatMobileDisplayTime(message.createdAt)}
             </Text>

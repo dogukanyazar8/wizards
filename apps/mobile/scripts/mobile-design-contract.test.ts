@@ -282,7 +282,7 @@ describe("mobile design contract", () => {
     assert.match(screenSource, /testID="mobile-dm-filter-tabs"/);
     assert.match(screenSource, /styles\.dmConversationCard/);
     assert.match(screenSource, /styles\.dmConversationPreview/);
-    assert.match(screenSource, /styles\.dmActivePresencePill/);
+    assert.match(screenSource, /styles\.dmConversationGroupBadge/);
     assert.match(screenSource, /copy\.homeContinueLatestDirectMessage/);
     assert.doesNotMatch(
       screenSource,
@@ -433,5 +433,37 @@ describe("mobile design contract", () => {
     assert.match(voiceSource, /theme\.elevation\.primaryAction/);
     assert.match(voiceSource, /theme\.surface\.card/);
     assert.match(voiceSource, /theme\.status\.dangerSoft/);
+  });
+
+  it("locks the 1e active voice room to production state, actions, and canonical geometry", () => {
+    const voiceScreenSource = readFileSync(
+      join(process.cwd(), "src", "app", "screens", "voice-screen.tsx"),
+      "utf8",
+    );
+    const voiceStylesSource = readFileSync(
+      join(process.cwd(), "src", "app", "screens", "voice-screen.styles.ts"),
+      "utf8",
+    );
+    const modelSource = readFileSync(
+      join(process.cwd(), "src", "app", "screens", "active-voice-room-model.ts"),
+      "utf8",
+    );
+    const containerSource = readFileSync(
+      join(process.cwd(), "src", "app", "screens", "mobile-screen-containers.tsx"),
+      "utf8",
+    );
+
+    assert.match(containerSource, /testID="mobile-voice-room-screen"/);
+    assert.match(voiceScreenSource, /testID="mobile-voice-minimize"/);
+    assert.match(voiceScreenSource, /testID="mobile-voice-audio-output"/);
+    assert.match(voiceScreenSource, /testID="mobile-voice-chat"/);
+    assert.match(voiceScreenSource, /testID="mobile-voice-leave"/);
+    assert.doesNotMatch(voiceScreenSource, /onRequestVoicePermission\(\)/);
+    assert.doesNotMatch(modelSource, /\b(dummy|fake|mock)\b/i);
+    assert.match(modelSource, /participants: room\.participants/);
+    assert.match(voiceStylesSource, /activeVoiceRoomParticipantCard:[\s\S]*borderRadius: 28/);
+    assert.match(voiceStylesSource, /activeVoiceRoomControl:[\s\S]*width: 60/);
+    assert.match(voiceStylesSource, /activeVoiceRoomControl:[\s\S]*height: 60/);
+    assert.match(voiceStylesSource, /activeVoiceRoomMutedBadge:[\s\S]*width: 26/);
   });
 });

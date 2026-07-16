@@ -84,7 +84,7 @@ const createStyles = (theme: MobileTheme) => ({
   error: { color: theme.status.dangerOnBase },
 });
 
-export function FriendsHub() {
+export function FriendsHub({ mode = "all" }: { mode?: "all" | "friends" | "requests" }) {
   const { apiClient, status } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();
   const theme = useTheme();
@@ -115,11 +115,11 @@ export function FriendsHub() {
       style={styles.root}
       testID="mobile-friends-screen"
     >
-      <View>
+      {mode !== "requests" ? <View>
         <Text style={styles.heading}>{t.friend}</Text>
         <Text style={styles.subtitle}>{t.subtitle}</Text>
-      </View>
-      <View style={styles.search}>
+      </View> : null}
+      {mode !== "requests" ? <View style={styles.search}>
         <TextInput
           accessibilityLabel={t.search}
           autoCapitalize="none"
@@ -140,7 +140,7 @@ export function FriendsHub() {
           }
           testID="mobile-friend-request-submit"
         />
-      </View>
+      </View> : null}
       {query.isLoading ? <ActivityIndicator color={theme.accent.default} /> : null}
       {query.isError ? (
         <Pressable onPress={() => void query.refetch()}>
@@ -186,7 +186,7 @@ export function FriendsHub() {
           ))}
         </View>
       ) : null}
-      <View style={styles.section}>
+      {mode !== "requests" ? <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t.friend}</Text>
         {friends.map((friend) => (
           <ContextMenu
@@ -234,7 +234,7 @@ export function FriendsHub() {
         {!query.isLoading && friends.length === 0 ? (
           <Text style={styles.notice}>{t.empty}</Text>
         ) : null}
-      </View>
+      </View> : null}
     </ScrollView>
   );
 }

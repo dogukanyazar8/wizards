@@ -53,19 +53,16 @@ describe("1a compact servers redesign", () => {
     expect(styles.mobileWorkspaceChannelName).toMatchObject({
       fontFamily: theme.typography.fontFamilySemiBold,
       fontSize: 15,
-      fontWeight: "600",
       includeFontPadding: false,
       lineHeight: 18,
     });
     expect(styles.mobileWorkspaceChannelNameActive).toMatchObject({
       fontFamily: theme.typography.fontFamilyBold,
-      fontWeight: "700",
     });
     expect(styles.mobileWorkspaceChannelMeta).toMatchObject({
       color: canonical.secondary,
       fontFamily: theme.typography.fontFamily,
       fontSize: 12,
-      fontWeight: "400",
       includeFontPadding: false,
       lineHeight: 15,
     });
@@ -73,7 +70,6 @@ describe("1a compact servers redesign", () => {
       color: canonical.faint,
       fontFamily: theme.typography.fontFamilyExtraBold,
       fontSize: 16,
-      fontWeight: "800",
       includeFontPadding: false,
       lineHeight: 20,
     });
@@ -84,14 +80,12 @@ describe("1a compact servers redesign", () => {
       color: canonical.successText,
       fontFamily: theme.typography.fontFamilySemiBold,
       fontSize: 12,
-      fontWeight: "600",
       includeFontPadding: false,
       lineHeight: 15,
     });
     expect(styles.mobileWorkspaceTitle).toMatchObject({
       fontFamily: theme.typography.fontFamilyExtraBold,
       fontSize: 17,
-      fontWeight: "800",
       includeFontPadding: false,
       lineHeight: 22,
     });
@@ -99,7 +93,6 @@ describe("1a compact servers redesign", () => {
       color: canonical.faint,
       fontFamily: theme.typography.fontFamilyBold,
       fontSize: 11.5,
-      fontWeight: "700",
       includeFontPadding: false,
       lineHeight: 14,
     });
@@ -107,7 +100,6 @@ describe("1a compact servers redesign", () => {
       color: canonical.faint,
       fontFamily: theme.typography.fontFamilyBold,
       fontSize: 11,
-      fontWeight: "700",
       includeFontPadding: false,
       letterSpacing: 1.32,
       lineHeight: 14,
@@ -115,18 +107,15 @@ describe("1a compact servers redesign", () => {
     expect(styles.mobileWorkspaceChannelNameRail).toMatchObject({
       fontFamily: theme.typography.fontFamilySemiBold,
       fontSize: 14.5,
-      fontWeight: "600",
       includeFontPadding: false,
       lineHeight: 18,
     });
     expect(styles.mobileWorkspaceChannelNameRailActive).toMatchObject({
       fontFamily: theme.typography.fontFamilyBold,
-      fontWeight: "700",
     });
     expect(styles.mobileWorkspaceChannelHashRail).toMatchObject({
       fontFamily: theme.typography.fontFamilyExtraBold,
       fontSize: 15,
-      fontWeight: "800",
       includeFontPadding: false,
       lineHeight: 18,
     });
@@ -134,7 +123,6 @@ describe("1a compact servers redesign", () => {
       color: canonical.secondary,
       fontFamily: theme.typography.fontFamily,
       fontSize: 12.5,
-      fontWeight: "400",
       includeFontPadding: false,
       lineHeight: 16,
     });
@@ -146,21 +134,18 @@ describe("1a compact servers redesign", () => {
       color: theme.text.primary,
       fontFamily: theme.typography.fontFamily,
       fontSize: 14.5,
-      fontWeight: "400",
       includeFontPadding: false,
       lineHeight: 20,
     });
     expect(styles.mobileWorkspaceUnreadDot).toMatchObject({
       fontFamily: theme.typography.fontFamilyBold,
       fontSize: 11,
-      fontWeight: "700",
       includeFontPadding: false,
       lineHeight: 22,
     });
     expect(styles.channelMentionBadge).toMatchObject({
       fontFamily: theme.typography.fontFamilyBold,
       fontSize: 11,
-      fontWeight: "700",
       includeFontPadding: false,
       lineHeight: 22,
     });
@@ -289,7 +274,6 @@ describe("1a compact servers redesign", () => {
           fallbackTextStyle: {
             fontFamily: lightTheme.typography.fontFamilyExtraBold,
             fontSize: 15,
-            fontWeight: "800",
             includeFontPadding: false,
             lineHeight: 18,
           },
@@ -307,7 +291,6 @@ describe("1a compact servers redesign", () => {
         expect.objectContaining({
           fontFamily: lightTheme.typography.fontFamilyExtraBold,
           fontSize: 15,
-          fontWeight: "800",
           includeFontPadding: false,
           lineHeight: 18,
         }),
@@ -357,7 +340,7 @@ describe("1a compact servers redesign", () => {
       expect.arrayContaining([
         expect.objectContaining({
           fontSize: 15,
-          fontWeight: "800",
+          fontFamily: lightTheme.typography.fontFamilyExtraBold,
           includeFontPadding: false,
           lineHeight: 18,
         }),
@@ -369,14 +352,12 @@ describe("1a compact servers redesign", () => {
         expect.objectContaining({
           fontFamily: lightTheme.typography.fontFamilySemiBold,
           fontSize: 14.5,
-          fontWeight: "600",
           includeFontPadding: false,
           lineHeight: 18,
         }),
         expect.objectContaining({
           color: lightTheme.accent.strong,
           fontFamily: lightTheme.typography.fontFamilyBold,
-          fontWeight: "700",
         }),
       ]),
     );

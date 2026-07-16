@@ -77,7 +77,6 @@ describe("mobile redesign pill tab bar", () => {
       expect.objectContaining({
         color: lightTheme.accent.default,
         fontFamily: lightTheme.typography.fontFamilyBold,
-        fontWeight: "700",
       }),
     );
     expect(styles.navLabel).toEqual(
@@ -85,7 +84,6 @@ describe("mobile redesign pill tab bar", () => {
         color: lightTheme.text.visualFaint,
         fontFamily: lightTheme.typography.fontFamilySemiBold,
         fontSize: 10.5,
-        fontWeight: "600",
         includeFontPadding: false,
         lineHeight: 13,
       }),

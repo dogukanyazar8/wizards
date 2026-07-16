@@ -21,7 +21,7 @@ import { useTheme } from "../providers/mobile-theme-provider";
 import { useDmScreenStyles } from "./dm-screen.styles";
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
 
-export function DMInboxHeader() {
+export function DMInboxHeader({ onCompose }: { onCompose(): void }) {
   const theme = useTheme();
   const styles = useDmScreenStyles();
   return (
@@ -32,13 +32,12 @@ export function DMInboxHeader() {
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={copy.directMessageComposeUnavailable}
-        accessibilityState={{ disabled: true }}
-        disabled
+        accessibilityLabel={copy.directMessageComposeAction}
+        onPress={onCompose}
         testID="mobile-dm-compose-button"
         style={styles.dmComposeButton}
       >
-        <Ionicons name="add" size={22} color={theme.text.onPrimary} />
+        <Ionicons name="chatbubble-ellipses-outline" size={20} color={theme.text.onPrimary} />
       </Pressable>
     </View>
   );
@@ -98,7 +97,7 @@ export function DirectMessageListCard({
 
   return (
     <View style={styles.dmListCard}>
-      <View style={styles.dmSearchRow}>
+      <View style={[styles.dmSearchRow, styles.dmInboxSearchArea]}>
         <View style={styles.dmSearchShell}>
           <Ionicons name="search" size={19} color={theme.text.soft} />
           <TextInput
@@ -131,7 +130,7 @@ export function DirectMessageListCard({
           />
         )}
         showsVerticalScrollIndicator={false}
-        style={styles.dmConversationListViewport}
+        style={{ ...styles.dmConversationListViewport, ...styles.dmInboxListArea }}
         testID="mobile-dm-conversation-list"
       />
       {filteredConversations.length === 0 ? (
@@ -155,8 +154,17 @@ export function DirectMessageConversationCard({
   const title = getMobileConversationTitle(conversation, copy.directMessageFallback);
   const activeCount = getMobileConversationActiveCount(conversation);
   const lastActivity = formatMobileDisplayTime(conversation.lastMessageAt);
-  const shouldShowActivePill =
-    conversation.type === "GROUP_DM" && conversation.participantCount > 1;
+  const isGroupConversation = conversation.type === "GROUP_DM" && conversation.participantCount > 1;
+  const isUnread = conversation.unreadCount > 0;
+  const preview = conversation.lastMessage
+    ? `${
+        conversation.lastMessage.authorIsCurrentUser
+          ? `${copy.directMessagePreviewYouPrefix}: `
+          : isGroupConversation
+            ? `${conversation.lastMessage.author.displayName ?? conversation.lastMessage.author.username}: `
+            : ""
+      }${conversation.lastMessage.text}`
+    : copy.homeContinueLatestDirectMessage;
 
   return (
     <Pressable
@@ -167,46 +175,89 @@ export function DirectMessageConversationCard({
       onPress={() => onOpenConversation(conversation.id)}
       style={({ pressed }) => [
         styles.dmConversationCard,
-        (selected || conversation.unreadCount > 0) && styles.dmConversationCardSelected,
+        isUnread && styles.dmConversationCardUnread,
+        selected && styles.dmConversationCardSelected,
         pressed && styles.dmConversationCardPressed,
       ]}
     >
-      <AvatarMark
-        label={getMobileConversationInitialsLabel(conversation, copy.directMessageFallback)}
-        imageUrl={getMobileConversationAvatarUrl(conversation)}
-        status={activeCount > 0 ? "active" : "idle"}
-        size="large"
-      />
+      <View style={styles.dmConversationAvatarWrap}>
+        <AvatarMark
+          avatarBorderRadius={18}
+          dimension={50}
+          identityId={conversation.id}
+          label={getMobileConversationInitialsLabel(conversation, copy.directMessageFallback)}
+          imageUrl={getMobileConversationAvatarUrl(conversation)}
+          style={styles.dmConversationAvatar}
+        />
+        {isGroupConversation ? (
+          <View style={styles.dmConversationGroupBadge} testID="mobile-dm-conversation-group-badge">
+            <Ionicons name="people" size={9} color={theme.accent.default} />
+          </View>
+        ) : activeCount > 0 ? (
+          <View style={styles.dmActivePresenceDot} testID="mobile-dm-conversation-online-dot" />
+        ) : null}
+      </View>
       <View style={styles.dmConversationContent}>
         <View style={styles.dmConversationTitleRow}>
           <Text style={styles.dmConversationName} numberOfLines={1}>
             {title || copy.directMessageFallback}
           </Text>
           <View style={styles.dmConversationRightMeta}>
-            {conversation.unreadCount > 0 ? (
+            {isUnread ? (
               <Text style={styles.dmUnreadBadge}>{conversation.unreadCount}</Text>
             ) : null}
-            {lastActivity ? <Text style={styles.dmConversationTime}>{lastActivity}</Text> : null}
+            {lastActivity ? (
+              <Text style={[styles.dmConversationTime, isUnread && styles.dmConversationTimeUnread]}>
+                {lastActivity}
+              </Text>
+            ) : null}
           </View>
         </View>
         <Text style={styles.dmConversationPreview} numberOfLines={1}>
-          {conversation.lastMessage
-            ? `${conversation.lastMessage.authorIsCurrentUser ? copy.directMessagePreviewYouPrefix : (conversation.lastMessage.author.displayName ?? conversation.lastMessage.author.username)}: ${conversation.lastMessage.text}`
-            : copy.homeContinueLatestDirectMessage}
+          {preview}
         </Text>
-        <View style={styles.dmConversationFooterRow}>
-          {shouldShowActivePill ? (
-            <View style={styles.dmActivePresencePill}>
-              <View style={styles.dmActivePresenceDot} />
-              <Text style={styles.dmActivePresenceText}>
-                {activeCount}/{conversation.participantCount} {copy.activePeopleSuffix}
-              </Text>
-            </View>
-          ) : null}
-          {conversation.muted ? <StatusChip label={copy.mutedSuffix} tone="muted" /> : null}
-        </View>
+        {conversation.muted ? (
+          <View style={styles.dmConversationFooterRow}>
+            <StatusChip label={copy.mutedSuffix} tone="muted" />
+          </View>
+        ) : null}
       </View>
-      <Ionicons name="chevron-forward" size={18} color={theme.text.soft} />
     </Pressable>
+  );
+}
+
+export function DMInboxLoadingSkeleton() {
+  const styles = useDmScreenStyles();
+
+  return (
+    <View style={styles.dmInboxListArea} testID="mobile-dm-inbox-loading-skeleton">
+      {[0, 1, 2].map((index) => (
+        <View key={index} style={styles.dmInboxSkeletonRow}>
+          <View style={styles.dmInboxSkeletonAvatar} />
+          <View style={styles.dmInboxSkeletonText}>
+            <View style={[styles.dmInboxSkeletonLine, styles.dmInboxSkeletonTitle]} />
+            <View style={styles.dmInboxSkeletonLine} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export function DMInboxEmptyState({ onCompose }: { onCompose(): void }) {
+  const styles = useDmScreenStyles();
+
+  return (
+    <View style={styles.dmInboxEmptyState} testID="mobile-dm-inbox-empty-state">
+      <Text style={styles.dmInboxEmptyTitle}>{copy.messagesEmpty}</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={copy.directMessageComposeAction}
+        onPress={onCompose}
+        style={styles.dmInboxEmptyAction}
+      >
+        <Text style={styles.dmInboxEmptyActionText}>{copy.directMessageComposeAction}</Text>
+      </Pressable>
+    </View>
   );
 }

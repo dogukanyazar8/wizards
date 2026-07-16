@@ -42,6 +42,7 @@ import {
 import { useHomeScreenStyles } from "./home-screen.styles";
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
 import { MobileWorkspaceBrowser } from "./workspace-browser";
+import type { MobileChannelTypingUser } from "../../realtime/mobile-typing-state";
 
 export { MobileWorkspaceBrowser } from "./workspace-browser";
 export {
@@ -54,6 +55,7 @@ export function OverviewScreen({
   channelMessagesState,
   channelSendState,
   channelTypingLabel,
+  channelTypingUsers,
   isReactionMutationPending,
   locale,
   mediaState,
@@ -106,6 +108,7 @@ export function OverviewScreen({
   channelMessagesState: MobileChannelMessagesViewState;
   channelSendState: MobileChannelSendViewState;
   channelTypingLabel: string | null;
+  channelTypingUsers: readonly MobileChannelTypingUser[];
   isReactionMutationPending: boolean;
   locale: MobileLocale;
   mediaState: MobileMediaRuntimeState;
@@ -182,6 +185,7 @@ export function OverviewScreen({
           channelMessagesState={channelMessagesState}
           channelSendState={channelSendState}
           channelTypingLabel={channelTypingLabel}
+          channelTypingUsers={channelTypingUsers}
           isReactionMutationPending={isReactionMutationPending}
           locale={locale}
           mediaState={mediaState}

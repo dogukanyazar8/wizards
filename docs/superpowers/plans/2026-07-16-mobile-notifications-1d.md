@@ -22,7 +22,7 @@
 
 **Files:**
 - Create: `apps/mobile/src/app/screens/notifications-screen-model.ts`
-- Test: `apps/mobile/component-tests/notifications-screen-model.test.ts`
+- Test: `apps/mobile/component-tests/notifications-screen-model.test.tsx`
 
 **Consumes:** `MobileNotificationItem` ve `createdAt`, `type`, `actor`, `server`, `channel`, `messageQuote`, `actionUrl` alanları.
 
@@ -40,7 +40,7 @@ expect(getMobileNotificationPresentation(todayMention).kind).toBe("mention");
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `corepack pnpm --filter @wizards/mobile exec jest component-tests/notifications-screen-model.test.ts --runInBand`
+Run: `corepack pnpm --filter @wizards/mobile exec jest component-tests/notifications-screen-model.test.tsx --runInBand`
 
 Expected: FAIL because `notifications-screen-model` does not exist.
 
@@ -59,7 +59,7 @@ export function groupMobileNotificationsByDay(
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `corepack pnpm --filter @wizards/mobile exec jest component-tests/notifications-screen-model.test.ts --runInBand`
+Run: `corepack pnpm --filter @wizards/mobile exec jest component-tests/notifications-screen-model.test.tsx --runInBand`
 
 Expected: PASS.
 

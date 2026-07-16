@@ -10,7 +10,7 @@ export const createMediaPrimitiveStyles = (theme: MobileTheme) => {
     mediaRuntimeStatusLabel: {
       color: theme.text.primary,
       fontSize: 12,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mediaRuntimeStatusPill: {
       minHeight: 46,
@@ -35,7 +35,7 @@ export const createMediaPrimitiveStyles = (theme: MobileTheme) => {
       marginTop: 2,
       color: theme.text.muted,
       fontSize: 11,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     ...createSharedStyles(theme),
   } satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;

@@ -34,6 +34,10 @@ export const createAuthLoginScreenStyles = (theme: MobileTheme) => ({
     ...theme.typography.authSubtitle,
     color: theme.text.muted,
   },
+  footer: {
+    paddingBottom: 26,
+    paddingTop: 14,
+  },
   footerRow: {
     alignItems: "center" as const,
     flexDirection: "row" as const,
@@ -43,7 +47,21 @@ export const createAuthLoginScreenStyles = (theme: MobileTheme) => ({
     minWidth: 0,
   },
   form: {
-    gap: theme.spacing.section,
+    gap: 14,
+    minWidth: 0,
+  },
+  mainContent: {
+    flexGrow: 1,
+    gap: 14,
+    minWidth: 0,
+    paddingTop: 18,
+  },
+  mainScroll: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mainScrollContent: {
+    flexGrow: 1,
     minWidth: 0,
   },
   inlineAction: {
@@ -78,7 +96,7 @@ export const createAuthLoginScreenStyles = (theme: MobileTheme) => ({
     padding: theme.spacing.section,
   },
   screen: {
-    gap: theme.spacing.section,
+    flex: 1,
     minWidth: 0,
   },
   socialAction: {
@@ -99,11 +117,11 @@ export const createAuthLoginScreenStyles = (theme: MobileTheme) => ({
     minWidth: 0,
   },
   socialGroup: {
-    gap: theme.spacing.row,
+    gap: 14,
     minWidth: 0,
   },
   topSection: {
-    gap: theme.spacing.section,
+    gap: 14,
     minWidth: 0,
   },
   twoFactorAction: {

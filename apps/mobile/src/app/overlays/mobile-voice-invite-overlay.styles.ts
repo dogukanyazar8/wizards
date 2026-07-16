@@ -38,7 +38,7 @@ export const createMobileVoiceInviteOverlayStyles = (theme: MobileTheme) => {
       marginTop: 2,
       color: theme.text.muted,
       fontSize: 11,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
       lineHeight: 15,
     },
     mobileVoiceInviteOverlayGhostButton: {
@@ -52,7 +52,7 @@ export const createMobileVoiceInviteOverlayStyles = (theme: MobileTheme) => {
     mobileVoiceInviteOverlayGhostText: {
       color: theme.text.muted,
       fontSize: 10,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileVoiceInviteOverlayIcon: {
       width: 38,
@@ -73,7 +73,7 @@ export const createMobileVoiceInviteOverlayStyles = (theme: MobileTheme) => {
     mobileVoiceInviteOverlayPrimaryText: {
       color: theme.text.onPrimary,
       fontSize: 10,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileVoiceInviteOverlayText: {
       flex: 1,
@@ -82,7 +82,7 @@ export const createMobileVoiceInviteOverlayStyles = (theme: MobileTheme) => {
     mobileVoiceInviteOverlayTitle: {
       color: theme.text.primary,
       fontSize: 13,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     ...createSharedStyles(theme),
   } satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;

@@ -94,7 +94,6 @@ describe("FloatingNavigationChrome", () => {
       expect.objectContaining({
         fontFamily: lightTheme.typography.fontFamilyBold,
         fontSize: 13.5,
-        fontWeight: "700",
         includeFontPadding: false,
         lineHeight: 17,
       }),
@@ -103,7 +102,6 @@ describe("FloatingNavigationChrome", () => {
       expect.objectContaining({
         fontFamily: lightTheme.typography.fontFamilySemiBold,
         fontSize: 11.5,
-        fontWeight: "600",
         includeFontPadding: false,
         lineHeight: 15,
       }),

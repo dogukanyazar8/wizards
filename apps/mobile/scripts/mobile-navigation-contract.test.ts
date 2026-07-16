@@ -158,6 +158,8 @@ test("voice room is a protected root route rather than a bottom tab", () => {
   assert.match(navigationRef, /getMobileVoiceRoomRouteContext/);
   assert.match(containers, /hardwareBackPress/);
   assert.match(containers, /isVoiceSessionActive/);
+  assert.match(containers, /onMinimize=\{minimizeVoiceRoom\}/);
+  assert.match(containers, /navigation\.navigate\("ChannelChat", \{ channelId: room\.channelId, serverId: room\.serverId \}\)/);
 });
 
 test("voice room navigation does not retain the legacy overview voice surface", () => {

@@ -37,10 +37,15 @@ function renderLogin(props?: Partial<React.ComponentProps<typeof AuthLoginScreen
 }
 
 async function fillValidCredentials(view: Awaited<ReturnType<typeof render>>) {
-  await fireEvent.changeText(view.getByTestId("mobile-auth-login-email-input"), " User@Example.COM ");
+  await fireEvent.changeText(
+    view.getByTestId("mobile-auth-login-email-input"),
+    " User@Example.COM ",
+  );
   await fireEvent.changeText(view.getByTestId("mobile-auth-login-password-input"), "safe-password");
   await waitFor(() =>
-    expect(view.getByTestId("mobile-auth-login-email-input").props.value).toBe(" User@Example.COM "),
+    expect(view.getByTestId("mobile-auth-login-email-input").props.value).toBe(
+      " User@Example.COM ",
+    ),
   );
   await waitFor(() =>
     expect(view.getByTestId("mobile-auth-login-password-input").props.value).toBe("safe-password"),
@@ -65,16 +70,30 @@ describe("AuthLoginScreen", () => {
 
     expect(view.getByTestId("mobile-auth-login-screen-canonical-background-light")).toBeTruthy();
     expect(
-      view.getByTestId("mobile-auth-login-top-bar-brand-mark", { includeHiddenElements: true }).props,
+      view.getByTestId("mobile-auth-login-top-bar-brand-mark", { includeHiddenElements: true })
+        .props,
     ).toMatchObject({ height: 32, width: 32 });
-    expect(resolvePressableStyle(view.getByTestId("mobile-auth-social-google").props.style)).toEqual(
-      expect.objectContaining({ height: 48, width: 78 }),
-    );
+    expect(
+      resolvePressableStyle(view.getByTestId("mobile-auth-social-google").props.style),
+    ).toEqual(expect.objectContaining({ height: 48, width: 78 }));
     expect(view.queryByText(copy.authSocialGoogle)).toBeNull();
   });
 
+  it("keeps the login footer independent from the scrollable form layout", async () => {
+    const view = await renderLogin();
+
+    expect(
+      resolvePressableStyle(view.getByTestId("mobile-auth-login-main-content").props.style),
+    ).toEqual(expect.objectContaining({ flexGrow: 1, paddingTop: 18 }));
+    expect(resolvePressableStyle(view.getByTestId("mobile-auth-login-footer").props.style)).toEqual(
+      expect.objectContaining({ paddingBottom: 26, paddingTop: 14 }),
+    );
+  });
+
   it("fails locally for empty required credentials without dispatching sign-in", async () => {
-    const onSignIn = jest.fn<Promise<{ ok: true }>, [SignInInput]>().mockResolvedValue({ ok: true });
+    const onSignIn = jest
+      .fn<Promise<{ ok: true }>, [SignInInput]>()
+      .mockResolvedValue({ ok: true });
     const view = await renderLogin({ onSignIn });
 
     await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
@@ -84,11 +103,16 @@ describe("AuthLoginScreen", () => {
   });
 
   it("normalizes before rejecting an invalid email without dispatching sign-in", async () => {
-    const onSignIn = jest.fn<Promise<{ ok: true }>, [SignInInput]>().mockResolvedValue({ ok: true });
+    const onSignIn = jest
+      .fn<Promise<{ ok: true }>, [SignInInput]>()
+      .mockResolvedValue({ ok: true });
     const view = await renderLogin({ onSignIn });
 
     await fireEvent.changeText(view.getByTestId("mobile-auth-login-email-input"), "invalid-email");
-    await fireEvent.changeText(view.getByTestId("mobile-auth-login-password-input"), "safe-password");
+    await fireEvent.changeText(
+      view.getByTestId("mobile-auth-login-password-input"),
+      "safe-password",
+    );
     await waitFor(() =>
       expect(view.getByTestId("mobile-auth-login-email-input").props.value).toBe("invalid-email"),
     );
@@ -99,7 +123,9 @@ describe("AuthLoginScreen", () => {
   });
 
   it("submits valid credentials directly without rendering a human-verification card", async () => {
-    const onSignIn = jest.fn<Promise<{ ok: true }>, [SignInInput]>().mockResolvedValue({ ok: true });
+    const onSignIn = jest
+      .fn<Promise<{ ok: true }>, [SignInInput]>()
+      .mockResolvedValue({ ok: true });
     const view = await renderLogin({ onSignIn });
 
     await fillValidCredentials(view);
@@ -116,8 +142,15 @@ describe("AuthLoginScreen", () => {
 
   it("reveals two-factor recovery after a required response and includes a trimmed code only then", async () => {
     const onSignIn = jest
-      .fn<Promise<{ message: string; ok: false; requiresTwoFactor: true } | { ok: true }>, [SignInInput]>()
-      .mockResolvedValueOnce({ message: "2FA is required for this account.", ok: false, requiresTwoFactor: true })
+      .fn<
+        Promise<{ message: string; ok: false; requiresTwoFactor: true } | { ok: true }>,
+        [SignInInput]
+      >()
+      .mockResolvedValueOnce({
+        message: "2FA is required for this account.",
+        ok: false,
+        requiresTwoFactor: true,
+      })
       .mockResolvedValueOnce({ ok: true });
     const view = await renderLogin({ onSignIn });
 
@@ -127,7 +160,10 @@ describe("AuthLoginScreen", () => {
     expect(await view.findByText("2FA is required for this account.")).toBeTruthy();
     expect(view.getByTestId("mobile-auth-login-two-factor-code-input")).toBeTruthy();
 
-    await fireEvent.changeText(view.getByTestId("mobile-auth-login-two-factor-code-input"), "  123456  ");
+    await fireEvent.changeText(
+      view.getByTestId("mobile-auth-login-two-factor-code-input"),
+      "  123456  ",
+    );
     await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
 
     await waitFor(() =>
@@ -198,12 +234,12 @@ describe("AuthLoginScreen", () => {
   it("keeps the 2FA and remember-me controls on one measured row", async () => {
     const view = await renderLogin();
 
-    expect(resolvePressableStyle(view.getByTestId("mobile-auth-login-two-factor-link").props.style)).toEqual(
-      expect.objectContaining({ flex: 1 }),
-    );
-    expect(resolvePressableStyle(view.getByTestId("mobile-auth-login-remember-me").props.style)).toEqual(
-      expect.objectContaining({ width: 112 }),
-    );
+    expect(
+      resolvePressableStyle(view.getByTestId("mobile-auth-login-two-factor-link").props.style),
+    ).toEqual(expect.objectContaining({ flex: 1 }));
+    expect(
+      resolvePressableStyle(view.getByTestId("mobile-auth-login-remember-me").props.style),
+    ).toEqual(expect.objectContaining({ width: 112 }));
   });
 
   it("uses the supplied multicolor Google mark instead of recoloring it with a Whispr token", async () => {
@@ -215,25 +251,24 @@ describe("AuthLoginScreen", () => {
   });
 
   it("keeps profile selection presentation-only and excludes it from the sign-in payload", async () => {
-    const onSignIn = jest.fn<Promise<{ ok: true }>, [SignInInput]>().mockResolvedValue({ ok: true });
+    const onSignIn = jest
+      .fn<Promise<{ ok: true }>, [SignInInput]>()
+      .mockResolvedValue({ ok: true });
     const view = await renderLogin({ onSignIn });
 
     await fireEvent.press(view.getByTestId("mobile-auth-login-profile-option-gamer"));
-    expect(view.getByTestId("mobile-auth-login-profile-option-gamer").props.accessibilityState).toEqual(
-      expect.objectContaining({ selected: true }),
-    );
+    expect(
+      view.getByTestId("mobile-auth-login-profile-option-gamer").props.accessibilityState,
+    ).toEqual(expect.objectContaining({ selected: true }));
 
     await fillValidCredentials(view);
     await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
 
     await waitFor(() => expect(onSignIn).toHaveBeenCalledTimes(1));
-    expect(Object.keys(onSignIn.mock.calls[0]![0])).toEqual([
-      "email",
-      "password",
-    ]);
+    expect(Object.keys(onSignIn.mock.calls[0]![0])).toEqual(["email", "password"]);
   });
 
-  it("fills development credentials only after an explicit press and clears prior form feedback", async () => {
+  it("pre-fills development credentials on mount so UAT testing skips manual entry", async () => {
     const view = await renderLogin({
       developmentCredentials: {
         email: "dev@example.com",
@@ -241,18 +276,16 @@ describe("AuthLoginScreen", () => {
       },
     });
 
-    await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
-    expect(await view.findByText(copy.authNativeMissingFields)).toBeTruthy();
-    expect(view.getByTestId("mobile-auth-login-email-input").props.value).toBe("");
-    expect(view.getByTestId("mobile-auth-login-password-input").props.value).toBe("");
-
-    await fireEvent.press(view.getByTestId("mobile-auth-login-fill-dev-credentials"));
-
     await waitFor(() =>
       expect(view.getByTestId("mobile-auth-login-email-input").props.value).toBe("dev@example.com"),
     );
-    expect(view.getByTestId("mobile-auth-login-password-input").props.value).toBe("development-password");
-    expect(view.queryByText(copy.authNativeMissingFields)).toBeNull();
+    expect(view.getByTestId("mobile-auth-login-password-input").props.value).toBe(
+      "development-password",
+    );
+
+    // The explicit fill action remains available and re-applies the credentials
+    // with confirmation feedback.
+    await fireEvent.press(view.getByTestId("mobile-auth-login-fill-dev-credentials"));
     expect(view.getByText(copy.authNativeDevCredentialsFilled)).toBeTruthy();
   });
 

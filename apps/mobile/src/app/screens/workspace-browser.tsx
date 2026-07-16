@@ -50,6 +50,7 @@ import { MobileWorkspaceServerSwitcherSheet } from "./mobile-workspace-server-sw
 import { EmptyState, Skeleton } from "../components/kit";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
+import type { MobileChannelTypingUser } from "../../realtime/mobile-typing-state";
 
 export function MobileWorkspaceBrowser({
   attachmentsFeature,
@@ -57,6 +58,7 @@ export function MobileWorkspaceBrowser({
   channelMessagesState,
   channelSendState,
   channelTypingLabel,
+  channelTypingUsers,
   isReactionMutationPending,
   locale,
   mediaState,
@@ -111,6 +113,7 @@ export function MobileWorkspaceBrowser({
   channelMessagesState: MobileChannelMessagesViewState;
   channelSendState: MobileChannelSendViewState;
   channelTypingLabel: string | null;
+  channelTypingUsers: readonly MobileChannelTypingUser[];
   isReactionMutationPending: boolean;
   locale: MobileLocale;
   mediaState: MobileMediaRuntimeState;
@@ -268,6 +271,8 @@ export function MobileWorkspaceBrowser({
   const isCompactWorkspaceLayout = workspaceLayout === "compact";
   const canManageInvites = workspacePayload?.detail.capabilities.canManageInvites === true;
   const canManageServer = workspacePayload?.detail.capabilities.canManageServer === true;
+  const ownerUserId =
+    workspacePayload?.detail.members.find((member) => member.accessLevel === "OWNER")?.userId ?? null;
   const handleServerPress = useCallback(
     (serverId: string) => {
       setChannelQuery("");
@@ -320,6 +325,8 @@ export function MobileWorkspaceBrowser({
         serverName={activeServerName}
         state={channelMessagesState}
         typingLabel={channelTypingLabel}
+        typingUsers={channelTypingUsers}
+        ownerUserId={ownerUserId}
         onBack={onCloseWorkspaceChannel}
         onClearMessageSearch={onClearMessageSearch}
         onClearSelectedMediaAsset={onClearSelectedMediaAsset}
@@ -403,6 +410,7 @@ export function MobileWorkspaceBrowser({
               >
                 {isActive ? <View style={styles.mobileServerRailActiveIndicator} /> : null}
                 <AvatarMark
+                  avatarBorderRadius={16}
                   imageUrl={server.iconUrl}
                   label={server.shortName ?? server.name}
                   size="regular"

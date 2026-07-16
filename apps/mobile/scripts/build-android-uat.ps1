@@ -10,12 +10,15 @@ param(
   [ValidateSet("debug", "release")]
   [string]$BuildType = "debug",
   [ValidateRange(32, 120)]
-  [int]$PnpmVirtualStoreMaxLength = 40,
+  [int]$PnpmVirtualStoreMaxLength = 32,
   [int]$WaitForDeviceSeconds = 90,
+  [ValidateRange(1024, 65535)]
+  [int]$DevServerPort = 8081,
   [switch]$SkipSync,
   [switch]$SkipUninstall,
   [switch]$SkipInstall,
   [switch]$NoStartMetro,
+  [switch]$DisableGradleBuildCache,
   [switch]$CleanAndroidCaches
 )
 
@@ -530,6 +533,25 @@ function Clear-WhisprUatPnpmState {
   Remove-WhisprUatManagedDirectory -ResolvedBuildHome $ResolvedBuildHome -PathValue $PhysicalStoreDir -Name "Managed pnpm store"
 }
 
+function Resolve-AvailableMetroPort {
+  param([int]$PreferredPort)
+
+  for ($port = $PreferredPort; $port -le 65535; $port++) {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $port)
+
+    try {
+      $listener.Start()
+      return $port
+    } catch [System.Net.Sockets.SocketException] {
+      continue
+    } finally {
+      $listener.Stop()
+    }
+  }
+
+  throw "No free Metro port was found from $PreferredPort through 65535."
+}
+
 function Get-WhisprUatPnpmVirtualStoreDir {
   param([string]$WorkingDirectory)
 
@@ -638,6 +660,23 @@ function Invoke-PnpmInstallWithRecovery {
   }
 }
 
+function Assert-ExpoReleaseBundlePrerequisites {
+  param(
+    [string]$WorkingDirectory,
+    [string]$BuildType
+  )
+
+  if ($BuildType -ne "release") {
+    return
+  }
+
+  try {
+    Invoke-CommandChecked -Command "node" -Arguments @("-e", "require.resolve('babel-preset-expo')") -WorkingDirectory $WorkingDirectory
+  } catch {
+    throw "UAT release bundling requires babel-preset-expo as a direct mobile devDependency. Run corepack pnpm install from the repository root, then retry. Details: $($_.Exception.Message)"
+  }
+}
+
 function Clear-MobileNativeDependencyBuildCaches {
   param([string]$VirtualStoreDir)
 
@@ -652,13 +691,18 @@ function Clear-MobileNativeDependencyBuildCaches {
     "react-native-safe-area-context"
   )
 
+  $packageDirectories = @(Get-ChildItem -LiteralPath $VirtualStoreDir -Directory -ErrorAction SilentlyContinue)
   foreach ($packageName in $nativeDependencyBuildDirs) {
-    Get-ChildItem -LiteralPath $VirtualStoreDir -Directory -Filter "$packageName*" -ErrorAction SilentlyContinue |
-      ForEach-Object {
-        $androidDir = Join-Path $_.FullName "node_modules\$packageName\android"
-        Remove-DirectoryIfPresent (Join-Path $androidDir ".cxx")
-        Remove-DirectoryIfPresent (Join-Path $androidDir "build")
+    foreach ($packageDirectory in $packageDirectories) {
+      # pnpm can truncate virtual-store directory names, so inspect the package contents instead of matching the folder name.
+      $androidDir = Join-Path $packageDirectory.FullName "node_modules\$packageName\android"
+      if (-not (Test-Path -LiteralPath $androidDir)) {
+        continue
       }
+
+      Remove-DirectoryIfPresent (Join-Path $androidDir ".cxx")
+      Remove-DirectoryIfPresent (Join-Path $androidDir "build")
+    }
   }
 }
 
@@ -691,7 +735,7 @@ $managedBuildRootLink = Ensure-WhisprUatManagedRootLink -ManagedBuildRootPath $M
 
 $physicalWorkspaceRoot = Join-Path $resolvedBuildHome "workspace"
 $physicalPnpmStoreDir = Join-Path $resolvedBuildHome "pnpm-store"
-$physicalPnpmVirtualStoreDir = Join-Path $resolvedBuildHome "pnpm-virtual-store"
+$physicalPnpmVirtualStoreDir = Join-Path $resolvedBuildHome "p"
 $physicalGradleUserHome = Join-Path $resolvedBuildHome "gradle"
 $physicalArtifactDir = Join-Path $resolvedBuildHome "artifacts"
 
@@ -714,7 +758,7 @@ if (-not $ApkOutputDir) {
 }
 
 $pnpmStoreDir = Join-Path $resolvedBuildHome "pnpm-store"
-$pnpmVirtualStoreDir = Join-Path $resolvedBuildHome "pnpm-virtual-store"
+$pnpmVirtualStoreDir = Join-Path $resolvedBuildHome "p"
 $gradleUserHome = Join-Path $resolvedBuildHome "gradle"
 
 $resolvedBuildParent = Split-Path -Parent $BuildRoot
@@ -816,13 +860,16 @@ if ($requiresConnectedDevice) {
 }
 
 $reactNativeArchitectures = Resolve-ReactNativeArchitectures -DeviceIds $devices -OverrideArchitectures $AndroidArchitectures
+$metroPort = Resolve-AvailableMetroPort -PreferredPort $DevServerPort
 Write-Host "Target Android architecture(s): $reactNativeArchitectures"
+Write-Host "Metro development server port: $metroPort"
 
 Write-Step "Preparing package manager and Android SDK config"
 Ensure-ProjectNpmrc -Root $resolvedBuildRoot -StoreDir $pnpmStoreDir -VirtualStoreDir $pnpmVirtualStoreDir -VirtualStoreMaxLength $PnpmVirtualStoreMaxLength
 Ensure-AndroidLocalProperties -MobileRoot $mobileRoot -SdkRoot $AndroidHome
 Invoke-PnpmInstallWithRecovery -WorkingDirectory $resolvedBuildRoot -ResolvedBuildHome $resolvedBuildHome -PhysicalWorkspaceRoot $physicalWorkspaceRoot -PhysicalStoreDir $physicalPnpmStoreDir -PhysicalVirtualStoreDir $physicalPnpmVirtualStoreDir
 Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "--filter", "@wizards/mobile", "validate:env") -WorkingDirectory $resolvedBuildRoot
+Assert-ExpoReleaseBundlePrerequisites -WorkingDirectory $mobileRoot -BuildType $BuildType
 Stop-GradleDaemons -GradleWrapperPath $gradlew -WorkingDirectory $androidRoot
 
 if ($CleanAndroidCaches) {
@@ -850,10 +897,15 @@ $gradleBuildArguments = @(
   "-x",
   "test",
   "--configure-on-demand",
-  "--build-cache",
-  "-PreactNativeDevServerPort=8081",
+  "-PreactNativeDevServerPort=$metroPort",
   "-PreactNativeArchitectures=$reactNativeArchitectures"
 )
+if ($DisableGradleBuildCache) {
+  # Gradle's incremental artifact splitter is not reliable for the four-ABI UAT APK.
+  $gradleBuildArguments += "--no-build-cache"
+} else {
+  $gradleBuildArguments += "--build-cache"
+}
 Invoke-GradleBuildWithRetry -GradleWrapperPath $gradlew -GradleArguments $gradleBuildArguments -WorkingDirectory $androidRoot -VirtualStoreDir $pnpmVirtualStoreDir
 
 Resolve-ExistingPath $apkPath "Generated APK" | Out-Null
@@ -900,5 +952,5 @@ Write-Host "Embedded environment: uat -> $UatUrl"
 if (-not $NoStartMetro) {
   Write-Step "Starting Expo dev-client Metro server"
   Write-Host "Keep this PowerShell window open while testing. Press Ctrl+C to stop Metro." -ForegroundColor Yellow
-  Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "exec", "expo", "start", "--dev-client") -WorkingDirectory $mobileRoot
+  Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "exec", "expo", "start", "--dev-client", "--port", $metroPort) -WorkingDirectory $mobileRoot
 }

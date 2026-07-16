@@ -3,6 +3,7 @@ import {
   formatMobileChannelTypingLabel,
   getVisibleMobileChannelTypingUsers,
   type MobileChannelTypingState,
+  type MobileChannelTypingUser,
 } from "../../realtime/mobile-typing-state";
 
 export function useMobileTypingLabels(input: {
@@ -10,13 +11,18 @@ export function useMobileTypingLabels(input: {
   readonly channelTyping: MobileChannelTypingState;
   readonly conversationId: string | null;
   readonly dmTyping: MobileChannelTypingState;
-}) {
-  const channelTypingLabel = useMemo(
-    () =>
-      formatMobileChannelTypingLabel(
-        getVisibleMobileChannelTypingUsers(input.channelTyping, input.channelId),
-      ),
+}): {
+  readonly channelTypingLabel: string | null;
+  readonly channelTypingUsers: readonly MobileChannelTypingUser[];
+  readonly dmTypingLabel: string | null;
+} {
+  const channelTypingUsers = useMemo(
+    () => getVisibleMobileChannelTypingUsers(input.channelTyping, input.channelId),
     [input.channelId, input.channelTyping],
+  );
+  const channelTypingLabel = useMemo(
+    () => formatMobileChannelTypingLabel(channelTypingUsers),
+    [channelTypingUsers],
   );
   const dmTypingLabel = useMemo(
     () =>
@@ -25,5 +31,5 @@ export function useMobileTypingLabels(input: {
       ),
     [input.conversationId, input.dmTyping],
   );
-  return { channelTypingLabel, dmTypingLabel };
+  return { channelTypingLabel, channelTypingUsers, dmTypingLabel };
 }

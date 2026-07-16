@@ -39,7 +39,7 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
     channelComposerGifButtonText: {
       color: theme.text.muted,
       fontSize: 13,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     channelComposerIconButton: {
       width: 44,
@@ -49,7 +49,7 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
       borderWidth: 1,
       borderColor: theme.border.subtle,
       borderRadius: 16,
-      backgroundColor: theme.surface.soft,
+      backgroundColor: theme.surface.card,
     },
     channelComposerIconButtonDisabled: {
       opacity: 0.56,
@@ -75,12 +75,12 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
     channelComposerAttachmentPickerActionText: {
       color: theme.text.primary,
       fontSize: 14,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     channelComposerAttachmentPickerTitle: {
       color: theme.text.primary,
       fontSize: 17,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     channelComposerInput: {
       flex: 1,
@@ -154,7 +154,7 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
     dmAttachButtonText: {
       color: theme.accent.strong,
       fontSize: 16,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     dmComposer: {
       gap: 8,
@@ -188,18 +188,18 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
     dmComposerAttachmentClearText: {
       color: theme.accent.strong,
       fontSize: 13,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     dmComposerAttachmentMeta: {
       marginTop: 2,
       color: theme.text.muted,
       fontSize: 11,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     dmComposerAttachmentNotice: {
       color: theme.text.muted,
       fontSize: 11,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
       lineHeight: 16,
     },
     dmComposerAttachmentText: {
@@ -209,7 +209,7 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
     dmComposerAttachmentTitle: {
       color: theme.text.primary,
       fontSize: 12,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     dmComposerInput: {
       minHeight: 44,
@@ -219,7 +219,7 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
       backgroundColor: theme.surface.card,
       color: theme.text.primary,
       fontSize: 14,
-      fontWeight: "600",
+      fontFamily: theme.typography.fontFamilySemiBold,
       lineHeight: 20,
       paddingHorizontal: 12,
       paddingVertical: 10,
@@ -236,7 +236,7 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
       minWidth: 0,
       color: theme.text.muted,
       fontSize: 12,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     dmSendButton: {
       minHeight: 44,
@@ -252,7 +252,7 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
     dmSendButtonText: {
       color: theme.text.onPrimary,
       fontSize: 13,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     dmSendErrorText: {
       overflow: "hidden",
@@ -260,7 +260,7 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
       backgroundColor: theme.status.dangerSoft,
       color: theme.status.onStatus,
       fontSize: 12,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
       lineHeight: 17,
       paddingHorizontal: 10,
       paddingVertical: 8,

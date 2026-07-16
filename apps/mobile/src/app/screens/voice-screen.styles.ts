@@ -7,15 +7,224 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
   const mobileRadii = theme.radii;
 
   return {
+    activeVoiceRoomAvatarFallback: {
+      fontSize: 26,
+      lineHeight: 30,
+    },
+    activeVoiceRoomAvatarRing: {
+      width: 92,
+      height: 92,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 34,
+    },
+    activeVoiceRoomAvatarRingSpeaking: {
+      backgroundColor: theme.status.successSoft,
+      borderColor: theme.status.successOnInverse,
+      borderWidth: 6,
+    },
+    activeVoiceRoomBackButton: {
+      width: 44,
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 16,
+    },
+    activeVoiceRoomConnectionChip: {
+      minHeight: 31,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      borderRadius: 12,
+      backgroundColor: theme.status.successSoft,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    activeVoiceRoomConnectionDot: {
+      width: 7,
+      height: 7,
+      borderRadius: mobileRadii.pill,
+      backgroundColor: theme.status.successOnInverse,
+    },
+    activeVoiceRoomConnectionLabel: {
+      color: theme.status.successOnInverse,
+      fontSize: 12,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+    },
+    activeVoiceRoomControl: {
+      width: 60,
+      height: 60,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: theme.surface.voiceRoomControlBorder,
+      borderRadius: 22,
+      backgroundColor: theme.surface.voiceRoomControl,
+    },
+    activeVoiceRoomControlDanger: {
+      borderColor: theme.status.dangerOnInverse,
+      backgroundColor: theme.status.dangerOnInverse,
+      elevation: 8,
+      shadowColor: theme.status.dangerOnInverse,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.4,
+      shadowRadius: 20,
+    },
+    activeVoiceRoomControlDisabled: {
+      opacity: 0.48,
+    },
+    activeVoiceRoomControlSelected: {
+      borderColor: theme.status.successOnInverse,
+    },
+    activeVoiceRoomControls: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 14,
+      paddingHorizontal: 24,
+      paddingTop: 10,
+      paddingBottom: 8,
+    },
+    activeVoiceRoomError: {
+      color: theme.status.dangerOnInverse,
+      fontSize: 12,
+      lineHeight: 17,
+      fontFamily: theme.typography.fontFamilyBold,
+      paddingHorizontal: 24,
+    },
+    activeVoiceRoomHeader: {
+      minHeight: 70,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingHorizontal: 24,
+      paddingTop: 14,
+      paddingBottom: 6,
+    },
+    activeVoiceRoomHeaderText: {
+      flex: 1,
+      minWidth: 0,
+    },
+    activeVoiceRoomInviteCard: {
+      flexBasis: "100%",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 10,
+      borderWidth: 1,
+      borderStyle: "dashed",
+      borderColor: theme.surface.voiceRoomInviteBorder,
+      borderRadius: 22,
+      backgroundColor: theme.surface.voiceRoomInvite,
+      padding: 18,
+    },
+    activeVoiceRoomInviteLabel: {
+      color: theme.dark ? theme.text.onInverseMuted : theme.text.visualSecondary,
+      fontSize: 13.5,
+      fontFamily: theme.typography.fontFamilyBold,
+    },
+    activeVoiceRoomMutedBadge: {
+      position: "absolute",
+      right: -4,
+      bottom: -4,
+      width: 26,
+      height: 26,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 3,
+      borderColor: theme.surface.voiceRoom,
+      borderRadius: 10,
+      backgroundColor: theme.status.dangerOnInverse,
+    },
+    activeVoiceRoomParticipantCard: {
+      flexGrow: 1,
+      flexBasis: "42%",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 12,
+      minHeight: 196,
+      borderWidth: 1,
+      borderColor: theme.dark ? "transparent" : theme.border.subtle,
+      borderRadius: 28,
+      backgroundColor: theme.surface.voiceRoomParticipant,
+      paddingHorizontal: 12,
+      paddingVertical: 32,
+    },
+    activeVoiceRoomParticipantCardSpeaking: {
+      borderWidth: 2,
+      borderColor: theme.status.successOnInverse,
+    },
+    activeVoiceRoomParticipantGrid: {
+      flex: 1,
+      flexDirection: "row",
+      flexWrap: "wrap",
+      alignContent: "center",
+      gap: 14,
+      paddingHorizontal: 24,
+      paddingVertical: 20,
+    },
+    activeVoiceRoomParticipantName: {
+      color: theme.dark ? theme.text.inverse : theme.text.primary,
+      fontSize: 15,
+      fontFamily: theme.typography.fontFamilyBold,
+      textAlign: "center",
+    },
+    activeVoiceRoomParticipantStatus: {
+      color: theme.dark ? theme.text.onInverseMuted : theme.text.visualSecondary,
+      fontSize: 11.5,
+      fontFamily: theme.typography.fontFamilyBold,
+      textAlign: "center",
+    },
+    activeVoiceRoomParticipantStatusSpeaking: {
+      color: theme.status.successOnInverse,
+    },
+    activeVoiceRoomParticipantText: {
+      alignItems: "center",
+      gap: 2,
+      minWidth: 0,
+    },
+    activeVoiceRoomPermissionFootnote: {
+      color: theme.dark ? theme.text.onInverseMuted : theme.text.visualSecondary,
+      fontSize: 12,
+      fontFamily: theme.typography.fontFamily,
+      textAlign: "center",
+      paddingHorizontal: 24,
+      paddingTop: 4,
+      paddingBottom: 28,
+    },
+    activeVoiceRoomScreen: {
+      flex: 1,
+      minWidth: 0,
+      backgroundColor: theme.surface.voiceRoom,
+    },
+    activeVoiceRoomSubtitle: {
+      marginTop: 1,
+      color: theme.dark ? theme.text.onInverseMuted : theme.text.visualSecondary,
+      fontSize: 12.5,
+      fontFamily: theme.typography.fontFamily,
+    },
+    activeVoiceRoomTitle: {
+      flex: 1,
+      minWidth: 0,
+      color: theme.dark ? theme.text.inverse : theme.text.primary,
+      fontSize: 17,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+    },
+    activeVoiceRoomTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      minWidth: 0,
+    },
     mobileChannelChatDot: {
       color: theme.status.successText,
       fontSize: 11,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileChannelChatMemberCount: {
       color: theme.status.successText,
       fontSize: 11,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileChannelChatMetaRow: {
       marginTop: 3,
@@ -28,7 +237,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       maxWidth: "62%",
       color: theme.text.muted,
       fontSize: 11,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileVoiceChannelContent: {
       gap: 10,
@@ -62,7 +271,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     mobileVoiceChannelTitle: {
       color: theme.text.primary,
       fontSize: 18,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileVoiceControlBar: {
       minWidth: 0,
@@ -113,7 +322,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     mobileVoiceControlLabel: {
       color: theme.text.muted,
       fontSize: 9,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       textAlign: "center",
     },
     mobileVoiceControlLabelDanger: {
@@ -161,7 +370,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       minWidth: 0,
       color: theme.status.successText,
       fontSize: 15,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileVoiceScreenShareBanner: {
       minWidth: 0,
@@ -177,7 +386,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     mobileVoiceScreenShareBannerDescription: {
       color: theme.status.successText,
       fontSize: 11,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       lineHeight: 15,
     },
     mobileVoiceScreenShareBannerIcon: {
@@ -196,7 +405,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     mobileVoiceScreenShareBannerTitle: {
       color: theme.status.successText,
       fontSize: 13,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileVoiceScreenShareConsent: {
       minWidth: 0,
@@ -217,7 +426,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     mobileVoiceScreenShareConsentDescription: {
       color: theme.status.warning,
       fontSize: 12,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       lineHeight: 17,
     },
     mobileVoiceScreenShareConsentIcon: {
@@ -236,7 +445,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       marginBottom: 3,
       color: theme.status.warning,
       fontSize: 14,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileVoiceScreenShareFullscreen: {
       flex: 1,
@@ -260,7 +469,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     mobileVoiceScreenShareFullscreenEyebrow: {
       color: theme.status.info,
       fontSize: 11,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       textTransform: "uppercase",
     },
     mobileVoiceScreenShareFullscreenFrame: {
@@ -294,7 +503,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       marginTop: 3,
       color: theme.text.onPrimary,
       fontSize: 17,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileVoiceScreenShareFullscreenVideo: {
       flex: 1,
@@ -350,7 +559,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     mobileVoiceScreenShareViewerEyebrow: {
       color: theme.status.info,
       fontSize: 10,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       textTransform: "uppercase",
     },
     mobileVoiceScreenShareViewerHeader: {
@@ -375,7 +584,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       marginTop: 1,
       color: theme.text.primary,
       fontSize: 13,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileVoiceScreenShareWaiting: {
       flex: 1,
@@ -390,7 +599,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     mobileVoiceScreenShareWaitingText: {
       color: theme.media.textMuted,
       fontSize: 12,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       lineHeight: 17,
       textAlign: "center",
     },
@@ -398,7 +607,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       color: theme.text.muted,
       fontSize: 12,
       lineHeight: 17,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileVoiceError: {
       overflow: "hidden",
@@ -409,7 +618,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       color: theme.status.onStatus,
       fontSize: 12,
       lineHeight: 17,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       paddingHorizontal: 10,
       paddingVertical: 8,
     },
@@ -421,7 +630,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       minWidth: 0,
       color: theme.text.muted,
       fontSize: 12,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileVoiceInfoRow: {
       minHeight: 38,
@@ -437,7 +646,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       maxWidth: "48%",
       color: theme.text.primary,
       fontSize: 12,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       textAlign: "right",
     },
     mobileVoiceInviteButton: {
@@ -455,7 +664,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     mobileVoiceInviteButtonText: {
       color: theme.text.onPrimary,
       fontSize: 11,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileVoiceInviteButtonTextDisabled: {
       color: theme.accent.strong,
@@ -481,7 +690,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       marginTop: 1,
       color: theme.text.muted,
       fontSize: 11,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     mobileVoiceInviteCandidateText: {
       flex: 1,
@@ -490,12 +699,12 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     mobileVoiceInviteCandidateTitle: {
       color: theme.text.primary,
       fontSize: 13,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileVoiceInviteEmpty: {
       color: theme.text.muted,
       fontSize: 12,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       lineHeight: 17,
     },
     mobileVoiceLevelBar: {
@@ -536,7 +745,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       marginTop: 2,
       color: theme.text.muted,
       fontSize: 12,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileVoiceParticipantText: {
       flex: 1,
@@ -546,7 +755,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       minWidth: 0,
       color: theme.text.primary,
       fontSize: 14,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileVoiceParticipantTitleRow: {
       minWidth: 0,
@@ -570,7 +779,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       backgroundColor: theme.accent.soft,
       color: theme.accent.strong,
       fontSize: 11,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       lineHeight: 21,
       paddingHorizontal: 7,
       textAlign: "center",
@@ -587,7 +796,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       minWidth: 0,
       color: theme.text.muted,
       fontSize: 11,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       letterSpacing: 2,
       textTransform: "uppercase",
     },
@@ -597,7 +806,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       backgroundColor: theme.accent.soft,
       color: theme.accent.strong,
       fontSize: 10,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       lineHeight: 18,
       paddingHorizontal: 7,
     },
@@ -611,7 +820,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       color: theme.text.muted,
       fontSize: 12,
       lineHeight: 17,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     ...createSharedStyles(theme),
   } satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;

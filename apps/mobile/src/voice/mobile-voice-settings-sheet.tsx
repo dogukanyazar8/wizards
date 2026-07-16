@@ -19,7 +19,7 @@ const createStyles = (theme: MobileTheme) => ({
     justifyContent: "space-between" as const,
     marginBottom: theme.spacing.row,
   },
-  title: { color: theme.text.primary, fontSize: 20, fontWeight: "700" as const },
+  title: { color: theme.text.primary, fontSize: 20, fontFamily: theme.typography.fontFamilyBold },
   refresh: {
     alignItems: "center" as const,
     borderRadius: theme.radii.pill,
@@ -30,7 +30,7 @@ const createStyles = (theme: MobileTheme) => ({
   sectionTitle: {
     color: theme.text.muted,
     fontSize: 12,
-    fontWeight: "700" as const,
+    fontFamily: theme.typography.fontFamilyBold,
     marginBottom: 6,
     marginTop: theme.spacing.row,
     textTransform: "uppercase" as const,
@@ -44,7 +44,7 @@ const createStyles = (theme: MobileTheme) => ({
     paddingVertical: 8,
   },
   rowText: { color: theme.text.primary, flex: 1, fontSize: 15 },
-  selectedText: { color: theme.accent.default, fontWeight: "700" as const },
+  selectedText: { color: theme.accent.default, fontFamily: theme.typography.fontFamilyBold },
   scroll: { flex: 1 },
 });
 

@@ -12,15 +12,19 @@ import {
   type MobileSyncHealthSummary,
   useState,
 } from "../mobile-root-screen-shared";
-import { BootstrapStateNotice, EmptyState, MobileSyncHealthBanner } from "../components/ui-atoms";
+import { BootstrapStateNotice, MobileSyncHealthBanner } from "../components/ui-atoms";
 import { useDmScreenStyles } from "./dm-screen.styles";
 import { DMConversationScreen } from "./dm-conversation-screen";
-import { DMInboxHeader, DirectMessageListCard } from "./dm-inbox";
+import { DMInboxEmptyState, DMInboxHeader, DMInboxLoadingSkeleton, DirectMessageListCard } from "./dm-inbox";
 import { FriendsHub } from "../../social/friends-hub";
+import { useMobileAuth } from "../../auth/mobile-auth-context";
+import { useMobileFriendsQuery } from "../../social/mobile-social-query";
 
 export { DMConversationScreen, DMConversationPreviewCard } from "./dm-conversation-screen";
 export {
   DMInboxHeader,
+  DMInboxEmptyState,
+  DMInboxLoadingSkeleton,
   DirectMessageConversationCard,
   DirectMessageListCard,
 } from "./dm-inbox";
@@ -96,9 +100,15 @@ export function MessagesScreen({
   onOpenDetails?(): void;
 }) {
   const styles = useDmScreenStyles();
-  const [inboxSegment, setInboxSegment] = useState<"conversations" | "friends">("conversations");
+  const [inboxSegment, setInboxSegment] = useState<"conversations" | "friends" | "requests">(
+    "conversations",
+  );
+  const { apiClient, status } = useMobileAuth();
+  const friendsQuery = useMobileFriendsQuery(apiClient, status === "signed-in");
+  const incomingRequestCount = friendsQuery.data?.pending.incoming.length ?? 0;
   const hasConversations = dmConversations.length > 0;
-  const shouldShowEmpty = !dmConversationsIsLoading && !hasConversations;
+  const shouldShowEmpty =
+    bootstrapState.status === "ready" && !dmConversationsIsLoading && !hasConversations;
   const attachmentsFeature =
     bootstrapState.status === "ready" ? bootstrapState.payload.features.attachments : null;
   const messageSearchFeature =
@@ -140,15 +150,17 @@ export function MessagesScreen({
 
   return (
     <View style={[styles.chatScreen, styles.dmInboxScreen]} testID="mobile-dm-inbox-screen">
-      <DMInboxHeader />
+      <DMInboxHeader onCompose={() => setInboxSegment("friends")} />
       <View testID="mobile-dm-filter-tabs">
         <View style={styles.inboxFilterRow} testID="mobile-social-segment">
-          {(["conversations", "friends"] as const).map((segment) => {
+          {(["conversations", "friends", "requests"] as const).map((segment) => {
           const selected = inboxSegment === segment;
           const label =
             segment === "conversations"
               ? copy.socialSegmentConversations
-              : copy.socialSegmentFriends;
+              : segment === "friends"
+                ? copy.socialSegmentFriends
+                : copy.socialSegmentRequests;
           return (
             <Pressable
               key={segment}
@@ -159,7 +171,9 @@ export function MessagesScreen({
               testID={
                 segment === "friends"
                   ? "mobile-social-segment-friends"
-                  : "mobile-social-segment-conversations"
+                  : segment === "requests"
+                    ? "mobile-social-segment-requests"
+                    : "mobile-social-segment-conversations"
               }
             >
               <Text
@@ -169,19 +183,24 @@ export function MessagesScreen({
                 ]}
               >
                 {label}
+                {segment === "requests" && incomingRequestCount > 0 ? (
+                  <Text style={styles.inboxFilterRequestCount}> ·{incomingRequestCount}</Text>
+                ) : null}
               </Text>
             </Pressable>
           );
           })}
         </View>
       </View>
-      {inboxSegment === "friends" ? (
-        <FriendsHub />
+      {inboxSegment !== "conversations" ? (
+        <FriendsHub mode={inboxSegment === "requests" ? "requests" : "friends"} />
       ) : (
         <>
           <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
           <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
-          {hasConversations ? (
+          {dmConversationsIsLoading ? (
+            <DMInboxLoadingSkeleton />
+          ) : hasConversations ? (
             <DirectMessageListCard
               conversations={dmConversations}
               hasNextPage={dmConversationsHasNextPage}
@@ -190,7 +209,7 @@ export function MessagesScreen({
               onOpenConversation={onOpenConversation}
             />
           ) : shouldShowEmpty ? (
-            <EmptyState tone="accent" label={copy.messagesEmpty} />
+            <DMInboxEmptyState onCompose={() => setInboxSegment("friends")} />
           ) : null}
         </>
       )}

@@ -97,6 +97,9 @@ export function MobileWorkspaceServerSwitcherSheet({
                   testID={`mobile-server-switcher-option-${server.id}`}
                 >
                   <AvatarMark
+                    avatarBorderRadius={18}
+                    dimension={52}
+                    fallbackTextStyle={styles.serverAvatarFallback}
                     imageUrl={server.iconUrl}
                     label={server.shortName ?? server.name}
                     size="large"
@@ -166,7 +169,6 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
     color: theme.accent.strong,
     fontFamily: theme.typography.fontFamilyBold,
     fontSize: 13,
-    fontWeight: "700" as const,
   },
   handle: {
     alignSelf: "center" as const,
@@ -213,10 +215,13 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
     color: theme.text.muted,
     fontFamily: theme.typography.fontFamilyBold,
     fontSize: 15,
-    fontWeight: "700" as const,
   },
   pressed: { opacity: 0.78 },
   root: { flex: 1, justifyContent: "flex-end" as const },
+  serverAvatarFallback: {
+    fontSize: 16,
+    lineHeight: 20,
+  },
   serverMeta: {
     color: theme.text.muted,
     fontFamily: theme.typography.fontFamily,
@@ -226,9 +231,8 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
     color: theme.text.primary,
     fontFamily: theme.typography.fontFamilyBold,
     fontSize: 15.5,
-    fontWeight: "700" as const,
   },
-  serverNameSelected: { color: theme.accent.strong, fontWeight: "800" as const },
+  serverNameSelected: { color: theme.accent.strong, fontFamily: theme.typography.fontFamilyExtraBold },
   serverRow: {
     alignItems: "center" as const,
     borderRadius: 20,
@@ -258,7 +262,6 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
     color: theme.text.primary,
     fontFamily: theme.typography.fontFamilyExtraBold,
     fontSize: 19,
-    fontWeight: "800" as const,
   },
   unreadBadge: {
     alignItems: "center" as const,
@@ -273,6 +276,5 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
     color: theme.text.onPrimary,
     fontFamily: theme.typography.fontFamilyBold,
     fontSize: 11,
-    fontWeight: "700" as const,
   },
 });

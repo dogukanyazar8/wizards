@@ -170,14 +170,13 @@ export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
       ...theme.typography.tabLabel,
       maxWidth: "100%",
       color: theme.text.visualFaint,
-      fontWeight: "600",
+      fontFamily: theme.typography.fontFamilySemiBold,
       includeFontPadding: false,
       textAlign: "center",
     },
     navLabelActive: {
       color: theme.accent.default,
       fontFamily: theme.typography.fontFamilyBold,
-      fontWeight: "700",
     },
     navUnreadDot: {
       position: "absolute",

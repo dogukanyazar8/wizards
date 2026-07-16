@@ -203,6 +203,12 @@ export const MobileNotificationTypeSchema = z.enum([
   "SYSTEM",
 ]);
 
+export const MobileNotificationEventKindSchema = z.enum([
+  "message-reaction",
+  "server-member-joined",
+  "voice-room-started",
+]);
+
 const MobileNotificationActorSchema = z.object({
   avatarUrl: z.string().url().nullable(),
   displayName: z.string().min(1).max(120).nullable(),
@@ -232,6 +238,7 @@ export const MobileNotificationItemSchema = z.object({
   body: z.string().min(1).max(1_000),
   channel: MobileNotificationContextSchema.nullable(),
   createdAt: z.string().datetime(),
+  eventKind: MobileNotificationEventKindSchema.nullable().default(null),
   id: z.string().uuid(),
   messageQuote: MobileNotificationMessageQuoteSchema.nullable(),
   read: z.boolean(),
@@ -700,6 +707,7 @@ export type MobilePushRegistrationRevokeResponse = z.infer<
   typeof MobilePushRegistrationRevokeResponseSchema
 >;
 export type MobileNotificationType = z.infer<typeof MobileNotificationTypeSchema>;
+export type MobileNotificationEventKind = z.infer<typeof MobileNotificationEventKindSchema>;
 export type MobileNotificationItem = z.infer<typeof MobileNotificationItemSchema>;
 export type MobileNotificationsQuery = z.infer<typeof MobileNotificationsQuerySchema>;
 export type MobileNotificationsResponse = z.infer<typeof MobileNotificationsResponseSchema>;

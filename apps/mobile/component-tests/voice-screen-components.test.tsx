@@ -29,7 +29,9 @@ import {
   MobileVoiceChannelScreen,
   PushToTalkButton,
   ScreenShareConsentSheet,
+  VoiceScreen,
 } from "../src/app/screens/voice-screen";
+import { createInitialMobileVoiceRuntimeState } from "../src/voice/mobile-voice-contract";
 import { MobileVoiceCameraGrid } from "../src/voice/mobile-camera-grid";
 import { MobileVoiceSettingsSheet } from "../src/voice/mobile-voice-settings-sheet";
 import type {
@@ -85,6 +87,23 @@ function createConnectedVoiceRoom(
   };
 }
 
+function createVoiceScreenProps(
+  overrides: Partial<React.ComponentProps<typeof VoiceScreen>> = {},
+): React.ComponentProps<typeof VoiceScreen> {
+  return {
+    onLeaveVoiceChannel: async () => undefined,
+    onToggleVoiceMute: async () => undefined,
+    testID: "mobile-voice-room-screen",
+    voiceRoomState: createConnectedVoiceRoom({
+      participants: [
+        createParticipant({ isSpeaking: true, userId: "speaker" }),
+        createParticipant({ isMuted: true, userId: "muted" }),
+      ],
+    }),
+    ...overrides,
+  };
+}
+
 function PushToTalkHarness() {
   const [phase, setPhase] = useState<"holding" | "idle" | "release-cushion">("idle");
 
@@ -104,6 +123,54 @@ function PushToTalkHarness() {
 }
 
 describe("mobile voice component rendering", () => {
+  it("renders the active-room controls and real speaking and muted participant states", async () => {
+    const view = await render(<VoiceScreen {...createVoiceScreenProps()} />);
+
+    expect(view.getByTestId("mobile-voice-room-screen")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-minimize")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-participant-speaker")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-participant-muted-muted-badge")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-mute-toggle")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-audio-output")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-chat")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-leave")).toBeTruthy();
+  });
+
+  it("minimizes and routes the active-room controls through their existing actions", async () => {
+    const onLeaveVoiceChannel = jest.fn(async () => undefined);
+    const onMinimize = jest.fn();
+    const onOpenChat = jest.fn();
+    const onOpenVoiceInvite = jest.fn();
+    const onSelectVoiceAudioOutput = jest.fn(async () => undefined);
+    const onToggleVoiceMute = jest.fn(async () => undefined);
+    const view = await render(
+      <VoiceScreen
+        {...createVoiceScreenProps({
+          onLeaveVoiceChannel,
+          onMinimize,
+          onOpenChat,
+          onOpenVoiceInvite,
+          onSelectVoiceAudioOutput,
+          onToggleVoiceMute,
+        })}
+      />,
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-voice-minimize"));
+    await fireEvent.press(view.getByTestId("mobile-voice-mute-toggle"));
+    await fireEvent.press(view.getByTestId("mobile-voice-audio-output"));
+    await fireEvent.press(view.getByTestId("mobile-voice-chat"));
+    await fireEvent.press(view.getByTestId("mobile-voice-invite"));
+    await fireEvent.press(view.getByTestId("mobile-voice-leave"));
+
+    expect(onMinimize).toHaveBeenCalledTimes(1);
+    expect(onToggleVoiceMute).toHaveBeenCalledTimes(1);
+    expect(onSelectVoiceAudioOutput).toHaveBeenCalledWith("speaker");
+    expect(onOpenChat).toHaveBeenCalledTimes(1);
+    expect(onOpenVoiceInvite).toHaveBeenCalledTimes(1);
+    expect(onLeaveVoiceChannel).toHaveBeenCalledTimes(1);
+  });
+
   it("renders bounded camera tracks and exposes the camera flip action", async () => {
     const trackRef = {
       participant: {},

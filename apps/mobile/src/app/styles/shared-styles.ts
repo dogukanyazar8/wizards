@@ -19,7 +19,7 @@ export const createSharedStyles = (theme: MobileTheme) => {
       color: theme.text.muted,
       fontSize: 13,
       lineHeight: 19,
-      fontWeight: "600",
+      fontFamily: theme.typography.fontFamilySemiBold,
     },
     dmErrorRow: {
       gap: 10,
@@ -50,7 +50,7 @@ export const createSharedStyles = (theme: MobileTheme) => {
     dmPreviewTitle: {
       color: theme.text.primary,
       fontSize: 15,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     dmPreviewTitleBlock: {
       flex: 1,
@@ -70,24 +70,24 @@ export const createSharedStyles = (theme: MobileTheme) => {
     dmRefreshButtonText: {
       color: theme.accent.strong,
       fontSize: 12,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     environmentLabel: {
       color: theme.text.soft,
       fontSize: 11,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       letterSpacing: 1.5,
       textTransform: "uppercase",
     },
     errorText: {
       color: theme.status.dangerOnBase,
       fontSize: 13,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     mediaSelectedAssetLabel: {
       color: theme.text.soft,
       fontSize: 10,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       letterSpacing: 0.8,
       textTransform: "uppercase",
     },
@@ -95,13 +95,13 @@ export const createSharedStyles = (theme: MobileTheme) => {
       marginTop: 2,
       color: theme.text.muted,
       fontSize: 11,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     mediaSelectedAssetName: {
       marginTop: 3,
       color: theme.text.primary,
       fontSize: 13,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     messageStreamItem: {
       gap: 8,
@@ -121,7 +121,7 @@ export const createSharedStyles = (theme: MobileTheme) => {
       marginTop: 3,
       color: theme.status.danger,
       fontSize: 10,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     nativeSettingsDot: {
       width: 10,
@@ -159,7 +159,7 @@ export const createSharedStyles = (theme: MobileTheme) => {
       color: theme.text.muted,
       fontSize: 12,
       lineHeight: 17,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     notificationRuntimeError: {
       borderWidth: 1,
@@ -169,7 +169,7 @@ export const createSharedStyles = (theme: MobileTheme) => {
       color: theme.status.onStatus,
       fontSize: 11,
       lineHeight: 16,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       paddingHorizontal: 10,
       paddingVertical: 8,
     },
@@ -177,7 +177,7 @@ export const createSharedStyles = (theme: MobileTheme) => {
       color: theme.text.soft,
       fontSize: 11,
       lineHeight: 16,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     notificationRuntimeHeader: {
       minWidth: 0,
@@ -196,7 +196,7 @@ export const createSharedStyles = (theme: MobileTheme) => {
     notificationRuntimeIconText: {
       color: theme.accent.strong,
       fontSize: 14,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     notificationRuntimeText: {
       flex: 1,
@@ -206,7 +206,7 @@ export const createSharedStyles = (theme: MobileTheme) => {
     notificationRuntimeTitle: {
       color: theme.text.primary,
       fontSize: 15,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     retryButton: {
       minHeight: mobileSizing.minTouchTarget,
@@ -218,18 +218,18 @@ export const createSharedStyles = (theme: MobileTheme) => {
     retryButtonText: {
       color: theme.accent.strong,
       fontSize: 12,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     screenDescription: {
       color: theme.text.muted,
       fontSize: 14,
       lineHeight: 21,
-      fontWeight: "600",
+      fontFamily: theme.typography.fontFamilySemiBold,
     },
     screenEyebrow: {
       color: theme.accent.strong,
       fontSize: 11,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       letterSpacing: 2,
       textTransform: "uppercase",
     },
@@ -237,7 +237,7 @@ export const createSharedStyles = (theme: MobileTheme) => {
       color: theme.text.primary,
       fontSize: 24,
       lineHeight: 31,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     statusCard: {
       flexDirection: "row",
@@ -253,7 +253,7 @@ export const createSharedStyles = (theme: MobileTheme) => {
       color: theme.text.muted,
       fontSize: 13,
       lineHeight: 19,
-      fontWeight: "600",
+      fontFamily: theme.typography.fontFamilySemiBold,
     },
     statusCardText: {
       flex: 1,
@@ -263,7 +263,7 @@ export const createSharedStyles = (theme: MobileTheme) => {
     statusCardTitle: {
       color: theme.text.primary,
       fontSize: 15,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     statusIcon: {
       width: 36,
@@ -276,7 +276,7 @@ export const createSharedStyles = (theme: MobileTheme) => {
     statusIconText: {
       color: theme.text.onPrimary,
       fontSize: 11,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
   } satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;
 };

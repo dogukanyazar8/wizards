@@ -66,7 +66,7 @@ export const createMobileServerManagementStyles = (theme: MobileTheme) =>
       ...theme.typography.caption,
       backgroundColor: theme.surface.soft,
       color: theme.text.soft,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       letterSpacing: 1,
       paddingHorizontal: theme.spacing.section,
       paddingVertical: 8,

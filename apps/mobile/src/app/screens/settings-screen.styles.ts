@@ -292,7 +292,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
     },
     mobileProfileHubContent: {
       gap: 12,
-      paddingBottom: 108,
+      paddingBottom: theme.layout.fixed.profileHubContentBottomPadding,
       paddingHorizontal: 20,
       paddingTop: 16,
     },

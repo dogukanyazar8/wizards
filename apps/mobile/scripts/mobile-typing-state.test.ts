@@ -48,7 +48,7 @@ describe("mobile typing state", () => {
     }, createInitialMobileChannelTypingState());
 
     const visibleUsers = getVisibleMobileChannelTypingUsers(state, "channel-1", 3_000);
-    assert.equal(formatMobileChannelTypingLabel(visibleUsers), "Ece, Mehmet ve 1 kisi yaziyor");
+    assert.equal(formatMobileChannelTypingLabel(visibleUsers), "Ece, Mehmet ve 1 kişi yazıyor…");
     assert.deepEqual(getVisibleMobileChannelTypingUsers(state, "channel-1", 5_000), []);
   });
 

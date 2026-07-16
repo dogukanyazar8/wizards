@@ -13,19 +13,19 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       minWidth: 0,
       color: theme.text.primary,
       fontSize: 12,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     dmMessageBody: {
       marginTop: 5,
       color: theme.text.primary,
       fontSize: 14,
       lineHeight: 20,
-      fontWeight: "600",
+      fontFamily: theme.typography.fontFamilySemiBold,
     },
     messageMention: {
       backgroundColor: theme.accent.soft,
       color: theme.accent.strong,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     messageReplyQuote: {
       borderLeftColor: theme.accent.strong,
@@ -54,7 +54,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     dmMessageTime: {
       color: theme.text.soft,
       fontSize: 11,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     messageAttachmentCard: {
       minWidth: 0,
@@ -78,7 +78,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messageAttachmentIconText: {
       color: theme.accent.strong,
       fontSize: 10,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     messageAttachmentImage: {
       width: 48,
@@ -89,7 +89,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messageAttachmentInfo: {
       color: theme.text.muted,
       fontSize: 11,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     messageAttachmentList: {
       gap: 7,
@@ -105,7 +105,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       color: theme.text.primary,
       fontSize: 12,
       lineHeight: 16,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     messageLink: {
       color: theme.accent.strong,
@@ -131,7 +131,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       backgroundColor: theme.surface.card,
       color: theme.text.soft,
       fontSize: 10,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       letterSpacing: 0.8,
       paddingHorizontal: 12,
       paddingVertical: 4,
@@ -143,7 +143,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       backgroundColor: "transparent",
       color: theme.text.soft,
       fontSize: 11,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
       letterSpacing: 0.1,
       paddingHorizontal: 0,
       paddingVertical: 0,
@@ -169,14 +169,13 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messagePreviewAuthorChannel: {
       flex: 0,
       fontSize: 14,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
       lineHeight: 19,
     },
     messagePreviewBodyChannel: {
       marginTop: 0,
       fontSize: 14.5,
       lineHeight: 21,
-      fontWeight: "400",
     },
     messagePreviewBubble: {
       flexShrink: 1,
@@ -214,6 +213,18 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messagePreviewHeaderChannel: {
       gap: 7,
     },
+    messagePreviewOwnerBadge: {
+      width: 14,
+      height: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 4,
+      backgroundColor: theme.accent.ownerBadge,
+    },
+    messagePreviewOwnerBadgeText: {
+      fontSize: 9,
+      lineHeight: 12,
+    },
     messagePreviewChannelContent: {
       flex: 1,
       minWidth: 0,
@@ -236,7 +247,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messagePreviewTimeChannel: {
       color: theme.text.soft,
       fontSize: 11.5,
-      fontWeight: "500",
+      fontFamily: theme.typography.fontFamilyMedium,
       lineHeight: 16,
     },
     messagePreviewRowOwn: {
@@ -262,7 +273,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messageReactionText: {
       color: theme.accent.strong,
       fontSize: 12,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     messageReplyQuoteChannel: {
       borderLeftColor: theme.accent.strong,
@@ -277,7 +288,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messageReplyQuoteChannelAuthor: {
       color: theme.accent.strong,
       fontSize: 11.5,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     messageReplyQuoteChannelContent: {
       color: theme.text.muted,
@@ -296,7 +307,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messagePreviewThreadSummaryText: {
       color: theme.accent.strong,
       fontSize: 12,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     messageSearchButton: {
       minHeight: mobileSizing.minTouchTarget,
@@ -311,7 +322,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messageSearchButtonText: {
       color: theme.text.onPrimary,
       fontSize: 12,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     messageSearchCard: {
       gap: 8,
@@ -335,7 +346,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messageSearchClearText: {
       color: theme.text.muted,
       fontSize: 13,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     messageSearchErrorText: {
       borderWidth: 1,
@@ -345,7 +356,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       color: theme.status.onStatus,
       fontSize: 11,
       lineHeight: 16,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       paddingHorizontal: 10,
       paddingVertical: 8,
     },
@@ -353,12 +364,12 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       color: theme.text.muted,
       fontSize: 11,
       lineHeight: 16,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     messageSearchIcon: {
       color: theme.accent.strong,
       fontSize: 11,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       letterSpacing: 0.7,
       textTransform: "uppercase",
     },
@@ -372,7 +383,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       backgroundColor: theme.surface.card,
       color: theme.text.primary,
       fontSize: 13,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
       paddingHorizontal: 11,
       paddingVertical: 0,
     },
@@ -388,7 +399,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       color: theme.text.primary,
       fontSize: 13,
       lineHeight: 18,
-      fontWeight: "600",
+      fontFamily: theme.typography.fontFamilySemiBold,
     },
     messageSearchResultCount: {
       minWidth: 28,
@@ -397,7 +408,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       backgroundColor: theme.accent.soft,
       color: theme.accent.strong,
       fontSize: 11,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       paddingHorizontal: 8,
       paddingVertical: 4,
       textAlign: "center",
@@ -410,7 +421,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       marginTop: 4,
       color: theme.accent.strong,
       fontSize: 11,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     messageSearchResultRow: {
       minWidth: 0,
@@ -440,7 +451,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       minWidth: 0,
       color: theme.text.primary,
       fontSize: 12,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     messageSearchStatusRow: {
       minHeight: 42,
@@ -452,7 +463,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messageSearchStatusText: {
       color: theme.text.muted,
       fontSize: 12,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     ...createSharedStyles(theme),
   } satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;

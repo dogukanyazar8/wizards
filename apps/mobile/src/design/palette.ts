@@ -110,6 +110,7 @@ export const redesignLight = {
   languageRadio: "#C9CDE4",
   lavender: "#EEF0FE",
   lavenderBorder: "#DFE2FC",
+  ownerBadge: "#FFF3D6",
   success: "#22C55E",
   canonicalSuccessText: "#22A366",
   successSurface: "#E8F8EE",
@@ -120,6 +121,11 @@ export const redesignLight = {
   dangerOnBase: "#C84343",
   dangerSurface: "#FCE9E9",
   inkSurface: "#1E2235",
+  voiceRoomControl: "#FFFFFF",
+  voiceRoomControlBorder: "#E7E9F4",
+  voiceRoomInvite: "#FFFFFF",
+  voiceRoomInviteBorder: "#E7E9F4",
+  voiceRoomParticipant: "#FFFFFF",
 } as const;
 
 export const redesignDark = {
@@ -143,6 +149,7 @@ export const redesignDark = {
   accentText: "#A5A8F5",
   selectedSurface: "#2A2D55",
   selectedBorder: "#3B3F73",
+  ownerBadge: "#3A2E1B",
   canonicalDanger: "#E05252",
   danger: "#E45A5A",
   dangerAction: "#C94343",
@@ -151,6 +158,12 @@ export const redesignDark = {
   success: "#34D399",
   successSurface: "rgba(52,211,153,.12)",
   warning: "#F59E0B",
+  voiceRoom: "#1E2235",
+  voiceRoomControl: "rgba(255,255,255,.1)",
+  voiceRoomControlBorder: "transparent",
+  voiceRoomInvite: "rgba(255,255,255,.04)",
+  voiceRoomInviteBorder: "rgba(255,255,255,.15)",
+  voiceRoomParticipant: "rgba(255,255,255,.05)",
   warningSurface: "rgba(245,158,11,.14)",
   sheetOverlay: "rgba(0,0,0,.55)",
 } as const;

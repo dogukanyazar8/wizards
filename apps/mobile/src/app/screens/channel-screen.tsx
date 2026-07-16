@@ -41,9 +41,11 @@ import {
   type MobileMessageActionTarget,
 } from "../components/message-primitives";
 import { StatusChip } from "../components/ui-atoms";
+import { Avatar, EmptyState } from "../components/kit";
 import { useChannelScreenStyles } from "./channel-screen.styles";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
+import type { MobileChannelTypingUser } from "../../realtime/mobile-typing-state";
 
 export function MobileChannelChatScreen({
   attachmentsFeature,
@@ -70,10 +72,12 @@ export function MobileChannelChatScreen({
   onOpenThread,
   onOpenMembers,
   onToggleMessageReaction,
+  ownerUserId,
   sendState,
   serverName,
   state,
   typingLabel,
+  typingUsers,
   getAccessToken,
 }: {
   attachmentsFeature: MobileBootstrapFeature | null;
@@ -112,10 +116,12 @@ export function MobileChannelChatScreen({
   onOpenThread?(messageId: string): void;
   onOpenMembers?(): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
+  ownerUserId: string | null;
   sendState: MobileChannelSendViewState;
   serverName: string;
   state: MobileChannelMessagesViewState;
   typingLabel: string | null;
+  typingUsers: readonly MobileChannelTypingUser[];
 }) {
   const theme = useTheme();
   const styles = useChannelScreenStyles();
@@ -302,13 +308,14 @@ export function MobileChannelChatScreen({
           onEditMessage={handleEditMessage}
           onReplyMessage={handleReplyMessage}
           onToggleMessageReaction={onToggleMessageReaction}
+          ownerUserId={ownerUserId}
           {...(onOpenThread ? { onOpenThread } : {})}
           state={state}
         />
 
         {state.status === "ready" ? (
           <>
-            <ChannelTypingIndicator label={typingLabel} />
+            <ChannelTypingIndicator label={typingLabel} users={typingUsers} />
             <DMComposer
               attachmentsFeature={attachmentsFeature}
               getAccessToken={getAccessToken}
@@ -342,6 +349,7 @@ export function ChannelMessageList({
   onReplyMessage,
   onOpenThread,
   onToggleMessageReaction,
+  ownerUserId,
   state,
 }: {
   currentUserId: string;
@@ -352,6 +360,7 @@ export function ChannelMessageList({
   onReplyMessage?(message: MobileMessageActionTarget): void;
   onOpenThread?(messageId: string): void;
   onToggleMessageReaction?(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
+  ownerUserId: string | null;
   state: MobileChannelMessagesViewState;
 }) {
   const theme = useTheme();
@@ -420,6 +429,7 @@ export function ChannelMessageList({
           message={item.message}
           mode="channel"
           channelGroupContinuation={item.isGroupedWithPrevious}
+          isServerOwner={item.message.author.id === ownerUserId}
           own={item.message.author.id === currentUserId}
           {...(onOpenThread ? { onOpenThread } : {})}
           onOpenReply={handleOpenReply}
@@ -467,7 +477,13 @@ export function ChannelMessageList({
     }
 
     if (state.status === "ready" && messages.length === 0) {
-      return <Text style={styles.contractDescription}>{copy.workspaceNoMessages}</Text>;
+      return (
+        <EmptyState
+          description={copy.channelEmptyDescription}
+          icon="chatbubble-ellipses-outline"
+          title={copy.channelEmptyTitle}
+        />
+      );
     }
 
     return null;
@@ -541,7 +557,13 @@ export function ChannelScrollToBottomButton({
   );
 }
 
-export function ChannelTypingIndicator({ label }: { label: string | null }) {
+export function ChannelTypingIndicator({
+  label,
+  users,
+}: {
+  label: string | null;
+  users: readonly MobileChannelTypingUser[];
+}) {
   const styles = useChannelScreenStyles();
   if (!label) {
     return null;
@@ -553,14 +575,20 @@ export function ChannelTypingIndicator({ label }: { label: string | null }) {
       accessibilityLabel={label}
       style={styles.mobileChannelTypingIndicator}
     >
+      {users[0] ? (
+        <Avatar
+          avatarBorderRadius={6}
+          avatarBorderWidth={0}
+          dimension={18}
+          identityId={users[0].userId}
+          imageUrl={null}
+          label={users[0].name}
+          testID={`mobile-channel-typing-avatar-${users[0].userId}`}
+        />
+      ) : null}
       <Text style={styles.mobileChannelTypingText} numberOfLines={1}>
         {label}
       </Text>
-      <View style={styles.mobileChannelTypingDots} accessibilityElementsHidden>
-        <View style={styles.mobileChannelTypingDot} />
-        <View style={styles.mobileChannelTypingDot} />
-        <View style={styles.mobileChannelTypingDot} />
-      </View>
     </View>
   );
 }

@@ -81,7 +81,6 @@ export function Avatar({
     ? {
         fontFamily: theme.typography.fontFamilyExtraBold,
         fontSize: dimension <= 24 ? 9 : 13,
-        fontWeight: "800" as const,
         includeFontPadding: false,
         lineHeight: dimension <= 24 ? 12 : 18,
       }

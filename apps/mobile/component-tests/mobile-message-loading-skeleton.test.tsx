@@ -181,6 +181,24 @@ describe("mobile message loading skeletons", () => {
     expect(view.queryByText(/kanal mesajlari yukleniyor/i)).toBeNull();
   });
 
+  it("uses the designed 1b empty state when a ready channel has no messages", async () => {
+    const view = await render(
+      <ChannelMessageList
+        currentUserId="user-1"
+        onRefresh={jest.fn()}
+        state={{
+          channelId: "channel-1",
+          error: null,
+          payload: { channel, hasMore: false, messages: [], nextCursor: null },
+          status: "ready",
+        }}
+      />,
+    );
+
+    expect(view.getByText(copy.channelEmptyTitle)).toBeTruthy();
+    expect(view.getByText(copy.channelEmptyDescription)).toBeTruthy();
+  });
+
   it("keeps channel preview empty and populated states separate from its loading skeleton", async () => {
     const emptyView = await render(
       <ChannelMessagesPreviewCard

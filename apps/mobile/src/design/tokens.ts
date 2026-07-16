@@ -194,9 +194,15 @@ export const mobileLayoutMetrics = {
     minimumActionWidth: 54,
     notificationFeedRowMinHeight: 68,
     permissionRowHeight: 64,
+    profileHubContentBottomPadding: 108,
     profileIdentityAvatarOverlap: -34,
     readingColumn: 92,
     summaryMaxWidth: 128,
+  },
+  dmInbox: {
+    conversationRowMinHeight: 74,
+    groupBadgeOffset: -2,
+    segmentMinHeight: 41,
   },
   opacity: {
     disabled: 0.62,
@@ -206,6 +212,10 @@ export const mobileLayoutMetrics = {
     subdued: 0.56,
     textDisabled: 0.86,
     touched: 0.88,
+  },
+  notifications: {
+    contentBottomPadding: 120,
+    mentionBadgeOffset: -4,
   },
   spacing: {
     hairline: 1,
