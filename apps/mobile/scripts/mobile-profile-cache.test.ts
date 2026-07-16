@@ -9,7 +9,11 @@ import type {
 } from "@wizards/types";
 
 import { mobileQueryKeys } from "../src/query/mobile-query-keys";
-import { patchMobileProfileAvatarCaches } from "../src/query/mobile-profile-cache";
+import {
+  patchMobileProfileAvatarCaches,
+  patchMobileProfilePresenceCaches,
+  restoreMobileProfilePresenceCaches,
+} from "../src/query/mobile-profile-cache";
 
 function bootstrapFor(userId: string, avatarUrl: string | null): MobileBootstrapPayload {
   return {
@@ -197,5 +201,52 @@ describe("mobile profile avatar cache contract", () => {
     });
 
     assert.equal(queryClient.getQueryData(mobileQueryKeys.bootstrap()), bootstrap);
+  });
+
+  it("optimistically patches and restores only the current user's presence caches", () => {
+    const queryClient = new QueryClient();
+    const bootstrap = bootstrapFor("user-1", "https://cdn.whispr.team/ada.webp");
+    const profile = profileFor("user-1", "https://cdn.whispr.team/ada.webp");
+    const friends = friendsFor("user-1", "https://cdn.whispr.team/ada.webp");
+    const workspace = workspaceFor("user-1", "https://cdn.whispr.team/ada.webp");
+    const unrelatedWorkspace = workspaceFor("user-other", "https://cdn.whispr.team/other.webp");
+
+    queryClient.setQueryData(mobileQueryKeys.bootstrap(), bootstrap);
+    queryClient.setQueryData(mobileQueryKeys.profile(), profile);
+    queryClient.setQueryData(mobileQueryKeys.friends(), friends);
+    queryClient.setQueryData(mobileQueryKeys.workspace("server-1"), workspace);
+    queryClient.setQueryData(mobileQueryKeys.workspace("server-2"), unrelatedWorkspace);
+
+    const snapshot = patchMobileProfilePresenceCaches({
+      queryClient,
+      status: "DND",
+      userId: "user-1",
+    });
+
+    const patchedBootstrap = queryClient.getQueryData<MobileBootstrapPayload>(
+      mobileQueryKeys.bootstrap(),
+    )!;
+    const patchedProfile = queryClient.getQueryData<MobileProfileResponse>(mobileQueryKeys.profile())!;
+    const patchedFriends = queryClient.getQueryData<MobileFriendsOverviewResponse>(
+      mobileQueryKeys.friends(),
+    )!;
+    const patchedWorkspace = queryClient.getQueryData<MobileManagedWorkspaceServerDetailResponse>(
+      mobileQueryKeys.workspace("server-1"),
+    )!;
+
+    assert.equal(patchedBootstrap.user.status, "DND");
+    assert.equal(patchedProfile.user.status, "DND");
+    assert.equal(patchedFriends.friends[0]?.status, "DND");
+    assert.equal(patchedFriends.friends[0]?.presence.status, "DND");
+    assert.equal(patchedWorkspace.detail.members[0]?.status, "DND");
+    assert.equal(patchedFriends.friends[1], friends.friends[1]);
+    assert.equal(queryClient.getQueryData(mobileQueryKeys.workspace("server-2")), unrelatedWorkspace);
+
+    restoreMobileProfilePresenceCaches(snapshot);
+
+    assert.deepEqual(queryClient.getQueryData(mobileQueryKeys.bootstrap()), bootstrap);
+    assert.deepEqual(queryClient.getQueryData(mobileQueryKeys.profile()), profile);
+    assert.deepEqual(queryClient.getQueryData(mobileQueryKeys.friends()), friends);
+    assert.deepEqual(queryClient.getQueryData(mobileQueryKeys.workspace("server-1")), workspace);
   });
 });

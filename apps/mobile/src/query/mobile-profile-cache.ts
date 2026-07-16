@@ -1,6 +1,7 @@
-import type { QueryClient } from "@tanstack/react-query";
+import type { QueryClient, QueryKey } from "@tanstack/react-query";
 import type {
   MobileBootstrapPayload,
+  MobileFriendPresenceStatus,
   MobileFriendsOverviewResponse,
   MobileManagedWorkspaceServerDetailResponse,
   MobileProfileResponse,
@@ -11,6 +12,14 @@ import { mobileQueryKeys } from "./mobile-query-keys";
 interface MobileAvatarIdentity {
   readonly avatarUrl: string | null;
   readonly id: string;
+}
+
+export interface MobileProfilePresenceCacheSnapshot {
+  readonly entries: readonly {
+    readonly data: unknown;
+    readonly queryKey: QueryKey;
+  }[];
+  readonly queryClient: QueryClient;
 }
 
 function isHttpsUrl(value: string): boolean {
@@ -105,6 +114,90 @@ function patchWorkspace(
   return changed ? { ...data, detail: { ...data.detail, members } } : data;
 }
 
+function patchBootstrapPresence(
+  data: MobileBootstrapPayload | undefined,
+  userId: string,
+  status: MobileFriendPresenceStatus,
+): MobileBootstrapPayload | undefined {
+  if (!data || data.user.id !== userId || data.user.status === status) {
+    return data;
+  }
+
+  return { ...data, user: { ...data.user, status } };
+}
+
+function patchProfilePresence(
+  data: MobileProfileResponse | undefined,
+  userId: string,
+  status: MobileFriendPresenceStatus,
+): MobileProfileResponse | undefined {
+  if (!data || data.user.id !== userId || data.user.status === status) {
+    return data;
+  }
+
+  return { ...data, user: { ...data.user, status } };
+}
+
+function patchFriendsPresence(
+  data: MobileFriendsOverviewResponse | undefined,
+  userId: string,
+  status: MobileFriendPresenceStatus,
+): MobileFriendsOverviewResponse | undefined {
+  if (!data) {
+    return data;
+  }
+
+  let changed = false;
+  const friends = data.friends.map((friend) => {
+    if (friend.id !== userId || (friend.status === status && friend.presence.status === status)) {
+      return friend;
+    }
+
+    changed = true;
+    return { ...friend, presence: { ...friend.presence, status }, status };
+  });
+
+  return changed ? { ...data, friends } : data;
+}
+
+function patchWorkspacePresence(
+  data: MobileManagedWorkspaceServerDetailResponse | undefined,
+  userId: string,
+  status: MobileFriendPresenceStatus,
+): MobileManagedWorkspaceServerDetailResponse | undefined {
+  if (!data) {
+    return data;
+  }
+
+  let changed = false;
+  const members = data.detail.members.map((member) => {
+    if (member.userId !== userId || member.status === status) {
+      return member;
+    }
+
+    changed = true;
+    return { ...member, status };
+  });
+
+  return changed ? { ...data, detail: { ...data.detail, members } } : data;
+}
+
+function patchCachedValue<T>(input: {
+  entries: { data: unknown; queryKey: QueryKey }[];
+  queryClient: QueryClient;
+  queryKey: QueryKey;
+  update(current: T | undefined): T | undefined;
+}): void {
+  const current = input.queryClient.getQueryData<T>(input.queryKey);
+  const next = input.update(current);
+  if (next === current) {
+    return;
+  }
+
+  input.entries.push({ data: current, queryKey: input.queryKey });
+  input.queryClient.setQueryData<T>(input.queryKey, next);
+}
+
 export function patchMobileProfileAvatarCaches(input: {
   avatarUrl: string;
   queryClient: QueryClient;
@@ -137,4 +230,51 @@ export function patchMobileProfileAvatarCaches(input: {
     { queryKey: mobileQueryKeys.workspaceRoot() },
     (current) => patchWorkspace(current, userId, avatarUrl),
   );
+}
+
+export function patchMobileProfilePresenceCaches(input: {
+  queryClient: QueryClient;
+  status: MobileFriendPresenceStatus;
+  userId: string;
+}): MobileProfilePresenceCacheSnapshot {
+  const entries: { data: unknown; queryKey: QueryKey }[] = [];
+  const { queryClient, status, userId } = input;
+
+  patchCachedValue<MobileBootstrapPayload>({
+    entries,
+    queryClient,
+    queryKey: mobileQueryKeys.bootstrap(),
+    update: (current) => patchBootstrapPresence(current, userId, status),
+  });
+  patchCachedValue<MobileProfileResponse>({
+    entries,
+    queryClient,
+    queryKey: mobileQueryKeys.profile(),
+    update: (current) => patchProfilePresence(current, userId, status),
+  });
+  patchCachedValue<MobileFriendsOverviewResponse>({
+    entries,
+    queryClient,
+    queryKey: mobileQueryKeys.friends(),
+    update: (current) => patchFriendsPresence(current, userId, status),
+  });
+
+  for (const [queryKey] of queryClient.getQueriesData<MobileManagedWorkspaceServerDetailResponse>({
+    queryKey: mobileQueryKeys.workspaceRoot(),
+  })) {
+    patchCachedValue<MobileManagedWorkspaceServerDetailResponse>({
+      entries,
+      queryClient,
+      queryKey,
+      update: (current) => patchWorkspacePresence(current, userId, status),
+    });
+  }
+
+  return { entries, queryClient };
+}
+
+export function restoreMobileProfilePresenceCaches(snapshot: MobileProfilePresenceCacheSnapshot): void {
+  for (const entry of snapshot.entries) {
+    snapshot.queryClient.setQueryData(entry.queryKey, entry.data);
+  }
 }
