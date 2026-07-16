@@ -23,14 +23,14 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       backgroundColor: theme.accent.soft,
       color: theme.accent.strong,
       fontSize: 12,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       paddingHorizontal: 10,
       paddingVertical: 7,
     },
     contractTitle: {
       color: theme.text.primary,
       fontSize: 15,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     developerSection: {
       gap: 10,
@@ -63,12 +63,12 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
     environmentUrl: {
       color: theme.text.muted,
       fontSize: 13,
-      fontWeight: "600",
+      fontFamily: theme.typography.fontFamilySemiBold,
     },
     environmentValue: {
       color: theme.text.primary,
       fontSize: 18,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     nativeSettingsList: {
       gap: 7,
@@ -89,7 +89,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       color: theme.text.muted,
       fontSize: 11,
       lineHeight: 16,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     nativeSettingsRowText: {
       flex: 1,
@@ -99,13 +99,13 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
     nativeSettingsRowTitle: {
       color: theme.text.primary,
       fontSize: 13,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     nativeSettingsRowValue: {
       maxWidth: 92,
       color: theme.text.muted,
       fontSize: 11,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       textAlign: "right",
     },
     nativeSettingsRowValueDanger: {
@@ -131,7 +131,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       minWidth: 0,
       color: theme.text.primary,
       fontSize: 12,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     releaseBudgetRow: {
       flexDirection: "row",
@@ -151,13 +151,13 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       textAlign: "right",
       color: theme.text.muted,
       fontSize: 11,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     settingsEvidenceDescription: {
       color: theme.text.muted,
       fontSize: 11,
       lineHeight: 15,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     settingsEvidenceDot: {
       width: 9,
@@ -183,7 +183,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
     settingsEvidenceLabel: {
       color: theme.text.soft,
       fontSize: 10,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       letterSpacing: 0.7,
       textTransform: "uppercase",
     },
@@ -210,13 +210,13 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
     settingsEvidenceRowTitle: {
       color: theme.text.primary,
       fontSize: 13,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     settingsEvidenceRowValue: {
       maxWidth: 92,
       color: theme.text.muted,
       fontSize: 12,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
       textAlign: "right",
     },
     settingsEvidenceRowValueDanger: {
@@ -255,7 +255,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       marginTop: 4,
       color: theme.text.primary,
       fontSize: 14,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     mobileProfileAvatarRing: {
       alignItems: "center",
@@ -271,7 +271,6 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       color: theme.text.primary,
       fontFamily: theme.typography.fontFamilyExtraBold,
       fontSize: 19,
-      fontWeight: "800",
     },
     mobileProfileEditAction: {
       alignItems: "center",
@@ -282,26 +281,25 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       flexDirection: "row",
       gap: 6,
       marginBottom: 2,
+      minHeight: mobileSizing.minTouchTarget,
       paddingHorizontal: 12,
-      paddingVertical: 8,
+      paddingVertical: 6,
     },
     mobileProfileEditActionText: {
       color: theme.text.muted,
       fontFamily: theme.typography.fontFamilyBold,
       fontSize: 12.5,
-      fontWeight: "700",
     },
     mobileProfileHubContent: {
       gap: 12,
-      paddingBottom: 20,
-      paddingHorizontal: 6,
+      paddingBottom: 108,
+      paddingHorizontal: 20,
       paddingTop: 16,
     },
     mobileProfileHubTitle: {
       color: theme.text.primary,
       fontFamily: theme.typography.fontFamilyExtraBold,
       fontSize: 26,
-      fontWeight: "800",
       letterSpacing: -0.52,
       paddingHorizontal: 4,
     },
@@ -372,13 +370,11 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       flex: 1,
       fontFamily: theme.typography.fontFamilySemiBold,
       fontSize: 15,
-      fontWeight: "600",
       minWidth: 0,
     },
     mobileProfileSettingsRowLabelDanger: {
       color: theme.status.danger,
       fontFamily: theme.typography.fontFamilyBold,
-      fontWeight: "700",
     },
     mobileProfileSettingsRowValue: {
       color: theme.text.soft,
@@ -392,7 +388,6 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       color: theme.status.successText,
       fontFamily: theme.typography.fontFamilyBold,
       fontSize: 11.5,
-      fontWeight: "700",
       overflow: "hidden",
       paddingHorizontal: 10,
       paddingVertical: 5,
@@ -411,15 +406,38 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       borderWidth: 1,
       flexDirection: "row",
       gap: 8,
+      minHeight: mobileSizing.minTouchTarget,
       paddingHorizontal: 14,
-      paddingVertical: 10,
+      paddingVertical: 8,
     },
     mobileProfileStatusText: {
       color: theme.text.primary,
       flex: 1,
       fontFamily: theme.typography.fontFamilySemiBold,
       fontSize: 13.5,
-      fontWeight: "600",
+    },
+    mobileProfileStatusError: {
+      color: theme.status.danger,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 12,
+    },
+    mobileProfilePresenceSheet: {
+      gap: 10,
+      paddingBottom: 8,
+    },
+    mobileProfileStateCard: {
+      backgroundColor: theme.surface.card,
+      borderColor: theme.border.subtle,
+      borderRadius: 24,
+      borderWidth: 1,
+      gap: 12,
+      padding: 20,
+    },
+    mobileProfileStateText: {
+      color: theme.text.muted,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 14,
+      lineHeight: 20,
     },
     mobileProfileUsername: {
       color: theme.text.muted,
@@ -430,7 +448,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       color: theme.text.soft,
       fontSize: 11,
       lineHeight: 16,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     settingsHeroBadge: {
       maxWidth: 128,
@@ -444,7 +462,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
     settingsHeroBadgeText: {
       color: theme.accent.strong,
       fontSize: 11,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     settingsHeroCard: {
       minWidth: 0,
@@ -461,7 +479,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       color: theme.text.muted,
       fontSize: 12,
       lineHeight: 17,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     settingsHeroText: {
       flex: 1,
@@ -471,7 +489,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
     settingsHeroTitle: {
       color: theme.text.primary,
       fontSize: 17,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     settingsLocaleControl: {
       gap: 8,
@@ -486,7 +504,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       color: theme.text.muted,
       fontSize: 11,
       lineHeight: 16,
-      fontWeight: "700",
+      fontFamily: theme.typography.fontFamilyBold,
     },
     settingsLocaleOption: {
       flex: 1,
@@ -507,11 +525,11 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       minWidth: 0,
       color: theme.text.muted,
       fontSize: 12,
-      fontWeight: "800",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     settingsLocaleOptionLabelSelected: {
       color: theme.text.primary,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     settingsLocaleOptionSelected: {
       borderColor: theme.border.subtle,
@@ -525,7 +543,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
     settingsLocaleShortLabel: {
       color: theme.text.muted,
       fontSize: 11,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     settingsLocaleShortLabelSelected: {
       color: theme.accent.strong,
@@ -549,7 +567,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
     settingsPermissionActionButtonText: {
       color: theme.accent.strong,
       fontSize: 10,
-      fontWeight: "900",
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     settingsPermissionActionControls: {
       width: 104,

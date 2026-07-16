@@ -2,6 +2,16 @@ import React, { type ComponentProps } from "react";
 import { fireEvent } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 
+jest.mock("../src/app/components/kit/bottom-sheet", () => {
+  const ReactRuntime = require("react");
+  const { View } = require("react-native");
+
+  return {
+    BottomSheet: ({ children, open, testID }: { children: React.ReactNode; open: boolean; testID: string }) =>
+      open ? ReactRuntime.createElement(View, { testID: `${testID}-panel` }, children) : null,
+  };
+});
+
 import {
   INITIAL_BOOTSTRAP_STATE,
   type MobileBootstrapViewState,
@@ -48,6 +58,14 @@ function createProfileSettingsScreenProps(
     mediaState: createInitialMobileMediaRuntimeState(),
     permissionReadiness,
     permissionSummary: summarizeMobilePermissionReadiness(permissionReadiness),
+    sessionDiagnostics: {
+      hasRefreshToken: true,
+      hasSession: true,
+      isExpired: false,
+      scopeCount: 1,
+      secondsUntilExpiry: 900,
+      status: "signed-in",
+    },
     signedInUserLabel: "Ada Test",
     status: "signed-in",
     syncHealth: healthySync,
@@ -104,6 +122,68 @@ function createReadyBootstrapState(): MobileBootstrapViewState {
 }
 
 describe("mobile profile settings screen", () => {
+  it("uses profile-shaped loading and retryable error states without fabricated identity data", async () => {
+    const onRefreshBootstrap = jest.fn();
+    const loadingView = await render(
+      <ProfileSettingsScreen
+        {...createProfileSettingsScreenProps({ onRefreshBootstrap, socialActionsEnabled: true })}
+      />,
+    );
+
+    expect(loadingView.getByTestId("mobile-settings-profile-loading")).toBeTruthy();
+    expect(loadingView.queryByText("Whispr")).toBeNull();
+    expect(loadingView.queryByText("@whispr")).toBeNull();
+
+    const errorView = await render(
+      <ProfileSettingsScreen
+        {...createProfileSettingsScreenProps({
+          bootstrapState: { error: BOOTSTRAP_ERROR, payload: null, status: "error", summary: null },
+          onRefreshBootstrap,
+          socialActionsEnabled: true,
+        })}
+      />,
+    );
+
+    await fireEvent.press(errorView.getByTestId("mobile-settings-profile-retry"));
+    expect(onRefreshBootstrap).toHaveBeenCalledTimes(1);
+  });
+
+  it("requires an explicit confirmation before profile sign out", async () => {
+    const onSignOut = jest.fn();
+    const view = await render(
+      <ProfileSettingsScreen
+        {...createProfileSettingsScreenProps({
+          bootstrapState: createReadyBootstrapState(),
+          onSignOut,
+          socialActionsEnabled: true,
+        })}
+      />,
+    );
+
+    await fireEvent.press(view.getByLabelText(copy.signOutAction));
+    expect(onSignOut).not.toHaveBeenCalled();
+    await fireEvent.press(view.getByTestId("mobile-profile-sign-out-confirmation-confirm"));
+    expect(onSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("updates the ready profile's real presence through the provided authenticated action", async () => {
+    const onUpdatePresence = jest.fn(async () => undefined);
+    const view = await render(
+      <ProfileSettingsScreen
+        {...createProfileSettingsScreenProps({
+          bootstrapState: createReadyBootstrapState(),
+          onUpdatePresence,
+          socialActionsEnabled: true,
+        })}
+      />,
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-profile-presence-open"));
+    await fireEvent.press(view.getByTestId("mobile-profile-presence-dnd"));
+
+    expect(onUpdatePresence).toHaveBeenCalledWith("DND");
+  });
+
   it("signs out from the rendered signed-in session action", async () => {
     const onSignOut = jest.fn();
     const props = createProfileSettingsScreenProps({ onSignOut });

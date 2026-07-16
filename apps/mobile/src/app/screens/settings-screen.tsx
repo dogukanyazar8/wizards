@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Ionicons,
   Pressable,
@@ -60,11 +61,86 @@ import { useTheme, useThemePreference } from "../providers/mobile-theme-provider
 import type { MobileThemeMode } from "../../design/mobile-theme-runtime";
 import { useSettingsScreenStyles } from "./settings-screen.styles";
 import { SocialAccountQuickActions } from "../../social/social-account-screens";
-import { Button } from "../components/kit";
+import { BottomSheet, Button, DestructiveConfirmationSheet, Skeleton } from "../components/kit";
 import { Avatar } from "../components/kit/avatar";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useMobileWorkspaceLayoutPreference } from "../providers/mobile-workspace-layout-provider";
+import type { MobileFriendPresenceStatus } from "../../social/mobile-social-client";
+
+const MOBILE_PROFILE_PRESENCE_STATUSES: readonly MobileFriendPresenceStatus[] = [
+  "ONLINE",
+  "IDLE",
+  "DND",
+  "OFFLINE",
+];
+
+function getMobileProfilePresenceStatus(value: string | null): MobileFriendPresenceStatus | null {
+  return MOBILE_PROFILE_PRESENCE_STATUSES.includes(value as MobileFriendPresenceStatus)
+    ? (value as MobileFriendPresenceStatus)
+    : null;
+}
+
+function getMobileProfileCopy(locale: MobileLocale) {
+  return locale === "tr"
+    ? {
+        account: "Hesap",
+        appearance: "Görünüm",
+        error: "Profil bilgileri yüklenemedi. Lütfen tekrar deneyin.",
+        idle: "Boşta",
+        language: "Dil",
+        notifications: "Bildirimler",
+        offline: "Görünmez",
+        online: "Çevrimiçi",
+        presenceError: "Durum güncellenemedi. Lütfen tekrar deneyin.",
+        presenceUnavailable: "Durum bilinmiyor",
+        security: "Güvenli oturum",
+        securityActive: "Aktif",
+        securityActionRequired: "İşlem gerekli",
+        signOutBody: "Oturumunu güvenli şekilde kapatmak istediğine emin misin?",
+        signOutTitle: "Çıkış yapılsın mı?",
+        about: "Hakkında",
+        dnd: "Rahatsız etmeyin",
+      }
+    : {
+        account: "Account",
+        appearance: "Appearance",
+        error: "Profile information could not be loaded. Please try again.",
+        idle: "Idle",
+        language: "Language",
+        notifications: "Notifications",
+        offline: "Invisible",
+        online: "Online",
+        presenceError: "Your status could not be updated. Please try again.",
+        presenceUnavailable: "Status unavailable",
+        security: "Secure session",
+        securityActive: "Active",
+        securityActionRequired: "Action required",
+        signOutBody: "Are you sure you want to securely sign out?",
+        signOutTitle: "Sign out?",
+        about: "About",
+        dnd: "Do not disturb",
+      };
+}
+
+function getMobileProfilePresenceLabel(
+  locale: MobileLocale,
+  presence: MobileFriendPresenceStatus | null,
+): string {
+  const labels = getMobileProfileCopy(locale);
+  switch (presence) {
+    case "ONLINE":
+      return labels.online;
+    case "IDLE":
+      return labels.idle;
+    case "DND":
+      return labels.dnd;
+    case "OFFLINE":
+      return labels.offline;
+    default:
+      return labels.presenceUnavailable;
+  }
+}
 
 function getMobilePermissionLabel(intentId: MobilePermissionIntentId): string {
   switch (intentId) {
@@ -110,7 +186,10 @@ export function MobileProfileSettingsHub({
   appVersion,
   bootstrapState,
   locale,
+  onRefreshBootstrap,
   onSignOut,
+  onUpdatePresence,
+  sessionDiagnostics,
   signedInUserLabel,
   status,
   themeMode,
@@ -118,16 +197,25 @@ export function MobileProfileSettingsHub({
   appVersion: string;
   bootstrapState: MobileBootstrapViewState;
   locale: MobileLocale;
+  onRefreshBootstrap(): void;
   onSignOut(): void;
+  onUpdatePresence?(status: MobileFriendPresenceStatus): Promise<void>;
+  sessionDiagnostics: MobileSessionDiagnostics;
   signedInUserLabel: string | null;
   status: string;
   themeMode: MobileThemeMode;
 }) {
   const styles = useSettingsScreenStyles();
   const theme = useTheme();
+  const [isPresencePickerOpen, setIsPresencePickerOpen] = useState(false);
+  const [isSignOutConfirmationOpen, setIsSignOutConfirmationOpen] = useState(false);
+  const [isUpdatingPresence, setIsUpdatingPresence] = useState(false);
+  const [optimisticPresence, setOptimisticPresence] = useState<MobileFriendPresenceStatus | null>(null);
+  const [presenceError, setPresenceError] = useState<string | null>(null);
+  const isSecureSessionActive = sessionDiagnostics.hasSession && !sessionDiagnostics.isExpired;
   const user = bootstrapState.status === "ready" ? bootstrapState.payload.user : null;
-  const displayName = user?.displayName ?? signedInUserLabel ?? user?.username ?? "Whispr";
-  const username = user?.username ? `@${user.username}` : "@whispr";
+  const displayName = user?.displayName ?? user?.username ?? "";
+  const username = user ? `@${user.username}` : "";
   const themeLabel =
     themeMode === "dark"
       ? copy.settingsThemeDarkValue
@@ -136,12 +224,58 @@ export function MobileProfileSettingsHub({
         : copy.settingsThemeSystemValue;
   const localeLabel =
     locale === "tr" ? copy.settingsLanguageTurkishValue : copy.settingsLanguageEnglishValue;
+  const visiblePresence = optimisticPresence ?? getMobileProfilePresenceStatus(user?.status ?? null);
+  const selectPresence = async (nextPresence: MobileFriendPresenceStatus) => {
+    if (!onUpdatePresence || isUpdatingPresence) {
+      return;
+    }
+
+    const previousPresence = visiblePresence;
+    setPresenceError(null);
+    setOptimisticPresence(nextPresence);
+    setIsUpdatingPresence(true);
+    try {
+      await onUpdatePresence(nextPresence);
+      setIsPresencePickerOpen(false);
+    } catch {
+      setOptimisticPresence(previousPresence);
+      setPresenceError(getMobileProfileCopy(locale).presenceError);
+    } finally {
+      setIsUpdatingPresence(false);
+    }
+  };
+
+  if (!user) {
+    return (
+      <ScrollView
+        contentContainerStyle={styles.mobileProfileHubContent}
+        showsVerticalScrollIndicator={false}
+        testID="mobile-settings-screen"
+      >
+        <Text style={styles.mobileProfileHubTitle}>{copy.tabProfile}</Text>
+        {bootstrapState.status === "error" ? (
+          <View style={styles.mobileProfileStateCard} testID="mobile-settings-profile-error">
+            <Text style={styles.mobileProfileStateText}>{getMobileProfileCopy(locale).error}</Text>
+            <Button label={copy.retryAction} onPress={onRefreshBootstrap} testID="mobile-settings-profile-retry" />
+          </View>
+        ) : (
+          <View style={styles.mobileProfileStateCard} testID="mobile-settings-profile-loading">
+            <Skeleton borderRadius={24} height={72} testID="mobile-settings-profile-loading-banner" />
+            <Skeleton borderRadius={26} height={76} testID="mobile-settings-profile-loading-avatar" width={76} />
+            <Skeleton height={20} testID="mobile-settings-profile-loading-name" width="54%" />
+            <Skeleton height={16} testID="mobile-settings-profile-loading-handle" width="38%" />
+            <Skeleton borderRadius={14} height={44} testID="mobile-settings-profile-loading-status" />
+          </View>
+        )}
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView
       contentContainerStyle={styles.mobileProfileHubContent}
       showsVerticalScrollIndicator={false}
-      testID="mobile-profile-settings-hub"
+      testID="mobile-settings-screen"
     >
       <Text style={styles.mobileProfileHubTitle}>{copy.tabProfile}</Text>
       <View style={styles.mobileProfileIdentityCard} testID="mobile-profile-identity-card">
@@ -153,7 +287,7 @@ export function MobileProfileSettingsHub({
                 imageUrl={user?.avatarUrl ?? null}
                 label={displayName}
                 size="lg"
-                status={status === "signed-in" ? "active" : "idle"}
+                status={visiblePresence === "ONLINE" ? "active" : "idle"}
               />
             </View>
             <Pressable
@@ -179,11 +313,34 @@ export function MobileProfileSettingsHub({
               {username}
             </Text>
           </View>
-          <View style={styles.mobileProfileStatusRow}>
-            <View style={styles.mobileProfileStatusDot} />
-            <Text style={styles.mobileProfileStatusText}>Çevrimiçi</Text>
+          <Pressable
+            accessibilityLabel="Profile presence"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !onUpdatePresence || isUpdatingPresence }}
+            disabled={!onUpdatePresence || isUpdatingPresence}
+            onPress={() => setIsPresencePickerOpen(true)}
+            style={({ pressed }) => [styles.mobileProfileStatusRow, pressed && styles.actionButtonPressed]}
+            testID="mobile-profile-presence-open"
+          >
+            <View
+              style={[
+                styles.mobileProfileStatusDot,
+                {
+                  backgroundColor:
+                    visiblePresence === "ONLINE"
+                      ? theme.status.success
+                      : visiblePresence === "IDLE"
+                        ? theme.status.warning
+                        : visiblePresence === "DND"
+                          ? theme.status.danger
+                          : theme.text.soft,
+                },
+              ]}
+            />
+            <Text style={styles.mobileProfileStatusText}>{getMobileProfilePresenceLabel(locale, visiblePresence)}</Text>
             <Ionicons name="chevron-down" size={16} color={theme.text.soft} />
-          </View>
+          </Pressable>
+          {presenceError ? <Text style={styles.mobileProfileStatusError}>{presenceError}</Text> : null}
         </View>
       </View>
 
@@ -199,8 +356,8 @@ export function MobileProfileSettingsHub({
           iconTone="success"
           label="Güvenli oturum"
           onPress={() => navigateToMobileSettingsDetail("security")}
-          value="Aktif"
-          valueTone="success"
+          value={isSecureSessionActive ? getMobileProfileCopy(locale).securityActive : getMobileProfileCopy(locale).securityActionRequired}
+          valueTone={isSecureSessionActive ? "success" : "default"}
         />
         <MobileProfileHubRow
           icon="sunny-outline"
@@ -237,10 +394,39 @@ export function MobileProfileSettingsHub({
           icon="log-out-outline"
           iconTone="danger"
           label={copy.signOutAction}
-          onPress={onSignOut}
+          onPress={() => setIsSignOutConfirmationOpen(true)}
           showChevron={false}
         />
       </View>
+      <BottomSheet
+        accessibilityLabel="Profile presence"
+        onClose={() => setIsPresencePickerOpen(false)}
+        open={isPresencePickerOpen}
+        testID="mobile-profile-presence-sheet"
+      >
+        <View style={styles.mobileProfilePresenceSheet}>
+          {MOBILE_PROFILE_PRESENCE_STATUSES.map((presence) => (
+            <Button
+              busy={isUpdatingPresence}
+              key={presence}
+              label={getMobileProfilePresenceLabel(locale, presence)}
+              onPress={() => void selectPresence(presence)}
+              testID={`mobile-profile-presence-${presence.toLowerCase()}`}
+              variant="secondary"
+            />
+          ))}
+        </View>
+      </BottomSheet>
+      <DestructiveConfirmationSheet
+        body={getMobileProfileCopy(locale).signOutBody}
+        busy={false}
+        confirmLabel={copy.signOutAction}
+        onCancel={() => setIsSignOutConfirmationOpen(false)}
+        onConfirm={onSignOut}
+        open={isSignOutConfirmationOpen}
+        testID="mobile-profile-sign-out-confirmation"
+        title={getMobileProfileCopy(locale).signOutTitle}
+      />
     </ScrollView>
   );
 }
@@ -1781,6 +1967,8 @@ export function ProfileSettingsScreen({
   onSelectLocale,
   onSelectVoiceInputMode,
   onSignOut,
+  onUpdatePresence,
+  sessionDiagnostics,
   onToggleAppLock,
   onBack,
 }: {
@@ -1815,6 +2003,8 @@ export function ProfileSettingsScreen({
   onSelectLocale(locale: MobileLocale): void;
   onSelectVoiceInputMode(mode: MobileVoiceInputMode): void;
   onSignOut(): void;
+  onUpdatePresence?(status: MobileFriendPresenceStatus): Promise<void>;
+  sessionDiagnostics: MobileSessionDiagnostics;
   onToggleAppLock(enabled: boolean): void;
   onBack?(): void;
 }) {
@@ -1962,7 +2152,10 @@ export function ProfileSettingsScreen({
         appVersion={appVersion}
         bootstrapState={bootstrapState}
         locale={locale}
+        onRefreshBootstrap={onRefreshBootstrap}
         onSignOut={onSignOut}
+        onUpdatePresence={onUpdatePresence}
+        sessionDiagnostics={sessionDiagnostics}
         signedInUserLabel={signedInUserLabel}
         status={status}
         themeMode={themeMode}

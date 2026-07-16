@@ -1,7 +1,12 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { MobileBootstrapPayload } from "@wizards/types";
 
 import type { MobileApiClient } from "../api/mobile-api-client";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
+import {
+  patchMobileProfilePresenceCaches,
+  restoreMobileProfilePresenceCaches,
+} from "../query/mobile-profile-cache";
 import {
   actOnMobileFriendRequest,
   blockMobileFriend,
@@ -45,7 +50,19 @@ export function useMobileSocialMutations(client: MobileApiClient) {
     unblockFriend: useMutation({ mutationFn: (userId: string) => unblockMobileFriend(client, userId), onSuccess: refreshFriends }),
     updatePresence: useMutation({
       mutationFn: (status: MobileFriendPresenceStatus) => updateMobilePresence(client, status),
-      onSuccess: async () => {
+      onMutate: async (status) => {
+        await queryClient.cancelQueries({ queryKey: mobileQueryKeys.bootstrap() });
+        const userId = queryClient.getQueryData<MobileBootstrapPayload>(
+          mobileQueryKeys.bootstrap(),
+        )?.user.id;
+        return userId ? patchMobileProfilePresenceCaches({ queryClient, status, userId }) : null;
+      },
+      onError: (_error, _status, snapshot) => {
+        if (snapshot) {
+          restoreMobileProfilePresenceCaches(snapshot);
+        }
+      },
+      onSettled: async () => {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: mobileQueryKeys.friends() }),
           queryClient.invalidateQueries({ queryKey: mobileQueryKeys.bootstrap() }),
