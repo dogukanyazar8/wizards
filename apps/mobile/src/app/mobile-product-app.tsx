@@ -332,7 +332,9 @@ export function MobileProductApp({
     onSelectLocale: handleSelectMobileLocale,
     onSelectVoiceInputMode: handleSelectMobileVoiceInputMode,
     onSignOut: () => void signOut(),
-    onUpdatePresence: socialMutations.updatePresence.mutateAsync,
+    onUpdatePresence: async (presence) => {
+      await socialMutations.updatePresence.mutateAsync(presence);
+    },
     onToggleAppLock: (enabled: boolean) => void setAppLockEnabled(enabled),
     permissionReadiness,
     permissionSummary,

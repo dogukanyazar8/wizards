@@ -199,7 +199,7 @@ export function MobileProfileSettingsHub({
   locale: MobileLocale;
   onRefreshBootstrap(): void;
   onSignOut(): void;
-  onUpdatePresence?(status: MobileFriendPresenceStatus): Promise<void>;
+  onUpdatePresence: ((status: MobileFriendPresenceStatus) => Promise<void>) | undefined;
   sessionDiagnostics: MobileSessionDiagnostics;
   signedInUserLabel: string | null;
   status: string;
@@ -2003,7 +2003,7 @@ export function ProfileSettingsScreen({
   onSelectLocale(locale: MobileLocale): void;
   onSelectVoiceInputMode(mode: MobileVoiceInputMode): void;
   onSignOut(): void;
-  onUpdatePresence?(status: MobileFriendPresenceStatus): Promise<void>;
+  onUpdatePresence: ((status: MobileFriendPresenceStatus) => Promise<void>) | undefined;
   sessionDiagnostics: MobileSessionDiagnostics;
   onToggleAppLock(enabled: boolean): void;
   onBack?(): void;
