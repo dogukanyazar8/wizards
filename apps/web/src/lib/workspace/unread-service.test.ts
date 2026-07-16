@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { setSocketServer } from "@/lib/socket/runtime";
-import { getActiveChannelViewerUserIds, groupUsersByVisibleChannelIds } from "./unread-service";
+import {
+  getActiveChannelViewerUserIds,
+  getOnlineServerMemberCount,
+  groupUsersByVisibleChannelIds,
+} from "./unread-service";
 
 describe("workspace unread service", () => {
   it("collects active channel viewers through the socket adapter", async () => {
@@ -29,6 +33,34 @@ describe("workspace unread service", () => {
 
     assert.equal(requestedRoom, "channel-1");
     assert.deepEqual(userIds.sort(), ["user-1", "user-2"]);
+  });
+
+  it("counts distinct, visible-presence members in a server room", async () => {
+    let requestedRoom: string | null = null;
+    const socketServer = {
+      in(room: string) {
+        requestedRoom = room;
+
+        return {
+          async fetchSockets() {
+            return [
+              { data: { presenceStatus: "ONLINE", userId: "user-1" } },
+              { data: { presenceStatus: "IDLE", userId: "user-2" } },
+              { data: { presenceStatus: "OFFLINE", userId: "user-3" } },
+              { data: { presenceStatus: "DND", userId: "user-1" } },
+              { data: { presenceStatus: "ONLINE" } },
+            ];
+          },
+        };
+      },
+    } as unknown as Parameters<typeof setSocketServer>[0];
+
+    setSocketServer(socketServer);
+
+    const count = await getOnlineServerMemberCount("server-1");
+
+    assert.equal(requestedRoom, "server:server-1");
+    assert.equal(count, 2);
   });
 
   it("groups users by identical visible channel sets", () => {

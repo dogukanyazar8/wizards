@@ -9,7 +9,10 @@ import type {
   MobileVoiceStatesResponse,
 } from "@wizards/types";
 import { mobileQueryKeys } from "../src/query/mobile-query-keys";
-import { createMobileRealtimeEventEnvelope } from "../src/realtime/mobile-realtime-contract";
+import {
+  createMobileRealtimeEventEnvelope,
+  type MobileRealtimeServerEventName,
+} from "../src/realtime/mobile-realtime-contract";
 import {
   createMobileRealtimeQueryBridge,
   type MobileRealtimeQueryBridgeScheduler,
@@ -56,6 +59,37 @@ function makeChannelPage(messages: ChatMessage[]): MobileChannelMessagesResponse
     hasMore: false,
     messages,
     nextCursor: null,
+  };
+}
+
+function makeWorkspaceWithLastMessage(channelId = "channel-1") {
+  return {
+    detail: {
+      categories: [
+        {
+          channels: [
+            {
+              ...makeChannelPage([]).channel,
+              id: channelId,
+              lastMessage: {
+                author: {
+                  displayName: "Before",
+                  id: "user-before",
+                  username: "before",
+                },
+                createdAt: "2026-07-09T09:00:00.000Z",
+                id: "message-before",
+                text: "stale preview",
+              },
+            },
+          ],
+          id: "category-1",
+          name: "General",
+          position: 0,
+        },
+      ],
+      ungroupedChannels: [],
+    },
   };
 }
 
@@ -176,16 +210,98 @@ describe("mobile realtime query bridge", () => {
     keys.forEach((key) => assert.equal(queryClient.getQueryState(key)?.isInvalidated, true));
   });
 
+  it("refreshes the selected server summary when a text-channel message arrives without an open channel", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const workspaceKey = mobileQueryKeys.workspace("server-1");
+    queryClient.setQueryData(workspaceKey, { detail: { channels: [] } });
+    const bridge = createMobileRealtimeQueryBridge({
+      getActiveTargets: () => ({
+        channelId: null,
+        conversationId: null,
+        serverId: "server-1",
+        voiceChannelId: null,
+      }),
+      queryClient,
+      scheduler: fake.scheduler,
+    });
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("message:new", {
+        channelId: "channel-1",
+        id: "message-2",
+        serverId: "server-1",
+      }),
+    );
+
+    assert.equal(fake.pendingCount(), 0);
+    assert.equal(queryClient.getQueryState(workspaceKey)?.isInvalidated, true);
+  });
+
+  it("refreshes an inactive server immediately from its user-room stale event", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const workspaceKey = mobileQueryKeys.workspace("server-2");
+    const refreshedServerIds: string[] = [];
+    queryClient.setQueryData(workspaceKey, makeWorkspaceWithLastMessage("channel-2"));
+    const bridge = createMobileRealtimeQueryBridge({
+      getActiveTargets: () => ({
+        channelId: null,
+        conversationId: null,
+        serverId: "server-1",
+        voiceChannelId: null,
+      }),
+      queryClient,
+      refreshWorkspace: (serverId: string) => {
+        refreshedServerIds.push(serverId);
+        return Promise.resolve();
+      },
+      scheduler: fake.scheduler,
+    } as Parameters<typeof createMobileRealtimeQueryBridge>[0]);
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope(
+        "channel:messages:stale" as MobileRealtimeServerEventName,
+        {
+          channelId: "channel-2",
+          lastMessage: {
+            author: {
+              displayName: "Ada",
+              id: "user-2",
+              username: "ada",
+            },
+            createdAt: "2026-07-09T10:05:00.000Z",
+            id: "message-2",
+            text: "Immediate inactive-server preview",
+          },
+          latestMessageId: "message-2",
+          serverId: "server-2",
+        },
+      ),
+    );
+
+    assert.deepEqual(refreshedServerIds, ["server-2"]);
+    assert.equal(queryClient.getQueryState(workspaceKey)?.isInvalidated, true);
+    assert.equal(fake.pendingCount(), 0);
+    assert.equal(
+      queryClient.getQueryData<ReturnType<typeof makeWorkspaceWithLastMessage>>(workspaceKey)?.detail
+        .categories[0]?.channels[0]?.lastMessage?.text,
+      "Immediate inactive-server preview",
+    );
+  });
+
   it("updates validated active-channel message pages without storing an unsafe fallback payload", () => {
     const queryClient = new QueryClient();
     const fake = createFakeScheduler();
     const bridge = createBridge(queryClient, fake.scheduler);
     const key = mobileQueryKeys.channelMessages("channel-1");
+    const workspaceKey = mobileQueryKeys.workspace("server-1");
     const initial: InfiniteData<MobileChannelMessagesResponse, string | null> = {
       pageParams: [null],
       pages: [makeChannelPage([makeMessage("message-1")])],
     };
     queryClient.setQueryData(key, initial);
+    queryClient.setQueryData(workspaceKey, { detail: { channels: [] } });
 
     bridge.handleEvent(createMobileRealtimeEventEnvelope("message:new", makeMessage("message-2")));
 
@@ -196,6 +312,7 @@ describe("mobile realtime query bridge", () => {
       ["message-1", "message-2"],
     );
     assert.equal(fake.pendingCount(), 0);
+    assert.equal(queryClient.getQueryState(workspaceKey)?.isInvalidated, true);
 
     bridge.handleEvent(
       createMobileRealtimeEventEnvelope("message:new", {
@@ -204,6 +321,31 @@ describe("mobile realtime query bridge", () => {
       }),
     );
     assert.equal(fake.pendingCount(), 1);
+  });
+
+  it("patches the active server channel preview immediately from a validated socket message", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const workspaceKey = mobileQueryKeys.workspace("server-1");
+    queryClient.setQueryData(workspaceKey, makeWorkspaceWithLastMessage());
+
+    bridge.handleEvent(createMobileRealtimeEventEnvelope("message:new", makeMessage("message-2")));
+
+    const updated = queryClient.getQueryData<ReturnType<typeof makeWorkspaceWithLastMessage>>(
+      workspaceKey,
+    );
+    assert.deepEqual(updated?.detail.categories[0]?.channels[0]?.lastMessage, {
+      author: {
+        displayName: "Dogukan",
+        id: "user-1",
+        username: "dogukan",
+      },
+      createdAt: "2026-07-09T10:00:00.000Z",
+      id: "message-2",
+      text: "redacted-test-message",
+    });
+    assert.equal(fake.pendingCount(), 0);
   });
 
   it("patches only the matching server voice-state cache for join and leave snapshots", () => {
@@ -509,7 +651,7 @@ describe("mobile realtime query bridge", () => {
     assert.equal(queryClient.getQueryState(unrelatedWorkspaceKey)?.isInvalidated, false);
   });
 
-  it("refreshes only friends and active members for a presence fallback", () => {
+  it("refreshes friends, active members, and the live workspace count for a presence fallback", () => {
     const queryClient = new QueryClient();
     const fake = createFakeScheduler();
     const bridge = createBridge(queryClient, fake.scheduler);
@@ -534,7 +676,7 @@ describe("mobile realtime query bridge", () => {
     fake.flush();
     assert.equal(queryClient.getQueryState(friendsKey)?.isInvalidated, true);
     assert.equal(queryClient.getQueryState(membersKey)?.isInvalidated, true);
-    assert.equal(queryClient.getQueryState(workspaceKey)?.isInvalidated, false);
+    assert.equal(queryClient.getQueryState(workspaceKey)?.isInvalidated, true);
     assert.equal(queryClient.getQueryState(unrelatedMembersKey)?.isInvalidated, false);
   });
 

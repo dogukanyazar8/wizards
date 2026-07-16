@@ -39,7 +39,10 @@ describe("mobile communication semantic themes", () => {
     ["light", lightTheme],
     ["dark", darkTheme],
   ] as const)("builds %s communication surfaces from semantic theme roles", (_scheme, theme) => {
-    expect(createDmScreenStyles(theme).dmConversationCard.backgroundColor).toBe(theme.surface.card);
+    expect(createDmScreenStyles(theme).dmConversationCard.backgroundColor).toBe("transparent");
+    expect(createDmScreenStyles(theme).dmConversationCardSelected.backgroundColor).toBe(
+      theme.surface.card,
+    );
     expect(createChannelScreenStyles(theme).mobileChannelChatScreen.backgroundColor).toBe(
       theme.surface.base,
     );
@@ -47,7 +50,10 @@ describe("mobile communication semantic themes", () => {
       theme.surface.card,
     );
     expect(createMobileComposerStyles(theme).channelComposer.backgroundColor).toBe(
-      theme.surface.elevated,
+      theme.surface.base,
+    );
+    expect(createMobileComposerStyles(theme).channelComposerInputShell.backgroundColor).toBe(
+      theme.surface.card,
     );
     expect(
       createMobileVoiceInviteOverlayStyles(theme).mobileVoiceInviteOverlayCard.backgroundColor,

@@ -24,7 +24,7 @@ const copy = activeMobileCopy;
 
 export function FloatingNavigationChrome({
   directMessageUnreadCount = 0,
-  insets,
+  insets: _insets,
   onBeginPushToTalk,
   onEndPushToTalk,
   onLeaveVoiceChannel,
@@ -65,7 +65,7 @@ export function FloatingNavigationChrome({
         styles.chrome,
         keyboardVisible
           ? styles.chromeKeyboardHidden
-          : { paddingBottom: Math.max(insets.bottom, 18) },
+          : { paddingBottom: 18 },
       ]}
       testID="mobile-floating-navigation-chrome"
     >
@@ -86,7 +86,7 @@ export function FloatingNavigationChrome({
           ) : null}
           <MobileBottomTabBar
             {...tabBarProps}
-            bottomSafeAreaInset={Math.max(insets.bottom, 18)}
+            bottomSafeAreaInset={0}
             directMessageUnreadCount={directMessageUnreadCount}
           />
         </>
@@ -304,6 +304,8 @@ export const createFloatingNavigationChromeStyles = (theme: MobileTheme) => ({
   miniVoiceBarStatus: {
     ...theme.typography.caption,
     color: theme.text.onInverseMuted,
+    fontWeight: "600" as const,
+    includeFontPadding: false,
   },
   miniVoiceBarText: {
     flex: 1,
@@ -315,5 +317,7 @@ export const createFloatingNavigationChromeStyles = (theme: MobileTheme) => ({
     fontSize: 13.5,
     fontFamily: theme.typography.fontFamilyBold,
     fontWeight: "700" as const,
+    includeFontPadding: false,
+    lineHeight: 17,
   },
 });

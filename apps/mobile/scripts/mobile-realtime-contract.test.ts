@@ -8,6 +8,7 @@ import {
   MOBILE_REALTIME_REFRESH_TIMER_SOURCES,
   MOBILE_REALTIME_SERVER_EVENTS,
   getMobileRealtimeRefreshTimerSource,
+  type MobileRealtimeServerEventName,
   validateMobileRealtimeContract,
 } from "../src/realtime/mobile-realtime-contract";
 
@@ -28,7 +29,7 @@ describe("mobile realtime contract", () => {
   });
 
   it("maps active conversation events to the narrowest refresh target", () => {
-    assert.deepEqual(getMobileRealtimeRefreshSources("message:new"), ["channel"]);
+    assert.deepEqual(getMobileRealtimeRefreshSources("message:new"), ["channel", "workspace"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:message:new"), ["dm"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:conversation:updated"), ["dm"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("voice:state:update"), ["workspace"]);
@@ -42,6 +43,42 @@ describe("mobile realtime contract", () => {
     assert.deepEqual(getMobileRealtimeRefreshSources("presence:update"), ["presence"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("friends:updated"), ["presence"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("user:profile:updated"), ["presence"]);
+  });
+
+  it("refreshes the server summary for every text-channel message mutation", () => {
+    const channelMessageEvents = [
+      "message:new",
+      "message:updated",
+      "message:deleted",
+      "message:removed",
+      "message:history_cleared",
+      "message:reaction_updated",
+    ] as const;
+
+    for (const eventName of channelMessageEvents) {
+      assert.deepEqual(getMobileRealtimeRefreshSources(eventName), ["channel", "workspace"]);
+    }
+  });
+
+  it("accepts the user-room stale event that identifies an inactive server channel", () => {
+    const event = createMobileRealtimeEventEnvelope(
+      "channel:messages:stale" as MobileRealtimeServerEventName,
+      {
+        channelId: "channel-2",
+        latestMessageId: "message-2",
+        serverId: "server-2",
+      },
+      2_050,
+    );
+
+    assert.equal(event.channelId, "channel-2");
+    assert.equal(event.serverId, "server-2");
+    assert.deepEqual(event.refreshSources, ["workspace"]);
+    assert.deepEqual(event.payload, {
+      channelId: "channel-2",
+      latestMessageId: "message-2",
+      serverId: "server-2",
+    });
   });
 
   it("retains only schema-validated server management and social payloads", () => {
@@ -231,7 +268,7 @@ describe("mobile realtime contract", () => {
     const event = createMobileRealtimeEventEnvelope("message:new", payload, 1_500);
 
     assert.equal(event.channelId, "channel-1");
-    assert.deepEqual(event.refreshSources, ["channel"]);
+    assert.deepEqual(event.refreshSources, ["channel", "workspace"]);
     assert.equal((event.payload as { content: string }).content, "active channel content");
   });
 

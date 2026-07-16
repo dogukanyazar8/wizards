@@ -72,6 +72,11 @@ const detail = {
   ],
 } satisfies WorkspaceServerDetail;
 
+const mobileProjection = {
+  ...detail,
+  server: { ...detail.server, onlineMemberCount: 1 },
+};
+
 const mobileDetail = {
   categories: [],
   hasMoreChannels: false,
@@ -85,6 +90,7 @@ const mobileDetail = {
     mentionCount: 1,
     name: "Guild",
     shortName: "GLD",
+    onlineMemberCount: 1,
     unreadCount: 3,
     visibleChannelCount: 1,
   },
@@ -128,7 +134,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
     authenticate: async () => "user-1",
     deleteServer: async () => undefined,
     enforceRateLimit: async () => undefined,
-    getServerDetailWithAccess: async () => ({ access, detail, hasMoreChannels: false }),
+    getServerDetailWithAccess: async () => ({ access, detail: mobileProjection, hasMoreChannels: false }),
     parseBody: parseJsonBody,
     resolveCapabilities: () => capabilities,
     updateServer: async () => detail,
@@ -154,7 +160,7 @@ describe("mobile server detail route logic", () => {
         },
         getServerDetailWithAccess: async (userId: string, serverId: string) => {
           calls.push(`service:${userId}:${serverId}`);
-          return { access, detail };
+          return { access, detail: mobileProjection };
         },
         resolveCapabilities: (receivedAccess: AccessContext) => {
           calls.push("capabilities");
@@ -198,7 +204,7 @@ describe("mobile server detail route logic", () => {
         },
         getServerDetailWithAccess: async (userId: string, serverId: string) => {
           calls.push(`reload:${userId}:${serverId}`);
-          return { access, detail };
+          return { access, detail: mobileProjection };
         },
         parseBody,
         resolveCapabilities: (receivedAccess: AccessContext) => {
@@ -231,10 +237,10 @@ describe("mobile server detail route logic", () => {
   it("preserves the canonical last-message preview when the mobile projection provides one", async () => {
     const { mobileServerDetailRoute } = await routes;
     const previewDetail = {
-      ...detail,
+      ...mobileProjection,
       ungroupedChannels: [
         {
-          ...detail.ungroupedChannels[0]!,
+          ...mobileProjection.ungroupedChannels[0]!,
           lastMessage: {
             author: { displayName: "Ada", id: "user-2", username: "ada" },
             createdAt: "2026-07-15T08:00:00.000Z",
@@ -277,10 +283,10 @@ describe("mobile server detail route logic", () => {
         unreadCount: 0,
       }));
       const boundedDetail = {
-        ...detail,
+        ...mobileProjection,
         categories: [{ channels, id: "category-1", name: "Category", position: 0 }],
         server: {
-          ...detail.server,
+          ...mobileProjection.server,
           defaultChannelId: `channel-${channelCount - 1}`,
         },
         ungroupedChannels: [],

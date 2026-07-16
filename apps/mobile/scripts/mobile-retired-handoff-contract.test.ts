@@ -6,7 +6,7 @@ import test from "node:test";
 const mobileRoot = path.resolve(import.meta.dirname, "..");
 const repositoryRoot = path.resolve(mobileRoot, "..", "..");
 
-test("mobile tooling no longer depends on the retired local redesign handoff", () => {
+test("mobile tooling no longer depends on retired local redesign extraction tooling", () => {
   const retiredFiles = [
     "mobile-redesign-extract.ts",
     "mobile-redesign-reference.ts",
@@ -18,7 +18,6 @@ test("mobile tooling no longer depends on the retired local redesign handoff", (
   };
   const workflow = readFileSync(path.join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8");
 
-  assert.equal(existsSync(path.join(repositoryRoot, "design_handoff_whispr_mobile")), false);
   for (const file of retiredFiles) {
     assert.equal(existsSync(path.join(mobileRoot, "scripts", file)), false, `${file} must be retired with the handoff`);
   }

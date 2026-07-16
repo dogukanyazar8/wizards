@@ -46,6 +46,7 @@ describe("MobileWorkspaceServerSwitcherSheet", () => {
     expect(view.getByText("Sunucuların")).toBeTruthy();
     expect(view.getByText("UAT ENV")).toBeTruthy();
     expect(view.getByText("Windows Ekibi")).toBeTruthy();
+    expect(view.getByText("5")).toBeTruthy();
 
     await fireEvent.press(view.getByTestId("mobile-server-switcher-option-server-windows"));
     expect(onOpenServer).toHaveBeenCalledWith("server-windows");

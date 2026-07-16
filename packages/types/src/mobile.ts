@@ -568,6 +568,10 @@ export const MobileWorkspaceServerDetailSchema = z.object({
     memberCount: z.number().int().nonnegative(),
     mentionCount: z.number().int().nonnegative(),
     name: z.string().min(1).max(120),
+    // Older UAT servers may be deployed independently of the mobile client.
+    // Defaulting to zero keeps those typed responses usable until the live
+    // socket-derived aggregate becomes available after the server rollout.
+    onlineMemberCount: z.number().int().nonnegative().default(0),
     shortName: z.string().min(1).max(8).nullable(),
     unreadCount: z.number().int().nonnegative(),
     visibleChannelCount: z.number().int().nonnegative(),
@@ -614,6 +618,13 @@ export const MobileServerUnreadUpdateEventSchema = z.object({
   unreadCount: z.number().int().nonnegative(),
 });
 
+export const MobileChannelMessagesStaleEventSchema = z.object({
+  channelId: z.string().min(1).max(128),
+  lastMessage: MobileChannelLastMessagePreviewSchema.nullable().optional(),
+  latestMessageId: z.string().min(1).max(128),
+  serverId: z.string().min(1).max(128),
+});
+
 export type MobileBootstrapFeatureStatus = z.infer<typeof MobileBootstrapFeatureStatusSchema>;
 export type MobileBootstrapFeature = z.infer<typeof MobileBootstrapFeatureSchema>;
 export type MobileBootstrapServerSummary = z.infer<typeof MobileBootstrapServerSummarySchema>;
@@ -658,6 +669,9 @@ export type MobileChannelSendMessageResponse = z.infer<
 >;
 export type MobileChannelMarkReadResponse = z.infer<typeof MobileChannelMarkReadResponseSchema>;
 export type MobileServerUnreadUpdateEvent = z.infer<typeof MobileServerUnreadUpdateEventSchema>;
+export type MobileChannelMessagesStaleEvent = z.infer<
+  typeof MobileChannelMessagesStaleEventSchema
+>;
 export type MobileAuthExchangeRequest = z.infer<typeof MobileAuthExchangeRequestSchema>;
 export type MobileAuthExchangeResponse = z.infer<typeof MobileAuthExchangeResponseSchema>;
 export type MobileAuthRefreshRequest = z.infer<typeof MobileAuthRefreshRequestSchema>;

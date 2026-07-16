@@ -130,6 +130,7 @@ const workspaceDetail: MobileWorkspaceServerDetailResponse["detail"] = {
     memberCount: 5,
     mentionCount: 3,
     name: "Whispr",
+    onlineMemberCount: 1,
     shortName: "WH",
     unreadCount: 4,
     visibleChannelCount: 3,
@@ -726,6 +727,40 @@ describe("mobile display model", () => {
         ["message-day-1", true],
         ["message-day-1b", false],
         ["message-day-2", true],
+      ],
+    );
+  });
+
+  it("marks only consecutive same-author channel messages for the compact 1b group layout", () => {
+    const nextAuthorMessage: ChatMessage = {
+      ...message,
+      author: { ...message.author, id: "user-3", username: "zoe" },
+      createdAt: "2026-06-30T09:17:00.000Z",
+      id: "message-next-author",
+    };
+    const nextDayMessage: ChatMessage = {
+      ...message,
+      createdAt: "2026-07-01T09:18:00.000Z",
+      id: "message-next-day",
+    };
+    const streamItems = getMobileMessageStreamItems([
+      message,
+      { ...message, createdAt: "2026-06-30T09:16:00.000Z", id: "message-same-author" },
+      nextAuthorMessage,
+      nextDayMessage,
+    ]);
+
+    assert.deepEqual(
+      streamItems.map((item) => [
+        item.message.id,
+        item.isGroupedWithPrevious,
+        item.isGroupedWithNext,
+      ]),
+      [
+        ["message-1", false, true],
+        ["message-same-author", true, false],
+        ["message-next-author", false, false],
+        ["message-next-day", false, false],
       ],
     );
   });

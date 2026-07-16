@@ -155,6 +155,14 @@ module.exports = ({ config }) => {
       "@livekit/react-native-expo-plugin",
       "@config-plugins/react-native-webrtc",
       "expo-image",
+      [
+        "expo-audio",
+        {
+          enableBackgroundPlayback: false,
+          enableBackgroundRecording: false,
+          recordAudioAndroid: true,
+        },
+      ],
       "expo-localization",
       "./plugins/withScreenShare",
       [

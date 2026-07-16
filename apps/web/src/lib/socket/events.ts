@@ -166,6 +166,12 @@ export interface ServerToClientEvents {
   "message:new": (message: ChatMessage) => void;
   "channel:messages:stale": (data: {
     channelId: string;
+    lastMessage: {
+      author: { displayName: string | null; id: string; username: string };
+      createdAt: string;
+      id: string;
+      text: string;
+    } | null;
     latestMessageId: string;
     serverId: string;
   }) => void;

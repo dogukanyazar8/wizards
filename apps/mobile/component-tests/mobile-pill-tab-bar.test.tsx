@@ -74,7 +74,21 @@ describe("mobile redesign pill tab bar", () => {
     );
 
     expect(styles.navLabelActive).toEqual(
-      expect.objectContaining({ color: lightTheme.accent.default }),
+      expect.objectContaining({
+        color: lightTheme.accent.default,
+        fontFamily: lightTheme.typography.fontFamilyBold,
+        fontWeight: "700",
+      }),
+    );
+    expect(styles.navLabel).toEqual(
+      expect.objectContaining({
+        color: lightTheme.text.visualFaint,
+        fontFamily: lightTheme.typography.fontFamilySemiBold,
+        fontSize: 10.5,
+        fontWeight: "600",
+        includeFontPadding: false,
+        lineHeight: 13,
+      }),
     );
     expect(styles.navUnreadDot).toEqual(
       expect.objectContaining({
@@ -89,7 +103,7 @@ describe("mobile redesign pill tab bar", () => {
       expect.objectContaining({ height: 22, width: 22 }),
     );
     expect(styles.navVisualWrap).not.toHaveProperty("position");
-    expect(source).toContain("color={isActive ? theme.accent.default : theme.text.soft}");
+    expect(source).toContain("color={isActive ? theme.accent.default : theme.text.visualFaint}");
     expect(source).toContain("size={22}");
   });
 

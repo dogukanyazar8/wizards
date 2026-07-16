@@ -1,8 +1,23 @@
 import { describe, expect, it } from "@jest/globals";
+import { StyleSheet } from "react-native";
 import { getMobileAvatarInitials, getMobileAvatarTint } from "../src/design/mobile-avatar-color";
 import { darkTheme, lightTheme, type MobileTheme } from "../src/design/themes";
+import { Avatar } from "../src/app/components/kit/avatar";
+import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
 describe("mobile avatar tint derivation", () => {
+  it("renders the handoff tint for a fallback identity", async () => {
+    const view = await render(<Avatar identityId="user-123" imageUrl={null} label="CodeX" />);
+
+    const initials = view.getByText("CO");
+    expect(StyleSheet.flatten(initials.parent?.props.style)).toMatchObject({
+      backgroundColor: lightTheme.avatarTints[4].bg,
+    });
+    expect(StyleSheet.flatten(initials.props.style)).toMatchObject({
+      color: lightTheme.avatarTints[4].fg,
+    });
+  });
+
   it("keeps the documented UTF-16 hash indexes stable", () => {
     expect(getMobileAvatarTint("user-123", lightTheme)).toBe(lightTheme.avatarTints[4]);
     expect(getMobileAvatarTint("user-123", darkTheme)).toBe(darkTheme.avatarTints[4]);

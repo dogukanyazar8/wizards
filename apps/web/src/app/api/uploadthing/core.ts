@@ -4,10 +4,12 @@ import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
 
 import { auth } from "@/auth";
+import { requireMobileApiUserId } from "@/lib/auth/api";
 import { createPendingMessageAttachmentUpload } from "@/lib/attachments/upload-persistence";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRedisRate } from "@/lib/redis";
 import { logError } from "@/lib/logger";
+import { getBearerTokenFromRequest } from "@/lib/mobile/auth";
 import {
   authorizeMobileMediaUpload,
   completeMobileMediaUpload,
@@ -54,8 +56,37 @@ async function requireUploadUser() {
   return { userId: user.id };
 }
 
-async function requireMessageUploadUser() {
-  const { userId } = await requireUploadUser();
+export async function resolveMessageUploadUserId({
+  dependencies = {
+    requireMobileApiUserId,
+    requireWebUploadUser: async () => (await requireUploadUser()).userId,
+  },
+  request,
+}: {
+  dependencies?: {
+    requireMobileApiUserId(request: Request): Promise<string>;
+    requireWebUploadUser(): Promise<string>;
+  };
+  request: Request;
+}): Promise<string> {
+  // A malformed or expired Bearer token must never silently fall back to a
+  // cookie session. That would turn one caller's explicit mobile credential
+  // into another principal's upload authorization.
+  if (getBearerTokenFromRequest(request)) {
+    return dependencies.requireMobileApiUserId(request);
+  }
+
+  return dependencies.requireWebUploadUser();
+}
+
+async function requireMessageUploadUser({ req }: { req: Request }) {
+  let userId: string;
+
+  try {
+    userId = await resolveMessageUploadUserId({ request: req });
+  } catch {
+    throw new UploadThingError("Unauthorized");
+  }
 
   try {
     const allowed = await checkRateLimit(
@@ -210,9 +241,13 @@ export const uploadRouter: FileRouter = {
       maxFileSize: "8MB",
     },
   })
-    .middleware(requireMessageUploadUser)
+    .middleware(({ req }) => requireMessageUploadUser({ req }))
     .onUploadComplete(createMessageAttachment),
   messageAttachmentUploader: f({
+    "audio/mp4": {
+      maxFileCount: 5,
+      maxFileSize: "16MB",
+    },
     "image/gif": {
       maxFileCount: 5,
       maxFileSize: "8MB",
@@ -286,7 +321,7 @@ export const uploadRouter: FileRouter = {
       maxFileSize: "32MB",
     },
   })
-    .middleware(requireMessageUploadUser)
+    .middleware(({ req }) => requireMessageUploadUser({ req }))
     .onUploadComplete(createMessageAttachment),
 };
 

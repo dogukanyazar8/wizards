@@ -2,8 +2,7 @@ import type { ReactNode } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { MobileTheme } from "../design/themes";
-import { AuthWelcomeBackground } from "./components/kit/auth/auth-welcome-background";
-import { useTheme, useThemedStyles } from "./providers/mobile-theme-provider";
+import { useThemedStyles } from "./providers/mobile-theme-provider";
 
 interface MobileAppShellProps {
   authStatus: "checking" | "error" | "signed-in" | "signed-out";
@@ -13,19 +12,12 @@ interface MobileAppShellProps {
 export function MobileAppShell({ authStatus, children }: MobileAppShellProps) {
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createMobileAppShellStyles);
-  const theme = useTheme();
-  const topInset = Math.max(insets.top, 12);
+  const topInset = Math.max(insets.top - 10, 12);
   const isSignedIn = authStatus === "signed-in";
   const contentContainerStyle = isSignedIn ? styles.contentSignedIn : styles.contentUnauthenticated;
 
   return (
     <View style={[styles.safeArea, isSignedIn && { paddingTop: topInset }]}>
-      {isSignedIn ? (
-        <AuthWelcomeBackground
-          testID="mobile-post-auth-background"
-          tone={theme.dark ? "dark" : "light"}
-        />
-      ) : null}
       <View style={[styles.shell, isSignedIn ? styles.shellSignedIn : styles.shellUnauthenticated]}>
         <View style={[styles.contentScroll, contentContainerStyle]}>{children}</View>
       </View>
@@ -45,7 +37,7 @@ export const createMobileAppShellStyles = (theme: MobileTheme) => ({
     paddingTop: 8,
   },
   shellSignedIn: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 0,
     paddingTop: 0,
   },
   shellUnauthenticated: {

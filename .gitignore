@@ -33,6 +33,9 @@ graphify-out/cache/
 # Generated mobile release evidence and local build outputs
 apps/mobile/artifacts/
 
+# Local design handoff package; reference only, never versioned.
+/design_handoff_whispr_mobile/
+
 # Local cross-platform verification evidence
 /artifacts/
 !/artifacts/

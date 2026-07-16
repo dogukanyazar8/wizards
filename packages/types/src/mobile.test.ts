@@ -31,6 +31,7 @@ import {
   MobileChannelLastMessagePreviewSchema,
   MobileChannelMarkReadResponseSchema,
   MobileChannelMessagesResponseSchema,
+  MobileChannelMessagesStaleEventSchema,
   MobileChannelThreadMessagesResponseSchema,
   MobileChannelSendMessageRequestSchema,
   MobileChannelSendMessageResponseSchema,
@@ -87,6 +88,33 @@ import { assertAccepts, assertRejects, assertSchemaBehaviorCoverage } from "./sc
 
 const now = "2026-07-09T12:00:00.000Z";
 const uuid = "550e8400-e29b-41d4-a716-446655440000";
+
+describe("mobile realtime stale-channel contract", () => {
+  it("validates only the bounded user-room payload needed to refresh a workspace", () => {
+    const schema = (mobileSchemas as Record<string, unknown>)
+      .MobileChannelMessagesStaleEventSchema as
+      | { safeParse(input: unknown): { success: boolean } }
+      | undefined;
+
+    assert.ok(schema);
+    assert.equal(
+      schema.safeParse({
+        channelId: "channel-1",
+        latestMessageId: "message-1",
+        serverId: "server-1",
+      }).success,
+      true,
+    );
+    assert.equal(
+      schema.safeParse({
+        channelId: "channel-1",
+        latestMessageId: "",
+        serverId: "server-1",
+      }).success,
+      false,
+    );
+  });
+});
 
 const sessionUser = {
   avatarUrl: null,
@@ -284,6 +312,7 @@ const workspaceDetail = {
     memberCount: 1,
     mentionCount: 0,
     name: "Analytical Engine",
+    onlineMemberCount: 1,
     shortName: "AE",
     unreadCount: 0,
     visibleChannelCount: 1,
@@ -650,6 +679,11 @@ describe("mobile schemas", () => {
         schema: MobileServerUnreadUpdateEventSchema,
         valid: { mentionCount: 0, serverId: "server-1", unreadCount: 1 },
         invalid: { mentionCount: -1, serverId: "server-1", unreadCount: 1 },
+      },
+      MobileChannelMessagesStaleEventSchema: {
+        schema: MobileChannelMessagesStaleEventSchema,
+        valid: { channelId: "channel-1", latestMessageId: "message-1", serverId: "server-1" },
+        invalid: { channelId: "channel-1", latestMessageId: "", serverId: "server-1" },
       },
       MobileSessionSchemaVersionSchema: {
         schema: MobileSessionSchemaVersionSchema,

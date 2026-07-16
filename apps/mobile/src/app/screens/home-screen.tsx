@@ -28,6 +28,7 @@ import {
   type MobileWorkspaceChannelSummary,
   type MobileWorkspaceServerViewState,
 } from "../mobile-root-screen-shared";
+import type { UploadedAttachmentInput } from "@wizards/types";
 import { FlashList } from "@shopify/flash-list";
 import { ChannelMessagesPreviewCard } from "./channel-screen";
 import {
@@ -151,7 +152,11 @@ export function OverviewScreen({
   }): Promise<void>;
   onSendChannelMessage(
     content: string,
-    intent?: { readonly replyToId?: string; readonly threadParentId?: string },
+    intent?: {
+      readonly attachments?: readonly UploadedAttachmentInput[];
+      readonly replyToId?: string;
+      readonly threadParentId?: string;
+    },
   ): Promise<boolean>;
   onSendChannelGif?(gifId: string): Promise<boolean>;
   onDeleteMessage(messageId: string): Promise<boolean>;

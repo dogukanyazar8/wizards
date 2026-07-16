@@ -252,11 +252,19 @@ describe("mobile design contract", () => {
     assert.match(screenSource, /testID="mobile-channel-composer"/);
     assert.match(screenSource, /testID="mobile-channel-attach-button"/);
     assert.match(screenSource, /testID="mobile-channel-emoji-button"/);
-    assert.match(screenSource, /testID="mobile-channel-gif-button"/);
+    // The 1b handoff specifies an attachment action, emoji, voice recording, and send;
+    // GIF is intentionally not part of the compact channel composer.
+    assert.doesNotMatch(screenSource, /testID="mobile-channel-gif-button"/);
     assert.match(screenSource, /testID="mobile-channel-voice-record-button"/);
     assert.match(screenSource, /testID="mobile-channel-send-button"/);
     assert.match(screenSource, /channelComposerControlRow/);
-    assert.match(screenSource, /mobileChannelComposerActions/);
+    assert.match(screenSource, /testID="mobile-channel-attachment-picker"/);
+    assert.match(screenSource, /useMobileVoiceMessageRecorder/);
+    assert.match(
+      screenSource,
+      /!onOpenMembers\s*&&\s*styles\.mobileChannelChatIconButtonDisabled/,
+    );
+    assert.match(screenSource, /<Ionicons name="person-outline" size=\{17\} color=\{theme\.text\.muted\} \/>/);
     assert.match(screenSource, /messagePreviewBubbleChannel/);
   });
 
@@ -404,7 +412,7 @@ describe("mobile design contract", () => {
     assert.match(shellSource, /theme\.typography\.tabLabel/);
     assert.match(shellSource, /mobileNavigationMetrics\.tabItemPaddingVertical/);
     assert.match(shellSource, /theme\.surface\.card/);
-    assert.match(shellSource, /theme\.text\.soft/);
+    assert.match(shellSource, /theme\.text\.visualFaint/);
     assert.match(shellSource, /theme\.radii\.tabPill/);
     assert.match(shellSource, /accessibilityRole="tablist"/);
     assert.match(shellSource, /accessibilityRole="tab"/);

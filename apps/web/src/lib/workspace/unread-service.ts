@@ -552,6 +552,28 @@ export async function getActiveServerMemberUserIds(serverId: string) {
   );
 }
 
+/**
+ * Counts distinct server-room members whose live socket presence is visible.
+ * Socket.IO's Redis adapter keeps this correct across application instances and
+ * avoids deriving real-time presence from persisted user preferences.
+ */
+export async function getOnlineServerMemberCount(serverId: string) {
+  const io = getSocketServer();
+  if (!io) {
+    return 0;
+  }
+
+  const sockets = await io.in(`server:${serverId}`).fetchSockets();
+  const userIds = new Set<string>();
+  for (const socket of sockets) {
+    if (socket.data.presenceStatus !== "OFFLINE" && socket.data.userId) {
+      userIds.add(socket.data.userId);
+    }
+  }
+
+  return userIds.size;
+}
+
 export async function emitServerUnreadUpdateToUser(userId: string, serverId: string) {
   const [unreadCount, mentionCount] = await Promise.all([
     getServerUnreadCount(userId, serverId),

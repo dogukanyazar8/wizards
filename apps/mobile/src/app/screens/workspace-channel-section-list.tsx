@@ -12,23 +12,23 @@ import {
 } from "../mobile-root-screen-shared";
 import { AvatarMark } from "../components/ui-atoms";
 import { useTheme } from "../providers/mobile-theme-provider";
+import type { MobileWorkspaceLayout } from "../providers/mobile-workspace-layout-provider";
+import { MobileLineIcon } from "../../design/mobile-line-icons";
 import { useHomeScreenStyles } from "./home-screen.styles";
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
 
 export function WorkspaceChannelSectionList({
   isCollapseDisabled,
-  canManageChannels = false,
+  layout,
   onOpenChannel,
-  onOpenChannelSettings,
   onToggleSection,
   sections,
   selectedChannelId,
   voiceStates = [],
 }: {
   isCollapseDisabled: boolean;
-  canManageChannels?: boolean;
+  layout: MobileWorkspaceLayout;
   onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
-  onOpenChannelSettings?(channelId: string): void;
   onToggleSection(sectionId: string): void;
   sections: MobileVisibleWorkspaceChannelSection[];
   selectedChannelId: string | null;
@@ -36,6 +36,7 @@ export function WorkspaceChannelSectionList({
 }) {
   const styles = useHomeScreenStyles();
   const theme = useTheme();
+  const isRailLayout = layout === "rail";
   if (sections.length === 0) {
     return <Text style={styles.contractDescription}>{copy.workspaceNoChannels}</Text>;
   }
@@ -51,7 +52,11 @@ export function WorkspaceChannelSectionList({
 
   return (
     <FlashList
-      contentContainerStyle={styles.mobileWorkspaceSectionList}
+      contentContainerStyle={
+        isRailLayout
+          ? styles.mobileWorkspaceSectionListRail
+          : styles.mobileWorkspaceSectionList
+      }
       data={items}
       keyExtractor={(item) => item.id}
       onLoad={mobileListLoadHandlers.workspaceChannels}
@@ -61,10 +66,9 @@ export function WorkspaceChannelSectionList({
             <WorkspaceChannelCompactRow
               channel={item.channel}
               isSelected={item.channel.id === selectedChannelId}
+              layout={layout}
               onOpenChannel={onOpenChannel}
-              canManageChannels={canManageChannels}
               voiceState={voiceStates.find((state) => state.channelId === item.channel.id) ?? null}
-              {...(onOpenChannelSettings ? { onOpenChannelSettings } : {})}
             />
           );
         }
@@ -82,17 +86,26 @@ export function WorkspaceChannelSectionList({
             disabled={isCollapseDisabled}
             onPress={() => onToggleSection(section.id)}
             style={({ pressed }) => [
-              styles.mobileWorkspaceSectionHeader,
+              isRailLayout
+                ? styles.mobileWorkspaceSectionHeaderRail
+                : styles.mobileWorkspaceSectionHeader,
               pressed && styles.compactListRowPressed,
             ]}
           >
-            <Text style={styles.mobileWorkspaceSectionTitle}>{section.name}</Text>
+            <Text
+              style={
+                isRailLayout
+                  ? styles.mobileWorkspaceSectionTitleRail
+                  : styles.mobileWorkspaceSectionTitle
+              }
+            >
+              {section.name}
+            </Text>
             <View style={styles.mobileWorkspaceSectionMeta}>
-              <Text style={styles.mobileWorkspaceSectionCount}>{section.totalChannelCount}</Text>
-              <Ionicons
-                name={section.isCollapsed ? "chevron-forward" : "chevron-down"}
-                size={14}
-                color={theme.text.soft}
+              <MobileLineIcon
+                color={theme.text.visualFaint}
+                name={section.isCollapsed ? "chevron-right" : "chevron-down"}
+                size={16}
               />
             </View>
           </Pressable>
@@ -107,25 +120,26 @@ export function WorkspaceChannelSectionList({
 
 export function WorkspaceChannelCompactRow({
   channel,
-  canManageChannels = false,
   isSelected,
+  layout = "compact",
   onOpenChannel,
-  onOpenChannelSettings,
   voiceState,
 }: {
   channel: MobileWorkspaceChannelSummary;
-  canManageChannels?: boolean;
   isSelected: boolean;
+  layout?: MobileWorkspaceLayout;
   onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
-  onOpenChannelSettings?(channelId: string): void;
   voiceState: MobileVoiceChannelState | null;
 }) {
   const styles = useHomeScreenStyles();
   const theme = useTheme();
+  const isRailLayout = layout === "rail";
   const priority = getMobileChannelPriority(channel);
   const participants = channel.type === "VOICE" ? voiceState?.participants ?? [] : [];
-  const iconName =
-    channel.type === "TEXT" ? "chatbubble-ellipses-outline" : "volume-medium-outline";
+  const lastMessagePreview =
+    channel.type === "TEXT" && channel.lastMessage
+      ? `${channel.lastMessage.author.displayName ?? channel.lastMessage.author.username}: ${channel.lastMessage.text}`
+      : null;
 
   const channelRow = (
     <Pressable
@@ -137,26 +151,72 @@ export function WorkspaceChannelCompactRow({
       testID={`mobile-workspace-channel-${channel.type.toLowerCase()}`}
       onPress={() => onOpenChannel(channel)}
       style={({ pressed }) => [
-        styles.mobileWorkspaceChannelRow,
-        isSelected && styles.mobileWorkspaceChannelRowActive,
+        isRailLayout
+          ? styles.mobileWorkspaceChannelRowRail
+          : styles.mobileWorkspaceChannelRow,
+        isSelected &&
+          (isRailLayout
+            ? styles.mobileWorkspaceChannelRowRailActive
+            : styles.mobileWorkspaceChannelRowActive),
         pressed && styles.compactListRowPressed,
       ]}
     >
+      {isRailLayout ? (
+        channel.type === "TEXT" ? (
+          <Text
+            style={[
+              styles.mobileWorkspaceChannelHashRail,
+              isSelected && styles.mobileWorkspaceChannelHashRailActive,
+            ]}
+            testID="mobile-workspace-text-channel-hash"
+          >
+            #
+          </Text>
+        ) : (
+          <MobileLineIcon color={theme.status.visualText} name="speaker" size={16} />
+        )
+      ) : (
+        <View
+          testID={channel.type === "TEXT" ? "mobile-workspace-text-channel-icon" : undefined}
+          style={[
+            styles.mobileWorkspaceChannelIcon,
+            channel.type === "TEXT" && isSelected && styles.mobileWorkspaceChannelIconSelected,
+            channel.type === "VOICE" && styles.mobileWorkspaceChannelIconVoice,
+          ]}
+        >
+          {channel.type === "TEXT" ? (
+            <Text
+              style={[
+                styles.mobileWorkspaceChannelHash,
+                isSelected && styles.mobileWorkspaceChannelHashActive,
+              ]}
+              testID="mobile-workspace-text-channel-hash"
+            >
+              #
+            </Text>
+          ) : (
+            <MobileLineIcon color={theme.status.visualText} name="speaker" size={17} />
+          )}
+        </View>
+      )}
       <View
-        style={[
-          styles.mobileWorkspaceChannelIcon,
-          channel.type === "VOICE" && styles.mobileWorkspaceChannelIconVoice,
-        ]}
+        style={
+          isRailLayout ? styles.mobileWorkspaceChannelTextRail : styles.mobileWorkspaceChannelText
+        }
       >
-        <Ionicons
-          name={iconName}
-          size={15}
-          color={channel.type === "VOICE" ? theme.status.success : theme.accent.strong}
-        />
-      </View>
-      <View style={styles.mobileWorkspaceChannelText}>
         <View style={styles.compactListTitleRow}>
-          <Text style={styles.mobileWorkspaceChannelName} numberOfLines={1}>
+          <Text
+            style={[
+              isRailLayout
+                ? styles.mobileWorkspaceChannelNameRail
+                : styles.mobileWorkspaceChannelName,
+              isSelected &&
+                (isRailLayout
+                  ? styles.mobileWorkspaceChannelNameRailActive
+                  : styles.mobileWorkspaceChannelNameActive),
+            ]}
+            numberOfLines={1}
+          >
             {channel.name}
           </Text>
           {priority.hasMentions ? (
@@ -165,29 +225,41 @@ export function WorkspaceChannelCompactRow({
             <Text style={styles.mobileWorkspaceUnreadDot}>{channel.unreadCount}</Text>
           ) : null}
         </View>
-        {channel.topic ? (
+        {!isRailLayout && lastMessagePreview ? (
           <Text style={styles.mobileWorkspaceChannelMeta} numberOfLines={1}>
-            {channel.topic}
+            {lastMessagePreview}
           </Text>
         ) : null}
-        {participants.length > 0 ? (
+        {!isRailLayout && participants.length > 0 ? (
           <View style={styles.mobileWorkspaceVoicePresence} testID={`mobile-voice-state-${channel.id}`}>
-            <View style={styles.mobileWorkspaceVoiceAvatars}>
-              {participants.slice(0, 3).map((participant) => (
-                <AvatarMark
-                  key={participant.userId}
-                  imageUrl={participant.avatarUrl}
-                  label={participant.displayName ?? participant.username}
-                  size="small"
-                />
-              ))}
-            </View>
             <Text style={styles.mobileWorkspaceVoicePresenceText} numberOfLines={1}>
               {participants.length} {copy.voiceParticipantsSpeaking}
             </Text>
           </View>
         ) : null}
       </View>
+      {!isRailLayout && participants.length > 0 ? (
+        <View style={styles.mobileWorkspaceVoiceAvatars}>
+          {participants.slice(0, 3).map((participant, index) => (
+            <AvatarMark
+              key={participant.userId}
+              avatarBorderColor={theme.surface.base}
+              avatarBorderRadius={12}
+              avatarBorderWidth={2}
+              dimension={24}
+              imageUrl={participant.avatarUrl}
+              label={participant.displayName ?? participant.username}
+              size="small"
+              style={index === 0 ? undefined : { marginLeft: -8 }}
+            />
+          ))}
+        </View>
+      ) : null}
+      {isRailLayout && channel.type === "VOICE" && participants.length > 0 ? (
+        <Text style={styles.mobileWorkspaceVoicePresenceTextRail}>
+          {participants.length} {copy.voiceParticipantsSpeaking}
+        </Text>
+      ) : null}
       {priority.isLocked || priority.isReadOnly ? (
         <Ionicons
           name={priority.isLocked ? "lock-closed-outline" : "eye-off-outline"}
@@ -198,23 +270,5 @@ export function WorkspaceChannelCompactRow({
     </Pressable>
   );
 
-  if (!canManageChannels || !onOpenChannelSettings) {
-    return channelRow;
-  }
-
-  return (
-    <View style={{ alignItems: "stretch", flexDirection: "row", gap: 4 }}>
-      <View style={{ flex: 1 }}>{channelRow}</View>
-      <Pressable
-        accessibilityLabel={`${channel.name} ${copy.workspaceChannelSettingsAction}`}
-        accessibilityRole="button"
-        hitSlop={8}
-        onPress={() => onOpenChannelSettings(channel.id)}
-        style={{ alignItems: "center", justifyContent: "center", minWidth: 44 }}
-        testID={`mobile-channel-settings-open-${channel.id}`}
-      >
-        <Ionicons name="settings-outline" size={16} color={theme.text.soft} />
-      </Pressable>
-    </View>
-  );
+  return channelRow;
 }

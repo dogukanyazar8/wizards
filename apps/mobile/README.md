@@ -71,7 +71,7 @@ C:\whispr_dev\whispr_uat\whispr_mobile\
   artifacts\          archived and latest APKs
 ```
 
-That path is a validated NTFS junction to the script-owned short physical root `C:\wm`. React Native's Android CMake build canonicalizes junctions and cannot build reliably from the longer physical path; this arrangement keeps all state accessible at the managed path while preserving a native-safe physical path. Do not replace either the junction or the ownership marker manually. The Android SDK and JDK remain validated machine prerequisites; the script does not copy them. If pnpm detects a corrupt managed dependency layout, it clears only this managed build state and retries once. It never automatically deletes the legacy `C:\Wizards` or `C:\wp` directories.
+That path is a validated NTFS junction to the script-owned short physical root `C:\wm`. React Native's Android CMake build canonicalizes junctions and cannot build reliably from the longer physical path; this arrangement keeps all state accessible at the managed path while preserving a native-safe physical path. Do not replace either the junction or the ownership marker manually. The Android SDK and JDK remain validated machine prerequisites; the script does not copy them. Every UAT pnpm install explicitly pins its content and virtual stores to this managed root, then verifies the pnpm metadata and the `tsx` link before continuing. If that layout is corrupt or stale, it clears only this managed build state and retries once. It never automatically deletes the legacy `C:\Wizards` or `C:\wp` directories.
 
 Use the clean variant only when native caches or generated Android outputs look stale:
 

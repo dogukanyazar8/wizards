@@ -13,6 +13,7 @@ import { AppState, type AppStateStatus } from "react-native";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { getMobileRuntimeConfig } from "../../config/environment";
 import { mobileQueryKeys } from "../../query/mobile-query-keys";
+import { getMobileWorkspaceQueryOptions } from "../../query/mobile-workspace-query";
 import {
   type MobileRealtimeConnectionSnapshot,
   type MobileRealtimeEventEnvelope,
@@ -61,7 +62,7 @@ interface MobileRealtimeRuntime {
 const MobileRealtimeRuntimeContext = createContext<MobileRealtimeRuntime | null>(null);
 
 export function MobileRealtimeProvider({ children }: PropsWithChildren) {
-  const { getAccessToken, session, status } = useMobileAuth();
+  const { apiClient, getAccessToken, session, status } = useMobileAuth();
   const queryClient = useMobileQueryClient();
   const clientRef = useRef<MobileRealtimeClient | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
@@ -89,6 +90,8 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
         return { channelId, conversationId, serverId, voiceChannelId };
       },
       queryClient,
+      refreshWorkspace: (serverId) =>
+        queryClient.prefetchQuery(getMobileWorkspaceQueryOptions(apiClient, serverId)),
     }),
   );
 

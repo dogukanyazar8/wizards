@@ -936,6 +936,9 @@ export function Fixture({ cap }: { cap: number }) {
       primary: "#1E2235",
       secondary: "#62688B",
       soft: "#676D90",
+      visualFaint: "#8A90B0",
+      visualPlaceholder: "#9AA0BC",
+      visualSecondary: "#6B7194",
     });
     assert.deepEqual(darkTheme.text, {
       dateSeparator: "#6E7398",
@@ -948,6 +951,9 @@ export function Fixture({ cap }: { cap: number }) {
       primary: "#ECEEFA",
       secondary: "#9BA1C7",
       soft: "#8288AD",
+      visualFaint: "#6E7398",
+      visualPlaceholder: "#6E7398",
+      visualSecondary: "#9BA1C7",
     });
 
     assert.deepEqual(lightTheme.status, {
@@ -962,6 +968,7 @@ export function Fixture({ cap }: { cap: number }) {
       success: "#22C55E",
       successOnInverse: "#34D399",
       successSoft: "#E8F8EE",
+      visualText: "#22A366",
       successText: "#187A4C",
       warning: "#B45309",
       warningSoft: "#FFFBEB",
@@ -978,6 +985,7 @@ export function Fixture({ cap }: { cap: number }) {
       success: "#34D399",
       successOnInverse: "#34D399",
       successSoft: "rgba(52,211,153,.12)",
+      visualText: "#34D399",
       successText: "#34D399",
       warning: "#F59E0B",
       warningSoft: "rgba(245,158,11,.14)",

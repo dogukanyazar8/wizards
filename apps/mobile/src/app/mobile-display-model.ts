@@ -309,6 +309,8 @@ export function getMobileMessageEngagementCounts(message: MobileDisplayMessage):
 export type MobileMessageStreamItem<T extends { readonly createdAt: string; readonly id: string }> =
   {
     readonly id: string;
+    readonly isGroupedWithNext: boolean;
+    readonly isGroupedWithPrevious: boolean;
     readonly message: T;
     readonly showDateSeparator: boolean;
   };
@@ -328,20 +330,54 @@ export function getMobileDisplayMessageDayKey(value: string): string {
   return date.toISOString().slice(0, 10);
 }
 
+function getMobileMessageAuthorId(message: unknown): string | null {
+  if (!message || typeof message !== "object" || !("author" in message)) {
+    return null;
+  }
+
+  const author = message.author;
+  if (!author || typeof author !== "object" || !("id" in author)) {
+    return null;
+  }
+
+  const id = author.id;
+  return typeof id === "string" && id.trim().length > 0 ? id : null;
+}
+
+function shouldGroupMobileMessageStreamItems<
+  T extends { readonly createdAt: string; readonly id: string },
+>(previous: T, current: T): boolean {
+  const previousDayKey = getMobileDisplayMessageDayKey(previous.createdAt);
+  const currentDayKey = getMobileDisplayMessageDayKey(current.createdAt);
+  if (!previousDayKey || previousDayKey !== currentDayKey) {
+    return false;
+  }
+
+  const previousAuthorId = getMobileMessageAuthorId(previous);
+  return previousAuthorId !== null && previousAuthorId === getMobileMessageAuthorId(current);
+}
+
 export function getMobileMessageStreamItems<
   T extends { readonly createdAt: string; readonly id: string },
 >(messages: readonly T[], limit = MOBILE_RENDER_LIMITS.messages): MobileMessageStreamItem<T>[] {
-  let previousDayKey = "";
+  const visibleMessages = getBoundedMobileList(messages, limit, "end");
 
-  return getBoundedMobileList(messages, limit, "end").map((message) => {
+  return visibleMessages.map((message, index) => {
     const dayKey = getMobileDisplayMessageDayKey(message.createdAt);
-    const showDateSeparator = dayKey !== "" && dayKey !== previousDayKey;
-    previousDayKey = dayKey || previousDayKey;
+    const previousMessage = visibleMessages[index - 1];
+    const nextMessage = visibleMessages[index + 1];
+    const previousDayKey = previousMessage
+      ? getMobileDisplayMessageDayKey(previousMessage.createdAt)
+      : "";
 
     return {
       id: message.id,
+      isGroupedWithNext:
+        nextMessage !== undefined && shouldGroupMobileMessageStreamItems(message, nextMessage),
+      isGroupedWithPrevious:
+        previousMessage !== undefined && shouldGroupMobileMessageStreamItems(previousMessage, message),
       message,
-      showDateSeparator,
+      showDateSeparator: dayKey !== "" && dayKey !== previousDayKey,
     };
   });
 }

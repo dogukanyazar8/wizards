@@ -153,12 +153,12 @@ describe("AuthWelcomeScreen", () => {
       radialGradients: [
         {
           center: { x: 0.15, y: 0.08 },
-          color: "rgba(167,139,250,.25)",
+          color: "#A78BFA",
           transparentAt: 0.45,
         },
         {
           center: { x: 0.9, y: 0.35 },
-          color: "rgba(96,165,250,.18)",
+          color: "#60A5FA",
           transparentAt: 0.42,
         },
       ],
@@ -196,12 +196,12 @@ describe("AuthWelcomeScreen", () => {
       radialGradients: [
         {
           center: { x: 0.72, y: 0.1 },
-          color: "rgba(106,77,255,.28)",
+          color: "#6A4DFF",
           transparentAt: 0.31,
         },
         {
           center: { x: 0.13, y: 0.24 },
-          color: "rgba(63,107,255,.20)",
+          color: "#3F6BFF",
           transparentAt: 0.33,
         },
       ],

@@ -15,6 +15,7 @@ import {
 } from "@/lib/outbox/service";
 import type { AppSocketServer } from "@/lib/socket/runtime";
 import { createMessage } from "@/lib/workspace/message-service";
+import { toMobileChannelMessagePreview } from "@/lib/workspace/mobile-channel-message-preview";
 import {
   PRIVILEGED_PERMISSION_CACHE_MAX_AGE_SECONDS,
   filterUserIdsByChannelPermission,
@@ -155,6 +156,7 @@ async function emitChannelMessageFanout(args: {
       "channel:messages:stale",
       {
         channelId: args.channelId,
+        lastMessage: toMobileChannelMessagePreview(args.message),
         latestMessageId: args.message.id,
         serverId: args.serverId,
       },

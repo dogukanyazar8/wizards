@@ -33,6 +33,7 @@ import {
   type MobileWorkspaceChannelSummary,
   type MobileWorkspaceServerViewState,
 } from "../mobile-root-screen-shared";
+import type { UploadedAttachmentInput } from "@wizards/types";
 import { useMobileServerManagementFeature } from "../features/use-mobile-server-management-feature";
 import { MobileServerCreateJoinSheet } from "../../workspace/mobile-server-create-join-sheet";
 import { shareMobileInviteUrl } from "../../invite/mobile-invite-share";
@@ -46,8 +47,9 @@ import { MobileVoiceChannelScreen } from "./voice-screen";
 import { useHomeScreenStyles } from "./home-screen.styles";
 import { WorkspaceChannelSectionList } from "./workspace-channel-section-list";
 import { MobileWorkspaceServerSwitcherSheet } from "./mobile-workspace-server-switcher-sheet";
-import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { EmptyState, Skeleton } from "../components/kit";
+import { MobileLineIcon } from "../../design/mobile-line-icons";
+import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 
 export function MobileWorkspaceBrowser({
   attachmentsFeature,
@@ -153,7 +155,11 @@ export function MobileWorkspaceBrowser({
   }): Promise<void>;
   onSendChannelMessage(
     content: string,
-    intent?: { readonly replyToId?: string; readonly threadParentId?: string },
+    intent?: {
+      readonly attachments?: readonly UploadedAttachmentInput[];
+      readonly replyToId?: string;
+      readonly threadParentId?: string;
+    },
   ): Promise<boolean>;
   onSendChannelGif?(gifId: string): Promise<boolean>;
   onDeleteMessage(messageId: string): Promise<boolean>;
@@ -165,7 +171,7 @@ export function MobileWorkspaceBrowser({
   const styles = useHomeScreenStyles();
   const theme = useTheme();
   const { layout: workspaceLayout } = useMobileWorkspaceLayoutPreference();
-  const { apiClient } = useMobileAuth();
+  const { apiClient, getAccessToken } = useMobileAuth();
   const [channelQuery, setChannelQuery] = useState("");
   const [collapsedSectionIds, setCollapsedSectionIds] = useState<Record<string, boolean>>({});
   const [inviteShareError, setInviteShareError] = useState<string | null>(null);
@@ -194,6 +200,7 @@ export function MobileWorkspaceBrowser({
   const voiceStatesQuery = useMobileVoiceStatesQuery(apiClient, activeServerId ?? "");
   const voiceStates = voiceStatesQuery.data?.states ?? [];
   const activeMemberCount = activeServer?.memberCount ?? activeServerSummary?.memberCount ?? 0;
+  const activeOnlineMemberCount = activeServer?.onlineMemberCount ?? 0;
   const activeChannelCount =
     activeServer?.visibleChannelCount ?? activeServerSummary?.channelCount ?? 0;
   const activeTextChannel =
@@ -260,12 +267,7 @@ export function MobileWorkspaceBrowser({
     serverState.status === "error";
   const isCompactWorkspaceLayout = workspaceLayout === "compact";
   const canManageInvites = workspacePayload?.detail.capabilities.canManageInvites === true;
-  const canUploadServerIcon = workspacePayload?.detail.capabilities.canUploadServerIcon === true;
-  const canOpenServerSettings =
-    workspacePayload?.detail.capabilities.canManageServer === true ||
-    workspacePayload?.detail.capabilities.canManageChannels === true ||
-    workspacePayload?.detail.capabilities.canManageRoles === true ||
-    workspacePayload?.detail.capabilities.canKickMembers === true;
+  const canManageServer = workspacePayload?.detail.capabilities.canManageServer === true;
   const handleServerPress = useCallback(
     (serverId: string) => {
       setChannelQuery("");
@@ -307,9 +309,11 @@ export function MobileWorkspaceBrowser({
         attachmentsFeature={attachmentsFeature}
         channel={activeTextChannel}
         currentUserId={bootstrapState.payload.user.id}
+        getAccessToken={getAccessToken}
         isReactionMutationPending={isReactionMutationPending}
         mediaState={mediaState}
         memberCount={activeMemberCount}
+        onlineMemberCount={activeOnlineMemberCount}
         messageSearchFeature={messageSearchFeature}
         messageSearchState={messageSearchState}
         sendState={channelSendState}
@@ -329,6 +333,11 @@ export function MobileWorkspaceBrowser({
         onDeleteMessage={onDeleteMessage}
         onEditMessage={onEditMessage}
         {...(onOpenThread ? { onOpenThread } : {})}
+        onOpenMembers={() => {
+          if (activeServerId && mobileNavigationRef.isReady()) {
+            mobileNavigationRef.navigate("ServerMembers", { serverId: activeServerId });
+          }
+        }}
         onToggleMessageReaction={onToggleMessageReaction}
       />
     );
@@ -377,7 +386,7 @@ export function MobileWorkspaceBrowser({
         <View style={styles.mobileServerRailList}>
           {servers.map((server) => {
             const isActive = server.id === activeServerId;
-            const unreadCount = isActive && activeServer ? activeServer.unreadCount : 0;
+            const unreadCount = server.unreadCount;
 
             return (
               <Pressable
@@ -447,9 +456,12 @@ export function MobileWorkspaceBrowser({
               >
                 {isCompactWorkspaceLayout ? (
                   <AvatarMark
+                    avatarBorderRadius={15}
+                    avatarBorderWidth={0}
+                    fallbackTextStyle={styles.mobileWorkspaceHeaderAvatarFallback}
                     imageUrl={activeServerIconUrl}
                     label={activeServerShortName}
-                    size="large"
+                    size="regular"
                   />
                 ) : null}
                 <View style={styles.mobileWorkspaceHeaderText}>
@@ -457,28 +469,55 @@ export function MobileWorkspaceBrowser({
                     {activeServerName}
                   </Text>
                   <Text style={styles.mobileWorkspaceMeta} numberOfLines={1}>
-                    {activeMemberCount} {copy.membersSuffix} - {activeChannelCount}{" "}
+                    {activeMemberCount} {copy.membersSuffix} · {activeChannelCount}{" "}
                     {copy.channelsSuffix}
                   </Text>
                 </View>
                 {isActiveServerLoading ? (
                   <ActivityIndicator color={theme.accent.strong} size="small" />
                 ) : (
-                  <Ionicons name="chevron-down" size={18} color={theme.text.muted} />
+                  <MobileLineIcon
+                    color={theme.text.visualSecondary}
+                    name="chevron-down"
+                    size={20}
+                  />
                 )}
               </Pressable>
-              {isCompactWorkspaceLayout ? (
+              {isCompactWorkspaceLayout && canManageInvites ? (
                 <Pressable
-                  accessibilityLabel={copy.workspaceAddServerAction}
+                  accessibilityLabel={copy.workspaceServerInviteShareAction}
                   accessibilityRole="button"
-                  onPress={serverManagement.openCreateJoinSheet}
+                  disabled={serverManagement.busy}
+                  onPress={() => void handleInviteShare()}
                   style={({ pressed }) => [
                     styles.mobileWorkspaceCompactAddButton,
                     pressed && styles.compactListRowPressed,
                   ]}
-                  testID="mobile-workspace-compact-add-server"
+                  testID={`mobile-server-invite-share-${activeServerId}`}
                 >
-                  <Ionicons name="person-add-outline" size={20} color={theme.accent.strong} />
+                  <MobileLineIcon
+                    color={theme.accent.default}
+                    name="invite-user"
+                    size={20}
+                  />
+                </Pressable>
+              ) : null}
+              {isCompactWorkspaceLayout && canManageServer && activeServerId ? (
+                <Pressable
+                  accessibilityLabel={copy.workspaceServerSettingsAction}
+                  accessibilityRole="button"
+                  onPress={() => {
+                    if (mobileNavigationRef.isReady()) {
+                      mobileNavigationRef.navigate("ServerSettings", { serverId: activeServerId });
+                    }
+                  }}
+                  style={({ pressed }) => [
+                    styles.mobileWorkspaceCompactAddButton,
+                    pressed && styles.compactListRowPressed,
+                  ]}
+                  testID={`mobile-server-settings-open-${activeServerId}`}
+                >
+                  <Ionicons name="settings-outline" size={20} color={theme.accent.default} />
                 </Pressable>
               ) : null}
             </View>
@@ -490,45 +529,6 @@ export function MobileWorkspaceBrowser({
               </View>
             ) : null}
 
-            {canManageInvites ? (
-              <Pressable
-                accessibilityLabel={copy.workspaceServerInviteShareAction}
-                accessibilityRole="button"
-                disabled={serverManagement.busy}
-                onPress={() => void handleInviteShare()}
-                style={styles.retryButton}
-                testID={`mobile-server-invite-share-${activeServerId}`}
-              >
-                <Text style={styles.retryButtonText}>{copy.workspaceServerInviteShareAction}</Text>
-              </Pressable>
-            ) : null}
-            {canUploadServerIcon && activeServerId ? (
-              <Pressable
-                accessibilityLabel={copy.workspaceServerIconAction}
-                accessibilityRole="button"
-                disabled={serverManagement.busy}
-                onPress={() => serverManagement.openServerIconUpload(activeServerId)}
-                style={styles.retryButton}
-                testID={`mobile-server-icon-edit-${activeServerId}`}
-              >
-                <Text style={styles.retryButtonText}>{copy.workspaceServerIconAction}</Text>
-              </Pressable>
-            ) : null}
-            {canOpenServerSettings && activeServerId ? (
-              <Pressable
-                accessibilityLabel={copy.workspaceServerSettingsAction}
-                accessibilityRole="button"
-                onPress={() => {
-                  if (mobileNavigationRef.isReady()) {
-                    mobileNavigationRef.navigate("ServerSettings", { serverId: activeServerId });
-                  }
-                }}
-                style={styles.retryButton}
-                testID={`mobile-server-settings-open-${activeServerId}`}
-              >
-                <Text style={styles.retryButtonText}>{copy.workspaceServerSettingsAction}</Text>
-              </Pressable>
-            ) : null}
             {inviteShareError ? (
               <Text
                 accessibilityRole="alert"
@@ -539,17 +539,30 @@ export function MobileWorkspaceBrowser({
               </Text>
             ) : null}
 
-            <View style={styles.mobileWorkspaceSearchRow}>
+            <View
+              style={[
+                styles.mobileWorkspaceSearchRow,
+                isCompactWorkspaceLayout && styles.mobileWorkspaceSearchRowCompact,
+              ]}
+            >
               <View style={styles.mobileWorkspaceSearchBox}>
-                <Ionicons name="search-outline" size={16} color={theme.text.soft} />
+                <MobileLineIcon color={theme.text.visualPlaceholder} name="search" size={18} />
                 <TextInput
-                  accessibilityLabel={copy.workspaceSearchPlaceholder}
+                  accessibilityLabel={
+                    isCompactWorkspaceLayout
+                      ? copy.workspaceChannelSearchPlaceholder
+                      : copy.workspaceSearchPlaceholder
+                  }
                   autoCapitalize="none"
                   autoCorrect={false}
                   clearButtonMode="while-editing"
                   onChangeText={setChannelQuery}
-                  placeholder={copy.workspaceSearchPlaceholder}
-                  placeholderTextColor={theme.text.soft}
+                  placeholder={
+                    isCompactWorkspaceLayout
+                      ? copy.workspaceChannelSearchPlaceholder
+                      : copy.workspaceSearchPlaceholder
+                  }
+                    placeholderTextColor={theme.text.visualPlaceholder}
                   returnKeyType="search"
                   style={styles.mobileWorkspaceSearchInput}
                   value={channelQuery}
@@ -581,20 +594,12 @@ export function MobileWorkspaceBrowser({
             {workspacePayload ? (
               <>
                 <WorkspaceChannelSectionList
-                  canManageChannels={workspacePayload.detail.capabilities.canManageChannels}
+                  layout={workspaceLayout}
                   sections={visibleChannelSections}
                   selectedChannelId={selectedChannelId}
                   voiceStates={voiceStates}
                   isCollapseDisabled={isSearchingChannels}
                   onOpenChannel={onOpenChannel}
-                  onOpenChannelSettings={(channelId) => {
-                    if (mobileNavigationRef.isReady() && activeServerId) {
-                      mobileNavigationRef.navigate("ChannelSettings", {
-                        channelId,
-                        serverId: activeServerId,
-                      });
-                    }
-                  }}
                   onToggleSection={handleToggleSection}
                 />
                 {channelQuery.trim().length > 0 && channelSections.length === 0 ? (

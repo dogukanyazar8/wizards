@@ -597,7 +597,13 @@ function Invoke-PnpmInstallWithRecovery {
     $env:CI = "true"
     $requiresForcedReinstall = $false
     try {
-      Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "install", "--frozen-lockfile") -WorkingDirectory $WorkingDirectory
+      Invoke-CommandChecked -Command "corepack" -Arguments @(
+        "pnpm",
+        "--config.store-dir=$PhysicalStoreDir",
+        "--config.virtual-store-dir=$PhysicalVirtualStoreDir",
+        "install",
+        "--frozen-lockfile"
+      ) -WorkingDirectory $WorkingDirectory
     } catch {
       $requiresForcedReinstall = $true
     }
@@ -609,7 +615,14 @@ function Invoke-PnpmInstallWithRecovery {
 
     if ($requiresForcedReinstall) {
       Clear-WhisprUatPnpmState -ResolvedBuildHome $ResolvedBuildHome -PhysicalWorkspaceRoot $PhysicalWorkspaceRoot -PhysicalStoreDir $PhysicalStoreDir -PhysicalVirtualStoreDir $PhysicalVirtualStoreDir
-      Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "install", "--force", "--frozen-lockfile") -WorkingDirectory $WorkingDirectory
+      Invoke-CommandChecked -Command "corepack" -Arguments @(
+        "pnpm",
+        "--config.store-dir=$PhysicalStoreDir",
+        "--config.virtual-store-dir=$PhysicalVirtualStoreDir",
+        "install",
+        "--force",
+        "--frozen-lockfile"
+      ) -WorkingDirectory $WorkingDirectory
     }
 
     if (-not (Test-WhisprUatPnpmLayout -WorkingDirectory $WorkingDirectory -ExpectedVirtualStoreDir $PhysicalVirtualStoreDir)) {

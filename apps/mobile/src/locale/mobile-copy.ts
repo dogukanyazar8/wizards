@@ -240,6 +240,10 @@ export const mobileCopy = {
     composerEmojiUnavailableAction: "Emoji seçici henüz mobilde hazır değil",
     composerGifUnavailableAction: "GIF seçici henüz mobilde hazır değil",
     composerVoiceRecordUnavailableAction: "Sesli mesaj henüz mobilde hazır değil",
+    composerVoiceRecordAction: "Sesli mesaj kaydet",
+    composerVoiceStopAction: "Ses kaydını bitir",
+    composerVoicePermissionDenied: "Sesli mesaj kaydetmek için mikrofon izni gerekli.",
+    composerVoiceRecordFailed: "Ses kaydı hazırlanamadı. Lütfen tekrar dene.",
     composerAttachmentChecking: "Kontrol",
     composerAttachmentClearAction: "Dosya taslağını temizle",
     composerAttachmentDisabled:
@@ -259,6 +263,9 @@ export const mobileCopy = {
       "Bu dosya tipi Whispr mesaj ekleri için desteklenmiyor. Mesaj göndermek için taslağı temizle.",
     composerAttachmentUploadPending:
       "Dosya seçildi, ancak mobil yükleme akışı henüz etkin değil. Mesaj göndermek için taslağı temizle.",
+    composerAttachmentTooMany: "Bir mesajda en fazla 5 dosya paylaşabilirsin.",
+    composerAttachmentUploadFailed:
+      "Dosya yüklenemedi. Bağlantını kontrol edip tekrar deneyebilirsin.",
     dmComposerPlaceholder: "Bir mesaj gönder...",
     dmDeletedMessage: "Bu mesaj silindi.",
     dmMessagesLoadFailed:
@@ -334,6 +341,7 @@ export const mobileCopy = {
     homeServersLabel: "Sunucu",
     homeUnreadLabel: "Okunmamış",
     membersSuffix: "üye",
+    onlineMembersSuffix: "çevrimiçi",
     mediaSetupAction: "Medyayı hazırla",
     mediaSetupBlockedDescription: "Bu izin sistem ayarlarında kapalı. Whispr bunu otomatik açmaz.",
     mediaSetupBlockedTitle: "Sistem ayarı gerekiyor",
@@ -761,6 +769,7 @@ export const mobileCopy = {
     workspaceOtherChannelsLabel: "Diğer",
     workspaceReadOnlyLabel: "Salt okunur",
     workspaceSearchPlaceholder: "Ara",
+    workspaceChannelSearchPlaceholder: "Kanallarda ara",
     workspaceSectionCollapseAction: "kapat",
     workspaceSectionExpandAction: "aç",
     workspaceSelectChannel: "Mesajları görmek için bir metin kanalı seç.",
@@ -1007,6 +1016,10 @@ export const mobileCopy = {
     composerEmojiUnavailableAction: "Emoji picker is not ready on mobile yet",
     composerGifUnavailableAction: "GIF picker is not ready on mobile yet",
     composerVoiceRecordUnavailableAction: "Voice messages are not ready on mobile yet",
+    composerVoiceRecordAction: "Record a voice message",
+    composerVoiceStopAction: "Finish voice recording",
+    composerVoicePermissionDenied: "Microphone permission is required to record a voice message.",
+    composerVoiceRecordFailed: "The voice recording could not be prepared. Please try again.",
     composerAttachmentChecking: "Checking",
     composerAttachmentClearAction: "Clear file draft",
     composerAttachmentDisabled:
@@ -1026,6 +1039,9 @@ export const mobileCopy = {
       "This file type is not supported for Whispr message attachments. Clear the draft to send a message.",
     composerAttachmentUploadPending:
       "A file is selected, but mobile upload is not enabled yet. Clear the draft to send a message.",
+    composerAttachmentTooMany: "You can share up to 5 files in one message.",
+    composerAttachmentUploadFailed:
+      "The file could not be uploaded. Check your connection and try again.",
     dmComposerPlaceholder: "Send a message...",
     dmDeletedMessage: "This message was deleted.",
     dmMessagesLoadFailed:
@@ -1101,6 +1117,7 @@ export const mobileCopy = {
     homeServersLabel: "Servers",
     homeUnreadLabel: "Unread",
     membersSuffix: "members",
+    onlineMembersSuffix: "online",
     mediaSetupAction: "Prepare media",
     mediaSetupBlockedDescription:
       "This permission is disabled in system settings. Whispr will not enable it automatically.",
@@ -1534,6 +1551,7 @@ export const mobileCopy = {
     workspaceOtherChannelsLabel: "Other",
     workspaceReadOnlyLabel: "Read only",
     workspaceSearchPlaceholder: "Search",
+    workspaceChannelSearchPlaceholder: "Search channels",
     workspaceSectionCollapseAction: "collapse",
     workspaceSectionExpandAction: "expand",
     workspaceSelectChannel: "Select a text channel to view messages.",

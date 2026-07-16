@@ -20,7 +20,7 @@ import {
 } from "../mobile-root-screen-shared";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import * as Clipboard from "expo-clipboard";
-import { Alert } from "react-native";
+import { Alert, Linking } from "react-native";
 import { AvatarMark } from "./ui-atoms";
 import { MobileCachedImage } from "./mobile-cached-image";
 import { ContextMenu, Icon, Skeleton, type ContextMenuAction } from "./kit";
@@ -61,7 +61,7 @@ function getMessageReactionActionLabel(emoji: string, shouldReact: boolean): str
 
 function MessageBodyText({ body, channel }: { readonly body: string; readonly channel: boolean }) {
   const styles = useMessagePrimitiveStyles();
-  const segments = body.split(/(@[\p{L}\p{N}_.-]+)/gu);
+  const segments = body.split(/(@[\p{L}\p{N}_.-]+|https:\/\/[^\s]+)/gu);
 
   return (
     <Text
@@ -71,13 +71,32 @@ function MessageBodyText({ body, channel }: { readonly body: string; readonly ch
       {segments.map((segment, index) => (
         <Text
           key={`${index}:${segment}`}
-          style={segment.startsWith("@") ? styles.messageMention : undefined}
+          onPress={
+            segment.startsWith("https://")
+              ? () => void Linking.openURL(segment).catch(() => undefined)
+              : undefined
+          }
+          style={
+            segment.startsWith("https://")
+              ? styles.messageLink
+              : segment.startsWith("@")
+                ? styles.messageMention
+                : undefined
+          }
         >
           {segment}
         </Text>
       ))}
     </Text>
   );
+}
+
+function getReplyAuthorName(replyTo: NonNullable<MobileRenderableMessage["replyTo"]>): string {
+  if ("authorName" in replyTo) {
+    return replyTo.authorName;
+  }
+
+  return replyTo.author.displayName ?? replyTo.author.username;
 }
 
 export function MessageListSkeleton({
@@ -313,7 +332,13 @@ function getMobileAttachmentPreviewUri(attachment: MobileRenderableAttachment): 
   return contentType.startsWith("image/") && previewUrl ? previewUrl : null;
 }
 
-export function MessageDateSeparator({ createdAt }: { createdAt: string }) {
+export function MessageDateSeparator({
+  createdAt,
+  variant = "conversation",
+}: {
+  createdAt: string;
+  variant?: "channel" | "conversation";
+}) {
   const styles = useMessagePrimitiveStyles();
   const { locale } = useMobileLocaleRuntime();
   const label = formatMobileDateSeparator(createdAt, locale);
@@ -329,7 +354,12 @@ export function MessageDateSeparator({ createdAt }: { createdAt: string }) {
       style={styles.messageDateSeparator}
     >
       <View style={styles.messageDateLine} />
-      <Text style={styles.messageDateText}>{label}</Text>
+      <Text
+        style={[styles.messageDateText, variant === "channel" && styles.messageDateTextChannel]}
+        testID={variant === "channel" ? "mobile-channel-message-date" : undefined}
+      >
+        {label}
+      </Text>
       <View style={styles.messageDateLine} />
     </View>
   );
@@ -352,7 +382,7 @@ export function MessageAttachmentList({
         const previewUri = getMobileAttachmentPreviewUri(attachment);
         const sizeLabel = formatMobileAttachmentSize(attachment.size);
 
-        return (
+        const attachmentCard = (
           <View
             key={attachment.id}
             accessible
@@ -390,6 +420,22 @@ export function MessageAttachmentList({
             </View>
           </View>
         );
+
+        if (!previewUri && attachment.url) {
+          return (
+            <Pressable
+              accessibilityLabel={attachment.filename}
+              accessibilityRole="link"
+              key={attachment.id}
+              onPress={() => void Linking.openURL(attachment.url!).catch(() => undefined)}
+              testID={`mobile-message-attachment-${attachment.id}`}
+            >
+              {attachmentCard}
+            </Pressable>
+          );
+        }
+
+        return attachmentCard;
       })}
       <MessageImageLightbox
         onClose={() => setLightboxUri(null)}
@@ -514,6 +560,7 @@ export function MessageStream({
 
 export function MessagePreviewRow({
   currentUserId,
+  channelGroupContinuation = false,
   isReactionMutationPending = false,
   mode = "conversation",
   message,
@@ -526,6 +573,7 @@ export function MessagePreviewRow({
   own = false,
 }: {
   currentUserId?: string;
+  channelGroupContinuation?: boolean;
   isReactionMutationPending?: boolean;
   mode?: "channel" | "conversation";
   message: MobileRenderableMessage;
@@ -653,60 +701,112 @@ export function MessagePreviewRow({
         !isChannelMode && own && styles.messagePreviewRowOwn,
       ]}
     >
-      {isChannelMode || !own ? (
+      {isChannelMode && channelGroupContinuation ? (
+        <View
+          style={styles.messagePreviewAvatarSpacerChannel}
+          testID={`mobile-channel-message-avatar-spacer-${message.id}`}
+        />
+      ) : isChannelMode || !own ? (
         <AvatarMark
+          {...(isChannelMode
+            ? { avatarBorderRadius: 14, avatarBorderWidth: 0, dimension: 40 }
+            : {})}
+          identityId={message.author.id}
           label={authorLabel}
           imageUrl={message.author.avatarUrl}
-          size={isChannelMode ? "large" : "small"}
-          status={message.author.status === "ONLINE" ? "active" : "idle"}
+          size={isChannelMode ? "regular" : "small"}
+          {...(!isChannelMode
+            ? { status: message.author.status === "ONLINE" ? "active" : "idle" }
+            : {})}
         />
       ) : null}
-      <View
-        style={[
-          styles.messagePreviewBubble,
-          isChannelMode && styles.messagePreviewBubbleChannel,
-          !isChannelMode && own && styles.messagePreviewBubbleOwn,
-        ]}
-      >
-        <View style={[styles.dmMessageHeader, isChannelMode && styles.messagePreviewHeaderChannel]}>
-          <Text
-            style={[styles.dmMessageAuthor, isChannelMode && styles.messagePreviewAuthorChannel]}
-            numberOfLines={1}
-          >
-            {isChannelMode ? authorLabel : own ? copy.messageYouLabel : authorLabel}
-          </Text>
-          <Text style={styles.dmMessageTime}>{formatMobileDisplayTime(message.createdAt)}</Text>
-        </View>
-        {message.replyTo ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => onOpenReply?.(message.replyTo!.id)}
-            testID={`mobile-message-reply-quote-${message.id}`}
-          >
-            <Text style={styles.messageReplyQuote} numberOfLines={2}>
-              {message.replyTo.content || copy.dmDeletedMessage}
+      <View style={isChannelMode ? styles.messagePreviewChannelContent : undefined}>
+        {!isChannelMode || !channelGroupContinuation ? (
+          <View style={[styles.dmMessageHeader, isChannelMode && styles.messagePreviewHeaderChannel]}>
+            <Text
+              style={[styles.dmMessageAuthor, isChannelMode && styles.messagePreviewAuthorChannel]}
+              numberOfLines={1}
+            >
+              {isChannelMode ? authorLabel : own ? copy.messageYouLabel : authorLabel}
             </Text>
-          </Pressable>
+            <Text style={[styles.dmMessageTime, isChannelMode && styles.messagePreviewTimeChannel]}>
+              {formatMobileDisplayTime(message.createdAt)}
+            </Text>
+          </View>
         ) : null}
-        <MessageBodyText body={body} channel={isChannelMode} />
-        {previewUrl ? <MobileLinkPreviewCard messageId={message.id} url={previewUrl} /> : null}
-        {message.editedAt ? (
-          <Text style={styles.dmMessageTime}>{copy.messageEditedLabel}</Text>
+        <View
+          style={[
+            styles.messagePreviewBubble,
+            isChannelMode && styles.messagePreviewBubbleChannel,
+            isChannelMode &&
+              channelGroupContinuation &&
+              styles.messagePreviewBubbleChannelContinuation,
+            !isChannelMode && own && styles.messagePreviewBubbleOwn,
+          ]}
+          testID={isChannelMode ? `mobile-channel-message-bubble-${message.id}` : undefined}
+        >
+          {message.replyTo ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => onOpenReply?.(message.replyTo!.id)}
+              style={isChannelMode ? styles.messageReplyQuoteChannel : undefined}
+              testID={`mobile-message-reply-quote-${message.id}`}
+            >
+              {isChannelMode ? (
+                <>
+                  <Text style={styles.messageReplyQuoteChannelAuthor} numberOfLines={1}>
+                    {getReplyAuthorName(message.replyTo)}
+                  </Text>
+                  <Text style={styles.messageReplyQuoteChannelContent} numberOfLines={1}>
+                    {message.replyTo.content || copy.dmDeletedMessage}
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.messageReplyQuote} numberOfLines={2}>
+                  {message.replyTo.content || copy.dmDeletedMessage}
+                </Text>
+              )}
+            </Pressable>
+          ) : null}
+          <MessageBodyText body={body} channel={isChannelMode} />
+          {!isChannelMode && previewUrl ? (
+            <MobileLinkPreviewCard messageId={message.id} url={previewUrl} />
+          ) : null}
+          {message.editedAt ? (
+            <Text style={styles.dmMessageTime}>{copy.messageEditedLabel}</Text>
+          ) : null}
+          <MessageAttachmentList attachments={message.attachments} />
+          {!isChannelMode ? (
+            <MessageReactionList
+              messageId={message.id}
+              reactions={message.reactions}
+              {...(currentUserId ? { currentUserId } : {})}
+              {...(onToggleReaction ? { onToggleReaction } : {})}
+            />
+          ) : null}
+        </View>
+        {isChannelMode ? (
+          <MessageReactionList
+            messageId={message.id}
+            reactions={message.reactions}
+            {...(currentUserId ? { currentUserId } : {})}
+            {...(onToggleReaction ? { onToggleReaction } : {})}
+          />
         ) : null}
-        <MessageAttachmentList attachments={message.attachments} />
-        <MessageReactionList
-          messageId={message.id}
-          reactions={message.reactions}
-          {...(currentUserId ? { currentUserId } : {})}
-          {...(onToggleReaction ? { onToggleReaction } : {})}
-        />
         {message.threadSummary && message.threadSummary.replyCount > 0 && onOpenThread ? (
           <Pressable
             accessibilityRole="button"
             onPress={() => onOpenThread(message.id)}
-            testID={`mobile-message-thread-summary-${message.id}`}
+            style={isChannelMode ? styles.messagePreviewThreadSummary : undefined}
+            testID={
+              isChannelMode
+                ? `mobile-channel-message-thread-${message.id}`
+                : `mobile-message-thread-summary-${message.id}`
+            }
           >
-            <Text style={styles.messageReplyQuote}>
+            <Text
+              style={isChannelMode ? styles.messagePreviewThreadSummaryText : styles.messageReplyQuote}
+            >
               {copy.messageThreadReplyCountLabel.replace(
                 "{count}",
                 String(message.threadSummary.replyCount),

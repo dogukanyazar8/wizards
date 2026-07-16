@@ -44,7 +44,7 @@ describe("mobile store contract", () => {
       NSCameraUsageDescription:
         "Whispr uses the camera only when you choose to join video calls or share video.",
       NSMicrophoneUsageDescription:
-        "Whispr uses the microphone only when you join voice channels or calls.",
+        "Whispr uses the microphone only when you choose to join voice channels, calls, or record a voice message.",
       NSPhotoLibraryUsageDescription:
         "Whispr uses your photo library only when you choose media to upload.",
     });

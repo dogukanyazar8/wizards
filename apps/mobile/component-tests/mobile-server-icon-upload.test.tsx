@@ -39,11 +39,11 @@ describe("mobile server icon upload", () => {
       expect(onUploadServerIcon).toHaveBeenCalledWith("server-existing", expect.any(Function)),
     );
 
-    const workspaceBrowser = readFileSync(
-      join(process.cwd(), "src", "app", "screens", "workspace-browser.tsx"),
+    const serverSettingsScreen = readFileSync(
+      join(process.cwd(), "src", "workspace", "mobile-server-settings-screen.tsx"),
       "utf8",
     );
-    expect(workspaceBrowser).toMatch(/capabilities\.canUploadServerIcon === true/);
-    expect(workspaceBrowser).toMatch(/openServerIconUpload\(activeServerId\)/);
+    expect(serverSettingsScreen).toMatch(/capabilities\?\.canUploadServerIcon/);
+    expect(serverSettingsScreen).toMatch(/onPress=\{\(\) => void uploadIcon\(\)\}/);
   });
 });

@@ -15,6 +15,8 @@ import {
 } from "./attachment-rules";
 export {
   MESSAGE_ATTACHMENT_ACCEPT,
+  MESSAGE_AUDIO_CONTENT_TYPES,
+  MESSAGE_AUDIO_MAX_BYTES,
   MESSAGE_ATTACHMENT_CONTENT_TYPES,
   MESSAGE_ATTACHMENT_MAX_COUNT,
   MESSAGE_FILE_CONTENT_TYPES,
@@ -26,6 +28,7 @@ export {
   MESSAGE_VIDEO_MAX_BYTES,
   getMessageAttachmentMaxBytes,
   isMessageAttachmentFilenameAllowed,
+  isMessageAudioContentType,
   isMessageFileContentType,
   isMessageGifContentType,
   isMessageImageContentType,

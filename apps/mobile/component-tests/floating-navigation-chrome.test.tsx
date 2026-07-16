@@ -2,7 +2,11 @@ import React from "react";
 import { fireEvent } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 import { BottomTabBarHeightCallbackContext } from "@react-navigation/bottom-tabs";
-import { FloatingNavigationChrome } from "../src/navigation/floating-navigation-chrome";
+import {
+  createFloatingNavigationChromeStyles,
+  FloatingNavigationChrome,
+} from "../src/navigation/floating-navigation-chrome";
+import { lightTheme } from "../src/design/themes";
 import type { MobileVoiceRoomConnectionStatus } from "../src/voice/mobile-voice-room-contract";
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
@@ -13,10 +17,13 @@ jest.mock("../src/app/providers/mobile-haptics-provider", () => ({
 }));
 
 jest.mock("../src/navigation/mobile-bottom-tab-bar", () => ({
-  MobileBottomTabBar: () => {
+  MobileBottomTabBar: ({ bottomSafeAreaInset }: { readonly bottomSafeAreaInset: number }) => {
     const React = require("react");
     const { View } = require("react-native");
-    return React.createElement(View, { testID: "mobile-floating-navigation-pill" });
+    return React.createElement(View, {
+      bottomSafeAreaInset,
+      testID: "mobile-floating-navigation-pill",
+    });
   },
 }));
 
@@ -80,8 +87,36 @@ async function renderChrome({
 }
 
 describe("FloatingNavigationChrome", () => {
+  it("uses the canonical 1a mini-voice typography without Android font padding", () => {
+    const styles = createFloatingNavigationChromeStyles(lightTheme);
+
+    expect(styles.miniVoiceBarTitle).toEqual(
+      expect.objectContaining({
+        fontFamily: lightTheme.typography.fontFamilyBold,
+        fontSize: 13.5,
+        fontWeight: "700",
+        includeFontPadding: false,
+        lineHeight: 17,
+      }),
+    );
+    expect(styles.miniVoiceBarStatus).toEqual(
+      expect.objectContaining({
+        fontFamily: lightTheme.typography.fontFamilySemiBold,
+        fontSize: 11.5,
+        fontWeight: "600",
+        includeFontPadding: false,
+        lineHeight: 15,
+      }),
+    );
+  });
+
   it("reports the measured tab-only height to React Navigation", async () => {
     const view = await renderChrome({ status: "idle" });
+
+    expect(view.view.getByTestId("mobile-floating-navigation-pill").props.bottomSafeAreaInset).toBe(0);
+    expect(view.view.getByTestId("mobile-floating-navigation-chrome").props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ paddingBottom: 18 })]),
+    );
 
     await fireEvent(view.view.getByTestId("mobile-floating-navigation-chrome"), "layout", {
       nativeEvent: { layout: { height: 94, width: 320, x: 0, y: 0 } },

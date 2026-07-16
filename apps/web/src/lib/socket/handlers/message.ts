@@ -38,6 +38,7 @@ import {
   editMessage,
   setReaction,
 } from "@/lib/workspace/message-service";
+import { toMobileChannelMessagePreview } from "@/lib/workspace/mobile-channel-message-preview";
 import {
   PRIVILEGED_PERMISSION_CACHE_MAX_AGE_SECONDS,
   filterUserIdsByChannelPermission,
@@ -246,6 +247,7 @@ export function registerMessageHandlers(
           "channel:messages:stale",
           {
             channelId: data.channelId,
+            lastMessage: toMobileChannelMessagePreview(message),
             latestMessageId: message.id,
             serverId: channel.serverId,
           },

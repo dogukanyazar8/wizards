@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { MobileWorkspaceChannelSummary } from "@wizards/types";
+import type { MobileWorkspaceChannelSummary, UploadedAttachmentInput } from "@wizards/types";
 import type { MobileApiClient } from "../../api/mobile-api-client";
 import type { MobileSessionUser } from "../../auth/session-types";
 import { summarizeMobileBootstrap } from "../../bootstrap/mobile-bootstrap";
@@ -343,18 +343,32 @@ export function useMobileMessagingFeature({
   const handleSendChannelMessage = useCallback(
     async (
       content: string,
-      intent?: { readonly replyToId?: string; readonly threadParentId?: string },
+      intent?: {
+        readonly attachments?: readonly UploadedAttachmentInput[];
+        readonly replyToId?: string;
+        readonly threadParentId?: string;
+      },
     ): Promise<boolean> => {
       const trimmedContent = content.trim();
+      const attachments = intent?.attachments ?? [];
 
-      if (!isSignedIn || !activeWorkspaceTextChannelId || trimmedContent.length === 0) {
+      if (
+        !isSignedIn ||
+        !activeWorkspaceTextChannelId ||
+        (trimmedContent.length === 0 && attachments.length === 0)
+      ) {
         return false;
       }
 
       stopChannelTyping(activeWorkspaceTextChannelId);
 
       try {
-        await sendChannelMessage({ content: trimmedContent, ...intent });
+        await sendChannelMessage({
+          content: trimmedContent,
+          ...(attachments.length > 0 ? { attachments: [...attachments] } : {}),
+          ...(intent?.replyToId ? { replyToId: intent.replyToId } : {}),
+          ...(intent?.threadParentId ? { threadParentId: intent.threadParentId } : {}),
+        });
         return true;
       } catch {
         return false;

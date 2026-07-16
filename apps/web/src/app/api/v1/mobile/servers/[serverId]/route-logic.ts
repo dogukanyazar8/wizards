@@ -198,6 +198,7 @@ function toMobileWorkspaceServerDetail(
       memberCount: detail.server.memberCount,
       mentionCount: detail.server.mentionCount,
       name: detail.server.name,
+      onlineMemberCount: detail.server.onlineMemberCount ?? 0,
       shortName: detail.server.shortName,
       unreadCount: detail.server.unreadCount,
       visibleChannelCount: returnedChannelCount,

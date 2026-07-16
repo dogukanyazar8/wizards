@@ -27,6 +27,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "../mobile-root-screen-shared";
+import type { UploadedAttachmentInput } from "@wizards/types";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { DMComposer, type MobileComposerIntent } from "../composer/mobile-composer";
 import {
@@ -51,6 +52,7 @@ export function MobileChannelChatScreen({
   isReactionMutationPending,
   mediaState,
   memberCount,
+  onlineMemberCount,
   messageSearchFeature,
   messageSearchState,
   onBack,
@@ -66,18 +68,22 @@ export function MobileChannelChatScreen({
   onDeleteMessage,
   onEditMessage,
   onOpenThread,
+  onOpenMembers,
   onToggleMessageReaction,
   sendState,
   serverName,
   state,
   typingLabel,
+  getAccessToken,
 }: {
   attachmentsFeature: MobileBootstrapFeature | null;
   channel: MobileWorkspaceChannelSummary;
+  getAccessToken(): Promise<string | null>;
   currentUserId: string;
   isReactionMutationPending: boolean;
   mediaState: MobileMediaRuntimeState;
   memberCount: number;
+  onlineMemberCount: number;
   messageSearchFeature: MobileBootstrapFeature | null;
   messageSearchState: MobileMessageSearchViewState;
   onBack(): void;
@@ -94,12 +100,17 @@ export function MobileChannelChatScreen({
   }): Promise<void>;
   onSendMessage(
     content: string,
-    intent?: { readonly replyToId?: string; readonly threadParentId?: string },
+    intent?: {
+      readonly attachments?: readonly UploadedAttachmentInput[];
+      readonly replyToId?: string;
+      readonly threadParentId?: string;
+    },
   ): Promise<boolean>;
   onSendGif?(gifId: string): Promise<boolean>;
   onDeleteMessage(messageId: string): Promise<boolean>;
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onOpenThread?(messageId: string): void;
+  onOpenMembers?(): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   sendState: MobileChannelSendViewState;
   serverName: string;
@@ -134,6 +145,11 @@ export function MobileChannelChatScreen({
         },
       ),
     [channel, memberCount, serverName, state.payload?.channel],
+  );
+  const memberPresenceLabel = useMemo(
+    () =>
+      `${headerModel.memberCountLabel} \u00B7 ${Math.max(0, onlineMemberCount)} ${copy.onlineMembersSuffix}`,
+    [headerModel.memberCountLabel, onlineMemberCount],
   );
   const searchVisibility = getMobileChannelChatSearchVisibility({
     closeLabel: copy.channelSearchCloseAction,
@@ -174,13 +190,18 @@ export function MobileChannelChatScreen({
     setComposerIntent({ content: message.content, messageId: message.id, mode: "edit" });
   }, []);
   const handleComposerSend = useCallback(
-    (content: string) =>
-      composerIntent?.mode === "edit"
-        ? onEditMessage({ content, messageId: composerIntent.messageId })
-        : onSendMessage(
-            content,
-            composerIntent ? { replyToId: composerIntent.messageId } : undefined,
-          ),
+    (content: string, attachments: readonly UploadedAttachmentInput[] = []) => {
+      if (composerIntent?.mode === "edit") {
+        return attachments.length === 0
+          ? onEditMessage({ content, messageId: composerIntent.messageId })
+          : Promise.resolve(false);
+      }
+
+      return onSendMessage(content, {
+        ...(composerIntent ? { replyToId: composerIntent.messageId } : {}),
+        ...(attachments.length > 0 ? { attachments } : {}),
+      });
+    },
     [composerIntent, onEditMessage, onSendMessage],
   );
 
@@ -200,6 +221,7 @@ export function MobileChannelChatScreen({
             accessibilityRole="button"
             accessibilityLabel={copy.channelBackAction}
             onPress={onBack}
+            hitSlop={11}
             style={({ pressed }) => [
               styles.mobileChannelChatBackButton,
               pressed && styles.actionButtonPressed,
@@ -217,10 +239,10 @@ export function MobileChannelChatScreen({
           </View>
           <View style={styles.mobileChannelChatHeaderText}>
             <Text style={styles.mobileChannelChatTitle} numberOfLines={1}>
-              # {headerModel.channelName}
+              {headerModel.channelName}
             </Text>
             <Text style={styles.mobileChannelChatTopic} numberOfLines={1}>
-              {headerModel.topic ?? copy.channelStartDescription}
+              {memberPresenceLabel}
             </Text>
           </View>
           {searchVisibility.isSearchAvailable ? (
@@ -247,17 +269,18 @@ export function MobileChannelChatScreen({
           ) : null}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={copy.membersSuffix}
-            accessibilityState={{ disabled: true }}
-            disabled
+            accessibilityLabel={memberPresenceLabel}
+            accessibilityState={{ disabled: !onOpenMembers }}
+            disabled={!onOpenMembers}
+            onPress={onOpenMembers}
             style={({ pressed }) => [
               styles.mobileChannelChatIconButton,
-              styles.mobileChannelChatIconButtonDisabled,
+              !onOpenMembers && styles.mobileChannelChatIconButtonDisabled,
               pressed && styles.actionButtonPressed,
             ]}
             testID="mobile-channel-members-button"
           >
-            <Ionicons name="people-outline" size={18} color={theme.text.muted} />
+            <Ionicons name="person-outline" size={17} color={theme.text.muted} />
           </Pressable>
         </View>
 
@@ -288,6 +311,7 @@ export function MobileChannelChatScreen({
             <ChannelTypingIndicator label={typingLabel} />
             <DMComposer
               attachmentsFeature={attachmentsFeature}
+              getAccessToken={getAccessToken}
               placeholder={copy.channelComposerPlaceholder}
               sendActionLabel={copy.channelSendAction}
               sendState={channelSendState}
@@ -378,15 +402,24 @@ export function ChannelMessageList({
 
   const renderItem = useCallback(
     ({ item }: { item: MobileMessageStreamItem<MobileRenderableMessage> }) => (
-      <View style={styles.messageStreamItem}>
-        {item.showDateSeparator ? (
-          <MessageDateSeparator createdAt={item.message.createdAt} />
-        ) : null}
+      <View
+        style={[
+          styles.messageStreamItem,
+          styles.mobileChannelMessageItem,
+          item.isGroupedWithNext
+            ? styles.mobileChannelMessageGroupedSpacing
+            : styles.mobileChannelMessageGroupSpacing,
+        ]}
+      >
+          {item.showDateSeparator ? (
+            <MessageDateSeparator createdAt={item.message.createdAt} variant="channel" />
+          ) : null}
         <MemoizedMessagePreviewRow
           currentUserId={currentUserId}
           isReactionMutationPending={isReactionMutationPending}
           message={item.message}
           mode="channel"
+          channelGroupContinuation={item.isGroupedWithPrevious}
           own={item.message.author.id === currentUserId}
           {...(onOpenThread ? { onOpenThread } : {})}
           onOpenReply={handleOpenReply}

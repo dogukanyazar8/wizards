@@ -41,7 +41,7 @@
       "androidPermission": "RECORD_AUDIO",
       "id": "microphone",
       "iosInfoPlistKey": "NSMicrophoneUsageDescription",
-      "usageDescription": "Whispr uses the microphone only when you join voice channels or calls.",
+      "usageDescription": "Whispr uses the microphone only when you choose to join voice channels, calls, or record a voice message.",
       "userActionRequired": true
     },
     {

@@ -16,6 +16,7 @@ import {
   type MobileSyncSnapshot,
   type ReactNode,
 } from "../mobile-root-screen-shared";
+import type { TextStyle, ViewProps } from "react-native";
 import { Avatar as KitAvatar, Button as KitButton, EmptyState as KitEmptyState } from "./kit";
 import { useUiAtomStyles } from "./ui-atoms.styles";
 import { useTheme } from "../providers/mobile-theme-provider";
@@ -343,23 +344,43 @@ export function FeatureStatusCard({
 }
 
 export function AvatarMark({
+  avatarBorderColor,
+  avatarBorderRadius,
+  avatarBorderWidth,
+  dimension,
+  fallbackTextStyle,
+  identityId,
   imageUrl,
   label,
   size = "regular",
   status,
+  style,
 }: {
+  avatarBorderColor?: string;
+  avatarBorderRadius?: number;
+  avatarBorderWidth?: number;
+  dimension?: number;
+  fallbackTextStyle?: TextStyle;
+  identityId?: string;
   imageUrl: string | null;
   label: string;
   size?: "large" | "regular" | "small";
   status?: "active" | "idle";
+  style?: ViewProps["style"];
 }) {
-  const styles = useUiAtomStyles();
   return (
     <KitAvatar
+      {...(avatarBorderColor ? { avatarBorderColor } : {})}
+      {...(avatarBorderRadius !== undefined ? { avatarBorderRadius } : {})}
+      {...(avatarBorderWidth !== undefined ? { avatarBorderWidth } : {})}
+      {...(dimension !== undefined ? { dimension } : {})}
+      {...(fallbackTextStyle ? { fallbackTextStyle } : {})}
+      {...(identityId ? { identityId } : {})}
       imageUrl={imageUrl}
       label={label}
       size={size === "large" ? "lg" : size === "small" ? "sm" : "md"}
       {...(status ? { status } : {})}
+      style={style}
     />
   );
 }

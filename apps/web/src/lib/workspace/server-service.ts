@@ -21,6 +21,7 @@ import { generateInviteCode } from "@/lib/workspace/invite-code";
 import { invalidateServerPermissionCache } from "@/lib/workspace/permission-cache";
 import {
   getBoundedMobileServerUnreadSummary,
+  getOnlineServerMemberCount,
   getServerChannelUnreadCounts,
   getServerMentionCount,
   getServerUnreadAndMentionCounts,
@@ -52,6 +53,7 @@ import {
   SERVER_MEMBERS_PAGE_LIMIT,
 } from "@/lib/workspace/workspace-constants";
 import type { AccessContext, ChannelRecord } from "@/lib/workspace/workspace-types";
+import { toMobileChannelMessagePreview } from "@/lib/workspace/mobile-channel-message-preview";
 
 const MOBILE_SERVER_DETAIL_CATEGORY_LIMIT = 20;
 const MOBILE_SERVER_DETAIL_CHANNEL_PER_CATEGORY_LIMIT = 40;
@@ -74,14 +76,9 @@ export type MobileWorkspaceServerDetailProjection = {
     | "name"
     | "shortName"
     | "unreadCount"
-  >;
+  > & { onlineMemberCount: number };
   ungroupedChannels: WorkspaceServerDetail["ungroupedChannels"];
 };
-
-function toMobilePreviewText(content: string): string | null {
-  const text = content.trim().replace(/\s+/g, " ").slice(0, 240);
-  return text.length > 0 ? text : null;
-}
 
 function toMobileWorkspaceChannel(
   channel: ChannelRecord,
@@ -95,19 +92,10 @@ function toMobileWorkspaceChannel(
   } | null;
 } {
   const lastMessage = channel.messages?.[0];
-  const text = lastMessage ? toMobilePreviewText(lastMessage.content) : null;
 
   return {
     ...toWorkspaceChannel(channel, unreadCounts),
-    lastMessage:
-      lastMessage && text
-        ? {
-            author: lastMessage.author,
-            createdAt: lastMessage.createdAt.toISOString(),
-            id: lastMessage.id,
-            text,
-          }
-        : null,
+    lastMessage: lastMessage ? toMobileChannelMessagePreview(lastMessage) : null,
   };
 }
 
@@ -705,11 +693,10 @@ async function loadMobileWorkspaceServerDetail(access: AccessContext): Promise<{
   ]
     .filter((channel) => channel.type === ChannelType.TEXT)
     .map((channel) => channel.id);
-  const unreadSummary = await getBoundedMobileServerUnreadSummary(
-    userId,
-    serverId,
-    visibleTextChannelIds,
-  );
+  const [unreadSummary, onlineMemberCount] = await Promise.all([
+    getBoundedMobileServerUnreadSummary(userId, serverId, visibleTextChannelIds),
+    getOnlineServerMemberCount(serverId),
+  ]);
   const categories = mapMobileCategories(boundedCategoryRows, unreadSummary.channelUnreadCounts);
   const ungroupedChannels = boundedUngroupedRows.map((channel) =>
     toMobileWorkspaceChannel(channel, unreadSummary.channelUnreadCounts),
@@ -729,6 +716,7 @@ async function loadMobileWorkspaceServerDetail(access: AccessContext): Promise<{
         memberCount: server._count.members,
         mentionCount: unreadSummary.mentionCount,
         name: server.name,
+        onlineMemberCount,
         shortName: server.shortName,
         unreadCount: unreadSummary.unreadCount,
       },

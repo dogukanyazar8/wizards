@@ -155,6 +155,8 @@ export interface MobileTheme {
     /** Canonical success accent for icons and controls on inverse surfaces. */
     readonly successOnInverse: string;
     readonly successSoft: string;
+    /** Exact handoff success foreground for compact metadata. */
+    readonly visualText: string;
     /** Accessible success foreground for audited text contexts. */
     readonly successText: string;
     readonly warning: string;
@@ -179,6 +181,12 @@ export interface MobileTheme {
     /** Reference-critical date-divider color; do not use for normal body text. */
     readonly dateSeparator: string;
     readonly inverse: string;
+    /** Exact handoff faint foreground for compact labels and channel glyphs. */
+    readonly visualFaint: string;
+    /** Exact handoff placeholder foreground for compact search controls. */
+    readonly visualPlaceholder: string;
+    /** Exact handoff secondary foreground for compact metadata. */
+    readonly visualSecondary: string;
     readonly muted: string;
     readonly onInverseMuted: string;
     readonly onInverse: string;
@@ -345,10 +353,11 @@ export const lightTheme = deepFreeze({
     info: mobilePalette.status.info,
     infoSoft: mobilePalette.status.infoSoft,
     onStatus: redesignLight.text,
-    success: redesignLight.success,
-    successOnInverse: redesignDark.success,
-    successSoft: redesignLight.successSurface,
-    successText: redesignLight.successText,
+      success: redesignLight.success,
+      successOnInverse: redesignDark.success,
+      successSoft: redesignLight.successSurface,
+      visualText: redesignLight.canonicalSuccessText,
+      successText: redesignLight.successText,
     warning: mobilePalette.status.warning,
     warningSoft: mobilePalette.status.warningSoft,
   },
@@ -368,9 +377,12 @@ export const lightTheme = deepFreeze({
     statusBar: "dark",
   },
   text: {
-    dateSeparator: redesignLight.canonicalTextFaint,
-    inverse: mobilePalette.neutral.white,
-    muted: redesignLight.textFaint,
+      dateSeparator: redesignLight.canonicalTextFaint,
+      inverse: mobilePalette.neutral.white,
+      visualFaint: redesignLight.canonicalTextFaint,
+      visualPlaceholder: redesignLight.canonicalPlaceholder,
+      visualSecondary: redesignLight.canonicalTextSecondary,
+      muted: redesignLight.textFaint,
     onInverseMuted: "#9BA1C7",
     onInverse: mobilePalette.neutral.white,
     onPrimary: mobilePalette.neutral.white,
@@ -506,10 +518,11 @@ export const darkTheme = deepFreeze({
     info: mobilePalette.status.infoDark,
     infoSoft: mobilePalette.status.infoSoftDark,
     onStatus: redesignDark.text,
-    success: redesignDark.success,
-    successOnInverse: redesignDark.success,
-    successSoft: redesignDark.successSurface,
-    successText: redesignDark.success,
+      success: redesignDark.success,
+      successOnInverse: redesignDark.success,
+      successSoft: redesignDark.successSurface,
+      visualText: redesignDark.success,
+      successText: redesignDark.success,
     warning: redesignDark.warning,
     warningSoft: redesignDark.warningSurface,
   },
@@ -529,9 +542,12 @@ export const darkTheme = deepFreeze({
     statusBar: "light",
   },
   text: {
-    dateSeparator: redesignDark.canonicalTextFaint,
-    inverse: mobilePalette.neutral.white,
-    muted: redesignDark.textFaint,
+      dateSeparator: redesignDark.canonicalTextFaint,
+      inverse: mobilePalette.neutral.white,
+      visualFaint: redesignDark.canonicalTextFaint,
+      visualPlaceholder: redesignDark.canonicalTextFaint,
+      visualSecondary: redesignDark.textSecondary,
+      muted: redesignDark.textFaint,
     onInverseMuted: "#9BA1C7",
     onInverse: mobilePalette.neutral.white,
     onPrimary: mobilePalette.neutral.white,

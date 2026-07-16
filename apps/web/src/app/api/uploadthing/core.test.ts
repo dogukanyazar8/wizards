@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { MobileMediaUploadIntentSchema } from "@wizards/types";
-import { isUploadUserAllowed, uploadRouter } from "./core";
+import {
+  isUploadUserAllowed,
+  resolveMessageUploadUserId,
+  uploadRouter,
+} from "./core";
 
 const existingRouteConfigs = {
   messageAttachmentUploader: {
+    "audio/mp4": { maxFileCount: 5, maxFileSize: "16MB" },
     "application/msword": { maxFileCount: 5, maxFileSize: "16MB" },
     "application/pdf": { maxFileCount: 5, maxFileSize: "16MB" },
     "application/rtf": { maxFileCount: 5, maxFileSize: "16MB" },
@@ -90,6 +95,47 @@ describe("UploadThing active-user guard", () => {
       }),
       false,
     );
+  });
+});
+
+describe("message attachment mobile authentication", () => {
+  it("uses the verified mobile bearer identity when the upload request has a bearer token", async () => {
+    const requireMobileApiUserId = async () => "mobile-user-1";
+    const requireWebUploadUser = async () => {
+      throw new Error("web session must not be used for bearer uploads");
+    };
+
+    const userId = await resolveMessageUploadUserId({
+      dependencies: { requireMobileApiUserId, requireWebUploadUser },
+      request: new Request("https://whispr.test/api/uploadthing", {
+        headers: { Authorization: "Bearer mobile-access-token" },
+      }),
+    });
+
+    assert.equal(userId, "mobile-user-1");
+  });
+
+  it("does not fall back to a web session when bearer verification fails", async () => {
+    let webFallbackCalled = false;
+
+    await assert.rejects(() =>
+      resolveMessageUploadUserId({
+        dependencies: {
+          requireMobileApiUserId: async () => {
+            throw new Error("invalid bearer token");
+          },
+          requireWebUploadUser: async () => {
+            webFallbackCalled = true;
+            return "web-user-1";
+          },
+        },
+        request: new Request("https://whispr.test/api/uploadthing", {
+          headers: { Authorization: "Bearer invalid-token" },
+        }),
+      }),
+    );
+
+    assert.equal(webFallbackCalled, false);
   });
 });
 

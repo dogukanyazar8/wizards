@@ -1,10 +1,18 @@
 import React from "react";
 import { AppState, type AppStateStatus } from "react-native";
-import { act } from "@testing-library/react-native";
+import { act, render } from "@testing-library/react-native";
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 
 import { MobilePrivacyShield } from "../src/app/components/mobile-privacy-shield";
-import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
+import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
+
+function renderPrivacyShield() {
+  return render(
+    <MobileThemeProvider>
+      <MobilePrivacyShield />
+    </MobileThemeProvider>,
+  );
+}
 
 describe("MobilePrivacyShield", () => {
   afterEach(() => {
@@ -18,16 +26,24 @@ describe("MobilePrivacyShield", () => {
       return { remove: jest.fn() };
     });
 
-    const view = await render(<MobilePrivacyShield />);
-    await act(() => onChange?.("active"));
+    const view = await renderPrivacyShield();
+    await act(async () => {
+      onChange?.("active");
+    });
     expect(view.queryByTestId("mobile-privacy-shield")).toBeNull();
 
-    await act(() => onChange?.("inactive"));
+    await act(async () => {
+      onChange?.("inactive");
+    });
     expect(view.getByTestId("mobile-privacy-shield")).toBeTruthy();
-    await act(() => onChange?.("background"));
+    await act(async () => {
+      onChange?.("background");
+    });
     expect(view.getByTestId("mobile-privacy-shield")).toBeTruthy();
 
-    await act(() => onChange?.("active"));
+    await act(async () => {
+      onChange?.("active");
+    });
     expect(view.queryByTestId("mobile-privacy-shield")).toBeNull();
   });
 });

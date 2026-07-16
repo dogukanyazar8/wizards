@@ -1,6 +1,8 @@
 import type { InfiniteData, QueryClient, QueryKey } from "@tanstack/react-query";
 import {
+  ChatMessageSchema,
   DMMessagePayloadSchema,
+  MobileChannelMessagesStaleEventSchema,
   MobilePresenceUpdateEventSchema,
   MobileServerUnreadUpdateEventSchema,
   MobileServerMembershipAddedEventSchema,
@@ -67,6 +69,7 @@ export interface MobileRealtimeQueryBridge {
 interface CreateMobileRealtimeQueryBridgeOptions {
   readonly getActiveTargets: () => MobileRealtimeActiveTargets;
   readonly queryClient: QueryClient;
+  readonly refreshWorkspace?: (serverId: string) => Promise<unknown>;
   readonly scheduler?: MobileRealtimeQueryBridgeScheduler;
 }
 
@@ -82,6 +85,7 @@ const defaultScheduler: MobileRealtimeQueryBridgeScheduler = {
 export function createMobileRealtimeQueryBridge({
   getActiveTargets,
   queryClient,
+  refreshWorkspace,
   scheduler = defaultScheduler,
 }: CreateMobileRealtimeQueryBridgeOptions): MobileRealtimeQueryBridge {
   const timers = new Map<
@@ -137,7 +141,12 @@ export function createMobileRealtimeQueryBridge({
     if (source === "presence") {
       scheduleInvalidations(source, [
         mobileQueryKeys.friends(),
-        ...(targets.serverId ? [mobileQueryKeys.workspaceMembers(targets.serverId)] : []),
+        ...(targets.serverId
+          ? [
+              mobileQueryKeys.workspace(targets.serverId),
+              mobileQueryKeys.workspaceMembers(targets.serverId),
+            ]
+          : []),
       ]);
       return;
     }
@@ -475,6 +484,141 @@ export function createMobileRealtimeQueryBridge({
     return handled;
   };
 
+  const patchWorkspaceChannelLastMessage = (args: {
+    readonly channelId: string;
+    readonly preview: {
+      readonly author: { readonly displayName: string | null; readonly id: string; readonly username: string };
+      readonly createdAt: string;
+      readonly id: string;
+      readonly text: string;
+    };
+    readonly serverId: string;
+    readonly updateExistingOnly: boolean;
+  }): boolean => {
+    let patched = false;
+
+    queryClient.setQueryData<MobileManagedWorkspaceServerDetailResponse>(
+      mobileQueryKeys.workspace(args.serverId),
+      (current) => {
+        if (!current) {
+          return current;
+        }
+        if (
+          !Array.isArray(current.detail.categories) ||
+          !Array.isArray(current.detail.ungroupedChannels)
+        ) {
+          return current;
+        }
+
+        const patchChannel = <T extends { readonly id: string; readonly lastMessage: unknown }>(
+          channel: T,
+        ): T => {
+          if (channel.id !== args.channelId) {
+            return channel;
+          }
+
+          const existing = channel.lastMessage as { readonly createdAt?: unknown; readonly id?: unknown } | null;
+          if (
+            (args.updateExistingOnly && existing?.id !== args.preview.id) ||
+            (!args.updateExistingOnly &&
+              typeof existing?.createdAt === "string" &&
+              existing.createdAt > args.preview.createdAt)
+          ) {
+            return channel;
+          }
+
+          patched = true;
+          return { ...channel, lastMessage: args.preview };
+        };
+
+        const categories = current.detail.categories.map((category) => ({
+          ...category,
+          channels: category.channels.map(patchChannel),
+        }));
+        const ungroupedChannels = current.detail.ungroupedChannels.map(patchChannel);
+
+        if (!patched) {
+          return current;
+        }
+
+        return {
+          ...current,
+          detail: { ...current.detail, categories, ungroupedChannels },
+        };
+      },
+    );
+
+    return patched;
+  };
+
+  const patchWorkspaceChannelLastMessageFromEvent = (event: MobileRealtimeEventEnvelope) => {
+    if (event.eventName === "channel:messages:stale") {
+      const stale = MobileChannelMessagesStaleEventSchema.safeParse(event.payload);
+      if (!stale.success || !stale.data.lastMessage) {
+        return false;
+      }
+
+      return patchWorkspaceChannelLastMessage({
+        channelId: stale.data.channelId,
+        preview: stale.data.lastMessage,
+        serverId: stale.data.serverId,
+        updateExistingOnly: false,
+      });
+    }
+
+    if (event.eventName !== "message:new" && event.eventName !== "message:updated") {
+      return false;
+    }
+
+    const message = ChatMessageSchema.safeParse(event.payload);
+    const targets = getActiveTargets();
+    if (!message.success || !targets.serverId || message.data.channelId !== targets.channelId) {
+      return false;
+    }
+
+    const text = message.data.content.trim().replace(/\s+/g, " ").slice(0, 240);
+    if (!text) {
+      return false;
+    }
+
+    return patchWorkspaceChannelLastMessage({
+      channelId: message.data.channelId,
+      preview: {
+        author: {
+          displayName: message.data.author.displayName,
+          id: message.data.author.id,
+          username: message.data.author.username,
+        },
+        createdAt: message.data.createdAt,
+        id: message.data.id,
+        text,
+      },
+      serverId: targets.serverId,
+      updateExistingOnly: event.eventName === "message:updated",
+    });
+  };
+
+  const refreshWorkspaceImmediatelyForChannelEvent = (event: MobileRealtimeEventEnvelope) => {
+    if (
+      event.eventName !== "channel:messages:stale" &&
+      !isMobileRealtimeChannelMessagePayloadEvent(event.eventName)
+    ) {
+      return false;
+    }
+
+    const serverId = event.serverId ?? getActiveTargets().serverId;
+    if (!serverId) {
+      return false;
+    }
+
+    void queryClient.invalidateQueries({
+      exact: true,
+      queryKey: mobileQueryKeys.workspace(serverId),
+    });
+    void refreshWorkspace?.(serverId);
+    return true;
+  };
+
   return {
     backfill(sources) {
       for (const source of new Set(sources)) {
@@ -497,13 +641,18 @@ export function createMobileRealtimeQueryBridge({
         return;
       }
 
+      const workspaceChannelPreviewPatched = patchWorkspaceChannelLastMessageFromEvent(event);
       const channelEventHandled = applyActiveChannelEvent(event);
       const dmEventHandled = applyActiveDMEvent(event);
+      const workspaceRefreshedImmediately = refreshWorkspaceImmediatelyForChannelEvent(event);
       for (const source of event.refreshSources) {
-        if (source === "channel" && channelEventHandled) {
+        if (source === "channel" && (channelEventHandled || workspaceChannelPreviewPatched)) {
           continue;
         }
         if (source === "dm" && dmEventHandled) {
+          continue;
+        }
+        if (source === "workspace" && workspaceRefreshedImmediately) {
           continue;
         }
         scheduleSource(source, event);

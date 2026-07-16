@@ -5,6 +5,7 @@ export const MOBILE_REALTIME_SERVER_EVENTS = [
   "message:removed",
   "message:history_cleared",
   "message:reaction_updated",
+  "channel:messages:stale",
   "server:unread:update",
   "server:membership:added",
   "server:membership:removed",
@@ -112,6 +113,7 @@ const DM_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
 ]);
 
 const WORKSPACE_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
+  "channel:messages:stale",
   "server:membership:added",
   "server:membership:removed",
   "server:settings:updated",
@@ -139,6 +141,12 @@ type MobileValidatedRealtimePayload = {
 type MobileRealtimePayloadParser = (payload: unknown) => MobileValidatedRealtimePayload | null;
 
 const MOBILE_REALTIME_PAYLOAD_PARSERS = {
+  "channel:messages:stale": (payload) => {
+    const parsed = MobileChannelMessagesStaleEventSchema.safeParse(payload);
+    return parsed.success
+      ? { channelId: parsed.data.channelId, payload: parsed.data, serverId: parsed.data.serverId }
+      : null;
+  },
   "message:history_cleared": (payload) => {
     const parsed = MobileMessageHistoryClearedEventSchema.safeParse(payload);
     return parsed.success
@@ -238,6 +246,7 @@ export function getMobileRealtimeRefreshSources(
 
   if (CHANNEL_REFRESH_EVENTS.has(eventName)) {
     sources.add("channel");
+    sources.add("workspace");
   }
 
   if (DM_REFRESH_EVENTS.has(eventName)) {
@@ -370,6 +379,7 @@ export function validateMobileRealtimeContract(): string[] {
   return issues;
 }
 import {
+  MobileChannelMessagesStaleEventSchema,
   MobileMessageHistoryClearedEventSchema,
   MobilePresenceUpdateEventSchema,
   MobileServerUnreadUpdateEventSchema,

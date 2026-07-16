@@ -103,7 +103,9 @@ test("build-only Android APK scripts do not require or mutate a connected device
   assert.match(buildScript, /"store-dir"\s*=\s*\$StoreDir/);
   assert.match(buildScript, /\[int\]\$PnpmVirtualStoreMaxLength\s*=\s*40/);
   assert.match(buildScript, /"virtual-store-dir-max-length"\s*=\s*\$VirtualStoreMaxLength/);
+  assert.match(buildScript, /"--config\.store-dir=\$PhysicalStoreDir"/);
+  assert.match(buildScript, /"--config\.virtual-store-dir=\$PhysicalVirtualStoreDir"/);
   assert.match(buildScript, /\$env:GRADLE_USER_HOME\s*=\s*\$gradleUserHome/);
-  assert.match(buildScript, /"--force", "--frozen-lockfile"/);
+  assert.match(buildScript, /"--force",\s*"--frozen-lockfile"/);
   assert.match(buildScript, /\$env:CI\s*=\s*"true"/);
 });

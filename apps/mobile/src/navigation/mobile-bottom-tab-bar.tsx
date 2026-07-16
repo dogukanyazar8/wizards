@@ -123,7 +123,7 @@ function MobileTabIcon({
   return (
     <View style={styles.navVisualWrap}>
       <MobileLineIcon
-        color={isActive ? theme.accent.default : theme.text.soft}
+        color={isActive ? theme.accent.default : theme.text.visualFaint}
         name={icon}
         size={22}
       />
@@ -169,12 +169,15 @@ export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
     navLabel: {
       ...theme.typography.tabLabel,
       maxWidth: "100%",
-      color: theme.text.soft,
+      color: theme.text.visualFaint,
+      fontWeight: "600",
+      includeFontPadding: false,
       textAlign: "center",
     },
     navLabelActive: {
       color: theme.accent.default,
       fontFamily: theme.typography.fontFamilyBold,
+      fontWeight: "700",
     },
     navUnreadDot: {
       position: "absolute",
