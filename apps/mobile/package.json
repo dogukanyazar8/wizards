@@ -23,13 +23,9 @@
     "test:components": "jest",
     "typecheck": "tsc --noEmit",
     "validate:env": "node --import tsx scripts/validate-mobile-env.ts",
-    "visual:reference:extract": "node --import tsx scripts/mobile-redesign-extract.ts",
-    "visual:reference:verify": "node --import tsx scripts/mobile-redesign-reference.ts",
-    "visual:golden:generate": "node --import tsx scripts/mobile-redesign-golden-transform.ts",
     "visual:capture:android": "node --import tsx scripts/mobile-redesign-device-capture.ts --platform android",
     "visual:capture:ios": "node --import tsx scripts/mobile-redesign-device-capture.ts --platform ios",
     "visual:diff": "node --import tsx scripts/mobile-redesign-diff.ts",
-    "visual:golden-drift": "node --import tsx scripts/mobile-redesign-golden-drift.ts",
     "visual:gate": "node --import tsx scripts/mobile-redesign-visual-gate.ts"
   },
   "dependencies": {

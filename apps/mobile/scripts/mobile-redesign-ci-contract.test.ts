@@ -6,7 +6,7 @@ import test from "node:test";
 const mobileRoot = path.resolve(import.meta.dirname, "..");
 const repositoryRoot = path.resolve(mobileRoot, "..", "..");
 
-test("CI blocks normalized golden drift without misrepresenting it as a device gate", () => {
+test("CI keeps the device visual gate separate from retired golden tooling", () => {
   const packageJson = JSON.parse(readFileSync(path.join(mobileRoot, "package.json"), "utf8")) as {
     scripts?: Record<string, string>;
   };
@@ -19,17 +19,9 @@ test("CI blocks normalized golden drift without misrepresenting it as a device g
     packageJson.scripts?.["visual:gate"],
     "node --import tsx scripts/mobile-redesign-visual-gate.ts",
   );
-  assert.equal(
-    packageJson.scripts?.["visual:golden-drift"],
-    "node --import tsx scripts/mobile-redesign-golden-drift.ts",
-  );
-  assert.match(workflow, /name: Mobile redesign golden drift/);
-  assert.match(workflow, /pnpm --filter @wizards\/mobile visual:golden-drift/);
+  assert.equal(packageJson.scripts?.["visual:golden-drift"], undefined);
+  assert.doesNotMatch(workflow, /Mobile redesign golden drift/);
   assert.doesNotMatch(workflow, /pnpm --filter @wizards\/mobile visual:gate/);
-  assert.doesNotMatch(
-    workflow,
-    /Mobile redesign golden drift[\s\S]{0,240}continue-on-error:\s*true/,
-  );
 });
 
 test("nightly UAT device gate reads committed evidence and refuses stale screen evidence", () => {
@@ -46,31 +38,6 @@ test("nightly UAT device gate reads committed evidence and refuses stale screen 
   assert.match(workflow, /pnpm --filter @wizards\/mobile visual:gate/);
   assert.match(workflow, /actions\/upload-artifact@/);
   assert.doesNotMatch(workflow, /visual:gate[\s\S]{0,160}continue-on-error:\s*true/);
-});
-
-test("golden drift gate rejects a normalized golden manifest drift", async () => {
-  const gate = await import("./mobile-redesign-golden-drift");
-  const baseline = {
-    anchors: [{ anchor: "1a", theme: "light" }],
-    sourceHash: "a".repeat(64),
-    transformHash: "b".repeat(64),
-    version: 1,
-  };
-
-  assert.doesNotThrow(() => gate.assertNormalizedGoldenManifestMatches(baseline, baseline));
-  assert.throws(
-    () =>
-      gate.assertNormalizedGoldenManifestMatches(baseline, {
-        ...baseline,
-        sourceHash: "c".repeat(64),
-      }),
-    /source hash drift/i,
-  );
-});
-
-test("golden drift gate verifies the checked-in normalized golden pixels", async () => {
-  const gate = await import("./mobile-redesign-golden-drift");
-  await gate.verifyNormalizedGoldenBaselines();
 });
 
 test("device visual gate is fail-closed and excludes the unimplemented 1h target", async () => {

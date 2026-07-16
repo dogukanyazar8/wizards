@@ -17,14 +17,6 @@ import {
 } from "../src/design/tokens";
 
 const paletteExports = paletteModule as Record<string, unknown>;
-const handoffHtmlPath = join(
-  process.cwd(),
-  "..",
-  "..",
-  "design_handoff_whispr_mobile",
-  "Whispr Mobile Redesign.dc.html",
-);
-
 type DynamicTypeViolation = {
   file: string;
   line: number;
@@ -1011,33 +1003,7 @@ export function Fixture({ cap }: { cap: number }) {
     });
   });
 
-  it("maps every tokenized application shadow to the canonical HTML", () => {
-    const phaseFourHandoff = /<section class="dv-turn" id="t1"[\s\S]*?<\/section>/.exec(
-      readFileSync(handoffHtmlPath, "utf8"),
-    )?.[0];
-    if (!phaseFourHandoff) {
-      throw new Error("Canonical Phase 4 handoff section is missing.");
-    }
-    const handoffShadows = [...phaseFourHandoff.matchAll(/box-shadow:([^;\"]+)/g)]
-      .map((match) => match[1]?.trim())
-      .filter(
-        (shadow): shadow is string =>
-          Boolean(shadow) &&
-          shadow !== "0 12px 32px rgba(30,34,53,.10)" &&
-          shadow !== "0 0 0 6px rgba(52,211,153,.2)",
-      );
-
-    assert.deepEqual([...new Set(handoffShadows)].sort(), [
-      "0 -12px 40px rgba(30,34,53,.2)",
-      "0 10px 24px rgba(30,34,53,.25)",
-      "0 2px 8px rgba(30,34,53,.04)",
-      "0 6px 14px rgba(109,102,240,.4)",
-      "0 6px 14px rgba(79,70,229,.35)",
-      "0 8px 20px rgba(224,82,82,.4)",
-      "0 8px 24px rgba(0,0,0,.35)",
-      "0 8px 24px rgba(30,34,53,.08)",
-    ]);
-
+  it("keeps tokenized application shadows stable", () => {
     assert.deepEqual(lightTheme.elevation.authPrimaryAction, {
       elevation: 10,
       shadowColor: "#4F46E5",

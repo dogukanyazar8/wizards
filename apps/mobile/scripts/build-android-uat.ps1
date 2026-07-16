@@ -1,15 +1,14 @@
 param(
   [string]$SourceRoot,
-  [string]$BuildRoot = "C:\Wizards",
-  [string]$ApkOutputDir = "C:\Wizards\artifacts\mobile\uat",
+  [string]$BuildHome = "C:\wm",
+  [string]$ManagedBuildRoot = "C:\whispr_dev\whispr_uat\whispr_mobile",
+  [string]$BuildRoot,
+  [string]$ApkOutputDir,
   [string]$JavaHome = "C:\Program Files\Java\jdk-17",
   [string]$AndroidHome = "$env:LOCALAPPDATA\Android\Sdk",
   [string]$AndroidArchitectures,
   [ValidateSet("debug", "release")]
   [string]$BuildType = "debug",
-  # Keep staging dependencies isolated from developer worktrees while retaining
-  # a short path for Windows CMake/Ninja.
-  [string]$PnpmVirtualStoreDir = "C:\wp",
   [ValidateRange(32, 120)]
   [int]$PnpmVirtualStoreMaxLength = 40,
   [int]$WaitForDeviceSeconds = 90,
@@ -25,6 +24,7 @@ Set-StrictMode -Version Latest
 
 $PackageName = "team.whispr.mobile"
 $UatUrl = "https://wizardsweb-uat.up.railway.app"
+$BuildHomeMarkerFileName = ".whispr-mobile-uat-build-root.json"
 
 function Write-Step {
   param([string]$Message)
@@ -40,6 +40,136 @@ function Resolve-ExistingPath {
   }
 
   return (Resolve-Path -LiteralPath $PathValue).Path
+}
+
+function Initialize-WhisprUatBuildHome {
+  param([string]$BuildHomePath)
+
+  if (-not [System.IO.Path]::IsPathRooted($BuildHomePath)) {
+    throw "BuildHome must be an absolute path. Received: $BuildHomePath"
+  }
+
+  New-Item -ItemType Directory -Force -Path $BuildHomePath | Out-Null
+  $resolvedBuildHome = Resolve-ExistingPath $BuildHomePath "BuildHome"
+  $markerPath = Join-Path $resolvedBuildHome $BuildHomeMarkerFileName
+
+  if (Test-Path -LiteralPath $markerPath) {
+    try {
+      $marker = Get-Content -Raw -LiteralPath $markerPath | ConvertFrom-Json
+    } catch {
+      throw "BuildHome marker is invalid: $markerPath"
+    }
+
+    if ($marker.managedBy -ne "whispr-mobile-uat") {
+      throw "BuildHome is not owned by the Whispr mobile UAT build script: $resolvedBuildHome"
+    }
+  } else {
+    $existingEntries = @(
+      Get-ChildItem -Force -LiteralPath $resolvedBuildHome |
+        Where-Object { $_.Name -ne $BuildHomeMarkerFileName }
+    )
+    if ($existingEntries.Count -gt 0) {
+      throw "BuildHome is not empty and has no Whispr UAT ownership marker: $resolvedBuildHome"
+    }
+
+    [pscustomobject]@{
+      managedBy = "whispr-mobile-uat"
+      schemaVersion = 1
+    } | ConvertTo-Json | Set-Content -LiteralPath $markerPath -Encoding utf8
+  }
+
+  return $resolvedBuildHome
+}
+
+function Ensure-WhisprUatManagedRootLink {
+  param(
+    [string]$ManagedBuildRootPath,
+    [string]$ResolvedBuildHome
+  )
+
+  if (-not [System.IO.Path]::IsPathRooted($ManagedBuildRootPath)) {
+    throw "ManagedBuildRoot must be an absolute path. Received: $ManagedBuildRootPath"
+  }
+
+  $normalizedManagedBuildRoot = [System.IO.Path]::GetFullPath($ManagedBuildRootPath).TrimEnd("\\")
+  $buildHomeDrive = [System.IO.Path]::GetPathRoot($ResolvedBuildHome)
+  $managedRootDrive = [System.IO.Path]::GetPathRoot($normalizedManagedBuildRoot)
+  if (-not $managedRootDrive.Equals($buildHomeDrive, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "ManagedBuildRoot must use the same drive as BuildHome to keep React Native codegen paths compatible. ManagedBuildRoot: $normalizedManagedBuildRoot; BuildHome: $ResolvedBuildHome"
+  }
+
+  $managedRootParent = Split-Path -Parent $normalizedManagedBuildRoot
+  if (-not $managedRootParent) {
+    throw "ManagedBuildRoot must not be a drive root. Received: $normalizedManagedBuildRoot"
+  }
+
+  if (-not (Test-Path -LiteralPath $managedRootParent)) {
+    New-Item -ItemType Directory -Force -Path $managedRootParent | Out-Null
+  }
+
+  if (Test-Path -LiteralPath $normalizedManagedBuildRoot) {
+    $existingLink = Get-Item -Force -LiteralPath $normalizedManagedBuildRoot
+    if ($existingLink.LinkType -ne "Junction") {
+      throw "ManagedBuildRoot already exists and is not a junction: $normalizedManagedBuildRoot"
+    }
+
+    $existingTargets = @($existingLink.Target | Where-Object { $_ })
+    if ($existingTargets.Count -ne 1) {
+      throw "ManagedBuildRoot must have exactly one target: $normalizedManagedBuildRoot"
+    }
+
+    $resolvedExistingTarget = Resolve-ExistingPath $existingTargets[0] "ManagedBuildRoot target"
+    if (-not $resolvedExistingTarget.Equals($ResolvedBuildHome, [System.StringComparison]::OrdinalIgnoreCase)) {
+      throw "ManagedBuildRoot targets $resolvedExistingTarget. It must target $ResolvedBuildHome for Whispr mobile UAT builds."
+    }
+  } else {
+    New-Item -ItemType Junction -Path $normalizedManagedBuildRoot -Target $ResolvedBuildHome | Out-Null
+  }
+
+  if (-not (Test-Path -LiteralPath $normalizedManagedBuildRoot)) {
+    throw "Whispr UAT managed-root junction is unavailable after setup: $normalizedManagedBuildRoot"
+  }
+
+  return $normalizedManagedBuildRoot
+}
+
+function Assert-WhisprUatManagedPath {
+  param(
+    [string]$ResolvedBuildHome,
+    [string]$PathValue,
+    [string]$Name
+  )
+
+  $normalizedBuildHome = [System.IO.Path]::GetFullPath($ResolvedBuildHome).TrimEnd("\\")
+  $normalizedPath = [System.IO.Path]::GetFullPath($PathValue).TrimEnd("\\")
+  $prefix = "$normalizedBuildHome\"
+
+  if (-not $normalizedPath.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "$Name must remain inside the managed Whispr UAT build home. Received: $normalizedPath"
+  }
+}
+
+function Use-WhisprMobileUatBuildMutex {
+  $mutex = New-Object System.Threading.Mutex($false, "WhisprMobileUatBuild")
+  $acquired = $false
+
+  try {
+    try {
+      $acquired = $mutex.WaitOne(0)
+    } catch [System.Threading.AbandonedMutexException] {
+      $acquired = $true
+      Write-Host "Recovered an abandoned Whispr mobile UAT build lock." -ForegroundColor Yellow
+    }
+
+    if (-not $acquired) {
+      throw "Another Whispr mobile UAT build is already running. Wait for it to finish before starting another build."
+    }
+
+    return $mutex
+  } catch {
+    $mutex.Dispose()
+    throw
+  }
 }
 
 function Invoke-CommandChecked {
@@ -122,7 +252,12 @@ function Invoke-RobocopyChecked {
 }
 
 function Ensure-ProjectNpmrc {
-  param([string]$Root, [string]$VirtualStoreDir, [int]$VirtualStoreMaxLength)
+  param(
+    [string]$Root,
+    [string]$StoreDir,
+    [string]$VirtualStoreDir,
+    [int]$VirtualStoreMaxLength
+  )
 
   $npmrcPath = Join-Path $Root ".npmrc"
   $content = ""
@@ -132,6 +267,7 @@ function Ensure-ProjectNpmrc {
   }
 
   $settings = [ordered]@{
+    "store-dir" = $StoreDir
     "virtual-store-dir" = $VirtualStoreDir
     "virtual-store-dir-max-length" = $VirtualStoreMaxLength
   }
@@ -368,6 +504,127 @@ function Remove-DirectoryIfPresent {
   Remove-Item -LiteralPath $PathValue -Recurse -Force
 }
 
+function Remove-WhisprUatManagedDirectory {
+  param(
+    [string]$ResolvedBuildHome,
+    [string]$PathValue,
+    [string]$Name
+  )
+
+  Assert-WhisprUatManagedPath -ResolvedBuildHome $ResolvedBuildHome -PathValue $PathValue -Name $Name
+  Remove-DirectoryIfPresent $PathValue
+}
+
+function Clear-WhisprUatPnpmState {
+  param(
+    [string]$ResolvedBuildHome,
+    [string]$PhysicalWorkspaceRoot,
+    [string]$PhysicalStoreDir,
+    [string]$PhysicalVirtualStoreDir
+  )
+
+  Write-Host "pnpm installation failed or retained a stale layout. Clearing only the managed Whispr UAT dependency state before one forced retry." -ForegroundColor Yellow
+
+  Remove-WhisprUatManagedDirectory -ResolvedBuildHome $ResolvedBuildHome -PathValue (Join-Path $PhysicalWorkspaceRoot "node_modules") -Name "Managed workspace node_modules"
+  Remove-WhisprUatManagedDirectory -ResolvedBuildHome $ResolvedBuildHome -PathValue $PhysicalVirtualStoreDir -Name "Managed pnpm virtual store"
+  Remove-WhisprUatManagedDirectory -ResolvedBuildHome $ResolvedBuildHome -PathValue $PhysicalStoreDir -Name "Managed pnpm store"
+}
+
+function Get-WhisprUatPnpmVirtualStoreDir {
+  param([string]$WorkingDirectory)
+
+  $modulesMetadataPath = Join-Path $WorkingDirectory "node_modules\.modules.yaml"
+  if (-not (Test-Path -LiteralPath $modulesMetadataPath)) {
+    return $null
+  }
+
+  try {
+    $modulesMetadata = Get-Content -Raw -LiteralPath $modulesMetadataPath | ConvertFrom-Json
+    $virtualStoreDirProperty = $modulesMetadata.PSObject.Properties["virtualStoreDir"]
+    if ($null -eq $virtualStoreDirProperty -or [string]::IsNullOrWhiteSpace([string]$virtualStoreDirProperty.Value)) {
+      return $null
+    }
+
+    return [System.IO.Path]::GetFullPath([string]$virtualStoreDirProperty.Value).TrimEnd("\\")
+  } catch {
+    return $null
+  }
+}
+
+function Test-WhisprUatPnpmLayout {
+  param(
+    [string]$WorkingDirectory,
+    [string]$ExpectedVirtualStoreDir
+  )
+
+  $normalizedExpectedVirtualStoreDir = [System.IO.Path]::GetFullPath($ExpectedVirtualStoreDir).TrimEnd("\\")
+  $actualVirtualStoreDir = Get-WhisprUatPnpmVirtualStoreDir -WorkingDirectory $WorkingDirectory
+  if ($null -eq $actualVirtualStoreDir -or -not $actualVirtualStoreDir.Equals($normalizedExpectedVirtualStoreDir, [System.StringComparison]::OrdinalIgnoreCase)) {
+    return $false
+  }
+
+  $tsxLinkPath = Join-Path $WorkingDirectory "apps\mobile\node_modules\tsx"
+  if (-not (Test-Path -LiteralPath $tsxLinkPath)) {
+    return $false
+  }
+
+  $tsxLink = Get-Item -Force -LiteralPath $tsxLinkPath
+  $tsxTargets = @($tsxLink.Target | Where-Object { $_ })
+  if ($tsxLink.LinkType -ne "Junction" -or $tsxTargets.Count -ne 1) {
+    return $false
+  }
+
+  $tsxTarget = [System.IO.Path]::GetFullPath([string]$tsxTargets[0]).TrimEnd("\\")
+  if (-not $tsxTarget.StartsWith("$normalizedExpectedVirtualStoreDir\", [System.StringComparison]::OrdinalIgnoreCase)) {
+    return $false
+  }
+
+  return (Test-Path -LiteralPath (Join-Path $tsxTarget "package.json"))
+}
+
+function Invoke-PnpmInstallWithRecovery {
+  param(
+    [string]$WorkingDirectory,
+    [string]$ResolvedBuildHome,
+    [string]$PhysicalWorkspaceRoot,
+    [string]$PhysicalStoreDir,
+    [string]$PhysicalVirtualStoreDir
+  )
+
+  $previousCi = $env:CI
+  try {
+    # CI mode makes the staged dependency layout deterministic and non-interactive.
+    $env:CI = "true"
+    $requiresForcedReinstall = $false
+    try {
+      Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "install", "--frozen-lockfile") -WorkingDirectory $WorkingDirectory
+    } catch {
+      $requiresForcedReinstall = $true
+    }
+
+    if (-not $requiresForcedReinstall -and -not (Test-WhisprUatPnpmLayout -WorkingDirectory $WorkingDirectory -ExpectedVirtualStoreDir $PhysicalVirtualStoreDir)) {
+      Write-Host "Managed pnpm layout is stale or incomplete after installation. Rebuilding managed dependency state." -ForegroundColor Yellow
+      $requiresForcedReinstall = $true
+    }
+
+    if ($requiresForcedReinstall) {
+      Clear-WhisprUatPnpmState -ResolvedBuildHome $ResolvedBuildHome -PhysicalWorkspaceRoot $PhysicalWorkspaceRoot -PhysicalStoreDir $PhysicalStoreDir -PhysicalVirtualStoreDir $PhysicalVirtualStoreDir
+      Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "install", "--force", "--frozen-lockfile") -WorkingDirectory $WorkingDirectory
+    }
+
+    if (-not (Test-WhisprUatPnpmLayout -WorkingDirectory $WorkingDirectory -ExpectedVirtualStoreDir $PhysicalVirtualStoreDir)) {
+      $actualVirtualStoreDir = Get-WhisprUatPnpmVirtualStoreDir -WorkingDirectory $WorkingDirectory
+      throw "Managed pnpm layout is stale or incomplete after forced recovery. Expected virtual store: $PhysicalVirtualStoreDir; actual virtual store: $actualVirtualStoreDir"
+    }
+  } finally {
+    if ($null -eq $previousCi) {
+      Remove-Item Env:CI -ErrorAction SilentlyContinue
+    } else {
+      $env:CI = $previousCi
+    }
+  }
+}
+
 function Clear-MobileNativeDependencyBuildCaches {
   param([string]$VirtualStoreDir)
 
@@ -416,6 +673,37 @@ if (-not $SourceRoot) {
 }
 
 $resolvedSourceRoot = Resolve-ExistingPath $SourceRoot "SourceRoot"
+$resolvedBuildHome = Initialize-WhisprUatBuildHome -BuildHomePath $BuildHome
+$managedBuildRootLink = Ensure-WhisprUatManagedRootLink -ManagedBuildRootPath $ManagedBuildRoot -ResolvedBuildHome $resolvedBuildHome
+
+$physicalWorkspaceRoot = Join-Path $resolvedBuildHome "workspace"
+$physicalPnpmStoreDir = Join-Path $resolvedBuildHome "pnpm-store"
+$physicalPnpmVirtualStoreDir = Join-Path $resolvedBuildHome "pnpm-virtual-store"
+$physicalGradleUserHome = Join-Path $resolvedBuildHome "gradle"
+$physicalArtifactDir = Join-Path $resolvedBuildHome "artifacts"
+
+foreach ($managedDirectory in @(
+  $physicalWorkspaceRoot,
+  $physicalPnpmStoreDir,
+  $physicalPnpmVirtualStoreDir,
+  $physicalGradleUserHome,
+  $physicalArtifactDir
+)) {
+  New-Item -ItemType Directory -Force -Path $managedDirectory | Out-Null
+}
+
+if (-not $BuildRoot) {
+  $BuildRoot = Join-Path $resolvedBuildHome "workspace"
+}
+
+if (-not $ApkOutputDir) {
+  $ApkOutputDir = $physicalArtifactDir
+}
+
+$pnpmStoreDir = Join-Path $resolvedBuildHome "pnpm-store"
+$pnpmVirtualStoreDir = Join-Path $resolvedBuildHome "pnpm-virtual-store"
+$gradleUserHome = Join-Path $resolvedBuildHome "gradle"
+
 $resolvedBuildParent = Split-Path -Parent $BuildRoot
 if (-not $resolvedBuildParent) {
   throw "BuildRoot must be an absolute, non-root path. Received: $BuildRoot"
@@ -445,8 +733,12 @@ if (Test-Path -LiteralPath $resolvedBuildRoot) {
   $sourceEqualsBuild = ((Resolve-Path -LiteralPath $resolvedBuildRoot).Path -ieq $resolvedSourceRoot)
 }
 
+$buildMutex = Use-WhisprMobileUatBuildMutex
+try {
 Write-Step "Whispr Mobile UAT local build"
 Write-Host "Source root : $resolvedSourceRoot"
+Write-Host "Build home  : $resolvedBuildHome"
+Write-Host "Managed root: $managedBuildRootLink"
 Write-Host "Build root  : $resolvedBuildRoot"
 Write-Host "APK output  : $ApkOutputDir"
 Write-Host "UAT URL     : $UatUrl"
@@ -476,6 +768,7 @@ Resolve-ExistingPath $AndroidHome "AndroidHome" | Out-Null
 $env:JAVA_HOME = $JavaHome
 $env:ANDROID_HOME = $AndroidHome
 $env:ANDROID_SDK_ROOT = $AndroidHome
+$env:GRADLE_USER_HOME = $gradleUserHome
 $env:WHISPR_MOBILE_ENV = "uat"
 $env:EXPO_PUBLIC_WHISPR_API_URL = $UatUrl
 $env:EXPO_PUBLIC_WHISPR_SOCKET_URL = $UatUrl
@@ -513,21 +806,9 @@ $reactNativeArchitectures = Resolve-ReactNativeArchitectures -DeviceIds $devices
 Write-Host "Target Android architecture(s): $reactNativeArchitectures"
 
 Write-Step "Preparing package manager and Android SDK config"
-Ensure-ProjectNpmrc -Root $resolvedBuildRoot -VirtualStoreDir $PnpmVirtualStoreDir -VirtualStoreMaxLength $PnpmVirtualStoreMaxLength
+Ensure-ProjectNpmrc -Root $resolvedBuildRoot -StoreDir $pnpmStoreDir -VirtualStoreDir $pnpmVirtualStoreDir -VirtualStoreMaxLength $PnpmVirtualStoreMaxLength
 Ensure-AndroidLocalProperties -MobileRoot $mobileRoot -SdkRoot $AndroidHome
-$previousCi = $env:CI
-try {
-  # The short-path settings may require pnpm to replace an existing modules
-  # layout. CI mode makes that deterministic in this intentionally non-interactive script.
-  $env:CI = "true"
-  Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "install", "--frozen-lockfile") -WorkingDirectory $resolvedBuildRoot
-} finally {
-  if ($null -eq $previousCi) {
-    Remove-Item Env:CI -ErrorAction SilentlyContinue
-  } else {
-    $env:CI = $previousCi
-  }
-}
+Invoke-PnpmInstallWithRecovery -WorkingDirectory $resolvedBuildRoot -ResolvedBuildHome $resolvedBuildHome -PhysicalWorkspaceRoot $physicalWorkspaceRoot -PhysicalStoreDir $physicalPnpmStoreDir -PhysicalVirtualStoreDir $physicalPnpmVirtualStoreDir
 Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "--filter", "@wizards/mobile", "validate:env") -WorkingDirectory $resolvedBuildRoot
 Stop-GradleDaemons -GradleWrapperPath $gradlew -WorkingDirectory $androidRoot
 
@@ -545,7 +826,7 @@ if ($CleanAndroidCaches) {
     }
   }
 
-  Clear-MobileNativeDependencyBuildCaches -VirtualStoreDir $PnpmVirtualStoreDir
+  Clear-MobileNativeDependencyBuildCaches -VirtualStoreDir $pnpmVirtualStoreDir
 }
 
 Write-Step "Building UAT $BuildType APK"
@@ -560,7 +841,7 @@ $gradleBuildArguments = @(
   "-PreactNativeDevServerPort=8081",
   "-PreactNativeArchitectures=$reactNativeArchitectures"
 )
-Invoke-GradleBuildWithRetry -GradleWrapperPath $gradlew -GradleArguments $gradleBuildArguments -WorkingDirectory $androidRoot -VirtualStoreDir $PnpmVirtualStoreDir
+Invoke-GradleBuildWithRetry -GradleWrapperPath $gradlew -GradleArguments $gradleBuildArguments -WorkingDirectory $androidRoot -VirtualStoreDir $pnpmVirtualStoreDir
 
 Resolve-ExistingPath $apkPath "Generated APK" | Out-Null
 New-Item -ItemType Directory -Force -Path $ApkOutputDir | Out-Null
@@ -578,6 +859,13 @@ Copy-Item -LiteralPath $apkPath -Destination $architectureLatestApkPath -Force
 Write-Host "APK archived: $archiveApkPath" -ForegroundColor Green
 Write-Host "APK latest  : $latestApkPath" -ForegroundColor Green
 Write-Host "APK ABI latest: $architectureLatestApkPath" -ForegroundColor Green
+} finally {
+  try {
+    [void]$buildMutex.ReleaseMutex()
+  } finally {
+    $buildMutex.Dispose()
+  }
+}
 
 if (-not $SkipUninstall) {
   Write-Step "Removing existing Whispr mobile package from device if present"

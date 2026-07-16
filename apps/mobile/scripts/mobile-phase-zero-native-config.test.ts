@@ -79,8 +79,31 @@ test("build-only Android APK scripts do not require or mutate a connected device
   );
   assert.match(buildScript, /"react-native-reanimated"/);
   assert.match(buildScript, /Join-Path \$androidDir "\.cxx"/);
-  assert.match(buildScript, /\[string\]\$PnpmVirtualStoreDir\s*=\s*"C:\\wp"/);
+  assert.match(
+    buildScript,
+    /\[string\]\$BuildHome\s*=\s*"C:\\wm"/,
+  );
+  assert.match(
+    buildScript,
+    /\[string\]\$ManagedBuildRoot\s*=\s*"C:\\whispr_dev\\whispr_uat\\whispr_mobile"/,
+  );
+  assert.match(buildScript, /function Initialize-WhisprUatBuildHome/);
+  assert.match(buildScript, /function Ensure-WhisprUatManagedRootLink/);
+  assert.match(buildScript, /New-Item -ItemType Junction/);
+  assert.match(buildScript, /ManagedBuildRoot must use the same drive as BuildHome/);
+  assert.match(buildScript, /-not \(Test-Path -LiteralPath \$managedRootParent\)/);
+  assert.match(buildScript, /function Invoke-PnpmInstallWithRecovery/);
+  assert.match(buildScript, /function Get-WhisprUatPnpmVirtualStoreDir/);
+  assert.match(buildScript, /function Test-WhisprUatPnpmLayout/);
+  assert.match(buildScript, /Managed pnpm layout is stale or incomplete/);
+  assert.match(buildScript, /Test-WhisprUatPnpmLayout -WorkingDirectory \$WorkingDirectory -ExpectedVirtualStoreDir \$PhysicalVirtualStoreDir/);
+  assert.match(buildScript, /apps\\mobile\\node_modules\\tsx/);
+  assert.match(buildScript, /Join-Path \$tsxTarget "package\.json"/);
+  assert.match(buildScript, /function Use-WhisprMobileUatBuildMutex/);
+  assert.match(buildScript, /"store-dir"\s*=\s*\$StoreDir/);
   assert.match(buildScript, /\[int\]\$PnpmVirtualStoreMaxLength\s*=\s*40/);
   assert.match(buildScript, /"virtual-store-dir-max-length"\s*=\s*\$VirtualStoreMaxLength/);
+  assert.match(buildScript, /\$env:GRADLE_USER_HOME\s*=\s*\$gradleUserHome/);
+  assert.match(buildScript, /"--force", "--frozen-lockfile"/);
   assert.match(buildScript, /\$env:CI\s*=\s*"true"/);
 });

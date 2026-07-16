@@ -60,6 +60,19 @@ cd C:\Users\doguk\Desktop\Wizards\apps\mobile
 corepack pnpm run android:uat:local
 ```
 
+The local UAT script exposes all mutable build state at this managed path:
+
+```text
+C:\whispr_dev\whispr_uat\whispr_mobile\
+  workspace\          staged source
+  pnpm-store\         package-content cache
+  pnpm-virtual-store\ pnpm links and native dependency state
+  gradle\             Gradle cache and daemon state
+  artifacts\          archived and latest APKs
+```
+
+That path is a validated NTFS junction to the script-owned short physical root `C:\wm`. React Native's Android CMake build canonicalizes junctions and cannot build reliably from the longer physical path; this arrangement keeps all state accessible at the managed path while preserving a native-safe physical path. Do not replace either the junction or the ownership marker manually. The Android SDK and JDK remain validated machine prerequisites; the script does not copy them. If pnpm detects a corrupt managed dependency layout, it clears only this managed build state and retries once. It never automatically deletes the legacy `C:\Wizards` or `C:\wp` directories.
+
 Use the clean variant only when native caches or generated Android outputs look stale:
 
 ```powershell
