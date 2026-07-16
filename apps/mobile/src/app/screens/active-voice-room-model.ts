@@ -1,0 +1,45 @@
+import {
+  isVoiceSessionActive,
+  type MobileVoiceRoomParticipant,
+  type MobileVoiceRoomState,
+} from "../../voice/mobile-voice-room-contract";
+
+export interface MobileActiveVoiceRoomModel {
+  readonly canLeave: boolean;
+  readonly canMinimize: boolean;
+  readonly canToggleMute: boolean;
+  readonly channelName: string | null;
+  readonly connectionStatus: MobileVoiceRoomState["status"];
+  readonly durationLabel: string | null;
+  readonly participants: readonly MobileVoiceRoomParticipant[];
+  readonly serverName: string | null;
+}
+
+export function getMobileActiveVoiceRoomModel(
+  room: MobileVoiceRoomState,
+  serverName: string | null,
+  now: number,
+): MobileActiveVoiceRoomModel {
+  return {
+    canLeave: room.status !== "idle" && room.status !== "leaving",
+    canMinimize: isVoiceSessionActive(room.status),
+    canToggleMute: room.status === "connected",
+    channelName: room.channelName,
+    connectionStatus: room.status,
+    durationLabel: formatMobileVoiceRoomDuration(room.connectedAt, now),
+    participants: room.participants,
+    serverName,
+  };
+}
+
+export function formatMobileVoiceRoomDuration(connectedAt: number | null, now: number): string | null {
+  if (connectedAt === null) {
+    return null;
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((now - connectedAt) / 1_000));
+  const minutes = Math.floor(elapsedSeconds / 60);
+  const seconds = elapsedSeconds % 60;
+
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
