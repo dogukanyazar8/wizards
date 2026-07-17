@@ -30,6 +30,16 @@ function readWorkspaceFile(path: string): string {
   return readFileSync(path, "utf8");
 }
 
+interface GitleaksAllowlistMetadata {
+  schemaVersion: 1;
+  entries: Array<{
+    fingerprint: string;
+    reason: string;
+    owner: string;
+    expiresOn: string;
+  }>;
+}
+
 function describeFile(path: string): string {
   return toPosixPath(relative(webRoot, path));
 }
@@ -166,23 +176,87 @@ describe("Playwright E2E governance", () => {
     assert.doesNotMatch(permissions, /:\s+write/);
   });
 
-  it("limits secret-scan suppressions to exact test-fixture fingerprints", () => {
+  it("governs every exact secret-scan suppression with owner, reason, and expiry", () => {
     const ignores = readWorkspaceFile(join(workspaceRoot, ".gitleaksignore"))
       .split(/\r?\n/)
+      .map((line) => line.trim())
       .filter(Boolean);
+    const metadata = JSON.parse(
+      readWorkspaceFile(join(workspaceRoot, ".gitleaksignore.metadata.json")),
+    ) as GitleaksAllowlistMetadata;
     const mobileLinkingFixtureFingerprint =
       "edeab2d7f9eb4b96a22f0617500fb2a9d1d98e88:apps/mobile/scripts/mobile-linking-config.test.ts:generic-api-key:9";
+    const documentationFixtureFingerprints = new Set([
+      "8f18f2294b00bfe8d15eb2113d71a5f9423dc2b0:docs/superpowers/plans/2026-07-11-observability-stack.md:jwt:299",
+      "8f18f2294b00bfe8d15eb2113d71a5f9423dc2b0:docs/superpowers/plans/2026-07-11-observability-stack.md:stripe-access-token:309",
+    ]);
+    const ignoreSet = new Set(ignores);
+    const metadataByFingerprint = new Map(
+      metadata.entries.map((entry) => [entry.fingerprint, entry] as const),
+    );
+    const today = new Date();
+    const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+    const maximumExpiryUtc = todayUtc + 90 * 24 * 60 * 60 * 1000;
 
+    assert.equal(metadata.schemaVersion, 1);
+    assert.equal(ignoreSet.size, ignores.length, "Gitleaks fingerprints must not be duplicated");
+    assert.equal(
+      metadataByFingerprint.size,
+      metadata.entries.length,
+      "Gitleaks metadata fingerprints must not be duplicated",
+    );
+    assert.equal(
+      metadata.entries.length,
+      ignores.length,
+      "Every Gitleaks fingerprint must have exactly one metadata record",
+    );
     assert.ok(ignores.includes(mobileLinkingFixtureFingerprint));
 
     for (const fingerprint of ignores) {
       const [commit, path, rule, line, ...extra] = fingerprint.split(":");
+      const entry = metadataByFingerprint.get(fingerprint);
 
       assert.match(commit ?? "", /^[0-9a-f]{40}$/);
-      assert.match(path ?? "", /(?:\.test\.[cm]?[jt]sx?|^apps\/web\/e2e\/)/);
+      assert.equal(
+        /(?:\.test\.[cm]?[jt]sx?|^apps\/web\/e2e\/)/.test(path ?? "") ||
+          documentationFixtureFingerprints.has(fingerprint),
+        true,
+        `${fingerprint} must remain scoped to a test fixture or an explicitly approved documentation fixture`,
+      );
       assert.match(rule ?? "", /^[a-z0-9-]+$/);
       assert.match(line ?? "", /^\d+$/);
       assert.deepEqual(extra, []);
+      assert.ok(entry, `${fingerprint} must have governance metadata`);
+      assert.match(
+        entry.owner,
+        /^@[A-Za-z0-9][A-Za-z0-9-]*(?:\/[A-Za-z0-9][A-Za-z0-9-]*)?$/,
+        `${fingerprint} must have an accountable GitHub owner or team`,
+      );
+      assert.ok(
+        entry.reason.trim().length >= 24,
+        `${fingerprint} must have a specific suppression reason`,
+      );
+      assert.match(entry.expiresOn, /^\d{4}-\d{2}-\d{2}$/);
+
+      const expiresAtUtc = Date.parse(`${entry.expiresOn}T00:00:00.000Z`);
+
+      assert.ok(Number.isFinite(expiresAtUtc), `${fingerprint} must have a valid expiry date`);
+      assert.ok(expiresAtUtc > todayUtc, `${fingerprint} suppression has expired`);
+      assert.ok(
+        expiresAtUtc <= maximumExpiryUtc,
+        `${fingerprint} suppression must expire within 90 days`,
+      );
+    }
+
+    for (const entry of metadata.entries) {
+      assert.ok(
+        ignoreSet.has(entry.fingerprint),
+        `${entry.fingerprint} metadata must reference an active exact fingerprint`,
+      );
+    }
+
+    for (const fingerprint of documentationFixtureFingerprints) {
+      assert.ok(ignoreSet.has(fingerprint), `${fingerprint} must remain an exact suppression`);
     }
   });
 
