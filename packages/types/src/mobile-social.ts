@@ -147,6 +147,46 @@ export const MobileTwoFactorConfirmResponseSchema = z
   .strict();
 export const MobileTwoFactorDisableResponseSchema = z.object({ success: z.literal(true) }).strict();
 
+export const MobileAccountDmPolicySchema = z.enum([
+  "EVERYONE",
+  "FRIENDS",
+  "MUTUAL_SERVERS",
+  "NOBODY",
+]);
+export const MobileAccountFriendRequestPolicySchema = z.enum([
+  "EVERYONE",
+  "MUTUAL_SERVERS",
+  "MUTUAL_FRIENDS",
+  "NOBODY",
+]);
+export const MobileAccountSettingsResponseSchema = z
+  .object({
+    account: z
+      .object({
+        bio: z.string().max(1024).nullable(),
+        customStatus: z.string().max(128).nullable(),
+        email: z.string().email().max(254),
+        emailVerified: z.boolean(),
+      })
+      .strict(),
+    privacy: z
+      .object({
+        dmPermission: MobileAccountDmPolicySchema,
+        friendRequests: MobileAccountFriendRequestPolicySchema,
+      })
+      .strict(),
+  })
+  .strict();
+export const MobileAccountSettingsUpdateSchema = z
+  .object({
+    dmPermission: MobileAccountDmPolicySchema.optional(),
+    friendRequests: MobileAccountFriendRequestPolicySchema.optional(),
+  })
+  .strict()
+  .refine((value) => value.dmPermission !== undefined || value.friendRequests !== undefined, {
+    message: "At least one privacy field is required",
+  });
+
 export const MobileGiphySearchQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(36).optional().default(24),
@@ -255,3 +295,9 @@ export type MobileGiphyAttachmentResponse = z.infer<typeof MobileGiphyAttachment
 export type MobileLinkPreviewRequest = z.infer<typeof MobileLinkPreviewRequestSchema>;
 export type MobileLinkPreviewResponse = z.infer<typeof MobileLinkPreviewResponseSchema>;
 export type MobileDMDetailsQuery = z.infer<typeof MobileDMDetailsQuerySchema>;
+export type MobileAccountDmPolicy = z.infer<typeof MobileAccountDmPolicySchema>;
+export type MobileAccountFriendRequestPolicy = z.infer<
+  typeof MobileAccountFriendRequestPolicySchema
+>;
+export type MobileAccountSettingsResponse = z.infer<typeof MobileAccountSettingsResponseSchema>;
+export type MobileAccountSettingsUpdate = z.infer<typeof MobileAccountSettingsUpdateSchema>;

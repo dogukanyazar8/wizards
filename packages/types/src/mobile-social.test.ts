@@ -30,6 +30,44 @@ describe("mobile social and account schemas", () => {
     assert.equal(MobilePresenceUpdateSchema.safeParse({ status: "INVISIBLE" }).success, false);
   });
 
+  it("shapes the account settings contract around real privacy enums", async () => {
+    const { MobileAccountSettingsResponseSchema, MobileAccountSettingsUpdateSchema } =
+      await schemas;
+
+    const parsed = MobileAccountSettingsResponseSchema.parse({
+      account: {
+        bio: null,
+        customStatus: "focus",
+        email: "dogukan@whispr.app",
+        emailVerified: true,
+      },
+      privacy: { dmPermission: "FRIENDS", friendRequests: "EVERYONE" },
+    });
+    assert.equal(parsed.privacy.dmPermission, "FRIENDS");
+    assert.equal(
+      MobileAccountSettingsResponseSchema.safeParse({
+        account: { bio: null, customStatus: null, email: "not-an-email", emailVerified: false },
+        privacy: { dmPermission: "FRIENDS", friendRequests: "EVERYONE" },
+      }).success,
+      false,
+    );
+    assert.equal(
+      MobileAccountSettingsUpdateSchema.safeParse({ dmPermission: "NOBODY" }).success,
+      true,
+    );
+    assert.equal(MobileAccountSettingsUpdateSchema.safeParse({}).success, false);
+    assert.equal(
+      MobileAccountSettingsUpdateSchema.safeParse({ friendRequests: "FRIENDS" }).success,
+      false,
+    );
+    for (const dmPermission of ["EVERYONE", "FRIENDS", "MUTUAL_SERVERS", "NOBODY"]) {
+      assert.equal(MobileAccountSettingsUpdateSchema.safeParse({ dmPermission }).success, true);
+    }
+    for (const friendRequests of ["EVERYONE", "MUTUAL_SERVERS", "MUTUAL_FRIENDS", "NOBODY"]) {
+      assert.equal(MobileAccountSettingsUpdateSchema.safeParse({ friendRequests }).success, true);
+    }
+  });
+
   it("validates the combined friends list and strict mutation inputs", async () => {
     const {
       MobileFriendRequestActionResponseSchema,
