@@ -6,6 +6,19 @@ const webRoot = dirname(fileURLToPath(import.meta.url));
 const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
 const isCI = process.env.CI === "true";
 const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === "1";
+const crossBrowserTestTimeout = isCI ? 75_000 : 30_000;
+const crossBrowserExpectTimeout = isCI ? 30_000 : 10_000;
+const crossBrowserNavigationTimeout = isCI ? 60_000 : 30_000;
+const crossBrowserProjectConfig = {
+  timeout: crossBrowserTestTimeout,
+  expect: {
+    timeout: crossBrowserExpectTimeout,
+  },
+  use: {
+    actionTimeout: crossBrowserExpectTimeout,
+    navigationTimeout: crossBrowserNavigationTimeout,
+  },
+};
 const turnstileTestSiteKey = ["1x", "0".repeat(20), "AA"].join("");
 const turnstileTestSecretKey = ["1x", "0".repeat(31), "AA"].join("");
 const webServerEnv = Object.fromEntries(
@@ -76,8 +89,10 @@ export default defineConfig({
       },
     },
     {
+      ...crossBrowserProjectConfig,
       name: "firefox",
       use: {
+        ...crossBrowserProjectConfig.use,
         ...devices["Desktop Firefox"],
         launchOptions: {
           firefoxUserPrefs: {
@@ -90,10 +105,12 @@ export default defineConfig({
       },
     },
     {
+      ...crossBrowserProjectConfig,
       name: "webkit",
       // Playwright WebKit has no reliable headless fake camera/microphone device contract.
       testIgnore: "**/voice/voice.spec.ts",
       use: {
+        ...crossBrowserProjectConfig.use,
         ...devices["Desktop Safari"],
       },
     },

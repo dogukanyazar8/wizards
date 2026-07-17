@@ -309,6 +309,20 @@ describe("Playwright E2E governance", () => {
     assert.match(config, /testIgnore:\s*"\*\*\/voice\/voice\.spec\.ts"/);
   });
 
+  it("gives CI cross-browser smoke a timeout budget for authentication and app readiness", () => {
+    const config = readWorkspaceFile(join(webRoot, "playwright.config.ts"));
+
+    assert.match(config, /const crossBrowserTestTimeout = isCI \? 75_000 : 30_000;/);
+    assert.match(config, /const crossBrowserExpectTimeout = isCI \? 30_000 : 10_000;/);
+    assert.match(config, /const crossBrowserNavigationTimeout = isCI \? 60_000 : 30_000;/);
+    assert.match(
+      config,
+      /const crossBrowserProjectConfig = \{\s*timeout: crossBrowserTestTimeout,\s*expect: \{\s*timeout: crossBrowserExpectTimeout,\s*\},\s*use: \{\s*actionTimeout: crossBrowserExpectTimeout,\s*navigationTimeout: crossBrowserNavigationTimeout,\s*\},\s*\};/,
+    );
+    assert.equal(config.match(/\.\.\.crossBrowserProjectConfig,/g)?.length, 2);
+    assert.equal(config.match(/\.\.\.crossBrowserProjectConfig\.use,/g)?.length, 2);
+  });
+
   it("keeps expensive Playwright suites in post-merge or scheduled gates", () => {
     const workflow = readWorkspaceFile(join(workspaceRoot, ".github", "workflows", "ci.yml"));
     const realtimeStepStart = workflow.indexOf("- name: Run Playwright realtime and voice tests");
