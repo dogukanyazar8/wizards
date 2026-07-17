@@ -22,6 +22,8 @@
     "test:coverage": "turbo test:coverage --filter @wizards/web",
     "test:toolchain": "node --test scripts/quality/*.test.mjs",
     "typecheck": "turbo typecheck",
+    "typecheck:native": "node scripts/quality/typescript-native-runner.mjs",
+    "typecheck:native:ci": "node scripts/quality/typescript-native-runner.mjs --checkers=1",
     "format": "turbo format",
     "db:generate": "turbo db:generate",
     "contributors:sync": "pnpm --filter @wizards/db contributors:sync"
