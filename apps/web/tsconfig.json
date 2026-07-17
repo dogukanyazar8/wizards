@@ -2,11 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "allowArbitraryExtensions": true,
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "declaration": false,
     "allowJs": false,
     "noEmit": true,
@@ -17,37 +13,16 @@
       }
     ],
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@/components/*": [
-        "./src/components/*"
-      ],
-      "@/lib/*": [
-        "./src/lib/*"
-      ],
-      "@wizards/db": [
-        "../../packages/db/src/index.ts"
-      ],
-      "@wizards/types": [
-        "../../packages/types/src/index.ts"
-      ],
-      "@wizards/ui": [
-        "../../packages/ui/src/index.ts"
-      ],
-      "@wizards/ui/*": [
-        "../../packages/ui/src/*"
-      ]
+      "@/*": ["./src/*"],
+      "@/components/*": ["./src/components/*"],
+      "@/lib/*": ["./src/lib/*"],
+      "@wizards/db": ["../../packages/db/src/index.ts"],
+      "@wizards/types": ["../../packages/types/src/index.ts"],
+      "@wizards/ui": ["../../packages/ui/src/index.ts"],
+      "@wizards/ui/*": ["../../packages/ui/src/*"]
     },
     "jsx": "preserve"
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
 }
