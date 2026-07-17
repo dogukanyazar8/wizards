@@ -6,19 +6,10 @@ const webRoot = dirname(fileURLToPath(import.meta.url));
 const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
 const isCI = process.env.CI === "true";
 const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === "1";
-const crossBrowserTestTimeout = isCI ? 75_000 : 30_000;
-const crossBrowserExpectTimeout = isCI ? 30_000 : 10_000;
-const crossBrowserNavigationTimeout = isCI ? 60_000 : 30_000;
-const crossBrowserProjectConfig = {
-  timeout: crossBrowserTestTimeout,
-  expect: {
-    timeout: crossBrowserExpectTimeout,
-  },
-  use: {
-    actionTimeout: crossBrowserExpectTimeout,
-    navigationTimeout: crossBrowserNavigationTimeout,
-  },
-};
+const e2eTestTimeout = isCI ? 75_000 : 30_000;
+const e2eExpectTimeout = isCI ? 30_000 : 10_000;
+const e2eActionTimeout = isCI ? 30_000 : 15_000;
+const e2eNavigationTimeout = isCI ? 60_000 : 30_000;
 const turnstileTestSiteKey = ["1x", "0".repeat(20), "AA"].join("");
 const turnstileTestSecretKey = ["1x", "0".repeat(31), "AA"].join("");
 const webServerEnv = Object.fromEntries(
@@ -59,9 +50,9 @@ export default defineConfig({
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
   workers: 1,
-  timeout: 30_000,
+  timeout: e2eTestTimeout,
   expect: {
-    timeout: 10_000,
+    timeout: e2eExpectTimeout,
     toHaveScreenshot: {
       animations: "disabled",
       maxDiffPixelRatio: 0.02,
@@ -72,8 +63,8 @@ export default defineConfig({
   reporter: [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],
   use: {
     baseURL,
-    actionTimeout: 15_000,
-    navigationTimeout: 30_000,
+    actionTimeout: e2eActionTimeout,
+    navigationTimeout: e2eNavigationTimeout,
     screenshot: "only-on-failure",
     trace: "on-first-retry",
     video: "retain-on-failure",
@@ -89,10 +80,8 @@ export default defineConfig({
       },
     },
     {
-      ...crossBrowserProjectConfig,
       name: "firefox",
       use: {
-        ...crossBrowserProjectConfig.use,
         ...devices["Desktop Firefox"],
         launchOptions: {
           firefoxUserPrefs: {
@@ -105,12 +94,10 @@ export default defineConfig({
       },
     },
     {
-      ...crossBrowserProjectConfig,
       name: "webkit",
       // Playwright WebKit has no reliable headless fake camera/microphone device contract.
       testIgnore: "**/voice/voice.spec.ts",
       use: {
-        ...crossBrowserProjectConfig.use,
         ...devices["Desktop Safari"],
       },
     },
