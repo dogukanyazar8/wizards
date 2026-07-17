@@ -1,4 +1,5 @@
 import { test, expect } from "../../fixtures/test";
+import { resolveE2ETimeoutPolicy } from "@/lib/e2e/timeout-policy";
 import { loginAs } from "../../helpers/auth";
 import { getE2EServerRoute } from "../../helpers/db";
 import {
@@ -8,6 +9,8 @@ import {
 } from "../../helpers/navigation";
 
 test.use({ locale: "en-US", timezoneId: "UTC" });
+
+test.describe.configure({ timeout: resolveE2ETimeoutPolicy().screenTestTimeoutMs });
 
 test.describe("visual regression", () => {
   test("login screen", async ({ page }) => {

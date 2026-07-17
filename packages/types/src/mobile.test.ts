@@ -51,10 +51,10 @@ import {
   MobileMessageEditRequestSchema,
   MobileMessageReactionRequestSchema,
   MobileMessageReactionResponseSchema,
+  MobileNotificationEventKindSchema,
   MobileNotificationIdParamsSchema,
   MobileNotificationItemSchema,
   MobileNotificationMutationResponseSchema,
-  MobileNotificationEventKindSchema,
   MobileNotificationTypeSchema,
   MobileNotificationsQuerySchema,
   MobileNotificationsResponseSchema,
@@ -628,6 +628,11 @@ describe("mobile schemas", () => {
         valid: { reactions: [] },
         invalid: { reactions: "none" },
       },
+      MobileNotificationEventKindSchema: {
+        schema: MobileNotificationEventKindSchema,
+        valid: "message-reaction",
+        invalid: "unknown-event",
+      },
       MobileNotificationIdParamsSchema: {
         schema: MobileNotificationIdParamsSchema,
         valid: { id: uuid },
@@ -654,11 +659,6 @@ describe("mobile schemas", () => {
         schema: MobileNotificationMutationResponseSchema,
         valid: { success: true },
         invalid: { success: false },
-      },
-      MobileNotificationEventKindSchema: {
-        schema: MobileNotificationEventKindSchema,
-        valid: "message-reaction",
-        invalid: "unknown-event",
       },
       MobileNotificationTypeSchema: {
         schema: MobileNotificationTypeSchema,

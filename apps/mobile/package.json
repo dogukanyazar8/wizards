@@ -15,13 +15,13 @@
     "android:uat:local:apk:universal": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-uat.ps1 -SkipInstall -SkipUninstall -NoStartMetro -DisableGradleBuildCache -AndroidArchitectures armeabi-v7a,arm64-v8a,x86,x86_64",
     "android:uat:local:apk:universal:release": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-uat.ps1 -SkipInstall -SkipUninstall -NoStartMetro -BuildType release -DisableGradleBuildCache -AndroidArchitectures armeabi-v7a,arm64-v8a,x86,x86_64",
     "ios": "expo run:ios",
-    "lint": "tsc --noEmit",
+    "lint": "tsc6 --noEmit",
     "quality:check": "node --import tsx scripts/validate-mobile-quality.ts",
     "release:check": "node --import tsx scripts/validate-mobile-release.ts",
     "release:evidence": "node --import tsx scripts/write-mobile-release-evidence.ts",
     "test": "node --test --import tsx scripts/*.test.ts",
     "test:components": "jest",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc6 --noEmit",
     "validate:env": "node --import tsx scripts/validate-mobile-env.ts",
     "visual:capture:android": "node --import tsx scripts/mobile-redesign-device-capture.ts --platform android",
     "visual:capture:ios": "node --import tsx scripts/mobile-redesign-device-capture.ts --platform ios",
@@ -93,6 +93,6 @@
     "ssim.js": "3.5.0",
     "test-renderer": "1.2.0",
     "tsx": "^4.22.4",
-    "typescript": "~6.0.3"
+    "typescript": "catalog:"
   }
 }

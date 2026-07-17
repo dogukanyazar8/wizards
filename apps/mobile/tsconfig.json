@@ -3,6 +3,7 @@
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
     "exactOptionalPropertyTypes": true,
+    "noUncheckedSideEffectImports": true,
     "noUncheckedIndexedAccess": true,
     "resolveJsonModule": true,
     "strict": true,

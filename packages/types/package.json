@@ -9,11 +9,11 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "dev": "tsc --watch --preserveWatchOutput",
-    "lint": "tsc --noEmit",
+    "build": "tsc6 -p tsconfig.json",
+    "dev": "tsc6 --watch --preserveWatchOutput",
+    "lint": "tsc6 --noEmit",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc6 --noEmit",
     "format": "prettier --check ."
   },
   "dependencies": {
@@ -23,6 +23,6 @@
     "@types/node": "^22.14.1",
     "prettier": "^3.5.3",
     "tsx": "^4.22.4",
-    "typescript": "^5.8.3"
+    "typescript": "catalog:"
   }
 }

@@ -437,33 +437,23 @@ struct DesktopCompanionSurfacesStatus {
     voice_mini: DesktopCompanionSurfaceInfo,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 enum DesktopGameOverlayAnchor {
     BottomLeft,
     BottomRight,
+    #[default]
     TopLeft,
     TopRight,
 }
 
-impl Default for DesktopGameOverlayAnchor {
-    fn default() -> Self {
-        Self::TopLeft
-    }
-}
-
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 enum DesktopGameOverlaySize {
     Compact,
     Large,
+    #[default]
     Normal,
-}
-
-impl Default for DesktopGameOverlaySize {
-    fn default() -> Self {
-        Self::Normal
-    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
@@ -1425,7 +1415,10 @@ fn write_desktop_update_failure_log(
         format!("timestampMs: {timestamp_ms}"),
         format!("phase: {}", sanitize_diagnostic_text(&report.phase)),
         format!("desktopAppVersion: {}", app_info.app_version),
-        format!("desktopBuildTime: {}", sanitize_diagnostic_text(&app_info.build_time)),
+        format!(
+            "desktopBuildTime: {}",
+            sanitize_diagnostic_text(&app_info.build_time)
+        ),
         format!(
             "desktopReleaseRing: {}",
             sanitize_diagnostic_text(&app_info.release_ring)
@@ -1951,7 +1944,7 @@ fn desktop_voice_shortcut_registry_status(
             .map(|entries| entries.clone())
             .unwrap_or_default();
 
-        return desktop_voice_shortcut_status(!entries.is_empty(), &entries);
+        desktop_voice_shortcut_status(!entries.is_empty(), &entries)
     }
 
     #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
