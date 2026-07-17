@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 
+import { resolveE2ETimeoutPolicy } from "@/lib/e2e/timeout-policy";
 import { test, expect } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
 import { getE2EServerRoute } from "../../helpers/db";
@@ -14,6 +15,8 @@ import {
 // patterns), so this scan enforces WCAG 2.0/2.1 A+AA only.
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 const BLOCKING_IMPACTS = new Set(["critical", "serious"]);
+
+test.describe.configure({ timeout: resolveE2ETimeoutPolicy().screenTestTimeoutMs });
 
 type AxeViolation = Awaited<ReturnType<AxeBuilder["analyze"]>>["violations"][number];
 
