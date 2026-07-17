@@ -10,6 +10,12 @@ const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
   scripts: Record<string, string>;
 };
 
+function requiredPackageScript(name: string): string {
+  const script = packageJson.scripts[name];
+  assert.ok(script, `Missing required package script: ${name}`);
+  return script;
+}
+
 test("phase zero dependencies and SDK 56 native configuration stay aligned", () => {
   for (const dependency of [
     "@react-navigation/native",
@@ -171,11 +177,11 @@ test("local UAT package commands keep their intended device and ABI contracts", 
     },
   };
 
-  assert.match(packageJson.scripts["android:uat:local"], /build-android-uat\.ps1/);
-  assert.match(packageJson.scripts["android:uat:local:clean"], /-CleanAndroidCaches\b/);
+  assert.match(requiredPackageScript("android:uat:local"), /build-android-uat\.ps1/);
+  assert.match(requiredPackageScript("android:uat:local:clean"), /-CleanAndroidCaches\b/);
 
   for (const [name, expected] of Object.entries(expectedApkCommands)) {
-    const script = packageJson.scripts[name];
+    const script = requiredPackageScript(name);
     assert.match(script, new RegExp(`-AndroidArchitectures ${expected.architectures}`));
     assert.equal(/-BuildType release\b/.test(script), expected.release, `${name} release mode`);
     assert.equal(
