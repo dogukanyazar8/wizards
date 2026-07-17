@@ -19,6 +19,7 @@
 | `pnpm typecheck:native:ci`    | CI-safe TS7 shadow with one checker worker                  | Yes in CI          |
 | `pnpm typecheck:declarations` | Exact TS6/TS7 declaration parity for DB/types/UI            | Yes                |
 | `pnpm test:toolchain`         | Version, catalog, script, CSS, and workflow drift contracts | Yes                |
+| `pnpm run ci`                 | Full local security, quality, coverage, and build chain     | Yes before handoff |
 
 Run these commands through pnpm. The native and declaration runners intentionally require
 `npm_execpath` and never construct a shell command from user-controlled input.
@@ -81,6 +82,8 @@ compatible declarations. DB, types, and UI pass with dependency checking enabled
 
 - If `tsc6` or native `tsc` is missing, run `pnpm install --frozen-lockfile` and confirm both catalog
   entries with `pnpm test:toolchain`. Do not add a package-local compiler version.
+- Invoke the aggregate gate as `pnpm run ci`. Bare `pnpm ci` resolves to pnpm's reserved,
+  unimplemented command instead of the repository script.
 - If the native runner rejects the invocation, launch it through `pnpm typecheck:native` or
   `pnpm typecheck:native:ci`; calling its Node file directly does not provide the trusted pnpm path.
 - If native typecheck fails, use `artifacts/typescript/native-typecheck.json` to identify the owning
