@@ -11,6 +11,7 @@ const notification = {
   body: "Ada mentioned you",
   channel: { id: "channel-1", name: "general" },
   createdAt: "2026-07-15T10:00:00.000Z",
+  eventKind: null,
   id: "00000000-0000-4000-8000-000000000001",
   messageQuote: { id: "message-1", preview: "Please review the contract" },
   read: false,
