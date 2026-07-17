@@ -48,6 +48,7 @@ import {
   MobileMessageEditRequestSchema,
   MobileMessageReactionRequestSchema,
   MobileMessageReactionResponseSchema,
+  MobileNotificationEventKindSchema,
   MobileNotificationIdParamsSchema,
   MobileNotificationItemSchema,
   MobileNotificationMutationResponseSchema,
@@ -454,7 +455,10 @@ describe("mobile schemas", () => {
       MobileDMConversationListItemSchema: {
         schema: MobileDMConversationListItemSchema,
         valid: mobileDMConversation,
-        invalid: { ...mobileDMConversation, lastMessage: { ...mobileDMConversation.lastMessage, createdAt: "today" } },
+        invalid: {
+          ...mobileDMConversation,
+          lastMessage: { ...mobileDMConversation.lastMessage, createdAt: "today" },
+        },
       },
       MobileDMConversationsQuerySchema: {
         schema: MobileDMConversationsQuerySchema,
@@ -593,6 +597,11 @@ describe("mobile schemas", () => {
         schema: MobileMessageReactionResponseSchema,
         valid: { reactions: [] },
         invalid: { reactions: "none" },
+      },
+      MobileNotificationEventKindSchema: {
+        schema: MobileNotificationEventKindSchema,
+        valid: "message-reaction",
+        invalid: "unknown-event",
       },
       MobileNotificationIdParamsSchema: {
         schema: MobileNotificationIdParamsSchema,
@@ -1038,9 +1047,11 @@ describe("mobile schemas", () => {
 
     assertAccepts(MobileNotificationItemSchema, notification);
     assertRejects(MobileNotificationItemSchema, { ...notification, type: "UNKNOWN" }, ["type"]);
-    assertRejects(MobileNotificationItemSchema, { ...notification, actionUrl: "https://evil.test" }, [
-      "actionUrl",
-    ]);
+    assertRejects(
+      MobileNotificationItemSchema,
+      { ...notification, actionUrl: "https://evil.test" },
+      ["actionUrl"],
+    );
     assertRejects(MobileNotificationItemSchema, { ...notification, actionUrl: "//evil.test" }, [
       "actionUrl",
     ]);
