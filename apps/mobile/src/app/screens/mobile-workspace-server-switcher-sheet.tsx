@@ -9,6 +9,7 @@ import {
   type MobileBootstrapPayload,
 } from "../mobile-root-screen-shared";
 import { AvatarMark } from "../components/ui-atoms";
+import { useMobileBottomSystemSpacing } from "../use-mobile-bottom-system-spacing";
 import { useTheme, useThemedStyles } from "../providers/mobile-theme-provider";
 import type { MobileTheme } from "../../design/themes";
 
@@ -31,6 +32,7 @@ export function MobileWorkspaceServerSwitcherSheet({
 }) {
   const styles = useThemedStyles(createMobileWorkspaceServerSwitcherSheetStyles);
   const theme = useTheme();
+  const bottomSpacing = useMobileBottomSystemSpacing(28);
 
   if (!open) {
     return null;
@@ -42,6 +44,7 @@ export function MobileWorkspaceServerSwitcherSheet({
       transparent
       visible={open}
       onRequestClose={onClose}
+      navigationBarTranslucent
       statusBarTranslucent
     >
       <View style={styles.root} testID="mobile-server-switcher-sheet">
@@ -52,7 +55,10 @@ export function MobileWorkspaceServerSwitcherSheet({
           style={styles.backdrop}
           testID="mobile-server-switcher-dismiss"
         />
-        <View style={styles.sheet}>
+        <View
+          style={[styles.sheet, { paddingBottom: bottomSpacing }]}
+          testID="mobile-server-switcher-sheet-panel"
+        >
           <View style={styles.handle} />
           <View style={styles.header}>
             <Text style={styles.title}>Sunucuların</Text>
@@ -105,11 +111,15 @@ export function MobileWorkspaceServerSwitcherSheet({
                     size="large"
                   />
                   <View style={styles.serverText}>
-                    <Text style={[styles.serverName, selected && styles.serverNameSelected]} numberOfLines={1}>
+                    <Text
+                      style={[styles.serverName, selected && styles.serverNameSelected]}
+                      numberOfLines={1}
+                    >
                       {server.name}
                     </Text>
                     <Text style={styles.serverMeta} numberOfLines={1}>
-                      {server.memberCount} {copy.membersSuffix} · {server.channelCount} {copy.channelsSuffix}
+                      {server.memberCount} {copy.membersSuffix} · {server.channelCount}{" "}
+                      {copy.channelsSuffix}
                     </Text>
                   </View>
                   {selected ? (
@@ -232,7 +242,10 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
     fontFamily: theme.typography.fontFamilyBold,
     fontSize: 15.5,
   },
-  serverNameSelected: { color: theme.accent.strong, fontFamily: theme.typography.fontFamilyExtraBold },
+  serverNameSelected: {
+    color: theme.accent.strong,
+    fontFamily: theme.typography.fontFamilyExtraBold,
+  },
   serverRow: {
     alignItems: "center" as const,
     borderRadius: 20,

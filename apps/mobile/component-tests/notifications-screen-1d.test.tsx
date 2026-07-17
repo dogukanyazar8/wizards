@@ -1,6 +1,6 @@
 import React from "react";
 import { fireEvent } from "@testing-library/react-native";
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { MobileNotificationItem } from "@wizards/types";
 import { createNotificationsScreenStyles } from "../src/app/screens/notifications-screen.styles";
 import { lightTheme } from "../src/design/themes";
@@ -82,9 +82,14 @@ function renderScreen(overrides: Record<string, unknown> = {}) {
 
 describe("1d notifications screen", () => {
   beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date("2026-07-16T12:00:00.000Z"));
     jest.clearAllMocks();
     mockNotifications = [];
     mockQueryState = { isError: false, isLoading: false, isRefetching: false };
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it("requests native notification permission only after the explicit CTA press", async () => {
@@ -150,7 +155,9 @@ describe("1d notifications screen", () => {
     expect(view.getByTestId(`mobile-notification-voice-icon-${voiceRoomStarted.id}`)).toBeTruthy();
     expect(view.queryByTestId(`mobile-notification-avatar-${voiceRoomStarted.id}`)).toBeNull();
     expect(onJoinVoiceNotification).not.toHaveBeenCalled();
-    await fireEvent.press(view.getByTestId(`mobile-notification-voice-join-${voiceRoomStarted.id}`));
+    await fireEvent.press(
+      view.getByTestId(`mobile-notification-voice-join-${voiceRoomStarted.id}`),
+    );
     expect(onJoinVoiceNotification).toHaveBeenCalledWith(voiceRoomStarted);
   });
 

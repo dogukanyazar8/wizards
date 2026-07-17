@@ -1,9 +1,16 @@
 import React from "react";
+import { StyleSheet } from "react-native";
 import { fireEvent } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 
 import { MobileWorkspaceServerSwitcherSheet } from "../src/app/screens/mobile-workspace-server-switcher-sheet";
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
+
+const mockBottomSystemSpacing = jest.fn(() => 28);
+
+jest.mock("../src/app/use-mobile-bottom-system-spacing", () => ({
+  useMobileBottomSystemSpacing: (minimumSpacing: number) => mockBottomSystemSpacing(minimumSpacing),
+}));
 
 const servers = [
   {
@@ -54,5 +61,26 @@ describe("MobileWorkspaceServerSwitcherSheet", () => {
 
     await fireEvent.press(view.getByTestId("mobile-server-switcher-create-join"));
     expect(onOpenCreateJoin).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the server-switcher actions above a three-button Android navigation bar", async () => {
+    mockBottomSystemSpacing.mockReturnValue(48);
+    const view = await render(
+      <MobileWorkspaceServerSwitcherSheet
+        activeServerId="server-uat"
+        onClose={jest.fn()}
+        onOpenCreateJoin={jest.fn()}
+        onOpenServer={jest.fn()}
+        open
+        servers={servers as never}
+      />,
+    );
+
+    expect(mockBottomSystemSpacing).toHaveBeenCalledWith(28);
+    expect(
+      StyleSheet.flatten(view.getByTestId("mobile-server-switcher-sheet-panel").props.style),
+    ).toMatchObject({
+      paddingBottom: 48,
+    });
   });
 });

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { StyleSheet } from "react-native";
 import Svg, {
   Circle,
@@ -21,14 +22,12 @@ interface AuthWelcomeBackgroundSpec {
     readonly height: number;
     readonly width: number;
   };
-  readonly dotGrid:
-    | {
-        readonly color: string;
-        readonly opacity: number;
-        readonly radius: number;
-        readonly spacing: number;
-      }
-    | null;
+  readonly dotGrid: {
+    readonly color: string;
+    readonly opacity: number;
+    readonly radius: number;
+    readonly spacing: number;
+  } | null;
   readonly linearGradient: {
     readonly angle: number;
     readonly stops: readonly {
@@ -178,7 +177,7 @@ function gradientLine(spec: AuthWelcomeBackgroundSpec) {
   };
 }
 
-export function AuthWelcomeBackground({
+function AuthWelcomeBackgroundComponent({
   testID,
   tone,
 }: {
@@ -237,8 +236,16 @@ export function AuthWelcomeBackground({
           id={secondGlowId}
           r={farthestCornerRadius(spec.canvas, secondGlow.center)}
         >
-          <Stop offset="0" stopColor={secondGlowPaint.color} stopOpacity={secondGlowPaint.opacity} />
-          <Stop offset={secondGlow.transparentAt} stopColor={secondGlowPaint.color} stopOpacity="0" />
+          <Stop
+            offset="0"
+            stopColor={secondGlowPaint.color}
+            stopOpacity={secondGlowPaint.opacity}
+          />
+          <Stop
+            offset={secondGlow.transparentAt}
+            stopColor={secondGlowPaint.color}
+            stopOpacity="0"
+          />
         </RadialGradient>
         {spec.dotGrid ? (
           <Pattern
@@ -266,3 +273,13 @@ export function AuthWelcomeBackground({
     </Svg>
   );
 }
+
+/**
+ * Memoized so this full-screen gradient + dot-pattern SVG is not re-rendered
+ * every time the host auth screen re-renders for unrelated reasons — typing in
+ * the login/register form, validation messages, or focus changes. `tone` and
+ * `testID` are stable for the lifetime of a screen, so the (relatively costly)
+ * SVG rasterization happens once per mount instead of on every keystroke, while
+ * still re-rendering correctly when the theme toggles `tone` from light to dark.
+ */
+export const AuthWelcomeBackground = memo(AuthWelcomeBackgroundComponent);

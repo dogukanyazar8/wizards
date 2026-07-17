@@ -9,6 +9,7 @@ import { darkTheme, lightTheme, type MobileTheme } from "../src/design/themes";
 import { activeMobileCopy as copy } from "../src/locale/mobile-locale-preferences";
 
 let mockTheme: MobileTheme = lightTheme;
+const mockBottomSystemSpacing = jest.fn(() => 0);
 let mockGestureHandlers: {
   end?: (event: { translationY: number; velocityY: number }) => void;
   update?: (event: { translationY: number; velocityY: number }) => void;
@@ -20,6 +21,10 @@ jest.mock("../src/app/providers/mobile-theme-provider", () => ({
     const { StyleSheet } = require("react-native");
     return StyleSheet.create(factory(mockTheme));
   },
+}));
+
+jest.mock("../src/app/use-mobile-bottom-system-spacing", () => ({
+  useMobileBottomSystemSpacing: (minimumSpacing: number) => mockBottomSystemSpacing(minimumSpacing),
 }));
 
 jest.mock("react-native-gesture-handler", () => {
@@ -61,6 +66,8 @@ import { MessageAttachmentList, MessagePreviewRow } from "../src/app/components/
 
 beforeEach(() => {
   mockGestureHandlers = {};
+  mockBottomSystemSpacing.mockReset();
+  mockBottomSystemSpacing.mockReturnValue(0);
   jest.mocked(useReducedMotion).mockReturnValue(false);
   jest.mocked(Clipboard.setStringAsync).mockClear();
 });
@@ -97,6 +104,21 @@ for (const theme of [lightTheme, darkTheme]) {
       expect(onClose).toHaveBeenCalledTimes(3);
       await view.unmount();
       expect(removeBackHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps BottomSheet controls above a three-button Android navigation bar", async () => {
+      mockTheme = theme;
+      mockBottomSystemSpacing.mockReturnValue(48);
+      const view = await render(
+        <BottomSheet accessibilityLabel="Actions" onClose={jest.fn()} open testID="inset-sheet">
+          <Text>Sheet content</Text>
+        </BottomSheet>,
+      );
+
+      expect(mockBottomSystemSpacing).toHaveBeenCalledWith(0);
+      expect(StyleSheet.flatten(view.getByTestId("inset-sheet-panel").props.style)).toMatchObject({
+        paddingBottom: theme.spacing.page + 48,
+      });
     });
 
     it("renders nothing while BottomSheet is closed and uses immediate reduced-motion state", async () => {
@@ -138,10 +160,14 @@ for (const theme of [lightTheme, darkTheme]) {
       );
 
       expect(view.getByTestId("mobile-blur-view").props.intensity).toBe(2);
-      expect(StyleSheet.flatten(view.getByTestId("presented-sheet-backdrop").props.style)).toMatchObject({
+      expect(
+        StyleSheet.flatten(view.getByTestId("presented-sheet-backdrop").props.style),
+      ).toMatchObject({
         backgroundColor: theme.authLanguage.backdrop,
       });
-      expect(StyleSheet.flatten(view.getByTestId("presented-sheet-panel").props.style)).toMatchObject({
+      expect(
+        StyleSheet.flatten(view.getByTestId("presented-sheet-panel").props.style),
+      ).toMatchObject({
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
         borderWidth: 0,
@@ -262,7 +288,9 @@ for (const theme of [lightTheme, darkTheme]) {
     it("shows a bounded error when copying a message fails", async () => {
       mockTheme = theme;
       const alert = jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
-      jest.mocked(Clipboard.setStringAsync).mockRejectedValueOnce(new Error("clipboard unavailable"));
+      jest
+        .mocked(Clipboard.setStringAsync)
+        .mockRejectedValueOnce(new Error("clipboard unavailable"));
       const message: ChatMessage = {
         attachments: [],
         author: {

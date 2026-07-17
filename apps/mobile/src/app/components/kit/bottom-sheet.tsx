@@ -17,7 +17,8 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
-import { useThemedStyles } from "../../providers/mobile-theme-provider";
+import { useTheme, useThemedStyles } from "../../providers/mobile-theme-provider";
+import { useMobileBottomSystemSpacing } from "../../use-mobile-bottom-system-spacing";
 import { createBottomSheetStyles } from "./bottom-sheet.styles";
 
 export interface BottomSheetProps {
@@ -49,7 +50,9 @@ const MAX_SNAP_POINT = 720;
 const CLOSE_VELOCITY = 900;
 
 function clampSnapPoint(snapPoint: number | undefined): number {
-  const value = Number.isFinite(snapPoint) ? Math.round(snapPoint ?? DEFAULT_SNAP_POINT) : DEFAULT_SNAP_POINT;
+  const value = Number.isFinite(snapPoint)
+    ? Math.round(snapPoint ?? DEFAULT_SNAP_POINT)
+    : DEFAULT_SNAP_POINT;
   return Math.min(MAX_SNAP_POINT, Math.max(MIN_SNAP_POINT, value));
 }
 
@@ -68,16 +71,22 @@ export function BottomSheet({
   snapPoint: requestedSnapPoint,
   testID = "mobile-bottom-sheet",
 }: BottomSheetProps) {
+  const theme = useTheme();
   const styles = useThemedStyles(createBottomSheetStyles);
+  const bottomSystemInset = useMobileBottomSystemSpacing(0);
   const reducedMotion = useReducedMotion() === true;
   const snapPoint = clampSnapPoint(requestedSnapPoint);
   const translateY = useSharedValue(open ? 0 : snapPoint);
 
   useEffect(() => {
-    translateY.value = reducedMotion ? (open ? 0 : snapPoint) : withSpring(open ? 0 : snapPoint, {
-      damping: 24,
-      stiffness: 240,
-    });
+    translateY.value = reducedMotion
+      ? open
+        ? 0
+        : snapPoint
+      : withSpring(open ? 0 : snapPoint, {
+          damping: 24,
+          stiffness: 240,
+        });
   }, [open, reducedMotion, snapPoint, translateY]);
 
   useEffect(() => {
@@ -153,6 +162,7 @@ export function BottomSheet({
             role="dialog"
             style={[
               styles.panel,
+              { paddingBottom: theme.spacing.page + bottomSystemInset },
               presentation?.panelStyle,
               { height: snapPoint },
               animatedPanelStyle,

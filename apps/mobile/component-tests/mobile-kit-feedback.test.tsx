@@ -6,6 +6,7 @@ import { useReducedMotion } from "react-native-reanimated";
 import { darkTheme, lightTheme, type MobileTheme } from "../src/design/themes";
 
 let mockTheme: MobileTheme = lightTheme;
+const mockBottomSystemSpacing = jest.fn(() => 24);
 
 jest.mock("../src/app/providers/mobile-theme-provider", () => ({
   useTheme: () => mockTheme,
@@ -13,6 +14,10 @@ jest.mock("../src/app/providers/mobile-theme-provider", () => ({
     const { StyleSheet } = require("react-native");
     return StyleSheet.create(factory(mockTheme));
   },
+}));
+
+jest.mock("../src/app/use-mobile-bottom-system-spacing", () => ({
+  useMobileBottomSystemSpacing: (minimumSpacing: number) => mockBottomSystemSpacing(minimumSpacing),
 }));
 
 import { Skeleton, ToastProvider, useToast } from "../src/app/components/kit";
@@ -40,6 +45,8 @@ function ToastHarness() {
 
 afterEach(() => {
   jest.useRealTimers();
+  mockBottomSystemSpacing.mockReset();
+  mockBottomSystemSpacing.mockReturnValue(24);
   jest.mocked(useReducedMotion).mockReturnValue(false);
 });
 
@@ -99,6 +106,26 @@ for (const theme of [lightTheme, darkTheme]) {
       clearTimerSpy.mockClear();
       await view.unmount();
       expect(clearTimerSpy).toHaveBeenCalled();
+    });
+
+    it("keeps toast controls above a three-button Android navigation bar", async () => {
+      mockTheme = theme;
+      jest.useFakeTimers();
+      mockBottomSystemSpacing.mockReturnValue(48);
+      const view = await render(
+        <ToastProvider>
+          <ToastHarness />
+        </ToastProvider>,
+      );
+
+      await fireEvent.press(view.getByTestId("show-first-toast"));
+
+      expect(mockBottomSystemSpacing).toHaveBeenCalledWith(24);
+      expect(
+        StyleSheet.flatten(view.getByTestId("mobile-toast-viewport").props.style),
+      ).toMatchObject({
+        bottom: 48,
+      });
     });
   });
 }

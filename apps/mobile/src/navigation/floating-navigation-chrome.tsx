@@ -5,6 +5,7 @@ import {
 } from "@react-navigation/bottom-tabs";
 import { Keyboard, Platform, Pressable, Text, View, type LayoutChangeEvent } from "react-native";
 import { useMobileHaptics } from "../app/providers/mobile-haptics-provider";
+import { resolveMobileBottomSystemSpacing } from "../app/mobile-bottom-system-inset";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
 import { MobileLineIcon } from "../design/mobile-line-icons";
 import { mobileNavigationMetrics } from "../design/tokens";
@@ -24,7 +25,7 @@ const copy = activeMobileCopy;
 
 export function FloatingNavigationChrome({
   directMessageUnreadCount = 0,
-  insets: _insets,
+  insets,
   onBeginPushToTalk,
   onEndPushToTalk,
   onLeaveVoiceChannel,
@@ -50,6 +51,7 @@ export function FloatingNavigationChrome({
   const styles = useThemedStyles(createFloatingNavigationChromeStyles);
   const onHeightChange = useContext(BottomTabBarHeightCallbackContext);
   const keyboardVisible = useMobileKeyboardVisibility();
+  const bottomSpacing = resolveMobileBottomSystemSpacing(insets.bottom, 18);
   const miniVoiceBarVisible = isVoiceSessionActive(voiceRoom.status);
   const handleLayout = useCallback(
     (event: LayoutChangeEvent) => {
@@ -63,9 +65,7 @@ export function FloatingNavigationChrome({
       onLayout={handleLayout}
       style={[
         styles.chrome,
-        keyboardVisible
-          ? styles.chromeKeyboardHidden
-          : { paddingBottom: 18 },
+        keyboardVisible ? styles.chromeKeyboardHidden : { paddingBottom: bottomSpacing },
       ]}
       testID="mobile-floating-navigation-chrome"
     >

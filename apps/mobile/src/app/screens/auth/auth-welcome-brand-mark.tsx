@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useContext, useEffect, useState } from "react";
+import { NavigationContext } from "@react-navigation/native";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -12,10 +13,6 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, {
   Defs,
-  FeGaussianBlur,
-  FeMerge,
-  FeMergeNode,
-  Filter,
   LinearGradient as SvgLinearGradient,
   RadialGradient,
   Rect,
@@ -62,14 +59,46 @@ const CANONICAL_WAVEFORM_BARS: readonly WaveformBar[] = [
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
+/**
+ * Tracks whether the surrounding navigation screen is focused, defaulting to
+ * `true` when the brand mark is rendered outside a navigator (e.g. unit tests).
+ * Reading the navigation prop straight from `NavigationContext` (instead of
+ * `useIsFocused`) keeps this safe when no navigator is present. Lets the brand
+ * mark pause its looping equalizer while its auth screen is off-screen, so idle
+ * logos on background screens never share UI-thread time with the active screen
+ * transition and never keep the GPU busy for nothing.
+ */
+function useScreenFocusActive(): boolean {
+  const navigation = useContext(NavigationContext);
+  const [active, setActive] = useState(() => navigation?.isFocused() ?? true);
+
+  useEffect(() => {
+    if (!navigation) {
+      setActive(true);
+      return;
+    }
+
+    setActive(navigation.isFocused());
+    const unsubscribeFocus = navigation.addListener("focus", () => setActive(true));
+    const unsubscribeBlur = navigation.addListener("blur", () => setActive(false));
+
+    return () => {
+      unsubscribeFocus();
+      unsubscribeBlur();
+    };
+  }, [navigation]);
+
+  return active;
+}
+
 function AnimatedWaveformBar({
+  active,
   bar,
-  filterId,
   index,
   testID,
 }: {
+  readonly active: boolean;
   readonly bar: WaveformBar;
-  readonly filterId: string;
   readonly index: number;
   readonly testID?: string;
 }) {
@@ -77,6 +106,14 @@ function AnimatedWaveformBar({
   const scale = useSharedValue(AUTH_EQUALIZER_MIN_SCALE);
 
   useEffect(() => {
+    if (!active) {
+      // Off-screen (blurred) auth screen: freeze the loop so it stops consuming
+      // UI-thread/GPU time and lets the active screen transition run clean.
+      cancelAnimation(scale);
+      cancelAnimation(opacity);
+      return;
+    }
+
     const delay = index * AUTH_EQUALIZER_DELAY;
     scale.value = withDelay(
       delay,
@@ -129,7 +166,7 @@ function AnimatedWaveformBar({
       cancelAnimation(opacity);
       cancelAnimation(scale);
     };
-  }, [index, opacity, scale]);
+  }, [active, index, opacity, scale]);
 
   const animatedProps = useAnimatedProps(() => {
     const height = bar.height * scale.value;
@@ -141,13 +178,18 @@ function AnimatedWaveformBar({
     };
   });
 
+  // The waveform bars are intentionally drawn without an SVG blur/glow filter.
+  // A per-bar `FeGaussianBlur` filter is recomputed every animation frame and
+  // forces the whole SVG onto the software (non-hardware-accelerated) render
+  // path, which starved the UI thread during native-stack screen transitions on
+  // real devices. Crisp bars keep the animation GPU-friendly and the auth screen
+  // transitions instant.
   return (
     <AnimatedRect
       {...bar}
       animatedProps={animatedProps}
       fill={mobilePalette.neutral.white}
       fillOpacity={0.95}
-      filter={`url(#${filterId})`}
       {...(testID === undefined ? {} : { testID })}
     />
   );
@@ -158,9 +200,9 @@ export function AuthWelcomeBrandMark({
   size = WEB_BRAND_ICON_SIZE,
   testID,
 }: AuthWelcomeBrandMarkProps) {
+  const active = useScreenFocusActive();
   const surfaceGradientId = `${testID ?? "auth-welcome-brand-mark"}-surface-gradient`;
   const surfaceHighlightId = `${testID ?? "auth-welcome-brand-mark"}-surface-highlight`;
-  const barGlowId = `${testID ?? "auth-welcome-brand-mark"}-bar-glow`;
   const viewBoxCornerRadius = (cornerRadius * WEB_BRAND_ICON_SIZE) / size;
 
   return (
@@ -207,19 +249,6 @@ export function AuthWelcomeBrandMark({
           <Stop offset="0%" stopColor={mobilePalette.neutral.white} stopOpacity={0.34} />
           <Stop offset="100%" stopColor={mobilePalette.neutral.white} stopOpacity={0} />
         </RadialGradient>
-        <Filter
-          height="180%"
-          id={barGlowId}
-          width="180%"
-          x="-40%"
-          y="-40%"
-        >
-          <FeGaussianBlur in="SourceGraphic" result="blur" stdDeviation={2} />
-          <FeMerge>
-            <FeMergeNode in="blur" />
-            <FeMergeNode in="SourceGraphic" />
-          </FeMerge>
-        </Filter>
       </Defs>
       <Rect
         fill={`url(#${surfaceGradientId})`}
@@ -236,8 +265,8 @@ export function AuthWelcomeBrandMark({
       />
       {CANONICAL_WAVEFORM_BARS.map((bar, index) => (
         <AnimatedWaveformBar
+          active={active}
           bar={bar}
-          filterId={barGlowId}
           index={index}
           key={`${bar.x}-${bar.y}`}
           {...(testID === undefined ? {} : { testID: `${testID}-animated-bar-${index + 1}` })}

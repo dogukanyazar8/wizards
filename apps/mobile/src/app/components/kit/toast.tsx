@@ -12,6 +12,7 @@ import { Text, View } from "react-native";
 import { useThemedStyles } from "../../providers/mobile-theme-provider";
 import type { MobileTheme } from "../../../design/themes";
 import { activeMobileCopy as copy } from "../../../locale/mobile-locale-preferences";
+import { useMobileBottomSystemSpacing } from "../../use-mobile-bottom-system-spacing";
 import { IconButton } from "./icon-button";
 
 export type ToastTone = "danger" | "info" | "success" | "warning";
@@ -78,6 +79,7 @@ function clampToastDuration(duration: number | undefined): number {
 
 export function ToastProvider({ children }: PropsWithChildren) {
   const styles = useThemedStyles(createStyles);
+  const toastBottom = useMobileBottomSystemSpacing(24);
   const [queue, setQueue] = useState<readonly ToastEntry[]>([]);
   const nextId = useRef(1);
   const currentToast = queue[0];
@@ -117,7 +119,11 @@ export function ToastProvider({ children }: PropsWithChildren) {
     <ToastContext.Provider value={runtime}>
       {children}
       {currentToast ? (
-        <View pointerEvents="box-none" style={styles.viewport}>
+        <View
+          pointerEvents="box-none"
+          style={[styles.viewport, { bottom: toastBottom }]}
+          testID="mobile-toast-viewport"
+        >
           <View
             accessibilityLiveRegion="polite"
             accessibilityRole="alert"

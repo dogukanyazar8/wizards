@@ -108,12 +108,14 @@ describe("FloatingNavigationChrome", () => {
     );
   });
 
-  it("reports the measured tab-only height to React Navigation", async () => {
+  it("keeps the floating tab chrome above the supplied Android bottom inset", async () => {
     const view = await renderChrome({ status: "idle" });
 
-    expect(view.view.getByTestId("mobile-floating-navigation-pill").props.bottomSafeAreaInset).toBe(0);
+    expect(view.view.getByTestId("mobile-floating-navigation-pill").props.bottomSafeAreaInset).toBe(
+      0,
+    );
     expect(view.view.getByTestId("mobile-floating-navigation-chrome").props.style).toEqual(
-      expect.arrayContaining([expect.objectContaining({ paddingBottom: 18 })]),
+      expect.arrayContaining([expect.objectContaining({ paddingBottom: 24 })]),
     );
 
     await fireEvent(view.view.getByTestId("mobile-floating-navigation-chrome"), "layout", {

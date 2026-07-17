@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
 
 import type { MobileTheme } from "../../../../design/themes";
 import { useTheme, useThemedStyles } from "../../../providers/mobile-theme-provider";
@@ -116,18 +116,30 @@ export function AuthScreenBackground({
       testID={testID}
     >
       {rendersCanonicalWelcomeBackground ? (
-        <AuthWelcomeBackground
-          tone={theme.dark ? "dark" : "light"}
-          {...(testID ? { testID: `${testID}-canonical-background-${theme.id}` } : {})}
-        />
+        // Promote the static background to its own hardware-textured layer so the
+        // native-stack slide transition composites a cached bitmap instead of
+        // re-rasterizing the gradient/pattern SVG on every frame of the slide.
+        <View
+          collapsable={false}
+          pointerEvents="none"
+          renderToHardwareTextureAndroid
+          style={StyleSheet.absoluteFill}
+        >
+          <AuthWelcomeBackground
+            tone={theme.dark ? "dark" : "light"}
+            {...(testID ? { testID: `${testID}-canonical-background-${theme.id}` } : {})}
+          />
+        </View>
       ) : (
         <>
           <View style={styles.glowTop} testID={testID ? `${testID}-glow-top` : undefined} />
           <View style={styles.glowBottom} testID={testID ? `${testID}-glow-bottom` : undefined} />
           <View style={styles.dotField}>
             {Array.from({ length: auth.backgroundDotCount }, (_, index) => {
-              const left = `${(index * auth.backgroundDotHorizontalStep) % auth.backgroundDotHorizontalModulo}%` as `${number}%`;
-              const top = `${(index * auth.backgroundDotVerticalStep) % auth.backgroundDotVerticalModulo}%` as `${number}%`;
+              const left =
+                `${(index * auth.backgroundDotHorizontalStep) % auth.backgroundDotHorizontalModulo}%` as `${number}%`;
+              const top =
+                `${(index * auth.backgroundDotVerticalStep) % auth.backgroundDotVerticalModulo}%` as `${number}%`;
               const emphasized = index % auth.backgroundDotHighlightInterval === 0;
 
               return (
@@ -146,7 +158,10 @@ export function AuthScreenBackground({
         </>
       )}
       {scrollable ? (
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
           {content}
         </ScrollView>
       ) : (
