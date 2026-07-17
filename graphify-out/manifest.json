@@ -127,30 +127,6 @@
     "mtime": 1783962831.3632965,
     "hash": "8b71e613f5d11453a66df84347f5548c"
   },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\build.gradle": {
-    "mtime": 1783724755.0598621,
-    "hash": "55cec08c744fbe7b1f1294009fe3f65d"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\gradlew": {
-    "mtime": 1783724754.309522,
-    "hash": "780b1d3e23a3b82154795f73df943a14"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\settings.gradle": {
-    "mtime": 1783724755.0588608,
-    "hash": "bae47ba88dcc6eb9f591ca4e5a5dc351"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\build.gradle": {
-    "mtime": 1783724755.0608654,
-    "hash": "a8aa5468fe3e72402107632d5baa9409"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\java\\team\\whispr\\mobile\\MainActivity.kt": {
-    "mtime": 1783724754.9903574,
-    "hash": "af04fce242737d95ae10470402856f08"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\java\\team\\whispr\\mobile\\MainApplication.kt": {
-    "mtime": 1783724754.9893534,
-    "hash": "f5d711c283837446882a484612ac7ef1"
-  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\component-tests\\auth-language-picker-sheet.test.tsx": {
     "mtime": 1784146572.772513,
     "hash": "4e1f38383f461ead1768fd1cd7ebe547"
@@ -2062,6 +2038,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\global-error.tsx": {
     "mtime": 1783951117.9677145,
     "hash": "406b00d3c90d1145dbe5e00118a06ecb"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\globals.d.css.ts": {
+    "mtime": 1784284038.0182712,
+    "hash": "b8aa9c723bc0896d8ede1ea04a630f26"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\src\\app\\layout.tsx": {
     "mtime": 1782476770.8737755,
@@ -4891,9 +4871,37 @@
     "mtime": 1781862284.9293022,
     "hash": "e903fd83db6ffe52aacc07e06d53d87e"
   },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\support.js": {
-    "mtime": 1784275395.0,
-    "hash": "58b7cf77cf3c27dc7e743f85c929a099"
+  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\typescript\\parity-debug\\native\\contributors.d.ts": {
+    "mtime": 1784284370.2767725,
+    "hash": "70706a52ee48715a8c23c175594c4fee"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\typescript\\parity-debug\\native\\index.d.ts": {
+    "mtime": 1784284370.2757752,
+    "hash": "e8326f5a4061cbc48dbdefba4757a678"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\typescript\\parity-debug\\native\\seed.d.ts": {
+    "mtime": 1784284370.2767725,
+    "hash": "e2ebd7ddedcadeeadbf819c35985c768"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\typescript\\parity-debug\\native\\sync-contributors.d.ts": {
+    "mtime": 1784284370.2757752,
+    "hash": "e2ebd7ddedcadeeadbf819c35985c768"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\typescript\\parity-debug\\stable\\contributors.d.ts": {
+    "mtime": 1784284371.038468,
+    "hash": "70706a52ee48715a8c23c175594c4fee"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\typescript\\parity-debug\\stable\\index.d.ts": {
+    "mtime": 1784284371.048009,
+    "hash": "276ec2e0945631c37d2bc7084c288d1c"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\typescript\\parity-debug\\stable\\seed.d.ts": {
+    "mtime": 1784284371.048009,
+    "hash": "e2ebd7ddedcadeeadbf819c35985c768"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\typescript\\parity-debug\\stable\\sync-contributors.d.ts": {
+    "mtime": 1784284371.0490124,
+    "hash": "e2ebd7ddedcadeeadbf819c35985c768"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\prisma-config.d.ts": {
     "mtime": 1776866606.6930864,
@@ -5019,22 +5027,6 @@
     "mtime": 1783931384.2918859,
     "hash": "2b4840e1f3ea7149be8547d2255f8daf"
   },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations_backup_20260427_151913\\20260422000000_add_fulltext_search_indexes\\migration.sql": {
-    "mtime": 1777291947.18171,
-    "hash": "38d1aa203db4512ac66be56391d11b7a"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations_backup_20260427_151913\\20260426000000_theme_system_refresh\\migration.sql": {
-    "mtime": 1777291947.18171,
-    "hash": "f79390737d3e66e54d3b56e030d3d5c3"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations_backup_20260427_151913\\20260426010000_add_user_settings_locale\\migration.sql": {
-    "mtime": 1777291947.1827104,
-    "hash": "c105f59ff66211ffc67b6437c2ef047f"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\prisma\\migrations_backup_20260427_151913\\20260427123000_add_voice_state_heartbeat\\migration.sql": {
-    "mtime": 1777291947.1837103,
-    "hash": "6ea5348025c1aa0909ad677193bf777b"
-  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\packages\\db\\scripts\\ensure-prisma-client-runtime.mjs": {
     "mtime": 1777160902.1686208,
     "hash": "b0acebf2e0474193851680f1050d3388"
@@ -5143,6 +5135,26 @@
     "mtime": 1776813228.071455,
     "hash": "b36b4471fa392f7fd52db5d67e6d22e8"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\scripts\\quality\\typescript-declaration-parity.mjs": {
+    "mtime": 1784284333.2731166,
+    "hash": "37201f62f7043fff96b8b6501f792991"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\scripts\\quality\\typescript-declaration-parity.test.mjs": {
+    "mtime": 1784284251.8768127,
+    "hash": "780613b5885d36cf45ccb7ae86727a3e"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\scripts\\quality\\typescript-native-runner.mjs": {
+    "mtime": 1784284199.886585,
+    "hash": "9b886e1677a0a90385e1d01553fbcdd9"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\scripts\\quality\\typescript-native-runner.test.mjs": {
+    "mtime": 1784284164.2782102,
+    "hash": "77926d778b8d98af1a2395921da498d6"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\scripts\\quality\\typescript-toolchain-contract.test.mjs": {
+    "mtime": 1784284802.7004478,
+    "hash": "6be6430df576325b9735b7c24b8eda17"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\AGENTS.md": {
     "mtime": 1778571008.0802588,
     "hash": "747e73a5e1af4b72c0d65c9169c23199"
@@ -5152,8 +5164,8 @@
     "hash": "2a8685d21e63f387982a4f241098fd3e"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\pnpm-workspace.yaml": {
-    "mtime": 1783951117.974715,
-    "hash": "ea5a919f2578ebaf133fecc926acdeb9"
+    "mtime": 1784285627.0579162,
+    "hash": "963c4e37bae06e9718b8cdd8056c8b4c"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\desktop\\GAME_OVERLAY.md": {
     "mtime": 1781862284.8223526,
@@ -5227,10 +5239,6 @@
     "mtime": 1783690629.3360918,
     "hash": "14e8ec763c47dd2497cec9bbed53db89"
   },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\playwright-report\\index.html": {
-    "mtime": 1783699299.2361987,
-    "hash": "4f304a069e5a7076582d1f94526c090c"
-  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\legal\\cookies.txt": {
     "mtime": 1778571008.0962586,
     "hash": "1c8db7e8af75e2c4a13075201d7551b1"
@@ -5242,114 +5250,6 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\legal\\terms.txt": {
     "mtime": 1778571008.0972586,
     "hash": "42498f6fac417d448feb0fc1702b2846"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\final-verification\\component-tests.txt": {
-    "mtime": 1783636711.1620488,
-    "hash": "a72bf3699bca2f16f4c8a1bea204e97a"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\final-verification\\contract-tests.txt": {
-    "mtime": 1783636733.075351,
-    "hash": "fb0b517314b0ca64ec5e7fd78d3f44e5"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\final-verification\\expo-install-check.txt": {
-    "mtime": 1783636616.236473,
-    "hash": "f128a10cb1e61335390f6b65cb83816e"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\final-verification\\persistence-scan.txt": {
-    "mtime": 1783636607.7926338,
-    "hash": "3b9554360cfac293229f793237812843"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\final-verification\\quality-check.txt": {
-    "mtime": 1783636733.4874902,
-    "hash": "a7fd81d891f72cf11426e5d7b5bc25fe"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\final-verification\\typecheck.txt": {
-    "mtime": 1783636705.589367,
-    "hash": "43752c370496c50a2b27e0335252c982"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-final\\maestro-output.txt": {
-    "mtime": 1783636316.309261,
-    "hash": "47c1143ebe430f4adaedceb0abfb3793"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-final-3\\maestro-output.txt": {
-    "mtime": 1783636463.0409822,
-    "hash": "818ac82c8202d7cfd0e4e0dfc37f465a"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-final-4\\maestro-output.txt": {
-    "mtime": 1783636536.2793672,
-    "hash": "f1d86a9cf432e88272bac8b6a51dcb10"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-1\\maestro-output.txt": {
-    "mtime": 1783631321.1587403,
-    "hash": "3ba851b8996d662089b942c2ad2aae17"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-1\\report.html": {
-    "mtime": 1783631320.8612957,
-    "hash": "bf45c69c062b15690bccf10eb775a08e"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-2\\maestro-output.txt": {
-    "mtime": 1783631426.335264,
-    "hash": "4bab073f221f4f6e1b3a269278038f33"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-2\\report.html": {
-    "mtime": 1783631426.0178509,
-    "hash": "4364e64c3d03de32cd46080ae3953442"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-3\\maestro-output.txt": {
-    "mtime": 1783631566.3428192,
-    "hash": "2791d6fa057008e217e361cc97857b8d"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-3\\report.html": {
-    "mtime": 1783631566.0939424,
-    "hash": "5a6d6cf4b5a29fb7ee0aa9baa3a1ee0b"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-4\\maestro-output.txt": {
-    "mtime": 1783631699.2692196,
-    "hash": "d05a5b3ec15eb9e45bc2363f7b8cbac6"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-4\\report.html": {
-    "mtime": 1783631699.0020554,
-    "hash": "a0d59860df0d47076b6c08e540ec7a30"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-5\\maestro-output.txt": {
-    "mtime": 1783631905.37875,
-    "hash": "c2f46fa8dafb9c63920a997b0d05f9f5"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-5\\report.html": {
-    "mtime": 1783631905.1006424,
-    "hash": "bb945f579bee9a9524cbf82d52c6fee8"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-7\\maestro-output.txt": {
-    "mtime": 1783632557.128107,
-    "hash": "adfe11b6f139949f50d0a8bf1e611041"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-8\\maestro-output.txt": {
-    "mtime": 1783632800.4547236,
-    "hash": "2a469bc649f254b8dd7f1ee015b9c402"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase1\\closure\\task6-verification.md": {
-    "mtime": 1784035583.8586595,
-    "hash": "98ee196c046770b79ab0a8e1816a5203"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\2b-login-alignment\\comparison.md": {
-    "mtime": 1784224405.523363,
-    "hash": "ecad2870a070864e7a147d0d52b3923d"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\README.md": {
-    "mtime": 1784275394.0,
-    "hash": "0a7d4b0a57e5493416fa41688d3c2b60"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\README_AUTH.md": {
-    "mtime": 1784275394.0,
-    "hash": "ec6bd3265c03972571ac8df685efec22"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\README_DM_SETTINGS.md": {
-    "mtime": 1784275394.0,
-    "hash": "94213364405119dbcb1f5d920fd94bc5"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\Whispr Mobile Redesign.dc.html": {
-    "mtime": 1784275394.0,
-    "hash": "9ededc003e12908236835cf6ac40eb62"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\docs\\operations\\attachment-malware-scanning.md": {
     "mtime": 1783600946.4236305,
@@ -5386,6 +5286,10 @@
   "C:\\Users\\doguk\\Desktop\\Wizards\\docs\\operations\\outbox-worker-monitoring.md": {
     "mtime": 1783519039.1916976,
     "hash": "97631c1eb500b31a9eb27aed89e48fc8"
+  },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\docs\\operations\\typescript-toolchain.md": {
+    "mtime": 1784285627.1885614,
+    "hash": "157979743bb27d3e1dac6fe559aac66d"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\docs\\operations\\workspace-performance-monitoring.md": {
     "mtime": 1779082192.536619,
@@ -5495,6 +5399,10 @@
     "mtime": 1784228227.3255222,
     "hash": "95ef16d21f6f9ec72d991e39e5307658"
   },
+  "C:\\Users\\doguk\\Desktop\\Wizards\\docs\\superpowers\\plans\\2026-07-17-whispr-typescript-modernization.md": {
+    "mtime": 1784280129.2830338,
+    "hash": "fc53a15bab99bc50691f638083e2c070"
+  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\docs\\superpowers\\specs\\2026-07-09-whispr-mobile-phase-0-design.md": {
     "mtime": 1783627982.3614533,
     "hash": "adc29f0ab504e1d0a01075a381ff3c6f"
@@ -5571,262 +5479,6 @@
     "mtime": 1778571008.089259,
     "hash": "1a25f1fdee07cf2e50a7ea83df0b21f6"
   },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\drawable-hdpi\\splashscreen_logo.png": {
-    "mtime": 1783724754.327546,
-    "hash": "ade4f271d920c553479f8359126fe71c"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\drawable-mdpi\\splashscreen_logo.png": {
-    "mtime": 1783724754.3285506,
-    "hash": "456a586f33d48e02adee03680b872073"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\drawable-xhdpi\\splashscreen_logo.png": {
-    "mtime": 1783724754.3295505,
-    "hash": "b151f30998a8eb180038294d96108ad3"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\drawable-xxhdpi\\splashscreen_logo.png": {
-    "mtime": 1783724754.330556,
-    "hash": "456fa27f2c9de9a9bf0d8951a9609ea4"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\drawable-xxxhdpi\\splashscreen_logo.png": {
-    "mtime": 1783724754.3315535,
-    "hash": "8724a45c38b0f973ac9713ff270a40cb"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher.webp": {
-    "mtime": 1783724754.9959297,
-    "hash": "32fcda7c62b13e49513d9bbce37bec14"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher_foreground.webp": {
-    "mtime": 1783724755.0074396,
-    "hash": "f3138cb4c53013038ff8d7c57673a885"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher_round.webp": {
-    "mtime": 1783724755.0004401,
-    "hash": "dc2f60e5e63119d4e6b63424f3fd549a"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher.webp": {
-    "mtime": 1783724754.9959297,
-    "hash": "4e85a97a1ba38fe04d3ff1ba825ecc5d"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher_foreground.webp": {
-    "mtime": 1783724755.0074396,
-    "hash": "77b911a5c6ea37936e065151caf8a8ab"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher_round.webp": {
-    "mtime": 1783724754.9994383,
-    "hash": "f2a02a3b98de54c57d31ec6ab4ebf685"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher.webp": {
-    "mtime": 1783724754.9959297,
-    "hash": "66ad784e5643b470cb291da851a464b4"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher_foreground.webp": {
-    "mtime": 1783724755.0074396,
-    "hash": "ccd1e2ce09c4bcd642979c1648034e2a"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher_round.webp": {
-    "mtime": 1783724755.0004401,
-    "hash": "9389ad70815918b1fb5913628100e5c7"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher.webp": {
-    "mtime": 1783724754.9959297,
-    "hash": "7fcd5290276b04c1333f427123d4307d"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher_foreground.webp": {
-    "mtime": 1783724755.0074396,
-    "hash": "7a6007293fcf3a5b8491c868c21e0457"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher_round.webp": {
-    "mtime": 1783724755.0004401,
-    "hash": "537bd747885237c69164500c6206a6ed"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher.webp": {
-    "mtime": 1783724754.9959297,
-    "hash": "7f42f70ffa98b79d14824652870db51a"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher_foreground.webp": {
-    "mtime": 1783724755.0074396,
-    "hash": "008cccb762c7a45b4483e560d390c2cb"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher_round.webp": {
-    "mtime": 1783724755.0004401,
-    "hash": "49b3e88acba906708f67bd53ac8de873"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\closure\\debug\\screenshot-\u274c-1783966128252-(phase5-voice-polish).png": {
-    "mtime": 1783966128.4752111,
-    "hash": "1a453da2135307d7e78c9095c3afc53e"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\closure\\screenshots\\screenshots\\artifacts\\mobile\\phase5\\dark-voice-polish.png": {
-    "mtime": 1783966112.8604946,
-    "hash": "57e16b364e149d9f94e4585694df6a91"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\closure\\screenshots\\screenshots\\artifacts\\mobile\\phase5\\light-voice-polish.png": {
-    "mtime": 1783966093.842118,
-    "hash": "15ae50b42059d381a9f03f5c1ef24cee"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\final\\debug\\screenshot-\u274c-1783965722470-(phase5-voice-polish).png": {
-    "mtime": 1783965722.7392752,
-    "hash": "68f5f17c98a2ed202135ecb80e5d3eb8"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\final\\debug\\screenshot-\u274c-1783967221629-(phase5-voice-polish).png": {
-    "mtime": 1783967221.8909945,
-    "hash": "e19c1895d4ed2df476da3a6c5f1af4e7"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\final\\screenshots\\screenshots\\artifacts\\mobile\\phase5\\dark-voice-polish.png": {
-    "mtime": 1783967160.609761,
-    "hash": "79d9e7a3191e9f77b222e558eead30f3"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\final\\screenshots\\screenshots\\artifacts\\mobile\\phase5\\light-voice-polish.png": {
-    "mtime": 1783967140.9787905,
-    "hash": "6aa7895d783a489ed6aec287f39799e6"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\final-pass\\debug\\screenshot-\u274c-1783965948967-(phase5-voice-polish).png": {
-    "mtime": 1783965949.2170248,
-    "hash": "21e229409a1dcd3a74f2ff39dfdd731d"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\final-pass\\debug\\screenshot-\u274c-1783967911828-(phase5-voice-polish).png": {
-    "mtime": 1783967912.0392566,
-    "hash": "2742d82a8deff05c2ad90388f4a0d67c"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\final-pass\\screenshots\\screenshots\\artifacts\\mobile\\phase5\\dark-voice-polish.png": {
-    "mtime": 1783967848.0717998,
-    "hash": "463eed01b6e3e78fd5c3db21500170b4"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\final-pass\\screenshots\\screenshots\\artifacts\\mobile\\phase5\\light-voice-polish.png": {
-    "mtime": 1783967829.1359272,
-    "hash": "42190d3fdd8441914dbb23ecdb320a42"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\final-verified\\debug\\screenshot-\u274c-1783966576996-(phase5-voice-polish).png": {
-    "mtime": 1783966577.2122073,
-    "hash": "00e7be93821658193f1e77f223ad892d"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\final-verified\\screenshots\\screenshots\\artifacts\\mobile\\phase5\\dark-voice-polish.png": {
-    "mtime": 1783966486.6165655,
-    "hash": "a861e1b65eb3929f723311eba0b32ff9"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\final-verified\\screenshots\\screenshots\\artifacts\\mobile\\phase5\\light-voice-polish.png": {
-    "mtime": 1783966467.4879005,
-    "hash": "27f5dd871be2d3983a0c2e9b7a376d11"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\offline-probe\\debug\\screenshot-\u274c-1783967489243-(phase5-offline-recovery).png": {
-    "mtime": 1783967489.471062,
-    "hash": "819fff8c7e429e536bd8e1c8f6965f1f"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\offline-probe-verified\\debug\\screenshot-\u274c-1783967623871-(phase5-offline-recovery).png": {
-    "mtime": 1783967624.0885904,
-    "hash": "995740d483f20690b43e2ca46dd20fc8"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\pass\\debug\\screenshot-\u274c-1783966343089-(phase5-voice-polish).png": {
-    "mtime": 1783966343.313399,
-    "hash": "48f8530b1da2b49390054b80b4f12383"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\pass\\screenshots\\screenshots\\artifacts\\mobile\\phase5\\dark-voice-polish.png": {
-    "mtime": 1783966297.6416185,
-    "hash": "42bf38f384a1041267d4eda6940e6eca"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\pass\\screenshots\\screenshots\\artifacts\\mobile\\phase5\\light-voice-polish.png": {
-    "mtime": 1783966278.0903585,
-    "hash": "294db89a87c71a1aca6d3718830fd855"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\release-pass\\debug\\screenshot-\u274c-1783966957964-(phase5-voice-polish).png": {
-    "mtime": 1783966958.2080894,
-    "hash": "62c17a5de6fd7ee6fee04be5f66029cd"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\release-pass\\screenshots\\screenshots\\artifacts\\mobile\\phase5\\dark-voice-polish.png": {
-    "mtime": 1783966777.604873,
-    "hash": "ca4401c74be5a75f7c2611e1080ed0b3"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\release-pass\\screenshots\\screenshots\\artifacts\\mobile\\phase5\\light-voice-polish.png": {
-    "mtime": 1783966758.5875542,
-    "hash": "630a368cc65a43931f724fe613f468e7"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\uat-pass\\screenshots\\screenshots\\artifacts\\mobile\\phase5\\dark-voice-polish.png": {
-    "mtime": 1783968049.7692878,
-    "hash": "8695d4f3d93bd7dd0b98675647bf099c"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\phase5-maestro\\uat-pass\\screenshots\\screenshots\\artifacts\\mobile\\phase5\\light-voice-polish.png": {
-    "mtime": 1783968031.4569657,
-    "hash": "b6dec9f29965ed2d036e7545f2455f65"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extract\\1a.png": {
-    "mtime": 1784040768.037826,
-    "hash": "0e3b75eed6fdaa71043cd49ebd627c38"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extract\\1b.png": {
-    "mtime": 1784040768.037826,
-    "hash": "72426522abf8bfc7ba31b24cf27043e0"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extract\\1c.png": {
-    "mtime": 1784040768.037826,
-    "hash": "8d8076aeec2ff4b7a5ac1e7be81af6eb"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extract\\1d.png": {
-    "mtime": 1784040768.037826,
-    "hash": "16d8140999a42e3c1cb995418e16f3d6"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extract\\1e.png": {
-    "mtime": 1784040768.037826,
-    "hash": "3e31d70c95ce2e310a17402544c3306b"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extract\\1f.png": {
-    "mtime": 1784040768.037826,
-    "hash": "98b0c59dddc9b8336e49d920ac6090ca"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extract\\1g.png": {
-    "mtime": 1784040768.037826,
-    "hash": "da8c8cf3bb3f42421445e7f30b7940ed"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extract\\1h.png": {
-    "mtime": 1784040768.037826,
-    "hash": "99be813363616b0d301a89e12819b406"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extract\\1i.png": {
-    "mtime": 1784040768.0388231,
-    "hash": "12a725e08575fb074a7c5ec4d6fe8ea7"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extract\\1j.png": {
-    "mtime": 1784040768.0388231,
-    "hash": "3674aaf8f0c7a5116770128834585f76"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1a.png": {
-    "mtime": 1784038782.7572122,
-    "hash": "acccf3139e3528e048e5da605231e44d"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1b.png": {
-    "mtime": 1784038782.7572122,
-    "hash": "72426522abf8bfc7ba31b24cf27043e0"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1c.png": {
-    "mtime": 1784038782.7572122,
-    "hash": "8d8076aeec2ff4b7a5ac1e7be81af6eb"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1d.png": {
-    "mtime": 1784038782.7572122,
-    "hash": "16d8140999a42e3c1cb995418e16f3d6"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1e.png": {
-    "mtime": 1784038782.7572122,
-    "hash": "3e31d70c95ce2e310a17402544c3306b"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1f.png": {
-    "mtime": 1784038782.7572122,
-    "hash": "98b0c59dddc9b8336e49d920ac6090ca"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1g.png": {
-    "mtime": 1784038782.7572122,
-    "hash": "da8c8cf3bb3f42421445e7f30b7940ed"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1h.png": {
-    "mtime": 1784038782.7572122,
-    "hash": "99be813363616b0d301a89e12819b406"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1i.png": {
-    "mtime": 1784038782.758213,
-    "hash": "12a725e08575fb074a7c5ec4d6fe8ea7"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\artifacts\\redesign\\reference-extractor\\1j.png": {
-    "mtime": 1784038782.758213,
-    "hash": "3674aaf8f0c7a5116770128834585f76"
-  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\mobile\\assets\\favicon.png": {
     "mtime": 1782500332.3454044,
     "hash": "d9f444efbdfbe7931aa93beada07318a"
@@ -5884,15 +5536,15 @@
     "hash": "8446670e09b2ac02375c8db60c89427f"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\visual\\visual.spec.ts-snapshots\\login-chromium-linux.png": {
-    "mtime": 1783688412.0,
+    "mtime": 1783688412,
     "hash": "6429cca7a7ef9f697d1b59b5e13b4ffe"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\visual\\visual.spec.ts-snapshots\\server-text-channel-chromium-linux.png": {
-    "mtime": 1783688152.0,
+    "mtime": 1783688152,
     "hash": "8a67e6695a098d66b42d4f8b7e2c8167"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\e2e\\specs\\visual\\visual.spec.ts-snapshots\\settings-overlay-chromium-linux.png": {
-    "mtime": 1783688157.0,
+    "mtime": 1783688157,
     "hash": "f5dc631a3f5f2f0a47fa3bf85397b622"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\app-icons\\dm-whispr-send-v2.png": {
@@ -5931,361 +5583,13 @@
     "mtime": 1778571008.0952592,
     "hash": "b16875851b180480e7f4dcca86e605c8"
   },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\layout-fix\\messages-safe-area.png": {
-    "mtime": 1783738485.4017105,
-    "hash": "4a5b0401aeec809f56fe58d66d05de22"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\layout-fix\\notifications-safe-area.png": {
-    "mtime": 1783738509.9850981,
-    "hash": "6ceceea932cc0ab48465499936f647df"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\layout-fix\\overview-safe-area.png": {
-    "mtime": 1783738507.6511633,
-    "hash": "e0010e36b33a13efa2387388d82afbb8"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\layout-fix\\profile-safe-area.png": {
-    "mtime": 1783738514.6586435,
-    "hash": "98fc2c3b22feda330d3bb2f502f25927"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\layout-fix\\voice-safe-area.png": {
-    "mtime": 1783738512.3153808,
-    "hash": "e69c8cf7d27bf5a86a4ec9a12dcbd193"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\current-screen-2.png": {
-    "mtime": 1783632348.7416992,
-    "hash": "1402ecd621d3a2c100a802fba7512f5d"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\current-screen.png": {
-    "mtime": 1783632220.8262064,
-    "hash": "80732a1798325fc384d499711526e4e9"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\current.png": {
-    "mtime": 1783631071.3247216,
-    "hash": "b457c626d833dcc2731cbbb4673ce710"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-final\\tests\\2026-07-10_013044\\screenshot-\u274c-1783636316052-(phase0-navigation).png": {
-    "mtime": 1783636316.3042595,
-    "hash": "7198cd2d4600ffe25f85d4193e097adb"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-1\\tests\\2026-07-10_000816\\screenshot-\u274c-1783631320509-(phase0-navigation).png": {
-    "mtime": 1783631320.831174,
-    "hash": "7eb8d2aa69d1db051b1b8a474607cd92"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-2\\tests\\2026-07-10_000950\\screenshot-\u274c-1783631425693-(phase0-navigation).png": {
-    "mtime": 1783631425.9870083,
-    "hash": "4a39cfb2774b6c27ffd7670b2951834f"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-3\\tests\\2026-07-10_001138\\screenshot-\u274c-1783631565800-(phase0-navigation).png": {
-    "mtime": 1783631566.0693662,
-    "hash": "e04d328313fea9d38bf8859c6f0a2b8b"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-4\\tests\\2026-07-10_001343\\screenshot-\u274c-1783631698785-(phase0-navigation).png": {
-    "mtime": 1783631698.974147,
-    "hash": "6f04fdae79c8fafb4803016fd54f1242"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-5\\tests\\2026-07-10_001755\\screenshot-\u274c-1783631904772-(phase0-navigation).png": {
-    "mtime": 1783631905.0684862,
-    "hash": "28bd377572236fe8633148839028e214"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase0-navigation\\maestro-run-7\\tests\\2026-07-10_002817\\screenshot-\u274c-1783632556857-(phase0-navigation).png": {
-    "mtime": 1783632557.124108,
-    "hash": "872923f251c3ecbb44627bd03a6d9d15"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase2\\auth-probe.png": {
-    "mtime": 1783789776.163421,
-    "hash": "cad249da92eca989c624b1d50715a1c4"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase2\\dark-messaging.png": {
-    "mtime": 1783792885.475722,
-    "hash": "23050a17eca9dd9a6561c2e1eb8c32ac"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase2\\failure-screen.png": {
-    "mtime": 1783735811.5716567,
-    "hash": "b9e28833864ab7b28a872e3f5cfea10c"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase2\\light-messaging.png": {
-    "mtime": 1783792858.0998547,
-    "hash": "9f6a758c59bf463ce6049f84123d5bf7"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase2\\closure\\dark-messaging.png": {
-    "mtime": 1783792885.475722,
-    "hash": "23050a17eca9dd9a6561c2e1eb8c32ac"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase2\\closure\\light-messaging.png": {
-    "mtime": 1783792858.0998547,
-    "hash": "9f6a758c59bf463ce6049f84123d5bf7"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase2\\closure\\m1-after-launch.png": {
-    "mtime": 1783789190.433757,
-    "hash": "dcf574866b1508db802a45482f820807"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase2\\closure\\m1-app.png": {
-    "mtime": 1783789134.1423862,
-    "hash": "bbbce2f2b4d2d6b4d165b201446e832b"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase2\\closure\\m1-current.png": {
-    "mtime": 1783789034.859517,
-    "hash": "69c161fdee0dbd5c7078a2d605a9b6c6"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase2\\closure\\m1-current2.png": {
-    "mtime": 1783789093.8289597,
-    "hash": "0946008847765176119a7557fea27d3c"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase3\\closure\\dark-dm-details.png": {
-    "mtime": 1783925803.1031723,
-    "hash": "474e168a3dad37d5901d4e7b1ebd3543"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase3\\closure\\delayed-gif-picker.png": {
-    "mtime": 1783925564.1063325,
-    "hash": "a0209babdff7ca72b3a6ceb9afc428f2"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase3\\closure\\light-dm-details.png": {
-    "mtime": 1783925772.4673786,
-    "hash": "7159f1b02a3b2205dc58122a6583181b"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase3\\closure\\light-gif-picker.png": {
-    "mtime": 1783925781.5023081,
-    "hash": "8e1a1e5f7c0a36f3b75cf36e1407dc65"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase3\\closure\\light-security.png": {
-    "mtime": 1783925788.2200382,
-    "hash": "db8606c0bb79308b89cd6edc4d5aaa52"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase4\\uat-env-audit.png": {
-    "mtime": 1783955441.215623,
-    "hash": "ef49872630d6262363ee56e662e0f16c"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase4\\upload-diagnose.png": {
-    "mtime": 1783955983.9568737,
-    "hash": "de84858641005bc267bce98f57c222eb"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase4\\closure\\dark-server-management.png": {
-    "mtime": 1783957790.204106,
-    "hash": "40ce4312d3592b312be057e3edea6a52"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\mobile\\phase4\\closure\\light-server-management.png": {
-    "mtime": 1783957775.233073,
-    "hash": "fc19d35c747e494cb01ebbebc46c4dba"
-  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\1a-light\\1a-light.png": {
     "mtime": 1784106357.9010732,
     "hash": "8f64185ccd739c5a1e17e630e77035e9"
   },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\1b-light\\uat-1b-current-build-after-data-wait.png": {
-    "mtime": 1784195304.5370417,
-    "hash": "91936aeeefb60b0fc4fcc3c43225ae69"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\1b-light\\uat-1b-current-build-after-metro.png": {
-    "mtime": 1784195255.2352161,
-    "hash": "8b8ce66277656f371a9ba09d986d6f39"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\1b-light\\uat-1b-current-build-channel-grouped-390x844.png": {
-    "mtime": 1784195517.790372,
-    "hash": "9e76587ecb53536af89d712ec9693c75"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\1b-light\\uat-1b-current-build-channel-grouped.png": {
-    "mtime": 1784195380.5617619,
-    "hash": "e7af3a09f74141b3bf206600f64d151f"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\1b-light\\uat-1b-current-build-channel.png": {
-    "mtime": 1784195338.8400497,
-    "hash": "13679d45c705382d60199c7f403545c2"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\1b-light\\uat-1b-current-build-dev-launcher.png": {
-    "mtime": 1784195197.1740408,
-    "hash": "6062cbfab4bc0ad1fd2869186c97aa0b"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\1b-light\\uat-1b-current-vs-handoff-diff.png": {
-    "mtime": 1784195519.776049,
-    "hash": "0bdb089c5c568cdac3404098c567a13d"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\1b-light\\uat-1b-final-build-after-metro.png": {
-    "mtime": 1784195871.189204,
-    "hash": "17f9a3b2f0bbc439bf2c8da6ab7b3a09"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\1b-light\\uat-1b-final-build-connected-metro.png": {
-    "mtime": 1784196026.5991342,
-    "hash": "b33f1bc50e94796ed6c608bbe4ca057f"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\1b-light\\uat-1b-final-build-connected.png": {
-    "mtime": 1784195920.6796696,
-    "hash": "fc6e935e9b0c3d2995c536f8e47dcad5"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\1b-light\\uat-1b-final-build-retry.png": {
-    "mtime": 1784196169.5201962,
-    "hash": "0e8a55950cc466a7e6cbee79d825102b"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\1b-light\\uat-1b-final-build-running.png": {
-    "mtime": 1784196073.174463,
-    "hash": "05456e59f47124a282ba8fc6980df2a4"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\1b-light\\uat-1b-final-build-workspace.png": {
-    "mtime": 1784196120.4244375,
-    "hash": "35ade9a46e11afa766654db1de940003"
-  },
   "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\1i-dark\\1i-dark.png": {
     "mtime": 1784106375.1079898,
     "hash": "11e41018262ad9c194b5ce894a539069"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\2b-login-alignment\\emulator-development-client-blocked.png": {
-    "mtime": 1784224102.1041806,
-    "hash": "b6350ef89da573abcdadb6642f33a799"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\2b-login-alignment\\reference-2b.png": {
-    "mtime": 1784141764.0,
-    "hash": "200cfce8790384c4bf3f856c205ec691"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\diff\\1a-light\\visual-diff-overlay.png": {
-    "mtime": 1784106387.994,
-    "hash": "ae6aa711345910be3cd68b565f3ccefd"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\diff\\1i-dark\\visual-diff-overlay.png": {
-    "mtime": 1784106396.013,
-    "hash": "ebcbd20ca07c909f877b825056051ceb"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\reference-current\\1a.png": {
-    "mtime": 1784064789.041594,
-    "hash": "0e3b75eed6fdaa71043cd49ebd627c38"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\reference-current\\1b.png": {
-    "mtime": 1784064789.041594,
-    "hash": "72426522abf8bfc7ba31b24cf27043e0"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\reference-current\\1c.png": {
-    "mtime": 1784064789.041594,
-    "hash": "8d8076aeec2ff4b7a5ac1e7be81af6eb"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\reference-current\\1d.png": {
-    "mtime": 1784064789.041594,
-    "hash": "16d8140999a42e3c1cb995418e16f3d6"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\reference-current\\1e.png": {
-    "mtime": 1784064789.0425954,
-    "hash": "3e31d70c95ce2e310a17402544c3306b"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\reference-current\\1f.png": {
-    "mtime": 1784064789.0425954,
-    "hash": "98b0c59dddc9b8336e49d920ac6090ca"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\reference-current\\1g.png": {
-    "mtime": 1784064789.0425954,
-    "hash": "da8c8cf3bb3f42421445e7f30b7940ed"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\reference-current\\1h.png": {
-    "mtime": 1784064789.0425954,
-    "hash": "99be813363616b0d301a89e12819b406"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\reference-current\\1i.png": {
-    "mtime": 1784064789.0425954,
-    "hash": "12a725e08575fb074a7c5ec4d6fe8ea7"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\reference-current\\1j.png": {
-    "mtime": 1784064789.0425954,
-    "hash": "3674aaf8f0c7a5116770128834585f76"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\uat-1a-fonts\\after-build-current.png": {
-    "mtime": 1784199446.1679184,
-    "hash": "5076e73ebe0b7510390c1283b9feac51"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\uat-1a-fonts\\launched-current.png": {
-    "mtime": 1784199480.2541237,
-    "hash": "82e0a2f8ab7cc9ed03dfd7e96a66d0de"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\uat-1a-fonts\\running-current.png": {
-    "mtime": 1784199506.7463417,
-    "hash": "e0b851bb46535811e27ce07e1a2a4d2d"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\uat-1a-live\\after-rail-fix-loaded.png": {
-    "mtime": 1784194766.548412,
-    "hash": "8864152fafd1d7a3cf69d78235c48ddc"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\uat-1a-live\\after-rail-fix-running.png": {
-    "mtime": 1784194742.9938483,
-    "hash": "4d0d835e034a031538406ce7572e31b4"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\uat-1a-live\\after-rail-fix.png": {
-    "mtime": 1784194648.3979583,
-    "hash": "20e26d64688d36136126aefe2e623d84"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\uat-1a-live\\profile-font-audit.png": {
-    "mtime": 1784198691.134242,
-    "hash": "90bc34a93c71c2217b99759c99239036"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\artifacts\\redesign\\uat-1a-live\\server-switcher.png": {
-    "mtime": 1784194804.7806144,
-    "hash": "ac80a47b305c5167546a2fac8fb4bafe"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\1a-sunucular.png": {
-    "mtime": 1784275394.0,
-    "hash": "37e0e9c7ee9e923cf02784ec2034d471"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\1b-kanal-sohbet.png": {
-    "mtime": 1784275395.0,
-    "hash": "0c40f4000dcdc442776d9c5ed7d61db7"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\1c-mesajlar.png": {
-    "mtime": 1784275395.0,
-    "hash": "2ec3f9c1ce7b2ca76481e98a7546b569"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\1d-bildirimler.png": {
-    "mtime": 1784275395.0,
-    "hash": "52354db874bb433a9e388a7ab22504cd"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\1e-ses-odasi.png": {
-    "mtime": 1784275395.0,
-    "hash": "29b9aec176fa6647795a88fabc0b5a63"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\1f-profil.png": {
-    "mtime": 1784275395.0,
-    "hash": "e1900ef6a6bd53ea1643e8d17892546d"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\1g-sunucu-sheet.png": {
-    "mtime": 1784275395.0,
-    "hash": "85271c2f41e03bd473cd98e1e2f6d62c"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\1h-sol-rail-varyanti.png": {
-    "mtime": 1784275395.0,
-    "hash": "c661846068c53fb379f6db93328f8a2a"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\1i-koyu-sunucular.png": {
-    "mtime": 1784275395.0,
-    "hash": "b511f84bf74d53b34ac24dbd75e49ef4"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\1j-koyu-sohbet.png": {
-    "mtime": 1784275395.0,
-    "hash": "6a0c48be240e677fd3c1b30c05f83d18"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\2a-karsilama.png": {
-    "mtime": 1784275395.0,
-    "hash": "20cb2abfdaa5d7effff0dac43a066d80"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\2b-giris.png": {
-    "mtime": 1784275395.0,
-    "hash": "200cfce8790384c4bf3f856c205ec691"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\2c-kayit.png": {
-    "mtime": 1784275395.0,
-    "hash": "1a0692a564171258d148d87858e2a95a"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\2d-sifre-sifirlama.png": {
-    "mtime": 1784275395.0,
-    "hash": "3b6458f7769b67d512b0d2dd622824e7"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\3a-dil-secimi.png": {
-    "mtime": 1784275395.0,
-    "hash": "500a9c0b7d4b7c37dcbf14dc44a39cd0"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\4a-dm-sohbet.png": {
-    "mtime": 1784275395.0,
-    "hash": "2cf663ce7c2e740733bb6fba1577c056"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\4b-hesap-ayarlari.png": {
-    "mtime": 1784275395.0,
-    "hash": "e4e615514783d74ba49e29ba560004b2"
-  },
-  "C:\\Users\\doguk\\Desktop\\Wizards\\design_handoff_whispr_mobile\\screenshots\\4c-gorunum-ayarlari.png": {
-    "mtime": 1784275395.0,
-    "hash": "fd4162f7c34c1905b0a8bbc42cc4e580"
   },
   "C:\\Users\\doguk\\Desktop\\Wizards\\apps\\web\\public\\sounds\\notification-whispr.mp3": {
     "mtime": 1777995270.2292292,
