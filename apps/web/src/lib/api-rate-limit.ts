@@ -61,6 +61,7 @@ export const API_RATE_LIMITS = {
   "mobile:bootstrap": { limit: 120, windowSeconds: 60 },
   "mobile:account:presence": { limit: 60, windowSeconds: 60 },
   "mobile:account:profile": { limit: 30, windowSeconds: 60 },
+  "mobile:account:settings": { limit: 60, windowSeconds: 60 },
   "mobile:account:two-factor": { limit: 10, windowSeconds: 10 * 60 },
   "mobile:channel:history:clear": { limit: 10, windowSeconds: 60 },
   "mobile:channel:mark-read": { limit: 180, windowSeconds: 60 },
