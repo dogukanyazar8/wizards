@@ -20,14 +20,16 @@
     "maintenance:cleanup-reauth": "pnpm --filter @wizards/web maintenance:cleanup-reauth",
     "test": "turbo test",
     "test:coverage": "turbo test:coverage --filter @wizards/web",
+    "test:toolchain": "node --test scripts/quality/*.test.mjs",
     "typecheck": "turbo typecheck",
     "format": "turbo format",
     "db:generate": "turbo db:generate",
     "contributors:sync": "pnpm --filter @wizards/db contributors:sync"
   },
   "devDependencies": {
+    "@typescript/native": "catalog:",
     "prettier": "^3.5.3",
     "turbo": "^2.9.14",
-    "typescript": "^5.8.3"
+    "typescript": "catalog:"
   }
 }

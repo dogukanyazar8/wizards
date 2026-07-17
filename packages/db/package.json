@@ -14,10 +14,10 @@
     "prisma:ensure-runtime": "node ./scripts/ensure-prisma-client-runtime.mjs",
     "db:seed": "node --loader ts-node/esm src/seed.ts",
     "contributors:sync": "node --loader ts-node/esm src/sync-contributors.ts",
-    "build": "prisma generate && tsc -p tsconfig.json",
+    "build": "prisma generate && tsc6 -p tsconfig.json",
     "dev": "echo db package ready",
-    "lint": "prisma generate && tsc --noEmit",
-    "typecheck": "prisma generate && tsc --noEmit",
+    "lint": "prisma generate && tsc6 --noEmit",
+    "typecheck": "prisma generate && tsc6 --noEmit",
     "format": "prettier --check ."
   },
   "dependencies": {
@@ -30,6 +30,6 @@
     "prettier": "^3.5.3",
     "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "typescript": "catalog:"
   }
 }
