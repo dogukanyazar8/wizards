@@ -108,10 +108,9 @@ jobs:
         run: pnpm build
 
   typescript-native-shadow:
-    name: TypeScript 7 Native Shadow
+    name: TypeScript 7 Native
     runs-on: ubuntu-latest
     timeout-minutes: 12
-    continue-on-error: true
 
     steps:
       - name: Checkout

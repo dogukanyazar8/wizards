@@ -10,7 +10,7 @@
     "dev": "turbo dev",
     "dev:clear-auth-rate-limits": "pnpm --filter @wizards/web dev:clear-auth-rate-limits",
     "build": "turbo build",
-    "ci": "pnpm audit --audit-level moderate && pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build",
+    "ci": "pnpm audit --audit-level moderate && pnpm test:toolchain && pnpm lint && pnpm typecheck && pnpm typecheck:native:ci && pnpm typecheck:declarations && pnpm test:coverage && pnpm build",
     "e2e": "turbo e2e --filter @wizards/web",
     "e2e:api": "turbo e2e:api --filter @wizards/web",
     "e2e:realtime": "turbo e2e:realtime --filter @wizards/web",
